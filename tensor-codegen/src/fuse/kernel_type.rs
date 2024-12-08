@@ -2,6 +2,7 @@
 pub(crate) enum KernelType {
     Unary,
     Binary,
+    Opaque,
 }
 
 impl KernelType {
@@ -11,6 +12,9 @@ impl KernelType {
             (KernelType::Binary, KernelType::Binary) => Some(KernelType::Binary),
             (KernelType::Binary, KernelType::Unary) => Some(KernelType::Binary),
             (KernelType::Unary, KernelType::Binary) => Some(KernelType::Binary),
+            (KernelType::Opaque, KernelType::Unary) => Some(KernelType::Unary),
+            (KernelType::Opaque, KernelType::Binary) => Some(KernelType::Binary),
+            (_, KernelType::Opaque) => None,
         }
     }
     pub fn infer_pred_kernel(&self, pred: &KernelType) -> Option<KernelType> {
@@ -19,6 +23,8 @@ impl KernelType {
             (KernelType::Binary, KernelType::Binary) => Some(KernelType::Binary),
             (KernelType::Binary, KernelType::Unary) => Some(KernelType::Binary),
             (KernelType::Unary, KernelType::Binary) => Some(KernelType::Binary),
+            (KernelType::Opaque, _) => None,
+            (_, KernelType::Opaque) => None,
         }
     }
 }

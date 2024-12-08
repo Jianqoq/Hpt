@@ -182,4 +182,23 @@ impl<'ast> Visit<'ast> for UseDefineVisitor {
             }
         }
     }
+
+    fn visit_expr_method_call(&mut self, i: &'ast syn::ExprMethodCall) {
+        if let syn::Expr::Path(path) = i.receiver.as_ref() {
+            if let Some(ident) = path.path.get_ident() {
+                self.used_vars.insert(ident.clone());
+            }
+        } else {
+            self.visit_expr(i.receiver.as_ref());
+        }
+        for arg in i.args.iter() {
+            if let syn::Expr::Path(path) = arg {
+                if let Some(ident) = path.path.get_ident() {
+                    self.used_vars.insert(ident.clone());
+                }
+            } else {
+                self.visit_expr(arg);
+            }
+        }
+    }
 }

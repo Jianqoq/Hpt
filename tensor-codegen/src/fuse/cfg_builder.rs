@@ -17,6 +17,7 @@ pub(crate) struct CFGBuilder<'a> {
     pub(crate) is_last_stmt: bool,
     pub(crate) global_block_cnt: usize,
     pub(crate) errors: Vec<Error>,
+    pub(crate) has_assignment: bool,
 }
 
 impl<'a> CFGBuilder<'a> {
@@ -33,6 +34,7 @@ impl<'a> CFGBuilder<'a> {
             current_type: None,
             current_item: None,
             errors: vec![],
+            has_assignment: false,
         }
     }
 
@@ -74,7 +76,8 @@ impl<'a> CFGBuilder<'a> {
     fn handle_if(&mut self, expr_if: &syn::ExprIf) {
         let mut current_block_id = Some(core::mem::take(&mut self.block_ids));
         let (cond_block, cond_block_id, assign_ident, assign_block_id) = if
-            self.cfg.graph[self.current_block].block_type == BlockType::IfElseEnd
+            self.cfg.graph[self.current_block].block_type == BlockType::IfElseEnd &&
+            self.cfg.graph[self.current_block].statements.len() == 0
         {
             self.cfg.graph[self.current_block].block_type = BlockType::ElseIfCond;
             (self.current_block, None, None, None)
@@ -781,44 +784,12 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         ).map(|expr| {
             new_expr.expr = Box::new(expr);
             let new_expr = syn::Expr::Reference(new_expr);
-            let mut has_same_right = false;
-            for stmt in self.cfg.graph[self.current_block].statements.iter() {
-                if let syn::Stmt::Local(local) = &stmt.stmt {
-                    let pat = &local.pat;
-                    if let Some(init) = &local.init {
-                        if init.expr.as_ref() == &new_expr {
-                            has_same_right = true;
-                            self.current_expr = Some(syn::parse2(quote::quote! { #pat }).expect("reference expr is none"));
-                            break;
-                        }
-                    }
-                }
-            }
-            if !has_same_right {
-                let ident = syn::Ident::new(
-                    &format!("__ref_out_{}", self.global_block_cnt()),
-                    i.span()
-                );
-                if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_expr; }) {
-                    self.push_stmt(stmt);
-                } else {
-                    self.errors.push(
-                        Error::SynParseError(
-                            new_expr.span(),
-                            "CFG builder",
-                            "reference".to_string()
-                        )
-                    );
-                    return;
-                }
-                self.current_expr = Some(
-                    syn::parse2(quote::quote! { #ident }).expect("reference expr is none")
-                );
-            }
+            self.current_expr = Some(new_expr);
         });
     }
 
     fn visit_expr_binary(&mut self, binary: &'ast syn::ExprBinary) {
+        self.has_assignment = false;
         let mut new_binary = binary.clone();
 
         match (new_binary.left.as_mut(), new_binary.right.as_mut()) {
@@ -1068,7 +1039,9 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         self.current_expr = Some(syn::Expr::Call(new_call));
     }
     fn visit_expr_method_call(&mut self, method_call: &'ast syn::ExprMethodCall) {
+        let has_assignment = self.has_assignment;
         let mut new_method_call = method_call.clone();
+        self.has_assignment = false;
         self.visit_expr(method_call.receiver.as_ref());
         let receiver = handle_accumulation(
             &mut self.errors,
@@ -1127,7 +1100,18 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             };
             *arg = new_arg;
         }
-        self.current_expr = Some(syn::Expr::MethodCall(new_method_call));
+        if has_assignment {
+            self.current_expr = Some(syn::Expr::MethodCall(new_method_call));
+        } else {
+            let ident = syn::Ident::new(
+                &format!("__method_call_{}", self.global_block_cnt()),
+                proc_macro2::Span::call_site()
+            );
+            if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_method_call; }) {
+                self.push_stmt(stmt);
+            }
+            self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
+        }
     }
 
     fn visit_expr_tuple(&mut self, tuple: &'ast syn::ExprTuple) {
@@ -1147,7 +1131,11 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             };
             *elem = new_elem;
         }
-        if let Ok(stmt) = syn::parse2(quote::quote! { let __expr_tuple = #new_tuple; }) {
+        let ident = syn::Ident::new(
+            &format!("__expr_tuple_{}", self.global_block_cnt()),
+            proc_macro2::Span::call_site()
+        );
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_tuple; }) {
             self.push_stmt(stmt);
         } else {
             self.errors.push(
@@ -1159,7 +1147,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             );
             return;
         }
-        if let Ok(expr) = syn::parse2(quote::quote! { __expr_tuple }) {
+        if let Ok(expr) = syn::parse2(quote::quote! { #ident }) {
             self.current_expr = Some(expr);
         } else {
             self.errors.push(
@@ -1173,7 +1161,9 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
     }
 
     fn visit_expr_try(&mut self, i: &'ast syn::ExprTry) {
+        let has_assignment = self.has_assignment;
         let mut new_try = i.clone();
+        self.has_assignment = false;
         self.visit_expr(&i.expr);
         let expr = handle_accumulation(
             &mut self.errors,
@@ -1187,7 +1177,28 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             return;
         };
         new_try.expr = Box::new(expr);
-        self.current_expr = Some(syn::Expr::Try(new_try));
+        if has_assignment {
+            self.current_expr = Some(syn::Expr::Try(new_try));
+        } else {
+            let ident = syn::Ident::new(
+                &format!("__try_{}", self.global_block_cnt()),
+                proc_macro2::Span::call_site()
+            );
+            if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_try; }) {
+                self.push_stmt(stmt);
+                self.current_expr = Some(
+                    syn::parse2(quote::quote! { #ident }).expect("expr is none")
+                );
+            } else {
+                self.errors.push(
+                    Error::SynParseError(
+                        new_try.span(),
+                        "CFG builder",
+                        "expr_try::stmt".to_string()
+                    )
+                );
+            }
+        }
     }
 
     fn visit_expr_assign(&mut self, i: &'ast syn::ExprAssign) {
@@ -1350,6 +1361,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
     fn visit_stmt(&mut self, node: &'ast syn::Stmt) {
         match node {
             syn::Stmt::Local(local) => {
+                self.has_assignment = true;
                 if let Some(init) = &local.init {
                     self.visit_expr(&init.expr);
                     let expr = handle_accumulation(
@@ -1379,6 +1391,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                         );
                     }
                 }
+                self.has_assignment = false;
             }
             syn::Stmt::Item(item) => {
                 if let syn::Item::Macro(_) = item {

@@ -101,6 +101,11 @@ pub enum ErrHandler {
 }
 
 impl ErrHandler {
+    /// panic the error
+    pub fn panic(&self) -> ! {
+        panic!("{}", self);
+    }
+
     /// function to check if the ndim is same as expected ndim
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn check_ndim_match(ndim: usize, expect_ndim: usize) -> Result<(), Self> {

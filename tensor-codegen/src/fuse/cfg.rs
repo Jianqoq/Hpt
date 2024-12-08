@@ -11,6 +11,8 @@ use syn::visit::Visit;
 use syn::visit_mut::VisitMut;
 use syn::Stmt;
 
+use super::node::Node;
+use super::var_coalescer::VarCoalescer;
 use super::{ codegen, expr_ty };
 use super::errors::Error;
 use super::expr_call_use_visitor::ExprCallUseVisitor;
@@ -464,6 +466,7 @@ impl CFG {
         sorted_indices.sort();
         for node in sorted_indices {
             let mut comp_graph = super::build_graph::Graph::new(table.clone(), node.index());
+            let mut in_degrees = HashMap::new();
             for (idx, stmt) in self.graph
                 .node_weight(node)
                 .expect("fuse::cfg::build_graphs::node weight not found")
@@ -471,6 +474,27 @@ impl CFG {
                 .enumerate() {
                 comp_graph.current_idx = idx;
                 comp_graph.visit_stmt(&stmt.stmt);
+            }
+            for node in comp_graph.nodes.iter() {
+                match &node.0 {
+                    super::node::Node::Unary(unary) => {
+                        let _ = *in_degrees.entry(&unary.operand).or_insert(0);
+                        *in_degrees.entry(&unary.output).or_insert(0) += 1;
+                    },
+                    super::node::Node::Binary(binary) => {
+                        let _ = *in_degrees.entry(&binary.left).or_insert(0);
+                        let _ = *in_degrees.entry(&binary.right).or_insert(0);
+                        *in_degrees.entry(&binary.output).or_insert(0) += 2;
+                    },
+                    super::node::Node::Input(input) => {
+                        *in_degrees.entry(input).or_insert(0) += 0;
+                    },
+                }
+            }
+            for (ident, in_degree) in in_degrees {
+                if in_degree == 0 {
+                    comp_graph.inputs.insert((Node::Input(ident.clone()), -1, node.index()), table[ident]);
+                }
             }
             graph.add_node(comp_graph);
         }
@@ -490,6 +514,11 @@ impl CFG {
                 self.graph[node].origin_var_map.insert(temp.clone(), temp.clone());
             }
         }
+    }
+
+    pub(crate) fn var_coalescer(&mut self) {
+        let mut coalescer = VarCoalescer::new(self);
+        coalescer.run();
     }
 
     // 变量重命名

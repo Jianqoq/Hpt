@@ -4,7 +4,11 @@ use petgraph::graph::NodeIndex;
 use quote::ToTokens;
 use syn::visit::Visit;
 
-use super::{ cfg::CFG, expr_ty, operator_lists::UNARY_OPERATORS };
+use super::{
+    cfg::CFG,
+    expr_ty,
+    operator_lists::{ BINARY_OPERATORS, OPAQUE_BINARY_OPERATORS, UNARY_OPERATORS },
+};
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub(crate) enum Type {
@@ -76,7 +80,11 @@ impl TyInfer {
                 let receiver_type = self.type_of(&method_call.receiver);
                 if receiver_type == Type::Tensor {
                     let func_name = method_call.method.to_token_stream().to_string();
-                    if UNARY_OPERATORS.contains(&func_name.as_str()) {
+                    if
+                        UNARY_OPERATORS.contains(&func_name.as_str()) ||
+                        BINARY_OPERATORS.contains(&func_name.as_str()) ||
+                        OPAQUE_BINARY_OPERATORS.contains(&func_name.as_str())
+                    {
                         return Type::Tensor;
                     }
                     Type::Unknown

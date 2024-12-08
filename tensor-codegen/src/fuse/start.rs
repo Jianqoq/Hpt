@@ -63,6 +63,7 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     let definitions = cfg.get_variable_definitions();
     cfg.insert_phi_functions(&dominance_frontiers, &definitions);
     cfg.rename_variables(&dominators)?;
+    cfg.var_coalescer();
     Ok(cfg)
 }
 
@@ -75,11 +76,11 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
         }
         return Err(errs.into());
     }
+    // println!("graph: {:#?}", cfg.graph);
     let mut type_table = TyInfer::new();
     type_table.infer(&cfg)?;
     cfg.live_analysis(&type_table.table);
     cfg.inter_live_analysis();
-    println!("cfg: {:#?}", cfg.graph);
     let table = core::mem::take(&mut type_table.table);
     let graphs = cfg.build_graphs(table);
     let mut all_errs = Vec::new();
@@ -101,9 +102,9 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
         let graph = graphs.node_weight(idx).expect("graph weight not found");
         let petgraph = graph.to_petgraph();
         if petgraph.node_count() > 0 && !petgraph::algo::is_cyclic_directed(&petgraph) {
-            println!("graph: {:#?}", petgraph);
+            // println!("petgraph: {:#?}", petgraph);
             let mut fusion_group = crate::fuse::fuse::fuse(&cfg, &petgraph);
-            println!("fusion_group: {:#?}", fusion_group);
+            // println!("fusion_group: {:#?}", fusion_group);
             fusion_group.vars.retain(|x| x.0.len() > 1);
             let genfuse = crate::fuse::gen_fuse::gen_fuse(&cfg, &petgraph, &fusion_group);
             let mut stmt_to_remove = Vec::new();
@@ -144,19 +145,17 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
                     }
                 }
             }
-            println!("stmt_to_remove: {:#?}", stmt_to_remove);
-            println!("intermediates: {:#?}", intermediates);
             genfuse_map.insert(idx, (genfuse, fusion_group, stmt_to_remove, intermediates));
         }
     }
 
     for (idx, (codes, fusion_group, stmt_to_remove, intermediates)) in genfuse_map {
-        for (((code, (_, _, out)), remove), intermediate) in codes
+        for (((code, (_, inp, out)), remove), intermediate) in codes
             .into_iter()
             .zip(fusion_group.vars.into_iter())
             .zip(stmt_to_remove.into_iter())
             .zip(intermediates.into_iter()) {
-            if intermediate.is_empty() {
+            if intermediate.is_empty() || inp.is_empty() || out.is_empty() {
                 continue;
             }
             assert_eq!(out.len(), 1);

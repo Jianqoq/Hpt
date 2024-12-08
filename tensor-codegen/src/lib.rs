@@ -20,6 +20,7 @@ pub(crate) mod fuse {
     pub(crate) mod errors;
     pub(crate) mod operator_lists;
     pub(crate) mod dead_node_elimination;
+    pub(crate) mod var_coalescer;
 }
 
 #[proc_macro]

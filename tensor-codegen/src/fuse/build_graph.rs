@@ -6,8 +6,9 @@ use syn::spanned::Spanned;
 
 use super::{
     errors::Error,
+    kernel_type::KernelType,
     node::{ Binary, Node, Unary },
-    operator_lists::UNARY_OPERATORS,
+    operator_lists::{ BINARY_OPERATORS, OPAQUE_BINARY_OPERATORS, UNARY_OPERATORS },
     ty_infer::Type,
     variable_collector::VariableCollector,
 };
@@ -118,23 +119,6 @@ impl Graph {
         }
 
         graph
-    }
-
-    fn push_input_node_if_not_exist_expr(&mut self, expr: &syn::Expr) {
-        if let syn::Expr::Path(path) = expr {
-            if let Some(ident) = path.path.get_ident() {
-                if self.variables.contains(&ident) {
-                    return;
-                }
-                self.inputs.insert(
-                    (Node::Input(ident.clone()), -1, self.current_block),
-                    self.type_table[&ident]
-                );
-                self.variables.insert(ident.clone());
-            }
-        } else {
-            self.errors.push(Error::ExpectedPath(expr.span(), "build graph"));
-        }
     }
 }
 
@@ -729,7 +713,11 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
                         let ty = handle_expr_type(&expr_reference.expr, &self.type_table);
                         if ty == Type::Tensor {
                             self.inputs.insert(
-                                (Node::Input(pat_ident.ident.clone()), self.current_idx as i64, self.current_block),
+                                (
+                                    Node::Input(pat_ident.ident.clone()),
+                                    self.current_idx as i64,
+                                    self.current_block,
+                                ),
                                 ty
                             );
                             self.variables.insert(pat_ident.ident.clone());
@@ -750,7 +738,10 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
             return;
         }
         let method_name = node.method.to_string();
-        if !UNARY_OPERATORS.contains(&method_name.as_str()) {
+        let is_binary = BINARY_OPERATORS.contains(&method_name.as_str());
+        let is_opaque_binary = OPAQUE_BINARY_OPERATORS.contains(&method_name.as_str());
+        let is_unary = UNARY_OPERATORS.contains(&method_name.as_str());
+        if !is_unary && !is_binary && !is_opaque_binary {
             return;
         }
         let current_assignment = if let Some(assingment) = self.current_assignment.clone() {
@@ -758,25 +749,46 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         } else {
             return;
         };
-        let receiver_var = if let syn::Expr::Path(path) = node.receiver.as_ref() {
-            path.path.get_ident().unwrap()
+        let receiver_var = if let Some(ident) = extract_expr_ident(&node.receiver) {
+            ident
         } else {
             self.errors.push(Error::ExpectedPath(node.receiver.span(), "build graph"));
             return;
         };
-        for arg in node.args.iter() {
-            self.push_input_node_if_not_exist_expr(arg);
+        if is_unary {
+            let method = Node::Unary(Unary {
+                method: node.method.clone(),
+                operand: receiver_var.clone(),
+                args: node.args
+                    .iter()
+                    .map(|arg| arg.clone())
+                    .collect(),
+                output: current_assignment,
+                kernel_type: KernelType::Unary,
+            });
+            self.nodes.push((method, self.current_idx as i64, self.current_block));
+        } else {
+            if is_binary || is_opaque_binary {
+                let right = if let Some(ident) = extract_expr_ident(&node.args[0]) {
+                    ident
+                } else {
+                    self.errors.push(Error::ExpectedIdentifier(node.args[0].span(), "build graph"));
+                    return;
+                };
+                let method = Node::Binary(Binary {
+                    method: node.method.clone(),
+                    left: receiver_var.clone(),
+                    right: right.clone(),
+                    output: current_assignment,
+                    kernel_type: if is_binary {
+                        KernelType::Binary
+                    } else {
+                        KernelType::Opaque
+                    },
+                });
+                self.nodes.push((method, self.current_idx as i64, self.current_block));
+            }
         }
-        let method = Node::Unary(Unary {
-            method: node.method.clone(),
-            operand: receiver_var.clone(),
-            args: node.args
-                .iter()
-                .map(|arg| arg.clone())
-                .collect(),
-            output: current_assignment,
-        });
-        self.nodes.push((method, self.current_idx as i64, self.current_block));
     }
 
     fn visit_expr_path(&mut self, i: &'ast syn::ExprPath) {
@@ -798,26 +810,16 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
             self.errors.push(Error::ExpectedAssignment(node.span(), "build graph"));
             return;
         };
-        let left = if let syn::Expr::Path(path) = node.left.as_ref() {
-            if let Some(ident) = path.path.get_ident() {
-                ident
-            } else {
-                self.errors.push(Error::ExpectedIdentifier(path.span(), "build graph"));
-                return;
-            }
+        let left = if let Some(ident) = extract_expr_ident(&node.left) {
+            ident
         } else {
-            self.errors.push(Error::ExpectedPath(node.left.span(), "build graph"));
+            self.errors.push(Error::ExpectedIdentifier(node.left.span(), "build graph"));
             return;
         };
-        let right = if let syn::Expr::Path(path) = node.right.as_ref() {
-            if let Some(ident) = path.path.get_ident() {
-                ident
-            } else {
-                self.errors.push(Error::ExpectedIdentifier(path.span(), "build graph"));
-                return;
-            }
+        let right = if let Some(ident) = extract_expr_ident(&node.right) {
+            ident
         } else {
-            self.errors.push(Error::ExpectedPath(node.right.span(), "build graph"));
+            self.errors.push(Error::ExpectedIdentifier(node.right.span(), "build graph"));
             return;
         };
 
@@ -853,15 +855,13 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
             _ => todo!(),
         };
 
-        self.push_input_node_if_not_exist_expr(&node.left);
-        self.push_input_node_if_not_exist_expr(&node.right);
-
         self.nodes.push((
             Node::Binary(Binary {
                 method: proc_macro2::Ident::new(method, node.span()),
                 left: left.clone(),
                 right: right.clone(),
                 output: current_assignment.clone(),
+                kernel_type: KernelType::Binary,
             }),
             self.current_idx as i64,
             self.current_block,
@@ -882,5 +882,13 @@ fn handle_expr_type<'ast>(node: &'ast syn::Expr, type_table: &HashMap<syn::Ident
             handle_expr_type(&expr_reference.expr, type_table)
         }
         _ => Type::Unknown,
+    }
+}
+
+fn extract_expr_ident(node: &syn::Expr) -> Option<syn::Ident> {
+    match node {
+        syn::Expr::Path(expr_path) => expr_path.path.get_ident().cloned(),
+        syn::Expr::Reference(expr_reference) => extract_expr_ident(&expr_reference.expr),
+        _ => None,
     }
 }

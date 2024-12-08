@@ -1,11 +1,14 @@
 use quote::ToTokens;
 
+use super::kernel_type::KernelType;
+
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub(crate) struct Unary {
     pub(crate) method: syn::Ident,
     pub(crate) operand: syn::Ident,
     pub(crate) args: Vec<syn::Expr>,
     pub(crate) output: syn::Ident,
+    pub(crate) kernel_type: KernelType,
 }
 
 impl std::fmt::Debug for Unary {
@@ -53,6 +56,7 @@ pub(crate) struct Binary {
     pub(crate) left: syn::Ident,
     pub(crate) right: syn::Ident,
     pub(crate) output: syn::Ident,
+    pub(crate) kernel_type: KernelType,
 }
 
 impl std::fmt::Debug for Binary {
