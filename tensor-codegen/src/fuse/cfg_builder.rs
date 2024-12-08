@@ -119,21 +119,7 @@ impl<'a> CFGBuilder<'a> {
             self.set_current_block_id(current_block_id.unwrap());
             current_block_id = None;
         }
-
-        self.visit_expr(&expr_if.cond);
-        let cond_expr = if let Some(cond_expr) = core::mem::take(&mut self.current_expr) {
-            cond_expr
-        } else {
-            self.errors.push(
-                Error::ExprAccumulateError(
-                    expr_if.cond.span(),
-                    "CFG builder",
-                    "if condition".to_string()
-                )
-            );
-            return;
-        };
-        self.push_stmt(syn::Stmt::Expr(cond_expr, None));
+        self.push_stmt(syn::Stmt::Expr(*expr_if.cond.clone(), None));
         let mut cond_block_id = core::mem::take(&mut self.block_ids);
         // connect current block to then and else branch
         self.connect_to(then_block);
@@ -379,21 +365,7 @@ impl<'a> CFGBuilder<'a> {
 
         // 连接条件检查块到循环体块（如果条件为真）和循环后的块（如果条件为假）
         self.set_current_block(condition_block);
-        self.set_current_block_id(condition_block_id);
-        self.visit_expr(&expr_while.cond);
-        if let Some(expr) = core::mem::take(&mut self.current_expr) {
-            self.push_stmt(syn::Stmt::Expr(expr, None));
-        } else {
-            self.errors.push(
-                Error::ExprAccumulateError(
-                    expr_while.span(),
-                    "CFG builder",
-                    "while loop".to_string()
-                )
-            );
-            return;
-        }
-        let condition_block_id = core::mem::take(&mut self.block_ids);
+        self.push_stmt(syn::Stmt::Expr(*expr_while.cond.clone(), None));
 
         // 创建两个新的连接：条件为真和条件为假
         self.connect_to(loop_block);
@@ -496,17 +468,7 @@ impl<'a> CFGBuilder<'a> {
 
         // handle condition check
         self.set_current_block(condition_block);
-        self.set_current_block_id(condition_block_id);
-        let condition_block_id = core::mem::take(&mut self.block_ids);
-        self.visit_expr(&expr_for.expr);
-        if let Some(expr) = core::mem::take(&mut self.current_expr) {
-            self.push_stmt(syn::Stmt::Expr(expr, None));
-        } else {
-            self.errors.push(
-                Error::ExprAccumulateError(expr_for.span(), "CFG builder", "for loop".to_string())
-            );
-            return;
-        }
+        self.push_stmt(syn::Stmt::Expr(*expr_for.expr.clone(), None));
         // create connection: condition is true enter loop body block, condition is false enter after loop block
         self.connect_to(loop_block);
         self.connect_to(after_loop_block);

@@ -1,56 +1,7 @@
-use std::collections::{ HashMap, HashSet };
+use std::collections::HashMap;
 use crate::fuse::{ errors::Error, ty_infer::TyInfer };
-use petgraph::{ algo::dominators::Dominators, graph::NodeIndex };
-use syn::{spanned::Spanned, visit::Visit};
+use syn::{ spanned::Spanned, visit::Visit };
 use super::cfg::CFG;
-
-fn compute_dominance_frontiers(
-    cfg: &CFG,
-    dominators: &Dominators<NodeIndex>
-) -> HashMap<NodeIndex, HashSet<NodeIndex>> {
-    let mut dominance_frontiers: HashMap<NodeIndex, HashSet<NodeIndex>> = HashMap::new();
-
-    for node in cfg.graph.node_indices() {
-        // 跳过根节点，因为根节点没有支配前沿
-        if node == dominators.root() {
-            continue;
-        }
-
-        // 获取当前节点的直接支配者
-        let idom = match dominators.immediate_dominator(node) {
-            Some(idom) => idom,
-            None => {
-                continue;
-            } // 或者根据需要处理错误
-        };
-
-        // 获取当前节点的所有前驱节点
-        let preds = cfg.graph
-            .neighbors_directed(node, petgraph::Direction::Incoming)
-            .collect::<Vec<_>>();
-        if preds.len() >= 2 {
-            for pred in preds {
-                let mut runner = pred.clone();
-                let idom_node = idom.clone();
-
-                while runner != idom_node {
-                    // 将当前节点添加到 runner 的支配前沿中
-                    dominance_frontiers.entry(runner).or_insert_with(HashSet::new).insert(node);
-
-                    // 更新 runner 为其直接支配者
-                    runner = match dominators.immediate_dominator(runner) {
-                        Some(dom) => dom,
-                        None => {
-                            break;
-                        } // 或者根据需要处理错误
-                    };
-                }
-            }
-        }
-    }
-
-    dominance_frontiers
-}
 
 fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     let mut cfg = CFG::new();
@@ -59,7 +10,7 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     cfg.block_id = core::mem::take(&mut builder.block_ids);
     cfg.fill_variables();
     let dominators = petgraph::algo::dominators::simple_fast(&cfg.graph, cfg.entry);
-    let dominance_frontiers = compute_dominance_frontiers(&cfg, &dominators);
+    let dominance_frontiers = cfg.compute_dominance_frontiers(&dominators);
     let definitions = cfg.get_variable_definitions();
     cfg.insert_phi_functions(&dominance_frontiers, &definitions);
     cfg.rename_variables(&dominators)?;

@@ -267,10 +267,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         unimplemented!("graph::visit_expr_infer");
     }
 
-    fn visit_expr_let(&mut self, _: &'ast syn::ExprLet) {
-        unimplemented!("graph::visit_expr_let");
-    }
-
     fn visit_expr_loop(&mut self, _: &'ast syn::ExprLoop) {
         unimplemented!("graph::visit_expr_loop");
     }
@@ -512,10 +508,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
 
     fn visit_pat_tuple(&mut self, _: &'ast syn::PatTuple) {
         unimplemented!("graph::visit_pat_tuple");
-    }
-
-    fn visit_pat_tuple_struct(&mut self, _: &'ast syn::PatTupleStruct) {
-        unimplemented!("graph::visit_pat_tuple_struct");
     }
 
     fn visit_path(&mut self, path: &'ast syn::Path) {

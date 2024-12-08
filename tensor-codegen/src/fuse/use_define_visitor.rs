@@ -2,11 +2,18 @@ use std::collections::HashSet;
 use syn::{ spanned::Spanned, visit::Visit };
 
 use super::variable_collector::VariableCollector;
+#[derive(Debug)]
+pub(crate) enum State {
+    Define,
+    Use,
+    Assign,
+}
 
 pub(crate) struct UseDefineVisitor {
     pub(crate) used_vars: HashSet<syn::Ident>,
     pub(crate) define_vars: HashSet<syn::Ident>,
     pub(crate) assigned_vars: HashSet<syn::Ident>,
+    pub(crate) state: State,
 }
 
 impl UseDefineVisitor {
@@ -15,6 +22,23 @@ impl UseDefineVisitor {
             used_vars: HashSet::new(),
             define_vars: HashSet::new(),
             assigned_vars: HashSet::new(),
+            state: State::Define,
+        }
+    }
+
+    pub(crate) fn insert(&mut self, ident: syn::Ident) -> bool {
+        match self.state {
+            State::Define => self.define_vars.insert(ident),
+            State::Use => self.used_vars.insert(ident),
+            State::Assign => self.assigned_vars.insert(ident),
+        }
+    }
+
+    pub(crate) fn extend<I: IntoIterator<Item = syn::Ident>>(&mut self, iter: I) {
+        match self.state {
+            State::Define => self.define_vars.extend(iter),
+            State::Use => self.used_vars.extend(iter),
+            State::Assign => self.assigned_vars.extend(iter),
         }
     }
 }
@@ -24,7 +48,7 @@ impl<'ast> Visit<'ast> for UseDefineVisitor {
         match pat {
             syn::Pat::Const(_) => unimplemented!("use_define_visitor::visit_pat::const"),
             syn::Pat::Ident(ident) => {
-                self.define_vars.insert(ident.ident.clone());
+                self.insert(ident.ident.clone());
             }
             syn::Pat::Lit(_) => unimplemented!("use_define_visitor::visit_pat::lit"),
             syn::Pat::Macro(_) => unimplemented!("use_define_visitor::visit_pat::macro"),
@@ -32,69 +56,84 @@ impl<'ast> Visit<'ast> for UseDefineVisitor {
             syn::Pat::Paren(_) => unimplemented!("use_define_visitor::visit_pat::paren"),
             syn::Pat::Path(path) => {
                 if let Some(ident) = path.path.get_ident() {
-                    self.used_vars.insert(ident.clone());
+                    self.insert(ident.clone());
                 }
             }
             syn::Pat::Range(_) => unimplemented!("use_define_visitor::visit_pat::range"),
             syn::Pat::Reference(_) => unimplemented!("use_define_visitor::visit_pat::reference"),
             syn::Pat::Rest(_) => unimplemented!("use_define_visitor::visit_pat::rest"),
             syn::Pat::Slice(_) => unimplemented!("use_define_visitor::visit_pat::slice"),
-            syn::Pat::Struct(_) => unimplemented!("use_define_visitor::visit_pat::struct"),
+            syn::Pat::Struct(struct_pat) => {
+                for field in struct_pat.fields.iter() {
+                    self.visit_pat(&field.pat);
+                }
+            }
             syn::Pat::Tuple(_) => {
                 let mut collector = VariableCollector::new();
                 collector.visit_pat(pat);
-                self.used_vars.extend(collector.vars);
+                self.extend(collector.vars);
             }
-            syn::Pat::TupleStruct(_) =>
-                unimplemented!("use_define_visitor::visit_pat::tuple_struct"),
+            syn::Pat::TupleStruct(tuple_struct) => {
+                for elem in tuple_struct.elems.iter() {
+                    self.visit_pat(elem);
+                }
+            }
             syn::Pat::Type(ty) => self.visit_pat(&ty.pat),
             syn::Pat::Verbatim(_) => unimplemented!("use_define_visitor::visit_pat::verbatim"),
             syn::Pat::Wild(_) => {
-                self.used_vars.insert(syn::Ident::new("_", pat.span()));
+                self.insert(syn::Ident::new("_", pat.span()));
             }
             _ => unimplemented!("use_define_visitor::visit_pat::other"),
         }
     }
     fn visit_item_fn(&mut self, i: &'ast syn::ItemFn) {
-        self.define_vars.insert(i.sig.ident.clone());
+        self.state = State::Define;
+        self.insert(i.sig.ident.clone());
     }
     fn visit_expr_assign(&mut self, node: &'ast syn::ExprAssign) {
         let mut collector = VariableCollector::new();
+        self.state = State::Assign;
         if let syn::Expr::Path(left) = node.left.as_ref() {
             if let Some(ident) = left.path.get_ident() {
-                self.assigned_vars.insert(ident.clone());
+                self.insert(ident.clone());
             }
         }
+        self.state = State::Use;
         collector.visit_expr(node.right.as_ref());
-        self.used_vars.extend(collector.vars);
+        self.extend(collector.vars);
     }
     fn visit_local(&mut self, i: &'ast syn::Local) {
         let mut collector = VariableCollector::new();
+        self.state = State::Define;
         collector.visit_pat(&i.pat);
-        self.define_vars.extend(collector.vars);
+        self.extend(collector.vars);
         if let Some(init) = &i.init {
             let mut collector = VariableCollector::new();
             collector.visit_local_init(init);
-            self.used_vars.extend(collector.vars);
+            self.state = State::Use;
+            self.extend(collector.vars);
         }
     }
     fn visit_expr_binary(&mut self, i: &'ast syn::ExprBinary) {
+        self.state = State::Use;
         if let syn::Expr::Path(left) = i.left.as_ref() {
             if let Some(ident) = left.path.get_ident() {
-                self.used_vars.insert(ident.clone());
+                self.insert(ident.clone());
             }
         } else {
             self.visit_expr(i.left.as_ref());
         }
+        self.state = State::Use;
         if let syn::Expr::Path(right) = i.right.as_ref() {
             if let Some(ident) = right.path.get_ident() {
-                self.used_vars.insert(ident.clone());
+                self.insert(ident.clone());
             }
         } else {
             self.visit_expr(i.right.as_ref());
         }
     }
     fn visit_expr_call(&mut self, i: &'ast syn::ExprCall) {
+        self.state = State::Use;
         for arg in i.args.iter() {
             match arg {
                 syn::Expr::Array(_) =>
@@ -184,21 +223,30 @@ impl<'ast> Visit<'ast> for UseDefineVisitor {
     }
 
     fn visit_expr_method_call(&mut self, i: &'ast syn::ExprMethodCall) {
+        self.state = State::Use;
         if let syn::Expr::Path(path) = i.receiver.as_ref() {
             if let Some(ident) = path.path.get_ident() {
-                self.used_vars.insert(ident.clone());
+                self.insert(ident.clone());
             }
         } else {
             self.visit_expr(i.receiver.as_ref());
         }
         for arg in i.args.iter() {
+            self.state = State::Use;
             if let syn::Expr::Path(path) = arg {
                 if let Some(ident) = path.path.get_ident() {
-                    self.used_vars.insert(ident.clone());
+                    self.insert(ident.clone());
                 }
             } else {
                 self.visit_expr(arg);
             }
         }
+    }
+
+    fn visit_expr_let(&mut self, i: &'ast syn::ExprLet) {
+        self.state = State::Define;
+        self.visit_pat(&i.pat);
+        self.state = State::Use;
+        self.visit_expr(&i.expr);
     }
 }

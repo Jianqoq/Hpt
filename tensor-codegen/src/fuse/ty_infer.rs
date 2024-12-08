@@ -205,6 +205,47 @@ fn handle_pat_ty(lhs: &syn::Pat, rhs: &syn::Type, table: &mut HashMap<syn::Ident
     }
 }
 
+fn handle_pat(lhs: &syn::Pat, table: &mut HashMap<syn::Ident, Type>) {
+    match lhs {
+        syn::Pat::Const(_) => unimplemented!("handle_pat::Const"),
+        syn::Pat::Ident(ident) => {
+            table.insert(ident.ident.clone(), Type::Unknown);
+        }
+        syn::Pat::Lit(_) => {}
+        syn::Pat::Macro(_) => unimplemented!("handle_pat::Macro"),
+        syn::Pat::Or(_) => unimplemented!("handle_pat::Or"),
+        syn::Pat::Paren(_) => unimplemented!("handle_pat::Paren"),
+        syn::Pat::Path(pat_path) => {
+            if let Some(ident) = pat_path.path.get_ident() {
+                table.insert(ident.clone(), Type::Unknown);
+            } else {
+                panic!("handle_pat::path::no_ident");
+            }
+        }
+        syn::Pat::Range(_) => unimplemented!("handle_pat::Range"),
+        syn::Pat::Reference(reference) => handle_pat(reference.pat.as_ref(), table),
+        syn::Pat::Rest(_) => unimplemented!("handle_pat::Rest"),
+        syn::Pat::Slice(_) => unimplemented!("handle_pat::Slice"),
+        syn::Pat::Struct(struct_pat) => {
+            for field in struct_pat.fields.iter() {
+                handle_pat(field.pat.as_ref(), table);
+            }
+        }
+        syn::Pat::Tuple(tuple) => {
+            for pat in tuple.elems.iter() {
+                handle_pat(pat, table);
+            }
+        }
+        syn::Pat::TupleStruct(_) => unimplemented!("handle_pat::TupleStruct"),
+        syn::Pat::Type(ty) => handle_pat_ty(lhs, ty.ty.as_ref(), table),
+        syn::Pat::Verbatim(_) => unimplemented!("handle_pat::Verbatim"),
+        syn::Pat::Wild(_) => {
+            table.insert(syn::Ident::new("_", lhs.span()), Type::Unknown);
+        }
+        _ => unimplemented!(),
+    }
+}
+
 impl<'ast> Visit<'ast> for TyInfer {
     fn visit_signature(&mut self, i: &'ast syn::Signature) {
         for arg in i.inputs.iter() {
@@ -283,7 +324,11 @@ impl<'ast> Visit<'ast> for TyInfer {
             syn::Pat::Reference(_) => unimplemented!("ty_infer::visit_local::Reference"),
             syn::Pat::Rest(_) => unimplemented!("ty_infer::visit_local::Rest"),
             syn::Pat::Slice(_) => unimplemented!("ty_infer::visit_local::Slice"),
-            syn::Pat::Struct(_) => unimplemented!("ty_infer::visit_local::Struct"),
+            syn::Pat::Struct(struct_pat) => {
+                for field in struct_pat.fields.iter() {
+                    handle_pat(field.pat.as_ref(), &mut self.table);
+                }
+            }
             syn::Pat::Tuple(_) => {}
             syn::Pat::TupleStruct(_) => unimplemented!("ty_infer::visit_local::TupleStruct"),
             syn::Pat::Type(ty) => {

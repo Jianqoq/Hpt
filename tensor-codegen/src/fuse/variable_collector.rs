@@ -45,6 +45,16 @@ impl<'ast> Visit<'ast> for VariableCollector {
                     self.visit_pat(pat);
                 }
             }
+            syn::Pat::TupleStruct(tuple_struct) => {
+                for pat in tuple_struct.elems.iter() {
+                    self.visit_pat(pat);
+                }
+            }
+            syn::Pat::Struct(struct_pat) => {
+                for field in struct_pat.fields.iter() {
+                    self.visit_pat(&field.pat);
+                }
+            }
             _ => {}
         }
     }

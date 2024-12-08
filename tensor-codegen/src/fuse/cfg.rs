@@ -235,6 +235,49 @@ impl CFG {
         CFG { graph, entry, block_id: BlockId::new(entry), errors: vec![] }
     }
 
+    pub(crate) fn compute_dominance_frontiers(
+        &self,
+        dominators: &Dominators<NodeIndex>
+    ) -> HashMap<NodeIndex, HashSet<NodeIndex>> {
+        let mut dominance_frontiers: HashMap<NodeIndex, HashSet<NodeIndex>> = HashMap::new();
+
+        for node in self.graph.node_indices() {
+            if node == dominators.root() {
+                continue;
+            }
+
+            let idom = match dominators.immediate_dominator(node) {
+                Some(idom) => idom,
+                None => {
+                    continue;
+                }
+            };
+
+            let preds = self.graph
+                .neighbors_directed(node, petgraph::Direction::Incoming)
+                .collect::<Vec<_>>();
+            if preds.len() >= 2 {
+                for pred in preds {
+                    let mut runner = pred.clone();
+                    let idom_node = idom.clone();
+
+                    while runner != idom_node {
+                        dominance_frontiers.entry(runner).or_insert_with(HashSet::new).insert(node);
+
+                        runner = match dominators.immediate_dominator(runner) {
+                            Some(dom) => dom,
+                            None => {
+                                break;
+                            }
+                        };
+                    }
+                }
+            }
+        }
+
+        dominance_frontiers
+    }
+
     pub(crate) fn live_analysis(&mut self, type_table: &HashMap<syn::Ident, Type>) {
         let mut live_in = HashMap::new();
         let mut live_out = HashMap::new();
@@ -480,20 +523,23 @@ impl CFG {
                     super::node::Node::Unary(unary) => {
                         let _ = *in_degrees.entry(&unary.operand).or_insert(0);
                         *in_degrees.entry(&unary.output).or_insert(0) += 1;
-                    },
+                    }
                     super::node::Node::Binary(binary) => {
                         let _ = *in_degrees.entry(&binary.left).or_insert(0);
                         let _ = *in_degrees.entry(&binary.right).or_insert(0);
                         *in_degrees.entry(&binary.output).or_insert(0) += 2;
-                    },
+                    }
                     super::node::Node::Input(input) => {
                         *in_degrees.entry(input).or_insert(0) += 0;
-                    },
+                    }
                 }
             }
             for (ident, in_degree) in in_degrees {
                 if in_degree == 0 {
-                    comp_graph.inputs.insert((Node::Input(ident.clone()), -1, node.index()), table[ident]);
+                    comp_graph.inputs.insert(
+                        (Node::Input(ident.clone()), -1, node.index()),
+                        table[ident]
+                    );
                 }
             }
             graph.add_node(comp_graph);
@@ -736,10 +782,10 @@ fn new_name_pat(
                 Error::Unsupported(pat.span(), "new_name_pat", "slice pattern".to_string())
             );
         }
-        syn::Pat::Struct(_) => {
-            errors.push(
-                Error::Unsupported(pat.span(), "new_name_pat", "struct pattern".to_string())
-            );
+        syn::Pat::Struct(struct_pat) => {
+            for field in struct_pat.fields.iter_mut() {
+                new_name_pat(errors, &mut field.pat, stacks, versions, new_origin_var_map)?;
+            }
         }
         syn::Pat::Tuple(tuple) => {
             for pat in tuple.elems.iter_mut() {

@@ -33,4 +33,12 @@ pub fn main() {
         let c = __out_1 + __out_2;
         Ok(c)
     }
+    fn case7(a: f32, b: f32) -> anyhow::Result<f32> {
+        let __try_1 = b.sin()?;
+        let __try_2 = compute2(&__try_1)?;
+        let __out_1 = compute(&a) / b;
+        let __out_2 = __try_2 / a;
+        let c = __out_1 + __out_2;
+        Ok(c)
+    }
 }
