@@ -58,6 +58,7 @@ pub(crate) enum BlockType {
     MatchAssign,
     MatchCond(syn::Expr),
     MatchCase,
+    MatchArm,
     MatchBody,
 }
 
@@ -95,6 +96,7 @@ impl std::fmt::Debug for BlockType {
             Self::MatchCase => write!(f, "MatchCase"),
             Self::MatchAssign => write!(f, "MatchAssign"),
             Self::MatchBody => write!(f, "MatchBody"),
+            Self::MatchArm => write!(f, "MatchArm"),
         }
     }
 }
@@ -681,6 +683,9 @@ impl CFG {
             }
             BlockType::MatchBody => {
                 body.extend(quote::quote!({#code #child_code};));
+            }
+            BlockType::MatchArm => {
+                body.extend(quote::quote!({#code #child_code},));
             }
             | BlockType::ExprBlockAssign
             | BlockType::IfAssign

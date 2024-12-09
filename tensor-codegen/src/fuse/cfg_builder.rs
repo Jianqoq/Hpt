@@ -92,9 +92,6 @@ impl<'a> CFGBuilder<'a> {
         // create then branch block
         let then_block = self.new_block(BlockType::IfThenEnd);
         let then_block_id = BlockId::new(then_block);
-        // create else branch block
-        let else_block = self.new_block(BlockType::IfElseEnd);
-        let else_block_id = BlockId::new(else_block);
         // create merge block
         let merge_block = self.new_block(BlockType::Normal);
         let merge_block_id = BlockId::new(merge_block);
@@ -107,7 +104,6 @@ impl<'a> CFGBuilder<'a> {
         let cond_block_id = core::mem::take(&mut self.block_ids);
         // connect current block to then and else branch
         self.connect_to(then_block);
-        self.connect_to(else_block);
 
         self.set_current_block_id(then_block_id);
         // handle then branch
@@ -115,10 +111,21 @@ impl<'a> CFGBuilder<'a> {
         self.visit_block(&expr_if.then_branch);
         let then_block_id = core::mem::take(&mut self.block_ids);
         self.connect_to(merge_block);
-        // handle else branch
-        self.set_current_block_id(else_block_id);
-        self.set_current_block(else_block);
+
+        current_block_id.children.push(assign_block_id);
+        current_block_id.children.push(cond_block_id);
+        current_block_id.children.push(then_block_id);
+
         if let Some(else_branch) = &expr_if.else_branch {
+            self.set_current_block(cond_block);
+            // create else branch block
+            let else_block = self.new_block(BlockType::IfElseEnd);
+            let else_block_id = BlockId::new(else_block);
+            self.connect_to(else_block);
+            self.set_current_block_id(else_block_id);
+            self.set_current_block(else_block);
+            self.connect_to(merge_block);
+
             self.cfg.graph[then_block].block_type = BlockType::IfThen;
             match &else_branch.1.as_ref() {
                 syn::Expr::Block(expr_block) => {
@@ -134,14 +141,9 @@ impl<'a> CFGBuilder<'a> {
                     self.visit_expr(&else_branch.1);
                 }
             }
+            let else_block_id = core::mem::take(&mut self.block_ids);
+            current_block_id.children.push(else_block_id);
         }
-        let else_block_id = core::mem::take(&mut self.block_ids);
-        self.connect_to(merge_block);
-
-        current_block_id.children.push(assign_block_id);
-        current_block_id.children.push(cond_block_id);
-        current_block_id.children.push(then_block_id);
-        current_block_id.children.push(else_block_id);
         current_block_id.children.push(merge_block_id);
         self.set_current_block(merge_block);
         self.set_current_block_id(current_block_id);
@@ -243,7 +245,11 @@ impl<'a> CFGBuilder<'a> {
             });
         } else {
             self.errors.push(
-                Error::SynParseError(expr_match.span(), "CFG builder", format!("let {};", assign_ident.to_string()))
+                Error::SynParseError(
+                    expr_match.span(),
+                    "CFG builder",
+                    format!("let {};", assign_ident.to_string())
+                )
             );
             return;
         }
@@ -278,7 +284,7 @@ impl<'a> CFGBuilder<'a> {
                 );
                 return;
             }
-            let body_block = self.new_block(BlockType::Normal);
+            let body_block = self.new_block(BlockType::MatchArm);
             let body_block_id = BlockId::new(body_block);
             self.connect_to(body_block);
             self.set_current_block(body_block);
@@ -1318,6 +1324,21 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         self.current_item = Some(syn::Item::Const(i.clone()));
     }
 
+    fn visit_expr_macro(&mut self, i: &'ast syn::ExprMacro) {
+        let ident = syn::Ident::new(
+            &format!("__macro_{}", self.global_block_cnt()),
+            proc_macro2::Span::call_site()
+        );
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #i; }) {
+            self.push_stmt(stmt);
+        } else {
+            self.errors.push(
+                Error::SynParseError(i.span(), "CFG builder", "expr_macro::stmt".to_string())
+            );
+        }
+        self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
+    }
+
     fn visit_expr(&mut self, node: &'ast syn::Expr) {
         match node {
             syn::Expr::Array(expr_array) => self.visit_expr_array(expr_array),
@@ -1471,7 +1492,9 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     }
                 }
             }
-            syn::Stmt::Macro(_) => {}
+            syn::Stmt::Macro(mc) => {
+                self.push_stmt(syn::Stmt::Macro(mc.clone()));
+            }
         }
     }
 }

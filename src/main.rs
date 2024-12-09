@@ -4,15 +4,6 @@ use std::io::Write;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
-fuse_proc_macro!(
-    fn case8(a: f32, b: f32) -> anyhow::Result<f32>{
-        match a {
-            10 => 10,
-            20 => 20,
-            30 => 30,
-            _ => 40,
-        }
-});
 
 // #[compile]
 // fn compute2<T: CommonBounds>(a: _Tensor<T>, b: _Tensor<T>, k: f32) -> anyhow::Result<_Tensor<T>>

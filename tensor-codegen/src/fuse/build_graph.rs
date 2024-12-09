@@ -271,10 +271,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         unimplemented!("graph::visit_expr_loop");
     }
 
-    fn visit_expr_macro(&mut self, _: &'ast syn::ExprMacro) {
-        unimplemented!("graph::visit_expr_macro");
-    }
-
     fn visit_expr_match(&mut self, _: &'ast syn::ExprMatch) {
         unimplemented!("graph::visit_expr_match");
     }

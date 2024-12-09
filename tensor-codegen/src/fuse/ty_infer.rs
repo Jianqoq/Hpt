@@ -94,6 +94,7 @@ impl TyInfer {
             }
             syn::Expr::Paren(paren) => self.type_of(&paren.expr),
             syn::Expr::Tuple(_) => Type::Unknown,
+            syn::Expr::Macro(_) => Type::Unknown,
             _ => unimplemented!("ty_infer::type_of::{:#?}", expr_ty::ExprType::from(expr)),
         }
     }
@@ -240,7 +241,12 @@ fn handle_pat(lhs: &syn::Pat, table: &mut HashMap<syn::Ident, Type>) {
                 handle_pat(pat, table);
             }
         }
-        syn::Pat::TupleStruct(_) => unimplemented!("handle_pat::TupleStruct"),
+        syn::Pat::TupleStruct(tuple_struct) => {
+            for field in tuple_struct.elems.iter() {
+                handle_pat(field, table);
+            }
+
+        },
         syn::Pat::Type(ty) => handle_pat_ty(lhs, ty.ty.as_ref(), table),
         syn::Pat::Verbatim(_) => unimplemented!("handle_pat::Verbatim"),
         syn::Pat::Wild(_) => {
@@ -340,8 +346,16 @@ impl<'ast> Visit<'ast> for TyInfer {
                     handle_pat(field.pat.as_ref(), &mut self.table);
                 }
             }
-            syn::Pat::Tuple(_) => {}
-            syn::Pat::TupleStruct(_) => unimplemented!("ty_infer::visit_local::TupleStruct"),
+            syn::Pat::Tuple(tuple) => {
+                for elem in tuple.elems.iter() {
+                    handle_pat(elem, &mut self.table);
+                }
+            }
+            syn::Pat::TupleStruct(tuple_struct) => {
+                for field in tuple_struct.elems.iter() {
+                    handle_pat(field, &mut self.table);
+                }
+            }
             syn::Pat::Type(ty) => {
                 self.visit_pat_type(ty);
             }

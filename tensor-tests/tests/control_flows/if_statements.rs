@@ -25,10 +25,6 @@ pub fn main() {
         fn case3(a: f32, b: f32) -> anyhow::Result<f32>{
             let c = if a > 0.0 {
                 let d = a + b;
-                d
-            } else {
-                let d = a - b;
-                d
             };
             Ok(c)
         }

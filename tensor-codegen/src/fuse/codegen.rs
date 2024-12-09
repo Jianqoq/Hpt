@@ -61,6 +61,10 @@ pub(crate) fn stmt(node: &crate::fuse::cfg::BasicBlock) -> TokenStream2 {
             let iter = node.statements.iter().map(|stmt| { quote::quote!(#stmt) });
             body.extend(quote::quote!(#(#iter)*));
         }
+        crate::fuse::cfg::BlockType::MatchArm => {
+            let iter = node.statements.iter().map(|stmt| { quote::quote!(#stmt) });
+            body.extend(quote::quote!(#(#iter)*));
+        }
         | crate::fuse::cfg::BlockType::ExprBlockAssign
         | crate::fuse::cfg::BlockType::IfAssign
         | crate::fuse::cfg::BlockType::ForAssign

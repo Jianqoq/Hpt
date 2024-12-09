@@ -16,10 +16,6 @@ pub fn main() {
     fn case3(a: f32, b: f32) -> anyhow::Result<f32> {
         let __if_assign_0 = if a > 0.0 {
             let d = a + b;
-            d
-        } else {
-            let d = a - b;
-            d
         };
         let c = __if_assign_0;
         let __call_1 = Ok(c);
