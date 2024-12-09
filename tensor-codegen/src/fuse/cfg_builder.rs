@@ -650,7 +650,6 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 self.errors.push(
                     Error::Unsupported(arg.span(), "CFG builder", "function receiver".to_string())
                 );
-                return;
             }
             syn::FnArg::Typed(pat_type) => {
                 self.visit_pat_type(pat_type);
@@ -1780,11 +1779,38 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 }
                 match item {
                     syn::Item::ExternCrate(_) => todo!(),
-                    | syn::Item::Fn(_)
-                    | syn::Item::Enum(_)
-                    | syn::Item::Macro(_)
-                    | syn::Item::Trait(_)
-                    | syn::Item::Struct(_) => {}
+                    syn::Item::Fn(_) => {
+                        self.errors.push(
+                            Error::Unsupported(
+                                item.span(),
+                                "stmt_item",
+                                "syn::Item::Fn".to_string()
+                            )
+                        );
+                    }
+                    syn::Item::Enum(_) => {
+                        self.errors.push(
+                            Error::Unsupported(
+                                item.span(),
+                                "stmt_item",
+                                "syn::Item::Enum".to_string()
+                            )
+                        );
+                    }
+                    syn::Item::Trait(_) => {
+                        println!("trait item");
+                        self.errors.push(
+                            Error::Unsupported(
+                                item.span(),
+                                "stmt_item",
+                                "syn::Item::Trait".to_string()
+                            )
+                        );
+                    }
+                    syn::Item::Struct(_) => {
+                        self.push_stmt(syn::Stmt::Item(item.clone()));
+                    }
+                    syn::Item::Macro(_) => {}
                     syn::Item::ForeignMod(_) => todo!(),
                     syn::Item::Impl(_) => todo!(),
                     syn::Item::Mod(_) => todo!(),

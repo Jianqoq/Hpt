@@ -7,6 +7,7 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     let mut cfg = CFG::new();
     let mut builder = crate::fuse::cfg_builder::CFGBuilder::new(&mut cfg);
     builder.visit_item_fn(item_fn);
+    let errors = builder.errors.drain(..).collect::<Vec<_>>();
     cfg.block_id = core::mem::take(&mut builder.block_ids);
     cfg.fill_variables();
     let dominators = petgraph::algo::dominators::simple_fast(&cfg.graph, cfg.entry);
@@ -15,6 +16,7 @@ fn build_cfg(item_fn: &syn::ItemFn) -> anyhow::Result<CFG> {
     cfg.insert_phi_functions(&dominance_frontiers, &definitions);
     cfg.rename_variables(&dominators)?;
     cfg.var_coalescer();
+    cfg.errors.extend(errors);
     Ok(cfg)
 }
 

@@ -308,9 +308,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         unimplemented!("graph::visit_field_mutability");
     }
 
-    fn visit_fields(&mut self, _: &'ast syn::Fields) {
-        unimplemented!("graph::visit_fields");
-    }
+    fn visit_fields(&mut self, _: &'ast syn::Fields) {}
 
     fn visit_fields_named(&mut self, _: &'ast syn::FieldsNamed) {
         unimplemented!("graph::visit_fields_named");
@@ -396,9 +394,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         unimplemented!("graph::visit_item_impl");
     }
 
-    fn visit_item_macro(&mut self, _: &'ast syn::ItemMacro) {
-        unimplemented!("graph::visit_item_macro");
-    }
+    fn visit_item_macro(&mut self, _: &'ast syn::ItemMacro) {}
 
     fn visit_item_mod(&mut self, _: &'ast syn::ItemMod) {
         unimplemented!("graph::visit_item_mod");
@@ -408,9 +404,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         unimplemented!("graph::visit_item_static");
     }
 
-    fn visit_item_struct(&mut self, _: &'ast syn::ItemStruct) {
-        unimplemented!("graph::visit_item_struct");
-    }
+    fn visit_item_struct(&mut self, _: &'ast syn::ItemStruct) {}
 
     fn visit_item_trait(&mut self, _: &'ast syn::ItemTrait) {
         unimplemented!("graph::visit_item_trait");
