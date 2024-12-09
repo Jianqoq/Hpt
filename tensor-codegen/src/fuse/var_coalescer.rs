@@ -45,6 +45,17 @@ impl<'ast> VarCoalescer<'ast> {
                                         }
                                     }
                                 }
+                                syn::Expr::Reference(reference) => {
+                                    if let syn::Expr::Path(path) = &mut *reference.expr {
+                                        if let Some(ident) = path.path.get_ident() {
+                                            if ident == &lhs {
+                                                *reference.expr = rhs.clone();
+                                                to_remove.push(idx - 1);
+                                                block.defined_vars.remove(&lhs);
+                                            }
+                                        }
+                                    }
+                                }
                                 _ => {}
                             }
                         }
@@ -56,7 +67,17 @@ impl<'ast> VarCoalescer<'ast> {
                         }
                     }
                     syn::Stmt::Item(_) => {}
-                    syn::Stmt::Expr(_, _) => {}
+                    syn::Stmt::Expr(expr, _) => {
+                        if let syn::Expr::Path(path) = &mut *expr {
+                            if let Some(ident) = path.path.get_ident() {
+                                if ident == &lhs {
+                                    *expr = rhs.clone();
+                                    to_remove.push(idx - 1);
+                                    block.defined_vars.remove(&lhs);
+                                }
+                            }
+                        }
+                    }
                     syn::Stmt::Macro(_) => {}
                 }
             }

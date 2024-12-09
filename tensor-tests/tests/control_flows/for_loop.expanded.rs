@@ -6,22 +6,19 @@ pub fn main() {
         let __for_out_0 = for i in 0..1000 {
             a += 10;
         };
-        let __call_1 = Ok(a);
-        __call_1
+        Ok(a)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
         let __for_out_0 = for _ in (0..1000).iter() {
             a += 10;
         };
-        let __call_1 = Ok(a);
-        __call_1
+        Ok(a)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
         let __for_out_0 = for _ in i.iter().enumerate() {
             a += 10;
         };
-        let __call_1 = Ok(a);
-        __call_1
+        Ok(a)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
         let __for_out_0 = for _ in i.iter().enumerate() {
@@ -29,7 +26,6 @@ pub fn main() {
             continue;
             break;
         };
-        let __call_1 = Ok(a);
-        __call_1
+        Ok(a)
     }
 }

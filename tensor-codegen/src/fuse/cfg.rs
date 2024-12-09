@@ -968,12 +968,14 @@ fn replace_vars(
                         }
                     }
                 }
-                _ => {}
+                _ => {
+                    syn::visit_mut::visit_expr_mut(self, node);
+                },
             }
-            syn::visit_mut::visit_expr_mut(self, node);
         }
     }
-    syn::visit_mut::visit_expr_mut(&mut (VarRenamer { stacks, new_origin_var_map }), expr);
+    let mut var_renamer = VarRenamer { stacks, new_origin_var_map };
+    var_renamer.visit_expr_mut(expr);
 }
 
 fn replace_vars_item(

@@ -95,6 +95,18 @@ impl TyInfer {
             syn::Expr::Paren(paren) => self.type_of(&paren.expr),
             syn::Expr::Tuple(_) => Type::Unknown,
             syn::Expr::Macro(_) => Type::Unknown,
+            syn::Expr::Repeat(_) => Type::Unknown,
+            syn::Expr::Cast(_) => Type::Unknown,
+            syn::Expr::Await(_) => Type::Unknown,
+            syn::Expr::Field(_) => Type::Unknown,
+            syn::Expr::Infer(_) => Type::Unknown,
+            syn::Expr::Index(_) => Type::Unknown,
+            syn::Expr::Continue(_) => Type::Unknown,
+            syn::Expr::Break(_) => Type::Unknown,
+            syn::Expr::Array(_) => Type::Unknown,
+            syn::Expr::Struct(_) => Type::Unknown,
+            syn::Expr::Yield(_) => Type::Unknown,
+            syn::Expr::Unary(unary) => self.type_of(&unary.expr),
             _ => unimplemented!("ty_infer::type_of::{:#?}", expr_ty::ExprType::from(expr)),
         }
     }

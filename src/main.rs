@@ -4,6 +4,12 @@ use std::io::Write;
 use tensor_dyn::tensor_base::_Tensor;
 use tensor_dyn::*;
 
+// fuse_proc_macro!(
+//     fn array(){
+//         let a = Point { x: 1, y: 1 };
+//         let a = Point { x: a - b, y: 1 };
+//         let a = Point { x: Point { x: a - b, y: 1 }, y: 1 };
+//     });
 
 // #[compile]
 // fn compute2<T: CommonBounds>(a: _Tensor<T>, b: _Tensor<T>, k: f32) -> anyhow::Result<_Tensor<T>>

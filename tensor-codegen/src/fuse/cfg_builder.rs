@@ -796,6 +796,62 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         });
     }
 
+    fn visit_expr_repeat(&mut self, expr_repeat: &'ast syn::ExprRepeat) {
+        let mut new_expr = expr_repeat.clone();
+        self.visit_expr(expr_repeat.expr.as_ref());
+        let expr = core::mem::take(&mut self.current_expr).expect("expr is none");
+        new_expr.expr = Box::new(expr);
+        self.visit_expr(expr_repeat.len.as_ref());
+        let len = core::mem::take(&mut self.current_expr).expect("len is none");
+        new_expr.len = Box::new(len);
+        self.current_expr = Some(syn::Expr::Repeat(new_expr));
+    }
+
+    fn visit_expr_cast(&mut self, i: &'ast syn::ExprCast) {
+        let mut new_expr = i.clone();
+        self.visit_expr(i.expr.as_ref());
+        let expr = core::mem::take(&mut self.current_expr).expect("expr is none");
+        new_expr.expr = Box::new(expr);
+        let ident = syn::Ident::new(&format!("__cast_{}", self.global_block_cnt()), i.span());
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_expr; }) {
+            self.push_stmt(stmt);
+        } else {
+            self.errors.push(Error::SynParseError(i.span(), "CFG builder", "cast".to_string()));
+            return;
+        }
+        self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
+    }
+
+    fn visit_expr_field(&mut self, i: &'ast syn::ExprField) {
+        let mut new_expr = i.clone();
+        self.visit_expr(i.base.as_ref());
+        let expr = core::mem::take(&mut self.current_expr).expect("expr is none");
+        new_expr.base = Box::new(expr);
+        let ident = syn::Ident::new(&format!("__field_{}", self.global_block_cnt()), i.span());
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_expr; }) {
+            self.push_stmt(stmt);
+        } else {
+            self.errors.push(Error::SynParseError(i.span(), "CFG builder", "field".to_string()));
+            return;
+        }
+        self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
+    }
+
+    fn visit_expr_await(&mut self, i: &'ast syn::ExprAwait) {
+        let mut new_expr = i.clone();
+        self.visit_expr(i.base.as_ref());
+        let expr = core::mem::take(&mut self.current_expr).expect("expr is none");
+        new_expr.base = Box::new(expr);
+        let ident = syn::Ident::new(&format!("__await_{}", self.global_block_cnt()), i.span());
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_expr; }) {
+            self.push_stmt(stmt);
+        } else {
+            self.errors.push(Error::SynParseError(i.span(), "CFG builder", "await".to_string()));
+            return;
+        }
+        self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
+    }
+
     fn visit_expr_binary(&mut self, binary: &'ast syn::ExprBinary) {
         self.has_assignment = false;
         let mut new_binary = binary.clone();
@@ -1130,9 +1186,173 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             );
             if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_method_call; }) {
                 self.push_stmt(stmt);
+            } else {
+                self.errors.push(
+                    Error::SynParseError(
+                        new_method_call.span(),
+                        "CFG builder",
+                        "expr_method_call::stmt".to_string()
+                    )
+                );
+                return;
             }
             self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
         }
+    }
+
+    fn visit_expr_return(&mut self, i: &'ast syn::ExprReturn) {
+        let mut new_return = i.clone();
+        if let Some(expr) = new_return.expr.take() {
+            self.visit_expr(expr.as_ref());
+            let expr = handle_accumulation(
+                &mut self.errors,
+                expr.span(),
+                "expr_return",
+                &mut self.current_expr
+            );
+            if let Some(expr) = expr {
+                new_return.expr = Some(Box::new(expr));
+            } else {
+                return;
+            }
+        }
+        self.current_expr = Some(syn::Expr::Return(new_return));
+    }
+
+    fn visit_expr_struct(&mut self, expr_struct: &'ast syn::ExprStruct) {
+        let mut new_struct = expr_struct.clone();
+        for field in new_struct.fields.iter_mut() {
+            self.visit_expr(&field.expr);
+            let expr = handle_accumulation(
+                &mut self.errors,
+                field.expr.span(),
+                "expr_struct",
+                &mut self.current_expr
+            );
+            if let Some(expr) = expr {
+                field.expr = expr;
+            } else {
+                return;
+            }
+        }
+        let ident = syn::Ident::new(
+            &format!("__expr_struct_{}", self.global_block_cnt()),
+            proc_macro2::Span::call_site()
+        );
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_struct; }) {
+            self.push_stmt(stmt);
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    new_struct.span(),
+                    "CFG builder",
+                    "expr_struct::stmt".to_string()
+                )
+            );
+            return;
+        }
+        self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
+    }
+
+    fn visit_expr_array(&mut self, i: &'ast syn::ExprArray) {
+        let mut new_array = i.clone();
+        for elem in new_array.elems.iter_mut() {
+            self.visit_expr(elem);
+            let new_elem = handle_accumulation(
+                &mut self.errors,
+                elem.span(),
+                "expr_array",
+                &mut self.current_expr
+            );
+            let new_elem = if let Some(new_elem) = new_elem {
+                new_elem
+            } else {
+                return;
+            };
+            *elem = new_elem;
+        }
+        let ident = syn::Ident::new(
+            &format!("__expr_array_{}", self.global_block_cnt()),
+            proc_macro2::Span::call_site()
+        );
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_array; }) {
+            self.push_stmt(stmt);
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    new_array.span(),
+                    "CFG builder",
+                    "expr_array::stmt".to_string()
+                )
+            );
+            return;
+        }
+        self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
+    }
+
+    fn visit_expr_yield(&mut self, i: &'ast syn::ExprYield) {
+        let mut new_yield = i.clone();
+        if let Some(expr) = new_yield.expr.take() {
+            self.visit_expr(expr.as_ref());
+            let expr = handle_accumulation(
+                &mut self.errors,
+                i.expr.span(),
+                "expr_yield",
+                &mut self.current_expr
+            );
+            if let Some(expr) = expr {
+                new_yield.expr = Some(Box::new(expr));
+            } else {
+                return;
+            }
+            let ident = syn::Ident::new(
+                &format!("__yield_{}", self.global_block_cnt()),
+                proc_macro2::Span::call_site()
+            );
+            if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_yield; }) {
+                self.push_stmt(stmt);
+            } else {
+                self.errors.push(
+                    Error::SynParseError(
+                        new_yield.span(),
+                        "CFG builder",
+                        "expr_yield::stmt".to_string()
+                    )
+                );
+                return;
+            }
+            self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
+        } else {
+            self.current_expr = Some(syn::Expr::Yield(new_yield));
+        }
+    }
+    fn visit_expr_unary(&mut self, unary: &'ast syn::ExprUnary) {
+        let mut new_unary = unary.clone();
+        self.visit_expr(unary.expr.as_ref());
+        let expr = handle_accumulation(
+            &mut self.errors,
+            unary.expr.span(),
+            "expr_unary",
+            &mut self.current_expr
+        );
+        if let Some(expr) = expr {
+            new_unary.expr = Box::new(expr);
+        } else {
+            return;
+        }
+        let ident = syn::Ident::new(
+            &format!("__unary_{}", self.global_block_cnt()),
+            proc_macro2::Span::call_site()
+        );
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_unary; }) {
+            self.push_stmt(stmt);
+        } else {
+            self.errors.push(
+                Error::SynParseError(new_unary.span(), "CFG builder", "expr_unary::stmt".to_string())
+            );
+            return;
+        }
+        self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
     }
 
     fn visit_expr_tuple(&mut self, tuple: &'ast syn::ExprTuple) {
@@ -1335,6 +1555,48 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             self.errors.push(
                 Error::SynParseError(i.span(), "CFG builder", "expr_macro::stmt".to_string())
             );
+        }
+        self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
+    }
+
+    fn visit_expr_infer(&mut self, i: &'ast syn::ExprInfer) {
+        self.current_expr = Some(syn::Expr::Infer(i.clone()));
+    }
+
+    fn visit_expr_index(&mut self, index: &'ast syn::ExprIndex) {
+        let mut new_index = index.clone();
+        self.visit_expr(index.expr.as_ref());
+        let expr = handle_accumulation(
+            &mut self.errors,
+            index.expr.span(),
+            "expr_index",
+            &mut self.current_expr
+        );
+        let expr = if let Some(expr) = expr {
+            expr
+        } else {
+            return;
+        };
+        self.visit_expr(new_index.index.as_ref());
+        let index = handle_accumulation(
+            &mut self.errors,
+            index.span(),
+            "expr_index",
+            &mut self.current_expr
+        );
+        let index = if let Some(index) = index {
+            index
+        } else {
+            return;
+        };
+        new_index.index = Box::new(index);
+        new_index.expr = Box::new(expr);
+        let ident = syn::Ident::new(
+            &format!("__index_{}", self.global_block_cnt()),
+            proc_macro2::Span::call_site()
+        );
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_index; }) {
+            self.push_stmt(stmt);
         }
         self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
     }

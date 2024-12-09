@@ -200,10 +200,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         unimplemented!("graph::visit_derive_input");
     }
 
-    fn visit_expr_array(&mut self, _: &'ast syn::ExprArray) {
-        unimplemented!("graph::visit_expr_array");
-    }
-
     fn visit_expr_assign(&mut self, assign: &'ast syn::ExprAssign) {
         for it in &assign.attrs {
             self.visit_attribute(it);
@@ -227,16 +223,8 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         unimplemented!("graph::visit_expr_async");
     }
 
-    fn visit_expr_await(&mut self, _: &'ast syn::ExprAwait) {
-        unimplemented!("graph::visit_expr_await");
-    }
-
     fn visit_expr_block(&mut self, _: &'ast syn::ExprBlock) {
         unimplemented!("graph::visit_expr_block");
-    }
-
-    fn visit_expr_cast(&mut self, _: &'ast syn::ExprCast) {
-        unimplemented!("graph::visit_expr_cast");
     }
 
     fn visit_expr_closure(&mut self, _: &'ast syn::ExprClosure) {
@@ -247,24 +235,12 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         unimplemented!("graph::visit_expr_const");
     }
 
-    fn visit_expr_field(&mut self, _: &'ast syn::ExprField) {
-        unimplemented!("graph::visit_expr_field");
-    }
-
     fn visit_expr_for_loop(&mut self, _: &'ast syn::ExprForLoop) {
         unimplemented!("graph::visit_expr_for_loop");
     }
 
     fn visit_expr_group(&mut self, _: &'ast syn::ExprGroup) {
         unimplemented!("graph::visit_expr_group");
-    }
-
-    fn visit_expr_index(&mut self, _: &'ast syn::ExprIndex) {
-        unimplemented!("graph::visit_expr_index");
-    }
-
-    fn visit_expr_infer(&mut self, _: &'ast syn::ExprInfer) {
-        unimplemented!("graph::visit_expr_infer");
     }
 
     fn visit_expr_loop(&mut self, _: &'ast syn::ExprLoop) {
@@ -279,36 +255,12 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         unimplemented!("graph::visit_expr_raw_addr");
     }
 
-    fn visit_expr_repeat(&mut self, _: &'ast syn::ExprRepeat) {
-        unimplemented!("graph::visit_expr_repeat");
-    }
-
-    fn visit_expr_return(&mut self, _: &'ast syn::ExprReturn) {
-        unimplemented!("graph::visit_expr_return");
-    }
-
-    fn visit_expr_struct(&mut self, _: &'ast syn::ExprStruct) {
-        unimplemented!("graph::visit_expr_struct");
-    }
-
-    fn visit_expr_try_block(&mut self, _: &'ast syn::ExprTryBlock) {
-        unimplemented!("graph::visit_expr_try_block");
-    }
-
     fn visit_expr_unary(&mut self, _: &'ast syn::ExprUnary) {
         unimplemented!("graph::visit_expr_unary");
     }
 
-    fn visit_expr_unsafe(&mut self, _: &'ast syn::ExprUnsafe) {
-        unimplemented!("graph::visit_expr_unsafe");
-    }
-
     fn visit_expr_while(&mut self, _: &'ast syn::ExprWhile) {
         unimplemented!("graph::visit_expr_while");
-    }
-
-    fn visit_expr_yield(&mut self, _: &'ast syn::ExprYield) {
-        unimplemented!("graph::visit_expr_yield");
     }
 
     fn visit_field(&mut self, _: &'ast syn::Field) {
@@ -317,14 +269,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
 
     fn visit_field_mutability(&mut self, _: &'ast syn::FieldMutability) {
         unimplemented!("graph::visit_field_mutability");
-    }
-
-    fn visit_field_pat(&mut self, _: &'ast syn::FieldPat) {
-        unimplemented!("graph::visit_field_pat");
-    }
-
-    fn visit_field_value(&mut self, _: &'ast syn::FieldValue) {
-        unimplemented!("graph::visit_field_value");
     }
 
     fn visit_fields(&mut self, _: &'ast syn::Fields) {
@@ -395,10 +339,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         unimplemented!("graph::visit_impl_restriction");
     }
 
-    fn visit_index(&mut self, _: &'ast syn::Index) {
-        unimplemented!("graph::visit_index");
-    }
-
     fn visit_item_enum(&mut self, _: &'ast syn::ItemEnum) {
         unimplemented!("graph::visit_item_enum");
     }
@@ -457,10 +397,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
 
     fn visit_label(&mut self, _: &'ast syn::Label) {
         unimplemented!("graph::visit_label");
-    }
-
-    fn visit_member(&mut self, _: &'ast syn::Member) {
-        unimplemented!("graph::visit_member");
     }
 
     fn visit_meta_list(&mut self, _: &'ast syn::MetaList) {
