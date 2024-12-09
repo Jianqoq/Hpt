@@ -25,7 +25,7 @@ impl<T> FloatUaryOps
 {
     type Output = Tensor<FloatUnaryType<T>>;
 
-    type InplaceOutput = _Tensor<FloatUnaryType<T>>;
+    type InplaceOutput = Tensor<FloatUnaryType<T>>;
 
     type OutputMeta = <T as FloatOutUnary>::Base;
 
@@ -51,7 +51,7 @@ impl<T> FloatUaryOps
     /// let b = a.sin().unwrap();
     /// ```
     fn sin(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::sin(self)?.into())
+        Ok(_Tensor::<T, Cpu>::sin(self.inner.as_ref())?.into())
     }
 
     /// Computes the element-wise cos of the tensor.
@@ -76,7 +76,7 @@ impl<T> FloatUaryOps
     /// let b = a.cos().unwrap();
     /// ```
     fn cos(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::cos(self)?.into())
+        Ok(_Tensor::<T, Cpu>::cos(self.inner.as_ref())?.into())
     }
 
     /// Computes the element-wise tan of the tensor.
@@ -101,7 +101,7 @@ impl<T> FloatUaryOps
     /// let b = a.tan().unwrap();
     /// ```
     fn tan(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::tan(self)?.into())
+        Ok(_Tensor::<T, Cpu>::tan(self.inner.as_ref())?.into())
     }
 
     /// Computes the element-wise asin of the tensor.
@@ -126,7 +126,7 @@ impl<T> FloatUaryOps
     /// let b = a.asin().unwrap();
     /// ```
     fn asin(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::asin(self)?.into())
+        Ok(_Tensor::<T, Cpu>::asin(self.inner.as_ref())?.into())
     }
 
     /// Computes the element-wise acos of the tensor.
@@ -151,7 +151,7 @@ impl<T> FloatUaryOps
     /// let b = a.acos().unwrap();
     /// ```
     fn acos(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::acos(self)?.into())
+        Ok(_Tensor::<T, Cpu>::acos(self.inner.as_ref())?.into())
     }
 
     /// Computes the element-wise atan of the tensor.
@@ -176,7 +176,7 @@ impl<T> FloatUaryOps
     /// let b = a.atan().unwrap();
     /// ```
     fn atan(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::atan(self)?.into())
+        Ok(_Tensor::<T, Cpu>::atan(self.inner.as_ref())?.into())
     }
 
     /// Computes the element-wise sinh of the tensor.
@@ -201,7 +201,7 @@ impl<T> FloatUaryOps
     /// let b = a.sinh().unwrap();
     /// ```
     fn sinh(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::sinh(self)?.into())
+        Ok(_Tensor::<T, Cpu>::sinh(self.inner.as_ref())?.into())
     }
 
     /// Computes the element-wise cosh of the tensor.
@@ -226,7 +226,7 @@ impl<T> FloatUaryOps
     /// let b = a.cosh().unwrap();
     /// ```
     fn cosh(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::cosh(self)?.into())
+        Ok(_Tensor::<T, Cpu>::cosh(self.inner.as_ref())?.into())
     }
 
     /// Computes the element-wise tanh of the tensor.
@@ -251,7 +251,7 @@ impl<T> FloatUaryOps
     /// let b = a.tanh().unwrap();
     /// ```
     fn tanh(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::tanh(self)?.into())
+        Ok(_Tensor::<T, Cpu>::tanh(self.inner.as_ref())?.into())
     }
 
     /// Computes the element-wise asinh of the tensor.
@@ -276,7 +276,7 @@ impl<T> FloatUaryOps
     /// let b = a.asinh().unwrap();
     /// ```
     fn asinh(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::asinh(self)?.into())
+        Ok(_Tensor::<T, Cpu>::asinh(self.inner.as_ref())?.into())
     }
 
     /// Computes the element-wise acosh of the tensor.
@@ -301,7 +301,7 @@ impl<T> FloatUaryOps
     /// let b = a.acosh().unwrap();
     /// ```
     fn acosh(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::acosh(self)?.into())
+        Ok(_Tensor::<T, Cpu>::acosh(self.inner.as_ref())?.into())
     }
 
     /// Computes the element-wise atanh of the tensor.
@@ -326,55 +326,55 @@ impl<T> FloatUaryOps
     /// let b = a.atanh().unwrap();
     /// ```
     fn atanh(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::atanh(self)?.into())
+        Ok(_Tensor::<T, Cpu>::atanh(self.inner.as_ref())?.into())
     }
 
     fn sin_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::sin_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::sin_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn cos_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::cos_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::cos_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn tan_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::tan_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::tan_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn asin_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::asin_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::asin_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn acos_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::acos_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::acos_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn atan_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::atan_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::atan_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn sinh_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::sinh_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::sinh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn cosh_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::cosh_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::cosh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn tanh_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::tanh_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::tanh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn asinh_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::asinh_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::asinh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn acosh_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::acosh_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::acosh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn atanh_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::atanh_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::atanh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise exponential of the tensor.
@@ -398,11 +398,11 @@ impl<T> FloatUaryOps
     /// let b = a.exp().unwrap();
     /// ```
     fn exp(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::exp(self)?.into())
+        Ok(_Tensor::<T, Cpu>::exp(self.inner.as_ref())?.into())
     }
 
     fn exp_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::exp_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::exp_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise base-2 exponential of the tensor.
@@ -431,11 +431,11 @@ impl<T> FloatUaryOps
     /// let b = a.exp2().unwrap();
     /// ```
     fn exp2(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::exp2(self)?.into())
+        Ok(_Tensor::<T, Cpu>::exp2(self.inner.as_ref())?.into())
     }
 
     fn exp2_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::exp2_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::exp2_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise square root of the tensor.
@@ -464,11 +464,11 @@ impl<T> FloatUaryOps
     /// let b = a.sqrt().unwrap();
     /// ```
     fn sqrt(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::sqrt(self)?.into())
+        Ok(_Tensor::<T, Cpu>::sqrt(self.inner.as_ref())?.into())
     }
 
     fn sqrt_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::sqrt_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::sqrt_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise reciprocal of the tensor.
@@ -496,11 +496,11 @@ impl<T> FloatUaryOps
     /// let b = a.recip().unwrap();
     /// ```
     fn recip(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::recip(self)?.into())
+        Ok(_Tensor::<T, Cpu>::recip(self.inner.as_ref())?.into())
     }
 
     fn recip_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::recip_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::recip_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise natural logarithm of the tensor.
@@ -529,11 +529,11 @@ impl<T> FloatUaryOps
     /// let b = a.ln().unwrap();
     /// ```
     fn ln(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::ln(self)?.into())
+        Ok(_Tensor::<T, Cpu>::ln(self.inner.as_ref())?.into())
     }
 
     fn ln_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::ln_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::ln_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise base-2 logarithm of the tensor.
@@ -562,11 +562,11 @@ impl<T> FloatUaryOps
     /// let b = a.log2().unwrap();
     /// ```
     fn log2(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::log2(self)?.into())
+        Ok(_Tensor::<T, Cpu>::log2(self.inner.as_ref())?.into())
     }
 
     fn log2_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::log2_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::log2_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise base-10 logarithm of the tensor.
@@ -595,11 +595,11 @@ impl<T> FloatUaryOps
     /// let b = a.log10().unwrap();
     /// ```
     fn log10(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::log10(self)?.into())
+        Ok(_Tensor::<T, Cpu>::log10(self.inner.as_ref())?.into())
     }
 
     fn log10_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::log10_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::log10_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise Continuously Differentiable Exponential Linear Unit (CELU) activation function.
@@ -627,13 +627,13 @@ impl<T> FloatUaryOps
     /// let b = a.celu(1.0).unwrap();
     /// ```
     fn celu(&self, alpha: Self::OutputMeta) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::celu(self, alpha)?.into())
+        Ok(_Tensor::<T, Cpu>::celu(self.inner.as_ref(), alpha)?.into())
     }
 
     fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
         where U: Borrow<Self::InplaceOutput>
     {
-        Ok(_Tensor::<T, Cpu>::celu_(self, alpha, out)?.into())
+        Ok(_Tensor::<T, Cpu>::celu_(self.inner.as_ref(), alpha, out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise sigmoid activation function of the tensor.
@@ -661,11 +661,11 @@ impl<T> FloatUaryOps
     /// let b = a.sigmoid().unwrap();
     /// ```
     fn sigmoid(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::sigmoid(self)?.into())
+        Ok(_Tensor::<T, Cpu>::sigmoid(self.inner.as_ref())?.into())
     }
 
     fn sigmoid_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::sigmoid_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::sigmoid_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise Exponential Linear Unit (ELU) activation function.
@@ -693,13 +693,13 @@ impl<T> FloatUaryOps
     /// let b = a.elu(1.0).unwrap();
     /// ```
     fn elu(&self, alpha: Self::OutputMeta) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::elu(self, alpha)?.into())
+        Ok(_Tensor::<T, Cpu>::elu(self.inner.as_ref(), alpha)?.into())
     }
 
     fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
         where U: Borrow<Self::InplaceOutput>
     {
-        Ok(_Tensor::<T, Cpu>::elu_(self, alpha, out)?.into())
+        Ok(_Tensor::<T, Cpu>::elu_(self.inner.as_ref(), alpha, out.borrow().inner.as_ref())?.into())
     }
     /// Computes the element-wise error function (erf) of the tensor.
     ///
@@ -727,7 +727,7 @@ impl<T> FloatUaryOps
     /// let b = a.erf().unwrap();
     /// ```
     fn erf(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::erf(self)?.into())
+        Ok(_Tensor::<T, Cpu>::erf(self.inner.as_ref())?.into())
     }
 
     /// Computes the element-wise fast hard sigmoid activation function.
@@ -755,7 +755,7 @@ impl<T> FloatUaryOps
     /// let b = a.fast_hard_sigmoid().unwrap();
     /// ```
     fn fast_hard_sigmoid(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::fast_hard_sigmoid(self)?.into())
+        Ok(_Tensor::<T, Cpu>::fast_hard_sigmoid(self.inner.as_ref())?.into())
     }
 
     /// Computes the element-wise Gaussian Error Linear Unit (GELU) activation function.
@@ -783,11 +783,11 @@ impl<T> FloatUaryOps
     /// let b = a.gelu().unwrap();
     /// ```
     fn gelu(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::gelu(self)?.into())
+        Ok(_Tensor::<T, Cpu>::gelu(self.inner.as_ref())?.into())
     }
 
     fn gelu_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::gelu_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::gelu_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise Scaled Exponential Linear Unit (SELU) activation function.
@@ -819,7 +819,7 @@ impl<T> FloatUaryOps
     fn selu<U>(&self, alpha: U, gamma: U) -> anyhow::Result<Tensor<FloatUnaryType<T>>>
         where U: Into<Option<Self::OutputMeta>>
     {
-        Ok(_Tensor::<T, Cpu>::selu(self, alpha, gamma)?.into())
+        Ok(_Tensor::<T, Cpu>::selu(self.inner.as_ref(), alpha, gamma)?.into())
     }
 
     fn selu_<U>(
@@ -830,7 +830,7 @@ impl<T> FloatUaryOps
     ) -> Result<Self::Output>
         where U: Borrow<Self::InplaceOutput>
     {
-        Ok(_Tensor::<T, Cpu>::selu_(self, alpha, gamma, out)?.into())
+        Ok(_Tensor::<T, Cpu>::selu_(self.inner.as_ref(), alpha, gamma, out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise Hard Sigmoid activation function.
@@ -858,11 +858,11 @@ impl<T> FloatUaryOps
     /// let b = a.hard_sigmoid().unwrap();
     /// ```
     fn hard_sigmoid(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::hard_sigmoid(self)?.into())
+        Ok(_Tensor::<T, Cpu>::hard_sigmoid(self.inner.as_ref())?.into())
     }
 
     fn hard_sigmoid_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::hard_sigmoid_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::hard_sigmoid_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise Hard Swish activation function.
@@ -890,11 +890,11 @@ impl<T> FloatUaryOps
     /// let b = a.hard_swish().unwrap();
     /// ```
     fn hard_swish(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::hard_swish(self)?.into())
+        Ok(_Tensor::<T, Cpu>::hard_swish(self.inner.as_ref())?.into())
     }
 
     fn hard_swish_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::hard_swish_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::hard_swish_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise Softplus activation function.
@@ -922,11 +922,11 @@ impl<T> FloatUaryOps
     /// let b = a.softplus().unwrap();
     /// ```
     fn softplus(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::softplus(self)?.into())
+        Ok(_Tensor::<T, Cpu>::softplus(self.inner.as_ref())?.into())
     }
 
     fn softplus_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::softplus_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::softplus_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise Softsign activation function.
@@ -954,11 +954,11 @@ impl<T> FloatUaryOps
     /// let b = a.softsign().unwrap();
     /// ```
     fn softsign(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::softsign(self)?.into())
+        Ok(_Tensor::<T, Cpu>::softsign(self.inner.as_ref())?.into())
     }
 
     fn softsign_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::softsign_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::softsign_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise Mish activation function.
@@ -986,10 +986,10 @@ impl<T> FloatUaryOps
     /// let b = a.mish().unwrap();
     /// ```
     fn mish(&self) -> Result<Self::Output> {
-        Ok(_Tensor::<T, Cpu>::mish(self)?.into())
+        Ok(_Tensor::<T, Cpu>::mish(self.inner.as_ref())?.into())
     }
 
     fn mish_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::<T, Cpu>::mish_(self, out)?.into())
+        Ok(_Tensor::<T, Cpu>::mish_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 }

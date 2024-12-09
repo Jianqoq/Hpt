@@ -3,29 +3,9 @@ use std::sync::Arc;
 use tensor_common::shape_utils::mt_intervals;
 use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
 
-use crate::{ tensor_base::_Tensor, THREAD_POOL };
+use crate::{ tensor_base::_Tensor, Tensor, THREAD_POOL };
 
 impl<T: CommonBounds> _Tensor<T> {
-    /// Converts the input tensor into a one-hot encoded tensor along a specified axis.
-    ///
-    /// This method transforms the input tensor into a one-hot encoded format, where the values
-    /// along the specified axis are converted into vectors of size `depth`. Each vector contains
-    /// a `true_val` at the index specified by the input tensor and `false_val` elsewhere.
-    ///
-    /// # Arguments
-    ///
-    /// * `depth` - The size of the one-hot vectors. This represents the number of unique categories
-    ///   for the one-hot encoding. Each element in the input tensor will be transformed into a one-hot
-    ///   vector of this length.
-    /// * `axis` - The axis along which the one-hot encoding is applied. If the axis is negative, it is
-    ///   treated as counting from the last dimension of the tensor. The new one-hot vectors will be inserted
-    ///   along this axis.
-    /// * `_true_val` - The value that will be placed at the position corresponding to the one-hot index (usually 1).
-    /// * `false_val` - The value that will fill the other positions in the one-hot vector (usually 0).
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a new tensor with the one-hot encoded values.
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn pad(&self, pads: &[(i64, i64)], val: T) -> anyhow::Result<_Tensor<T>> {
         let res_shape = self
@@ -114,5 +94,32 @@ impl<T: CommonBounds> _Tensor<T> {
         });
 
         Ok(res)
+    }
+}
+
+impl<T: CommonBounds> Tensor<T> {
+    /// Converts the input tensor into a one-hot encoded tensor along a specified axis.
+    ///
+    /// This method transforms the input tensor into a one-hot encoded format, where the values
+    /// along the specified axis are converted into vectors of size `depth`. Each vector contains
+    /// a `true_val` at the index specified by the input tensor and `false_val` elsewhere.
+    ///
+    /// # Arguments
+    ///
+    /// * `depth` - The size of the one-hot vectors. This represents the number of unique categories
+    ///   for the one-hot encoding. Each element in the input tensor will be transformed into a one-hot
+    ///   vector of this length.
+    /// * `axis` - The axis along which the one-hot encoding is applied. If the axis is negative, it is
+    ///   treated as counting from the last dimension of the tensor. The new one-hot vectors will be inserted
+    ///   along this axis.
+    /// * `_true_val` - The value that will be placed at the position corresponding to the one-hot index (usually 1).
+    /// * `false_val` - The value that will fill the other positions in the one-hot vector (usually 0).
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a new tensor with the one-hot encoded values.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn pad(&self, pads: &[(i64, i64)], val: T) -> anyhow::Result<Tensor<T>> {
+        Ok(self.inner.pad(pads, val)?.into())
     }
 }

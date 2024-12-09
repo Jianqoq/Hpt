@@ -16,13 +16,22 @@ use tensor_traits::TensorLike;
 
 macro_rules! from_scalar {
     ($($t:ident),*) => {
-        $(impl Into<_Tensor<$t>> for $t {
-            fn into(self) -> _Tensor<$t> {
-                let mut ret = _Tensor::<$t>::empty(vec![]).unwrap();
-                ret.as_raw_mut()[0] = self;
-                return ret;
+        $(
+            impl Into<_Tensor<$t>> for $t {
+                fn into(self) -> _Tensor<$t> {
+                    let mut ret = _Tensor::<$t>::empty(vec![]).unwrap();
+                    ret.as_raw_mut()[0] = self;
+                    return ret;
+                }
             }
-        })*
+            impl Into<Tensor<$t>> for $t {
+                fn into(self) -> Tensor<$t> {
+                    Tensor {
+                        inner: Arc::new(self.into()),
+                    }
+                }
+            }
+        )*
     };
 }
 
@@ -69,6 +78,13 @@ macro_rules! impl_type_num {
                     };
                 }
             }
+            impl From<Vec<$t>> for Tensor<$t> {
+                fn from(data: Vec<$t>) -> Self {
+                    Tensor {
+                        inner: Arc::new(data.into()),
+                    }
+                }
+            }
         )*
     };
     (ndarray, $($generic:ident),*; $($vars:ident),*; $ct:ident, $($t:ident),*) => {
@@ -104,6 +120,13 @@ macro_rules! impl_type_num {
                         mem_layout: Arc::new(layout),
                         _backend: Backend::new(ptr as u64),
                     };
+                }
+            }
+            impl<$(const $generic: usize), *> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct> {
+                fn from(data: repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
+                    Tensor {
+                        inner: Arc::new(data.into()),
+                    }
                 }
             }
             impl_type_num!(ndarray, $($generic), *; $($vars), *; $($t),*);
@@ -142,6 +165,13 @@ macro_rules! impl_type_num {
                     mem_layout: Arc::new(layout),
                     _backend: Backend::new(ptr as u64),
                 };
+            }
+        }
+        impl<$(const $generic: usize), *> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct> {
+            fn from(data: repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
+                Tensor {
+                    inner: Arc::new(data.into()),
+                }
             }
         }
     };
@@ -188,6 +218,13 @@ macro_rules! impl_type_num {
                 };
             }
         }
+        impl<$(const $generic: usize), *> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for Tensor<$ct> {
+            fn from(data: repeate_generic!(nested_array_type, $($generic), *; $source)) -> Self {
+                Tensor {
+                    inner: Arc::new(data.into()),
+                }
+            }
+        }
         impl_type_num!(ndarray_source_target, $source, $($generic), *; $($vars), *; $($t),*);
     };
     (ndarray_source_target, $source:ident, $($generic:ident),*; $($vars:ident),*; $ct:ident) => {
@@ -226,6 +263,13 @@ macro_rules! impl_type_num {
             };
         }
     }
+    impl<$(const $generic: usize), *> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for Tensor<$ct> {
+        fn from(data: repeate_generic!(nested_array_type, $($generic), *; $source)) -> Self {
+            Tensor {
+                    inner: Arc::new(data.into()),
+                }
+            }
+        }
     };
 
     (ndarray_ref, $($generic:ident),*; $($vars:ident),*; $ct:ident, $($t:ident),*) => {
@@ -264,6 +308,13 @@ macro_rules! impl_type_num {
                 };
             }
         }
+        impl<$(const $generic: usize), *> From<&repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct> {
+            fn from(data: &repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
+                Tensor {
+                    inner: Arc::new(data.into()),
+                }
+            }
+        }
         impl_type_num!(ndarray_ref, $($generic), *; $($vars), *; $($t),*);
     };
     (ndarray_ref, $($generic:ident),*; $($vars:ident),*; $ct:ident) => {
@@ -300,6 +351,13 @@ macro_rules! impl_type_num {
                     mem_layout: Arc::new(layout),
                     _backend: Backend::new(ptr as u64),
                 };
+            }
+        }
+        impl<$(const $generic: usize), *> From<&repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct> {
+            fn from(data: &repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
+                Tensor {
+                    inner: Arc::new(data.into()),
+                }
             }
         }
     };
@@ -392,24 +450,12 @@ impl_type_num!(ndarray_source_target, f64, N, M, O, P, Q, R, S; i, j, k, l, m, n
 impl_type_num!(ndarray_source_target, f32, N, M, O, P, Q, R, S, T; i, j, k, l, m, n, o; Complex32);
 impl_type_num!(ndarray_source_target, f64, N, M, O, P, Q, R, S, T; i, j, k, l, m, n, o; Complex64);
 
-impl<T> _Tensor<T, Cpu> {
-    /// Creates a new tensor from the provided data.
-    pub fn new<A>(data: A) -> Self
-    where
-        A: Into<_Tensor<T>>,
-    {
-        data.into()
-    }
-}
-
 impl<T> Tensor<T, Cpu> {
     /// Creates a new tensor from the provided data.
     pub fn new<A>(data: A) -> Self
     where
-        A: Into<_Tensor<T>>,
+        A: Into<Tensor<T>>,
     {
-        Tensor {
-            inner: Arc::new(data.into()),
-        }
+        data.into()
     }
 }

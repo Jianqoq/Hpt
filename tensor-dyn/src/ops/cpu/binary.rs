@@ -81,14 +81,14 @@ macro_rules! impl_bin_ops_basic {
     {
         type Output = Tensor<NormalType<A, B>>;
         type OutputMeta = NormalType<A, B>;
-        type InplaceOutput = _Tensor<NormalType<A, B>>;
+        type InplaceOutput = Tensor<NormalType<A, B>>;
         #[cfg_attr(feature = "track_caller", track_caller)]
         #[inline]
         fn add_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
             where
                 U: Borrow<Self::InplaceOutput>
         {
-            Ok(self.inner.add_(rhs.inner.as_ref(), out)?.into())
+            Ok(self.inner.add_(rhs.inner.as_ref(), out.borrow().inner.as_ref())?.into())
         }
         #[cfg_attr(feature = "track_caller", track_caller)]
         #[inline]
@@ -96,7 +96,7 @@ macro_rules! impl_bin_ops_basic {
             where
                 U: Borrow<Self::InplaceOutput>
         {
-            Ok(self.inner.sub_(rhs.inner.as_ref(), out)?.into())
+            Ok(self.inner.sub_(rhs.inner.as_ref(), out.borrow().inner.as_ref())?.into())
         }
         #[cfg_attr(feature = "track_caller", track_caller)]
         #[inline]
@@ -104,7 +104,7 @@ macro_rules! impl_bin_ops_basic {
             where
                 U: Borrow<Self::InplaceOutput>
         {
-            Ok(self.inner.mul_(rhs.inner.as_ref(), out)?.into())
+            Ok(self.inner.mul_(rhs.inner.as_ref(), out.borrow().inner.as_ref())?.into())
         }
         #[cfg_attr(feature = "track_caller", track_caller)]
         #[inline]
@@ -112,7 +112,7 @@ macro_rules! impl_bin_ops_basic {
             where
                 U: Borrow<Self::InplaceOutput>
         {
-            Ok(self.inner.rem_(rhs.inner.as_ref(), out)?.into())
+            Ok(self.inner.rem_(rhs.inner.as_ref(), out.borrow().inner.as_ref())?.into())
         }
     }
     };

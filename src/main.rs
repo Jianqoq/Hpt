@@ -1,39 +1,47 @@
 use into_scalar::IntoScalar;
 use rust_xlsxwriter::{ Format, Workbook };
 use std::io::Write;
-use tensor_dyn::tensor_base::_Tensor;
+use tensor_dyn::Tensor;
 use tensor_dyn::*;
 
-// fuse_proc_macro!(
-//     fn array(){
-//         let a = Point { x: 1, y: 1 };
-//         let a = Point { x: a - b, y: 1 };
-//         let a = Point { x: Point { x: a - b, y: 1 }, y: 1 };
-//     });
+fuse_proc_macro!(
+    fn compute(a: Tensor<f32>, b: Tensor<f32>, k: f32) -> anyhow::Result<Tensor<f32>>
+{
+    let mut c = &a + &b / &a;
+    let d = c.sin()?;
+    let e = d.relu()?;
+    let g = c.matmul(&e)?.tanh()?;
+    let f = g.relu()?;
+    let shape = a.shape();
+    let alpha = 1.673263242354358;
+    let gamma = 1.050700987355822;
+    if shape.len() > 0 {
+        e.selu(alpha, gamma)?;
+        if alpha > 0.0 {
+            e.tanh()?
+        } else {
+            d.tan()?
+        }
+    } else {
+        d.selu(alpha, gamma)?
+    }
+    for _ in 0..1000000 {
+        c = &d + &c;
+        break;
+    }
+    while true {
+        let c = &d + &c;
+        c.sin()?;
+        continue;
+    }
+    
+    Ok(g)
+});
 
-// #[compile]
-// fn compute2<T: CommonBounds>(a: _Tensor<T>, b: _Tensor<T>, k: f32) -> anyhow::Result<_Tensor<T>>
-//     where
-//         T: FloatOutUnary<Output = T, Base = T>,
-//         T::Vec: FloatOutUnary<Output = T::Vec, Base = T>,
-//         T: NormalOutUnary<Base = T>,
-//         T::Vec: NormalOutUnary<Base = T>,
-//         f64: IntoScalar<T>,
-//         Option<T>: From<f64>
-// {
-//     if a > 0.0 {
-//         a = 10
-//     } else if a > 0.0 {
-//         a = 20
-//     } else {
-//         a = 30
-//     }
-//     Ok(c)
-// }
 
 fn main() -> anyhow::Result<()> {
     // conv2d()?;
-    // let a = _Tensor::<f32>::arange(0, 10000)?;
+    let a = Tensor::<f32>::arange(0, 10000)?;
     // let b = _Tensor::<f32>::arange(0, 10000)?;
     // let now = std::time::Instant::now();
     // let c = compute(a, b)?;
@@ -60,7 +68,7 @@ fn conv2d() -> Result<(), anyhow::Error> {
             for kw in kw_sets {
                 for h in h_sets {
                     for w in w_sets {
-                        let a = _Tensor::<f32>
+                        let a = Tensor::<f32>
                             ::arange(0, 1 * ic * h * w)?
                             .reshape([1, ic, h, w])?
                             .permute([0, 2, 3, 1])?

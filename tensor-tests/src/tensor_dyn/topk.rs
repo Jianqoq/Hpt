@@ -1,8 +1,6 @@
 #![allow(unused_imports)]
-
-use tch::Tensor;
 use tensor_common::slice;
-use tensor_dyn::{ tensor_base::_Tensor, TensorCreator };
+use tensor_dyn::{ Tensor, TensorCreator };
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::TensorInfo;
@@ -10,7 +8,7 @@ use tensor_macros::match_selection;
 use tensor_common::slice::Slice;
 
 #[allow(unused)]
-fn assert_eq(b: &_Tensor<i64>, a: &Tensor) {
+fn assert_eq(b: &Tensor<i64>, a: &tch::Tensor) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
     let b_raw = b.as_raw();
 
@@ -29,7 +27,7 @@ fn assert_eq(b: &_Tensor<i64>, a: &Tensor) {
 
 #[test]
 fn test_2dim() -> anyhow::Result<()> {
-    let a = _Tensor::<i64>::arange(0, 1000000)?.reshape(&[1000, 1000])?;
+    let a = Tensor::<i64>::arange(0, 1000000)?.reshape(&[1000, 1000])?;
     let tch_a = tch::Tensor
         ::arange(1000000, (tch::Kind::Int64, tch::Device::Cpu))
         .reshape(&[1000, 1000]);
@@ -61,7 +59,7 @@ fn test_2dim() -> anyhow::Result<()> {
 
 #[test]
 fn test_2dim_uncontiguous() -> anyhow::Result<()> {
-    let a = _Tensor::<i64>::arange(0, 1000000)?.reshape(&[1000, 1000])?.permute(&[1, 0])?;
+    let a = Tensor::<i64>::arange(0, 1000000)?.reshape(&[1000, 1000])?.permute(&[1, 0])?;
     let tch_a = tch::Tensor
         ::arange(1000000, (tch::Kind::Int64, tch::Device::Cpu))
         .reshape(&[1000, 1000])
@@ -94,7 +92,7 @@ fn test_2dim_uncontiguous() -> anyhow::Result<()> {
 
 #[test]
 fn test_2dim_uncontiguous_sub_tensor() -> anyhow::Result<()> {
-    let a = _Tensor::<i64>::arange(0, 1000000)?.reshape(&[1000, 1000])?.permute(&[1, 0])?;
+    let a = Tensor::<i64>::arange(0, 1000000)?.reshape(&[1000, 1000])?.permute(&[1, 0])?;
     let a = slice!(a[20:70:3, 20:70:3])?;
     let tch_a = tch::Tensor
         ::arange(1000000, (tch::Kind::Int64, tch::Device::Cpu))
@@ -129,7 +127,7 @@ fn test_2dim_uncontiguous_sub_tensor() -> anyhow::Result<()> {
 
 #[test]
 fn test_3dim() -> anyhow::Result<()> {
-    let a = _Tensor::<i64>::arange(0, 1000000)?.reshape(&[100, 100, 100])?;
+    let a = Tensor::<i64>::arange(0, 1000000)?.reshape(&[100, 100, 100])?;
     let tch_a = tch::Tensor
         ::arange(1000000, (tch::Kind::Int64, tch::Device::Cpu))
         .reshape(&[100, 100, 100]);
@@ -161,7 +159,7 @@ fn test_3dim() -> anyhow::Result<()> {
 
 #[test]
 fn test_3dim_uncontiguous() -> anyhow::Result<()> {
-    let a = _Tensor::<i64>::arange(0, 1000000)?.reshape(&[100, 100, 100])?.permute(&[1, 0, 2])?;
+    let a = Tensor::<i64>::arange(0, 1000000)?.reshape(&[100, 100, 100])?.permute(&[1, 0, 2])?;
     let tch_a = tch::Tensor
         ::arange(1000000, (tch::Kind::Int64, tch::Device::Cpu))
         .reshape(&[100, 100, 100])
@@ -194,7 +192,7 @@ fn test_3dim_uncontiguous() -> anyhow::Result<()> {
 
 #[test]
 fn test_3dim_uncontiguous_sub_tensor() -> anyhow::Result<()> {
-    let a = _Tensor::<i64>::arange(0, 1000000)?.reshape(&[100, 100, 100])?.permute(&[1, 0, 2])?;
+    let a = Tensor::<i64>::arange(0, 1000000)?.reshape(&[100, 100, 100])?.permute(&[1, 0, 2])?;
     let tch_a = tch::Tensor
         ::arange(1000000, (tch::Kind::Int64, tch::Device::Cpu))
         .reshape(&[100, 100, 100])

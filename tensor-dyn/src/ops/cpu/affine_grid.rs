@@ -7,7 +7,7 @@ use tensor_common::{shape::Shape, shape_utils::mt_intervals};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 use tensor_types::{dtype::FloatConst, into_scalar::IntoScalar};
 
-use crate::{tensor_base::_Tensor, THREAD_POOL};
+use crate::{tensor_base::_Tensor, Tensor, THREAD_POOL};
 
 impl<T> _Tensor<T>
 where
@@ -164,5 +164,41 @@ where
         } else {
             anyhow::bail!("Shape must be 4D")
         }
+    }
+}
+
+impl<T> Tensor<T>
+where
+    T: CommonBounds
+        + Mul<Output = T>
+        + Sub<Output = T>
+        + Div<Output = T>
+        + Add<Output = T>
+        + Neg<Output = T>
+        + FloatConst,
+    i64: IntoScalar<T>,
+{
+    /// Generates an affine grid for the given shape.
+    ///
+    /// This method creates an affine grid, commonly used in applications like
+    /// spatial transformations. The output is a grid of coordinates that can
+    /// be used to apply affine transformations on input tensors. It supports
+    /// both aligned corners and non-aligned corners, depending on the
+    /// `align_corners` flag.
+    ///
+    /// # Arguments
+    ///
+    /// * `shape` - The target shape for the affine grid. It can be provided
+    ///   as a type that implements the `Into<Shape>` trait, allowing flexibility
+    ///   in specifying the shape.
+    /// * `align_corners` - A boolean flag that, if true, aligns the grid corners
+    ///   with the corners of the input tensor. If false, the grid will be
+    ///   aligned in a different way, typically for downscaling operations.
+    pub fn affine_grid<S: Into<Shape>>(
+        &self,
+        shape: S,
+        align_corners: bool,
+    ) -> anyhow::Result<Tensor<T>> {
+        Ok(self.inner.affine_grid(shape, align_corners)?.into())
     }
 }

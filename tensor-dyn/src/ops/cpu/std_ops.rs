@@ -26,6 +26,7 @@ use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::BitWiseOut;
 use tensor_types::type_promote::FloatOutBinary;
 use tensor_types::type_promote::NormalOut;
+use crate::Tensor;
 
 macro_rules! normal_promote_ops_1 {
     ($([$op:ident, $op2:ident, $op3:ident]),*) => {
@@ -846,6 +847,822 @@ use half::bf16;
 use half::f16;
 use num::complex::Complex32;
 use num::complex::Complex64;
+normal_scalar_rhs!(
+    [bool, []],
+    [i8, []],
+    [i16, []],
+    [i32, []],
+    [i64, []],
+    [u8, []],
+    [u16, []],
+    [u32, []],
+    [u64, []],
+    [f16, []],
+    [f32, []],
+    [f64, []],
+    [bf16, []],
+    [Complex32, []],
+    [Complex64, []]
+);
+
+bitwise_scalar_rhs!(
+    [bool, []],
+    [i8, []],
+    [i16, []],
+    [i32, []],
+    [i64, []],
+    [u8, []],
+    [u16, []],
+    [u32, []],
+    [u64, []]
+);
+
+normal_scalar_rhs!(
+    [bool, [&]],
+    [i8, [&]],
+    [i16, [&]],
+    [i32, [&]],
+    [i64, [&]],
+    [u8, [&]],
+    [u16, [&]],
+    [u32, [&]],
+    [u64, [&]],
+    [f16, [&]],
+    [f32, [&]],
+    [f64, [&]],
+    [bf16, [&]],
+    [Complex32, [&]],
+    [Complex64, [&]]
+);
+
+bitwise_scalar_rhs!(
+    [bool, [&]],
+    [i8, [&]],
+    [i16, [&]],
+    [i32, [&]],
+    [i64, [&]],
+    [u8, [&]],
+    [u16, [&]],
+    [u32, [&]],
+    [u64, [&]],
+    [f16, [&]],
+    [f32, [&]],
+    [f64, [&]],
+    [bf16, [&]],
+    [Complex32, [&]],
+    [Complex64, [&]]
+);
+
+normal_scalar_lhs!(
+    [bool, []],
+    [i8, []],
+    [i16, []],
+    [i32, []],
+    [i64, []],
+    [u8, []],
+    [u16, []],
+    [u32, []],
+    [u64, []],
+    [f16, []],
+    [f32, []],
+    [f64, []],
+    [bf16, []],
+    [Complex32, []],
+    [Complex64, []]
+);
+
+bitwise_scalar_lhs!(
+    [bool, []],
+    [i8, []],
+    [i16, []],
+    [i32, []],
+    [i64, []],
+    [u8, []],
+    [u16, []],
+    [u32, []],
+    [u64, []]
+);
+
+normal_scalar_lhs!(
+    [bool, [&]],
+    [i8, [&]],
+    [i16, [&]],
+    [i32, [&]],
+    [i64, [&]],
+    [u8, [&]],
+    [u16, [&]],
+    [u32, [&]],
+    [u64, [&]],
+    [f16, [&]],
+    [f32, [&]],
+    [f64, [&]],
+    [bf16, [&]],
+    [Complex32, [&]],
+    [Complex64, [&]]
+);
+
+bitwise_scalar_lhs!(
+    [bool, [&]],
+    [i8, [&]],
+    [i16, [&]],
+    [i32, [&]],
+    [i64, [&]],
+    [u8, [&]],
+    [u16, [&]],
+    [u32, [&]],
+    [u64, [&]],
+    [f16, [&]],
+    [f32, [&]],
+    [f64, [&]],
+    [bf16, [&]],
+    [Complex32, [&]],
+    [Complex64, [&]]
+);
+
+macro_rules! normal_promote_ops_1 {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(
+            impl<T, U> $op<Tensor<U>> for Tensor<T>
+            where
+            T: CommonBounds + NormalOut<U>,
+            U: CommonBounds,
+            <T as NormalOut<U>>::Output: CommonBounds,
+            <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+            T::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>,
+        {
+            type Output = Tensor<<T as NormalOut<U>>::Output>;
+
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn $op2(self, rhs: Tensor<U>) -> Self::Output {
+                self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
+            }
+        }
+        )*
+    };
+}
+
+macro_rules! normal_promote_ops_2 {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(
+            impl<'a, T, U> $op<&'a Tensor<U>> for Tensor<T>
+                where
+                T: CommonBounds + NormalOut<U>,
+                U: CommonBounds,
+                <T as NormalOut<U>>::Output: CommonBounds,
+                <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+                T::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>,
+            {
+                type Output = Tensor<<T as NormalOut<U>>::Output>;
+
+                #[cfg_attr(feature = "track_caller", track_caller)]
+                fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
+                    self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! normal_promote_ops_3 {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(
+            impl<'a, T, U> $op<&'a Tensor<U>> for &'a Tensor<T>
+                where
+                T: CommonBounds + NormalOut<U>,
+                U: CommonBounds,
+                <T as NormalOut<U>>::Output: CommonBounds,
+                <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+                T::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>,
+            {
+                type Output = Tensor<<T as NormalOut<U>>::Output>;
+                #[cfg_attr(feature = "track_caller", track_caller)]
+                fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
+                    self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! normal_promote_ops_4 {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(
+            impl<'a, T, U> $op<Tensor<U>> for &'a Tensor<T>
+                where
+                T: CommonBounds + NormalOut<U>,
+                U: CommonBounds,
+                <T as NormalOut<U>>::Output: CommonBounds,
+                <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+                T::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>,
+            {
+                type Output = Tensor<<T as NormalOut<U>>::Output>;
+                #[cfg_attr(feature = "track_caller", track_caller)]
+                fn $op2(self, rhs: Tensor<U>) -> Self::Output {
+                    self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! normal_promote_ops_assign {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(impl<T> $op<Tensor<T>> for Tensor<T> where T: CommonBounds + NormalOut<Output=T> {
+            fn $op2(&mut self, rhs: Tensor<T>) {
+                self.inner.as_ref().$op2(rhs.inner.as_ref())
+            }
+        })*
+
+        $(impl<'a, T> $op<Tensor<T>> for &'a Tensor<T> where T: CommonBounds + NormalOut<Output=T> {
+            fn $op2(&mut self, rhs: Tensor<T>) {
+                self.inner.as_ref().$op2(rhs.inner.as_ref())
+            }
+        })*
+
+        $(impl<'a, T> $op<&'a Tensor<T>> for &'a Tensor<T> where T: CommonBounds + NormalOut<Output=T> {
+            fn $op2(&mut self, rhs: &'a Tensor<T>) {
+                self.inner.as_ref().$op2(rhs.inner.as_ref())
+            }
+        })*
+
+        $(impl<'a, T> $op<&'a Tensor<T>> for Tensor<T> where T: CommonBounds + NormalOut<Output=T> {
+            fn $op2(&mut self, rhs: &'a Tensor<T>) {
+                self.inner.as_ref().$op2(rhs.inner.as_ref())
+            }
+        })*
+    };
+}
+
+normal_promote_ops_1!([Add, add, add], [Sub, sub, sub], [Mul, mul, mul], [Rem, rem, rem]);
+
+normal_promote_ops_2!([Add, add, add], [Sub, sub, sub], [Mul, mul, mul], [Rem, rem, rem]);
+
+normal_promote_ops_3!([Add, add, add], [Sub, sub, sub], [Mul, mul, mul], [Rem, rem, rem]);
+
+normal_promote_ops_4!([Add, add, add], [Sub, sub, sub], [Mul, mul, mul], [Rem, rem, rem]);
+
+normal_promote_ops_assign!(
+    [AddAssign, add_assign, add],
+    [SubAssign, sub_assign, sub],
+    [MulAssign, mul_assign, mul],
+    [RemAssign, rem_assign, rem]
+);
+
+macro_rules! bitwise_promote_ops_1 {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(
+            impl<T, U> $op<Tensor<U>> for Tensor<T>
+                where
+                T: CommonBounds + BitWiseOut<U>,
+                U: CommonBounds,
+                <T as BitWiseOut<U>>::Output: CommonBounds,
+                <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+                T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
+            {
+                type Output = Tensor<<T as BitWiseOut<U>>::Output>;
+                #[cfg_attr(feature = "track_caller", track_caller)]
+                fn $op2(self, rhs: Tensor<U>) -> Self::Output {
+                    self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! bitwise_promote_ops_2 {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(
+            impl<'a, T, U> $op<&'a Tensor<U>> for Tensor<T>
+                where
+                T: CommonBounds + BitWiseOut<U>,
+                U: CommonBounds,
+                <T as BitWiseOut<U>>::Output: CommonBounds,
+                <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+                T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
+            {
+                type Output = Tensor<<T as BitWiseOut<U>>::Output>;
+                fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
+                    self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! bitwise_promote_ops_3 {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(
+            impl<'a, T, U> $op<&'a Tensor<U>> for &'a Tensor<T>
+                where
+                T: CommonBounds + BitWiseOut<U>,
+                U: CommonBounds,
+                <T as BitWiseOut<U>>::Output: CommonBounds,
+                <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+                T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
+            {
+                type Output = Tensor<<T as BitWiseOut<U>>::Output>;
+                fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
+                    self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! bitwise_promote_ops_4 {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(
+            impl<'a, T, U> $op<Tensor<U>> for &'a Tensor<T>
+                where
+                T: CommonBounds + BitWiseOut<U>,
+                U: CommonBounds,
+                <T as BitWiseOut<U>>::Output: CommonBounds,
+                <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+                T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
+            {
+                type Output = Tensor<<T as BitWiseOut<U>>::Output>;
+                fn $op2(self, rhs: Tensor<U>) -> Self::Output {
+                    self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
+                }
+            }
+        )*
+    };
+}
+
+bitwise_promote_ops_1!(
+    [BitAnd, bitand, bitand],
+    [BitOr, bitor, bitor],
+    [BitXor, bitxor, bitxor]
+);
+
+bitwise_promote_ops_2!(
+    [BitAnd, bitand, bitand],
+    [BitOr, bitor, bitor],
+    [BitXor, bitxor, bitxor]
+);
+
+bitwise_promote_ops_3!(
+    [BitAnd, bitand, bitand],
+    [BitOr, bitor, bitor],
+    [BitXor, bitxor, bitxor]
+);
+
+bitwise_promote_ops_4!(
+    [BitAnd, bitand, bitand],
+    [BitOr, bitor, bitor],
+    [BitXor, bitxor, bitxor]
+);
+
+macro_rules! shift_promote_ops_1 {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(
+            impl<T, U> $op<Tensor<U>> for Tensor<T>
+                where
+                T: CommonBounds + BitWiseOut<U>,
+                U: CommonBounds,
+                <T as BitWiseOut<U>>::Output: CommonBounds,
+                <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+                T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
+            {
+                type Output = Tensor<<T as BitWiseOut<U>>::Output>;
+
+                #[cfg_attr(feature = "track_caller", track_caller)]
+                fn $op2(self, rhs: Tensor<U>) -> Self::Output {
+                    self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! shift_promote_ops_2 {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(
+            impl<'a, T, U> $op<&'a Tensor<U>> for Tensor<T>
+                where
+                T: CommonBounds + BitWiseOut<U>,
+                U: CommonBounds,
+                <T as BitWiseOut<U>>::Output: CommonBounds,
+                <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+                T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
+            {
+                type Output = Tensor<<T as BitWiseOut<U>>::Output>;
+
+                #[cfg_attr(feature = "track_caller", track_caller)]
+                fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
+                    self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! shift_promote_ops_3 {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(
+            impl<'a, T, U> $op<&'a Tensor<U>> for &'a Tensor<T>
+                where
+                T: CommonBounds + BitWiseOut<U>,
+                U: CommonBounds,
+                <T as BitWiseOut<U>>::Output: CommonBounds,
+                <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+                T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
+            {
+                type Output = Tensor<<T as BitWiseOut<U>>::Output>;
+
+                #[cfg_attr(feature = "track_caller", track_caller)]
+                fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
+                    self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! shift_promote_ops_4 {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(
+            impl<'a, T, U> $op<Tensor<U>> for &'a Tensor<T>
+                where
+                T: CommonBounds + BitWiseOut<U>,
+                U: CommonBounds,
+                <T as BitWiseOut<U>>::Output: CommonBounds,
+                <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+                T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
+            {
+                type Output = Tensor<<T as BitWiseOut<U>>::Output>;
+                #[cfg_attr(feature = "track_caller", track_caller)]
+                fn $op2(self, rhs: Tensor<U>) -> Self::Output {
+                    self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
+                }
+            }
+        )*
+    };
+}
+
+shift_promote_ops_1!([Shl, shl, shl], [Shr, shr, shr]);
+shift_promote_ops_2!([Shl, shl, shl], [Shr, shr, shr]);
+shift_promote_ops_3!([Shl, shl, shl], [Shr, shr, shr]);
+shift_promote_ops_4!([Shl, shl, shl], [Shr, shr, shr]);
+
+macro_rules! float_binary_promote_ops_1 {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(
+            impl<T, U> $op<Tensor<U>> for Tensor<T>
+                where
+                T: CommonBounds + FloatOutBinary<U>,
+                U: CommonBounds,
+                <T as FloatOutBinary<U>>::Output: CommonBounds,
+                <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+                T::Vec: FloatOutBinary<U::Vec, Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec>,
+            {
+                type Output = Tensor<<T as FloatOutBinary<U>>::Output>;
+                #[cfg_attr(feature = "track_caller", track_caller)]
+                fn $op2(self, rhs: Tensor<U>) -> Self::Output {
+                    self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! float_binary_promote_ops_2 {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(
+            impl<'a, T, U> $op<&'a Tensor<U>> for Tensor<T>
+                where
+                T: CommonBounds + FloatOutBinary<U>,
+                U: CommonBounds,
+                <T as FloatOutBinary<U>>::Output: CommonBounds,
+                <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+                T::Vec: FloatOutBinary<U::Vec, Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec>,
+            {
+                type Output = Tensor<<T as FloatOutBinary<U>>::Output>;
+                #[cfg_attr(feature = "track_caller", track_caller)]
+                fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
+                    self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! float_binary_promote_ops_3 {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(
+            impl<'a, T, U> $op<&'a Tensor<U>> for &'a Tensor<T>
+                where
+                T: CommonBounds + FloatOutBinary<U>,
+                U: CommonBounds,
+                <T as FloatOutBinary<U>>::Output: CommonBounds,
+                <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+                T::Vec: FloatOutBinary<U::Vec, Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec>,
+            {
+                type Output = Tensor<<T as FloatOutBinary<U>>::Output>;
+                fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
+                    self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! float_binary_promote_ops_4 {
+    ($([$op:ident, $op2:ident, $op3:ident]),*) => {
+        $(
+            impl<'a, T, U> $op<Tensor<U>> for &'a Tensor<T>
+                where
+                T: CommonBounds + FloatOutBinary<U>,
+                U: CommonBounds,
+                <T as FloatOutBinary<U>>::Output: CommonBounds,
+                <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+                T::Vec: FloatOutBinary<U::Vec, Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec>,
+            {
+                type Output = Tensor<<T as FloatOutBinary<U>>::Output>;
+                #[cfg_attr(feature = "track_caller", track_caller)]
+                fn $op2(self, rhs: Tensor<U>) -> Self::Output {
+                    self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
+                }
+            }
+        )*
+    };
+}
+
+float_binary_promote_ops_1!([Div, div, div]);
+float_binary_promote_ops_2!([Div, div, div]);
+float_binary_promote_ops_3!([Div, div, div]);
+float_binary_promote_ops_4!([Div, div, div]);
+
+impl<T, U> PartialEq<Tensor<U>>
+    for Tensor<T>
+    where T: CommonBounds + Convertor, U: CommonBounds + Convertor
+{
+    fn eq(&self, other: &Tensor<U>) -> bool {
+        if self.size() != other.size() {
+            return false;
+        }
+        if self.shape() != other.shape() {
+            return false;
+        }
+        self.allclose(other)
+    }
+}
+
+macro_rules! normal_scalar_rhs {
+    (
+        $([
+            $type:ident,
+            [$($tokens:tt)*]
+        ]),*
+    ) => {
+        $(impl<T> Add<$type> for $($tokens)*Tensor<T>
+         where T: NormalOut<$type> + CommonBounds,
+         <T as NormalOut<$type>>::Output: CommonBounds,
+         T::Vec: NormalOut<<$type as TypeCommon>::Vec, Output = <<T as NormalOut<$type>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<T as NormalOut<$type>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn add(self, rhs: $type) -> Self::Output {
+                self.inner.as_ref().add(rhs).into()
+            }
+        }
+        impl<T> Mul<$type> for $($tokens)*Tensor<T>
+        where T: NormalOut<$type> + CommonBounds,
+        <T as NormalOut<$type>>::Output: CommonBounds,
+        T::Vec: NormalOut<<$type as TypeCommon>::Vec, Output = <<T as NormalOut<$type>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<T as NormalOut<$type>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn mul(self, rhs: $type) -> Self::Output {
+                self.inner.as_ref().mul(rhs).into()
+            }
+        }
+        impl<T> Sub<$type> for $($tokens)*Tensor<T>
+        where T: NormalOut<$type> + CommonBounds,
+        <T as NormalOut<$type>>::Output: CommonBounds,
+        T::Vec: NormalOut<<$type as TypeCommon>::Vec, Output = <<T as NormalOut<$type>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<T as NormalOut<$type>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn sub(self, rhs: $type) -> Self::Output {
+                self.inner.as_ref().sub(rhs).into()
+            }
+        }
+        impl<T> Div<$type> for $($tokens)*Tensor<T>
+        where T: FloatOutBinary<$type> + CommonBounds,
+        <T as FloatOutBinary<$type>>::Output: CommonBounds,
+        T::Vec: FloatOutBinary<<$type as TypeCommon>::Vec, Output = <<T as FloatOutBinary<$type>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<T as FloatOutBinary<$type>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn div(self, rhs: $type) -> Self::Output {
+                self.inner.as_ref().div(rhs).into()
+            }
+        }
+        impl<T> Rem<$type> for $($tokens)*Tensor<T>
+        where T: NormalOut<$type> + CommonBounds,
+        <T as NormalOut<$type>>::Output: CommonBounds,
+        T::Vec: NormalOut<<$type as TypeCommon>::Vec, Output = <<T as NormalOut<$type>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<T as NormalOut<$type>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn rem(self, rhs: $type) -> Self::Output {
+                self.inner.as_ref().rem(rhs).into()
+            }
+        })*
+    };
+}
+
+macro_rules! bitwise_scalar_rhs {
+    (
+        $([
+            $type:ident,
+            [$($tokens:tt)*]
+        ]),*
+    ) => {
+        $(impl<T> BitAnd<$type> for $($tokens)*Tensor<T>
+         where T: BitWiseOut<$type> + CommonBounds,
+         <T as BitWiseOut<$type>>::Output: CommonBounds,
+         <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<T as BitWiseOut<$type>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn bitand(self, rhs: $type) -> Self::Output {
+                self.inner.as_ref().bitand(rhs).into()
+            }
+        }
+        impl<T> BitOr<$type> for $($tokens)*Tensor<T>
+        where T: BitWiseOut<$type> + CommonBounds,
+        <T as BitWiseOut<$type>>::Output: CommonBounds,
+        <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+        T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<T as BitWiseOut<$type>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn bitor(self, rhs: $type) -> Self::Output {
+                self.inner.as_ref().bitor(rhs).into()
+            }
+        }
+        impl<T> BitXor<$type> for $($tokens)*Tensor<T>
+        where T: BitWiseOut<$type> + CommonBounds,
+        <T as BitWiseOut<$type>>::Output: CommonBounds,
+        <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+        T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<T as BitWiseOut<$type>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn bitxor(self, rhs: $type) -> Self::Output {
+                self.inner.as_ref().bitxor(rhs).into()
+            }
+        }
+        impl<T> Shl<$type> for $($tokens)*Tensor<T>
+        where T: BitWiseOut<$type> + CommonBounds,
+        <T as BitWiseOut<$type>>::Output: CommonBounds,
+        <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+        T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<T as BitWiseOut<$type>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn shl(self, rhs: $type) -> Self::Output {
+                self.inner.as_ref().shl(rhs).into()
+            }
+        }
+        impl<T> Shr<$type> for $($tokens)*Tensor<T>
+        where T: BitWiseOut<$type> + CommonBounds,
+        <T as BitWiseOut<$type>>::Output: CommonBounds,
+        <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+        T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<T as BitWiseOut<$type>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn shr(self, rhs: $type) -> Self::Output {
+                self.inner.as_ref().shr(rhs).into()
+            }
+        })*
+    };
+}
+
+macro_rules! normal_scalar_lhs {
+    (
+        $([
+            $type:ident,
+            [$($tokens:tt)*]
+        ]),*
+    ) => {
+        $(impl<T> Add<$($tokens)*Tensor<T>> for $type
+        where T: CommonBounds,
+        <$type as NormalOut<T>>::Output: CommonBounds, $type: NormalOut<T>,
+        <$type as TypeCommon>::Vec: NormalOut<<T as TypeCommon>::Vec, Output = <<$type as NormalOut<T>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<$type as NormalOut<T>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn add(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
+                self.add(rhs.inner.as_ref()).into()
+            }
+        }
+        impl<T> Mul<$($tokens)*Tensor<T>> for $type
+        where T: CommonBounds,
+        <$type as NormalOut<T>>::Output: CommonBounds, $type: NormalOut<T>,
+        <$type as TypeCommon>::Vec: NormalOut<<T as TypeCommon>::Vec, Output = <<$type as NormalOut<T>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<$type as NormalOut<T>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn mul(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
+                self.mul(rhs.inner.as_ref()).into()
+            }
+        }
+        impl<T> Sub<$($tokens)*Tensor<T>> for $type 
+        where T: CommonBounds, 
+        <$type as NormalOut<T>>::Output: CommonBounds, $type: NormalOut<T>,
+        <$type as TypeCommon>::Vec: NormalOut<<T as TypeCommon>::Vec, Output = <<$type as NormalOut<T>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<$type as NormalOut<T>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn sub(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
+                self.sub(rhs.inner.as_ref()).into()
+            }
+        }
+        impl<T> Div<$($tokens)*Tensor<T>> for $type 
+        where T: FloatOutBinary<T> + CommonBounds, 
+        <$type as FloatOutBinary<T>>::Output: CommonBounds, $type: FloatOutBinary<T>,
+        <$type as TypeCommon>::Vec: FloatOutBinary<<T as TypeCommon>::Vec, Output = <<$type as FloatOutBinary<T>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<$type as FloatOutBinary<T>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn div(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
+                self.div(rhs.inner.as_ref()).into()
+            }
+        })*
+    };
+}
+
+macro_rules! bitwise_scalar_lhs {
+    (
+        $([
+            $type:ident,
+            [$($tokens:tt)*]
+        ]),*
+    ) => {
+        $(impl<T> BitAnd<$($tokens)*Tensor<T>> for $type
+        where T: BitWiseOut<T> + CommonBounds,
+        <$type as BitWiseOut<T>>::Output: CommonBounds, $type: BitWiseOut<T>,
+        <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<$type as BitWiseOut<T>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn bitand(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
+                self.bitand(rhs.inner.as_ref()).into()
+            }
+        }
+        impl<T> BitOr<$($tokens)*Tensor<T>> for $type
+        where T: BitWiseOut<T> + CommonBounds,
+        <$type as BitWiseOut<T>>::Output: CommonBounds, $type: BitWiseOut<T>,
+        <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<$type as BitWiseOut<T>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn bitor(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
+                self.bitor(rhs.inner.as_ref()).into()
+            }
+        }
+        impl<T> BitXor<$($tokens)*Tensor<T>> for $type
+        where T: BitWiseOut<T> + CommonBounds,
+        <$type as BitWiseOut<T>>::Output: CommonBounds, $type: BitWiseOut<T>,
+        <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<$type as BitWiseOut<T>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn bitxor(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
+                self.bitxor(rhs.inner.as_ref()).into()
+            }
+        }
+        impl<T> Shl<$($tokens)*Tensor<T>> for $type
+        where T: BitWiseOut<T> + CommonBounds,
+        <$type as BitWiseOut<T>>::Output: CommonBounds, $type: BitWiseOut<T>,
+        <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<$type as BitWiseOut<T>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn shl(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
+                self.shl(rhs.inner.as_ref()).into()
+            }
+        }
+        impl<T> Shr<$($tokens)*Tensor<T>> for $type
+        where T: BitWiseOut<T> + CommonBounds,
+        <$type as BitWiseOut<T>>::Output: CommonBounds, $type: BitWiseOut<T>,
+        <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
+         {
+            type Output = Tensor<<$type as BitWiseOut<T>>::Output>;
+            #[cfg_attr(feature = "track_caller", track_caller)]
+            fn shr(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
+                self.shr(rhs.inner.as_ref()).into()
+            }
+        }
+    )*
+    };
+}
+
 normal_scalar_rhs!(
     [bool, []],
     [i8, []],

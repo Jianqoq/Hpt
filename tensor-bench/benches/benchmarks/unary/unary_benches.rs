@@ -1,8 +1,8 @@
 use std::time::Duration;
 use tensor_dyn::TensorCreator;
 use criterion::{ black_box, criterion_group, BenchmarkId, Criterion };
-use tch::{ Tensor, Kind, Device };
-use tensor_dyn::{ tensor_base::_Tensor, Random };
+use tch::{ Tensor as TchTensor, Kind, Device };
+use tensor_dyn::{ Tensor, Random };
 use tensor_dyn::TensorInfo;
 use crate::benchmarks::unary::float_cmp::assert_eq;
 use tensor_dyn::FloatUaryOps;
@@ -27,8 +27,8 @@ macro_rules! unary_bench_mark {
                 group.warm_up_time(Duration::new(1, 0)).measurement_time(Duration::new(3, 0)).sample_size(10);
                 for idx in 0..shapes.len() {
                     let shape = shapes[idx];
-                    let a = black_box(Tensor::randn(shape, (Kind::Float, Device::Cpu)));
-                    let a2 = black_box(_Tensor::<f32>::randn(shape).unwrap());
+                    let a = black_box(TchTensor::randn(shape, (Kind::Float, Device::Cpu)));
+                    let a2 = black_box(Tensor::<f32>::randn(shape).unwrap());
                     group.bench_with_input(
                         BenchmarkId::new("torch", format!("tch {}", idx)),
                         &shapes[idx],
@@ -43,8 +43,8 @@ macro_rules! unary_bench_mark {
                             b.iter(|| { a2.$hpt_method($($hpt_args),*).unwrap() });
                         }
                     );
-                    let a = black_box(Tensor::randn(shape, (Kind::Double, Device::Cpu)));
-                    let mut a2 = black_box(_Tensor::<f64>::empty(shape)).unwrap();
+                    let a = black_box(TchTensor::randn(shape, (Kind::Double, Device::Cpu)));
+                    let mut a2 = black_box(Tensor::<f64>::empty(shape)).unwrap();
                     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, a2.size()) };
                     let a2_raw_mut = a2.as_raw_mut();
                     a2_raw_mut.copy_from_slice(a_raw);

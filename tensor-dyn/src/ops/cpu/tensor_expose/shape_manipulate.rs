@@ -36,7 +36,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// assert_eq!(squeezed_tensor.shape().inner(), &[3]);
     /// ```
     fn squeeze<A: Into<Axis>>(&self, axes: A) -> Result<Tensor<T>> {
-        Ok(_Tensor::squeeze(self, axes)?.into())
+        Ok(_Tensor::squeeze(self.inner.as_ref(), axes)?.into())
     }
 
     /// Adds a new dimension of size 1 to the tensor at the specified axes.
@@ -68,7 +68,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// assert_eq!(unsqueezed_tensor.shape().inner(), &[1, 3]);
     /// ```
     fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> Result<Tensor<T>> {
-        Ok(_Tensor::unsqueeze(self, axes)?.into())
+        Ok(_Tensor::unsqueeze(self.inner.as_ref(), axes)?.into())
     }
 
     /// Reshapes the tensor into the specified shape without changing its data.
@@ -101,7 +101,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// assert_eq!(reshaped_tensor.shape().inner(), &[1, 3]);
     /// ```
     fn reshape<S: Into<Shape>>(&self, shape: S) -> Result<Tensor<T>> {
-        Ok(_Tensor::reshape(self, shape)?.into())
+        Ok(_Tensor::reshape(self.inner.as_ref(), shape)?.into())
     }
 
     /// Swaps two axes of the tensor, effectively transposing the dimensions along the specified axes.
@@ -137,7 +137,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// - [`permute`]: Rearranges all axes of the tensor according to a given order.
     /// - [`swap_axes`]: Swaps two specified axes in the tensor (an alias for `transpose`).
     fn transpose(&self, axis1: i64, axis2: i64) -> Result<Tensor<T>> {
-        Ok(_Tensor::transpose(self, axis1, axis2)?.into())
+        Ok(_Tensor::transpose(self.inner.as_ref(), axis1, axis2)?.into())
     }
 
     /// Reorders the dimensions of the tensor according to the specified axes.
@@ -170,7 +170,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// assert_eq!(permuted_tensor.shape().inner(), &[3, 1]);
     /// ```
     fn permute<A: Into<Axis>>(&self, axes: A) -> Result<Tensor<T>> {
-        Ok(_Tensor::permute(self, axes)?.into())
+        Ok(_Tensor::permute(self.inner.as_ref(), axes)?.into())
     }
 
     /// Reverses the permutation of the dimensions of the tensor according to the specified axes.
@@ -203,7 +203,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// assert_eq!(restored_tensor.shape().inner(), &[1, 3]);
     /// ```
     fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
-        Ok(_Tensor::permute_inv(self, axes)?.into())
+        Ok(_Tensor::permute_inv(self.inner.as_ref(), axes)?.into())
     }
 
     /// Expands the tensor to a larger shape without copying data, using broadcasting.
@@ -238,7 +238,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// assert_eq!(expanded_tensor.shape().inner(), &[2, 3]);
     /// ```
     fn expand<S: Into<Shape>>(&self, shape: S) -> Result<Tensor<T>> {
-        Ok(_Tensor::expand(self, shape)?.into())
+        Ok(_Tensor::expand(self.inner.as_ref(), shape)?.into())
     }
 
     /// Returns the transpose of the tensor by swapping the last two dimensions.
@@ -270,7 +270,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// assert_eq!(transposed_tensor.shape().inner(), &[2, 2]);
     /// ```
     fn t(&self) -> Result<Self> {
-        Ok(_Tensor::t(self)?.into())
+        Ok(_Tensor::t(self.inner.as_ref())?.into())
     }
 
     /// reverse the dimensions of the tensor.
@@ -299,7 +299,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// assert_eq!(transposed_tensor.shape().inner(), &[2, 2]);
     /// ```
     fn mt(&self) -> Result<Self> {
-        Ok(_Tensor::mt(self)?.into())
+        Ok(_Tensor::mt(self.inner.as_ref())?.into())
     }
 
     /// Reverses the order of elements along the specified axes of the tensor.
@@ -334,7 +334,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// ));
     /// ```
     fn flip<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
-        Ok(_Tensor::flip(self, axes)?.into())
+        Ok(_Tensor::flip(self.inner.as_ref(), axes)?.into())
     }
 
     /// Reverses the order of elements along the last dimension (columns) of a 2D tensor (matrix).
@@ -371,7 +371,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// ));
     /// ```
     fn fliplr(&self) -> Result<Self> {
-        Ok(_Tensor::fliplr(self)?.into())
+        Ok(_Tensor::fliplr(self.inner.as_ref())?.into())
     }
 
     /// Reverses the order of elements along the first dimension (rows) of a 2D tensor (matrix).
@@ -406,7 +406,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// ));
     /// ```
     fn flipud(&self) -> Result<Self> {
-        Ok(_Tensor::flipud(self)?.into())
+        Ok(_Tensor::flipud(self.inner.as_ref())?.into())
     }
 
     /// Repeats the tensor along the specified axes according to the given repetition values.
@@ -444,7 +444,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// ));
     /// ```
     fn tile<S: Into<Axis>>(&self, repeats: S) -> Result<Self> {
-        Ok(_Tensor::tile(self, repeats)?.into())
+        Ok(_Tensor::tile(self.inner.as_ref(), repeats)?.into())
     }
 
     /// Removes leading or trailing zeros from the tensor based on the specified trim mode.
@@ -483,7 +483,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// assert!(trimmed_tensor.allclose(&Tensor::<f64>::new(vec![1.0, 2.0]).reshape(&[2]).unwrap()));
     /// ```
     fn trim_zeros(&self, trim: &str) -> Result<Self> where Self::Meta: PartialEq {
-        Ok(_Tensor::trim_zeros(self, trim)?.into())
+        Ok(_Tensor::trim_zeros(self.inner.as_ref(), trim)?.into())
     }
 
     /// Repeats the elements of the tensor along the specified axis a given number of times.
@@ -519,7 +519,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// ));
     /// ```
     fn repeat(&self, repeats: usize, axes: i16) -> Result<Tensor<T>> {
-        Ok(_Tensor::repeat(self, repeats, axes)?.into())
+        Ok(_Tensor::repeat(self.inner.as_ref(), repeats, axes)?.into())
     }
 
     /// Splits the tensor into multiple sub-tensors along the specified axis.
@@ -567,7 +567,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     fn split(&self, indices_or_sections: &[i64], axis: i64) -> Result<Vec<Self>> {
         Ok(
             _Tensor
-                ::split(self, indices_or_sections, axis)?
+                ::split(self.inner.as_ref(), indices_or_sections, axis)?
                 .into_iter()
                 .map(|x| x.into())
                 .collect()
@@ -613,7 +613,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     fn dsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
         Ok(
             _Tensor
-                ::dsplit(self, indices)?
+                ::dsplit(self.inner.as_ref(), indices)?
                 .into_iter()
                 .map(|x| x.into())
                 .collect()
@@ -659,7 +659,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     fn hsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
         Ok(
             _Tensor
-                ::hsplit(self, indices)?
+                ::hsplit(self.inner.as_ref(), indices)?
                 .into_iter()
                 .map(|x| x.into())
                 .collect()
@@ -705,7 +705,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     fn vsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
         Ok(
             _Tensor
-                ::vsplit(self, indices)?
+                ::vsplit(self.inner.as_ref(), indices)?
                 .into_iter()
                 .map(|x| x.into())
                 .collect()
@@ -739,7 +739,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// assert_eq!(transposed_tensor.shape().inner(), &[3, 1]);
     /// ```
     fn swap_axes(&self, axis1: i64, axis2: i64) -> Result<Self> {
-        Ok(_Tensor::swap_axes(self, axis1, axis2)?.into())
+        Ok(_Tensor::swap_axes(self.inner.as_ref(), axis1, axis2)?.into())
     }
 
     /// Flattens a range of dimensions into a single dimension.
@@ -771,7 +771,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// assert_eq!(flattened_tensor.shape().inner(), &[4]);
     /// ```
     fn flatten<A>(&self, start: A, end: A) -> Result<Self> where A: Into<Option<usize>> {
-        Ok(_Tensor::flatten(self, start, end)?.into())
+        Ok(_Tensor::flatten(self.inner.as_ref(), start, end)?.into())
     }
 
     /// Concatenates multiple tensors along a specified axis.

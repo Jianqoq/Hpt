@@ -32,7 +32,7 @@ use crate::{
 /// - `parent`: The parent tensor of the tensor. parent is always the root tensor (`not a view`).
 /// - `mem_layout`: std::alloc::layout, use for deallocate the memory and find cache in the allocator.
 #[derive(Clone)]
-pub struct _Tensor<T, B = Cpu>
+pub(crate) struct _Tensor<T, B = Cpu>
 where
     B: BackendTy + Buffer,
 {
@@ -276,6 +276,50 @@ impl<T: CommonBounds> _Tensor<T> {
         folder.reduce(|| true, |a, b| a && b)
     }
 }
+
+impl<T: CommonBounds> Tensor<T> {
+    /// copy the data from the other tensor to this tensor
+    pub fn assign(&mut self, other: &Tensor<T>) {
+        let mut mut_self = self.inner.as_ref().clone();
+        mut_self.assign(&other.inner.as_ref());
+    }
+
+    /// cast the tensor to the new type
+    pub fn astype<U>(&self) -> Result<Tensor<U>>
+    where
+        U: CommonBounds,
+        T: IntoScalar<U>,
+    {
+        Ok(self.inner.astype()?.into())
+    }
+
+    /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
+    pub fn try_astype<U>(&self) -> Result<Tensor<U>>
+    where
+        U: CommonBounds,
+        T: IntoScalar<U>,
+    {
+        Ok(self.inner.try_astype()?.into())
+    }
+
+    /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
+    pub fn static_cast<Dst>(&self) -> Result<Tensor<Dst>>
+    where
+        Dst: CommonBounds,
+    {
+        Ok(self.inner.static_cast()?.into())
+    }
+
+    /// check if two tensors are close to each other
+    pub fn allclose<U: CommonBounds>(&self, other: &Tensor<U>) -> bool
+    where
+        T: Convertor,
+        U: Convertor,
+    {
+        self.inner.allclose(&other.inner)
+    }
+}
+
 
 impl<T> Display for _Tensor<T>
 where

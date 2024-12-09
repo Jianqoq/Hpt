@@ -6,7 +6,6 @@ use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
 use tch::Tensor;
-use tensor_base::_Tensor;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
 use tensor_dyn::*;

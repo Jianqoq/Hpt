@@ -116,7 +116,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// let b = a.empty_like();
     /// ```
     fn empty_like(&self) -> Result<Self> {
-        Ok(_Tensor::empty_like(self)?.into())
+        Ok(_Tensor::empty_like(self.inner.as_ref())?.into())
     }
 
     /// Creates a tensor filled with zeros, having the same shape as the input tensor.
@@ -142,7 +142,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// let b = a.zeros_like();
     /// ```
     fn zeros_like(&self) -> Result<Self> {
-        Ok(_Tensor::zeros_like(self)?.into())
+        Ok(_Tensor::zeros_like(self.inner.as_ref())?.into())
     }
 
     /// Creates a tensor filled with ones, having the same shape as the input tensor.
@@ -168,7 +168,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// let b = a.ones_like();
     /// ```
     fn ones_like(&self) -> Result<Self> where u8: IntoScalar<T> {
-        Ok(_Tensor::ones_like(self)?.into())
+        Ok(_Tensor::ones_like(self.inner.as_ref())?.into())
     }
 
     /// Creates a tensor filled with a specified value, with the specified shape.
@@ -220,7 +220,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// let b = a.full_like(3.0);
     /// ```
     fn full_like(&self, val: T) -> Result<Self> {
-        Ok(_Tensor::full_like(self, val)?.into())
+        Ok(_Tensor::full_like(self.inner.as_ref(), val)?.into())
     }
 
     /// Creates a tensor with values within a specified range.
@@ -474,7 +474,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
             T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
             T::Vec: NormalOut<BoolVector, Output = T::Vec>
     {
-        Ok(_Tensor::tril(self, k)?.into())
+        Ok(_Tensor::tril(self.inner.as_ref(), k)?.into())
     }
 
     /// Returns the upper triangular part of the matrix, with all elements below the `k`th diagonal set to zero.
@@ -504,7 +504,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
             T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
             T::Vec: NormalOut<BoolVector, Output = T::Vec>
     {
-        Ok(_Tensor::triu(self, k)?.into())
+        Ok(_Tensor::triu(self.inner.as_ref(), k)?.into())
     }
 
     /// Creates a 2D identity matrix of size `n` by `n`.

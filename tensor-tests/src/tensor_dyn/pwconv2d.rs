@@ -5,24 +5,24 @@ use tensor_dyn::type_promote::NormalOutUnary;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::{ set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo };
-use tensor_dyn::{ tensor_base::_Tensor, TensorCreator };
+use tensor_dyn::{ Tensor, TensorCreator };
 use tensor_types::convertion::{ Convertor, FromScalar };
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
 
 fn common_input<T>([batch, out_channel, in_channel, height, width]: [i64; 5])
-    -> anyhow::Result<(_Tensor<T>, _Tensor<T>, tch::Tensor, tch::Tensor)>
+    -> anyhow::Result<(Tensor<T>, Tensor<T>, tch::Tensor, tch::Tensor)>
     where
         T: Convertor + FromScalar<i64> + NormalOut<T, Output = T> + CommonBounds,
         usize: IntoScalar<T>,
         i64: IntoScalar<T>
 {
-    let kernel = _Tensor::<T>
+    let kernel = Tensor::<T>
         ::arange(0, in_channel * out_channel)?
         .reshape([out_channel, in_channel, 1, 1])?
         .permute([2, 3, 1, 0])?
         .contiguous()?;
-    let a = _Tensor::<T>
+    let a = Tensor::<T>
         ::arange(0, batch * in_channel * height * width)?
         .reshape([batch, in_channel, height, width])?
         .permute([0, 2, 3, 1])?
@@ -39,8 +39,8 @@ fn common_input<T>([batch, out_channel, in_channel, height, width]: [i64; 5])
 
 #[track_caller]
 fn assert_eq(
-    a: &_Tensor<i64>,
-    a_kernel: &_Tensor<i64>,
+    a: &Tensor<i64>,
+    a_kernel: &Tensor<i64>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
@@ -74,8 +74,8 @@ fn assert_eq(
 
 #[track_caller]
 fn assert_eq_pad(
-    a: &_Tensor<i64>,
-    a_kernel: &_Tensor<i64>,
+    a: &Tensor<i64>,
+    a_kernel: &Tensor<i64>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
@@ -109,12 +109,12 @@ fn assert_eq_pad(
 
 #[track_caller]
 fn assert_eq_bias(
-    a: &_Tensor<i64>,
-    a_kernel: &_Tensor<i64>,
+    a: &Tensor<i64>,
+    a_kernel: &Tensor<i64>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
-    let bias = _Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
+    let bias = Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
     let res = a
         .conv2d(
             &a_kernel,
@@ -146,12 +146,12 @@ fn assert_eq_bias(
 
 #[track_caller]
 fn assert_eq_bias_pad(
-    a: &_Tensor<i64>,
-    a_kernel: &_Tensor<i64>,
+    a: &Tensor<i64>,
+    a_kernel: &Tensor<i64>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
-    let bias = _Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
+    let bias = Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
     let res = a
         .conv2d(
             &a_kernel,
@@ -183,12 +183,12 @@ fn assert_eq_bias_pad(
 
 #[track_caller]
 fn assert_eq_bias_pad_relu6(
-    a: &_Tensor<i64>,
-    a_kernel: &_Tensor<i64>,
+    a: &Tensor<i64>,
+    a_kernel: &Tensor<i64>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
-    let bias = _Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
+    let bias = Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
     let res = a
         .conv2d(
             &a_kernel,

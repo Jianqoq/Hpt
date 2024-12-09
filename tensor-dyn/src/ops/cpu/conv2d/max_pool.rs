@@ -1,4 +1,5 @@
 use crate::tensor_base::_Tensor;
+use crate::Tensor;
 use crate::REGNUM;
 use rayon::prelude::*;
 use tensor_common::err_handler::ErrHandler;
@@ -221,5 +222,42 @@ fn maxpool2d_kernel<T: CommonBounds, const IC_BLOCK_SIZE: usize>(
 ) {
     for idx in 0..IC_BLOCK_SIZE {
         outs[idx] = outs[idx]._max(inps[idx]);
+    }
+}
+
+impl<T> Tensor<T>
+    where
+        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+        T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>,
+        bool: IntoScalar<T>
+{
+    /// Performs a 2D max pooling operation on the input tensor.
+    ///
+    /// This method applies a 2D max pooling operation on the tensor using the specified kernel,
+    /// strides (steps), padding, and dilation factors.
+    ///
+    /// # Arguments
+    ///
+    /// * `kernels` - A reference to the tensor representing the convolution kernels (filters).
+    ///   The size of the kernel tensor determines the spatial dimensions of the convolution operation.
+    /// * `steps` - A 2-element array specifying the stride (step size) of the convolution along the height and width dimensions.
+    /// * `padding` - A 2-element array of tuples representing the padding for the height and width dimensions.
+    ///   Each tuple specifies the amount of padding added before and after the data along the respective axis.
+    /// * `dilation` - A 2-element array specifying the dilation factor for the convolution along the height and width dimensions.
+    ///   Dilation allows the kernel to be applied to inputs with gaps, increasing the receptive field of the kernel.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing the output tensor after applying the 2D convolution operation.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[inline(never)]
+    pub fn maxpool2d(
+        &self,
+        kernels_shape: &Shape,
+        steps: [i64; 2],
+        padding: [(i64, i64); 2],
+        dilation: [i64; 2]
+    ) -> anyhow::Result<Tensor<T>> {
+        Ok(self.inner.maxpool2d(&kernels_shape, steps, padding, dilation)?.into())
     }
 }

@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::ops::*;
-use tch::Tensor;
+use tch::Tensor as TchTensor;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
 use tensor_dyn::Matmul;
@@ -10,11 +10,11 @@ use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorCmp;
 use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
-use tensor_dyn::{tensor_base::_Tensor, TensorCreator};
+use tensor_dyn::{Tensor, TensorCreator};
 use tensor_macros::match_selection;
 
 #[allow(unused)]
-fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
+fn assert_eq(b: &Tensor<f64>, a: &TchTensor) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
     let b_raw = b.as_raw();
     let tolerance = 2.5e-16;
@@ -33,7 +33,7 @@ fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
 }
 
 #[allow(unused)]
-fn assert_eq_10(b: &_Tensor<f64>, a: &Tensor) {
+fn assert_eq_10(b: &Tensor<f64>, a: &TchTensor) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
     let b_raw = b.as_raw();
     let tolerance = 10e-16;
@@ -52,7 +52,7 @@ fn assert_eq_10(b: &_Tensor<f64>, a: &Tensor) {
 }
 
 #[allow(unused)]
-fn assert_eq_i64(b: &_Tensor<i64>, a: &Tensor) {
+fn assert_eq_i64(b: &Tensor<i64>, a: &TchTensor) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
     let b_raw = b.as_raw();
     a_raw
@@ -62,7 +62,7 @@ fn assert_eq_i64(b: &_Tensor<i64>, a: &Tensor) {
 }
 
 #[allow(unused)]
-fn assert_eq_bool(b: &_Tensor<bool>, a: &Tensor) {
+fn assert_eq_bool(b: &Tensor<bool>, a: &TchTensor) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const bool, b.size()) };
     let b_raw = b.as_raw();
     a_raw
@@ -72,22 +72,22 @@ fn assert_eq_bool(b: &_Tensor<bool>, a: &Tensor) {
 }
 
 #[allow(unused)]
-fn no_assert_i64(b: &_Tensor<i64>, a: &Tensor) {}
+fn no_assert_i64(b: &Tensor<i64>, a: &TchTensor) {}
 
 #[allow(unused)]
 fn common_input<const N: usize, const M: usize>(
     lhs_shape: [i64; N],
     rhs_shape: [i64; M],
-) -> anyhow::Result<((Tensor, Tensor), (_Tensor<f64>, _Tensor<f64>))> {
-    let tch_a = Tensor::randn(&lhs_shape, (tch::Kind::Double, tch::Device::Cpu));
-    let mut a = _Tensor::<f64>::empty(&lhs_shape)?;
+) -> anyhow::Result<((TchTensor, TchTensor), (Tensor<f64>, Tensor<f64>))> {
+    let tch_a = TchTensor::randn(&lhs_shape, (tch::Kind::Double, tch::Device::Cpu));
+    let mut a = Tensor::<f64>::empty(&lhs_shape)?;
     let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
     });
 
-    let tch_b = Tensor::randn(&rhs_shape, (tch::Kind::Double, tch::Device::Cpu));
-    let mut b = _Tensor::<f64>::empty(&rhs_shape)?;
+    let tch_b = TchTensor::randn(&rhs_shape, (tch::Kind::Double, tch::Device::Cpu));
+    let mut b = Tensor::<f64>::empty(&rhs_shape)?;
     let b_size = b.size();
     b.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_b.data_ptr() as *const f64, b_size)
@@ -100,24 +100,24 @@ fn common_input<const N: usize, const M: usize>(
 fn common_input_i64<const N: usize, const M: usize>(
     lhs_shape: [i64; N],
     rhs_shape: [i64; M],
-) -> anyhow::Result<((Tensor, Tensor), (_Tensor<i64>, _Tensor<i64>))> {
-    let tch_a = Tensor::arange(
+) -> anyhow::Result<((TchTensor, TchTensor), (Tensor<i64>, Tensor<i64>))> {
+    let tch_a = TchTensor::arange(
         lhs_shape.iter().product::<i64>(),
         (tch::Kind::Int64, tch::Device::Cpu),
     )
     .reshape(&lhs_shape);
-    let mut a = _Tensor::<i64>::empty(&lhs_shape)?;
+    let mut a = Tensor::<i64>::empty(&lhs_shape)?;
     let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_a.data_ptr() as *const i64, a_size)
     });
 
-    let tch_b = Tensor::arange(
+    let tch_b = TchTensor::arange(
         rhs_shape.iter().product::<i64>(),
         (tch::Kind::Int64, tch::Device::Cpu),
     )
     .reshape(&rhs_shape);
-    let mut b = _Tensor::<i64>::empty(&rhs_shape)?;
+    let mut b = Tensor::<i64>::empty(&rhs_shape)?;
     let b_size = b.size();
     b.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_b.data_ptr() as *const i64, b_size)
@@ -219,10 +219,10 @@ macro_rules! test_binarys_scalar {
             fn [<test _ $name>]() -> anyhow::Result<()> {
                 let ((tch_a, _), (a, _)) = $input_method([13, 13], [13, 13])?;
                 let c = a.clone().$hpt_op($scalar)$($try)*;
-                let tch_c = tch_a.shallow_clone().$tch_op(&Tensor::from($scalar));
+                let tch_c = tch_a.shallow_clone().$tch_op(&TchTensor::from($scalar));
                 $assert_method(&c, &tch_c);
                 let c = $scalar.$hpt_op(&a)$($try)*;
-                let tch_c = Tensor::from($scalar).$tch_op(&tch_a);
+                let tch_c = TchTensor::from($scalar).$tch_op(&tch_a);
                 $assert_method(&c, &tch_c);
                 Ok(())
             }
@@ -231,18 +231,18 @@ macro_rules! test_binarys_scalar {
             fn [<test_ $name _broadcast>]() -> anyhow::Result<()> {
                 let ((tch_a, _), (a, _)) = $input_method([13, 13], [13, 1])?;
                 let c = a.clone().$hpt_op($scalar)$($try)*;
-                let tch_c = tch_a.shallow_clone().$tch_op(&Tensor::from($scalar));
+                let tch_c = tch_a.shallow_clone().$tch_op(&TchTensor::from($scalar));
                 $assert_method(&c, &tch_c);
                 let c = $scalar.$hpt_op(&a)$($try)*;
-                let tch_c = Tensor::from($scalar).$tch_op(&tch_a);
+                let tch_c = TchTensor::from($scalar).$tch_op(&tch_a);
                 $assert_method(&c, &tch_c);
 
                 let ((tch_a, _), (a, _)) = $input_method([1, 13], [13, 1])?;
                 let c = a.clone().$hpt_op($scalar)$($try)*;
-                let tch_c = tch_a.shallow_clone().$tch_op(&Tensor::from($scalar));
+                let tch_c = tch_a.shallow_clone().$tch_op(&TchTensor::from($scalar));
                 $assert_method(&c, &tch_c);
                 let c = $scalar.$hpt_op(&a)$($try)*;
-                let tch_c = Tensor::from($scalar).$tch_op(&tch_a);
+                let tch_c = TchTensor::from($scalar).$tch_op(&tch_a);
                 $assert_method(&c, &tch_c);
                 Ok(())
             }
@@ -253,10 +253,10 @@ macro_rules! test_binarys_scalar {
                 let tch_a = tch_a.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
                 let a = slice!(a[2:6:1, 2:6:1])?;
                 let c = a.clone().$hpt_op($scalar)$($try)*;
-                let tch_c = tch_a.shallow_clone().$tch_op(&Tensor::from($scalar));
+                let tch_c = tch_a.shallow_clone().$tch_op(&TchTensor::from($scalar));
                 $assert_method(&c, &tch_c);
                 let c = $scalar.$hpt_op(&a)$($try)*;
-                let tch_c = Tensor::from($scalar).$tch_op(&tch_a);
+                let tch_c = TchTensor::from($scalar).$tch_op(&tch_a);
                 $assert_method(&c, &tch_c);
                 Ok(())
             }
@@ -268,10 +268,10 @@ macro_rules! test_binarys_scalar {
                 let tch_a = tch_a.permute(&[1, 0][..]);
                 let a = a.permute([1, 0])?;
                 let c = a.clone().$hpt_op($scalar)$($try)*;
-                let tch_c = tch_a.shallow_clone().$tch_op(&Tensor::from($scalar)).contiguous(); // torch will keep the layout, so we need contiguous
+                let tch_c = tch_a.shallow_clone().$tch_op(&TchTensor::from($scalar)).contiguous(); // torch will keep the layout, so we need contiguous
                 $assert_method(&c, &tch_c);
                 let c = $scalar.$hpt_op(&a)$($try)*;
-                let tch_c = Tensor::from($scalar).$tch_op(&tch_a).contiguous(); // torch will keep the layout, so we need contiguous
+                let tch_c = TchTensor::from($scalar).$tch_op(&tch_a).contiguous(); // torch will keep the layout, so we need contiguous
                 $assert_method(&c, &tch_c);
                 Ok(())
             }
@@ -284,10 +284,10 @@ macro_rules! test_binarys_scalar {
                 let tch_a = tch_a.permute(&[1, 0][..]);
                 let a = a.permute([1, 0])?;
                 let c = a.clone().$hpt_op($scalar)$($try)*;
-                let tch_c = tch_a.shallow_clone().$tch_op(&Tensor::from($scalar)).contiguous(); // torch will keep the layout, so we need contiguous
+                let tch_c = tch_a.shallow_clone().$tch_op(&TchTensor::from($scalar)).contiguous(); // torch will keep the layout, so we need contiguous
                 $assert_method(&c, &tch_c);
                 let c = $scalar.$hpt_op(&a)$($try)*;
-                let tch_c = Tensor::from($scalar).$tch_op(&tch_a).contiguous(); // torch will keep the layout, so we need contiguous
+                let tch_c = TchTensor::from($scalar).$tch_op(&tch_a).contiguous(); // torch will keep the layout, so we need contiguous
                 $assert_method(&c, &tch_c);
                 Ok(())
             }
