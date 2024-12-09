@@ -20,7 +20,7 @@ impl<T> NormalUaryOps
 {
     type Output = Tensor<NormalType<T>>;
 
-    type InplaceOutput = _Tensor<NormalType<T>>;
+    type InplaceOutput = Tensor<NormalType<T>>;
 
     type OutputMeta = NormalType<T>;
 
@@ -42,11 +42,11 @@ impl<T> NormalUaryOps
     /// let b = a.floor().unwrap();
     /// ```
     fn floor(&self) -> Result<Self::Output> {
-        Ok(_Tensor::floor(self)?.into())
+        Ok(_Tensor::floor(self.inner.as_ref())?.into())
     }
 
     fn floor_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::floor_(self, out)?.into())
+        Ok(_Tensor::floor_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise square of the tensor.
@@ -68,11 +68,11 @@ impl<T> NormalUaryOps
     /// let b = a.square().unwrap();
     /// ```
     fn square(&self) -> Result<Self::Output> {
-        Ok(_Tensor::square(self)?.into())
+        Ok(_Tensor::square(self.inner.as_ref())?.into())
     }
 
     fn square_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::square_(self, out)?.into())
+        Ok(_Tensor::square_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise absolute value of the tensor.
@@ -100,11 +100,11 @@ impl<T> NormalUaryOps
     /// let b = a.abs().unwrap();
     /// ```
     fn abs(&self) -> Result<Self> {
-        Ok(_Tensor::abs(self)?.into())
+        Ok(_Tensor::abs(self.inner.as_ref())?.into())
     }
 
     fn abs_<U>(&self, out: U) -> Result<Self> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::abs_(self, out)?.into())
+        Ok(_Tensor::abs_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise ceiling of the tensor.
@@ -131,11 +131,11 @@ impl<T> NormalUaryOps
     /// let b = a.ceil().unwrap();
     /// ```
     fn ceil(&self) -> Result<Self::Output> {
-        Ok(_Tensor::ceil(self)?.into())
+        Ok(_Tensor::ceil(self.inner.as_ref())?.into())
     }
 
     fn ceil_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::ceil_(self, out)?.into())
+        Ok(_Tensor::ceil_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise sign of the tensor.
@@ -165,11 +165,11 @@ impl<T> NormalUaryOps
     /// let b = a.sign().unwrap();
     /// ```
     fn sign(&self) -> Result<Self::Output> {
-        Ok(_Tensor::sign(self)?.into())
+        Ok(_Tensor::sign(self.inner.as_ref())?.into())
     }
 
     fn sign_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::sign_(self, out)?.into())
+        Ok(_Tensor::sign_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Clips (limits) the values of the tensor between the specified `min` and `max`.
@@ -195,14 +195,14 @@ impl<T> NormalUaryOps
     /// let a = Tensor::<f64>::new([-1.0, 1.5, -2.9, 3.0]);
     /// let b = a.clip(-1.0, 1.0).unwrap();
     /// ```
-    fn clip(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> Result<Self::Output> {
-        Ok(_Tensor::clip(self, min, max)?.into())
+    fn clamp(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> Result<Self::Output> {
+        Ok(_Tensor::clamp(self.inner.as_ref(), min, max)?.into())
     }
 
-    fn clip_<U>(&self, min: Self::OutputMeta, max: Self::OutputMeta, out: U) -> Result<Self::Output>
+    fn clamp_<U>(&self, min: Self::OutputMeta, max: Self::OutputMeta, out: U) -> Result<Self::Output>
         where U: Borrow<Self::InplaceOutput>
     {
-        Ok(_Tensor::clip_(self, min, max, out)?.into())
+        Ok(_Tensor::clamp_(self.inner.as_ref(), min, max, out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise rounding of the tensor.
@@ -229,44 +229,44 @@ impl<T> NormalUaryOps
     /// let b = a.round().unwrap();
     /// ```
     fn round(&self) -> Result<Self::Output> {
-        Ok(_Tensor::round(self)?.into())
+        Ok(_Tensor::round(self.inner.as_ref())?.into())
     }
 
     fn round_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::round_(self, out)?.into())
+        Ok(_Tensor::round_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn neg(&self) -> Result<Self> {
-        Ok(_Tensor::neg(self)?.into())
+        Ok(_Tensor::neg(self.inner.as_ref())?.into())
     }
 
     fn neg_<U>(&self, out: U) -> Result<Self> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::neg_(self, out)?.into())
+        Ok(_Tensor::neg_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn relu(&self) -> Result<Self::Output> {
-        Ok(_Tensor::relu(self)?.into())
+        Ok(_Tensor::relu(self.inner.as_ref())?.into())
     }
 
     fn relu_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::relu_(self, out)?.into())
+        Ok(_Tensor::relu_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn leaky_relu(&self, alpha: Self::OutputMeta) -> Result<Self::Output> {
-        Ok(_Tensor::leaky_relu(self, alpha)?.into())
+        Ok(_Tensor::leaky_relu(self.inner.as_ref(), alpha)?.into())
     }
 
     fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
         where U: Borrow<Self::InplaceOutput>
     {
-        Ok(_Tensor::leaky_relu_(self, alpha, out)?.into())
+        Ok(_Tensor::leaky_relu_(self.inner.as_ref(), alpha, out.borrow().inner.as_ref())?.into())
     }
 
     fn relu6(&self) -> Result<Self::Output> {
-        Ok(_Tensor::relu6(self)?.into())
+        Ok(_Tensor::relu6(self.inner.as_ref())?.into())
     }
 
     fn relu6_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
-        Ok(_Tensor::relu6_(self, out)?.into())
+        Ok(_Tensor::relu6_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 }

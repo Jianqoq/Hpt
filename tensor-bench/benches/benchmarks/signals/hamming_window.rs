@@ -1,11 +1,11 @@
 use std::time::Duration;
 use criterion::{ black_box, criterion_group, criterion_main, BenchmarkId, Criterion };
-use tch::{ Tensor, Kind, Device };
-use tensor_dyn::tensor_base::_Tensor;
+use tch::{ Tensor as TchTensor, Kind, Device };
+use tensor_dyn::Tensor;
 use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
 
-fn assert_eq(a: &Tensor, b: &_Tensor<f64>) {
+fn assert_eq(a: &TchTensor, b: &Tensor<f64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
     let b_raw = b.as_raw();
     for i in 0..b.size() {
@@ -27,12 +27,12 @@ fn hamming_window_benchmark(c: &mut Criterion) {
     for idx in 0..lens.len() {
         let lens = lens[idx];
         group.bench_with_input(BenchmarkId::new("torch", format!("tch {}", idx)), &lens, |b, _| {
-            b.iter(|| { Tensor::hamming_window_periodic(lens, false, (Kind::Float, Device::Cpu)) });
+            b.iter(|| { TchTensor::hamming_window_periodic(lens, false, (Kind::Float, Device::Cpu)) });
         });
         group.bench_with_input(BenchmarkId::new("hpt", format!("hpt {}", idx)), &lens, |b, _| {
             b.iter(|| { tensor_dyn::tensor::Tensor::<f32>::hamming_window(lens, false).unwrap() });
         });
-        let a = black_box(Tensor::hamming_window_periodic(lens, false, (Kind::Double, Device::Cpu)));
+        let a = black_box(TchTensor::hamming_window_periodic(lens, false, (Kind::Double, Device::Cpu)));
         let a2 = black_box(tensor_dyn::tensor::Tensor::<f64>::hamming_window(lens, false).unwrap());
         assert_eq(&a, &a2);
     }

@@ -1,13 +1,12 @@
 #![allow(unused_imports)]
 use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
-use tch::Tensor;
-use tensor_dyn::{ tensor_base::_Tensor, TensorCreator };
+use tensor_dyn::{ Tensor, TensorCreator };
 use tensor_dyn::TensorInfo;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 
 #[allow(unused)]
-fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
+fn assert_eq(b: &Tensor<f64>, a: &tch::Tensor) {
     let a_raw = if b.strides().contains(&0) {
         let size = b
             .shape()
@@ -36,8 +35,8 @@ fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
 }
 #[test]
 fn test_transpose() -> anyhow::Result<()> {
-    let tch_a = Tensor::randn(&[10, 10], (tch::Kind::Double, tch::Device::Cpu));
-    let mut a = _Tensor::<f64>::empty(&[10, 10])?;
+    let tch_a = tch::Tensor::randn(&[10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let mut a = Tensor::<f64>::empty(&[10, 10])?;
     let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
@@ -51,8 +50,8 @@ fn test_transpose() -> anyhow::Result<()> {
 
 #[test]
 fn test_swap_axes() -> anyhow::Result<()> {
-    let tch_a = Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
-    let mut a = _Tensor::<f64>::empty(&[10, 10, 10])?;
+    let tch_a = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let mut a = Tensor::<f64>::empty(&[10, 10, 10])?;
     let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
@@ -66,8 +65,8 @@ fn test_swap_axes() -> anyhow::Result<()> {
 
 #[test]
 fn test_unsqueeze() -> anyhow::Result<()> {
-    let tch_a = Tensor::randn(&[10], (tch::Kind::Double, tch::Device::Cpu));
-    let mut a = _Tensor::<f64>::empty(&[10])?;
+    let tch_a = tch::Tensor::randn(&[10], (tch::Kind::Double, tch::Device::Cpu));
+    let mut a = Tensor::<f64>::empty(&[10])?;
     let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
@@ -83,8 +82,8 @@ fn test_unsqueeze() -> anyhow::Result<()> {
 
 #[test]
 fn test_squeeze() -> anyhow::Result<()> {
-    let tch_a = Tensor::randn(&[1, 10, 1], (tch::Kind::Double, tch::Device::Cpu));
-    let mut a = _Tensor::<f64>::empty(&[1, 10, 1])?;
+    let tch_a = tch::Tensor::randn(&[1, 10, 1], (tch::Kind::Double, tch::Device::Cpu));
+    let mut a = Tensor::<f64>::empty(&[1, 10, 1])?;
     let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
@@ -100,8 +99,8 @@ fn test_squeeze() -> anyhow::Result<()> {
 
 #[test]
 fn test_expand() -> anyhow::Result<()> {
-    let tch_a = Tensor::randn(&[1, 10, 1], (tch::Kind::Double, tch::Device::Cpu));
-    let mut a = _Tensor::<f64>::empty(&[1, 10, 1])?;
+    let tch_a = tch::Tensor::randn(&[1, 10, 1], (tch::Kind::Double, tch::Device::Cpu));
+    let mut a = Tensor::<f64>::empty(&[1, 10, 1])?;
     let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
@@ -115,8 +114,8 @@ fn test_expand() -> anyhow::Result<()> {
 
 #[test]
 fn test_flatten() -> anyhow::Result<()> {
-    let tch_a = Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
-    let mut a = _Tensor::<f64>::empty(&[10, 10, 10])?;
+    let tch_a = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let mut a = Tensor::<f64>::empty(&[10, 10, 10])?;
     let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
@@ -146,8 +145,8 @@ fn test_flatten() -> anyhow::Result<()> {
 
 #[test]
 fn test_split() -> anyhow::Result<()> {
-    let tch_a = Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
-    let mut a = _Tensor::<f64>::empty(&[10, 10, 10])?;
+    let tch_a = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let mut a = Tensor::<f64>::empty(&[10, 10, 10])?;
     let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
@@ -174,8 +173,8 @@ fn test_split() -> anyhow::Result<()> {
 
 #[test]
 fn test_reshape() -> anyhow::Result<()> {
-    let tch_a = Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
-    let mut a = _Tensor::<f64>::empty(&[10, 10, 10])?;
+    let tch_a = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let mut a = Tensor::<f64>::empty(&[10, 10, 10])?;
     let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
@@ -189,20 +188,20 @@ fn test_reshape() -> anyhow::Result<()> {
 
 #[test]
 fn test_concat() -> anyhow::Result<()> {
-    let tch_a = Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
-    let tch_b = Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
-    let mut a = _Tensor::<f64>::empty(&[10, 10, 10])?;
+    let tch_a = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let tch_b = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let mut a = Tensor::<f64>::empty(&[10, 10, 10])?;
     let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
     });
-    let mut b = _Tensor::<f64>::empty(&[10, 10, 10])?;
+    let mut b = Tensor::<f64>::empty(&[10, 10, 10])?;
     let b_size = b.size();
     b.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_b.data_ptr() as *const f64, b_size)
     });
-    let c = _Tensor::<f64>::concat(vec![&a, &b], 1, false)?;
-    let tch_c = Tensor::cat(&[&tch_a, &tch_b], 1);
+    let c = Tensor::<f64>::concat(vec![&a, &b], 1, false)?;
+    let tch_c = tch::Tensor::cat(&[&tch_a, &tch_b], 1);
     assert_eq(&c, &tch_c);
     assert_eq!(&tch_c.size(), c.shape().inner());
     Ok(())
@@ -210,14 +209,14 @@ fn test_concat() -> anyhow::Result<()> {
 
 #[test]
 fn test_uncontiguous_concat() -> anyhow::Result<()> {
-    let tch_a = Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
-    let tch_b = Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
-    let mut a = _Tensor::<f64>::empty(&[10, 10, 10])?;
+    let tch_a = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let tch_b = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let mut a = Tensor::<f64>::empty(&[10, 10, 10])?;
     let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
     });
-    let mut b = _Tensor::<f64>::empty(&[10, 10, 10])?;
+    let mut b = Tensor::<f64>::empty(&[10, 10, 10])?;
     let b_size = b.size();
     b.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_b.data_ptr() as *const f64, b_size)
@@ -226,8 +225,8 @@ fn test_uncontiguous_concat() -> anyhow::Result<()> {
     let tch_a = tch_a.permute(&[1, 0, 2][..]);
     let b = b.permute([1, 0, 2])?;
     let tch_b = tch_b.permute(&[1, 0, 2][..]);
-    let c = _Tensor::<f64>::concat(vec![&a, &b], 1, false)?;
-    let tch_c = Tensor::cat(&[&tch_a, &tch_b], 1);
+    let c = Tensor::<f64>::concat(vec![&a, &b], 1, false)?;
+    let tch_c = tch::Tensor::cat(&[&tch_a, &tch_b], 1);
     assert_eq(&c, &tch_c);
     assert_eq!(&tch_c.size(), c.shape().inner());
     Ok(())

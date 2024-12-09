@@ -1,7 +1,7 @@
 use std::time::Duration;
 use criterion::{ black_box, criterion_group, criterion_main, BenchmarkId, Criterion };
-use tch::{ Tensor, Kind, Device };
-use tensor_dyn::{ tensor_base::_Tensor, Random, TensorCreator };
+use tch::{ Tensor as TchTensor, Kind, Device };
+use tensor_dyn::{ Tensor, Random, TensorCreator };
 use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
 use crate::benchmarks::unary::float_cmp::assert_eq;
@@ -16,8 +16,8 @@ pub fn softmax_benchmark(c: &mut Criterion) {
     group.warm_up_time(Duration::new(1, 0)).measurement_time(Duration::new(3, 0)).sample_size(10);
     for idx in 0..shapes.len() {
         let shape = shapes[idx];
-        let a = black_box(Tensor::randn(shape, (Kind::Float, Device::Cpu)));
-        let a2 = black_box(_Tensor::<f32>::randn(shape).unwrap());
+        let a = black_box(TchTensor::randn(shape, (Kind::Float, Device::Cpu)));
+        let a2 = black_box(Tensor::<f32>::randn(shape).unwrap());
         for (i, axis) in axes.iter().enumerate() {
             group.bench_with_input(
                 BenchmarkId::new("torch", format!("tch {}.{}", idx, i)),
@@ -33,8 +33,8 @@ pub fn softmax_benchmark(c: &mut Criterion) {
                     b.iter(|| { a2.softmax(*axis).unwrap() });
                 }
             );
-            let a = black_box(Tensor::randn(shape, (Kind::Double, Device::Cpu)));
-            let mut a2 = black_box(_Tensor::<f64>::empty(shape)).unwrap();
+            let a = black_box(TchTensor::randn(shape, (Kind::Double, Device::Cpu)));
+            let mut a2 = black_box(Tensor::<f64>::empty(shape)).unwrap();
             let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, a2.size()) };
             let a2_raw_mut = a2.as_raw_mut();
             a2_raw_mut.copy_from_slice(a_raw);

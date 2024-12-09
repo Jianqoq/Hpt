@@ -12,15 +12,7 @@ impl<T> TensorCmp<T> for _Tensor<T> where T: CommonBounds {
     type RHS<C> = _Tensor<C>;
     type Output = _Tensor<bool>;
     type BoolVector = BoolVector;
-    /// perform element-wise not equal operation between two tensors
-    ///
-    /// # Arguments
-    ///
-    /// * `rhs` - The right hand side tensor
-    ///
-    /// # Returns
-    ///
-    /// A tensor of boolean values
+
     fn tensor_neq<C, D>(&self, rhs: D) -> Result<_Tensor<bool>>
         where
             T: Cmp<C>,
@@ -39,15 +31,6 @@ impl<T> TensorCmp<T> for _Tensor<T> where T: CommonBounds {
         Ok(res)
     }
 
-    /// perform element-wise equal operation between two tensors
-    ///
-    /// # Arguments
-    ///
-    /// * `rhs` - The right hand side tensor
-    ///
-    /// # Returns
-    ///
-    /// A tensor of boolean values
     fn tensor_eq<U: CommonBounds, D>(&self, rhs: D) -> Result<_Tensor<bool>>
         where
             T: Cmp<U>,
@@ -65,15 +48,6 @@ impl<T> TensorCmp<T> for _Tensor<T> where T: CommonBounds {
         Ok(res)
     }
 
-    /// perform element-wise less than operation between two tensors
-    ///
-    /// # Arguments
-    ///
-    /// * `rhs` - The right hand side tensor
-    ///
-    /// # Returns
-    ///
-    /// A tensor of boolean values
     fn tensor_lt<U: CommonBounds, D>(&self, rhs: D) -> Result<_Tensor<bool>>
         where
             T: Cmp<U>,
@@ -91,15 +65,6 @@ impl<T> TensorCmp<T> for _Tensor<T> where T: CommonBounds {
         Ok(res)
     }
 
-    /// perform element-wise greater than operation between two tensors
-    ///
-    /// # Arguments
-    ///
-    /// * `rhs` - The right hand side tensor
-    ///
-    /// # Returns
-    ///
-    /// A tensor of boolean values
     fn tensor_gt<U: CommonBounds, D>(&self, rhs: D) -> Result<_Tensor<bool>>
         where
             T: Cmp<U>,
@@ -117,15 +82,6 @@ impl<T> TensorCmp<T> for _Tensor<T> where T: CommonBounds {
         Ok(res)
     }
 
-    /// perform element-wise less than or equal operation between two tensors
-    ///
-    /// # Arguments
-    ///
-    /// * `rhs` - The right hand side tensor
-    ///
-    /// # Returns
-    ///
-    /// A tensor of boolean values
     fn tensor_le<U: CommonBounds, D>(&self, rhs: D) -> Result<_Tensor<bool>>
         where
             T: Cmp<U>,
@@ -143,15 +99,6 @@ impl<T> TensorCmp<T> for _Tensor<T> where T: CommonBounds {
         Ok(res)
     }
 
-    /// perform element-wise greater than or equal operation between two tensors
-    ///
-    /// # Arguments
-    ///
-    /// * `rhs` - The right hand side tensor
-    ///
-    /// # Returns
-    ///
-    /// A tensor of boolean values
     fn tensor_ge<U: CommonBounds, D>(&self, rhs: D) -> Result<_Tensor<bool>>
         where
             T: Cmp<U>,

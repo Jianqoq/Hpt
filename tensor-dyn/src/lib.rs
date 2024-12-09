@@ -166,11 +166,13 @@ pub use tensor_iterator::iterator_traits::*;
 pub use tensor_iterator::TensorIterator;
 
 pub use tensor_macros::match_selection;
-pub use tensor_macros::fuse;
-pub use tensor_macros::fuse_proc_macro;
+pub use tensor_codegen::fuse_proc_macro;
+pub use tensor_codegen::compile;
 pub use tensor_traits::*;
 pub use tensor_types::vectors::*;
 pub use tensor_types::*;
+pub use tensor_types::type_promote::*;
+pub use tensor::Tensor;
 
 use std::{ cell::RefCell, sync::atomic::AtomicUsize };
 thread_local! {

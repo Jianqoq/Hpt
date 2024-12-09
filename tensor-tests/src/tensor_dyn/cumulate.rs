@@ -1,8 +1,7 @@
 #![allow(unused_imports)]
 
-use tch::Tensor;
 use tensor_common::slice;
-use tensor_dyn::{ tensor_base::_Tensor, TensorCreator };
+use tensor_dyn::{ Tensor, TensorCreator };
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::TensorInfo;
@@ -10,7 +9,7 @@ use tensor_macros::match_selection;
 use tensor_common::slice::Slice;
 
 #[allow(unused)]
-fn assert_eq(b: &_Tensor<i64>, a: &Tensor) {
+fn assert_eq(b: &Tensor<i64>, a: &tch::Tensor) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
     let b_raw = b.as_raw();
 
@@ -29,7 +28,7 @@ fn assert_eq(b: &_Tensor<i64>, a: &Tensor) {
 
 #[test]
 fn test_cumsum_1dim() -> anyhow::Result<()> {
-    let a = _Tensor::<i64>::arange(0, 10)?;
+    let a = Tensor::<i64>::arange(0, 10)?;
     let b = a.cumsum(0)?;
     let tch_a = tch::Tensor::arange(10, (tch::Kind::Int64, tch::Device::Cpu));
     let tch_b = tch_a.cumsum(0, tch::Kind::Int64);
@@ -39,7 +38,7 @@ fn test_cumsum_1dim() -> anyhow::Result<()> {
 
 #[test]
 fn test_cumsum_2dim() -> anyhow::Result<()> {
-    let a = _Tensor::<i64>::arange(0, 100)?.reshape(&[10, 10])?;
+    let a = Tensor::<i64>::arange(0, 100)?.reshape(&[10, 10])?;
     let tch_a = tch::Tensor::arange(100, (tch::Kind::Int64, tch::Device::Cpu)).reshape(&[10, 10]);
     let b = a.cumsum(0)?;
     let tch_b = tch_a.cumsum(0, tch::Kind::Int64);
@@ -54,7 +53,7 @@ fn test_cumsum_2dim() -> anyhow::Result<()> {
 
 #[test]
 fn test_cumsum_2dim_uncontiguous() -> anyhow::Result<()> {
-    let a = _Tensor::<i64>::arange(0, 100)?.reshape(&[10, 10])?;
+    let a = Tensor::<i64>::arange(0, 100)?.reshape(&[10, 10])?;
     let a = a.permute([1, 0])?;
     let tch_a = tch::Tensor
         ::arange(100, (tch::Kind::Int64, tch::Device::Cpu))
@@ -73,7 +72,7 @@ fn test_cumsum_2dim_uncontiguous() -> anyhow::Result<()> {
 
 #[test]
 fn test_cumsum_2dim_sub() -> anyhow::Result<()> {
-    let a = _Tensor::<i64>::arange(0, 2 * 5 * 10)?.reshape(&[2, 5, 10])?;
+    let a = Tensor::<i64>::arange(0, 2 * 5 * 10)?.reshape(&[2, 5, 10])?;
     let tch_a = tch::Tensor
         ::arange(2 * 5 * 10, (tch::Kind::Int64, tch::Device::Cpu))
         .reshape(&[2, 5, 10]);

@@ -1,11 +1,11 @@
 
-use tch::Tensor;
-use tensor_dyn::tensor_base::_Tensor;
+use tch::Tensor as TchTensor;
+use tensor_dyn::Tensor;
 use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
 
 #[allow(unused)]
-pub(crate) fn assert_eq(a: &Tensor, b: &_Tensor<f64>) {
+pub(crate) fn assert_eq(a: &TchTensor, b: &Tensor<f64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
     let b_raw = b.as_raw();
     let tolerance = 2.5e-15;
@@ -21,7 +21,7 @@ pub(crate) fn assert_eq(a: &Tensor, b: &_Tensor<f64>) {
 }
 
 #[allow(unused)]
-pub(crate) fn assert_eq_print(a: &Tensor, b: &_Tensor<f64>) {
+pub(crate) fn assert_eq_print(a: &TchTensor, b: &Tensor<f64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
     let b_raw = b.as_raw();
     let tolerance = 2.5e-15;
@@ -37,7 +37,7 @@ pub(crate) fn assert_eq_print(a: &Tensor, b: &_Tensor<f64>) {
 }
 
 #[allow(unused)]
-pub(crate) fn assert_eq_with_prec_print(a: &Tensor, b: &_Tensor<f64>) {
+pub(crate) fn assert_eq_with_prec_print(a: &TchTensor, b: &Tensor<f64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
     let b_raw = b.as_raw();
     for i in 0..b.size() {

@@ -94,6 +94,6 @@ impl<T> Tensor<T>
     ///
     /// This function returns a `Result` containing a new tensor with the shrinkage operation applied.
     pub fn shrink(&self, bias: T, lambda: T) -> anyhow::Result<Tensor<T>> {
-        Ok(_Tensor::shrink(self, bias, lambda)?.into())
+        Ok(_Tensor::shrink(self.inner.as_ref(), bias, lambda)?.into())
     }
 }

@@ -118,7 +118,7 @@ impl<T> NormalUaryOps
             Some(out)
         )
     }
-    fn clip(
+    fn clamp(
         &self,
         min: NormalType<T>,
         max: NormalType<T>
@@ -132,7 +132,7 @@ impl<T> NormalUaryOps
             None::<_Tensor<NormalType<T>>>
         )
     }
-    fn clip_<U>(
+    fn clamp_<U>(
         &self,
         min: NormalType<T>,
         max: NormalType<T>,

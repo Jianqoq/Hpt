@@ -4,26 +4,9 @@ use tensor_common::{ shape_utils::mt_intervals, slice::Slice };
 use tensor_iterator::{ iterator_traits::StridedIterator, TensorIterator };
 use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo, TensorLike };
 
-use crate::{ backend::Cpu, tensor_base::_Tensor, THREAD_POOL };
+use crate::{ backend::Cpu, tensor_base::_Tensor, Tensor, THREAD_POOL };
 
 impl<T> _Tensor<T, Cpu> where T: CommonBounds {
-    /// Gathers elements from the tensor along a specified axis using the provided indices.
-    ///
-    /// This method retrieves elements from the input tensor based on the positions specified in the `indices` tensor,
-    /// along the specified `axis`. The shape of the output tensor corresponds to the shape of the `indices` tensor.
-    /// This operation is useful for selecting specific elements along a given axis, such as when performing indexing
-    /// or advanced slicing operations.
-    ///
-    /// # Arguments
-    ///
-    /// * `indices` - A tensor of type `i64` containing the indices that specify which elements to gather
-    ///   from the input tensor along the given axis. The shape of the `indices` tensor determines the shape
-    ///   of the output tensor.
-    /// * `axis` - The axis along which to gather the elements. This must be a valid axis for the input tensor.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a new tensor with the gathered elements.
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn gather(&self, indices: &_Tensor<i64, Cpu>, axis: i64) -> anyhow::Result<Self> {
         assert_eq!(indices.ndim(), 1);
@@ -81,5 +64,29 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds {
             barrier.wait();
         });
         Ok(ret)
+    }
+}
+
+impl<T> Tensor<T, Cpu> where T: CommonBounds {
+    /// Gathers elements from the tensor along a specified axis using the provided indices.
+    ///
+    /// This method retrieves elements from the input tensor based on the positions specified in the `indices` tensor,
+    /// along the specified `axis`. The shape of the output tensor corresponds to the shape of the `indices` tensor.
+    /// This operation is useful for selecting specific elements along a given axis, such as when performing indexing
+    /// or advanced slicing operations.
+    ///
+    /// # Arguments
+    ///
+    /// * `indices` - A tensor of type `i64` containing the indices that specify which elements to gather
+    ///   from the input tensor along the given axis. The shape of the `indices` tensor determines the shape
+    ///   of the output tensor.
+    /// * `axis` - The axis along which to gather the elements. This must be a valid axis for the input tensor.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a new tensor with the gathered elements.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn gather(&self, indices: &Tensor<i64, Cpu>, axis: i64) -> anyhow::Result<Tensor<T>> {
+        Ok(self.inner.gather(indices.inner.as_ref(), axis)?.into())
     }
 }

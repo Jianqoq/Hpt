@@ -6,6 +6,7 @@ use crate::ops::cpu::kernels::conv::remain_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::conv::Params;
 use crate::ops::cpu::kernels::conv::PartialParams;
 use crate::tensor_base::_Tensor;
+use crate::Tensor;
 use crate::REGNUM;
 use crate::SIMD_WIDTH;
 use rayon::prelude::*;
@@ -1487,4 +1488,43 @@ fn handle_normal_remain<T: CommonBounds>(
         );
     }
     *kernel += kernel_height * kernel_width * (jj_end - jj_start) * (i_end - ii);
+}
+
+impl<T> Tensor<T>
+    where
+        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+        T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>,
+        bool: IntoScalar<T>
+{
+    /// Performs a 2D convolution operation on the input tensor.
+    ///
+    /// This method applies a 2D convolution operation on the tensor using the specified kernel,
+    /// strides (steps), padding, and dilation factors.
+    ///
+    /// # Arguments
+    ///
+    /// * `kernels` - A reference to the tensor representing the convolution kernels (filters).
+    ///   The size of the kernel tensor determines the spatial dimensions of the convolution operation.
+    /// * `steps` - A 2-element array specifying the stride (step size) of the convolution along the height and width dimensions.
+    /// * `padding` - A 2-element array of tuples representing the padding for the height and width dimensions.
+    ///   Each tuple specifies the amount of padding added before and after the data along the respective axis.
+    /// * `dilation` - A 2-element array specifying the dilation factor for the convolution along the height and width dimensions.
+    ///   Dilation allows the kernel to be applied to inputs with gaps, increasing the receptive field of the kernel.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing the output tensor after applying the 2D convolution operation.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[inline(never)]
+    pub fn conv2d(
+        &self,
+        kernels: &Tensor<T>,
+        bias: Option<&Tensor<T>>,
+        steps: [i64; 2],
+        padding: [(i64, i64); 2],
+        dilation: [i64; 2],
+        activation: Option<fn(T::Vec) -> T::Vec>
+    ) -> anyhow::Result<Tensor<T>> {
+        Ok(self.inner.conv2d(&kernels.inner, bias.map(|b| b.inner.as_ref()), steps, padding, dilation, activation)?.into())
+    }
 }

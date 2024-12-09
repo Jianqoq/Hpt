@@ -1,56 +1,47 @@
+use into_scalar::IntoScalar;
 use rust_xlsxwriter::{ Format, Workbook };
 use std::io::Write;
-use tensor_dyn::tensor_base::_Tensor;
+use tensor_dyn::Tensor;
 use tensor_dyn::*;
-use tensor_dyn::type_promote::NormalOut;
-use tensor_dyn::type_promote::FloatOutUnary;
-use tensor_dyn::type_promote::NormalOutUnary;
-use tensor_dyn::type_promote::FloatOutBinary;
 
 fuse_proc_macro!(
-fn compute2(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
-    let mut c = &a + &b;
+    fn compute(a: Tensor<f32>, b: Tensor<f32>, k: f32) -> anyhow::Result<Tensor<f32>>
+{
+    let mut c = &a + &b / &a;
     let d = c.sin()?;
-    // let e = d.relu()?;
-    // let alpha = 1.673263242354358;
-    // let gamma = 1.050700987355822;
-    // if alpha > 0.0 {
-    //     d = e.selu(alpha, gamma)?;
-    //     // if alpha > 0.0 {
-    //     //     d = e.tanh()?;
-    //     // } else {
-    //     //     d = d.tan()?;
-    //     // }
-    // } else {
-    //     d = d.selu(alpha, gamma)?;
-    // }
+    let e = d.relu()?;
+    let g = c.matmul(&e)?.tanh()?;
+    let f = g.relu()?;
+    let shape = a.shape();
+    let alpha = 1.673263242354358;
+    let gamma = 1.050700987355822;
+    if shape.len() > 0 {
+        e.selu(alpha, gamma)?;
+        if alpha > 0.0 {
+            e.tanh()?
+        } else {
+            d.tan()?
+        }
+    } else {
+        d.selu(alpha, gamma)?
+    }
     for _ in 0..1000000 {
         c = &d + &c;
-        c = &d + &c;
+        break;
     }
-    // // while true {
-    // //     let c = &d + &c;
-    // // }
-    Ok(c)
+    while true {
+        let c = &d + &c;
+        c.sin()?;
+        continue;
+    }
+    
+    Ok(g)
 });
 
-// // #[fuse]
-// fn compute(a: _Tensor<f32>, b: _Tensor<f32>) -> anyhow::Result<_Tensor<f32>> {
-//     let c = &a + &b / &a;
-//     let d = c.sin()?;
-//     let e = d.relu()?;
-//     let alpha = 1.673263242354358;
-//     let gamma = 1.050700987355822;
-//     let d = e.selu(alpha, gamma)?;
-//     for _ in 0..1000000 {
-//         let f = &d + &c;
-//     }
-//     Ok(d)
-// }
 
 fn main() -> anyhow::Result<()> {
-    conv2d()?;
-    // let a = _Tensor::<f32>::arange(0, 10000)?;
+    // conv2d()?;
+    let a = Tensor::<f32>::arange(0, 10000)?;
     // let b = _Tensor::<f32>::arange(0, 10000)?;
     // let now = std::time::Instant::now();
     // let c = compute(a, b)?;
@@ -77,7 +68,7 @@ fn conv2d() -> Result<(), anyhow::Error> {
             for kw in kw_sets {
                 for h in h_sets {
                     for w in w_sets {
-                        let a = _Tensor::<f32>
+                        let a = Tensor::<f32>
                             ::arange(0, 1 * ic * h * w)?
                             .reshape([1, ic, h, w])?
                             .permute([0, 2, 3, 1])?

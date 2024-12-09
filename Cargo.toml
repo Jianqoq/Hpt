@@ -16,7 +16,7 @@ members = [
     "tensor-display",
     "tensor-bench",
     "tensor-tests",
-    "tensor-dataloader",
+    "tensor-dataloader", "tensor-codegen",
 ]
 
 [dependencies]

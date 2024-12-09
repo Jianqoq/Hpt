@@ -100,7 +100,7 @@ impl<T> Tensor<T> {
             T::Vec: FloatOutUnary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
             <<T as FloatOutUnary>::Output as TypeCommon>::Vec: FloatOutBinary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>
     {
-        Ok(Tensor::from(_Tensor::softmax(self, axis)?.into()))
+        Ok(Tensor::from(_Tensor::softmax(self.inner.as_ref(), axis)?.into()))
     }
 }
 

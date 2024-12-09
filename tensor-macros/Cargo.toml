@@ -9,7 +9,7 @@ quote = "1.0.36"
 regex = "1.11.0"
 proc-macro2 = {version = "1.0.86", features = ["span-locations"] }
 anyhow = "1.0.75"
-petgraph = "0.6.5"
+tensor-codegen = { path = "../tensor-codegen" }
 
 [lib]
 proc-macro = true

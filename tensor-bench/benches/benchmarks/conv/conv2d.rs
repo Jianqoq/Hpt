@@ -1,13 +1,13 @@
 use criterion::{ black_box, criterion_group, BenchmarkId, Criterion };
 use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
 use std::time::Duration;
-use tch::{ Device, Kind, Tensor };
+use tch::{ Device, Kind, Tensor as TchTensor };
 use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
-use tensor_dyn::{ tensor_base::_Tensor, Random };
+use tensor_dyn::{ Tensor, Random };
 
 #[allow(unused)]
-fn assert_eq_i64(a: &Tensor, b: &_Tensor<i64>) {
+fn assert_eq_i64(a: &TchTensor, b: &Tensor<i64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
     let b_raw = b.as_raw();
     a_raw
@@ -37,21 +37,21 @@ fn conv2d_benchmark(c: &mut Criterion) {
     group.warm_up_time(Duration::new(1, 0)).measurement_time(Duration::new(3, 0)).sample_size(10);
     for idx in 0..shapes.len() {
         let (inp_shape, [in_channels, out_channels]) = shapes[idx];
-        let a = black_box(Tensor::randn(inp_shape, (Kind::Float, Device::Cpu)));
+        let a = black_box(TchTensor::randn(inp_shape, (Kind::Float, Device::Cpu)));
         let a_kernel = black_box(
-            Tensor::randn([out_channels, in_channels, 3, 3], (Kind::Float, Device::Cpu))
+            TchTensor::randn([out_channels, in_channels, 3, 3], (Kind::Float, Device::Cpu))
         );
         let a2 = black_box(
-            _Tensor::<f32>::randn([inp_shape[0], inp_shape[2], inp_shape[3], inp_shape[1]]).unwrap()
+            Tensor::<f32>::randn([inp_shape[0], inp_shape[2], inp_shape[3], inp_shape[1]]).unwrap()
         );
         let a2_kernel = black_box(
-            _Tensor::<f32>::randn([3, 3, in_channels, out_channels]).unwrap()
+            Tensor::<f32>::randn([3, 3, in_channels, out_channels]).unwrap()
         );
         group.bench_with_input(
             BenchmarkId::new("torch", format!("tch {}", idx)),
             &shapes[idx],
             |b, _| {
-                b.iter(|| a.conv2d(&a_kernel, None::<Tensor>, [1, 1], [0, 0], [1, 1], 1));
+                b.iter(|| a.conv2d(&a_kernel, None::<TchTensor>, [1, 1], [0, 0], [1, 1], 1));
             }
         );
         group.bench_with_input(

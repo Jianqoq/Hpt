@@ -6,6 +6,7 @@ use crate::ops::cpu::kernels::conv_group::remain_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::conv_group::Params;
 use crate::ops::cpu::kernels::conv_group::PartialParams;
 use crate::tensor_base::_Tensor;
+use crate::Tensor;
 use crate::REGNUM;
 use crate::SIMD_WIDTH;
 use rayon::prelude::*;
@@ -25,25 +26,6 @@ impl<T> _Tensor<T>
         T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>,
         bool: IntoScalar<T>
 {
-    /// Performs a 2D convolution operation on the input tensor.
-    ///
-    /// This method applies a 2D convolution operation on the tensor using the specified kernel,
-    /// strides (steps), padding, and dilation factors. It optionally accepts a configuration (`Conv2dConfig`)
-    /// to fine-tune the performance, such as optimizing for cache usage and block sizes.
-    ///
-    /// # Arguments
-    ///
-    /// * `kernels` - A reference to the tensor representing the convolution kernels (filters).
-    ///   The size of the kernel tensor determines the spatial dimensions of the convolution operation.
-    /// * `steps` - A 2-element array specifying the stride (step size) of the convolution along the height and width dimensions.
-    /// * `padding` - A 2-element array of tuples representing the padding for the height and width dimensions.
-    ///   Each tuple specifies the amount of padding added before and after the data along the respective axis.
-    /// * `dilation` - A 2-element array specifying the dilation factor for the convolution along the height and width dimensions.
-    ///   Dilation allows the kernel to be applied to inputs with gaps, increasing the receptive field of the kernel.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing the output tensor after applying the 2D convolution operation.
     #[cfg_attr(feature = "track_caller", track_caller)]
     #[inline(never)]
     pub fn conv2d_group(
@@ -76,7 +58,9 @@ impl<T> _Tensor<T>
         let out_channels = kernel_shape[3];
         if in_channels / groups != k_in_channels {
             panic!(
-                "kernel in_channel must equal to in_channel / groups, got {} and {}", k_in_channels, in_channels / groups
+                "kernel in_channel must equal to in_channel / groups, got {} and {}",
+                k_in_channels,
+                in_channels / groups
             );
         }
         if in_channels % groups != 0 {
@@ -739,7 +723,9 @@ fn handle_remain<T: CommonBounds, F, F2, F3>(
     }
     let oc_remain = remain % (T::Vec::SIZE as i64);
     // loop over the remain part that are multiple of T::Vec::SIZE
-    for j in (out_channels_per_group - remain..out_channels_per_group - oc_remain).step_by(T::Vec::SIZE) {
+    for j in (out_channels_per_group - remain..out_channels_per_group - oc_remain).step_by(
+        T::Vec::SIZE
+    ) {
         let j = j + group_idx * out_channels_per_group;
         let original = kernel.clone();
         for l in ll..l_end {
@@ -1560,4 +1546,58 @@ fn handle_normal_remain<T: CommonBounds>(
         );
     }
     *kernel += kernel_height * kernel_width * (jj_end - jj_start) * (i_end - ii);
+}
+
+impl<T> Tensor<T>
+    where
+        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+        T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>,
+        bool: IntoScalar<T>
+{
+    /// Performs a 2D convolution operation on the input tensor.
+    ///
+    /// This method applies a 2D convolution operation on the tensor using the specified kernel,
+    /// strides (steps), padding, and dilation factors. It optionally accepts a configuration (`Conv2dConfig`)
+    /// to fine-tune the performance, such as optimizing for cache usage and block sizes.
+    ///
+    /// # Arguments
+    ///
+    /// * `kernels` - A reference to the tensor representing the convolution kernels (filters).
+    ///   The size of the kernel tensor determines the spatial dimensions of the convolution operation.
+    /// * `steps` - A 2-element array specifying the stride (step size) of the convolution along the height and width dimensions.
+    /// * `padding` - A 2-element array of tuples representing the padding for the height and width dimensions.
+    ///   Each tuple specifies the amount of padding added before and after the data along the respective axis.
+    /// * `dilation` - A 2-element array specifying the dilation factor for the convolution along the height and width dimensions.
+    ///   Dilation allows the kernel to be applied to inputs with gaps, increasing the receptive field of the kernel.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing the output tensor after applying the 2D convolution operation.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[inline(never)]
+    pub fn conv2d_group(
+        &self,
+        kernels: &Tensor<T>,
+        bias: Option<&Tensor<T>>,
+        steps: [i64; 2],
+        padding: [(i64, i64); 2],
+        dilation: [i64; 2],
+        groups: i64,
+        activation: Option<fn(T::Vec) -> T::Vec>
+    ) -> anyhow::Result<Tensor<T>> {
+        Ok(
+            self.inner
+                .as_ref()
+                .conv2d_group(
+                    kernels.inner.as_ref(),
+                    bias.map(|b| b.inner.as_ref()),
+                    steps,
+                    padding,
+                    dilation,
+                    groups,
+                    activation
+                )?
+                .into()
+        )
+    }
 }

@@ -18,6 +18,7 @@ anyhow = "1.0.75"
 rayon = { version = "1.10.0", default-features = false }
 paste = "1.0.15"
 candle-core = "0.7.2"
+macrotest = "1.0.13"
 
 [profile.dev]
 opt-level = 0

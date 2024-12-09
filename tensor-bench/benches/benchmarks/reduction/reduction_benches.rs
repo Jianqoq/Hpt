@@ -1,15 +1,15 @@
 use std::time::Duration;
 use tensor_dyn::TensorCreator;
 use criterion::{ black_box, criterion_group, BenchmarkId, Criterion };
-use tch::{ Tensor, Kind, Device };
-use tensor_dyn::{ tensor_base::_Tensor, Random };
+use tch::{ Tensor as TchTensor, Kind, Device };
+use tensor_dyn::{ Tensor, Random };
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
 use tensor_dyn::NormalReduce;
 
 #[allow(unused)]
-fn assert_eq_i64(a: &Tensor, b: &_Tensor<i64>) {
+fn assert_eq_i64(a: &TchTensor, b: &Tensor<i64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
     let b_raw = b.as_raw();
     assert_eq!(a_raw, b_raw);
@@ -37,8 +37,8 @@ macro_rules! reduction_bench_mark {
                 group.warm_up_time(Duration::new(1, 0)).measurement_time(Duration::new(3, 0)).sample_size(10);
                 for idx in 0..shapes.len() {
                     let shape = shapes[idx];
-                    let a = black_box(Tensor::randn(shape, (Kind::Float, Device::Cpu)));
-                    let a2 = black_box(_Tensor::<f32>::randn(shape).unwrap());
+                    let a = black_box(TchTensor::randn(shape, (Kind::Float, Device::Cpu)));
+                    let a2 = black_box(Tensor::<f32>::randn(shape).unwrap());
                     for (i, axis) in axes.iter().enumerate() {
                         group.bench_with_input(
                             BenchmarkId::new("torch", format!("tch {}.{}", idx, i)),
@@ -55,13 +55,13 @@ macro_rules! reduction_bench_mark {
                             }
                         );
                         let a = black_box(
-                            Tensor::arange(shape.iter().product::<i64>(), (Kind::Int64, Device::Cpu)).reshape(
+                            TchTensor::arange(shape.iter().product::<i64>(), (Kind::Int64, Device::Cpu)).reshape(
                                 shape
                             )
                         )
                             .$tch_method(axis.clone(), false, Kind::Int64);
                         let a2 = black_box(
-                            _Tensor::<i64>
+                            Tensor::<i64>
                                 ::arange(0, shape.iter().product::<i64>())
                                 .unwrap()
                                 .reshape(shape)

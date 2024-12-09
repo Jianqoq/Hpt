@@ -2,14 +2,14 @@ use criterion::{ black_box, criterion_group, BenchmarkId, Criterion };
 use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
 use tensor_dyn::TensorCreator;
 use std::time::Duration;
-use tch::{ Device, Kind, Tensor };
+use tch::{ Device, Kind, Tensor as TchTensor};
 use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
-use tensor_dyn::{ tensor_base::_Tensor, Random };
+use tensor_dyn::{ Tensor, Random };
 use tensor_dyn::ShapeManipulate;
 
 #[allow(unused)]
-fn assert_eq_i64(a: &Tensor, b: &_Tensor<i64>) {
+fn assert_eq_i64(a: &TchTensor, b: &Tensor<i64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
     let b_raw = b.as_raw();
     a_raw
@@ -36,10 +36,10 @@ fn maxpool_benchmark(c: &mut Criterion) {
                 for h in h_sets {
                     for w in w_sets {
                         let a = black_box(
-                            Tensor::randn([1, ic, h, w], (Kind::Float, Device::Cpu)).to_mkldnn()
+                            TchTensor::randn([1, ic, h, w], (Kind::Float, Device::Cpu)).to_mkldnn()
                         );
                         let a2 = black_box(
-                            _Tensor::<f32>
+                            Tensor::<f32>
                                 ::randn([1, ic, h, w])
                                 .unwrap()
                                 .permute([0, 2, 3, 1])
@@ -74,14 +74,14 @@ fn maxpool_benchmark(c: &mut Criterion) {
                             }
                         );
                         let a = black_box(
-                            Tensor::arange(1 * ic * h * w, (Kind::Int64, Device::Cpu)).reshape([
+                            TchTensor::arange(1 * ic * h * w, (Kind::Int64, Device::Cpu)).reshape([
                                 ic,
                                 h,
                                 w,
                             ])
                         );
                         let a2 = black_box(
-                            _Tensor::<i64>
+                            Tensor::<i64>
                                 ::arange(0, 1 * ic * h * w)
                                 .unwrap()
                                 .reshape([1, ic, h, w])

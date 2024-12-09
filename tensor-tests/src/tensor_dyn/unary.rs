@@ -1,6 +1,5 @@
 #![allow(unused_imports)]
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use tch::Tensor;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
 use tensor_dyn::FloatUaryOps;
@@ -8,11 +7,11 @@ use tensor_dyn::NormalUaryOps;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
-use tensor_dyn::{tensor_base::_Tensor, TensorCreator};
+use tensor_dyn::{Tensor, TensorCreator};
 use tensor_macros::match_selection;
 
 #[allow(unused)]
-fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
+fn assert_eq(b: &Tensor<f64>, a: &tch::Tensor) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
     let b_raw = b.as_raw();
     let tolerance = 1e-10;
@@ -31,10 +30,10 @@ fn assert_eq(b: &_Tensor<f64>, a: &Tensor) {
 }
 
 #[allow(unused)]
-fn no_assert(b: &_Tensor<f64>, a: &Tensor) {}
+fn no_assert(b: &Tensor<f64>, a: &tch::Tensor) {}
 
 #[allow(unused)]
-fn assert_eq_bool(b: &_Tensor<bool>, a: &Tensor) {
+fn assert_eq_bool(b: &Tensor<bool>, a: &tch::Tensor) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const bool, b.size()) };
     let b_raw = b.as_raw();
 
@@ -57,7 +56,7 @@ macro_rules! test_unarys {
             #[test]
             fn [<test _ $name>]() -> anyhow::Result<()> {
                 let tch_a = tch::Tensor::randn($shapes, (tch::Kind::Double, tch::Device::Cpu));
-                let mut a = _Tensor::<f64>::empty($shapes)?;
+                let mut a = Tensor::<f64>::empty($shapes)?;
                 let a_size = a.size();
                 a.as_raw_mut().copy_from_slice(unsafe {
                     std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
@@ -113,7 +112,7 @@ test_unarys!(relu, [1000], assert_eq, relu(), relu());
 test_unarys!(selu, [1000], assert_eq, selu(), selu(None, None));
 test_unarys!(softplus, [1000], assert_eq, softplus(), softplus());
 test_unarys!(round, [1000], assert_eq, round(), round());
-test_unarys!(clip, [1000], assert_eq, clamp(0.0, 1.0), clip(0.0, 1.0));
+test_unarys!(clip, [1000], assert_eq, clamp(0.0, 1.0), clamp(0.0, 1.0));
 test_unarys!(
     dropout,
     [1000],
@@ -132,10 +131,10 @@ test_unarys!(hard_swish, [1000], assert_eq, hardswish(), hard_swish());
 
 #[test]
 fn test_sub_tensor_sin() -> anyhow::Result<()> {
-    let a = _Tensor::<f64>::arange(0, 100)?.reshape([10, 10])?;
+    let a = Tensor::<f64>::arange(0, 100)?.reshape([10, 10])?;
     let slice = slice!(a[3:8, 3:8])?;
     let b = slice.sin()?;
-    let tch_a = Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu)).reshape(&[10, 10][..]);
+    let tch_a = tch::Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu)).reshape(&[10, 10][..]);
     let tch_slice = tch_a.slice(0, 3, 8, 1).slice(1, 3, 8, 1);
     let tch_b = tch_slice.sin();
     assert_eq(&b, &tch_b);
@@ -144,9 +143,9 @@ fn test_sub_tensor_sin() -> anyhow::Result<()> {
 
 #[test]
 fn test_cast() -> anyhow::Result<()> {
-    let a = _Tensor::<f64>::arange(0, 100)?.reshape([10, 10])?;
+    let a = Tensor::<f64>::arange(0, 100)?.reshape([10, 10])?;
     let b = a.astype::<bool>()?;
-    let tch_a = Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu)).reshape(&[10, 10][..]);
+    let tch_a = tch::Tensor::arange(100, (tch::Kind::Double, tch::Device::Cpu)).reshape(&[10, 10][..]);
     let tch_b = tch_a.to_kind(tch::Kind::Bool);
     assert_eq_bool(&b, &tch_b);
     Ok(())

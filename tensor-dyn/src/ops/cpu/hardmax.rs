@@ -89,6 +89,6 @@ where
     /// This function returns a `Result` containing a tensor with the hardmax applied along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hardmax(&self, axis: i64) -> anyhow::Result<Tensor<T>> {
-        Ok(Tensor::from(_Tensor::hardmax(self, axis)?.into()))
+        Ok(Tensor::from(_Tensor::hardmax(self.inner.as_ref(), axis)?.into()))
     }
 }

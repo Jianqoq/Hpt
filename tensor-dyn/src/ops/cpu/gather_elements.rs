@@ -1,27 +1,9 @@
 use tensor_common::shape_utils::mt_intervals;
 use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
 
-use crate::{ backend::Cpu, tensor_base::_Tensor, THREAD_POOL };
+use crate::{ backend::Cpu, tensor_base::_Tensor, Tensor, THREAD_POOL };
 
 impl<T> _Tensor<T, Cpu> where T: CommonBounds {
-    /// Gathers elements from the tensor along a specified axis using given indices.
-    ///
-    /// This method extracts elements from the tensor along the specified `axis` based on the
-    /// indices provided in the `indices` tensor. Each element in the `indices` tensor specifies
-    /// which element to select along the given axis in the input tensor. The output tensor will
-    /// have the same shape as the `indices` tensor.
-    ///
-    /// # Arguments
-    ///
-    /// * `indices` - A tensor of indices, specifying the positions of the elements to gather
-    ///   from the input tensor along the specified axis. The size of the `indices` tensor
-    ///   determines the shape of the output tensor.
-    /// * `axis` - The axis along which to gather the elements. This value must be a valid axis
-    ///   for the input tensor.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor with the gathered elements.
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn gather_elements(&self, indices: &_Tensor<i64, Cpu>, axis: i64) -> anyhow::Result<Self> {
         let axis = (if axis < 0 { (self.ndim() as i64) + axis } else { axis }) as usize;
@@ -156,5 +138,30 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds {
             pool.join();
         });
         Ok(ret)
+    }
+}
+
+impl<T> Tensor<T, Cpu> where T: CommonBounds {
+    /// Gathers elements from the tensor along a specified axis using given indices.
+    ///
+    /// This method extracts elements from the tensor along the specified `axis` based on the
+    /// indices provided in the `indices` tensor. Each element in the `indices` tensor specifies
+    /// which element to select along the given axis in the input tensor. The output tensor will
+    /// have the same shape as the `indices` tensor.
+    ///
+    /// # Arguments
+    ///
+    /// * `indices` - A tensor of indices, specifying the positions of the elements to gather
+    ///   from the input tensor along the specified axis. The size of the `indices` tensor
+    ///   determines the shape of the output tensor.
+    /// * `axis` - The axis along which to gather the elements. This value must be a valid axis
+    ///   for the input tensor.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a tensor with the gathered elements.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn gather_elements(&self, indices: &Tensor<i64, Cpu>, axis: i64) -> anyhow::Result<Tensor<T>> {
+        Ok(self.inner.gather_elements(indices.inner.as_ref(), axis)?.into())
     }
 }

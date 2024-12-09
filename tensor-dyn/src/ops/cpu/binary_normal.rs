@@ -44,7 +44,7 @@ use tensor_types::dtype::TypeCommon;
 /// If the vector sizes of the input tensors match and SIMD is enabled, the `f2` function is applied to
 /// perform vectorized operations for faster computation. If not, the scalar function `f` is applied to each element.
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub fn binary_fn_with_out_simd<A, B, O, K, F, F2>(
+pub(crate) fn binary_fn_with_out_simd<A, B, O, K, F, F2>(
     lhs: &_Tensor<A>,
     rhs: &_Tensor<B>,
     f: F,
