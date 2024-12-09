@@ -228,26 +228,45 @@ impl<'a> CFGBuilder<'a> {
     // handle match statement
     fn handle_match(&mut self, expr_match: &syn::ExprMatch) {
         let mut current_block_id = core::mem::take(&mut self.block_ids);
-        let cond_block = self.new_block(BlockType::MatchCond);
+
+        let assign_block = self.new_block(BlockType::MatchAssign);
+        let assign_block_id = BlockId::new(assign_block);
+        self.connect_to(assign_block);
+        self.set_current_block(assign_block);
+        let assign_ident = syn::Ident::new(
+            &format!("__match_assign_{}", self.global_block_cnt()),
+            proc_macro2::Span::call_site()
+        );
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #assign_ident; }) {
+            self.cfg.graph[assign_block].statements.push(CustomStmt {
+                stmt,
+            });
+        } else {
+            self.errors.push(
+                Error::SynParseError(expr_match.span(), "CFG builder", format!("let {};", assign_ident.to_string()))
+            );
+            return;
+        }
+
+        let cond_block = self.new_block(BlockType::MatchCond(expr_match.expr.as_ref().clone()));
         let cond_block_id = BlockId::new(cond_block);
+        let match_body = self.new_block(BlockType::MatchBody);
+        let mut match_body_id = BlockId::new(match_body);
+        self.connect_to(cond_block);
+        self.set_current_block(cond_block);
+        self.connect_to(match_body);
+        self.set_current_block(match_body);
         // create merge block
         let merge_block = self.new_block(BlockType::Normal);
         let merge_block_id = BlockId::new(merge_block);
-
-        self.connect_to(cond_block);
-        self.set_current_block(cond_block);
-        self.push_stmt(syn::Stmt::Expr(*expr_match.expr.clone(), None));
-
         for arm in &expr_match.arms {
-            // 为每个匹配分支创建一个块
             let case_block = self.new_block(BlockType::MatchCase);
             let case_block_id = BlockId::new(case_block);
-            // 连接当前块到分支块
+            self.set_current_block(cond_block);
             self.connect_to(case_block);
-            // 处理分支块中的语句
             self.set_current_block(case_block);
             let pat = &arm.pat;
-            if let Ok(stmt) = syn::parse2(quote::quote! { let __pat = #pat; }) {
+            if let Ok(stmt) = syn::parse2(quote::quote! { let #pat; }) {
                 self.push_stmt(stmt);
             } else {
                 self.errors.push(
@@ -257,6 +276,7 @@ impl<'a> CFGBuilder<'a> {
                         format!("{}", arm.pat.to_token_stream().to_string())
                     )
                 );
+                return;
             }
             let body_block = self.new_block(BlockType::Normal);
             let body_block_id = BlockId::new(body_block);
@@ -264,14 +284,31 @@ impl<'a> CFGBuilder<'a> {
             self.set_current_block(body_block);
             self.set_current_block_id(body_block_id);
             self.visit_expr(&arm.body);
+            if let Some(expr) = self.current_expr.take() {
+                self.push_stmt(syn::Stmt::Expr(expr, None));
+            }
             let body_block_id = core::mem::take(&mut self.block_ids);
-            current_block_id.children.push(case_block_id);
-            current_block_id.children.push(body_block_id);
+            match_body_id.children.push(case_block_id);
+            match_body_id.children.push(body_block_id);
             self.connect_to(merge_block);
         }
-
-        // 更新当前块为合并块
+        if let Ok(expr) = syn::parse2(quote::quote! { #assign_ident }) {
+            self.current_expr = Some(expr);
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    expr_match.span(),
+                    "CFG builder",
+                    format!("{}", assign_ident.to_string())
+                )
+            );
+        }
+        current_block_id.children.push(assign_block_id);
+        current_block_id.children.push(cond_block_id);
+        current_block_id.children.push(match_body_id);
+        current_block_id.children.push(merge_block_id);
         self.set_current_block(merge_block);
+        self.set_current_block_id(current_block_id);
     }
 
     fn handle_block(&mut self, block: &syn::ExprBlock) {

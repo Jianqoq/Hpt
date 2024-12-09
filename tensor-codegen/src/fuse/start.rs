@@ -28,7 +28,7 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
         }
         return Err(errs.into());
     }
-    // println!("graph: {:#?}", cfg.graph);
+    println!("graph: {:#?}", cfg.graph);
     let mut type_table = TyInfer::new();
     type_table.infer(&cfg)?;
     cfg.live_analysis(&type_table.table);

@@ -56,7 +56,8 @@ pub(crate) fn stmt(node: &crate::fuse::cfg::BasicBlock) -> TokenStream2 {
         | crate::fuse::cfg::BlockType::FnBody
         | crate::fuse::cfg::BlockType::LoopBody
         | crate::fuse::cfg::BlockType::WhileBody
-        | crate::fuse::cfg::BlockType::ForBody => {
+        | crate::fuse::cfg::BlockType::ForBody
+        | crate::fuse::cfg::BlockType::MatchBody => {
             let iter = node.statements.iter().map(|stmt| { quote::quote!(#stmt) });
             body.extend(quote::quote!(#(#iter)*));
         }
@@ -65,7 +66,8 @@ pub(crate) fn stmt(node: &crate::fuse::cfg::BasicBlock) -> TokenStream2 {
         | crate::fuse::cfg::BlockType::ForAssign
         | crate::fuse::cfg::BlockType::WhileAssign
         | crate::fuse::cfg::BlockType::LoopAssign
-        | crate::fuse::cfg::BlockType::ClosureAssign => {
+        | crate::fuse::cfg::BlockType::ClosureAssign
+        | crate::fuse::cfg::BlockType::MatchAssign => {
             if let syn::Stmt::Local(local) = &node.statements[0].stmt {
                 let pat = &local.pat;
                 body.extend(quote::quote!(#pat));
@@ -109,8 +111,17 @@ pub(crate) fn stmt(node: &crate::fuse::cfg::BasicBlock) -> TokenStream2 {
         super::cfg::BlockType::FnRet(_) => {}
         super::cfg::BlockType::Generics(_) => {}
         super::cfg::BlockType::Where(_) => {}
-        super::cfg::BlockType::MatchCond => todo!(),
-        super::cfg::BlockType::MatchCase => todo!(),
+        super::cfg::BlockType::MatchCond(_) => {}
+        super::cfg::BlockType::MatchCase => {
+            let iter = node.statements.iter().map(|stmt| {
+                if let syn::Stmt::Local(local) = &stmt.stmt {
+                    &local.pat
+                } else {
+                    panic!("cfg_builder::gen_code::BlockType::FnArgs");
+                }
+            });
+            body.extend(quote::quote!(#(#iter), *));
+        }
     }
     body
 }

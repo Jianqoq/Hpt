@@ -320,6 +320,7 @@ impl<'ast> Visit<'ast> for TyInfer {
                     self.table.insert(ident, Type::Unknown);
                 }
             }
+            syn::Pat::Lit(_) => {}
             syn::Pat::Macro(_) => unimplemented!("ty_infer::visit_local::Macro"),
             syn::Pat::Or(_) => unimplemented!("ty_infer::visit_local::Or"),
             syn::Pat::Paren(paren) => {

@@ -50,7 +50,7 @@ impl<'ast> Visit<'ast> for UseDefineVisitor {
             syn::Pat::Ident(ident) => {
                 self.insert(ident.ident.clone());
             }
-            syn::Pat::Lit(_) => unimplemented!("use_define_visitor::visit_pat::lit"),
+            syn::Pat::Lit(_) => {},
             syn::Pat::Macro(_) => unimplemented!("use_define_visitor::visit_pat::macro"),
             syn::Pat::Or(_) => unimplemented!("use_define_visitor::visit_pat::or"),
             syn::Pat::Paren(paren) => {

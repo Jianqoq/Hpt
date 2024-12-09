@@ -55,8 +55,10 @@ pub(crate) enum BlockType {
     Generics(syn::Generics),
     FnBody,
     Where(syn::WhereClause),
-    MatchCond,
+    MatchAssign,
+    MatchCond(syn::Expr),
     MatchCase,
+    MatchBody,
 }
 
 impl std::fmt::Debug for BlockType {
@@ -89,8 +91,10 @@ impl std::fmt::Debug for BlockType {
             Self::Generics(_) => write!(f, "Generics"),
             Self::FnBody => write!(f, "FnBody"),
             Self::Where(_) => write!(f, "Where"),
-            Self::MatchCond => write!(f, "MatchCond"),
+            Self::MatchCond(_) => write!(f, "MatchCond"),
             Self::MatchCase => write!(f, "MatchCase"),
+            Self::MatchAssign => write!(f, "MatchAssign"),
+            Self::MatchBody => write!(f, "MatchBody"),
         }
     }
 }
@@ -675,12 +679,16 @@ impl CFG {
             BlockType::FnBody => {
                 body.extend(quote::quote!({#code #child_code}));
             }
+            BlockType::MatchBody => {
+                body.extend(quote::quote!({#code #child_code};));
+            }
             | BlockType::ExprBlockAssign
             | BlockType::IfAssign
             | BlockType::ForAssign
             | BlockType::WhileAssign
             | BlockType::LoopAssign
-            | BlockType::ClosureAssign => {
+            | BlockType::ClosureAssign
+            | BlockType::MatchAssign => {
                 body.extend(quote::quote!(let #code #child_code =));
             }
             BlockType::ClosureArgs => {
@@ -707,11 +715,11 @@ impl CFG {
             BlockType::Where(where_clause) => {
                 body.extend(quote::quote!(#where_clause));
             }
-            BlockType::MatchCond => {
-                body.extend(quote::quote!(match #code #child_code));
+            BlockType::MatchCond(expr) => {
+                body.extend(quote::quote!(match #expr #code #child_code));
             }
             BlockType::MatchCase => {
-                body.extend(quote::quote!((#code #child_code) =>));
+                body.extend(quote::quote!(#code #child_code =>));
             }
         }
         body
@@ -750,9 +758,7 @@ fn new_name_pat(
                 new_origin_var_map
             )?;
         }
-        syn::Pat::Lit(lit) => {
-            errors.push(Error::Unsupported(lit.span(), "new_name_pat", "lit pattern".to_string()));
-        }
+        syn::Pat::Lit(_) => {}
         syn::Pat::Macro(_) => {
             errors.push(
                 Error::Unsupported(pat.span(), "new_name_pat", "macro pattern".to_string())
