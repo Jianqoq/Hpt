@@ -255,8 +255,45 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         unimplemented!("graph::visit_expr_raw_addr");
     }
 
-    fn visit_expr_unary(&mut self, _: &'ast syn::ExprUnary) {
-        unimplemented!("graph::visit_expr_unary");
+    fn visit_expr_unary(&mut self, unary: &'ast syn::ExprUnary) {
+        match unary.op {
+            syn::UnOp::Not(_) | syn::UnOp::Neg(_) => {
+                let left_ty = handle_expr_type(&unary.expr, &self.type_table);
+                if left_ty != Type::Tensor {
+                    return;
+                }
+                let current_assignment = if let Some(current_assignment) = &self.current_assignment {
+                    current_assignment.clone()
+                } else {
+                    self.errors.push(Error::ExpectedAssignment(unary.span(), "build graph"));
+                    return;
+                };
+                let left = if let Some(ident) = extract_expr_ident(&unary.expr) {
+                    ident
+                } else {
+                    self.errors.push(Error::ExpectedIdentifier(unary.expr.span(), "build graph"));
+                    return;
+                };
+
+                let method = match unary.op {
+                    syn::UnOp::Not(_) => "not",
+                    syn::UnOp::Neg(_) => "neg",
+                    _ => todo!(),
+                };
+                self.nodes.push((
+                    Node::Unary(Unary {
+                        method: proc_macro2::Ident::new(method, unary.span()),
+                        operand: left.clone(),
+                        args: vec![],
+                        output: current_assignment.clone(),
+                        kernel_type: KernelType::Unary,
+                    }),
+                    self.current_idx as i64,
+                    self.current_block,
+                ));
+            }
+            _ => {}
+        }
     }
 
     fn visit_expr_while(&mut self, _: &'ast syn::ExprWhile) {

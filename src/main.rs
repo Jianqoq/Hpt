@@ -42,7 +42,7 @@ fuse_proc_macro!(
 fn main() -> anyhow::Result<()> {
     // conv2d()?;
     let a = Tensor::<f32>::arange(0, 10000)?;
-    // let b = _Tensor::<f32>::arange(0, 10000)?;
+    // let b = Tensor::<f32>::arange(0, 10000)?;
     // let now = std::time::Instant::now();
     // let c = compute(a, b)?;
     Ok(())

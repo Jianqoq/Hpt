@@ -9,16 +9,14 @@ pub fn main() {
             30 => 30,
             _ => 40,
         };
-        let __call_1 = Ok(__match_assign_0);
-        __call_1
+        Ok(__match_assign_0)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
         let __match_assign_0 = match a {
             [1, 2, ..] => 10,
             _ => 20,
         };
-        let __call_1 = Ok(__match_assign_0);
-        __call_1
+        Ok(__match_assign_0)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
         let __match_assign_0 = match a {
@@ -26,8 +24,7 @@ pub fn main() {
             None => 0.0,
         };
         let res = __match_assign_0;
-        let __call_1 = Ok(res);
-        __call_1
+        Ok(res)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
         let __match_assign_0 = match a {
@@ -41,8 +38,7 @@ pub fn main() {
             None => 0.0,
         };
         let res = __match_assign_0;
-        let __call_3 = Ok(res);
-        __call_3
+        Ok(res)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
         let __match_assign_0 = match a {
@@ -53,8 +49,7 @@ pub fn main() {
             None => 0.0,
         };
         let res = __match_assign_0;
-        let __call_2 = Ok(res);
-        __call_2
+        Ok(res)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
         let __match_assign_0 = match (a, b) {
@@ -65,8 +60,7 @@ pub fn main() {
             (_, _) => 0.0,
         };
         let res = __match_assign_0;
-        let __call_2 = Ok(res);
-        __call_2
+        Ok(res)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
         let __match_assign_0 = match a {
@@ -77,8 +71,7 @@ pub fn main() {
             _ => 0.0,
         };
         let res = __match_assign_0;
-        let __call_2 = Ok(res);
-        __call_2
+        Ok(res)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
         let __match_assign_0 = match a {
@@ -95,7 +88,6 @@ pub fn main() {
             _ => 0.0,
         };
         let res = __match_assign_0;
-        let __call_3 = Ok(res);
-        __call_3
+        Ok(res)
     }
 }

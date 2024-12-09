@@ -8,12 +8,27 @@ pub fn main() {
     fn assign() {
         let a = compute();
     }
-    fn async1() {}
+    fn async1() {
+        let __async_0 = async {};
+        let a = __async_0;
+    }
     fn await1() {
         let a = fut.await;
     }
     fn binary() {
         let a = a + b;
+        let a = a - b;
+        let a = a * b;
+        let a = a / b;
+        let a = a % b;
+        let a = a & b;
+        let a = a | b;
+        let a = a ^ b;
+    }
+    fn unary() {
+        let a = !a;
+        let a = -a;
+        let a = *a;
     }
     fn block() {
         let __block_out_0 = { 1 };
@@ -38,7 +53,8 @@ pub fn main() {
         let a = __closure_assign_1;
     }
     fn const1() {
-        1
+        let __const_0 = const { 1 };
+        let a = __const_0;
     }
     fn continue1() {
         let a = continue;
@@ -101,7 +117,9 @@ pub fn main() {
         };
         let a = __match_assign_0;
     }
-    (/*ERROR*/);
+    fn range() {
+        let a = 1..2;
+    }
     fn repeat() {
         let a = [0; 10];
     }
@@ -120,7 +138,6 @@ pub fn main() {
     fn tuple1() {
         let a = (1, 2, 3, 4);
     }
-    (/*ERROR*/);
     fn unsafe1() {
         let b = 1;
     }
