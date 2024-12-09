@@ -17,11 +17,13 @@ use tensor_iterator::TensorIterator;
 use tensor_traits::tensor::{ CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike };
 use tensor_types::convertion::Convertor;
 
-/// A wrapper of `Tensor` for user.
-/// This is the main tensor for user.
+/// `Tensor` is alias of N-dimensional array.
 ///
 /// # Properties
-/// - `basic`: The pointer of `Tensor`.
+/// - `data`: The pointer to the data.
+/// - `layout`: The layout of the tensor. We can get strides, shape, ndim, size from it.
+/// - `parent`: The parent tensor of the tensor. parent is always the root tensor (`not a view`).
+/// - `mem_layout`: std::alloc::layout, use for deallocate the memory and find cache in the allocator.
 #[derive(Clone)]
 pub struct Tensor<T, B = Cpu> where B: BackendTy + Buffer {
     pub(crate) inner: Arc<_Tensor<T, B>>,
