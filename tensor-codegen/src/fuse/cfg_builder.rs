@@ -1755,7 +1755,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                         return;
                     };
                     let mut new_local = local.clone();
-                    new_local.init.as_mut().unwrap().expr = Box::new(expr);
+                    new_local.init.as_mut().expect("cfg_builder::1758").expr = Box::new(expr);
                     self.push_stmt(syn::Stmt::Local(new_local));
                 } else {
                     if let Ok(stmt) = syn::parse2(quote::quote! { #local }) {
@@ -1798,7 +1798,6 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                         );
                     }
                     syn::Item::Trait(_) => {
-                        println!("trait item");
                         self.errors.push(
                             Error::Unsupported(
                                 item.span(),

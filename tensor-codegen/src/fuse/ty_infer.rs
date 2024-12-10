@@ -17,12 +17,6 @@ pub(crate) enum Type {
     Unknown,
 }
 
-impl Type {
-    pub(crate) fn is_tensor(&self) -> bool {
-        matches!(self, Type::Tensor)
-    }
-}
-
 #[derive(Clone)]
 pub(crate) struct TyInfer {
     pub(crate) table: HashMap<syn::Ident, Type>,

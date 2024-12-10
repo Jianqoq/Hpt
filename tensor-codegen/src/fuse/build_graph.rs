@@ -13,13 +13,71 @@ use super::{
     variable_collector::VariableCollector,
 };
 
+#[derive(Clone)]
 pub(crate) struct CmpNode {
     pub(crate) kernel_type: KernelType,
     pub(crate) args: Vec<NodeIndex>,
     pub(crate) outputs: Vec<NodeIndex>,
+    pub(crate) args_ident: Vec<syn::Ident>,
+    pub(crate) outputs_ident: Vec<syn::Ident>,
     pub(crate) stmt_idx: i64,
     pub(crate) block_idx: usize,
     pub(crate) id: NodeIndex,
+    pub(crate) ident: syn::Ident,
+    pub(crate) method: Option<syn::Ident>,
+}
+
+impl ToTokens for CmpNode {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        if let Some(method) = &self.method {
+            let method = proc_macro2::Ident::new(
+                &format!("_{}", method.to_string()),
+                method.span()
+            );
+            match self.args_ident.len() {
+                1 => {
+                    let left = &self.args_ident[0];
+                    let output = &self.ident;
+                    tokens.extend(quote::quote!(
+                        let #output = #left.#method();
+                    ));
+                }
+                2 => {
+                    let left = &self.args_ident[0];
+                    let right = &self.args_ident[1];
+                    let output = &self.ident;
+                    tokens.extend(
+                        quote::quote!(
+                         let #output = #left.#method(#right);
+                    )
+                    );
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+}
+
+impl std::fmt::Debug for CmpNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(method) = &self.method {
+            write!(
+                f,
+                "{}: {} = {}({})",
+                self.ident.to_string(),
+                self.id.index(),
+                method.to_string(),
+                self.args_ident
+                    .iter()
+                    .zip(self.args.iter())
+                    .map(|(x, y)| format!("{}: {}", x.to_string(), y.index()))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        } else {
+            write!(f, "{}: {}", self.ident.to_string(), self.id.index())
+        }
+    }
 }
 
 pub(crate) struct Graph {
@@ -91,20 +149,28 @@ impl Graph {
                     CmpNode {
                         kernel_type: KernelType::Unary,
                         args: vec![node_index_map[&unary.operand]],
+                        args_ident: vec![unary.operand.clone()],
                         outputs: vec![],
+                        outputs_ident: vec![],
                         stmt_idx: *stmt_idx,
                         block_idx: *block_idx,
                         id: node_index_map[&unary.output],
+                        ident: unary.output.clone(),
+                        method: Some(unary.method.clone()),
                     }
                 }
                 (Node::Binary(binary), stmt_idx, block_idx) => {
                     CmpNode {
                         kernel_type: KernelType::Binary,
                         args: vec![node_index_map[&binary.left], node_index_map[&binary.right]],
+                        args_ident: vec![binary.left.clone(), binary.right.clone()],
                         outputs: vec![],
+                        outputs_ident: vec![],
                         stmt_idx: *stmt_idx,
                         block_idx: *block_idx,
                         id: node_index_map[&binary.output],
+                        ident: binary.output.clone(),
+                        method: Some(binary.method.clone()),
                     }
                 }
                 (Node::Input(input), stmt_idx, block_idx) => {
@@ -112,9 +178,13 @@ impl Graph {
                         kernel_type: KernelType::Unary,
                         args: vec![],
                         outputs: vec![],
+                        args_ident: vec![],
+                        outputs_ident: vec![],
                         stmt_idx: *stmt_idx,
                         block_idx: *block_idx,
                         id: node_index_map[input],
+                        ident: input.clone(),
+                        method: None,
                     }
                 }
             };
@@ -129,9 +199,13 @@ impl Graph {
                             kernel_type: KernelType::Unary,
                             args: vec![],
                             outputs: vec![],
+                            args_ident: vec![],
+                            outputs_ident: vec![],
                             stmt_idx: *stmt_idx,
                             block_idx: *block_idx,
                             id: node_index_map[&unary.operand],
+                            ident: unary.operand.clone(),
+                            method: None,
                         });
                         added_nodes.insert(index);
                     }
@@ -142,9 +216,13 @@ impl Graph {
                             kernel_type: KernelType::Unary,
                             args: vec![],
                             outputs: vec![],
+                            args_ident: vec![],
+                            outputs_ident: vec![],
                             stmt_idx: *stmt_idx,
                             block_idx: *block_idx,
                             id: node_index_map[&binary.left],
+                            ident: binary.left.clone(),
+                            method: None,
                         });
                         added_nodes.insert(index);
                     }
@@ -153,9 +231,13 @@ impl Graph {
                             kernel_type: KernelType::Unary,
                             args: vec![],
                             outputs: vec![],
+                            args_ident: vec![],
+                            outputs_ident: vec![],
                             stmt_idx: *stmt_idx,
                             block_idx: *block_idx,
                             id: node_index_map[&binary.right],
+                            ident: binary.right.clone(),
+                            method: None,
                         });
                         added_nodes.insert(index);
                     }
@@ -163,87 +245,16 @@ impl Graph {
                 _ => {}
             }
         }
-        todo!()
-    }
-
-    pub(crate) fn to_petgraph(&self) -> StableGraph<&(Node, i64, usize), ()> {
-        let mut graph = StableGraph::new();
-        let mut node_index_map = HashMap::new();
-
-        // 将节点添加到 petgraph
-        for node in &self.nodes {
-            let index = graph.add_node(node);
-            node_index_map.insert(node, index);
-        }
-
-        for (input, ty) in &self.inputs {
-            if ty.is_tensor() {
-                let index = graph.add_node(input);
-                node_index_map.insert(input, index);
+        let node_indices = graph.node_indices().collect::<Vec<_>>();
+        for node_idx in node_indices {
+            let inputs = graph[node_idx].args.clone();
+            for inp in inputs {
+                graph[inp].outputs.push(node_idx);
+                let ident = graph[node_idx].ident.clone();
+                graph[inp].outputs_ident.push(ident);
+                graph.add_edge(inp, node_idx, ());
             }
         }
-
-        // 添加边（假设 Node 有一个 `dependencies` 字段存储依赖节点的索引）
-        for node in &self.nodes {
-            match &node.0 {
-                Node::Unary(unary) => {
-                    if
-                        let Some(tuple) = self.nodes.iter().find(|(node, _, _)| {
-                            match node {
-                                Node::Unary(node) => node.output == unary.operand,
-                                Node::Binary(node) => { node.output == unary.operand }
-                                Node::Input(_) => false,
-                            }
-                        })
-                    {
-                        graph.add_edge(node_index_map[tuple], node_index_map[node], ());
-                    }
-                }
-                Node::Binary(binary) => {
-                    if
-                        let Some(tuple) = self.nodes.iter().find(|(node, _, _)| {
-                            match node {
-                                Node::Unary(node) =>
-                                    node.output == binary.left || node.output == binary.right,
-                                Node::Binary(node) =>
-                                    node.output == binary.left || node.output == binary.right,
-                                Node::Input(_) => false,
-                            }
-                        })
-                    {
-                        graph.add_edge(node_index_map[tuple], node_index_map[node], ());
-                    }
-                }
-                Node::Input(_) => unreachable!(),
-            }
-        }
-
-        for (inp, ty) in &self.inputs {
-            if ty.is_tensor() {
-                if let Node::Input(input) = &inp.0 {
-                    if let Some(index) = node_index_map.get(inp) {
-                        let node_indices = graph.node_indices().collect::<Vec<_>>();
-                        for node_idx in node_indices {
-                            let (node, _, _) = graph[node_idx];
-                            match node {
-                                Node::Unary(unary) => {
-                                    if &unary.operand == input {
-                                        graph.add_edge(*index, node_idx, ());
-                                    }
-                                }
-                                Node::Binary(binary) => {
-                                    if &binary.left == input || &binary.right == input {
-                                        graph.add_edge(*index, node_idx, ());
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         graph
     }
 }

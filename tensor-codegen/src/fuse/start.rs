@@ -1,5 +1,5 @@
-use std::collections::HashMap;
-use crate::fuse::{ errors::Error, ty_infer::TyInfer };
+use std::collections::{ HashMap, HashSet };
+use crate::fuse::{ errors::Error, fuse::{ Input, Output }, ty_infer::TyInfer };
 use syn::{ spanned::Spanned, visit::Visit };
 use super::cfg::CFG;
 
@@ -53,62 +53,99 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
     let mut genfuse_map = HashMap::new();
     for idx in graphs.node_indices() {
         let graph = graphs.node_weight(idx).expect("graph weight not found");
-        let petgraph = graph.to_petgraph();
-        if petgraph.node_count() > 0 && !petgraph::algo::is_cyclic_directed(&petgraph) {
+        if graph.nodes.is_empty() {
+            continue;
+        }
+        // let petgraph = graph.to_petgraph();
+        let cmp_pet_graph = graph.to_cmp_pet_graph();
+        if cmp_pet_graph.node_count() > 0 && !petgraph::algo::is_cyclic_directed(&cmp_pet_graph) {
             // println!("petgraph: {:#?}", petgraph);
-            let mut fusion_group = crate::fuse::fuse::fuse(&cfg, &petgraph);
-            // println!("fusion_group: {:#?}", fusion_group);
-            fusion_group.vars.retain(|x| x.0.len() > 1);
-            let genfuse = crate::fuse::gen_fuse::gen_fuse(&cfg, &petgraph, &fusion_group);
-            let mut stmt_to_remove = Vec::new();
-            let mut intermediates = Vec::new();
-            for group in &fusion_group.vars {
-                stmt_to_remove.push(
-                    group.0
-                        .iter()
-                        .map(|idx| petgraph[*idx].1)
-                        .collect::<Vec<_>>()
-                );
-                intermediates.push(
-                    group.0
-                        .iter()
-                        .map(|idx| *idx)
-                        .collect::<Vec<_>>()
-                );
-            }
-            for (i, (_, inps, oust)) in fusion_group.vars.iter().enumerate() {
-                for inp in inps.iter() {
-                    let pos = intermediates[i].iter().position(|x| *x == inp.comp_graph_idx);
-                    if let Some(pos) = pos {
-                        intermediates[i].remove(pos);
-                    }
-                    let pos = stmt_to_remove[i].iter().position(|x| *x == inp.stmt_index);
-                    if let Some(pos) = pos {
-                        stmt_to_remove[i].remove(pos);
+            let mut fusion_group = crate::fuse::fuse::cmp_fuse(&cfg, &cmp_pet_graph);
+            let mask = fusion_group.groups
+                .iter()
+                .map(|x| x.len() > 1)
+                .collect::<Vec<_>>();
+            let mut mask_iter = mask.iter();
+            fusion_group.groups.retain(|_| *mask_iter.next().expect("mask_iter"));
+            let mut mask_iter = mask.iter();
+            fusion_group.inputs.retain(|_| *mask_iter.next().expect("mask_iter"));
+            let mut mask_iter = mask.iter();
+            fusion_group.stmt_to_remove.retain(|_| *mask_iter.next().expect("mask_iter"));
+            let mut mask_iter = mask.iter();
+            fusion_group.outputs.retain(|_| *mask_iter.next().expect("mask_iter"));
+            let sorted = petgraph::algo::toposort(&cmp_pet_graph, None).expect("toposort failed");
+            for (((group, inputs), outputs), stmt_to_remove) in fusion_group.groups
+                .iter_mut()
+                .zip(fusion_group.inputs.iter_mut())
+                .zip(fusion_group.outputs.iter_mut())
+                .zip(fusion_group.stmt_to_remove.iter_mut()) {
+                let mut sorted_group = Vec::new();
+                for sorted_idx in sorted.iter() {
+                    if group.contains(sorted_idx) {
+                        sorted_group.push(sorted_idx);
                     }
                 }
-                for out in oust.iter() {
-                    let pos = intermediates[i].iter().position(|x| *x == out.comp_graph_idx);
-                    if let Some(pos) = pos {
-                        intermediates[i].remove(pos);
+                let mut inserted = HashSet::new();
+                let mut intermediates = HashSet::new();
+                for idx in sorted_group {
+                    let node = &cmp_pet_graph[*idx];
+                    if node.args.is_empty() {
+                        inputs.insert(Input {
+                            var: node.ident.clone(),
+                            stmt_index: node.stmt_idx,
+                            block_idx: node.block_idx,
+                            comp_graph_idx: *idx,
+                        });
+                        inserted.insert(idx);
                     }
-                    let pos = stmt_to_remove[i].iter().position(|x| *x == out.stmt_index);
-                    if let Some(pos) = pos {
-                        stmt_to_remove[i].remove(pos);
+                    for inp in node.args.iter() {
+                        if !inserted.contains(inp) && !group.contains(inp) {
+                            let inp_node = &cmp_pet_graph[*inp];
+                            inputs.insert(Input {
+                                var: inp_node.ident.clone(),
+                                stmt_index: inp_node.stmt_idx,
+                                block_idx: inp_node.block_idx,
+                                comp_graph_idx: *inp,
+                            });
+                            inserted.insert(inp);
+                        } else if
+                            inserted.contains(inp) &&
+                            !inputs.iter().any(|x| x.comp_graph_idx == *inp)
+                        {
+                            stmt_to_remove.push(cmp_pet_graph[*inp].stmt_idx);
+                            intermediates.insert(*inp);
+                        }
+                    }
+                    if !inserted.contains(&idx) {
+                        inserted.insert(&idx);
+                    }
+                }
+                for idx in group.iter() {
+                    if !inputs.iter().any(|x| x.comp_graph_idx == *idx) && !intermediates.contains(idx) {
+                        outputs.insert(Output {
+                            var: cmp_pet_graph[*idx].ident.clone(),
+                            stmt_index: cmp_pet_graph[*idx].stmt_idx,
+                            block_idx: cmp_pet_graph[*idx].block_idx,
+                            comp_graph_idx: *idx,
+                        });
+                        inserted.insert(idx);
                     }
                 }
             }
-            genfuse_map.insert(idx, (genfuse, fusion_group, stmt_to_remove, intermediates));
+            let genfuse = crate::fuse::gen_fuse::cmp_gen_fuse(&cfg, &cmp_pet_graph, &fusion_group);
+            genfuse_map.insert(idx, (genfuse, fusion_group));
         }
     }
-
-    for (idx, (codes, fusion_group, stmt_to_remove, intermediates)) in genfuse_map {
-        for (((code, (_, inp, out)), remove), intermediate) in codes
+    for (idx, (codes, fusion_group)) in genfuse_map {
+        for (code, ((inp, out), stmt_to_remove)) in codes
             .into_iter()
-            .zip(fusion_group.vars.into_iter())
-            .zip(stmt_to_remove.into_iter())
-            .zip(intermediates.into_iter()) {
-            if intermediate.is_empty() || inp.is_empty() || out.is_empty() {
+            .zip(
+                fusion_group.inputs
+                    .into_iter()
+                    .zip(fusion_group.outputs.into_iter())
+                    .zip(fusion_group.stmt_to_remove.into_iter())
+            ) {
+            if stmt_to_remove.is_empty() || inp.is_empty() || out.is_empty() {
                 continue;
             }
             assert_eq!(out.len(), 1);
@@ -134,7 +171,7 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
                     None
                 );
             }
-            for &stmt_idx in remove.iter() {
+            for &stmt_idx in stmt_to_remove.iter() {
                 if stmt_idx >= 0 {
                     cfg.graph[idx].statements[stmt_idx as usize].stmt = syn::Stmt::Expr(
                         syn::Expr::Verbatim(quote::quote!()),
