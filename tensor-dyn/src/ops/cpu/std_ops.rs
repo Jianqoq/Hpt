@@ -3,7 +3,7 @@ use crate::tensor_base::_Tensor;
 use rayon::iter::ParallelIterator;
 use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
-use std::ops::AddAssign;
+use std::ops::{ AddAssign, Neg, Not };
 use std::ops::{
     Add,
     BitAnd,
@@ -23,9 +23,13 @@ use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 use tensor_types::convertion::Convertor;
 use tensor_types::dtype::TypeCommon;
 use tensor_types::into_scalar::IntoScalar;
-use tensor_types::type_promote::BitWiseOut;
+use tensor_types::type_promote::{ BitWiseOut, NormalOutUnary };
 use tensor_types::type_promote::FloatOutBinary;
 use tensor_types::type_promote::NormalOut;
+use crate::ops::cpu::unary::uary_fn_with_out_simd;
+use crate::ops::cpu::tensor_internal::normal_out_unary::NormalType;
+use tensor_traits::NormalUaryOps;
+use tensor_traits::TensorLike;
 use crate::Tensor;
 
 macro_rules! normal_promote_ops_1 {
@@ -843,6 +847,76 @@ macro_rules! bitwise_scalar_lhs {
     };
 }
 
+impl<T> Not
+    for _Tensor<T>
+    where
+        T: BitWiseOut<T> + CommonBounds,
+        <T as BitWiseOut>::Output: CommonBounds,
+        T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>
+{
+    type Output = _Tensor<<T as BitWiseOut<T>>::Output>;
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn not(self) -> Self::Output {
+        let lhs: _Tensor<T> = self.into();
+        uary_fn_with_out_simd(
+            &lhs,
+            |x| x._not(),
+            |x| x._not(),
+            None::<_Tensor<<T as BitWiseOut<T>>::Output>>
+        ).unwrap()
+    }
+}
+
+impl<T> Not
+    for &_Tensor<T>
+    where
+        T: BitWiseOut<T> + CommonBounds,
+        <T as BitWiseOut>::Output: CommonBounds,
+        T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>
+{
+    type Output = _Tensor<<T as BitWiseOut<T>>::Output>;
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn not(self) -> Self::Output {
+        let lhs: _Tensor<T> = self.into();
+        uary_fn_with_out_simd(
+            &lhs,
+            |x| x._not(),
+            |x| x._not(),
+            None::<_Tensor<<T as BitWiseOut<T>>::Output>>
+        ).unwrap()
+    }
+}
+
+impl<T> Neg
+    for _Tensor<T>
+    where
+        T: CommonBounds,
+        T::Vec: NormalOutUnary<Base = NormalType<T>>,
+        T: NormalOutUnary<Base = NormalType<T>>,
+        _Tensor<NormalType<T>>: TensorLike<NormalType<T>>
+{
+    type Output = _Tensor<NormalType<T>>;
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn neg(self) -> Self::Output {
+        <_Tensor<T> as NormalUaryOps>::neg(&self).unwrap()
+    }
+}
+
+impl<T> Neg
+    for &_Tensor<T>
+    where
+        T: CommonBounds,
+        T::Vec: NormalOutUnary<Base = NormalType<T>>,
+        T: NormalOutUnary<Base = NormalType<T>>,
+        _Tensor<NormalType<T>>: TensorLike<NormalType<T>>
+{
+    type Output = _Tensor<NormalType<T>>;
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn neg(self) -> Self::Output {
+        <_Tensor<T> as NormalUaryOps>::neg(&self).unwrap()
+    }
+}
+
 use half::bf16;
 use half::f16;
 use num::complex::Complex32;
@@ -1189,29 +1263,13 @@ macro_rules! bitwise_promote_ops_4 {
     };
 }
 
-bitwise_promote_ops_1!(
-    [BitAnd, bitand, bitand],
-    [BitOr, bitor, bitor],
-    [BitXor, bitxor, bitxor]
-);
+bitwise_promote_ops_1!([BitAnd, bitand, bitand], [BitOr, bitor, bitor], [BitXor, bitxor, bitxor]);
 
-bitwise_promote_ops_2!(
-    [BitAnd, bitand, bitand],
-    [BitOr, bitor, bitor],
-    [BitXor, bitxor, bitxor]
-);
+bitwise_promote_ops_2!([BitAnd, bitand, bitand], [BitOr, bitor, bitor], [BitXor, bitxor, bitxor]);
 
-bitwise_promote_ops_3!(
-    [BitAnd, bitand, bitand],
-    [BitOr, bitor, bitor],
-    [BitXor, bitxor, bitxor]
-);
+bitwise_promote_ops_3!([BitAnd, bitand, bitand], [BitOr, bitor, bitor], [BitXor, bitxor, bitxor]);
 
-bitwise_promote_ops_4!(
-    [BitAnd, bitand, bitand],
-    [BitOr, bitor, bitor],
-    [BitXor, bitxor, bitxor]
-);
+bitwise_promote_ops_4!([BitAnd, bitand, bitand], [BitOr, bitor, bitor], [BitXor, bitxor, bitxor]);
 
 macro_rules! shift_promote_ops_1 {
     ($([$op:ident, $op2:ident, $op3:ident]),*) => {
@@ -1794,3 +1852,61 @@ bitwise_scalar_lhs!(
     [Complex32, [&]],
     [Complex64, [&]]
 );
+
+impl<T> Not
+    for Tensor<T>
+    where
+        T: BitWiseOut<T> + CommonBounds,
+        <T as BitWiseOut>::Output: CommonBounds,
+        T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>
+{
+    type Output = Tensor<<T as BitWiseOut<T>>::Output>;
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn not(self) -> Self::Output {
+        self.inner.as_ref().not().into()
+    }
+}
+
+impl<T> Not
+    for &Tensor<T>
+    where
+        T: BitWiseOut<T> + CommonBounds,
+        <T as BitWiseOut>::Output: CommonBounds,
+        T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>
+{
+    type Output = Tensor<<T as BitWiseOut<T>>::Output>;
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn not(self) -> Self::Output {
+        self.inner.as_ref().not().into()
+    }
+}
+
+impl<T> Neg
+    for Tensor<T>
+    where
+        T: CommonBounds,
+        T::Vec: NormalOutUnary<Base = NormalType<T>>,
+        T: NormalOutUnary<Base = NormalType<T>>,
+        Tensor<NormalType<T>>: TensorLike<NormalType<T>>
+{
+    type Output = Tensor<NormalType<T>>;
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn neg(self) -> Self::Output {
+        <_Tensor<T> as NormalUaryOps>::neg(self.inner.as_ref()).unwrap().into()
+    }
+}
+
+impl<T> Neg
+    for &Tensor<T>
+    where
+        T: CommonBounds,
+        T::Vec: NormalOutUnary<Base = NormalType<T>>,
+        T: NormalOutUnary<Base = NormalType<T>>,
+        Tensor<NormalType<T>>: TensorLike<NormalType<T>>
+{
+    type Output = Tensor<NormalType<T>>;
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn neg(self) -> Self::Output {
+        <_Tensor<T> as NormalUaryOps>::neg(self.inner.as_ref()).unwrap().into()
+    }
+}

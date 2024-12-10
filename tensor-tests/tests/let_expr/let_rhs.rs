@@ -25,6 +25,20 @@ pub fn main() {
     fuse_proc_macro!(
         fn binary(){
             let a = a + b;
+            let a = a - b;
+            let a = a * b;
+            let a = a / b;
+            let a = a % b;
+            let a = a & b;
+            let a = a | b;
+            let a = a ^ b;
+        }
+    );
+    fuse_proc_macro!(
+        fn unary(){
+            let a = !a;
+            let a = -a;
+            let a = *a;
         }
     );
     fuse_proc_macro!(
@@ -169,11 +183,6 @@ pub fn main() {
     fuse_proc_macro!(
         fn tuple1(){
             let a = (1, 2, 3, 4);
-        }
-    );
-    fuse_proc_macro!(
-        fn unary1(){
-            let a = !a;
         }
     );
     fuse_proc_macro!(

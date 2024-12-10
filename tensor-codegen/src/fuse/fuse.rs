@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use petgraph::graph::NodeIndex;
 
-use super::{ kernel_type::KernelType, node::Node };
+use super::{ build_graph::CmpNode, kernel_type::KernelType };
 #[derive(Eq, Hash, PartialEq)]
 pub(crate) struct Input {
     pub(crate) var: syn::Ident,
@@ -42,21 +42,26 @@ impl std::fmt::Debug for Output {
 }
 
 pub(crate) struct FusionGroup {
-    pub(crate) vars: Vec<(HashSet<NodeIndex>, HashSet<Input>, HashSet<Output>)>,
+    pub(crate) groups: Vec<HashSet<NodeIndex>>,
+    pub(crate) inputs: Vec<HashSet<Input>>,
+    pub(crate) outputs: Vec<HashSet<Output>>,
+    pub(crate) stmt_to_remove: Vec<Vec<i64>>,
 }
 
 impl std::fmt::Debug for FusionGroup {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("FusionGroup").field("vars", &self.vars).finish()
+        f.debug_struct("FusionGroup")
+            .field("groups", &self.groups)
+            .field("inputs", &self.inputs)
+            .field("intermediates", &self.stmt_to_remove)
+            .field("outputs", &self.outputs)
+            .finish()
     }
 }
 
-pub(crate) fn fuse<'ast>(
+pub(crate) fn cmp_fuse<'ast>(
     cfg: &crate::fuse::cfg::CFG,
-    candidates: &'ast petgraph::stable_graph::StableGraph<
-        &(crate::fuse::node::Node, i64, usize),
-        ()
-    >
+    candidates: &'ast petgraph::stable_graph::StableGraph<CmpNode, ()>
 ) -> FusionGroup {
     let mut unfused = candidates.clone();
     let edges = candidates.edge_indices();
@@ -64,210 +69,53 @@ pub(crate) fn fuse<'ast>(
     for edge in edges {
         edges_map.insert(edge);
     }
-    let mut results = Vec::new();
-    while let Some(idx) = yield_candidate(&mut unfused) {
-        // println!("fuse: {:?}", idx);
+    let mut ret = FusionGroup {
+        groups: Vec::new(),
+        inputs: Vec::new(),
+        outputs: Vec::new(),
+        stmt_to_remove: Vec::new(),
+    };
+    while let Some(idx) = cmp_yield_candidate(&mut unfused) {
         let mut block = HashSet::new();
-        let mut inputs = HashSet::new();
-        let mut outputs = HashSet::new();
-        match unfused.node_weight(idx).expect("node weight not found") {
-            (Node::Unary(unary), stmt_index, block_idx) => {
-                let basic_block = cfg.graph
-                    .node_weight(NodeIndex::new(*block_idx))
-                    .expect("node weight not found");
-                block.insert(idx);
-                if !basic_block.live_out.contains(&unary.output) {
-                    let out_going = unfused.neighbors_directed(idx, petgraph::Direction::Outgoing);
-                    if out_going.count() > 0 {
-                        for succ in unfused.neighbors_directed(idx, petgraph::Direction::Outgoing) {
-                            fuse_children(
-                                succ,
-                                unary.kernel_type,
-                                &mut block,
-                                &unfused,
-                                candidates,
-                                basic_block,
-                                &mut outputs,
-                                &mut inputs
-                            );
-                        }
-                    } else {
-                        outputs.insert(Output {
-                            var: unary.output.clone(),
-                            stmt_index: *stmt_index,
-                            block_idx: *block_idx,
-                            comp_graph_idx: idx,
-                        });
-                    }
-                } else {
-                    outputs.insert(Output {
-                        var: unary.output.clone(),
-                        stmt_index: *stmt_index,
-                        block_idx: *block_idx,
-                        comp_graph_idx: idx,
-                    });
-                }
-                for pred in unfused.neighbors_directed(idx, petgraph::Direction::Incoming) {
-                    let (var, stmt_index, block_idx) = match
-                        unfused.node_weight(pred).expect("node weight not found")
-                    {
-                        (Node::Unary(unary), stmt_index, block_idx) =>
-                            (&unary.output, stmt_index, block_idx),
-                        (Node::Binary(binary), stmt_index, block_idx) =>
-                            (&binary.output, stmt_index, block_idx),
-                        (Node::Input(input), stmt_index, block_idx) =>
-                            (input, stmt_index, block_idx),
-                    };
-                    if basic_block.live_out.contains(var) {
-                        block.insert(pred);
-                        inputs.insert(Input {
-                            var: var.clone(),
-                            stmt_index: *stmt_index,
-                            block_idx: *block_idx,
-                            comp_graph_idx: pred,
-                        });
-                    } else {
-                        fuse_parents(
-                            pred,
-                            unary.kernel_type,
-                            &mut block,
-                            &unfused,
-                            basic_block,
-                            &mut inputs
-                        );
-                    }
-                }
-            }
-            (Node::Binary(binary), stmt_index, block_idx) => {
-                let basic_block = cfg.graph
-                    .node_weight(NodeIndex::new(*block_idx))
-                    .expect("node weight not found");
-                block.insert(idx);
-                if !basic_block.live_out.contains(&binary.output) {
-                    let out_going = unfused.neighbors_directed(idx, petgraph::Direction::Outgoing);
-                    if out_going.count() > 0 {
-                        for succ in unfused.neighbors_directed(idx, petgraph::Direction::Outgoing) {
-                            fuse_children(
-                                succ,
-                                binary.kernel_type,
-                                &mut block,
-                                &unfused,
-                                candidates,
-                                basic_block,
-                                &mut outputs,
-                                &mut inputs
-                            );
-                        }
-                    } else {
-                        push_binary_inputs(candidates, &binary, &mut inputs, &block);
-                        outputs.insert(Output {
-                            var: binary.output.clone(),
-                            stmt_index: *stmt_index,
-                            block_idx: *block_idx,
-                            comp_graph_idx: idx,
-                        });
-                    }
-                } else {
-                    push_binary_inputs(candidates, &binary, &mut inputs, &block);
-                    outputs.insert(Output {
-                        var: binary.output.clone(),
-                        stmt_index: *stmt_index,
-                        block_idx: *block_idx,
-                        comp_graph_idx: idx,
-                    });
-                }
-                for pred in unfused.neighbors_directed(idx, petgraph::Direction::Incoming) {
-                    let (var, stmt_index, block_idx) = match
-                        unfused.node_weight(pred).expect("node weight not found")
-                    {
-                        (Node::Unary(unary), stmt_index, block_idx) =>
-                            (&unary.output, stmt_index, block_idx),
-                        (Node::Binary(binary), stmt_index, block_idx) =>
-                            (&binary.output, stmt_index, block_idx),
-                        (Node::Input(input), stmt_index, block_idx) =>
-                            (input, stmt_index, block_idx),
-                    };
-                    if basic_block.live_out.contains(var) {
-                        block.insert(pred);
-                        inputs.insert(Input {
-                            var: var.clone(),
-                            stmt_index: *stmt_index,
-                            block_idx: *block_idx,
-                            comp_graph_idx: pred,
-                        });
-                    } else {
-                        fuse_parents(
-                            pred,
-                            binary.kernel_type,
-                            &mut block,
-                            &unfused,
-                            basic_block,
-                            &mut inputs
-                        );
-                    }
-                }
-            }
-            (Node::Input(inp), stmt_index, block_idx) => {
-                block.insert(idx);
-                let basic_block = cfg.graph
-                    .node_weight(NodeIndex::new(*block_idx))
-                    .expect("node weight not found");
-                if !basic_block.live_out.contains(&inp) {
-                    let out_going = unfused.neighbors_directed(idx, petgraph::Direction::Outgoing);
-                    if out_going.count() > 0 {
-                        for succ in unfused.neighbors_directed(idx, petgraph::Direction::Outgoing) {
-                            fuse_children(
-                                succ,
-                                KernelType::Unary,
-                                &mut block,
-                                &unfused,
-                                candidates,
-                                basic_block,
-                                &mut outputs,
-                                &mut inputs
-                            );
-                        }
-                    } else {
-                        outputs.insert(Output {
-                            var: inp.clone(),
-                            stmt_index: *stmt_index,
-                            block_idx: *block_idx,
-                            comp_graph_idx: idx,
-                        });
-                    }
-                } else {
-                    outputs.insert(Output {
-                        var: inp.clone(),
-                        stmt_index: *stmt_index,
-                        block_idx: *block_idx,
-                        comp_graph_idx: idx,
-                    });
-                }
+
+        let node = &candidates[idx];
+        let basic_block = cfg.graph
+            .node_weight(NodeIndex::new(node.block_idx))
+            .expect("node weight not found");
+        block.insert(idx);
+        if !basic_block.live_out.contains(&node.ident) {
+            for output in unfused.neighbors_directed(idx, petgraph::Direction::Outgoing) {
+                cmp_fuse_children(
+                    output,
+                    node.kernel_type,
+                    &mut block,
+                    &unfused,
+                    basic_block,
+                );
             }
         }
+
+        for inp in unfused.neighbors_directed(idx, petgraph::Direction::Incoming) {
+            cmp_fuse_parents(inp, node.kernel_type, &mut block, &unfused, basic_block);
+        }
+
         block.iter().for_each(|node| {
             unfused.remove_node(*node);
         });
-        results.push((block, inputs, outputs));
+        ret.groups.push(block);
+        ret.inputs.push(HashSet::new());
+        ret.outputs.push(HashSet::new());
+        ret.stmt_to_remove.push(Vec::new());
     }
-    let ret = FusionGroup {
-        vars: results,
-    };
     ret
 }
 
-pub(crate) fn yield_candidate<'a>(
-    unfused_candidates: &mut petgraph::stable_graph::StableGraph<
-        &(crate::fuse::node::Node, i64, usize),
-        ()
-    >
+pub(crate) fn cmp_yield_candidate<'a>(
+    unfused_candidates: &mut petgraph::stable_graph::StableGraph<CmpNode, ()>
 ) -> Option<NodeIndex> {
-    let unary = unfused_candidates.node_indices().find(|x| {
-        match unfused_candidates.node_weight(*x) {
-            Some((Node::Unary(_), _, _)) => true,
-            _ => false,
-        }
-    });
+    let unary = unfused_candidates
+        .node_indices()
+        .find(|x| { unfused_candidates[*x].kernel_type == KernelType::Unary });
     match unary {
         None =>
             unfused_candidates
@@ -282,244 +130,71 @@ pub(crate) fn yield_candidate<'a>(
     }
 }
 
-pub fn fuse_parents(
+pub fn cmp_fuse_parents(
     pred: NodeIndex,
     next_kernel_type: KernelType,
     block: &mut HashSet<NodeIndex>,
-    graph: &petgraph::stable_graph::StableGraph<&(crate::fuse::node::Node, i64, usize), ()>,
+    unfused: &petgraph::stable_graph::StableGraph<CmpNode, ()>,
     basic_block: &crate::fuse::cfg::BasicBlock,
-    inputs: &mut HashSet<Input>
 ) {
-    match
-        pred_kernel_fusable(
-            next_kernel_type,
-            graph.node_weight(pred).expect("node weight not found")
-        )
-    {
+    let node = &unfused
+        .node_weight(pred)
+        .expect(format!("node weight not found {:?}, ", pred).as_str());
+    match cmp_pred_kernel_fusable(next_kernel_type, node.kernel_type) {
         Ok(Some(kernel_type)) => {
             block.insert(pred);
-            match graph.node_weight(pred).expect("node weight not found") {
-                (Node::Unary(unary), stmt_index, block_idx) => {
-                    let incomings = graph.neighbors_directed(pred, petgraph::Direction::Incoming);
-                    if incomings.count() == 0 {
-                        inputs.insert(Input {
-                            var: unary.output.clone(),
-                            stmt_index: *stmt_index,
-                            block_idx: *block_idx,
-                            comp_graph_idx: pred,
-                        });
-                    } else {
-                        for next in graph.neighbors_directed(pred, petgraph::Direction::Incoming) {
-                            fuse_parents(next, kernel_type, block, graph, basic_block, inputs);
-                        }
-                    }
-                }
-                (Node::Binary(binary), stmt_index, block_idx) => {
-                    let incomings = graph.neighbors_directed(pred, petgraph::Direction::Incoming);
-                    if incomings.count() == 0 {
-                        inputs.insert(Input {
-                            var: binary.output.clone(),
-                            stmt_index: *stmt_index,
-                            block_idx: *block_idx,
-                            comp_graph_idx: pred,
-                        });
-                    } else {
-                        for next in graph.neighbors_directed(pred, petgraph::Direction::Incoming) {
-                            fuse_parents(next, kernel_type, block, graph, basic_block, inputs);
-                        }
-                    }
-                }
-                (Node::Input(input), stmt_index, block_idx) => {
-                    inputs.insert(Input {
-                        var: input.clone(),
-                        stmt_index: *stmt_index,
-                        block_idx: *block_idx,
-                        comp_graph_idx: pred,
-                    });
+            if !unfused.neighbors_directed(pred, petgraph::Direction::Incoming).count() == 0 {
+                for inp in unfused.neighbors_directed(pred, petgraph::Direction::Incoming) {
+                    cmp_fuse_parents(inp, kernel_type, block, unfused, basic_block);
                 }
             }
         }
         Ok(None) => {
             block.insert(pred);
-            match graph.node_weight(pred).expect("node weight not found") {
-                (Node::Unary(unary), stmt_index, block_idx) => {
-                    inputs.insert(Input {
-                        var: unary.output.clone(),
-                        stmt_index: *stmt_index,
-                        block_idx: *block_idx,
-                        comp_graph_idx: pred,
-                    });
-                }
-                (Node::Binary(binary), stmt_index, block_idx) => {
-                    inputs.insert(Input {
-                        var: binary.output.clone(),
-                        stmt_index: *stmt_index,
-                        block_idx: *block_idx,
-                        comp_graph_idx: pred,
-                    });
-                }
-                (Node::Input(input), stmt_index, block_idx) => {
-                    inputs.insert(Input {
-                        var: input.clone(),
-                        stmt_index: *stmt_index,
-                        block_idx: *block_idx,
-                        comp_graph_idx: pred,
-                    });
-                }
-            }
         }
         Err(_) => {}
     }
 }
 
-pub fn fuse_children(
+pub fn cmp_fuse_children(
     succ: NodeIndex,
     prev_kernel_type: KernelType,
     block: &mut HashSet<NodeIndex>,
-    graph: &petgraph::stable_graph::StableGraph<&(crate::fuse::node::Node, i64, usize), ()>,
-    candidates: &petgraph::stable_graph::StableGraph<&(crate::fuse::node::Node, i64, usize), ()>,
+    unfused: &petgraph::stable_graph::StableGraph<CmpNode, ()>,
     basic_block: &crate::fuse::cfg::BasicBlock,
-    outputs: &mut HashSet<Output>,
-    inputs: &mut HashSet<Input>
 ) {
+    let node = &unfused
+        .node_weight(succ)
+        .expect(format!("node weight not found {:?}, ", succ).as_str());
+    block.insert(succ);
     match
-        suc_kernel_fusable(
+        cmp_suc_kernel_fusable(
             prev_kernel_type,
-            graph.node_weight(succ).expect("node weight not found")
+            unfused.node_weight(succ).expect("node weight not found").kernel_type
         )
     {
         Ok(Some(kernel_type)) => {
-            block.insert(succ);
-            match graph.node_weight(succ).expect("node weight not found") {
-                (Node::Unary(unary), stmt_index, block_idx) => {
-                    let out_going = graph.neighbors_directed(succ, petgraph::Direction::Outgoing);
-                    if !basic_block.live_out.contains(&unary.output) && out_going.count() > 0 {
-                        for next in graph.neighbors_directed(succ, petgraph::Direction::Outgoing) {
-                            fuse_children(next, kernel_type, block, graph, candidates, basic_block, outputs, inputs);
-                        }
-                    } else {
-                        outputs.insert(Output {
-                            var: unary.output.clone(),
-                            stmt_index: *stmt_index,
-                            block_idx: *block_idx,
-                            comp_graph_idx: succ,
-                        });
-                    }
+            if !basic_block.live_out.contains(&node.ident) {
+                for output in unfused.neighbors_directed(succ, petgraph::Direction::Outgoing) {
+                    cmp_fuse_children(output, kernel_type, block, unfused, basic_block);
                 }
-                (Node::Binary(binary), stmt_index, block_idx) => {
-                    let out_going = graph.neighbors_directed(succ, petgraph::Direction::Outgoing);
-                    if !basic_block.live_out.contains(&binary.output) && out_going.count() > 0 {
-                        for next in graph.neighbors_directed(succ, petgraph::Direction::Outgoing) {
-                            fuse_children(next, kernel_type, block, graph, candidates, basic_block, outputs, inputs);
-                        }
-                    } else {
-                        push_binary_inputs(candidates, &binary, inputs, &block);
-                        outputs.insert(Output {
-                            var: binary.output.clone(),
-                            stmt_index: *stmt_index,
-                            block_idx: *block_idx,
-                            comp_graph_idx: succ,
-                        });
-                    }
-                }
-                _ => {}
             }
         }
-        Ok(None) => {
-            block.insert(succ);
-            match graph.node_weight(succ).expect("node weight not found") {
-                (Node::Unary(unary), stmt_index, block_idx) => {
-                    outputs.insert(Output {
-                        var: unary.output.clone(),
-                        stmt_index: *stmt_index,
-                        block_idx: *block_idx,
-                        comp_graph_idx: succ,
-                    });
-                }
-                (Node::Binary(binary), stmt_index, block_idx) => {
-                    outputs.insert(Output {
-                        var: binary.output.clone(),
-                        stmt_index: *stmt_index,
-                        block_idx: *block_idx,
-                        comp_graph_idx: succ,
-                    });
-                }
-                _ => {}
-            }
-        }
+        Ok(None) => {}
         Err(_) => {}
     }
 }
 
-pub fn pred_kernel_fusable(
+pub fn cmp_pred_kernel_fusable(
     next_kernel_type: KernelType,
-    pred: &(crate::fuse::node::Node, i64, usize)
+    pred: KernelType
 ) -> anyhow::Result<Option<KernelType>> {
-    let pred_kernel_type = match pred {
-        (Node::Unary(unary), _, _) => unary.kernel_type,
-        (Node::Binary(binary), _, _) => binary.kernel_type,
-        (Node::Input(_), _, _) => KernelType::Unary,
-    };
-    Ok(pred_kernel_type.infer_pred_kernel(&next_kernel_type))
+    Ok(pred.infer_pred_kernel(&next_kernel_type))
 }
 
-pub fn suc_kernel_fusable(
+pub fn cmp_suc_kernel_fusable(
     kernel_type: KernelType,
-    next: &(crate::fuse::node::Node, i64, usize)
+    next_kernel_type: KernelType
 ) -> anyhow::Result<Option<KernelType>> {
-    let next_kernel_type = match next {
-        (Node::Unary(unary), _, _) => unary.kernel_type,
-        (Node::Binary(binary), _, _) => binary.kernel_type,
-        (Node::Input(_), _, _) => KernelType::Unary,
-    };
     Ok(kernel_type.infer_suc_kernel(&next_kernel_type))
-}
-
-fn push_binary_inputs(
-    candidates: &petgraph::stable_graph::StableGraph<&(crate::fuse::node::Node, i64, usize), ()>,
-    binary: &crate::fuse::node::Binary,
-    inputs: &mut HashSet<Input>,
-    block: &HashSet<NodeIndex>
-) {
-    candidates
-    .node_indices()
-    .into_iter()
-    .for_each(|x| {
-        let (node, stmt_idx, block_idx) = candidates[x];
-        if block.contains(&x) {
-            return;
-        }
-        match node {
-            Node::Unary(unary) => {
-                if unary.output == binary.left || unary.output == binary.right {
-                    inputs.insert(Input {
-                        var: unary.output.clone(),
-                        stmt_index: *stmt_idx,
-                        block_idx: *block_idx,
-                        comp_graph_idx: x,
-                    });
-                }
-            }
-            Node::Binary(bin) => {
-                if bin.output == binary.left || bin.output == binary.right {
-                    inputs.insert(Input {
-                        var: binary.output.clone(),
-                        stmt_index: *stmt_idx,
-                        block_idx: *block_idx,
-                        comp_graph_idx: x,
-                    });
-                }
-            }
-            Node::Input(ident) => {
-                if ident == &binary.left || ident == &binary.right {
-                    inputs.insert(Input {
-                        var: ident.clone(),
-                        stmt_index: *stmt_idx,
-                        block_idx: *block_idx,
-                        comp_graph_idx: x,
-                    });
-                }
-            }
-        }
-    });
 }

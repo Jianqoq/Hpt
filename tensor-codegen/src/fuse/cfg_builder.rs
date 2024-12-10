@@ -17,7 +17,6 @@ pub(crate) struct CFGBuilder<'a> {
     pub(crate) is_last_stmt: bool,
     pub(crate) global_block_cnt: usize,
     pub(crate) errors: Vec<Error>,
-    pub(crate) has_assignment: bool,
 }
 
 impl<'a> CFGBuilder<'a> {
@@ -34,7 +33,6 @@ impl<'a> CFGBuilder<'a> {
             current_type: None,
             current_item: None,
             errors: vec![],
-            has_assignment: false,
         }
     }
 
@@ -75,7 +73,7 @@ impl<'a> CFGBuilder<'a> {
     /// handle if statement
     fn handle_if(&mut self, expr_if: &syn::ExprIf) {
         let mut current_block_id = core::mem::take(&mut self.block_ids);
-        let assign_block = self.new_block(BlockType::IfAssign);
+        let assign_block = self.new_block(BlockType::Assign);
         let assign_block_id = BlockId::new(assign_block);
         self.connect_to(assign_block);
         self.set_current_block(assign_block);
@@ -164,7 +162,7 @@ impl<'a> CFGBuilder<'a> {
     /// handle loop statement
     fn handle_loop(&mut self, expr_loop: &syn::ExprLoop) {
         let mut current_block_id = core::mem::take(&mut self.block_ids);
-        let assign_block = self.new_block(BlockType::LoopAssign);
+        let assign_block = self.new_block(BlockType::Assign);
         let assign_block_id = BlockId::new(assign_block);
         // create loop body block
         let loop_block = self.new_block(BlockType::LoopBody);
@@ -231,7 +229,7 @@ impl<'a> CFGBuilder<'a> {
     fn handle_match(&mut self, expr_match: &syn::ExprMatch) {
         let mut current_block_id = core::mem::take(&mut self.block_ids);
 
-        let assign_block = self.new_block(BlockType::MatchAssign);
+        let assign_block = self.new_block(BlockType::Assign);
         let assign_block_id = BlockId::new(assign_block);
         self.connect_to(assign_block);
         self.set_current_block(assign_block);
@@ -319,7 +317,7 @@ impl<'a> CFGBuilder<'a> {
 
     fn handle_block(&mut self, block: &syn::ExprBlock) {
         let mut current_block_id = core::mem::take(&mut self.block_ids);
-        let assign_block = self.new_block(BlockType::ExprBlockAssign);
+        let assign_block = self.new_block(BlockType::Assign);
         let assign_block_id = BlockId::new(assign_block);
         let new_block = self.new_block(BlockType::ExprBlock);
         let new_block_id = BlockId::new(new_block);
@@ -373,7 +371,7 @@ impl<'a> CFGBuilder<'a> {
 
     fn handle_while_loop(&mut self, expr_while: &syn::ExprWhile) {
         let mut current_block_id = core::mem::take(&mut self.block_ids);
-        let assign_block = self.new_block(BlockType::WhileAssign);
+        let assign_block = self.new_block(BlockType::Assign);
         let assign_block_id = BlockId::new(assign_block);
         // 创建条件检查块
         let condition_block = self.new_block(BlockType::WhileCond);
@@ -450,7 +448,7 @@ impl<'a> CFGBuilder<'a> {
 
     fn handle_for_loop(&mut self, expr_for: &syn::ExprForLoop) {
         let mut current_block_id = core::mem::take(&mut self.block_ids);
-        let assign_block = self.new_block(BlockType::ForAssign);
+        let assign_block = self.new_block(BlockType::Assign);
         let assign_block_id = BlockId::new(assign_block);
         // create iterator init block
         let init_block = self.new_block(BlockType::ForInit);
@@ -652,7 +650,6 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 self.errors.push(
                     Error::Unsupported(arg.span(), "CFG builder", "function receiver".to_string())
                 );
-                return;
             }
             syn::FnArg::Typed(pat_type) => {
                 self.visit_pat_type(pat_type);
@@ -691,9 +688,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
     fn visit_expr_range(&mut self, i: &'ast syn::ExprRange) {
         let mut new_expr = i.clone();
         match (new_expr.start.as_mut(), new_expr.end.as_mut()) {
-            (None, None) => {
-                self.current_expr = Some(syn::Expr::Range(new_expr));
-            }
+            (None, None) => {}
             (None, Some(right)) => {
                 self.visit_expr(right);
                 handle_accumulation(
@@ -703,7 +698,6 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     &mut self.current_expr
                 ).map(|right| {
                     new_expr.end = Some(Box::new(right));
-                    self.current_expr = Some(syn::Expr::Range(new_expr));
                 });
             }
             (Some(left), None) => {
@@ -715,12 +709,11 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     &mut self.current_expr
                 ).map(|start| {
                     new_expr.start = Some(Box::new(start));
-                    self.current_expr = Some(syn::Expr::Range(new_expr));
                 });
             }
             (Some(left), Some(right)) => {
                 self.visit_expr(left);
-                let start_status = handle_accumulation(
+                handle_accumulation(
                     &mut self.errors,
                     i.start.span(),
                     "range",
@@ -729,7 +722,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     new_expr.start = Some(Box::new(start));
                 });
                 self.visit_expr(right);
-                let end_status = handle_accumulation(
+                handle_accumulation(
                     &mut self.errors,
                     i.end.span(),
                     "range",
@@ -737,11 +730,16 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 ).map(|right| {
                     new_expr.end = Some(Box::new(right));
                 });
-                if start_status.is_some() && end_status.is_some() {
-                    self.current_expr = Some(syn::Expr::Range(new_expr));
-                }
             }
         }
+        let ident = syn::Ident::new(&format!("__range_{}", self.global_block_cnt()), i.span());
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_expr; }) {
+            self.push_stmt(stmt);
+        } else {
+            self.errors.push(Error::SynParseError(i.span(), "CFG builder", "range".to_string()));
+            return;
+        }
+        self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
     }
 
     fn visit_expr_break(&mut self, i: &'ast syn::ExprBreak) {
@@ -852,8 +850,111 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
     }
 
+    fn visit_expr_async(&mut self, expr_async: &'ast syn::ExprAsync) {
+        let mut current_block_id = core::mem::take(&mut self.block_ids);
+        let assign_block = self.new_block(BlockType::Assign);
+        let assign_block_id = BlockId::new(assign_block);
+        self.connect_to(assign_block);
+        self.set_current_block(assign_block);
+        let async_ident = syn::Ident::new(
+            &format!("__async_{}", self.global_block_cnt()),
+            proc_macro2::Span::call_site()
+        );
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #async_ident; }) {
+            self.cfg.graph[assign_block].statements.push(CustomStmt { stmt });
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    expr_async.span(),
+                    "CFG builder",
+                    "expr_closure::assign_stmt".to_string()
+                )
+            );
+            return;
+        }
+
+        let async_block = self.new_block(BlockType::AsyncBlock);
+        let async_block_id = BlockId::new(async_block);
+        let merge_block = self.new_block(BlockType::Normal);
+        let merge_block_id = BlockId::new(merge_block);
+
+        self.connect_to(async_block);
+        self.set_current_block(async_block);
+        self.set_current_block_id(async_block_id);
+        self.connect_to(merge_block);
+        self.visit_block(&expr_async.block);
+        let async_block_id = core::mem::take(&mut self.block_ids);
+        current_block_id.children.push(assign_block_id);
+        current_block_id.children.push(async_block_id);
+        current_block_id.children.push(merge_block_id);
+        self.set_current_block_id(current_block_id);
+        self.set_current_block(merge_block);
+        if let Ok(expr) = syn::parse2(quote::quote! { #async_ident }) {
+            self.current_expr = Some(expr);
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    expr_async.span(),
+                    "CFG builder",
+                    format!("{}", async_ident.to_string())
+                )
+            );
+        }
+    }
+
+    fn visit_expr_const(&mut self, expr_const: &'ast syn::ExprConst) {
+        let mut current_block_id = core::mem::take(&mut self.block_ids);
+        let assign_block = self.new_block(BlockType::Assign);
+        let assign_block_id = BlockId::new(assign_block);
+        self.connect_to(assign_block);
+        self.set_current_block(assign_block);
+        let const_ident = syn::Ident::new(
+            &format!("__const_{}", self.global_block_cnt()),
+            proc_macro2::Span::call_site()
+        );
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #const_ident; }) {
+            self.cfg.graph[assign_block].statements.push(CustomStmt { stmt });
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    expr_const.span(),
+                    "CFG builder",
+                    "expr_closure::assign_stmt".to_string()
+                )
+            );
+            return;
+        }
+
+        let const_block = self.new_block(BlockType::ConstBlock);
+        let const_block_id = BlockId::new(const_block);
+        let merge_block = self.new_block(BlockType::Normal);
+        let merge_block_id = BlockId::new(merge_block);
+
+        self.connect_to(const_block);
+        self.set_current_block(const_block);
+        self.set_current_block_id(const_block_id);
+        self.connect_to(merge_block);
+        self.visit_block(&expr_const.block);
+        let const_block_id = core::mem::take(&mut self.block_ids);
+        current_block_id.children.push(assign_block_id);
+        current_block_id.children.push(const_block_id);
+        current_block_id.children.push(merge_block_id);
+        self.set_current_block_id(current_block_id);
+        self.set_current_block(merge_block);
+        if let Ok(expr) = syn::parse2(quote::quote! { #const_ident }) {
+            self.current_expr = Some(expr);
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    expr_const.span(),
+                    "CFG builder",
+                    format!("{}", const_ident.to_string())
+                )
+            );
+        }
+    }
+
     fn visit_expr_binary(&mut self, binary: &'ast syn::ExprBinary) {
-        self.has_assignment = false;
         let mut new_binary = binary.clone();
 
         match (new_binary.left.as_mut(), new_binary.right.as_mut()) {
@@ -1081,9 +1182,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
     }
 
     fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
-        let has_assignment = self.has_assignment;
         let mut new_call = call.clone();
-        self.has_assignment = false;
         self.visit_expr(call.func.as_ref());
         let func = core::mem::take(&mut self.current_expr).expect("func is none");
         for arg in new_call.args.iter_mut() {
@@ -1102,23 +1201,17 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             *arg = new_arg;
         }
         new_call.func = Box::new(func);
-        if has_assignment {
-            self.current_expr = Some(syn::Expr::Call(new_call));
-        } else {
-            let ident = syn::Ident::new(
-                &format!("__call_{}", self.global_block_cnt()),
-                proc_macro2::Span::call_site()
-            );
-            if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_call; }) {
-                self.push_stmt(stmt);
-            }
-            self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
+        let ident = syn::Ident::new(
+            &format!("__call_{}", self.global_block_cnt()),
+            proc_macro2::Span::call_site()
+        );
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_call; }) {
+            self.push_stmt(stmt);
         }
+        self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
     }
     fn visit_expr_method_call(&mut self, method_call: &'ast syn::ExprMethodCall) {
-        let has_assignment = self.has_assignment;
         let mut new_method_call = method_call.clone();
-        self.has_assignment = false;
         self.visit_expr(method_call.receiver.as_ref());
         let receiver = handle_accumulation(
             &mut self.errors,
@@ -1177,27 +1270,24 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             };
             *arg = new_arg;
         }
-        if has_assignment {
-            self.current_expr = Some(syn::Expr::MethodCall(new_method_call));
+
+        let ident = syn::Ident::new(
+            &format!("__method_call_{}", self.global_block_cnt()),
+            proc_macro2::Span::call_site()
+        );
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_method_call; }) {
+            self.push_stmt(stmt);
         } else {
-            let ident = syn::Ident::new(
-                &format!("__method_call_{}", self.global_block_cnt()),
-                proc_macro2::Span::call_site()
+            self.errors.push(
+                Error::SynParseError(
+                    new_method_call.span(),
+                    "CFG builder",
+                    "expr_method_call::stmt".to_string()
+                )
             );
-            if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_method_call; }) {
-                self.push_stmt(stmt);
-            } else {
-                self.errors.push(
-                    Error::SynParseError(
-                        new_method_call.span(),
-                        "CFG builder",
-                        "expr_method_call::stmt".to_string()
-                    )
-                );
-                return;
-            }
-            self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
+            return;
         }
+        self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
     }
 
     fn visit_expr_return(&mut self, i: &'ast syn::ExprReturn) {
@@ -1348,7 +1438,11 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             self.push_stmt(stmt);
         } else {
             self.errors.push(
-                Error::SynParseError(new_unary.span(), "CFG builder", "expr_unary::stmt".to_string())
+                Error::SynParseError(
+                    new_unary.span(),
+                    "CFG builder",
+                    "expr_unary::stmt".to_string()
+                )
             );
             return;
         }
@@ -1402,9 +1496,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
     }
 
     fn visit_expr_try(&mut self, i: &'ast syn::ExprTry) {
-        let has_assignment = self.has_assignment;
         let mut new_try = i.clone();
-        self.has_assignment = false;
         self.visit_expr(&i.expr);
         let expr = handle_accumulation(
             &mut self.errors,
@@ -1418,27 +1510,17 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             return;
         };
         new_try.expr = Box::new(expr);
-        if has_assignment {
-            self.current_expr = Some(syn::Expr::Try(new_try));
+        let ident = syn::Ident::new(
+            &format!("__try_{}", self.global_block_cnt()),
+            proc_macro2::Span::call_site()
+        );
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_try; }) {
+            self.push_stmt(stmt);
+            self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
         } else {
-            let ident = syn::Ident::new(
-                &format!("__try_{}", self.global_block_cnt()),
-                proc_macro2::Span::call_site()
+            self.errors.push(
+                Error::SynParseError(new_try.span(), "CFG builder", "expr_try::stmt".to_string())
             );
-            if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_try; }) {
-                self.push_stmt(stmt);
-                self.current_expr = Some(
-                    syn::parse2(quote::quote! { #ident }).expect("expr is none")
-                );
-            } else {
-                self.errors.push(
-                    Error::SynParseError(
-                        new_try.span(),
-                        "CFG builder",
-                        "expr_try::stmt".to_string()
-                    )
-                );
-            }
         }
     }
 
@@ -1463,7 +1545,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
     fn visit_expr_closure(&mut self, closure: &'ast syn::ExprClosure) {
         let mut current_block_id = core::mem::take(&mut self.block_ids);
 
-        let assign_block = self.new_block(BlockType::ClosureAssign);
+        let assign_block = self.new_block(BlockType::Assign);
         let assign_block_id = BlockId::new(assign_block);
         self.connect_to(assign_block);
         self.set_current_block(assign_block);
@@ -1659,7 +1741,6 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
     fn visit_stmt(&mut self, node: &'ast syn::Stmt) {
         match node {
             syn::Stmt::Local(local) => {
-                self.has_assignment = true;
                 if let Some(init) = &local.init {
                     self.visit_expr(&init.expr);
                     let expr = handle_accumulation(
@@ -1674,7 +1755,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                         return;
                     };
                     let mut new_local = local.clone();
-                    new_local.init.as_mut().unwrap().expr = Box::new(expr);
+                    new_local.init.as_mut().expect("cfg_builder::1758").expr = Box::new(expr);
                     self.push_stmt(syn::Stmt::Local(new_local));
                 } else {
                     if let Ok(stmt) = syn::parse2(quote::quote! { #local }) {
@@ -1689,7 +1770,6 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                         );
                     }
                 }
-                self.has_assignment = false;
             }
             syn::Stmt::Item(item) => {
                 if let syn::Item::Macro(_) = item {
@@ -1699,11 +1779,37 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 }
                 match item {
                     syn::Item::ExternCrate(_) => todo!(),
-                    | syn::Item::Fn(_)
-                    | syn::Item::Enum(_)
-                    | syn::Item::Macro(_)
-                    | syn::Item::Trait(_)
-                    | syn::Item::Struct(_) => {}
+                    syn::Item::Fn(_) => {
+                        self.errors.push(
+                            Error::Unsupported(
+                                item.span(),
+                                "stmt_item",
+                                "syn::Item::Fn".to_string()
+                            )
+                        );
+                    }
+                    syn::Item::Enum(_) => {
+                        self.errors.push(
+                            Error::Unsupported(
+                                item.span(),
+                                "stmt_item",
+                                "syn::Item::Enum".to_string()
+                            )
+                        );
+                    }
+                    syn::Item::Trait(_) => {
+                        self.errors.push(
+                            Error::Unsupported(
+                                item.span(),
+                                "stmt_item",
+                                "syn::Item::Trait".to_string()
+                            )
+                        );
+                    }
+                    syn::Item::Struct(_) => {
+                        self.push_stmt(syn::Stmt::Item(item.clone()));
+                    }
+                    syn::Item::Macro(_) => {}
                     syn::Item::ForeignMod(_) => todo!(),
                     syn::Item::Impl(_) => todo!(),
                     syn::Item::Mod(_) => todo!(),

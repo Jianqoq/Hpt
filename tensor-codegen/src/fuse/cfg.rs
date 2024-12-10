@@ -29,25 +29,20 @@ pub(crate) struct CustomStmt {
 #[derive(Clone, PartialEq)]
 pub(crate) enum BlockType {
     Normal,
-    IfAssign,
+    Assign,
     IfCond,
     IfThen,
     IfThenEnd,
     IfElseEnd,
-    ForAssign,
     ForInit,
     ForBody,
     ForCond,
-    WhileAssign,
     WhileCond,
     WhileBody,
-    LoopAssign,
     LoopBody,
-    ExprBlockAssign,
     ExprBlock,
     ClosureArgs,
     ClosureBody,
-    ClosureAssign,
     FnArgs,
     FnVisibility(syn::Visibility),
     FnName,
@@ -55,36 +50,32 @@ pub(crate) enum BlockType {
     Generics(syn::Generics),
     FnBody,
     Where(syn::WhereClause),
-    MatchAssign,
     MatchCond(syn::Expr),
     MatchCase,
     MatchArm,
     MatchBody,
+    AsyncBlock,
+    ConstBlock,
 }
 
 impl std::fmt::Debug for BlockType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Normal => write!(f, "Normal"),
-            Self::IfAssign => write!(f, "IfAssign"),
+            Self::Assign => write!(f, "Assign"),
             Self::IfCond => write!(f, "IfCond"),
             Self::IfThen => write!(f, "IfThen"),
             Self::IfThenEnd => write!(f, "IfThenEnd"),
             Self::IfElseEnd => write!(f, "IfElseEnd"),
-            Self::ForAssign => write!(f, "ForAssign"),
             Self::ForInit => write!(f, "ForInit"),
             Self::ForBody => write!(f, "ForBody"),
             Self::ForCond => write!(f, "ForCond"),
-            Self::WhileAssign => write!(f, "WhileAssign"),
             Self::WhileCond => write!(f, "WhileCond"),
             Self::WhileBody => write!(f, "WhileBody"),
-            Self::LoopAssign => write!(f, "LoopAssign"),
             Self::LoopBody => write!(f, "LoopBody"),
-            Self::ExprBlockAssign => write!(f, "ExprBlockAssign"),
             Self::ExprBlock => write!(f, "ExprBlock"),
             Self::ClosureArgs => write!(f, "ClosureArgs"),
             Self::ClosureBody => write!(f, "ClosureBody"),
-            Self::ClosureAssign => write!(f, "ClosureAssign"),
             Self::FnArgs => write!(f, "FnArgs"),
             Self::FnVisibility(_) => write!(f, "FnVisibility"),
             Self::FnName => write!(f, "FnName"),
@@ -94,9 +85,10 @@ impl std::fmt::Debug for BlockType {
             Self::Where(_) => write!(f, "Where"),
             Self::MatchCond(_) => write!(f, "MatchCond"),
             Self::MatchCase => write!(f, "MatchCase"),
-            Self::MatchAssign => write!(f, "MatchAssign"),
             Self::MatchBody => write!(f, "MatchBody"),
             Self::MatchArm => write!(f, "MatchArm"),
+            Self::AsyncBlock => write!(f, "AsyncBlock"),
+            Self::ConstBlock => write!(f, "ConstBlock"),
         }
     }
 }
@@ -687,13 +679,7 @@ impl CFG {
             BlockType::MatchArm => {
                 body.extend(quote::quote!({#code #child_code},));
             }
-            | BlockType::ExprBlockAssign
-            | BlockType::IfAssign
-            | BlockType::ForAssign
-            | BlockType::WhileAssign
-            | BlockType::LoopAssign
-            | BlockType::ClosureAssign
-            | BlockType::MatchAssign => {
+            BlockType::Assign => {
                 body.extend(quote::quote!(let #code #child_code =));
             }
             BlockType::ClosureArgs => {
@@ -725,6 +711,12 @@ impl CFG {
             }
             BlockType::MatchCase => {
                 body.extend(quote::quote!(#code #child_code =>));
+            }
+            BlockType::AsyncBlock => {
+                body.extend(quote::quote!(async { #code #child_code };));
+            }
+            BlockType::ConstBlock => {
+                body.extend(quote::quote!(const { #code #child_code };));
             }
         }
         body
