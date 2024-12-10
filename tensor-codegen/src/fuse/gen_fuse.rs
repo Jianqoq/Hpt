@@ -7,7 +7,7 @@ pub(crate) fn cmp_gen_fuse(
     cfg: &crate::fuse::cfg::CFG,
     graph: &petgraph::stable_graph::StableGraph<CmpNode, ()>,
     groups: &FusionGroup
-) -> Vec<TokenStream2> {
+) -> Vec<(TokenStream2, TokenStream2)> {
     _cmp_gen_fuse(cfg, &graph, &groups)
 }
 
@@ -53,7 +53,7 @@ pub(crate) fn _cmp_gen_fuse(
     cfg: &crate::fuse::cfg::CFG,
     graph: &petgraph::stable_graph::StableGraph<CmpNode, ()>,
     groups: &FusionGroup
-) -> Vec<TokenStream2> {
+) -> Vec<(TokenStream2, TokenStream2)> {
     let sorteds = petgraph::algo::toposort(graph, None).expect("gen_fuse::topological_sort");
 
     let mut iters_vec = Vec::new();
@@ -78,20 +78,22 @@ pub(crate) fn _cmp_gen_fuse(
         zipped_vec.push(tokens);
     }
     let mut tuple_vec = vec![];
-    for mut iters in groups.inputs
+    let inputs = groups.inputs
         .iter()
-        .map(|inputs|
-            inputs
-                .iter()
-                .map(|input| {
+        .map(|inputs| {
+            let mut v = vec![];
+            for input in inputs {
+                v.push(
                     cfg.graph[NodeIndex::new(input.block_idx)].origin_var_map
                         .get(&input.var)
                         .expect("gen_fuse::origin_ident")
                         .clone()
-                })
-                .collect::<Vec<_>>()
-        )
-        .collect::<Vec<_>>() {
+                );
+            }
+            v
+        })
+        .collect::<Vec<_>>();
+    for mut iters in inputs.clone().iter_mut() {
         let tokens = gen_tuple(&mut iters);
         tuple_vec.push(quote::quote!(
             (res, #tokens)
@@ -112,7 +114,7 @@ pub(crate) fn _cmp_gen_fuse(
     let mut fused_vec = Vec::new();
     for (i, (sorted, (inputs, outputs))) in sorted_groups
         .into_iter()
-        .zip(groups.inputs.iter().zip(groups.outputs.iter()))
+        .zip(inputs.iter().zip(groups.outputs.iter()))
         .enumerate() {
         if outputs.len() != 1 {
             panic!("gen_fuse::output_len: {:?}", outputs.len());
@@ -123,26 +125,214 @@ pub(crate) fn _cmp_gen_fuse(
         let origin_output = cfg.graph[NodeIndex::new(output.block_idx)].origin_var_map
             .get(&output.var)
             .expect("gen_fuse::origin_output");
-        let tokens = cmp_gen_body(sorted, inputs, graph, cfg);
+        let tokens = cmp_gen_body(sorted, &groups.inputs[i], graph, cfg);
         scalar_comp.extend(tokens.clone());
         scalar_comp.extend(quote::quote!(
-            *res = #origin_output
+            #origin_output
         ));
         vec_comp.extend(tokens);
         vec_comp.extend(quote::quote!(
-            res.write_unaligned(#origin_output)
+            #origin_output
         ));
-        let zipped = &zipped_vec[i];
         let tuple = &tuple_vec[i];
+        let func_name = quote::format_ident!("__fuse_group_{}", i);
+        let func_args = inputs.iter().map(|input| {
+            let ident = quote::format_ident!("{}", input);
+            quote::quote!(&#ident)
+        });
         let fused =
             quote::quote!(
-                #zipped.strided_map_simd(|#tuple| {
+                #func_name(#(#func_args,)*|#(#inputs),*| {
                     #scalar_comp
-                },|#tuple| {
+                },|#(#inputs),*| {
                     #vec_comp
-                }).collect::<Tensor<_>>()
+                })?
             );
-        fused_vec.push(fused);
+        let input_generics = inputs
+            .iter()
+            .map(|input| { quote::format_ident!("{}", input.to_string().to_uppercase()) });
+        let closure_bounds = input_generics.clone();
+        let closure_simd_bounds = inputs.iter().map(|input| {
+            let generic_ident = quote::format_ident!("{}", input.to_string().to_uppercase());
+            quote::quote!(<#generic_ident as TypeCommon>::Vec)
+        });
+        let input_args = inputs.iter().map(|input| {
+            let arg_ident = quote::format_ident!("{}_arg", input);
+            let generic_ident = quote::format_ident!("{}", input.to_string().to_uppercase());
+            quote::quote! { #arg_ident: &Tensor<#generic_ident> }
+        });
+        let input_bounds = inputs.iter().map(|input| {
+            let generic_ident = quote::format_ident!("{}", input.to_string().to_uppercase());
+            quote::quote! { #generic_ident: CommonBounds }
+        });
+        let mut check_contiguous = TokenStream2::new();
+        let mut check_shape_eq = TokenStream2::new();
+        for (idx, lhs) in inputs.iter().enumerate() {
+            for rhs in inputs.iter() {
+                if lhs != rhs {
+                    let lhs_ident = quote::format_ident!("{}_arg", lhs);
+                    let rhs_ident = quote::format_ident!("{}_arg", rhs);
+                    if idx < inputs.len() - 1 {
+                        check_shape_eq.extend(
+                            quote::quote!(#lhs_ident.shape() == #rhs_ident.shape() &&)
+                        );
+                    } else {
+                        check_shape_eq.extend(
+                            quote::quote!(#lhs_ident.shape() == #rhs_ident.shape())
+                        );
+                    }
+                }
+            }
+        }
+        for (idx, lhs) in inputs.iter().enumerate() {
+            let lhs_ident = quote::format_ident!("{}_arg", lhs);
+            if idx < inputs.len() - 1 {
+                check_contiguous.extend(quote::quote!(#lhs_ident.is_contiguous() &&));
+            } else {
+                check_contiguous.extend(quote::quote!(#lhs_ident.is_contiguous()));
+            }
+        }
+        let vec_size_eq = inputs
+            .iter()
+            .map(|input| {
+                let ident = quote::format_ident!("{}", input.to_string().to_uppercase());
+                quote::quote!(<#ident as TypeCommon>::Vec::SIZE == <__HPTRES as TypeCommon>::Vec::SIZE)
+            })
+            .collect::<Vec<_>>();
+        let zip_chunks = inputs
+            .iter()
+            .enumerate()
+            .map(|(idx, input)| {
+                let ident = quote::format_ident!("{}_arg", input);
+                let generic_ident = quote::format_ident!("{}", input.to_string().to_uppercase());
+                if idx == 0 {
+                    quote::quote! { #ident.as_raw().par_chunks_exact(<#generic_ident as TypeCommon>::Vec::SIZE) }
+                } else {
+                    quote::quote! { .zip(#ident.as_raw().par_chunks_exact(<#generic_ident as TypeCommon>::Vec::SIZE)) }
+                }
+            });
+        let zip_remain_scalars = inputs
+            .iter()
+            .enumerate()
+            .map(|(idx, input)| {
+                let ident = quote::format_ident!("{}_arg", input);
+                if idx == 0 {
+                    quote::quote! { #ident.as_raw()[ret_size - remain..].iter() }
+                } else {
+                    quote::quote! { .zip(#ident.as_raw()[ret_size - remain..].iter()) }
+                }
+            });
+        let zip_min_len = inputs
+            .iter()
+            .enumerate()
+            .map(|(idx, input)| {
+                let ident = quote::format_ident!("{}_arg", input);
+                if idx == 0 {
+                    quote::quote! { #ident.as_raw().par_iter().with_min_len(min_len) }
+                } else {
+                    quote::quote! { .zip(#ident.as_raw().par_iter().with_min_len(min_len)) }
+                }
+            });
+        let zip_scalar_par = inputs
+            .iter()
+            .enumerate()
+            .map(|(idx, input)| {
+                let ident = quote::format_ident!("{}_arg", input);
+                if idx == 0 {
+                    quote::quote! { #ident.par_iter() }
+                } else {
+                    quote::quote! { .zip(#ident.par_iter()) }
+                }
+            });
+        let layout_broadcast = inputs
+            .iter()
+            .enumerate()
+            .map(|(idx, input)| {
+                let ident = quote::format_ident!("{}_arg", input);
+                if idx == 0 {
+                    quote::quote! { let mut layout = #ident.layout().clone(); }
+                } else {
+                    quote::quote! { layout = layout.broadcast(#ident.layout())?; }
+                }
+            });
+        let from_ptr = inputs.iter().map(|input| {
+            let ident = quote::format_ident!("{}", input);
+            let generic_ident = quote::format_ident!("{}", input.to_string().to_uppercase());
+            quote::quote!(let #ident = unsafe { <#generic_ident as TypeCommon>::Vec::from_ptr(#ident.as_ptr()) };)
+        });
+        let f2_args = inputs
+            .iter()
+            .map(|input| { quote::format_ident!("{}", input) })
+            .collect::<Vec<_>>();
+        let first = quote::format_ident!("{}_arg", inputs[0]);
+        let func =
+            quote::quote!(
+            fn #func_name<#(#input_generics),*, __HPTRES, F, F2>(
+                #(#input_args),*,
+                f: F,
+                f2: F2,
+            ) -> anyhow::Result<Tensor<__HPTRES>>
+            where
+                #(#input_bounds),*,
+                __HPTRES: CommonBounds,
+                F: Fn(#(#closure_bounds),*) -> __HPTRES + Sync + Send + Copy,
+                F2: Fn(#(#closure_simd_bounds),*) -> <__HPTRES as TypeCommon>::Vec
+                    + Sync
+                    + Send
+                    + Copy,
+            {
+                if #check_shape_eq && #check_contiguous {
+                    let mut ret = Tensor::<__HPTRES, Cpu>::empty(#first.shape())?;
+                    if #(#vec_size_eq) && * {
+                        let remain = ret.size() % <__HPTRES as TypeCommon>::Vec::SIZE;
+                        ret.as_raw_mut()
+                            .par_chunks_exact_mut(<__HPTRES as TypeCommon>::Vec::SIZE)
+                            .zip(#(#zip_chunks)*)
+                            .for_each(|#tuple| {
+                                #(#from_ptr)*
+                                let ret = f2(#(#f2_args),*);
+                                unsafe {
+                                    std::ptr::copy_nonoverlapping(
+                                        ret.as_ptr(),
+                                        res.as_mut_ptr(),
+                                        <__HPTRES as TypeCommon>::Vec::SIZE,
+                                    );
+                                }
+                            });
+                        if remain > 0 {
+                            let ret_size = ret.size();
+                            ret.as_raw_mut()[ret_size - remain..]
+                                .iter_mut()
+                                .zip(#(#zip_remain_scalars)*)
+                                .for_each(|#tuple| {
+                                    *res = f(#(*#f2_args),*);
+                                });
+                        }
+                    } else {
+                        let min_len: usize =
+                        ret.size() / (((rayon::current_num_threads() as f64) * 1.3) as usize);
+                        ret.as_raw_mut()
+                            .par_iter_mut()
+                            .with_min_len(min_len)
+                            .zip(#(#zip_min_len)*)
+                            .for_each(|#tuple| {
+                                *res = f(#(*#f2_args),*);
+                            });
+                    }
+                    Ok(ret)
+                } else {
+                    #(#layout_broadcast)*
+                    let ret = Tensor::<__HPTRES, Cpu>::empty(layout.shape())?;
+                    ret.par_iter_mut()
+                        .zip(#(#zip_scalar_par)*)
+                        .for_each(|#tuple| {
+                            *res = f(#(#f2_args),*);
+                        });
+                    Ok(ret)
+                }
+            }            
+        );
+        fused_vec.push((fused, func));
     }
     fused_vec
 }

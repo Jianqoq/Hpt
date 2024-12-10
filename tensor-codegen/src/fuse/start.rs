@@ -29,7 +29,7 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
         }
         return Err(errs.into());
     }
-    println!("cfg: {:#?}", cfg.graph);
+    // println!("cfg: {:#?}", cfg.graph);
     let mut type_table = TyInfer::new();
     type_table.infer(&cfg)?;
     cfg.live_analysis(&type_table.table);
@@ -57,7 +57,7 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
             continue;
         }
         let cmp_pet_graph = graph.to_cmp_pet_graph();
-        println!("cmp_pet_graph: {:#?}", cmp_pet_graph);
+        // println!("cmp_pet_graph: {:#?}", cmp_pet_graph);
         if cmp_pet_graph.node_count() > 0 && !petgraph::algo::is_cyclic_directed(&cmp_pet_graph) {
             let mut fusion_group = crate::fuse::fuse::cmp_fuse(&cfg, &cmp_pet_graph);
             let mask = fusion_group.groups
@@ -135,8 +135,10 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
             genfuse_map.insert(idx, (genfuse, fusion_group));
         }
     }
+
+    let mut func_codes = Vec::new();
     for (idx, (codes, fusion_group)) in genfuse_map {
-        for (code, ((inp, out), stmt_to_remove)) in codes
+        for ((code, func_code), ((inp, out), stmt_to_remove)) in codes
             .into_iter()
             .zip(
                 fusion_group.inputs
@@ -150,6 +152,7 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
             assert_eq!(out.len(), 1);
             let out = out.iter().next().expect("gen_fuse::output");
             assert_ne!(out.stmt_index, -1);
+            func_codes.push(func_code);
             if
                 let syn::Stmt::Local(local) =
                     &mut cfg.graph[idx].statements[out.stmt_index as usize].stmt
@@ -181,9 +184,9 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
         }
     }
     cfg.replace_all_var_back();
-
     let code = cfg.gen_code();
     let ret = quote::quote!(
+        #(#func_codes)*
         #code
     );
     Ok(ret)
