@@ -11,8 +11,8 @@ fuse_proc_macro!(
     let cos = c.cos()?;
     let tanh = c.tanh()?;
     let add = cos + tanh;
-    let atan = add.atan()?;
-    // let g = c.matmul(&e)?.tanh()?;
+    let e = add.add(&c)?;
+    // let g = c.matmul(&e)?;
     // let f = g.relu()?;
     // let shape = a.shape();
     // let alpha = 1.673263242354358;
@@ -37,7 +37,7 @@ fuse_proc_macro!(
     //     continue;
     // }
     
-    Ok(atan)
+    Ok(e)
 });
 
 

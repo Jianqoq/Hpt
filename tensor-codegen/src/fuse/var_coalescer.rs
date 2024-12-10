@@ -18,7 +18,7 @@ impl<'ast> VarCoalescer<'ast> {
             self.current_block = node;
             let block = &mut self.cfg.graph[node];
             let mut rhs = syn::Expr::Verbatim(quote::quote! {});
-            let mut lhs = syn::Ident::new("_____________a", proc_macro2::Span::call_site());
+            let mut lhs = syn::Ident::new("_____________", proc_macro2::Span::call_site());
             let mut to_remove = Vec::new();
             for (idx, stmt) in block.statements.iter_mut().enumerate() {
                 match &mut stmt.stmt {
@@ -31,7 +31,9 @@ impl<'ast> VarCoalescer<'ast> {
                                             if ident == &lhs {
                                                 *expr_try.expr = rhs.clone();
                                                 to_remove.push(idx - 1);
-                                                block.defined_vars.remove(&lhs);
+                                                block.defined_vars.remove(&block.origin_var_map[&lhs]);
+                                                block.used_vars.remove(&block.origin_var_map[&lhs]);
+                                                block.origin_var_map.remove(&lhs);
                                             }
                                         }
                                     }
@@ -41,7 +43,9 @@ impl<'ast> VarCoalescer<'ast> {
                                         if ident == &lhs {
                                             *init.expr = rhs.clone();
                                             to_remove.push(idx - 1);
-                                            block.defined_vars.remove(&lhs);
+                                            block.defined_vars.remove(&block.origin_var_map[&lhs]);
+                                            block.used_vars.remove(&block.origin_var_map[&lhs]);
+                                            block.origin_var_map.remove(&lhs);
                                         }
                                     }
                                 }
@@ -51,7 +55,9 @@ impl<'ast> VarCoalescer<'ast> {
                                             if ident == &lhs {
                                                 *reference.expr = rhs.clone();
                                                 to_remove.push(idx - 1);
-                                                block.defined_vars.remove(&lhs);
+                                                block.defined_vars.remove(&block.origin_var_map[&lhs]);
+                                                block.used_vars.remove(&block.origin_var_map[&lhs]);
+                                                block.origin_var_map.remove(&lhs);
                                             }
                                         }
                                     }
@@ -73,7 +79,9 @@ impl<'ast> VarCoalescer<'ast> {
                                 if ident == &lhs {
                                     *expr = rhs.clone();
                                     to_remove.push(idx - 1);
-                                    block.defined_vars.remove(&lhs);
+                                    block.defined_vars.remove(&block.origin_var_map[&lhs]);
+                                    block.used_vars.remove(&block.origin_var_map[&lhs]);
+                                    block.origin_var_map.remove(&lhs);
                                 }
                             }
                         }

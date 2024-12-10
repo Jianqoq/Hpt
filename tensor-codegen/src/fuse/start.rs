@@ -29,7 +29,7 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
         }
         return Err(errs.into());
     }
-    // println!("graph: {:#?}", cfg.graph);
+    println!("cfg: {:#?}", cfg.graph);
     let mut type_table = TyInfer::new();
     type_table.infer(&cfg)?;
     cfg.live_analysis(&type_table.table);
@@ -56,10 +56,9 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
         if graph.nodes.is_empty() {
             continue;
         }
-        // let petgraph = graph.to_petgraph();
         let cmp_pet_graph = graph.to_cmp_pet_graph();
+        println!("cmp_pet_graph: {:#?}", cmp_pet_graph);
         if cmp_pet_graph.node_count() > 0 && !petgraph::algo::is_cyclic_directed(&cmp_pet_graph) {
-            // println!("petgraph: {:#?}", petgraph);
             let mut fusion_group = crate::fuse::fuse::cmp_fuse(&cfg, &cmp_pet_graph);
             let mask = fusion_group.groups
                 .iter()

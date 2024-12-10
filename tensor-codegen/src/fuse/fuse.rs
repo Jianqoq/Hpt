@@ -85,13 +85,7 @@ pub(crate) fn cmp_fuse<'ast>(
         block.insert(idx);
         if !basic_block.live_out.contains(&node.ident) {
             for output in unfused.neighbors_directed(idx, petgraph::Direction::Outgoing) {
-                cmp_fuse_children(
-                    output,
-                    node.kernel_type,
-                    &mut block,
-                    &unfused,
-                    basic_block,
-                );
+                cmp_fuse_children(output, node.kernel_type, &mut block, &unfused, basic_block);
             }
         }
 
@@ -135,7 +129,7 @@ pub fn cmp_fuse_parents(
     next_kernel_type: KernelType,
     block: &mut HashSet<NodeIndex>,
     unfused: &petgraph::stable_graph::StableGraph<CmpNode, ()>,
-    basic_block: &crate::fuse::cfg::BasicBlock,
+    basic_block: &crate::fuse::cfg::BasicBlock
 ) {
     let node = &unfused
         .node_weight(pred)
@@ -161,12 +155,11 @@ pub fn cmp_fuse_children(
     prev_kernel_type: KernelType,
     block: &mut HashSet<NodeIndex>,
     unfused: &petgraph::stable_graph::StableGraph<CmpNode, ()>,
-    basic_block: &crate::fuse::cfg::BasicBlock,
+    basic_block: &crate::fuse::cfg::BasicBlock
 ) {
     let node = &unfused
         .node_weight(succ)
         .expect(format!("node weight not found {:?}, ", succ).as_str());
-    block.insert(succ);
     match
         cmp_suc_kernel_fusable(
             prev_kernel_type,
@@ -174,6 +167,7 @@ pub fn cmp_fuse_children(
         )
     {
         Ok(Some(kernel_type)) => {
+            block.insert(succ);
             if !basic_block.live_out.contains(&node.ident) {
                 for output in unfused.neighbors_directed(succ, petgraph::Direction::Outgoing) {
                     cmp_fuse_children(output, kernel_type, block, unfused, basic_block);

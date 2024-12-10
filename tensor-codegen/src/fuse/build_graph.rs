@@ -147,7 +147,7 @@ impl Graph {
             let data = match node {
                 (Node::Unary(unary), stmt_idx, block_idx) => {
                     CmpNode {
-                        kernel_type: KernelType::Unary,
+                        kernel_type: unary.kernel_type,
                         args: vec![node_index_map[&unary.operand]],
                         args_ident: vec![unary.operand.clone()],
                         outputs: vec![],
@@ -161,7 +161,7 @@ impl Graph {
                 }
                 (Node::Binary(binary), stmt_idx, block_idx) => {
                     CmpNode {
-                        kernel_type: KernelType::Binary,
+                        kernel_type: binary.kernel_type,
                         args: vec![node_index_map[&binary.left], node_index_map[&binary.right]],
                         args_ident: vec![binary.left.clone(), binary.right.clone()],
                         outputs: vec![],
@@ -793,9 +793,6 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
         self.variables.extend(collector.vars);
     }
     fn visit_local(&mut self, local: &'ast syn::Local) {
-        for it in &local.attrs {
-            self.visit_attribute(it);
-        }
         match &local.pat {
             syn::Pat::Ident(pat_ident) => {
                 self.visit_pat_ident(pat_ident);
