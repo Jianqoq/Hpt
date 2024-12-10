@@ -1,6 +1,6 @@
 use std::{ collections::{ HashMap, HashSet }, rc::Rc };
 
-use petgraph::prelude::StableGraph;
+use petgraph::{ graph::NodeIndex, prelude::StableGraph };
 use quote::ToTokens;
 use syn::spanned::Spanned;
 
@@ -12,6 +12,15 @@ use super::{
     ty_infer::Type,
     variable_collector::VariableCollector,
 };
+
+pub(crate) struct CmpNode {
+    pub(crate) kernel_type: KernelType,
+    pub(crate) args: Vec<NodeIndex>,
+    pub(crate) outputs: Vec<NodeIndex>,
+    pub(crate) stmt_idx: i64,
+    pub(crate) block_idx: usize,
+    pub(crate) id: NodeIndex,
+}
 
 pub(crate) struct Graph {
     pub(crate) nodes: Vec<(Node, i64, usize)>,
@@ -38,6 +47,123 @@ impl Graph {
             extra_temps: vec![],
             errors: vec![],
         }
+    }
+
+    pub(crate) fn to_cmp_pet_graph(&self) -> StableGraph<CmpNode, ()> {
+        let mut graph: StableGraph<&syn::Ident, ()> = StableGraph::new();
+        let mut node_index_map = HashMap::new();
+        for node in &self.nodes {
+            let data = match node {
+                (Node::Unary(unary), _, _) => { &unary.output }
+                (Node::Binary(binary), _, _) => { &binary.output }
+                (Node::Input(input), _, _) => { input }
+            };
+            let index = graph.add_node(data);
+            node_index_map.insert(data, index);
+        }
+        for node in &self.nodes {
+            match node {
+                (Node::Unary(unary), _, _) => {
+                    if !node_index_map.contains_key(&unary.operand) {
+                        let index = graph.add_node(&unary.operand);
+                        node_index_map.insert(&unary.operand, index);
+                    }
+                }
+                (Node::Binary(binary), _, _) => {
+                    if !node_index_map.contains_key(&binary.left) {
+                        let index = graph.add_node(&binary.left);
+                        node_index_map.insert(&binary.left, index);
+                    }
+                    if !node_index_map.contains_key(&binary.right) {
+                        let index = graph.add_node(&binary.right);
+                        node_index_map.insert(&binary.right, index);
+                    }
+                }
+                _ => {}
+            }
+        }
+        drop(graph);
+        let mut graph: StableGraph<CmpNode, ()> = StableGraph::new();
+        let mut added_nodes = HashSet::new();
+        for node in &self.nodes {
+            let data = match node {
+                (Node::Unary(unary), stmt_idx, block_idx) => {
+                    CmpNode {
+                        kernel_type: KernelType::Unary,
+                        args: vec![node_index_map[&unary.operand]],
+                        outputs: vec![],
+                        stmt_idx: *stmt_idx,
+                        block_idx: *block_idx,
+                        id: node_index_map[&unary.output],
+                    }
+                }
+                (Node::Binary(binary), stmt_idx, block_idx) => {
+                    CmpNode {
+                        kernel_type: KernelType::Binary,
+                        args: vec![node_index_map[&binary.left], node_index_map[&binary.right]],
+                        outputs: vec![],
+                        stmt_idx: *stmt_idx,
+                        block_idx: *block_idx,
+                        id: node_index_map[&binary.output],
+                    }
+                }
+                (Node::Input(input), stmt_idx, block_idx) => {
+                    CmpNode {
+                        kernel_type: KernelType::Unary,
+                        args: vec![],
+                        outputs: vec![],
+                        stmt_idx: *stmt_idx,
+                        block_idx: *block_idx,
+                        id: node_index_map[input],
+                    }
+                }
+            };
+            let idx = graph.add_node(data);
+            added_nodes.insert(idx);
+        }
+        for node in &self.nodes {
+            match node {
+                (Node::Unary(unary), stmt_idx, block_idx) => {
+                    if !added_nodes.contains(&node_index_map[&unary.operand]) {
+                        let index = graph.add_node(CmpNode {
+                            kernel_type: KernelType::Unary,
+                            args: vec![],
+                            outputs: vec![],
+                            stmt_idx: *stmt_idx,
+                            block_idx: *block_idx,
+                            id: node_index_map[&unary.operand],
+                        });
+                        added_nodes.insert(index);
+                    }
+                }
+                (Node::Binary(binary), stmt_idx, block_idx) => {
+                    if !added_nodes.contains(&node_index_map[&binary.left]) {
+                        let index = graph.add_node(CmpNode {
+                            kernel_type: KernelType::Unary,
+                            args: vec![],
+                            outputs: vec![],
+                            stmt_idx: *stmt_idx,
+                            block_idx: *block_idx,
+                            id: node_index_map[&binary.left],
+                        });
+                        added_nodes.insert(index);
+                    }
+                    if !added_nodes.contains(&node_index_map[&binary.right]) {
+                        let index = graph.add_node(CmpNode {
+                            kernel_type: KernelType::Unary,
+                            args: vec![],
+                            outputs: vec![],
+                            stmt_idx: *stmt_idx,
+                            block_idx: *block_idx,
+                            id: node_index_map[&binary.right],
+                        });
+                        added_nodes.insert(index);
+                    }
+                }
+                _ => {}
+            }
+        }
+        todo!()
     }
 
     pub(crate) fn to_petgraph(&self) -> StableGraph<&(Node, i64, usize), ()> {
