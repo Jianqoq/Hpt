@@ -243,6 +243,7 @@ pub(crate) const REGNUM: usize = 32;
 #[cfg(target_feature = "avx2")]
 type BoolVector = tensor_types::std_simd::_256bit::boolx32::boolx32;
 #[cfg(any(target_feature = "avx512f"))]
+#[cfg(feature = "stdsimd")]
 type BoolVector = tensor_types::std_simd::_512bit::boolx64::boolx64;
 #[cfg(
     any(
@@ -252,7 +253,8 @@ type BoolVector = tensor_types::std_simd::_512bit::boolx64::boolx64;
         target_feature = "neon"
     )
 )]
-type BoolVector = tensor_types::_128bit::boolx16::boolx16;
+#[cfg(feature = "stdsimd")]
+type BoolVector = tensor_types::vectors::std_simd::_128bit::boolx16::boolx16;
 
 #[cfg(target_feature = "avx2")]
 const SIMD_WIDTH: usize = 256;

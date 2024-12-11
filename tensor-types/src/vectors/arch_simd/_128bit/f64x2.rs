@@ -1,108 +1,90 @@
-use std::{ ops::{ Deref, DerefMut, Index, IndexMut }, simd::StdFloat };
+use crate::traits::{ Init, VecTrait };
 
-use crate::traits::{ Init, VecCommon, VecTrait };
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
 
 /// a vector of 2 f64 values
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq, Debug)]
-pub struct f64x2(pub(crate) std::simd::f64x2);
+#[derive(Clone, Copy, Debug)]
+#[repr(C, align(16))]
+pub struct f64x2(pub(crate) __m128d);
 
-impl Deref for f64x2 {
-    type Target = std::simd::f64x2;
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl PartialEq for f64x2 {
+    fn eq(&self, other: &Self) -> bool {
+        unsafe {
+            let cmp = _mm_cmpeq_pd(self.0, other.0);
+            _mm_movemask_pd(cmp) == -1
+        }
     }
 }
-impl DerefMut for f64x2 {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+
+impl Default for f64x2 {
+    fn default() -> Self {
+        unsafe { f64x2(_mm_setzero_pd()) }
     }
 }
+
 impl VecTrait<f64> for f64x2 {
+    const SIZE: usize = 2;
+    type Base = f64;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[f64]) {
-        self.as_mut_array().copy_from_slice(slice);
-    }
-    #[inline(always)]
-    fn as_ptr(&self) -> *const f64 {
-        self.as_array().as_ptr()
+        unsafe {
+            _mm_storeu_pd(&mut self.0 as *mut _ as *mut f64, _mm_loadu_pd(slice.as_ptr()));
+        }
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
-        Self(self.0.mul_add(a.0, b.0))
-    }
-    #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut f64 {
-        self.as_mut_array().as_mut_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut f64 {
-        self.as_array().as_ptr() as *mut _
+        unsafe { f64x2(_mm_fmadd_pd(self.0, a.0, b.0)) }
     }
     #[inline(always)]
     fn sum(&self) -> f64 {
-        self.as_array().iter().sum()
+        unsafe { _mm_cvtsd_f64(_mm_hadd_pd(self.0, self.0)) }
     }
-
-    fn extract(self, idx: usize) -> f64 {
-        self.as_array()[idx]
-    }
-}
-impl VecCommon for f64x2 {
-    const SIZE: usize = 2;
-    
-    type Base = f64;
 }
 impl Init<f64> for f64x2 {
     fn splat(val: f64) -> f64x2 {
-        f64x2(std::simd::f64x2::splat(val))
-    }
-}
-impl Index<usize> for f64x2 {
-    type Output = f64;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.as_array()[index]
-    }
-}
-impl IndexMut<usize> for f64x2 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.as_mut_array()[index]
+        unsafe { f64x2(_mm_set1_pd(val)) }
     }
 }
 impl std::ops::Add for f64x2 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
-        f64x2(self.0 + rhs.0)
+        unsafe { f64x2(_mm_add_pd(self.0, rhs.0)) }
     }
 }
 impl std::ops::Sub for f64x2 {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self {
-        f64x2(self.0 - rhs.0)
+        unsafe { f64x2(_mm_sub_pd(self.0, rhs.0)) }
     }
 }
 impl std::ops::Mul for f64x2 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self {
-        f64x2(self.0 * rhs.0)
+        unsafe { f64x2(_mm_mul_pd(self.0, rhs.0)) }
     }
 }
 impl std::ops::Div for f64x2 {
     type Output = Self;
     fn div(self, rhs: Self) -> Self {
-        f64x2(self.0 / rhs.0)
+        unsafe { f64x2(_mm_div_pd(self.0, rhs.0)) }
     }
 }
 impl std::ops::Rem for f64x2 {
     type Output = Self;
     fn rem(self, rhs: Self) -> Self {
-        f64x2(self.0 % rhs.0)
+        unsafe {
+            let x: [f64; 2] = std::mem::transmute(self.0);
+            let y: [f64; 2] = std::mem::transmute(rhs.0);
+            let result = [x[0] % y[0], x[1] % y[1]];
+            f64x2(_mm_loadu_pd(result.as_ptr()))
+        }
     }
 }
 impl std::ops::Neg for f64x2 {
     type Output = Self;
     fn neg(self) -> Self {
-        f64x2(-self.0)
+        unsafe { f64x2(_mm_xor_pd(_mm_setzero_pd(), self.0)) }
     }
 }

@@ -1,10 +1,11 @@
-use std::ops::{ Deref, DerefMut, Index, IndexMut };
+use std::ops::{ Deref, DerefMut };
 
-use crate::traits::{Init, VecCommon, VecTrait};
+use crate::traits::{Init, VecTrait};
 
 /// a vector of 2 isize values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(transparent)]
 pub struct isizex2(pub(crate) std::simd::isizex2);
 
 impl Deref for isizex2 {
@@ -22,59 +23,27 @@ impl DerefMut for isizex2 {
 }
 
 impl VecTrait<isize> for isizex2 {
+    const SIZE: usize = 2;
+    type Base = isize;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[isize]) {
         self.as_mut_array().copy_from_slice(unsafe { std::mem::transmute(slice) });
-    }
-    #[inline(always)]
-    fn as_ptr(&self) -> *const isize {
-        self.as_array().as_ptr() as *const _
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         Self(self.0 * a.0 + b.0)
     }
     #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut isize {
-        self.as_mut_array().as_mut_ptr() as *mut _
-    }
-    #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut isize {
-        self.as_array().as_ptr() as *mut _
-    }
-    #[inline(always)]
     fn sum(&self) -> isize {
         let ret = self.as_array().iter().sum::<isize>();
         ret
     }
-    
-    fn extract(self, idx: usize) -> isize {
-        self.as_array()[idx]
-    }
-}
-
-impl VecCommon for isizex2 {
-    const SIZE: usize = 4;
-    
-    type Base = isize;
 }
 
 impl Init<isize> for isizex2 {
     fn splat(val: isize) -> isizex2 {
         let ret = isizex2(std::simd::isizex2::splat(val));
         ret
-    }
-}
-impl Index<usize> for isizex2 {
-    type Output = isize;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-impl IndexMut<usize> for isizex2 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
     }
 }
 impl std::ops::Add for isizex2 {
