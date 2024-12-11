@@ -51,7 +51,6 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
             continue;
         }
         let cmp_pet_graph = graph.to_cmp_pet_graph();
-        // println!("cmp_pet_graph: {:#?}", cmp_pet_graph);
         if cmp_pet_graph.node_count() > 0 && !petgraph::algo::is_cyclic_directed(&cmp_pet_graph) {
             let mut fusion_group = crate::fuse::fuse::cmp_fuse(&cfg, &cmp_pet_graph);
             let mask = fusion_group.groups
@@ -128,7 +127,6 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
                     }
                 }
             }
-            // println!("fusion_group: {:#?}", fusion_group);
             let genfuse = crate::fuse::gen_fuse::cmp_gen_fuse(
                 &mut cfg,
                 &cmp_pet_graph,

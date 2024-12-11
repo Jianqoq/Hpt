@@ -3,15 +3,15 @@ use std::io::Write;
 use tensor_dyn::*;
 
 fuse_proc_macro!(
-    fn compute(a: Tensor<f32>, b: Tensor<f32>) -> anyhow::Result<Tensor<f32>>
+    fn compute(a: Tensor<f32>, mut b: Tensor<f32>) -> anyhow::Result<Tensor<f32>>
 {
-    let c = a.sin()?;
-    let cos = c.cos()?;
-    let tanh = cos.tanh()?;
-    let add = tanh + 10f32;
-    // let e = add.add(&c)?;
+    // let mut c = a.sin()?;
+    // let mut d = c.cos()?;
+    // let tanh = cos.tanh()?;
+    // let add = tanh + 10f32;
+    // let e = add / &c;
     // let g = c.matmul(&e)?;
-    // let d = g.relu()?;
+    // let mut d = g.relu()?;
     // let shape = a.shape();
     // let alpha = 1.673263242354358;
     // let gamma = 1.050700987355822;
@@ -29,13 +29,14 @@ fuse_proc_macro!(
     //     c = &d + &c;
     //     break;
     // }
-    // while true {
-    //     let c = &d + &c;
-    //     c.sin()?;
-    //     continue;
-    // }
+    while true {
+        b = &a + &b;
+        let e = b.sin()?;
+        let f = e.cos()?;
+        continue;
+    }
     
-    Ok(add)
+    Ok(a)
 });
 
 fn main() -> anyhow::Result<()> {
