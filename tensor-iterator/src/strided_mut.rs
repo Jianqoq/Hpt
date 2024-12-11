@@ -17,7 +17,7 @@ pub mod simd_imports {
     use tensor_common::shape::Shape;
     use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
-    use tensor_types::vectors::traits::VecCommon;
+    use tensor_types::vectors::traits::VecTrait;
 
     /// A SIMD-optimized mutable strided iterator over tensor elements.
     ///

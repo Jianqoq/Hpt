@@ -213,6 +213,7 @@ impl<T> _Tensor<T> where T: CommonBounds {
                             }
                         });
                     }
+                    pool.join();
                 });
                 Ok(res)
             }

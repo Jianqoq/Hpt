@@ -4,7 +4,7 @@ use crate::{
     convertion::VecConvertor,
     into_vec::IntoVec,
     type_promote::{ BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary },
-    vectors::traits::{ Init, VecCommon, VecTrait },
+    vectors::traits::{ Init, VecTrait },
 };
 use core::f32;
 use half::{ bf16, f16 };
@@ -124,7 +124,7 @@ impl Dtype {
 /// common trait for all data types
 ///
 /// This trait is used to define the common properties of all data types
-pub trait TypeCommon where Self: Sized {
+pub trait TypeCommon where Self: Sized + Copy {
     /// the data type id
     const ID: Dtype;
     /// the maximum value of the data type
@@ -150,7 +150,6 @@ pub trait TypeCommon where Self: Sized {
     /// the simd vector type of the data type
     type Vec: VecTrait<Self> +
         Init<Self> +
-        VecCommon +
         Send +
         Copy +
         IntoVec<Self::Vec> +
@@ -218,7 +217,8 @@ macro_rules! impl_type_common {
 #[cfg(target_feature = "avx2")]
 mod type_impl {
     use super::{ Dtype, TypeCommon };
-    use crate::vectors::_256bit::*;
+    #[cfg(feature = "stdsimd")]
+    use crate::vectors::std_simd::_256bit::*;
     use half::*;
     use num_complex::{ Complex32, Complex64 };
     impl_type_common!(

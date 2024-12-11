@@ -9,9 +9,11 @@ use tensor_types::{
 };
 
 #[cfg(target_feature = "avx2")]
-type BoolVector = tensor_types::_256bit::boolx32::boolx32;
+#[cfg(feature = "stdsimd")]
+type BoolVector = tensor_types::std_simd::_256bit::boolx32::boolx32;
 #[cfg(target_feature = "avx512f")]
-type BoolVector = tensor_types::_512bit::boolx64::boolx64;
+#[cfg(feature = "stdsimd")]
+type BoolVector = tensor_types::std_simd::_512bit::boolx64::boolx64;
 #[cfg(
     any(
         all(not(target_feature = "avx2"), target_feature = "sse"),

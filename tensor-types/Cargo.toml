@@ -13,4 +13,6 @@ sleef = "0.3.2"
 
 [features]
 f16c = []
-default = ["f16c"]
+stdsimd = []
+archsimd = []
+default = ["f16c", "stdsimd", "archsimd"]

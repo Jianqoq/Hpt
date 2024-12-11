@@ -8,11 +8,14 @@ use crate::dtype::TypeCommon;
         not(target_feature = "avx2")
     )
 )]
-use crate::vectors::_128bit::*;
+#[cfg(feature = "stdsimd")]
+use crate::vectors::std_simd::_128bit::*;
 #[cfg(target_feature = "avx2")]
-use crate::vectors::_256bit::*;
+#[cfg(feature = "stdsimd")]
+use crate::vectors::std_simd::_256bit::*;
 #[cfg(target_feature = "avx512f")]
-use crate::vectors::_512bit::*;
+#[cfg(feature = "stdsimd")]
+use crate::vectors::std_simd::_512bit::*;
 use crate::vectors::traits::Init;
 use crate::vectors::traits::SimdCompare;
 use half::bf16;
