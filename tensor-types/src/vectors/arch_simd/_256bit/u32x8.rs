@@ -1,6 +1,4 @@
-use std::ops::{ Index, IndexMut };
-
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::vectors::traits::VecTrait;
 use std::arch::x86_64::*;
 
 /// a vector of 8 u32 values
@@ -24,7 +22,7 @@ impl Default for u32x8 {
     }
 }
 
-impl VecTrait<u32> for u32x8 {  
+impl VecTrait<u32> for u32x8 {
     const SIZE: usize = 8;
     type Base = u32;
     #[inline(always)]
@@ -42,27 +40,11 @@ impl VecTrait<u32> for u32x8 {
             array.iter().sum()
         }
     }
-}
-
-impl Init<u32> for u32x8 {
     fn splat(val: u32) -> u32x8 {
         u32x8(unsafe { _mm256_set1_epi32(val as i32) })
     }
 }
-impl Index<usize> for u32x8 {
-    type Output = u32;
 
-    fn index(&self, index: usize) -> &Self::Output {
-        assert!(index < 8, "Index out of bounds for f32x8");
-        unsafe { &*self.as_ptr().add(index) }
-    }
-}
-impl IndexMut<usize> for u32x8 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        assert!(index < 8, "Index out of bounds for f32x8");
-        unsafe { &mut *self.as_mut_ptr().add(index) }
-    }
-}
 impl std::ops::Add for u32x8 {
     type Output = Self;
 

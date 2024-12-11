@@ -1,6 +1,6 @@
-use std::ops::{ Deref, DerefMut, Index, IndexMut };
+use std::ops::{ Deref, DerefMut };
 use std::simd::num::SimdFloat;
-use crate::vectors::traits::{ Init, SimdSelect, VecTrait };
+use crate::vectors::traits::{ SimdSelect, VecTrait };
 use std::simd::StdFloat;
 
 /// a vector of 8 f32 values
@@ -35,23 +35,8 @@ impl VecTrait<f32> for f32x8 {
     fn sum(&self) -> f32 {
         self.reduce_sum()
     }
-}
-
-impl Init<f32> for f32x8 {
     fn splat(val: f32) -> f32x8 {
         f32x8(std::simd::f32x8::splat(val))
-    }
-}
-impl Index<usize> for f32x8 {
-    type Output = f32;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-impl IndexMut<usize> for f32x8 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
     }
 }
 

@@ -16,7 +16,6 @@ use crate::vectors::std_simd::_256bit::*;
 #[cfg(target_feature = "avx512f")]
 #[cfg(feature = "stdsimd")]
 use crate::vectors::std_simd::_512bit::*;
-use crate::vectors::traits::Init;
 use crate::vectors::traits::SimdCompare;
 use half::bf16;
 use half::f16;
@@ -35,6 +34,7 @@ use std::simd::num::SimdFloat;
 use std::simd::num::SimdInt;
 use std::simd::num::SimdUint;
 use std::simd::Simd;
+use crate::vectors::traits::VecTrait;
 use tensor_macros::float_out_unary;
 use tensor_macros::impl_normal_out_binary;
 use tensor_macros::impl_normal_out_simd;

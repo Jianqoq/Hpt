@@ -20,9 +20,7 @@ pub trait VecTrait<T: Copy> {
     }
     /// convert self to a mutable pointer without check
     fn as_mut_ptr_uncheck(&self) -> *mut T {
-        unsafe {
-            std::mem::transmute(self.as_ptr())
-        }
+        unsafe { std::mem::transmute(self.as_ptr()) }
     }
     /// extract a value from vector
     fn extract(&self, idx: usize) -> T {
@@ -42,10 +40,6 @@ pub trait VecTrait<T: Copy> {
         let ptr = self.as_ptr() as *const T::Vec;
         unsafe { ptr.read_unaligned() }
     }
-}
-
-/// a trait for vector initialization
-pub trait Init<T> {
     /// create a vector with all elements set to the val
     fn splat(val: T) -> Self;
     /// load data to vector from pointer
@@ -59,6 +53,7 @@ pub trait Init<T> {
         unsafe { ptr.read_unaligned() }
     }
 }
+
 /// a trait to select value from two vectors
 pub trait SimdSelect<T> {
     /// select value based on mask
@@ -81,4 +76,14 @@ pub trait SimdCompare {
     fn simd_gt(self, other: Self) -> Self::SimdMask;
     /// compare two vectors to check if is greater than or equal and return a mask
     fn simd_ge(self, other: Self) -> Self::SimdMask;
+}
+
+/// A trait for vector math operations
+pub trait SimdMath: Copy {
+    /// compute the sine of the vector
+    fn sin(self) -> Self {
+        let (u, s, t) = (self, self, self);
+
+        todo!()
+    }
 }

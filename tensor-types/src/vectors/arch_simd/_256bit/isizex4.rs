@@ -1,6 +1,4 @@
-use std::ops::{ Index, IndexMut };
-
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::vectors::traits::VecTrait;
 use std::arch::x86_64::*;
 
 /// a vector of 4 isize values
@@ -69,9 +67,6 @@ impl VecTrait<isize> for isizex4 {
             array.iter().sum()
         }
     }
-}
-
-impl Init<isize> for isizex4 {
     fn splat(val: isize) -> isizex4 {
         #[cfg(target_pointer_width = "64")]
         return isizex4(unsafe { _mm256_set1_epi64x(val as i64) });
@@ -80,19 +75,6 @@ impl Init<isize> for isizex4 {
     }
 }
 
-impl Index<usize> for isizex4 {
-    type Output = isize;
-    fn index(&self, index: usize) -> &Self::Output {
-        assert!(index < 4, "Index out of bounds for f32x8");
-        unsafe { &*self.as_ptr().add(index) }
-    }
-}
-impl IndexMut<usize> for isizex4 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        assert!(index < 4, "Index out of bounds for f32x8");
-        unsafe { &mut *self.as_mut_ptr().add(index) }
-    }
-}
 impl std::ops::Add for isizex4 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {

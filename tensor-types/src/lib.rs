@@ -266,6 +266,14 @@ pub mod vectors {
             /// A module defines a set of 512-bit vector types for usize
             pub mod usizex8;
         }
+
+        /// A module defines a set of vector types for sleef
+        pub mod sleef {
+            /// A module defines a macro for polynomial approximation
+            pub mod estrin;
+            /// A module defines a set of vector types for math operations
+            pub mod math;
+        }
     }
     /// A module defines a set of traits for vector
     pub mod traits;

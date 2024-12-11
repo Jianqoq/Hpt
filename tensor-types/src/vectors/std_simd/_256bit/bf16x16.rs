@@ -1,11 +1,8 @@
-use std::{
-    ops::{ Index, IndexMut },
-    simd::{ cmp::{ SimdPartialEq, SimdPartialOrd }, num::{ SimdFloat, SimdUint }, Simd },
-};
+use std::simd::{ cmp::{ SimdPartialEq, SimdPartialOrd }, num::{ SimdFloat, SimdUint }, Simd };
 
 use crate::vectors::std_simd::_256bit::f32x8::f32x8;
 use crate::vectors::std_simd::_256bit::u16x16::u16x16;
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::vectors::traits::VecTrait;
 use crate::traits::SimdCompare;
 
 /// a vector of 16 bf16 values
@@ -34,9 +31,6 @@ impl VecTrait<half::bf16> for bf16x16 {
     fn sum(&self) -> half::bf16 {
         self.0.iter().sum()
     }
-}
-
-impl Init<half::bf16> for bf16x16 {
     fn splat(val: half::bf16) -> bf16x16 {
         bf16x16([val; 16])
     }
@@ -48,19 +42,6 @@ impl Init<half::bf16> for bf16x16 {
             size_of::<Self>()
         );
         bf16x16(dst)
-    }
-}
-impl Index<usize> for bf16x16 {
-    type Output = half::bf16;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-
-impl IndexMut<usize> for bf16x16 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
     }
 }
 

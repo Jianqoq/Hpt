@@ -1,6 +1,6 @@
-use std::ops::{ Deref, DerefMut, Index, IndexMut };
+use std::ops::{ Deref, DerefMut };
 
-use crate::{traits::SimdSelect, vectors::traits::{ Init, VecTrait }};
+use crate::{traits::SimdSelect, vectors::traits::VecTrait};
 
 /// a vector of 4 i64 values
 #[allow(non_camel_case_types)]
@@ -34,28 +34,15 @@ impl VecTrait<i64> for i64x4 {
     fn sum(&self) -> i64 {
         self.as_array().iter().sum()
     }
+    fn splat(val: i64) -> i64x4 {
+        i64x4(std::simd::i64x4::splat(val))
+    }
 }
 
 impl SimdSelect<i64x4> for crate::vectors::std_simd::_256bit::u64x4::u64x4 {
     fn select(&self, true_val: i64x4, false_val: i64x4) -> i64x4 {
         let mask: std::simd::mask64x4 = unsafe { std::mem::transmute(*self) };
         i64x4(mask.select(true_val.0, false_val.0))
-    }
-}
-impl Init<i64> for i64x4 {
-    fn splat(val: i64) -> i64x4 {
-        i64x4(std::simd::i64x4::splat(val))
-    }
-}
-impl Index<usize> for i64x4 {
-    type Output = i64;
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.as_array()[index]
-    }
-}
-impl IndexMut<usize> for i64x4 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.as_mut_array()[index]
     }
 }
 impl std::ops::Add for i64x4 {

@@ -1,9 +1,6 @@
-use std::ops::{ Index, IndexMut };
-
 use num_complex::Complex32;
 
-
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::vectors::traits::VecTrait;
 
 /// a vector of 4 cplx32 values
 #[allow(non_camel_case_types)]
@@ -39,26 +36,11 @@ impl VecTrait<Complex32> for cplx32x4 {
     fn sum(&self) -> Complex32 {
         self.0.iter().sum()
     }
-}
-
-impl Init<Complex32> for cplx32x4 {
     fn splat(val: Complex32) -> cplx32x4 {
         cplx32x4([val; 4])
     }
 }
-impl Index<usize> for cplx32x4 {
-    type Output = Complex32;
 
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-
-impl IndexMut<usize> for cplx32x4 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
-    }
-}
 impl std::ops::Add for cplx32x4 {
     type Output = Self;
 

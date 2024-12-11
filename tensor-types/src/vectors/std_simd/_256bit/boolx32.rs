@@ -1,9 +1,8 @@
-use std::ops::{Index, IndexMut};
 use std::simd::cmp::SimdPartialOrd;
-use std::simd::{cmp::SimdPartialEq, Simd};
+use std::simd::{ cmp::SimdPartialEq, Simd };
 
 use crate::traits::SimdCompare;
-use crate::vectors::traits::{Init, VecTrait};
+use crate::vectors::traits::VecTrait;
 
 /// a vector of 32 bool values
 #[allow(non_camel_case_types)]
@@ -24,27 +23,13 @@ impl VecTrait<bool> for boolx32 {
     }
     #[inline(always)]
     fn sum(&self) -> bool {
-        self.0.iter().map(|&x| x as u8).sum::<u8>() > 0
+        self.0
+            .iter()
+            .map(|&x| x as u8)
+            .sum::<u8>() > 0
     }
-}
-
-impl Init<bool> for boolx32 {
     fn splat(val: bool) -> boolx32 {
         boolx32([val; 32])
-    }
-}
-
-impl Index<usize> for boolx32 {
-    type Output = bool;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-
-impl IndexMut<usize> for boolx32 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
     }
 }
 

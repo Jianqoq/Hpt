@@ -1,6 +1,4 @@
-use std::ops::{ Index, IndexMut };
-
-use crate::{ traits::SimdSelect, vectors::traits::{ Init, VecTrait } };
+use crate::{ traits::SimdSelect, vectors::traits::VecTrait };
 use std::arch::x86_64::*;
 
 /// a vector of 4 i64 values
@@ -51,6 +49,9 @@ impl VecTrait<i64> for i64x4 {
             x.iter().sum()
         }
     }
+    fn splat(val: i64) -> i64x4 {
+        i64x4(unsafe { _mm256_set1_epi64x(val) })
+    }
 }
 
 impl SimdSelect<i64x4> for crate::vectors::arch_simd::_256bit::u64x4::u64x4 {
@@ -70,22 +71,6 @@ impl SimdSelect<i64x4> for crate::vectors::arch_simd::_256bit::u64x4::u64x4 {
     }
 }
 
-impl Init<i64> for i64x4 {
-    fn splat(val: i64) -> i64x4 {
-        i64x4(unsafe { _mm256_set1_epi64x(val) })
-    }
-}
-impl Index<usize> for i64x4 {
-    type Output = i64;
-    fn index(&self, index: usize) -> &Self::Output {
-        unsafe { &*self.as_ptr().add(index) }
-    }
-}
-impl IndexMut<usize> for i64x4 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        unsafe { &mut *self.as_mut_ptr().add(index) }
-    }
-}
 impl std::ops::Add for i64x4 {
     type Output = i64x4;
     fn add(self, rhs: Self) -> Self::Output {

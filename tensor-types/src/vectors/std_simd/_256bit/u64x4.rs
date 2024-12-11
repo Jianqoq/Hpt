@@ -1,6 +1,6 @@
-use std::ops::{ Deref, DerefMut, Index, IndexMut };
+use std::ops::{ Deref, DerefMut };
 
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::vectors::traits::VecTrait;
 
 /// a vector of 4 u64 values
 #[allow(non_camel_case_types)]
@@ -34,24 +34,11 @@ impl VecTrait<u64> for u64x4 {
     fn sum(&self) -> u64 {
         self.as_array().iter().sum()
     }
-}
-
-impl Init<u64> for u64x4 {
     fn splat(val: u64) -> u64x4 {
         u64x4(std::simd::u64x4::splat(val))
     }
 }
-impl Index<usize> for u64x4 {
-    type Output = u64;
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.as_array()[index]
-    }
-}
-impl IndexMut<usize> for u64x4 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.as_mut_array()[index]
-    }
-}
+
 impl std::ops::Add for u64x4 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {

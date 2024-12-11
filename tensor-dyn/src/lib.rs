@@ -177,7 +177,6 @@ pub use rayon::prelude::*;
 pub use tensor_types::dtype::TypeCommon;
 pub use tensor_types::traits::VecTrait;
 pub use crate::backend::*;
-pub use tensor_types::traits::Init;
 
 use std::{ cell::RefCell, sync::atomic::AtomicUsize };
 thread_local! {

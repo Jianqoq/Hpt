@@ -1,6 +1,4 @@
-use std::ops::{ Index, IndexMut };
-
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::vectors::traits::VecTrait;
 use std::arch::x86_64::*;
 /// a vector of 32 u8 values
 #[allow(non_camel_case_types)]
@@ -50,26 +48,11 @@ impl VecTrait<u8> for u8x32 {
             array.iter().sum()
         }
     }
-}
-
-impl Init<u8> for u8x32 {
     fn splat(val: u8) -> u8x32 {
         u8x32(unsafe { _mm256_set1_epi8(val as i8) })
     }
 }
-impl Index<usize> for u8x32 {
-    type Output = u8;
-    fn index(&self, idx: usize) -> &Self::Output {
-        assert!(idx < 32, "Index out of bounds for u8x32");
-        unsafe { &*self.as_ptr().add(idx) }
-    }
-}
-impl IndexMut<usize> for u8x32 {
-    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
-        assert!(idx < 32, "Index out of bounds for u8x32");
-        unsafe { &mut *self.as_mut_ptr().add(idx) }
-    }
-}
+
 impl std::ops::Add for u8x32 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {

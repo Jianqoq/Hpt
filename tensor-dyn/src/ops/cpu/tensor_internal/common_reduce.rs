@@ -8,7 +8,7 @@ use tensor_iterator::iterator_traits::ParStridedIteratorSimd;
 use tensor_iterator::TensorIterator;
 use tensor_traits::{ CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce, TensorInfo };
 use tensor_types::type_promote::NormalOutUnary;
-use tensor_types::vectors::traits::Init;
+use tensor_types::vectors::traits::VecTrait;
 use tensor_types::{
     convertion::{ Convertor, VecConvertor },
     dtype::TypeCommon,

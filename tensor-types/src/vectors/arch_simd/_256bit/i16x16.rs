@@ -1,4 +1,4 @@
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::vectors::traits::VecTrait;
 use std::arch::x86_64::*;
 /// a vector of 16 i16 values
 #[allow(non_camel_case_types)]
@@ -39,13 +39,11 @@ impl VecTrait<i16> for i16x16 {
             a.iter().sum()
         }
     }
-}
-
-impl Init<i16> for i16x16 {
     fn splat(val: i16) -> i16x16 {
         i16x16(unsafe { _mm256_set1_epi16(val) })
     }
 }
+
 impl std::ops::Add for i16x16 {
     type Output = Self;
 

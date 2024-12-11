@@ -7,7 +7,7 @@ use tensor_traits::{ CommonBounds, TensorCreator, TensorLike };
 use tensor_types::{
     dtype::{ FloatConst, TypeCommon },
     into_scalar::IntoScalar,
-    traits::{ Init, VecTrait },
+    traits::VecTrait,
     type_promote::{ FloatOutBinary, FloatOutUnary, NormalOut },
 };
 

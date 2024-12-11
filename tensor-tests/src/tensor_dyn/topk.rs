@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 use tensor_common::slice;
-use tensor_dyn::{ Tensor, TensorCreator };
+use tensor_dyn::{ set_num_threads, Tensor, TensorCreator };
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::TensorInfo;

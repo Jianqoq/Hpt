@@ -1,4 +1,4 @@
-use crate::{ traits::SimdCompare, vectors::traits::{ Init, VecTrait } };
+use crate::{ traits::SimdCompare, vectors::traits::VecTrait };
 use std::arch::x86_64::*;
 
 /// a vector of 16 u16 values
@@ -40,13 +40,11 @@ impl VecTrait<u16> for u16x16 {
             array.iter().sum()
         }
     }
-}
-
-impl Init<u16> for u16x16 {
     fn splat(val: u16) -> u16x16 {
         u16x16(unsafe { _mm256_set1_epi16(val as i16) })
     }
 }
+
 impl std::ops::Add for u16x16 {
     type Output = u16x16;
     fn add(self, rhs: Self) -> Self::Output {

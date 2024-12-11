@@ -1,4 +1,4 @@
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::vectors::traits::VecTrait;
 use std::arch::x86_64::*;
 
 /// a vector of 32 i8 values
@@ -49,13 +49,11 @@ impl VecTrait<i8> for i8x32 {
             x.iter().sum()
         }
     }
-}
-
-impl Init<i8> for i8x32 {
     fn splat(val: i8) -> i8x32 {
         unsafe { i8x32(_mm256_set1_epi8(val)) }
     }
 }
+
 impl std::ops::Add for i8x32 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {

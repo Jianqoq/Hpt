@@ -1,4 +1,4 @@
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::vectors::traits::VecTrait;
 use std::arch::x86_64::*;
 /// a vector of 4 f64 values
 #[allow(non_camel_case_types)]
@@ -34,7 +34,6 @@ impl VecTrait<f64> for f64x4 {
             _mm256_storeu_pd(self.as_mut_ptr(), _mm256_loadu_pd(slice.as_ptr()));
         }
     }
-
     #[inline(always)]
     fn sum(&self) -> f64 {
         unsafe {
@@ -45,13 +44,11 @@ impl VecTrait<f64> for f64x4 {
             _mm_cvtsd_f64(sum128)
         }
     }
-}
-
-impl Init<f64> for f64x4 {
     fn splat(val: f64) -> f64x4 {
         f64x4(unsafe { _mm256_set1_pd(val) })
     }
 }
+
 impl std::ops::Add for f64x4 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
@@ -93,3 +90,4 @@ impl std::ops::Neg for f64x4 {
         f64x4(unsafe { _mm256_sub_pd(_mm256_setzero_pd(), self.0) })
     }
 }
+

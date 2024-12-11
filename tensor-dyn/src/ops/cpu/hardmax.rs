@@ -44,7 +44,7 @@ where
         }) as usize;
         let max = self.max(axis as i64, true)?;
         let ret = {
-            use tensor_types::traits::Init;
+            use tensor_types::traits::VecTrait;
             self.par_iter_simd()
                 .zip(max.par_iter_simd())
                 .strided_map_simd(

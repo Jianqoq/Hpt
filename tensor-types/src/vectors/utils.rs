@@ -1,7 +1,5 @@
 use crate::{ dtype::TypeCommon, type_promote::NormalOut };
 use super::traits::VecTrait;
-use crate::vectors::traits::Init;
-
 /// sum a vector to a scalar
 #[inline(always)]
 pub fn vec_sum<T: TypeCommon + NormalOut<T, Output = T>>(vec: T::Vec) -> T {

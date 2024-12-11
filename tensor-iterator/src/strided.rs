@@ -35,7 +35,6 @@ pub mod strided_simd {
     };
     use tensor_traits::{ CommonBounds, TensorInfo };
     use tensor_types::dtype::TypeCommon;
-    use tensor_types::vectors::traits::Init;
     use tensor_types::vectors::traits::VecTrait;
 
     use crate::iterator_traits::{

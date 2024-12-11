@@ -1,5 +1,4 @@
-use std::ops::{ Index, IndexMut };
-use crate::vectors::traits::{ Init, SimdSelect, VecTrait };
+use crate::vectors::traits::{ SimdSelect, VecTrait };
 use std::arch::x86_64::*;
 
 /// a vector of 8 f32 values
@@ -50,7 +49,6 @@ impl VecTrait<f32> for f32x8 {
             std::mem::transmute(self.as_ptr())
         }
     }
-
     #[inline(always)]
     fn sum(&self) -> f32 {
         unsafe {
@@ -62,25 +60,8 @@ impl VecTrait<f32> for f32x8 {
             _mm_cvtss_f32(sum128)
         }
     }
-}
-
-impl Init<f32> for f32x8 {
     fn splat(val: f32) -> f32x8 {
         f32x8(unsafe { _mm256_set1_ps(val) })
-    }
-}
-impl Index<usize> for f32x8 {
-    type Output = f32;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        assert!(index < 8, "Index out of bounds for f32x8");
-        unsafe { &*self.as_ptr().add(index) }
-    }
-}
-impl IndexMut<usize> for f32x8 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        assert!(index < 8, "Index out of bounds for f32x8");
-        unsafe { &mut *self.as_mut_ptr().add(index) }
     }
 }
 

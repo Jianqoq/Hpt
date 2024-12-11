@@ -1,9 +1,8 @@
-use std::ops::{ Index, IndexMut };
 use std::arch::x86_64::*;
 use crate::traits::SimdCompare;
 use crate::vectors::arch_simd::_256bit::f32x8::f32x8;
 use crate::vectors::arch_simd::_256bit::u16x16::u16x16;
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::vectors::traits::VecTrait;
 
 /// a vector of 16 f16 values
 #[allow(non_camel_case_types)]
@@ -41,28 +40,12 @@ impl VecTrait<half::f16> for f16x16 {
     fn as_mut_ptr_uncheck(&self) -> *mut half::f16 {
         self.0.as_ptr() as *mut _
     }
-
     #[inline(always)]
     fn sum(&self) -> half::f16 {
         self.0.iter().sum()
     }
-}
-
-impl Init<half::f16> for f16x16 {
     fn splat(val: half::f16) -> f16x16 {
         f16x16([val; 16])
-    }
-}
-impl Index<usize> for f16x16 {
-    type Output = half::f16;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-impl IndexMut<usize> for f16x16 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
     }
 }
 

@@ -1,8 +1,6 @@
-use std::ops::{ Index, IndexMut };
-
 use crate::vectors::arch_simd::_256bit::f32x8::f32x8;
 use crate::vectors::arch_simd::_256bit::u16x16::u16x16;
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::vectors::traits::VecTrait;
 use crate::traits::SimdCompare;
 
 /// a vector of 16 bf16 values
@@ -44,9 +42,6 @@ impl VecTrait<half::bf16> for bf16x16 {
     fn sum(&self) -> half::bf16 {
         self.0.iter().sum()
     }
-}
-
-impl Init<half::bf16> for bf16x16 {
     fn splat(val: half::bf16) -> bf16x16 {
         bf16x16([val; 16])
     }
@@ -58,19 +53,6 @@ impl Init<half::bf16> for bf16x16 {
             size_of::<Self>()
         );
         bf16x16(dst)
-    }
-}
-impl Index<usize> for bf16x16 {
-    type Output = half::bf16;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-
-impl IndexMut<usize> for bf16x16 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
     }
 }
 
@@ -95,9 +77,7 @@ impl bf16x16 {
         let and = i & x;
         let eq: u16x16 = unsafe { std::mem::transmute(and.simd_eq(x)) };
         let and2 = i & y;
-        let neq_zero: u16x16 = unsafe {
-            std::mem::transmute(and2.simd_ne(u16x16::splat(0)))
-        };
+        let neq_zero: u16x16 = unsafe { std::mem::transmute(and2.simd_ne(u16x16::splat(0))) };
         unsafe { std::mem::transmute(eq & neq_zero) }
     }
 

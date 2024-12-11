@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 use tensor_traits::{ CommonBounds, NormalUaryOps, TensorLike };
-use tensor_types::{ traits::Init, type_promote::{ NormalOut, NormalOutUnary } };
+use tensor_types::{ traits::VecTrait, type_promote::{ NormalOut, NormalOutUnary } };
 
 use crate::{ ops::cpu::unary::uary_fn_with_out_simd, tensor_base::_Tensor };
 

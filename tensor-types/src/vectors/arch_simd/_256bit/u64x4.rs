@@ -1,6 +1,4 @@
-use std::ops::{ Index, IndexMut };
-
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::vectors::traits::VecTrait;
 use std::arch::x86_64::*;
 
 /// a vector of 4 u64 values
@@ -51,26 +49,11 @@ impl VecTrait<u64> for u64x4 {
             array.iter().sum()
         }
     }
-}
-
-impl Init<u64> for u64x4 {
     fn splat(val: u64) -> u64x4 {
         u64x4(unsafe { _mm256_set1_epi64x(val as i64) })
     }
 }
-impl Index<usize> for u64x4 {
-    type Output = u64;
-    fn index(&self, index: usize) -> &Self::Output {
-        assert!(index < 4, "Index out of bounds for u64x4");
-        unsafe { &*self.as_ptr().add(index) }
-    }
-}
-impl IndexMut<usize> for u64x4 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        assert!(index < 4, "Index out of bounds for u64x4");
-        unsafe { &mut *self.as_mut_ptr().add(index) }
-    }
-}
+
 impl std::ops::Add for u64x4 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
