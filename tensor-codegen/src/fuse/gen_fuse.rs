@@ -20,11 +20,7 @@ fn cmp_gen_body(
     let mut comp_tokens = proc_macro2::TokenStream::new();
     for idx in sorted {
         let mut node = graph[idx].clone();
-        if
-            !inputs
-                .iter()
-                .any(|input| input.stmt_index == node.stmt_idx && input.block_idx == node.block_idx)
-        {
+        if !inputs.iter().any(|input| input.comp_graph_idx == idx) {
             let origin_ident = cfg.graph[NodeIndex::new(node.block_idx)].origin_var_map
                 .get(&node.ident)
                 .expect("gen_fuse::out");
@@ -46,6 +42,7 @@ fn cmp_gen_body(
             ));
         }
     }
+    // println!("comp_tokens: {:#?}", comp_tokens.to_token_stream().to_string());
     comp_tokens
 }
 
@@ -54,29 +51,9 @@ pub(crate) fn _cmp_gen_fuse(
     graph: &petgraph::stable_graph::StableGraph<CmpNode, ()>,
     groups: &FusionGroup
 ) -> Vec<(TokenStream2, TokenStream2)> {
+    // println!("graph: {:#?}", graph);
     let sorteds = petgraph::algo::toposort(graph, None).expect("gen_fuse::topological_sort");
-
-    let mut iters_vec = Vec::new();
-    for inputs in groups.inputs.iter() {
-        let mut iters = Vec::new();
-        for input in inputs {
-            let ident = &input.var;
-            let origin_ident = cfg.graph[NodeIndex::new(input.block_idx)].origin_var_map
-                .get(&ident)
-                .expect("gen_fuse::origin_ident");
-            iters.push(
-                quote::quote!(
-                    #origin_ident.par_iter_simd()
-                )
-            );
-        }
-        iters_vec.push(iters);
-    }
-    let mut zipped_vec = vec![];
-    for mut iters in iters_vec.clone() {
-        let tokens = gen_zip(&mut iters);
-        zipped_vec.push(tokens);
-    }
+    // println!("sorteds: {:#?}", sorteds);
     let mut tuple_vec = vec![];
     let inputs = groups.inputs
         .iter()
@@ -125,6 +102,7 @@ pub(crate) fn _cmp_gen_fuse(
         let origin_output = cfg.graph[NodeIndex::new(output.block_idx)].origin_var_map
             .get(&output.var)
             .expect("gen_fuse::origin_output");
+        // println!("sorted: {:#?}", sorted);
         let tokens = cmp_gen_body(sorted, &groups.inputs[i], graph, cfg);
         scalar_comp.extend(tokens.clone());
         scalar_comp.extend(quote::quote!(
@@ -165,33 +143,20 @@ pub(crate) fn _cmp_gen_fuse(
             let generic_ident = quote::format_ident!("{}", input.to_string().to_uppercase());
             quote::quote! { #generic_ident: CommonBounds }
         });
-        let mut check_contiguous = TokenStream2::new();
-        let mut check_shape_eq = TokenStream2::new();
-        for (idx, lhs) in inputs.iter().enumerate() {
-            for rhs in inputs.iter() {
-                if lhs != rhs {
+        let check_contiguous = inputs.iter().map(|input| {
+            let lhs_ident = quote::format_ident!("{}_arg", input);
+            quote::quote!(#lhs_ident.is_contiguous())
+        });
+        let check_shape_eq = inputs.iter().flat_map(|lhs| {
+            inputs
+                .iter()
+                .filter(move |&rhs| lhs != rhs)
+                .map(move |rhs| {
                     let lhs_ident = quote::format_ident!("{}_arg", lhs);
                     let rhs_ident = quote::format_ident!("{}_arg", rhs);
-                    if idx < inputs.len() - 1 {
-                        check_shape_eq.extend(
-                            quote::quote!(#lhs_ident.shape() == #rhs_ident.shape() &&)
-                        );
-                    } else {
-                        check_shape_eq.extend(
-                            quote::quote!(#lhs_ident.shape() == #rhs_ident.shape())
-                        );
-                    }
-                }
-            }
-        }
-        for (idx, lhs) in inputs.iter().enumerate() {
-            let lhs_ident = quote::format_ident!("{}_arg", lhs);
-            if idx < inputs.len() - 1 {
-                check_contiguous.extend(quote::quote!(#lhs_ident.is_contiguous() &&));
-            } else {
-                check_contiguous.extend(quote::quote!(#lhs_ident.is_contiguous()));
-            }
-        }
+                    quote::quote!(#lhs_ident.shape() == #rhs_ident.shape())
+                })
+        });
         let vec_size_eq = inputs
             .iter()
             .map(|input| {
@@ -281,7 +246,7 @@ pub(crate) fn _cmp_gen_fuse(
                     + Send
                     + Copy,
             {
-                if #check_shape_eq && #check_contiguous {
+                if #(#check_shape_eq &&)* #(#check_contiguous)&&* {
                     let mut ret = Tensor::<__HPTRES, Cpu>::empty(#first.shape())?;
                     if #(#vec_size_eq) && * {
                         let remain = ret.size() % <__HPTRES as TypeCommon>::Vec::SIZE;
@@ -335,21 +300,6 @@ pub(crate) fn _cmp_gen_fuse(
         fused_vec.push((fused, func));
     }
     fused_vec
-}
-
-fn gen_zip(iters: &mut Vec<TokenStream2>) -> TokenStream2 {
-    if iters.is_empty() {
-        quote::quote!()
-    } else if iters.len() == 1 {
-        let first = iters.remove(0);
-        quote::quote!(#first)
-    } else {
-        let first = iters.remove(0);
-        let rest = gen_zip(iters);
-        quote::quote!(
-            #first.zip(#rest)
-        )
-    }
 }
 
 fn gen_tuple(iters: &mut Vec<syn::Ident>) -> TokenStream2 {

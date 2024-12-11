@@ -134,19 +134,14 @@ pub fn cmp_fuse_parents(
     let node = &unfused
         .node_weight(pred)
         .expect(format!("node weight not found {:?}, ", pred).as_str());
-    match cmp_pred_kernel_fusable(next_kernel_type, node.kernel_type) {
-        Ok(Some(kernel_type)) => {
-            block.insert(pred);
-            if !unfused.neighbors_directed(pred, petgraph::Direction::Incoming).count() == 0 {
-                for inp in unfused.neighbors_directed(pred, petgraph::Direction::Incoming) {
-                    cmp_fuse_parents(inp, kernel_type, block, unfused, basic_block);
-                }
+    let fused_kernel_type = cmp_pred_kernel_fusable(next_kernel_type, node.kernel_type);
+    if let Some(kernel_type) = fused_kernel_type {
+        block.insert(pred);
+        if !unfused.neighbors_directed(pred, petgraph::Direction::Incoming).count() == 0 {
+            for inp in unfused.neighbors_directed(pred, petgraph::Direction::Incoming) {
+                cmp_fuse_parents(inp, kernel_type, block, unfused, basic_block);
             }
         }
-        Ok(None) => {
-            block.insert(pred);
-        }
-        Err(_) => {}
     }
 }
 
@@ -160,35 +155,30 @@ pub fn cmp_fuse_children(
     let node = &unfused
         .node_weight(succ)
         .expect(format!("node weight not found {:?}, ", succ).as_str());
-    match
-        cmp_suc_kernel_fusable(
-            prev_kernel_type,
-            unfused.node_weight(succ).expect("node weight not found").kernel_type
-        )
-    {
-        Ok(Some(kernel_type)) => {
-            block.insert(succ);
-            if !basic_block.live_out.contains(&node.ident) {
-                for output in unfused.neighbors_directed(succ, petgraph::Direction::Outgoing) {
-                    cmp_fuse_children(output, kernel_type, block, unfused, basic_block);
-                }
+    let fused_kernel_type = cmp_suc_kernel_fusable(
+        prev_kernel_type,
+        unfused.node_weight(succ).expect("node weight not found").kernel_type
+    );
+    if let Some(kernel_type) = fused_kernel_type {
+        block.insert(succ);
+        if !basic_block.live_out.contains(&node.ident) {
+            for output in unfused.neighbors_directed(succ, petgraph::Direction::Outgoing) {
+                cmp_fuse_children(output, kernel_type, block, unfused, basic_block);
             }
         }
-        Ok(None) => {}
-        Err(_) => {}
     }
 }
 
 pub fn cmp_pred_kernel_fusable(
     next_kernel_type: KernelType,
     pred: KernelType
-) -> anyhow::Result<Option<KernelType>> {
-    Ok(pred.infer_pred_kernel(&next_kernel_type))
+) -> Option<KernelType> {
+    pred.infer_pred_kernel(&next_kernel_type)
 }
 
 pub fn cmp_suc_kernel_fusable(
     kernel_type: KernelType,
     next_kernel_type: KernelType
-) -> anyhow::Result<Option<KernelType>> {
-    Ok(kernel_type.infer_suc_kernel(&next_kernel_type))
+) -> Option<KernelType> {
+    kernel_type.infer_suc_kernel(&next_kernel_type)
 }

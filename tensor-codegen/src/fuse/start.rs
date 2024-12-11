@@ -131,6 +131,7 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
                     }
                 }
             }
+            // println!("fusion_group: {:#?}", fusion_group);
             let genfuse = crate::fuse::gen_fuse::cmp_gen_fuse(&cfg, &cmp_pet_graph, &fusion_group);
             genfuse_map.insert(idx, (genfuse, fusion_group));
         }

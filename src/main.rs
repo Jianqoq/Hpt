@@ -1,19 +1,17 @@
-use into_scalar::IntoScalar;
 use rust_xlsxwriter::{ Format, Workbook };
 use std::io::Write;
-use tensor_dyn::Tensor;
 use tensor_dyn::*;
 
 fuse_proc_macro!(
-    fn compute(a: Tensor<f32>, b: Tensor<f32>, k: f32) -> anyhow::Result<Tensor<f32>>
+    fn compute(a: Tensor<f32>, b: Tensor<f32>) -> anyhow::Result<Tensor<f32>>
 {
     let c = a.sin()?;
     let cos = c.cos()?;
-    let tanh = c.tanh()?;
+    let tanh = cos.tanh()?;
     let add = cos + tanh;
     let e = add.add(&c)?;
-    // let g = c.matmul(&e)?;
-    // let f = g.relu()?;
+    let g = c.matmul(&e)?;
+    let d = g.relu()?;
     // let shape = a.shape();
     // let alpha = 1.673263242354358;
     // let gamma = 1.050700987355822;
@@ -37,9 +35,8 @@ fuse_proc_macro!(
     //     continue;
     // }
     
-    Ok(e)
+    Ok(d)
 });
-
 
 fn main() -> anyhow::Result<()> {
     // conv2d()?;
