@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 use petgraph::graph::NodeIndex;
 use proc_macro2::TokenStream as TokenStream2;
-use super::{ build_graph::CmpNode, fuse::{ FusionGroup, Input } };
+use super::{ build_graph::CmpNode, errors::Error, fuse::{ FusionGroup, Input }, node::Operand };
 
 pub(crate) fn cmp_gen_fuse(
-    cfg: &crate::fuse::cfg::CFG,
+    cfg: &mut crate::fuse::cfg::CFG,
     graph: &petgraph::stable_graph::StableGraph<CmpNode, ()>,
     groups: &FusionGroup
 ) -> Vec<(TokenStream2, TokenStream2)> {
@@ -21,21 +21,27 @@ fn cmp_gen_body(
     for idx in sorted {
         let mut node = graph[idx].clone();
         if !inputs.iter().any(|input| input.comp_graph_idx == idx) {
-            let origin_ident = cfg.graph[NodeIndex::new(node.block_idx)].origin_var_map
-                .get(&node.ident)
-                .expect("gen_fuse::out");
-            node.ident = origin_ident.clone();
-            for (idx, out) in node.outputs_ident.clone().into_iter().enumerate() {
-                let origin_out = cfg.graph[NodeIndex::new(node.block_idx)].origin_var_map
-                    .get(&out)
+            if let Operand::Variable(ident) = &node.ident {
+                let origin_ident = cfg.graph[NodeIndex::new(node.block_idx)].origin_var_map
+                    .get(ident)
                     .expect("gen_fuse::out");
-                node.outputs_ident[idx] = origin_out.clone();
+                node.ident = Operand::Variable(origin_ident.clone());
+            }
+            for (idx, out) in node.outputs_ident.clone().into_iter().enumerate() {
+                if let Operand::Variable(out) = &out {
+                    let origin_out = cfg.graph[NodeIndex::new(node.block_idx)].origin_var_map
+                        .get(out)
+                        .expect("gen_fuse::out");
+                    node.outputs_ident[idx] = Operand::Variable(origin_out.clone());
+                }
             }
             for (idx, inp) in node.args_ident.clone().into_iter().enumerate() {
-                let origin_inp = cfg.graph[NodeIndex::new(node.block_idx)].origin_var_map
-                    .get(&inp)
-                    .expect("gen_fuse::out");
-                node.args_ident[idx] = origin_inp.clone();
+                if let Operand::Variable(inp) = &inp {
+                    let origin_inp = cfg.graph[NodeIndex::new(node.block_idx)].origin_var_map
+                        .get(inp)
+                        .expect("gen_fuse::out");
+                    node.args_ident[idx] = Operand::Variable(origin_inp.clone());
+                }
             }
             comp_tokens.extend(quote::quote!(
                 #node
@@ -47,7 +53,7 @@ fn cmp_gen_body(
 }
 
 pub(crate) fn _cmp_gen_fuse(
-    cfg: &crate::fuse::cfg::CFG,
+    cfg: &mut crate::fuse::cfg::CFG,
     graph: &petgraph::stable_graph::StableGraph<CmpNode, ()>,
     groups: &FusionGroup
 ) -> Vec<(TokenStream2, TokenStream2)> {
@@ -60,12 +66,14 @@ pub(crate) fn _cmp_gen_fuse(
         .map(|inputs| {
             let mut v = vec![];
             for input in inputs {
-                v.push(
-                    cfg.graph[NodeIndex::new(input.block_idx)].origin_var_map
-                        .get(&input.var)
-                        .expect("gen_fuse::origin_ident")
-                        .clone()
-                );
+                if let Operand::Variable(ident) = &input.var {
+                    v.push(
+                        cfg.graph[NodeIndex::new(input.block_idx)].origin_var_map
+                            .get(ident)
+                            .expect("gen_fuse::origin_ident")
+                            .clone()
+                    );
+                }
             }
             v
         })
@@ -99,9 +107,14 @@ pub(crate) fn _cmp_gen_fuse(
         let mut scalar_comp = TokenStream2::new();
         let mut vec_comp = TokenStream2::new();
         let output = &outputs.iter().next().expect("gen_fuse::output");
-        let origin_output = cfg.graph[NodeIndex::new(output.block_idx)].origin_var_map
-            .get(&output.var)
-            .expect("gen_fuse::origin_output");
+        let origin_output = if let Operand::Variable(ident) = &output.var {
+            cfg.graph[NodeIndex::new(output.block_idx)].origin_var_map
+                .get(ident)
+                .expect("gen_fuse::origin_output")
+        } else {
+            cfg.errors.push(Error::ExpectedIdentifier(output.var.span(), "gen_fuse"));
+            return vec![];
+        };
         // println!("sorted: {:#?}", sorted);
         let tokens = cmp_gen_body(sorted, &groups.inputs[i], graph, cfg);
         scalar_comp.extend(tokens.clone());

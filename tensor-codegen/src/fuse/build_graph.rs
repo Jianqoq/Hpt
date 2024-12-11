@@ -7,7 +7,7 @@ use syn::spanned::Spanned;
 use super::{
     errors::Error,
     kernel_type::KernelType,
-    node::{ Binary, Node, Unary },
+    node::{ Binary, Node, Operand, Unary },
     operator_lists::{ BINARY_OPERATORS, OPAQUE_BINARY_OPERATORS, UNARY_OPERATORS },
     ty_infer::Type,
     variable_collector::VariableCollector,
@@ -18,12 +18,12 @@ pub(crate) struct CmpNode {
     pub(crate) kernel_type: KernelType,
     pub(crate) args: Vec<NodeIndex>,
     pub(crate) outputs: Vec<NodeIndex>,
-    pub(crate) args_ident: Vec<syn::Ident>,
-    pub(crate) outputs_ident: Vec<syn::Ident>,
+    pub(crate) args_ident: Vec<Operand>,
+    pub(crate) outputs_ident: Vec<Operand>,
     pub(crate) stmt_idx: i64,
     pub(crate) block_idx: usize,
     pub(crate) id: NodeIndex,
-    pub(crate) ident: syn::Ident,
+    pub(crate) ident: Operand,
     pub(crate) method: Option<syn::Ident>,
 }
 
@@ -38,9 +38,11 @@ impl ToTokens for CmpNode {
                 1 => {
                     let left = &self.args_ident[0];
                     let output = &self.ident;
-                    tokens.extend(quote::quote!(
+                    tokens.extend(
+                        quote::quote!(
                         let #output = #left.#method();
-                    ));
+                    )
+                    );
                 }
                 2 => {
                     let left = &self.args_ident[0];
@@ -108,7 +110,7 @@ impl Graph {
     }
 
     pub(crate) fn to_cmp_pet_graph(&self) -> StableGraph<CmpNode, ()> {
-        let mut graph: StableGraph<&syn::Ident, ()> = StableGraph::new();
+        let mut graph: StableGraph<&Operand, ()> = StableGraph::new();
         let mut node_index_map = HashMap::new();
         for node in &self.nodes {
             let data = match node {
@@ -122,17 +124,17 @@ impl Graph {
         for node in &self.nodes {
             match node {
                 (Node::Unary(unary), _, _) => {
-                    if !node_index_map.contains_key(&unary.operand) {
+                    if !node_index_map.contains_key(&unary.operand) && unary.operand.is_variable() {
                         let index = graph.add_node(&unary.operand);
                         node_index_map.insert(&unary.operand, index);
                     }
                 }
                 (Node::Binary(binary), _, _) => {
-                    if !node_index_map.contains_key(&binary.left) {
+                    if !node_index_map.contains_key(&binary.left) && binary.left.is_variable() {
                         let index = graph.add_node(&binary.left);
                         node_index_map.insert(&binary.left, index);
                     }
-                    if !node_index_map.contains_key(&binary.right) {
+                    if !node_index_map.contains_key(&binary.right) && binary.right.is_variable() {
                         let index = graph.add_node(&binary.right);
                         node_index_map.insert(&binary.right, index);
                     }
@@ -160,9 +162,16 @@ impl Graph {
                     }
                 }
                 (Node::Binary(binary), stmt_idx, block_idx) => {
+                    let mut args = vec![];
+                    if binary.left.is_variable() {
+                        args.push(node_index_map[&binary.left]);
+                    }
+                    if binary.right.is_variable() {
+                        args.push(node_index_map[&binary.right]);
+                    }
                     CmpNode {
                         kernel_type: binary.kernel_type,
-                        args: vec![node_index_map[&binary.left], node_index_map[&binary.right]],
+                        args,
                         args_ident: vec![binary.left.clone(), binary.right.clone()],
                         outputs: vec![],
                         outputs_ident: vec![],
@@ -211,35 +220,39 @@ impl Graph {
                     }
                 }
                 (Node::Binary(binary), stmt_idx, block_idx) => {
-                    if !added_nodes.contains(&node_index_map[&binary.left]) {
-                        let index = graph.add_node(CmpNode {
-                            kernel_type: KernelType::Unary,
-                            args: vec![],
-                            outputs: vec![],
-                            args_ident: vec![],
-                            outputs_ident: vec![],
-                            stmt_idx: *stmt_idx,
-                            block_idx: *block_idx,
-                            id: node_index_map[&binary.left],
-                            ident: binary.left.clone(),
-                            method: None,
-                        });
-                        added_nodes.insert(index);
+                    if binary.left.is_variable() {
+                        if !added_nodes.contains(&node_index_map[&binary.left]) {
+                            let index = graph.add_node(CmpNode {
+                                kernel_type: KernelType::Unary,
+                                args: vec![],
+                                outputs: vec![],
+                                args_ident: vec![],
+                                outputs_ident: vec![],
+                                stmt_idx: *stmt_idx,
+                                block_idx: *block_idx,
+                                id: node_index_map[&binary.left],
+                                ident: binary.left.clone(),
+                                method: None,
+                            });
+                            added_nodes.insert(index);
+                        }
                     }
-                    if !added_nodes.contains(&node_index_map[&binary.right]) {
-                        let index = graph.add_node(CmpNode {
-                            kernel_type: KernelType::Unary,
-                            args: vec![],
-                            outputs: vec![],
-                            args_ident: vec![],
-                            outputs_ident: vec![],
-                            stmt_idx: *stmt_idx,
-                            block_idx: *block_idx,
-                            id: node_index_map[&binary.right],
-                            ident: binary.right.clone(),
-                            method: None,
-                        });
-                        added_nodes.insert(index);
+                    if binary.right.is_variable() {
+                        if !added_nodes.contains(&node_index_map[&binary.right]) {
+                            let index = graph.add_node(CmpNode {
+                                kernel_type: KernelType::Unary,
+                                args: vec![],
+                                outputs: vec![],
+                                args_ident: vec![],
+                                outputs_ident: vec![],
+                                stmt_idx: *stmt_idx,
+                                block_idx: *block_idx,
+                                id: node_index_map[&binary.right],
+                                ident: binary.right.clone(),
+                                method: None,
+                            });
+                            added_nodes.insert(index);
+                        }
                     }
                 }
                 _ => {}
@@ -400,7 +413,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
                     return;
                 }
                 let current_assignment = if let Some(current_assignment) = &self.current_assignment {
-                    current_assignment.clone()
+                    Operand::Variable(current_assignment.clone())
                 } else {
                     self.errors.push(Error::ExpectedAssignment(unary.span(), "build graph"));
                     return;
@@ -420,7 +433,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
                 self.nodes.push((
                     Node::Unary(Unary {
                         method: proc_macro2::Ident::new(method, unary.span()),
-                        operand: left.clone(),
+                        operand: Operand::Variable(left.clone()),
                         args: vec![],
                         output: current_assignment.clone(),
                         kernel_type: KernelType::Unary,
@@ -803,7 +816,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
                         if ty == Type::Tensor {
                             self.inputs.insert(
                                 (
-                                    Node::Input(pat_ident.ident.clone()),
+                                    Node::Input(Operand::Variable(pat_ident.ident.clone())),
                                     self.current_idx as i64,
                                     self.current_block,
                                 ),
@@ -839,27 +852,33 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
             return;
         };
         let receiver_var = if let Some(ident) = extract_expr_ident(&node.receiver) {
-            ident
+            Operand::Variable(ident)
         } else {
             self.errors.push(Error::ExpectedPath(node.receiver.span(), "build graph"));
             return;
         };
+        let mut args = vec![];
+        for arg in &node.args {
+            if let Some(ident) = extract_expr_ident(arg) {
+                args.push(Operand::Variable(ident));
+            } else {
+                self.errors.push(Error::ExpectedIdentifier(arg.span(), "build graph"));
+                return;
+            }
+        }
         if is_unary {
             let method = Node::Unary(Unary {
                 method: node.method.clone(),
                 operand: receiver_var.clone(),
-                args: node.args
-                    .iter()
-                    .map(|arg| arg.clone())
-                    .collect(),
-                output: current_assignment,
+                args,
+                output: Operand::Variable(current_assignment.clone()),
                 kernel_type: KernelType::Unary,
             });
             self.nodes.push((method, self.current_idx as i64, self.current_block));
         } else {
             if is_binary || is_opaque_binary {
                 let right = if let Some(ident) = extract_expr_ident(&node.args[0]) {
-                    ident
+                    Operand::Variable(ident)
                 } else {
                     self.errors.push(Error::ExpectedIdentifier(node.args[0].span(), "build graph"));
                     return;
@@ -868,7 +887,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
                     method: node.method.clone(),
                     left: receiver_var.clone(),
                     right: right.clone(),
-                    output: current_assignment,
+                    output: Operand::Variable(current_assignment.clone()),
                     kernel_type: if is_binary {
                         KernelType::Binary
                     } else {
@@ -900,13 +919,17 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
             return;
         };
         let left = if let Some(ident) = extract_expr_ident(&node.left) {
-            ident
+            Operand::Variable(ident)
+        } else if let syn::Expr::Lit(lit) = node.left.as_ref() {
+            Operand::Constant(syn::Expr::Lit(lit.clone()))
         } else {
             self.errors.push(Error::ExpectedIdentifier(node.left.span(), "build graph"));
             return;
         };
         let right = if let Some(ident) = extract_expr_ident(&node.right) {
-            ident
+            Operand::Variable(ident)
+        } else if let syn::Expr::Lit(lit) = node.right.as_ref() {
+            Operand::Constant(syn::Expr::Lit(lit.clone()))
         } else {
             self.errors.push(Error::ExpectedIdentifier(node.right.span(), "build graph"));
             return;
@@ -941,7 +964,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
             syn::BinOp::BitOrAssign(_) => "bitor_assign",
             syn::BinOp::ShlAssign(_) => "shl_assign",
             syn::BinOp::ShrAssign(_) => "shr_assign",
-            _ => todo!(),
+            _ => unimplemented!("build_graph::visit_expr_binary"),
         };
 
         self.nodes.push((
@@ -949,7 +972,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
                 method: proc_macro2::Ident::new(method, node.span()),
                 left: left.clone(),
                 right: right.clone(),
-                output: current_assignment.clone(),
+                output: Operand::Variable(current_assignment.clone()),
                 kernel_type: KernelType::Binary,
             }),
             self.current_idx as i64,

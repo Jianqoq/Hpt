@@ -11,7 +11,7 @@ use syn::visit::Visit;
 use syn::visit_mut::VisitMut;
 use syn::Stmt;
 
-use super::node::Node;
+use super::node::{Node, Operand};
 use super::var_coalescer::VarCoalescer;
 use super::{ codegen, expr_ty };
 use super::errors::Error;
@@ -534,12 +534,16 @@ impl CFG {
                     }
                 }
             }
-            for (ident, in_degree) in in_degrees {
+            for (operand, in_degree) in in_degrees {
                 if in_degree == 0 {
-                    comp_graph.inputs.insert(
-                        (Node::Input(ident.clone()), -1, node.index()),
-                        *table.get(&ident).expect(format!("type not found for {}", ident).as_str())
-                    );
+                    if let Operand::Variable(ident) = &operand {
+                        comp_graph.inputs.insert(
+                            (Node::Input(operand.clone()), -1, node.index()),
+                            *table
+                                .get(&ident)
+                                .expect(format!("type not found for {}", ident).as_str())
+                        );
+                    }
                 }
             }
             self.errors.extend(comp_graph.errors.drain(..));

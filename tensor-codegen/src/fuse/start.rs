@@ -1,5 +1,5 @@
 use std::collections::{ HashMap, HashSet };
-use crate::fuse::{ errors::Error, fuse::{ Input, Output }, ty_infer::TyInfer };
+use crate::fuse::{ errors::Error, fuse::{ Input, Output }, node::Operand, ty_infer::TyInfer };
 use syn::{ spanned::Spanned, visit::Visit };
 use super::cfg::CFG;
 
@@ -38,25 +38,11 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
     // println!("cfg: {:#?}", cfg.graph);
     let mut type_table = TyInfer::new();
     type_table.infer(&cfg)?;
-    println!("type_table: {:#?}", type_table.table);
     cfg.live_analysis(&type_table.table);
     cfg.inter_live_analysis();
     let table = core::mem::take(&mut type_table.table);
     let graphs = cfg.build_graphs(table);
     check_errors!(cfg);
-    let mut all_errs = Vec::new();
-    for err in graphs.node_weights().map(|x| x.errors.iter()) {
-        for e in err {
-            all_errs.push(e.to_syn_error());
-        }
-    }
-    if !all_errs.is_empty() {
-        let mut first = all_errs[0].clone();
-        for e in all_errs.iter().skip(1) {
-            first.combine(e.clone());
-        }
-        return Err(first.into());
-    }
     cfg.add_extra_temps(&graphs);
     let mut genfuse_map = HashMap::new();
     for idx in graphs.node_indices() {
@@ -65,7 +51,7 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
             continue;
         }
         let cmp_pet_graph = graph.to_cmp_pet_graph();
-        println!("cmp_pet_graph: {:#?}", cmp_pet_graph);
+        // println!("cmp_pet_graph: {:#?}", cmp_pet_graph);
         if cmp_pet_graph.node_count() > 0 && !petgraph::algo::is_cyclic_directed(&cmp_pet_graph) {
             let mut fusion_group = crate::fuse::fuse::cmp_fuse(&cfg, &cmp_pet_graph);
             let mask = fusion_group.groups
@@ -142,8 +128,13 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
                     }
                 }
             }
-            println!("fusion_group: {:#?}", fusion_group);
-            let genfuse = crate::fuse::gen_fuse::cmp_gen_fuse(&cfg, &cmp_pet_graph, &fusion_group);
+            // println!("fusion_group: {:#?}", fusion_group);
+            let genfuse = crate::fuse::gen_fuse::cmp_gen_fuse(
+                &mut cfg,
+                &cmp_pet_graph,
+                &fusion_group
+            );
+            check_errors!(cfg);
             genfuse_map.insert(idx, (genfuse, fusion_group));
         }
     }
@@ -170,7 +161,13 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
                     &mut cfg.graph[idx].statements[out.stmt_index as usize].stmt
             {
                 if let syn::Pat::Ident(ident) = &mut local.pat {
-                    ident.ident = out.var.clone();
+                    if let Operand::Variable(var) = &out.var {
+                        ident.ident = var.clone();
+                    } else {
+                        return Err(
+                            Error::ExpectedIdentifier(out.var.span(), "fuse_impl").to_anyhow_error()
+                        );
+                    }
                 } else {
                     return Err(
                         Error::ExpectedIdentifier(local.span(), "fuse_impl").to_anyhow_error()

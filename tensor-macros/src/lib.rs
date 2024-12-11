@@ -24,6 +24,7 @@ use scalar_convert::__impl_scalar_convert;
 use simd_bitwise::impl_simd_bitwise_out;
 use simd_convert::__impl_simd_convert;
 use simd_float_out_binary::impl_simd_binary_out_float;
+use simd_normal_out::{ impl_simd_normal_out_with_lhs_scalar, impl_simd_normal_out_with_rhs_scalar };
 use syn::{ parse, parse_macro_input, Expr, Ident, Token };
 mod binary_float_out;
 mod float_unary;
@@ -373,6 +374,18 @@ pub fn impl_normal_out_simd(_: TokenStream) -> TokenStream {
     impl_simd_normal_out()
 }
 
+/// implement simd normal out trait with rhs scalar
+#[proc_macro]
+pub fn impl_normal_out_simd_with_rhs_scalar(_: TokenStream) -> TokenStream {
+    impl_simd_normal_out_with_rhs_scalar()
+}
+
+/// implement simd normal out trait with lhs scalar
+#[proc_macro]
+pub fn impl_normal_out_simd_with_lhs_scalar(_: TokenStream) -> TokenStream {
+    impl_simd_normal_out_with_lhs_scalar()
+}
+
 /// implement simd convert trait
 #[proc_macro]
 pub fn impl_simd_convert(_: TokenStream) -> TokenStream {
@@ -666,9 +679,9 @@ pub fn gen_reduce_dim_not_include_simd_helper(input: TokenStream) -> TokenStream
 }
 
 /// declare const values
-/// 
+///
 /// const OW_BLOCK: usize = ?;
-/// 
+///
 /// const OC_BLOCK: usize = ?;
 #[proc_macro]
 pub fn conv2d_microkernel_declare_const(input: TokenStream) -> TokenStream {
