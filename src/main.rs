@@ -8,10 +8,10 @@ fuse_proc_macro!(
     let c = a.sin()?;
     let cos = c.cos()?;
     let tanh = cos.tanh()?;
-    let add = cos + tanh;
-    let e = add.add(&c)?;
-    let g = c.matmul(&e)?;
-    let d = g.relu()?;
+    let add = tanh + 10f32;
+    // let e = add.add(&c)?;
+    // let g = c.matmul(&e)?;
+    // let d = g.relu()?;
     // let shape = a.shape();
     // let alpha = 1.673263242354358;
     // let gamma = 1.050700987355822;
@@ -35,7 +35,7 @@ fuse_proc_macro!(
     //     continue;
     // }
     
-    Ok(d)
+    Ok(add)
 });
 
 fn main() -> anyhow::Result<()> {

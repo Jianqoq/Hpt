@@ -500,7 +500,7 @@ impl CFG {
     }
 
     pub(crate) fn build_graphs(
-        &self,
+        &mut self,
         type_table: HashMap<syn::Ident, Type>
     ) -> Graph<super::build_graph::Graph, ()> {
         let table = Rc::new(type_table);
@@ -542,6 +542,7 @@ impl CFG {
                     );
                 }
             }
+            self.errors.extend(comp_graph.errors.drain(..));
             graph.add_node(comp_graph);
         }
         for idx in self.graph.node_indices() {

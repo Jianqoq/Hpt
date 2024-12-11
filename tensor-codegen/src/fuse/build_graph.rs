@@ -890,7 +890,7 @@ impl<'ast> syn::visit::Visit<'ast> for Graph {
     fn visit_expr_binary(&mut self, node: &'ast syn::ExprBinary) {
         let left_ty = handle_expr_type(&node.left, &self.type_table);
         let right_ty = handle_expr_type(&node.right, &self.type_table);
-        if left_ty != Type::Tensor || right_ty != Type::Tensor {
+        if left_ty != Type::Tensor && right_ty != Type::Tensor {
             return;
         }
         let current_assignment = if let Some(current_assignment) = &self.current_assignment {
