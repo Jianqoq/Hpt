@@ -5,30 +5,30 @@ use tensor_dyn::*;
 fuse_proc_macro!(
     fn compute(a: Tensor<f32>, mut b: Tensor<f32>) -> anyhow::Result<Tensor<f32>>
 {
-    // let mut c = a.sin()?;
-    // let mut d = c.cos()?;
-    // let tanh = cos.tanh()?;
-    // let add = tanh + 10f32;
-    // let e = add / &c;
-    // let g = c.matmul(&e)?;
-    // let mut d = g.relu()?;
-    // let shape = a.shape();
-    // let alpha = 1.673263242354358;
-    // let gamma = 1.050700987355822;
-    // if shape.len() > 0 {
-    //     e.selu(alpha, gamma)?;
-    //     if alpha > 0.0 {
-    //         e.tanh()?
-    //     } else {
-    //         d.tan()?
-    //     }
-    // } else {
-    //     d.selu(alpha, gamma)?
-    // }
-    // for _ in 0..1000000 {
-    //     c = &d + &c;
-    //     break;
-    // }
+    let mut c = a.sin()?;
+    let mut d = c.cos()?;
+    let tanh = d.tanh()?;
+    let add = tanh + 10f32;
+    let e = add / &c;
+    let g = c.matmul(&e)?;
+    let d = g.relu()?;
+    let shape = a.shape();
+    let alpha = 1.673263242354358;
+    let gamma = 1.050700987355822;
+    if shape.len() > 0 {
+        e.selu(alpha, gamma)?;
+        if alpha > 0.0 {
+            e.tanh()?
+        } else {
+            d.tan()?
+        }
+    } else {
+        d.selu(alpha, gamma)?
+    }
+    for _ in 0..1000000 {
+        c = &d + &c;
+        break;
+    }
     while true {
         b = &a + &b;
         let e = b.sin()?;
