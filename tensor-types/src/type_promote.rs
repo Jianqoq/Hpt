@@ -20,6 +20,8 @@ use half::f16;
 use num_complex::{ Complex32, Complex64 };
 use num_traits::float::Float;
 use sleef::Sleef;
+use tensor_macros::float_out_binary_simd_with_lhs_scalar;
+use tensor_macros::float_out_binary_simd_with_rhs_scalar;
 use tensor_macros::impl_normal_out_simd_with_lhs_scalar;
 use tensor_macros::impl_normal_out_simd_with_rhs_scalar;
 use std::ops::Neg;
@@ -57,6 +59,8 @@ pub trait FloatOutBinary<RHS = Self> {
 
 float_out_binary!();
 float_out_binary_simd!();
+float_out_binary_simd_with_rhs_scalar!();
+float_out_binary_simd_with_lhs_scalar!();
 
 /// this trait is used to perform normal operations that don't require type promotion
 pub trait NormalOut<RHS = Self> {

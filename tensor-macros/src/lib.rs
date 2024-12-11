@@ -23,7 +23,7 @@ use proc_macro::TokenStream;
 use scalar_convert::__impl_scalar_convert;
 use simd_bitwise::impl_simd_bitwise_out;
 use simd_convert::__impl_simd_convert;
-use simd_float_out_binary::impl_simd_binary_out_float;
+use simd_float_out_binary::{impl_simd_binary_out_float, impl_simd_binary_out_float_lhs_scalar, impl_simd_binary_out_float_rhs_scalar};
 use simd_normal_out::{ impl_simd_normal_out_with_lhs_scalar, impl_simd_normal_out_with_rhs_scalar };
 use syn::{ parse, parse_macro_input, Expr, Ident, Token };
 mod binary_float_out;
@@ -324,6 +324,18 @@ pub fn float_out_binary(_: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn float_out_binary_simd(_: TokenStream) -> TokenStream {
     impl_simd_binary_out_float()
+}
+
+/// implement simd float out binary trait with rhs scalar
+#[proc_macro]
+pub fn float_out_binary_simd_with_rhs_scalar(_: TokenStream) -> TokenStream {
+    impl_simd_binary_out_float_rhs_scalar()
+}
+
+/// implement simd float out binary trait with lhs scalar
+#[proc_macro]
+pub fn float_out_binary_simd_with_lhs_scalar(_: TokenStream) -> TokenStream {
+    impl_simd_binary_out_float_lhs_scalar()
 }
 
 /// implement float out unary trait
