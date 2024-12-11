@@ -1,6 +1,6 @@
 use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
-use crate::traits::{ Init, SimdSelect, VecCommon, VecTrait };
+use crate::traits::{ Init, SimdSelect, VecTrait };
 
 /// a vector of 4 u32 values
 #[allow(non_camel_case_types)]
@@ -19,31 +19,20 @@ impl DerefMut for u32x4 {
     }
 }
 impl VecTrait<u32> for u32x4 {
+    const SIZE: usize = 4;
+    type Base = u32;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[u32]) {
         self.as_mut_array().copy_from_slice(slice);
-    }
-    #[inline(always)]
-    fn as_ptr(&self) -> *const u32 {
-        self.as_array().as_ptr()
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         Self(self.0 * a.0 + b.0)
     }
     #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut u32 {
-        self.as_mut_array().as_mut_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut u32 {
-        self.as_array().as_ptr() as *mut _
-    }
-    #[inline(always)]
     fn sum(&self) -> u32 {
         self.as_array().iter().sum()
     }
-
     fn extract(self, idx: usize) -> u32 {
         self.as_array()[idx]
     }
@@ -55,27 +44,9 @@ impl SimdSelect<u32x4> for u32x4 {
         u32x4(mask.select(true_val.0, false_val.0))
     }
 }
-
-impl VecCommon for u32x4 {
-    const SIZE: usize = 4;
-    
-    type Base = u32;
-}
 impl Init<u32> for u32x4 {
     fn splat(val: u32) -> u32x4 {
         u32x4(std::simd::u32x4::splat(val))
-    }
-}
-impl Index<usize> for u32x4 {
-    type Output = u32;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.as_array()[index]
-    }
-}
-impl IndexMut<usize> for u32x4 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.as_mut_array()[index]
     }
 }
 impl std::ops::Add for u32x4 {

@@ -2,7 +2,7 @@ use std::ops::{Index, IndexMut};
 
 use num_complex::Complex32;
 
-use crate::vectors::traits::{ Init, VecCommon, VecTrait };
+use crate::vectors::traits::{ Init, VecTrait };
 
 /// a vector of 2 Complex32 values
 #[allow(non_camel_case_types)]
@@ -10,27 +10,17 @@ use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 pub struct cplx32x2(pub(crate) [Complex32; 2]);
 
 impl VecTrait<Complex32> for cplx32x2 {
+    const SIZE: usize = 2;
+    type Base = Complex32;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[Complex32]) {
         self.0.copy_from_slice(slice);
-    }
-    #[inline(always)]
-    fn as_ptr(&self) -> *const Complex32 {
-        self.0.as_ptr()
     }
     #[inline(always)]
     fn mul_add(mut self, a: Self, b: Self) -> Self {
         self.0[0] = self.0[0] * a.0[0] + b.0[0];
         self.0[1] = self.0[1] * a.0[1] + b.0[1];
         self
-    }
-    #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut Complex32 {
-        self.0.as_mut_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut Complex32 {
-        self.0.as_ptr() as *mut _
     }
     #[inline(always)]
     fn sum(&self) -> Complex32 {
@@ -41,26 +31,9 @@ impl VecTrait<Complex32> for cplx32x2 {
         self.0[idx]
     }
 }
-impl VecCommon for cplx32x2 {
-    const SIZE: usize = 2;
-    
-    type Base = Complex32;
-}
 impl Init<Complex32> for cplx32x2 {
     fn splat(val: Complex32) -> cplx32x2 {
         cplx32x2([val; 2])
-    }
-}
-impl Index<usize> for cplx32x2 {
-    type Output = Complex32;
-
-    fn index(&self, idx: usize) -> &Self::Output {
-        &self.0[idx]
-    }
-}
-impl IndexMut<usize> for cplx32x2 {
-    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
-        &mut self.0[idx]
     }
 }
 impl std::ops::Add for cplx32x2 {

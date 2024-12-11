@@ -1,5 +1,3 @@
-
-
 use crate::vectors::traits::{ Init, VecTrait };
 use std::arch::x86_64::*;
 
@@ -118,4 +116,3 @@ impl std::ops::Neg for i8x32 {
         unsafe { i8x32(_mm256_sub_epi8(_mm256_setzero_si256(), self.0)) }
     }
 }
-

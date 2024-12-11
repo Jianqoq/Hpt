@@ -1,6 +1,6 @@
 use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
-use crate::traits::{ Init, SimdSelect, VecCommon, VecTrait };
+use crate::traits::{ Init, SimdSelect, VecTrait };
 
 /// a vector of 4 i32 values
 #[allow(non_camel_case_types)]
@@ -19,57 +19,29 @@ impl DerefMut for i32x4 {
     }
 }
 impl VecTrait<i32> for i32x4 {
+    const SIZE: usize = 4;
+    type Base = i32;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[i32]) {
         self.as_mut_array().copy_from_slice(slice);
-    }
-    #[inline(always)]
-    fn as_ptr(&self) -> *const i32 {
-        self.as_array().as_ptr()
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         Self(self.0 * a.0 + b.0)
     }
     #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut i32 {
-        self.as_mut_array().as_mut_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut i32 {
-        self.as_array().as_ptr() as *mut _
-    }
-    #[inline(always)]
     fn sum(&self) -> i32 {
         self.as_array().iter().sum()
     }
-
     fn extract(self, idx: usize) -> i32 {
         self.as_array()[idx]
     }
-}
-impl VecCommon for i32x4 {
-    const SIZE: usize = 4;
-
-    type Base = i32;
 }
 impl Init<i32> for i32x4 {
     fn splat(val: i32) -> i32x4 {
         i32x4(std::simd::i32x4::splat(val))
     }
 }
-impl Index<usize> for i32x4 {
-    type Output = i32;
-    fn index(&self, idx: usize) -> &Self::Output {
-        &self.as_array()[idx]
-    }
-}
-impl IndexMut<usize> for i32x4 {
-    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
-        &mut self.as_mut_array()[idx]
-    }
-}
-
 impl SimdSelect<i32x4> for crate::vectors::_128bit::u32x4::u32x4 {
     fn select(&self, true_val: i32x4, false_val: i32x4) -> i32x4 {
         let mask: std::simd::mask32x4 = unsafe { std::mem::transmute(*self) };

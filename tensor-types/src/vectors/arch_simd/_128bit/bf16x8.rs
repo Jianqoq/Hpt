@@ -1,6 +1,6 @@
 use crate::_128bit::u16x8::u16x8;
 use crate::{
-    traits::{Init, VecCommon, VecTrait},
+    traits::{Init, VecTrait},
     vectors::_128bit::f32x4::f32x4,
 };
 use std::{
@@ -19,13 +19,11 @@ use crate::traits::SimdCompare;
 pub struct bf16x8(pub(crate) [half::bf16; 8]);
 
 impl VecTrait<half::bf16> for bf16x8 {
+    const SIZE: usize = 8;
+    type Base = half::bf16;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[half::bf16]) {
         self.0.copy_from_slice(slice);
-    }
-    #[inline(always)]
-    fn as_ptr(&self) -> *const half::bf16 {
-        self.0.as_ptr()
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
@@ -37,14 +35,6 @@ impl VecTrait<half::bf16> for bf16x8 {
         bf16x8::from_2_f32x4([res0, res1])
     }
     #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut half::bf16 {
-        self.0.as_mut_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut half::bf16 {
-        self.0.as_ptr() as *mut _
-    }
-    #[inline(always)]
     fn sum(&self) -> half::bf16 {
         self.0.iter().sum()
     }
@@ -53,30 +43,11 @@ impl VecTrait<half::bf16> for bf16x8 {
         self.0[idx]
     }
 }
-impl VecCommon for bf16x8 {
-    const SIZE: usize = 8;
-
-    type Base = half::bf16;
-}
 impl Init<half::bf16> for bf16x8 {
     fn splat(val: half::bf16) -> bf16x8 {
         bf16x8([val; 8])
     }
 }
-impl Index<usize> for bf16x8 {
-    type Output = half::bf16;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-
-impl IndexMut<usize> for bf16x8 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
-    }
-}
-
 impl bf16x8 {
     /// convert to 2 f32x4
     pub fn to_2_f32x4(&self) -> [f32x4; 2] {

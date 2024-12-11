@@ -1,6 +1,6 @@
 use crate::_128bit::f32x4::f32x4;
 use crate::_128bit::u16x8::u16x8;
-use crate::traits::{Init, VecCommon, VecTrait};
+use crate::traits::{Init, VecTrait};
 use std::ops::{Index, IndexMut};
 use std::simd::cmp::SimdPartialOrd;
 use std::simd::num::{SimdFloat, SimdInt, SimdUint};
@@ -15,13 +15,11 @@ use crate::traits::SimdCompare;
 pub struct f16x8(pub(crate) [half::f16; 8]);
 
 impl VecTrait<half::f16> for f16x8 {
+    const SIZE: usize = 8;
+    type Base = half::f16;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[half::f16]) {
         self.0.copy_from_slice(slice);
-    }
-    #[inline(always)]
-    fn as_ptr(&self) -> *const half::f16 {
-        self.0.as_ptr()
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
@@ -35,26 +33,12 @@ impl VecTrait<half::f16> for f16x8 {
         unsafe { std::mem::transmute([res0, res1]) }
     }
     #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut half::f16 {
-        self.0.as_mut_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut half::f16 {
-        self.0.as_ptr() as *mut _
-    }
-    #[inline(always)]
     fn sum(&self) -> half::f16 {
         self.0.iter().sum()
     }
-
     fn extract(self, idx: usize) -> half::f16 {
         self.0[idx]
     }
-}
-impl VecCommon for f16x8 {
-    const SIZE: usize = 8;
-
-    type Base = half::f16;
 }
 impl Init<half::f16> for f16x8 {
     fn splat(val: half::f16) -> f16x8 {

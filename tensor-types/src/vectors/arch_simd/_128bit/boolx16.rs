@@ -1,4 +1,4 @@
-use crate::traits::{Init, VecCommon, VecTrait};
+use crate::traits::{Init, VecTrait};
 use std::ops::{Index, IndexMut};
 use std::simd::cmp::SimdPartialOrd;
 use std::simd::{cmp::SimdPartialEq, Simd};
@@ -11,25 +11,15 @@ use crate::traits::SimdCompare;
 pub struct boolx16(pub(crate) [bool; 16]);
 
 impl VecTrait<bool> for boolx16 {
+    const SIZE: usize = 16;
+    type Base = bool;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[bool]) {
         self.0.copy_from_slice(slice);
     }
     #[inline(always)]
-    fn as_ptr(&self) -> *const bool {
-        self.0.as_ptr()
-    }
-    #[inline(always)]
     fn mul_add(self, _: Self, _: Self) -> Self {
         todo!()
-    }
-    #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut bool {
-        self.0.as_mut_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut bool {
-        self.0.as_ptr() as *mut _
     }
     #[inline(always)]
     fn sum(&self) -> bool {
@@ -40,26 +30,9 @@ impl VecTrait<bool> for boolx16 {
         self.0[idx]
     }
 }
-impl VecCommon for boolx16 {
-    const SIZE: usize = 16;
-
-    type Base = bool;
-}
 impl Init<bool> for boolx16 {
     fn splat(val: bool) -> boolx16 {
         boolx16([val; 16])
-    }
-}
-impl Index<usize> for boolx16 {
-    type Output = bool;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-impl IndexMut<usize> for boolx16 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
     }
 }
 impl SimdCompare for boolx16 {

@@ -1,6 +1,6 @@
 use std::ops::{ Deref, DerefMut, Index, IndexMut };
 
-use crate::traits::{ Init, SimdSelect, VecCommon, VecTrait };
+use crate::traits::{ Init, SimdSelect, VecTrait };
 
 /// a vector of 2 i64 values
 #[allow(non_camel_case_types)]
@@ -19,31 +19,20 @@ impl DerefMut for i64x2 {
     }
 }
 impl VecTrait<i64> for i64x2 {
+    const SIZE: usize = 2;
+    type Base = i64;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[i64]) {
         self.as_mut_array().copy_from_slice(slice);
-    }
-    #[inline(always)]
-    fn as_ptr(&self) -> *const i64 {
-        self.as_array().as_ptr()
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         Self(self.0 * a.0 + b.0)
     }
     #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut i64 {
-        self.as_mut_array().as_mut_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut i64 {
-        self.as_array().as_ptr() as *mut _
-    }
-    #[inline(always)]
     fn sum(&self) -> i64 {
         self.as_array().iter().sum()
     }
-
     fn extract(self, idx: usize) -> i64 {
         self.as_array()[idx]
     }
@@ -55,26 +44,9 @@ impl SimdSelect<i64x2> for crate::vectors::_128bit::u64x2::u64x2 {
         i64x2(mask.select(true_val.0, false_val.0))
     }
 }
-
-impl VecCommon for i64x2 {
-    const SIZE: usize = 2;
-
-    type Base = i64;
-}
 impl Init<i64> for i64x2 {
     fn splat(val: i64) -> i64x2 {
         i64x2(std::simd::i64x2::splat(val))
-    }
-}
-impl Index<usize> for i64x2 {
-    type Output = i64;
-    fn index(&self, idx: usize) -> &Self::Output {
-        &self.as_array()[idx]
-    }
-}
-impl IndexMut<usize> for i64x2 {
-    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
-        &mut self.as_mut_array()[idx]
     }
 }
 impl std::ops::Add for i64x2 {
