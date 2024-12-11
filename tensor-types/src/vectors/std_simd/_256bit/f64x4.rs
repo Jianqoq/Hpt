@@ -5,6 +5,7 @@ use crate::vectors::traits::{ Init, VecTrait };
 /// a vector of 4 f64 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(C, align(32))]
 pub struct f64x4(pub(crate) std::simd::f64x4);
 
 impl Deref for f64x4 {

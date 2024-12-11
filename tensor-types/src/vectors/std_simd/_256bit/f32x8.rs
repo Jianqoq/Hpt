@@ -6,6 +6,7 @@ use std::simd::StdFloat;
 /// a vector of 8 f32 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(C, align(32))]
 pub struct f32x8(pub(crate) std::simd::f32x8);
 
 impl Deref for f32x8 {

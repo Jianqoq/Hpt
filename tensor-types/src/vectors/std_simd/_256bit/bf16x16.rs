@@ -11,6 +11,7 @@ use crate::traits::SimdCompare;
 /// a vector of 16 bf16 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(C, align(32))]
 pub struct bf16x16(pub(crate) [half::bf16; 16]);
 
 impl VecTrait<half::bf16> for bf16x16 {

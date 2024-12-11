@@ -8,6 +8,7 @@ use crate::vectors::traits::{ Init, VecTrait };
 /// a vector of 4 cplx32 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(C, align(32))]
 pub struct cplx32x4(pub(crate) [Complex32; 4]);
 
 impl VecTrait<Complex32> for cplx32x4 {

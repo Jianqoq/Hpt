@@ -5,6 +5,7 @@ use crate::vectors::traits::{ Init, VecTrait };
 /// a vector of 32 u8 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(C, align(32))]
 pub struct u8x32(pub(crate) std::simd::u8x32);
 
 impl Deref for u8x32 {

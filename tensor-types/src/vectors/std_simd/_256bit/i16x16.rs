@@ -5,6 +5,7 @@ use crate::vectors::traits::{ Init, VecTrait };
 /// a vector of 16 i16 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(C, align(32))]
 pub struct i16x16(pub(crate) std::simd::i16x16);
 
 impl Deref for i16x16 {

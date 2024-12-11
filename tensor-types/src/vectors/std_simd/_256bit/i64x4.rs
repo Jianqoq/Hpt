@@ -5,6 +5,7 @@ use crate::{traits::SimdSelect, vectors::traits::{ Init, VecTrait }};
 /// a vector of 4 i64 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(C, align(32))]
 pub struct i64x4(pub(crate) std::simd::i64x4);
 
 impl Deref for i64x4 {

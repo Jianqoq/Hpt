@@ -13,6 +13,7 @@ use crate::vectors::traits::{Init, VecTrait};
 /// a vector of 16 f16 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(C, align(32))]
 pub struct f16x16(pub(crate) [half::f16; 16]);
 
 impl VecTrait<half::f16> for f16x16 {

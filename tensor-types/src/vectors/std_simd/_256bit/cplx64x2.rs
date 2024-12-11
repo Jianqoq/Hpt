@@ -7,6 +7,7 @@ use crate::vectors::traits::{ Init, VecTrait };
 /// a vector of 2 cplx64 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(C, align(32))]
 pub struct cplx64x2(pub(crate) [Complex64; 2]);
 
 impl VecTrait<Complex64> for cplx64x2 {
