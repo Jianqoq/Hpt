@@ -1,7 +1,5 @@
 use crate::traits::{Init, VecTrait};
-use std::simd::cmp::SimdPartialOrd;
-use std::simd::{cmp::SimdPartialEq, Simd};
-
+use crate::vectors::arch_simd::_128bit::u8x16::u8x16;
 use crate::traits::SimdCompare;
 
 /// a vector of 16 bool values
@@ -34,34 +32,34 @@ impl Init<bool> for boolx16 {
 impl SimdCompare for boolx16 {
     type SimdMask = Self;
     fn simd_eq(self, rhs: Self) -> Self {
-        let lhs: Simd<u8, 16> = unsafe { std::mem::transmute(self) };
-        let rhs: Simd<u8, 16> = unsafe { std::mem::transmute(rhs) };
-        boolx16(lhs.simd_eq(rhs).into())
+        let lhs: u8x16 = unsafe { std::mem::transmute(self) };
+        let rhs: u8x16 = unsafe { std::mem::transmute(rhs) };
+        boolx16(unsafe { std::mem::transmute(lhs.simd_eq(rhs)) })
     }
     fn simd_ne(self, rhs: Self) -> Self {
-        let lhs: Simd<u8, 16> = unsafe { std::mem::transmute(self) };
-        let rhs: Simd<u8, 16> = unsafe { std::mem::transmute(rhs) };
-        boolx16(lhs.simd_ne(rhs).into())
+        let lhs: u8x16 = unsafe { std::mem::transmute(self) };
+        let rhs: u8x16 = unsafe { std::mem::transmute(rhs) };
+        boolx16(unsafe { std::mem::transmute(lhs.simd_ne(rhs)) })
     }
     fn simd_lt(self, rhs: Self) -> Self {
-        let lhs: Simd<u8, 16> = unsafe { std::mem::transmute(self) };
-        let rhs: Simd<u8, 16> = unsafe { std::mem::transmute(rhs) };
-        boolx16(lhs.simd_lt(rhs).into())
+        let lhs: u8x16 = unsafe { std::mem::transmute(self) };
+        let rhs: u8x16 = unsafe { std::mem::transmute(rhs) };
+        boolx16(unsafe { std::mem::transmute(lhs.simd_lt(rhs)) })
     }
     fn simd_le(self, rhs: Self) -> Self {
-        let lhs: Simd<u8, 16> = unsafe { std::mem::transmute(self) };
-        let rhs: Simd<u8, 16> = unsafe { std::mem::transmute(rhs) };
-        boolx16(lhs.simd_le(rhs).into())
+        let lhs: u8x16 = unsafe { std::mem::transmute(self) };
+        let rhs: u8x16 = unsafe { std::mem::transmute(rhs) };
+        boolx16(unsafe { std::mem::transmute(lhs.simd_le(rhs)) })
     }
     fn simd_gt(self, rhs: Self) -> Self {
-        let lhs: Simd<u8, 16> = unsafe { std::mem::transmute(self) };
-        let rhs: Simd<u8, 16> = unsafe { std::mem::transmute(rhs) };
-        boolx16(lhs.simd_gt(rhs).into())
+        let lhs: u8x16 = unsafe { std::mem::transmute(self) };
+        let rhs: u8x16 = unsafe { std::mem::transmute(rhs) };
+        boolx16(unsafe { std::mem::transmute(lhs.simd_gt(rhs)) })
     }
     fn simd_ge(self, rhs: Self) -> Self {
-        let lhs: Simd<u8, 16> = unsafe { std::mem::transmute(self) };
-        let rhs: Simd<u8, 16> = unsafe { std::mem::transmute(rhs) };
-        boolx16(lhs.simd_ge(rhs).into())
+        let lhs: u8x16 = unsafe { std::mem::transmute(self) };
+        let rhs: u8x16 = unsafe { std::mem::transmute(rhs) };
+        boolx16(unsafe { std::mem::transmute(lhs.simd_ge(rhs)) })
     }
 }
 
@@ -124,8 +122,8 @@ impl std::ops::BitOr for boolx16 {
     type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self::Output {
-        let mask: Simd<u8, 16> = unsafe { std::mem::transmute(self) };
-        let rhs: Simd<u8, 16> = unsafe { std::mem::transmute(rhs) };
+        let mask: u8x16 = unsafe { std::mem::transmute(self) };
+        let rhs: u8x16 = unsafe { std::mem::transmute(rhs) };
         boolx16(unsafe { std::mem::transmute(mask | rhs) })
     }
 }
@@ -133,8 +131,8 @@ impl std::ops::BitAnd for boolx16 {
     type Output = Self;
 
     fn bitand(self, rhs: Self) -> Self::Output {
-        let mask: Simd<u8, 16> = unsafe { std::mem::transmute(self) };
-        let rhs: Simd<u8, 16> = unsafe { std::mem::transmute(rhs) };
+        let mask: u8x16 = unsafe { std::mem::transmute(self) };
+        let rhs: u8x16 = unsafe { std::mem::transmute(rhs) };
         boolx16(unsafe { std::mem::transmute(mask & rhs) })
     }
 }

@@ -22,7 +22,8 @@ type BoolVector = tensor_types::std_simd::_512bit::boolx64::boolx64;
         target_feature = "neon"
     )
 )]
-type BoolVector = tensor_types::_128bit::boolx16::boolx16;
+#[cfg(feature = "stdsimd")]
+type BoolVector = tensor_types::std_simd::_128bit::boolx16::boolx16;
 
 /// A trait for getting information of a Tensor
 pub trait TensorInfo<T> {

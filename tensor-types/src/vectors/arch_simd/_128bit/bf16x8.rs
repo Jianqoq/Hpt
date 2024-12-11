@@ -107,13 +107,13 @@ impl bf16x8 {
     pub fn is_infinite(&self) -> u16x8 {
         let x = u16x8::splat(0x7f80u16);
         let y = u16x8::splat(0x007fu16);
-        let i: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
+        let i: u16x8 = unsafe { std::mem::transmute(self.0) };
 
-        let and = i & x.0;
-        let eq = and.simd_eq(x.0);
+        let and = i & x;
+        let eq = and.simd_eq(x);
 
-        let and2 = i & y.0;
-        let eq_zero = and2.simd_eq(u16x8::splat(0).0);
+        let and2 = i & y;
+        let eq_zero = and2.simd_eq(u16x8::splat(0));
 
         let result = eq & eq_zero;
 

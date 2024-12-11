@@ -8,7 +8,7 @@ use crate::{
 };
 use core::f32;
 use half::{ bf16, f16 };
-use std::{ fmt::{ Debug, Display }, ops::{ Index, IndexMut } };
+use std::fmt::{ Debug, Display };
 use tensor_macros::infer_enum_type;
 
 /// enum for data type
@@ -153,6 +153,8 @@ pub trait TypeCommon where Self: Sized + Copy {
         Send +
         Copy +
         IntoVec<Self::Vec> +
+        std::ops::Index<usize, Output = Self> +
+        std::ops::IndexMut<usize> +
         Sync +
         Debug +
         NormalOutUnary +
@@ -188,6 +190,27 @@ macro_rules! impl_type_common {
         $vec:ty,
         $mask:ty
     ) => {
+        impl std::ops::Index<usize> for $vec {
+            type Output = $type;
+            fn index(&self, index: usize) -> &Self::Output {
+                if index >= <$vec>::SIZE {
+                    panic!("index out of bounds: the len is {} but the index is {}", <$vec>::SIZE, index);
+                }
+                unsafe {
+                    &*self.as_ptr().add(index)
+                }
+            }
+        }
+        impl std::ops::IndexMut<usize> for $vec {
+            fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+                if index >= <$vec>::SIZE {
+                    panic!("index out of bounds: the len is {} but the index is {}", <$vec>::SIZE, index);
+                }
+                unsafe {
+                    &mut *self.as_mut_ptr().add(index)
+                }
+            }
+        }
         impl TypeCommon for $type {
             const ID: Dtype = Dtype::$dtype;
             const MAX: Self = $max;
@@ -234,8 +257,36 @@ mod type_impl {
         boolx32::boolx32,
         u8
     );
-    impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, 6, "i8", i8x32::i8x32, u8);
-    impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, 6, "u8", u8x32::u8x32, u8);
+    impl_type_common!(
+        i8,
+        I8,
+        i8::MAX,
+        i8::MIN,
+        0,
+        1,
+        i8::MAX,
+        i8::MIN,
+        2,
+        6,
+        "i8",
+        i8x32::i8x32,
+        u8
+    );
+    impl_type_common!(
+        u8,
+        U8,
+        u8::MAX,
+        u8::MIN,
+        0,
+        1,
+        u8::MAX,
+        u8::MIN,
+        2,
+        6,
+        "u8",
+        u8x32::u8x32,
+        u8
+    );
     impl_type_common!(
         i16,
         I16,
@@ -493,6 +544,7 @@ mod type_impl {
     use crate::vectors::std_simd::_128bit::*;
     use half::*;
     use num_complex::{ Complex32, Complex64 };
+    use crate::vectors::traits::VecTrait;
     impl_type_common!(
         bool,
         Bool,
@@ -508,8 +560,36 @@ mod type_impl {
         boolx16::boolx16,
         u8
     );
-    impl_type_common!(i8, I8, i8::MAX, i8::MIN, 0, 1, i8::MAX, i8::MIN, 2, 6, "i8", i8x16::i8x16, u8);
-    impl_type_common!(u8, U8, u8::MAX, u8::MIN, 0, 1, u8::MAX, u8::MIN, 2, 6, "u8", u8x16::u8x16, u8);
+    impl_type_common!(
+        i8,
+        I8,
+        i8::MAX,
+        i8::MIN,
+        0,
+        1,
+        i8::MAX,
+        i8::MIN,
+        2,
+        6,
+        "i8",
+        i8x16::i8x16,
+        u8
+    );
+    impl_type_common!(
+        u8,
+        U8,
+        u8::MAX,
+        u8::MIN,
+        0,
+        1,
+        u8::MAX,
+        u8::MIN,
+        2,
+        6,
+        "u8",
+        u8x16::u8x16,
+        u8
+    );
     impl_type_common!(
         i16,
         I16,
