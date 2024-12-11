@@ -1,0 +1,108 @@
+use std::ops::{ Deref, DerefMut, Index, IndexMut };
+
+use crate:: traits::{ Init, VecCommon, VecTrait } ;
+
+/// a vector of 16 i8 values
+#[allow(non_camel_case_types)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
+pub struct i8x16(pub(crate) std::simd::i8x16);
+
+impl Deref for i8x16 {
+    type Target = std::simd::i8x16;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for i8x16 {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl VecTrait<i8> for i8x16 {
+    #[inline(always)]
+    fn copy_from_slice(&mut self, slice: &[i8]) {
+        self.as_mut_array().copy_from_slice(slice);
+    }
+    #[inline(always)]
+    fn as_ptr(&self) -> *const i8 {
+        self.as_array().as_ptr()
+    }
+    #[inline(always)]
+    fn mul_add(self, a: Self, b: Self) -> Self {
+        Self(self.0 * a.0 + b.0)
+    }
+    #[inline(always)]
+    fn as_mut_ptr(&mut self) -> *mut i8 {
+        self.as_mut_array().as_mut_ptr()
+    }
+    #[inline(always)]
+    fn as_mut_ptr_uncheck(&self) -> *mut i8 {
+        self.as_array().as_ptr() as *mut _
+    }
+    #[inline(always)]
+    fn sum(&self) -> i8 {
+        self.as_array().iter().sum()
+    }
+
+    fn extract(self, idx: usize) -> i8 {
+        self.as_array()[idx]
+    }
+}
+impl VecCommon for i8x16 {
+    const SIZE: usize = 16;
+    
+    type Base = i8;
+}
+impl Init<i8> for i8x16 {
+    fn splat(val: i8) -> i8x16 {
+        i8x16(std::simd::i8x16::splat(val))
+    }
+}
+impl Index<usize> for i8x16 {
+    type Output = i8;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+impl IndexMut<usize> for i8x16 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
+    }
+}
+impl std::ops::Add for i8x16 {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        i8x16(self.0 + rhs.0)
+    }
+}
+impl std::ops::Sub for i8x16 {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        i8x16(self.0 - rhs.0)
+    }
+}
+impl std::ops::Mul for i8x16 {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self::Output {
+        i8x16(self.0 * rhs.0)
+    }
+}
+impl std::ops::Div for i8x16 {
+    type Output = Self;
+    fn div(self, rhs: Self) -> Self::Output {
+        i8x16(self.0 / rhs.0)
+    }
+}
+impl std::ops::Rem for i8x16 {
+    type Output = Self;
+    fn rem(self, rhs: Self) -> Self::Output {
+        i8x16(self.0 % rhs.0)
+    }
+}
+impl std::ops::Neg for i8x16 {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        i8x16(-self.0)
+    }
+}

@@ -175,10 +175,9 @@ pub use tensor_types::type_promote::*;
 pub use tensor::Tensor;
 pub use rayon::prelude::*;
 pub use tensor_types::dtype::TypeCommon;
-pub use tensor_types::traits::VecCommon;
+pub use tensor_types::traits::VecTrait;
 pub use crate::backend::*;
 pub use tensor_types::traits::Init;
-pub use tensor_types::traits::VecTrait;
 
 use std::{ cell::RefCell, sync::atomic::AtomicUsize };
 thread_local! {
@@ -242,9 +241,9 @@ pub(crate) const REGNUM: usize = 8;
 pub(crate) const REGNUM: usize = 32;
 
 #[cfg(target_feature = "avx2")]
-type BoolVector = tensor_types::_256bit::boolx32::boolx32;
+type BoolVector = tensor_types::std_simd::_256bit::boolx32::boolx32;
 #[cfg(any(target_feature = "avx512f"))]
-type BoolVector = tensor_types::_512bit::boolx64::boolx64;
+type BoolVector = tensor_types::std_simd::_512bit::boolx64::boolx64;
 #[cfg(
     any(
         all(not(target_feature = "avx2"), target_feature = "sse"),

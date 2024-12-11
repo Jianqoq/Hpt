@@ -1,36 +1,44 @@
 use crate::dtype::TypeCommon;
 
 /// common trait for all vector types
-pub trait VecTrait<T> {
+pub trait VecTrait<T: Copy> {
+    /// the size of the vector
+    const SIZE: usize;
+    /// the base type of the vector
+    type Base: TypeCommon;
     /// peform self * a + b, fused multiply add
     fn mul_add(self, a: Self, b: Self) -> Self;
     /// copy data from slice to self
     fn copy_from_slice(&mut self, slice: &[T]);
     /// convert self to a const pointer
-    fn as_ptr(&self) -> *const T;
+    fn as_ptr(&self) -> *const T {
+        self as *const _ as *const T
+    }
     /// convert self to a mutable pointer
-    fn as_mut_ptr(&mut self) -> *mut T;
+    fn as_mut_ptr(&mut self) -> *mut T {
+        self as *mut _ as *mut T
+    }
     /// convert self to a mutable pointer without check
-    fn as_mut_ptr_uncheck(&self) -> *mut T;
+    fn as_mut_ptr_uncheck(&self) -> *mut T {
+        unsafe {
+            std::mem::transmute(self.as_ptr())
+        }
+    }
     /// extract a value from vector
-    fn extract(self, idx: usize) -> T;
+    fn extract(&self, idx: usize) -> T {
+        unsafe { *self.as_ptr().add(idx) }
+    }
     /// get the sum of all elements in vector
     fn sum(&self) -> T;
     /// write value to vector, this is unaligned write
     #[inline(always)]
-    fn write_unaligned(&mut self, vec: T::Vec)
-    where
-        T: TypeCommon,
-    {
+    fn write_unaligned(&mut self, vec: T::Vec) where T: TypeCommon {
         let ptr = self.as_mut_ptr() as *mut T::Vec;
         unsafe { ptr.write_unaligned(vec) }
     }
     /// read a value from vector
     #[inline(always)]
-    fn read_unaligned(&self) -> T::Vec
-    where
-        T: TypeCommon,
-    {
+    fn read_unaligned(&self) -> T::Vec where T: TypeCommon {
         let ptr = self.as_ptr() as *const T::Vec;
         unsafe { ptr.read_unaligned() }
     }
@@ -46,23 +54,11 @@ pub trait Init<T> {
     ///
     /// This function is unsafe because it can cause undefined behavior if the pointer is invalid or the data len is less than the vector size
     #[inline(always)]
-    unsafe fn from_ptr(ptr: *const T) -> Self
-    where
-        Self: Sized,
-    {
+    unsafe fn from_ptr(ptr: *const T) -> Self where Self: Sized {
         let ptr = ptr as *const Self;
         unsafe { ptr.read_unaligned() }
     }
 }
-
-/// a trait to get the vector size
-pub trait VecCommon {
-    /// get the number of lanes of the vector
-    const SIZE: usize;
-    /// the base type of the vector
-    type Base: TypeCommon;
-}
-
 /// a trait to select value from two vectors
 pub trait SimdSelect<T> {
     /// select value based on mask

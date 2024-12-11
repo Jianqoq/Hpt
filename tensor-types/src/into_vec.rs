@@ -8,7 +8,8 @@ pub trait IntoVec<T> {
 mod into_vec {
     use super::IntoVec;
     use crate::convertion::VecConvertor;
-    use crate::vectors::_256bit::*;
+    #[cfg(feature = "stdsimd")]
+    use crate::vectors::std_simd::_256bit::*;
     use tensor_macros::impl_into_vec;
     impl_into_vec!();
 }
@@ -22,7 +23,8 @@ mod into_vec {
 mod into_vec {
     use super::IntoVec;
     use crate::convertion::VecConvertor;
-    use crate::vectors::_128bit::*;
+    #[cfg(feature = "stdsimd")]
+    use crate::vectors::std_simd::_128bit::*;
     use tensor_macros::impl_into_vec;
     impl_into_vec!();
 }

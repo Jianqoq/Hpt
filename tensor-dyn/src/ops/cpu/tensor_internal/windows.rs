@@ -7,7 +7,7 @@ use tensor_traits::{ CommonBounds, TensorCreator, TensorLike };
 use tensor_types::{
     dtype::{ FloatConst, TypeCommon },
     into_scalar::IntoScalar,
-    traits::{ Init, VecCommon },
+    traits::{ Init, VecTrait },
     type_promote::{ FloatOutBinary, FloatOutUnary, NormalOut },
 };
 
@@ -59,7 +59,7 @@ impl<T> _Tensor<T>
         let length_usize = (if periodic { window_length } else { window_length - 1 }) as usize;
         let length: FBO<T> = length_usize.into_scalar();
         let mut ret = _Tensor::<FBO<T>>::empty(&[length_usize as i64])?;
-        let mut chunk_exact = ret.as_raw_mut().par_chunks_exact_mut(<Simd<T> as VecCommon>::SIZE);
+        let mut chunk_exact = ret.as_raw_mut().par_chunks_exact_mut(Simd::<T>::SIZE);
         let two_pi = Simd::<T>::splat(FBO::<T>::TWOPI);
         let length_vec = Simd::<T>::splat(length);
         let alpha_vec = Simd::<T>::splat(alpha);
@@ -73,9 +73,9 @@ impl<T> _Tensor<T>
                 *x = idx._mul(FBO::<T>::TWOPI._div(length))._cos()._mul_add(-beta, alpha);
             });
         chunk_exact.enumerate().for_each(|(x, vec)| {
-            let idx = x * <Simd<T> as VecCommon>::SIZE;
+            let idx = x * Simd::<T>::SIZE;
             let mut idxes = Simd::<T>::splat(FBO::<T>::ZERO);
-            for i in 0..<Simd<T> as VecCommon>::SIZE {
+            for i in 0..Simd::<T>::SIZE {
                 idxes[i] = (idx + i).into_scalar();
             }
             let ptr = vec as *mut _ as *mut Simd<T>;

@@ -33,13 +33,15 @@ num_cpus = "1.16.0"
 raw-cpuid = { version = "11.2.0", default-features = false }
 
 [features]
-default = ["track_caller"]
+default = ["track_caller", "stdsimd"]
 track_caller = [
     "tensor-traits/track_caller",
     "tensor-common/track_caller",
     "tensor-iterator/track_caller",
 ]
 bound_check = ["tensor-common/bound_check", "tensor-iterator/bound_check"]
+stdsimd = ["tensor-types/stdsimd", "tensor-traits/stdsimd"]
+archsimd = ["tensor-types/archsimd", "tensor-traits/archsimd"]
 
 [package.metadata.rust-analyzer]
 rustc_private = true

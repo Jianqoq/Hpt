@@ -1,5 +1,5 @@
 use crate::{ dtype::TypeCommon, type_promote::NormalOut };
-use super::traits::{ VecCommon, VecTrait };
+use super::traits::VecTrait;
 use crate::vectors::traits::Init;
 
 /// sum a vector to a scalar
@@ -14,7 +14,7 @@ pub fn vec_sum<T: TypeCommon + NormalOut<T, Output = T>>(vec: T::Vec) -> T {
 
 /// sum an array to a scalar with simd
 #[inline(always)]
-pub fn array_vec_sum<T: TypeCommon + VecCommon + NormalOut<T, Output = T> + Copy>(
+pub fn array_vec_sum<T: TypeCommon + NormalOut<T, Output = T> + Copy>(
     array: &[T]
 ) -> T {
     let remain = array.len() % T::Vec::SIZE;

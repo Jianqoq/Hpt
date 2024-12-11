@@ -15,7 +15,7 @@ use tensor_types::vectors::traits::*;
 impl<T> _Tensor<T>
     where
         T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
-        T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>,
+        T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + NormalOut<Output = T::Vec>,
         bool: IntoScalar<T>
 {
     /// Performs a 2D max pooling operation on the input tensor.
@@ -228,7 +228,7 @@ fn maxpool2d_kernel<T: CommonBounds, const IC_BLOCK_SIZE: usize>(
 impl<T> Tensor<T>
     where
         T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
-        T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + VecCommon + NormalOut<Output = T::Vec>,
+        T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + NormalOut<Output = T::Vec>,
         bool: IntoScalar<T>
 {
     /// Performs a 2D max pooling operation on the input tensor.

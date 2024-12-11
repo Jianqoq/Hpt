@@ -25,8 +25,7 @@ pub mod par_strided_map_mut_simd {
     use tensor_common::{shape::Shape, simd_ref::MutVec};
     use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
-    use tensor_types::vectors::traits::VecCommon;
-
+    use tensor_types::traits::VecTrait;
     /// A parallel mutable SIMD-optimized strided iterator over tensor elements.
     ///
     /// This struct provides mutable access to tensor elements with strided access patterns optimized

@@ -23,7 +23,7 @@ use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 /// A module for parallel strided iterators.
 pub mod par_strided_simd {
     use tensor_types::vectors::traits::Init;
-    use tensor_types::vectors::traits::VecCommon;
+    use tensor_types::vectors::traits::VecTrait;
     use std::sync::Arc;
 
     use rayon::iter::{
@@ -222,7 +222,6 @@ pub mod par_strided_simd {
         }
 
         fn lanes(&self) -> Option<usize> {
-            use tensor_types::vectors::traits::VecCommon;
             Some(T::Vec::SIZE)
         }
     }
