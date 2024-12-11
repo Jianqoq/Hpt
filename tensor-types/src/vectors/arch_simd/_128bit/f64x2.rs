@@ -1,10 +1,11 @@
-use std::{ ops::{ Deref, DerefMut, Index, IndexMut }, simd::StdFloat };
+use std::{ ops::{ Deref, DerefMut, }, simd::StdFloat };
 
 use crate::traits::{ Init, VecTrait };
 
 /// a vector of 2 f64 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(transparent)]
 pub struct f64x2(pub(crate) std::simd::f64x2);
 
 impl Deref for f64x2 {
@@ -32,9 +33,6 @@ impl VecTrait<f64> for f64x2 {
     #[inline(always)]
     fn sum(&self) -> f64 {
         self.as_array().iter().sum()
-    }
-    fn extract(self, idx: usize) -> f64 {
-        self.as_array()[idx]
     }
 }
 impl Init<f64> for f64x2 {

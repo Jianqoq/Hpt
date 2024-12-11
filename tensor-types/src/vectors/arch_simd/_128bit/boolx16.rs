@@ -1,5 +1,4 @@
 use crate::traits::{Init, VecTrait};
-use std::ops::{Index, IndexMut};
 use std::simd::cmp::SimdPartialOrd;
 use std::simd::{cmp::SimdPartialEq, Simd};
 
@@ -8,6 +7,7 @@ use crate::traits::SimdCompare;
 /// a vector of 16 bool values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(transparent)]
 pub struct boolx16(pub(crate) [bool; 16]);
 
 impl VecTrait<bool> for boolx16 {
@@ -24,10 +24,6 @@ impl VecTrait<bool> for boolx16 {
     #[inline(always)]
     fn sum(&self) -> bool {
         self.0.iter().map(|&x| x as u8).sum::<u8>() > 0
-    }
-
-    fn extract(self, idx: usize) -> bool {
-        self.0[idx]
     }
 }
 impl Init<bool> for boolx16 {

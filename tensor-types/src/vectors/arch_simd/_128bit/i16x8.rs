@@ -1,10 +1,11 @@
-use std::ops::{ Deref, DerefMut, Index, IndexMut };
+use std::ops::{ Deref, DerefMut};
 
 use crate::traits::{Init, SimdSelect, VecTrait};
 
 /// a vector of 8 i16 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(transparent)]
 pub struct i16x8(pub(crate) std::simd::i16x8);
 
 impl Deref for i16x8 {
@@ -33,12 +34,9 @@ impl VecTrait<i16> for i16x8 {
     fn sum(&self) -> i16 {
         self.as_array().iter().sum()
     }
-    fn extract(self, idx: usize) -> i16 {
-        self.as_array()[idx]
-    }
 }
 
-impl SimdSelect<i16x8> for crate::vectors::_128bit::u32x4::u32x4 {
+impl SimdSelect<i16x8> for crate::vectors::arch_simd::_128bit::i16x8 {
     fn select(&self, true_val: i16x8, false_val: i16x8) -> i16x8 {
         let mask: std::simd::mask16x8 = unsafe { std::mem::transmute(*self) };
         i16x8(mask.select(true_val.0, false_val.0))

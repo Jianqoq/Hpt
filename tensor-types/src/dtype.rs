@@ -155,8 +155,6 @@ pub trait TypeCommon where Self: Sized + Copy {
         IntoVec<Self::Vec> +
         Sync +
         Debug +
-        Index<usize, Output = Self> +
-        IndexMut<usize, Output = Self> +
         NormalOutUnary +
         NormalOut<Self::Vec, Output = Self::Vec> +
         FloatOutUnary +
@@ -492,7 +490,7 @@ mod type_impl {
 )]
 mod type_impl {
     use super::{ Dtype, TypeCommon };
-    use crate::vectors::_128bit::*;
+    use crate::vectors::std_simd::_128bit::*;
     use half::*;
     use num_complex::{ Complex32, Complex64 };
     impl_type_common!(

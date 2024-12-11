@@ -1,5 +1,5 @@
-use crate::_128bit::f32x4::f32x4;
-use crate::_128bit::u16x8::u16x8;
+use crate::vectors::arch_simd::_128bit::f32x4::f32x4;
+use crate::vectors::arch_simd::_128bit::u16x8::u16x8;
 use crate::traits::{Init, VecTrait};
 use std::ops::{Index, IndexMut};
 use std::simd::cmp::SimdPartialOrd;
@@ -35,9 +35,6 @@ impl VecTrait<half::f16> for f16x8 {
     #[inline(always)]
     fn sum(&self) -> half::f16 {
         self.0.iter().sum()
-    }
-    fn extract(self, idx: usize) -> half::f16 {
-        self.0[idx]
     }
 }
 impl Init<half::f16> for f16x8 {

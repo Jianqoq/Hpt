@@ -1,10 +1,11 @@
-use std::ops::{ Deref, DerefMut, Index, IndexMut };
+use std::ops::{ Deref, DerefMut };
 
 use crate::traits::{Init, VecTrait};
 
 /// a vector of 2 isize values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(transparent)]
 pub struct isizex2(pub(crate) std::simd::isizex2);
 
 impl Deref for isizex2 {
@@ -36,9 +37,6 @@ impl VecTrait<isize> for isizex2 {
     fn sum(&self) -> isize {
         let ret = self.as_array().iter().sum::<isize>();
         ret
-    }
-    fn extract(self, idx: usize) -> isize {
-        self.as_array()[idx]
     }
 }
 

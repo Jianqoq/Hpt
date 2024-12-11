@@ -1,12 +1,13 @@
 use crate::traits::{ Init, SimdSelect, VecTrait };
-use crate::vectors::_128bit::u32x4::u32x4;
-use std::ops::{ Deref, DerefMut, Index, IndexMut };
+use crate::vectors::arch_simd::_128bit::u32x4::u32x4;
+use std::ops::{ Deref, DerefMut };
 use std::simd::num::SimdFloat;
 use std::simd::StdFloat;
 
 /// a vector of 4 f32 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(transparent)]
 pub struct f32x4(pub(crate) std::simd::f32x4);
 
 impl Deref for f32x4 {
@@ -34,10 +35,6 @@ impl VecTrait<f32> for f32x4 {
     #[inline(always)]
     fn sum(&self) -> f32 {
         self.reduce_sum()
-    }
-
-    fn extract(self, idx: usize) -> f32 {
-        self.as_array()[idx]
     }
 }
 impl Init<f32> for f32x4 {

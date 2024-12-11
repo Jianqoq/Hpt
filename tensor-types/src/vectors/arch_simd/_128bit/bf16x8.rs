@@ -1,21 +1,12 @@
-use crate::_128bit::u16x8::u16x8;
-use crate::{
-    traits::{Init, VecTrait},
-    vectors::_128bit::f32x4::f32x4,
-};
-use std::{
-    ops::{Index, IndexMut},
-    simd::{
-        cmp::{SimdPartialEq, SimdPartialOrd},
-        num::{SimdFloat, SimdUint},
-        Simd,
-    },
-};
+use crate::arch_simd::_128bit::u16x8::u16x8;
+use crate::{ traits::{ Init, VecTrait }, vectors::arch_simd::_128bit::f32x4::f32x4 };
+use std::simd::{ cmp::{ SimdPartialEq, SimdPartialOrd }, num::{ SimdFloat, SimdUint }, Simd };
 use crate::traits::SimdCompare;
 
 /// a vector of 8 bf16 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(transparent)]
 pub struct bf16x8(pub(crate) [half::bf16; 8]);
 
 impl VecTrait<half::bf16> for bf16x8 {
@@ -38,10 +29,6 @@ impl VecTrait<half::bf16> for bf16x8 {
     fn sum(&self) -> half::bf16 {
         self.0.iter().sum()
     }
-
-    fn extract(self, idx: usize) -> half::bf16 {
-        self.0[idx]
-    }
 }
 impl Init<half::bf16> for bf16x8 {
     fn splat(val: half::bf16) -> bf16x8 {
@@ -63,10 +50,7 @@ impl bf16x8 {
             (bi | std::simd::u32x4::splat(0x0040)) << 8,
         ];
         let [a_normal, b_normal] = [ai << 8, bi << 8];
-        let [a_res, b_res] = [
-            am.select(an_adjusted, a_normal),
-            bm.select(bn_adjusted, b_normal),
-        ];
+        let [a_res, b_res] = [am.select(an_adjusted, a_normal), bm.select(bn_adjusted, b_normal)];
         unsafe { std::mem::transmute([a_res, b_res]) }
     }
 
@@ -81,10 +65,10 @@ impl bf16x8 {
         let round_bit = std::simd::u32x4::splat(0x0000_8000);
         let one = std::simd::u32x4::splat(1);
         let [a_round_increment, b_round_increment] = [
-            (au & round_bit).simd_ne(std::simd::u32x4::splat(0))
-                & (au & (round_bit - one)).simd_ne(std::simd::u32x4::splat(0)),
-            (bu & round_bit).simd_ne(std::simd::u32x4::splat(0))
-                & (bu & (round_bit - one)).simd_ne(std::simd::u32x4::splat(0)),
+            (au & round_bit).simd_ne(std::simd::u32x4::splat(0)) &
+                (au & (round_bit - one)).simd_ne(std::simd::u32x4::splat(0)),
+            (bu & round_bit).simd_ne(std::simd::u32x4::splat(0)) &
+                (bu & (round_bit - one)).simd_ne(std::simd::u32x4::splat(0)),
         ];
         let [a_rounded, b_rounded] = [
             au + a_round_increment.to_int().cast(),
@@ -113,8 +97,9 @@ impl bf16x8 {
         let and = i & x;
         let eq: Simd<u16, 8> = unsafe { std::mem::transmute(and.simd_eq(x)) };
         let and2 = i & y;
-        let neq_zero: Simd<u16, 8> =
-            unsafe { std::mem::transmute(and2.simd_ne(std::simd::u16x8::splat(0))) };
+        let neq_zero: Simd<u16, 8> = unsafe {
+            std::mem::transmute(and2.simd_ne(std::simd::u16x8::splat(0)))
+        };
         unsafe { std::mem::transmute(eq & neq_zero) }
     }
 
