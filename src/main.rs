@@ -1,19 +1,17 @@
-use into_scalar::IntoScalar;
 use rust_xlsxwriter::{ Format, Workbook };
 use std::io::Write;
-use tensor_dyn::Tensor;
 use tensor_dyn::*;
 
 fuse_proc_macro!(
-    fn compute(a: Tensor<f32>, b: Tensor<f32>, k: f32) -> anyhow::Result<Tensor<f32>>
+    fn compute(a: Tensor<f32>, mut b: Tensor<f32>) -> anyhow::Result<Tensor<f32>>
 {
-    let c = a.sin()?;
-    let cos = c.cos()?;
-    let tanh = c.tanh()?;
-    let add = cos + tanh;
-    let atan = add.atan()?;
-    // let g = c.matmul(&e)?.tanh()?;
-    // let f = g.relu()?;
+    // let mut c = a.sin()?;
+    // let mut d = c.cos()?;
+    // let tanh = cos.tanh()?;
+    // let add = tanh + 10f32;
+    // let e = add / &c;
+    // let g = c.matmul(&e)?;
+    // let mut d = g.relu()?;
     // let shape = a.shape();
     // let alpha = 1.673263242354358;
     // let gamma = 1.050700987355822;
@@ -31,19 +29,19 @@ fuse_proc_macro!(
     //     c = &d + &c;
     //     break;
     // }
-    // while true {
-    //     let c = &d + &c;
-    //     c.sin()?;
-    //     continue;
-    // }
+    while true {
+        b = &a + &b;
+        let e = b.sin()?;
+        let f = e.cos()?;
+        continue;
+    }
     
-    Ok(atan)
+    Ok(a)
 });
-
 
 fn main() -> anyhow::Result<()> {
     // conv2d()?;
-    let a = Tensor::<f32>::arange(0, 10000)?;
+    // let a = Tensor::<f32>::arange(0, 10000)?;
     // let b = _Tensor::<f32>::arange(0, 10000)?;
     // let now = std::time::Instant::now();
     // let c = compute(a, b)?;

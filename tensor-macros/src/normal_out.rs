@@ -49,7 +49,7 @@ pub(crate) fn __impl_normal_out_binary() -> TokenStream {
             let clamp = if res_type.is_cplx() {
                 quote! {
                     #[inline(always)]
-                    fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output {
+                    fn _clip(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
                         paste::paste! {
                             let c = self.[<to_ #res_type_ident>]();
                             let min = min.[<to_ #res_type_ident>]();
@@ -63,7 +63,7 @@ pub(crate) fn __impl_normal_out_binary() -> TokenStream {
             } else {
                 quote! {
                     #[inline(always)]
-                    fn _clip(self, min: Self::Output, max: Self::Output) -> Self::Output {
+                    fn _clip(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
                         paste::paste! {
                             let a = self.[<to_ #res_type_ident>]();
                             let min = min.[<to_ #res_type_ident>]();

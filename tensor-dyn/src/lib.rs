@@ -173,6 +173,12 @@ pub use tensor_types::vectors::*;
 pub use tensor_types::*;
 pub use tensor_types::type_promote::*;
 pub use tensor::Tensor;
+pub use rayon::prelude::*;
+pub use tensor_types::dtype::TypeCommon;
+pub use tensor_types::traits::VecCommon;
+pub use crate::backend::*;
+pub use tensor_types::traits::Init;
+pub use tensor_types::traits::VecTrait;
 
 use std::{ cell::RefCell, sync::atomic::AtomicUsize };
 thread_local! {

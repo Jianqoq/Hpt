@@ -11,7 +11,7 @@ use syn::visit::Visit;
 use syn::visit_mut::VisitMut;
 use syn::Stmt;
 
-use super::node::Node;
+use super::node::{Node, Operand};
 use super::var_coalescer::VarCoalescer;
 use super::{ codegen, expr_ty };
 use super::errors::Error;
@@ -500,7 +500,7 @@ impl CFG {
     }
 
     pub(crate) fn build_graphs(
-        &self,
+        &mut self,
         type_table: HashMap<syn::Ident, Type>
     ) -> Graph<super::build_graph::Graph, ()> {
         let table = Rc::new(type_table);
@@ -534,14 +534,19 @@ impl CFG {
                     }
                 }
             }
-            for (ident, in_degree) in in_degrees {
+            for (operand, in_degree) in in_degrees {
                 if in_degree == 0 {
-                    comp_graph.inputs.insert(
-                        (Node::Input(ident.clone()), -1, node.index()),
-                        table[ident]
-                    );
+                    if let Operand::Variable(ident) = &operand {
+                        comp_graph.inputs.insert(
+                            (Node::Input(operand.clone()), -1, node.index()),
+                            *table
+                                .get(&ident)
+                                .expect(format!("type not found for {}", ident).as_str())
+                        );
+                    }
                 }
             }
+            self.errors.extend(comp_graph.errors.drain(..));
             graph.add_node(comp_graph);
         }
         for idx in self.graph.node_indices() {
@@ -846,7 +851,7 @@ fn rename(
         match &mut stmt.stmt {
             Stmt::Local(local) => {
                 if let Some(init) = &mut local.init {
-                    replace_vars(&mut init.expr, stacks, &mut new_origin_var_map);
+                    replace_vars(&mut errors, &mut init.expr, stacks, &mut new_origin_var_map);
                 }
                 new_name_pat(
                     &mut errors,
@@ -860,7 +865,7 @@ fn rename(
                 replace_vars_item(item, stacks, &mut new_origin_var_map);
             }
             Stmt::Expr(expr, ..) => {
-                replace_vars(expr, stacks, &mut new_origin_var_map);
+                replace_vars(&mut errors, expr, stacks, &mut new_origin_var_map);
             }
             Stmt::Macro(mc) => {
                 let tokens = mc.mac.tokens.clone();
@@ -930,6 +935,7 @@ fn rename(
 }
 
 fn replace_vars(
+    errors: &mut Vec<Error>,
     expr: &mut syn::Expr,
     stacks: &HashMap<syn::Ident, Vec<usize>>,
     new_origin_var_map: &mut HashMap<syn::Ident, syn::Ident>
@@ -937,6 +943,7 @@ fn replace_vars(
     struct VarRenamer<'a> {
         stacks: &'a HashMap<syn::Ident, Vec<usize>>,
         new_origin_var_map: &'a mut HashMap<syn::Ident, syn::Ident>,
+        errors: &'a mut Vec<Error>,
     }
     impl<'a> syn::visit_mut::VisitMut for VarRenamer<'a> {
         fn visit_expr_mut(&mut self, node: &mut syn::Expr) {
@@ -956,17 +963,36 @@ fn replace_vars(
                                     ),
                                     var
                                 );
+                            } else {
+                                self.errors.push(
+                                    Error::OriginalVariableNotFound(
+                                        var.span(),
+                                        "replace_vars",
+                                        var.to_string()
+                                    )
+                                );
                             }
                         }
                     }
                 }
                 _ => {
                     syn::visit_mut::visit_expr_mut(self, node);
-                },
+                }
+            }
+        }
+        fn visit_expr_method_call_mut(&mut self, i: &mut syn::ExprMethodCall) {
+            self.visit_expr_mut(&mut i.receiver);
+            for arg in &mut i.args {
+                self.visit_expr_mut(arg);
+            }
+        }
+        fn visit_expr_call_mut(&mut self, i: &mut syn::ExprCall) {
+            for arg in &mut i.args {
+                self.visit_expr_mut(arg);
             }
         }
     }
-    let mut var_renamer = VarRenamer { stacks, new_origin_var_map };
+    let mut var_renamer = VarRenamer { stacks, new_origin_var_map, errors };
     var_renamer.visit_expr_mut(expr);
 }
 

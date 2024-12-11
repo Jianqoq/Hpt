@@ -1,13 +1,50 @@
 use quote::ToTokens;
+use syn::spanned::Spanned;
 
 use super::kernel_type::KernelType;
 
 #[derive(Clone, Eq, PartialEq, Hash)]
+pub(crate) enum Operand {
+    Constant(syn::Expr),
+    Variable(syn::Ident),
+}
+
+impl Operand {
+    pub(crate) fn is_variable(&self) -> bool {
+        matches!(self, Operand::Variable(_))
+    }
+    pub(crate) fn span(&self) -> proc_macro2::Span {
+        match self {
+            Operand::Constant(lit) => lit.span(),
+            Operand::Variable(ident) => ident.span(),
+        }
+    }
+}
+
+impl std::fmt::Display for Operand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Operand::Constant(lit) => write!(f, "{}", lit.to_token_stream().to_string()),
+            Operand::Variable(ident) => write!(f, "{}", ident.to_token_stream().to_string()),
+        }
+    }
+}
+
+impl<'ast> ToTokens for Operand {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        match self {
+            Operand::Constant(lit) => lit.to_tokens(tokens),
+            Operand::Variable(ident) => ident.to_tokens(tokens),
+        }
+    }
+}
+
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub(crate) struct Unary {
     pub(crate) method: syn::Ident,
-    pub(crate) operand: syn::Ident,
-    pub(crate) args: Vec<syn::Expr>,
-    pub(crate) output: syn::Ident,
+    pub(crate) operand: Operand,
+    pub(crate) args: Vec<Operand>,
+    pub(crate) output: Operand,
     pub(crate) kernel_type: KernelType,
 }
 
@@ -18,7 +55,7 @@ impl std::fmt::Debug for Unary {
             "{} = {}({}, {})",
             self.output.to_token_stream().to_string(),
             self.method.to_token_stream().to_string(),
-            self.operand.to_token_stream().to_string(),
+            self.operand,
             self.args
                 .iter()
                 .map(|arg| arg.to_token_stream().to_string())
@@ -31,8 +68,8 @@ impl std::fmt::Debug for Unary {
 impl ToTokens for Unary {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let method = proc_macro2::Ident::new(&format!("_{}", self.method), self.method.span());
-        let operand = proc_macro2::Ident::new(&format!("{}", self.operand), self.operand.span());
-        let output = proc_macro2::Ident::new(&format!("{}", self.output), self.output.span());
+        let operand = &self.operand;
+        let output = &self.output;
         if self.args.is_empty() {
             tokens.extend(
                 quote::quote!(
@@ -53,9 +90,9 @@ impl ToTokens for Unary {
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub(crate) struct Binary {
     pub(crate) method: syn::Ident,
-    pub(crate) left: syn::Ident,
-    pub(crate) right: syn::Ident,
-    pub(crate) output: syn::Ident,
+    pub(crate) left: Operand,
+    pub(crate) right: Operand,
+    pub(crate) output: Operand,
     pub(crate) kernel_type: KernelType,
 }
 
@@ -68,8 +105,8 @@ impl std::fmt::Debug for Binary {
                 self.output.to_token_stream().to_string()
             },
             self.method.to_token_stream().to_string(),
-            self.left.to_token_stream().to_string(),
-            self.right.to_token_stream().to_string()
+            self.left,
+            self.right
         )
     }
 }
@@ -77,9 +114,9 @@ impl std::fmt::Debug for Binary {
 impl<'ast> ToTokens for Binary {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let method = proc_macro2::Ident::new(&format!("_{}", self.method), self.method.span());
-        let left = proc_macro2::Ident::new(&format!("{}", self.left), self.left.span());
-        let right = proc_macro2::Ident::new(&format!("{}", self.right), self.right.span());
-        let output = proc_macro2::Ident::new(&format!("{}", self.output), self.output.span());
+        let left = &self.left;
+        let right = &self.right;
+        let output = &self.output;
         tokens.extend(quote::quote!(
              let #output = #left.#method(#right);
         ));
@@ -90,7 +127,7 @@ impl<'ast> ToTokens for Binary {
 pub(crate) enum Node {
     Unary(Unary),
     Binary(Binary),
-    Input(syn::Ident),
+    Input(Operand),
 }
 
 impl std::fmt::Debug for Node {

@@ -6,7 +6,6 @@ use rayon::iter::{
 use std::borrow::Borrow;
 use std::panic::Location;
 use tensor_common::err_handler::ErrHandler::InvalidOutSize;
-use tensor_iterator::iterator_traits::ParStridedIteratorSimdZip;
 use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
 use tensor_traits::tensor::CommonBounds;
@@ -266,35 +265,35 @@ where
             }
             Ok(ret)
         } else {
-            if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
-                && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
-            {
-                let ret = lhs
-                    .par_iter_simd()
-                    .zip(rhs.par_iter_simd())
-                    .strided_map_simd(
-                        |(res, (x, y))| {
-                            *res = f(x, y);
-                        },
-                        |(res, (x, y))| {
-                            let x_ptr = x.as_ptr();
-                            let y_ptr = y.as_ptr();
-                            res.write_unaligned(f2(
-                                unsafe { <A as TypeCommon>::Vec::from_ptr(x_ptr) },
-                                unsafe { <B as TypeCommon>::Vec::from_ptr(y_ptr) },
-                            ));
-                        },
-                    )
-                    .collect::<_Tensor<K>>();
-                Ok(ret)
-            } else {
-                let ret = lhs
-                    .par_iter()
-                    .zip(rhs.par_iter())
-                    .strided_map(|(x, y)| f(x, y))
-                    .collect::<_Tensor<K>>();
-                Ok(ret)
-            }
+            // if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
+            //     && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
+            // {
+            //     let ret = lhs
+            //         .par_iter_simd()
+            //         .zip(rhs.par_iter_simd())
+            //         .strided_map_simd(
+            //             |(res, (x, y))| {
+            //                 *res = f(x, y);
+            //             },
+            //             |(res, (x, y))| {
+            //                 let x_ptr = x.as_ptr();
+            //                 let y_ptr = y.as_ptr();
+            //                 res.write_unaligned(f2(
+            //                     unsafe { <A as TypeCommon>::Vec::from_ptr(x_ptr) },
+            //                     unsafe { <B as TypeCommon>::Vec::from_ptr(y_ptr) },
+            //                 ));
+            //             },
+            //         )
+            //         .collect::<_Tensor<K>>();
+            //     Ok(ret)
+            // } else {
+            let ret = lhs
+                .par_iter()
+                .zip(rhs.par_iter())
+                .strided_map(|(x, y)| f(x, y))
+                .collect::<_Tensor<K>>();
+            Ok(ret)
+            // }
         }
     }
 }

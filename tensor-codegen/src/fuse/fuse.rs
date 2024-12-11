@@ -2,10 +2,10 @@ use std::collections::HashSet;
 
 use petgraph::graph::NodeIndex;
 
-use super::{ build_graph::CmpNode, kernel_type::KernelType };
+use super::{ build_graph::CmpNode, kernel_type::KernelType, node::Operand };
 #[derive(Eq, Hash, PartialEq)]
 pub(crate) struct Input {
-    pub(crate) var: syn::Ident,
+    pub(crate) var: Operand,
     pub(crate) stmt_index: i64,
     pub(crate) block_idx: usize,
     pub(crate) comp_graph_idx: NodeIndex,
@@ -24,7 +24,7 @@ impl std::fmt::Debug for Input {
 
 #[derive(Eq, Hash, PartialEq)]
 pub(crate) struct Output {
-    pub(crate) var: syn::Ident,
+    pub(crate) var: Operand,
     pub(crate) stmt_index: i64,
     pub(crate) block_idx: usize,
     pub(crate) comp_graph_idx: NodeIndex,
@@ -83,18 +83,22 @@ pub(crate) fn cmp_fuse<'ast>(
             .node_weight(NodeIndex::new(node.block_idx))
             .expect("node weight not found");
         block.insert(idx);
-        if !basic_block.live_out.contains(&node.ident) {
-            for output in unfused.neighbors_directed(idx, petgraph::Direction::Outgoing) {
-                cmp_fuse_children(
-                    output,
-                    node.kernel_type,
-                    &mut block,
-                    &unfused,
-                    basic_block,
-                );
+        match &node.ident {
+            super::node::Operand::Constant(_) => {}
+            super::node::Operand::Variable(ident) => {
+                if !basic_block.live_out.contains(ident) {
+                    for output in unfused.neighbors_directed(idx, petgraph::Direction::Outgoing) {
+                        cmp_fuse_children(
+                            output,
+                            node.kernel_type,
+                            &mut block,
+                            &unfused,
+                            basic_block
+                        );
+                    }
+                }
             }
         }
-
         for inp in unfused.neighbors_directed(idx, petgraph::Direction::Incoming) {
             cmp_fuse_parents(inp, node.kernel_type, &mut block, &unfused, basic_block);
         }
@@ -135,24 +139,19 @@ pub fn cmp_fuse_parents(
     next_kernel_type: KernelType,
     block: &mut HashSet<NodeIndex>,
     unfused: &petgraph::stable_graph::StableGraph<CmpNode, ()>,
-    basic_block: &crate::fuse::cfg::BasicBlock,
+    basic_block: &crate::fuse::cfg::BasicBlock
 ) {
     let node = &unfused
         .node_weight(pred)
         .expect(format!("node weight not found {:?}, ", pred).as_str());
-    match cmp_pred_kernel_fusable(next_kernel_type, node.kernel_type) {
-        Ok(Some(kernel_type)) => {
-            block.insert(pred);
-            if !unfused.neighbors_directed(pred, petgraph::Direction::Incoming).count() == 0 {
-                for inp in unfused.neighbors_directed(pred, petgraph::Direction::Incoming) {
-                    cmp_fuse_parents(inp, kernel_type, block, unfused, basic_block);
-                }
+    let fused_kernel_type = cmp_pred_kernel_fusable(next_kernel_type, node.kernel_type);
+    if let Some(kernel_type) = fused_kernel_type {
+        block.insert(pred);
+        if !unfused.neighbors_directed(pred, petgraph::Direction::Incoming).count() == 0 {
+            for inp in unfused.neighbors_directed(pred, petgraph::Direction::Incoming) {
+                cmp_fuse_parents(inp, kernel_type, block, unfused, basic_block);
             }
         }
-        Ok(None) => {
-            block.insert(pred);
-        }
-        Err(_) => {}
     }
 }
 
@@ -161,40 +160,40 @@ pub fn cmp_fuse_children(
     prev_kernel_type: KernelType,
     block: &mut HashSet<NodeIndex>,
     unfused: &petgraph::stable_graph::StableGraph<CmpNode, ()>,
-    basic_block: &crate::fuse::cfg::BasicBlock,
+    basic_block: &crate::fuse::cfg::BasicBlock
 ) {
     let node = &unfused
         .node_weight(succ)
         .expect(format!("node weight not found {:?}, ", succ).as_str());
-    block.insert(succ);
-    match
-        cmp_suc_kernel_fusable(
-            prev_kernel_type,
-            unfused.node_weight(succ).expect("node weight not found").kernel_type
-        )
-    {
-        Ok(Some(kernel_type)) => {
-            if !basic_block.live_out.contains(&node.ident) {
-                for output in unfused.neighbors_directed(succ, petgraph::Direction::Outgoing) {
-                    cmp_fuse_children(output, kernel_type, block, unfused, basic_block);
+    let fused_kernel_type = cmp_suc_kernel_fusable(
+        prev_kernel_type,
+        unfused.node_weight(succ).expect("node weight not found").kernel_type
+    );
+    if let Some(kernel_type) = fused_kernel_type {
+        block.insert(succ);
+        match &node.ident {
+            super::node::Operand::Constant(_) => {}
+            super::node::Operand::Variable(ident) => {
+                if !basic_block.live_out.contains(ident) {
+                    for output in unfused.neighbors_directed(succ, petgraph::Direction::Outgoing) {
+                        cmp_fuse_children(output, kernel_type, block, unfused, basic_block);
+                    }
                 }
             }
         }
-        Ok(None) => {}
-        Err(_) => {}
     }
 }
 
 pub fn cmp_pred_kernel_fusable(
     next_kernel_type: KernelType,
     pred: KernelType
-) -> anyhow::Result<Option<KernelType>> {
-    Ok(pred.infer_pred_kernel(&next_kernel_type))
+) -> Option<KernelType> {
+    pred.infer_pred_kernel(&next_kernel_type)
 }
 
 pub fn cmp_suc_kernel_fusable(
     kernel_type: KernelType,
     next_kernel_type: KernelType
-) -> anyhow::Result<Option<KernelType>> {
-    Ok(kernel_type.infer_suc_kernel(&next_kernel_type))
+) -> Option<KernelType> {
+    kernel_type.infer_suc_kernel(&next_kernel_type)
 }
