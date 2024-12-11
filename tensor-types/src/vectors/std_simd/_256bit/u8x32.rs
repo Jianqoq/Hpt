@@ -31,18 +31,6 @@ impl VecTrait<u8> for u8x32 {
         self.as_mut_array().copy_from_slice(slice);
     }
     #[inline(always)]
-    fn as_ptr(&self) -> *const u8 {
-        self.as_array().as_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut u8 {
-        self.as_mut_array().as_mut_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut u8 {
-        self.as_array().as_ptr() as *mut _
-    }
-    #[inline(always)]
     fn sum(&self) -> u8 {
         self.as_array().iter().sum()
     }

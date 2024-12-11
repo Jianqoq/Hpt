@@ -34,18 +34,6 @@ impl VecTrait<usize> for usizex4 {
         self.as_mut_array().copy_from_slice(unsafe { std::mem::transmute(slice) });
     }
     #[inline(always)]
-    fn as_ptr(&self) -> *const usize {
-        self.as_array().as_ptr() as *const _
-    }
-    #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut usize {
-        self.as_mut_array().as_mut_ptr() as *mut _
-    }
-    #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut usize {
-        self.as_array().as_ptr() as *mut _
-    }
-    #[inline(always)]
     fn sum(&self) -> usize {
         self.as_array().iter().sum::<usize>()
     }

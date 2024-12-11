@@ -23,19 +23,6 @@ impl VecTrait<Complex32> for cplx32x4 {
         self.0.copy_from_slice(slice);
     }
     #[inline(always)]
-    fn as_ptr(&self) -> *const Complex32 {
-        self.0.as_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut Complex32 {
-        self.0.as_mut_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut Complex32 {
-        self.0.as_ptr() as *mut _
-    }
-
-    #[inline(always)]
     fn sum(&self) -> Complex32 {
         self.0.iter().sum()
     }

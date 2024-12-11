@@ -35,19 +35,6 @@ impl VecTrait<half::f16> for f16x16 {
         self.0.copy_from_slice(slice);
     }
     #[inline(always)]
-    fn as_ptr(&self) -> *const half::f16 {
-        self.0.as_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut half::f16 {
-        self.0.as_mut_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut half::f16 {
-        self.0.as_ptr() as *mut _
-    }
-
-    #[inline(always)]
     fn sum(&self) -> half::f16 {
         self.0.iter().sum()
     }

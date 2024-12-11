@@ -31,19 +31,6 @@ impl VecTrait<f64> for f64x4 {
         self.as_mut_array().copy_from_slice(slice);
     }
     #[inline(always)]
-    fn as_ptr(&self) -> *const f64 {
-        self.as_array().as_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut f64 {
-        self.as_mut_array().as_mut_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut f64 {
-        self.as_array().as_ptr() as *mut _
-    }
-
-    #[inline(always)]
     fn sum(&self) -> f64 {
         self.as_array().iter().sum()
     }
