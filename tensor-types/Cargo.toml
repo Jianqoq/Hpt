@@ -13,7 +13,7 @@ sleef = "0.3.2"
 
 [dev-dependencies]
 rug = "1.16"
-
+rand = "0.8.5"
 
 [features]
 f16c = []

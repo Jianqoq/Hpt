@@ -2,37 +2,14 @@ use crate::{
     arch_simd::sleef::{
         arch::helper::vabs_vf_vf,
         libm::sleefsimdsp::{
-            xacosf_u1,
-            xacoshf,
-            xasinf_u1,
-            xasinhf,
-            xatanf_u1,
-            xatanhf,
-            xcbrtf_u1,
-            xcosf_u1,
-            xcoshf,
-            xerff_u1,
-            xexp10f,
-            xexp2f,
-            xexpf,
-            xexpm1f,
-            xhypotf_u05,
-            xlog10f,
-            xlog1pf,
-            xlog2f,
-            xlogf_u1,
-            xpowf,
-            xroundf,
-            xsinf_u1,
-            xsinhf,
-            xsqrtf_u05,
-            xtanf_u1,
-            xtanhf,
+            xacosf_u1, xacoshf, xasinf_u1, xasinhf, xatanf_u1, xatanhf, xcbrtf_u1, xcosf_u1,
+            xcoshf, xerff_u1, xexp10f, xexp2f, xexpf, xexpm1f, xhypotf_u05, xlog10f, xlog1pf,
+            xlog2f, xlogf_u1, xpowf, xroundf, xsinf_u1, xsinhf, xsqrtf_u05, xtanf_u1, xtanhf,
             xtruncf,
         },
     },
     traits::SimdMath,
-    vectors::traits::{ SimdSelect, VecTrait },
+    vectors::traits::{SimdSelect, VecTrait},
 };
 use std::arch::x86_64::*;
 
@@ -304,14 +281,122 @@ impl SimdMath<f32> for f32x8 {
     }
 }
 
-#[test]
-fn test_powf() {
-    use rug::{ ops::Pow, Float };
-    test_ff_f::<2>(
-        powf,
-        |in1, in2| Float::with_val(in1.prec(), in1.pow(in2)),
-        f32::MIN..=f32::MAX,
-        f32::MIN..=f32::MAX,
-        1.0
-    );
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rug::Assign;
+    use rug::{ops::Pow, Float};
+    const TEST_REPEAT: usize = 100_000;
+    const PRECF32: u32 = 80;
+    pub fn f32_count_ulp(d: f32, c: &Float) -> f32 {
+        let c2 = c.to_f32();
+
+        if (c2 == 0. || c2.is_subnormal()) && (d == 0. || d.is_subnormal()) {
+            return 0.;
+        }
+
+        if (c2 == 0.) && (d != 0.) {
+            return 10000.;
+        }
+
+        if c2.is_infinite() && d.is_infinite() {
+            return 0.;
+        }
+
+        let prec = c.prec();
+
+        let mut fry = Float::with_val(prec, d);
+
+        let mut frw = Float::new(prec);
+
+        let (_, e) = c.to_f32_exp();
+
+        frw.assign(Float::u_exp(1, e - 24_i32));
+
+        fry -= c;
+        fry /= &frw;
+        let u = f32::from_bits(0x_7fff_ffff & fry.to_f32().to_bits());
+
+        u
+    }
+    fn f32_gen_input(
+        rng: &mut rand::rngs::ThreadRng,
+        range: core::ops::RangeInclusive<f32>,
+    ) -> f32 {
+        use rand::Rng;
+        let mut start = *range.start();
+        if start == f32::MIN {
+            start = -1e37;
+        }
+        let mut end = *range.end();
+        if end == f32::MAX {
+            end = 1e37;
+        }
+        rng.gen_range(start..=end)
+    }
+    fn gen_input<const N: usize>(
+        rng: &mut rand::rngs::ThreadRng,
+        range: core::ops::RangeInclusive<f32>,
+    ) -> std::simd::Simd<f32, N>
+    where
+        std::simd::LaneCount<N>: std::simd::SupportedLaneCount,
+    {
+        let mut arr = [0.; N];
+        for i in 0..N {
+            arr[i] = f32_gen_input(rng, range.clone());
+        }
+        arr.into()
+    }
+    pub fn test_f_f<const N: usize>(
+        f_tested: fn(std::simd::Simd<f32, N>) -> std::simd::Simd<f32, N>,
+        f_sample: fn(rug::Float) -> rug::Float,
+        range: core::ops::RangeInclusive<f32>,
+        ulp_ex: f32,
+    ) where
+        std::simd::LaneCount<N>: std::simd::SupportedLaneCount,
+    {
+        test_c_f_f(f_tested, f_sample, range, |ulp, _, _| {
+            (ulp <= ulp_ex, format!("ULP: {ulp} > {ulp_ex}"))
+        })
+    }
+
+    pub fn test_c_f_f<const N: usize>(
+        f_tested: fn(std::simd::Simd<f32, N>) -> std::simd::Simd<f32, N>,
+        f_sample: fn(rug::Float) -> rug::Float,
+        range: core::ops::RangeInclusive<f32>,
+        cf: impl Fn(f32, f32, &rug::Float) -> (bool, String),
+    ) where
+        std::simd::LaneCount<N>: std::simd::SupportedLaneCount,
+    {
+        let mut rng = rand::thread_rng();
+        for n in 0..TEST_REPEAT {
+            let in_fx = gen_input(&mut rng, range.clone());
+            let out_fx = f_tested(in_fx);
+            for i in 0..N {
+                let input = in_fx[i];
+                let output = out_fx[i];
+                let expected = f_sample(rug::Float::with_val(PRECF32, input));
+                if expected.is_nan() && output.is_nan() {
+                    continue;
+                }
+                let ulp = f32_count_ulp(output, &expected);
+                let (b, fault_string) = cf(ulp, output, &expected);
+                assert!(
+                    b,
+                    "Iteration: {n}, Position: {i}, Input: {input:e}, Output: {output}, Expected: {expected}, {}",
+                    fault_string
+                );
+            }
+        }
+    }
+    #[test]
+    fn test_sinf() {
+        fn sinf(d: std::simd::Simd<f32, 8>) -> std::simd::Simd<f32, 8>
+        where
+            std::simd::LaneCount<8>: std::simd::SupportedLaneCount,
+        {
+            unsafe { xsinf_u1(std::mem::transmute(d)).into() }
+        }
+        test_f_f::<8>(sinf, rug::Float::sin, f32::MIN..=f32::MAX, 1.);
+    }
 }

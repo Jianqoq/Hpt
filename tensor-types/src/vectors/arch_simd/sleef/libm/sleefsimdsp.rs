@@ -1454,7 +1454,7 @@ pub(crate) unsafe fn xlog10f(d: VFloat) -> VFloat {
         let o = vlt_vo_vf_vf(d, vcast_vf_f(SLEEF_FLT_MIN));
         let d = vsel_vf_vo_vf_vf(
             o,
-            vmul_vf_vf_vf(d, vcast_vf_f(((1 << 32) as f32) * ((1 << 32) as f32))),
+            vmul_vf_vf_vf(d, vcast_vf_f(((1u64 << 32u64) as f32) * ((1u64 << 32u64) as f32))),
             d
         );
         let mut e = vilogb2k_vi2_vf(vmul_vf_vf_vf(d, vcast_vf_f(1.0 / 0.75)));
@@ -1530,7 +1530,7 @@ pub(crate) unsafe fn xlog2f(d: VFloat) -> VFloat {
         let o = vlt_vo_vf_vf(d, vcast_vf_f(SLEEF_FLT_MIN));
         let d = vsel_vf_vo_vf_vf(
             o,
-            vmul_vf_vf_vf(d, vcast_vf_f(((1 << 32) as f32) * ((1 << 32) as f32))),
+            vmul_vf_vf_vf(d, vcast_vf_f(((1u64 << 32u64) as f32) * ((1u64 << 32u64) as f32))),
             d
         );
         let mut e = vilogb2k_vi2_vf(vmul_vf_vf_vf(d, vcast_vf_f(1.0 / 0.75)));
@@ -1610,7 +1610,7 @@ pub(crate) unsafe fn xlog1pf(d: VFloat) -> VFloat {
         let o = vlt_vo_vf_vf(dp1, vcast_vf_f(SLEEF_FLT_MIN));
         let dp1 = vsel_vf_vo_vf_vf(
             o,
-            vmul_vf_vf_vf(dp1, vcast_vf_f(((1 << 32) as f32) * ((1 << 32) as f32))),
+            vmul_vf_vf_vf(dp1, vcast_vf_f(((1u64 << 32u64) as f32) * ((1u64 << 32u64) as f32))),
             dp1
         );
         let mut e = vilogb2k_vi2_vf(vmul_vf_vf_vf(dp1, vcast_vf_f(1.0 / 0.75)));
