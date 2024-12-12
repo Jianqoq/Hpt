@@ -43,7 +43,7 @@ use crate::{
         },
         table::SLEEF_REMPITABDP,
     },
-    VDouble, VInt, Vopmask,
+    sleef_types::{VDouble, VInt, Vopmask},
 };
 
 #[inline(always)]

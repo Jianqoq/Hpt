@@ -2,7 +2,7 @@
 
 use crate::{
     arch_simd::sleef::arch::helper::{vcast_vd_d, vcast_vf_f, vmla_vd_vd_vd_vd, vmla_vf_vf_vf_vf},
-    VDouble, VFloat,
+    sleef_types::{VDouble, VFloat},
 };
 
 #[inline(always)]

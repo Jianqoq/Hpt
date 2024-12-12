@@ -4,7 +4,7 @@ use std::mem::transmute;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::*;
+use crate::sleef_types::*;
 
 #[repr(C)]
 #[derive(Copy, Clone)]

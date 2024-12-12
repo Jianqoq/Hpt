@@ -7,7 +7,7 @@ use crate::{
         vreinterpret_vd_vm, vreinterpret_vm_vd, vsel_vd_vo_vd_vd, vsll_vi_vi_i, vsra_vi_vi_i,
         vsub_vd_vd_vd, vsub_vi_vi_vi, vtruncate_vi_vd, vxor_vm_vm_vm,
     },
-    VDouble, VMask, Vopmask,
+    sleef_types::{VDouble, VMask, Vopmask},
 };
 
 #[repr(C)]
@@ -208,7 +208,7 @@ pub(crate) unsafe fn visodd_vo_vd(d: VDouble) -> Vopmask {
 }
 
 #[cfg(not(target_feature = "avx512f"))]
-use crate::VInt;
+use crate::sleef_types::VInt;
 
 use super::dd::VDouble2;
 #[cfg(not(target_feature = "avx512f"))]

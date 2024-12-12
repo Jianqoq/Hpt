@@ -3,7 +3,7 @@ use crate::{
         vadd_vd_vd_vd, vcast_vd_d, vmul_vd_vd_vd, vneg_vd_vd, vsel_vd_vo_vd_vd, vsqrt_vd_vd,
         vsub_vd_vd_vd,
     },
-    VDouble, Vopmask,
+    sleef_types::{VDouble, Vopmask},
 };
 
 #[derive(Clone, Copy)]

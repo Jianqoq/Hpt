@@ -25,8 +25,7 @@ use crate::{
         vsub_vf_vf_vf,
         vxor_vm_vm_vm,
     },
-    VFloat,
-    Vopmask,
+    sleef_types::{VFloat, Vopmask},
 };
 
 // #if !(defined(ENABLE_SVE) || defined(ENABLE_SVENOFMA) || defined(ENABLE_RVVM1) || defined(ENABLE_RVVM1NOFMA) || defined(ENABLE_RVVM2) || defined(ENABLE_RVVM2NOFMA))
