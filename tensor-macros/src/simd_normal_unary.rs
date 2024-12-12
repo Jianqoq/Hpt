@@ -76,7 +76,7 @@ pub(crate) fn impl_simd_normal_out_unary() -> TokenStream {
             } else if !type_simd_is_arr(lhs) && !lhs_type.is_signed {
                 quote! {
                     fn _neg(self) -> Self {
-                        Self(self.wrapping_neg())
+                        SimdMath::neg(self)
                     }
                 }
             } else {

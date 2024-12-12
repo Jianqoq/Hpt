@@ -1,4 +1,4 @@
-use std::{ops::{Deref, DerefMut}, simd::{cmp::{SimdPartialEq, SimdPartialOrd}, Simd}};
+use std::{ops::{Deref, DerefMut}, simd::{cmp::{SimdPartialEq, SimdPartialOrd}, num::SimdUint, Simd}};
 
 use crate::{impl_std_simd_bit_logic, std_simd::_128bit::u64x2::u64x2, traits::{SimdCompare, SimdMath, VecTrait}};
 
@@ -190,5 +190,8 @@ impl SimdMath<usize> for usizex2 {
                 usizex2(std::mem::transmute(lhs.relu6()))
             }
         }
+    }
+    fn neg(self) -> Self {
+        usizex2(self.0.wrapping_neg())
     }
 }

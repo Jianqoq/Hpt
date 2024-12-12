@@ -309,7 +309,11 @@ pub mod vectors {
 }
 pub use vectors::*;
 
-#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "avx2",
+    not(feature = "stdsimd")
+))]
 pub(crate) mod sleef_types {
     use std::arch::x86_64::*;
     pub(crate) type VDouble = __m256d;
@@ -325,7 +329,8 @@ pub(crate) mod sleef_types {
 #[cfg(all(
     target_arch = "x86_64",
     target_feature = "sse",
-    not(target_feature = "avx2")
+    not(target_feature = "avx2"),
+    not(feature = "stdsimd")
 ))]
 pub(crate) mod sleef_types {
     use std::arch::x86_64::*;

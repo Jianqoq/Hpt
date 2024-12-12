@@ -1,4 +1,4 @@
-use std::{ops::{ Deref, DerefMut }, simd::{cmp::{SimdPartialEq, SimdPartialOrd}, Simd}};
+use std::{ops::{ Deref, DerefMut }, simd::{cmp::{SimdPartialEq, SimdPartialOrd}, num::SimdUint, Simd}};
 
 use crate::{impl_std_simd_bit_logic, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait }};
 
@@ -125,5 +125,8 @@ impl SimdMath<u16> for u16x8 {
     }
     fn relu6(self) -> Self {
         u16x8(self.relu().0.min(u16x8::splat(6).0))
+    }
+    fn neg(self) -> Self {
+        u16x8(self.0.wrapping_neg())
     }
 }

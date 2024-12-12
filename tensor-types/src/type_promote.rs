@@ -2,8 +2,18 @@ use crate::convertion::Convertor;
 use crate::convertion::VecConvertor;
 use crate::dtype::FloatConst;
 use crate::dtype::TypeCommon;
+use crate::traits::SimdMath;
+#[cfg(feature = "archsimd")]
+use crate::vectors::arch_simd as simd;
 #[cfg(feature = "stdsimd")]
 use crate::vectors::std_simd as simd;
+use crate::vectors::traits::SimdCompare;
+use crate::vectors::traits::SimdSelect;
+use crate::vectors::traits::VecTrait;
+use half::bf16;
+use half::f16;
+use num_complex::{Complex32, Complex64};
+use num_traits::float::Float;
 #[cfg(any(
     all(not(target_feature = "avx2"), target_feature = "sse"),
     target_arch = "arm",
@@ -15,36 +25,22 @@ use simd::_128bit::*;
 use simd::_256bit::*;
 #[cfg(target_feature = "avx512f")]
 use simd::_512bit::*;
-use crate::vectors::traits::SimdCompare;
-use crate::traits::SimdMath;
-use half::bf16;
-use half::f16;
-use num_complex::{ Complex32, Complex64 };
-use num_traits::float::Float;
 use sleef::Sleef;
+use std::ops::Neg;
 use tensor_macros::float_out_binary_simd_with_lhs_scalar;
 use tensor_macros::float_out_binary_simd_with_rhs_scalar;
-use tensor_macros::impl_normal_out_simd_with_lhs_scalar;
-use tensor_macros::impl_normal_out_simd_with_rhs_scalar;
-use std::ops::Neg;
-use std::simd::num::SimdUint;
-use crate::vectors::traits::SimdSelect;
-use crate::vectors::traits::VecTrait;
 use tensor_macros::float_out_unary;
 use tensor_macros::impl_normal_out_binary;
 use tensor_macros::impl_normal_out_simd;
+use tensor_macros::impl_normal_out_simd_with_lhs_scalar;
+use tensor_macros::impl_normal_out_simd_with_rhs_scalar;
 use tensor_macros::impl_normal_out_unary;
 use tensor_macros::impl_normal_out_unary_simd;
 use tensor_macros::{
-    float_out_binary,
-    impl_bitwise_out,
-    impl_cmp,
-    impl_eval,
-    simd_cmp,
-    simd_eval,
+    float_out_binary, impl_bitwise_out, impl_cmp, impl_eval, simd_cmp, simd_eval,
     simd_float_out_unary,
 };
-use tensor_macros::{ float_out_binary_simd, simd_bitwise };
+use tensor_macros::{float_out_binary_simd, simd_bitwise};
 /// this trait is used to perform type promotion in dynamic graph
 pub trait FloatOutBinary<RHS = Self> {
     /// the output type
