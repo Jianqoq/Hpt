@@ -84,6 +84,8 @@ pub trait SimdMath<T>: Copy {
     fn sin(self) -> Self;
     /// compute the cosine of the vector
     fn cos(self) -> Self;
+    /// compute the sine and cosine of the vector
+    fn sincos(self) -> (Self, Self);
     /// compute the tangent of the vector
     fn tan(self) -> Self;
     /// coupute asin
@@ -92,6 +94,8 @@ pub trait SimdMath<T>: Copy {
     fn acos(self) -> Self;
     /// coupute atan
     fn atan(self) -> Self;
+    /// coupute atan2
+    fn atan2(self, other: Self) -> Self;
     /// compute sinh
     fn sinh(self) -> Self;
     /// compute cosh

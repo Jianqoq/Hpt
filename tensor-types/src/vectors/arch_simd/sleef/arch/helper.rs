@@ -6,9 +6,11 @@ use std::arch::x86_64::*;
 
 use crate::*;
 
+#[repr(C)]
+#[derive(Copy, Clone)]
 pub(crate) struct Vquad {
-    x: VMask,
-    y: VMask,
+    pub(crate) x: VMask,
+    pub(crate) y: VMask,
 }
 impl Vquad {
     fn as_ptr(&self) -> *const u8 {

@@ -282,13 +282,19 @@ pub mod vectors {
                 pub mod misc;
                 /// A module defines a set of vector types for common
                 pub mod df;
+                /// A module defines a set of vector types for common
+                pub mod dd;
                 /// A module defines a macro for polynomial approximation
                 pub mod estrin;
+                /// A module defines a set of vector types for common
+                pub mod commonfuncs;
             }
             /// A module defines a set of vector types for libm
             pub mod libm {
                 /// a module defins a set of single precision floating point functions
                 pub mod sleefsimdsp;
+                /// a module defins a set of double precision floating point functions
+                pub mod sleefsimddp;
             }
         }
     }
