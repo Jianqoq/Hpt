@@ -1,5 +1,37 @@
 use crate::{ dtype::TypeCommon, type_promote::NormalOut };
 use super::traits::VecTrait;
+
+/// impl bit logic for simd vector
+#[macro_export]
+macro_rules! impl_std_simd_bit_logic {
+    ($ty: ident) => {
+        impl std::ops::BitAnd for $ty {
+            type Output = Self;
+            fn bitand(self, rhs: Self) -> Self::Output {
+                $ty(self.0 & rhs.0)
+            }
+        }
+        impl std::ops::BitOr for $ty {
+            type Output = Self;
+            fn bitor(self, rhs: Self) -> Self::Output {
+                $ty(self.0 | rhs.0)
+            }
+        }
+        impl std::ops::BitXor for $ty {
+            type Output = Self;
+            fn bitxor(self, rhs: Self) -> Self::Output {
+                $ty(self.0 ^ rhs.0)
+            }
+        }
+        impl std::ops::Not for $ty {
+            type Output = Self;
+            fn not(self) -> Self::Output {
+                $ty(!self.0)
+            }
+        }
+    };
+}
+
 /// sum a vector to a scalar
 #[inline(always)]
 pub fn vec_sum<T: TypeCommon + NormalOut<T, Output = T>>(vec: T::Vec) -> T {

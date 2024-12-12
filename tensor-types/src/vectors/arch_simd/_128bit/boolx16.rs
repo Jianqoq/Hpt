@@ -1,4 +1,4 @@
-use crate::traits::{Init, VecTrait};
+use crate::traits::VecTrait;
 use crate::vectors::arch_simd::_128bit::u8x16::u8x16;
 use crate::traits::SimdCompare;
 
@@ -23,12 +23,11 @@ impl VecTrait<bool> for boolx16 {
     fn sum(&self) -> bool {
         self.0.iter().map(|&x| x as u8).sum::<u8>() > 0
     }
-}
-impl Init<bool> for boolx16 {
     fn splat(val: bool) -> boolx16 {
         boolx16([val; 16])
     }
 }
+
 impl SimdCompare for boolx16 {
     type SimdMask = Self;
     fn simd_eq(self, rhs: Self) -> Self {

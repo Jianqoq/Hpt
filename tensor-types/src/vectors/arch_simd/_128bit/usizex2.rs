@@ -1,6 +1,6 @@
 use std::ops::{ Deref, DerefMut };
 
-use crate::traits::{ Init, VecTrait };
+use crate::{arch_simd::_128bit::u64x2::u64x2, traits::{SimdMath, VecTrait}};
 
 /// a vector of 2 usize values
 #[allow(non_camel_case_types)]
@@ -37,12 +37,8 @@ impl VecTrait<usize> for usizex2 {
     fn sum(&self) -> usize {
         self.as_array().iter().sum::<usize>()
     }
-}
-
-impl Init<usize> for usizex2 {
     fn splat(val: usize) -> usizex2 {
-        let ret = usizex2(std::simd::usizex2::splat(val));
-        ret
+        usizex2(std::simd::usizex2::splat(val))
     }
 }
 
@@ -79,5 +75,80 @@ impl std::ops::Rem for usizex2 {
 
     fn rem(self, rhs: Self) -> Self::Output {
         usizex2(self.0 % rhs.0)
+    }
+}
+
+impl SimdMath<usize> for usizex2 {
+    fn max(self, other: Self) -> Self {
+        #[cfg(target_pointer_width = "64")]
+        {
+            unsafe {
+                let lhs: u64x2 = std::mem::transmute(self.0);
+                let rhs: u64x2 = std::mem::transmute(other.0);
+                let ret = lhs.max(rhs);
+                usizex2(std::mem::transmute(ret.0))
+            }
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            unsafe {
+                let lhs: u32x4 = std::mem::transmute(self.0);
+                let rhs: u32x4 = std::mem::transmute(other.0);
+                let ret = lhs.max(rhs);
+                usizex2(std::mem::transmute(ret.0))
+            }
+        }
+    }
+    fn min(self, other: Self) -> Self {
+        #[cfg(target_pointer_width = "64")]
+        {
+            unsafe {
+                let lhs: u64x2 = std::mem::transmute(self.0);
+                let rhs: u64x2 = std::mem::transmute(other.0);
+                let ret = lhs.min(rhs);
+                usizex2(std::mem::transmute(ret.0))
+            }
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            unsafe {
+                let lhs: u32x4 = std::mem::transmute(self.0);
+                let rhs: u32x4 = std::mem::transmute(other.0);
+                let ret = lhs.min(rhs);
+                usizex2(std::mem::transmute(ret.0))
+            }
+        }
+    }
+    fn relu(self) -> Self {
+        #[cfg(target_pointer_width = "64")]
+        {
+            unsafe {
+                let lhs: u64x2 = std::mem::transmute(self.0);
+                usizex2(std::mem::transmute(lhs.relu()))
+            }
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            unsafe {
+                let lhs: u32x4 = std::mem::transmute(self.0);
+                usizex2(std::mem::transmute(lhs.relu()))
+            }
+        }
+    }
+    fn relu6(self) -> Self {
+        #[cfg(target_pointer_width = "64")]
+        {
+            unsafe {
+                let lhs: u64x2 = std::mem::transmute(self.0);
+                usizex2(std::mem::transmute(lhs.relu6()))
+            }
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            unsafe {
+                let lhs: u32x4 = std::mem::transmute(self.0);
+                usizex2(std::mem::transmute(lhs.relu6()))
+            }
+        }
     }
 }

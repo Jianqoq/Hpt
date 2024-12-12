@@ -1,17 +1,28 @@
+#![allow(unused)]
+#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+use crate::arch_simd::sleef::arch::helper_avx2 as helper;
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "sse",
+    not(target_feature = "avx2")
+))]
+use crate::arch_simd::sleef::arch::helper_sse as helper;
+
+use helper::{
+    vabs_vf_vf, vadd_vf_vf_vf, vadd_vi2_vi2_vi2, vand_vi2_vi2_vi2, vand_vi2_vo_vi2, vand_vm_vm_vm,
+    vand_vm_vo32_vm, vand_vo_vo_vo, vandnot_vi2_vi2_vi2, vandnot_vm_vm_vm, vandnot_vm_vo32_vm,
+    vandnot_vo_vo_vo, vcast_vf_f, vcast_vf_vi2, vcast_vi2_i, veq_vo_vf_vf, veq_vo_vi2_vi2,
+    vgather_vf_p_vi2, vge_vo_vf_vf, vgt_vi2_vi2_vi2, vgt_vo_vf_vf, vgt_vo_vi2_vi2, visinf_vo_vf,
+    visnan_vo_vf, vispinf_vo_vf, vle_vo_vf_vf, vlt_vo_vf_vf, vmax_vf_vf_vf, vmin_vf_vf_vf,
+    vmla_vf_vf_vf_vf, vmlanp_vf_vf_vf_vf, vmul_vf_vf_vf, vneg_vf_vf, vneg_vi2_vi2, vor_vi2_vi2_vi2,
+    vor_vm_vm_vm, vor_vm_vo32_vm, vor_vo_vo_vo, vreinterpret_vf_vi2, vreinterpret_vf_vm,
+    vreinterpret_vi2_vf, vreinterpret_vm_vf, vrint_vf_vf, vrint_vi2_vf, vsel_vf_vo_f_f,
+    vsel_vf_vo_vf_vf, vsel_vi2_vo_vi2_vi2, vsll_vi2_vi2_i, vsra_vi2_vi2_i, vsrl_vi2_vi2_i,
+    vsub_vf_vf_vf, vsub_vi2_vi2_vi2, vtestallones_i_vo32, vtruncate_vf_vf, vtruncate_vi2_vf,
+    vxor_vm_vm_vm, vxor_vo_vo_vo,
+};
+
 use crate::vectors::arch_simd::sleef::{
-    arch::helper::{
-        vabs_vf_vf, vadd_vf_vf_vf, vadd_vi2_vi2_vi2, vand_vi2_vi2_vi2, vand_vi2_vo_vi2,
-        vand_vm_vm_vm, vand_vm_vo32_vm, vand_vo_vo_vo, vandnot_vi2_vi2_vi2, vandnot_vm_vm_vm,
-        vandnot_vm_vo32_vm, vandnot_vo_vo_vo, vcast_vf_f, vcast_vf_vi2, vcast_vi2_i, veq_vo_vf_vf,
-        veq_vo_vi2_vi2, vgather_vf_p_vi2, vge_vo_vf_vf, vgt_vi2_vi2_vi2, vgt_vo_vf_vf,
-        vgt_vo_vi2_vi2, visinf_vo_vf, visnan_vo_vf, vispinf_vo_vf, vle_vo_vf_vf, vlt_vo_vf_vf,
-        vmax_vf_vf_vf, vmin_vf_vf_vf, vmla_vf_vf_vf_vf, vmlanp_vf_vf_vf_vf, vmul_vf_vf_vf,
-        vneg_vf_vf, vneg_vi2_vi2, vor_vi2_vi2_vi2, vor_vm_vm_vm, vor_vm_vo32_vm, vor_vo_vo_vo,
-        vreinterpret_vf_vi2, vreinterpret_vf_vm, vreinterpret_vi2_vf, vreinterpret_vm_vf,
-        vrint_vf_vf, vrint_vi2_vf, vsel_vf_vo_f_f, vsel_vf_vo_vf_vf, vsel_vi2_vo_vi2_vi2,
-        vsll_vi2_vi2_i, vsra_vi2_vi2_i, vsrl_vi2_vi2_i, vsub_vf_vf_vf, vsub_vi2_vi2_vi2,
-        vtestallones_i_vo32, vtruncate_vf_vf, vtruncate_vi2_vf, vxor_vm_vm_vm, vxor_vo_vo_vo,
-    },
     common::{
         df::{
             dfadd2_vf2_vf2_vf, dfadd2_vf2_vf2_vf2, dfadd2_vf2_vf_vf, dfadd2_vf2_vf_vf2,
@@ -33,7 +44,7 @@ use crate::vectors::arch_simd::sleef::{
 };
 
 #[cfg(target_feature = "fma")]
-use crate::vectors::arch_simd::sleef::arch::helper::vfma_vf_vf_vf_vf;
+use helper::vfma_vf_vf_vf_vf;
 
 use crate::sleef_types::*;
 
@@ -2061,8 +2072,8 @@ pub(crate) unsafe fn xlog1pf(d: VFloat) -> VFloat {
 pub(crate) unsafe fn xsqrtf_u05(d: VFloat) -> VFloat {
     #[cfg(target_feature = "fma")]
     {
-        use crate::arch_simd::sleef::arch::helper::vfmanp_vf_vf_vf_vf;
-        use crate::arch_simd::sleef::arch::helper::vfmapn_vf_vf_vf_vf;
+        use helper::vfmanp_vf_vf_vf_vf;
+        use helper::vfmapn_vf_vf_vf_vf;
         let q: VFloat;
         let mut w: VFloat;
         let mut x: VFloat;
@@ -2416,4 +2427,18 @@ pub(crate) unsafe fn xerff_u1(a: VFloat) -> VFloat {
     z = vmulsign_vf_vf_vf(z, a);
 
     z
+}
+
+#[inline(always)]
+pub(crate) unsafe fn xmaxf(x: VFloat, y: VFloat) -> VFloat {
+    vsel_vf_vo_vf_vf(visnan_vo_vf(y), x, vmax_vf_vf_vf(x, y))
+}
+
+#[inline(always)]
+pub(crate) unsafe fn xminf(x: VFloat, y: VFloat) -> VFloat {
+    vsel_vf_vo_vf_vf(
+        visnan_vo_vf(y),
+        x,
+        vsel_vf_vo_vf_vf(vgt_vo_vf_vf(y, x), x, y),
+    )
 }

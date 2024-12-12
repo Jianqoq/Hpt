@@ -1,4 +1,4 @@
-use crate::traits::{ Init, VecTrait };
+use crate::traits::{SimdMath, VecTrait};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -44,12 +44,11 @@ impl VecTrait<i8> for i8x16 {
             _mm_cvtsi128_si32(sum) as i8
         }
     }
-}
-impl Init<i8> for i8x16 {
     fn splat(val: i8) -> i8x16 {
         unsafe { i8x16(_mm_set1_epi8(val)) }
     }
 }
+
 impl std::ops::Add for i8x16 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
@@ -100,5 +99,20 @@ impl std::ops::Neg for i8x16 {
     type Output = Self;
     fn neg(self) -> Self::Output {
         unsafe { i8x16(_mm_sub_epi8(_mm_setzero_si128(), self.0)) }
+    }
+}
+
+impl SimdMath<i8> for i8x16 {
+    fn max(self, other: Self) -> Self {
+        unsafe { i8x16(_mm_max_epi8(self.0, other.0)) }
+    }
+    fn min(self, other: Self) -> Self {
+        unsafe { i8x16(_mm_min_epi8(self.0, other.0)) }
+    }
+    fn relu(self) -> Self {
+        unsafe { i8x16(_mm_max_epi8(self.0, _mm_setzero_si128())) }
+    }
+    fn relu6(self) -> Self {
+        unsafe { i8x16(_mm_min_epi8(self.relu().0, _mm_set1_epi8(6))) }
     }
 }

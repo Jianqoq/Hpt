@@ -293,16 +293,19 @@ pub(crate) unsafe fn vneg_vd_vd(d: VDouble) -> VDouble {
     _mm256_xor_pd(_mm256_set1_pd(-0.0), d)
 }
 
+#[cfg(target_feature = "fma")]
 #[inline(always)]
 pub(crate) unsafe fn vmla_vd_vd_vd_vd(x: VDouble, y: VDouble, z: VDouble) -> VDouble {
     _mm256_fmadd_pd(x, y, z)
 }
 
+#[cfg(target_feature = "fma")]
 #[inline(always)]
 pub(crate) unsafe fn vmlapn_vd_vd_vd_vd(x: VDouble, y: VDouble, z: VDouble) -> VDouble {
     _mm256_fmsub_pd(x, y, z)
 }
 
+#[cfg(target_feature = "fma")]
 #[inline(always)]
 pub(crate) unsafe fn vmlanp_vd_vd_vd_vd(x: VDouble, y: VDouble, z: VDouble) -> VDouble {
     _mm256_fnmadd_pd(x, y, z)
@@ -318,26 +321,31 @@ pub(crate) unsafe fn vmin_vd_vd_vd(x: VDouble, y: VDouble) -> VDouble {
     _mm256_min_pd(x, y)
 }
 
+#[cfg(target_feature = "fma")]
 #[inline(always)]
 pub(crate) unsafe fn vfma_vd_vd_vd_vd(x: VDouble, y: VDouble, z: VDouble) -> VDouble {
     _mm256_fmadd_pd(x, y, z)
 }
 
+#[cfg(target_feature = "fma")]
 #[inline(always)]
 pub(crate) unsafe fn vfmapp_vd_vd_vd_vd(x: VDouble, y: VDouble, z: VDouble) -> VDouble {
     _mm256_fmadd_pd(x, y, z)
 }
 
+#[cfg(target_feature = "fma")]
 #[inline(always)]
 pub(crate) unsafe fn vfmapn_vd_vd_vd_vd(x: VDouble, y: VDouble, z: VDouble) -> VDouble {
     _mm256_fmsub_pd(x, y, z)
 }
 
+#[cfg(target_feature = "fma")]
 #[inline(always)]
 pub(crate) unsafe fn vfmanp_vd_vd_vd_vd(x: VDouble, y: VDouble, z: VDouble) -> VDouble {
     _mm256_fnmadd_pd(x, y, z)
 }
 
+#[cfg(target_feature = "fma")]
 #[inline(always)]
 pub(crate) unsafe fn vfmann_vd_vd_vd_vd(x: VDouble, y: VDouble, z: VDouble) -> VDouble {
     _mm256_fnmsub_pd(x, y, z)
@@ -661,16 +669,19 @@ pub(crate) unsafe fn vneg_vf_vf(d: VFloat) -> VFloat {
     vreinterpret_vf_vm(vxor_vm_vm_vm(vreinterpret_vm_vf(vcast_vf_f(-0.0)), vreinterpret_vm_vf(d)))
 }
 
+#[cfg(target_feature = "fma")]
 #[inline(always)]
 pub(crate) unsafe fn vmla_vf_vf_vf_vf(x: VFloat, y: VFloat, z: VFloat) -> VFloat {
     _mm256_fmadd_ps(x, y, z)
 }
 
+#[cfg(target_feature = "fma")]
 #[inline(always)]
 pub(crate) unsafe fn vmlapn_vf_vf_vf_vf(x: VFloat, y: VFloat, z: VFloat) -> VFloat {
     _mm256_fmsub_ps(x, y, z)
 }
 
+#[cfg(target_feature = "fma")]
 #[inline(always)]
 pub(crate) unsafe fn vmlanp_vf_vf_vf_vf(x: VFloat, y: VFloat, z: VFloat) -> VFloat {
     _mm256_fnmadd_ps(x, y, z)
@@ -686,26 +697,31 @@ pub(crate) unsafe fn vmin_vf_vf_vf(x: VFloat, y: VFloat) -> VFloat {
     _mm256_min_ps(x, y)
 }
 
+#[cfg(target_feature = "fma")]
 #[inline(always)]
 pub(crate) unsafe fn vfma_vf_vf_vf_vf(x: VFloat, y: VFloat, z: VFloat) -> VFloat {
     _mm256_fmadd_ps(x, y, z)
 }
 
+#[cfg(target_feature = "fma")]
 #[inline(always)]
 pub(crate) unsafe fn vfmapp_vf_vf_vf_vf(x: VFloat, y: VFloat, z: VFloat) -> VFloat {
     _mm256_fmadd_ps(x, y, z)
 }
 
+#[cfg(target_feature = "fma")]
 #[inline(always)]
 pub(crate) unsafe fn vfmapn_vf_vf_vf_vf(x: VFloat, y: VFloat, z: VFloat) -> VFloat {
     _mm256_fmsub_ps(x, y, z)
 }
 
+#[cfg(target_feature = "fma")]
 #[inline(always)]
 pub(crate) unsafe fn vfmanp_vf_vf_vf_vf(x: VFloat, y: VFloat, z: VFloat) -> VFloat {
     _mm256_fnmadd_ps(x, y, z)
 }
 
+#[cfg(target_feature = "fma")]
 #[inline(always)]
 pub(crate) unsafe fn vfmann_vf_vf_vf_vf(x: VFloat, y: VFloat, z: VFloat) -> VFloat {
     _mm256_fnmsub_ps(x, y, z)

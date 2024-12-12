@@ -270,7 +270,15 @@ pub mod vectors {
             /// A module defines a set of vector types for helper
             pub mod arch {
                 /// A module defines a set of vector types for helper
-                pub mod helper;
+                #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+                pub mod helper_avx2;
+                /// A module defines a set of vector types for helper
+                #[cfg(all(
+                    target_arch = "x86_64",
+                    target_feature = "sse",
+                    not(target_feature = "avx2")
+                ))]
+                pub mod helper_sse;
             }
             /// A module defines a set of vector types for common
             pub mod common {
@@ -314,7 +322,11 @@ pub(crate) mod sleef_types {
     pub(crate) type VUInt64 = __m256i;
 }
 
-#[cfg(all(target_arch = "x86_64", target_feature = "sse", not(target_feature = "avx2")))]
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "sse",
+    not(target_feature = "avx2")
+))]
 pub(crate) mod sleef_types {
     use std::arch::x86_64::*;
     pub(crate) type VDouble = __m128d;
@@ -323,6 +335,4 @@ pub(crate) mod sleef_types {
     pub(crate) type VFloat = __m128;
     pub(crate) type VInt = __m128i;
     pub(crate) type VInt2 = __m128i;
-    pub(crate) type VInt64 = __m128i;
-    pub(crate) type VUInt64 = __m128i;
 }

@@ -1,10 +1,10 @@
+use crate::vectors::traits::VecTrait;
 use num_complex::Complex64;
-use crate::vectors::traits::{ Init, VecTrait };
 
 /// a vector of 1 Complex64 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
-#[repr(transparent)]
+#[repr(C, align(16))]
 pub struct cplx64x1(pub(crate) [Complex64; 1]);
 
 impl VecTrait<Complex64> for cplx64x1 {
@@ -23,12 +23,11 @@ impl VecTrait<Complex64> for cplx64x1 {
     fn sum(&self) -> Complex64 {
         self.0.iter().sum()
     }
-}
-impl Init<Complex64> for cplx64x1 {
     fn splat(val: Complex64) -> cplx64x1 {
         cplx64x1([val; 1])
     }
 }
+
 impl std::ops::Add for cplx64x1 {
     type Output = Self;
 

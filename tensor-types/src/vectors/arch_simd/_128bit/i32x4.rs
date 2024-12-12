@@ -1,4 +1,4 @@
-use crate::traits::{ Init, SimdSelect, VecTrait };
+use crate::traits::{ SimdMath, SimdSelect, VecTrait };
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
@@ -41,12 +41,11 @@ impl VecTrait<i32> for i32x4 {
             arr.iter().sum()
         }
     }
-}
-impl Init<i32> for i32x4 {
     fn splat(val: i32) -> i32x4 {
         unsafe { i32x4(_mm_set1_epi32(val)) }
     }
 }
+
 impl SimdSelect<i32x4> for crate::vectors::arch_simd::_128bit::u32x4::u32x4 {
     fn select(&self, true_val: i32x4, false_val: i32x4) -> i32x4 {
         unsafe { i32x4(_mm_blendv_epi8(false_val.0, true_val.0, self.0)) }
@@ -106,3 +105,17 @@ impl std::ops::Neg for i32x4 {
     }
 }
 
+impl SimdMath<i32> for i32x4 {
+    fn max(self, other: Self) -> Self {
+        unsafe { i32x4(_mm_max_epi32(self.0, other.0)) }
+    }
+    fn min(self, other: Self) -> Self {
+        unsafe { i32x4(_mm_min_epi32(self.0, other.0)) }
+    }
+    fn relu(self) -> Self {
+        unsafe { i32x4(_mm_max_epi32(self.0, _mm_setzero_si128())) }
+    }
+    fn relu6(self) -> Self {
+        unsafe { i32x4(_mm_min_epi32(self.relu().0, _mm_set1_epi32(6))) }
+    }
+}

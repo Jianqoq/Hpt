@@ -1,4 +1,4 @@
-use crate::traits::{ Init, SimdSelect, VecTrait };
+use crate::traits::{ SimdMath, SimdSelect, VecTrait };
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -41,6 +41,9 @@ impl VecTrait<u32> for u32x4 {
             arr.iter().sum()
         }
     }
+    fn splat(val: u32) -> u32x4 {
+        unsafe { u32x4(_mm_set1_epi32(val as i32)) }
+    }
 }
 
 impl SimdSelect<u32x4> for u32x4 {
@@ -48,11 +51,7 @@ impl SimdSelect<u32x4> for u32x4 {
         unsafe { u32x4(_mm_blendv_epi8(false_val.0, true_val.0, self.0)) }
     }
 }
-impl Init<u32> for u32x4 {
-    fn splat(val: u32) -> u32x4 {
-        unsafe { u32x4(_mm_set1_epi32(val as i32)) }
-    }
-}
+
 impl std::ops::Add for u32x4 {
     type Output = Self;
 
@@ -99,5 +98,20 @@ impl std::ops::Rem for u32x4 {
             }
             u32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
         }
+    }
+}
+
+impl SimdMath<u32> for u32x4 {
+    fn max(self, other: Self) -> Self {
+        unsafe { u32x4(_mm_max_epi32(self.0, other.0)) }
+    }
+    fn min(self, other: Self) -> Self {
+        unsafe { u32x4(_mm_min_epi32(self.0, other.0)) }
+    }
+    fn relu(self) -> Self {
+        unsafe { u32x4(_mm_max_epi32(self.0, _mm_setzero_si128())) }
+    }
+    fn relu6(self) -> Self {
+        unsafe { u32x4(_mm_min_epi32(self.relu().0, _mm_set1_epi32(6))) }
     }
 }

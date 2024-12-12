@@ -1,9 +1,17 @@
 #![allow(unused)]
+#![allow(unused)]
+#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+use crate::arch_simd::sleef::arch::helper_avx2 as helper;
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "sse",
+    not(target_feature = "avx2")
+))]
+use crate::arch_simd::sleef::arch::helper_sse as helper;
 
-use crate::{
-    arch_simd::sleef::arch::helper::{vcast_vd_d, vcast_vf_f, vmla_vd_vd_vd_vd, vmla_vf_vf_vf_vf},
-    sleef_types::{VDouble, VFloat},
-};
+use helper::{vcast_vd_d, vcast_vf_f, vmla_vd_vd_vd_vd, vmla_vf_vf_vf_vf};
+
+use crate::sleef_types::{VDouble, VFloat};
 
 #[inline(always)]
 pub(crate) unsafe fn poly2(x: VFloat, c1: f32, c0: f32) -> VFloat {

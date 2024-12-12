@@ -1,4 +1,4 @@
-use crate::traits::{ Init, VecTrait };
+use crate::{arch_simd::sleef::{arch::helper_sse::vabs_vd_vd, libm::sleefsimddp::{xacos_u1, xacosh, xasin_u1, xasinh, xatan2_u1, xatan_u1, xatanh, xcbrt_u1, xcos_u1, xcosh, xerf_u1, xexp, xexp10, xexp2, xexpm1, xfmax, xfmin, xhypot_u05, xlog10, xlog1p, xlog2, xlog_u1, xpow, xround, xsin_u1, xsincos_u1, xsinh, xsqrt_u05, xtan_u1, xtanh, xtrunc}}, traits::{SimdMath, VecTrait}};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -41,12 +41,11 @@ impl VecTrait<f64> for f64x2 {
     fn sum(&self) -> f64 {
         unsafe { _mm_cvtsd_f64(_mm_hadd_pd(self.0, self.0)) }
     }
-}
-impl Init<f64> for f64x2 {
     fn splat(val: f64) -> f64x2 {
         unsafe { f64x2(_mm_set1_pd(val)) }
     }
 }
+
 impl std::ops::Add for f64x2 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
@@ -86,5 +85,170 @@ impl std::ops::Neg for f64x2 {
     type Output = Self;
     fn neg(self) -> Self {
         unsafe { f64x2(_mm_xor_pd(_mm_setzero_pd(), self.0)) }
+    }
+}
+
+impl SimdMath<f64> for f64x2 {
+    fn sin(self) -> Self {
+        f64x2(unsafe { xsin_u1(self.0) })
+    }
+    fn cos(self) -> Self {
+        f64x2(unsafe { xcos_u1(self.0) })
+    }
+    fn tan(self) -> Self {
+        f64x2(unsafe { xtan_u1(self.0) })
+    }
+
+    fn square(self) -> Self {
+        f64x2(unsafe { _mm_mul_pd(self.0, self.0) })
+    }
+
+    fn sqrt(self) -> Self {
+        f64x2(unsafe { xsqrt_u05(self.0) })
+    }
+
+    fn abs(self) -> Self {
+        f64x2(unsafe { vabs_vd_vd(self.0) })
+    }
+
+    fn floor(self) -> Self {
+        f64x2(unsafe { _mm_floor_pd(self.0) })
+    }
+
+    fn ceil(self) -> Self {
+        f64x2(unsafe { _mm_ceil_pd(self.0) })
+    }
+
+    fn neg(self) -> Self {
+        f64x2(unsafe { _mm_sub_pd(_mm_setzero_pd(), self.0) })
+    }
+
+    fn round(self) -> Self {
+        f64x2(unsafe { xround(self.0) })
+    }
+
+    fn sign(self) -> Self {
+        f64x2(unsafe { _mm_and_pd(self.0, _mm_set1_pd(0.0f64)) })
+    }
+
+    fn leaky_relu(self, _: f64) -> Self {
+        todo!()
+    }
+
+    fn relu(self) -> Self {
+        f64x2(unsafe { _mm_max_pd(self.0, _mm_setzero_pd()) })
+    }
+
+    fn relu6(self) -> Self {
+        f64x2(unsafe { _mm_min_pd(self.relu().0, _mm_set1_pd(6.0f64)) })
+    }
+
+    fn pow(self, exp: Self) -> Self {
+        f64x2(unsafe { xpow(self.0, exp.0) })
+    }
+
+    fn asin(self) -> Self {
+        f64x2(unsafe { xasin_u1(self.0) })
+    }
+
+    fn acos(self) -> Self {
+        f64x2(unsafe { xacos_u1(self.0) })
+    }
+
+    fn atan(self) -> Self {
+        f64x2(unsafe { xatan_u1(self.0) })
+    }
+
+    fn sinh(self) -> Self {
+        f64x2(unsafe { xsinh(self.0) })
+    }
+
+    fn cosh(self) -> Self {
+        f64x2(unsafe { xcosh(self.0) })
+    }
+
+    fn tanh(self) -> Self {
+        f64x2(unsafe { xtanh(self.0) })
+    }
+
+    fn asinh(self) -> Self {
+        f64x2(unsafe { xasinh(self.0) })
+    }
+
+    fn acosh(self) -> Self {
+        f64x2(unsafe { xacosh(self.0) })
+    }
+
+    fn atanh(self) -> Self {
+        f64x2(unsafe { xatanh(self.0) })
+    }
+
+    fn exp2(self) -> Self {
+        f64x2(unsafe { xexp2(self.0) })
+    }
+
+    fn exp10(self) -> Self {
+        f64x2(unsafe { xexp10(self.0) })
+    }
+
+    fn expm1(self) -> Self {
+        f64x2(unsafe { xexpm1(self.0) })
+    }
+
+    fn log10(self) -> Self {
+        f64x2(unsafe { xlog10(self.0) })
+    }
+
+    fn log2(self) -> Self {
+        f64x2(unsafe { xlog2(self.0) })
+    }
+
+    fn log1p(self) -> Self {
+        f64x2(unsafe { xlog1p(self.0) })
+    }
+
+    fn hypot(self, other: Self) -> Self {
+        f64x2(unsafe { xhypot_u05(self.0, other.0) })
+    }
+
+    fn trunc(self) -> Self {
+        f64x2(unsafe { xtrunc(self.0) })
+    }
+
+    fn erf(self) -> Self {
+        f64x2(unsafe { xerf_u1(self.0) })
+    }
+
+    fn cbrt(self) -> Self {
+        f64x2(unsafe { xcbrt_u1(self.0) })
+    }
+
+    fn exp(self) -> Self {
+        f64x2(unsafe { xexp(self.0) })
+    }
+
+    fn ln(self) -> Self {
+        f64x2(unsafe { xlog_u1(self.0) })
+    }
+
+    fn log(self) -> Self {
+        f64x2(unsafe { xlog_u1(self.0) })
+    }
+
+    fn atan2(self, other: Self) -> Self {
+        f64x2(unsafe { xatan2_u1(self.0, other.0) })
+    }
+
+    fn sincos(self) -> (Self, Self) {
+        let ret = unsafe { xsincos_u1(self.0) };
+        (f64x2(ret.x), f64x2(ret.y))
+    }
+
+    fn min(self, other: Self) -> Self {
+        f64x2(unsafe { xfmin(self.0, other.0) })
+    }
+
+    fn max(self, other: Self) -> Self {
+        f64x2(unsafe { xfmax(self.0, other.0) })
     }
 }

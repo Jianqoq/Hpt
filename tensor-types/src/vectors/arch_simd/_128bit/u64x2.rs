@@ -1,4 +1,4 @@
-use crate::traits::{ Init, SimdSelect, VecTrait };
+use crate::traits::{ SimdMath, SimdSelect, VecTrait };
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -51,12 +51,11 @@ impl VecTrait<u64> for u64x2 {
             arr.iter().sum()
         }
     }
-}
-impl Init<u64> for u64x2 {
     fn splat(val: u64) -> u64x2 {
         unsafe { u64x2(_mm_set1_epi64x(val as i64)) }
     }
 }
+
 impl SimdSelect<u64x2> for u64x2 {
     fn select(&self, true_val: u64x2, false_val: u64x2) -> u64x2 {
         unsafe { u64x2(_mm_blendv_epi8(false_val.0, true_val.0, self.0)) }
@@ -114,6 +113,51 @@ impl std::ops::Rem for u64x2 {
                 arr3[i] = arr[i] % arr2[i];
             }
             u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
+        }
+    }
+}
+
+impl SimdMath<u64> for u64x2 {
+    fn max(self, other: Self) -> Self {
+        unsafe {
+            let arr: [u64; 2] = std::mem::transmute(self.0);
+            let arr2: [u64; 2] = std::mem::transmute(other.0);
+            let mut arr3: [u64; 2] = [0; 2];
+            for i in 0..2 {
+                arr3[i] = arr[i].max(arr2[i]);
+            }
+            u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
+        }
+    }
+    fn min(self, other: Self) -> Self {
+        unsafe {
+            let arr: [u64; 2] = std::mem::transmute(self.0);
+            let arr2: [u64; 2] = std::mem::transmute(other.0);
+            let mut arr3: [u64; 2] = [0; 2];
+            for i in 0..2 {
+                arr3[i] = arr[i].min(arr2[i]);
+            }
+            u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
+        }
+    }
+    fn relu(self) -> Self {
+        unsafe {
+            let arr: [u64; 2] = std::mem::transmute(self.0);
+            let mut arr2: [u64; 2] = [0; 2];
+            for i in 0..2 {
+                arr2[i] = arr[i].max(0);
+            }
+            u64x2(_mm_loadu_si128(arr2.as_ptr() as *const __m128i))
+        }
+    }
+    fn relu6(self) -> Self {
+        unsafe {
+            let arr: [u64; 2] = std::mem::transmute(self.0);
+            let mut arr2: [u64; 2] = [0; 2];
+            for i in 0..2 {
+                arr2[i] = arr[i].max(0).min(6);
+            }
+            u64x2(_mm_loadu_si128(arr2.as_ptr() as *const __m128i))
         }
     }
 }

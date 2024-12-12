@@ -1,10 +1,18 @@
-use crate::{
-    arch_simd::sleef::arch::helper::{
-        vadd_vd_vd_vd, vcast_vd_d, vmul_vd_vd_vd, vneg_vd_vd, vsel_vd_vo_vd_vd, vsqrt_vd_vd,
-        vsub_vd_vd_vd,
-    },
-    sleef_types::{VDouble, Vopmask},
+#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+use crate::arch_simd::sleef::arch::helper_avx2 as helper;
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "sse",
+    not(target_feature = "avx2")
+))]
+use crate::arch_simd::sleef::arch::helper_sse as helper;
+
+use helper::{
+    vadd_vd_vd_vd, vcast_vd_d, vmul_vd_vd_vd, vneg_vd_vd, vsel_vd_vo_vd_vd, vsqrt_vd_vd,
+    vsub_vd_vd_vd,
 };
+
+use crate::sleef_types::{VDouble, Vopmask};
 
 #[derive(Clone, Copy)]
 pub(crate) struct VDouble2 {
@@ -219,7 +227,7 @@ pub(crate) unsafe fn ddsub_vd2_vd2_vd2(x: VDouble2, y: VDouble2) -> VDouble2 {
 pub(crate) unsafe fn dddiv_vd2_vd2_vd2(n: VDouble2, d: VDouble2) -> VDouble2 {
     // VDouble2 除法
 
-    use crate::arch_simd::sleef::arch::helper::{
+    use helper::{
         vfma_vd_vd_vd_vd, vfmanp_vd_vd_vd_vd, vfmapn_vd_vd_vd_vd, vrec_vd_vd,
     };
     let t = vrec_vd_vd(vd2getx_vd_vd2(d));
@@ -241,7 +249,7 @@ pub(crate) unsafe fn dddiv_vd2_vd2_vd2(n: VDouble2, d: VDouble2) -> VDouble2 {
 pub(crate) unsafe fn ddmul_vd2_vd_vd(x: VDouble, y: VDouble) -> VDouble2 {
     // VDouble 乘法，返回 VDouble2
 
-    use crate::arch_simd::sleef::arch::helper::vfmapn_vd_vd_vd_vd;
+    use helper::vfmapn_vd_vd_vd_vd;
     let s = vmul_vd_vd_vd(x, y);
     vd2setxy_vd2_vd_vd(s, vfmapn_vd_vd_vd_vd(x, y, s))
 }
@@ -251,7 +259,7 @@ pub(crate) unsafe fn ddmul_vd2_vd_vd(x: VDouble, y: VDouble) -> VDouble2 {
 pub(crate) unsafe fn ddsqu_vd2_vd2(x: VDouble2) -> VDouble2 {
     // VDouble2 平方
 
-    use crate::arch_simd::sleef::arch::helper::{vfma_vd_vd_vd_vd, vfmapn_vd_vd_vd_vd};
+    use helper::{vfma_vd_vd_vd_vd, vfmapn_vd_vd_vd_vd};
     let s = vmul_vd_vd_vd(vd2getx_vd_vd2(x), vd2getx_vd_vd2(x));
     vd2setxy_vd2_vd_vd(
         s,
@@ -268,7 +276,7 @@ pub(crate) unsafe fn ddsqu_vd2_vd2(x: VDouble2) -> VDouble2 {
 pub(crate) unsafe fn ddmul_vd2_vd2_vd2(x: VDouble2, y: VDouble2) -> VDouble2 {
     // VDouble2 乘 VDouble2
 
-    use crate::arch_simd::sleef::arch::helper::{vfma_vd_vd_vd_vd, vfmapn_vd_vd_vd_vd};
+    use helper::{vfma_vd_vd_vd_vd, vfmapn_vd_vd_vd_vd};
     let s = vmul_vd_vd_vd(vd2getx_vd_vd2(x), vd2getx_vd_vd2(y));
     vd2setxy_vd2_vd_vd(
         s,
@@ -289,7 +297,7 @@ pub(crate) unsafe fn ddmul_vd2_vd2_vd2(x: VDouble2, y: VDouble2) -> VDouble2 {
 pub(crate) unsafe fn ddmul_vd_vd2_vd2(x: VDouble2, y: VDouble2) -> VDouble {
     // VDouble2 乘 VDouble2，返回 VDouble
 
-    use crate::arch_simd::sleef::arch::helper::vfma_vd_vd_vd_vd;
+    use helper::vfma_vd_vd_vd_vd;
     vfma_vd_vd_vd_vd(
         vd2getx_vd_vd2(x),
         vd2getx_vd_vd2(y),
@@ -306,7 +314,7 @@ pub(crate) unsafe fn ddmul_vd_vd2_vd2(x: VDouble2, y: VDouble2) -> VDouble {
 pub(crate) unsafe fn ddsqu_vd_vd2(x: VDouble2) -> VDouble {
     // VDouble2 平方，返回 VDouble
 
-    use crate::arch_simd::sleef::arch::helper::vfma_vd_vd_vd_vd;
+    use helper::vfma_vd_vd_vd_vd;
     vfma_vd_vd_vd_vd(
         vd2getx_vd_vd2(x),
         vd2getx_vd_vd2(x),
@@ -322,7 +330,7 @@ pub(crate) unsafe fn ddsqu_vd_vd2(x: VDouble2) -> VDouble {
 pub(crate) unsafe fn ddmul_vd2_vd2_vd(x: VDouble2, y: VDouble) -> VDouble2 {
     // VDouble2 乘 VDouble
 
-    use crate::arch_simd::sleef::arch::helper::{vfma_vd_vd_vd_vd, vfmapn_vd_vd_vd_vd};
+    use helper::{vfma_vd_vd_vd_vd, vfmapn_vd_vd_vd_vd};
     let s = vmul_vd_vd_vd(vd2getx_vd_vd2(x), y);
     vd2setxy_vd2_vd_vd(
         s,
@@ -339,7 +347,7 @@ pub(crate) unsafe fn ddmul_vd2_vd2_vd(x: VDouble2, y: VDouble) -> VDouble2 {
 pub(crate) unsafe fn ddrec_vd2_vd(d: VDouble) -> VDouble2 {
     // VDouble 倒数
 
-    use crate::arch_simd::sleef::arch::helper::{vfmanp_vd_vd_vd_vd, vrec_vd_vd};
+    use helper::{vfmanp_vd_vd_vd_vd, vrec_vd_vd};
     let s = vrec_vd_vd(d);
     vd2setxy_vd2_vd_vd(
         s,
@@ -352,7 +360,7 @@ pub(crate) unsafe fn ddrec_vd2_vd(d: VDouble) -> VDouble2 {
 pub(crate) unsafe fn ddrec_vd2_vd2(d: VDouble2) -> VDouble2 {
     // VDouble2 倒数
 
-    use crate::arch_simd::sleef::arch::helper::{vfmanp_vd_vd_vd_vd, vrec_vd_vd};
+    use helper::{vfmanp_vd_vd_vd_vd, vrec_vd_vd};
     let s = vrec_vd_vd(vd2getx_vd_vd2(d));
     vd2setxy_vd2_vd_vd(
         s,

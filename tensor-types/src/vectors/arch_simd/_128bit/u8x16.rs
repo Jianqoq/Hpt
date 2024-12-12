@@ -1,4 +1,4 @@
-use crate::traits::{ Init, SimdCompare, VecTrait };
+use crate::traits::{ SimdCompare, SimdMath, VecTrait };
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
@@ -41,8 +41,6 @@ impl VecTrait<u8> for u8x16 {
             x.iter().sum()
         }
     }
-}
-impl Init<u8> for u8x16 {
     fn splat(val: u8) -> u8x16 {
         unsafe { u8x16(_mm_set1_epi8(val as i8)) }
     }
@@ -133,5 +131,20 @@ impl SimdCompare for u8x16 {
 
     fn simd_ge(self, other: Self) -> Self::SimdMask {
         unsafe { u8x16(_mm_xor_si128(_mm_cmplt_epi8(self.0, other.0), _mm_set1_epi8(-1))) }
+    }
+}
+
+impl SimdMath<u8> for u8x16 {
+    fn max(self, other: Self) -> Self {
+        unsafe { u8x16(_mm_max_epi8(self.0, other.0)) }
+    }
+    fn min(self, other: Self) -> Self {
+        unsafe { u8x16(_mm_min_epi8(self.0, other.0)) }
+    }
+    fn relu(self) -> Self {
+        unsafe { u8x16(_mm_max_epi8(self.0, _mm_setzero_si128())) }
+    }
+    fn relu6(self) -> Self {
+        unsafe { u8x16(_mm_min_epi8(self.relu().0, _mm_set1_epi8(6))) }
     }
 }

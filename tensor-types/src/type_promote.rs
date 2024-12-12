@@ -2,21 +2,21 @@ use crate::convertion::Convertor;
 use crate::convertion::VecConvertor;
 use crate::dtype::FloatConst;
 use crate::dtype::TypeCommon;
-#[cfg(
-    all(
-        any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
-        not(target_feature = "avx2")
-    )
-)]
 #[cfg(feature = "stdsimd")]
-use crate::vectors::std_simd::_128bit::*;
+use crate::vectors::std_simd as simd;
+#[cfg(any(
+    all(not(target_feature = "avx2"), target_feature = "sse"),
+    target_arch = "arm",
+    target_arch = "aarch64",
+    target_feature = "neon"
+))]
+use simd::_128bit::*;
 #[cfg(target_feature = "avx2")]
-#[cfg(feature = "stdsimd")]
-use crate::vectors::std_simd::_256bit::*;
+use simd::_256bit::*;
 #[cfg(target_feature = "avx512f")]
-#[cfg(feature = "stdsimd")]
-use crate::vectors::std_simd::_512bit::*;
+use simd::_512bit::*;
 use crate::vectors::traits::SimdCompare;
+use crate::traits::SimdMath;
 use half::bf16;
 use half::f16;
 use num_complex::{ Complex32, Complex64 };
@@ -27,13 +27,8 @@ use tensor_macros::float_out_binary_simd_with_rhs_scalar;
 use tensor_macros::impl_normal_out_simd_with_lhs_scalar;
 use tensor_macros::impl_normal_out_simd_with_rhs_scalar;
 use std::ops::Neg;
-use std::simd::cmp::SimdOrd;
-use std::simd::cmp::SimdPartialEq;
-use std::simd::cmp::SimdPartialOrd;
-use std::simd::num::SimdFloat;
-use std::simd::num::SimdInt;
 use std::simd::num::SimdUint;
-use std::simd::Simd;
+use crate::vectors::traits::SimdSelect;
 use crate::vectors::traits::VecTrait;
 use tensor_macros::float_out_unary;
 use tensor_macros::impl_normal_out_binary;

@@ -1,5 +1,5 @@
 use crate::arch_simd::_128bit::u16x8::u16x8;
-use crate::{ traits::{ Init, VecTrait }, vectors::arch_simd::_128bit::f32x4::f32x4 };
+use crate::{ traits::VecTrait, vectors::arch_simd::_128bit::f32x4::f32x4 };
 use std::simd::{ cmp::{ SimdPartialEq, SimdPartialOrd }, num::{ SimdFloat, SimdUint }, Simd };
 use crate::traits::SimdCompare;
 
@@ -29,12 +29,11 @@ impl VecTrait<half::bf16> for bf16x8 {
     fn sum(&self) -> half::bf16 {
         self.0.iter().sum()
     }
-}
-impl Init<half::bf16> for bf16x8 {
     fn splat(val: half::bf16) -> bf16x8 {
         bf16x8([val; 8])
     }
 }
+
 impl bf16x8 {
     /// convert to 2 f32x4
     pub fn to_2_f32x4(&self) -> [f32x4; 2] {

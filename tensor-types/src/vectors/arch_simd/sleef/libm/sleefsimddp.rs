@@ -1,19 +1,28 @@
+#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+use crate::arch_simd::sleef::arch::helper_avx2 as helper;
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "sse",
+    not(target_feature = "avx2")
+))]
+use crate::arch_simd::sleef::arch::helper_sse as helper;
+
+use helper::{
+    vabs_vd_vd, vadd_vd_vd_vd, vadd_vi_vi_vi, vand_vi_vi_vi, vand_vi_vo_vi, vand_vm_vm_vm,
+    vand_vm_vo64_vm, vand_vo_vo_vo, vandnot_vi_vi_vi, vandnot_vm_vo64_vm, vandnot_vo_vo_vo,
+    vcast_vd_d, vcast_vd_vi, vcast_vi_i, vcast_vm_i_i, vcast_vo32_vo64, vcast_vo64_vo32,
+    veq_vo_vd_vd, veq_vo_vi_vi, vfma_vd_vd_vd_vd, vfmanp_vd_vd_vd_vd, vfmapn_vd_vd_vd_vd,
+    vgather_vd_p_vi, vge_vo_vd_vd, vgt_vo_vd_vd, vgt_vo_vi_vi, visinf_vo_vd, visnan_vo_vd,
+    vispinf_vo_vd, vle_vo_vd_vd, vlt_vo_vd_vd, vmax_vd_vd_vd, vmin_vd_vd_vd, vmla_vd_vd_vd_vd,
+    vmlapn_vd_vd_vd_vd, vmul_vd_vd_vd, vneg_vd_vd, vneg_vi_vi, vor_vm_vm_vm, vor_vm_vo64_vm,
+    vor_vo_vo_vo, vreinterpret_vd_vm, vreinterpret_vm_vd, vrint_vd_vd, vrint_vi_vd, vsel_vd_vo_d_d,
+    vsel_vd_vo_vd_vd, vsel_vi_vo_vi_vi, vsll_vi_vi_i, vsra_vi_vi_i, vsrl64_vm_vm_i,
+    vsub64_vm_vm_vm, vsub_vd_vd_vd, vsub_vi_vi_vi, vtestallones_i_vo64, vtruncate_vd_vd,
+    vtruncate_vi_vd, vxor_vm_vm_vm, vxor_vo_vo_vo,
+};
+
 use crate::{
     arch_simd::sleef::{
-        arch::helper::{
-            vabs_vd_vd, vadd_vd_vd_vd, vadd_vi_vi_vi, vand_vi_vi_vi, vand_vi_vo_vi, vand_vm_vm_vm,
-            vand_vm_vo64_vm, vand_vo_vo_vo, vandnot_vi_vi_vi, vandnot_vm_vo64_vm, vandnot_vo_vo_vo,
-            vcast_vd_d, vcast_vd_vi, vcast_vi_i, vcast_vm_i_i, vcast_vo32_vo64, vcast_vo64_vo32,
-            veq_vo_vd_vd, veq_vo_vi_vi, vfma_vd_vd_vd_vd, vfmanp_vd_vd_vd_vd, vfmapn_vd_vd_vd_vd,
-            vgather_vd_p_vi, vge_vo_vd_vd, vgt_vo_vd_vd, vgt_vo_vi_vi, visinf_vo_vd, visnan_vo_vd,
-            vispinf_vo_vd, vle_vo_vd_vd, vlt_vo_vd_vd, vmax_vd_vd_vd, vmin_vd_vd_vd,
-            vmla_vd_vd_vd_vd, vmlapn_vd_vd_vd_vd, vmul_vd_vd_vd, vneg_vd_vd, vneg_vi_vi,
-            vor_vm_vm_vm, vor_vm_vo64_vm, vor_vo_vo_vo, vreinterpret_vd_vm, vreinterpret_vm_vd,
-            vrint_vd_vd, vrint_vi_vd, vsel_vd_vo_d_d, vsel_vd_vo_vd_vd, vsel_vi_vo_vi_vi,
-            vsll_vi_vi_i, vsra_vi_vi_i, vsrl64_vm_vm_i, vsub64_vm_vm_vm, vsub_vd_vd_vd,
-            vsub_vi_vi_vi, vtestallones_i_vo64, vtruncate_vd_vd, vtruncate_vi_vd, vxor_vm_vm_vm,
-            vxor_vo_vo_vo,
-        },
         common::{
             commonfuncs::{
                 ddigetdd_vd2_ddi, ddigeti_vi_ddi, ddisetdd_ddi_ddi_vd2, ddisetddi_ddi_vd2_vi,
@@ -2734,4 +2743,22 @@ pub(crate) unsafe fn xtrunc(x: VDouble) -> VDouble {
 pub(crate) unsafe fn xround(x: VDouble) -> VDouble {
     // 四舍五入取整
     vround2_vd_vd(x)
+}
+
+#[inline(always)]
+pub(crate) unsafe fn xfmax(x: VDouble, y: VDouble) -> VDouble {
+    vsel_vd_vo_vd_vd(
+        visnan_vo_vd(y),
+        x,
+        vsel_vd_vo_vd_vd(vgt_vo_vd_vd(x, y), x, y),
+    )
+}
+
+#[inline(always)]
+pub(crate) unsafe fn xfmin(x: VDouble, y: VDouble) -> VDouble {
+    vsel_vd_vo_vd_vd(
+        visnan_vo_vd(y),
+        x,
+        vsel_vd_vo_vd_vd(vgt_vo_vd_vd(y, x), x, y),
+    )
 }

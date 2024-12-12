@@ -1,13 +1,19 @@
-use crate::{
-    arch_simd::sleef::arch::helper::{
-        vabs_vd_vd, vadd64_vm_vm_vm, vadd_vd_vd_vd, vadd_vi_vi_vi, vand_vm_vm_vm, vand_vo_vo_vo,
-        vandnot_vm_vm_vm, vcast_vd_d, vcast_vd_vi, vcast_vi_i, vcastu_vm_vi, veq64_vo_vm_vm,
-        veq_vo_vd_vd, vge_vo_vd_vd, vgt_vo_vd_vd, visinf_vo_vd, vle_vo_vd_vd, vlt_vo_vd_vd,
-        vmla_vd_vd_vd_vd, vmul_vd_vd_vd, vneq_vo_vd_vd, vor_vm_vm_vm, vor_vo_vo_vo,
-        vreinterpret_vd_vm, vreinterpret_vm_vd, vsel_vd_vo_vd_vd, vsll_vi_vi_i, vsra_vi_vi_i,
-        vsub_vd_vd_vd, vsub_vi_vi_vi, vtruncate_vi_vd, vxor_vm_vm_vm,
-    },
-    sleef_types::{VDouble, VMask, Vopmask},
+#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+use crate::arch_simd::sleef::arch::helper_avx2 as helper;
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "sse",
+    not(target_feature = "avx2")
+))]
+use crate::arch_simd::sleef::arch::helper_sse as helper;
+use crate::sleef_types::{VDouble, VMask, Vopmask};
+use helper::{
+    vabs_vd_vd, vadd64_vm_vm_vm, vadd_vd_vd_vd, vadd_vi_vi_vi, vand_vm_vm_vm, vand_vo_vo_vo,
+    vandnot_vm_vm_vm, vcast_vd_d, vcast_vd_vi, vcast_vi_i, vcastu_vm_vi, veq64_vo_vm_vm,
+    veq_vo_vd_vd, vge_vo_vd_vd, vgt_vo_vd_vd, visinf_vo_vd, vle_vo_vd_vd, vlt_vo_vd_vd,
+    vmla_vd_vd_vd_vd, vmul_vd_vd_vd, vneq_vo_vd_vd, vor_vm_vm_vm, vor_vo_vo_vo, vreinterpret_vd_vm,
+    vreinterpret_vm_vd, vsel_vd_vo_vd_vd, vsll_vi_vi_i, vsra_vi_vi_i, vsub_vd_vd_vd, vsub_vi_vi_vi,
+    vtruncate_vi_vd, vxor_vm_vm_vm,
 };
 
 #[repr(C)]
@@ -216,7 +222,7 @@ use super::dd::VDouble2;
 pub(crate) unsafe fn vilogbk_vi_vd(d: VDouble) -> VInt {
     // 计算浮点数的指数部分
 
-    use crate::arch_simd::sleef::arch::helper::{
+    use helper::{
         vand_vi_vi_vi, vcast_vi_i, vcast_vo32_vo64, vcastu_vi_vm, vsel_vi_vo_vi_vi, vsrl_vi_vi_i,
         vsub_vi_vi_vi,
     };
@@ -241,7 +247,7 @@ pub(crate) unsafe fn vilogbk_vi_vd(d: VDouble) -> VInt {
 pub(crate) unsafe fn vilogb2k_vi_vd(d: VDouble) -> VInt {
     // 计算浮点数的指数部分
 
-    use crate::arch_simd::sleef::arch::helper::{
+    use helper::{
         vand_vi_vi_vi, vcast_vi_i, vcastu_vi_vm, vsrl_vi_vi_i, vsub_vi_vi_vi,
     };
     let mut q = vcastu_vi_vm(vreinterpret_vm_vd(d));

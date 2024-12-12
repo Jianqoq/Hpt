@@ -77,15 +77,14 @@ pub fn impl_simd_normal_out() -> TokenStream {
             } else if res_type.is_bool() {
                 quote! {
                     fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
-                        self.#to_res_type() | (a.#to_res_type() & b.#to_res_type())
+                        self.#to_res_type() & (a.#to_res_type() | b.#to_res_type())
                     }
                 }
             } else if !type_simd_is_arr(lhs) && !type_simd_is_arr(rhs) {
                 quote! {
                     fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
-                            self.#to_res_type() + a.#to_res_type() * b.#to_res_type()
+                            self.#to_res_type() * a.#to_res_type() + b.#to_res_type()
                         }
-
                 }
             } else {
                 quote! {
@@ -105,25 +104,25 @@ pub fn impl_simd_normal_out() -> TokenStream {
                 if res_type.is_f32() {
                     quote! {
                         fn _pow(self, rhs: #rhs_simd) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(sleef::f32x::pow_u10(self.to_f32().0, rhs.to_f32().0))
+                            SimdMath::pow(self.to_f32(), rhs.to_f32())
                         }
                         fn _max(self, rhs: #rhs_simd) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(self.to_f32().0.simd_max(rhs.to_f32().0))
+                            SimdMath::max(self.to_f32(), rhs.to_f32())
                         }
                         fn _min(self, rhs: #rhs_simd) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(self.to_f32().0.simd_min(rhs.to_f32().0))
+                            SimdMath::min(self.to_f32(), rhs.to_f32())
                         }
                     }
                 } else if res_type.is_f64() {
                     quote! {
                         fn _pow(self, rhs: #rhs_simd) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(sleef::f64x::pow_u10(self.to_f64().0, rhs.to_f64().0))
+                            SimdMath::pow(self.to_f64(), rhs.to_f64())
                         }
                         fn _max(self, rhs: #rhs_simd) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(self.to_f64().0.simd_max(rhs.to_f64().0))
+                            SimdMath::max(self.to_f64(), rhs.to_f64())
                         }
                         fn _min(self, rhs: #rhs_simd) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(self.to_f64().0.simd_min(rhs.to_f64().0))
+                            SimdMath::min(self.to_f64(), rhs.to_f64())
                         }
                     }
                 } else {
@@ -173,14 +172,10 @@ pub fn impl_simd_normal_out() -> TokenStream {
                 let b2 = if !type_simd_is_arr(rhs) && !type_simd_is_arr(lhs) {
                     quote! {
                         fn _max(self, rhs: #rhs_simd) -> Self::Output {
-
-                                #res_simd_ty::#res_simd_ty(self.#to_res_type().0.simd_max(rhs.#to_res_type().0))
-
+                            SimdMath::max(self.#to_res_type(), rhs.#to_res_type())
                         }
                         fn _min(self, rhs: #rhs_simd) -> Self::Output {
-
-                                #res_simd_ty::#res_simd_ty(self.#to_res_type().0.simd_min(rhs.#to_res_type().0))
-
+                            SimdMath::min(self.#to_res_type(), rhs.#to_res_type())
                         }
                     }
                 } else {
@@ -478,25 +473,25 @@ pub fn impl_simd_normal_out_with_rhs_scalar() -> TokenStream {
                 if res_type.is_f32() {
                     quote! {
                         fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(sleef::f32x::pow_u10(self.to_f32().0, #res_simd_ty::#res_simd_ty::splat(rhs.to_f32()).0))
+                            SimdMath::pow(self.to_f32(), #res_simd_ty::#res_simd_ty::splat(rhs.to_f32()))
                         }
                         fn _max(self, rhs: #rhs_dtype) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(self.to_f32().0.simd_max(#res_simd_ty::#res_simd_ty::splat(rhs.to_f32()).0))
+                            SimdMath::max(self.to_f32(), #res_simd_ty::#res_simd_ty::splat(rhs.to_f32()))
                         }
                         fn _min(self, rhs: #rhs_dtype) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(self.to_f32().0.simd_min(#res_simd_ty::#res_simd_ty::splat(rhs.to_f32()).0))
+                            SimdMath::min(self.to_f32(), #res_simd_ty::#res_simd_ty::splat(rhs.to_f32()))
                         }
                     }
                 } else if res_type.is_f64() {
                     quote! {
                         fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(sleef::f64x::pow_u10(self.to_f64().0, #res_simd_ty::#res_simd_ty::splat(rhs.to_f64()).0))
+                            SimdMath::pow(self.to_f64(), #res_simd_ty::#res_simd_ty::splat(rhs.to_f64()))
                         }
                         fn _max(self, rhs: #rhs_dtype) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(self.to_f64().0.simd_max(#res_simd_ty::#res_simd_ty::splat(rhs.to_f64()).0))
+                            SimdMath::max(self.to_f64(), #res_simd_ty::#res_simd_ty::splat(rhs.to_f64()))
                         }
                         fn _min(self, rhs: #rhs_dtype) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(self.to_f64().0.simd_min(#res_simd_ty::#res_simd_ty::splat(rhs.to_f64()).0))
+                            SimdMath::min(self.to_f64(), #res_simd_ty::#res_simd_ty::splat(rhs.to_f64()))
                         }
                     }
                 } else {
@@ -546,10 +541,10 @@ pub fn impl_simd_normal_out_with_rhs_scalar() -> TokenStream {
                 let b2 = if !type_simd_is_arr(rhs) && !type_simd_is_arr(lhs) {
                     quote! {
                         fn _max(self, rhs: #rhs_dtype) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(self.#to_res_type().0.simd_max(#res_simd_ty::#res_simd_ty::splat(rhs.#to_res_type()).0))
+                            SimdMath::max(self.#to_res_type(), #res_simd_ty::#res_simd_ty::splat(rhs.#to_res_type()))
                         }
                         fn _min(self, rhs: #rhs_dtype) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(self.#to_res_type().0.simd_min(#res_simd_ty::#res_simd_ty::splat(rhs.#to_res_type()).0))
+                            SimdMath::min(self.#to_res_type(), #res_simd_ty::#res_simd_ty::splat(rhs.#to_res_type()))
                         }
                     }
                 } else {
@@ -774,25 +769,25 @@ pub fn impl_simd_normal_out_with_lhs_scalar() -> TokenStream {
                 if res_type.is_f32() {
                     quote! {
                         fn _pow(self, rhs: #rhs_simd) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(sleef::f32x::pow_u10(#res_simd_ty::#res_simd_ty::splat(self.to_f32()).0, rhs.to_f32().0))
+                            SimdMath::pow(#res_simd_ty::#res_simd_ty::splat(self.to_f32()), rhs.to_f32())
                         }
                         fn _max(self, rhs: #rhs_simd) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(#res_simd_ty::#res_simd_ty::splat(self.to_f32()).0.simd_max(rhs.to_f32().0))
+                            SimdMath::max(#res_simd_ty::#res_simd_ty::splat(self.to_f32()), rhs.to_f32())
                         }
                         fn _min(self, rhs: #rhs_simd) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(#res_simd_ty::#res_simd_ty::splat(self.to_f32()).0.simd_min(rhs.to_f32().0))
+                            SimdMath::min(#res_simd_ty::#res_simd_ty::splat(self.to_f32()), rhs.to_f32())
                         }
                     }
                 } else if res_type.is_f64() {
                     quote! {
                         fn _pow(self, rhs: #rhs_simd) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(sleef::f64x::pow_u10(#res_simd_ty::#res_simd_ty::splat(self.to_f64()).0, rhs.to_f64().0))
+                            SimdMath::pow(#res_simd_ty::#res_simd_ty::splat(self.to_f64()), rhs.to_f64())
                         }
                         fn _max(self, rhs: #rhs_simd) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(#res_simd_ty::#res_simd_ty::splat(self.to_f64()).0.simd_max(rhs.to_f64().0))
+                            SimdMath::max(#res_simd_ty::#res_simd_ty::splat(self.to_f64()), rhs.to_f64())
                         }
                         fn _min(self, rhs: #rhs_simd) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(#res_simd_ty::#res_simd_ty::splat(self.to_f64()).0.simd_min(rhs.to_f64().0))
+                            SimdMath::min(#res_simd_ty::#res_simd_ty::splat(self.to_f64()), rhs.to_f64())
                         }
                     }
                 } else {
@@ -842,14 +837,10 @@ pub fn impl_simd_normal_out_with_lhs_scalar() -> TokenStream {
                 let b2 = if !type_simd_is_arr(rhs) && !type_simd_is_arr(lhs) {
                     quote! {
                         fn _max(self, rhs: #rhs_simd) -> Self::Output {
-
-                                #res_simd_ty::#res_simd_ty(#res_simd_ty::#res_simd_ty::splat(self.#to_res_type()).0.simd_max(rhs.#to_res_type().0))
-
+                            SimdMath::max(#res_simd_ty::#res_simd_ty::splat(self.#to_res_type()), rhs.#to_res_type())
                         }
                         fn _min(self, rhs: #rhs_simd) -> Self::Output {
-
-                                #res_simd_ty::#res_simd_ty(#res_simd_ty::#res_simd_ty::splat(self.#to_res_type()).0.simd_min(rhs.#to_res_type().0))
-
+                            SimdMath::min(#res_simd_ty::#res_simd_ty::splat(self.#to_res_type()), rhs.#to_res_type())
                         }
                     }
                 } else {

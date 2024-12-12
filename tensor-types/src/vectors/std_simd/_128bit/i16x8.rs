@@ -1,6 +1,6 @@
-use std::ops::{ Deref, DerefMut };
+use std::{ops::{ Deref, DerefMut }, simd::cmp::{SimdPartialEq, SimdPartialOrd}};
 
-use crate::traits::{Init, SimdSelect, VecTrait};
+use crate::{impl_std_simd_bit_logic, traits::{SimdCompare, SimdMath, SimdSelect, VecTrait}};
 
 /// a vector of 8 i16 values
 #[allow(non_camel_case_types)]
@@ -34,6 +34,31 @@ impl VecTrait<i16> for i16x8 {
     fn sum(&self) -> i16 {
         self.as_array().iter().sum()
     }
+    fn splat(val: i16) -> i16x8 {
+        i16x8(std::simd::i16x8::splat(val))
+    }
+}
+
+impl SimdCompare for i16x8 {
+    type SimdMask = i16x8;
+    fn simd_eq(self, rhs: Self) -> Self::SimdMask {
+        i16x8(self.0.simd_eq(rhs.0).to_int())
+    }
+    fn simd_ne(self, rhs: Self) -> Self::SimdMask {
+        i16x8(self.0.simd_ne(rhs.0).to_int())
+    }
+    fn simd_lt(self, rhs: Self) -> Self::SimdMask {
+        i16x8(self.0.simd_lt(rhs.0).to_int())
+    }
+    fn simd_le(self, rhs: Self) -> Self::SimdMask {
+        i16x8(self.0.simd_le(rhs.0).to_int())
+    }
+    fn simd_gt(self, rhs: Self) -> Self::SimdMask {
+        i16x8(self.0.simd_gt(rhs.0).to_int())
+    }
+    fn simd_ge(self, rhs: Self) -> Self::SimdMask {
+        i16x8(self.0.simd_ge(rhs.0).to_int())
+    }
 }
 
 impl SimdSelect<i16x8> for crate::vectors::std_simd::_128bit::u32x4::u32x4 {
@@ -42,11 +67,7 @@ impl SimdSelect<i16x8> for crate::vectors::std_simd::_128bit::u32x4::u32x4 {
         i16x8(mask.select(true_val.0, false_val.0))
     }
 }
-impl Init<i16> for i16x8 {
-    fn splat(val: i16) -> i16x8 {
-        i16x8(std::simd::i16x8::splat(val))
-    }
-}
+
 impl std::ops::Add for i16x8 {
     type Output = Self;
 
@@ -87,5 +108,21 @@ impl std::ops::Neg for i16x8 {
 
     fn neg(self) -> Self::Output {
         i16x8(-self.0)
+    }
+}
+impl_std_simd_bit_logic!(i16x8);
+
+impl SimdMath<i16> for i16x8 {
+    fn max(self, other: Self) -> Self {
+        i16x8(self.0.max(other.0))
+    }
+    fn min(self, other: Self) -> Self {
+        i16x8(self.0.min(other.0))
+    }
+    fn relu(self) -> Self {
+        i16x8(self.0.max(i16x8::splat(0).0))
+    }
+    fn relu6(self) -> Self {
+        i16x8(self.relu().0.min(i16x8::splat(6).0))
     }
 }

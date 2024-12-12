@@ -1,6 +1,6 @@
 use crate::vectors::arch_simd::_128bit::f32x4::f32x4;
 use crate::vectors::arch_simd::_128bit::u16x8::u16x8;
-use crate::traits::{ Init, VecTrait };
+use crate::traits::VecTrait;
 use std::ops::{ Index, IndexMut };
 
 use crate::traits::SimdCompare;
@@ -32,8 +32,6 @@ impl VecTrait<half::f16> for f16x8 {
     fn sum(&self) -> half::f16 {
         self.0.iter().sum()
     }
-}
-impl Init<half::f16> for f16x8 {
     fn splat(val: half::f16) -> f16x8 {
         f16x8([val; 8])
     }

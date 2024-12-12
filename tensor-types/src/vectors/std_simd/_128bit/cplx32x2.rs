@@ -1,11 +1,11 @@
 use num_complex::Complex32;
 
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::vectors::traits:: VecTrait;
 
 /// a vector of 2 Complex32 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
-#[repr(transparent)]
+#[repr(C, align(16))]
 pub struct cplx32x2(pub(crate) [Complex32; 2]);
 
 impl VecTrait<Complex32> for cplx32x2 {
@@ -25,8 +25,6 @@ impl VecTrait<Complex32> for cplx32x2 {
     fn sum(&self) -> Complex32 {
         self.0.iter().sum()
     }
-}
-impl Init<Complex32> for cplx32x2 {
     fn splat(val: Complex32) -> cplx32x2 {
         cplx32x2([val; 2])
     }

@@ -1,4 +1,4 @@
-use crate::traits::{ Init, SimdCompare, SimdSelect, VecTrait };
+use crate::traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait };
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -42,6 +42,9 @@ impl VecTrait<u16> for u16x8 {
             arr.iter().sum()
         }
     }
+    fn splat(val: u16) -> u16x8 {
+        unsafe { u16x8(_mm_set1_epi16(val as i16)) }
+    }
 }
 
 impl SimdSelect<u16x8> for u16x8 {
@@ -49,11 +52,7 @@ impl SimdSelect<u16x8> for u16x8 {
         unsafe { u16x8(_mm_blendv_epi8(false_val.0, true_val.0, self.0)) }
     }
 }
-impl Init<u16> for u16x8 {
-    fn splat(val: u16) -> u16x8 {
-        unsafe { u16x8(_mm_set1_epi16(val as i16)) }
-    }
-}
+
 impl std::ops::Add for u16x8 {
     type Output = u16x8;
     fn add(self, rhs: Self) -> Self::Output {
@@ -133,5 +132,20 @@ impl SimdCompare for u16x8 {
 
     fn simd_ge(self, other: Self) -> Self::SimdMask {
         unsafe { u16x8(_mm_xor_si128(_mm_cmplt_epi16(self.0, other.0), _mm_set1_epi16(-1))) }
+    }
+}
+
+impl SimdMath<u16> for u16x8 {
+    fn max(self, other: Self) -> Self {
+        unsafe { u16x8(_mm_max_epi16(self.0, other.0)) }
+    }
+    fn min(self, other: Self) -> Self {
+        unsafe { u16x8(_mm_min_epi16(self.0, other.0)) }
+    }
+    fn relu(self) -> Self {
+        unsafe { u16x8(_mm_max_epi16(self.0, _mm_setzero_si128())) }
+    }
+    fn relu6(self) -> Self {
+        unsafe { u16x8(_mm_min_epi16(self.relu().0, _mm_set1_epi16(6))) }
     }
 }
