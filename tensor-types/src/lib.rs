@@ -269,10 +269,27 @@ pub mod vectors {
 
         /// A module defines a set of vector types for sleef
         pub mod sleef {
-            /// A module defines a macro for polynomial approximation
-            pub mod estrin;
-            /// A module defines a set of vector types for math operations
-            pub mod math;
+            /// A module defines a set of vector types for table
+            pub mod table;
+            /// A module defines a set of vector types for helper
+            pub mod arch {
+                /// A module defines a set of vector types for helper
+                pub mod helper;
+            }
+            /// A module defines a set of vector types for common
+            pub mod common {
+                /// A module defines a set of vector types for common
+                pub mod misc;
+                /// A module defines a set of vector types for common
+                pub mod df;
+                /// A module defines a macro for polynomial approximation
+                pub mod estrin;
+            }
+            /// A module defines a set of vector types for libm
+            pub mod libm {
+                /// a module defins a set of single precision floating point functions
+                pub mod sleefsimdsp;
+            }
         }
     }
     /// A module defines a set of traits for vector
@@ -281,3 +298,13 @@ pub mod vectors {
     pub mod utils;
 }
 pub use vectors::*;
+
+use std::arch::x86_64::*;
+pub(crate) type VDouble = __m256d;
+pub(crate) type VMask = __m256i;
+pub(crate) type Vopmask = __m256i;
+pub(crate) type VFloat = __m256;
+pub(crate) type VInt = __m128i;
+pub(crate) type VInt2 = __m256i;
+pub(crate) type VInt64 = __m256i;
+pub(crate) type VUInt64 = __m256i;

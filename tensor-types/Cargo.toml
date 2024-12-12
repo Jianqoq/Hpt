@@ -11,6 +11,10 @@ paste = "1.0.15"
 num-traits = "0.2.19"
 sleef = "0.3.2"
 
+[dev-dependencies]
+rug = "1.16"
+
+
 [features]
 f16c = []
 stdsimd = []

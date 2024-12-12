@@ -79,11 +79,79 @@ pub trait SimdCompare {
 }
 
 /// A trait for vector math operations
-pub trait SimdMath: Copy {
+pub trait SimdMath<T>: Copy {
     /// compute the sine of the vector
-    fn sin(self) -> Self {
-        let (u, s, t) = (self, self, self);
-
-        todo!()
-    }
+    fn sin(self) -> Self;
+    /// compute the cosine of the vector
+    fn cos(self) -> Self;
+    /// compute the tangent of the vector
+    fn tan(self) -> Self;
+    /// coupute asin
+    fn asin(self) -> Self;
+    /// coupute acos
+    fn acos(self) -> Self;
+    /// coupute atan
+    fn atan(self) -> Self;
+    /// compute sinh
+    fn sinh(self) -> Self;
+    /// compute cosh
+    fn cosh(self) -> Self;
+    /// compute tanh
+    fn tanh(self) -> Self;
+    /// compute asinh
+    fn asinh(self) -> Self;
+    /// compute acosh
+    fn acosh(self) -> Self;
+    /// compute atanh
+    fn atanh(self) -> Self;
+    /// compute the square of the vector
+    fn square(self) -> Self;
+    /// compute the absolute value of the vector
+    fn abs(self) -> Self;
+    /// compute the floor of the vector
+    fn floor(self) -> Self;
+    /// compute the ceil of the vector
+    fn ceil(self) -> Self;
+    /// compute the negate of the vector
+    fn neg(self) -> Self;
+    /// compute the round of the vector
+    fn round(self) -> Self;
+    /// compute the sign of the vector
+    fn sign(self) -> Self;
+    /// compute the square root of the vector
+    fn sqrt(self) -> Self;
+    /// leaky relu
+    fn leaky_relu(self, alpha: T) -> Self;
+    /// relu
+    fn relu(self) -> Self;
+    /// relu6
+    fn relu6(self) -> Self;
+    /// pow
+    fn pow(self, exp: Self) -> Self;
+    /// exp
+    fn exp(self) -> Self;
+    /// exp2
+    fn exp2(self) -> Self;
+    /// exp10
+    fn exp10(self) -> Self;
+    /// expm1
+    fn expm1(self) -> Self;
+    /// log10
+    fn log10(self) -> Self;
+    /// log2
+    fn log2(self) -> Self;
+    /// log1p
+    fn log1p(self) -> Self;
+    /// hypot
+    fn hypot(self, other: Self) -> Self;
+    /// trunc
+    fn trunc(self) -> Self;
+    /// erf
+    fn erf(self) -> Self;
+    /// cbrt
+    fn cbrt(self) -> Self;
+    /// ln
+    fn ln(self) -> Self;
+    /// log
+    fn log(self) -> Self;
 }

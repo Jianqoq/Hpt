@@ -116,7 +116,7 @@ pub trait NormalOutUnary {
     /// get the sign of x
     fn _sign(self) -> Self;
 
-        /// Perform the leaky ReLU (Rectified Linear Unit) activation function.
+    /// Perform the leaky ReLU (Rectified Linear Unit) activation function.
     ///
     /// Formula: f(x) = x if x > 0 else alpha * x
     fn _leaky_relu(self, alpha: Self::Base) -> Self;
