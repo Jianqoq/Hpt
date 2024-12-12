@@ -283,9 +283,11 @@ impl SimdMath<f32> for f32x8 {
 
 #[cfg(test)]
 mod tests {
+    use crate::arch_simd::sleef::common::misc::SQRT_FLT_MAX;
+
     use super::*;
     use rug::Assign;
-    use rug::{ops::Pow, Float};
+    use rug::Float;
     const TEST_REPEAT: usize = 100_000;
     const PRECF32: u32 = 80;
     pub fn f32_count_ulp(d: f32, c: &Float) -> f32 {
@@ -352,12 +354,17 @@ mod tests {
         f_sample: fn(rug::Float) -> rug::Float,
         range: core::ops::RangeInclusive<f32>,
         ulp_ex: f32,
+        name: &str,
     ) where
         std::simd::LaneCount<N>: std::simd::SupportedLaneCount,
     {
-        test_c_f_f(f_tested, f_sample, range, |ulp, _, _| {
-            (ulp <= ulp_ex, format!("ULP: {ulp} > {ulp_ex}"))
-        })
+        test_c_f_f(
+            f_tested,
+            f_sample,
+            range,
+            |ulp, _, _| (ulp <= ulp_ex, format!("ULP: {ulp} > {ulp_ex}")),
+            name,
+        )
     }
 
     pub fn test_c_f_f<const N: usize>(
@@ -365,6 +372,7 @@ mod tests {
         f_sample: fn(rug::Float) -> rug::Float,
         range: core::ops::RangeInclusive<f32>,
         cf: impl Fn(f32, f32, &rug::Float) -> (bool, String),
+        name: &str,
     ) where
         std::simd::LaneCount<N>: std::simd::SupportedLaneCount,
     {
@@ -383,20 +391,60 @@ mod tests {
                 let (b, fault_string) = cf(ulp, output, &expected);
                 assert!(
                     b,
-                    "Iteration: {n}, Position: {i}, Input: {input:e}, Output: {output}, Expected: {expected}, {}",
+                    "{}: Iteration: {n}, Position: {i}, Input: {input:e}, Output: {output}, Expected: {expected}, {}",
+                    name,
                     fault_string
                 );
             }
         }
     }
     #[test]
-    fn test_sinf() {
-        fn sinf(d: std::simd::Simd<f32, 8>) -> std::simd::Simd<f32, 8>
-        where
-            std::simd::LaneCount<8>: std::simd::SupportedLaneCount,
-        {
-            unsafe { xsinf_u1(std::mem::transmute(d)).into() }
+    fn tests() {
+        macro_rules! define_func {
+            ($func:ident, $f:ident, $x_func:expr, $range:expr) => {
+                fn $func(d: std::simd::Simd<f32, 8>) -> std::simd::Simd<f32, 8>
+                where
+                    std::simd::LaneCount<8>: std::simd::SupportedLaneCount,
+                {
+                    unsafe { $x_func(std::mem::transmute(d)).into() }
+                }
+                test_f_f::<8>($func, rug::Float::$f, $range, 1., stringify!($func));
+            };
         }
-        test_f_f::<8>(sinf, rug::Float::sin, f32::MIN..=f32::MAX, 1.);
+        define_func!(sinf, sin, xsinf_u1, f32::MIN..=f32::MAX);
+        define_func!(cosf, cos, xcosf_u1, f32::MIN..=f32::MAX);
+        define_func!(tanf, tan, xtanf_u1, f32::MIN..=f32::MAX);
+        define_func!(asin, asin, xasinf_u1, f32::MIN..=f32::MAX);
+        define_func!(acos, acos, xacosf_u1, f32::MIN..=f32::MAX);
+        define_func!(atan, atan, xatanf_u1, f32::MIN..=f32::MAX);
+        define_func!(sinh, sinh, xsinhf, -88.5..=88.5);
+        define_func!(cosh, cosh, xcoshf, -88.5..=88.5);
+        define_func!(tanh, tanh, xtanhf, -8.7..=8.7);
+        define_func!(
+            asinh,
+            asinh,
+            xasinhf,
+            -SQRT_FLT_MAX as f32..=SQRT_FLT_MAX as f32
+        );
+        define_func!(
+            acosh,
+            acosh,
+            xacoshf,
+            -SQRT_FLT_MAX as f32..=SQRT_FLT_MAX as f32
+        );
+        define_func!(atanh, atanh, xatanhf, f32::MIN..=f32::MAX);
+        define_func!(round, round, xroundf, f32::MIN..=f32::MAX);
+        define_func!(sqrt, sqrt, xsqrtf_u05, f32::MIN..=f32::MAX);
+        define_func!(exp, exp, xexpf, -104.0..=100.0);
+        define_func!(exp2, exp2, xexp2f, -150.0..=128.0);
+        define_func!(exp10, exp10, xexp10f, -50.0..=38.54);
+        define_func!(expm1, exp_m1, xexpm1f, -16.64..=88.73);
+        define_func!(log10, log10, xlog10f, 0.0..=f32::MAX);
+        define_func!(log2, log2, xlog2f, 0.0..=f32::MAX);
+        define_func!(log1p, ln_1p, xlog1pf, -1.0..=1e+38);
+        define_func!(trunc, trunc, xtruncf, f32::MIN..=f32::MAX);
+        define_func!(erf, erf, xerff_u1, f32::MIN..=f32::MAX);
+        define_func!(cbrt, cbrt, xcbrtf_u1, f32::MIN..=f32::MAX);
+        define_func!(ln, ln, xlogf_u1, 0.0..=f32::MAX);
     }
 }

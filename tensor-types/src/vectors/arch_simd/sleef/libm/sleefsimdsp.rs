@@ -1232,7 +1232,7 @@ pub(crate) unsafe fn xasinhf(x: VFloat) -> VFloat {
 
     y = vsel_vf_vo_vf_vf(
         vor_vo_vo_vo(vgt_vo_vf_vf(vabs_vf_vf(x), vcast_vf_f(SQRT_FLT_MAX as f32)), visnan_vo_vf(y)),
-        vmulsign_vf_vf_vf(vcast_vf_f(f32::INFINITY), x),
+        vmulsign_vf_vf_vf(vcast_vf_f((1e+300 * 1e+300) as f32), x),
         y
     );
     y = vreinterpret_vf_vm(vor_vm_vo32_vm(visnan_vo_vf(x), vreinterpret_vm_vf(y)));
