@@ -9,7 +9,10 @@ mod into_vec {
     use super::IntoVec;
     use crate::convertion::VecConvertor;
     #[cfg(feature = "stdsimd")]
-    use crate::vectors::std_simd::_256bit::*;
+    use crate::vectors::std_simd as simd;
+    #[cfg(feature = "archsimd")]
+    use crate::vectors::arch_simd as simd;
+    use simd::_256bit::*;
     use tensor_macros::impl_into_vec;
     impl_into_vec!();
 }
@@ -24,7 +27,10 @@ mod into_vec {
     use super::IntoVec;
     use crate::convertion::VecConvertor;
     #[cfg(feature = "stdsimd")]
-    use crate::vectors::std_simd::_128bit::*;
+    use crate::vectors::std_simd as simd;
+    #[cfg(feature = "archsimd")]
+    use crate::vectors::arch_simd as simd;
+    use simd::_128bit::*;
     use tensor_macros::impl_into_vec;
     impl_into_vec!();
 }

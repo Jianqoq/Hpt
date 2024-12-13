@@ -4,7 +4,7 @@ use crate::{
     convertion::VecConvertor,
     into_vec::IntoVec,
     type_promote::{ BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary },
-    vectors::traits::{ Init, VecTrait },
+    vectors::traits::VecTrait,
 };
 use core::f32;
 use half::{ bf16, f16 };
@@ -149,7 +149,6 @@ pub trait TypeCommon where Self: Sized + Copy {
     const BIT_SIZE: usize;
     /// the simd vector type of the data type
     type Vec: VecTrait<Self> +
-        Init<Self> +
         Send +
         Copy +
         IntoVec<Self::Vec> +
@@ -238,8 +237,12 @@ macro_rules! impl_type_common {
 #[cfg(target_feature = "avx2")]
 mod type_impl {
     use super::{ Dtype, TypeCommon };
+    use crate::vectors::traits::VecTrait;
     #[cfg(feature = "stdsimd")]
-    use crate::vectors::std_simd::_256bit::*;
+    use crate::vectors::std_simd as simd;
+    #[cfg(feature = "archsimd")]
+    use crate::vectors::arch_simd as simd;
+    use simd::_256bit::*;
     use half::*;
     use num_complex::{ Complex32, Complex64 };
     impl_type_common!(
@@ -541,7 +544,11 @@ mod type_impl {
 )]
 mod type_impl {
     use super::{ Dtype, TypeCommon };
-    use crate::vectors::std_simd::_128bit::*;
+    #[cfg(feature = "stdsimd")]
+    use crate::vectors::std_simd as simd;
+    #[cfg(feature = "archsimd")]
+    use crate::vectors::arch_simd as simd;
+    use simd::_128bit::*;
     use half::*;
     use num_complex::{ Complex32, Complex64 };
     use crate::vectors::traits::VecTrait;

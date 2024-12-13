@@ -538,40 +538,28 @@ pub fn impl_cmp(_: TokenStream) -> TokenStream {
             let lhs_dtype = lhs_type.dtype;
             let rhs_dtype = rhs_type.dtype;
             let res_type = lhs_type.infer_normal_res_type(&rhs_type);
-
+            let to_res_type = Ident::new(&format!("to_{}", res_type.to_string()), proc_macro2::Span::call_site());
             let res =
                 quote! {
                 impl Cmp<#rhs_dtype> for #lhs_dtype {
                     fn _eq(self, rhs: #rhs_dtype) -> bool {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() == rhs.[<to_ #res_type>]()
-                        }
+                        self.#to_res_type() == rhs.#to_res_type()
                     }
                     fn _ne(self, rhs: #rhs_dtype) -> bool {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() != rhs.[<to_ #res_type>]()
-                        }
+                        self.#to_res_type() != rhs.#to_res_type()
                     }
                     fn _lt(self, rhs: #rhs_dtype) -> bool {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() < rhs.[<to_ #res_type>]()
-                        }
+                        self.#to_res_type() < rhs.#to_res_type()
                     }
 
                     fn _le(self, rhs: #rhs_dtype) -> bool {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() <= rhs.[<to_ #res_type>]()
-                        }
+                        self.#to_res_type() <= rhs.#to_res_type()
                     }
                     fn _gt(self, rhs: #rhs_dtype) -> bool {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() > rhs.[<to_ #res_type>]()
-                        }
+                        self.#to_res_type() > rhs.#to_res_type()
                     }
                     fn _ge(self, rhs: #rhs_dtype) -> bool {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() >= rhs.[<to_ #res_type>]()
-                        }
+                        self.#to_res_type() >= rhs.#to_res_type()
                     }
                 }
             };

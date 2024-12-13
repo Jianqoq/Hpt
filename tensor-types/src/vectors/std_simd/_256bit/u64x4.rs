@@ -1,6 +1,8 @@
-use std::ops::{ Deref, DerefMut, Index, IndexMut };
+use std::{ops::{ Deref, DerefMut }, simd::{cmp::{SimdPartialEq, SimdPartialOrd}, num::SimdUint, Simd}};
 
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::{impl_std_simd_bit_logic, traits::{SimdCompare, SimdMath}, vectors::traits::VecTrait};
+
+use super::i64x4::i64x4;
 
 /// a vector of 4 u64 values
 #[allow(non_camel_case_types)]
@@ -34,24 +36,45 @@ impl VecTrait<u64> for u64x4 {
     fn sum(&self) -> u64 {
         self.as_array().iter().sum()
     }
-}
-
-impl Init<u64> for u64x4 {
     fn splat(val: u64) -> u64x4 {
         u64x4(std::simd::u64x4::splat(val))
     }
 }
-impl Index<usize> for u64x4 {
-    type Output = u64;
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.as_array()[index]
+
+impl SimdCompare for u64x4 {
+    type SimdMask = i64x4;
+    fn simd_eq(self, rhs: Self) -> Self::SimdMask {
+        let lhs: Simd<u64, 4> = unsafe { std::mem::transmute(self) };
+        let rhs: Simd<u64, 4> = unsafe { std::mem::transmute(rhs) };
+        i64x4(lhs.simd_eq(rhs).to_int())
+    }
+    fn simd_ne(self, rhs: Self) -> Self::SimdMask {
+        let lhs: Simd<u64, 4> = unsafe { std::mem::transmute(self) };
+        let rhs: Simd<u64, 4> = unsafe { std::mem::transmute(rhs) };
+        i64x4(lhs.simd_ne(rhs).to_int())
+    }
+    fn simd_lt(self, rhs: Self) -> Self::SimdMask {
+        let lhs: Simd<u64, 4> = unsafe { std::mem::transmute(self) };
+        let rhs: Simd<u64, 4> = unsafe { std::mem::transmute(rhs) };
+        i64x4(lhs.simd_lt(rhs).to_int())
+    }
+    fn simd_le(self, rhs: Self) -> Self::SimdMask {
+        let lhs: Simd<u64, 4> = unsafe { std::mem::transmute(self) };
+        let rhs: Simd<u64, 4> = unsafe { std::mem::transmute(rhs) };
+        i64x4(lhs.simd_le(rhs).to_int())
+    }
+    fn simd_gt(self, rhs: Self) -> Self::SimdMask {
+        let lhs: Simd<u64, 4> = unsafe { std::mem::transmute(self) };
+        let rhs: Simd<u64, 4> = unsafe { std::mem::transmute(rhs) };
+        i64x4(lhs.simd_gt(rhs).to_int())
+    }
+    fn simd_ge(self, rhs: Self) -> Self::SimdMask {
+        let lhs: Simd<u64, 4> = unsafe { std::mem::transmute(self) };
+        let rhs: Simd<u64, 4> = unsafe { std::mem::transmute(rhs) };
+        i64x4(lhs.simd_ge(rhs).to_int())
     }
 }
-impl IndexMut<usize> for u64x4 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.as_mut_array()[index]
-    }
-}
+
 impl std::ops::Add for u64x4 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
@@ -80,5 +103,25 @@ impl std::ops::Rem for u64x4 {
     type Output = Self;
     fn rem(self, rhs: Self) -> Self {
         u64x4(self.0 % rhs.0)
+    }
+}
+
+impl_std_simd_bit_logic!(u64x4);
+
+impl SimdMath<u64> for u64x4 {
+    fn max(self, other: Self) -> Self {
+        u64x4(self.0.max(other.0))
+    }
+    fn min(self, other: Self) -> Self {
+        u64x4(self.0.min(other.0))
+    }
+    fn relu(self) -> Self {
+        u64x4(self.0.max(u64x4::splat(0).0))
+    }
+    fn relu6(self) -> Self {
+        u64x4(self.relu().0.min(u64x4::splat(6).0))
+    }
+    fn neg(self) -> Self {
+        u64x4(self.0.wrapping_neg())
     }
 }

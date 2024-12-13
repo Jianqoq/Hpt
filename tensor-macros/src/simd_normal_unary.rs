@@ -51,16 +51,10 @@ pub(crate) fn impl_simd_normal_out_unary() -> TokenStream {
         );
 
         let neg_method = if lhs_dtype.is_float() {
-            if lhs_dtype.is_f32() {
+            if lhs_dtype.is_f32() || lhs_dtype.is_f64() {
                 quote! {
                     fn _neg(self) -> Self {
-                        #lhs_simd(self.to_f32().0.neg())
-                    }
-                }
-            } else if lhs_dtype.is_f64() {
-                quote! {
-                    fn _neg(self) -> Self {
-                        #lhs_simd(self.to_f64().0.neg())
+                        SimdMath::neg(self)
                     }
                 }
             } else {
@@ -76,13 +70,13 @@ pub(crate) fn impl_simd_normal_out_unary() -> TokenStream {
             if !type_simd_is_arr(lhs) && lhs_type.is_signed {
                 quote! {
                     fn _neg(self) -> Self {
-                        #lhs_simd(self.0.neg())
+                        SimdMath::neg(self)
                     }
                 }
             } else if !type_simd_is_arr(lhs) && !lhs_type.is_signed {
                 quote! {
                     fn _neg(self) -> Self {
-                        Self(self.wrapping_neg())
+                        SimdMath::neg(self)
                     }
                 }
             } else {
@@ -113,16 +107,10 @@ pub(crate) fn impl_simd_normal_out_unary() -> TokenStream {
                 }
             }
         } else if lhs_dtype.is_float() {
-            if lhs_dtype.is_f32() {
+            if lhs_dtype.is_f32() || lhs_dtype.is_f64() {
                 quote! {
                     fn _abs(self) -> Self {
-                        #lhs_simd(Sleef::abs(self.to_f32().0))
-                    }
-                }
-            } else if lhs_dtype.is_f64() {
-                quote! {
-                    fn _abs(self) -> Self {
-                        #lhs_simd(Sleef::abs(self.to_f64().0))
+                        SimdMath::abs(self)
                     }
                 }
             } else {
@@ -138,7 +126,7 @@ pub(crate) fn impl_simd_normal_out_unary() -> TokenStream {
             if !type_simd_is_arr(lhs) && lhs_type.is_signed {
                 quote! {
                     fn _abs(self) -> Self {
-                        #lhs_simd(self.0.abs())
+                        SimdMath::abs(self)
                     }
                 }
             } else if !type_simd_is_arr(lhs) && !lhs_type.is_signed {
@@ -169,34 +157,19 @@ pub(crate) fn impl_simd_normal_out_unary() -> TokenStream {
         };
 
         let unary_no_change_ty_method = if lhs_dtype.is_float() {
-            if lhs_dtype.is_f32() {
+            if lhs_dtype.is_f32() || lhs_dtype.is_f64() {
                 quote! {
                     fn _floor(self) -> Self {
-                        #lhs_simd(self.to_f32().0.floor())
+                        SimdMath::floor(self)
                     }
                     fn _round(self) -> Self {
-                        #lhs_simd(self.to_f32().0.round())
+                        SimdMath::round(self)
                     }
                     fn _ceil(self) -> Self {
-                        #lhs_simd(self.to_f32().0.ceil())
+                        SimdMath::ceil(self)
                     }
                     fn _square(self) -> Self {
-                        #lhs_simd(self.to_f32().0 * self.to_f32().0)
-                    }
-                }
-            } else if lhs_dtype.is_f64() {
-                quote! {
-                    fn _floor(self) -> Self {
-                        #lhs_simd(self.to_f64().0.floor())
-                    }
-                    fn _round(self) -> Self {
-                        #lhs_simd(self.to_f64().0.round())
-                    }
-                    fn _ceil(self) -> Self {
-                        #lhs_simd(self.to_f64().0.ceil())
-                    }
-                    fn _square(self) -> Self {
-                        #lhs_simd(self.to_f64().0 * self.to_f64().0)
+                        SimdMath::square(self)
                     }
                 }
             } else {

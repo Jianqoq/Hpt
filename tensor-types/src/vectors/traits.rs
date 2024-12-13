@@ -20,9 +20,7 @@ pub trait VecTrait<T: Copy> {
     }
     /// convert self to a mutable pointer without check
     fn as_mut_ptr_uncheck(&self) -> *mut T {
-        unsafe {
-            std::mem::transmute(self.as_ptr())
-        }
+        unsafe { std::mem::transmute(self.as_ptr()) }
     }
     /// extract a value from vector
     fn extract(&self, idx: usize) -> T {
@@ -32,20 +30,22 @@ pub trait VecTrait<T: Copy> {
     fn sum(&self) -> T;
     /// write value to vector, this is unaligned write
     #[inline(always)]
-    fn write_unaligned(&mut self, vec: T::Vec) where T: TypeCommon {
+    fn write_unaligned(&mut self, vec: T::Vec)
+    where
+        T: TypeCommon,
+    {
         let ptr = self.as_mut_ptr() as *mut T::Vec;
         unsafe { ptr.write_unaligned(vec) }
     }
     /// read a value from vector
     #[inline(always)]
-    fn read_unaligned(&self) -> T::Vec where T: TypeCommon {
+    fn read_unaligned(&self) -> T::Vec
+    where
+        T: TypeCommon,
+    {
         let ptr = self.as_ptr() as *const T::Vec;
         unsafe { ptr.read_unaligned() }
     }
-}
-
-/// a trait for vector initialization
-pub trait Init<T> {
     /// create a vector with all elements set to the val
     fn splat(val: T) -> Self;
     /// load data to vector from pointer
@@ -54,11 +54,15 @@ pub trait Init<T> {
     ///
     /// This function is unsafe because it can cause undefined behavior if the pointer is invalid or the data len is less than the vector size
     #[inline(always)]
-    unsafe fn from_ptr(ptr: *const T) -> Self where Self: Sized {
+    unsafe fn from_ptr(ptr: *const T) -> Self
+    where
+        Self: Sized,
+    {
         let ptr = ptr as *const Self;
         unsafe { ptr.read_unaligned() }
     }
 }
+
 /// a trait to select value from two vectors
 pub trait SimdSelect<T> {
     /// select value based on mask
@@ -81,4 +85,172 @@ pub trait SimdCompare {
     fn simd_gt(self, other: Self) -> Self::SimdMask;
     /// compare two vectors to check if is greater than or equal and return a mask
     fn simd_ge(self, other: Self) -> Self::SimdMask;
+}
+
+/// A trait for vector math operations
+pub trait SimdMath<T>: Copy {
+    /// compute the sine of the vector
+    fn sin(self) -> Self {
+        unreachable!()
+    }
+    /// compute the cosine of the vector
+    fn cos(self) -> Self {
+        unreachable!()
+    }
+    /// compute the sine and cosine of the vector
+    fn sincos(self) -> (Self, Self) {
+        unreachable!()
+    }
+    /// compute the tangent of the vector
+    fn tan(self) -> Self {
+        unreachable!()
+    }
+    /// coupute asin
+    fn asin(self) -> Self {
+        unreachable!()
+    }
+    /// coupute acos
+    fn acos(self) -> Self {
+        unreachable!()
+    }
+    /// coupute atan
+    fn atan(self) -> Self {
+        unreachable!()
+    }
+    /// coupute atan2
+    fn atan2(self, _: Self) -> Self {
+        unreachable!()
+    }
+    /// compute sinh
+    fn sinh(self) -> Self {
+        unreachable!()
+    }
+    /// compute cosh
+    fn cosh(self) -> Self {
+        unreachable!()
+    }
+    /// compute tanh
+    fn tanh(self) -> Self {
+        unreachable!()
+    }
+    /// compute asinh
+    fn asinh(self) -> Self {
+        unreachable!()
+    }
+    /// compute acosh
+    fn acosh(self) -> Self {
+        unreachable!()
+    }
+    /// compute atanh
+    fn atanh(self) -> Self {
+        unreachable!()
+    }
+    /// compute the square of the vector
+    fn square(self) -> Self {
+        unreachable!()
+    }
+    /// compute the absolute value of the vector
+    fn abs(self) -> Self {
+        unreachable!()
+    }
+    /// compute the floor of the vector
+    fn floor(self) -> Self {
+        unreachable!()
+    }
+    /// compute the ceil of the vector
+    fn ceil(self) -> Self {
+        unreachable!()
+    }
+    /// compute the negate of the vector
+    fn neg(self) -> Self {
+        unreachable!()
+    }
+    /// compute the round of the vector
+    fn round(self) -> Self {
+        unreachable!()
+    }
+    /// compute the sign of the vector
+    fn sign(self) -> Self {
+        unreachable!()
+    }
+    /// compute the square root of the vector
+    fn sqrt(self) -> Self {
+        unreachable!()
+    }
+    /// leaky relu
+    fn leaky_relu(self, _: T) -> Self {
+        unreachable!()
+    }
+    /// relu
+    fn relu(self) -> Self {
+        unreachable!()
+    }
+    /// relu6
+    fn relu6(self) -> Self {
+        unreachable!()
+    }
+    /// pow
+    fn pow(self, _: Self) -> Self {
+        unreachable!()
+    }
+    /// exp
+    fn exp(self) -> Self {
+        unreachable!()
+    }
+    /// exp2
+    fn exp2(self) -> Self {
+        unreachable!()
+    }
+    /// exp10
+    fn exp10(self) -> Self {
+        unreachable!()
+    }
+    /// expm1
+    fn expm1(self) -> Self {
+        unreachable!()
+    }
+    /// log10
+    fn log10(self) -> Self {
+        unreachable!()
+    }
+    /// log2
+    fn log2(self) -> Self {
+        unreachable!()
+    }
+    /// log1p
+    fn log1p(self) -> Self {
+        unreachable!()
+    }
+    /// hypot
+    fn hypot(self, _: Self) -> Self {
+        unreachable!()
+    }
+    /// trunc
+    fn trunc(self) -> Self {
+        unreachable!()
+    }
+    /// erf
+    fn erf(self) -> Self {
+        unreachable!()
+    }
+    /// cbrt
+    fn cbrt(self) -> Self {
+        unreachable!()
+    }
+    /// ln
+    fn ln(self) -> Self {
+        unreachable!()
+    }
+    /// log
+    fn log(self) -> Self {
+        unreachable!()
+    }
+    /// min
+    fn min(self, _: Self) -> Self {
+        unreachable!()
+    }
+    /// max
+    fn max(self, _: Self) -> Self {
+        unreachable!()
+    }
 }

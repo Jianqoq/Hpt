@@ -282,10 +282,11 @@ pub fn impl_float_out_unary() -> TokenStream {
                         arr[#i] = self_arr[#i]._celu(alpha);
                     }
                 });
+                let lhs_lanes = lhs_lanes as usize;
                 quote! {
                     fn _celu(self, alpha: Self::Base) -> Self::Output {
-                        let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                        let self_arr = self.0;
+                        let mut arr = [#res_type::ZERO; #lhs_lanes];
+                        let self_arr: [#res_type; #lhs_lanes] = unsafe { std::mem::transmute(self) };
                         #(#unroll)*
                         #res_simd_ty::#res_simd_ty(arr.into())
                     }
@@ -297,10 +298,11 @@ pub fn impl_float_out_unary() -> TokenStream {
                         arr[#i] = self_arr[#i]._selu(alpha, scale);
                     }
                 });
+                let lhs_lanes = lhs_lanes as usize;
                 quote! {
                     fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output {
-                        let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                        let self_arr = self.0;
+                        let mut arr = [#res_type::ZERO; #lhs_lanes];
+                        let self_arr: [#res_type; #lhs_lanes] = unsafe { std::mem::transmute(self) };
                         #(#unroll)*
                         #res_simd_ty::#res_simd_ty(arr.into())
                     }
@@ -312,10 +314,11 @@ pub fn impl_float_out_unary() -> TokenStream {
                         arr[#i] = self_arr[#i]._elu(alpha);
                     }
                 });
+                let lhs_lanes = lhs_lanes as usize;
                 quote! {
                     fn _elu(self, alpha: Self::Base) -> Self::Output {
-                        let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                        let self_arr = self.0;
+                        let mut arr = [#res_type::ZERO; #lhs_lanes];
+                        let self_arr: [#res_type; #lhs_lanes] = unsafe { std::mem::transmute(self) };
                         #(#unroll)*
                         #res_simd_ty::#res_simd_ty(arr.into())
                     }
@@ -327,10 +330,11 @@ pub fn impl_float_out_unary() -> TokenStream {
                         arr[#i] = self_arr[#i]._hard_sigmoid();
                     }
                 });
+                let lhs_lanes = lhs_lanes as usize;
                 quote! {
                     fn _hard_sigmoid(self) -> Self::Output {
-                        let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                        let self_arr = self.0;
+                        let mut arr = [#res_type::ZERO; #lhs_lanes];
+                        let self_arr: [#res_type; #lhs_lanes] = unsafe { std::mem::transmute(self) };
                         #(#unroll)*
                         #res_simd_ty::#res_simd_ty(arr.into())
                     }
@@ -342,10 +346,11 @@ pub fn impl_float_out_unary() -> TokenStream {
                         arr[#i] = self_arr[#i]._fast_hard_sigmoid();
                     }
                 });
+                let lhs_lanes = lhs_lanes as usize;
                 quote! {
                     fn _fast_hard_sigmoid(self) -> Self::Output {
-                        let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                        let self_arr = self.0;
+                        let mut arr = [#res_type::ZERO; #lhs_lanes];
+                        let self_arr: [#res_type; #lhs_lanes] = unsafe { std::mem::transmute(self) };
                         #(#unroll)*
                         #res_simd_ty::#res_simd_ty(arr.into())
                     }
@@ -362,64 +367,36 @@ pub fn impl_float_out_unary() -> TokenStream {
             };
             ret.extend(res);
         } else {
-            let sleef = |func_name: &str, sleef_func: &str| {
-                let func_name = Ident::new(func_name, proc_macro2::Span::call_site());
-                let sleef_func = Ident::new(sleef_func, proc_macro2::Span::call_site());
-                if res_type.is_f32() {
-                    quote! {
-                        #[inline(always)]
-                        fn #func_name(self) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(sleef::f32x::#sleef_func(self.#to_res_type().0))
-                        }
-                    }
-                } else {
-                    quote! {
-                        #[inline(always)]
-                        fn #func_name(self) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(sleef::f64x::#sleef_func(self.#to_res_type().0))
-                        }
-                    }
-                }
-            };
             let non_sleef = |func_name: &str, non_sleef_func: &str| {
                 let func_name = Ident::new(func_name, proc_macro2::Span::call_site());
                 let non_sleef_func = Ident::new(non_sleef_func, proc_macro2::Span::call_site());
-                if res_type.is_f32() {
-                    quote! {
-                        #[inline(always)]
-                        fn #func_name(self) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(std::simd::StdFloat::#non_sleef_func(self.#to_res_type().0))
-                        }
-                    }
-                } else {
-                    quote! {
-                        #[inline(always)]
-                        fn #func_name(self) -> Self::Output {
-                            #res_simd_ty::#res_simd_ty(std::simd::StdFloat::#non_sleef_func(self.#to_res_type().0))
-                        }
+                quote! {
+                    #[inline(always)]
+                    fn #func_name(self) -> Self::Output {
+                        SimdMath::#non_sleef_func(self.#to_res_type())
                     }
                 }
             };
             let sin = non_sleef("_sin", "sin");
             let cos = non_sleef("_cos", "cos");
-            let tan = sleef("_tan", "tan_u10");
-            let asin = sleef("_asin", "asin_u10");
-            let acos = sleef("_acos", "acos_u10");
-            let atan = sleef("_atan", "atan_u10");
-            let sinh = sleef("_sinh", "sinh_u10");
-            let cosh = sleef("_cosh", "cosh_u10");
-            let tanh = sleef("_tanh", "tanh_u10");
-            let asinh = sleef("_asinh", "asinh_u10");
-            let atanh = sleef("_atanh", "atanh_u10");
-            let acosh = sleef("_acosh", "acosh_u10");
-            let ln = sleef("_ln", "log_u10");
-            let exp = sleef("_exp", "exp_u10");
-            let exp2 = sleef("_exp2", "exp2_u10");
-            let log2 = sleef("_log2", "log2_u10");
-            let log10 = sleef("_log10", "log10_u10");
-            let sqrt = sleef("_sqrt", "sqrt_u05");
-            let cbrt = sleef("_cbrt", "cbrt_u10");
-            let erf = sleef("_erf", "erf_u10");
+            let tan = non_sleef("_tan", "tan");
+            let asin = non_sleef("_asin", "asin");
+            let acos = non_sleef("_acos", "acos");
+            let atan = non_sleef("_atan", "atan");
+            let sinh = non_sleef("_sinh", "sinh");
+            let cosh = non_sleef("_cosh", "cosh");
+            let tanh = non_sleef("_tanh", "tanh");
+            let asinh = non_sleef("_asinh", "asinh");
+            let atanh = non_sleef("_atanh", "atanh");
+            let acosh = non_sleef("_acosh", "acosh");
+            let ln = non_sleef("_ln", "log");
+            let exp = non_sleef("_exp", "exp");
+            let exp2 = non_sleef("_exp2", "exp2");
+            let log2 = non_sleef("_log2", "log2");
+            let log10 = non_sleef("_log10", "log10");
+            let sqrt = non_sleef("_sqrt", "sqrt");
+            let cbrt = non_sleef("_cbrt", "cbrt");
+            let erf = non_sleef("_erf", "erf");
             let res = quote! {
                 impl FloatOutUnary for #lhs_simd {
                     type Output = #res_simd_ty::#res_simd_ty;
@@ -428,25 +405,19 @@ pub fn impl_float_out_unary() -> TokenStream {
                     #cbrt #atanh #acosh #exp2
                     #[inline(always)]
                     fn _recip(self) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty(self.#to_res_type().recip())
+                        self.#to_res_type().recip()
                     }
                     #[inline(always)]
                     fn _sigmoid(self) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty(
-                            #res_simd_ty::#res_simd_ty::splat(#res_type::ONE).0 / (
-                                #res_simd_ty::#res_simd_ty::splat(#res_type::ONE).0 + (
-                                    #res_simd_ty::#res_simd_ty(-self.#to_res_type().0)
-                            )._exp().0)
-                        )
+                        #res_simd_ty::#res_simd_ty::splat(#res_type::ONE) / (
+                            #res_simd_ty::#res_simd_ty::splat(#res_type::ONE) - self.#to_res_type()._exp())
                     }
                     #[inline(always)]
                     fn _gelu(self) -> Self::Output {
                         let x = self.#to_res_type();
                         let erf = (x * #res_simd_ty::#res_simd_ty::splat(#res_type::FRAC_1_SQRT_2))._erf() + #res_simd_ty::#res_simd_ty::splat(#res_type::ONE);
                         let half = #res_simd_ty::#res_simd_ty::splat(#res_type::HALF);
-                        #res_simd_ty::#res_simd_ty(
-                            half.0 * x.0 * erf.0
-                        )
+                        half * x * erf
                     }
                     #[inline(always)]
                     fn _softplus(self) -> Self::Output {
@@ -455,8 +426,8 @@ pub fn impl_float_out_unary() -> TokenStream {
                     }
                     #[inline(always)]
                     fn _softsign(self) -> Self::Output {
-                        let x = self.#to_res_type().0;
-                        #res_simd_ty::#res_simd_ty(x / (#res_simd_ty::#res_simd_ty::splat(#res_type::ONE).0 + Sleef::abs(x)))
+                        let casted = self.#to_res_type();
+                        casted / (#res_simd_ty::#res_simd_ty::splat(#res_type::ONE) + casted._abs())
                     }
                     #[inline(always)]
                     fn _mish(self) -> Self::Output {
@@ -467,12 +438,10 @@ pub fn impl_float_out_unary() -> TokenStream {
                     fn _celu(self, alpha: Self::Base) -> Self::Output {
                         let x = self.#to_res_type();
                         let scale = #res_simd_ty::#res_simd_ty::splat(alpha);
-                        let gt_mask = x.simd_gt(#res_simd_ty::#res_simd_ty::splat(#res_type::ZERO).0);
-                        #res_simd_ty::#res_simd_ty(
-                            gt_mask.select(
-                                x.0,
-                                (scale * (x._exp() - #res_simd_ty::#res_simd_ty::splat(#res_type::ONE))).0
-                            )
+                        let gt_mask = x._gt(#res_simd_ty::#res_simd_ty::splat(#res_type::ZERO));
+                        gt_mask.select(
+                            x,
+                            scale * (x._exp() - #res_simd_ty::#res_simd_ty::splat(#res_type::ONE))
                         )
                     }
                     #[inline(always)]
@@ -484,10 +453,8 @@ pub fn impl_float_out_unary() -> TokenStream {
                     fn _elu(self, alpha: Self::Base) -> Self::Output {
                         let x = self.#to_res_type();
                         let alpha = #res_simd_ty::#res_simd_ty::splat(alpha);
-                        let mask = x.simd_gt(#res_simd_ty::#res_simd_ty::splat(#res_type::ZERO).0);
-                        #res_simd_ty::#res_simd_ty(
-                            mask.select(x.0, alpha.0 * (x.exp_m1()))
-                        )
+                        let mask = x._gt(#res_simd_ty::#res_simd_ty::splat(#res_type::ZERO));
+                        mask.select(x, alpha * (SimdMath::expm1(x)))
                     }
                     #[inline(always)]
                     fn _hard_swish(self) -> Self::Output {
@@ -504,7 +471,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                         let one = #res_simd_ty::#res_simd_ty::splat(#res_type::ONE);
                         let zero = #res_simd_ty::#res_simd_ty::splat(#res_type::ZERO);
                         let add = point_two * x + half;
-                        #res_simd_ty::#res_simd_ty(add.simd_min(one.0).simd_max(zero.0))
+                        add._min(one)._max(zero)
                     }
                     #[inline(always)]
                     fn _fast_hard_sigmoid(self) -> Self::Output {
@@ -514,7 +481,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                         let one = #res_simd_ty::#res_simd_ty::splat(#res_type::ONE);
                         let zero = #res_simd_ty::#res_simd_ty::splat(#res_type::ZERO);
                         let result = x * sixth + half;
-                        #res_simd_ty::#res_simd_ty(result.simd_clamp(zero.0, one.0))
+                        result._min(one)._max(zero)
                     }
                 }
             };
@@ -545,14 +512,14 @@ fn gen_func_arr(
             proc_macro2::Span::call_site(),
         );
         if lhs_dtype.dtype.is_f16() {
+            let f32_lanes = f32_lanes as usize;
             quote! {
                 fn #method(self) -> Self::Output {
-                    let mut arr = #ident::#ident::splat(f32::ZERO);
-                    let ptr = arr.as_mut_array();
-                    let self_arr = self.0;
+                    let mut arr = [f32::ZERO; #f32_lanes];
                     for i in 0..#lhs_lanes as usize {
-                        ptr[i] = self_arr[i].to_f32();
+                        arr[i] = self[i].to_f32();
                     }
+                    let arr: #ident::#ident = unsafe { std::mem::transmute(arr) };
                     let res_f32 = arr.#method();
                     let mut half_arr = [half::f16::ZERO; #lhs_lanes as usize];
                     for i in 0..#lhs_lanes as usize {
@@ -587,7 +554,7 @@ fn gen_func_arr(
         quote! {
             fn #method(self) -> Self::Output {
                 let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                let self_arr = self.0;
+                let self_arr = self;
                 #(#unroll)*
                 #res_simd_ty::#res_simd_ty(arr.into())
             }

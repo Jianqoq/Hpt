@@ -1,8 +1,8 @@
-use proc_macro::TokenStream;
-use crate::TypeInfo;
-use quote::quote;
 use crate::type_utils::type_simd_lanes;
+use crate::TypeInfo;
+use proc_macro::TokenStream;
 use proc_macro2::Ident;
+use quote::quote;
 
 pub fn impl_simd_eval() -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
@@ -59,57 +59,9 @@ pub fn impl_simd_eval() -> TokenStream {
             }
         };
 
-        let is_true = if lhs_dtype.is_bool() {
-            quote! {
-                fn _is_true(&self) -> #mask_ty::#mask_ty {
-                    #mask_ty::#mask_ty(
-                       unsafe { std::mem::transmute(self.0) }
-                    )
-                }
-            }
-        } else if lhs_dtype.is_float() {
-            if lhs_dtype.is_bf16() {
-                quote! {
-                    fn _is_true(&self) -> #mask_ty::#mask_ty {
-                        #[cfg(target_feature = "avx2")]
-                        let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
-                        #[cfg(all(
-                            any(target_feature = "sse2", target_arch = "aarch64"),
-                            not(target_feature = "avx2")
-                        ))]
-                        let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-                        #[cfg(target_feature = "avx512f")]
-                        let x: Simd<u16, 32> = unsafe { std::mem::transmute(self.0) };
-                        #mask_ty::#mask_ty(unsafe { std::mem::transmute(x.simd_ne(#mask_ty::#mask_ty::splat(#mask_meta_ty::ZERO).0)) })
-                    }
-                }
-            } else if lhs_dtype.is_f16() {
-                quote! {
-                    fn _is_true(&self) -> #mask_ty::#mask_ty {
-                        #[cfg(target_feature = "avx2")]
-                        let x: Simd<u16, 16> = unsafe { std::mem::transmute(self.0) };
-                        #[cfg(all(
-                            any(target_feature = "sse2", target_arch = "aarch64"),
-                            not(target_feature = "avx2")
-                        ))]
-                        let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-                        #[cfg(target_feature = "avx512f")]
-                        let x: Simd<u16, 32> = unsafe { std::mem::transmute(self.0) };
-                        #mask_ty::#mask_ty(unsafe { std::mem::transmute(x.simd_ne(#mask_ty::#mask_ty::splat(#mask_meta_ty::ZERO).0)) })
-                    }
-                }
-            } else {
-                quote! {
-                    fn _is_true(&self) -> #mask_ty::#mask_ty {
-                        #mask_ty::#mask_ty(unsafe { std::mem::transmute(self.simd_ne(#simd_ty::#simd_ty::splat(#lhs_dtype::ZERO).0)) })
-                    }
-                }
-            }
-        } else {
-            quote! {
-                fn _is_true(&self) -> #mask_ty::#mask_ty {
-                    #mask_ty::#mask_ty(unsafe { std::mem::transmute(self.simd_ne(#simd_ty::#simd_ty::splat(#lhs_dtype::ZERO).0)) })
-                }
+        let is_true = quote! {
+            fn _is_true(&self) -> #mask_ty::#mask_ty {
+                self.simd_ne(#simd_ty::#simd_ty::splat(#lhs_dtype::ZERO))
             }
         };
 
@@ -127,15 +79,14 @@ pub fn impl_simd_eval() -> TokenStream {
             }
         };
 
-        let res =
-            quote! {
-                impl Eval for #simd_ty::#simd_ty {
-                    type Output = #mask_ty::#mask_ty;
-                    #is_nan
-                    #is_true
-                    #is_inf
-                }
-            };
+        let res = quote! {
+            impl Eval for #simd_ty::#simd_ty {
+                type Output = #mask_ty::#mask_ty;
+                #is_nan
+                #is_true
+                #is_inf
+            }
+        };
         ret.extend(res);
     }
 
@@ -144,36 +95,111 @@ pub fn impl_simd_eval() -> TokenStream {
 
 fn map_mask(ty: &str) -> (Ident, Ident) {
     match ty {
-        "bool" => (Ident::new(&format!("u8x{}", type_simd_lanes("bool")), proc_macro2::Span::call_site()),
-        Ident::new("u8", proc_macro2::Span::call_site())),
-        "bf16" => (Ident::new(&format!("u16x{}", type_simd_lanes("bf16")), proc_macro2::Span::call_site()),
-        Ident::new("u16", proc_macro2::Span::call_site())),
-        "f16" => (Ident::new(&format!("u16x{}", type_simd_lanes("f16")), proc_macro2::Span::call_site()),
-        Ident::new("u16", proc_macro2::Span::call_site())),
-        "f32" => (Ident::new(&format!("u32x{}", type_simd_lanes("f32")), proc_macro2::Span::call_site()),
-        Ident::new("u32", proc_macro2::Span::call_site())),
-        "f64" => (Ident::new(&format!("u64x{}", type_simd_lanes("f64")), proc_macro2::Span::call_site()),
-        Ident::new("u64", proc_macro2::Span::call_site())),
-        "i8" => (Ident::new(&format!("u8x{}", type_simd_lanes("i8")), proc_macro2::Span::call_site()),
-        Ident::new("u8", proc_macro2::Span::call_site())),
-        "i16" => (Ident::new(&format!("u16x{}", type_simd_lanes("i16")), proc_macro2::Span::call_site()),
-        Ident::new("u16", proc_macro2::Span::call_site())),
-        "i32" => (Ident::new(&format!("u32x{}", type_simd_lanes("i32")), proc_macro2::Span::call_site()),
-        Ident::new("u32", proc_macro2::Span::call_site())),
-        "i64" => (Ident::new(&format!("u64x{}", type_simd_lanes("i64")), proc_macro2::Span::call_site()),
-        Ident::new("u64", proc_macro2::Span::call_site())),
-        "u8" => (Ident::new(&format!("u8x{}", type_simd_lanes("u8")), proc_macro2::Span::call_site()),
-        Ident::new("u8", proc_macro2::Span::call_site())),
-        "u16" => (Ident::new(&format!("u16x{}", type_simd_lanes("u16")), proc_macro2::Span::call_site()),
-        Ident::new("u16", proc_macro2::Span::call_site())),
-        "u32" => (Ident::new(&format!("u32x{}", type_simd_lanes("u32")), proc_macro2::Span::call_site()),
-        Ident::new("u32", proc_macro2::Span::call_site())),
-        "u64" => (Ident::new(&format!("u64x{}", type_simd_lanes("u64")), proc_macro2::Span::call_site()),
-        Ident::new("u64", proc_macro2::Span::call_site())),
-        "isize" => (Ident::new(&format!("usizex{}", type_simd_lanes("isize")), proc_macro2::Span::call_site()),
-        Ident::new("usize", proc_macro2::Span::call_site())),
-        "usize" => (Ident::new(&format!("usizex{}", type_simd_lanes("usize")), proc_macro2::Span::call_site()),
-        Ident::new("usize", proc_macro2::Span::call_site())),
+        "bool" => (
+            Ident::new(
+                &format!("i8x{}", type_simd_lanes("bool")),
+                proc_macro2::Span::call_site(),
+            ),
+            Ident::new("i8", proc_macro2::Span::call_site()),
+        ),
+        "bf16" => (
+            Ident::new(
+                &format!("i16x{}", type_simd_lanes("bf16")),
+                proc_macro2::Span::call_site(),
+            ),
+            Ident::new("i16", proc_macro2::Span::call_site()),
+        ),
+        "f16" => (
+            Ident::new(
+                &format!("i16x{}", type_simd_lanes("f16")),
+                proc_macro2::Span::call_site(),
+            ),
+            Ident::new("i16", proc_macro2::Span::call_site()),
+        ),
+        "f32" => (
+            Ident::new(
+                &format!("i32x{}", type_simd_lanes("f32")),
+                proc_macro2::Span::call_site(),
+            ),
+            Ident::new("i32", proc_macro2::Span::call_site()),
+        ),
+        "f64" => (
+            Ident::new(
+                &format!("i64x{}", type_simd_lanes("f64")),
+                proc_macro2::Span::call_site(),
+            ),
+            Ident::new("i64", proc_macro2::Span::call_site()),
+        ),
+        "i8" => (
+            Ident::new(
+                &format!("i8x{}", type_simd_lanes("i8")),
+                proc_macro2::Span::call_site(),
+            ),
+            Ident::new("i8", proc_macro2::Span::call_site()),
+        ),
+        "i16" => (
+            Ident::new(
+                &format!("i16x{}", type_simd_lanes("i16")),
+                proc_macro2::Span::call_site(),
+            ),
+            Ident::new("i16", proc_macro2::Span::call_site()),
+        ),
+        "i32" => (
+            Ident::new(
+                &format!("i32x{}", type_simd_lanes("i32")),
+                proc_macro2::Span::call_site(),
+            ),
+            Ident::new("i32", proc_macro2::Span::call_site()),
+        ),
+        "i64" => (
+            Ident::new(
+                &format!("i64x{}", type_simd_lanes("i64")),
+                proc_macro2::Span::call_site(),
+            ),
+            Ident::new("i64", proc_macro2::Span::call_site()),
+        ),
+        "u8" => (
+            Ident::new(
+                &format!("i8x{}", type_simd_lanes("u8")),
+                proc_macro2::Span::call_site(),
+            ),
+            Ident::new("i8", proc_macro2::Span::call_site()),
+        ),
+        "u16" => (
+            Ident::new(
+                &format!("i16x{}", type_simd_lanes("u16")),
+                proc_macro2::Span::call_site(),
+            ),
+            Ident::new("i16", proc_macro2::Span::call_site()),
+        ),
+        "u32" => (
+            Ident::new(
+                &format!("i32x{}", type_simd_lanes("u32")),
+                proc_macro2::Span::call_site(),
+            ),
+            Ident::new("i32", proc_macro2::Span::call_site()),
+        ),
+        "u64" => (
+            Ident::new(
+                &format!("i64x{}", type_simd_lanes("u64")),
+                proc_macro2::Span::call_site(),
+            ),
+            Ident::new("i64", proc_macro2::Span::call_site()),
+        ),
+        "isize" => (
+            Ident::new(
+                &format!("isizex{}", type_simd_lanes("isize")),
+                proc_macro2::Span::call_site(),
+            ),
+            Ident::new("isize", proc_macro2::Span::call_site()),
+        ),
+        "usize" => (
+            Ident::new(
+                &format!("isizex{}", type_simd_lanes("usize")),
+                proc_macro2::Span::call_site(),
+            ),
+            Ident::new("isize", proc_macro2::Span::call_site()),
+        ),
         _ => panic!("Invalid type"),
     }
 }

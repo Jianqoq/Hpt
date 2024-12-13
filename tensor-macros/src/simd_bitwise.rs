@@ -43,27 +43,24 @@ pub fn impl_simd_bitwise_out() -> TokenStream {
                 );
                 continue;
             }
+            let to_res_type = Ident::new(&format!("to_{}", res_type.to_string()), proc_macro2::Span::call_site());
 
             let shift = if res_type.is_bool() {
                 quote! {
                     fn _shl(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty(self.0 || rhs.0)
+                        self || rhs
                     }
                     fn _shr(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty(self.0 && !rhs.0)
+                        self && !rhs
                     }
                 }
             } else {
                 quote! {
                     fn _shl(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
-                        paste::paste! {
-                            #res_simd_ty::#res_simd_ty(self.[<to_ #res_type>]().0 << rhs.[<to_ #res_type>]().0)
-                        }
+                        self.#to_res_type() << rhs.#to_res_type()
                     }
                     fn _shr(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
-                        paste::paste! {
-                            #res_simd_ty::#res_simd_ty(self.[<to_ #res_type>]().0 >> rhs.[<to_ #res_type>]().0)
-                        }
+                        self.#to_res_type() >> rhs.#to_res_type()
                     }
                 }
             };
@@ -73,24 +70,16 @@ pub fn impl_simd_bitwise_out() -> TokenStream {
                 impl BitWiseOut<#rhs_simd_ty::#rhs_simd_ty> for #lhs_simd_ty::#lhs_simd_ty {
                     type Output = #res_simd_ty::#res_simd_ty;
                     fn _bitand(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
-                        paste::paste! {
-                            #res_simd_ty::#res_simd_ty(self.[<to_ #res_type>]().0 & rhs.[<to_ #res_type>]().0)
-                        }
+                        self.#to_res_type() & rhs.#to_res_type()
                     }
                     fn _bitor(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
-                        paste::paste! {
-                            #res_simd_ty::#res_simd_ty(self.[<to_ #res_type>]().0 | rhs.[<to_ #res_type>]().0)
-                        }
+                        self.#to_res_type() | rhs.#to_res_type()
                     }
                     fn _bitxor(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
-                        paste::paste! {
-                            #res_simd_ty::#res_simd_ty(self.[<to_ #res_type>]().0 ^ rhs.[<to_ #res_type>]().0)
-                        }
+                        self.#to_res_type() ^ rhs.#to_res_type()
                     }
                     fn _not(self) -> Self::Output {
-                        paste::paste! {
-                            #res_simd_ty::#res_simd_ty(!self.[<to_ #res_type>]().0)
-                        }
+                        !self.#to_res_type()
                     }
                     #shift
                 }

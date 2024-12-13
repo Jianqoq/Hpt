@@ -1,6 +1,6 @@
-use std::ops::{ Deref, DerefMut, Index, IndexMut };
+use std::{ops::{ Deref, DerefMut }, simd::cmp::{SimdPartialEq, SimdPartialOrd}};
 
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::{impl_std_simd_bit_logic, traits::{SimdCompare, SimdMath}, vectors::traits::VecTrait};
 
 /// a vector of 32 i8 values
 #[allow(non_camel_case_types)]
@@ -34,25 +34,33 @@ impl VecTrait<i8> for i8x32 {
     fn sum(&self) -> i8 {
         self.as_array().iter().sum()
     }
-}
-
-impl Init<i8> for i8x32 {
     fn splat(val: i8) -> i8x32 {
         i8x32(std::simd::i8x32::splat(val))
     }
 }
-impl Index<usize> for i8x32 {
-    type Output = i8;
 
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
+impl SimdCompare for i8x32 {
+    type SimdMask = i8x32;
+    fn simd_eq(self, rhs: Self) -> Self::SimdMask {
+        i8x32(self.0.simd_eq(rhs.0).to_int())
+    }
+    fn simd_ne(self, rhs: Self) -> Self::SimdMask {
+        i8x32(self.0.simd_ne(rhs.0).to_int())
+    }
+    fn simd_lt(self, rhs: Self) -> Self::SimdMask {
+        i8x32(self.0.simd_lt(rhs.0).to_int())
+    }
+    fn simd_le(self, rhs: Self) -> Self::SimdMask {
+        i8x32(self.0.simd_le(rhs.0).to_int())
+    }
+    fn simd_gt(self, rhs: Self) -> Self::SimdMask {
+        i8x32(self.0.simd_gt(rhs.0).to_int())
+    }
+    fn simd_ge(self, rhs: Self) -> Self::SimdMask {
+        i8x32(self.0.simd_ge(rhs.0).to_int())
     }
 }
-impl IndexMut<usize> for i8x32 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
-    }
-}
+
 impl std::ops::Add for i8x32 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
@@ -87,5 +95,22 @@ impl std::ops::Neg for i8x32 {
     type Output = Self;
     fn neg(self) -> Self::Output {
         i8x32(-self.0)
+    }
+}
+
+impl_std_simd_bit_logic!(i8x32);
+
+impl SimdMath<i8> for i8x32 {
+    fn max(self, other: Self) -> Self {
+        i8x32(self.0.max(other.0))
+    }
+    fn min(self, other: Self) -> Self {
+        i8x32(self.0.min(other.0))
+    }
+    fn relu(self) -> Self {
+        i8x32(self.0.max(i8x32::splat(0).0))
+    }
+    fn relu6(self) -> Self {
+        i8x32(self.relu().0.min(i8x32::splat(6).0))
     }
 }

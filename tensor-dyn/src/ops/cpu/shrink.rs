@@ -3,8 +3,9 @@ use std::ops::{ Add, Neg, Sub };
 use crate::{ tensor::Tensor, tensor_base::_Tensor };
 use tensor_iterator::TensorIterator;
 use tensor_traits::CommonBounds;
-use tensor_types::traits::{ Init, SimdSelect };
+use tensor_types::traits::SimdSelect;
 use tensor_types::type_promote::SimdCmp;
+use tensor_types::traits::VecTrait;
 use tensor_types::type_promote::{ NormalOut, NormalOutUnary };
 
 impl<T> _Tensor<T>

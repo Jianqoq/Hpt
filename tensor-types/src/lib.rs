@@ -21,14 +21,12 @@ pub mod vectors {
     #[cfg(feature = "stdsimd")]
     pub mod std_simd {
         /// A module defines a set of 128-bit vector types
-        #[cfg(
-            any(
-                all(not(target_feature = "avx2"), target_feature = "sse"),
-                target_arch = "arm",
-                target_arch = "aarch64",
-                target_feature = "neon"
-            )
-        )]
+        #[cfg(any(
+            all(not(target_feature = "avx2"), target_feature = "sse"),
+            target_arch = "arm",
+            target_arch = "aarch64",
+            target_feature = "neon"
+        ))]
         pub mod _128bit {
             /// A module defines a set of 128-bit vector types for bf16
             pub mod bf16x8;
@@ -146,14 +144,12 @@ pub mod vectors {
     #[cfg(feature = "archsimd")]
     pub mod arch_simd {
         /// A module defines a set of 128-bit vector types
-        #[cfg(
-            any(
-                all(not(target_feature = "avx2"), target_feature = "sse"),
-                target_arch = "arm",
-                target_arch = "aarch64",
-                target_feature = "neon"
-            )
-        )]
+        #[cfg(any(
+            all(not(target_feature = "avx2"), target_feature = "sse"),
+            target_arch = "arm",
+            target_arch = "aarch64",
+            target_feature = "neon"
+        ))]
         pub mod _128bit {
             /// A module defines a set of 128-bit vector types for bf16
             pub mod bf16x8;
@@ -266,6 +262,45 @@ pub mod vectors {
             /// A module defines a set of 512-bit vector types for usize
             pub mod usizex8;
         }
+
+        /// A module defines a set of vector types for sleef
+        pub mod sleef {
+            /// A module defines a set of vector types for table
+            pub mod table;
+            /// A module defines a set of vector types for helper
+            pub mod arch {
+                /// A module defines a set of vector types for helper
+                #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+                pub mod helper_avx2;
+                /// A module defines a set of vector types for helper
+                #[cfg(all(
+                    target_arch = "x86_64",
+                    target_feature = "sse",
+                    not(target_feature = "avx2")
+                ))]
+                pub mod helper_sse;
+            }
+            /// A module defines a set of vector types for common
+            pub mod common {
+                /// A module defines a set of vector types for common
+                pub mod commonfuncs;
+                /// A module defines a set of vector types for common
+                pub mod dd;
+                /// A module defines a set of vector types for common
+                pub mod df;
+                /// A module defines a macro for polynomial approximation
+                pub mod estrin;
+                /// A module defines a set of vector types for common
+                pub mod misc;
+            }
+            /// A module defines a set of vector types for libm
+            pub mod libm {
+                /// a module defins a set of double precision floating point functions
+                pub mod sleefsimddp;
+                /// a module defins a set of single precision floating point functions
+                pub mod sleefsimdsp;
+            }
+        }
     }
     /// A module defines a set of traits for vector
     pub mod traits;
@@ -273,3 +308,36 @@ pub mod vectors {
     pub mod utils;
 }
 pub use vectors::*;
+
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "avx2",
+    not(feature = "stdsimd")
+))]
+pub(crate) mod sleef_types {
+    use std::arch::x86_64::*;
+    pub(crate) type VDouble = __m256d;
+    pub(crate) type VMask = __m256i;
+    pub(crate) type Vopmask = __m256i;
+    pub(crate) type VFloat = __m256;
+    pub(crate) type VInt = __m128i;
+    pub(crate) type VInt2 = __m256i;
+    pub(crate) type VInt64 = __m256i;
+    pub(crate) type VUInt64 = __m256i;
+}
+
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "sse",
+    not(target_feature = "avx2"),
+    not(feature = "stdsimd")
+))]
+pub(crate) mod sleef_types {
+    use std::arch::x86_64::*;
+    pub(crate) type VDouble = __m128d;
+    pub(crate) type VMask = __m128i;
+    pub(crate) type Vopmask = __m128i;
+    pub(crate) type VFloat = __m128;
+    pub(crate) type VInt = __m128i;
+    pub(crate) type VInt2 = __m128i;
+}

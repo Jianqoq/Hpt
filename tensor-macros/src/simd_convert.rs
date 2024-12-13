@@ -35,6 +35,7 @@ pub fn __impl_simd_convert() -> TokenStream {
             let func_name = format!("to_{}", rhs.to_lowercase());
             let function_name: Ident = Ident::new(&func_name, proc_macro2::Span::call_site());
             let res_simd: Ident = Ident::new(&res_ty_str, proc_macro2::Span::call_site());
+
             let func_gen = if lhs_lanes == rhs_lanes {
                 if (lhs_dtype.dtype as u8) == (TypeInfo::new(rhs).dtype as u8) {
                     quote! {
@@ -66,7 +67,7 @@ pub fn __impl_simd_convert() -> TokenStream {
                             let mut arr = [#rhs_ty::ZERO; #rhs_lanes as usize];
                             let self_arr = self.0;
                             #(#unroll)*
-                            #res_simd::#res_simd(arr.into())
+                            unsafe { std::mem::transmute(arr) }
                         }
                     }
                     } else {

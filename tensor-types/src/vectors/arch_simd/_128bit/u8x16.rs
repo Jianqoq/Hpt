@@ -1,6 +1,8 @@
-use crate::traits::{ Init, SimdCompare, VecTrait };
+use crate::{convertion::VecConvertor, traits::{ SimdCompare, SimdMath, VecTrait }};
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+
+use super::i8x16::i8x16;
 
 /// a vector of 16 u8 values
 #[allow(non_camel_case_types)]
@@ -41,12 +43,64 @@ impl VecTrait<u8> for u8x16 {
             x.iter().sum()
         }
     }
-}
-impl Init<u8> for u8x16 {
     fn splat(val: u8) -> u8x16 {
         unsafe { u8x16(_mm_set1_epi8(val as i8)) }
     }
 }
+
+impl u8x16 {
+    #[allow(unused)]
+    fn as_array(&self) -> [u8; 16] {
+        unsafe { std::mem::transmute(self.0) }
+    }
+}
+
+impl SimdCompare for u8x16 {
+    type SimdMask = i8x16;
+    fn simd_eq(self, other: Self) -> i8x16 {
+        unsafe {
+            let lhs: i8x16 = std::mem::transmute(self.0);
+            let rhs: i8x16 = std::mem::transmute(other.0);
+            lhs.simd_eq(rhs)
+        }
+    }
+    fn simd_ne(self, other: Self) -> i8x16 {
+        unsafe { 
+            let lhs: i8x16 = std::mem::transmute(self.0);
+            let rhs: i8x16 = std::mem::transmute(other.0);
+            lhs.simd_ne(rhs)
+        }
+    }
+    fn simd_lt(self, other: Self) -> i8x16 {
+        unsafe {
+            let lhs: i8x16 = std::mem::transmute(self.0);
+            let rhs: i8x16 = std::mem::transmute(other.0);
+            lhs.simd_lt(rhs)
+        }
+    }
+    fn simd_le(self, other: Self) -> i8x16 {
+        unsafe { 
+            let lhs: i8x16 = std::mem::transmute(self.0);
+            let rhs: i8x16 = std::mem::transmute(other.0);
+            lhs.simd_le(rhs)
+        }
+    }
+    fn simd_gt(self, other: Self) -> i8x16 {
+        unsafe {
+            let lhs: i8x16 = std::mem::transmute(self.0);
+            let rhs: i8x16 = std::mem::transmute(other.0);
+            lhs.simd_gt(rhs)
+        }
+    }
+    fn simd_ge(self, other: Self) -> i8x16 {
+        unsafe { 
+            let lhs: i8x16 = std::mem::transmute(self.0);
+            let rhs: i8x16 = std::mem::transmute(other.0);
+            lhs.simd_ge(rhs)
+        }
+    }
+}
+
 impl std::ops::Add for u8x16 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
@@ -107,31 +161,70 @@ impl std::ops::BitOr for u8x16 {
         unsafe { u8x16(_mm_or_si128(self.0, rhs.0)) }
     }
 }
-
-impl SimdCompare for u8x16 {
-    type SimdMask = Self;
-
-    fn simd_eq(self, other: Self) -> Self::SimdMask {
-        unsafe { u8x16(_mm_cmpeq_epi8(self.0, other.0)) }
+impl std::ops::BitXor for u8x16 {
+    type Output = Self;
+    fn bitxor(self, rhs: Self) -> Self {
+        unsafe { u8x16(_mm_xor_si128(self.0, rhs.0)) }
     }
-
-    fn simd_ne(self, other: Self) -> Self::SimdMask {
-        unsafe { u8x16(_mm_xor_si128(_mm_cmpeq_epi8(self.0, other.0), _mm_set1_epi8(-1))) }
+}
+impl std::ops::Not for u8x16 {
+    type Output = Self;
+    fn not(self) -> Self {
+        unsafe { u8x16(_mm_xor_si128(self.0, _mm_set1_epi8(-1))) }
     }
-
-    fn simd_lt(self, other: Self) -> Self::SimdMask {
-        unsafe { u8x16(_mm_cmplt_epi8(self.0, other.0)) }
+}
+impl std::ops::Shl for u8x16 {
+    type Output = Self;
+    fn shl(self, rhs: Self) -> Self {
+        unsafe {
+            let a: [u8; 16] = std::mem::transmute(self.0);
+            let b: [u8; 16] = std::mem::transmute(rhs.0);
+            let mut result = [0; 16];
+            for i in 0..16 {
+                result[i] = a[i] << b[i];
+            }
+            u8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i))
+        }
     }
-
-    fn simd_le(self, other: Self) -> Self::SimdMask {
-        unsafe { u8x16(_mm_xor_si128(_mm_cmpgt_epi8(self.0, other.0), _mm_set1_epi8(-1))) }
+}
+impl std::ops::Shr for u8x16 {
+    type Output = Self;
+    fn shr(self, rhs: Self) -> Self {
+        unsafe {
+            let a: [u8; 16] = std::mem::transmute(self.0);
+            let b: [u8; 16] = std::mem::transmute(rhs.0);
+            let mut result = [0; 16];
+            for i in 0..16 {
+                result[i] = a[i] >> b[i];
+            }
+            u8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i))
+        }
     }
+}
 
-    fn simd_gt(self, other: Self) -> Self::SimdMask {
-        unsafe { u8x16(_mm_cmpgt_epi8(self.0, other.0)) }
+impl SimdMath<u8> for u8x16 {
+    fn max(self, other: Self) -> Self {
+        unsafe { u8x16(_mm_max_epi8(self.0, other.0)) }
     }
+    fn min(self, other: Self) -> Self {
+        unsafe { u8x16(_mm_min_epi8(self.0, other.0)) }
+    }
+    fn relu(self) -> Self {
+        unsafe { u8x16(_mm_max_epi8(self.0, _mm_setzero_si128())) }
+    }
+    fn relu6(self) -> Self {
+        unsafe { u8x16(_mm_min_epi8(self.relu().0, _mm_set1_epi8(6))) }
+    }
+}
 
-    fn simd_ge(self, other: Self) -> Self::SimdMask {
-        unsafe { u8x16(_mm_xor_si128(_mm_cmplt_epi8(self.0, other.0), _mm_set1_epi8(-1))) }
+impl VecConvertor for u8x16 {
+    fn to_u8(self) -> u8x16 {
+        self
+    }
+    fn to_i8(self) -> i8x16 {
+        unsafe { std::mem::transmute(self) }
+    }
+    fn to_bool(self) -> super::boolx16::boolx16 {
+        unsafe { std::mem::transmute(self) }
     }
 }

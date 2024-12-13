@@ -22,7 +22,6 @@ use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 
 /// A module for parallel strided iterators.
 pub mod par_strided_simd {
-    use tensor_types::vectors::traits::Init;
     use tensor_types::vectors::traits::VecTrait;
     use std::sync::Arc;
 

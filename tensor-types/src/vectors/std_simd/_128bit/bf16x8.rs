@@ -1,7 +1,13 @@
 use crate::std_simd::_128bit::u16x8::u16x8;
-use crate::{ traits::{ Init, VecTrait }, vectors::std_simd::_128bit::f32x4::f32x4 };
-use std::simd::{ cmp::{ SimdPartialEq, SimdPartialOrd }, num::{ SimdFloat, SimdUint }, Simd };
 use crate::traits::SimdCompare;
+use crate::{traits::VecTrait, vectors::std_simd::_128bit::f32x4::f32x4};
+use std::simd::{
+    cmp::{SimdPartialEq, SimdPartialOrd},
+    num::{SimdFloat, SimdUint},
+    Simd,
+};
+
+use super::i16x8::i16x8;
 
 /// a vector of 8 bf16 values
 #[allow(non_camel_case_types)]
@@ -29,8 +35,6 @@ impl VecTrait<half::bf16> for bf16x8 {
     fn sum(&self) -> half::bf16 {
         self.0.iter().sum()
     }
-}
-impl Init<half::bf16> for bf16x8 {
     fn splat(val: half::bf16) -> bf16x8 {
         bf16x8([val; 8])
     }
@@ -50,7 +54,10 @@ impl bf16x8 {
             (bi | std::simd::u32x4::splat(0x0040)) << 8,
         ];
         let [a_normal, b_normal] = [ai << 8, bi << 8];
-        let [a_res, b_res] = [am.select(an_adjusted, a_normal), bm.select(bn_adjusted, b_normal)];
+        let [a_res, b_res] = [
+            am.select(an_adjusted, a_normal),
+            bm.select(bn_adjusted, b_normal),
+        ];
         unsafe { std::mem::transmute([a_res, b_res]) }
     }
 
@@ -65,10 +72,10 @@ impl bf16x8 {
         let round_bit = std::simd::u32x4::splat(0x0000_8000);
         let one = std::simd::u32x4::splat(1);
         let [a_round_increment, b_round_increment] = [
-            (au & round_bit).simd_ne(std::simd::u32x4::splat(0)) &
-                (au & (round_bit - one)).simd_ne(std::simd::u32x4::splat(0)),
-            (bu & round_bit).simd_ne(std::simd::u32x4::splat(0)) &
-                (bu & (round_bit - one)).simd_ne(std::simd::u32x4::splat(0)),
+            (au & round_bit).simd_ne(std::simd::u32x4::splat(0))
+                & (au & (round_bit - one)).simd_ne(std::simd::u32x4::splat(0)),
+            (bu & round_bit).simd_ne(std::simd::u32x4::splat(0))
+                & (bu & (round_bit - one)).simd_ne(std::simd::u32x4::splat(0)),
         ];
         let [a_rounded, b_rounded] = [
             au + a_round_increment.to_int().cast(),
@@ -90,17 +97,21 @@ impl bf16x8 {
     }
 
     /// check if the value is NaN and return a mask
-    pub fn is_nan(&self) -> u16x8 {
-        let x = std::simd::u16x8::splat(0x7f80u16);
-        let y = std::simd::u16x8::splat(0x007fu16);
-        let i: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-        let and = i & x;
-        let eq: Simd<u16, 8> = unsafe { std::mem::transmute(and.simd_eq(x)) };
-        let and2 = i & y;
-        let neq_zero: Simd<u16, 8> = unsafe {
-            std::mem::transmute(and2.simd_ne(std::simd::u16x8::splat(0)))
-        };
-        unsafe { std::mem::transmute(eq & neq_zero) }
+    pub fn is_nan(&self) -> i16x8 {
+        // 创建掩码：0x7f80 用于检查指数位，0x007f 用于检查尾数位
+        let exp_mask = u16x8::splat(0x7f80u16);
+        let frac_mask = u16x8::splat(0x007fu16);
+
+        // 将 bf16 转换为 u16 进行位操作
+        let bits: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
+
+        // 检查指数是否全为1 (& exp_mask == exp_mask)
+        // 且尾数不为0 (& frac_mask != 0)
+        let exp_all_ones = (bits & exp_mask.0).simd_eq(exp_mask.0);
+        let frac_non_zero = (bits & frac_mask.0).simd_ne(u16x8::splat(0).0);
+
+        // 两个条件都满足时为 NaN
+        i16x8(unsafe { std::mem::transmute((exp_all_ones & frac_non_zero).to_int()) })
     }
 
     /// check if the value is infinite and return a mask
@@ -121,42 +132,42 @@ impl bf16x8 {
     }
 }
 impl SimdCompare for bf16x8 {
-    type SimdMask = u16x8;
-    fn simd_eq(self, other: Self) -> u16x8 {
-        let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-        let y: Simd<u16, 8> = unsafe { std::mem::transmute(other.0) };
+    type SimdMask = i16x8;
+    fn simd_eq(self, other: Self) -> i16x8 {
+        let x: Simd<i16, 8> = unsafe { std::mem::transmute(self.0) };
+        let y: Simd<i16, 8> = unsafe { std::mem::transmute(other.0) };
         let eq = x.simd_eq(y);
         unsafe { std::mem::transmute(eq) }
     }
 
-    fn simd_ne(self, other: Self) -> u16x8 {
-        let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-        let y: Simd<u16, 8> = unsafe { std::mem::transmute(other.0) };
+    fn simd_ne(self, other: Self) -> i16x8 {
+        let x: Simd<i16, 8> = unsafe { std::mem::transmute(self.0) };
+        let y: Simd<i16, 8> = unsafe { std::mem::transmute(other.0) };
         let ne = x.simd_ne(y);
         unsafe { std::mem::transmute(ne) }
     }
 
-    fn simd_lt(self, other: Self) -> u16x8 {
-        let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-        let y: Simd<u16, 8> = unsafe { std::mem::transmute(other.0) };
+    fn simd_lt(self, other: Self) -> i16x8 {
+        let x: Simd<i16, 8> = unsafe { std::mem::transmute(self.0) };
+        let y: Simd<i16, 8> = unsafe { std::mem::transmute(other.0) };
         let lt = x.simd_lt(y);
         unsafe { std::mem::transmute(lt) }
     }
-    fn simd_le(self, other: Self) -> u16x8 {
-        let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-        let y: Simd<u16, 8> = unsafe { std::mem::transmute(other.0) };
+    fn simd_le(self, other: Self) -> i16x8 {
+        let x: Simd<i16, 8> = unsafe { std::mem::transmute(self.0) };
+        let y: Simd<i16, 8> = unsafe { std::mem::transmute(other.0) };
         let le = x.simd_le(y);
         unsafe { std::mem::transmute(le) }
     }
-    fn simd_gt(self, other: Self) -> u16x8 {
-        let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-        let y: Simd<u16, 8> = unsafe { std::mem::transmute(other.0) };
+    fn simd_gt(self, other: Self) -> i16x8 {
+        let x: Simd<i16, 8> = unsafe { std::mem::transmute(self.0) };
+        let y: Simd<i16, 8> = unsafe { std::mem::transmute(other.0) };
         let gt = x.simd_gt(y);
         unsafe { std::mem::transmute(gt) }
     }
-    fn simd_ge(self, other: Self) -> u16x8 {
-        let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-        let y: Simd<u16, 8> = unsafe { std::mem::transmute(other.0) };
+    fn simd_ge(self, other: Self) -> i16x8 {
+        let x: Simd<i16, 8> = unsafe { std::mem::transmute(self.0) };
+        let y: Simd<i16, 8> = unsafe { std::mem::transmute(other.0) };
         let ge = x.simd_ge(y);
         unsafe { std::mem::transmute(ge) }
     }

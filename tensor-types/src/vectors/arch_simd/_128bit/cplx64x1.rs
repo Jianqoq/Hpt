@@ -1,6 +1,6 @@
 
 use num_complex::Complex64;
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::{convertion::VecConvertor, vectors::traits::VecTrait};
 
 /// a vector of 1 Complex64 values
 #[allow(non_camel_case_types)]
@@ -24,12 +24,18 @@ impl VecTrait<Complex64> for cplx64x1 {
     fn sum(&self) -> Complex64 {
         self.0.iter().sum()
     }
-}
-impl Init<Complex64> for cplx64x1 {
     fn splat(val: Complex64) -> cplx64x1 {
         cplx64x1([val; 1])
     }
 }
+
+impl cplx64x1 {
+    #[allow(unused)]
+    fn as_array(&self) -> [Complex64; 1] {
+        unsafe { std::mem::transmute(self.0) }
+    }
+}
+
 impl std::ops::Add for cplx64x1 {
     type Output = Self;
 
@@ -95,5 +101,11 @@ impl std::ops::Rem for cplx64x1 {
             ret.0[i] = self.0[i] % rhs.0[i];
         }
         ret
+    }
+}
+
+impl VecConvertor for cplx64x1 {
+    fn to_complex64(self) -> cplx64x1 {
+        self
     }
 }

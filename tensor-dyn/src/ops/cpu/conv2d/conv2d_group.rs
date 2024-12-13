@@ -23,7 +23,7 @@ use tensor_types::vectors::traits::*;
 impl<T> _Tensor<T>
     where
         T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
-        T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + NormalOut<Output = T::Vec>,
+        T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
         bool: IntoScalar<T>
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1551,7 +1551,7 @@ fn handle_normal_remain<T: CommonBounds>(
 impl<T> Tensor<T>
     where
         T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
-        T::Vec: VecTrait<T> + Copy + Init<T> + Send + Sync + NormalOut<Output = T::Vec>,
+        T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
         bool: IntoScalar<T>
 {
     /// Performs a 2D convolution operation on the input tensor.

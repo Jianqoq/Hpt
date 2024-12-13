@@ -1,8 +1,6 @@
-use std::ops::{Index, IndexMut};
-
 use num_complex::Complex64;
 
-use crate::vectors::traits::{ Init, VecTrait };
+use crate::{convertion::VecConvertor, vectors::traits::VecTrait};
 
 /// a vector of 2 cplx64 values
 #[allow(non_camel_case_types)]
@@ -38,25 +36,11 @@ impl VecTrait<Complex64> for cplx64x2 {
     fn sum(&self) -> Complex64 {
         self.0.iter().sum()
     }
-}
-
-impl Init<Complex64> for cplx64x2 {
     fn splat(val: Complex64) -> cplx64x2 {
         cplx64x2([val; 2])
     }
 }
-impl Index<usize> for cplx64x2 {
-    type Output = Complex64;
 
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-impl IndexMut<usize> for cplx64x2 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
-    }
-}
 impl std::ops::Add for cplx64x2 {
     type Output = Self;
 
@@ -123,5 +107,11 @@ impl std::ops::Rem for cplx64x2 {
             ret.0[i] = self.0[i] % rhs.0[i];
         }
         ret
+    }
+}
+
+impl VecConvertor for cplx64x2 {
+    fn to_complex64(self) -> cplx64x2 {
+        self
     }
 }

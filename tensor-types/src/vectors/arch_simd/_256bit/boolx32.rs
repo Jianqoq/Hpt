@@ -1,11 +1,11 @@
-use std::ops::{Index, IndexMut};
-use std::simd::cmp::SimdPartialOrd;
-use std::simd::{cmp::SimdPartialEq, Simd};
-
+use crate::convertion::VecConvertor;
+use crate::traits::VecTrait;
+use crate::vectors::arch_simd::_256bit::u8x32::u8x32;
 use crate::traits::SimdCompare;
-use crate::vectors::traits::{Init, VecTrait};
 
-/// a vector of 32 bool values
+use super::i8x32::i8x32;
+
+/// a vector of 16 bool values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 #[repr(C, align(32))]
@@ -15,83 +15,72 @@ impl VecTrait<bool> for boolx32 {
     const SIZE: usize = 32;
     type Base = bool;
     #[inline(always)]
-    fn mul_add(self, _: Self, _: Self) -> Self {
-        todo!()
-    }
-    #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[bool]) {
         self.0.copy_from_slice(slice);
     }
     #[inline(always)]
-    fn as_ptr(&self) -> *const bool {
-        self.0.as_ptr()
+    fn mul_add(self, _: Self, _: Self) -> Self {
+        todo!()
     }
-    #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut bool {
-        self.0.as_mut_ptr()
-    }
-    #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut bool {
-        self.0.as_ptr() as *mut _
-    }
-
     #[inline(always)]
     fn sum(&self) -> bool {
         self.0.iter().map(|&x| x as u8).sum::<u8>() > 0
     }
-}
-
-impl Init<bool> for boolx32 {
     fn splat(val: bool) -> boolx32 {
         boolx32([val; 32])
     }
 }
 
-impl Index<usize> for boolx32 {
-    type Output = bool;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-
-impl IndexMut<usize> for boolx32 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
+impl boolx32 {
+    #[allow(unused)]
+    fn as_array(&self) -> [bool; 32] {
+        unsafe { std::mem::transmute(self.0) }
     }
 }
 
 impl SimdCompare for boolx32 {
-    type SimdMask = Self;
-    fn simd_eq(self, rhs: Self) -> Self {
-        let lhs: Simd<u8, 32> = unsafe { std::mem::transmute(self) };
-        let rhs: Simd<u8, 32> = unsafe { std::mem::transmute(rhs) };
-        boolx32(lhs.simd_eq(rhs).into())
+    type SimdMask = i8x32;
+    fn simd_eq(self, rhs: Self) -> i8x32 {
+        let mut res = [0i8; 32];
+        for i in 0..32 {
+            res[i] = if self.0[i] == rhs.0[i] { -1 } else { 0 };
+        }
+        i8x32(unsafe { std::mem::transmute(res) })
     }
-    fn simd_ne(self, rhs: Self) -> Self {
-        let lhs: Simd<u8, 32> = unsafe { std::mem::transmute(self) };
-        let rhs: Simd<u8, 32> = unsafe { std::mem::transmute(rhs) };
-        boolx32(lhs.simd_ne(rhs).into())
+    fn simd_ne(self, rhs: Self) -> i8x32 {
+        let mut res = [0i8; 32];
+        for i in 0..32 {
+            res[i] = if self.0[i] != rhs.0[i] { -1 } else { 0 };
+        }
+        i8x32(unsafe { std::mem::transmute(res) })
     }
-    fn simd_lt(self, rhs: Self) -> Self {
-        let lhs: Simd<u8, 32> = unsafe { std::mem::transmute(self) };
-        let rhs: Simd<u8, 32> = unsafe { std::mem::transmute(rhs) };
-        boolx32(lhs.simd_lt(rhs).into())
+    fn simd_lt(self, rhs: Self) -> i8x32 {
+        let mut res = [0i8; 32];
+        for i in 0..32 {
+            res[i] = if self.0[i] < rhs.0[i] { -1 } else { 0 };
+        }
+        i8x32(unsafe { std::mem::transmute(res) })
     }
-    fn simd_le(self, rhs: Self) -> Self {
-        let lhs: Simd<u8, 32> = unsafe { std::mem::transmute(self) };
-        let rhs: Simd<u8, 32> = unsafe { std::mem::transmute(rhs) };
-        boolx32(lhs.simd_le(rhs).into())
+    fn simd_le(self, rhs: Self) -> i8x32 {
+        let mut res = [0i8; 32];
+        for i in 0..32 {
+            res[i] = if self.0[i] <= rhs.0[i] { -1 } else { 0 };
+        }
+        i8x32(unsafe { std::mem::transmute(res) })
     }
-    fn simd_gt(self, rhs: Self) -> Self {
-        let lhs: Simd<u8, 32> = unsafe { std::mem::transmute(self) };
-        let rhs: Simd<u8, 32> = unsafe { std::mem::transmute(rhs) };
-        boolx32(lhs.simd_gt(rhs).into())
+    fn simd_gt(self, rhs: Self) -> i8x32 {
+        let mut res = [0i8; 32];
+        for i in 0..32 {
+            res[i] = if self.0[i] > rhs.0[i] { -1 } else { 0 };
+        }
+        i8x32(unsafe { std::mem::transmute(res) })
     }
-    fn simd_ge(self, rhs: Self) -> Self {
-        let lhs: Simd<u8, 32> = unsafe { std::mem::transmute(self) };
-        let rhs: Simd<u8, 32> = unsafe { std::mem::transmute(rhs) };
-        boolx32(lhs.simd_ge(rhs).into())
+    fn simd_ge(self, rhs: Self) -> i8x32 {
+        let mut res = [0i8; 32];
+        for i in 0..32 {
+            res[i] = if self.0[i] >= rhs.0[i] { -1 } else { 0 };
+        }
+        i8x32(unsafe { std::mem::transmute(res) })
     }
 }
 
@@ -154,8 +143,8 @@ impl std::ops::BitOr for boolx32 {
     type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self::Output {
-        let mask: Simd<u8, 32> = unsafe { std::mem::transmute(self) };
-        let rhs: Simd<u8, 32> = unsafe { std::mem::transmute(rhs) };
+        let mask: u8x32 = unsafe { std::mem::transmute(self) };
+        let rhs: u8x32 = unsafe { std::mem::transmute(rhs) };
         boolx32(unsafe { std::mem::transmute(mask | rhs) })
     }
 }
@@ -163,8 +152,20 @@ impl std::ops::BitAnd for boolx32 {
     type Output = Self;
 
     fn bitand(self, rhs: Self) -> Self::Output {
-        let mask: Simd<u8, 32> = unsafe { std::mem::transmute(self) };
-        let rhs: Simd<u8, 32> = unsafe { std::mem::transmute(rhs) };
+        let mask: u8x32 = unsafe { std::mem::transmute(self) };
+        let rhs: u8x32 = unsafe { std::mem::transmute(rhs) };
         boolx32(unsafe { std::mem::transmute(mask & rhs) })
+    }
+}
+
+impl VecConvertor for boolx32 {
+    fn to_bool(self) -> boolx32 {
+        self
+    }
+    fn to_i8(self) -> i8x32 {
+        unsafe { std::mem::transmute(self) }
+    }
+    fn to_u8(self) -> u8x32 {
+        unsafe { std::mem::transmute(self) }
     }
 }

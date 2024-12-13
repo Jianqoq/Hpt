@@ -1,6 +1,8 @@
-use std::ops::{ Deref, DerefMut };
+use std::{ops::{Deref, DerefMut}, simd::{cmp::{SimdPartialEq, SimdPartialOrd}, num::SimdUint, Simd}};
 
-use crate::traits::{ Init, VecTrait };
+use crate::{impl_std_simd_bit_logic, std_simd::_128bit::u64x2::u64x2, traits::{SimdCompare, SimdMath, VecTrait}};
+
+use super::isizex2::isizex2;
 
 /// a vector of 2 usize values
 #[allow(non_camel_case_types)]
@@ -28,7 +30,8 @@ impl VecTrait<usize> for usizex2 {
 
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[usize]) {
-        self.as_mut_array().copy_from_slice(unsafe { std::mem::transmute(slice) });
+        self.as_mut_array()
+            .copy_from_slice(unsafe { std::mem::transmute(slice) });
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
@@ -38,14 +41,45 @@ impl VecTrait<usize> for usizex2 {
     fn sum(&self) -> usize {
         self.as_array().iter().sum::<usize>()
     }
-}
-
-impl Init<usize> for usizex2 {
     fn splat(val: usize) -> usizex2 {
-        let ret = usizex2(std::simd::usizex2::splat(val));
-        ret
+        usizex2(std::simd::usizex2::splat(val))
     }
 }
+
+impl SimdCompare for usizex2 {
+    type SimdMask = isizex2;
+    fn simd_eq(self, rhs: Self) -> Self::SimdMask {
+        let lhs: Simd<usize, 2> = unsafe { std::mem::transmute(self) };
+        let rhs: Simd<usize, 2> = unsafe { std::mem::transmute(rhs) };
+        isizex2(lhs.simd_eq(rhs).to_int())
+    }
+    fn simd_ne(self, rhs: Self) -> Self::SimdMask {
+        let lhs: Simd<usize, 2> = unsafe { std::mem::transmute(self) };
+        let rhs: Simd<usize, 2> = unsafe { std::mem::transmute(rhs) };
+        isizex2(lhs.simd_ne(rhs).to_int())
+    }
+    fn simd_lt(self, rhs: Self) -> Self::SimdMask {
+        let lhs: Simd<usize, 2> = unsafe { std::mem::transmute(self) };
+        let rhs: Simd<usize, 2> = unsafe { std::mem::transmute(rhs) };
+        isizex2(lhs.simd_lt(rhs).to_int())
+    }
+    fn simd_le(self, rhs: Self) -> Self::SimdMask {
+        let lhs: Simd<usize, 2> = unsafe { std::mem::transmute(self) };
+        let rhs: Simd<usize, 2> = unsafe { std::mem::transmute(rhs) };
+        isizex2(lhs.simd_le(rhs).to_int())
+    }
+    fn simd_gt(self, rhs: Self) -> Self::SimdMask {
+        let lhs: Simd<usize, 2> = unsafe { std::mem::transmute(self) };
+        let rhs: Simd<usize, 2> = unsafe { std::mem::transmute(rhs) };
+        isizex2(lhs.simd_gt(rhs).to_int())
+    }
+    fn simd_ge(self, rhs: Self) -> Self::SimdMask {
+        let lhs: Simd<usize, 2> = unsafe { std::mem::transmute(self) };
+        let rhs: Simd<usize, 2> = unsafe { std::mem::transmute(rhs) };
+        isizex2(lhs.simd_ge(rhs).to_int())
+    }
+}
+
 impl std::ops::Add for usizex2 {
     type Output = Self;
 
@@ -79,5 +113,85 @@ impl std::ops::Rem for usizex2 {
 
     fn rem(self, rhs: Self) -> Self::Output {
         usizex2(self.0 % rhs.0)
+    }
+}
+impl_std_simd_bit_logic!(usizex2);
+
+
+impl SimdMath<usize> for usizex2 {
+    fn max(self, other: Self) -> Self {
+        #[cfg(target_pointer_width = "64")]
+        {
+            unsafe {
+                let lhs: u64x2 = std::mem::transmute(self.0);
+                let rhs: u64x2 = std::mem::transmute(other.0);
+                let ret = lhs.max(rhs);
+                usizex2(std::mem::transmute(ret))
+            }
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            unsafe {
+                let lhs: u32x4 = std::mem::transmute(self.0);
+                let rhs: u32x4 = std::mem::transmute(other.0);
+                let ret = lhs.max(rhs);
+                usizex2(std::mem::transmute(ret))
+            }
+        }
+    }
+    fn min(self, other: Self) -> Self {
+        #[cfg(target_pointer_width = "64")]
+        {
+            unsafe {
+                let lhs: u64x2 = std::mem::transmute(self.0);
+                let rhs: u64x2 = std::mem::transmute(other.0);
+                let ret = lhs.min(rhs);
+                usizex2(std::mem::transmute(ret))
+            }
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            unsafe {
+                let lhs: u32x4 = std::mem::transmute(self.0);
+                let rhs: u32x4 = std::mem::transmute(other.0);
+                let ret = lhs.min(rhs);
+                usizex2(std::mem::transmute(ret))
+            }
+        }
+    }
+    fn relu(self) -> Self {
+        #[cfg(target_pointer_width = "64")]
+        {
+            unsafe {
+                let lhs: u64x2 = std::mem::transmute(self.0);
+                usizex2(std::mem::transmute(lhs.relu()))
+            }
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            unsafe {
+                let lhs: u32x4 = std::mem::transmute(self.0);
+                usizex2(std::mem::transmute(lhs.relu()))
+            }
+        }
+    }
+    fn relu6(self) -> Self {
+        #[cfg(target_pointer_width = "64")]
+        {
+            unsafe {
+                let lhs: u64x2 = std::mem::transmute(self.0);
+                usizex2(std::mem::transmute(lhs.relu6()))
+            }
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            unsafe {
+                let lhs: u32x4 = std::mem::transmute(self.0);
+                usizex2(std::mem::transmute(lhs.relu6()))
+            }
+        }
+    }
+    fn neg(self) -> Self {
+        usizex2(self.0.wrapping_neg())
     }
 }
