@@ -29,6 +29,18 @@ macro_rules! impl_std_simd_bit_logic {
                 $ty(!self.0)
             }
         }
+        impl std::ops::Shl for $ty {
+            type Output = Self;
+            fn shl(self, rhs: Self) -> Self {
+                $ty(self.0 << rhs.0)
+            }
+        }
+        impl std::ops::Shr for $ty {
+            type Output = Self;
+            fn shr(self, rhs: Self) -> Self {
+                $ty(self.0 >> rhs.0)
+            }
+        }
     };
 }
 

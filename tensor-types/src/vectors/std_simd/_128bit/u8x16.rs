@@ -107,6 +107,7 @@ impl std::ops::Rem for u8x16 {
 }
 impl_std_simd_bit_logic!(u8x16);
 
+
 impl SimdMath<u8> for u8x16 {
     fn max(self, other: Self) -> Self {
         u8x16(self.0.max(other.0))
