@@ -258,7 +258,7 @@ pub(crate) fn f32x4_to_f16x4(_: f32x4) -> [u16; 4] {
 
 impl VecConvertor for f16x8 {
     fn to_i16(self) -> super::i16x8::i16x8 {
-        #[cfg(all(target_feature = "sse2", not(target_feature = "avx2")))]
+        #[cfg(target_feature = "sse2")]
         {
             unsafe {
                 let [x0, x1]: [f32x4; 2] = std::mem::transmute(self.to_2_f32x4());
@@ -286,7 +286,7 @@ impl VecConvertor for f16x8 {
         }
     }
     fn to_u16(self) -> super::u16x8::u16x8 {
-        #[cfg(all(target_feature = "sse2", not(target_feature = "avx2")))]
+        #[cfg(target_feature = "sse2")]
         {
             unsafe {
                 let [x0, x1]: [f32x4; 2] = std::mem::transmute(self.to_2_f32x4());
