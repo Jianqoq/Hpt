@@ -11,14 +11,13 @@ use helper::{
     vabs_vd_vd, vadd_vd_vd_vd, vadd_vi_vi_vi, vand_vi_vi_vi, vand_vi_vo_vi, vand_vm_vm_vm,
     vand_vm_vo64_vm, vand_vo_vo_vo, vandnot_vi_vi_vi, vandnot_vm_vo64_vm, vandnot_vo_vo_vo,
     vcast_vd_d, vcast_vd_vi, vcast_vi_i, vcast_vm_i_i, vcast_vo32_vo64, vcast_vo64_vo32,
-    veq_vo_vd_vd, veq_vo_vi_vi, vfma_vd_vd_vd_vd, vfmanp_vd_vd_vd_vd, vfmapn_vd_vd_vd_vd,
-    vgather_vd_p_vi, vge_vo_vd_vd, vgt_vo_vd_vd, vgt_vo_vi_vi, visinf_vo_vd, visnan_vo_vd,
-    vispinf_vo_vd, vle_vo_vd_vd, vlt_vo_vd_vd, vmax_vd_vd_vd, vmin_vd_vd_vd, vmla_vd_vd_vd_vd,
-    vmlapn_vd_vd_vd_vd, vmul_vd_vd_vd, vneg_vd_vd, vneg_vi_vi, vor_vm_vm_vm, vor_vm_vo64_vm,
-    vor_vo_vo_vo, vreinterpret_vd_vm, vreinterpret_vm_vd, vrint_vd_vd, vrint_vi_vd, vsel_vd_vo_d_d,
-    vsel_vd_vo_vd_vd, vsel_vi_vo_vi_vi, vsll_vi_vi_i, vsra_vi_vi_i, vsrl64_vm_vm_i,
-    vsub64_vm_vm_vm, vsub_vd_vd_vd, vsub_vi_vi_vi, vtestallones_i_vo64, vtruncate_vd_vd,
-    vtruncate_vi_vd, vxor_vm_vm_vm, vxor_vo_vo_vo,
+    veq_vo_vd_vd, veq_vo_vi_vi, vgather_vd_p_vi, vge_vo_vd_vd, vgt_vo_vd_vd, vgt_vo_vi_vi,
+    visinf_vo_vd, visnan_vo_vd, vispinf_vo_vd, vle_vo_vd_vd, vlt_vo_vd_vd, vmax_vd_vd_vd,
+    vmin_vd_vd_vd, vmla_vd_vd_vd_vd, vmlapn_vd_vd_vd_vd, vmul_vd_vd_vd, vneg_vd_vd, vneg_vi_vi,
+    vor_vm_vm_vm, vor_vm_vo64_vm, vor_vo_vo_vo, vreinterpret_vd_vm, vreinterpret_vm_vd,
+    vrint_vd_vd, vrint_vi_vd, vsel_vd_vo_d_d, vsel_vd_vo_vd_vd, vsel_vi_vo_vi_vi, vsll_vi_vi_i,
+    vsra_vi_vi_i, vsrl64_vm_vm_i, vsub64_vm_vm_vm, vsub_vd_vd_vd, vsub_vi_vi_vi,
+    vtestallones_i_vo64, vtruncate_vd_vd, vtruncate_vi_vd, vxor_vm_vm_vm, vxor_vo_vo_vo,
 };
 
 use crate::{
@@ -1298,6 +1297,7 @@ pub(crate) unsafe fn xexp(d: VDouble) -> VDouble {
 
     #[cfg(target_feature = "fma")]
     {
+        use helper::vfma_vd_vd_vd_vd;
         // Calculate powers of s
         let s2 = vmul_vd_vd_vd(s, s);
         let s4 = vmul_vd_vd_vd(s2, s2);
@@ -1318,7 +1318,7 @@ pub(crate) unsafe fn xexp(d: VDouble) -> VDouble {
             0.1388888888914497797e-2,
             0.8333333333314938210e-2,
             0.4166666666666602598e-1,
-            0.1666666666666669072e+0
+            0.1666666666666669072e+0,
         );
 
         // Final polynomial terms using FMA
@@ -1982,6 +1982,7 @@ pub(crate) unsafe fn xexp2(d: VDouble) -> VDouble {
     // Final computation differs based on FMA support
     #[cfg(target_feature = "fma")]
     {
+        use helper::vfma_vd_vd_vd_vd;
         u = vfma_vd_vd_vd_vd(u, s, vcast_vd_d(1.0));
     }
 
@@ -2036,6 +2037,7 @@ pub(crate) unsafe fn xexp10(d: VDouble) -> VDouble {
     // Combine terms
     #[cfg(target_feature = "fma")]
     {
+        use helper::vfma_vd_vd_vd_vd;
         u = vfma_vd_vd_vd_vd(u, s, vcast_vd_d(1.0));
     }
     #[cfg(not(target_feature = "fma"))]
@@ -2382,6 +2384,7 @@ pub(crate) unsafe fn xlog1p(d: VDouble) -> VDouble {
 pub(crate) unsafe fn xsqrt_u05(d: VDouble) -> VDouble {
     #[cfg(target_feature = "fma")]
     {
+        use helper::{vfma_vd_vd_vd_vd, vfmanp_vd_vd_vd_vd, vfmapn_vd_vd_vd_vd};
         let q: VDouble;
         let mut w: VDouble;
         let mut x: VDouble;
@@ -2451,11 +2454,12 @@ pub(crate) unsafe fn xsqrt_u05(d: VDouble) -> VDouble {
 
     #[cfg(not(target_feature = "fma"))]
     {
+        use crate::sleef_types::VMask;
         let mut q: VDouble;
         let mut o: VMask;
 
         // Handle negative input
-        let mut d = vsel_vd_vo_vd_vd(vlt_vo_vd_vd(d, vcast_vd_d(0.0)), vcast_vd_d(SLEEF_NAN), d);
+        let mut d = vsel_vd_vo_vd_vd(vlt_vo_vd_vd(d, vcast_vd_d(0.0)), vcast_vd_d(f64::NAN), d);
 
         // Handle very small numbers
         o = vlt_vo_vd_vd(d, vcast_vd_d(8.636168555094445E-78));
@@ -2470,7 +2474,7 @@ pub(crate) unsafe fn xsqrt_u05(d: VDouble) -> VDouble {
         // Initial approximation
         let mut x = vreinterpret_vd_vm(vsub64_vm_vm_vm(
             vcast_vm_i_i(0x5fe6ec86, 0),
-            vsrl64_vm_vm_i(vreinterpret_vm_vd(vadd_vd_vd_vd(d, vcast_vd_d(1e-320))), 1),
+            vsrl64_vm_vm_i::<1>(vreinterpret_vm_vd(vadd_vd_vd_vd(d, vcast_vd_d(1e-320)))),
         ));
 
         // Newton-Raphson iterations
@@ -2504,7 +2508,7 @@ pub(crate) unsafe fn xsqrt_u05(d: VDouble) -> VDouble {
         x = vmul_vd_vd_vd(vadd_vd_vd_vd(vd2getx_vd_vd2(d2), vd2gety_vd_vd2(d2)), q);
 
         // Handle special cases
-        x = vsel_vd_vo_vd_vd(vispinf_vo_vd(d), vcast_vd_d(SLEEF_INFINITY), x);
+        x = vsel_vd_vo_vd_vd(vispinf_vo_vd(d), vcast_vd_d(f64::INFINITY), x);
         x = vsel_vd_vo_vd_vd(veq_vo_vd_vd(d, vcast_vd_d(0.0)), d, x);
 
         x

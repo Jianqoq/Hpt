@@ -1,7 +1,7 @@
 use crate::arch_simd::_128bit::u16x8::u16x8;
 use crate::convertion::VecConvertor;
-use crate::{ traits::VecTrait, vectors::arch_simd::_128bit::f32x4::f32x4 };
 use crate::traits::SimdCompare;
+use crate::{traits::VecTrait, vectors::arch_simd::_128bit::f32x4::f32x4};
 
 use super::i16x8::i16x8;
 

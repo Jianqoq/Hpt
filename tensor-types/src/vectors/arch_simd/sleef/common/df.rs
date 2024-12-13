@@ -10,10 +10,9 @@ use crate::arch_simd::sleef::arch::helper_sse as helper;
 
 use helper::{
     vabs_vf_vf, vadd_vf_vf_vf, vand_vi2_vi2_vi2, vand_vm_vm_vm, vcast_vf_f, vcast_vi2_i,
-    vfma_vf_vf_vf_vf, vfmanp_vf_vf_vf_vf, vfmapn_vf_vf_vf_vf, vmla_vf_vf_vf_vf, vmul_vf_vf_vf,
-    vneg_vf_vf, vrec_vf_vf, vreinterpret_vf_vi2, vreinterpret_vf_vm, vreinterpret_vi2_vf,
-    vreinterpret_vm_vf, vsel_vf_vo_f_f, vsel_vf_vo_vf_vf, vsqrt_vf_vf, vsub_vf_vf_vf,
-    vxor_vm_vm_vm,
+    vmla_vf_vf_vf_vf, vmul_vf_vf_vf, vneg_vf_vf, vrec_vf_vf, vreinterpret_vf_vi2,
+    vreinterpret_vf_vm, vreinterpret_vi2_vf, vreinterpret_vm_vf, vsel_vf_vo_f_f, vsel_vf_vo_vf_vf,
+    vsqrt_vf_vf, vsub_vf_vf_vf, vxor_vm_vm_vm,
 };
 
 use crate::sleef_types::{VFloat, Vopmask};
@@ -366,6 +365,7 @@ pub(crate) unsafe fn dfsub_vf2_vf2_vf2(x: VFloat2, y: VFloat2) -> VFloat2 {
 #[inline(always)]
 #[cfg(target_feature = "fma")]
 pub(crate) unsafe fn dfdiv_vf2_vf2_vf2(n: VFloat2, d: VFloat2) -> VFloat2 {
+    use helper::{vfma_vf_vf_vf_vf, vfmanp_vf_vf_vf_vf, vfmapn_vf_vf_vf_vf};
     let t = vrec_vf_vf(vf2getx_vf_vf2(d));
     let s = vmul_vf_vf_vf(vf2getx_vf_vf2(n), t);
     let u = vfmapn_vf_vf_vf_vf(t, vf2getx_vf_vf2(n), s);
@@ -383,6 +383,7 @@ pub(crate) unsafe fn dfdiv_vf2_vf2_vf2(n: VFloat2, d: VFloat2) -> VFloat2 {
 #[inline(always)]
 #[cfg(target_feature = "fma")]
 pub(crate) unsafe fn dfmul_vf2_vf_vf(x: VFloat, y: VFloat) -> VFloat2 {
+    use helper::vfmapn_vf_vf_vf_vf;
     let s = vmul_vf_vf_vf(x, y);
     vf2setxy_vf2_vf_vf(s, vfmapn_vf_vf_vf_vf(x, y, s))
 }
@@ -390,6 +391,7 @@ pub(crate) unsafe fn dfmul_vf2_vf_vf(x: VFloat, y: VFloat) -> VFloat2 {
 #[inline(always)]
 #[cfg(target_feature = "fma")]
 pub(crate) unsafe fn dfsqu_vf2_vf2(x: VFloat2) -> VFloat2 {
+    use helper::{vfma_vf_vf_vf_vf, vfmapn_vf_vf_vf_vf};
     let s = vmul_vf_vf_vf(vf2getx_vf_vf2(x), vf2getx_vf_vf2(x));
     vf2setxy_vf2_vf_vf(
         s,
@@ -404,6 +406,7 @@ pub(crate) unsafe fn dfsqu_vf2_vf2(x: VFloat2) -> VFloat2 {
 #[inline(always)]
 #[cfg(target_feature = "fma")]
 pub(crate) unsafe fn dfsqu_vf_vf2(x: VFloat2) -> VFloat {
+    use helper::vfma_vf_vf_vf_vf;
     vfma_vf_vf_vf_vf(
         vf2getx_vf_vf2(x),
         vf2getx_vf_vf2(x),
@@ -417,6 +420,7 @@ pub(crate) unsafe fn dfsqu_vf_vf2(x: VFloat2) -> VFloat {
 #[inline(always)]
 #[cfg(target_feature = "fma")]
 pub(crate) unsafe fn dfmul_vf2_vf2_vf2(x: VFloat2, y: VFloat2) -> VFloat2 {
+    use helper::{vfma_vf_vf_vf_vf, vfmapn_vf_vf_vf_vf};
     let s = vmul_vf_vf_vf(vf2getx_vf_vf2(x), vf2getx_vf_vf2(y));
     vf2setxy_vf2_vf_vf(
         s,
@@ -435,6 +439,7 @@ pub(crate) unsafe fn dfmul_vf2_vf2_vf2(x: VFloat2, y: VFloat2) -> VFloat2 {
 #[inline(always)]
 #[cfg(target_feature = "fma")]
 pub(crate) unsafe fn dfmul_vf_vf2_vf2(x: VFloat2, y: VFloat2) -> VFloat {
+    use helper::vfma_vf_vf_vf_vf;
     vfma_vf_vf_vf_vf(
         vf2getx_vf_vf2(x),
         vf2getx_vf_vf2(y),
@@ -449,6 +454,7 @@ pub(crate) unsafe fn dfmul_vf_vf2_vf2(x: VFloat2, y: VFloat2) -> VFloat {
 #[inline(always)]
 #[cfg(target_feature = "fma")]
 pub(crate) unsafe fn dfmul_vf2_vf2_vf(x: VFloat2, y: VFloat) -> VFloat2 {
+    use helper::{vfma_vf_vf_vf_vf, vfmapn_vf_vf_vf_vf};
     let s = vmul_vf_vf_vf(vf2getx_vf_vf2(x), y);
     vf2setxy_vf2_vf_vf(
         s,
@@ -463,6 +469,7 @@ pub(crate) unsafe fn dfmul_vf2_vf2_vf(x: VFloat2, y: VFloat) -> VFloat2 {
 #[inline(always)]
 #[cfg(target_feature = "fma")]
 pub(crate) unsafe fn dfrec_vf2_vf(d: VFloat) -> VFloat2 {
+    use helper::vfmanp_vf_vf_vf_vf;
     let s = vrec_vf_vf(d);
     vf2setxy_vf2_vf_vf(
         s,
@@ -473,6 +480,7 @@ pub(crate) unsafe fn dfrec_vf2_vf(d: VFloat) -> VFloat2 {
 #[inline(always)]
 #[cfg(target_feature = "fma")]
 pub(crate) unsafe fn dfrec_vf2_vf2(d: VFloat2) -> VFloat2 {
+    use helper::vfmanp_vf_vf_vf_vf;
     let s = vrec_vf_vf(vf2getx_vf_vf2(d));
     vf2setxy_vf2_vf_vf(
         s,

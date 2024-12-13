@@ -377,7 +377,62 @@ pub(crate) unsafe fn ddrec_vd2_vd2(d: VDouble2) -> VDouble2 {
 
 #[cfg(not(target_feature = "fma"))]
 #[inline(always)]
+pub(crate) unsafe fn vupper_vd_vd(d: VDouble) -> VDouble {
+    use helper::{vreinterpret_vd_vm, vand_vm_vm_vm, vcast_vm_i_i, vreinterpret_vm_vd};
+    vreinterpret_vd_vm(
+        vand_vm_vm_vm(
+            vreinterpret_vm_vd(d),
+            vcast_vm_i_i(0xffffffffu32 as i32, 0xf8000000u32 as i32)
+        )
+    )
+}
+
+#[cfg(not(target_feature = "fma"))]
+#[inline(always)]
+pub(crate) unsafe fn vsub_vd_3vd(v0: VDouble, v1: VDouble, v2: VDouble) -> VDouble {
+    vsub_vd_vd_vd(vsub_vd_vd_vd(v0, v1), v2)
+}
+
+#[cfg(not(target_feature = "fma"))]
+#[inline(always)]
+pub(crate) unsafe fn vsub_vd_4vd(v0: VDouble, v1: VDouble, v2: VDouble, v3: VDouble) -> VDouble {
+    vsub_vd_3vd(vsub_vd_vd_vd(v0, v1), v2, v3)
+}
+
+#[cfg(not(target_feature = "fma"))]
+#[inline(always)]
+pub(crate) unsafe fn vsub_vd_5vd(v0: VDouble, v1: VDouble, v2: VDouble, v3: VDouble, v4: VDouble) -> VDouble {
+    vsub_vd_4vd(vsub_vd_vd_vd(v0, v1), v2, v3, v4)
+}
+
+#[cfg(not(target_feature = "fma"))]
+#[inline(always)]
+pub(crate) unsafe fn vsub_vd_6vd(v0: VDouble, v1: VDouble, v2: VDouble, v3: VDouble, v4: VDouble, v5: VDouble) -> VDouble {
+    vsub_vd_5vd(vsub_vd_vd_vd(v0, v1), v2, v3, v4, v5)
+}
+
+#[cfg(not(target_feature = "fma"))]
+#[inline(always)]
+pub(crate) unsafe fn vadd_vd_5vd(v0: VDouble, v1: VDouble, v2: VDouble, v3: VDouble, v4: VDouble) -> VDouble {
+    vadd_vd_4vd(vadd_vd_vd_vd(v0, v1), v2, v3, v4)
+}
+
+#[cfg(not(target_feature = "fma"))]
+#[inline(always)]
+pub(crate) unsafe fn vadd_vd_6vd(v0: VDouble, v1: VDouble, v2: VDouble, v3: VDouble, v4: VDouble, v5: VDouble) -> VDouble {
+    vadd_vd_5vd(vadd_vd_vd_vd(v0, v1), v2, v3, v4, v5)
+}
+
+#[cfg(not(target_feature = "fma"))]
+#[inline(always)]
+pub(crate) unsafe fn vadd_vd_7vd(v0: VDouble, v1: VDouble, v2: VDouble, v3: VDouble, v4: VDouble, v5: VDouble, v6: VDouble) -> VDouble {
+    vadd_vd_6vd(vadd_vd_vd_vd(v0, v1), v2, v3, v4, v5, v6)
+}
+
+#[cfg(not(target_feature = "fma"))]
+#[inline(always)]
 pub(crate) unsafe fn dddiv_vd2_vd2_vd2(n: VDouble2, d: VDouble2) -> VDouble2 {
+    use helper::{vrec_vd_vd, vmla_vd_vd_vd_vd};
     // VDouble2 除法
     let t = vrec_vd_vd(vd2getx_vd_vd2(d));
 
@@ -548,6 +603,7 @@ pub(crate) unsafe fn ddsqu_vd_vd2(x: VDouble2) -> VDouble {
 #[cfg(not(target_feature = "fma"))]
 #[inline(always)]
 pub(crate) unsafe fn ddrec_vd2_vd(d: VDouble) -> VDouble2 {
+    use helper::vrec_vd_vd;
     // VDouble 倒数，返回 VDouble2
     let t = vrec_vd_vd(d);
 
@@ -575,6 +631,7 @@ pub(crate) unsafe fn ddrec_vd2_vd(d: VDouble) -> VDouble2 {
 #[cfg(not(target_feature = "fma"))]
 #[inline(always)]
 pub(crate) unsafe fn ddrec_vd2_vd2(d: VDouble2) -> VDouble2 {
+    use helper::vrec_vd_vd;
     // VDouble2 倒数，返回 VDouble2
     let t = vrec_vd_vd(vd2getx_vd_vd2(d));
 
