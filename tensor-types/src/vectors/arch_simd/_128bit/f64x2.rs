@@ -182,7 +182,7 @@ impl std::ops::Rem for f64x2 {
 impl std::ops::Neg for f64x2 {
     type Output = Self;
     fn neg(self) -> Self {
-        unsafe { f64x2(_mm_xor_pd(_mm_setzero_pd(), self.0)) }
+        unsafe { f64x2(_mm_xor_pd(self.0, _mm_set1_pd(-0.0))) }
     }
 }
 
