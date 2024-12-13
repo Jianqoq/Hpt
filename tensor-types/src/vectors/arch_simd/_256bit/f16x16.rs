@@ -85,7 +85,7 @@ impl f16x16 {
     /// convert to f32x8
     pub fn to_2_f32x8(self) -> [f32x8; 2] {
         unsafe {
-            #[cfg(target_feature = "f16c")]
+            #[cfg(all(target_feature = "f16c", target_arch = "x86_64", target_feature = "avx2"))]
             {
                 use std::arch::x86_64::_mm256_cvtph_ps;
                 let raw_f16: [u16; 16] = std::mem::transmute(self.0);
@@ -122,14 +122,6 @@ impl f16x16 {
                 );
 
                 std::mem::transmute([res0, res1])
-            }
-            #[cfg(not(any(
-                target_feature = "f16c",
-                all(target_feature = "neon", target_arch = "aarch64"),
-            )))]
-            {
-                let [high, low]: [[u16; 8]; 2] = std::mem::transmute(self.0);
-                std::mem::transmute([u16_to_f32(high), u16_to_f32(low)])
             }
         }
     }
