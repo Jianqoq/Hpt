@@ -51,7 +51,7 @@ impl VecTrait<f32> for f32x8 {
     fn mul_add(self, a: Self, b: Self) -> Self {
         #[cfg(all(target_arch = "x86_64", not(target_feature = "fma")))]
         unsafe {
-            f32x8(_mm_add_ps(_mm_mul_ps(self.0, a.0), b.0))
+            f32x8(_mm256_add_ps(_mm256_mul_ps(self.0, a.0), b.0))
         }
         #[cfg(all(target_arch = "x86_64", target_feature = "fma"))]
         unsafe {
