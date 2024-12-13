@@ -346,7 +346,7 @@ impl std::ops::Neg for isizex2 {
     fn neg(self) -> Self {
         #[cfg(target_pointer_width = "64")]
         {
-            isizex2(unsafe { _mm_sign_epi64(self.0, _mm_set1_epi64x(-1)) })
+            unsafe { isizex2(_mm_sub_epi64(_mm_setzero_si128(), self.0)) }
         }
         #[cfg(target_pointer_width = "32")]
         {
