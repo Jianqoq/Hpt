@@ -1,7 +1,9 @@
-use crate::traits::{ SimdMath, SimdSelect, VecTrait };
+use crate::{convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait }};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+
+use super::i32x4::i32x4;
 
 /// a vector of 4 u32 values
 #[allow(non_camel_case_types)]
@@ -43,6 +45,65 @@ impl VecTrait<u32> for u32x4 {
     }
     fn splat(val: u32) -> u32x4 {
         unsafe { u32x4(_mm_set1_epi32(val as i32)) }
+    }
+}
+
+impl u32x4 {
+    #[allow(unused)]
+    fn as_array(&self) -> [u32; 4] {
+        unsafe { std::mem::transmute(self.0) }
+    }
+}
+
+impl SimdCompare for u32x4 {
+    type SimdMask = i32x4;
+
+    fn simd_eq(self, other: Self) -> Self::SimdMask {
+        unsafe {
+            let lhs: i32x4 = std::mem::transmute(self.0);
+            let rhs: i32x4 = std::mem::transmute(other.0);
+            lhs.simd_eq(rhs)
+        }
+    }
+
+    fn simd_ne(self, other: Self) -> Self::SimdMask {
+        unsafe {
+            let lhs: i32x4 = std::mem::transmute(self.0);
+            let rhs: i32x4 = std::mem::transmute(other.0);
+            lhs.simd_ne(rhs)
+        }
+    }
+
+    fn simd_lt(self, other: Self) -> Self::SimdMask {
+        unsafe {
+            let lhs: i32x4 = std::mem::transmute(self.0);
+            let rhs: i32x4 = std::mem::transmute(other.0);
+            lhs.simd_lt(rhs)
+        }
+    }
+
+    fn simd_le(self, other: Self) -> Self::SimdMask {
+        unsafe {
+            let lhs: i32x4 = std::mem::transmute(self.0);
+            let rhs: i32x4 = std::mem::transmute(other.0);
+            lhs.simd_le(rhs)
+        }
+    }
+
+    fn simd_gt(self, other: Self) -> Self::SimdMask {
+        unsafe {
+            let lhs: i32x4 = std::mem::transmute(self.0);
+            let rhs: i32x4 = std::mem::transmute(other.0);
+            lhs.simd_gt(rhs)
+        }
+    }
+
+    fn simd_ge(self, other: Self) -> Self::SimdMask {
+        unsafe {
+            let lhs: i32x4 = std::mem::transmute(self.0);
+            let rhs: i32x4 = std::mem::transmute(other.0);
+            lhs.simd_ge(rhs)
+        }
     }
 }
 
@@ -100,6 +161,58 @@ impl std::ops::Rem for u32x4 {
         }
     }
 }
+impl std::ops::BitAnd for u32x4 {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        unsafe { u32x4(_mm_and_si128(self.0, rhs.0)) }
+    }
+}
+impl std::ops::BitOr for u32x4 {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self::Output {
+        unsafe { u32x4(_mm_or_si128(self.0, rhs.0)) }
+    }
+}
+impl std::ops::BitXor for u32x4 {
+    type Output = Self;
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        unsafe { u32x4(_mm_xor_si128(self.0, rhs.0)) }
+    }
+}
+impl std::ops::Not for u32x4 {
+    type Output = Self;
+    fn not(self) -> Self::Output {
+        unsafe { u32x4(_mm_xor_si128(self.0, _mm_set1_epi32(-1))) }
+    }
+}
+impl std::ops::Shl for u32x4 {
+    type Output = Self;
+    fn shl(self, rhs: Self) -> Self::Output {
+        unsafe {
+            let a: [u32; 4] = std::mem::transmute(self.0);
+            let b: [u32; 4] = std::mem::transmute(rhs.0);
+            let mut result = [0; 4];
+            for i in 0..4 {
+                result[i] = a[i] << b[i];
+            }
+            u32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i))
+        }
+    }
+}
+impl std::ops::Shr for u32x4 {
+    type Output = Self;
+    fn shr(self, rhs: Self) -> Self::Output {
+        unsafe {
+            let a: [u32; 4] = std::mem::transmute(self.0);
+            let b: [u32; 4] = std::mem::transmute(rhs.0);
+            let mut result = [0; 4];
+            for i in 0..4 {
+                result[i] = a[i] >> b[i];
+            }
+            u32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i))
+        }
+    }
+}
 
 impl SimdMath<u32> for u32x4 {
     fn max(self, other: Self) -> Self {
@@ -114,4 +227,7 @@ impl SimdMath<u32> for u32x4 {
     fn relu6(self) -> Self {
         unsafe { u32x4(_mm_min_epi32(self.relu().0, _mm_set1_epi32(6))) }
     }
+}
+
+impl VecConvertor for u32x4 {
 }

@@ -48,19 +48,19 @@ pub fn impl_simd_bitwise_out() -> TokenStream {
             let shift = if res_type.is_bool() {
                 quote! {
                     fn _shl(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty(self.0 || rhs.0)
+                        self || rhs
                     }
                     fn _shr(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty(self.0 && !rhs.0)
+                        self && !rhs
                     }
                 }
             } else {
                 quote! {
                     fn _shl(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty(self.#to_res_type().0 << rhs.#to_res_type().0)
+                        self.#to_res_type() << rhs.#to_res_type()
                     }
                     fn _shr(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty(self.#to_res_type().0 >> rhs.#to_res_type().0)
+                        self.#to_res_type() >> rhs.#to_res_type()
                     }
                 }
             };

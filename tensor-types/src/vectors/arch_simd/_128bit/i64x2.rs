@@ -1,4 +1,7 @@
-use crate::traits::{SimdMath, SimdSelect, VecTrait};
+use crate::{
+    convertion::VecConvertor,
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -61,7 +64,59 @@ impl VecTrait<i64> for i64x2 {
     }
 }
 
-impl SimdSelect<i64x2> for crate::vectors::arch_simd::_128bit::u64x2::u64x2 {
+impl i64x2 {
+    #[allow(unused)]
+    fn as_array(&self) -> [i64; 2] {
+        unsafe { std::mem::transmute(self.0) }
+    }
+}
+
+impl SimdCompare for i64x2 {
+    type SimdMask = i64x2;
+    fn simd_eq(self, other: Self) -> i64x2 {
+        unsafe { i64x2(_mm_cmpeq_epi64(self.0, other.0)) }
+    }
+    fn simd_ne(self, other: Self) -> i64x2 {
+        unsafe { 
+            let eq = _mm_cmpeq_epi64(self.0, other.0);
+            i64x2(_mm_xor_si128(eq, _mm_set1_epi64x(-1)))
+        }
+    }
+    fn simd_lt(self, other: Self) -> i64x2 {
+        unsafe {
+            let a: [i64; 2] = std::mem::transmute(self.0);
+            let b: [i64; 2] = std::mem::transmute(other.0);
+            let mut result = [0; 2];
+            for i in 0..2 {
+                result[i] = if a[i] < b[i] { -1 } else { 0 };
+            }
+            i64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
+        }
+    }
+    fn simd_le(self, other: Self) -> i64x2 {
+        unsafe {
+            let a: [i64; 2] = std::mem::transmute(self.0);
+            let b: [i64; 2] = std::mem::transmute(other.0);
+            let mut result = [0; 2];
+            for i in 0..2 {
+                result[i] = if a[i] <= b[i] { -1 } else { 0 };
+            }
+            i64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
+        }
+    }
+    fn simd_gt(self, other: Self) -> i64x2 {
+        unsafe { i64x2(_mm_cmpgt_epi64(self.0, other.0)) }
+    }
+    fn simd_ge(self, other: Self) -> i64x2 {
+        unsafe { 
+            let gt = _mm_cmpgt_epi64(self.0, other.0);
+            let eq = _mm_cmpeq_epi64(self.0, other.0);
+            i64x2(_mm_or_si128(gt, eq))
+        }
+    }
+}
+
+impl SimdSelect<i64x2> for crate::vectors::arch_simd::_128bit::i64x2::i64x2 {
     fn select(&self, true_val: i64x2, false_val: i64x2) -> i64x2 {
         unsafe { i64x2(_mm_blendv_epi8(false_val.0, true_val.0, self.0)) }
     }
@@ -128,6 +183,58 @@ impl std::ops::Neg for i64x2 {
     }
 }
 
+impl std::ops::BitAnd for i64x2 {
+    type Output = i64x2;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        unsafe { i64x2(_mm_and_si128(self.0, rhs.0)) }
+    }
+}
+impl std::ops::BitOr for i64x2 {
+    type Output = i64x2;
+    fn bitor(self, rhs: Self) -> Self::Output {
+        unsafe { i64x2(_mm_or_si128(self.0, rhs.0)) }
+    }
+}
+impl std::ops::BitXor for i64x2 {
+    type Output = i64x2;
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        unsafe { i64x2(_mm_xor_si128(self.0, rhs.0)) }
+    }
+}
+impl std::ops::Not for i64x2 {
+    type Output = Self;
+    fn not(self) -> Self::Output {
+        unsafe { i64x2(_mm_xor_si128(self.0, _mm_set1_epi64x(-1))) }
+    }
+}
+impl std::ops::Shl for i64x2 {
+    type Output = Self;
+    fn shl(self, rhs: Self) -> Self::Output {
+        unsafe {
+            let a: [i64; 2] = std::mem::transmute(self.0);
+            let b: [i64; 2] = std::mem::transmute(rhs.0);
+            let mut result = [0; 2];
+            for i in 0..2 {
+                result[i] = a[i] << b[i];
+            }
+            i64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
+        }
+    }
+}
+impl std::ops::Shr for i64x2 {
+    type Output = Self;
+    fn shr(self, rhs: Self) -> Self::Output {
+        unsafe {
+            let a: [i64; 2] = std::mem::transmute(self.0);
+            let b: [i64; 2] = std::mem::transmute(rhs.0);
+            let mut result = [0; 2];
+            for i in 0..2 {
+                result[i] = a[i] >> b[i];
+            }
+            i64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
+        }
+    }
+}
 impl SimdMath<i64> for i64x2 {
     fn max(self, other: Self) -> Self {
         unsafe {
@@ -172,3 +279,5 @@ impl SimdMath<i64> for i64x2 {
         }
     }
 }
+
+impl VecConvertor for i64x2 {}

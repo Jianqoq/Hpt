@@ -1,12 +1,16 @@
 use crate::arch_simd::_128bit::u16x8::u16x8;
+use crate::convertion::VecConvertor;
 use crate::{ traits::VecTrait, vectors::arch_simd::_128bit::f32x4::f32x4 };
-use std::simd::{ cmp::{ SimdPartialEq, SimdPartialOrd }, num::{ SimdFloat, SimdUint }, Simd };
 use crate::traits::SimdCompare;
+
+use super::i16x8::i16x8;
+
+use std::arch::x86_64::*;
 
 /// a vector of 8 bf16 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
-#[repr(transparent)]
+#[repr(C, align(16))]
 pub struct bf16x8(pub(crate) [half::bf16; 8]);
 
 impl VecTrait<half::bf16> for bf16x8 {
@@ -35,71 +39,27 @@ impl VecTrait<half::bf16> for bf16x8 {
 }
 
 impl bf16x8 {
+    #[allow(unused)]
+    fn as_array(&self) -> [half::bf16; 8] {
+        unsafe { std::mem::transmute(self.0) }
+    }
+}
+
+impl bf16x8 {
     /// convert to 2 f32x4
     pub fn to_2_f32x4(&self) -> [f32x4; 2] {
-        let [ai, bi]: [std::simd::u16x4; 2] = unsafe { std::mem::transmute(self.0) };
-
-        let [ai, bi]: [std::simd::u32x4; 2] = [ai.cast(), bi.cast()];
-        let [am, bm] = [
-            (ai & std::simd::u32x4::splat(0x7fff)).simd_gt(std::simd::u32x4::splat(0x7f80)),
-            (bi & std::simd::u32x4::splat(0x7fff)).simd_gt(std::simd::u32x4::splat(0x7f80)),
-        ];
-        let [an_adjusted, bn_adjusted] = [
-            (ai | std::simd::u32x4::splat(0x0040)) << 8,
-            (bi | std::simd::u32x4::splat(0x0040)) << 8,
-        ];
-        let [a_normal, b_normal] = [ai << 8, bi << 8];
-        let [a_res, b_res] = [am.select(an_adjusted, a_normal), bm.select(bn_adjusted, b_normal)];
-        unsafe { std::mem::transmute([a_res, b_res]) }
+        todo!()
     }
 
     /// convert from 2 f32x4
-    pub fn from_2_f32x4(inp: [f32x4; 2]) -> Self {
-        use std::simd::cmp::SimdPartialEq;
-        use std::simd::num::SimdInt;
-        use std::simd::Simd;
-        let [af, bf]: [Simd<f32, 4>; 2] = unsafe { std::mem::transmute(inp) };
-        let [au, bu]: [Simd<u32, 4>; 2] = unsafe { std::mem::transmute(inp) };
-        let [am, bm] = [af.is_nan().cast::<i16>(), bf.is_nan().cast::<i16>()];
-        let round_bit = std::simd::u32x4::splat(0x0000_8000);
-        let one = std::simd::u32x4::splat(1);
-        let [a_round_increment, b_round_increment] = [
-            (au & round_bit).simd_ne(std::simd::u32x4::splat(0)) &
-                (au & (round_bit - one)).simd_ne(std::simd::u32x4::splat(0)),
-            (bu & round_bit).simd_ne(std::simd::u32x4::splat(0)) &
-                (bu & (round_bit - one)).simd_ne(std::simd::u32x4::splat(0)),
-        ];
-        let [a_rounded, b_rounded] = [
-            au + a_round_increment.to_int().cast(),
-            bu + b_round_increment.to_int().cast(),
-        ];
-        let [a_bf16_values, b_bf16_values] = [
-            (a_rounded >> 8).cast::<u16>(),
-            (b_rounded >> 8).cast::<u16>(),
-        ];
-        let [a_nan_adjusted, b_nan_adjusted] = [
-            a_bf16_values | std::simd::u16x4::splat(0x0040),
-            b_bf16_values | std::simd::u16x4::splat(0x0040),
-        ];
-        let [a_res, b_res] = [
-            am.select(a_nan_adjusted, a_bf16_values),
-            bm.select(b_nan_adjusted, b_bf16_values),
-        ];
-        unsafe { std::mem::transmute([a_res, b_res]) }
+    pub fn from_2_f32x4(_: [f32x4; 2]) -> Self {
+        todo!()
     }
 
     /// check if the value is NaN and return a mask
-    pub fn is_nan(&self) -> u16x8 {
-        let x = std::simd::u16x8::splat(0x7f80u16);
-        let y = std::simd::u16x8::splat(0x007fu16);
-        let i: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-        let and = i & x;
-        let eq: Simd<u16, 8> = unsafe { std::mem::transmute(and.simd_eq(x)) };
-        let and2 = i & y;
-        let neq_zero: Simd<u16, 8> = unsafe {
-            std::mem::transmute(and2.simd_ne(std::simd::u16x8::splat(0)))
-        };
-        unsafe { std::mem::transmute(eq & neq_zero) }
+    pub fn is_nan(&self) -> i16x8 {
+        let res: [i16; 8] = self.0.map(|x| if x.is_nan() { 1 } else { 0 });
+        unsafe { std::mem::transmute(res) }
     }
 
     /// check if the value is infinite and return a mask
@@ -120,44 +80,67 @@ impl bf16x8 {
     }
 }
 impl SimdCompare for bf16x8 {
-    type SimdMask = u16x8;
-    fn simd_eq(self, other: Self) -> u16x8 {
-        let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-        let y: Simd<u16, 8> = unsafe { std::mem::transmute(other.0) };
-        let eq = x.simd_eq(y);
-        unsafe { std::mem::transmute(eq) }
+    type SimdMask = i16x8;
+    fn simd_eq(self, other: Self) -> i16x8 {
+        unsafe {
+            let self_ptr = &self.0 as *const _ as *const __m128i;
+            let other_ptr = &other.0 as *const _ as *const __m128i;
+            let a = _mm_loadu_si128(self_ptr);
+            let b = _mm_loadu_si128(other_ptr);
+            i16x8(_mm_cmpeq_epi16(a, b))
+        }
     }
 
-    fn simd_ne(self, other: Self) -> u16x8 {
-        let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-        let y: Simd<u16, 8> = unsafe { std::mem::transmute(other.0) };
-        let ne = x.simd_ne(y);
-        unsafe { std::mem::transmute(ne) }
+    fn simd_ne(self, other: Self) -> i16x8 {
+        unsafe {
+            let self_ptr = &self.0 as *const _ as *const __m128i;
+            let other_ptr = &other.0 as *const _ as *const __m128i;
+            let a = _mm_loadu_si128(self_ptr);
+            let b = _mm_loadu_si128(other_ptr);
+            let eq = _mm_cmpeq_epi16(a, b);
+            i16x8(_mm_xor_si128(eq, _mm_set1_epi16(-1)))
+        }
     }
 
-    fn simd_lt(self, other: Self) -> u16x8 {
-        let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-        let y: Simd<u16, 8> = unsafe { std::mem::transmute(other.0) };
-        let lt = x.simd_lt(y);
-        unsafe { std::mem::transmute(lt) }
+    fn simd_lt(self, other: Self) -> i16x8 {
+        unsafe {
+            let self_ptr = &self.0 as *const _ as *const __m128i;
+            let other_ptr = &other.0 as *const _ as *const __m128i;
+            let a = _mm_loadu_si128(self_ptr);
+            let b = _mm_loadu_si128(other_ptr);
+            i16x8(_mm_cmplt_epi16(a, b))
+        }
     }
-    fn simd_le(self, other: Self) -> u16x8 {
-        let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-        let y: Simd<u16, 8> = unsafe { std::mem::transmute(other.0) };
-        let le = x.simd_le(y);
-        unsafe { std::mem::transmute(le) }
+    fn simd_le(self, other: Self) -> i16x8 {
+        unsafe {
+            let self_ptr = &self.0 as *const _ as *const __m128i;
+            let other_ptr = &other.0 as *const _ as *const __m128i;
+            let a = _mm_loadu_si128(self_ptr);
+            let b = _mm_loadu_si128(other_ptr);
+            let lt = _mm_cmplt_epi16(a, b);
+            let eq = _mm_cmpeq_epi16(a, b);
+            i16x8(_mm_or_si128(lt, eq))
+        }
     }
-    fn simd_gt(self, other: Self) -> u16x8 {
-        let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-        let y: Simd<u16, 8> = unsafe { std::mem::transmute(other.0) };
-        let gt = x.simd_gt(y);
-        unsafe { std::mem::transmute(gt) }
+    fn simd_gt(self, other: Self) -> i16x8 {
+        unsafe {
+            let self_ptr = &self.0 as *const _ as *const __m128i;
+            let other_ptr = &other.0 as *const _ as *const __m128i;
+            let a = _mm_loadu_si128(self_ptr);
+            let b = _mm_loadu_si128(other_ptr);
+            i16x8(_mm_cmpgt_epi16(a, b))
+        }
     }
-    fn simd_ge(self, other: Self) -> u16x8 {
-        let x: Simd<u16, 8> = unsafe { std::mem::transmute(self.0) };
-        let y: Simd<u16, 8> = unsafe { std::mem::transmute(other.0) };
-        let ge = x.simd_ge(y);
-        unsafe { std::mem::transmute(ge) }
+    fn simd_ge(self, other: Self) -> i16x8 {
+        unsafe {
+            let self_ptr = &self.0 as *const _ as *const __m128i;
+            let other_ptr = &other.0 as *const _ as *const __m128i;
+            let a = _mm_loadu_si128(self_ptr);
+            let b = _mm_loadu_si128(other_ptr);
+            let gt = _mm_cmpgt_epi16(a, b);
+            let eq = _mm_cmpeq_epi16(a, b);
+            i16x8(_mm_or_si128(gt, eq))
+        }
     }
 }
 
@@ -226,4 +209,7 @@ impl std::ops::Neg for bf16x8 {
         }
         ret
     }
+}
+
+impl VecConvertor for bf16x8 {
 }

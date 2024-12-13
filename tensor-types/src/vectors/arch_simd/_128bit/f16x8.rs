@@ -1,13 +1,16 @@
+use crate::convertion::VecConvertor;
+use crate::traits::VecTrait;
 use crate::vectors::arch_simd::_128bit::f32x4::f32x4;
 use crate::vectors::arch_simd::_128bit::u16x8::u16x8;
-use crate::traits::VecTrait;
-use std::ops::{ Index, IndexMut };
 
 use crate::traits::SimdCompare;
+
+use super::i16x8::i16x8;
 
 /// a vector of 8 f16 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[repr(C, align(16))]
 pub struct f16x8(pub(crate) [half::f16; 8]);
 
 impl VecTrait<half::f16> for f16x8 {
@@ -38,8 +41,15 @@ impl VecTrait<half::f16> for f16x8 {
 }
 
 impl f16x8 {
+    #[allow(unused)]
+    fn as_array(&self) -> [half::f16; 8] {
+        unsafe { std::mem::transmute(self.0) }
+    }
+}
+
+impl f16x8 {
     /// check if the value is NaN, and return a mask
-    pub fn is_nan(&self) -> u16x8 {
+    pub fn is_nan(&self) -> i16x8 {
         let x = u16x8::splat(0x7c00u16);
         let y = u16x8::splat(0x03ffu16);
         let i: u16x8 = unsafe { std::mem::transmute(self.0) };
@@ -75,7 +85,7 @@ impl f16x8 {
         unsafe {
             #[cfg(target_feature = "f16c")]
             {
-                use std::arch::x86_64::{ _mm_cvtph_ps, _mm_loadu_si64 };
+                use std::arch::x86_64::{_mm_cvtph_ps, _mm_loadu_si64};
                 let raw_f16: [u16; 8] = std::mem::transmute(self.0);
                 let f32x4_1 = _mm_cvtph_ps(_mm_loadu_si64(raw_f16.as_ptr() as *const _));
                 let f32x4_2 = _mm_cvtph_ps(_mm_loadu_si64(raw_f16.as_ptr().add(4) as *const _));
@@ -83,7 +93,7 @@ impl f16x8 {
             }
             #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
             {
-                use std::arch::aarch64::{ float32x4_t, uint16x4_t };
+                use std::arch::aarch64::{float32x4_t, uint16x4_t};
                 use std::arch::asm;
                 use std::mem::MaybeUninit;
                 let mut low_f32x4 = MaybeUninit::<uint16x4_t>::uninit();
@@ -92,7 +102,7 @@ impl f16x8 {
                 std::ptr::copy_nonoverlapping(
                     self.0.as_ptr().add(4),
                     high_f32x4.as_mut_ptr().cast(),
-                    4
+                    4,
                 );
                 let res0: float32x4_t;
                 let res1: float32x4_t;
@@ -111,14 +121,10 @@ impl f16x8 {
 
                 std::mem::transmute([res0, res1])
             }
-            #[cfg(
-                not(
-                    any(
-                        target_feature = "f16c",
-                        all(target_feature = "neon", target_arch = "aarch64")
-                    )
-                )
-            )]
+            #[cfg(not(any(
+                target_feature = "f16c",
+                all(target_feature = "neon", target_arch = "aarch64")
+            )))]
             {
                 let [high, low]: [[u16; 4]; 2] = std::mem::transmute(self.0);
                 std::mem::transmute([u16_to_f32(high), u16_to_f32(low)])
@@ -127,55 +133,36 @@ impl f16x8 {
     }
 }
 impl SimdCompare for f16x8 {
-    type SimdMask = u16x8;
-    fn simd_eq(self, other: Self) -> u16x8 {
-        let x: u16x8 = unsafe { std::mem::transmute(self.0) };
-        let y: u16x8 = unsafe { std::mem::transmute(other.0) };
-        let eq = x.simd_eq(y);
-        unsafe { std::mem::transmute(eq) }
+    type SimdMask = i16x8;
+    fn simd_eq(self, other: Self) -> i16x8 {
+        let x: i16x8 = unsafe { std::mem::transmute(self.0) };
+        let y: i16x8 = unsafe { std::mem::transmute(other.0) };
+        x.simd_eq(y)
     }
-    fn simd_ne(self, other: Self) -> u16x8 {
-        let x: u16x8 = unsafe { std::mem::transmute(self.0) };
-        let y: u16x8 = unsafe { std::mem::transmute(other.0) };
-        let ne = x.simd_ne(y);
-        unsafe { std::mem::transmute(ne) }
+    fn simd_ne(self, other: Self) -> i16x8 {
+        let x: i16x8 = unsafe { std::mem::transmute(self.0) };
+        let y: i16x8 = unsafe { std::mem::transmute(other.0) };
+        x.simd_ne(y)
     }
-    fn simd_lt(self, other: Self) -> u16x8 {
-        let x: u16x8 = unsafe { std::mem::transmute(self.0) };
-        let y: u16x8 = unsafe { std::mem::transmute(other.0) };
-        let lt = x.simd_lt(y);
-        unsafe { std::mem::transmute(lt) }
+    fn simd_lt(self, other: Self) -> i16x8 {
+        let x: i16x8 = unsafe { std::mem::transmute(self.0) };
+        let y: i16x8 = unsafe { std::mem::transmute(other.0) };
+        x.simd_lt(y)
     }
-    fn simd_le(self, other: Self) -> u16x8 {
-        let x: u16x8 = unsafe { std::mem::transmute(self.0) };
-        let y: u16x8 = unsafe { std::mem::transmute(other.0) };
-        let le = x.simd_le(y);
-        unsafe { std::mem::transmute(le) }
+    fn simd_le(self, other: Self) -> i16x8 {
+        let x: i16x8 = unsafe { std::mem::transmute(self.0) };
+        let y: i16x8 = unsafe { std::mem::transmute(other.0) };
+        x.simd_le(y)
     }
-    fn simd_gt(self, other: Self) -> u16x8 {
-        let x: u16x8 = unsafe { std::mem::transmute(self.0) };
-        let y: u16x8 = unsafe { std::mem::transmute(other.0) };
-        let gt = x.simd_gt(y);
-        unsafe { std::mem::transmute(gt) }
+    fn simd_gt(self, other: Self) -> i16x8 {
+        let x: i16x8 = unsafe { std::mem::transmute(self.0) };
+        let y: i16x8 = unsafe { std::mem::transmute(other.0) };
+        x.simd_gt(y)
     }
-    fn simd_ge(self, other: Self) -> u16x8 {
-        let x: u16x8 = unsafe { std::mem::transmute(self.0) };
-        let y: u16x8 = unsafe { std::mem::transmute(other.0) };
-        let ge = x.simd_ge(y);
-        unsafe { std::mem::transmute(ge) }
-    }
-}
-
-impl Index<usize> for f16x8 {
-    type Output = half::f16;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-impl IndexMut<usize> for f16x8 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
+    fn simd_ge(self, other: Self) -> i16x8 {
+        let x: i16x8 = unsafe { std::mem::transmute(self.0) };
+        let y: i16x8 = unsafe { std::mem::transmute(other.0) };
+        x.simd_ge(y)
     }
 }
 
@@ -250,7 +237,7 @@ impl std::ops::Neg for f16x8 {
 }
 
 /// fallback to convert f16 to f32
-pub fn u16_to_f32(_: [u16; 4]) -> std::simd::f32x4 {
+pub fn u16_to_f32(_: [u16; 4]) -> f32x4 {
     unimplemented!()
 }
 
@@ -258,4 +245,7 @@ pub fn u16_to_f32(_: [u16; 4]) -> std::simd::f32x4 {
 #[inline]
 pub(crate) fn f32x4_to_f16x4(_: f32x4) -> [u16; 4] {
     unimplemented!()
+}
+
+impl VecConvertor for f16x8 {
 }

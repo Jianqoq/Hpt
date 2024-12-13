@@ -61,7 +61,7 @@ impl SimdCompare for i32x4 {
     }
 }
 
-impl SimdSelect<i32x4> for crate::vectors::std_simd::_128bit::u32x4::u32x4 {
+impl SimdSelect<i32x4> for crate::vectors::std_simd::_128bit::i32x4::i32x4 {
     fn select(&self, true_val: i32x4, false_val: i32x4) -> i32x4 {
         let mask: std::simd::mask32x4 = unsafe { std::mem::transmute(*self) };
         i32x4(mask.select(true_val.0, false_val.0))

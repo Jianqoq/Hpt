@@ -512,14 +512,14 @@ fn gen_func_arr(
             proc_macro2::Span::call_site(),
         );
         if lhs_dtype.dtype.is_f16() {
+            let f32_lanes = f32_lanes as usize;
             quote! {
                 fn #method(self) -> Self::Output {
-                    let mut arr = #ident::#ident::splat(f32::ZERO);
-                    let ptr = arr.as_mut_array();
-                    let self_arr = self.0;
+                    let mut arr = [f32::ZERO; #f32_lanes];
                     for i in 0..#lhs_lanes as usize {
-                        ptr[i] = self_arr[i].to_f32();
+                        arr[i] = self[i].to_f32();
                     }
+                    let arr: #ident::#ident = unsafe { std::mem::transmute(arr) };
                     let res_f32 = arr.#method();
                     let mut half_arr = [half::f16::ZERO; #lhs_lanes as usize];
                     for i in 0..#lhs_lanes as usize {
@@ -554,7 +554,7 @@ fn gen_func_arr(
         quote! {
             fn #method(self) -> Self::Output {
                 let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                let self_arr = self.0;
+                let self_arr = self;
                 #(#unroll)*
                 #res_simd_ty::#res_simd_ty(arr.into())
             }

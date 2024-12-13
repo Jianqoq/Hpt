@@ -1,7 +1,21 @@
-use crate::{arch_simd::sleef::{arch::helper_sse::vabs_vd_vd, libm::sleefsimddp::{xacos_u1, xacosh, xasin_u1, xasinh, xatan2_u1, xatan_u1, xatanh, xcbrt_u1, xcos_u1, xcosh, xerf_u1, xexp, xexp10, xexp2, xexpm1, xfmax, xfmin, xhypot_u05, xlog10, xlog1p, xlog2, xlog_u1, xpow, xround, xsin_u1, xsincos_u1, xsinh, xsqrt_u05, xtan_u1, xtanh, xtrunc}}, traits::{SimdMath, VecTrait}};
+use crate::{
+    arch_simd::sleef::{
+        arch::helper_sse::vabs_vd_vd,
+        libm::sleefsimddp::{
+            xacos_u1, xacosh, xasin_u1, xasinh, xatan2_u1, xatan_u1, xatanh, xcbrt_u1, xcos_u1,
+            xcosh, xerf_u1, xexp, xexp10, xexp2, xexpm1, xfmax, xfmin, xhypot_u05, xlog10, xlog1p,
+            xlog2, xlog_u1, xpow, xround, xsin_u1, xsincos_u1, xsinh, xsqrt_u05, xtan_u1, xtanh,
+            xtrunc,
+        },
+    },
+    convertion::VecConvertor,
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+
+use super::i64x2::i64x2;
 
 /// a vector of 2 f64 values
 #[allow(non_camel_case_types)]
@@ -30,7 +44,10 @@ impl VecTrait<f64> for f64x2 {
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[f64]) {
         unsafe {
-            _mm_storeu_pd(&mut self.0 as *mut _ as *mut f64, _mm_loadu_pd(slice.as_ptr()));
+            _mm_storeu_pd(
+                &mut self.0 as *mut _ as *mut f64,
+                _mm_loadu_pd(slice.as_ptr()),
+            );
         }
     }
     #[inline(always)]
@@ -45,6 +62,90 @@ impl VecTrait<f64> for f64x2 {
         unsafe { f64x2(_mm_set1_pd(val)) }
     }
 }
+
+impl f64x2 {
+    #[allow(unused)]
+    fn as_array(&self) -> [f64; 2] {
+        unsafe { std::mem::transmute(self.0) }
+    }
+    /// check if the vector is nan
+    pub fn is_nan(&self) -> f64x2 {
+        unsafe { f64x2(_mm_cmpunord_pd(self.0, self.0)) }
+    }
+    /// check if the vector is infinite
+    pub fn is_infinite(&self) -> f64x2 {
+        unsafe {
+            let abs = _mm_andnot_pd(_mm_set1_pd(-0.0), self.0);
+            f64x2(_mm_cmpeq_pd(abs, _mm_set1_pd(f64::INFINITY)))
+        }
+    }
+    /// reciprocal of the vector
+    pub fn recip(&self) -> f64x2 {
+        unsafe {
+            f64x2(_mm_div_pd(_mm_set1_pd(1.0), self.0))
+        }
+    }
+}
+
+impl SimdCompare for f64x2 {
+    type SimdMask = i64x2;
+
+    fn simd_eq(self, other: Self) -> Self::SimdMask {
+        unsafe {
+            let cmp = _mm_cmpeq_pd(self.0, other.0);
+            let mask = _mm_movemask_pd(cmp);
+            i64x2(_mm_set1_epi64x(if mask == 3 { -1 } else { 0 }))
+        }
+    }
+
+    fn simd_ne(self, other: Self) -> Self::SimdMask {
+        unsafe {
+            let cmp = _mm_cmpneq_pd(self.0, other.0);
+            i64x2(_mm_castpd_si128(cmp))
+        }
+    }
+
+    fn simd_lt(self, other: Self) -> Self::SimdMask {
+        unsafe {
+            let cmp = _mm_cmplt_pd(self.0, other.0);
+            i64x2(_mm_castpd_si128(cmp))
+        }
+    }
+
+    fn simd_le(self, other: Self) -> Self::SimdMask {
+        unsafe {
+            let cmp = _mm_cmple_pd(self.0, other.0);
+            i64x2(_mm_castpd_si128(cmp))
+        }
+    }
+
+    fn simd_gt(self, other: Self) -> Self::SimdMask {
+        unsafe {
+            let cmp = _mm_cmpgt_pd(self.0, other.0);
+            i64x2(_mm_castpd_si128(cmp))
+        }
+    }
+
+    fn simd_ge(self, other: Self) -> Self::SimdMask {
+        unsafe {
+            let cmp = _mm_cmpge_pd(self.0, other.0);
+            i64x2(_mm_castpd_si128(cmp))
+        }
+    }
+}
+
+impl SimdSelect<f64x2> for i64x2 {
+    fn select(&self, true_val: f64x2, false_val: f64x2) -> f64x2 {
+        unsafe {
+            f64x2(_mm_blendv_pd(
+                false_val.0,
+                true_val.0,
+                std::mem::transmute(self.0),
+            ))
+        }
+    }
+}
+
 
 impl std::ops::Add for f64x2 {
     type Output = Self;
@@ -252,3 +353,5 @@ impl SimdMath<f64> for f64x2 {
         f64x2(unsafe { xfmax(self.0, other.0) })
     }
 }
+
+impl VecConvertor for f64x2 {}

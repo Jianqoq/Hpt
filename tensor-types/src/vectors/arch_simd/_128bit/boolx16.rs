@@ -1,11 +1,14 @@
+use crate::convertion::VecConvertor;
 use crate::traits::VecTrait;
 use crate::vectors::arch_simd::_128bit::u8x16::u8x16;
 use crate::traits::SimdCompare;
 
+use super::i8x16::i8x16;
+
 /// a vector of 16 bool values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
-#[repr(transparent)]
+#[repr(C, align(16))]
 pub struct boolx16(pub(crate) [bool; 16]);
 
 impl VecTrait<bool> for boolx16 {
@@ -28,37 +31,56 @@ impl VecTrait<bool> for boolx16 {
     }
 }
 
+impl boolx16 {
+    #[allow(unused)]
+    fn as_array(&self) -> [bool; 16] {
+        unsafe { std::mem::transmute(self.0) }
+    }
+}
+
 impl SimdCompare for boolx16 {
-    type SimdMask = Self;
-    fn simd_eq(self, rhs: Self) -> Self {
-        let lhs: u8x16 = unsafe { std::mem::transmute(self) };
-        let rhs: u8x16 = unsafe { std::mem::transmute(rhs) };
-        boolx16(unsafe { std::mem::transmute(lhs.simd_eq(rhs)) })
+    type SimdMask = i8x16;
+    fn simd_eq(self, rhs: Self) -> i8x16 {
+        let mut res = [0i8; 16];
+        for i in 0..16 {
+            res[i] = if self.0[i] == rhs.0[i] { -1 } else { 0 };
+        }
+        i8x16(unsafe { std::mem::transmute(res) })
     }
-    fn simd_ne(self, rhs: Self) -> Self {
-        let lhs: u8x16 = unsafe { std::mem::transmute(self) };
-        let rhs: u8x16 = unsafe { std::mem::transmute(rhs) };
-        boolx16(unsafe { std::mem::transmute(lhs.simd_ne(rhs)) })
+    fn simd_ne(self, rhs: Self) -> i8x16 {
+        let mut res = [0i8; 16];
+        for i in 0..16 {
+            res[i] = if self.0[i] != rhs.0[i] { -1 } else { 0 };
+        }
+        i8x16(unsafe { std::mem::transmute(res) })
     }
-    fn simd_lt(self, rhs: Self) -> Self {
-        let lhs: u8x16 = unsafe { std::mem::transmute(self) };
-        let rhs: u8x16 = unsafe { std::mem::transmute(rhs) };
-        boolx16(unsafe { std::mem::transmute(lhs.simd_lt(rhs)) })
+    fn simd_lt(self, rhs: Self) -> i8x16 {
+        let mut res = [0i8; 16];
+        for i in 0..16 {
+            res[i] = if self.0[i] < rhs.0[i] { -1 } else { 0 };
+        }
+        i8x16(unsafe { std::mem::transmute(res) })
     }
-    fn simd_le(self, rhs: Self) -> Self {
-        let lhs: u8x16 = unsafe { std::mem::transmute(self) };
-        let rhs: u8x16 = unsafe { std::mem::transmute(rhs) };
-        boolx16(unsafe { std::mem::transmute(lhs.simd_le(rhs)) })
+    fn simd_le(self, rhs: Self) -> i8x16 {
+        let mut res = [0i8; 16];
+        for i in 0..16 {
+            res[i] = if self.0[i] <= rhs.0[i] { -1 } else { 0 };
+        }
+        i8x16(unsafe { std::mem::transmute(res) })
     }
-    fn simd_gt(self, rhs: Self) -> Self {
-        let lhs: u8x16 = unsafe { std::mem::transmute(self) };
-        let rhs: u8x16 = unsafe { std::mem::transmute(rhs) };
-        boolx16(unsafe { std::mem::transmute(lhs.simd_gt(rhs)) })
+    fn simd_gt(self, rhs: Self) -> i8x16 {
+        let mut res = [0i8; 16];
+        for i in 0..16 {
+            res[i] = if self.0[i] > rhs.0[i] { -1 } else { 0 };
+        }
+        i8x16(unsafe { std::mem::transmute(res) })
     }
-    fn simd_ge(self, rhs: Self) -> Self {
-        let lhs: u8x16 = unsafe { std::mem::transmute(self) };
-        let rhs: u8x16 = unsafe { std::mem::transmute(rhs) };
-        boolx16(unsafe { std::mem::transmute(lhs.simd_ge(rhs)) })
+    fn simd_ge(self, rhs: Self) -> i8x16 {
+        let mut res = [0i8; 16];
+        for i in 0..16 {
+            res[i] = if self.0[i] >= rhs.0[i] { -1 } else { 0 };
+        }
+        i8x16(unsafe { std::mem::transmute(res) })
     }
 }
 
@@ -134,4 +156,7 @@ impl std::ops::BitAnd for boolx16 {
         let rhs: u8x16 = unsafe { std::mem::transmute(rhs) };
         boolx16(unsafe { std::mem::transmute(mask & rhs) })
     }
+}
+
+impl VecConvertor for boolx16 {
 }
