@@ -1,6 +1,6 @@
-use std::ops::{ Deref, DerefMut };
+use std::{ops::{ Deref, DerefMut }, simd::cmp::{SimdPartialEq, SimdPartialOrd}};
 
-use crate::vectors::traits::VecTrait;
+use crate::{impl_std_simd_bit_logic, traits::{SimdCompare, SimdMath}, vectors::traits::VecTrait};
 
 /// a vector of 8 i32 values
 #[allow(non_camel_case_types)]
@@ -38,6 +38,29 @@ impl VecTrait<i32> for i32x8 {
         i32x8(std::simd::i32x8::splat(val))
     }
 }
+
+impl SimdCompare for i32x8 {
+    type SimdMask = i32x8;
+    fn simd_eq(self, rhs: Self) -> Self::SimdMask {
+        i32x8(self.0.simd_eq(rhs.0).to_int())
+    }
+    fn simd_ne(self, rhs: Self) -> Self::SimdMask {
+        i32x8(self.0.simd_ne(rhs.0).to_int())
+    }
+    fn simd_lt(self, rhs: Self) -> Self::SimdMask {
+        i32x8(self.0.simd_lt(rhs.0).to_int())
+    }
+    fn simd_le(self, rhs: Self) -> Self::SimdMask {
+        i32x8(self.0.simd_le(rhs.0).to_int())
+    }
+    fn simd_gt(self, rhs: Self) -> Self::SimdMask {
+        i32x8(self.0.simd_gt(rhs.0).to_int())
+    }
+    fn simd_ge(self, rhs: Self) -> Self::SimdMask {
+        i32x8(self.0.simd_ge(rhs.0).to_int())
+    }
+}
+
 impl std::ops::Add  for i32x8 {
     type Output = i32x8;
     fn add(self, rhs: Self) -> Self::Output {
@@ -66,5 +89,22 @@ impl std::ops::Rem  for i32x8 {
     type Output = i32x8;
     fn rem(self, rhs: Self) -> Self::Output {
         i32x8(self.0 % rhs.0)
+    }
+}
+
+impl_std_simd_bit_logic!(i32x8);
+
+impl SimdMath<i32> for i32x8 {
+    fn max(self, other: Self) -> Self {
+        i32x8(self.0.max(other.0))
+    }
+    fn min(self, other: Self) -> Self {
+        i32x8(self.0.min(other.0))
+    }
+    fn relu(self) -> Self {
+        i32x8(self.0.max(i32x8::splat(0).0))
+    }
+    fn relu6(self) -> Self {
+        i32x8(self.relu().0.min(i32x8::splat(6).0))
     }
 }
