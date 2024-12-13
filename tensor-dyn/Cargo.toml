@@ -33,7 +33,7 @@ num_cpus = "1.16.0"
 raw-cpuid = { version = "11.2.0", default-features = false }
 
 [features]
-default = ["track_caller", "stdsimd"]
+default = ["track_caller", "archsimd"]
 track_caller = [
     "tensor-traits/track_caller",
     "tensor-common/track_caller",

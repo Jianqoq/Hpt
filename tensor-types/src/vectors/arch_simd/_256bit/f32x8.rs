@@ -1,17 +1,18 @@
-use crate::{
-    arch_simd::sleef::{
-        arch::helper::vabs_vf_vf,
-        libm::sleefsimdsp::{
-            xacosf_u1, xacoshf, xasinf_u1, xasinhf, xatan2f_u1, xatanf_u1, xatanhf, xcbrtf_u1,
-            xcosf_u1, xcoshf, xerff_u1, xexp10f, xexp2f, xexpf, xexpm1f, xhypotf_u05, xlog10f,
-            xlog1pf, xlog2f, xlogf_u1, xpowf, xroundf, xsincosf_u1, xsinf_u1, xsinhf, xsqrtf_u05,
-            xtanf_u1, xtanhf, xtruncf,
-        },
-    },
-    traits::SimdMath,
-    vectors::traits::{SimdSelect, VecTrait},
+use crate::arch_simd::sleef::arch::helper_avx2::vabs_vf_vf;
+use crate::arch_simd::sleef::libm::sleefsimdsp::{
+    xacosf_u1, xacoshf, xasinf_u1, xasinhf, xatan2f_u1, xatanf_u1, xatanhf, xcbrtf_u1, xcosf_u1,
+    xcoshf, xerff_u1, xexp10f, xexp2f, xexpf, xexpm1f, xhypotf_u05, xlog10f, xlog1pf, xlog2f,
+    xlogf_u1, xmaxf, xminf, xpowf, xroundf, xsincosf_u1, xsinf_u1, xsinhf, xsqrtf_u05, xtanf_u1,
+    xtanhf, xtruncf,
 };
+use crate::convertion::VecConvertor;
+use crate::traits::{SimdCompare, SimdMath, SimdSelect, VecTrait};
+use crate::vectors::arch_simd::_256bit::u32x8::u32x8;
+
+#[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+
+use super::i32x8::i32x8;
 
 /// a vector of 8 f32 values
 #[allow(non_camel_case_types)]
@@ -19,18 +20,18 @@ use std::arch::x86_64::*;
 #[repr(C, align(32))]
 pub struct f32x8(pub(crate) __m256);
 
-impl Default for f32x8 {
-    fn default() -> Self {
-        unsafe { f32x8(_mm256_setzero_ps()) }
-    }
-}
-
 impl PartialEq for f32x8 {
     fn eq(&self, other: &Self) -> bool {
         unsafe {
             let cmp = _mm256_cmp_ps(self.0, other.0, _CMP_EQ_OQ);
-            _mm256_movemask_ps(cmp) == -1
+            _mm256_movemask_ps(cmp) == 0xFF
         }
+    }
+}
+
+impl Default for f32x8 {
+    fn default() -> Self {
+        unsafe { f32x8(_mm256_setzero_ps()) }
     }
 }
 
@@ -38,46 +39,120 @@ impl VecTrait<f32> for f32x8 {
     const SIZE: usize = 8;
     type Base = f32;
     #[inline(always)]
-    fn mul_add(self, a: Self, b: Self) -> Self {
-        f32x8(unsafe { _mm256_fmadd_ps(self.0, a.0, b.0) })
-    }
-    #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[f32]) {
-        self.0 = unsafe { _mm256_loadu_ps(slice.as_ptr()) };
+        unsafe {
+            _mm256_storeu_ps(
+                &mut self.0 as *mut _ as *mut f32,
+                _mm256_loadu_ps(slice.as_ptr()),
+            );
+        }
     }
     #[inline(always)]
-    fn as_ptr(&self) -> *const f32 {
-        self as *const _ as *const f32
-    }
-    #[inline(always)]
-    fn as_mut_ptr(&mut self) -> *mut f32 {
-        self as *mut _ as *mut f32
-    }
-    #[inline(always)]
-    fn as_mut_ptr_uncheck(&self) -> *mut f32 {
-        unsafe { std::mem::transmute(self.as_ptr()) }
+    fn mul_add(self, a: Self, b: Self) -> Self {
+        #[cfg(all(target_arch = "x86_64", not(target_feature = "fma")))]
+        unsafe {
+            f32x8(_mm_add_ps(_mm_mul_ps(self.0, a.0), b.0))
+        }
+        #[cfg(all(target_arch = "x86_64", target_feature = "fma"))]
+        unsafe {
+            f32x8(_mm256_fmadd_ps(self.0, a.0, b.0))
+        }
     }
     #[inline(always)]
     fn sum(&self) -> f32 {
         unsafe {
-            let hadd1 = _mm256_hadd_ps(self.0, self.0);
-            let hadd2 = _mm256_hadd_ps(hadd1, hadd1);
-            let low = _mm256_castps256_ps128(hadd2);
-            let high = _mm256_extractf128_ps(hadd2, 1);
-            let sum128 = _mm_add_ps(low, high);
-            _mm_cvtss_f32(sum128)
+            let sum = _mm256_hadd_ps(self.0, self.0);
+            let sum = _mm256_hadd_ps(sum, sum);
+            _mm_cvtss_f32(_mm256_castps256_ps128(sum))
         }
     }
     fn splat(val: f32) -> f32x8 {
-        f32x8(unsafe { _mm256_set1_ps(val) })
+        unsafe { f32x8(_mm256_set1_ps(val)) }
     }
 }
 
-impl SimdSelect<f32x8> for crate::vectors::arch_simd::_256bit::u32x8::u32x8 {
+impl f32x8 {
+    #[allow(unused)]
+    fn as_array(&self) -> [f32; 8] {
+        unsafe { std::mem::transmute(self.0) }
+    }
+    /// check if the vector is nan
+    pub fn is_nan(&self) -> f32x8 {
+        unsafe { f32x8(_mm256_cmp_ps(self.0, self.0, _CMP_UNORD_Q)) }
+    }
+    /// check if the vector is infinite
+    pub fn is_infinite(&self) -> f32x8 {
+        unsafe {
+            let abs = _mm256_andnot_ps(_mm256_set1_ps(-0.0), self.0);
+            f32x8(_mm256_cmp_ps(
+                abs,
+                _mm256_set1_ps(f32::INFINITY),
+                _CMP_EQ_OQ,
+            ))
+        }
+    }
+    /// reciprocal of the vector
+    pub fn recip(&self) -> f32x8 {
+        unsafe { f32x8(_mm256_rcp_ps(self.0)) }
+    }
+}
+
+impl SimdCompare for f32x8 {
+    type SimdMask = i32x8;
+    fn simd_eq(self, rhs: Self) -> Self::SimdMask {
+        unsafe {
+            i32x8(_mm256_castps_si256(_mm256_cmp_ps(
+                self.0, rhs.0, _CMP_EQ_OQ,
+            )))
+        }
+    }
+    fn simd_ne(self, rhs: Self) -> Self::SimdMask {
+        unsafe {
+            i32x8(_mm256_castps_si256(_mm256_cmp_ps(
+                self.0,
+                rhs.0,
+                _CMP_NEQ_OQ,
+            )))
+        }
+    }
+    fn simd_lt(self, rhs: Self) -> Self::SimdMask {
+        unsafe {
+            i32x8(_mm256_castps_si256(_mm256_cmp_ps(
+                self.0, rhs.0, _CMP_LT_OQ,
+            )))
+        }
+    }
+    fn simd_le(self, rhs: Self) -> Self::SimdMask {
+        unsafe {
+            i32x8(_mm256_castps_si256(_mm256_cmp_ps(
+                self.0, rhs.0, _CMP_LE_OQ,
+            )))
+        }
+    }
+    fn simd_gt(self, rhs: Self) -> Self::SimdMask {
+        unsafe {
+            i32x8(_mm256_castps_si256(_mm256_cmp_ps(
+                self.0, rhs.0, _CMP_GT_OQ,
+            )))
+        }
+    }
+    fn simd_ge(self, rhs: Self) -> Self::SimdMask {
+        unsafe {
+            i32x8(_mm256_castps_si256(_mm256_cmp_ps(
+                self.0, rhs.0, _CMP_GE_OQ,
+            )))
+        }
+    }
+}
+
+impl SimdSelect<f32x8> for i32x8 {
     fn select(&self, true_val: f32x8, false_val: f32x8) -> f32x8 {
         unsafe {
-            let mask = _mm256_castsi256_ps(self.0);
-            f32x8(_mm256_blendv_ps(false_val.0, true_val.0, mask))
+            f32x8(_mm256_blendv_ps(
+                false_val.0,
+                true_val.0,
+                std::mem::transmute(self.0),
+            ))
         }
     }
 }
@@ -86,7 +161,7 @@ impl std::ops::Add for f32x8 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        f32x8(unsafe { _mm256_add_ps(self.0, rhs.0) })
+        unsafe { f32x8(_mm256_add_ps(self.0, rhs.0)) }
     }
 }
 
@@ -94,7 +169,7 @@ impl std::ops::Sub for f32x8 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        f32x8(unsafe { _mm256_sub_ps(self.0, rhs.0) })
+        unsafe { f32x8(_mm256_sub_ps(self.0, rhs.0)) }
     }
 }
 
@@ -102,7 +177,7 @@ impl std::ops::Mul for f32x8 {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        f32x8(unsafe { _mm256_mul_ps(self.0, rhs.0) })
+        unsafe { f32x8(_mm256_mul_ps(self.0, rhs.0)) }
     }
 }
 
@@ -110,7 +185,7 @@ impl std::ops::Div for f32x8 {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
-        f32x8(unsafe { _mm256_div_ps(self.0, rhs.0) })
+        unsafe { f32x8(_mm256_div_ps(self.0, rhs.0)) }
     }
 }
 
@@ -119,17 +194,27 @@ impl std::ops::Rem for f32x8 {
 
     fn rem(self, rhs: Self) -> Self::Output {
         unsafe {
-            let div = _mm256_div_ps(self.0, rhs.0);
-            let floor = _mm256_floor_ps(div);
-            let mul = _mm256_mul_ps(floor, rhs.0);
-            f32x8(_mm256_sub_ps(self.0, mul))
+            let a: [f32; 8] = std::mem::transmute(self.0);
+            let b: [f32; 8] = std::mem::transmute(rhs.0);
+            let c: [f32; 8] = [
+                a[0] % b[0],
+                a[1] % b[1],
+                a[2] % b[2],
+                a[3] % b[3],
+                a[4] % b[4],
+                a[5] % b[5],
+                a[6] % b[6],
+                a[7] % b[7],
+            ];
+            f32x8(std::mem::transmute(c))
         }
     }
 }
 impl std::ops::Neg for f32x8 {
     type Output = Self;
+
     fn neg(self) -> Self::Output {
-        f32x8(unsafe { _mm256_sub_ps(_mm256_setzero_ps(), self.0) })
+        unsafe { f32x8(_mm256_xor_ps(self.0, _mm256_set1_ps(-0.0))) }
     }
 }
 
@@ -288,172 +373,32 @@ impl SimdMath<f32> for f32x8 {
     fn atan2(self, other: Self) -> Self {
         f32x8(unsafe { xatan2f_u1(self.0, other.0) })
     }
+
+    fn min(self, other: Self) -> Self {
+        f32x8(unsafe { xminf(self.0, other.0) })
+    }
+
+    fn max(self, other: Self) -> Self {
+        f32x8(unsafe { xmaxf(self.0, other.0) })
+    }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::arch_simd::sleef::common::misc::SQRT_FLT_MAX;
-
-//     use super::*;
-//     use rug::Assign;
-//     use rug::Float;
-//     const TEST_REPEAT: usize = 100_000;
-//     const PRECF32: u32 = 80;
-//     pub fn f32_count_ulp(d: f32, c: &Float) -> f32 {
-//         let c2 = c.to_f32();
-
-//         if (c2 == 0. || c2.is_subnormal()) && (d == 0. || d.is_subnormal()) {
-//             return 0.;
-//         }
-
-//         if (c2 == 0.) && (d != 0.) {
-//             return 10000.;
-//         }
-
-//         if c2.is_infinite() && d.is_infinite() {
-//             return 0.;
-//         }
-
-//         let prec = c.prec();
-
-//         let mut fry = Float::with_val(prec, d);
-
-//         let mut frw = Float::new(prec);
-
-//         let (_, e) = c.to_f32_exp();
-
-//         frw.assign(Float::u_exp(1, e - 24_i32));
-
-//         fry -= c;
-//         fry /= &frw;
-//         let u = f32::from_bits(0x_7fff_ffff & fry.to_f32().to_bits());
-
-//         u
-//     }
-//     fn f32_gen_input(
-//         rng: &mut rand::rngs::ThreadRng,
-//         range: core::ops::RangeInclusive<f32>,
-//     ) -> f32 {
-//         use rand::Rng;
-//         let mut start = *range.start();
-//         if start == f32::MIN {
-//             start = -1e37;
-//         }
-//         let mut end = *range.end();
-//         if end == f32::MAX {
-//             end = 1e37;
-//         }
-//         rng.gen_range(start..=end)
-//     }
-//     fn gen_input<const N: usize>(
-//         rng: &mut rand::rngs::ThreadRng,
-//         range: core::ops::RangeInclusive<f32>,
-//     ) -> std::simd::Simd<f32, N>
-//     where
-//         std::simd::LaneCount<N>: std::simd::SupportedLaneCount,
-//     {
-//         let mut arr = [0.; N];
-//         for i in 0..N {
-//             arr[i] = f32_gen_input(rng, range.clone());
-//         }
-//         arr.into()
-//     }
-//     pub fn test_f_f<const N: usize>(
-//         f_tested: fn(std::simd::Simd<f32, N>) -> std::simd::Simd<f32, N>,
-//         f_sample: fn(rug::Float) -> rug::Float,
-//         range: core::ops::RangeInclusive<f32>,
-//         ulp_ex: f32,
-//         name: &str,
-//     ) where
-//         std::simd::LaneCount<N>: std::simd::SupportedLaneCount,
-//     {
-//         test_c_f_f(
-//             f_tested,
-//             f_sample,
-//             range,
-//             |ulp, _, _| (ulp <= ulp_ex, format!("ULP: {ulp} > {ulp_ex}")),
-//             name,
-//         )
-//     }
-
-//     pub fn test_c_f_f<const N: usize>(
-//         f_tested: fn(std::simd::Simd<f32, N>) -> std::simd::Simd<f32, N>,
-//         f_sample: fn(rug::Float) -> rug::Float,
-//         range: core::ops::RangeInclusive<f32>,
-//         cf: impl Fn(f32, f32, &rug::Float) -> (bool, String),
-//         name: &str,
-//     ) where
-//         std::simd::LaneCount<N>: std::simd::SupportedLaneCount,
-//     {
-//         let mut rng = rand::thread_rng();
-//         for n in 0..TEST_REPEAT {
-//             let in_fx = gen_input(&mut rng, range.clone());
-//             let out_fx = f_tested(in_fx);
-//             for i in 0..N {
-//                 let input = in_fx[i];
-//                 let output = out_fx[i];
-//                 let expected = f_sample(rug::Float::with_val(PRECF32, input));
-//                 if expected.is_nan() && output.is_nan() {
-//                     continue;
-//                 }
-//                 let ulp = f32_count_ulp(output, &expected);
-//                 let (b, fault_string) = cf(ulp, output, &expected);
-//                 assert!(
-//                     b,
-//                     "{}: Iteration: {n}, Position: {i}, Input: {input:e}, Output: {output}, Expected: {expected}, {}",
-//                     name,
-//                     fault_string
-//                 );
-//             }
-//         }
-//     }
-//     #[test]
-//     fn tests() {
-//         macro_rules! define_func {
-//             ($func:ident, $f:ident, $x_func:expr, $range:expr) => {
-//                 fn $func(d: std::simd::Simd<f32, 8>) -> std::simd::Simd<f32, 8>
-//                 where
-//                     std::simd::LaneCount<8>: std::simd::SupportedLaneCount,
-//                 {
-//                     unsafe { $x_func(std::mem::transmute(d)).into() }
-//                 }
-//                 test_f_f::<8>($func, rug::Float::$f, $range, 1., stringify!($func));
-//             };
-//         }
-//         define_func!(sinf, sin, xsinf_u1, f32::MIN..=f32::MAX);
-//         define_func!(cosf, cos, xcosf_u1, f32::MIN..=f32::MAX);
-//         define_func!(tanf, tan, xtanf_u1, f32::MIN..=f32::MAX);
-//         define_func!(asin, asin, xasinf_u1, f32::MIN..=f32::MAX);
-//         define_func!(acos, acos, xacosf_u1, f32::MIN..=f32::MAX);
-//         define_func!(atan, atan, xatanf_u1, f32::MIN..=f32::MAX);
-//         define_func!(sinh, sinh, xsinhf, -88.5..=88.5);
-//         define_func!(cosh, cosh, xcoshf, -88.5..=88.5);
-//         define_func!(tanh, tanh, xtanhf, -8.7..=8.7);
-//         define_func!(
-//             asinh,
-//             asinh,
-//             xasinhf,
-//             -SQRT_FLT_MAX as f32..=SQRT_FLT_MAX as f32
-//         );
-//         define_func!(
-//             acosh,
-//             acosh,
-//             xacoshf,
-//             -SQRT_FLT_MAX as f32..=SQRT_FLT_MAX as f32
-//         );
-//         define_func!(atanh, atanh, xatanhf, f32::MIN..=f32::MAX);
-//         define_func!(round, round, xroundf, f32::MIN..=f32::MAX);
-//         define_func!(sqrt, sqrt, xsqrtf_u05, f32::MIN..=f32::MAX);
-//         define_func!(exp, exp, xexpf, -104.0..=100.0);
-//         define_func!(exp2, exp2, xexp2f, -150.0..=128.0);
-//         define_func!(exp10, exp10, xexp10f, -50.0..=38.54);
-//         define_func!(expm1, exp_m1, xexpm1f, -16.64..=88.73);
-//         define_func!(log10, log10, xlog10f, 0.0..=f32::MAX);
-//         define_func!(log2, log2, xlog2f, 0.0..=f32::MAX);
-//         define_func!(log1p, ln_1p, xlog1pf, -1.0..=1e+38);
-//         define_func!(trunc, trunc, xtruncf, f32::MIN..=f32::MAX);
-//         define_func!(erf, erf, xerff_u1, f32::MIN..=f32::MAX);
-//         define_func!(cbrt, cbrt, xcbrtf_u1, f32::MIN..=f32::MAX);
-//         define_func!(ln, ln, xlogf_u1, 0.0..=f32::MAX);
-//     }
-// }
+impl VecConvertor for f32x8 {
+    fn to_u32(self) -> super::u32x8::u32x8 {
+        unsafe { u32x8(_mm256_cvtps_epi32(self.0)) }
+    }
+    fn to_i32(self) -> super::i32x8::i32x8 {
+        unsafe { i32x8(_mm256_cvtps_epi32(self.0)) }
+    }
+    #[cfg(target_pointer_width = "32")]
+    fn to_isize(self) -> super::isizex2::isizex2 {
+        self.to_i32().to_isize()
+    }
+    #[cfg(target_pointer_width = "32")]
+    fn to_usize(self) -> super::usizex2::usizex2 {
+        self.to_u32().to_usize()
+    }
+    fn to_f32(self) -> f32x8 {
+        self
+    }
+}

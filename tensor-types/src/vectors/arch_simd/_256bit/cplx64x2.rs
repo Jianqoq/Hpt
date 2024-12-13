@@ -1,6 +1,6 @@
 use num_complex::Complex64;
 
-use crate::vectors::traits::VecTrait;
+use crate::{convertion::VecConvertor, vectors::traits::VecTrait};
 
 /// a vector of 2 cplx64 values
 #[allow(non_camel_case_types)]
@@ -107,5 +107,11 @@ impl std::ops::Rem for cplx64x2 {
             ret.0[i] = self.0[i] % rhs.0[i];
         }
         ret
+    }
+}
+
+impl VecConvertor for cplx64x2 {
+    fn to_complex64(self) -> cplx64x2 {
+        self
     }
 }

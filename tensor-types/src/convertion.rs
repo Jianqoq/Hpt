@@ -1,27 +1,25 @@
-use half::f16;
 use half::bf16;
-use num_complex::{ Complex64, Complex32 };
+use half::f16;
+use num_complex::{Complex32, Complex64};
 use tensor_macros::impl_from_scalar;
 use tensor_macros::impl_scalar_convert;
 #[cfg(feature = "stdsimd")]
 use tensor_macros::impl_simd_convert;
 
-#[cfg(feature = "stdsimd")]
-use crate::vectors::std_simd as simd;
+use crate::dtype::TypeCommon;
 #[cfg(feature = "archsimd")]
 use crate::vectors::arch_simd as simd;
+#[cfg(feature = "stdsimd")]
+use crate::vectors::std_simd as simd;
+#[cfg(all(
+    any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
+    not(target_feature = "avx2")
+))]
+use simd::_128bit::*;
 #[cfg(target_feature = "avx2")]
 use simd::_256bit::*;
-#[cfg(
-    all(
-        any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
-        not(target_feature = "avx2")
-    )
-)]
-use simd::_128bit::*;
 #[cfg(target_feature = "avx512f")]
 use simd::_512bit::*;
-use crate::dtype::TypeCommon;
 
 #[cfg(feature = "stdsimd")]
 use std::simd::num::SimdFloat;
@@ -74,49 +72,81 @@ pub trait Convertor {
 ///
 /// This trait is used to convert a simd vector to another type
 #[cfg(target_feature = "avx2")]
-pub trait VecConvertor {
+pub trait VecConvertor: Sized {
     /// convert the value to boolx32
-    fn to_bool(self) -> boolx32::boolx32;
+    fn to_bool(self) -> boolx32::boolx32 {
+        unreachable!()
+    }
     /// convert the value to u8x32
-    fn to_u8(self) -> u8x32::u8x32;
+    fn to_u8(self) -> u8x32::u8x32 {
+        unreachable!()
+    }
     /// convert the value to u16x16
-    fn to_u16(self) -> u16x16::u16x16;
+    fn to_u16(self) -> u16x16::u16x16 {
+        unreachable!()
+    }
     /// convert the value to u32x8
-    fn to_u32(self) -> u32x8::u32x8;
+    fn to_u32(self) -> u32x8::u32x8 {
+        unreachable!()
+    }
     /// convert the value to u64x4
-    fn to_u64(self) -> u64x4::u64x4;
+    fn to_u64(self) -> u64x4::u64x4 {
+        unreachable!()
+    }
     /// convert the value to usizex4
-    fn to_usize(self) -> usizex4::usizex4;
+    fn to_usize(self) -> usizex4::usizex4 {
+        unreachable!()
+    }
     /// convert the value to i8x32
-    fn to_i8(self) -> i8x32::i8x32;
+    fn to_i8(self) -> i8x32::i8x32 {
+        unreachable!()
+    }
     /// convert the value to i16x16
-    fn to_i16(self) -> i16x16::i16x16;
+    fn to_i16(self) -> i16x16::i16x16 {
+        unreachable!()
+    }
     /// convert the value to i32x8
-    fn to_i32(self) -> i32x8::i32x8;
+    fn to_i32(self) -> i32x8::i32x8 {
+        unreachable!()
+    }
     /// convert the value to i64x4
-    fn to_i64(self) -> i64x4::i64x4;
+    fn to_i64(self) -> i64x4::i64x4 {
+        unreachable!()
+    }
     /// convert the value to isizex4
-    fn to_isize(self) -> isizex4::isizex4;
+    fn to_isize(self) -> isizex4::isizex4 {
+        unreachable!()
+    }
     /// convert the value to f32x8
-    fn to_f32(self) -> f32x8::f32x8;
+    fn to_f32(self) -> f32x8::f32x8 {
+        unreachable!()
+    }
     /// convert the value to f64x4
-    fn to_f64(self) -> f64x4::f64x4;
+    fn to_f64(self) -> f64x4::f64x4 {
+        unreachable!()
+    }
     /// convert the value to f16x16
-    fn to_f16(self) -> f16x16::f16x16;
+    fn to_f16(self) -> f16x16::f16x16 {
+        unreachable!()
+    }
     /// convert the value to bf16x16
-    fn to_bf16(self) -> bf16x16::bf16x16;
+    fn to_bf16(self) -> bf16x16::bf16x16 {
+        unreachable!()
+    }
     /// convert the value to cplx32x4
-    fn to_complex32(self) -> cplx32x4::cplx32x4;
+    fn to_complex32(self) -> cplx32x4::cplx32x4 {
+        unreachable!()
+    }
     /// convert the value to cplx64x2
-    fn to_complex64(self) -> cplx64x2::cplx64x2;
+    fn to_complex64(self) -> cplx64x2::cplx64x2 {
+        unreachable!()
+    }
 }
 
-#[cfg(
-    all(
-        any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
-        not(target_feature = "avx2")
-    )
-)]
+#[cfg(all(
+    any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
+    not(target_feature = "avx2")
+))]
 /// VecConvertor trait
 ///
 /// This trait is used to convert a simd vector to another type

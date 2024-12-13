@@ -1,6 +1,6 @@
 use num_complex::Complex32;
 
-use crate::vectors::traits::VecTrait;
+use crate::{convertion::VecConvertor, vectors::traits::VecTrait};
 
 /// a vector of 4 cplx32 values
 #[allow(non_camel_case_types)]
@@ -107,5 +107,11 @@ impl std::ops::Rem for cplx32x4 {
             ret.0[i] = self.0[i] % rhs.0[i];
         }
         ret
+    }
+}
+
+impl VecConvertor for cplx32x4 {
+    fn to_complex32(self) -> cplx32x4 {
+        self
     }
 }
