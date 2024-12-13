@@ -238,11 +238,7 @@ macro_rules! impl_type_common {
 mod type_impl {
     use super::{ Dtype, TypeCommon };
     use crate::vectors::traits::VecTrait;
-    #[cfg(feature = "stdsimd")]
-    use crate::vectors::std_simd as simd;
-    #[cfg(feature = "archsimd")]
-    use crate::vectors::arch_simd as simd;
-    use simd::_256bit::*;
+    use crate::simd::_256bit::*;
     use half::*;
     use num_complex::{ Complex32, Complex64 };
     impl_type_common!(

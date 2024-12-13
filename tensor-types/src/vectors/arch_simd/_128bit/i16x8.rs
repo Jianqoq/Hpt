@@ -68,7 +68,7 @@ impl SimdCompare for i16x8 {
         unsafe { i16x8(_mm_cmpeq_epi16(self.0, other.0)) }
     }
     fn simd_ne(self, other: Self) -> i16x8 {
-        unsafe { 
+        unsafe {
             let eq = _mm_cmpeq_epi16(self.0, other.0);
             i16x8(_mm_xor_si128(eq, _mm_set1_epi16(-1)))
         }
@@ -77,7 +77,7 @@ impl SimdCompare for i16x8 {
         unsafe { i16x8(_mm_cmplt_epi16(self.0, other.0)) }
     }
     fn simd_le(self, other: Self) -> i16x8 {
-        unsafe { 
+        unsafe {
             let lt = _mm_cmplt_epi16(self.0, other.0);
             let eq = _mm_cmpeq_epi16(self.0, other.0);
             i16x8(_mm_or_si128(lt, eq))
@@ -87,7 +87,7 @@ impl SimdCompare for i16x8 {
         unsafe { i16x8(_mm_cmpgt_epi16(self.0, other.0)) }
     }
     fn simd_ge(self, other: Self) -> i16x8 {
-        unsafe { 
+        unsafe {
             let gt = _mm_cmpgt_epi16(self.0, other.0);
             let eq = _mm_cmpeq_epi16(self.0, other.0);
             i16x8(_mm_or_si128(gt, eq))
@@ -156,7 +156,7 @@ impl std::ops::Neg for i16x8 {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        unsafe { i16x8(_mm_sub_epi16(_mm_setzero_si128(), self.0)) }
+        unsafe { i16x8(_mm_sign_epi16(self.0, _mm_set1_epi16(-1))) }
     }
 }
 impl std::ops::BitAnd for i16x8 {

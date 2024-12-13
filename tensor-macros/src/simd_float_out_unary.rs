@@ -410,7 +410,7 @@ pub fn impl_float_out_unary() -> TokenStream {
                     #[inline(always)]
                     fn _sigmoid(self) -> Self::Output {
                         #res_simd_ty::#res_simd_ty::splat(#res_type::ONE) / (
-                            #res_simd_ty::#res_simd_ty::splat(#res_type::ONE) - self.#to_res_type()._exp())
+                            #res_simd_ty::#res_simd_ty::splat(#res_type::ONE) + (-self.#to_res_type())._exp())
                     }
                     #[inline(always)]
                     fn _gelu(self) -> Self::Output {

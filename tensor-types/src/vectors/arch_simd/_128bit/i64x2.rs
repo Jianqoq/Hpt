@@ -181,7 +181,7 @@ impl std::ops::Rem for i64x2 {
 impl std::ops::Neg for i64x2 {
     type Output = i64x2;
     fn neg(self) -> Self::Output {
-        unsafe { i64x2(_mm_sub_epi64(_mm_setzero_si128(), self.0)) }
+        unsafe { i64x2(_mm_sign_epi64(self.0, _mm_set1_epi64x(-1))) }
     }
 }
 

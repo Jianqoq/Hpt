@@ -146,7 +146,9 @@ impl std::ops::Rem for i8x16 {
 impl std::ops::Neg for i8x16 {
     type Output = Self;
     fn neg(self) -> Self::Output {
-        unsafe { i8x16(_mm_sub_epi8(_mm_setzero_si128(), self.0)) }
+        unsafe { 
+            i8x16(_mm_sign_epi8(self.0, _mm_set1_epi8(-1)))
+        }
     }
 }
 impl std::ops::BitAnd for i8x16 {

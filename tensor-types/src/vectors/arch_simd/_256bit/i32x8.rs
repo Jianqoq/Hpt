@@ -143,7 +143,7 @@ impl std::ops::Rem for i32x8 {
 impl std::ops::Neg for i32x8 {
     type Output = i32x8;
     fn neg(self) -> Self::Output {
-        unsafe { i32x8(_mm256_sub_epi32(_mm256_setzero_si256(), self.0)) }
+        unsafe { i32x8(_mm256_sign_epi32(self.0, _mm256_set1_epi32(-1))) }
     }
 }
 impl std::ops::BitAnd for i32x8 {

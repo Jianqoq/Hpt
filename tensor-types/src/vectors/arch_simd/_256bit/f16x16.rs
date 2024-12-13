@@ -125,10 +125,10 @@ impl f16x16 {
             }
             #[cfg(not(any(
                 target_feature = "f16c",
-                all(target_feature = "neon", target_arch = "aarch64")
+                all(target_feature = "neon", target_arch = "aarch64"),
             )))]
             {
-                let [high, low]: [[u16; 4]; 2] = std::mem::transmute(self.0);
+                let [high, low]: [[u16; 8]; 2] = std::mem::transmute(self.0);
                 std::mem::transmute([u16_to_f32(high), u16_to_f32(low)])
             }
         }
@@ -278,7 +278,8 @@ impl VecConvertor for f16x16 {
         }
         #[cfg(not(any(
             target_feature = "f16c",
-            all(target_feature = "neon", target_arch = "aarch64")
+            all(target_feature = "neon", target_arch = "aarch64"),
+            target_feature = "avx2"
         )))]
         {
             let arr: [half::f16; 8] = unsafe { std::mem::transmute(self) };
@@ -306,7 +307,8 @@ impl VecConvertor for f16x16 {
         }
         #[cfg(not(any(
             target_feature = "f16c",
-            all(target_feature = "neon", target_arch = "aarch64")
+            all(target_feature = "neon", target_arch = "aarch64"),
+            target_feature = "avx2"
         )))]
         {
             let arr: [half::f16; 8] = unsafe { std::mem::transmute(self) };
