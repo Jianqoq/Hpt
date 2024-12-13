@@ -21,6 +21,7 @@ use crate::simd::_128bit::*;
 use crate::simd::_256bit::*;
 #[cfg(target_feature = "avx512f")]
 use crate::simd::_512bit::*;
+#[cfg(feature = "stdsimd")]
 use sleef::Sleef;
 use std::ops::Neg;
 use tensor_macros::float_out_binary_simd_with_lhs_scalar;
