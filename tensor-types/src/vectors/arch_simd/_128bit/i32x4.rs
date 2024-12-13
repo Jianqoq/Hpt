@@ -2,6 +2,8 @@ use crate::{convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelec
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+use super::u32x4::u32x4;
+
 /// a vector of 4 i32 values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
@@ -212,4 +214,23 @@ impl SimdMath<i32> for i32x4 {
 }
 
 impl VecConvertor for i32x4 {
+    fn to_i32(self) -> i32x4 {
+        self
+    }
+    fn to_u32(self) -> u32x4 {
+        unsafe { std::mem::transmute(self) }
+    }
+    fn to_f32(self) -> super::f32x4::f32x4 {
+        unsafe {
+            super::f32x4::f32x4(_mm_cvtepi32_ps(self.0))
+        }
+    }
+    #[cfg(target_pointer_width = "32")]
+    fn to_isize(self) -> super::isizex2::isizex2 {
+        unsafe { std::mem::transmute(self) }
+    }
+    #[cfg(target_pointer_width = "32")]
+    fn to_usize(self) -> super::usizex2::usizex2 {
+        unsafe { std::mem::transmute(self) }
+    }
 }

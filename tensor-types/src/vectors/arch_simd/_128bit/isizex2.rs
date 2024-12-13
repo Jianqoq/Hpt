@@ -6,6 +6,8 @@ use crate::{
     traits::{SimdCompare, SimdMath, VecTrait},
 };
 
+use super::usizex2::usizex2;
+
 /// a vector of 2 isize values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
@@ -509,4 +511,31 @@ impl SimdMath<isize> for isizex2 {
     }
 }
 
-impl VecConvertor for isizex2 {}
+impl VecConvertor for isizex2 {
+    fn to_isize(self) -> isizex2 {
+        self
+    }
+    fn to_usize(self) -> usizex2 {
+        unsafe { std::mem::transmute(self) }
+    }
+    #[cfg(target_pointer_width = "64")]
+    fn to_i64(self) -> i64x2 {
+        unsafe { std::mem::transmute(self) }
+    }
+    #[cfg(target_pointer_width = "32")]
+    fn to_i32(self) -> i32x4 {
+        unsafe { std::mem::transmute(self) }
+    }
+    #[cfg(target_pointer_width = "32")]
+    fn to_u32(self) -> u32x4 {
+        unsafe { std::mem::transmute(self) }
+    }
+    #[cfg(target_pointer_width = "32")]
+    fn to_f32(self) -> super::f32x4::f32x4 {
+        self.to_i32().to_f32()
+    }
+    #[cfg(target_pointer_width = "64")]
+    fn to_f64(self) -> super::f64x2::f64x2 {
+        self.to_i64().to_f64()
+    }
+}

@@ -105,4 +105,7 @@ impl std::ops::Rem for cplx64x1 {
 }
 
 impl VecConvertor for cplx64x1 {
+    fn to_complex64(self) -> cplx64x1 {
+        self
+    }
 }

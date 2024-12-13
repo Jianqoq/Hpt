@@ -212,4 +212,28 @@ impl std::ops::Neg for bf16x8 {
 }
 
 impl VecConvertor for bf16x8 {
+    fn to_bf16(self) -> bf16x8 {
+        self
+    }
+    fn to_f16(self) -> super::f16x8::f16x8 {
+        unsafe { std::mem::transmute(self) }
+    }
+    fn to_i16(self) -> super::i16x8::i16x8 {
+        unsafe {
+            let [x0, x1]: [f32x4; 2] = std::mem::transmute(self.to_2_f32x4());
+            let i0 = _mm_cvtps_epi32(x0.0);
+            let i1 = _mm_cvtps_epi32(x1.0);
+            let packed = _mm_packs_epi32(i0, i1);
+            super::i16x8::i16x8(packed)
+        }
+    }
+    fn to_u16(self) -> super::u16x8::u16x8 {
+        unsafe {
+            let [x0, x1]: [f32x4; 2] = std::mem::transmute(self.to_2_f32x4());
+            let i0 = _mm_cvtps_epi32(x0.0);
+            let i1 = _mm_cvtps_epi32(x1.0);
+            let packed = _mm_packus_epi32(i0, i1);
+            super::u16x8::u16x8(packed)
+        }
+    }
 }

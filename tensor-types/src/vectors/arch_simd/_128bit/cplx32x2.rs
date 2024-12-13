@@ -105,4 +105,7 @@ impl std::ops::Rem for cplx32x2 {
 }
 
 impl VecConvertor for cplx32x2 {
+    fn to_complex32(self) -> cplx32x2 {
+        self
+    }
 }

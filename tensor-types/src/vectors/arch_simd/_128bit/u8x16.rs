@@ -218,4 +218,13 @@ impl SimdMath<u8> for u8x16 {
 }
 
 impl VecConvertor for u8x16 {
+    fn to_u8(self) -> u8x16 {
+        self
+    }
+    fn to_i8(self) -> i8x16 {
+        unsafe { std::mem::transmute(self) }
+    }
+    fn to_bool(self) -> super::boolx16::boolx16 {
+        unsafe { std::mem::transmute(self) }
+    }
 }

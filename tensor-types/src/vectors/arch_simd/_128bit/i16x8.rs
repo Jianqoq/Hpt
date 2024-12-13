@@ -6,6 +6,8 @@ use crate::{
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+use super::u16x8::u16x8;
+
 /// a vector of 8 i16 values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
@@ -225,4 +227,19 @@ impl SimdMath<i16> for i16x8 {
     }
 }
 
-impl VecConvertor for i16x8 {}
+impl VecConvertor for i16x8 {
+    fn to_i16(self) -> i16x8 {
+        self
+    }
+    fn to_u16(self) -> u16x8 {
+        unsafe { std::mem::transmute(self) }
+    }
+    fn to_f16(self) -> super::f16x8::f16x8 {
+        let mut result = [half::f16::ZERO; 8];
+        let arr: [i16; 8] = unsafe { std::mem::transmute(self.0) };
+        for i in 0..8 {
+            result[i] = half::f16::from_f32(arr[i] as f32);
+        }
+        super::f16x8::f16x8(result)
+    }
+}

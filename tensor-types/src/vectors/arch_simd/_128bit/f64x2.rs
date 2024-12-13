@@ -81,9 +81,7 @@ impl f64x2 {
     }
     /// reciprocal of the vector
     pub fn recip(&self) -> f64x2 {
-        unsafe {
-            f64x2(_mm_div_pd(_mm_set1_pd(1.0), self.0))
-        }
+        unsafe { f64x2(_mm_div_pd(_mm_set1_pd(1.0), self.0)) }
     }
 }
 
@@ -145,7 +143,6 @@ impl SimdSelect<f64x2> for i64x2 {
         }
     }
 }
-
 
 impl std::ops::Add for f64x2 {
     type Output = Self;
@@ -354,4 +351,36 @@ impl SimdMath<f64> for f64x2 {
     }
 }
 
-impl VecConvertor for f64x2 {}
+impl VecConvertor for f64x2 {
+    fn to_f64(self) -> f64x2 {
+        self
+    }
+    fn to_i64(self) -> super::i64x2::i64x2 {
+        unsafe {
+            let arr: [f64; 2] = std::mem::transmute(self.0);
+            let mut result = [0i64; 2];
+            for i in 0..2 {
+                result[i] = arr[i] as i64;
+            }
+            super::i64x2::i64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
+        }
+    }
+    fn to_u64(self) -> super::u64x2::u64x2 {
+        unsafe {
+            let arr: [f64; 2] = std::mem::transmute(self.0);
+            let mut result = [0u64; 2];
+            for i in 0..2 {
+                result[i] = arr[i] as u64;
+            }
+            super::u64x2::u64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
+        }
+    }
+    #[cfg(target_pointer_width = "64")]
+    fn to_isize(self) -> super::isizex2::isizex2 {
+        self.to_i64().to_isize()
+    }
+    #[cfg(target_pointer_width = "64")]
+    fn to_usize(self) -> super::usizex2::usizex2 {
+        self.to_u64().to_usize()
+    }
+}

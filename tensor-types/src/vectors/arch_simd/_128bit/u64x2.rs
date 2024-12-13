@@ -276,4 +276,28 @@ impl SimdMath<u64> for u64x2 {
 }
 
 impl VecConvertor for u64x2 {
+    fn to_u64(self) -> u64x2 {
+        self
+    }
+    fn to_i64(self) -> i64x2 {
+        unsafe { std::mem::transmute(self) }
+    }
+    fn to_f64(self) -> super::f64x2::f64x2 {
+        unsafe {
+            let arr: [u64; 2] = std::mem::transmute(self.0);
+            let mut result = [0.0f64; 2];
+            for i in 0..2 {
+                result[i] = arr[i] as f64;
+            }
+            super::f64x2::f64x2(_mm_loadu_pd(result.as_ptr()))
+        }
+    }
+    #[cfg(target_pointer_width = "64")]
+    fn to_isize(self) -> super::isizex2::isizex2 {
+        unsafe { std::mem::transmute(self) }
+    }
+    #[cfg(target_pointer_width = "64")]
+    fn to_usize(self) -> super::usizex2::usizex2 {
+        unsafe { std::mem::transmute(self) }
+    }
 }

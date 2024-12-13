@@ -1,7 +1,12 @@
-use crate::{convertion::VecConvertor, traits::{SimdCompare, SimdMath, VecTrait}};
+use crate::{
+    convertion::VecConvertor,
+    traits::{SimdCompare, SimdMath, VecTrait},
+};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+
+use super::u8x16::u8x16;
 
 /// a vector of 16 i8 values
 #[allow(non_camel_case_types)]
@@ -30,7 +35,10 @@ impl VecTrait<i8> for i8x16 {
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[i8]) {
         unsafe {
-            _mm_storeu_si128(&mut self.0, _mm_loadu_si128(slice.as_ptr() as *const __m128i));
+            _mm_storeu_si128(
+                &mut self.0,
+                _mm_loadu_si128(slice.as_ptr() as *const __m128i),
+            );
         }
     }
     #[inline(always)]
@@ -62,7 +70,7 @@ impl SimdCompare for i8x16 {
         unsafe { i8x16(_mm_cmpeq_epi8(self.0, other.0)) }
     }
     fn simd_ne(self, other: Self) -> i8x16 {
-        unsafe { 
+        unsafe {
             let eq = _mm_cmpeq_epi8(self.0, other.0);
             i8x16(_mm_xor_si128(eq, _mm_set1_epi8(-1)))
         }
@@ -71,7 +79,7 @@ impl SimdCompare for i8x16 {
         unsafe { i8x16(_mm_cmplt_epi8(self.0, other.0)) }
     }
     fn simd_le(self, other: Self) -> i8x16 {
-        unsafe { 
+        unsafe {
             let lt = _mm_cmplt_epi8(self.0, other.0);
             let eq = _mm_cmpeq_epi8(self.0, other.0);
             i8x16(_mm_or_si128(lt, eq))
@@ -81,7 +89,7 @@ impl SimdCompare for i8x16 {
         unsafe { i8x16(_mm_cmpgt_epi8(self.0, other.0)) }
     }
     fn simd_ge(self, other: Self) -> i8x16 {
-        unsafe { 
+        unsafe {
             let gt = _mm_cmpgt_epi8(self.0, other.0);
             let eq = _mm_cmpeq_epi8(self.0, other.0);
             i8x16(_mm_or_si128(gt, eq))
@@ -210,4 +218,13 @@ impl SimdMath<i8> for i8x16 {
 }
 
 impl VecConvertor for i8x16 {
+    fn to_i8(self) -> i8x16 {
+        self
+    }
+    fn to_u8(self) -> u8x16 {
+        unsafe { std::mem::transmute(self) }
+    }
+    fn to_bool(self) -> super::boolx16::boolx16 {
+        unsafe { std::mem::transmute(self) }
+    }
 }

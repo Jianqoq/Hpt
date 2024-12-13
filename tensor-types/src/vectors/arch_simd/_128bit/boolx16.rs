@@ -159,4 +159,13 @@ impl std::ops::BitAnd for boolx16 {
 }
 
 impl VecConvertor for boolx16 {
+    fn to_bool(self) -> boolx16 {
+        self
+    }
+    fn to_i8(self) -> i8x16 {
+        unsafe { std::mem::transmute(self) }
+    }
+    fn to_u8(self) -> u8x16 {
+        unsafe { std::mem::transmute(self) }
+    }
 }

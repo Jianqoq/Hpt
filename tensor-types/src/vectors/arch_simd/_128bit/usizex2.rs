@@ -492,4 +492,27 @@ impl SimdMath<usize> for usizex2 {
 }
 
 impl VecConvertor for usizex2 {
+    fn to_usize(self) -> usizex2 {
+        self
+    }
+    #[cfg(target_pointer_width = "64")]
+    fn to_u64(self) -> u64x2 {
+        unsafe { std::mem::transmute(self) }
+    }
+    #[cfg(target_pointer_width = "32")]
+    fn to_u32(self) -> u32x4 {
+        unsafe { std::mem::transmute(self) }
+    }
+    #[cfg(target_pointer_width = "32")]
+    fn to_f32(self) -> super::f32x4::f32x4 {
+        self.to_u32().to_f32()
+    }
+    #[cfg(target_pointer_width = "64")]
+    fn to_i64(self) -> i64x2 {
+        unsafe { std::mem::transmute(self) }
+    }
+    #[cfg(target_pointer_width = "32")]
+    fn to_i32(self) -> i32x4 {
+        unsafe { std::mem::transmute(self) }
+    }
 }

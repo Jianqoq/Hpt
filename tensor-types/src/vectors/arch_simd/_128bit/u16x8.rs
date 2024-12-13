@@ -236,4 +236,31 @@ impl SimdMath<u16> for u16x8 {
     }
 }
 
-impl VecConvertor for u16x8 {}
+impl VecConvertor for u16x8 {
+    fn to_u16(self) -> u16x8 {
+        self
+    }
+    fn to_i16(self) -> i16x8 {
+        unsafe { std::mem::transmute(self) }
+    }
+    fn to_f16(self) -> super::f16x8::f16x8 {
+        unsafe {
+            let arr: [u16; 8] = std::mem::transmute(self.0);
+            let mut result = [half::f16::ZERO; 8];
+            for i in 0..8 {
+                result[i] = half::f16::from_f32(arr[i] as f32);
+            }
+            super::f16x8::f16x8(result)
+        }
+    }
+    fn to_bf16(self) -> super::bf16x8::bf16x8 {
+        unsafe {
+            let arr: [u16; 8] = std::mem::transmute(self.0);
+            let mut result = [half::bf16::ZERO; 8];
+            for i in 0..8 {
+                result[i] = half::bf16::from_f32(arr[i] as f32);
+            }
+            super::bf16x8::bf16x8(result)
+        }
+    }
+}

@@ -230,4 +230,28 @@ impl SimdMath<u32> for u32x4 {
 }
 
 impl VecConvertor for u32x4 {
+    fn to_u32(self) -> u32x4 {
+        self
+    }
+    fn to_i32(self) -> i32x4 {
+        unsafe { std::mem::transmute(self) }
+    }
+    fn to_f32(self) -> super::f32x4::f32x4 {
+        unsafe {
+            let arr: [u32; 4] = std::mem::transmute(self.0);
+            let mut result = [0.0f32; 4];
+            for i in 0..4 {
+                result[i] = arr[i] as f32;
+            }
+            super::f32x4::f32x4(_mm_loadu_ps(result.as_ptr()))
+        }
+    }
+    #[cfg(target_pointer_width = "32")]
+    fn to_usize(self) -> super::usizex2::usizex2 {
+        unsafe { std::mem::transmute(self) }
+    }
+    #[cfg(target_pointer_width = "32")]
+    fn to_isize(self) -> super::isizex2::isizex2 {
+        unsafe { std::mem::transmute(self) }
+    }
 }

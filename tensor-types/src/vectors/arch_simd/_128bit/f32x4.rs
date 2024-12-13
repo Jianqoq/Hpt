@@ -345,29 +345,20 @@ impl SimdMath<f32> for f32x4 {
 
 impl VecConvertor for f32x4 {
     fn to_u32(self) -> super::u32x4::u32x4 {
-        unsafe { u32x4(_mm_castps_si128(self.0)) }
+        unsafe { u32x4(_mm_cvtps_epi32(self.0)) }
     }
     fn to_i32(self) -> super::i32x4::i32x4 {
         unsafe { i32x4(_mm_cvtps_epi32(self.0)) }
     }
+    #[cfg(target_pointer_width = "32")]
     fn to_isize(self) -> super::isizex2::isizex2 {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unreachable!()
-        }
-        #[cfg(target_pointer_width = "32")]
-        unsafe {
-            isizex4(_mm_cvtps_epi32(self.0))
-        }
+        self.to_i32().to_isize()
     }
+    #[cfg(target_pointer_width = "32")]
     fn to_usize(self) -> super::usizex2::usizex2 {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unreachable!()
-        }
-        #[cfg(target_pointer_width = "32")]
-        unsafe {
-            usizex4(_mm_cvtps_epi32(self.0))
-        }
+        self.to_u32().to_usize()
+    }
+    fn to_f32(self) -> f32x4 {
+        self
     }
 }
