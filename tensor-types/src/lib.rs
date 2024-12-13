@@ -308,6 +308,14 @@ pub mod vectors {
     pub mod utils;
 }
 pub use vectors::*;
+#[cfg(feature = "archsimd")]
+mod simd {
+    pub use crate::vectors::arch_simd::*;
+}
+#[cfg(feature = "stdsimd")]
+mod simd {
+    pub use crate::vectors::std_simd::*;
+}
 
 #[cfg(all(
     target_arch = "x86_64",

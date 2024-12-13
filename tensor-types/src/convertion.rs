@@ -7,19 +7,15 @@ use tensor_macros::impl_scalar_convert;
 use tensor_macros::impl_simd_convert;
 
 use crate::dtype::TypeCommon;
-#[cfg(feature = "archsimd")]
-use crate::vectors::arch_simd as simd;
-#[cfg(feature = "stdsimd")]
-use crate::vectors::std_simd as simd;
 #[cfg(all(
     any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
     not(target_feature = "avx2")
 ))]
-use simd::_128bit::*;
+use crate::simd::_128bit::*;
 #[cfg(target_feature = "avx2")]
-use simd::_256bit::*;
+use crate::simd::_256bit::*;
 #[cfg(target_feature = "avx512f")]
-use simd::_512bit::*;
+use crate::simd::_512bit::*;
 
 #[cfg(feature = "stdsimd")]
 use std::simd::num::SimdFloat;

@@ -12,11 +12,11 @@ num-traits = "0.2.19"
 sleef = "0.3.2"
 
 [dev-dependencies]
-# rug = "1.16"
-# rand = "0.8.5"
+rug = "1.16"
+rand = "0.8.5"
 
 [features]
 f16c = []
 stdsimd = []
 archsimd = []
-default = ["f16c"]
+default = ["f16c", "archsimd"]

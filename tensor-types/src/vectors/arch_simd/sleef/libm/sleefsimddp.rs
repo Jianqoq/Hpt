@@ -1318,13 +1318,13 @@ pub(crate) unsafe fn xexp(d: VDouble) -> VDouble {
             0.1388888888914497797e-2,
             0.8333333333314938210e-2,
             0.4166666666666602598e-1,
-            0.1666666666666669072e+0,
+            0.1666666666666669072e+0
         );
 
         // Final polynomial terms using FMA
         u = vfma_vd_vd_vd_vd(u, s, vcast_vd_d(0.5000000000000000000e+0));
-        u = vfma_vd_vd_vd_vd(u, s, vcast_vd_d(1.0000000000000000000e+0));
-        u = vfma_vd_vd_vd_vd(u, s, vcast_vd_d(1.0000000000000000000e+0));
+        u = vfma_vd_vd_vd_vd(u, s, vcast_vd_d(0.1000000000000000000e+1));
+        u = vfma_vd_vd_vd_vd(u, s, vcast_vd_d(0.1000000000000000000e+1));
     }
 
     #[cfg(not(target_feature = "fma"))]

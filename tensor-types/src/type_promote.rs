@@ -3,10 +3,6 @@ use crate::convertion::VecConvertor;
 use crate::dtype::FloatConst;
 use crate::dtype::TypeCommon;
 use crate::traits::SimdMath;
-#[cfg(feature = "archsimd")]
-use crate::vectors::arch_simd as simd;
-#[cfg(feature = "stdsimd")]
-use crate::vectors::std_simd as simd;
 use crate::vectors::traits::SimdCompare;
 use crate::vectors::traits::SimdSelect;
 use crate::vectors::traits::VecTrait;
@@ -20,11 +16,11 @@ use num_traits::float::Float;
     target_arch = "aarch64",
     target_feature = "neon"
 ))]
-use simd::_128bit::*;
+use crate::simd::_128bit::*;
 #[cfg(target_feature = "avx2")]
-use simd::_256bit::*;
+use crate::simd::_256bit::*;
 #[cfg(target_feature = "avx512f")]
-use simd::_512bit::*;
+use crate::simd::_512bit::*;
 use sleef::Sleef;
 use std::ops::Neg;
 use tensor_macros::float_out_binary_simd_with_lhs_scalar;
