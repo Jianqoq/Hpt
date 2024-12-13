@@ -180,7 +180,7 @@ impl std::ops::Shl for i8x32 {
             let b: [i8; 32] = std::mem::transmute(rhs.0);
             let mut result = [0; 32];
             for i in 0..32 {
-                result[i] = a[i] << b[i];
+                result[i] = a[i].wrapping_shl(b[i] as u32);
             }
             i8x32(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
         }
@@ -194,7 +194,7 @@ impl std::ops::Shr for i8x32 {
             let b: [i8; 32] = std::mem::transmute(rhs.0);
             let mut result = [0; 32];
             for i in 0..32 {
-                result[i] = a[i] >> b[i];
+                result[i] = a[i].wrapping_shr(b[i] as u32);
             }
             i8x32(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
         }

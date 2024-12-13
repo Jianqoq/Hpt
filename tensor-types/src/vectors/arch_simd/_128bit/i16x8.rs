@@ -191,7 +191,7 @@ impl std::ops::Shl for i16x8 {
             let b: [i16; 8] = std::mem::transmute(rhs.0);
             let mut result = [0; 8];
             for i in 0..8 {
-                result[i] = a[i] << b[i];
+                result[i] = a[i].wrapping_shl(b[i] as u32);
             }
             i16x8(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
@@ -205,7 +205,7 @@ impl std::ops::Shr for i16x8 {
             let b: [i16; 8] = std::mem::transmute(rhs.0);
             let mut result = [0; 8];
             for i in 0..8 {
-                result[i] = a[i] >> b[i];
+                result[i] = a[i].wrapping_shr(b[i] as u32);
             }
             i16x8(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }

@@ -405,7 +405,7 @@ impl std::ops::Shl for isizex4 {
                 let b: [i64; 4] = std::mem::transmute(rhs.0);
                 let mut result = [0; 4];
                 for i in 0..4 {
-                    result[i] = a[i] << b[i];
+                    result[i] = a[i].wrapping_shl(b[i] as u32);
                 }
                 isizex4(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
             }
@@ -417,7 +417,7 @@ impl std::ops::Shl for isizex4 {
                 let b: [i32; 8] = std::mem::transmute(rhs.0);
                 let mut result = [0; 8];
                 for i in 0..8 {
-                    result[i] = a[i] << b[i];
+                    result[i] = a[i].wrapping_shl(b[i] as u32);
                 }
                 isizex4(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
             }
@@ -434,7 +434,7 @@ impl std::ops::Shr for isizex4 {
                 let b: [i64; 4] = std::mem::transmute(rhs.0);
                 let mut result = [0; 4];
                 for i in 0..4 {
-                    result[i] = a[i] >> b[i];
+                    result[i] = a[i].wrapping_shr(b[i] as u32);
                 }
                 isizex4(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
             }
@@ -446,7 +446,7 @@ impl std::ops::Shr for isizex4 {
                 let b: [i32; 8] = std::mem::transmute(rhs.0);
                 let mut result = [0; 8];
                 for i in 0..8 {
-                    result[i] = a[i] >> b[i];
+                    result[i] = a[i].wrapping_shr(b[i] as u32);
                 }
                 isizex4(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
             }
