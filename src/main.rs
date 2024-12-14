@@ -4,7 +4,11 @@ use tensor_dyn::*;
 
 
 fn main() -> anyhow::Result<()> {
-    let a = Tensor::<f64, Cuda, 0>::arange_step(0.0, 100.0, 2.0)?;
+    let now = std::time::Instant::now();
+    let a = Tensor::<f64, Cuda, 0>::tri(10, 10, 2, true)?;
+    let cpu_a = a.to_cpu()?;
+    println!("{}", cpu_a);
+    let a = Tensor::<f64>::tri(10, 10, 2, true)?;
     println!("{}", a);
     Ok(())
 }

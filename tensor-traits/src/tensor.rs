@@ -1,9 +1,5 @@
 use std::fmt::Debug;
-use std::{
-    borrow::Borrow,
-    fmt::Display,
-    ops::{Div, Sub},
-};
+use std::{borrow::Borrow, fmt::Display};
 use tensor_common::{axis::Axis, layout::Layout, pointer::Pointer, shape::Shape, strides::Strides};
 #[cfg(feature = "archsimd")]
 use tensor_types::arch_simd as simd;
@@ -400,18 +396,8 @@ where
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> anyhow::Result<Output>
     where
-        T: PartialOrd
-            + FloatOutUnary
-            + NormalOut<T, Output = T>
-            + FromScalar<<T as FloatOutUnary>::Output>
-            + std::ops::Neg<Output = T>,
-        <T as FloatOutUnary>::Output: Sub<Output = <T as FloatOutUnary>::Output>
-            + FromScalar<usize>
-            + FromScalar<f64>
-            + Div<Output = <T as FloatOutUnary>::Output>
-            + NormalOut<Output = <T as FloatOutUnary>::Output>
-            + CommonBounds,
-        <<T as FloatOutUnary>::Output as TypeCommon>::Vec: Send + Sync;
+        f64: IntoScalar<T>,
+        usize: IntoScalar<T>;
 
     /// Creates a 2D triangular matrix of size `n` by `m`, with ones below or on the `k`th diagonal and zeros elsewhere.
     ///

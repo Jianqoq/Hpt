@@ -1,5 +1,3 @@
-use std::ops::{Div, Sub};
-
 use crate::{tensor_base::_Tensor, BoolVector, Cuda, Tensor};
 use anyhow::Result;
 use cudarc::driver::DeviceRepr;
@@ -8,7 +6,7 @@ use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 use tensor_types::{
     convertion::{Convertor, FromScalar},
     into_scalar::IntoScalar,
-    type_promote::{FloatOutUnary, NormalOut},
+    type_promote::NormalOut,
 };
 
 impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
@@ -93,12 +91,8 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
 
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self>
     where
-        T: PartialOrd + FromScalar<<T as FloatOutUnary>::Output> + std::ops::Neg<Output = T>,
-        <T as FloatOutUnary>::Output: Sub<Output = <T as FloatOutUnary>::Output>
-            + FromScalar<usize>
-            + FromScalar<f64>
-            + Div<Output = <T as FloatOutUnary>::Output>
-            + CommonBounds,
+        f64: IntoScalar<T>,
+        usize: IntoScalar<T>,
     {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::geomspace(start, end, n, include_end)?.into())
     }

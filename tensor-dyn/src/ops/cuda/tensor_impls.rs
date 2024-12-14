@@ -212,7 +212,23 @@ impl<T: CommonBounds, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
     }
 }
 
-impl<T: CommonBounds, const DEVICE_ID: usize> Tensor<T, Cuda, DEVICE_ID> {
+impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> Tensor<T, Cuda, DEVICE_ID> {
+    /// copy the data from the cuda tensor to the cpu tensor
+    pub fn to_cpu(&self) -> anyhow::Result<Tensor<T>> {
+        let mut data = _Tensor::<T>::empty(self.inner.as_ref().shape().clone()).unwrap();
+        let device = self.device();
+        let ptr = unsafe {
+            device.upgrade_device_ptr(
+                self.inner.as_ref().ptr().ptr as u64,
+                self.inner.as_ref().size(),
+            )
+        };
+        self.device()
+            .dtoh_sync_copy_into(&ptr, data.as_raw_mut())
+            .unwrap();
+        ptr.leak();
+        Ok(data.into())
+    }
     /// get the device of the tensor
     pub fn device(&self) -> Arc<CudaDevice> {
         self.inner.as_ref().device()
@@ -267,7 +283,9 @@ where
         let mut data = _Tensor::<T>::empty(self.layout.shape().clone()).unwrap();
         let device = self.device();
         let ptr = unsafe { device.upgrade_device_ptr(self.ptr().ptr as u64, self.size()) };
-        self.device().dtoh_sync_copy_into(&ptr, data.as_raw_mut()).unwrap();
+        self.device()
+            .dtoh_sync_copy_into(&ptr, data.as_raw_mut())
+            .unwrap();
         ptr.leak();
         write!(f, "{}", data)
     }

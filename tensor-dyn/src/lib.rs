@@ -246,14 +246,13 @@ static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
 
 #[cfg(feature = "cuda")]
 pub(crate) mod cuda_compiled {
-    use std::{
-        collections::{HashMap, HashSet},
-        sync::Mutex,
-    };
+    use std::{collections::HashMap, sync::{Arc, Mutex}};
 
     use once_cell::sync::Lazy;
+
+    use crate::ops::cuda::cuda_utils::RegisterInfo;
     pub(crate) static CUDA_COMPILED: Lazy<
-        Mutex<HashMap<usize, HashSet<String>>>,
+        Mutex<HashMap<usize, HashMap<String, Arc<HashMap<String, RegisterInfo>>>>>,
     > = Lazy::new(|| Mutex::new(HashMap::new()));
 }
 

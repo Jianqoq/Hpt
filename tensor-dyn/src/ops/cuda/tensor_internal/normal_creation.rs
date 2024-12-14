@@ -1,19 +1,18 @@
-use std::{
-    ops::{Div, Sub},
-    sync::Arc,
-};
-
 use crate::{
     backend::Backend,
     ops::cuda::{
-        cuda_utils::compile_kernel,
-        kernel_constants::{ARANGE_KERNELS, FILL_KERNELS},
+        cuda_utils::{compile_kernel, compute_kernel_launch_config},
+        kernel_constants::{
+            ARANGE_KERNELS, EYE_KERNELS, FILL_KERNELS, GEOMSPACE_KERNELS, LINSPACE_KERNELS,
+            LOGSPACE_KERNELS, TRIU_KERNELS,
+        },
     },
     tensor_base::_Tensor,
     BoolVector, Cuda, ALIGN,
 };
 use anyhow::Result;
 use cudarc::driver::{DeviceRepr, LaunchAsync, LaunchConfig};
+use std::sync::Arc;
 use tensor_allocator::CUDA_CACHE;
 use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
@@ -21,7 +20,7 @@ use tensor_types::{
     convertion::{Convertor, FromScalar},
     dtype::Dtype,
     into_scalar::IntoScalar,
-    type_promote::{FloatOutUnary, NormalOut},
+    type_promote::NormalOut,
 };
 
 impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
@@ -78,16 +77,14 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
     }
 
     fn zeros_like(&self) -> Result<Self> {
-        // Self::zeros(self.shape())
-        unimplemented!()
+        Self::zeros(self.shape())
     }
 
     fn ones_like(&self) -> Result<Self>
     where
         u8: IntoScalar<T>,
     {
-        // Self::ones(self.shape())
-        unimplemented!()
+        Self::ones(self.shape())
     }
 
     fn full<S: Into<Shape>>(val: T, shape: S) -> Result<Self> {
@@ -167,7 +164,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
             return _Tensor::<T, Cuda, DEVICE_ID>::empty(Arc::new(vec![0]));
         }
         let ret = Self::empty(Arc::new(vec![size as i64]))?;
-        compile_kernel(
+        let map = compile_kernel(
             "arange",
             include_str!("../kernels/arange.cu"),
             ret.device(),
@@ -179,11 +176,12 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
             format!("arange_{}_vec4", T::ID)
         };
         let arange_kernel = ret.device().get_func("arange", &func_name).unwrap();
-        let cfg = LaunchConfig::for_num_elems(ret.size() as u32);
         let mut slice = unsafe {
             ret.device()
                 .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
         };
+        let reg_info = map.get(&func_name).expect("func_name not found");
+        let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
         unsafe { arange_kernel.launch(cfg, (&mut slice, start, step, ret.size())) }?;
         slice.leak();
         Ok(ret)
@@ -193,7 +191,25 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
     where
         u8: IntoScalar<T>,
     {
-        unimplemented!()
+        let shape = vec![n as i64, m as i64];
+        let ret = Self::empty(Arc::new(shape))?;
+        let map = compile_kernel(
+            "eye",
+            include_str!("../kernels/eye.cu"),
+            ret.device(),
+            &EYE_KERNELS,
+        )?;
+        let func_name = format!("eye_{}", T::ID);
+        let arange_kernel = ret.device().get_func("eye", &func_name).unwrap();
+        let mut slice = unsafe {
+            ret.device()
+                .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
+        };
+        let reg_info = map.get(&func_name).expect("func_name not found");
+        let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
+        unsafe { arange_kernel.launch(cfg, (&mut slice, n, m, k)) }?;
+        slice.leak();
+        Ok(ret)
     }
 
     fn linspace(start: T, end: T, num: usize, include_end: bool) -> Result<Self>
@@ -202,36 +218,170 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         usize: IntoScalar<T>,
         f64: IntoScalar<T>,
     {
-        unimplemented!()
+        let _start = start.to_f64();
+        let _end = end.to_f64();
+        let n = num as f64;
+        let step = if include_end {
+            (_end - _start) / (n - 1.0)
+        } else {
+            (_end - _start) / n
+        };
+        let step_t: T = step.into_scalar();
+        let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(Arc::new(vec![num as i64]))?;
+
+        let map = compile_kernel(
+            "linspace",
+            include_str!("../kernels/linspace.cu"),
+            ret.device(),
+            &LINSPACE_KERNELS,
+        )?;
+        let func_name = if T::ID == Dtype::F16 {
+            format!("linspace_{}_vec2", T::ID)
+        } else {
+            format!("linspace_{}_vec4", T::ID)
+        };
+        let kernel = ret.device().get_func("linspace", &func_name).unwrap();
+        let mut slice = unsafe {
+            ret.device()
+                .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
+        };
+        let reg_info = map.get(&func_name).expect("func_name not found");
+        let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
+        unsafe {
+            kernel.launch(cfg, (&mut slice, start, step_t, num))?;
+            ret.device().synchronize()?;
+        }
+        slice.leak();
+        Ok(ret)
     }
 
     fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> Result<Self>
     where
         T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64>,
     {
-        unimplemented!()
+        let _start = start.to_f64();
+        let _end = end.to_f64();
+        let n = num as f64;
+        let step = if include_end {
+            (_end - _start) / (n - 1.0)
+        } else {
+            (_end - _start) / n
+        };
+        let step_t = T::_from(step);
+        let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(Arc::new(vec![num as i64]))?;
+
+        let map = compile_kernel(
+            "logspace",
+            include_str!("../kernels/logspace.cu"),
+            ret.device(),
+            &LOGSPACE_KERNELS,
+        )?;
+
+        let func_name = if T::ID == Dtype::F16 {
+            format!("logspace_{}_vec2", T::ID)
+        } else {
+            format!("logspace_{}_vec4", T::ID)
+        };
+        let kernel = ret.device().get_func("logspace", &func_name).unwrap();
+        let mut slice = unsafe {
+            ret.device()
+                .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
+        };
+        let reg_info = map.get(&func_name).expect("func_name not found");
+        let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
+        unsafe {
+            kernel.launch(cfg, (&mut slice, base, start, step_t, num))?;
+            ret.device().synchronize()?;
+        }
+        slice.leak();
+        Ok(ret)
     }
 
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self>
     where
-        T: PartialOrd + FromScalar<<T as FloatOutUnary>::Output> + std::ops::Neg<Output = T>,
-        <T as FloatOutUnary>::Output: Sub<Output = <T as FloatOutUnary>::Output>
-            + FromScalar<usize>
-            + FromScalar<f64>
-            + Div<Output = <T as FloatOutUnary>::Output>
-            + CommonBounds,
+        f64: IntoScalar<T>,
+        usize: IntoScalar<T>,
     {
-        unimplemented!()
+        let start_f64 = start.to_f64();
+        let end_f64 = end.to_f64();
+        let both_negative = start_f64 < 0.0 && end_f64 < 0.0;
+        let float_n = n.to_f64();
+        let step = if include_end {
+            if start_f64 >= 0.0 && end_f64 > 0.0 {
+                (end_f64.log10() - start_f64.log10()) / (float_n - 1.0)
+            } else if start_f64 < 0.0 && end_f64 < 0.0 {
+                (end_f64.abs().log10() - start_f64.abs().log10()) / (float_n - 1.0)
+            } else {
+                return Err(anyhow::Error::msg("start and end must have the same sign"));
+            }
+        } else if start_f64 >= 0.0 && end_f64 > 0.0 {
+            (end_f64.log10() - start_f64.log10()) / float_n
+        } else if start_f64 < 0.0 && end_f64 < 0.0 {
+            (end_f64.abs().log10() - start_f64.abs().log10()) / float_n
+        } else {
+            return Err(anyhow::Error::msg("start and end must have the same sign"));
+        };
+        let ret = Self::empty(Arc::new(vec![n as i64]))?;
+        let start = if start_f64 > 0.0 {
+            start_f64.log10()
+        } else {
+            start_f64.abs().log10()
+        };
+        let start_t: T = start.into_scalar();
+        let step_t: T = step.into_scalar();
+        let map = compile_kernel(
+            "geomspace",
+            include_str!("../kernels/geomspace.cu"),
+            ret.device(),
+            &GEOMSPACE_KERNELS,
+        )?;
+
+        let func_name = if T::ID == Dtype::F16 {
+            format!("geomspace_{}_vec2", T::ID)
+        } else {
+            format!("geomspace_{}_vec4", T::ID)
+        };
+        let kernel = ret.device().get_func("geomspace", &func_name).unwrap();
+        let mut slice = unsafe {
+            ret.device()
+                .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
+        };
+        let reg_info = map.get(&func_name).expect("func_name not found");
+        let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
+        unsafe {
+            kernel.launch(cfg, (&mut slice, start_t, step_t, both_negative, n))?;
+            ret.device().synchronize()?;
+        }
+        slice.leak();
+        Ok(ret)
     }
 
     fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self>
     where
         u8: IntoScalar<T>,
     {
-        unimplemented!()
+        let shape = vec![n as i64, m as i64];
+        let ret = Self::empty(Arc::new(shape))?;
+        let map = compile_kernel(
+            "triu",
+            include_str!("../kernels/triu.cu"),
+            ret.device(),
+            &TRIU_KERNELS,
+        )?;
+        let func_name = format!("triu_{}", T::ID);
+        let arange_kernel = ret.device().get_func("triu", &func_name).unwrap();
+        let mut slice = unsafe {
+            ret.device()
+                .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
+        };
+        let reg_info = map.get(&func_name).expect("func_name not found");
+        let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
+        unsafe { arange_kernel.launch(cfg, (&mut slice, n, m, k, low_triangle)) }?;
+        slice.leak();
+        Ok(ret)
     }
 
-    fn tril(&self, k: i64) -> Result<Self>
+    fn tril(&self, _: i64) -> Result<Self>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T>,
         T::Vec: NormalOut<BoolVector, Output = T::Vec>,
@@ -239,7 +389,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         unimplemented!()
     }
 
-    fn triu(&self, k: i64) -> Result<Self>
+    fn triu(&self, _: i64) -> Result<Self>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T>,
         T::Vec: NormalOut<BoolVector, Output = T::Vec>,

@@ -30,6 +30,7 @@ gemm = { version = "0.18.0", features = ["rayon"] }
 num_cpus = "1.16.0"
 once_cell = "1.19.0"
 cudarc = {version = "0.12.1", optional = true, features = ["cuda-12010"]}
+regex = {version = "1.11.1", optional = true}
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 raw-cpuid = { version = "11.2.0", default-features = false }
@@ -44,7 +45,7 @@ track_caller = [
 bound_check = ["tensor-common/bound_check", "tensor-iterator/bound_check"]
 stdsimd = ["tensor-types/stdsimd", "tensor-traits/stdsimd"]
 archsimd = ["tensor-types/archsimd", "tensor-traits/archsimd"]
-cuda = ["cudarc", "tensor-allocator/cuda"]
+cuda = ["cudarc", "tensor-allocator/cuda", "regex"]
 
 [package.metadata.rust-analyzer]
 rustc_private = true
