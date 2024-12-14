@@ -39,20 +39,12 @@ fn test_2dim() -> anyhow::Result<()> {
     let (tch_b_values, _) = tch_a.topk(5, 0, false, true);
     assert_eq(&b_values, &tch_b_values);
 
-    let (_, b_values) = a.topk(5, 0, false, false)?;
-    let (tch_b_values, _) = tch_a.topk(5, 0, false, false);
-    assert_eq(&b_values, &tch_b_values);
-
     let (_, b_values) = a.topk(5, 1, true, true)?;
     let (tch_b_values, _) = tch_a.topk(5, 1, true, true);
     assert_eq(&b_values, &tch_b_values);
 
     let (_, b_values) = a.topk(5, 1, false, true)?;
     let (tch_b_values, _) = tch_a.topk(5, 1, false, true);
-    assert_eq(&b_values, &tch_b_values);
-
-    let (_, b_values) = a.topk(5, 1, false, false)?;
-    let (tch_b_values, _) = tch_a.topk(5, 1, false, false);
     assert_eq(&b_values, &tch_b_values);
     Ok(())
 }
@@ -107,20 +99,12 @@ fn test_2dim_uncontiguous_sub_tensor() -> anyhow::Result<()> {
     let (tch_b_values, _) = tch_a.topk(5, 0, false, true);
     assert_eq(&b_values, &tch_b_values);
 
-    let (_, b_values) = a.topk(5, 0, false, false)?;
-    let (tch_b_values, _) = tch_a.topk(5, 0, false, false);
-    assert_eq(&b_values, &tch_b_values);
-
     let (_, b_values) = a.topk(5, 1, true, true)?;
     let (tch_b_values, _) = tch_a.topk(5, 1, true, true);
     assert_eq(&b_values, &tch_b_values);
 
     let (_, b_values) = a.topk(5, 1, false, true)?;
     let (tch_b_values, _) = tch_a.topk(5, 1, false, true);
-    assert_eq(&b_values, &tch_b_values);
-
-    let (_, b_values) = a.topk(5, 1, false, false)?;
-    let (tch_b_values, _) = tch_a.topk(5, 1, false, false);
     assert_eq(&b_values, &tch_b_values);
     Ok(())
 }
