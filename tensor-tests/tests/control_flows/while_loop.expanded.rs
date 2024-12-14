@@ -15,13 +15,13 @@ pub fn main() {
         Ok(a)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
-        let __while_out_0 = while (let syn::Expr::Path(path) = i.iter().next()) {
+        let __while_out_0 = while (let syn::Expr::Path(path) = b.iter().next()) {
             a += 10;
         };
         Ok(a)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
-        let __while_out_0 = while (let syn::Expr::Path(path) = i.iter().next()) {
+        let __while_out_0 = while (let syn::Expr::Path(path) = b.iter().next()) {
             a += 10;
             continue;
             break;

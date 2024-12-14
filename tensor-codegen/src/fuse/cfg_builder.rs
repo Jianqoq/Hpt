@@ -954,6 +954,58 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         }
     }
 
+    fn visit_expr_unsafe(&mut self, expr_unsafe: &'ast syn::ExprUnsafe) {
+        let mut current_block_id = core::mem::take(&mut self.block_ids);
+        let assign_block = self.new_block(BlockType::Assign);
+        let assign_block_id = BlockId::new(assign_block);
+        self.connect_to(assign_block);
+        self.set_current_block(assign_block);
+        let unsafe_ident = syn::Ident::new(
+            &format!("__unsafe_{}", self.global_block_cnt()),
+            proc_macro2::Span::call_site()
+        );
+        if let Ok(stmt) = syn::parse2(quote::quote! { let #unsafe_ident; }) {
+            self.cfg.graph[assign_block].statements.push(CustomStmt { stmt });
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    expr_unsafe.span(),
+                    "CFG builder",
+                    "expr_closure::assign_stmt".to_string()
+                )
+            );
+            return;
+        }
+
+        let unsafe_block = self.new_block(BlockType::UnsafeBlock);
+        let unsafe_block_id = BlockId::new(unsafe_block);
+        let merge_block = self.new_block(BlockType::Normal);
+        let merge_block_id = BlockId::new(merge_block);
+
+        self.connect_to(unsafe_block);
+        self.set_current_block(unsafe_block);
+        self.set_current_block_id(unsafe_block_id);
+        self.connect_to(merge_block);
+        self.visit_block(&expr_unsafe.block);
+        let unsafe_block_id = core::mem::take(&mut self.block_ids);
+        current_block_id.children.push(assign_block_id);
+        current_block_id.children.push(unsafe_block_id);
+        current_block_id.children.push(merge_block_id);
+        self.set_current_block_id(current_block_id);
+        self.set_current_block(merge_block);
+        if let Ok(expr) = syn::parse2(quote::quote! { #unsafe_ident }) {
+            self.current_expr = Some(expr);
+        } else {
+            self.errors.push(
+                Error::SynParseError(
+                    expr_unsafe.span(),
+                    "CFG builder",
+                    format!("{}", unsafe_ident.to_string())
+                )
+            );
+        }
+    }
+
     fn visit_expr_binary(&mut self, binary: &'ast syn::ExprBinary) {
         let mut new_binary = binary.clone();
 
