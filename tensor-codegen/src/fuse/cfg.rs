@@ -56,6 +56,7 @@ pub(crate) enum BlockType {
     MatchBody,
     AsyncBlock,
     ConstBlock,
+    UnsafeBlock,
 }
 
 impl std::fmt::Debug for BlockType {
@@ -89,6 +90,7 @@ impl std::fmt::Debug for BlockType {
             Self::MatchArm => write!(f, "MatchArm"),
             Self::AsyncBlock => write!(f, "AsyncBlock"),
             Self::ConstBlock => write!(f, "ConstBlock"),
+            Self::UnsafeBlock => write!(f, "UnsafeBlock"),
         }
     }
 }
@@ -722,6 +724,9 @@ impl CFG {
             }
             BlockType::ConstBlock => {
                 body.extend(quote::quote!(const { #code #child_code };));
+            }
+            BlockType::UnsafeBlock => {
+                body.extend(quote::quote!(unsafe { #code #child_code };));
             }
         }
         body

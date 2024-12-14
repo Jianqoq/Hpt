@@ -1,43 +1,17 @@
-use rust_xlsxwriter::{ Format, Workbook };
+use rust_xlsxwriter::{Format, Workbook};
 use std::io::Write;
 use tensor_dyn::*;
 
 fuse_proc_macro!(
-    fn compute(a: Tensor<f32>, mut b: Tensor<f32>) -> anyhow::Result<Tensor<f32>>
-{
-    let mut c = a.sin()?;
-    let mut d = c.cos()?;
-    let tanh = d.tanh()?;
-    let add = tanh + 10f32;
-    let e = add / &c;
-    let g = c.matmul(&e)?;
-    let d = g.relu()?;
-    let shape = a.shape();
-    let alpha = 1.673263242354358;
-    let gamma = 1.050700987355822;
-    if shape.len() > 0 {
-        e.selu(alpha, gamma)?;
-        if alpha > 0.0 {
-            e.tanh()?
-        } else {
-            d.tan()?
+    fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
+        while let syn::Expr::Path(path) = i.iter().next() {
+            a += 10;
+            continue;
+            break;
         }
-    } else {
-        d.selu(alpha, gamma)?
+        Ok(a)
     }
-    for _ in 0..1000000 {
-        c = &d + &c;
-        break;
-    }
-    while true {
-        b = &a + &b;
-        let e = b.sin()?;
-        let f = e.cos()?;
-        continue;
-    }
-    
-    Ok(a)
-});
+);
 
 fn main() -> anyhow::Result<()> {
     // conv2d()?;
@@ -68,8 +42,7 @@ fn conv2d() -> Result<(), anyhow::Error> {
             for kw in kw_sets {
                 for h in h_sets {
                     for w in w_sets {
-                        let a = Tensor::<f32>
-                            ::arange(0, 1 * ic * h * w)?
+                        let a = Tensor::<f32>::arange(0, 1 * ic * h * w)?
                             .reshape([1, ic, h, w])?
                             .permute([0, 2, 3, 1])?
                             .contiguous()?;
@@ -78,40 +51,31 @@ fn conv2d() -> Result<(), anyhow::Error> {
                         // let kernel = Tensor::randn(1.0, 1.0, &[oc, ic, kh, kw], &device)?;
                         let now = std::time::Instant::now();
                         for _ in 0..10 {
-                            let _ = a.maxpool2d(
-                                &[kh, kw].into(),
-                                [1, 1],
-                                [
-                                    (0, 0),
-                                    (0, 0),
-                                ],
-                                [2, 2]
-                            )?;
+                            let _ =
+                                a.maxpool2d(&[kh, kw].into(), [1, 1], [(0, 0), (0, 0)], [2, 2])?;
                         }
                         println!("{:?}", now.elapsed() / 10);
                         worksheet.write_number(
                             row,
                             0,
                             (now.elapsed().as_millis() as f64) / 10.0,
-                            &decimal_format
+                            &decimal_format,
                         )?;
                         worksheet.write_string(
                             row,
                             1,
                             &format!("({}, {}, {}, {}, {})", ic, kh, kw, h, w),
-                            &format
+                            &format,
                         )?;
                         print!(
                             "\rprogress: {}%",
-                            ((row + 1) * 100) /
-                                (
-                                    (ic_sets.len() *
-                                        oc_sets.len() *
-                                        kh_sets.len() *
-                                        kw_sets.len() *
-                                        h_sets.len() *
-                                        w_sets.len()) as u32
-                                )
+                            ((row + 1) * 100)
+                                / ((ic_sets.len()
+                                    * oc_sets.len()
+                                    * kh_sets.len()
+                                    * kw_sets.len()
+                                    * h_sets.len()
+                                    * w_sets.len()) as u32)
                         );
                         std::io::stdout().flush().expect("Failed to flush stdout");
                         row += 1;
