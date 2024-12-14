@@ -4,11 +4,8 @@ use tensor_dyn::*;
 
 
 fn main() -> anyhow::Result<()> {
-    // conv2d()?;
-    // let a = Tensor::<f32>::arange(0, 10000)?;
-    // let b = _Tensor::<f32>::arange(0, 10000)?;
-    // let now = std::time::Instant::now();
-    // let c = compute(a, b)?;
+    let a = Tensor::<f64, Cuda, 0>::arange_step(0.0, 100.0, 2.0)?;
+    println!("{}", a);
     Ok(())
 }
 

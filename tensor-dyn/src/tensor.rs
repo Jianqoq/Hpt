@@ -25,8 +25,8 @@ use tensor_types::convertion::Convertor;
 /// - `parent`: The parent tensor of the tensor. parent is always the root tensor (`not a view`).
 /// - `mem_layout`: std::alloc::layout, use for deallocate the memory and find cache in the allocator.
 #[derive(Clone)]
-pub struct Tensor<T, B = Cpu> where B: BackendTy + Buffer {
-    pub(crate) inner: Arc<_Tensor<T, B>>,
+pub struct Tensor<T, B = Cpu, const DEVICE_ID: usize = 0> where B: BackendTy + Buffer {
+    pub(crate) inner: Arc<_Tensor<T, B, DEVICE_ID>>,
 }
 
 impl<T> TensorLike<T> for Tensor<T> where T: CommonBounds {
