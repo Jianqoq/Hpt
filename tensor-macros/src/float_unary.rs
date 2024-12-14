@@ -108,21 +108,21 @@ pub fn impl_float_out_unary() -> TokenStream {
             quote! {
                 fn _gelu(self) -> Self::Output {
                     let x = self.to_f32();
-                    0.5 * x * (1.0 + Sleef::erf(f32::FRAC_1_SQRT_2 * x))
+                    0.5 * x * (1.0 + libm::erff(f32::FRAC_1_SQRT_2 * x))
                 }
             }
         } else {
             quote! {
                 fn _gelu(self) -> Self::Output {
                     let x = self.to_f64();
-                    0.5 * x * (1.0 + Sleef::erf(f64::FRAC_1_SQRT_2 * x))
+                    0.5 * x * (1.0 + libm::erf(f64::FRAC_1_SQRT_2 * x))
                 }
             }
         };
         let erf = if res_type.is_bf16() || res_type.is_f16() {
             quote! {
                 fn _erf(self) -> Self::Output {
-                    self.to_f32().erf().#to_res_type()
+                    libm::erff(self.to_f32()).#to_res_type()
                 }
             }
         } else if res_type.is_cplx() {
@@ -132,9 +132,17 @@ pub fn impl_float_out_unary() -> TokenStream {
                 }
             }
         } else {
-            quote! {
-                fn _erf(self) -> Self::Output {
-                    self.#to_res_type().erf()
+            if res_type.is_f32() {
+                quote! {
+                    fn _erf(self) -> Self::Output {
+                        libm::erff(self.to_f32())
+                    }
+                }
+            } else {
+                quote! {
+                    fn _erf(self) -> Self::Output {
+                        libm::erf(self.to_f64())
+                    }
                 }
             }
         };

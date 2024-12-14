@@ -384,7 +384,7 @@ impl std::ops::Shl for usizex4 {
                 let arr_rhs: [u64; 4] = std::mem::transmute(rhs.0);
                 let mut result = [0; 4];
                 for i in 0..4 {
-                    result[i] = arr[i] << arr_rhs[i];
+                    result[i] = arr[i].wrapping_shl(arr_rhs[i] as u32);
                 }
                 usizex4(std::mem::transmute(result))
             }
@@ -396,7 +396,7 @@ impl std::ops::Shl for usizex4 {
                 let arr_rhs: [u32; 8] = std::mem::transmute(rhs.0);
                 let mut result = [0; 8];
                 for i in 0..8 {
-                    result[i] = arr[i] << arr_rhs[i];
+                    result[i] = arr[i].wrapping_shl(arr_rhs[i] as u32);
                 }
                 usizex4(std::mem::transmute(result))
             }
@@ -413,7 +413,7 @@ impl std::ops::Shr for usizex4 {
                 let arr_rhs: [u64; 4] = std::mem::transmute(rhs.0);
                 let mut result = [0; 4];
                 for i in 0..4 {
-                    result[i] = arr[i] >> arr_rhs[i];
+                    result[i] = arr[i].wrapping_shr(arr_rhs[i] as u32);
                 }
                 usizex4(std::mem::transmute(result))
             }
@@ -425,7 +425,7 @@ impl std::ops::Shr for usizex4 {
                 let arr_rhs: [u32; 8] = std::mem::transmute(rhs.0);
                 let mut result = [0; 8];
                 for i in 0..8 {
-                    result[i] = arr[i] >> arr_rhs[i];
+                    result[i] = arr[i].wrapping_shr(arr_rhs[i] as u32);
                 }
                 usizex4(std::mem::transmute(result))
             }

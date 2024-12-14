@@ -9,7 +9,8 @@ num-complex = "0.4"
 half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }
 paste = "1.0.15"
 num-traits = "0.2.19"
-sleef = "0.3.2"
+sleef = { version = "0.3.2", optional = true }
+libm = "0.2.11"
 
 [dev-dependencies]
 # rug = "1.16"
@@ -17,6 +18,6 @@ sleef = "0.3.2"
 
 [features]
 f16c = []
-stdsimd = []
+stdsimd = ["dep:sleef"]
 archsimd = []
 default = ["f16c", "archsimd"]

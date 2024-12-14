@@ -1,5 +1,5 @@
 //! This crate is dynamic graph based tensor libraryz
-#![feature(portable_simd)]
+#![cfg_attr(feature = "stdsimd", feature(portable_simd))]
 #![deny(missing_docs)]
 
 /// a module contains all the Tensor operations. include the CPU and GPU operations
