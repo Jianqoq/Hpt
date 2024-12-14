@@ -37,7 +37,9 @@ jobs:
       with:
         toolchain: stable
         override: true
-        components: clippy, rustfmt 
+        components: clippy, rustfmt, rust-src
+    - name: Install cargo-expand
+      run: cargo install cargo-expand
     - name: Run tests
       run: |
         cd tensor-tests
