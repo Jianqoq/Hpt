@@ -73,7 +73,7 @@ pub fn main() {
     fuse_proc_macro!(
         fn case1(a: f32, b: f32) -> anyhow::Result<f32>{
             let res = match a {
-                test::Tensor {filed, ..} => if res > 0.0 {
+                test::Tensor {filed, ..} => if filed > 0.0 {
                         10
                     } else {
                         20
@@ -87,7 +87,7 @@ pub fn main() {
         fn case1(a: f32, b: f32) -> anyhow::Result<f32>{
             let res = match a {
                 test::Tensor {filed, ..} => match b {
-                    test::Tensor {filed, ..} => if res > 0.0 {
+                    test::Tensor {filed2, ..} => if filed2 > 0.0 {
                         10
                     } else {
                         20
