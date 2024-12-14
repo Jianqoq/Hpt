@@ -867,7 +867,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 Error::SynParseError(
                     expr_async.span(),
                     "CFG builder",
-                    "expr_closure::assign_stmt".to_string()
+                    "expr_async::assign_stmt".to_string()
                 )
             );
             return;
@@ -919,7 +919,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 Error::SynParseError(
                     expr_const.span(),
                     "CFG builder",
-                    "expr_closure::assign_stmt".to_string()
+                    "expr_constant::assign_stmt".to_string()
                 )
             );
             return;
@@ -971,7 +971,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 Error::SynParseError(
                     expr_unsafe.span(),
                     "CFG builder",
-                    "expr_closure::assign_stmt".to_string()
+                    "expr_unsafe::assign_stmt".to_string()
                 )
             );
             return;
@@ -1594,6 +1594,10 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         self.current_expr = Some(syn::Expr::Assign(new_assign));
     }
 
+    fn visit_pat_wild(&mut self, i: &'ast syn::PatWild) {
+        self.current_pat = Some(syn::Pat::Wild(i.clone()));
+    }
+
     fn visit_expr_closure(&mut self, closure: &'ast syn::ExprClosure) {
         let mut current_block_id = core::mem::take(&mut self.block_ids);
 
@@ -1627,7 +1631,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             let pat = handle_accumulation(
                 &mut self.errors,
                 arg.span(),
-                "expr_closure",
+                "expr_closure_arg",
                 &mut self.current_pat
             );
             let pat = if let Some(pat) = pat {

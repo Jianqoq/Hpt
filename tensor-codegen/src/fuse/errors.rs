@@ -2,35 +2,22 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub(crate) enum Error {
-    #[error("Internal {1} error: Expected an identifier")] ExpectedIdentifier(
-        proc_macro2::Span,
-        &'static str,
-    ),
-    #[error("Internal {1} error: Expected a path")] ExpectedPath(proc_macro2::Span, &'static str),
-    #[error("Internal {1} error: Expected has an assignment variable")] ExpectedAssignment(
-        proc_macro2::Span,
-        &'static str,
-    ),
-    #[error("Internal {1} error: {2} is not supported yet")] Unsupported(
-        proc_macro2::Span,
-        &'static str,
-        String,
-    ),
-    #[error("Internal {1} error: original variable {2} not found")] OriginalVariableNotFound(
-        proc_macro2::Span,
-        &'static str,
-        String,
-    ),
-    #[error("Internal {1} error: {2} didn't accumulate any expression")] ExprAccumulateError(
-        proc_macro2::Span,
-        &'static str,
-        String,
-    ),
-    #[error("Internal {1} error: syn parsing `{2}` failed")] SynParseError(
-        proc_macro2::Span,
-        &'static str,
-        String,
-    ),
+    #[error("Internal {1} error: Expected an identifier")]
+    ExpectedIdentifier(proc_macro2::Span, &'static str),
+    #[error("Internal {1} error: Expected a path")]
+    ExpectedPath(proc_macro2::Span, &'static str),
+    #[error("Internal {1} error: Expected has an assignment variable")]
+    ExpectedAssignment(proc_macro2::Span, &'static str),
+    #[error("Internal {1} error: {2} is not supported yet")]
+    Unsupported(proc_macro2::Span, &'static str, String),
+    #[error("Internal {1} error: original variable {2} not found")]
+    OriginalVariableNotFound(proc_macro2::Span, &'static str, String),
+    #[error("Internal {1} error: {2} didn't accumulate any expression")]
+    ExprAccumulateError(proc_macro2::Span, &'static str, String),
+    #[error("Internal {1} error: syn parsing `{2}` failed")]
+    SynParseError(proc_macro2::Span, &'static str, String),
+    #[error("Variable {1} not found in stream")]
+    _VariableNotFoundInStream(proc_macro2::Span, String),
 }
 
 impl Error {
@@ -50,6 +37,7 @@ impl Error {
             Self::OriginalVariableNotFound(span, _, _) => *span,
             Self::ExprAccumulateError(span, _, _) => *span,
             Self::SynParseError(span, _, _) => *span,
+            Self::_VariableNotFoundInStream(span, _) => *span,
         }
     }
 }
