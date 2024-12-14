@@ -3,26 +3,26 @@ extern crate tensor_tests;
 use tensor_dyn::*;
 pub fn main() {
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
-        let Tensor { data: ok } = a;
+        let Tensor { data: b } = a;
         Ok(a)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
-        let Tensor { data: ok, shape: _, strides: _, offset: _ } = a;
+        let Tensor { data: b, shape: _, strides: _, offset: _ } = a;
         Ok(a)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
-        let Tensor { data: (ok, lk), shape: (_, _) } = a;
+        let Tensor { data: (b, b), shape: (_, _) } = a;
         Ok(a)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
         let Tensor {
-            data: (ok, lk),
-            shape: (Tensor { data: (ok, lk), shape: (_, _) }, _),
+            data: (b, b),
+            shape: (Tensor { data: (b, b), shape: (_, _) }, _),
         } = a;
         Ok(a)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
-        let (ok, lk) = a;
+        let (ok, lk) = b;
         Ok(a)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {

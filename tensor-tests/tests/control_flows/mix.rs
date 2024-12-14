@@ -40,7 +40,7 @@ pub fn main() {
     );
     fuse_proc_macro!(
         fn case1(a: f32, b: f32) -> anyhow::Result<f32>{
-            while let syn::Expr::Path(path) = i.iter().next() {
+            while let syn::Expr::Path(path) = b.iter().next() {
                 a += 10;
                 for i in ({a + b}..{if a > 0 {100} else {200}}).iter().enumerate() {
                     a += 10;

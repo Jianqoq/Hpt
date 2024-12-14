@@ -18,12 +18,12 @@ pub fn main() {
         }
     );
     fuse_proc_macro!(
-        fn await1(){
+        fn await1(fut: impl Future<Output = f32>){
             let a = fut.await;
         }
     );
     fuse_proc_macro!(
-        fn binary(){
+        fn binary(a: f32, b: f32){
             let a = a + b;
             let a = a - b;
             let a = a * b;
@@ -35,7 +35,7 @@ pub fn main() {
         }
     );
     fuse_proc_macro!(
-        fn unary(){
+        fn unary(a: f32){
             let a = !a;
             let a = -a;
             let a = *a;
@@ -55,17 +55,17 @@ pub fn main() {
         }
     );
     fuse_proc_macro!(
-        fn call(){
+        fn call(a: f32, b: f32){
             let a = invoke(a, b);
         }
     );
     fuse_proc_macro!(
-        fn cast(){
+        fn cast(a: f32){
             let a = a as f64;
         }
     );
     fuse_proc_macro!(
-        fn closure(){
+        fn closure(a: f32, b: f32){
             let a = |a, b| a + b;
             let a = |a, b| {a + b};
         }
@@ -84,7 +84,7 @@ pub fn main() {
         }
     );
     fuse_proc_macro!(
-        fn field(){
+        fn field(obj: f32){
             let a = obj.k;
             let a = &obj.k;
             let a = obj.0;
@@ -92,14 +92,14 @@ pub fn main() {
         }
     );
     fuse_proc_macro!(
-        fn for_loop(){
+        fn for_loop(expr: f32){
             let a = for pat in expr {
                 let b = 1;
             };
         }
     );
     fuse_proc_macro!(
-        fn if_expr(){
+        fn if_expr(expr: f32){
             let a = if expr {
                 let b = 1;
             } else {
@@ -108,8 +108,8 @@ pub fn main() {
         }
     );
     fuse_proc_macro!(
-        fn index(){
-            let a = vector[2];
+        fn index(vec: Vec<f32>){
+            let a = vec[2];
         }
     );
     fuse_proc_macro!(
@@ -118,7 +118,7 @@ pub fn main() {
         }
     );
     fuse_proc_macro!(
-        fn let_expr(){
+        fn let_expr(opt: Option<f32>){
             let Some(x) = opt;
         }
     );
@@ -135,17 +135,17 @@ pub fn main() {
         }
     );
     fuse_proc_macro!(
-        fn marcro1(){
+        fn marcro1(q: f32){
             let a = format!("{}", q);
         }
     );
     fuse_proc_macro!(
-        fn method_call(){
+        fn method_call(x: f32, a: f32, b: f32){
             let a = x.foo::<T>(a, b);
         }
     );
     fuse_proc_macro!(
-        fn match1(){
+        fn match1(expr: f32){
             let a = match expr {
                 _ => {
                     let b = 1;
@@ -164,19 +164,19 @@ pub fn main() {
         }
     );
     fuse_proc_macro!(
-        fn return1(){
+        fn return1(a: f32){
             return a;
         }
     );
     fuse_proc_macro!(
-        fn struct1(){
+        fn struct1(a: f32, b: f32){
             let a = Point { x: 1, y: 1 };
             let a = Point { x: a - b, y: 1 };
             let a = Point { x: Point { x: a - b, y: 1 }, y: 1 };
         }
     );
     fuse_proc_macro!(
-        fn try1(){
+        fn try1(expr: f32){
             let a = expr?;
         }
     );
@@ -193,14 +193,14 @@ pub fn main() {
         }
     );
     fuse_proc_macro!(
-        fn while1(){
+        fn while1(expr: f32){
             let a = while expr {
                 let b = 1;
             };
         }
     );
     fuse_proc_macro!(
-        fn yield1(){
+        fn yield1(expr: f32){
             let a = yield expr;
         }
     );

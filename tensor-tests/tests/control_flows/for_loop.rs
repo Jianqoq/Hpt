@@ -20,7 +20,7 @@ pub fn main() {
     );
     fuse_proc_macro!(
         fn case1(a: f32, b: f32) -> anyhow::Result<f32>{
-            for _ in i.iter().enumerate() {
+            for _ in b.iter().enumerate() {
                 a += 10;
             }
             Ok(a)
@@ -28,7 +28,7 @@ pub fn main() {
     );
     fuse_proc_macro!(
         fn case1(a: f32, b: f32) -> anyhow::Result<f32>{
-            for _ in i.iter().enumerate() {
+            for _ in b.iter().enumerate() {
                 a += 10;
                 continue;
                 break;

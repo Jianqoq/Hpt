@@ -12,10 +12,10 @@ pub fn main() {
         let __async_0 = async {};
         let a = __async_0;
     }
-    fn await1() {
+    fn await1(fut: impl Future<Output = f32>) {
         let a = fut.await;
     }
-    fn binary() {
+    fn binary(a: f32, b: f32) {
         let a = a + b;
         let a = a - b;
         let a = a * b;
@@ -25,7 +25,7 @@ pub fn main() {
         let a = a | b;
         let a = a ^ b;
     }
-    fn unary() {
+    fn unary(a: f32) {
         let a = !a;
         let a = -a;
         let a = *a;
@@ -37,13 +37,13 @@ pub fn main() {
     fn break1() {
         let a = break;
     }
-    fn call() {
+    fn call(a: f32, b: f32) {
         let a = invoke(a, b);
     }
-    fn cast() {
+    fn cast(a: f32) {
         let a = a as f64;
     }
-    fn closure() {
+    fn closure(a: f32, b: f32) {
         let __closure_assign_0 = |a, b| { a + b };
         let a = __closure_assign_0;
         let __closure_assign_1 = |a, b| {
@@ -59,19 +59,19 @@ pub fn main() {
     fn continue1() {
         let a = continue;
     }
-    fn field() {
+    fn field(obj: f32) {
         let a = obj.k;
         let a = &obj.k;
         let a = obj.0;
         let a = &obj.0;
     }
-    fn for_loop() {
+    fn for_loop(expr: f32) {
         let __for_out_0 = for pat in expr {
             let b = 1;
         };
         let a = __for_out_0;
     }
-    fn if_expr() {
+    fn if_expr(expr: f32) {
         let __if_assign_0 = if expr {
             let b = 1;
         } else {
@@ -79,13 +79,13 @@ pub fn main() {
         };
         let a = __if_assign_0;
     }
-    fn index() {
-        let a = vector[2];
+    fn index(vec: Vec<f32>) {
+        let a = vec[2];
     }
     fn infer() {
         let a = _;
     }
-    fn let_expr() {
+    fn let_expr(opt: Option<f32>) {
         let Some(x) = opt;
     }
     fn lit() {
@@ -97,16 +97,16 @@ pub fn main() {
         };
         let a = __loop_assign_0;
     }
-    fn marcro1() {
+    fn marcro1(q: f32) {
         let a = ::alloc::__export::must_use({
             let res = ::alloc::fmt::format(format_args!("{0}", q));
             res
         });
     }
-    fn method_call() {
+    fn method_call(x: f32, a: f32, b: f32) {
         let a = x.foo::<T>(a, b);
     }
-    fn match1() {
+    fn match1(expr: f32) {
         let __match_assign_0 = match expr {
             _ => {
                 let __block_out_1 = {
@@ -123,31 +123,34 @@ pub fn main() {
     fn repeat() {
         let a = [0; 10];
     }
-    fn return1() {
+    fn return1(a: f32) {
         return a;
     }
-    fn struct1() {
+    fn struct1(a: f32, b: f32) {
         let a = Point { x: 1, y: 1 };
         let a = Point { x: a - b, y: 1 };
         let __expr_struct_2 = Point { x: a - b, y: 1 };
         let a = Point { x: __expr_struct_2, y: 1 };
     }
-    fn try1() {
+    fn try1(expr: f32) {
         let a = expr?;
     }
     fn tuple1() {
         let a = (1, 2, 3, 4);
     }
     fn unsafe1() {
-        let b = 1;
+        let __unsafe_0 = unsafe {
+            let b = 1;
+        };
+        let a = __unsafe_0;
     }
-    fn while1() {
+    fn while1(expr: f32) {
         let __while_out_0 = while expr {
             let b = 1;
         };
         let a = __while_out_0;
     }
-    fn yield1() {
+    fn yield1(expr: f32) {
         let a = yield expr;
     }
 }

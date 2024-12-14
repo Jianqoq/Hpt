@@ -15,13 +15,13 @@ pub fn main() {
         Ok(a)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
-        let __for_out_0 = for _ in i.iter().enumerate() {
+        let __for_out_0 = for _ in b.iter().enumerate() {
             a += 10;
         };
         Ok(a)
     }
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
-        let __for_out_0 = for _ in i.iter().enumerate() {
+        let __for_out_0 = for _ in b.iter().enumerate() {
             a += 10;
             continue;
             break;

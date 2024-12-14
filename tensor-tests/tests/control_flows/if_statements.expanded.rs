@@ -91,11 +91,11 @@ pub fn main() {
     }
     fn case6(a: f32, b: f32) -> anyhow::Result<f32> {
         let __if_assign_0 = if a.shape() > 0.0 && a.len() > 0
-            && { if i > 0 { 0 } else { 1 } }
+            && { if b > 0 { 0 } else { 1 } }
         {
-            d
+            10
         } else {
-            d
+            20
         };
         let c = __if_assign_0;
         Ok(c)

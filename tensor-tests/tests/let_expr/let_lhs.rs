@@ -5,7 +5,7 @@ pub fn main() {
     fuse_proc_macro!(
         fn case1(a: f32, b: f32) -> anyhow::Result<f32>{
             let Tensor {
-                data: ok
+                data: b
             } = a;
             Ok(a)
         }
@@ -13,7 +13,7 @@ pub fn main() {
     fuse_proc_macro!(
         fn case1(a: f32, b: f32) -> anyhow::Result<f32>{
             let Tensor {
-                data: ok,
+                data: b,
                 shape: _,
                 strides: _,
                 offset: _,
@@ -24,7 +24,7 @@ pub fn main() {
     fuse_proc_macro!(
         fn case1(a: f32, b: f32) -> anyhow::Result<f32>{
             let Tensor {
-                data: (ok, lk),
+                data: (b, b),
                 shape: (_, _),
             } = a;
             Ok(a)
@@ -33,9 +33,9 @@ pub fn main() {
     fuse_proc_macro!(
         fn case1(a: f32, b: f32) -> anyhow::Result<f32>{
             let Tensor {
-                data: (ok, lk),
+                data: (b, b),
                 shape: (Tensor {
-                    data: (ok, lk),
+                    data: (b, b),
                     shape: (_, _),
                 }, _),
             } = a;
@@ -44,7 +44,7 @@ pub fn main() {
     );
     fuse_proc_macro!(
         fn case1(a: f32, b: f32) -> anyhow::Result<f32>{
-            let (ok, lk) = a;
+            let (ok, lk) = b;
             Ok(a)
         }
     );

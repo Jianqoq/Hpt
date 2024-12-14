@@ -65,7 +65,7 @@ pub fn main() {
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
         let __match_assign_0 = match a {
             test::Tensor { filed, .. } => {
-                let __if_assign_1 = if res > 0.0 { 10 } else { 20 };
+                let __if_assign_1 = if filed > 0.0 { 10 } else { 20 };
                 __if_assign_1
             }
             _ => 0.0,
@@ -77,8 +77,8 @@ pub fn main() {
         let __match_assign_0 = match a {
             test::Tensor { filed, .. } => {
                 let __match_assign_1 = match b {
-                    test::Tensor { filed, .. } => {
-                        let __if_assign_2 = if res > 0.0 { 10 } else { 20 };
+                    test::Tensor { filed2, .. } => {
+                        let __if_assign_2 = if filed2 > 0.0 { 10 } else { 20 };
                         __if_assign_2
                     }
                     _ => 0.0,

@@ -85,10 +85,10 @@ pub fn main() {
     );
     fuse_proc_macro!(
         fn case6(a: f32, b: f32) -> anyhow::Result<f32>{
-            let c = if a.shape() > 0.0 && a.len() > 0 && { if i > 0 {0} else {1}} {
-                d
+            let c = if a.shape() > 0.0 && a.len() > 0 && { if b > 0 {0} else {1}} {
+                10
             } else {
-                d
+                20
             };
             Ok(c)
         }
