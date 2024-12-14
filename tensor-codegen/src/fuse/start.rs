@@ -1,7 +1,12 @@
-use std::collections::{ HashMap, HashSet };
-use crate::fuse::{ errors::Error, fuse::{ Input, Output }, node::Operand, ty_infer::TyInfer };
-use syn::{ spanned::Spanned, visit::Visit };
 use super::cfg::CFG;
+use crate::fuse::{
+    errors::Error,
+    fuse::{Input, Output},
+    node::Operand,
+    ty_infer::TyInfer,
+};
+use std::collections::{HashMap, HashSet};
+use syn::{spanned::Spanned, visit::Visit};
 
 macro_rules! check_errors {
     ($cfg:expr) => {
@@ -53,24 +58,35 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
         let cmp_pet_graph = graph.to_cmp_pet_graph();
         if cmp_pet_graph.node_count() > 0 && !petgraph::algo::is_cyclic_directed(&cmp_pet_graph) {
             let mut fusion_group = crate::fuse::fuse::cmp_fuse(&cfg, &cmp_pet_graph);
-            let mask = fusion_group.groups
+            let mask = fusion_group
+                .groups
                 .iter()
                 .map(|x| x.len() > 1)
                 .collect::<Vec<_>>();
             let mut mask_iter = mask.iter();
-            fusion_group.groups.retain(|_| *mask_iter.next().expect("mask_iter"));
+            fusion_group
+                .groups
+                .retain(|_| *mask_iter.next().expect("mask_iter"));
             let mut mask_iter = mask.iter();
-            fusion_group.inputs.retain(|_| *mask_iter.next().expect("mask_iter"));
+            fusion_group
+                .inputs
+                .retain(|_| *mask_iter.next().expect("mask_iter"));
             let mut mask_iter = mask.iter();
-            fusion_group.stmt_to_remove.retain(|_| *mask_iter.next().expect("mask_iter"));
+            fusion_group
+                .stmt_to_remove
+                .retain(|_| *mask_iter.next().expect("mask_iter"));
             let mut mask_iter = mask.iter();
-            fusion_group.outputs.retain(|_| *mask_iter.next().expect("mask_iter"));
+            fusion_group
+                .outputs
+                .retain(|_| *mask_iter.next().expect("mask_iter"));
             let sorted = petgraph::algo::toposort(&cmp_pet_graph, None).expect("toposort failed");
-            for (((group, inputs), outputs), stmt_to_remove) in fusion_group.groups
+            for (((group, inputs), outputs), stmt_to_remove) in fusion_group
+                .groups
                 .iter_mut()
                 .zip(fusion_group.inputs.iter_mut())
                 .zip(fusion_group.outputs.iter_mut())
-                .zip(fusion_group.stmt_to_remove.iter_mut()) {
+                .zip(fusion_group.stmt_to_remove.iter_mut())
+            {
                 let mut sorted_group = Vec::new();
                 for sorted_idx in sorted.iter() {
                     if group.contains(sorted_idx) {
@@ -100,9 +116,8 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
                                 comp_graph_idx: *inp,
                             });
                             inserted.insert(inp);
-                        } else if
-                            inserted.contains(inp) &&
-                            !inputs.iter().any(|x| x.comp_graph_idx == *inp)
+                        } else if inserted.contains(inp)
+                            && !inputs.iter().any(|x| x.comp_graph_idx == *inp)
                         {
                             stmt_to_remove.push(cmp_pet_graph[*inp].stmt_idx);
                             intermediates.insert(*inp);
@@ -113,9 +128,8 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
                     }
                 }
                 for idx in group.iter() {
-                    if
-                        !inputs.iter().any(|x| x.comp_graph_idx == *idx) &&
-                        !intermediates.contains(idx)
+                    if !inputs.iter().any(|x| x.comp_graph_idx == *idx)
+                        && !intermediates.contains(idx)
                     {
                         outputs.insert(Output {
                             var: cmp_pet_graph[*idx].ident.clone(),
@@ -127,11 +141,8 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
                     }
                 }
             }
-            let genfuse = crate::fuse::gen_fuse::cmp_gen_fuse(
-                &mut cfg,
-                &cmp_pet_graph,
-                &fusion_group
-            );
+            let genfuse =
+                crate::fuse::gen_fuse::cmp_gen_fuse(&mut cfg, &cmp_pet_graph, &fusion_group);
             check_errors!(cfg);
             genfuse_map.insert(idx, (genfuse, fusion_group));
         }
@@ -139,14 +150,13 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
 
     let mut func_codes = Vec::new();
     for (idx, (codes, fusion_group)) in genfuse_map {
-        for ((code, func_code), ((inp, out), stmt_to_remove)) in codes
-            .into_iter()
-            .zip(
-                fusion_group.inputs
-                    .into_iter()
-                    .zip(fusion_group.outputs.into_iter())
-                    .zip(fusion_group.stmt_to_remove.into_iter())
-            ) {
+        for ((code, func_code), ((inp, out), stmt_to_remove)) in codes.into_iter().zip(
+            fusion_group
+                .inputs
+                .into_iter()
+                .zip(fusion_group.outputs.into_iter())
+                .zip(fusion_group.stmt_to_remove.into_iter()),
+        ) {
             if stmt_to_remove.is_empty() || inp.is_empty() || out.is_empty() {
                 continue;
             }
@@ -154,17 +164,15 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
             let out = out.iter().next().expect("gen_fuse::output");
             assert_ne!(out.stmt_index, -1);
             func_codes.push(func_code);
-            if
-                let syn::Stmt::Local(local) =
-                    &mut cfg.graph[idx].statements[out.stmt_index as usize].stmt
+            if let syn::Stmt::Local(local) =
+                &mut cfg.graph[idx].statements[out.stmt_index as usize].stmt
             {
                 if let syn::Pat::Ident(ident) = &mut local.pat {
                     if let Operand::Variable(var) = &out.var {
                         ident.ident = var.clone();
                     } else {
-                        return Err(
-                            Error::ExpectedIdentifier(out.var.span(), "fuse_impl").to_anyhow_error()
-                        );
+                        return Err(Error::ExpectedIdentifier(out.var.span(), "fuse_impl")
+                            .to_anyhow_error());
                     }
                 } else {
                     return Err(
@@ -175,17 +183,13 @@ pub fn fuse_impl(func: syn::ItemFn) -> anyhow::Result<proc_macro2::TokenStream> 
                     x.expr = Box::new(syn::Expr::Verbatim(code));
                 });
             } else {
-                cfg.graph[idx].statements[out.stmt_index as usize].stmt = syn::Stmt::Expr(
-                    syn::Expr::Verbatim(quote::quote!(#code;)),
-                    None
-                );
+                cfg.graph[idx].statements[out.stmt_index as usize].stmt =
+                    syn::Stmt::Expr(syn::Expr::Verbatim(quote::quote!(#code;)), None);
             }
             for &stmt_idx in stmt_to_remove.iter() {
                 if stmt_idx >= 0 {
-                    cfg.graph[idx].statements[stmt_idx as usize].stmt = syn::Stmt::Expr(
-                        syn::Expr::Verbatim(quote::quote!()),
-                        None
-                    );
+                    cfg.graph[idx].statements[stmt_idx as usize].stmt =
+                        syn::Stmt::Expr(syn::Expr::Verbatim(quote::quote!()), None);
                 }
             }
         }

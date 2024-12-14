@@ -1,4 +1,4 @@
-use std::collections::{ HashMap, HashSet };
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use petgraph::algo::dominators::Dominators;
@@ -11,15 +11,15 @@ use syn::visit::Visit;
 use syn::visit_mut::VisitMut;
 use syn::Stmt;
 
-use super::node::{Node, Operand};
-use super::var_coalescer::VarCoalescer;
-use super::{ codegen, expr_ty };
 use super::errors::Error;
 use super::expr_call_use_visitor::ExprCallUseVisitor;
+use super::node::{Node, Operand};
 use super::phi_function::PhiFunction;
 use super::ty_infer::Type;
 use super::use_define_visitor::UseDefineVisitor;
+use super::var_coalescer::VarCoalescer;
 use super::var_recover::VarRecover;
+use super::{codegen, expr_ty};
 
 #[derive(Clone)]
 pub(crate) struct CustomStmt {
@@ -126,39 +126,44 @@ impl std::fmt::Debug for BasicBlock {
             .field("phi_functions", &self.phi_functions)
             .field(
                 "defined_vars",
-                &self.defined_vars
+                &self
+                    .defined_vars
                     .iter()
                     .map(|v| v.to_string())
-                    .collect::<Vec<_>>()
+                    .collect::<Vec<_>>(),
             )
             .field(
                 "assigned_vars",
-                &self.assigned_vars
+                &self
+                    .assigned_vars
                     .iter()
                     .map(|v| v.to_string())
-                    .collect::<Vec<_>>()
+                    .collect::<Vec<_>>(),
             )
             .field(
                 "used_vars",
-                &self.used_vars
+                &self
+                    .used_vars
                     .iter()
                     .map(|v| v.to_string())
-                    .collect::<Vec<_>>()
+                    .collect::<Vec<_>>(),
             )
             .field("block_type", &self.block_type)
             .field(
                 "live_out",
-                &self.live_out
+                &self
+                    .live_out
                     .iter()
                     .map(|v| v.to_string())
-                    .collect::<Vec<_>>()
+                    .collect::<Vec<_>>(),
             )
             .field(
                 "origin_var_map",
-                &self.origin_var_map
+                &self
+                    .origin_var_map
                     .iter()
                     .map(|(k, v)| (k.to_string(), v.to_string()))
-                    .collect::<HashMap<_, _>>()
+                    .collect::<HashMap<_, _>>(),
             )
             .finish()
     }
@@ -175,12 +180,15 @@ pub(crate) struct CFG {
 fn visit_expr_assign_add_var(
     expr: &syn::ExprAssign,
     definitions: &mut HashMap<syn::Ident, Vec<NodeIndex>>,
-    node: NodeIndex
+    node: NodeIndex,
 ) {
     match expr.left.as_ref() {
         syn::Expr::Path(path) => {
             if let Some(ident) = path.path.get_ident() {
-                definitions.entry(ident.clone()).or_insert_with(Vec::new).push(node);
+                definitions
+                    .entry(ident.clone())
+                    .or_insert_with(Vec::new)
+                    .push(node);
             }
         }
         _ => unimplemented!("visit_expr_assign_add_var::Expr::Other"),
@@ -198,7 +206,7 @@ fn check_expr_assign(
     errors: &mut Vec<Error>,
     expr: &syn::ExprAssign,
     var: &syn::Ident,
-    status: &mut VarStatus
+    status: &mut VarStatus,
 ) {
     match &expr.left.as_ref() {
         syn::Expr::Path(path) => {
@@ -209,13 +217,11 @@ fn check_expr_assign(
             }
         }
         _ => {
-            errors.push(
-                Error::Unsupported(
-                    expr.span(),
-                    "check_expr_assign",
-                    format!("{:?}", expr_ty::ExprType::from(expr.left.as_ref()))
-                )
-            );
+            errors.push(Error::Unsupported(
+                expr.span(),
+                "check_expr_assign",
+                format!("{:?}", expr_ty::ExprType::from(expr.left.as_ref())),
+            ));
         }
     }
 }
@@ -234,12 +240,17 @@ impl CFG {
             assigned_vars: HashSet::new(),
         };
         let entry = graph.add_node(entry_block);
-        CFG { graph, entry, block_id: BlockId::new(entry), errors: vec![] }
+        CFG {
+            graph,
+            entry,
+            block_id: BlockId::new(entry),
+            errors: vec![],
+        }
     }
 
     pub(crate) fn compute_dominance_frontiers(
         &self,
-        dominators: &Dominators<NodeIndex>
+        dominators: &Dominators<NodeIndex>,
     ) -> HashMap<NodeIndex, HashSet<NodeIndex>> {
         let mut dominance_frontiers: HashMap<NodeIndex, HashSet<NodeIndex>> = HashMap::new();
 
@@ -255,7 +266,8 @@ impl CFG {
                 }
             };
 
-            let preds = self.graph
+            let preds = self
+                .graph
                 .neighbors_directed(node, petgraph::Direction::Incoming)
                 .collect::<Vec<_>>();
             if preds.len() >= 2 {
@@ -264,7 +276,10 @@ impl CFG {
                     let idom_node = idom.clone();
 
                     while runner != idom_node {
-                        dominance_frontiers.entry(runner).or_insert_with(HashSet::new).insert(node);
+                        dominance_frontiers
+                            .entry(runner)
+                            .or_insert_with(HashSet::new)
+                            .insert(node);
 
                         runner = match dominators.immediate_dominator(runner) {
                             Some(dom) => dom,
@@ -296,9 +311,15 @@ impl CFG {
             defined_vars.insert(block, use_define_visitor.define_vars);
             for phi in &block_data.phi_functions {
                 for arg in &phi.args {
-                    used_vars.entry(block).or_insert_with(HashSet::new).insert(arg.clone());
+                    used_vars
+                        .entry(block)
+                        .or_insert_with(HashSet::new)
+                        .insert(arg.clone());
                 }
-                defined_vars.entry(block).or_insert_with(HashSet::new).insert(phi.name.clone());
+                defined_vars
+                    .entry(block)
+                    .or_insert_with(HashSet::new)
+                    .insert(phi.name.clone());
             }
         }
 
@@ -320,7 +341,10 @@ impl CFG {
 
                 // 计算OUT[B] = ∪(IN[S]) 其中S是B的后继
                 let mut new_out = HashSet::new();
-                for succ in self.graph.neighbors_directed(block, petgraph::Direction::Outgoing) {
+                for succ in self
+                    .graph
+                    .neighbors_directed(block, petgraph::Direction::Outgoing)
+                {
                     new_out.extend(live_in[&succ].iter().cloned());
                 }
 
@@ -368,9 +392,11 @@ impl CFG {
             for stmt in &block_data.statements {
                 let mut use_define_visitor = UseDefineVisitor::new();
                 use_define_visitor.visit_stmt(&stmt.stmt);
-                for used in use_define_visitor.used_vars
+                for used in use_define_visitor
+                    .used_vars
                     .drain()
-                    .chain(use_define_visitor.assigned_vars.drain()) {
+                    .chain(use_define_visitor.assigned_vars.drain())
+                {
                     if record.contains(&used) {
                         live_out.insert(used);
                     } else {
@@ -422,7 +448,7 @@ impl CFG {
     pub(crate) fn insert_phi_functions(
         &mut self,
         dominance_frontiers: &HashMap<NodeIndex, HashSet<NodeIndex>>,
-        variable_definitions: &HashMap<syn::Ident, Vec<NodeIndex>>
+        variable_definitions: &HashMap<syn::Ident, Vec<NodeIndex>>,
     ) {
         let mut has_already = HashMap::new();
 
@@ -436,10 +462,9 @@ impl CFG {
                 if let Some(frontiers) = dominance_frontiers.get(&def) {
                     for frontier in frontiers {
                         if !has_already[var].contains(frontier) {
-                            let incomings = self.graph.neighbors_directed(
-                                *frontier,
-                                petgraph::Direction::Incoming
-                            );
+                            let incomings = self
+                                .graph
+                                .neighbors_directed(*frontier, petgraph::Direction::Incoming);
                             let mut indices = incomings.clone().collect::<Vec<_>>();
                             indices.sort();
                             let mut status = VarStatus::NotFound;
@@ -460,7 +485,7 @@ impl CFG {
                                                     &mut errors,
                                                     assign,
                                                     var,
-                                                    &mut status
+                                                    &mut status,
                                                 );
                                             }
                                         }
@@ -478,7 +503,8 @@ impl CFG {
                                 }
                             }
                             if has_assigned {
-                                let preds_cnt = self.graph
+                                let preds_cnt = self
+                                    .graph
                                     .neighbors_directed(*frontier, petgraph::Direction::Incoming)
                                     .count();
                                 let args = vec![var.clone(); preds_cnt];
@@ -503,7 +529,7 @@ impl CFG {
 
     pub(crate) fn build_graphs(
         &mut self,
-        type_table: HashMap<syn::Ident, Type>
+        type_table: HashMap<syn::Ident, Type>,
     ) -> Graph<super::build_graph::Graph, ()> {
         let table = Rc::new(type_table);
         let mut graph = Graph::<super::build_graph::Graph, ()>::new();
@@ -512,11 +538,14 @@ impl CFG {
         for node in sorted_indices {
             let mut comp_graph = super::build_graph::Graph::new(table.clone(), node.index());
             let mut in_degrees = HashMap::new();
-            for (idx, stmt) in self.graph
+            for (idx, stmt) in self
+                .graph
                 .node_weight(node)
                 .expect("fuse::cfg::build_graphs::node weight not found")
-                .statements.iter()
-                .enumerate() {
+                .statements
+                .iter()
+                .enumerate()
+            {
                 comp_graph.current_idx = idx;
                 comp_graph.visit_stmt(&stmt.stmt);
             }
@@ -543,7 +572,7 @@ impl CFG {
                             (Node::Input(operand.clone()), -1, node.index()),
                             *table
                                 .get(&ident)
-                                .expect(format!("type not found for {}", ident).as_str())
+                                .expect(format!("type not found for {}", ident).as_str()),
                         );
                     }
                 }
@@ -564,7 +593,9 @@ impl CFG {
         for node in graph.node_indices() {
             let graph = graph.node_weight(node).expect("graph weight not found");
             for temp in graph.extra_temps.iter() {
-                self.graph[node].origin_var_map.insert(temp.clone(), temp.clone());
+                self.graph[node]
+                    .origin_var_map
+                    .insert(temp.clone(), temp.clone());
             }
         }
     }
@@ -577,13 +608,14 @@ impl CFG {
     // 变量重命名
     pub(crate) fn rename_variables(
         &mut self,
-        dominators: &Dominators<NodeIndex>
+        dominators: &Dominators<NodeIndex>,
     ) -> anyhow::Result<()> {
         let mut stacks = HashMap::new();
         let mut versions = HashMap::new();
 
         // 收集所有变量
-        let variables: HashSet<syn::Ident> = self.graph
+        let variables: HashSet<syn::Ident> = self
+            .graph
             .node_indices()
             .flat_map(|node| {
                 let mut vars = HashSet::new();
@@ -748,13 +780,15 @@ fn new_name_pat(
     pat: &mut syn::Pat,
     stacks: &mut HashMap<syn::Ident, Vec<usize>>,
     versions: &mut HashMap<syn::Ident, usize>,
-    new_origin_var_map: &mut HashMap<syn::Ident, syn::Ident>
+    new_origin_var_map: &mut HashMap<syn::Ident, syn::Ident>,
 ) -> anyhow::Result<()> {
     match pat {
         syn::Pat::Const(const_pat) => {
-            errors.push(
-                Error::Unsupported(const_pat.span(), "new_name_pat", "const pattern".to_string())
-            );
+            errors.push(Error::Unsupported(
+                const_pat.span(),
+                "new_name_pat",
+                "const pattern".to_string(),
+            ));
         }
         syn::Pat::Ident(pat_ident) => {
             pat_ident.ident = new_name(
@@ -762,17 +796,23 @@ fn new_name_pat(
                 &pat_ident.ident,
                 versions,
                 stacks,
-                new_origin_var_map
+                new_origin_var_map,
             )?;
         }
         syn::Pat::Lit(_) => {}
         syn::Pat::Macro(_) => {
-            errors.push(
-                Error::Unsupported(pat.span(), "new_name_pat", "macro pattern".to_string())
-            );
+            errors.push(Error::Unsupported(
+                pat.span(),
+                "new_name_pat",
+                "macro pattern".to_string(),
+            ));
         }
         syn::Pat::Or(_) => {
-            errors.push(Error::Unsupported(pat.span(), "new_name_pat", "or pattern".to_string()));
+            errors.push(Error::Unsupported(
+                pat.span(),
+                "new_name_pat",
+                "or pattern".to_string(),
+            ));
         }
         syn::Pat::Paren(paren) => {
             new_name_pat(errors, &mut paren.pat, stacks, versions, new_origin_var_map)?;
@@ -784,12 +824,20 @@ fn new_name_pat(
             }
         }
         syn::Pat::Range(_) => {
-            errors.push(
-                Error::Unsupported(pat.span(), "new_name_pat", "range pattern".to_string())
-            );
+            errors.push(Error::Unsupported(
+                pat.span(),
+                "new_name_pat",
+                "range pattern".to_string(),
+            ));
         }
         syn::Pat::Reference(reference) => {
-            new_name_pat(errors, &mut reference.pat, stacks, versions, new_origin_var_map)?;
+            new_name_pat(
+                errors,
+                &mut reference.pat,
+                stacks,
+                versions,
+                new_origin_var_map,
+            )?;
         }
         syn::Pat::Rest(_) => {}
         syn::Pat::Slice(slice) => {
@@ -813,18 +861,28 @@ fn new_name_pat(
             }
         }
         syn::Pat::Type(pat_type) => {
-            new_name_pat(errors, &mut pat_type.pat, stacks, versions, new_origin_var_map)?;
+            new_name_pat(
+                errors,
+                &mut pat_type.pat,
+                stacks,
+                versions,
+                new_origin_var_map,
+            )?;
         }
         syn::Pat::Verbatim(_) => {
-            errors.push(
-                Error::Unsupported(pat.span(), "new_name_pat", "verbatim pattern".to_string())
-            );
+            errors.push(Error::Unsupported(
+                pat.span(),
+                "new_name_pat",
+                "verbatim pattern".to_string(),
+            ));
         }
         syn::Pat::Wild(_) => {}
         _ => {
-            errors.push(
-                Error::Unsupported(pat.span(), "new_name_pat", "other pattern".to_string())
-            );
+            errors.push(Error::Unsupported(
+                pat.span(),
+                "new_name_pat",
+                "other pattern".to_string(),
+            ));
         }
     }
     Ok(())
@@ -835,7 +893,7 @@ fn rename(
     node: NodeIndex,
     stacks: &mut HashMap<syn::Ident, Vec<usize>>,
     versions: &mut HashMap<syn::Ident, usize>,
-    dominators: &Dominators<NodeIndex>
+    dominators: &Dominators<NodeIndex>,
 ) -> anyhow::Result<()> {
     let mut errors = Vec::new();
     let mut new_origin_var_map = cfg.graph[node].origin_var_map.clone();
@@ -848,7 +906,7 @@ fn rename(
             &phi_function.name,
             versions,
             stacks,
-            &mut new_origin_var_map
+            &mut new_origin_var_map,
         )?;
         phi_function.name = new_name;
     }
@@ -863,7 +921,7 @@ fn rename(
                     &mut local.pat,
                     stacks,
                     versions,
-                    &mut new_origin_var_map
+                    &mut new_origin_var_map,
                 )?;
             }
             Stmt::Item(item) => {
@@ -879,10 +937,8 @@ fn rename(
                     if let proc_macro2::TokenTree::Ident(ident) = token {
                         if let Some(stack) = stacks.get(&ident) {
                             if let Some(version) = stack.last() {
-                                let new_ident = syn::Ident::new(
-                                    &format!("{}{}", ident, version),
-                                    ident.span()
-                                );
+                                let new_ident =
+                                    syn::Ident::new(&format!("{}{}", ident, version), ident.span());
                                 new_origin_var_map.insert(new_ident.clone(), ident);
                                 new_tokens.extend(quote::quote!(#new_ident));
                             }
@@ -897,28 +953,25 @@ fn rename(
     }
     cfg.errors.extend(errors);
     cfg.graph[node].origin_var_map = new_origin_var_map;
-    let succs: Vec<NodeIndex> = cfg.graph
+    let succs: Vec<NodeIndex> = cfg
+        .graph
         .neighbors_directed(node, petgraph::Direction::Outgoing)
         .collect();
     // for each succ of current node in the cfg
     //  fill in phi function parameters
     for succ in succs.iter() {
-        let mut incomings: Vec<NodeIndex> = cfg.graph
+        let mut incomings: Vec<NodeIndex> = cfg
+            .graph
             .neighbors_directed(*succ, petgraph::Direction::Incoming)
             .collect();
         incomings.sort();
-        let j = incomings
-            .iter()
-            .position(|x| *x == node)
-            .unwrap_or(0);
+        let j = incomings.iter().position(|x| *x == node).unwrap_or(0);
         for phi_function in &mut cfg.graph[*succ].phi_functions {
             let origin_var = &phi_function.origin_var;
             if let Some(current_version) = stacks.get(origin_var) {
                 if let Some(version) = current_version.last() {
-                    phi_function.args[j] = syn::Ident::new(
-                        &format!("{}{}", origin_var, version),
-                        origin_var.span()
-                    );
+                    phi_function.args[j] =
+                        syn::Ident::new(&format!("{}{}", origin_var, version), origin_var.span());
                 }
             }
         }
@@ -934,7 +987,10 @@ fn rename(
         rename(cfg, succ, stacks, versions, dominators)?;
     }
     for var in &cfg.graph[node].defined_vars {
-        stacks.get_mut(var).expect(&format!("rename::phi::stacks: {}", var)).pop();
+        stacks
+            .get_mut(var)
+            .expect(&format!("rename::phi::stacks: {}", var))
+            .pop();
     }
     Ok(())
 }
@@ -943,7 +999,7 @@ fn replace_vars(
     errors: &mut Vec<Error>,
     expr: &mut syn::Expr,
     stacks: &HashMap<syn::Ident, Vec<usize>>,
-    new_origin_var_map: &mut HashMap<syn::Ident, syn::Ident>
+    new_origin_var_map: &mut HashMap<syn::Ident, syn::Ident>,
 ) {
     struct VarRenamer<'a> {
         stacks: &'a HashMap<syn::Ident, Vec<usize>>,
@@ -959,23 +1015,22 @@ fn replace_vars(
                             if let Some(current_cnt) = stack.last() {
                                 expr_path.path.segments[0].ident = syn::Ident::new(
                                     &format!("{}{}", var, current_cnt),
-                                    expr_path.path.segments[0].ident.span()
+                                    expr_path.path.segments[0].ident.span(),
                                 );
                                 self.new_origin_var_map.insert(
                                     syn::Ident::new(
                                         &format!("{}{}", var, current_cnt),
-                                        expr_path.path.segments[0].ident.span()
+                                        expr_path.path.segments[0].ident.span(),
                                     ),
-                                    var
+                                    var,
                                 );
+                            } else if var == "None" {
                             } else {
-                                self.errors.push(
-                                    Error::OriginalVariableNotFound(
-                                        var.span(),
-                                        "replace_vars",
-                                        var.to_string()
-                                    )
-                                );
+                                self.errors.push(Error::OriginalVariableNotFound(
+                                    var.span(),
+                                    "replace_vars",
+                                    var.to_string(),
+                                ));
                             }
                         }
                     }
@@ -997,14 +1052,18 @@ fn replace_vars(
             }
         }
     }
-    let mut var_renamer = VarRenamer { stacks, new_origin_var_map, errors };
+    let mut var_renamer = VarRenamer {
+        stacks,
+        new_origin_var_map,
+        errors,
+    };
     var_renamer.visit_expr_mut(expr);
 }
 
 fn replace_vars_item(
     item: &mut syn::Item,
     stacks: &HashMap<syn::Ident, Vec<usize>>,
-    new_origin_var_map: &mut HashMap<syn::Ident, syn::Ident>
+    new_origin_var_map: &mut HashMap<syn::Ident, syn::Ident>,
 ) {
     struct VarRenamer<'a> {
         stacks: &'a HashMap<syn::Ident, Vec<usize>>,
@@ -1019,14 +1078,14 @@ fn replace_vars_item(
                             if let Some(current_cnt) = stack.last() {
                                 expr_path.path.segments[0].ident = syn::Ident::new(
                                     &format!("{}{}", var, current_cnt),
-                                    expr_path.path.segments[0].ident.span()
+                                    expr_path.path.segments[0].ident.span(),
                                 );
                                 self.new_origin_var_map.insert(
                                     syn::Ident::new(
                                         &format!("{}{}", var, current_cnt),
-                                        expr_path.path.segments[0].ident.span()
+                                        expr_path.path.segments[0].ident.span(),
                                     ),
-                                    var
+                                    var,
                                 );
                             }
                         }
@@ -1043,14 +1102,14 @@ fn replace_vars_item(
                         if let Some(current_cnt) = stack.last() {
                             item_const.ident = syn::Ident::new(
                                 &format!("{}{}", item_const.ident, current_cnt),
-                                item_const.ident.span()
+                                item_const.ident.span(),
                             );
                             self.new_origin_var_map.insert(
                                 syn::Ident::new(
                                     &format!("{}{}", item_const.ident, current_cnt),
-                                    item_const.ident.span()
+                                    item_const.ident.span(),
                                 ),
-                                item_const.ident.clone()
+                                item_const.ident.clone(),
                             );
                         }
                     }
@@ -1059,7 +1118,13 @@ fn replace_vars_item(
             }
         }
     }
-    syn::visit_mut::visit_item_mut(&mut (VarRenamer { stacks, new_origin_var_map }), item);
+    syn::visit_mut::visit_item_mut(
+        &mut (VarRenamer {
+            stacks,
+            new_origin_var_map,
+        }),
+        item,
+    );
 }
 
 fn replace_string(var: &mut syn::Ident, stacks: &HashMap<syn::Ident, Vec<usize>>) {
@@ -1075,7 +1140,7 @@ fn new_name(
     var: &syn::Ident,
     versions: &mut HashMap<syn::Ident, usize>,
     stacks: &mut HashMap<syn::Ident, Vec<usize>>,
-    new_origin_var_map: &mut HashMap<syn::Ident, syn::Ident>
+    new_origin_var_map: &mut HashMap<syn::Ident, syn::Ident>,
 ) -> anyhow::Result<syn::Ident> {
     if let Some(cnt) = versions.get_mut(var) {
         if let Some(stack) = stacks.get_mut(var) {
@@ -1086,13 +1151,14 @@ fn new_name(
         new_origin_var_map.insert(ret.clone(), var.clone());
         Ok(ret)
     } else {
-        errors.push(Error::OriginalVariableNotFound(var.span(), "new_name", var.to_string()));
+        errors.push(Error::OriginalVariableNotFound(
+            var.span(),
+            "new_name",
+            var.to_string(),
+        ));
         Err(
-            Error::OriginalVariableNotFound(
-                var.span(),
-                "new_name",
-                var.to_string()
-            ).to_anyhow_error()
+            Error::OriginalVariableNotFound(var.span(), "new_name", var.to_string())
+                .to_anyhow_error(),
         )
     }
 }
@@ -1118,6 +1184,9 @@ impl std::fmt::Debug for BlockId {
 
 impl BlockId {
     pub(crate) fn new(id: NodeIndex) -> Self {
-        BlockId { children: vec![], id }
+        BlockId {
+            children: vec![],
+            id,
+        }
     }
 }

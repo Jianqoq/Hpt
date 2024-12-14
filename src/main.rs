@@ -1,17 +1,6 @@
-use rust_xlsxwriter::{Format, Workbook};
+use rust_xlsxwriter::{ Format, Workbook };
 use std::io::Write;
 use tensor_dyn::*;
-
-fuse_proc_macro!(
-    fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
-        while let syn::Expr::Path(path) = i.iter().next() {
-            a += 10;
-            continue;
-            break;
-        }
-        Ok(a)
-    }
-);
 
 fn main() -> anyhow::Result<()> {
     // conv2d()?;
@@ -42,7 +31,8 @@ fn conv2d() -> Result<(), anyhow::Error> {
             for kw in kw_sets {
                 for h in h_sets {
                     for w in w_sets {
-                        let a = Tensor::<f32>::arange(0, 1 * ic * h * w)?
+                        let a = Tensor::<f32>
+                            ::arange(0, 1 * ic * h * w)?
                             .reshape([1, ic, h, w])?
                             .permute([0, 2, 3, 1])?
                             .contiguous()?;
@@ -51,31 +41,40 @@ fn conv2d() -> Result<(), anyhow::Error> {
                         // let kernel = Tensor::randn(1.0, 1.0, &[oc, ic, kh, kw], &device)?;
                         let now = std::time::Instant::now();
                         for _ in 0..10 {
-                            let _ =
-                                a.maxpool2d(&[kh, kw].into(), [1, 1], [(0, 0), (0, 0)], [2, 2])?;
+                            let _ = a.maxpool2d(
+                                &[kh, kw].into(),
+                                [1, 1],
+                                [
+                                    (0, 0),
+                                    (0, 0),
+                                ],
+                                [2, 2]
+                            )?;
                         }
                         println!("{:?}", now.elapsed() / 10);
                         worksheet.write_number(
                             row,
                             0,
                             (now.elapsed().as_millis() as f64) / 10.0,
-                            &decimal_format,
+                            &decimal_format
                         )?;
                         worksheet.write_string(
                             row,
                             1,
                             &format!("({}, {}, {}, {}, {})", ic, kh, kw, h, w),
-                            &format,
+                            &format
                         )?;
                         print!(
                             "\rprogress: {}%",
-                            ((row + 1) * 100)
-                                / ((ic_sets.len()
-                                    * oc_sets.len()
-                                    * kh_sets.len()
-                                    * kw_sets.len()
-                                    * h_sets.len()
-                                    * w_sets.len()) as u32)
+                            ((row + 1) * 100) /
+                                (
+                                    (ic_sets.len() *
+                                        oc_sets.len() *
+                                        kh_sets.len() *
+                                        kw_sets.len() *
+                                        h_sets.len() *
+                                        w_sets.len()) as u32
+                                )
                         );
                         std::io::stdout().flush().expect("Failed to flush stdout");
                         row += 1;
