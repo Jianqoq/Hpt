@@ -9,6 +9,10 @@ fn main() -> anyhow::Result<()> {
     println!("{}", a);
     let b = a.contiguous()?;
     println!("{}", b);
+
+    let c = Tensor::<f64, Cuda>::hstack(vec![&a, &a])?;
+    println!("{}", c);
+
     Ok(())
 }
 

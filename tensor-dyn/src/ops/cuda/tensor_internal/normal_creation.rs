@@ -141,12 +141,8 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         };
         let arange_kernel = ret.device().get_func("arange", &func_name).unwrap();
         let cfg = LaunchConfig::for_num_elems(ret.size() as u32);
-        let mut slice = unsafe {
-            ret.device()
-                .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
-        };
-        unsafe { arange_kernel.launch(cfg, (&mut slice, start, T::ONE, ret.size())) }?;
-        slice.leak();
+        let slice = ret.cuda_slice();
+        unsafe { arange_kernel.launch(cfg, (slice, start, T::ONE, ret.size())) }?;
         Ok(ret)
     }
 

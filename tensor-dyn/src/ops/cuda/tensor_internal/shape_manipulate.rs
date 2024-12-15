@@ -2,6 +2,7 @@ use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use anyhow::Result;
 use cudarc::driver::DeviceRepr;
+use cudarc::types::CudaTypeName;
 use std::panic::Location;
 use tensor_common::shape_utils::{try_pad_shape, yield_one_after};
 use tensor_common::slice;
@@ -16,7 +17,7 @@ use tensor_common::{
 use tensor_macros::match_selection;
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorInfo, TensorLike};
 
-impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> ShapeManipulate
+impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeManipulate
     for _Tensor<T, Cuda, DEVICE_ID>
 {
     type Meta = T;
@@ -164,29 +165,138 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> ShapeManipulate
         }
         self.flip(0)
     }
-    fn tile<S: Into<Axis>>(&self, _repeats: S) -> Result<Self> {
-        unimplemented!()
+    fn tile<S: Into<Axis>>(&self, repeats: S) -> Result<Self> {
+        let repeats: Axis = repeats.into();
+        ErrHandler::check_index_in_range(self.ndim(), (repeats.axes.len() - 1) as i64)?;
+        let repeats: Vec<i64> = repeats
+            .axes
+            .into_iter()
+            .map(|x| x as i64)
+            .collect::<Vec<i64>>();
+        let final_repeats;
+        let mut final_shape;
+        if repeats.len() > self.ndim() {
+            final_shape = try_pad_shape(self.shape().as_ref(), repeats.len());
+            final_repeats = repeats.clone();
+        } else {
+            final_shape = self.shape().to_vec();
+            final_repeats = try_pad_shape(repeats.as_ref(), self.ndim());
+        }
+        let mut res = self.reshape(&final_shape)?;
+        let mut cnt = 0;
+        for (idx, &i) in final_repeats.iter().enumerate() {
+            if i == 1 {
+                continue;
+            } else {
+                let tmp_shape = yield_one_before(res.shape().as_ref(), idx);
+                res = res.reshape(tmp_shape)?;
+                res = res.repeat(i as usize, (idx + cnt) as i16)?;
+                final_shape[idx] *= i;
+                cnt += 1;
+            }
+        }
+        res.reshape(final_shape)
     }
-    fn trim_zeros(&self, _trim: &str) -> Result<Self>
+    fn trim_zeros(&self, trim: &str) -> Result<Self>
     where
         Self::Meta: PartialEq,
     {
-        unimplemented!()
+        if !(trim == "fb" || trim == "f" || trim == "b") {
+            return Err(anyhow::Error::msg("trim must be one of 'fb', 'f', 'b'"));
+        }
+        if self.ndim() > 1 {
+            return Err(ErrHandler::NdimExceed(1, self.ndim(), Location::caller()).into());
+        }
+        let stride = self.strides()[0] as isize;
+        let raw = self.as_raw();
+        let mut ptr = raw.as_ptr();
+        let mut left_len = 0;
+        if trim.contains('f') {
+            unsafe {
+                for i in 0..raw.len() as isize {
+                    if *ptr.offset(i * stride) != T::ZERO {
+                        break;
+                    } else {
+                        left_len += 1;
+                    }
+                }
+            }
+        }
+        let mut right_len = raw.len() as i64;
+        if trim.contains('b') {
+            unsafe {
+                ptr = raw.as_ptr().offset(((raw.len() - 1) as isize) * stride);
+                let stride = -stride;
+                for i in 0..raw.len() as isize {
+                    if *ptr.offset(i * stride) != T::ZERO {
+                        break;
+                    } else {
+                        right_len -= 1;
+                    }
+                }
+            }
+        }
+        slice!(self[left_len:right_len])
     }
-    fn repeat(&self, _repeats: usize, _axes: i16) -> Result<Self> {
-        unimplemented!()
+    fn repeat(&self, repeats: usize, axes: i16) -> Result<Self> {
+        let mut val: usize = axes as usize;
+        if axes < 0 {
+            val = self.shape().len() + (axes as usize);
+        }
+        let mut new_shape = yield_one_after(&self.shape(), val);
+        let mut new_tensor: _Tensor<T, Cuda, DEVICE_ID> = self.reshape(&new_shape)?;
+        new_shape[val + 1] *= repeats as i64;
+        new_tensor = new_tensor.expand(new_shape)?;
+        new_shape = self.shape().to_vec();
+        new_shape[val] *= repeats as i64;
+        Ok(new_tensor.contiguous()?.reshape(new_shape)?)
     }
-    fn split(&self, _indices_or_sections: &[i64], _axis: i64) -> Result<Vec<Self>> {
-        unimplemented!()
+    fn split(&self, indices_or_sections: &[i64], axis: i64) -> Result<Vec<Self>> {
+        let mut new_axis = axis;
+        if axis < 0 {
+            new_axis = (self.ndim() as i64) + axis;
+        }
+        assert!(new_axis >= 0);
+        let mut reses = vec![];
+        let mut tmp: Vec<Slice> = Vec::with_capacity(self.ndim());
+        for _ in 0..self.ndim() {
+            tmp.push(Slice::Full);
+        }
+        let mut prev = 0;
+        for &i in indices_or_sections.iter() {
+            tmp[axis as usize] = Slice::Range((prev, i));
+            prev = i;
+            reses.push(self.slice(&tmp)?);
+        }
+        let last = *indices_or_sections.last().unwrap();
+        tmp[axis as usize] = Slice::Range((last, self.shape()[axis as usize]));
+        let remain = self.slice(&tmp)?;
+        reses.push(remain);
+        Ok(reses)
     }
-    fn dsplit(&self, _indices: &[i64]) -> Result<Vec<Self>> {
-        unimplemented!()
+    fn dsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
+        if self.shape().len() < 3 {
+            return Err(
+                ErrHandler::NdimNotEnough(3, self.shape().len(), Location::caller()).into(),
+            );
+        }
+        self.split(indices, 2)
     }
-    fn hsplit(&self, _indices: &[i64]) -> Result<Vec<Self>> {
-        unimplemented!()
+    fn hsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
+        if self.shape().len() < 2 {
+            return Err(
+                ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into(),
+            );
+        }
+        self.split(indices, 1)
     }
-    fn vsplit(&self, _indices: &[i64]) -> Result<Vec<Self>> {
-        unimplemented!()
+    fn vsplit(&self, indices: &[i64]) -> Result<Vec<Self>> {
+        if self.shape().len() < 1 {
+            return Err(
+                ErrHandler::NdimNotEnough(1, self.shape().len(), Location::caller()).into(),
+            );
+        }
+        self.split(indices, 0)
     }
     fn swap_axes(&self, mut axis1: i64, mut axis2: i64) -> Result<Self> {
         ErrHandler::check_index_in_range_mut(self.ndim(), &mut axis1)?;
@@ -226,19 +336,59 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> ShapeManipulate
         }
         self.reshape(new_shape)
     }
-    fn concat(_tensors: Vec<&Self>, _axis: usize, _keepdims: bool) -> Result<Self>
+    fn concat(tensors: Vec<&Self>, axis: usize, keepdims: bool) -> Result<Self>
     where
         T: 'static,
     {
-        unimplemented!()
+        crate::ops::cuda::concat::concat(tensors, axis, keepdims)
     }
-    fn vstack(_tensors: Vec<&Self>) -> Result<Self> {
-        unimplemented!()
+    fn vstack(tensors: Vec<&Self>) -> Result<Self> {
+        crate::ops::cuda::concat::concat(tensors, 0, false)
     }
-    fn hstack(_tensors: Vec<&Self>) -> Result<Self> {
-        unimplemented!()
+    fn hstack(mut tensors: Vec<&Self>) -> Result<Self> {
+        for tensor in tensors.iter_mut() {
+            if tensor.shape().len() < 2 {
+                return if tensor.shape().len() == 1 {
+                    crate::ops::cuda::concat::concat(tensors, 0, false)
+                } else {
+                    // scalar
+                    let mut tensors_ref = Vec::with_capacity(tensors.len());
+                    let mut tensors_holder = Vec::with_capacity(tensors.len());
+                    for tensor in tensors {
+                        tensors_holder.push(tensor.reshape(vec![1])?);
+                    }
+                    for tensor in tensors_holder.iter() {
+                        tensors_ref.push(tensor);
+                    }
+                    crate::ops::cuda::concat::concat(tensors_ref, 0, false)
+                };
+            }
+        }
+        crate::ops::cuda::concat::concat(tensors, 1, false)
     }
-    fn dstack(_tensors: Vec<&Self>) -> Result<Self> {
-        unimplemented!()
+    fn dstack(mut tensors: Vec<&Self>) -> Result<Self> {
+        let mut new_tensors = Vec::with_capacity(tensors.len());
+        for tensor in tensors.iter_mut() {
+            if tensor.shape().len() < 3 {
+                if tensor.shape().len() == 1 {
+                    new_tensors.push(tensor.reshape(vec![1, tensor.shape()[0], 1])?);
+                } else if tensor.shape().len() == 0 {
+                    new_tensors.push(tensor.reshape(vec![1, 1, 1])?);
+                } else {
+                    new_tensors.push(tensor.reshape(vec![
+                        tensor.shape()[0],
+                        tensor.shape()[1],
+                        1,
+                    ])?);
+                }
+            } else {
+                new_tensors.push(tensor.clone());
+            }
+        }
+        let mut tensors_ref = Vec::with_capacity(new_tensors.len());
+        for tensor in new_tensors.iter() {
+            tensors_ref.push(tensor);
+        }
+        crate::ops::cuda::concat::concat(tensors_ref, 2, false)
     }
 }

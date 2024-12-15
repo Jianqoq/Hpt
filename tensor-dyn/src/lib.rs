@@ -185,6 +185,8 @@ pub mod ops {
         pub(crate) mod matmul;
         /// a module contains cuda slice impls
         pub(crate) mod cuda_slice;
+        /// a module contains cuda concat impls
+        pub(crate) mod concat;
     }
 }
 

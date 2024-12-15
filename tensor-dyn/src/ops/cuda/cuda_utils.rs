@@ -164,6 +164,14 @@ pub(crate) fn get_include_1<T: TypeCommon>() -> &'static str {
     }
 }
 
+pub(crate) fn get_include_2<T: TypeCommon, E: TypeCommon>() -> &'static str {
+    if T::CUDA_TYPE == "half" || E::CUDA_TYPE == "half" {
+        "#include <cuda_fp16.h>"
+    } else {
+        ""
+    }
+}
+
 pub(crate) fn get_module_name_1<T: TypeCommon, const CUDA_DEVICE: usize>(
     header: &str,
     tensor: &_Tensor<T, Cuda, CUDA_DEVICE>,
@@ -174,6 +182,38 @@ pub(crate) fn get_module_name_1<T: TypeCommon, const CUDA_DEVICE: usize>(
         tensor.layout.shape(),
         tensor.layout.strides(),
     )
+}
+
+pub(crate) fn get_module_name_2<T: TypeCommon, E: TypeCommon, const CUDA_DEVICE: usize>(
+    header: &str,
+    a: &_Tensor<T, Cuda, CUDA_DEVICE>,
+    b: &_Tensor<E, Cuda, CUDA_DEVICE>,
+) -> String {
+    format!(
+        "{header}{}{}{}{}{}{}",
+        T::ID,
+        a.layout.shape(),
+        a.layout.strides(),
+        E::ID,
+        b.layout.shape(),
+        b.layout.strides(),
+    )
+}
+
+pub(crate) fn get_module_name_vec<T: TypeCommon, const CUDA_DEVICE: usize>(
+    header: &str,
+    tensors: &[_Tensor<T, Cuda, CUDA_DEVICE>],
+) -> String {
+    let mut string = String::new();
+    for i in tensors.iter() {
+        string.push_str(&format!(
+            "{}{}{}",
+            T::ID,
+            i.layout.shape(),
+            i.layout.strides(),
+        ));
+    }
+    format!("{header}{}", string)
 }
 
 pub(crate) fn get_array_str(array: &[i64]) -> String {

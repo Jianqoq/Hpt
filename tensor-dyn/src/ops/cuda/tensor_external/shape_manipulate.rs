@@ -1,12 +1,13 @@
-use crate::ops::cpu::concat::concat;
+use crate::ops::cuda::concat::concat;
 use crate::Cuda;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
 use anyhow::Result;
 use cudarc::driver::DeviceRepr;
+use cudarc::types::CudaTypeName;
 use tensor_common::{axis::Axis, shape::Shape};
 use tensor_traits::{CommonBounds, ShapeManipulate};
 
-impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> ShapeManipulate
+impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeManipulate
     for Tensor<T, Cuda, DEVICE_ID>
 {
     type Meta = T;
@@ -811,7 +812,16 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> ShapeManipulate
     /// ));
     /// ```
     fn concat(tensors: Vec<&Self>, axis: usize, keepdims: bool) -> Result<Self> {
-        unimplemented!()
+        Ok(
+            concat(
+                tensors
+                    .iter()
+                    .map(|x| x.inner.as_ref())
+                    .collect(),
+                axis,
+                keepdims
+            )?.into()
+        )
     }
     /// Stacks multiple tensors vertically (along the first axis).
     ///
@@ -847,7 +857,16 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> ShapeManipulate
     /// ));
     /// ```
     fn vstack(tensors: Vec<&Self>) -> Result<Self> {
-        unimplemented!()
+        Ok(
+            concat(
+                tensors
+                    .iter()
+                    .map(|x| x.inner.as_ref())
+                    .collect(),
+                0,
+                false
+            )?.into()
+        )
     }
 
     /// Stacks multiple tensors horizontally (along the second axis).
@@ -876,10 +895,28 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> ShapeManipulate
     /// assert!(stacked_tensor.allclose(&Tensor::<f64>::new([[1.0, 3.0], [2.0, 4.0]])));
     /// ```
     fn hstack(tensors: Vec<&Self>) -> Result<Self> {
-        unimplemented!()
+        Ok(
+            concat(
+                tensors
+                    .iter()
+                    .map(|x| x.inner.as_ref())
+                    .collect(),
+                1,
+                false
+            )?.into()
+        )
     }
 
     fn dstack(tensors: Vec<&Self>) -> Result<Self> {
-        unimplemented!()
+        Ok(
+            concat(
+                tensors
+                    .iter()
+                    .map(|x| x.inner.as_ref())
+                    .collect(),
+                2,
+                false
+            )?.into()
+        )
     }
 }
