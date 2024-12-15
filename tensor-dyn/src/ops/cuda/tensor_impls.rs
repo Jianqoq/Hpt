@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use crate::{tensor_base::_Tensor, Cuda, Tensor};
+use crate::{Backend, ALIGN};
 use cudarc::driver::{CudaDevice, DeviceRepr};
+use tensor_allocator::CUDA_CACHE;
 use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_traits::TensorCreator;
 use tensor_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
@@ -211,12 +213,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVI
     pub fn to_cpu(&self) -> anyhow::Result<Tensor<T>> {
         let mut data = _Tensor::<T>::empty(self.layout.shape().clone()).unwrap();
         let device = self.device();
-        let ptr = unsafe {
-            device.upgrade_device_ptr(
-                self.data.ptr as u64,
-                self.size(),
-            )
-        };
+        let ptr = unsafe { device.upgrade_device_ptr(self.data.ptr as u64, self.size()) };
         self.device()
             .dtoh_sync_copy_into(&ptr, data.as_raw_mut())
             .unwrap();
@@ -341,6 +338,40 @@ impl<T, const DEVICE_ID: usize> Into<Tensor<T, Cuda, DEVICE_ID>> for &Tensor<T, 
         Tensor {
             inner: self.inner.clone(),
         }
+    }
+}
+
+impl<T, const DEVICE_ID: usize> From<T> for _Tensor<T, Cuda, DEVICE_ID>
+where
+    T: DeviceRepr + CommonBounds,
+{
+    fn from(value: T) -> Self {
+        if let Ok(mut cache) = CUDA_CACHE.lock() {
+            let (ptr, device) = cache.host_to_device(&[value], DEVICE_ID).unwrap();
+            let layout = Layout::new(vec![1], vec![1]);
+            let mem_layout = std::alloc::Layout::from_size_align(size_of::<T>(), ALIGN).unwrap();
+            _Tensor {
+                #[cfg(feature = "bound_check")]
+                data: Pointer::new(ptr as *mut T, 1),
+                #[cfg(not(feature = "bound_check"))]
+                data: Pointer::new(ptr as *mut T),
+                parent: None,
+                layout,
+                mem_layout: Arc::new(mem_layout),
+                _backend: Backend::<Cuda>::new(ptr as u64, device),
+            }
+        } else {
+            panic!("Failed to lock CUDA cache");
+        }
+    }
+}
+
+impl<'a, T, const DEVICE_ID: usize> From<&'a T> for _Tensor<T, Cuda, DEVICE_ID>
+where
+    T: DeviceRepr + CommonBounds,
+{
+    fn from(value: &'a T) -> Self {
+        _Tensor::from(*value)
     }
 }
 

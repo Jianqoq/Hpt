@@ -173,6 +173,8 @@ pub mod ops {
         pub(crate) mod kernel_constants;
         /// a module contains cuda binary normal impls
         pub(crate) mod binary_normal;
+        /// a module contains cuda std ops impls
+        pub(crate) mod std_ops;
     }
 }
 

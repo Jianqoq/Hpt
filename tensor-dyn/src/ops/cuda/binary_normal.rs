@@ -12,7 +12,6 @@ use tensor_traits::tensor::CommonBounds;
 use tensor_traits::tensor::TensorCreator;
 use tensor_traits::tensor::TensorInfo;
 use tensor_traits::TensorLike;
-use tensor_types::dtype::TypeCommon;
 
 /// Performs a binary operation on two tensors with optional SIMD optimization and an output tensor.
 ///
@@ -416,15 +415,15 @@ where
                     rhs_strides_str,
                     res.size(),
                     res.ndim(),
-                    f(&format!("({})lhs[lhs_offset]", K::CUDA_TYPE), &format!("({})rhs[rhs_offset]", K::CUDA_TYPE))
+                    f(
+                        &format!("({})lhs[lhs_offset]", K::CUDA_TYPE),
+                        &format!("({})rhs[rhs_offset]", K::CUDA_TYPE)
+                    )
                 ),
                 res.device(),
                 &["binop"],
             )?;
-            let kernel = res
-                .device()
-                .get_func(&module_name, "binop")
-                .unwrap();
+            let kernel = res.device().get_func(&module_name, "binop").unwrap();
             let mut out_slice = unsafe {
                 res.device()
                     .upgrade_device_ptr::<K>(res.ptr().ptr as u64, res.size())
@@ -437,9 +436,7 @@ where
                 lhs.device()
                     .upgrade_device_ptr::<A>(lhs.ptr().ptr as u64, lhs.size())
             };
-            let reg_info = map
-                .get("binop")
-                .expect("func_name not found");
+            let reg_info = map.get("binop").expect("func_name not found");
             let cfg = compute_kernel_launch_config(res.device(), reg_info, res.size());
             unsafe { kernel.launch(cfg, (&mut out_slice, &lhs_slice, &rhs_slice)) }?;
             out_slice.leak();
