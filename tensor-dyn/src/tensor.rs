@@ -139,32 +139,47 @@ impl<T> Debug for Tensor<T> where T: CommonBounds + Convertor {
     }
 }
 
-impl<T> Borrow<_Tensor<T, Cpu>> for Tensor<T> where T: CommonBounds {
-    fn borrow(&self) -> &_Tensor<T, Cpu> {
+impl<T, B: BackendTy + Buffer, const DEVICE_ID: usize> Borrow<_Tensor<T, B, DEVICE_ID>> for Tensor<T, B, DEVICE_ID>
+where
+    T: CommonBounds,
+{
+    fn borrow(&self) -> &_Tensor<T, B, DEVICE_ID> {
         &self.inner
     }
 }
 
-impl<T> Borrow<_Tensor<T, Cpu>> for &Tensor<T> where T: CommonBounds {
-    fn borrow(&self) -> &_Tensor<T, Cpu> {
+impl<T, B: BackendTy + Buffer, const DEVICE_ID: usize> Borrow<_Tensor<T, B, DEVICE_ID>> for &Tensor<T, B, DEVICE_ID>
+where
+    T: CommonBounds,
+{
+    fn borrow(&self) -> &_Tensor<T, B, DEVICE_ID> {
         &self.inner
     }
 }
 
-impl<T> Borrow<_Tensor<T, Cpu>> for &mut Tensor<T> where T: CommonBounds {
-    fn borrow(&self) -> &_Tensor<T, Cpu> {
+impl<T, B: BackendTy + Buffer, const DEVICE_ID: usize> Borrow<_Tensor<T, B, DEVICE_ID>> for &mut Tensor<T, B, DEVICE_ID>
+where
+    T: CommonBounds,
+{
+    fn borrow(&self) -> &_Tensor<T, B, DEVICE_ID> {
         &self.inner
     }
 }
 
-impl<T> BorrowMut<_Tensor<T, Cpu>> for &mut Tensor<T> where T: CommonBounds {
-    fn borrow_mut(&mut self) -> &mut _Tensor<T, Cpu> {
+impl<T, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize> BorrowMut<_Tensor<T, B, DEVICE_ID>> for &mut Tensor<T, B, DEVICE_ID>
+where
+    T: CommonBounds,
+{
+    fn borrow_mut(&mut self) -> &mut _Tensor<T, B, DEVICE_ID> {
         Arc::make_mut(&mut self.inner)
     }
 }
 
-impl<T> BorrowMut<_Tensor<T, Cpu>> for Tensor<T> where T: CommonBounds {
-    fn borrow_mut(&mut self) -> &mut _Tensor<T, Cpu> {
+impl<T, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize> BorrowMut<_Tensor<T, B, DEVICE_ID>> for Tensor<T, B, DEVICE_ID>
+where
+    T: CommonBounds,
+{
+    fn borrow_mut(&mut self) -> &mut _Tensor<T, B, DEVICE_ID> {
         Arc::make_mut(&mut self.inner)
     }
 }

@@ -1,10 +1,10 @@
 use crate::ops::cuda::binary_normal::*;
+use crate::ops::cuda::cuda_utils::cast_operand;
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use crate::Tensor;
 use cudarc::driver::DeviceRepr;
 use tensor_traits::tensor::CommonBounds;
-use tensor_types::dtype::TypeCommon;
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::BitWiseOut;
 use tensor_types::type_promote::FloatOutBinary;
@@ -44,14 +44,12 @@ where
         binary_fn_with_out_simd(
             &self,
             &rhs,
-            |x, y| {
+            |out, x, y| {
                 format!(
-                    "({}){} {} ({}){}",
-                    <T as NormalOut<U>>::Output::CUDA_TYPE,
-                    x,
+                    "{out} = {} {} {}",
+                    cast_operand::<<T as NormalOut<U>>::Output, T>(x),
                     op_string,
-                    <T as NormalOut<U>>::Output::CUDA_TYPE,
-                    y
+                    cast_operand::<<T as NormalOut<U>>::Output, U>(y),
                 )
             },
             None::<out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE>>,
@@ -611,14 +609,12 @@ where
         binary_fn_with_out_simd(
             &self,
             &rhs,
-            |x, y| {
+            |out, x, y| {
                 format!(
-                    "({}){} {} ({}){}",
-                    <T as BitWiseOut<U>>::Output::CUDA_TYPE,
-                    x,
+                    "{out} = {} {} {}",
+                    cast_operand::<<T as BitWiseOut<U>>::Output, T>(x),
                     op_string,
-                    <T as BitWiseOut<U>>::Output::CUDA_TYPE,
-                    y
+                    cast_operand::<<T as BitWiseOut<U>>::Output, U>(y),
                 )
             },
             None::<out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>>,
@@ -1064,14 +1060,12 @@ where
         binary_fn_with_out_simd(
             &self,
             &rhs,
-            |x, y| {
+            |out, x, y| {
                 format!(
-                    "({}){} {} ({}){}",
-                    <T as FloatOutBinary<U>>::Output::CUDA_TYPE,
-                    x,
+                    "{out} = {} {} {}",
+                    cast_operand::<<T as FloatOutBinary<U>>::Output, T>(x),
                     op_string,
-                    <T as FloatOutBinary<U>>::Output::CUDA_TYPE,
-                    y
+                    cast_operand::<<T as FloatOutBinary<U>>::Output, U>(y),
                 )
             },
             None::<out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE>>,

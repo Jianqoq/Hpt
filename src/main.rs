@@ -5,9 +5,9 @@ use tensor_dyn::*;
 
 fn main() -> anyhow::Result<()> {
     let now = std::time::Instant::now();
-    let a = Tensor::<f64, Cuda>::arange(0.0, 100.0)?;
-    let b = Tensor::<f64, Cuda>::arange(0.0, 100.0)?;
-    let c = a + b;
+    let a = Tensor::<f64, Cuda>::arange(0.0, 100.0)?.reshape([10, 10])?;
+    let b = Tensor::<f64, Cuda>::arange(0.0, 100.0)?.reshape([10, 10])?;
+    let c = a.matmul(&b)?;
     println!("{}", c);
     Ok(())
 }

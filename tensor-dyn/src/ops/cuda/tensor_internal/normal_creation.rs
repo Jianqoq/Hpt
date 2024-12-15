@@ -249,7 +249,6 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
         unsafe {
             kernel.launch(cfg, (&mut slice, start, step_t, num))?;
-            ret.device().synchronize()?;
         }
         slice.leak();
         Ok(ret)
@@ -291,7 +290,6 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
         unsafe {
             kernel.launch(cfg, (&mut slice, base, start, step_t, num))?;
-            ret.device().synchronize()?;
         }
         slice.leak();
         Ok(ret)
@@ -350,7 +348,6 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
         unsafe {
             kernel.launch(cfg, (&mut slice, start_t, step_t, both_negative, n))?;
-            ret.device().synchronize()?;
         }
         slice.leak();
         Ok(ret)

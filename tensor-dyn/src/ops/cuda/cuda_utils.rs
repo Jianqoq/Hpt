@@ -5,6 +5,7 @@ use cudarc::{
     nvrtc::{compile_ptx_with_opts, CompileOptions},
 };
 use regex::Regex;
+use tensor_types::dtype::TypeCommon;
 
 use crate::cuda_compiled::CUDA_COMPILED;
 
@@ -141,5 +142,16 @@ pub(crate) fn compute_kernel_launch_config(
             1,
         ),
         shared_mem_bytes: 0,
+    }
+}
+
+/// cast operand to the type of the destination
+pub fn cast_operand<Dst: TypeCommon, Src: TypeCommon>(operend: &str) -> String {
+    if Dst::CUDA_TYPE == "half" {
+        format!("__half2float({operend})")
+    } else if Src::CUDA_TYPE == "half" {
+        format!("({})__half2float({operend})", Dst::CUDA_TYPE)
+    } else {
+        format!("({}){operend}", Dst::CUDA_TYPE)
     }
 }

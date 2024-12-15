@@ -162,10 +162,16 @@ pub mod ops {
         pub(crate) mod tensor_internal {
             /// a module contains cuda tensor normal creation impls
             pub(crate) mod normal_creation;
+            /// a module contains cuda tensor shape manipulation impls
+            pub(crate) mod shape_manipulate;
         }
         pub mod tensor_external {
             /// a module contains cuda tensor normal creation impls
             pub(crate) mod normal_creation;
+            /// a module contains cuda tensor matmul impls
+            pub(crate) mod matmul;
+            /// a module contains cuda tensor shape manipulation impls
+            pub(crate) mod shape_manipulate;
         }
         /// a module contains cuda utils
         pub(crate) mod cuda_utils;
@@ -175,6 +181,8 @@ pub mod ops {
         pub(crate) mod binary_normal;
         /// a module contains cuda std ops impls
         pub(crate) mod std_ops;
+        /// a module contains cuda matmul impls
+        pub(crate) mod matmul;
     }
 }
 

@@ -53,7 +53,7 @@ where
     B: CommonBounds + DeviceRepr,
     O: Borrow<_Tensor<K, Cuda, CUDA_DEVICE>>,
     K: CommonBounds + DeviceRepr,
-    F: Fn(&String, &String) -> String,
+    F: Fn(&str, &str, &str) -> String,
 {
     let module_name = format!(
         "bn{}{}{}{}{}{}",
@@ -64,6 +64,11 @@ where
         rhs.layout.shape(),
         rhs.layout.strides()
     );
+    let include = if K::CUDA_TYPE == "half" || A::CUDA_TYPE == "half" || B::CUDA_TYPE == "half" {
+        "#include <cuda_fp16.h>"
+    } else {
+        ""
+    };
     if lhs.size() == 1 {
         let val = lhs.to_cpu()?.as_raw()[0];
         let res = extract_out::<B, K, O, CUDA_DEVICE>(rhs.size(), rhs.shape(), out)?;
@@ -71,7 +76,9 @@ where
             let map = compile_kernel(
                 &module_name,
                 &format!(
-                    "extern \"C\" __global__ void lhs_scalar_rhs_contiguous({} *out, {} lhs, {} *rhs)
+                    "
+                    {include}
+                    extern \"C\" __global__ void lhs_scalar_rhs_contiguous({} *out, {} lhs, {} *rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
                         size_t stride = blockDim.x * gridDim.x;
@@ -85,7 +92,7 @@ where
                     A::CUDA_TYPE,
                     B::CUDA_TYPE,
                     res.size(),
-                    f(&format!("({})lhs", K::CUDA_TYPE), &format!("({})rhs[idx]", K::CUDA_TYPE))
+                    f("out[idx]", "lhs", "rhs[idx]")
                 ),
                 res.device(),
                 &["lhs_scalar_rhs_contiguous"],
@@ -126,7 +133,9 @@ where
             let map = compile_kernel(
                 &module_name,
                 &format!(
-                    "extern \"C\" __global__ void lhs_scalar_rhs_contiguous({} *out, {} lhs, {} *rhs)
+                    "
+                    {include}
+                    extern \"C\" __global__ void lhs_scalar_rhs_contiguous({} *out, {} lhs, {} *rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
                         size_t stride = blockDim.x * gridDim.x;
@@ -142,7 +151,7 @@ where
                                 offset += amount % shape[j] * strides[j];
                                 amount /= shape[j];
                             }}
-                            out[idx] = {};
+                            {};
                             idx += stride;
                         }}
                     }}",
@@ -153,7 +162,7 @@ where
                     strides_str,
                     res.size(),
                     res.ndim(),
-                    f(&format!("({})lhs", K::CUDA_TYPE), &format!("({})rhs[offset]", K::CUDA_TYPE))
+                    f("out[idx]", "lhs", "rhs[offset]")
                 ),
                 res.device(),
                 &["lhs_scalar_rhs_not_contiguous"],
@@ -186,13 +195,15 @@ where
             let map = compile_kernel(
                 &module_name,
                 &format!(
-                    "extern \"C\" __global__ void rhs_scalar_lhs_contiguous({} *out, {} *lhs, {} rhs)
+                    "
+                    {include}
+                    extern \"C\" __global__ void rhs_scalar_lhs_contiguous({} *out, {} *lhs, {} rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
                         size_t stride = blockDim.x * gridDim.x;
                         while (idx < {})
                         {{
-                            out[idx] = {};
+                            {};
                             idx += stride;
                         }}
                     }}",
@@ -200,7 +211,7 @@ where
                     A::CUDA_TYPE,
                     B::CUDA_TYPE,
                     res.size(),
-                    f(&format!("({})lhs[idx]", K::CUDA_TYPE), &format!("({})rhs", K::CUDA_TYPE))
+                    f("out[idx]", "lhs[idx]", "rhs")
                 ),
                 res.device(),
                 &["rhs_scalar_lhs_contiguous"],
@@ -241,7 +252,9 @@ where
             let map = compile_kernel(
                 &module_name,
                 &format!(
-                    "extern \"C\" __global__ void rhs_scalar_lhs_contiguous({} *out, {} *lhs, {} rhs)
+                    "
+                    {include}
+                    extern \"C\" __global__ void rhs_scalar_lhs_contiguous({} *out, {} *lhs, {} rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
                         size_t stride = blockDim.x * gridDim.x;
@@ -257,7 +270,7 @@ where
                                 offset += amount % shape[j] * strides[j];
                                 amount /= shape[j];
                             }}
-                            out[idx] = {};
+                            {};
                             idx += stride;
                         }}
                     }}",
@@ -268,7 +281,7 @@ where
                     strides_str,
                     res.size(),
                     res.ndim(),
-                    f(&format!("({})lhs[offset]", K::CUDA_TYPE), &format!("({})rhs", K::CUDA_TYPE))
+                    f("out[idx]", "lhs[offset]", "rhs")
                 ),
                 res.device(),
                 &["rhs_scalar_lhs_not_contiguous"],
@@ -297,16 +310,40 @@ where
     } else {
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
             let res = extract_out::<B, K, O, CUDA_DEVICE>(rhs.size(), rhs.shape(), out)?;
+            println!(
+                "{}",
+                &format!(
+                    "
+                {include}
+                extern \"C\" __global__ void lhs_scalar_rhs_contiguous({} *out, {} *lhs, {} *rhs)
+                {{
+                    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+                    size_t stride = blockDim.x * gridDim.x;
+                    while (idx < {})
+                    {{
+                        {};
+                        idx += stride;
+                    }}
+                }}",
+                    K::CUDA_TYPE,
+                    A::CUDA_TYPE,
+                    B::CUDA_TYPE,
+                    res.size(),
+                    f("out[idx]", "lhs[idx]", "rhs[idx]")
+                )
+            );
             let map = compile_kernel(
                 &module_name,
                 &format!(
-                    "extern \"C\" __global__ void lhs_scalar_rhs_contiguous({} *out, {} *lhs, {} *rhs)
+                    "
+                    {include}
+                    extern \"C\" __global__ void lhs_scalar_rhs_contiguous({} *out, {} *lhs, {} *rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
                         size_t stride = blockDim.x * gridDim.x;
                         while (idx < {})
                         {{
-                            out[idx] = {};
+                            {};
                             idx += stride;
                         }}
                     }}",
@@ -314,7 +351,7 @@ where
                     A::CUDA_TYPE,
                     B::CUDA_TYPE,
                     res.size(),
-                    f(&format!("({})lhs[idx]", K::CUDA_TYPE), &format!("({})rhs[idx]", K::CUDA_TYPE))
+                    f("out[idx]", "lhs[idx]", "rhs[idx]")
                 ),
                 res.device(),
                 &["lhs_scalar_rhs_contiguous"],
@@ -380,7 +417,9 @@ where
             let map = compile_kernel(
                 &module_name,
                 &format!(
-                    "extern \"C\" __global__ void binop({} *out, {} *lhs, {} *rhs)
+                    "
+                    {include}
+                    extern \"C\" __global__ void binop({} *out, {} *lhs, {} *rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
                         size_t stride = blockDim.x * gridDim.x;
@@ -402,7 +441,7 @@ where
                                 rhs_offset += rhs_amount % rhs_shape[j] * rhs_strides[j];
                                 rhs_amount /= rhs_shape[j];
                             }}
-                            out[idx] = {};
+                            {};
                             idx += stride;
                         }}
                     }}",
@@ -415,10 +454,7 @@ where
                     rhs_strides_str,
                     res.size(),
                     res.ndim(),
-                    f(
-                        &format!("({})lhs[lhs_offset]", K::CUDA_TYPE),
-                        &format!("({})rhs[rhs_offset]", K::CUDA_TYPE)
-                    )
+                    f("out[idx]", "lhs[lhs_offset]", "rhs[rhs_offset]")
                 ),
                 res.device(),
                 &["binop"],
