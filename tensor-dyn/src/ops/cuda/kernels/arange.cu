@@ -4,7 +4,7 @@
 #define MAKE_VEC3(vec_type, vec_size, value) make_##vec_type##vec_size(value, value + step, value + step * 2)
 #define MAKE_VEC2(vec_type, vec_size, value) make_##vec_type##vec_size(value, value + step)
 
-#define DEFINE_FILL_KERNEL(func_name, vec_type, type, vec_size)                      \
+#define DEFINE_KERNEL(func_name, vec_type, type, vec_size)                      \
     extern "C" __global__ void func_name(type *out, type start, type step, size_t N) \
     {                                                                                \
         vec_type##vec_size *out_vec = (vec_type##vec_size *)out;                     \

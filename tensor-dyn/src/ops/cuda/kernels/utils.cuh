@@ -13,3 +13,15 @@ __device__ bool is_contiguous(
     }
     return true;
 }
+
+__device__ bool shape_equal(size_t ndim, size_t *shape, size_t *lhs_shape, size_t *rhs_shape)
+{
+    for (size_t i = 0; i < ndim; i++)
+    {
+        if (shape[i] != lhs_shape[i] || shape[i] != rhs_shape[i])
+        {
+            return false;
+        }
+    }
+    return true;
+}

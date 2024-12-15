@@ -4,8 +4,8 @@
 #define MAKE_VEC3(vec_type, vec_size, value) make_##vec_type##vec_size(value, value, value)
 #define MAKE_VEC2(vec_type, vec_size, value) make_##vec_type##vec_size(value, value)
 
-#define DEFINE_FILL_KERNEL(func_name, vec_type, type, vec_size)                       \
-    extern "C" __global__ void func_name(type *out, type value, size_t N)                        \
+#define DEFINE_KERNEL(func_name, vec_type, type, vec_size)                            \
+    extern "C" __global__ void func_name(type *out, type value, size_t N)             \
     {                                                                                 \
         vec_type##vec_size *out_vec = (vec_type##vec_size *)out;                      \
         vec_type##vec_size value_vec = MAKE_VEC##vec_size(vec_type, vec_size, value); \

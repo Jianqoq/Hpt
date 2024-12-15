@@ -4,7 +4,9 @@ use crate::{
     axis::{process_axes, Axis},
     err_handler::ErrHandler,
     shape::Shape,
-    shape_utils::{is_reshape_possible, predict_broadcast_shape},
+    shape_utils::{
+        get_broadcast_axes_from, is_reshape_possible, predict_broadcast_shape, try_pad_shape,
+    },
     strides::Strides,
     strides_utils::shape_to_strides,
 };
@@ -389,6 +391,59 @@ impl Layout {
             expected_stride *= dim_size;
         }
         true
+    }
+
+    /// # Internal Function
+    ///
+    /// convert the layout to a broadcast layout
+    ///
+    /// # Arguments
+    ///
+    /// * `shape` - the shape to be broadcasted
+    ///
+    /// # Returns
+    ///
+    /// * `Layout` - the new layout after broadcast
+    pub fn to_broadcast_layout(&self, res_shape: &Shape) -> anyhow::Result<Layout> {
+        let size = res_shape.size() as usize;
+        let self_size = self.size() as usize;
+        if size > (self_size as usize) {
+            let self_shape = try_pad_shape(self.shape(), res_shape.len());
+            let axes_to_broadcast =
+                get_broadcast_axes_from(&self_shape, &res_shape).expect("Cannot broadcast shapes");
+            let mut new_strides = vec![0; res_shape.len()];
+            new_strides
+                .iter_mut()
+                .rev()
+                .zip(self.strides().iter().rev())
+                .for_each(|(a, b)| {
+                    *a = *b;
+                });
+            for &axis in axes_to_broadcast.iter() {
+                assert_eq!(self_shape[axis], 1);
+                new_strides[axis] = 0;
+            }
+            Ok(Layout {
+                shape: res_shape.into(),
+                strides: new_strides.into(),
+            })
+        } else {
+            ErrHandler::check_size_match(self.shape().size(), res_shape.size())?;
+            if let Some(new_strides) = self.is_reshape_possible(&res_shape) {
+                Ok(Layout {
+                    shape: res_shape.into(),
+                    strides: new_strides.into(),
+                })
+            } else {
+                Err(ErrHandler::IterInplaceReshapeError(
+                    self.shape().clone(),
+                    res_shape.clone(),
+                    self.strides().clone(),
+                    Location::caller(),
+                )
+                .into())
+            }
+        }
     }
 }
 

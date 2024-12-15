@@ -105,7 +105,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorAlloc
 
 // impl<T: CommonBounds> TensorIterator<'_, T> for _Tensor<T, Cuda> {}
 
-impl<T: CommonBounds, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
+impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
     // /// copy the data from the other tensor to this tensor
     // pub fn assign(&mut self, other: &_Tensor<T>) {
     //     self.par_iter_mut_simd()
@@ -147,44 +147,44 @@ impl<T: CommonBounds, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
     //     }
     // }
 
-    // /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
-    // pub fn static_cast<Dst>(&self) -> anyhow::Result<_Tensor<Dst, Cuda>>
-    // where
-    //     Dst: CommonBounds,
-    // {
-    //     if T::ID == Dst::ID {
-    //         match self.parent.clone() {
-    //             Some(parent) => {
-    //                 #[cfg(feature = "bound_check")]
-    //                 let new_parent = Pointer::new(parent.ptr as *mut Dst, parent.len);
-    //                 #[cfg(not(feature = "bound_check"))]
-    //                 let new_parent = Pointer::new(parent.ptr as *mut Dst);
-    //                 Ok(_Tensor {
-    //                     #[cfg(feature = "bound_check")]
-    //                     data: Pointer::new(self.data.ptr as *mut Dst, self.ptr().len),
-    //                     #[cfg(not(feature = "bound_check"))]
-    //                     data: Pointer::new(self.data.ptr as *mut Dst),
-    //                     parent: Some(new_parent),
-    //                     mem_layout: self.mem_layout.clone(),
-    //                     layout: self.layout.clone(),
-    //                     _backend: self._backend.clone(),
-    //                 })
-    //             }
-    //             None => Ok(_Tensor {
-    //                 #[cfg(feature = "bound_check")]
-    //                 data: Pointer::new(self.data.ptr as *mut Dst, self.ptr().len),
-    //                 #[cfg(not(feature = "bound_check"))]
-    //                 data: Pointer::new(self.data.ptr as *mut Dst),
-    //                 parent: None,
-    //                 mem_layout: self.mem_layout.clone(),
-    //                 layout: self.layout.clone(),
-    //                 _backend: self._backend.clone(),
-    //             }),
-    //         }
-    //     } else {
-    //         panic!("Cannot cast tensor to different type")
-    //     }
-    // }
+    /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
+    pub fn static_cast<Dst>(&self) -> anyhow::Result<_Tensor<Dst, Cuda, DEVICE_ID>>
+    where
+        Dst: CommonBounds,
+    {
+        if T::ID == Dst::ID {
+            match self.parent.clone() {
+                Some(parent) => {
+                    #[cfg(feature = "bound_check")]
+                    let new_parent = Pointer::new(parent.ptr as *mut Dst, parent.len);
+                    #[cfg(not(feature = "bound_check"))]
+                    let new_parent = Pointer::new(parent.ptr as *mut Dst);
+                    Ok(_Tensor {
+                        #[cfg(feature = "bound_check")]
+                        data: Pointer::new(self.data.ptr as *mut Dst, self.ptr().len),
+                        #[cfg(not(feature = "bound_check"))]
+                        data: Pointer::new(self.data.ptr as *mut Dst),
+                        parent: Some(new_parent),
+                        mem_layout: self.mem_layout.clone(),
+                        layout: self.layout.clone(),
+                        _backend: self._backend.clone(),
+                    })
+                }
+                None => Ok(_Tensor {
+                    #[cfg(feature = "bound_check")]
+                    data: Pointer::new(self.data.ptr as *mut Dst, self.ptr().len),
+                    #[cfg(not(feature = "bound_check"))]
+                    data: Pointer::new(self.data.ptr as *mut Dst),
+                    parent: None,
+                    mem_layout: self.mem_layout.clone(),
+                    layout: self.layout.clone(),
+                    _backend: self._backend.clone(),
+                }),
+            }
+        } else {
+            panic!("Cannot cast tensor to different type")
+        }
+    }
 
     // /// check if two tensors are close to each other
     // pub fn allclose<U: CommonBounds>(&self, other: &_Tensor<U, Cuda>) -> bool
@@ -207,6 +207,22 @@ impl<T: CommonBounds, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
     //     );
     //     folder.reduce(|| true, |a, b| a && b)
     // }
+
+    pub fn to_cpu(&self) -> anyhow::Result<Tensor<T>> {
+        let mut data = _Tensor::<T>::empty(self.layout.shape().clone()).unwrap();
+        let device = self.device();
+        let ptr = unsafe {
+            device.upgrade_device_ptr(
+                self.data.ptr as u64,
+                self.size(),
+            )
+        };
+        self.device()
+            .dtoh_sync_copy_into(&ptr, data.as_raw_mut())
+            .unwrap();
+        ptr.leak();
+        Ok(data.into())
+    }
     pub(crate) fn device(&self) -> Arc<CudaDevice> {
         self._backend._backend.device.clone()
     }
@@ -215,19 +231,7 @@ impl<T: CommonBounds, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
 impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> Tensor<T, Cuda, DEVICE_ID> {
     /// copy the data from the cuda tensor to the cpu tensor
     pub fn to_cpu(&self) -> anyhow::Result<Tensor<T>> {
-        let mut data = _Tensor::<T>::empty(self.inner.as_ref().shape().clone()).unwrap();
-        let device = self.device();
-        let ptr = unsafe {
-            device.upgrade_device_ptr(
-                self.inner.as_ref().ptr().ptr as u64,
-                self.inner.as_ref().size(),
-            )
-        };
-        self.device()
-            .dtoh_sync_copy_into(&ptr, data.as_raw_mut())
-            .unwrap();
-        ptr.leak();
-        Ok(data.into())
+        Ok(self.inner.as_ref().to_cpu()?.into())
     }
     /// get the device of the tensor
     pub fn device(&self) -> Arc<CudaDevice> {
