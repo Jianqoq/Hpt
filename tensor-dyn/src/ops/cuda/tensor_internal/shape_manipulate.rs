@@ -1,6 +1,7 @@
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use anyhow::Result;
+use cudarc::driver::DeviceRepr;
 use std::panic::Location;
 use tensor_common::shape_utils::{try_pad_shape, yield_one_after};
 use tensor_common::slice;
@@ -15,7 +16,9 @@ use tensor_common::{
 use tensor_macros::match_selection;
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorInfo, TensorLike};
 
-impl<T: CommonBounds, const DEVICE_ID: usize> ShapeManipulate for _Tensor<T, Cuda, DEVICE_ID> {
+impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> ShapeManipulate
+    for _Tensor<T, Cuda, DEVICE_ID>
+{
     type Meta = T;
     fn squeeze<A: Into<Axis>>(&self, axes: A) -> Result<Self> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
@@ -67,7 +70,7 @@ impl<T: CommonBounds, const DEVICE_ID: usize> ShapeManipulate for _Tensor<T, Cud
                 _backend: self._backend.clone(),
             })
         } else {
-            todo!()
+            self.contiguous()?.reshape(shape)
         }
     }
     fn transpose(&self, axis1: i64, axis2: i64) -> Result<Self> {

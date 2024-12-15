@@ -13,6 +13,8 @@ use tensor_traits::tensor::TensorCreator;
 use tensor_traits::tensor::TensorInfo;
 use tensor_traits::TensorLike;
 
+use super::cuda_utils::get_array_str;
+
 /// Performs a binary operation on two tensors with optional SIMD optimization and an output tensor.
 ///
 /// This method applies a binary function element-wise on two tensors (`lhs` and `rhs`) and returns
@@ -101,46 +103,28 @@ where
                 .device()
                 .get_func(&module_name, "lhs_scalar_rhs_contiguous")
                 .unwrap();
-            let mut out_slice = unsafe {
-                res.device()
-                    .upgrade_device_ptr::<K>(res.ptr().ptr as u64, res.size())
-            };
-            let rhs_slice = unsafe {
-                rhs.device()
-                    .upgrade_device_ptr::<B>(rhs.ptr().ptr as u64, rhs.size())
-            };
+            let out_slice = res.cuda_slice();
+            let rhs_slice = rhs.cuda_slice();
             let reg_info = map
                 .get("lhs_scalar_rhs_contiguous")
                 .expect("func_name not found");
             let cfg = compute_kernel_launch_config(res.device(), reg_info, res.size());
-            unsafe { kernel.launch(cfg, (&mut out_slice, val, &rhs_slice)) }?;
-            out_slice.leak();
-            rhs_slice.leak();
+            unsafe { kernel.launch(cfg, (out_slice, val, rhs_slice)) }?;
         } else {
             let rhs_broadcast_layout = rhs.layout.to_broadcast_layout(res.shape())?;
-            let shape_str = rhs_broadcast_layout
-                .shape()
-                .iter()
-                .map(|x| x.to_string())
-                .collect::<Vec<_>>()
-                .join(",");
-            let strides_str = rhs_broadcast_layout
-                .strides()
-                .iter()
-                .map(|x| x.to_string())
-                .collect::<Vec<_>>()
-                .join(",");
+            let shape_str = get_array_str(rhs_broadcast_layout.shape());
+            let strides_str = get_array_str(rhs_broadcast_layout.strides());
             let map = compile_kernel(
                 &module_name,
                 &format!(
                     "
                     {include}
+                    __constant__ long long shape[] = {{{}}};
+                    __constant__ long long strides[] = {{{}}};
                     extern \"C\" __global__ void lhs_scalar_rhs_contiguous({} *out, {} lhs, {} *rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
                         size_t stride = blockDim.x * gridDim.x;
-                        __constant__ long long shape[] = {{{}}};
-                        __constant__ long long strides[] = {{{}}};
                         while (idx < {})
                         {{
                             long amount = idx;
@@ -155,11 +139,11 @@ where
                             idx += stride;
                         }}
                     }}",
+                    shape_str,
+                    strides_str,
                     K::CUDA_TYPE,
                     A::CUDA_TYPE,
                     B::CUDA_TYPE,
-                    shape_str,
-                    strides_str,
                     res.size(),
                     res.ndim(),
                     f("out[idx]", "lhs", "rhs[offset]")
@@ -171,21 +155,13 @@ where
                 .device()
                 .get_func(&module_name, "lhs_scalar_rhs_not_contiguous")
                 .unwrap();
-            let mut out_slice = unsafe {
-                res.device()
-                    .upgrade_device_ptr::<K>(res.ptr().ptr as u64, res.size())
-            };
-            let rhs_slice = unsafe {
-                rhs.device()
-                    .upgrade_device_ptr::<B>(rhs.ptr().ptr as u64, rhs.size())
-            };
+            let out_slice = res.cuda_slice();
+            let rhs_slice = rhs.cuda_slice();
             let reg_info = map
                 .get("lhs_scalar_rhs_not_contiguous")
                 .expect("func_name not found");
             let cfg = compute_kernel_launch_config(res.device(), reg_info, res.size());
-            unsafe { kernel.launch(cfg, (&mut out_slice, val, &rhs_slice)) }?;
-            out_slice.leak();
-            rhs_slice.leak();
+            unsafe { kernel.launch(cfg, (out_slice, val, rhs_slice)) }?;
         }
         Ok(res)
     } else if rhs.size() == 1 {
@@ -220,46 +196,28 @@ where
                 .device()
                 .get_func(&module_name, "rhs_scalar_lhs_contiguous")
                 .unwrap();
-            let mut out_slice = unsafe {
-                res.device()
-                    .upgrade_device_ptr::<K>(res.ptr().ptr as u64, res.size())
-            };
-            let lhs_slice = unsafe {
-                lhs.device()
-                    .upgrade_device_ptr::<A>(lhs.ptr().ptr as u64, lhs.size())
-            };
+            let out_slice = res.cuda_slice();
+            let lhs_slice = lhs.cuda_slice();
             let reg_info = map
                 .get("rhs_scalar_lhs_contiguous")
                 .expect("func_name not found");
             let cfg = compute_kernel_launch_config(res.device(), reg_info, res.size());
-            unsafe { kernel.launch(cfg, (&mut out_slice, &lhs_slice, val)) }?;
-            out_slice.leak();
-            lhs_slice.leak();
+            unsafe { kernel.launch(cfg, (out_slice, lhs_slice, val)) }?;
         } else {
             let lhs_broadcast_layout = lhs.layout.to_broadcast_layout(res.shape())?;
-            let shape_str = lhs_broadcast_layout
-                .shape()
-                .iter()
-                .map(|x| x.to_string())
-                .collect::<Vec<_>>()
-                .join(",");
-            let strides_str = lhs_broadcast_layout
-                .strides()
-                .iter()
-                .map(|x| x.to_string())
-                .collect::<Vec<_>>()
-                .join(",");
+            let shape_str = get_array_str(lhs_broadcast_layout.shape());
+            let strides_str = get_array_str(lhs_broadcast_layout.strides());
             let map = compile_kernel(
                 &module_name,
                 &format!(
                     "
                     {include}
+                    __constant__ long long shape[] = {{{}}};
+                    __constant__ long long strides[] = {{{}}};
                     extern \"C\" __global__ void rhs_scalar_lhs_contiguous({} *out, {} *lhs, {} rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
                         size_t stride = blockDim.x * gridDim.x;
-                        __constant__ long long shape[] = {{{}}};
-                        __constant__ long long strides[] = {{{}}};
                         while (idx < {})
                         {{
                             long amount = idx;
@@ -274,11 +232,11 @@ where
                             idx += stride;
                         }}
                     }}",
+                    shape_str,
+                    strides_str,
                     K::CUDA_TYPE,
                     A::CUDA_TYPE,
                     B::CUDA_TYPE,
-                    shape_str,
-                    strides_str,
                     res.size(),
                     res.ndim(),
                     f("out[idx]", "lhs[offset]", "rhs")
@@ -290,48 +248,18 @@ where
                 .device()
                 .get_func(&module_name, "rhs_scalar_lhs_not_contiguous")
                 .unwrap();
-            let mut out_slice = unsafe {
-                res.device()
-                    .upgrade_device_ptr::<K>(res.ptr().ptr as u64, res.size())
-            };
-            let lhs_slice = unsafe {
-                lhs.device()
-                    .upgrade_device_ptr::<A>(lhs.ptr().ptr as u64, lhs.size())
-            };
+            let out_slice = res.cuda_slice();
+            let lhs_slice = lhs.cuda_slice();
             let reg_info = map
                 .get("rhs_scalar_lhs_not_contiguous")
                 .expect("func_name not found");
             let cfg = compute_kernel_launch_config(res.device(), reg_info, res.size());
-            unsafe { kernel.launch(cfg, (&mut out_slice, &lhs_slice, val)) }?;
-            out_slice.leak();
-            lhs_slice.leak();
+            unsafe { kernel.launch(cfg, (out_slice, lhs_slice, val)) }?;
         }
         Ok(res)
     } else {
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
             let res = extract_out::<B, K, O, CUDA_DEVICE>(rhs.size(), rhs.shape(), out)?;
-            println!(
-                "{}",
-                &format!(
-                    "
-                {include}
-                extern \"C\" __global__ void lhs_scalar_rhs_contiguous({} *out, {} *lhs, {} *rhs)
-                {{
-                    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-                    size_t stride = blockDim.x * gridDim.x;
-                    while (idx < {})
-                    {{
-                        {};
-                        idx += stride;
-                    }}
-                }}",
-                    K::CUDA_TYPE,
-                    A::CUDA_TYPE,
-                    B::CUDA_TYPE,
-                    res.size(),
-                    f("out[idx]", "lhs[idx]", "rhs[idx]")
-                )
-            );
             let map = compile_kernel(
                 &module_name,
                 &format!(
@@ -360,26 +288,14 @@ where
                 .device()
                 .get_func(&module_name, "lhs_scalar_rhs_contiguous")
                 .unwrap();
-            let mut out_slice = unsafe {
-                res.device()
-                    .upgrade_device_ptr::<K>(res.ptr().ptr as u64, res.size())
-            };
-            let rhs_slice = unsafe {
-                rhs.device()
-                    .upgrade_device_ptr::<B>(rhs.ptr().ptr as u64, rhs.size())
-            };
-            let lhs_slice = unsafe {
-                lhs.device()
-                    .upgrade_device_ptr::<A>(lhs.ptr().ptr as u64, lhs.size())
-            };
+            let out_slice = res.cuda_slice();
+            let rhs_slice = rhs.cuda_slice();
+            let lhs_slice = lhs.cuda_slice();
             let reg_info = map
                 .get("lhs_scalar_rhs_contiguous")
                 .expect("func_name not found");
             let cfg = compute_kernel_launch_config(res.device(), reg_info, res.size());
-            unsafe { kernel.launch(cfg, (&mut out_slice, &lhs_slice, &rhs_slice)) }?;
-            out_slice.leak();
-            lhs_slice.leak();
-            rhs_slice.leak();
+            unsafe { kernel.launch(cfg, (out_slice, lhs_slice, rhs_slice)) }?;
             Ok(res)
         } else {
             let res_layout = lhs.layout.broadcast(&rhs.layout)?;
@@ -390,43 +306,23 @@ where
                 res_layout.shape(),
                 out,
             )?;
-            let lhs_shape_str = lhs_broadcast_layout
-                .shape()
-                .iter()
-                .map(|x| x.to_string())
-                .collect::<Vec<_>>()
-                .join(",");
-            let lhs_strides_str = lhs_broadcast_layout
-                .strides()
-                .iter()
-                .map(|x| x.to_string())
-                .collect::<Vec<_>>()
-                .join(",");
-            let rhs_shape_str = rhs_broadcast_layout
-                .shape()
-                .iter()
-                .map(|x| x.to_string())
-                .collect::<Vec<_>>()
-                .join(",");
-            let rhs_strides_str = rhs_broadcast_layout
-                .strides()
-                .iter()
-                .map(|x| x.to_string())
-                .collect::<Vec<_>>()
-                .join(",");
+            let lhs_shape_str = get_array_str(lhs_broadcast_layout.shape());
+            let lhs_strides_str = get_array_str(lhs_broadcast_layout.strides());
+            let rhs_shape_str = get_array_str(rhs_broadcast_layout.shape());
+            let rhs_strides_str = get_array_str(rhs_broadcast_layout.strides());
             let map = compile_kernel(
                 &module_name,
                 &format!(
                     "
                     {include}
+                    __constant__ long long lhs_shape[] = {{{}}};
+                    __constant__ long long lhs_strides[] = {{{}}};
+                    __constant__ long long rhs_shape[] = {{{}}};
+                    __constant__ long long rhs_strides[] = {{{}}};
                     extern \"C\" __global__ void binop({} *out, {} *lhs, {} *rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
                         size_t stride = blockDim.x * gridDim.x;
-                        __constant__ long long lhs_shape[] = {{{}}};
-                        __constant__ long long lhs_strides[] = {{{}}};
-                        __constant__ long long rhs_shape[] = {{{}}};
-                        __constant__ long long rhs_strides[] = {{{}}};
                         while (idx < {})
                         {{
                             long lhs_amount = idx;
@@ -445,13 +341,13 @@ where
                             idx += stride;
                         }}
                     }}",
-                    K::CUDA_TYPE,
-                    A::CUDA_TYPE,
-                    B::CUDA_TYPE,
                     lhs_shape_str,
                     lhs_strides_str,
                     rhs_shape_str,
                     rhs_strides_str,
+                    K::CUDA_TYPE,
+                    A::CUDA_TYPE,
+                    B::CUDA_TYPE,
                     res.size(),
                     res.ndim(),
                     f("out[idx]", "lhs[lhs_offset]", "rhs[rhs_offset]")
@@ -460,24 +356,12 @@ where
                 &["binop"],
             )?;
             let kernel = res.device().get_func(&module_name, "binop").unwrap();
-            let mut out_slice = unsafe {
-                res.device()
-                    .upgrade_device_ptr::<K>(res.ptr().ptr as u64, res.size())
-            };
-            let rhs_slice = unsafe {
-                rhs.device()
-                    .upgrade_device_ptr::<B>(rhs.ptr().ptr as u64, rhs.size())
-            };
-            let lhs_slice = unsafe {
-                lhs.device()
-                    .upgrade_device_ptr::<A>(lhs.ptr().ptr as u64, lhs.size())
-            };
+            let out_slice = res.cuda_slice();
+            let rhs_slice = rhs.cuda_slice();
+            let lhs_slice = lhs.cuda_slice();
             let reg_info = map.get("binop").expect("func_name not found");
             let cfg = compute_kernel_launch_config(res.device(), reg_info, res.size());
-            unsafe { kernel.launch(cfg, (&mut out_slice, &lhs_slice, &rhs_slice)) }?;
-            out_slice.leak();
-            lhs_slice.leak();
-            rhs_slice.leak();
+            unsafe { kernel.launch(cfg, (out_slice, lhs_slice, rhs_slice)) }?;
             Ok(res)
         }
     }

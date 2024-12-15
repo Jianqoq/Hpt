@@ -5,10 +5,10 @@ use tensor_dyn::*;
 
 fn main() -> anyhow::Result<()> {
     let now = std::time::Instant::now();
-    let a = Tensor::<f64, Cuda>::arange(0.0, 100.0)?.reshape([10, 10])?;
-    let b = Tensor::<f64, Cuda>::arange(0.0, 100.0)?.reshape([10, 10])?;
-    let c = a.matmul(&b)?;
-    println!("{}", c);
+    let a = Tensor::<f64, Cuda>::arange(0.0, 100.0)?.reshape([10, 10])?.permute([1, 0])?;
+    println!("{}", a);
+    let b = a.contiguous()?;
+    println!("{}", b);
     Ok(())
 }
 

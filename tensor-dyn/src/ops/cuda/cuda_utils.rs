@@ -7,7 +7,7 @@ use cudarc::{
 use regex::Regex;
 use tensor_types::dtype::TypeCommon;
 
-use crate::cuda_compiled::CUDA_COMPILED;
+use crate::{cuda_compiled::CUDA_COMPILED, tensor_base::_Tensor, Cuda};
 
 pub(crate) fn compile_kernel(
     module: &str,
@@ -154,4 +154,32 @@ pub fn cast_operand<Dst: TypeCommon, Src: TypeCommon>(operend: &str) -> String {
     } else {
         format!("({}){operend}", Dst::CUDA_TYPE)
     }
+}
+
+pub(crate) fn get_include_1<T: TypeCommon>() -> &'static str {
+    if T::CUDA_TYPE == "half" {
+        "#include <cuda_fp16.h>"
+    } else {
+        ""
+    }
+}
+
+pub(crate) fn get_module_name_1<T: TypeCommon, const CUDA_DEVICE: usize>(
+    header: &str,
+    tensor: &_Tensor<T, Cuda, CUDA_DEVICE>,
+) -> String {
+    format!(
+        "{header}{}{}{}",
+        T::ID,
+        tensor.layout.shape(),
+        tensor.layout.strides(),
+    )
+}
+
+pub(crate) fn get_array_str(array: &[i64]) -> String {
+    array
+        .iter()
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>()
+        .join(",")
 }

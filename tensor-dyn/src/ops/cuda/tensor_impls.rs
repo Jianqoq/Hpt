@@ -1,17 +1,22 @@
 use std::sync::Arc;
 
+use crate::ops::cuda::cuda_utils::{
+    cast_operand, compile_kernel, get_array_str, get_include_1, get_module_name_1,
+};
 use crate::{tensor_base::_Tensor, Cuda, Tensor};
 use crate::{Backend, ALIGN};
-use cudarc::driver::{CudaDevice, DeviceRepr};
+use cudarc::driver::{CudaDevice, DeviceRepr, LaunchAsync};
 use tensor_allocator::CUDA_CACHE;
 use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_traits::TensorCreator;
 use tensor_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
 use tensor_types::convertion::Convertor;
 
-impl<T> TensorLike<T> for _Tensor<T, Cuda>
+use super::cuda_utils::compute_kernel_launch_config;
+
+impl<T, const DEVICE_ID: usize> TensorLike<T> for _Tensor<T, Cuda, DEVICE_ID>
 where
-    T: CommonBounds,
+    T: CommonBounds + DeviceRepr,
 {
     fn as_raw(&self) -> &[T] {
         unimplemented!()
@@ -22,7 +27,71 @@ where
     }
 
     fn contiguous(&self) -> anyhow::Result<Self> {
+        let res = Self::empty(self.shape().clone())?;
+        let shape_str = get_array_str(self.shape());
+        let strides_str = get_array_str(self.strides());
+        let include = get_include_1::<T>();
+        let module_name = get_module_name_1("ctg", self);
+        let map = compile_kernel(
+            &module_name,
+            &format!(
+                "
+                    {include}
+                    __constant__ long long shape[] = {{{}}};
+                    __constant__ long long strides[] = {{{}}};
+                    extern \"C\" __global__ void contiguous({} *out, {} *inp)
+                    {{
+                        size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+                        size_t stride = blockDim.x * gridDim.x;
+                        while (idx < {})
+                        {{
+                            long amount = idx;
+                            long offset = 0;
+                            #pragma unroll
+                            for (int j = {} - 1; j >= 0; j--)
+                            {{
+                                offset += amount % shape[j] * strides[j];
+                                amount /= shape[j];
+                            }}
+                            out[idx] = {};
+                            idx += stride;
+                        }}
+                    }}",
+                shape_str,
+                strides_str,
+                T::CUDA_TYPE,
+                T::CUDA_TYPE,
+                self.size(),
+                self.ndim(),
+                cast_operand::<T, T>("inp[offset]"),
+            ),
+            self.device(),
+            &["contiguous"],
+        )?;
+        let kernel = res.device().get_func(&module_name, "contiguous").unwrap();
+        let out_slice = res.cuda_slice();
+        let inp_slice = self.cuda_slice();
+        let reg_info = map.get("contiguous").expect("func_name not found");
+        let cfg = compute_kernel_launch_config(res.device(), reg_info, res.size());
+        unsafe { kernel.launch(cfg, (out_slice, inp_slice)) }?;
+        Ok(res)
+    }
+}
+
+impl<T, const DEVICE_ID: usize> TensorLike<T> for Tensor<T, Cuda, DEVICE_ID>
+where
+    T: CommonBounds + DeviceRepr,
+{
+    fn as_raw(&self) -> &[T] {
         unimplemented!()
+    }
+
+    fn as_raw_mut(&mut self) -> &mut [T] {
+        unimplemented!()
+    }
+
+    fn contiguous(&self) -> anyhow::Result<Self> {
+        Ok(self.inner.as_ref().contiguous()?.into())
     }
 }
 
@@ -223,6 +292,11 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVI
     pub(crate) fn device(&self) -> Arc<CudaDevice> {
         self._backend._backend.device.clone()
     }
+    pub(crate) fn cuda_slice(&self) -> super::cuda_slice::CudaSlice {
+        super::cuda_slice::CudaSlice {
+            inner: self.data.ptr as u64,
+        }
+    }
 }
 
 impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> Tensor<T, Cuda, DEVICE_ID> {
@@ -288,6 +362,8 @@ where
             .dtoh_sync_copy_into(&ptr, data.as_raw_mut())
             .unwrap();
         ptr.leak();
+        data.layout.set_strides(self.strides().clone());
+        data.layout.set_shape(self.shape().clone());
         write!(f, "{}", data)
     }
 }
@@ -301,37 +377,11 @@ where
     }
 }
 
-// impl<T> std::fmt::Debug for _Tensor<T, Cuda>
-// where
-//     T: CommonBounds + Convertor,
-// {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
-//         let lr_element_size = DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed);
-//         display(self, f, lr_element_size, precision, false)
-//     }
-// }
-
 impl<T, const DEVICE_ID: usize> Into<Tensor<T, Cuda, DEVICE_ID>> for _Tensor<T, Cuda, DEVICE_ID> {
     fn into(self) -> Tensor<T, Cuda, DEVICE_ID> {
         Tensor { inner: self.into() }
     }
 }
-
-// impl<T> Into<_Tensor<T, Cuda>> for &_Tensor<T, Cuda>
-// where
-//     T: CommonBounds,
-// {
-//     fn into(self) -> _Tensor<T, Cuda> {
-//         _Tensor {
-//             data: self.data.clone(),
-//             parent: self.parent.clone(),
-//             layout: self.layout.clone(),
-//             mem_layout: self.mem_layout.clone(),
-//             _backend: self._backend.clone(),
-//         }
-//     }
-// }
 
 impl<T, const DEVICE_ID: usize> Into<Tensor<T, Cuda, DEVICE_ID>> for &Tensor<T, Cuda, DEVICE_ID> {
     fn into(self) -> Tensor<T, Cuda, DEVICE_ID> {

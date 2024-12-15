@@ -1,26 +1,8 @@
-use anyhow::Result;
-use rayon::iter::{
-    IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
-};
-use std::{
-    fmt::{Debug, Display},
-    sync::{atomic::Ordering, Arc},
-};
+use std::sync::Arc;
 use tensor_allocator::{CACHE, CUDA_CACHE};
-use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
-use tensor_display::display;
-use tensor_iterator::{
-    iterator_traits::{ParStridedIteratorSimdZip, ParStridedIteratorZip},
-    TensorIterator,
-};
-use tensor_traits::tensor::{CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike};
-use tensor_types::{convertion::Convertor, into_scalar::IntoScalar};
+use tensor_common::{layout::Layout, pointer::Pointer};
 
-use crate::{
-    backend::{Backend, BackendTy, Buffer, Cpu},
-    tensor::Tensor,
-    Cuda, ALIGN, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION,
-};
+use crate::backend::{Backend, BackendTy, Buffer, Cpu};
 
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
 ///

@@ -183,6 +183,8 @@ pub mod ops {
         pub(crate) mod std_ops;
         /// a module contains cuda matmul impls
         pub(crate) mod matmul;
+        /// a module contains cuda slice impls
+        pub(crate) mod cuda_slice;
     }
 }
 
