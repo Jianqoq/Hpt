@@ -4,6 +4,7 @@ use crate::Cuda;
 use crate::Tensor;
 use cudarc::driver::DeviceRepr;
 use tensor_traits::tensor::CommonBounds;
+use tensor_types::dtype::TypeCommon;
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::BitWiseOut;
 use tensor_types::type_promote::FloatOutBinary;
@@ -43,7 +44,16 @@ where
         binary_fn_with_out_simd(
             &self,
             &rhs,
-            |x, y| format!("{} {} {}", x, op_string, y),
+            |x, y| {
+                format!(
+                    "({}){} {} ({}){}",
+                    <T as NormalOut<U>>::Output::CUDA_TYPE,
+                    x,
+                    op_string,
+                    <T as NormalOut<U>>::Output::CUDA_TYPE,
+                    y
+                )
+            },
             None::<out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE>>,
         )
         .unwrap()
@@ -601,7 +611,16 @@ where
         binary_fn_with_out_simd(
             &self,
             &rhs,
-            |x, y| format!("{} {} {}", x, op_string, y),
+            |x, y| {
+                format!(
+                    "({}){} {} ({}){}",
+                    <T as BitWiseOut<U>>::Output::CUDA_TYPE,
+                    x,
+                    op_string,
+                    <T as BitWiseOut<U>>::Output::CUDA_TYPE,
+                    y
+                )
+            },
             None::<out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>>,
         )
         .unwrap()
@@ -1045,7 +1064,16 @@ where
         binary_fn_with_out_simd(
             &self,
             &rhs,
-            |x, y| format!("{} {} {}", x, op_string, y),
+            |x, y| {
+                format!(
+                    "({}){} {} ({}){}",
+                    <T as FloatOutBinary<U>>::Output::CUDA_TYPE,
+                    x,
+                    op_string,
+                    <T as FloatOutBinary<U>>::Output::CUDA_TYPE,
+                    y
+                )
+            },
             None::<out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE>>,
         )
         .unwrap()
