@@ -3,14 +3,17 @@ use std::io::Write;
 use tensor_dyn::*;
 
 fn main() -> anyhow::Result<()> {
-    let a = Tensor::<f32, Cuda>::ones([10, 10, 10])?;
+    // set_global_display_lr_elements(100);
+    let a = Tensor::<f32, Cuda>::ones([1000, 1000, 1000])?;
     // println!("{}", a);
-    let b = a.sum([1, 2], false)?;
+    let b = a.sum([0, 1], false)?;
     println!("{}", b);
 
-    let a = Tensor::<f32>::ones([10, 10, 10])?;
+    let a = Tensor::<f32, Cpu>::ones([1000, 1000, 1000])?;
     // println!("{}", a);
-    let b = a.sum([1, 2], false)?;
+    let now = std::time::Instant::now();
+    let b = a.sum([0, 1], false)?;
+    println!("cpu time: {:?}", now.elapsed());
     println!("{}", b);
     Ok(())
 }

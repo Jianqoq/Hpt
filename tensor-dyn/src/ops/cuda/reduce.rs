@@ -5,10 +5,13 @@ use crate::tensor_base::_Tensor;
 use crate::Cuda;
 
 use super::cuda_utils::compute_kernel_launch_config;
+use super::kernel_constants::REDUCE_KERNELS;
 use super::reduce_template::uncontiguos_reduce_template;
 use crate::ops::cuda::cuda_utils::compile_kernel;
 use anyhow;
+use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_MULTIPROCESSOR;
 use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK;
+use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_WARP_SIZE;
 use cudarc::driver::DeviceRepr;
 use cudarc::driver::LaunchAsync;
 use cudarc::driver::LaunchConfig;
@@ -205,7 +208,7 @@ where
                     &format!("#define type {}", T::CUDA_TYPE),
                 ),
                 a.device(),
-                &["contiguous_reduce"],
+                &REDUCE_KERNELS,
             )
             .unwrap();
             let reg_info = map.get("contiguous_reduce").expect("func_name not found");
@@ -218,13 +221,13 @@ where
             cfg.block_dim.0 = 2f64.powf((cfg.block_dim.0 as f64).log2().floor()) as u32;
             let grid_dim = (size as u32 + cfg.block_dim.0 - 1) / cfg.block_dim.0;
             cfg.grid_dim.0 = ((grid_dim + 1) / 2).max(1);
-
             let max_threads_per_block = a
                 .device()
                 .attribute(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)
                 .unwrap();
             let mut num_blocks = cfg.grid_dim.0;
-            cfg.shared_mem_bytes = cfg.block_dim.0 * std::mem::size_of::<T>() as u32;
+            cfg.shared_mem_bytes = (cfg.block_dim.0 * std::mem::size_of::<T>() as u32).max(64);
+            let now = std::time::Instant::now();
             let mut tmp_res = unsafe { a.device().alloc::<T>(num_blocks as usize).unwrap() };
 
             unsafe {
@@ -246,7 +249,7 @@ where
                     .attribute(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)
                     .unwrap();
                 num_blocks = cfg.grid_dim.0;
-                cfg.shared_mem_bytes = cfg.block_dim.0 * std::mem::size_of::<T>() as u32;
+                cfg.shared_mem_bytes = (cfg.block_dim.0 * std::mem::size_of::<T>() as u32).max(64);
                 let mut tmp_res = unsafe { a.device().alloc::<T>(num_blocks as usize).unwrap() };
                 unsafe {
                     reduce_kernel
@@ -282,8 +285,9 @@ where
                 .htod_sync_copy_into(cpu_reduced.as_raw(), &mut _res_ptr)
                 .unwrap();
             _res_ptr.leak();
+            println!("cuda time: {:?}", now.elapsed());
         },
-        |_, inner_loop_size, inner_loop_size2, res, transposed_tensor| {
+        |inner_loop_size, inner_loop_size2, res, transposed_tensor| {
             let outer_loop_size = a.size() / (inner_loop_size * inner_loop_size2);
             let map = compile_kernel(
                 &module_name,
@@ -292,11 +296,7 @@ where
                     &format!("#define type {}", T::CUDA_TYPE),
                 ),
                 a.device(),
-                &[
-                    "contiguous_reduce",
-                    "contiguous_reduce2",
-                    "contiguous_reduce22",
-                ],
+                &REDUCE_KERNELS,
             )
             .unwrap();
             let reg_info = map.get("contiguous_reduce2").expect("func_name not found");
@@ -310,12 +310,13 @@ where
             let grid_dim = (reduce_size as u32 + cfg.block_dim.0 - 1) / cfg.block_dim.0;
             cfg.grid_dim.0 = ((grid_dim + 1) / 2).max(1);
             cfg.grid_dim.1 = outer_loop_size as u32;
+
             let max_threads_per_block = a
                 .device()
                 .attribute(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)
                 .unwrap();
-            cfg.shared_mem_bytes = cfg.block_dim.0 * std::mem::size_of::<T>() as u32;
-
+            cfg.shared_mem_bytes = (cfg.block_dim.0 * std::mem::size_of::<T>() as u32).max(64);
+            let now = std::time::Instant::now();
             let shape = transposed_tensor.cuda_shape().unwrap();
             let strides = transposed_tensor.cuda_strides().unwrap();
             let mut tmp_res = unsafe {
@@ -354,7 +355,7 @@ where
                     .device()
                     .attribute(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)
                     .unwrap();
-                cfg.shared_mem_bytes = cfg.block_dim.0 * std::mem::size_of::<T>() as u32;
+                cfg.shared_mem_bytes = (cfg.block_dim.0 * std::mem::size_of::<T>() as u32).max(64);
                 let mut tmp_res = unsafe {
                     a.device()
                         .alloc::<T>((cfg.grid_dim.0 * cfg.grid_dim.1) as usize)
@@ -363,13 +364,7 @@ where
                 unsafe {
                     reduce_kernel.clone().launch(
                         cfg,
-                        (
-                            &mut tmp_res,
-                            &inp,
-                            transposed_tensor.ndim(),
-                            reduce_size,
-                            cfg.grid_dim.0 as usize,
-                        ),
+                        (&mut tmp_res, &inp, reduce_size, cfg.grid_dim.0 as usize),
                     )
                 }
                 .unwrap();
@@ -413,14 +408,78 @@ where
                 .htod_sync_copy_into(cpu_reduced.as_raw(), &mut _res_ptr)
                 .unwrap();
             _res_ptr.leak();
+            println!("cuda time: {:?}", now.elapsed());
         },
-        |num_threads, inner_loop_size, result| unimplemented!(),
-        |num_threads,
-         outer_loop_size,
-         inner_loop_size,
-         inner_loop_size_2,
-         result,
-         transposed_tensor| { unimplemented!() },
+        |outer_loop_size, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
+            let mut perm = (0..transposed_tensor.ndim()).collect::<Vec<_>>();
+            let right = perm[perm.len() - axes.len()..].to_vec();
+            let left = perm[..perm.len() - axes.len()].to_vec();
+            let mut perm = right;
+            perm.extend(left);
+            let transposed_tensor = transposed_tensor.permute(&perm).unwrap();
+            let map = compile_kernel(
+                &module_name,
+                &include_str!("kernels/reduce.cu").replace(
+                    "#define type float",
+                    &format!("#define type {}", T::CUDA_TYPE),
+                ),
+                a.device(),
+                &REDUCE_KERNELS,
+            )
+            .unwrap();
+            let reg_info = map.get("contiguous_reduce3").expect("func_name not found");
+            let reduce_kernel = a
+                .device()
+                .get_func(&module_name, "contiguous_reduce3")
+                .unwrap();
+            let cache_line = 128;
+            let block_dim_x = 128 / std::mem::size_of::<T>() as u32;
+            let max_regs_per_sm = a
+                .device()
+                .attribute(CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_MULTIPROCESSOR)
+                .expect("failed to get max registers per sm");
+            let warp_size = a
+                .device()
+                .attribute(CU_DEVICE_ATTRIBUTE_WARP_SIZE)
+                .expect("failed to get warp size");
+            let max_threads_per_block = a
+                .device()
+                .attribute(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)
+                .expect("failed to get max threads per block");
+            let total_reg_used = reg_info.b32 + reg_info.b64 * 2;
+            let max_threads_per_sm = max_regs_per_sm as usize / total_reg_used;
+            let block_dim_y = 32;
+            let thread_block_size = block_dim_x * block_dim_y;
+            let launch_cfg = LaunchConfig {
+                block_dim: (block_dim_x, block_dim_y, 1),
+                grid_dim: (
+                    ((a.size() / inner_loop_size_2) as u32 + block_dim_x - 1) / block_dim_x,
+                    (inner_loop_size_2 as u32 + block_dim_y - 1) / block_dim_y,
+                    1,
+                ),
+                shared_mem_bytes: block_dim_x * block_dim_y * std::mem::size_of::<T>() as u32,
+            };
+            let now = std::time::Instant::now();
+            let shape = transposed_tensor.cuda_shape().unwrap();
+            let strides = transposed_tensor.cuda_strides().unwrap();
+            unsafe {
+                reduce_kernel.launch(
+                    launch_cfg,
+                    (
+                        result.cuda_slice(),
+                        transposed_tensor.cuda_slice(),
+                        &shape,
+                        &strides,
+                        transposed_tensor.ndim(),
+                        a.size() / inner_loop_size_2,
+                        inner_loop_size_2,
+                    ),
+                )
+            }
+            .unwrap();
+            a.device().synchronize().unwrap();
+            println!("cuda time: {:?}", now.elapsed());
+        },
     )?;
     if !fused_dims.is_empty() {
         let res_shape = res.shape().clone();

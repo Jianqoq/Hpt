@@ -1,9 +1,10 @@
 use crate::{
-    ops::cuda::reduce_utils::{ reduce_prepare, uncontiguous_reduce_prepare },
-    tensor_base::_Tensor, Cuda,
+    ops::cuda::reduce_utils::{reduce_prepare, uncontiguous_reduce_prepare},
+    tensor_base::_Tensor,
+    Cuda,
 };
 use cudarc::{driver::DeviceRepr, types::CudaTypeName};
-use tensor_traits::{ CommonBounds, ShapeManipulate, TensorInfo };
+use tensor_traits::{CommonBounds, ShapeManipulate, TensorInfo};
 use tensor_types::into_scalar::IntoScalar;
 
 use super::cuda_slice::CudaSlice;
@@ -151,7 +152,7 @@ use super::cuda_slice::CudaSlice;
 ///
 /// This function provides a flexible template for reduction operations on tensors, allowing for optimized implementations of various reduction functions.
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE_ID: usize>(
+pub(crate) fn contiguous_reduce_template<T, F1, F2, F4, O, const DEVICE_ID: usize>(
     a: &_Tensor<T, Cuda, DEVICE_ID>,
     axes: &[usize],
     init_val: O,
@@ -160,17 +161,14 @@ pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE_ID: 
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
     full_reduce: F1,
     nkd: F2,
-    kdo1: F3,
-    kd: F4
-)
-    -> anyhow::Result<_Tensor<O, Cuda, DEVICE_ID>>
-    where
-        T: CommonBounds + IntoScalar<O> + DeviceRepr + CudaTypeName,
-        O: CommonBounds + DeviceRepr + CudaTypeName,
-        F1: Fn(CudaSlice),
-        F2: Fn(usize, usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
-        F3: Fn(usize, usize, &_Tensor<O, Cuda, DEVICE_ID>),
-        F4: Fn(usize, usize, usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>)
+    kd: F4,
+) -> anyhow::Result<_Tensor<O, Cuda, DEVICE_ID>>
+where
+    T: CommonBounds + IntoScalar<O> + DeviceRepr + CudaTypeName,
+    O: CommonBounds + DeviceRepr + CudaTypeName,
+    F1: Fn(CudaSlice),
+    F2: Fn(usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
+    F4: Fn(usize, usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
 {
     let mut keep_fast_dim = true;
     for axis in axes.iter() {
@@ -190,12 +188,7 @@ pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE_ID: 
                 break;
             } else {
                 consec_axes.push(max);
-                let removed = new_axes.remove(
-                    new_axes
-                        .iter()
-                        .position(|&x| x == max)
-                        .unwrap()
-                );
+                let removed = new_axes.remove(new_axes.iter().position(|&x| x == max).unwrap());
                 last_removed = removed;
             }
             max -= 1;
@@ -229,37 +222,22 @@ pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE_ID: 
         if !keep_fast_dim {
             let outer_loop_size = a_size / inner_loop_size;
             let inner_loop_size_2 = outer_loop_size / result.size();
-            let num_threads = if result.size() < rayon::current_num_threads() {
-                result.size()
-            } else {
-                rayon::current_num_threads()
-            };
-            nkd(num_threads, inner_loop_size, inner_loop_size_2, &result, &transposed_tensor);
+            nkd(
+                inner_loop_size,
+                inner_loop_size_2,
+                &result,
+                &transposed_tensor,
+            );
         } else {
             let outer_loop_size = result.size() / inner_loop_size;
             let inner_loop_size_2 = a.size() / result.size();
-            if outer_loop_size == 1 {
-                let num_threads = if inner_loop_size < rayon::current_num_threads() {
-                    inner_loop_size
-                } else {
-                    rayon::current_num_threads()
-                };
-                kdo1(num_threads, inner_loop_size, &result);
-            } else {
-                let num_threads = if outer_loop_size < rayon::current_num_threads() {
-                    outer_loop_size
-                } else {
-                    rayon::current_num_threads()
-                };
-                kd(
-                    num_threads,
-                    outer_loop_size,
-                    inner_loop_size,
-                    inner_loop_size_2,
-                    &result,
-                    &transposed_tensor
-                );
-            }
+            kd(
+                outer_loop_size,
+                inner_loop_size,
+                inner_loop_size_2,
+                &result,
+                &transposed_tensor,
+            );
         }
     }
     result.reshape(a.layout.reduce(axes, keepdims)?.shape())
@@ -424,24 +402,18 @@ pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O, const DEVICE_ID:
     full_reduce: F1,
     nkd: F2,
     kdo1: F3,
-    kd: F4
-)
-    -> anyhow::Result<_Tensor<O, Cuda, DEVICE_ID>>
-    where
-        T: CommonBounds + IntoScalar<O> + DeviceRepr + CudaTypeName,
-        O: CommonBounds + DeviceRepr + CudaTypeName,
-        F1: Fn(&mut O),
-        F2: Fn(usize, usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
-        F3: Fn(usize, usize, _Tensor<T, Cuda, DEVICE_ID>, &_Tensor<O, Cuda, DEVICE_ID>),
-        F4: Fn(usize, usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>)
+    kd: F4,
+) -> anyhow::Result<_Tensor<O, Cuda, DEVICE_ID>>
+where
+    T: CommonBounds + IntoScalar<O> + DeviceRepr + CudaTypeName,
+    O: CommonBounds + DeviceRepr + CudaTypeName,
+    F1: Fn(&mut O),
+    F2: Fn(usize, usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
+    F3: Fn(usize, usize, _Tensor<T, Cuda, DEVICE_ID>, &_Tensor<O, Cuda, DEVICE_ID>),
+    F4: Fn(usize, usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
 {
-    let (keep_fast_dim, transposed_tensor, result, res_perm) = uncontiguous_reduce_prepare(
-        a,
-        axes,
-        init_val,
-        init_out,
-        c
-    )?;
+    let (keep_fast_dim, transposed_tensor, result, res_perm) =
+        uncontiguous_reduce_prepare(a, axes, init_val, init_out, c)?;
     let mut transposed_shape_sub_1 = transposed_tensor.shape().inner().clone();
     transposed_shape_sub_1.iter_mut().for_each(|x| {
         *x -= 1;
@@ -465,7 +437,13 @@ pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O, const DEVICE_ID:
             } else {
                 rayon::current_num_threads()
             };
-            nkd(num_threads, inner_loop_size, inner_loop_size_2, &result, &transposed_tensor);
+            nkd(
+                num_threads,
+                inner_loop_size,
+                inner_loop_size_2,
+                &result,
+                &transposed_tensor,
+            );
         } else {
             let outer_loop_size = result.size() / inner_loop_size;
             let inner_loop_size_2 = a.size() / result.size();
@@ -486,9 +464,17 @@ pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O, const DEVICE_ID:
                 } else {
                     rayon::current_num_threads()
                 };
-                kd(num_threads, inner_loop_size, inner_loop_size_2, &result, &transposed_tensor);
+                kd(
+                    num_threads,
+                    inner_loop_size,
+                    inner_loop_size_2,
+                    &result,
+                    &transposed_tensor,
+                );
             }
         }
     }
-    result.permute_inv(res_perm)?.reshape(a.layout.reduce(axes, keepdims)?.shape())
+    result
+        .permute_inv(res_perm)?
+        .reshape(a.layout.reduce(axes, keepdims)?.shape())
 }

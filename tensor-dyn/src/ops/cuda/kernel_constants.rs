@@ -69,29 +69,18 @@ pub(crate) const GEOMSPACE_KERNELS: [&str; 11] = [
 ];
 
 pub(crate) const EYE_KERNELS: [&str; 11] = [
-    "eye_f16",
-    "eye_f32",
-    "eye_f64",
-    "eye_i8",
-    "eye_i16",
-    "eye_i32",
-    "eye_i64",
-    "eye_u8",
-    "eye_u16",
-    "eye_u32",
-    "eye_u64",
+    "eye_f16", "eye_f32", "eye_f64", "eye_i8", "eye_i16", "eye_i32", "eye_i64", "eye_u8",
+    "eye_u16", "eye_u32", "eye_u64",
 ];
 
 pub(crate) const TRIU_KERNELS: [&str; 11] = [
-    "triu_f16",
-    "triu_f32",
-    "triu_f64",
-    "triu_i8",
-    "triu_i16",
-    "triu_i32",
-    "triu_i64",
-    "triu_u8",
-    "triu_u16",
-    "triu_u32",
-    "triu_u64",
+    "triu_f16", "triu_f32", "triu_f64", "triu_i8", "triu_i16", "triu_i32", "triu_i64", "triu_u8",
+    "triu_u16", "triu_u32", "triu_u64",
+];
+
+pub(crate) const REDUCE_KERNELS: [&str; 4] = [
+    "contiguous_reduce",
+    "contiguous_reduce2",
+    "contiguous_reduce22",
+    "contiguous_reduce3",
 ];

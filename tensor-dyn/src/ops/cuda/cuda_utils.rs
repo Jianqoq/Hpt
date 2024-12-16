@@ -133,7 +133,7 @@ pub(crate) fn compute_kernel_launch_config(
     let total_reg_used = reg_info.b32 + reg_info.b64 * 2;
     let max_threads_per_sm = max_regs_per_sm as usize / total_reg_used;
     let aligned_threads =
-        align_to_warp(max_threads_per_sm, warp_size as usize).min(max_threads_per_block as usize);
+        align_to_warp(max_threads_per_sm, warp_size as usize).min(max_threads_per_block as usize).max(warp_size as usize);
     LaunchConfig {
         block_dim: (aligned_threads as u32, 1, 1),
         grid_dim: (

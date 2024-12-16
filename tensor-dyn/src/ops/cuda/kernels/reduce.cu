@@ -67,15 +67,14 @@ extern "C" __global__ void contiguous_reduce2(type *out, type *in, long long *sh
     }
     else if (i < cols)
     {
-        long long a_offset = 0;
         long long a_amount = i + blockIdx.y * cols;
 
         for (int j = ndim - 1; j >= 0; j--)
         {
-            a_offset += (a_amount % shape[j]) * strides[j];
+            in += (a_amount % shape[j]) * strides[j];
             a_amount /= shape[j];
         }
-        sdata[tid] += in[a_offset];
+        sdata[tid] += *in;
     }
     __syncthreads();
     for (unsigned int s = blockDim.x / 2; s > WRAP; s >>= 1)
@@ -94,7 +93,7 @@ extern "C" __global__ void contiguous_reduce2(type *out, type *in, long long *sh
         out[blockIdx.x + blockIdx.y * num_blocks_per_row] = sdata[0];
 }
 
-extern "C" __global__ void contiguous_reduce22(type *out, type *in, size_t ndim, size_t cols, size_t num_blocks_per_row)
+extern "C" __global__ void contiguous_reduce22(type *out, type *in, size_t cols, size_t num_blocks_per_row)
 {
     extern __shared__ type sdata[];
     unsigned int tid = threadIdx.x;
@@ -123,4 +122,34 @@ extern "C" __global__ void contiguous_reduce22(type *out, type *in, size_t ndim,
     }
     if (tid == 0)
         out[blockIdx.x + blockIdx.y * num_blocks_per_row] = sdata[0];
+}
+
+extern "C" __global__ void contiguous_reduce3(type *out, type *in, long long *shape, long long *strides, size_t ndim, size_t cols, size_t rows)
+{
+    extern __shared__ type sdata[];
+    unsigned int tid = threadIdx.y * blockDim.x + threadIdx.x;
+    unsigned int col_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int row_idx = blockIdx.y * blockDim.y + threadIdx.y;
+    sdata[tid] = 0;
+    if (col_idx >= cols || row_idx >= rows)
+    {
+        return;
+    }
+    unsigned int idx = row_idx * cols + col_idx;
+    long long offset = 0;
+    for (int j = ndim - 1; j >= 0; j--)
+    {
+        offset += (idx % shape[j]) * strides[j];
+        idx /= shape[j];
+    }
+    sdata[tid] = in[offset];
+    __syncthreads();
+    if (threadIdx.y == 0)
+    {
+        for (unsigned int s = 1; s < blockDim.y; s++)
+        {
+            sdata[threadIdx.x] += sdata[s * blockDim.x + threadIdx.x];
+        }
+        atomicAdd(&out[col_idx], sdata[threadIdx.x]);
+    }
 }
