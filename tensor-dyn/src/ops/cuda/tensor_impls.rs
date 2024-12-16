@@ -297,6 +297,12 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVI
             inner: self.data.ptr as u64,
         }
     }
+    pub(crate) fn cuda_shape(&self) -> anyhow::Result<cudarc::driver::CudaSlice<i64>> {
+        Ok(self.device().htod_sync_copy(self.shape())?)
+    }
+    pub(crate) fn cuda_strides(&self) -> anyhow::Result<cudarc::driver::CudaSlice<i64>> {
+        Ok(self.device().htod_sync_copy(self.strides())?)
+    }
 }
 
 impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> Tensor<T, Cuda, DEVICE_ID> {

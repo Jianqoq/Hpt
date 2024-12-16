@@ -109,7 +109,7 @@ fn count_registers(ptx: &str) -> HashMap<String, RegisterInfo> {
 }
 
 pub(crate) fn align_to_warp(threads: usize, warp_size: usize) -> usize {
-    threads & !(warp_size - 1)
+    threads / warp_size * warp_size
 }
 
 pub(crate) fn compute_kernel_launch_config(
