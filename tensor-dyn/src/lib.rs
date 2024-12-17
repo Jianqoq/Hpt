@@ -160,43 +160,47 @@ pub mod ops {
         pub(crate) mod tensor_impls;
         /// a module contains cuda tensor internal impls
         pub(crate) mod tensor_internal {
-            /// a module contains cuda tensor normal creation impls
-            pub(crate) mod normal_creation;
-            /// a module contains cuda tensor shape manipulation impls
-            pub(crate) mod shape_manipulate;
             /// a module contains cuda tensor common reduce impls
             pub(crate) mod common_reduce;
+            /// a module contains cuda tensor normal creation impls
+            pub(crate) mod normal_creation;
+            /// a module contains cuda tensor random impls
+            pub(crate) mod random;
+            /// a module contains cuda tensor shape manipulation impls
+            pub(crate) mod shape_manipulate;
         }
         pub mod tensor_external {
-            /// a module contains cuda tensor normal creation impls
-            pub(crate) mod normal_creation;
-            /// a module contains cuda tensor matmul impls
-            pub(crate) mod matmul;
-            /// a module contains cuda tensor shape manipulation impls
-            pub(crate) mod shape_manipulate;
             /// a module contains cuda tensor common reduce impls
             pub(crate) mod common_reduce;
+            /// a module contains cuda tensor matmul impls
+            pub(crate) mod matmul;
+            /// a module contains cuda tensor normal creation impls
+            pub(crate) mod normal_creation;
+            /// a module contains cuda tensor random impls
+            pub(crate) mod random;
+            /// a module contains cuda tensor shape manipulation impls
+            pub(crate) mod shape_manipulate;
         }
+        /// a module contains cuda binary normal impls
+        pub(crate) mod binary_normal;
+        /// a module contains cuda concat impls
+        pub(crate) mod concat;
+        /// a module contains cuda slice impls
+        pub(crate) mod cuda_slice;
         /// a module contains cuda utils
         pub(crate) mod cuda_utils;
         /// a module contains cuda kernel constants
         pub(crate) mod kernel_constants;
-        /// a module contains cuda binary normal impls
-        pub(crate) mod binary_normal;
-        /// a module contains cuda std ops impls
-        pub(crate) mod std_ops;
         /// a module contains cuda matmul impls
         pub(crate) mod matmul;
-        /// a module contains cuda slice impls
-        pub(crate) mod cuda_slice;
-        /// a module contains cuda concat impls
-        pub(crate) mod concat;
         /// a module contains cuda reduce impls
         pub(crate) mod reduce;
         /// a module contains cuda reduce template impls    
         pub(crate) mod reduce_template;
         /// a module contains cuda reduce utils impls
         pub(crate) mod reduce_utils;
+        /// a module contains cuda std ops impls
+        pub(crate) mod std_ops;
     }
 }
 
@@ -272,11 +276,14 @@ static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
 
 #[cfg(feature = "cuda")]
 pub(crate) mod cuda_compiled {
-    use std::{collections::HashMap, sync::{Arc, Mutex}};
+    use std::{
+        collections::HashMap,
+        sync::{Arc, Mutex},
+    };
 
     use once_cell::sync::Lazy;
+    use tensor_cudakernels::RegisterInfo;
 
-    use crate::ops::cuda::cuda_utils::RegisterInfo;
     pub(crate) static CUDA_COMPILED: Lazy<
         Mutex<HashMap<usize, HashMap<String, Arc<HashMap<String, RegisterInfo>>>>>,
     > = Lazy::new(|| Mutex::new(HashMap::new()));

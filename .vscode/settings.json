@@ -11,6 +11,7 @@
         "xstring": "cpp",
         "xtr1common": "cpp",
         "vector": "cpp",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "cstdlib": "cpp"
     },
 }

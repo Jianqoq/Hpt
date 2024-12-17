@@ -5,6 +5,7 @@ use crate::tensor_base::_Tensor;
 use crate::Cuda;
 
 use super::cuda_utils::compute_kernel_launch_config;
+use super::cuda_utils::load_ptx_and_get_data;
 use super::kernel_constants::REDUCE_KERNELS;
 use super::reduce_template::uncontiguos_reduce_template;
 use crate::ops::cuda::cuda_utils::compile_kernel;
@@ -16,6 +17,7 @@ use cudarc::driver::DeviceRepr;
 use cudarc::driver::LaunchAsync;
 use cudarc::driver::LaunchConfig;
 use cudarc::types::CudaTypeName;
+use tensor_cudakernels::RegisterInfo;
 use tensor_traits::shape_manipulate::ShapeManipulate;
 use tensor_traits::tensor::CommonBounds;
 use tensor_traits::tensor::TensorInfo;
@@ -34,6 +36,15 @@ pub(crate) fn reduce<T, F, F2, F3, const DEVICE_ID: usize>(
     init_val: T,
     keepdims: bool,
     init_out: bool,
+    meta: &phf::Map<
+        usize,
+        (
+            &'static str,
+            &'static phf::Map<&'static str, RegisterInfo>,
+            &'static [&str],
+        ),
+    >,
+    module_name: &str,
     c: Option<_Tensor<T, Cuda, DEVICE_ID>>,
 ) -> anyhow::Result<_Tensor<T, Cuda, DEVICE_ID>>
 where
@@ -45,7 +56,20 @@ where
 {
     if a.is_contiguous() && a.parent().is_none() {
         contiguous_reduce::<_, _, _, _, fn(T) -> T, _, _, fn(T::Vec) -> T::Vec, T, DEVICE_ID>(
-            a, op, op_no_cast, op, None, vec_op, vec_op, None, &axes, init_val, keepdims, init_out,
+            a,
+            op,
+            op_no_cast,
+            op,
+            None,
+            vec_op,
+            vec_op,
+            None,
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            meta,
+            module_name,
             c,
         )
     } else {
@@ -67,6 +91,15 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O, const DEVICE_ID: usize>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
+    meta: &phf::Map<
+        usize,
+        (
+            &'static str,
+            &'static phf::Map<&'static str, RegisterInfo>,
+            &'static [&str],
+        ),
+    >,
+    module_name: &str,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> anyhow::Result<_Tensor<O, Cuda, DEVICE_ID>>
 where
@@ -82,8 +115,21 @@ where
 {
     if a.is_contiguous() && a.parent().is_none() {
         contiguous_reduce::<T, F, F2, F3, fn(O) -> O, _, _, fn(O::Vec) -> O::Vec, O, DEVICE_ID>(
-            a, op, op_no_cast, op2, None, vec_op, vec_op2, None, &axes, init_val, keepdims,
-            init_out, c,
+            a,
+            op,
+            op_no_cast,
+            op2,
+            None,
+            vec_op,
+            vec_op2,
+            None,
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            meta,
+            module_name,
+            c,
         )
     } else {
         uncontiguous_reduce::<T, F, F3, fn(O) -> O, _, fn(O::Vec) -> O::Vec, O, DEVICE_ID>(
@@ -106,6 +152,15 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE_ID: usize>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
+    meta: &phf::Map<
+        usize,
+        (
+            &'static str,
+            &'static phf::Map<&'static str, RegisterInfo>,
+            &'static [&str],
+        ),
+    >,
+    module_name: &str,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> anyhow::Result<_Tensor<O, Cuda, DEVICE_ID>>
 where
@@ -134,6 +189,8 @@ where
             init_val,
             keepdims,
             init_out,
+            meta,
+            module_name,
             c,
         )
     } else {
@@ -167,6 +224,15 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE_ID
     init_val: O,
     keepdims: bool,
     init_out: bool,
+    meta: &phf::Map<
+        usize,
+        (
+            &'static str,
+            &'static phf::Map<&'static str, RegisterInfo>,
+            &'static [&str],
+        ),
+    >,
+    module_name: &str,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> anyhow::Result<_Tensor<O, Cuda, DEVICE_ID>>
 where
@@ -192,7 +258,6 @@ where
         new_shape.push(prod);
         (a.reshape(&new_shape)?, a.shape()[max_axis + 1..].to_vec())
     };
-    let module_name = format!("red{}", T::ID);
     let res = contiguous_reduce_template(
         &a,
         axes,
@@ -201,23 +266,15 @@ where
         init_out,
         c,
         |res| {
-            let map = compile_kernel(
-                &module_name,
-                &include_str!("kernels/reduce.cu").replace(
-                    "#define type float",
-                    &format!("#define type {}", T::CUDA_TYPE),
-                ),
+            let (reduce_kernel, reg_info) = load_ptx_and_get_data(
+                module_name,
+                &format!("contiguous_reduce_{}", T::ID),
                 a.device(),
-                &REDUCE_KERNELS,
-            )
-            .unwrap();
-            let reg_info = map.get("contiguous_reduce").expect("func_name not found");
-            let reduce_kernel = a
-                .device()
-                .get_func(&module_name, "contiguous_reduce")
-                .unwrap();
+                a.device_cap(),
+                &meta,
+            ).unwrap();
             let mut size = a.size();
-            let mut cfg = compute_kernel_launch_config(a.device(), reg_info, size);
+            let mut cfg = compute_kernel_launch_config(a.device(), &reg_info, size);
             cfg.block_dim.0 = 2f64.powf((cfg.block_dim.0 as f64).log2().floor()) as u32;
             let grid_dim = (size as u32 + cfg.block_dim.0 - 1) / cfg.block_dim.0;
             cfg.grid_dim.0 = ((grid_dim + 1) / 2).max(1);
@@ -240,7 +297,7 @@ where
 
             let mut inp = tmp_res;
             while num_blocks > 1024 {
-                cfg = compute_kernel_launch_config(a.device(), reg_info, size);
+                cfg = compute_kernel_launch_config(a.device(), &reg_info, size);
                 cfg.block_dim.0 = 2f64.powf((cfg.block_dim.0 as f64).log2().floor()) as u32;
                 let grid_dim = (size as u32 + cfg.block_dim.0 - 1) / cfg.block_dim.0;
                 cfg.grid_dim.0 = ((grid_dim + 1) / 2).max(1);
@@ -288,23 +345,15 @@ where
         },
         |inner_loop_size, inner_loop_size2, res, transposed_tensor| {
             let outer_loop_size = a.size() / (inner_loop_size * inner_loop_size2);
-            let map = compile_kernel(
-                &module_name,
-                &include_str!("kernels/reduce.cu").replace(
-                    "#define type float",
-                    &format!("#define type {}", T::CUDA_TYPE),
-                ),
+            let (reduce_kernel, reg_info) = load_ptx_and_get_data(
+                module_name,
+                &format!("contiguous_reduce2_{}", T::ID),
                 a.device(),
-                &REDUCE_KERNELS,
-            )
-            .unwrap();
-            let reg_info = map.get("contiguous_reduce2").expect("func_name not found");
-            let reduce_kernel = a
-                .device()
-                .get_func(&module_name, "contiguous_reduce2")
-                .unwrap();
+                a.device_cap(),
+                &meta,
+            ).unwrap();
             let mut reduce_size = inner_loop_size * inner_loop_size2;
-            let mut cfg = compute_kernel_launch_config(a.device(), reg_info, reduce_size);
+            let mut cfg = compute_kernel_launch_config(a.device(), &reg_info, reduce_size);
             cfg.block_dim.0 = 2f64.powf((cfg.block_dim.0 as f64).log2().floor()) as u32;
             let grid_dim = (reduce_size as u32 + cfg.block_dim.0 - 1) / cfg.block_dim.0;
             cfg.grid_dim.0 = ((grid_dim + 1) / 2).max(1);
@@ -345,7 +394,7 @@ where
                 .get_func(&module_name, "contiguous_reduce22")
                 .unwrap();
             while reduce_size > 512 {
-                cfg = compute_kernel_launch_config(a.device(), reg_info, reduce_size);
+                cfg = compute_kernel_launch_config(a.device(), &reg_info, reduce_size);
                 cfg.block_dim.0 = 2f64.powf((cfg.block_dim.0 as f64).log2().floor()) as u32;
                 let grid_dim = (reduce_size as u32 + cfg.block_dim.0 - 1) / cfg.block_dim.0;
                 cfg.grid_dim.0 = ((grid_dim + 1) / 2).max(1);
@@ -415,21 +464,13 @@ where
             let mut perm = right;
             perm.extend(left);
             let transposed_tensor = transposed_tensor.permute(&perm).unwrap();
-            let map = compile_kernel(
-                &module_name,
-                &include_str!("kernels/reduce.cu").replace(
-                    "#define type float",
-                    &format!("#define type {}", T::CUDA_TYPE),
-                ),
+            let (reduce_kernel, reg_info) = load_ptx_and_get_data(
+                module_name,
+                &format!("contiguous_reduce3_{}", T::ID),
                 a.device(),
-                &REDUCE_KERNELS,
-            )
-            .unwrap();
-            let reg_info = map.get("contiguous_reduce3").expect("func_name not found");
-            let reduce_kernel = a
-                .device()
-                .get_func(&module_name, "contiguous_reduce3")
-                .unwrap();
+                a.device_cap(),
+                &meta,
+            ).unwrap();
             let cache_line = 128;
             let block_dim_x = 128 / std::mem::size_of::<T>() as u32;
             let max_regs_per_sm = a

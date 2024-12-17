@@ -6,6 +6,7 @@ use crate::Cuda;
 use cudarc::driver::DeviceRepr;
 use cudarc::types::CudaTypeName;
 use tensor_common::axis::{process_axes, Axis};
+use tensor_cudakernels::{MAX, MIN, PROD, REDUCEL1, SUM};
 use tensor_traits::{CommonBounds, NormalReduce, TensorInfo};
 use tensor_types::type_promote::NormalOut;
 use tensor_types::type_promote::NormalOutUnary;
@@ -26,6 +27,8 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
             T::ZERO,
             keep_dims,
             false,
+            &SUM,
+            "sum",
             None,
         )
     }
@@ -50,6 +53,8 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
             T::ZERO,
             keep_dims,
             init_out,
+            &SUM,
+            "sum",
             Some(out.borrow().clone()),
         )
     }
@@ -70,6 +75,8 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
             init_val,
             keep_dims,
             false,
+            &SUM,
+            "sum",
             None,
         )
     }
@@ -85,6 +92,8 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
             T::ONE,
             keep_dims,
             false,
+            &PROD,
+            "prod",
             None,
         )
     }
@@ -105,6 +114,8 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
             init_val,
             keep_dims,
             false,
+            &PROD,
+            "prod",
             None,
         )
     }
@@ -120,6 +131,8 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
             T::INF,
             keep_dims,
             false,
+            &MIN,
+            "min",
             None,
         )
     }
@@ -140,6 +153,8 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
             init_val,
             keep_dims,
             false,
+            &MIN,
+            "min",
             None,
         )
     }
@@ -155,6 +170,8 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
             T::NEG_INF,
             keep_dims,
             false,
+            &MAX,
+            "max",
             None,
         )
     }
@@ -175,6 +192,8 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
             init_val,
             keep_dims,
             false,
+            &MAX,
+            "max",
             None,
         )
     }
@@ -196,6 +215,8 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
             T::ZERO,
             keep_dims,
             false,
+            &REDUCEL1,
+            "reducel1",
             None,
         )
     }
@@ -213,6 +234,8 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
             T::ZERO,
             keep_dims,
             false,
+            &SUM,
+            "sum",
             None,
         )
     }

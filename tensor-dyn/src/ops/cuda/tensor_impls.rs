@@ -177,10 +177,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorAlloc
 // impl<T: CommonBounds> TensorIterator<'_, T> for _Tensor<T, Cuda> {}
 
 impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
-
-    pub fn memset(&mut self, value: T) {
-        
-    }
+    pub fn memset(&mut self, value: T) {}
 
     // /// copy the data from the other tensor to this tensor
     // pub fn assign(&mut self, other: &_Tensor<T>) {
@@ -308,6 +305,9 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVI
     pub(crate) fn cuda_strides(&self) -> anyhow::Result<cudarc::driver::CudaSlice<i64>> {
         Ok(self.device().htod_sync_copy(self.strides())?)
     }
+    pub(crate) fn device_cap(&self) -> usize {
+        self._backend._backend.cap
+    }
 }
 
 impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> Tensor<T, Cuda, DEVICE_ID> {
@@ -318,6 +318,9 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> Tensor<T, Cuda, DEVIC
     /// get the device of the tensor
     pub fn device(&self) -> Arc<CudaDevice> {
         self.inner.as_ref().device()
+    }
+    pub(crate) fn device_cap(&self) -> usize {
+        self.inner.as_ref().device_cap()
     }
     // /// copy the data from the other tensor to this tensor
     // pub fn assign(&mut self, other: &Tensor<T, Cuda>) {

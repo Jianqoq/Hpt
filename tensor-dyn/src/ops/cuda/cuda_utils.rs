@@ -1,10 +1,11 @@
 use std::{collections::HashMap, sync::Arc};
 
 use cudarc::{
-    driver::{CudaDevice, LaunchConfig},
+    driver::{CudaDevice, CudaFunction, LaunchConfig},
     nvrtc::{compile_ptx_with_opts, CompileOptions},
 };
 use regex::Regex;
+use tensor_cudakernels::RegisterInfo;
 use tensor_types::dtype::TypeCommon;
 
 use crate::{cuda_compiled::CUDA_COMPILED, tensor_base::_Tensor, Cuda};
@@ -47,11 +48,42 @@ pub(crate) fn compile_kernel(
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct RegisterInfo {
-    pub pred: usize,
-    pub b32: usize,
-    pub b64: usize,
+pub(crate) fn load_ptx_and_get_data(
+    module: &str,
+    func_name: &str,
+    device: Arc<CudaDevice>,
+    cap: usize,
+    meta: &phf::Map<
+        usize,
+        (
+            &'static str,
+            &'static phf::Map<&'static str, RegisterInfo>,
+            &'static [&str],
+        ),
+    >,
+) -> anyhow::Result<(CudaFunction, RegisterInfo)> {
+    if let Some(func) = device.get_func(module, func_name) {
+        if let Some(meta) = meta.get(&cap) {
+            if let Some(reg_info) = meta.1.get(func_name) {
+                Ok((func, *reg_info))
+            } else {
+                Err(anyhow::anyhow!("no reg info for {}", func_name))
+            }
+        } else {
+            Err(anyhow::anyhow!("no meta for cap {}", cap))
+        }
+    } else {
+        if let Some(meta) = meta.get(&cap) {
+            device.load_ptx(meta.0.into(), module, meta.2)?;
+            if let Some(reg_info) = meta.1.get(func_name) {
+                Ok((device.get_func(module, func_name).unwrap(), *reg_info))
+            } else {
+                Err(anyhow::anyhow!("no reg info for {}", func_name))
+            }
+        } else {
+            Err(anyhow::anyhow!("no meta for cap {}", cap))
+        }
+    }
 }
 
 fn count_registers(ptx: &str) -> HashMap<String, RegisterInfo> {
@@ -62,7 +94,7 @@ fn count_registers(ptx: &str) -> HashMap<String, RegisterInfo> {
     let pred_re = Regex::new(r"\.reg \.pred\s+%p<(\d+)>").unwrap();
     let b32_re = Regex::new(r"\.reg \.b32\s+%r<(\d+)>").unwrap();
     let b64_re = Regex::new(r"\.reg \.b64\s+%rd<(\d+)>").unwrap();
-
+    let b16_re = Regex::new(r"\.reg \.b16\s+%rs<(\d+)>").unwrap();
     let mut current_func = String::new();
 
     for line in ptx.lines() {
@@ -77,6 +109,7 @@ fn count_registers(ptx: &str) -> HashMap<String, RegisterInfo> {
                         pred: 0,
                         b32: 0,
                         b64: 0,
+                        b16: 0,
                     })
                     .pred = pred_count;
             }
@@ -88,6 +121,7 @@ fn count_registers(ptx: &str) -> HashMap<String, RegisterInfo> {
                         pred: 0,
                         b32: 0,
                         b64: 0,
+                        b16: 0,
                     })
                     .b32 = b32_count;
             }
@@ -99,8 +133,21 @@ fn count_registers(ptx: &str) -> HashMap<String, RegisterInfo> {
                         pred: 0,
                         b32: 0,
                         b64: 0,
+                        b16: 0,
                     })
                     .b64 = b64_count;
+            }
+            if let Some(cap) = b16_re.captures(line) {
+                let b16_count = cap[1].parse::<usize>().unwrap();
+                reg_counts
+                    .entry(current_func.clone())
+                    .or_insert(RegisterInfo {
+                        pred: 0,
+                        b32: 0,
+                        b64: 0,
+                        b16: 0,
+                    })
+                    .b16 = b16_count;
             }
         }
     }
@@ -132,8 +179,9 @@ pub(crate) fn compute_kernel_launch_config(
         .expect("failed to get max threads per block");
     let total_reg_used = reg_info.b32 + reg_info.b64 * 2;
     let max_threads_per_sm = max_regs_per_sm as usize / total_reg_used;
-    let aligned_threads =
-        align_to_warp(max_threads_per_sm, warp_size as usize).min(max_threads_per_block as usize).max(warp_size as usize);
+    let aligned_threads = align_to_warp(max_threads_per_sm, warp_size as usize)
+        .min(max_threads_per_block as usize)
+        .max(warp_size as usize);
     LaunchConfig {
         block_dim: (aligned_threads as u32, 1, 1),
         grid_dim: (

@@ -1,12 +1,6 @@
 use crate::{
     backend::Backend,
-    ops::cuda::{
-        cuda_utils::{compile_kernel, compute_kernel_launch_config},
-        kernel_constants::{
-            ARANGE_KERNELS, EYE_KERNELS, FILL_KERNELS, GEOMSPACE_KERNELS, LINSPACE_KERNELS,
-            LOGSPACE_KERNELS, TRIU_KERNELS,
-        },
-    },
+    ops::cuda::cuda_utils::{compute_kernel_launch_config, load_ptx_and_get_data},
     tensor_base::_Tensor,
     BoolVector, Cuda, ALIGN,
 };
@@ -15,10 +9,10 @@ use cudarc::driver::{DeviceRepr, LaunchAsync, LaunchConfig};
 use std::sync::Arc;
 use tensor_allocator::CUDA_CACHE;
 use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
+use tensor_cudakernels::CREATION;
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 use tensor_types::{
     convertion::{Convertor, FromScalar},
-    dtype::Dtype,
     into_scalar::IntoScalar,
     type_promote::NormalOut,
 };
@@ -89,16 +83,13 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
 
     fn full<S: Into<Shape>>(val: T, shape: S) -> Result<Self> {
         let ret = Self::empty(shape)?;
-        compile_kernel(
-            "fill",
-            include_str!("../kernels/fill.cu"),
+        let (fill_kernel, _) = load_ptx_and_get_data(
+            "creation",
+            &format!("fill_{}", T::ID),
             ret.device(),
-            &FILL_KERNELS,
+            ret.device_cap(),
+            &CREATION,
         )?;
-        let fill_kernel = ret
-            .device()
-            .get_func("fill", &format!("fill_{}", T::ID))
-            .unwrap();
         let cfg = LaunchConfig::for_num_elems(ret.size() as u32);
         let mut slice = unsafe {
             ret.device()
@@ -126,13 +117,13 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
             return _Tensor::<T, Cuda, DEVICE_ID>::empty(Arc::new(vec![0]));
         }
         let ret = Self::empty(Arc::new(vec![size]))?;
-        compile_kernel(
-            "arange",
-            include_str!("../kernels/arange.cu"),
+        let (arange_kernel, _) = load_ptx_and_get_data(
+            "creation",
+            &format!("arange_{}", T::ID),
             ret.device(),
-            &ARANGE_KERNELS,
+            ret.device_cap(),
+            &CREATION,
         )?;
-        let arange_kernel = ret.device().get_func("arange", &format!("arange_{}_vec2", T::ID)).unwrap();
         let cfg = LaunchConfig::for_num_elems(ret.size() as u32);
         let slice = ret.cuda_slice();
         unsafe { arange_kernel.launch(cfg, (slice, start, T::ONE, ret.size())) }?;
@@ -153,24 +144,18 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
             return _Tensor::<T, Cuda, DEVICE_ID>::empty(Arc::new(vec![0]));
         }
         let ret = Self::empty(Arc::new(vec![size as i64]))?;
-        let map = compile_kernel(
-            "arange",
-            include_str!("../kernels/arange.cu"),
+        let (arange_kernel, reg_info) = load_ptx_and_get_data(
+            "creation",
+            &format!("arange_{}", T::ID),
             ret.device(),
-            &ARANGE_KERNELS,
+            ret.device_cap(),
+            &CREATION,
         )?;
-        let func_name = if T::ID == Dtype::F16 {
-            format!("arange_{}_vec2", T::ID)
-        } else {
-            format!("arange_{}_vec4", T::ID)
-        };
-        let arange_kernel = ret.device().get_func("arange", &func_name).unwrap();
         let mut slice = unsafe {
             ret.device()
                 .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
         };
-        let reg_info = map.get(&func_name).expect("func_name not found");
-        let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
+        let cfg = compute_kernel_launch_config(ret.device(), &reg_info, ret.size());
         unsafe { arange_kernel.launch(cfg, (&mut slice, start, step, ret.size())) }?;
         slice.leak();
         Ok(ret)
@@ -182,22 +167,15 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
     {
         let shape = vec![n as i64, m as i64];
         let ret = Self::empty(Arc::new(shape))?;
-        let map = compile_kernel(
-            "eye",
-            include_str!("../kernels/eye.cu"),
+        let (eye_kernel, reg_info) = load_ptx_and_get_data(
+            "creation",
+            &format!("eye_{}", T::ID),
             ret.device(),
-            &EYE_KERNELS,
+            ret.device_cap(),
+            &CREATION,
         )?;
-        let func_name = format!("eye_{}", T::ID);
-        let arange_kernel = ret.device().get_func("eye", &func_name).unwrap();
-        let mut slice = unsafe {
-            ret.device()
-                .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
-        };
-        let reg_info = map.get(&func_name).expect("func_name not found");
-        let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
-        unsafe { arange_kernel.launch(cfg, (&mut slice, n, m, k)) }?;
-        slice.leak();
+        let cfg = compute_kernel_launch_config(ret.device(), &reg_info, ret.size());
+        unsafe { eye_kernel.launch(cfg, (ret.cuda_slice(), n, m, k)) }?;
         Ok(ret)
     }
 
@@ -218,28 +196,17 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         let step_t: T = step.into_scalar();
         let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(Arc::new(vec![num as i64]))?;
 
-        let map = compile_kernel(
-            "linspace",
-            include_str!("../kernels/linspace.cu"),
+        let (linspace_kernel, reg_info) = load_ptx_and_get_data(
+            "creation",
+            &format!("linspace_{}", T::ID),
             ret.device(),
-            &LINSPACE_KERNELS,
+            ret.device_cap(),
+            &CREATION,
         )?;
-        let func_name = if T::ID == Dtype::F16 {
-            format!("linspace_{}_vec2", T::ID)
-        } else {
-            format!("linspace_{}_vec4", T::ID)
-        };
-        let kernel = ret.device().get_func("linspace", &func_name).unwrap();
-        let mut slice = unsafe {
-            ret.device()
-                .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
-        };
-        let reg_info = map.get(&func_name).expect("func_name not found");
-        let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
+        let cfg = compute_kernel_launch_config(ret.device(), &reg_info, ret.size());
         unsafe {
-            kernel.launch(cfg, (&mut slice, start, step_t, num))?;
+            linspace_kernel.launch(cfg, (ret.cuda_slice(), start, step_t, num))?;
         }
-        slice.leak();
         Ok(ret)
     }
 
@@ -258,29 +225,17 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         let step_t = T::_from(step);
         let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(Arc::new(vec![num as i64]))?;
 
-        let map = compile_kernel(
-            "logspace",
-            include_str!("../kernels/logspace.cu"),
+        let (logspace_kernel, reg_info) = load_ptx_and_get_data(
+            "creation",
+            &format!("logspace_{}", T::ID),
             ret.device(),
-            &LOGSPACE_KERNELS,
+            ret.device_cap(),
+            &CREATION,
         )?;
-
-        let func_name = if T::ID == Dtype::F16 {
-            format!("logspace_{}_vec2", T::ID)
-        } else {
-            format!("logspace_{}_vec4", T::ID)
-        };
-        let kernel = ret.device().get_func("logspace", &func_name).unwrap();
-        let mut slice = unsafe {
-            ret.device()
-                .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
-        };
-        let reg_info = map.get(&func_name).expect("func_name not found");
-        let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
+        let cfg = compute_kernel_launch_config(ret.device(), &reg_info, ret.size());
         unsafe {
-            kernel.launch(cfg, (&mut slice, base, start, step_t, num))?;
+            logspace_kernel.launch(cfg, (ret.cuda_slice(), base, start, step_t, num))?;
         }
-        slice.leak();
         Ok(ret)
     }
 
@@ -316,29 +271,17 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         };
         let start_t: T = start.into_scalar();
         let step_t: T = step.into_scalar();
-        let map = compile_kernel(
-            "geomspace",
-            include_str!("../kernels/geomspace.cu"),
+        let (geomspace_kernel, reg_info) = load_ptx_and_get_data(
+            "creation",
+            &format!("geomspace_{}", T::ID),
             ret.device(),
-            &GEOMSPACE_KERNELS,
+            ret.device_cap(),
+            &CREATION,
         )?;
-
-        let func_name = if T::ID == Dtype::F16 {
-            format!("geomspace_{}_vec2", T::ID)
-        } else {
-            format!("geomspace_{}_vec4", T::ID)
-        };
-        let kernel = ret.device().get_func("geomspace", &func_name).unwrap();
-        let mut slice = unsafe {
-            ret.device()
-                .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
-        };
-        let reg_info = map.get(&func_name).expect("func_name not found");
-        let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
+        let cfg = compute_kernel_launch_config(ret.device(), &reg_info, ret.size());
         unsafe {
-            kernel.launch(cfg, (&mut slice, start_t, step_t, both_negative, n))?;
+            geomspace_kernel.launch(cfg, (ret.cuda_slice(), start_t, step_t, both_negative, n))?;
         }
-        slice.leak();
         Ok(ret)
     }
 
@@ -348,22 +291,15 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
     {
         let shape = vec![n as i64, m as i64];
         let ret = Self::empty(Arc::new(shape))?;
-        let map = compile_kernel(
-            "triu",
-            include_str!("../kernels/triu.cu"),
+        let (tri_kernel, reg_info) = load_ptx_and_get_data(
+            "creation",
+            &format!("tri_{}", T::ID),
             ret.device(),
-            &TRIU_KERNELS,
+            ret.device_cap(),
+            &CREATION,
         )?;
-        let func_name = format!("triu_{}", T::ID);
-        let arange_kernel = ret.device().get_func("triu", &func_name).unwrap();
-        let mut slice = unsafe {
-            ret.device()
-                .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
-        };
-        let reg_info = map.get(&func_name).expect("func_name not found");
-        let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
-        unsafe { arange_kernel.launch(cfg, (&mut slice, n, m, k, low_triangle)) }?;
-        slice.leak();
+        let cfg = compute_kernel_launch_config(ret.device(), &reg_info, ret.size());
+        unsafe { tri_kernel.launch(cfg, (ret.cuda_slice(), n, m, k, low_triangle)) }?;
         Ok(ret)
     }
 
