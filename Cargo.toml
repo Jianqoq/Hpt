@@ -17,7 +17,7 @@ members = [
     "tensor-bench",
     "tensor-tests",
     "tensor-dataloader", 
-    "tensor-codegen",
+    "tensor-codegen"
 ]
 
 [dependencies]
@@ -30,7 +30,7 @@ rayon = "1.8.0"
 cache-size = "0.7.0"
 rust_xlsxwriter = "=0.25.0"
 num-complex = "0.4"
-# candle-core = "0.7.2"
+candle-core = {version = "0.8.1", features = ["cuda"]}
 
 [[test]]
 name = "tensor-tests"
@@ -41,11 +41,11 @@ name = "etensor"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 3
+opt-level = 0
 incremental = false
-debug = false
-lto = "fat"
-codegen-units = 1
+debug = true
+# lto = "fat"
+# codegen-units = 1
 
 [profile.dev]
 opt-level = 0

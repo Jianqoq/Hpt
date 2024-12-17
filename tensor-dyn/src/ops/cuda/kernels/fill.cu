@@ -28,7 +28,7 @@
         }                                                                             \
     }
 
-extern "C" __global__ void fill_f16_vec2(half *out, half value, size_t N)
+extern "C" __global__ void fill_f16(half *out, half value, size_t N)
 {
     __half2 *out_vec = (__half2 *)out;
     __half2 value_vec = make_half2(value, value);
@@ -47,14 +47,14 @@ extern "C" __global__ void fill_f16_vec2(half *out, half value, size_t N)
         }
     }
 };
-DEFINE_KERNEL(fill_f32_vec4, float, float, 4);
-DEFINE_KERNEL(fill_f64_vec4, double, double, 4);
+DEFINE_KERNEL(fill_f32, float, float, 4);
+DEFINE_KERNEL(fill_f64, double, double, 4);
 
-DEFINE_KERNEL(fill_i8_vec4, char, char, 4);
-DEFINE_KERNEL(fill_i16_vec4, short, short, 4);
-DEFINE_KERNEL(fill_i32_vec4, int, int, 4);
-DEFINE_KERNEL(fill_i64_vec4, longlong, long long, 4);
-DEFINE_KERNEL(fill_u8_vec4, uchar, unsigned char, 4);
-DEFINE_KERNEL(fill_u16_vec4, ushort, unsigned short, 4);
-DEFINE_KERNEL(fill_u32_vec4, uint, unsigned int, 4);
-DEFINE_KERNEL(fill_u64_vec4, ulonglong, unsigned long long, 4);
+DEFINE_KERNEL(fill_i8, char, char, 4);
+DEFINE_KERNEL(fill_i16, short, short, 4);
+DEFINE_KERNEL(fill_i32, int, int, 4);
+DEFINE_KERNEL(fill_i64, longlong, long long, 4);
+DEFINE_KERNEL(fill_u8, uchar, unsigned char, 4);
+DEFINE_KERNEL(fill_u16, ushort, unsigned short, 4);
+DEFINE_KERNEL(fill_u32, uint, unsigned int, 4);
+DEFINE_KERNEL(fill_u64, ulonglong, unsigned long long, 4);

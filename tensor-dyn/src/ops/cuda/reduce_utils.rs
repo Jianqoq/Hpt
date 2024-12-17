@@ -34,8 +34,6 @@ pub(crate) fn reduce_prepare<
 >(
     a: &_Tensor<T, Cuda, DEVICE_ID>,
     axes: &[usize],
-    init_val: O,
-    init_out: bool,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> anyhow::Result<(_Tensor<T, Cuda, DEVICE_ID>, _Tensor<O, Cuda, DEVICE_ID>)> {
     // get permute order, we move to_reduce axes to the end
@@ -63,11 +61,12 @@ pub(crate) fn reduce_prepare<
                 "Output array is not contiguous".to_string(),
             ));
         }
-        Ok(out.reshape(res_layout.shape())?)
+        out.reshape(res_layout.shape())?
     } else {
-        _Tensor::<O, Cuda, DEVICE_ID>::full(init_val, res_layout.shape())
+        let res = _Tensor::<O, Cuda, DEVICE_ID>::empty(res_layout.shape())?;
+        res
     };
-    Ok((a.permute(transposed_axis)?, res?))
+    Ok((a.permute(transposed_axis)?, res))
 }
 
 pub(crate) fn uncontiguous_reduce_prepare<

@@ -48,7 +48,7 @@
         }                                                                                       \
     }
 
-extern "C" __global__ void logspace_f16_vec2(half *out, half base, half start, half step, size_t n)
+extern "C" __global__ void logspace_f16(half *out, half base, half start, half step, size_t n)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     size_t stride = blockDim.x * gridDim.x;
@@ -68,15 +68,15 @@ extern "C" __global__ void logspace_f16_vec2(half *out, half base, half start, h
         }
     }
 };
-DEFINE_LOGSPACE_KERNEL(logspace_f32_vec4, float, float, 4);
-DEFINE_LOGSPACE_KERNEL(logspace_f64_vec4, double, double, 4);
+DEFINE_LOGSPACE_KERNEL(logspace_f32, float, float, 4);
+DEFINE_LOGSPACE_KERNEL(logspace_f64, double, double, 4);
 
-DEFINE_LOGSPACE_KERNEL_CAST(logspace_i8_vec4, char, char, 4, float);
-DEFINE_LOGSPACE_KERNEL_CAST(logspace_i16_vec4, short, short, 4, float);
-DEFINE_LOGSPACE_KERNEL_CAST(logspace_i32_vec4, int, int, 4, float);
-DEFINE_LOGSPACE_KERNEL_CAST(logspace_i64_vec4, longlong, long long, 4, double);
+DEFINE_LOGSPACE_KERNEL_CAST(logspace_i8, char, char, 4, float);
+DEFINE_LOGSPACE_KERNEL_CAST(logspace_i16, short, short, 4, float);
+DEFINE_LOGSPACE_KERNEL_CAST(logspace_i32, int, int, 4, float);
+DEFINE_LOGSPACE_KERNEL_CAST(logspace_i64, longlong, long long, 4, double);
 
-DEFINE_LOGSPACE_KERNEL_CAST(logspace_u8_vec4, uchar, unsigned char, 4, float);
-DEFINE_LOGSPACE_KERNEL_CAST(logspace_u16_vec4, ushort, unsigned short, 4, float);
-DEFINE_LOGSPACE_KERNEL_CAST(logspace_u32_vec4, uint, unsigned int, 4, float);
-DEFINE_LOGSPACE_KERNEL_CAST(logspace_u64_vec4, ulonglong, unsigned long long, 4, double);
+DEFINE_LOGSPACE_KERNEL_CAST(logspace_u8, uchar, unsigned char, 4, float);
+DEFINE_LOGSPACE_KERNEL_CAST(logspace_u16, ushort, unsigned short, 4, float);
+DEFINE_LOGSPACE_KERNEL_CAST(logspace_u32, uint, unsigned int, 4, float);
+DEFINE_LOGSPACE_KERNEL_CAST(logspace_u64, ulonglong, unsigned long long, 4, double);

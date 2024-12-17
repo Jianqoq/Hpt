@@ -95,12 +95,10 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
             ret.device(),
             &FILL_KERNELS,
         )?;
-        let func_name = if T::ID == Dtype::F16 {
-            format!("fill_{}_vec2", T::ID)
-        } else {
-            format!("fill_{}_vec4", T::ID)
-        };
-        let fill_kernel = ret.device().get_func("fill", &func_name).unwrap();
+        let fill_kernel = ret
+            .device()
+            .get_func("fill", &format!("fill_{}", T::ID))
+            .unwrap();
         let cfg = LaunchConfig::for_num_elems(ret.size() as u32);
         let mut slice = unsafe {
             ret.device()
@@ -134,12 +132,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
             ret.device(),
             &ARANGE_KERNELS,
         )?;
-        let func_name = if T::ID == Dtype::F16 {
-            format!("arange_{}_vec2", T::ID)
-        } else {
-            format!("arange_{}_vec4", T::ID)
-        };
-        let arange_kernel = ret.device().get_func("arange", &func_name).unwrap();
+        let arange_kernel = ret.device().get_func("arange", &format!("arange_{}_vec2", T::ID)).unwrap();
         let cfg = LaunchConfig::for_num_elems(ret.size() as u32);
         let slice = ret.cuda_slice();
         unsafe { arange_kernel.launch(cfg, (slice, start, T::ONE, ret.size())) }?;

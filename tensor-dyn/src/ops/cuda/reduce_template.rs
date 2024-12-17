@@ -206,7 +206,7 @@ where
     } else {
         (a.clone(), axes.to_vec())
     };
-    let (transposed_tensor, result) = reduce_prepare(&a, &axes, init_val, init_out, c)?;
+    let (transposed_tensor, result) = reduce_prepare(&a, &axes, c)?;
 
     let a_last_stride = if keep_fast_dim {
         transposed_tensor.strides()[a.ndim() - axes.len() - 1]

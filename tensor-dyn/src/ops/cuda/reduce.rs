@@ -285,7 +285,6 @@ where
                 .htod_sync_copy_into(cpu_reduced.as_raw(), &mut _res_ptr)
                 .unwrap();
             _res_ptr.leak();
-            println!("cuda time: {:?}", now.elapsed());
         },
         |inner_loop_size, inner_loop_size2, res, transposed_tensor| {
             let outer_loop_size = a.size() / (inner_loop_size * inner_loop_size2);
@@ -408,7 +407,6 @@ where
                 .htod_sync_copy_into(cpu_reduced.as_raw(), &mut _res_ptr)
                 .unwrap();
             _res_ptr.leak();
-            println!("cuda time: {:?}", now.elapsed());
         },
         |outer_loop_size, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
             let mut perm = (0..transposed_tensor.ndim()).collect::<Vec<_>>();
@@ -459,7 +457,6 @@ where
                 ),
                 shared_mem_bytes: block_dim_x * block_dim_y * std::mem::size_of::<T>() as u32,
             };
-            let now = std::time::Instant::now();
             let shape = transposed_tensor.cuda_shape().unwrap();
             let strides = transposed_tensor.cuda_strides().unwrap();
             unsafe {
@@ -477,8 +474,6 @@ where
                 )
             }
             .unwrap();
-            a.device().synchronize().unwrap();
-            println!("cuda time: {:?}", now.elapsed());
         },
     )?;
     if !fused_dims.is_empty() {

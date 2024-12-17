@@ -177,6 +177,11 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorAlloc
 // impl<T: CommonBounds> TensorIterator<'_, T> for _Tensor<T, Cuda> {}
 
 impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
+
+    pub fn memset(&mut self, value: T) {
+        
+    }
+
     // /// copy the data from the other tensor to this tensor
     // pub fn assign(&mut self, other: &_Tensor<T>) {
     //     self.par_iter_mut_simd()
