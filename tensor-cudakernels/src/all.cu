@@ -1,64 +1,76 @@
 #include <cuda_fp16.h>
 #define WRAP 32
 
-#define add_bool(a, b) ((bool)((unsigned char)a) + ((unsigned char)b))
-#define add_i8(a, b) (abs(a)) + (abs(b))
-#define add_i16(a, b) (abs(a)) + (abs(b))
-#define add_i32(a, b) (abs(a)) + (abs(b))
-#define add_i64(a, b) (abs(a)) + (abs(b))
-#define add_f32(a, b) (abs(a)) + (abs(b))
-#define add_f64(a, b) (abs(a)) + (abs(b))
+#define all_bool(a, b) ((bool)a) && ((bool)b)
+#define all_i8(a, b) ((bool)a) && ((bool)b)
+#define all_i16(a, b) ((bool)a) && ((bool)b)
+#define all_i32(a, b) ((bool)a) && ((bool)b)
+#define all_i64(a, b) ((bool)a) && ((bool)b)
+#define all_f32(a, b) ((bool)a) && ((bool)b)
+#define all_f64(a, b) ((bool)a) && ((bool)b)
 
-#define add_u8(a, b) (a) + (b)
-#define add_u16(a, b) (a) + (b)
-#define add_u32(a, b) (a) + (b)
-#define add_u64(a, b) (a) + (b)
+#define all_u8(a, b) ((bool)a) && ((bool)b)
+#define all_u16(a, b) ((bool)a) && ((bool)b)
+#define all_u32(a, b) ((bool)a) && ((bool)b)
+#define all_u64(a, b) ((bool)a) && ((bool)b)
 
-#define add_f16(a, b) __float2half(abs(__half2float((a))) + abs(__half2float((b))))
+#define all_f16(a, b) ((bool)__half2float(a)) && ((bool)__half2float(b))
 
-#define atomicAdd_bool(a, b)                       \
-    acquire_lock(&global_lock);                    \
-    (a) = ((unsigned char)a) + ((unsigned char)b); \
+#define atomicAll_bool(a, b)    \
+    acquire_lock(&global_lock); \
+    (a) &= (b);                 \
     release_lock(&global_lock);
 
-#define atomicAdd_i8(a, b)      \
+#define atomicAll_i8(a, b)      \
     acquire_lock(&global_lock); \
-    (a) += (b);                 \
+    (a) &= (b);                 \
     release_lock(&global_lock);
 
-#define atomicAdd_u8(a, b)      \
+#define atomicAll_u8(a, b)      \
     acquire_lock(&global_lock); \
-    (a) += (b);                 \
+    (a) &= (b);                 \
     release_lock(&global_lock);
 
-#define atomicAdd_i16(a, b)     \
+#define atomicAll_i16(a, b)     \
     acquire_lock(&global_lock); \
-    (a) += (b);                 \
+    (a) &= (b);                 \
     release_lock(&global_lock);
 
-#define atomicAdd_u16(a, b)     \
+#define atomicAll_u16(a, b)     \
     acquire_lock(&global_lock); \
-    (a) += (b);                 \
+    (a) &= (b);                 \
     release_lock(&global_lock);
 
-#define atomicAdd_i64(a, b)     \
+#define atomicAll_i64(a, b)     \
     acquire_lock(&global_lock); \
-    (a) += (b);                 \
+    (a) &= (b);                 \
     release_lock(&global_lock);
 
-#define atomicAdd_u64(a, b)     \
+#define atomicAll_u64(a, b)     \
     acquire_lock(&global_lock); \
-    (a) += (b);                 \
+    (a) &= (b);                 \
     release_lock(&global_lock);
 
-#define atomicAdd_i32(a, b) atomicAdd(&a, b)
-#define atomicAdd_u32(a, b) atomicAdd(&a, b)
-#define atomicAdd_f32(a, b) atomicAdd(&a, b)
-#define atomicAdd_f64(a, b) atomicAdd(&a, b)
-
-#define atomicAdd_f16(a, b)     \
+#define atomicAll_i32(a, b)     \
     acquire_lock(&global_lock); \
-    (a) = add_f16(a, b);        \
+    (a) &= (b);                 \
+    release_lock(&global_lock);
+#define atomicAll_u32(a, b)     \
+    acquire_lock(&global_lock); \
+    (a) &= (b);                 \
+    release_lock(&global_lock);
+#define atomicAll_f32(a, b)     \
+    acquire_lock(&global_lock); \
+    (a) &= (b);                 \
+    release_lock(&global_lock);
+#define atomicAll_f64(a, b)     \
+    acquire_lock(&global_lock); \
+    (a) &= (b);                 \
+    release_lock(&global_lock);
+
+#define atomicAll_f16(a, b)     \
+    acquire_lock(&global_lock); \
+    (a) &= all_f16(a, b);       \
     release_lock(&global_lock);
 
 __device__ int global_lock = 0;
@@ -75,25 +87,25 @@ __device__ void release_lock(int *lock)
     atomicExch(lock, 0);
 }
 
-#define DEFINE_REDUCE_KERNEL(rust_type, type)                                                                                                                                 \
-    __device__ __forceinline__ void warpReduce_##rust_type(volatile type *sdata_##rust_type, unsigned int tid)                                                                \
+#define DEFINE_REDUCE_KERNEL(rust_type, type, prefix)                                                                                                                         \
+    __device__ __forceinline__ void warpReduce_##rust_type(volatile bool *sdata_##rust_type, unsigned int tid)                                                                \
     {                                                                                                                                                                         \
-        sdata_##rust_type[tid] = add_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 32]);                                                                        \
-        sdata_##rust_type[tid] = add_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 16]);                                                                        \
-        sdata_##rust_type[tid] = add_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 8]);                                                                         \
-        sdata_##rust_type[tid] = add_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 4]);                                                                         \
-        sdata_##rust_type[tid] = add_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 2]);                                                                         \
-        sdata_##rust_type[tid] = add_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 1]);                                                                         \
+        sdata_##rust_type[tid] = all_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 32]);                                                                        \
+        sdata_##rust_type[tid] = all_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 16]);                                                                        \
+        sdata_##rust_type[tid] = all_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 8]);                                                                         \
+        sdata_##rust_type[tid] = all_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 4]);                                                                         \
+        sdata_##rust_type[tid] = all_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 2]);                                                                         \
+        sdata_##rust_type[tid] = all_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 1]);                                                                         \
     }                                                                                                                                                                         \
-    extern "C" __global__ void contiguous_reduce_##rust_type(type *out, type *in, size_t size)                                                                                \
+    extern "C" __global__ void contiguous_reduce_##rust_type(bool *out, type *in, size_t size)                                                                                \
     {                                                                                                                                                                         \
-        extern __shared__ type sdata_##rust_type[];                                                                                                                           \
+        extern __shared__ bool sdata_##rust_type[];                                                                                                                           \
         unsigned int tid = threadIdx.x;                                                                                                                                       \
         unsigned int i = 2 * blockIdx.x * blockDim.x + threadIdx.x;                                                                                                           \
-        sdata_##rust_type[tid] = 0;                                                                                                                                           \
+        sdata_##rust_type[tid] =true;                                                                                                                                           \
         if (i + blockDim.x < size)                                                                                                                                            \
         {                                                                                                                                                                     \
-            sdata_##rust_type[tid] = add_##rust_type(in[i], in[i + blockDim.x]);                                                                                              \
+            sdata_##rust_type[tid] = all_##rust_type(in[i], in[i + blockDim.x]);                                                                                              \
         }                                                                                                                                                                     \
         else if (i < size)                                                                                                                                                    \
         {                                                                                                                                                                     \
@@ -104,7 +116,7 @@ __device__ void release_lock(int *lock)
         {                                                                                                                                                                     \
             if (tid < s)                                                                                                                                                      \
             {                                                                                                                                                                 \
-                sdata_##rust_type[tid] = add_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + s]);                                                                 \
+                sdata_##rust_type[tid] = all_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + s]);                                                                 \
             }                                                                                                                                                                 \
             __syncthreads();                                                                                                                                                  \
         }                                                                                                                                                                     \
@@ -115,12 +127,12 @@ __device__ void release_lock(int *lock)
         if (tid == 0)                                                                                                                                                         \
             out[blockIdx.x] = sdata_##rust_type[0];                                                                                                                           \
     }                                                                                                                                                                         \
-    extern "C" __global__ void uncontiguous_reduce_##rust_type(type *out, type *in, long long *shape, long long *strides, size_t ndim, size_t size)                           \
+    extern "C" __global__ void uncontiguous_reduce_##rust_type(bool *out, type *in, long long *shape, long long *strides, size_t ndim, size_t size)                           \
     {                                                                                                                                                                         \
-        extern __shared__ type sdata_##rust_type[];                                                                                                                           \
+        extern __shared__ bool sdata_##rust_type[];                                                                                                                           \
         unsigned int tid = threadIdx.x;                                                                                                                                       \
         unsigned int i = 2 * blockIdx.x * blockDim.x + threadIdx.x;                                                                                                           \
-        sdata_##rust_type[tid] = 0;                                                                                                                                           \
+        sdata_##rust_type[tid] =true;                                                                                                                                           \
         if (i + blockDim.x < size)                                                                                                                                            \
         {                                                                                                                                                                     \
             long long a_amount = i;                                                                                                                                           \
@@ -134,7 +146,7 @@ __device__ void release_lock(int *lock)
                 b_offset += (b_amount % shape[j]) * strides[j];                                                                                                               \
                 b_amount /= shape[j];                                                                                                                                         \
             }                                                                                                                                                                 \
-            sdata_##rust_type[tid] = add_##rust_type(in[a_offset], in[b_offset]);                                                                                             \
+            sdata_##rust_type[tid] = all_##rust_type(in[a_offset], in[b_offset]);                                                                                             \
         }                                                                                                                                                                     \
         else if (i < size)                                                                                                                                                    \
         {                                                                                                                                                                     \
@@ -152,7 +164,7 @@ __device__ void release_lock(int *lock)
         {                                                                                                                                                                     \
             if (tid < s)                                                                                                                                                      \
             {                                                                                                                                                                 \
-                sdata_##rust_type[tid] = add_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + s]);                                                                 \
+                sdata_##rust_type[tid] = all_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + s]);                                                                 \
             }                                                                                                                                                                 \
             __syncthreads();                                                                                                                                                  \
         }                                                                                                                                                                     \
@@ -163,12 +175,12 @@ __device__ void release_lock(int *lock)
         if (tid == 0)                                                                                                                                                         \
             out[blockIdx.x] = sdata_##rust_type[0];                                                                                                                           \
     }                                                                                                                                                                         \
-    extern "C" __global__ void contiguous_reduce2_##rust_type(type *out, type *in, long long *shape, long long *strides, size_t ndim, size_t cols, size_t num_blocks_per_row) \
+    extern "C" __global__ void contiguous_reduce2_##rust_type(bool *out, type *in, long long *shape, long long *strides, size_t ndim, size_t cols, size_t num_blocks_per_row) \
     {                                                                                                                                                                         \
-        extern __shared__ type sdata_##rust_type[];                                                                                                                           \
+        extern __shared__ bool sdata_##rust_type[];                                                                                                                           \
         unsigned int tid = threadIdx.x;                                                                                                                                       \
         unsigned int i = 2 * blockIdx.x * blockDim.x + threadIdx.x;                                                                                                           \
-        sdata_##rust_type[tid] = 0;                                                                                                                                           \
+        sdata_##rust_type[tid] =true;                                                                                                                                           \
         if (i + blockDim.x < cols)                                                                                                                                            \
         {                                                                                                                                                                     \
             long long a_offset = 0;                                                                                                                                           \
@@ -182,7 +194,7 @@ __device__ void release_lock(int *lock)
                 b_offset += (b_amount % shape[j]) * strides[j];                                                                                                               \
                 b_amount /= shape[j];                                                                                                                                         \
             }                                                                                                                                                                 \
-            sdata_##rust_type[tid] = add_##rust_type(in[a_offset], in[b_offset]);                                                                                             \
+            sdata_##rust_type[tid] = all_##rust_type(in[a_offset], in[b_offset]);                                                                                             \
         }                                                                                                                                                                     \
         else if (i < cols)                                                                                                                                                    \
         {                                                                                                                                                                     \
@@ -200,7 +212,7 @@ __device__ void release_lock(int *lock)
         {                                                                                                                                                                     \
             if (tid < s)                                                                                                                                                      \
             {                                                                                                                                                                 \
-                sdata_##rust_type[tid] = add_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + s]);                                                                 \
+                sdata_##rust_type[tid] = all_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + s]);                                                                 \
             }                                                                                                                                                                 \
             __syncthreads();                                                                                                                                                  \
         }                                                                                                                                                                     \
@@ -212,15 +224,15 @@ __device__ void release_lock(int *lock)
             out[blockIdx.x + blockIdx.y * num_blocks_per_row] = sdata_##rust_type[0];                                                                                         \
     }                                                                                                                                                                         \
                                                                                                                                                                               \
-    extern "C" __global__ void contiguous_reduce22_##rust_type(type *out, type *in, size_t cols, size_t num_blocks_per_row)                                                   \
+    extern "C" __global__ void contiguous_reduce22_##rust_type(bool *out, type *in, size_t cols, size_t num_blocks_per_row)                                                   \
     {                                                                                                                                                                         \
-        extern __shared__ type sdata_##rust_type[];                                                                                                                           \
+        extern __shared__ bool sdata_##rust_type[];                                                                                                                           \
         unsigned int tid = threadIdx.x;                                                                                                                                       \
         unsigned int i = 2 * blockIdx.x * blockDim.x + threadIdx.x;                                                                                                           \
-        sdata_##rust_type[tid] = 0;                                                                                                                                           \
+        sdata_##rust_type[tid] =true;                                                                                                                                           \
         if (i + blockDim.x < cols)                                                                                                                                            \
         {                                                                                                                                                                     \
-            sdata_##rust_type[tid] = add_##rust_type(in[i + blockIdx.y * cols], in[i + blockDim.x + blockIdx.y * cols]);                                                      \
+            sdata_##rust_type[tid] = all_##rust_type(in[i + blockIdx.y * cols], in[i + blockDim.x + blockIdx.y * cols]);                                                      \
         }                                                                                                                                                                     \
         else if (i < cols)                                                                                                                                                    \
         {                                                                                                                                                                     \
@@ -231,7 +243,7 @@ __device__ void release_lock(int *lock)
         {                                                                                                                                                                     \
             if (tid < s)                                                                                                                                                      \
             {                                                                                                                                                                 \
-                sdata_##rust_type[tid] = add_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + s]);                                                                 \
+                sdata_##rust_type[tid] = all_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + s]);                                                                 \
             }                                                                                                                                                                 \
             __syncthreads();                                                                                                                                                  \
         }                                                                                                                                                                     \
@@ -242,13 +254,13 @@ __device__ void release_lock(int *lock)
         if (tid == 0)                                                                                                                                                         \
             out[blockIdx.x + blockIdx.y * num_blocks_per_row] = sdata_##rust_type[0];                                                                                         \
     }                                                                                                                                                                         \
-    extern "C" __global__ void contiguous_reduce3_##rust_type(type *out, type *in, long long *shape, long long *strides, size_t ndim, size_t cols, size_t rows)               \
+    extern "C" __global__ void contiguous_reduce3_##rust_type(bool *out, type *in, long long *shape, long long *strides, size_t ndim, size_t cols, size_t rows)               \
     {                                                                                                                                                                         \
-        extern __shared__ type sdata_##rust_type[];                                                                                                                           \
+        extern __shared__ bool sdata_##rust_type[];                                                                                                                           \
         unsigned int tid = threadIdx.y * blockDim.x + threadIdx.x;                                                                                                            \
         unsigned int col_idx = blockIdx.x * blockDim.x + threadIdx.x;                                                                                                         \
         unsigned int row_idx = blockIdx.y * blockDim.y + threadIdx.y;                                                                                                         \
-        sdata_##rust_type[tid] = 0;                                                                                                                                           \
+        sdata_##rust_type[tid] =true;                                                                                                                                           \
         if (col_idx >= cols || row_idx >= rows)                                                                                                                               \
         {                                                                                                                                                                     \
             return;                                                                                                                                                           \
@@ -266,9 +278,9 @@ __device__ void release_lock(int *lock)
         {                                                                                                                                                                     \
             for (unsigned int s = 1; s < blockDim.y; s++)                                                                                                                     \
             {                                                                                                                                                                 \
-                sdata_##rust_type[threadIdx.x] = add_##rust_type(sdata_##rust_type[threadIdx.x], sdata_##rust_type[s * blockDim.x + threadIdx.x]);                            \
+                sdata_##rust_type[threadIdx.x] = all_##rust_type(sdata_##rust_type[threadIdx.x], sdata_##rust_type[s * blockDim.x + threadIdx.x]);                            \
             }                                                                                                                                                                 \
-            atomicAdd_##rust_type(out[col_idx], sdata_##rust_type[threadIdx.x]);                                                                                              \
+            atomicAll_##rust_type(out[col_idx], sdata_##rust_type[threadIdx.x]);                                                                                              \
         }                                                                                                                                                                     \
     }
 

@@ -1,7 +1,23 @@
 #include <cuda_fp16.h>
+#include <limits.h>
+
 #define WRAP 32
 
-#define max_bool(a, b) max(((unsigned char)a), ((unsigned char)b))
+#define BOOL_MIN 0
+#define I8_MIN SCHAR_MIN
+#define I16_MIN SHRT_MIN
+#define I32_MIN INT_MIN
+#define I64_MIN LLONG_MIN
+#define F32_MIN -1.0f / 0.0f
+#define F64_MIN -1.0 / 0.0
+
+#define U8_MIN 0
+#define U16_MIN 0
+#define U32_MIN 0
+#define U64_MIN 0
+#define F16_MIN __half((unsigned short)0xFC00U)
+
+#define max_bool(a, b) ((bool)max(((unsigned char)a), ((unsigned char)b)))
 #define max_i8(a, b) max((a), (b))
 #define max_i16(a, b) max((a), (b))
 #define max_i32(a, b) max((a), (b))
@@ -14,21 +30,7 @@
 #define max_u32(a, b) max((a), (b))
 #define max_u64(a, b) max((a), (b))
 
-#define max_f16(a, b) max(__half2float((a)), __half2float((b)))
-
-#define cast_back_bool(a) ((bool)a)
-#define cast_back_i8(a) (a)
-#define cast_back_i16(a) (a)
-#define cast_back_i32(a) (a)
-#define cast_back_i64(a) (a)
-#define cast_back_f32(a) (a)
-#define cast_back_f64(a) (a)
-
-#define cast_back_u8(a) (a)
-#define cast_back_u16(a) (a)
-#define cast_back_u32(a) (a)
-#define cast_back_u64(a) (a)
-#define cast_back_f16(a) __float2half((a))
+#define max_f16(a, b) __float2half(max(__half2float((a)), __half2float((b))))
 
 #define atomicMax_bool(a, b)                           \
     acquire_lock(&global_lock);                        \
@@ -97,25 +99,25 @@ __device__ void release_lock(int *lock)
     atomicExch(lock, 0);
 }
 
-#define DEFINE_REDUCE_KERNEL(rust_type, type)                                                                                                                                 \
+#define DEFINE_REDUCE_KERNEL(rust_type, type, INIT_VAL)                                                                                                                       \
     __device__ __forceinline__ void warpReduce_##rust_type(volatile type *sdata_##rust_type, unsigned int tid)                                                                \
     {                                                                                                                                                                         \
-        sdata_##rust_type[tid] = cast_back_##rust_type(max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 32]));                                                 \
-        sdata_##rust_type[tid] = cast_back_##rust_type(max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 16]));                                                 \
-        sdata_##rust_type[tid] = cast_back_##rust_type(max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 8]));                                                  \
-        sdata_##rust_type[tid] = cast_back_##rust_type(max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 4]));                                                  \
-        sdata_##rust_type[tid] = cast_back_##rust_type(max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 2]));                                                  \
-        sdata_##rust_type[tid] = cast_back_##rust_type(max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 1]));                                                  \
+        sdata_##rust_type[tid] = max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 32]);                                                                        \
+        sdata_##rust_type[tid] = max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 16]);                                                                        \
+        sdata_##rust_type[tid] = max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 8]);                                                                         \
+        sdata_##rust_type[tid] = max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 4]);                                                                         \
+        sdata_##rust_type[tid] = max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 2]);                                                                         \
+        sdata_##rust_type[tid] = max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 1]);                                                                         \
     }                                                                                                                                                                         \
-    extern "C" __global__ void contiguous_fast_reduce_##rust_type(type *out, type *in, size_t size)                                                                           \
+    extern "C" __global__ void contiguous_reduce_##rust_type(type *out, type *in, size_t size)                                                                                \
     {                                                                                                                                                                         \
         extern __shared__ type sdata_##rust_type[];                                                                                                                           \
         unsigned int tid = threadIdx.x;                                                                                                                                       \
         unsigned int i = 2 * blockIdx.x * blockDim.x + threadIdx.x;                                                                                                           \
-        sdata_##rust_type[tid] = 0;                                                                                                                                           \
+        sdata_##rust_type[tid] = INIT_VAL;                                                                                                                                    \
         if (i + blockDim.x < size)                                                                                                                                            \
         {                                                                                                                                                                     \
-            sdata_##rust_type[tid] = cast_back_##rust_type(max_##rust_type(in[i], in[i + blockDim.x]));                                                                       \
+            sdata_##rust_type[tid] = max_##rust_type(in[i], in[i + blockDim.x]);                                                                                              \
         }                                                                                                                                                                     \
         else if (i < size)                                                                                                                                                    \
         {                                                                                                                                                                     \
@@ -126,7 +128,7 @@ __device__ void release_lock(int *lock)
         {                                                                                                                                                                     \
             if (tid < s)                                                                                                                                                      \
             {                                                                                                                                                                 \
-                sdata_##rust_type[tid] = cast_back_##rust_type(max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + s]));                                          \
+                sdata_##rust_type[tid] = max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + s]);                                                                 \
             }                                                                                                                                                                 \
             __syncthreads();                                                                                                                                                  \
         }                                                                                                                                                                     \
@@ -137,12 +139,12 @@ __device__ void release_lock(int *lock)
         if (tid == 0)                                                                                                                                                         \
             out[blockIdx.x] = sdata_##rust_type[0];                                                                                                                           \
     }                                                                                                                                                                         \
-    extern "C" __global__ void uncontiguous_fast_reduce_##rust_type(type *out, type *in, long long *shape, long long *strides, size_t ndim, size_t size)                      \
+    extern "C" __global__ void uncontiguous_reduce_##rust_type(type *out, type *in, long long *shape, long long *strides, size_t ndim, size_t size)                           \
     {                                                                                                                                                                         \
         extern __shared__ type sdata_##rust_type[];                                                                                                                           \
         unsigned int tid = threadIdx.x;                                                                                                                                       \
         unsigned int i = 2 * blockIdx.x * blockDim.x + threadIdx.x;                                                                                                           \
-        sdata_##rust_type[tid] = 0;                                                                                                                                           \
+        sdata_##rust_type[tid] = INIT_VAL;                                                                                                                                    \
         if (i + blockDim.x < size)                                                                                                                                            \
         {                                                                                                                                                                     \
             long long a_amount = i;                                                                                                                                           \
@@ -156,7 +158,7 @@ __device__ void release_lock(int *lock)
                 b_offset += (b_amount % shape[j]) * strides[j];                                                                                                               \
                 b_amount /= shape[j];                                                                                                                                         \
             }                                                                                                                                                                 \
-            sdata_##rust_type[tid] = cast_back_##rust_type(max_##rust_type(in[a_offset], in[b_offset]));                                                                      \
+            sdata_##rust_type[tid] = max_##rust_type(in[a_offset], in[b_offset]);                                                                                             \
         }                                                                                                                                                                     \
         else if (i < size)                                                                                                                                                    \
         {                                                                                                                                                                     \
@@ -174,7 +176,7 @@ __device__ void release_lock(int *lock)
         {                                                                                                                                                                     \
             if (tid < s)                                                                                                                                                      \
             {                                                                                                                                                                 \
-                sdata_##rust_type[tid] = cast_back_##rust_type(max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + s]));                                          \
+                sdata_##rust_type[tid] = max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + s]);                                                                 \
             }                                                                                                                                                                 \
             __syncthreads();                                                                                                                                                  \
         }                                                                                                                                                                     \
@@ -190,7 +192,7 @@ __device__ void release_lock(int *lock)
         extern __shared__ type sdata_##rust_type[];                                                                                                                           \
         unsigned int tid = threadIdx.x;                                                                                                                                       \
         unsigned int i = 2 * blockIdx.x * blockDim.x + threadIdx.x;                                                                                                           \
-        sdata_##rust_type[tid] = 0;                                                                                                                                           \
+        sdata_##rust_type[tid] = INIT_VAL;                                                                                                                                    \
         if (i + blockDim.x < cols)                                                                                                                                            \
         {                                                                                                                                                                     \
             long long a_offset = 0;                                                                                                                                           \
@@ -204,7 +206,7 @@ __device__ void release_lock(int *lock)
                 b_offset += (b_amount % shape[j]) * strides[j];                                                                                                               \
                 b_amount /= shape[j];                                                                                                                                         \
             }                                                                                                                                                                 \
-            sdata_##rust_type[tid] = cast_back_##rust_type(max_##rust_type(in[a_offset], in[b_offset]));                                                                      \
+            sdata_##rust_type[tid] = max_##rust_type(in[a_offset], in[b_offset]);                                                                                             \
         }                                                                                                                                                                     \
         else if (i < cols)                                                                                                                                                    \
         {                                                                                                                                                                     \
@@ -222,7 +224,7 @@ __device__ void release_lock(int *lock)
         {                                                                                                                                                                     \
             if (tid < s)                                                                                                                                                      \
             {                                                                                                                                                                 \
-                sdata_##rust_type[tid] = cast_back_##rust_type(max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + s]));                                          \
+                sdata_##rust_type[tid] = max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + s]);                                                                 \
             }                                                                                                                                                                 \
             __syncthreads();                                                                                                                                                  \
         }                                                                                                                                                                     \
@@ -239,10 +241,10 @@ __device__ void release_lock(int *lock)
         extern __shared__ type sdata_##rust_type[];                                                                                                                           \
         unsigned int tid = threadIdx.x;                                                                                                                                       \
         unsigned int i = 2 * blockIdx.x * blockDim.x + threadIdx.x;                                                                                                           \
-        sdata_##rust_type[tid] = 0;                                                                                                                                           \
+        sdata_##rust_type[tid] = INIT_VAL;                                                                                                                                    \
         if (i + blockDim.x < cols)                                                                                                                                            \
         {                                                                                                                                                                     \
-            sdata_##rust_type[tid] = cast_back_##rust_type(max_##rust_type(in[i + blockIdx.y * cols], in[i + blockDim.x + blockIdx.y * cols]));                               \
+            sdata_##rust_type[tid] = max_##rust_type(in[i + blockIdx.y * cols], in[i + blockDim.x + blockIdx.y * cols]);                                                      \
         }                                                                                                                                                                     \
         else if (i < cols)                                                                                                                                                    \
         {                                                                                                                                                                     \
@@ -253,7 +255,7 @@ __device__ void release_lock(int *lock)
         {                                                                                                                                                                     \
             if (tid < s)                                                                                                                                                      \
             {                                                                                                                                                                 \
-                sdata_##rust_type[tid] = cast_back_##rust_type(max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + s]));                                          \
+                sdata_##rust_type[tid] = max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + s]);                                                                 \
             }                                                                                                                                                                 \
             __syncthreads();                                                                                                                                                  \
         }                                                                                                                                                                     \
@@ -270,7 +272,7 @@ __device__ void release_lock(int *lock)
         unsigned int tid = threadIdx.y * blockDim.x + threadIdx.x;                                                                                                            \
         unsigned int col_idx = blockIdx.x * blockDim.x + threadIdx.x;                                                                                                         \
         unsigned int row_idx = blockIdx.y * blockDim.y + threadIdx.y;                                                                                                         \
-        sdata_##rust_type[tid] = 0;                                                                                                                                           \
+        sdata_##rust_type[tid] = INIT_VAL;                                                                                                                                    \
         if (col_idx >= cols || row_idx >= rows)                                                                                                                               \
         {                                                                                                                                                                     \
             return;                                                                                                                                                           \
@@ -288,21 +290,21 @@ __device__ void release_lock(int *lock)
         {                                                                                                                                                                     \
             for (unsigned int s = 1; s < blockDim.y; s++)                                                                                                                     \
             {                                                                                                                                                                 \
-                sdata_##rust_type[threadIdx.x] = cast_back_##rust_type(max_##rust_type(sdata_##rust_type[threadIdx.x], sdata_##rust_type[s * blockDim.x + threadIdx.x]));     \
+                sdata_##rust_type[threadIdx.x] = max_##rust_type(sdata_##rust_type[threadIdx.x], sdata_##rust_type[s * blockDim.x + threadIdx.x]);                            \
             }                                                                                                                                                                 \
             atomicMax_##rust_type(out[col_idx], sdata_##rust_type[threadIdx.x]);                                                                                              \
         }                                                                                                                                                                     \
     }
 
-DEFINE_REDUCE_KERNEL(bool, bool)
-DEFINE_REDUCE_KERNEL(i8, char)
-DEFINE_REDUCE_KERNEL(i16, short)
-DEFINE_REDUCE_KERNEL(i32, int)
-DEFINE_REDUCE_KERNEL(i64, long long)
-DEFINE_REDUCE_KERNEL(u8, unsigned char)
-DEFINE_REDUCE_KERNEL(u16, unsigned short)
-DEFINE_REDUCE_KERNEL(u32, unsigned int)
-DEFINE_REDUCE_KERNEL(u64, unsigned long long)
-DEFINE_REDUCE_KERNEL(f32, float)
-DEFINE_REDUCE_KERNEL(f64, double)
-DEFINE_REDUCE_KERNEL(f16, __half)
+DEFINE_REDUCE_KERNEL(bool, bool, BOOL_MIN)
+DEFINE_REDUCE_KERNEL(i8, char, I8_MIN)
+DEFINE_REDUCE_KERNEL(i16, short, I16_MIN)
+DEFINE_REDUCE_KERNEL(i32, int, I32_MIN)
+DEFINE_REDUCE_KERNEL(i64, long long, I64_MIN)
+DEFINE_REDUCE_KERNEL(u8, unsigned char, U8_MIN)
+DEFINE_REDUCE_KERNEL(u16, unsigned short, U16_MIN)
+DEFINE_REDUCE_KERNEL(u32, unsigned int, U32_MIN)
+DEFINE_REDUCE_KERNEL(u64, unsigned long long, U64_MIN)
+DEFINE_REDUCE_KERNEL(f32, float, F32_MIN)
+DEFINE_REDUCE_KERNEL(f64, double, F64_MIN)
+DEFINE_REDUCE_KERNEL(f16, __half, F16_MIN)

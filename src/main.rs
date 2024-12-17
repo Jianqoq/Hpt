@@ -1,13 +1,12 @@
 
-use tensor_dyn::{Cuda, Tensor, TensorCreator};
-use tensor_dyn::NormalReduce;
-
+use tensor_dyn::*;
 
 fn main() -> anyhow::Result<()> {
-    let a = Tensor::<f32, Cuda, 0>::ones([10, 10])?;
-
+    let a = Tensor::<i16, Cpu, 0>::zeros([10, 10])?;
+    let b = Tensor::<i16, Cpu, 0>::zeros([10, 10])?;
     let now = std::time::Instant::now();
-    let _ = a.reducel1(0, false)?;
+    let res = a.nansum([0, 1], false)?;
     println!("{:?}", now.elapsed());
+    println!("{}", res);
     Ok(())
 }

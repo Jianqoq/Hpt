@@ -180,6 +180,8 @@ pub mod ops {
             pub(crate) mod random;
             /// a module contains cuda tensor shape manipulation impls
             pub(crate) mod shape_manipulate;
+            /// a module contains cuda tensor cmp impls
+            pub(crate) mod cmp;
         }
         /// a module contains cuda binary normal impls
         pub(crate) mod binary_normal;

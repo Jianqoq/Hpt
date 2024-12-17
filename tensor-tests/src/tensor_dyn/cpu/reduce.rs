@@ -127,15 +127,11 @@ fn test_sum() -> anyhow::Result<()> {
     assert_eq(&sum, &tch_sum);
     let sum = a.sum_(0, false, true, sum)?;
     assert_eq(&sum, &tch_sum);
-    let sum = a.sum_with_init(0, 0, false)?;
-    assert_eq(&sum, &tch_sum);
 
     let sum = a.sum(1, false)?;
     let tch_sum = tch_a.sum_dim_intlist(1, false, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);
     let sum = a.sum_(1, false, true, sum)?;
-    assert_eq(&sum, &tch_sum);
-    let sum = a.sum_with_init(0, 1, false)?;
     assert_eq(&sum, &tch_sum);
 
     let sum = a.sum(2, false)?;
@@ -143,15 +139,11 @@ fn test_sum() -> anyhow::Result<()> {
     assert_eq(&sum, &tch_sum);
     let sum = a.sum_(2, false, true, sum)?;
     assert_eq(&sum, &tch_sum);
-    let sum = a.sum_with_init(0, 2, false)?;
-    assert_eq(&sum, &tch_sum);
 
     let sum = a.sum([0, 1], false)?;
     let tch_sum = tch_a.sum_dim_intlist(&[0, 1][..], false, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);
     let sum = a.sum_([0, 1], false, true, sum)?;
-    assert_eq(&sum, &tch_sum);
-    let sum = a.sum_with_init(0, [0, 1], false)?;
     assert_eq(&sum, &tch_sum);
 
     let sum = a.sum([0, 2], false)?;
@@ -159,23 +151,17 @@ fn test_sum() -> anyhow::Result<()> {
     assert_eq(&sum, &tch_sum);
     let sum = a.sum_([0, 2], false, true, sum)?;
     assert_eq(&sum, &tch_sum);
-    let sum = a.sum_with_init(0, [0, 2], false)?;
-    assert_eq(&sum, &tch_sum);
 
     let sum = a.sum([1, 2], false)?;
     let tch_sum = tch_a.sum_dim_intlist(&[1, 2][..], false, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);
     let sum = a.sum_([1, 2], false, true, sum)?;
     assert_eq(&sum, &tch_sum);
-    let sum = a.sum_with_init(0, [1, 2], false)?;
-    assert_eq(&sum, &tch_sum);
 
     let sum = a.sum([0, 1, 2], false)?;
     let tch_sum = tch_a.sum_dim_intlist(&[0, 1, 2][..], false, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);
     let sum = a.sum_([0, 1, 2], false, true, sum)?;
-    assert_eq(&sum, &tch_sum);
-    let sum = a.sum_with_init(0, [0, 1, 2], false)?;
     assert_eq(&sum, &tch_sum);
     Ok(())
 }
@@ -302,43 +288,29 @@ fn test_nansum() -> anyhow::Result<()> {
     let sum = a.nansum(0, false)?;
     let tch_sum = tch_a.nansum(0, false, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);
-    let sum = a.nansum_with_init(0, 0, false)?;
-    assert_eq(&sum, &tch_sum);
 
     let sum = a.nansum(1, false)?;
     let tch_sum = tch_a.nansum(1, false, tch::Kind::Int64);
-    assert_eq(&sum, &tch_sum);
-    let sum = a.nansum_with_init(0, 1, false)?;
     assert_eq(&sum, &tch_sum);
 
     let sum = a.nansum(2, false)?;
     let tch_sum = tch_a.nansum(2, false, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);
-    let sum = a.nansum_with_init(0, 2, false)?;
-    assert_eq(&sum, &tch_sum);
 
     let sum = a.nansum([0, 1], false)?;
     let tch_sum = tch_a.nansum(&[0, 1][..], false, tch::Kind::Int64);
-    assert_eq(&sum, &tch_sum);
-    let sum = a.nansum_with_init(0, [0, 1], false)?;
     assert_eq(&sum, &tch_sum);
 
     let sum = a.nansum([0, 2], false)?;
     let tch_sum = tch_a.nansum(&[0, 2][..], false, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);
-    let sum = a.nansum_with_init(0, [0, 2], false)?;
-    assert_eq(&sum, &tch_sum);
 
     let sum = a.nansum([1, 2], false)?;
     let tch_sum = tch_a.nansum(&[1, 2][..], false, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);
-    let sum = a.nansum_with_init(0, [1, 2], false)?;
-    assert_eq(&sum, &tch_sum);
 
     let sum = a.nansum([0, 1, 2], false)?;
     let tch_sum = tch_a.nansum(&[0, 1, 2][..], false, tch::Kind::Int64);
-    assert_eq(&sum, &tch_sum);
-    let sum = a.nansum_with_init(0, [0, 1, 2], false)?;
     assert_eq(&sum, &tch_sum);
     Ok(())
 }
@@ -378,19 +350,13 @@ fn test_prod() -> anyhow::Result<()> {
     let prod = a.prod(0, false)?;
     let tch_prod = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
     assert_eq(&prod, &tch_prod);
-    let prod = a.prod_with_init(1, 0, false)?;
-    assert_eq(&prod, &tch_prod);
 
     let prod = a.prod(1, false)?;
     let tch_prod = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
     assert_eq(&prod, &tch_prod);
-    let prod = a.prod_with_init(1, 1, false)?;
-    assert_eq(&prod, &tch_prod);
 
     let prod = a.prod(2, false)?;
     let tch_prod = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
-    assert_eq(&prod, &tch_prod);
-    let prod = a.prod_with_init(1, 2, false)?;
     assert_eq(&prod, &tch_prod);
 
     Ok(())
@@ -402,19 +368,13 @@ fn test_nanprod() -> anyhow::Result<()> {
     let prod = a.nanprod(0, false)?;
     let tch_prod = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
     assert_eq(&prod, &tch_prod);
-    let prod = a.nanprod_with_init(1, 0, false)?;
-    assert_eq(&prod, &tch_prod);
 
     let prod = a.nanprod(1, false)?;
     let tch_prod = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
     assert_eq(&prod, &tch_prod);
-    let prod = a.nanprod_with_init(1, 1, false)?;
-    assert_eq(&prod, &tch_prod);
 
     let prod = a.nanprod(2, false)?;
     let tch_prod = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
-    assert_eq(&prod, &tch_prod);
-    let prod = a.nanprod_with_init(1, 2, false)?;
     assert_eq(&prod, &tch_prod);
 
     Ok(())
@@ -637,19 +597,13 @@ fn test_max() -> anyhow::Result<()> {
     let max = a.max(0, false)?;
     let (tch_max, _) = tch_a.max_dim(0, false);
     assert_eq_f64(&max, &tch_max);
-    let max = a.max_with_init(f64::MIN, 0, false)?;
-    assert_eq_f64(&max, &tch_max);
 
     let max = a.max(1, false)?;
     let (tch_max, _) = tch_a.max_dim(1, false);
     assert_eq_f64(&max, &tch_max);
-    let max = a.max_with_init(f64::MIN, 1, false)?;
-    assert_eq_f64(&max, &tch_max);
 
     let max = a.max(2, false)?;
     let (tch_max, _) = tch_a.max_dim(2, false);
-    assert_eq_f64(&max, &tch_max);
-    let max = a.max_with_init(f64::MIN, 2, false)?;
     assert_eq_f64(&max, &tch_max);
 
     Ok(())
@@ -727,19 +681,13 @@ fn test_min() -> anyhow::Result<()> {
     let min = a.min(0, false)?;
     let (tch_min, _) = tch_a.min_dim(0, false);
     assert_eq_f64(&min, &tch_min);
-    let min = a.min_with_init(f64::MAX, 0, false)?;
-    assert_eq_f64(&min, &tch_min);
 
     let min = a.min(1, false)?;
     let (tch_min, _) = tch_a.min_dim(1, false);
     assert_eq_f64(&min, &tch_min);
-    let min = a.min_with_init(f64::MAX, 1, false)?;
-    assert_eq_f64(&min, &tch_min);
 
     let min = a.min(2, false)?;
     let (tch_min, _) = tch_a.min_dim(2, false);
-    assert_eq_f64(&min, &tch_min);
-    let min = a.min_with_init(f64::MAX, 2, false)?;
     assert_eq_f64(&min, &tch_min);
     Ok(())
 }

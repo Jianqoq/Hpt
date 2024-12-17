@@ -8,7 +8,6 @@ use std::process::Command;
 use regex::Regex;
 
 fn main() {
-    println!("cargo:rerun-if-changed=src/lib.rs");
     let caps = compute_cap();
     let cu_files = find_cu_files(Path::new("src")).expect("find cu files");
     for cu_file in &cu_files {

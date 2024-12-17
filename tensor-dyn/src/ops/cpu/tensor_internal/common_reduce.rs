@@ -58,25 +58,25 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         )
     }
 
-    fn sum_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> anyhow::Result<Self::Output> {
-        let axes = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| a._add(b),
-            |a, b| a._add(b),
-            |a, b| a._add(b),
-            &axes,
-            init_val,
-            keep_dims,
-            false,
-            None
-        )
-    }
+    // fn sum_with_init<S: Into<Axis>>(
+    //     &self,
+    //     init_val: T,
+    //     axes: S,
+    //     keep_dims: bool
+    // ) -> anyhow::Result<Self::Output> {
+    //     let axes = process_axes(axes, self.ndim())?;
+    //     reduce(
+    //         self,
+    //         |a, b| a._add(b),
+    //         |a, b| a._add(b),
+    //         |a, b| a._add(b),
+    //         &axes,
+    //         init_val,
+    //         keep_dims,
+    //         false,
+    //         None
+    //     )
+    // }
 
     fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes = process_axes(axis, self.ndim())?;
@@ -93,25 +93,25 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         )
     }
 
-    fn prod_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> anyhow::Result<Self::Output> {
-        let axes = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| a._mul(b),
-            |a, b| a._mul(b),
-            |a, b| a._mul(b),
-            &axes,
-            init_val,
-            keep_dims,
-            false,
-            None
-        )
-    }
+    // fn prod_with_init<S: Into<Axis>>(
+    //     &self,
+    //     init_val: T,
+    //     axes: S,
+    //     keep_dims: bool
+    // ) -> anyhow::Result<Self::Output> {
+    //     let axes = process_axes(axes, self.ndim())?;
+    //     reduce(
+    //         self,
+    //         |a, b| a._mul(b),
+    //         |a, b| a._mul(b),
+    //         |a, b| a._mul(b),
+    //         &axes,
+    //         init_val,
+    //         keep_dims,
+    //         false,
+    //         None
+    //     )
+    // }
 
     fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
@@ -128,25 +128,25 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         )
     }
 
-    fn min_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> anyhow::Result<Self> {
-        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| a._min(b),
-            |a, b| a._min(b),
-            |a, b| a._min(b),
-            &axes,
-            init_val,
-            keep_dims,
-            false,
-            None
-        )
-    }
+    // fn min_with_init<S: Into<Axis>>(
+    //     &self,
+    //     init_val: T,
+    //     axes: S,
+    //     keep_dims: bool
+    // ) -> anyhow::Result<Self> {
+    //     let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+    //     reduce(
+    //         self,
+    //         |a, b| a._min(b),
+    //         |a, b| a._min(b),
+    //         |a, b| a._min(b),
+    //         &axes,
+    //         init_val,
+    //         keep_dims,
+    //         false,
+    //         None
+    //     )
+    // }
 
     fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
@@ -163,25 +163,25 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         )
     }
 
-    fn max_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> anyhow::Result<Self> {
-        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| a._max(b),
-            |a, b| a._max(b),
-            |a, b| a._max(b),
-            &axes,
-            init_val,
-            keep_dims,
-            false,
-            None
-        )
-    }
+    // fn max_with_init<S: Into<Axis>>(
+    //     &self,
+    //     init_val: T,
+    //     axes: S,
+    //     keep_dims: bool
+    // ) -> anyhow::Result<Self> {
+    //     let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+    //     reduce(
+    //         self,
+    //         |a, b| a._max(b),
+    //         |a, b| a._max(b),
+    //         |a, b| a._max(b),
+    //         &axes,
+    //         init_val,
+    //         keep_dims,
+    //         false,
+    //         None
+    //     )
+    // }
 
     fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
@@ -296,32 +296,32 @@ impl<T> NormalEvalReduce<T>
         )
     }
 
-    fn nansum_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> anyhow::Result<Self::Output> {
-        let axes = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| {
-                if b._is_nan() { a } else { b._add(a) }
-            },
-            |a, b| {
-                if b._is_nan() { a } else { b._add(a) }
-            },
-            |a, b| {
-                let mask = b._is_nan();
-                mask.select(a, b._add(a))
-            },
-            &axes,
-            init_val,
-            keep_dims,
-            false,
-            None
-        )
-    }
+    // fn nansum_with_init<S: Into<Axis>>(
+    //     &self,
+    //     init_val: T,
+    //     axes: S,
+    //     keep_dims: bool
+    // ) -> anyhow::Result<Self::Output> {
+    //     let axes = process_axes(axes, self.ndim())?;
+    //     reduce(
+    //         self,
+    //         |a, b| {
+    //             if b._is_nan() { a } else { b._add(a) }
+    //         },
+    //         |a, b| {
+    //             if b._is_nan() { a } else { b._add(a) }
+    //         },
+    //         |a, b| {
+    //             let mask = b._is_nan();
+    //             mask.select(a, b._add(a))
+    //         },
+    //         &axes,
+    //         init_val,
+    //         keep_dims,
+    //         false,
+    //         None
+    //     )
+    // }
 
     fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
@@ -345,32 +345,32 @@ impl<T> NormalEvalReduce<T>
         )
     }
 
-    fn nanprod_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool
-    ) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce(
-            self,
-            |a, b| {
-                if b._is_nan() { a } else { b._mul(a) }
-            },
-            |a, b| {
-                if b._is_nan() { a } else { b._mul(a) }
-            },
-            |a, b| {
-                let mask = b._is_nan();
-                mask.select(a, b._mul(a))
-            },
-            &axes,
-            init_val,
-            keep_dims,
-            false,
-            None
-        )
-    }
+    // fn nanprod_with_init<S: Into<Axis>>(
+    //     &self,
+    //     init_val: T,
+    //     axes: S,
+    //     keep_dims: bool
+    // ) -> anyhow::Result<Self::Output> {
+    //     let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+    //     reduce(
+    //         self,
+    //         |a, b| {
+    //             if b._is_nan() { a } else { b._mul(a) }
+    //         },
+    //         |a, b| {
+    //             if b._is_nan() { a } else { b._mul(a) }
+    //         },
+    //         |a, b| {
+    //             let mask = b._is_nan();
+    //             mask.select(a, b._mul(a))
+    //         },
+    //         &axes,
+    //         init_val,
+    //         keep_dims,
+    //         false,
+    //         None
+    //     )
+    // }
 }
 
 impl<T> _Tensor<T>

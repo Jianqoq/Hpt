@@ -1,20 +1,23 @@
 #include <cuda_fp16.h>
+#include <math.h>
+
 #define WRAP 32
 
 #define add_bool(a, b) ((bool)((unsigned char)a) + ((unsigned char)b))
-#define add_i8(a, b) (abs(a)) + (abs(b))
-#define add_i16(a, b) (abs(a)) + (abs(b))
-#define add_i32(a, b) (abs(a)) + (abs(b))
-#define add_i64(a, b) (abs(a)) + (abs(b))
-#define add_f32(a, b) (abs(a)) + (abs(b))
-#define add_f64(a, b) (abs(a)) + (abs(b))
+#define add_i8(a, b) (a) + (b)
+#define add_i16(a, b) (a) + (b)
+#define add_i32(a, b) (a) + (b)
+#define add_i64(a, b) (a) + (b)
+#define add_f32(a, b) (isnan(a) ? (isnan(b) ? 0.0f : b) : (isnan(b) ? a : a + b))
+
+#define add_f64(a, b) (isnan(a) ? (isnan(b) ? 0.0 : b) : (isnan(b) ? a : a + b))
 
 #define add_u8(a, b) (a) + (b)
 #define add_u16(a, b) (a) + (b)
 #define add_u32(a, b) (a) + (b)
 #define add_u64(a, b) (a) + (b)
 
-#define add_f16(a, b) __float2half(abs(__half2float((a))) + abs(__half2float((b))))
+#define add_f16(a, b) __float2half(add_f32(__half2float(a), __half2float(b)))
 
 #define atomicAdd_bool(a, b)                       \
     acquire_lock(&global_lock);                    \
