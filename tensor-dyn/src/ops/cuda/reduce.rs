@@ -6,13 +6,8 @@ use crate::Cuda;
 
 use super::cuda_utils::compute_kernel_launch_config;
 use super::cuda_utils::load_ptx_and_get_data;
-use super::kernel_constants::REDUCE_KERNELS;
 use super::reduce_template::uncontiguos_reduce_template;
-use crate::ops::cuda::cuda_utils::compile_kernel;
 use anyhow;
-use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_MULTIPROCESSOR;
-use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK;
-use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_WARP_SIZE;
 use cudarc::driver::DeviceRepr;
 use cudarc::driver::LaunchAsync;
 use cudarc::driver::LaunchConfig;
@@ -272,19 +267,15 @@ where
                 a.device(),
                 a.device_cap(),
                 &meta,
-            ).unwrap();
+            )
+            .unwrap();
             let mut size = a.size();
             let mut cfg = compute_kernel_launch_config(a.device(), &reg_info, size);
-            cfg.block_dim.0 = 2f64.powf((cfg.block_dim.0 as f64).log2().floor()) as u32;
+            cfg.block_dim.0 = (2f64.powf((cfg.block_dim.0 as f64).log2().floor()) as u32).max(64);
             let grid_dim = (size as u32 + cfg.block_dim.0 - 1) / cfg.block_dim.0;
             cfg.grid_dim.0 = ((grid_dim + 1) / 2).max(1);
-            let max_threads_per_block = a
-                .device()
-                .attribute(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)
-                .unwrap();
             let mut num_blocks = cfg.grid_dim.0;
-            cfg.shared_mem_bytes = (cfg.block_dim.0 * std::mem::size_of::<T>() as u32).max(64);
-            let now = std::time::Instant::now();
+            cfg.shared_mem_bytes = cfg.block_dim.0 * std::mem::size_of::<T>() as u32;
             let mut tmp_res = unsafe { a.device().alloc::<T>(num_blocks as usize).unwrap() };
 
             unsafe {
@@ -298,15 +289,12 @@ where
             let mut inp = tmp_res;
             while num_blocks > 1024 {
                 cfg = compute_kernel_launch_config(a.device(), &reg_info, size);
-                cfg.block_dim.0 = 2f64.powf((cfg.block_dim.0 as f64).log2().floor()) as u32;
+                cfg.block_dim.0 =
+                    (2f64.powf((cfg.block_dim.0 as f64).log2().floor()) as u32).max(64);
                 let grid_dim = (size as u32 + cfg.block_dim.0 - 1) / cfg.block_dim.0;
                 cfg.grid_dim.0 = ((grid_dim + 1) / 2).max(1);
-                let max_threads_per_block = a
-                    .device()
-                    .attribute(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)
-                    .unwrap();
                 num_blocks = cfg.grid_dim.0;
-                cfg.shared_mem_bytes = (cfg.block_dim.0 * std::mem::size_of::<T>() as u32).max(64);
+                cfg.shared_mem_bytes = cfg.block_dim.0 * std::mem::size_of::<T>() as u32;
                 let mut tmp_res = unsafe { a.device().alloc::<T>(num_blocks as usize).unwrap() };
                 unsafe {
                     reduce_kernel
@@ -319,7 +307,9 @@ where
             }
             a.device().synchronize().unwrap();
             let mut cpu_res = _Tensor::<T>::empty(&[num_blocks as i64]).unwrap();
-            a.device().dtoh_sync_copy_into(&inp, cpu_res.as_raw_mut());
+            a.device()
+                .dtoh_sync_copy_into(&inp, cpu_res.as_raw_mut())
+                .unwrap();
             let cpu_reduced =
                 crate::ops::cpu::reduce::contiguous_reduce::<T, F, F2, F3, F4, F5, F6, F7, O>(
                     &cpu_res,
@@ -351,20 +341,16 @@ where
                 a.device(),
                 a.device_cap(),
                 &meta,
-            ).unwrap();
+            )
+            .unwrap();
             let mut reduce_size = inner_loop_size * inner_loop_size2;
             let mut cfg = compute_kernel_launch_config(a.device(), &reg_info, reduce_size);
-            cfg.block_dim.0 = 2f64.powf((cfg.block_dim.0 as f64).log2().floor()) as u32;
+            cfg.block_dim.0 = (2f64.powf((cfg.block_dim.0 as f64).log2().floor()) as u32).max(64);
             let grid_dim = (reduce_size as u32 + cfg.block_dim.0 - 1) / cfg.block_dim.0;
             cfg.grid_dim.0 = ((grid_dim + 1) / 2).max(1);
             cfg.grid_dim.1 = outer_loop_size as u32;
 
-            let max_threads_per_block = a
-                .device()
-                .attribute(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)
-                .unwrap();
-            cfg.shared_mem_bytes = (cfg.block_dim.0 * std::mem::size_of::<T>() as u32).max(64);
-            let now = std::time::Instant::now();
+            cfg.shared_mem_bytes = cfg.block_dim.0 * std::mem::size_of::<T>() as u32;
             let shape = transposed_tensor.cuda_shape().unwrap();
             let strides = transposed_tensor.cuda_strides().unwrap();
             let mut tmp_res = unsafe {
@@ -395,15 +381,12 @@ where
                 .unwrap();
             while reduce_size > 512 {
                 cfg = compute_kernel_launch_config(a.device(), &reg_info, reduce_size);
-                cfg.block_dim.0 = 2f64.powf((cfg.block_dim.0 as f64).log2().floor()) as u32;
+                cfg.block_dim.0 =
+                    (2f64.powf((cfg.block_dim.0 as f64).log2().floor()) as u32).max(64);
                 let grid_dim = (reduce_size as u32 + cfg.block_dim.0 - 1) / cfg.block_dim.0;
                 cfg.grid_dim.0 = ((grid_dim + 1) / 2).max(1);
                 cfg.grid_dim.1 = outer_loop_size as u32;
-                let max_threads_per_block = a
-                    .device()
-                    .attribute(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)
-                    .unwrap();
-                cfg.shared_mem_bytes = (cfg.block_dim.0 * std::mem::size_of::<T>() as u32).max(64);
+                cfg.shared_mem_bytes = cfg.block_dim.0 * std::mem::size_of::<T>() as u32;
                 let mut tmp_res = unsafe {
                     a.device()
                         .alloc::<T>((cfg.grid_dim.0 * cfg.grid_dim.1) as usize)
@@ -430,7 +413,9 @@ where
             }
             cpu_res_shape.push(reduce_size as i64);
             let mut cpu_res = _Tensor::<T>::empty(&cpu_res_shape).unwrap();
-            a.device().dtoh_sync_copy_into(&inp, cpu_res.as_raw_mut());
+            a.device()
+                .dtoh_sync_copy_into(&inp, cpu_res.as_raw_mut())
+                .unwrap();
             let cpu_reduced =
                 crate::ops::cpu::reduce::contiguous_reduce::<T, F, F2, F3, F4, F5, F6, F7, O>(
                     &cpu_res,
@@ -457,64 +442,105 @@ where
                 .unwrap();
             _res_ptr.leak();
         },
-        |outer_loop_size, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
-            let mut perm = (0..transposed_tensor.ndim()).collect::<Vec<_>>();
+        |inner_loop_size_2, result, transposed_tensor| {
+            let perm = (0..transposed_tensor.ndim()).collect::<Vec<_>>();
             let right = perm[perm.len() - axes.len()..].to_vec();
             let left = perm[..perm.len() - axes.len()].to_vec();
             let mut perm = right;
             perm.extend(left);
             let transposed_tensor = transposed_tensor.permute(&perm).unwrap();
-            let (reduce_kernel, reg_info) = load_ptx_and_get_data(
+            let (reduce_kernel, _) = load_ptx_and_get_data(
                 module_name,
                 &format!("contiguous_reduce3_{}", T::ID),
                 a.device(),
                 a.device_cap(),
                 &meta,
-            ).unwrap();
-            let cache_line = 128;
-            let block_dim_x = 128 / std::mem::size_of::<T>() as u32;
-            let max_regs_per_sm = a
-                .device()
-                .attribute(CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_MULTIPROCESSOR)
-                .expect("failed to get max registers per sm");
-            let warp_size = a
-                .device()
-                .attribute(CU_DEVICE_ATTRIBUTE_WARP_SIZE)
-                .expect("failed to get warp size");
-            let max_threads_per_block = a
-                .device()
-                .attribute(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)
-                .expect("failed to get max threads per block");
-            let total_reg_used = reg_info.b32 + reg_info.b64 * 2;
-            let max_threads_per_sm = max_regs_per_sm as usize / total_reg_used;
+            )
+            .unwrap();
+            let block_dim_x = 32;
             let block_dim_y = 32;
-            let thread_block_size = block_dim_x * block_dim_y;
+            let mut reduce_size = inner_loop_size_2;
+            let grid_dim_x = (a.size() / reduce_size).div_ceil(block_dim_x as usize) as u32;
             let launch_cfg = LaunchConfig {
                 block_dim: (block_dim_x, block_dim_y, 1),
                 grid_dim: (
-                    ((a.size() / inner_loop_size_2) as u32 + block_dim_x - 1) / block_dim_x,
-                    (inner_loop_size_2 as u32 + block_dim_y - 1) / block_dim_y,
+                    grid_dim_x,
+                    reduce_size.div_ceil(block_dim_y as usize) as u32,
                     1,
                 ),
                 shared_mem_bytes: block_dim_x * block_dim_y * std::mem::size_of::<T>() as u32,
             };
             let shape = transposed_tensor.cuda_shape().unwrap();
             let strides = transposed_tensor.cuda_strides().unwrap();
+            let mut height = launch_cfg.grid_dim.1;
+            let mut tmp_res = unsafe {
+                a.device()
+                    .alloc::<T>(result.size() * height as usize)
+                    .unwrap()
+            };
             unsafe {
                 reduce_kernel.launch(
                     launch_cfg,
                     (
-                        result.cuda_slice(),
+                        &mut tmp_res,
                         transposed_tensor.cuda_slice(),
                         &shape,
                         &strides,
                         transposed_tensor.ndim(),
-                        a.size() / inner_loop_size_2,
-                        inner_loop_size_2,
+                        result.size(),
+                        reduce_size,
                     ),
                 )
             }
             .unwrap();
+            let (reduce_kernel, _) = load_ptx_and_get_data(
+                module_name,
+                &format!("contiguous_reduce33_{}", T::ID),
+                a.device(),
+                a.device_cap(),
+                &meta,
+            )
+            .unwrap();
+            let mut inp = tmp_res;
+            while height > 1 {
+                reduce_size = height as usize;
+                let launch_cfg = LaunchConfig {
+                    block_dim: (block_dim_x, block_dim_y, 1),
+                    grid_dim: (
+                        grid_dim_x,
+                        reduce_size.div_ceil(block_dim_y as usize) as u32,
+                        1,
+                    ),
+                    shared_mem_bytes: block_dim_x * block_dim_y * std::mem::size_of::<T>() as u32,
+                };
+                let mut tmp_res = unsafe {
+                    a.device()
+                        .alloc::<T>(result.size() * launch_cfg.grid_dim.1 as usize)
+                        .unwrap()
+                };
+                unsafe {
+                    reduce_kernel.clone().launch(
+                        launch_cfg,
+                        (
+                            &mut tmp_res,
+                            &inp,
+                            transposed_tensor.ndim(),
+                            result.size(),
+                            reduce_size,
+                        ),
+                    )
+                }
+                .unwrap();
+                inp = tmp_res;
+                height = launch_cfg.grid_dim.1;
+            }
+            a.device().synchronize().unwrap();
+            let mut _res_ptr = unsafe {
+                a.device()
+                    .upgrade_device_ptr::<T>(result.cuda_slice().inner, result.size())
+            };
+            a.device().dtod_copy(&inp, &mut _res_ptr).unwrap();
+            _res_ptr.leak();
         },
     )?;
     if !fused_dims.is_empty() {

@@ -19,65 +19,6 @@
 
 #define add_f16(a, b) __float2half(add_f32(__half2float(a), __half2float(b)))
 
-#define atomicAdd_bool(a, b)                       \
-    acquire_lock(&global_lock);                    \
-    (a) = ((unsigned char)a) + ((unsigned char)b); \
-    release_lock(&global_lock);
-
-#define atomicAdd_i8(a, b)      \
-    acquire_lock(&global_lock); \
-    (a) += (b);                 \
-    release_lock(&global_lock);
-
-#define atomicAdd_u8(a, b)      \
-    acquire_lock(&global_lock); \
-    (a) += (b);                 \
-    release_lock(&global_lock);
-
-#define atomicAdd_i16(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) += (b);                 \
-    release_lock(&global_lock);
-
-#define atomicAdd_u16(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) += (b);                 \
-    release_lock(&global_lock);
-
-#define atomicAdd_i64(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) += (b);                 \
-    release_lock(&global_lock);
-
-#define atomicAdd_u64(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) += (b);                 \
-    release_lock(&global_lock);
-
-#define atomicAdd_i32(a, b) atomicAdd(&a, b)
-#define atomicAdd_u32(a, b) atomicAdd(&a, b)
-#define atomicAdd_f32(a, b) atomicAdd(&a, b)
-#define atomicAdd_f64(a, b) atomicAdd(&a, b)
-
-#define atomicAdd_f16(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) = add_f16(a, b);        \
-    release_lock(&global_lock);
-
-__device__ int global_lock = 0;
-
-__device__ void acquire_lock(int *lock)
-{
-    while (atomicCAS(lock, 0, 1) != 0)
-    {
-    }
-}
-
-__device__ void release_lock(int *lock)
-{
-    atomicExch(lock, 0);
-}
-
 #define DEFINE_REDUCE_KERNEL(rust_type, type)                                                                                                                                 \
     __device__ __forceinline__ void warpReduce_##rust_type(volatile type *sdata_##rust_type, unsigned int tid)                                                                \
     {                                                                                                                                                                         \
@@ -271,7 +212,30 @@ __device__ void release_lock(int *lock)
             {                                                                                                                                                                 \
                 sdata_##rust_type[threadIdx.x] = add_##rust_type(sdata_##rust_type[threadIdx.x], sdata_##rust_type[s * blockDim.x + threadIdx.x]);                            \
             }                                                                                                                                                                 \
-            atomicAdd_##rust_type(out[col_idx], sdata_##rust_type[threadIdx.x]);                                                                                              \
+            out[col_idx + blockIdx.y * cols] = sdata_##rust_type[threadIdx.x];                                                                                                \
+        }                                                                                                                                                                     \
+    }                                                                                                                                                                         \
+    extern "C" __global__ void contiguous_reduce33_##rust_type(type *out, type *in, size_t ndim, size_t cols, size_t rows)                                                    \
+    {                                                                                                                                                                         \
+        extern __shared__ type sdata_##rust_type[];                                                                                                                           \
+        unsigned int tid = threadIdx.y * blockDim.x + threadIdx.x;                                                                                                            \
+        unsigned int col_idx = blockIdx.x * blockDim.x + threadIdx.x;                                                                                                         \
+        unsigned int row_idx = blockIdx.y * blockDim.y + threadIdx.y;                                                                                                         \
+        sdata_##rust_type[tid] = 0;                                                                                                                                           \
+        if (col_idx >= cols || row_idx >= rows)                                                                                                                               \
+        {                                                                                                                                                                     \
+            return;                                                                                                                                                           \
+        }                                                                                                                                                                     \
+        unsigned int idx = row_idx * cols + col_idx;                                                                                                                          \
+        sdata_##rust_type[tid] = in[idx];                                                                                                                                     \
+        __syncthreads();                                                                                                                                                      \
+        if (threadIdx.y == 0)                                                                                                                                                 \
+        {                                                                                                                                                                     \
+            for (unsigned int s = 1; s < blockDim.y; s++)                                                                                                                     \
+            {                                                                                                                                                                 \
+                sdata_##rust_type[threadIdx.x] = add_##rust_type(sdata_##rust_type[threadIdx.x], sdata_##rust_type[s * blockDim.x + threadIdx.x]);                            \
+            }                                                                                                                                                                 \
+            out[col_idx + blockIdx.y * cols] = sdata_##rust_type[threadIdx.x];                                                                                                \
         }                                                                                                                                                                     \
     }
 

@@ -12,6 +12,10 @@
         "xtr1common": "cpp",
         "vector": "cpp",
         "cmath": "cpp",
-        "cstdlib": "cpp"
+        "cstdlib": "cpp",
+        "initializer_list": "cpp",
+        "list": "cpp",
+        "xhash": "cpp",
+        "limits": "cpp"
     },
 }

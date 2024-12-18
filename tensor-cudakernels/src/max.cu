@@ -32,73 +32,6 @@
 
 #define max_f16(a, b) __float2half(max(__half2float((a)), __half2float((b))))
 
-#define atomicMax_bool(a, b)                           \
-    acquire_lock(&global_lock);                        \
-    (a) = max(((unsigned char)a), ((unsigned char)b)); \
-    release_lock(&global_lock);
-
-#define atomicMax_i8(a, b)      \
-    acquire_lock(&global_lock); \
-    (a) = max((a), (b));        \
-    release_lock(&global_lock);
-
-#define atomicMax_u8(a, b)      \
-    acquire_lock(&global_lock); \
-    (a) = max((a), (b));        \
-    release_lock(&global_lock);
-
-#define atomicMax_i16(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) = max((a), (b));        \
-    release_lock(&global_lock);
-
-#define atomicMax_u16(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) = max((a), (b));        \
-    release_lock(&global_lock);
-
-#define atomicMax_i64(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) = max((a), (b));        \
-    release_lock(&global_lock);
-
-#define atomicMax_u64(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) = max((a), (b));        \
-    release_lock(&global_lock);
-
-#define atomicMax_i32(a, b) atomicMax(&a, b)
-#define atomicMax_u32(a, b) atomicMax(&a, b)
-
-#define atomicMax_f32(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) = max((a), (b));        \
-    release_lock(&global_lock);
-
-#define atomicMax_f64(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) = max((a), (b));        \
-    release_lock(&global_lock);
-
-#define atomicMax_f16(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) = max_f16(a, b);        \
-    release_lock(&global_lock);
-
-__device__ int global_lock = 0;
-
-__device__ void acquire_lock(int *lock)
-{
-    while (atomicCAS(lock, 0, 1) != 0)
-    {
-    }
-}
-
-__device__ void release_lock(int *lock)
-{
-    atomicExch(lock, 0);
-}
-
 #define DEFINE_REDUCE_KERNEL(rust_type, type, INIT_VAL)                                                                                                                       \
     __device__ __forceinline__ void warpReduce_##rust_type(volatile type *sdata_##rust_type, unsigned int tid)                                                                \
     {                                                                                                                                                                         \
@@ -292,7 +225,30 @@ __device__ void release_lock(int *lock)
             {                                                                                                                                                                 \
                 sdata_##rust_type[threadIdx.x] = max_##rust_type(sdata_##rust_type[threadIdx.x], sdata_##rust_type[s * blockDim.x + threadIdx.x]);                            \
             }                                                                                                                                                                 \
-            atomicMax_##rust_type(out[col_idx], sdata_##rust_type[threadIdx.x]);                                                                                              \
+            out[col_idx + blockIdx.y * cols] = sdata_##rust_type[threadIdx.x];                                                                                                \
+        }                                                                                                                                                                     \
+    }                                                                                                                                                                         \
+    extern "C" __global__ void contiguous_reduce33_##rust_type(type *out, type *in, size_t ndim, size_t cols, size_t rows)                                                    \
+    {                                                                                                                                                                         \
+        extern __shared__ type sdata_##rust_type[];                                                                                                                           \
+        unsigned int tid = threadIdx.y * blockDim.x + threadIdx.x;                                                                                                            \
+        unsigned int col_idx = blockIdx.x * blockDim.x + threadIdx.x;                                                                                                         \
+        unsigned int row_idx = blockIdx.y * blockDim.y + threadIdx.y;                                                                                                         \
+        sdata_##rust_type[tid] = INIT_VAL;                                                                                                                                    \
+        if (col_idx >= cols || row_idx >= rows)                                                                                                                               \
+        {                                                                                                                                                                     \
+            return;                                                                                                                                                           \
+        }                                                                                                                                                                     \
+        unsigned int idx = row_idx * cols + col_idx;                                                                                                                          \
+        sdata_##rust_type[tid] = in[idx];                                                                                                                                     \
+        __syncthreads();                                                                                                                                                      \
+        if (threadIdx.y == 0)                                                                                                                                                 \
+        {                                                                                                                                                                     \
+            for (unsigned int s = 1; s < blockDim.y; s++)                                                                                                                     \
+            {                                                                                                                                                                 \
+                sdata_##rust_type[threadIdx.x] = max_##rust_type(sdata_##rust_type[threadIdx.x], sdata_##rust_type[s * blockDim.x + threadIdx.x]);                            \
+            }                                                                                                                                                                 \
+            out[col_idx + blockIdx.y * cols] = sdata_##rust_type[threadIdx.x];                                                                                                \
         }                                                                                                                                                                     \
     }
 

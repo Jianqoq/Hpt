@@ -168,6 +168,8 @@ pub mod ops {
             pub(crate) mod random;
             /// a module contains cuda tensor shape manipulation impls
             pub(crate) mod shape_manipulate;
+            /// a module contains cuda tensor arg reduce impls
+            pub(crate) mod arg_reduce;
         }
         pub mod tensor_external {
             /// a module contains cuda tensor common reduce impls
@@ -182,6 +184,8 @@ pub mod ops {
             pub(crate) mod shape_manipulate;
             /// a module contains cuda tensor cmp impls
             pub(crate) mod cmp;
+            /// a module contains cuda tensor arg reduce impls
+            pub(crate) mod arg_reduce;
         }
         /// a module contains cuda binary normal impls
         pub(crate) mod binary_normal;
