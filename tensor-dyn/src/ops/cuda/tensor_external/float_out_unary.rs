@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use cudarc::driver::DeviceRepr;
 use tensor_traits::{CommonBounds, FloatUaryOps};
-use tensor_types::{dtype::TypeCommon, into_scalar::IntoScalar, type_promote::FloatOutUnary};
+use tensor_types::{cuda_types::scalar::Scalar, dtype::TypeCommon, into_scalar::IntoScalar, type_promote::FloatOutUnary};
 
 use crate::{
     ops::cpu::tensor_internal::float_out_unary::FloatUnaryType, tensor::Tensor,
@@ -18,6 +18,7 @@ where
     T::Vec:
         FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec, Base = FloatUnaryType<T>>,
     <FloatUnaryType<T> as TypeCommon>::Vec: Send + Copy + Sync,
+    Scalar<T>: FloatOutUnary<Output = Scalar<FloatUnaryType<T>>, Base = Scalar<FloatUnaryType<T>>>,
 {
     type Output = Tensor<FloatUnaryType<T>, Cuda, DEVICE_ID>;
 

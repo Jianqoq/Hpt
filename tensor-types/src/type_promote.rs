@@ -1,15 +1,9 @@
 use crate::convertion::Convertor;
 use crate::convertion::VecConvertor;
+use crate::cuda_types::convertion::CudaConvertor;
+use crate::cuda_types::scalar::Scalar;
 use crate::dtype::FloatConst;
 use crate::dtype::TypeCommon;
-use crate::traits::SimdMath;
-use crate::vectors::traits::SimdCompare;
-use crate::vectors::traits::SimdSelect;
-use crate::vectors::traits::VecTrait;
-use half::bf16;
-use half::f16;
-use num_complex::{Complex32, Complex64};
-use num_traits::float::Float;
 #[cfg(any(
     all(not(target_feature = "avx2"), target_feature = "sse"),
     target_arch = "arm",
@@ -21,21 +15,31 @@ use crate::simd::_128bit::*;
 use crate::simd::_256bit::*;
 #[cfg(target_feature = "avx512f")]
 use crate::simd::_512bit::*;
+use crate::traits::SimdMath;
+use crate::vectors::traits::SimdCompare;
+use crate::vectors::traits::SimdSelect;
+use crate::vectors::traits::VecTrait;
+use half::bf16;
+use half::f16;
+use num_complex::{Complex32, Complex64};
+use num_traits::float::Float;
 #[cfg(feature = "stdsimd")]
 use sleef::Sleef;
 use std::ops::Neg;
 use tensor_macros::float_out_binary_simd_with_lhs_scalar;
 use tensor_macros::float_out_binary_simd_with_rhs_scalar;
 use tensor_macros::float_out_unary;
+use tensor_macros::impl_cuda_normal_out_binary;
 use tensor_macros::impl_normal_out_binary;
 use tensor_macros::impl_normal_out_simd;
 use tensor_macros::impl_normal_out_simd_with_lhs_scalar;
 use tensor_macros::impl_normal_out_simd_with_rhs_scalar;
 use tensor_macros::impl_normal_out_unary;
+use tensor_macros::impl_normal_out_unary_cuda;
 use tensor_macros::impl_normal_out_unary_simd;
 use tensor_macros::{
-    float_out_binary, impl_bitwise_out, impl_cmp, impl_eval, simd_cmp, simd_eval,
-    simd_float_out_unary,
+    float_out_binary, float_out_binary_cuda, float_out_unary_cuda, impl_bitwise_out, impl_cmp,
+    impl_eval, simd_cmp, simd_eval, simd_float_out_unary,
 };
 use tensor_macros::{float_out_binary_simd, simd_bitwise};
 /// this trait is used to perform type promotion in dynamic graph
@@ -49,6 +53,7 @@ pub trait FloatOutBinary<RHS = Self> {
 }
 
 float_out_binary!();
+float_out_binary_cuda!();
 float_out_binary_simd!();
 float_out_binary_simd_with_rhs_scalar!();
 float_out_binary_simd_with_lhs_scalar!();
@@ -79,6 +84,7 @@ pub trait NormalOut<RHS = Self> {
 }
 
 impl_normal_out_binary!();
+impl_cuda_normal_out_binary!();
 
 impl_normal_out_simd!();
 
@@ -121,6 +127,8 @@ pub trait NormalOutUnary {
 }
 
 impl_normal_out_unary!();
+impl_normal_out_unary_cuda!();
+
 impl_normal_out_unary_simd!();
 
 /// this trait is used to perform bitwise operations
@@ -343,5 +351,7 @@ pub trait FloatOutUnary {
 }
 
 float_out_unary!();
+
+float_out_unary_cuda!();
 
 simd_float_out_unary!();

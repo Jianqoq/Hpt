@@ -4,6 +4,7 @@ use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use cudarc::driver::DeviceRepr;
 use cudarc::driver::LaunchAsync;
+use tensor_types::cuda_types::scalar::Scalar;
 use std::borrow::Borrow;
 use std::panic::Location;
 use tensor_common::err_handler::ErrHandler::InvalidOutSize;
@@ -55,7 +56,7 @@ where
     B: CommonBounds + DeviceRepr,
     O: Borrow<_Tensor<K, Cuda, CUDA_DEVICE>>,
     K: CommonBounds + DeviceRepr,
-    F: Fn(&str, &str, &str) -> String,
+    F: Fn(Scalar<K>, Scalar<A>, Scalar<B>) -> Scalar<K>,
 {
     let module_name = format!(
         "bn{}{}{}{}{}{}",
@@ -75,6 +76,9 @@ where
         let val = lhs.to_cpu()?.as_raw()[0];
         let res = extract_out::<B, K, O, CUDA_DEVICE>(rhs.size(), rhs.shape(), out)?;
         if rhs.is_contiguous() {
+            let out_scalar = Scalar::new("out[idx]".to_string());
+            let lhs_scalar = Scalar::new("lhs".to_string());
+            let rhs_scalar = Scalar::new("rhs[idx]".to_string());
             let map = compile_kernel(
                 &module_name,
                 &format!(
@@ -94,7 +98,7 @@ where
                     A::CUDA_TYPE,
                     B::CUDA_TYPE,
                     res.size(),
-                    f("out[idx]", "lhs", "rhs[idx]")
+                    f(out_scalar, lhs_scalar, rhs_scalar).val()
                 ),
                 res.device(),
                 &["lhs_scalar_rhs_contiguous"],
@@ -114,6 +118,9 @@ where
             let rhs_broadcast_layout = rhs.layout.to_broadcast_layout(res.shape())?;
             let shape_str = get_array_str(rhs_broadcast_layout.shape());
             let strides_str = get_array_str(rhs_broadcast_layout.strides());
+            let out_scalar = Scalar::new("out[idx]".to_string());
+            let lhs_scalar = Scalar::new("lhs".to_string());
+            let rhs_scalar = Scalar::new("rhs[offset]".to_string());
             let map = compile_kernel(
                 &module_name,
                 &format!(
@@ -146,7 +153,7 @@ where
                     B::CUDA_TYPE,
                     res.size(),
                     res.ndim(),
-                    f("out[idx]", "lhs", "rhs[offset]")
+                    f(out_scalar, lhs_scalar, rhs_scalar).val()
                 ),
                 res.device(),
                 &["lhs_scalar_rhs_not_contiguous"],
@@ -168,6 +175,9 @@ where
         let val = rhs.to_cpu()?.as_raw()[0];
         let res = extract_out::<A, K, O, CUDA_DEVICE>(lhs.size(), lhs.shape(), out)?;
         if lhs.is_contiguous() {
+            let out_scalar = Scalar::new("out[idx]".to_string());
+            let lhs_scalar = Scalar::new("lhs[idx]".to_string());
+            let rhs_scalar = Scalar::new("rhs".to_string());
             let map = compile_kernel(
                 &module_name,
                 &format!(
@@ -187,7 +197,7 @@ where
                     A::CUDA_TYPE,
                     B::CUDA_TYPE,
                     res.size(),
-                    f("out[idx]", "lhs[idx]", "rhs")
+                    f(out_scalar, lhs_scalar, rhs_scalar).val()
                 ),
                 res.device(),
                 &["rhs_scalar_lhs_contiguous"],
@@ -207,6 +217,9 @@ where
             let lhs_broadcast_layout = lhs.layout.to_broadcast_layout(res.shape())?;
             let shape_str = get_array_str(lhs_broadcast_layout.shape());
             let strides_str = get_array_str(lhs_broadcast_layout.strides());
+            let out_scalar = Scalar::new("out[idx]".to_string());
+            let lhs_scalar = Scalar::new("lhs[idx]".to_string());
+            let rhs_scalar = Scalar::new("rhs".to_string());
             let map = compile_kernel(
                 &module_name,
                 &format!(
@@ -239,7 +252,7 @@ where
                     B::CUDA_TYPE,
                     res.size(),
                     res.ndim(),
-                    f("out[idx]", "lhs[offset]", "rhs")
+                    f(out_scalar, lhs_scalar, rhs_scalar).val()
                 ),
                 res.device(),
                 &["rhs_scalar_lhs_not_contiguous"],
@@ -260,6 +273,9 @@ where
     } else {
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
             let res = extract_out::<B, K, O, CUDA_DEVICE>(rhs.size(), rhs.shape(), out)?;
+            let out_scalar = Scalar::new("out[idx]".to_string());
+            let lhs_scalar = Scalar::new("lhs[idx]".to_string());
+            let rhs_scalar = Scalar::new("rhs[idx]".to_string());
             let map = compile_kernel(
                 &module_name,
                 &format!(
@@ -279,7 +295,7 @@ where
                     A::CUDA_TYPE,
                     B::CUDA_TYPE,
                     res.size(),
-                    f("out[idx]", "lhs[idx]", "rhs[idx]")
+                    f(out_scalar, lhs_scalar, rhs_scalar).val()
                 ),
                 res.device(),
                 &["lhs_scalar_rhs_contiguous"],
@@ -310,6 +326,9 @@ where
             let lhs_strides_str = get_array_str(lhs_broadcast_layout.strides());
             let rhs_shape_str = get_array_str(rhs_broadcast_layout.shape());
             let rhs_strides_str = get_array_str(rhs_broadcast_layout.strides());
+            let out_scalar = Scalar::new("out[idx]".to_string());
+            let lhs_scalar = Scalar::new("lhs[lhs_offset]".to_string());
+            let rhs_scalar = Scalar::new("rhs[rhs_offset]".to_string());
             let map = compile_kernel(
                 &module_name,
                 &format!(
@@ -350,7 +369,7 @@ where
                     B::CUDA_TYPE,
                     res.size(),
                     res.ndim(),
-                    f("out[idx]", "lhs[lhs_offset]", "rhs[rhs_offset]")
+                    f(out_scalar, lhs_scalar, rhs_scalar).val()
                 ),
                 res.device(),
                 &["binop"],

@@ -7,7 +7,7 @@ use crate::{
 use anyhow::Result;
 use cudarc::driver::DeviceRepr;
 use tensor_traits::{CommonBounds, NormalUaryOps, TensorLike};
-use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOutUnary};
+use tensor_types::{cuda_types::scalar::Scalar, into_scalar::IntoScalar, type_promote::{NormalOut, NormalOutUnary}};
 impl<T, const DEVICE_ID: usize> NormalUaryOps for Tensor<T, Cuda, DEVICE_ID>
 where
     T: CommonBounds + IntoScalar<T> + DeviceRepr,
@@ -15,6 +15,8 @@ where
     T::Vec: NormalOutUnary<Base = NormalType<T>>,
     T: NormalOutUnary<Base = NormalType<T>>,
     _Tensor<NormalType<T>, Cuda, DEVICE_ID>: TensorLike<NormalType<T>>,
+    Scalar<T>:
+        NormalOutUnary<Base = Scalar<NormalType<T>>> + NormalOut<Output = Scalar<NormalType<T>>>,
 {
     type Output = Tensor<NormalType<T>, Cuda, DEVICE_ID>;
 

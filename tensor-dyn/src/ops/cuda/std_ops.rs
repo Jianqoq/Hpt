@@ -4,8 +4,7 @@ use crate::Cuda;
 use crate::Tensor;
 use cudarc::driver::DeviceRepr;
 use tensor_traits::tensor::CommonBounds;
-use tensor_types::dtype::Dtype;
-use tensor_types::dtype::TypeCommon;
+use crate::cuda_types::scalar::Scalar;
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::BitWiseOut;
 use tensor_types::type_promote::FloatOutBinary;
@@ -14,22 +13,22 @@ use tensor_types::type_promote::NormalOut;
 // define add, sub, mul, rem for _Tensor
 #[duplicate::duplicate_item(
     lhs_type      rhs_type   out_type        trait_name   method_name   op_string;
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Add]    [add]         ["+"];
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Add]    [add]         ["+"];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Rem]    [rem]         ["%"];
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Add]    [add]         [_add];
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Sub]    [sub]         [_sub];
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Mul]    [mul]         [_mul];
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Rem]    [rem]         [_rem];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Add]    [add]         [_add];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Sub]    [sub]         [_sub];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Mul]    [mul]         [_mul];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Rem]    [rem]         [_rem];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Add]    [add]         [_add];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Sub]    [sub]         [_sub];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Mul]    [mul]         [_mul];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Rem]    [rem]         [_rem];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Add]    [add]         [_add];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Sub]    [sub]         [_sub];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Mul]    [mul]         [_mul];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Rem]    [rem]         [_rem];
 )]
 impl<T, U, const CUDA_DEVICE: usize> trait_name<rhs_type<U, Cuda, CUDA_DEVICE>>
     for lhs_type<T, Cuda, CUDA_DEVICE>
@@ -38,6 +37,7 @@ where
     U: CommonBounds + DeviceRepr,
     <T as NormalOut<U>>::Output: CommonBounds + DeviceRepr,
     <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    Scalar<T>: NormalOut<Scalar<U>, Output = Scalar<<T as NormalOut<U>>::Output>>,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -45,7 +45,9 @@ where
         binary_fn_with_out_simd(
             &self,
             &rhs,
-            |out, x, y| unimplemented!(),
+            |out, x, y| {
+                out.assign(x.op_string(y))
+            },
             None::<out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE>>,
         )
         .unwrap()
@@ -79,6 +81,7 @@ where
     U: CommonBounds + DeviceRepr,
     <T as NormalOut<U>>::Output: CommonBounds + DeviceRepr,
     <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    Scalar<T>: NormalOut<Scalar<U>, Output = Scalar<<T as NormalOut<U>>::Output>>,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -199,6 +202,7 @@ where
     T: CommonBounds + NormalOut<rhs_type> + DeviceRepr,
     <T as NormalOut<rhs_type>>::Output: CommonBounds + DeviceRepr,
     <T as NormalOut<rhs_type>>::Output: IntoScalar<<T as NormalOut<rhs_type>>::Output>,
+    Scalar<T>: NormalOut<Scalar<rhs_type>, Output = Scalar<<T as NormalOut<rhs_type>>::Output>>,
 {
     type Output = out_type<<T as NormalOut<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -320,6 +324,7 @@ where
     T: CommonBounds + NormalOut<rhs_type_ident> + DeviceRepr,
     <T as NormalOut<rhs_type_ident>>::Output: CommonBounds + DeviceRepr,
     <T as NormalOut<rhs_type_ident>>::Output: IntoScalar<<T as NormalOut<rhs_type_ident>>::Output>,
+    Scalar<T>: NormalOut<Scalar<rhs_type_ident>, Output = Scalar<<T as NormalOut<rhs_type_ident>>::Output>>,
 {
     type Output = out_type<<T as NormalOut<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -442,6 +447,7 @@ where
     lhs_type: CommonBounds + NormalOut<T> + DeviceRepr,
     <lhs_type as NormalOut<T>>::Output: CommonBounds + DeviceRepr,
     <lhs_type as NormalOut<T>>::Output: IntoScalar<<lhs_type as NormalOut<T>>::Output>,
+    Scalar<lhs_type>: NormalOut<Scalar<T>, Output = Scalar<<lhs_type as NormalOut<T>>::Output>>,
 {
     type Output = out_type<<lhs_type as NormalOut<T>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -564,6 +570,7 @@ where
     lhs_type_ident: CommonBounds + NormalOut<T> + DeviceRepr,
     <lhs_type_ident as NormalOut<T>>::Output: CommonBounds + DeviceRepr,
     <lhs_type_ident as NormalOut<T>>::Output: IntoScalar<<lhs_type_ident as NormalOut<T>>::Output>,
+    Scalar<lhs_type_ident>: NormalOut<Scalar<T>, Output = Scalar<<lhs_type_ident as NormalOut<T>>::Output>>,
 {
     type Output = out_type<<lhs_type_ident as NormalOut<T>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1028,10 +1035,10 @@ where
 // define div for _Tensor
 #[duplicate::duplicate_item(
     lhs_type      rhs_type   out_type         trait_name       method_name   op_string;
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Div]    [div]        ["/"];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Div]    [div]        ["/"];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Div]    [div]        ["/"];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Div]    [div]        ["/"];
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Div]    [div]        [_div];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Div]    [div]        [_div];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Div]    [div]        [_div];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Div]    [div]        [_div];
 )]
 impl<T, U, const CUDA_DEVICE: usize> trait_name<rhs_type<U, Cuda, CUDA_DEVICE>>
     for lhs_type<T, Cuda, CUDA_DEVICE>
@@ -1040,6 +1047,7 @@ where
     U: CommonBounds + DeviceRepr,
     <T as FloatOutBinary<U>>::Output: CommonBounds + DeviceRepr,
     <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+    Scalar<T>: FloatOutBinary<Scalar<U>, Output = Scalar<<T as FloatOutBinary<U>>::Output>>,
 {
     type Output = out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1047,7 +1055,9 @@ where
         binary_fn_with_out_simd(
             &self,
             &rhs,
-            |out, x, y| unimplemented!(),
+            |out, x, y| {
+                out.assign(x.op_string(y))
+            },
             None::<out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE>>,
         )
         .unwrap()
@@ -1069,6 +1079,7 @@ where
     U: CommonBounds + DeviceRepr,
     <T as FloatOutBinary<U>>::Output: CommonBounds + DeviceRepr,
     <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+    Scalar<T>: FloatOutBinary<Scalar<U>, Output = Scalar<<T as FloatOutBinary<U>>::Output>>,
 {
     type Output = out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1111,6 +1122,7 @@ where
     T: CommonBounds + FloatOutBinary<rhs_type> + DeviceRepr,
     <T as FloatOutBinary<rhs_type>>::Output: CommonBounds + DeviceRepr,
     <T as FloatOutBinary<rhs_type>>::Output: IntoScalar<<T as FloatOutBinary<rhs_type>>::Output>,
+    Scalar<T>: FloatOutBinary<Scalar<rhs_type>, Output = Scalar<<T as FloatOutBinary<rhs_type>>::Output>>,
 {
     type Output = out_type<<T as FloatOutBinary<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1155,6 +1167,7 @@ where
     <T as FloatOutBinary<rhs_type_ident>>::Output: CommonBounds + DeviceRepr,
     <T as FloatOutBinary<rhs_type_ident>>::Output:
         IntoScalar<<T as FloatOutBinary<rhs_type_ident>>::Output>,
+    Scalar<T>: FloatOutBinary<Scalar<rhs_type_ident>, Output = Scalar<<T as FloatOutBinary<rhs_type_ident>>::Output>>,
 {
     type Output = out_type<<T as FloatOutBinary<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1199,6 +1212,7 @@ where
     lhs_type: CommonBounds + FloatOutBinary<T> + DeviceRepr,
     <lhs_type as FloatOutBinary<T>>::Output: CommonBounds + DeviceRepr,
     <lhs_type as FloatOutBinary<T>>::Output: IntoScalar<<lhs_type as FloatOutBinary<T>>::Output>,
+    Scalar<lhs_type>: FloatOutBinary<Scalar<T>, Output = Scalar<<lhs_type as FloatOutBinary<T>>::Output>>,
 {
     type Output = out_type<<lhs_type as FloatOutBinary<T>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1244,6 +1258,7 @@ where
     <lhs_type_ident as FloatOutBinary<T>>::Output: CommonBounds + DeviceRepr,
     <lhs_type_ident as FloatOutBinary<T>>::Output:
         IntoScalar<<lhs_type_ident as FloatOutBinary<T>>::Output>,
+    Scalar<lhs_type_ident>: FloatOutBinary<Scalar<T>, Output = Scalar<<lhs_type_ident as FloatOutBinary<T>>::Output>>,
 {
     type Output = out_type<<lhs_type_ident as FloatOutBinary<T>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]

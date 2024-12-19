@@ -2,6 +2,7 @@ use crate::ops::cuda::cuda_utils::{compile_kernel, compute_kernel_launch_config,
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use cudarc::driver::{DeviceRepr, LaunchAsync};
+use tensor_types::cuda_types::scalar::Scalar;
 use std::borrow::Borrow;
 use std::panic::Location;
 use tensor_common::err_handler::ErrHandler::InvalidOutSize;
@@ -18,7 +19,7 @@ where
     A: CommonBounds + DeviceRepr,
     K: CommonBounds + DeviceRepr,
     O: Borrow<_Tensor<K, Cuda, DEVICE_ID>>,
-    F: Fn(&str, &str) -> String,
+    F: Fn(Scalar<K>, Scalar<A>) -> Scalar<K>,
 {
     let ret = if let Some(out) = out {
         if out.borrow().size() * size_of::<K>() == inp.size() * size_of::<A>() {
@@ -40,6 +41,8 @@ where
         ""
     };
     let code = if inp.is_contiguous() || inp.parent().is_some() {
+        let scalar_a = Scalar::<A>::new("inp[idx]".to_string());
+        let scalar_k = Scalar::<K>::new("out[idx]".to_string());
         format!(
             "
         {include}
@@ -52,11 +55,13 @@ where
         ",
             A::CUDA_TYPE,
             K::CUDA_TYPE,
-            f("out[idx]", "inp[idx]")
+            f(scalar_k, scalar_a).val()
         )
     } else {
         let shape_str = get_array_str(inp.shape());
         let strides_str = get_array_str(inp.strides());
+        let scalar_a = Scalar::<A>::new("inp[idx]".to_string());
+        let scalar_k = Scalar::<K>::new("out[idx]".to_string());
         format!(
             "
         {include}
@@ -82,7 +87,7 @@ where
             A::CUDA_TYPE,
             K::CUDA_TYPE,
             inp.shape().len(),
-            f("out[idx]", "inp[idx]")
+            f(scalar_k, scalar_a).val()
         )
     };
     let map = compile_kernel(module_name, &code, inp.device(), &["unary"])?;

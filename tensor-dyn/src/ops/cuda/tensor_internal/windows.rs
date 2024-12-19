@@ -3,6 +3,7 @@ use crate::{tensor_base::_Tensor, Cuda};
 use cudarc::driver::DeviceRepr;
 use std::ops::{Mul, Sub};
 use tensor_traits::{CommonBounds, TensorCreator};
+use tensor_types::cuda_types::scalar::Scalar;
 use tensor_types::dtype::Dtype::*;
 use tensor_types::{
     dtype::{FloatConst, TypeCommon},
@@ -74,27 +75,30 @@ where
         let ret: Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, anyhow::Error> = uary_fn_with_out_simd(
             &ret,
             &get_module_name_1("hamming_window", &ret),
-            |out, idx| match T::ID {
-                F32 => {
-                    format!(
-                        "
+            |out, idx| {
+                let res = match T::ID {
+                    F32 => {
+                        format!(
+                            "
                         float n = (float){idx};
                         {out} = {alpha} - {beta} * cosf(2.0f * M_PI * n / {length});"
-                    )
-                }
-                F64 => {
-                    format!(
-                        "
+                        )
+                    }
+                    F64 => {
+                        format!(
+                            "
                         double n = (double){idx};
                         {out} = {alpha} - {beta} * cos(2.0 * M_PI * n / {length});"
-                    )
-                }
-                F16 => {
-                    format!("
+                        )
+                    }
+                    F16 => {
+                        format!("
                         float n = (float){idx};
                         {out} = __float2half({alpha}f - {beta}f * cosf(2.0f * M_PI * n / {length}));")
-                }
-                _ => unreachable!(),
+                    }
+                    _ => unreachable!(),
+                };
+                Scalar::<FBO<T>>::new(res)
             },
             None::<_Tensor<FBO<T>, Cuda, DEVICE_ID>>,
         );
@@ -139,35 +143,38 @@ where
         uary_fn_with_out_simd(
             &ret,
             &get_module_name_1("blackman_window", &ret),
-            |out, idx| match T::ID {
-                F32 => {
-                    format!(
-                        "
+            |out, idx| {
+                let res = match T::ID {
+                    F32 => {
+                        format!(
+                            "
                             float n = (float){idx};
                             float w1 = 2.0f * M_PI * n / {length}f;
                             float w2 = 2.0f * w1;  // 4π * n / (N-1)
                             {out} = 0.42f - 0.5f * cosf(w1) + 0.08f * cosf(w2);"
-                    )
-                }
-                F64 => {
-                    format!(
-                        "
+                        )
+                    }
+                    F64 => {
+                        format!(
+                            "
                             double n = (double){idx};
                             double w1 = 2.0 * M_PI * n / {length};
                             double w2 = 2.0 * w1;
                             {out} = 0.42 - 0.5 * cos(w1) + 0.08 * cos(w2);"
-                    )
-                }
-                F16 => {
-                    format!(
-                        "
+                        )
+                    }
+                    F16 => {
+                        format!(
+                            "
                             float n = (float){idx};
                             float w1 = 2.0f * M_PI * n / {length}f;
                             float w2 = 2.0f * w1;
                             {out} = __float2half(0.42f - 0.5f * cosf(w1) + 0.08f * cosf(w2));"
-                    )
-                }
-                _ => unreachable!(),
+                        )
+                    }
+                    _ => unreachable!(),
+                };
+                Scalar::<FBO<T>>::new(res)
             },
             None::<_Tensor<FBO<T>, Cuda, DEVICE_ID>>,
         )

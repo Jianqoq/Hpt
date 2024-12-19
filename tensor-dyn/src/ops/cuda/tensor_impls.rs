@@ -193,12 +193,12 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVI
         U: CommonBounds + DeviceRepr,
         T: IntoScalar<U>,
     {
-        let mut ret: _Tensor<U, Cuda, DEVICE_ID> =
+        let ret: _Tensor<U, Cuda, DEVICE_ID> =
             _Tensor::<U, Cuda, DEVICE_ID>::empty(self.layout.shape().clone())?;
         uary_fn_with_out_simd(
             &ret,
             &get_module_name_1("astype", &ret),
-            |out, idx| unimplemented!(),
+            |out, x| out.assign(x),
             None::<_Tensor<U, Cuda, DEVICE_ID>>,
         )
     }
@@ -322,14 +322,14 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> Tensor<T, Cuda, DEVIC
     //     mut_self.assign(&other.inner.as_ref());
     // }
 
-    // /// cast the tensor to the new type
-    // pub fn astype<U>(&self) -> anyhow::Result<Tensor<U, Cuda>>
-    // where
-    //     U: CommonBounds,
-    //     T: IntoScalar<U>,
-    // {
-    //     Ok(self.inner.astype()?.into())
-    // }
+    /// cast the tensor to the new type
+    pub fn astype<U>(&self) -> anyhow::Result<Tensor<U, Cuda, DEVICE_ID>>
+    where
+        U: CommonBounds + DeviceRepr,
+        T: IntoScalar<U>,
+    {
+        Ok(self.inner.astype()?.into())
+    }
 
     // /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
     // pub fn try_astype<U>(&self) -> anyhow::Result<Tensor<U, Cuda>>

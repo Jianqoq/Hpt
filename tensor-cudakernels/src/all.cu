@@ -1,4 +1,5 @@
 #include <cuda_fp16.h>
+#include <cuda_bf16.h>
 #define WRAP 32
 
 #define all_bool(a, b) ((bool)a) && ((bool)b)

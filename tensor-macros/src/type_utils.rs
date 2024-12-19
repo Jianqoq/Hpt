@@ -404,6 +404,41 @@ impl Type {
     pub fn is_cplx64(&self) -> bool {
         matches!(self, Type::C64 | Type::Complex64)
     }
+    pub fn to_cuda_type(&self) -> String {
+        match self {
+            Type::Bool => "bool".to_string(),
+            Type::I8 => "char".to_string(),
+            Type::U8 => "unsigned char".to_string(),
+            Type::I16 => "short".to_string(),
+            Type::U16 => "unsigned short".to_string(),
+            Type::I32 => "int".to_string(),
+            Type::U32 => "unsigned int".to_string(),
+            Type::I64 => "long long".to_string(),
+            Type::U64 => "unsigned long long".to_string(),
+            Type::BF16 => "half".to_string(),
+            Type::F16 => "half".to_string(),
+            Type::F32 => "float".to_string(),
+            Type::F64 => "double".to_string(),
+            Type::C32 => "cuComplex".to_string(),
+            Type::C64 => "cuDoubleComplex".to_string(),
+            Type::Isize => {
+                if cfg!(target_pointer_width = "64") {
+                    "long long".to_string()
+                } else {
+                    "int".to_string()
+                }
+            },
+            Type::Usize => {
+                if cfg!(target_pointer_width = "64") {
+                    "unsigned long long".to_string()
+                } else {
+                    "unsigned int".to_string()
+                }
+            },
+            Type::Complex32 => "cuComplex".to_string(),
+            Type::Complex64 => "cuDoubleComplex".to_string(),
+        }
+    }
 }
 
 impl ToTokens for Type {
