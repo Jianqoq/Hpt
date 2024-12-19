@@ -17,45 +17,51 @@ use crate::binary_float_out::impl_cuda_float_out_binary;
 use binary_float_out::impl_float_out_binary;
 use float_unary::{impl_cuda_float_out_unary, impl_float_out_unary};
 use from_scalar::__impl_from_scalar;
-use kernel_gen_helper::{ __gen_fast_reduce_simd_helper, __gen_reduce_dim_not_include_simd_helper };
+use kernel_gen_helper::{__gen_fast_reduce_simd_helper, __gen_reduce_dim_not_include_simd_helper};
 use normal_out::{__impl_cuda_normal_out_binary, __impl_normal_out_binary};
 use proc_macro::TokenStream;
 use scalar_convert::__impl_scalar_convert;
 use simd_bitwise::impl_simd_bitwise_out;
 use simd_convert::__impl_simd_convert;
-use simd_float_out_binary::{impl_simd_binary_out_float, impl_simd_binary_out_float_lhs_scalar, impl_simd_binary_out_float_rhs_scalar};
-use simd_normal_out::{ impl_simd_normal_out_with_lhs_scalar, impl_simd_normal_out_with_rhs_scalar };
-use syn::{ parse, parse_macro_input, Expr, Ident, Token };
+use simd_float_out_binary::{
+    impl_simd_binary_out_float, impl_simd_binary_out_float_lhs_scalar,
+    impl_simd_binary_out_float_rhs_scalar,
+};
+use simd_normal_out::{impl_simd_normal_out_with_lhs_scalar, impl_simd_normal_out_with_rhs_scalar};
+use syn::{parse, parse_macro_input, Expr, Ident, Token};
 mod binary_float_out;
+mod conv2d;
 mod float_unary;
+mod from_scalar;
 mod into_vec;
 mod kernel_gen_helper;
 mod list_enum;
+mod normal_out;
+mod normal_out_unary;
+mod scalar_convert;
 mod simd_bitwise;
 mod simd_cmp;
 mod simd_convert;
 mod simd_eval;
-mod normal_out_unary;
-mod simd_normal_unary;
 mod simd_float_out_binary;
 mod simd_float_out_unary;
 mod simd_normal_out;
+mod simd_normal_unary;
 mod type_utils;
-mod normal_out;
-mod scalar_convert;
-mod from_scalar;
-mod conv2d;
 
 use crate::simd_cmp::impl_simd_cmp;
 use crate::simd_normal_out::impl_simd_normal_out;
-use proc_macro2::{ TokenStream as TokenStream2, TokenTree };
+use proc_macro2::{TokenStream as TokenStream2, TokenTree};
 use quote::quote;
 use type_utils::TypeInfo;
 
 /// number of registers available for the target architecture
 #[cfg(target_feature = "avx2")]
 const NUM_REG: usize = 16;
-#[cfg(all(any(target_feature = "sse", target_arch = "arm"), not(target_feature = "avx2")))]
+#[cfg(all(
+    any(target_feature = "sse", target_arch = "arm"),
+    not(target_feature = "avx2")
+))]
 const NUM_REG: usize = 8;
 #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 const NUM_REG: usize = 32;
@@ -75,11 +81,10 @@ impl parse::Parse for SelectionParser {
         let mut start: Option<Expr> = None;
         let mut end: Option<Expr> = None;
         let mut step: Option<Expr> = None;
-        if
-            input.peek(syn::Lit) ||
-            input.peek(syn::Ident) ||
-            input.peek(syn::token::Paren) ||
-            input.peek(Token![-])
+        if input.peek(syn::Lit)
+            || input.peek(syn::Ident)
+            || input.peek(syn::token::Paren)
+            || input.peek(Token![-])
         {
             start = Some(input.parse::<Expr>()?);
         }
@@ -88,26 +93,25 @@ impl parse::Parse for SelectionParser {
         } else if input.is_empty() {
             return Ok(Self { start, end, step });
         } else {
-            return Err(
-                syn::Error::new(input.span(), "unexpected token, expected `:`, Int or Ident")
-            );
+            return Err(syn::Error::new(
+                input.span(),
+                "unexpected token, expected `:`, Int or Ident",
+            ));
         }
-        if
-            input.peek(syn::Lit) ||
-            input.peek(syn::Ident) ||
-            input.peek(syn::token::Paren) ||
-            input.peek(Token![-])
+        if input.peek(syn::Lit)
+            || input.peek(syn::Ident)
+            || input.peek(syn::token::Paren)
+            || input.peek(Token![-])
         {
             end = Some(input.parse::<Expr>()?);
         }
         if input.peek(Token![:]) {
             input.parse::<Token![:]>()?;
         }
-        if
-            input.peek(syn::Lit) ||
-            input.peek(syn::Ident) ||
-            input.peek(syn::token::Paren) ||
-            input.peek(Token![-])
+        if input.peek(syn::Lit)
+            || input.peek(syn::Ident)
+            || input.peek(syn::token::Paren)
+            || input.peek(Token![-])
         {
             step = Some(input.parse::<Expr>()?);
         }
@@ -186,7 +190,7 @@ fn match_helper(
     mut true_true: impl FnMut() -> Expr,
     mut true_false: impl FnMut() -> Expr,
     mut false_true: impl FnMut() -> Expr,
-    mut false_false: impl FnMut() -> Expr
+    mut false_false: impl FnMut() -> Expr,
 ) -> Expr {
     match (lhs, rhs) {
         (true, true) => true_true(),
@@ -206,7 +210,9 @@ impl parse::Parse for InferEnumType {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
         let lhs = input.parse::<Expr>().expect("lhs is not found");
         input.parse::<Token![,]>()?;
-        let rhs = input.parse::<Ident>().expect("rhs is not found, use sapce when not needed");
+        let rhs = input
+            .parse::<Ident>()
+            .expect("rhs is not found, use sapce when not needed");
         input.parse::<Token![,]>()?;
         let mode = input.parse::<Ident>()?;
         Ok(Self { lhs, rhs, mode })
@@ -225,8 +231,7 @@ pub fn infer_enum_type(input: TokenStream) -> TokenStream {
     match enum_name.as_str() {
         "normal" => {
             let tk = list_enum::list_enums();
-            let tmp =
-                quote!(
+            let tmp = quote!(
                 match (#lhs, #rhs) {
                     #tk
                     _ => todo!(),
@@ -236,8 +241,7 @@ pub fn infer_enum_type(input: TokenStream) -> TokenStream {
         }
         "binary_float" => {
             let tk = list_enum::list_enums_out_float();
-            let tmp =
-                quote!(
+            let tmp = quote!(
                 match (#lhs, #rhs) {
                     #tk
                     _ => todo!(),
@@ -247,8 +251,7 @@ pub fn infer_enum_type(input: TokenStream) -> TokenStream {
         }
         "uary_float" => {
             let tk = list_enum::list_enums_out_float_uary();
-            let tmp =
-                quote!(
+            let tmp = quote!(
                 match #lhs {
                     #tk
                     _ => todo!(),
@@ -271,7 +274,9 @@ impl parse::Parse for GenericCal {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
         let lhs = input.parse::<Ident>().expect("lhs is not found");
         input.parse::<Token![,]>()?;
-        let rhs = input.parse::<Ident>().expect("rhs is not found, use sapce when not needed");
+        let rhs = input
+            .parse::<Ident>()
+            .expect("rhs is not found, use sapce when not needed");
         input.parse::<Token![,]>()?;
         let method = input.parse::<Ident>()?;
         Ok(Self { lhs, rhs, method })
@@ -457,7 +462,9 @@ pub fn impl_into_vec(_: TokenStream) -> TokenStream {
 pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
 
-    let types = ["bool", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize", "usize"];
+    let types = [
+        "bool", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize", "usize",
+    ];
 
     for lhs in types.iter() {
         for rhs in types.iter() {
@@ -495,8 +502,7 @@ pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
                 }
             };
 
-            let res =
-                quote! {
+            let res = quote! {
                 impl BitWiseOut<#rhs_dtype> for #lhs_dtype {
                     type Output = #res_type;
                     #[inline(always)]
@@ -533,25 +539,129 @@ pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
     ret.into()
 }
 
+/// implement bitwise out trait
+#[proc_macro]
+pub fn impl_cuda_bitwise_out(_: TokenStream) -> TokenStream {
+    let mut ret = proc_macro2::TokenStream::new();
+
+    let types = [
+        "bool", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize", "usize",
+    ];
+
+    for lhs in types.iter() {
+        for rhs in types.iter() {
+            let lhs_type = TypeInfo::new(lhs);
+            let rhs_type = TypeInfo::new(rhs);
+            let lhs_dtype = lhs_type.dtype;
+            let rhs_dtype = rhs_type.dtype;
+            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
+            let to_res_type = Ident::new(
+                &format!("to_{}", res_type.to_string()),
+                proc_macro2::Span::call_site(),
+            );
+            let ty_str = res_type.to_string();
+            let shift = if res_type.is_unsigned() || res_type.is_int() {
+                quote! {
+                    #[inline(always)]
+                    fn _shl(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                        Scalar::new(format!("({} << {})", self.#to_res_type().val, rhs.#to_res_type().val))
+                    }
+                    #[inline(always)]
+                    fn _shr(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                        Scalar::new(format!("({} >> {})", self.#to_res_type().val, rhs.#to_res_type().val))
+                    }
+                }
+            } else {
+                quote! {
+                    #[inline(always)]
+                    fn _shl(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                        panic!("shift operation is not supported for {}", #ty_str);
+                    }
+                    #[inline(always)]
+                    fn _shr(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                        panic!("shift operation is not supported for {}", #ty_str);
+                    }
+                }
+            };
+
+            let bitwise = if res_type.is_unsigned() || res_type.is_int() {
+                quote! {
+                    #[inline(always)]
+                    fn _bitand(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                        Scalar::new(format!("({} & {})", self.#to_res_type().val, rhs.#to_res_type().val))
+                    }
+                    #[inline(always)]
+                    fn _bitor(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                        Scalar::new(format!("({} | {})", self.#to_res_type().val, rhs.#to_res_type().val))
+                    }
+                    #[inline(always)]
+                    fn _bitxor(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                        Scalar::new(format!("({} ^ {})", self.#to_res_type().val, rhs.#to_res_type().val))
+                    }
+                }
+            } else {
+                let ty_str = res_type.to_string();
+                quote! {
+                    #[inline(always)]
+                    fn _bitand(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                        panic!("bitwise operation is not supported for {}", #ty_str);
+                    }
+                    #[inline(always)]
+                    fn _bitor(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                        panic!("bitwise operation is not supported for {}", #ty_str);
+                    }
+                    #[inline(always)]
+                    fn _bitxor(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                        panic!("bitwise operation is not supported for {}", #ty_str);
+                    }
+                }
+            };
+
+            let not = if res_type.is_bool() {
+                quote! {
+                    #[inline(always)]
+                    fn _not(self) -> Self::Output {
+                        Scalar::new(format!("(!{})", self.#to_res_type().val))
+                    }
+                }
+            } else if res_type.is_unsigned() || res_type.is_int() {
+                quote! {
+                    #[inline(always)]
+                    fn _not(self) -> Self::Output {
+                        Scalar::new(format!("(~{})", self.#to_res_type().val))
+                    }
+                }
+            } else {
+                quote! {
+                    #[inline(always)]
+                    fn _not(self) -> Self::Output {
+                        panic!("not operation is not supported for {}", #ty_str);
+                    }
+                }
+            };
+
+            let res = quote! {
+                impl BitWiseOut<Scalar<#rhs_dtype>> for Scalar<#lhs_dtype> {
+                    type Output = Scalar<#res_type>;
+                    #bitwise
+                    #not
+                    #shift
+                }
+            };
+            ret.extend(res);
+        }
+    }
+
+    ret.into()
+}
+
 /// implement compare trait
 #[proc_macro]
 pub fn impl_cmp(_: TokenStream) -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
 
     let types = [
-        "bool",
-        "f16",
-        "f32",
-        "f64",
-        "i8",
-        "i16",
-        "i32",
-        "i64",
-        "u8",
-        "u16",
-        "u32",
-        "u64",
-        "isize",
+        "bool", "f16", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize",
         "usize",
     ];
 
@@ -562,32 +672,109 @@ pub fn impl_cmp(_: TokenStream) -> TokenStream {
             let lhs_dtype = lhs_type.dtype;
             let rhs_dtype = rhs_type.dtype;
             let res_type = lhs_type.infer_normal_res_type(&rhs_type);
-            let to_res_type = Ident::new(&format!("to_{}", res_type.to_string()), proc_macro2::Span::call_site());
-            let res =
-                quote! {
+            let to_res_type = Ident::new(
+                &format!("to_{}", res_type.to_string()),
+                proc_macro2::Span::call_site(),
+            );
+            let res = quote! {
                 impl Cmp<#rhs_dtype> for #lhs_dtype {
-                    fn _eq(self, rhs: #rhs_dtype) -> bool {
+                    type Output = bool;
+                    fn _eq(self, rhs: #rhs_dtype) -> Self::Output {
                         self.#to_res_type() == rhs.#to_res_type()
                     }
-                    fn _ne(self, rhs: #rhs_dtype) -> bool {
+                    fn _ne(self, rhs: #rhs_dtype) -> Self::Output {
                         self.#to_res_type() != rhs.#to_res_type()
                     }
-                    fn _lt(self, rhs: #rhs_dtype) -> bool {
+                    fn _lt(self, rhs: #rhs_dtype) -> Self::Output {
                         self.#to_res_type() < rhs.#to_res_type()
                     }
 
-                    fn _le(self, rhs: #rhs_dtype) -> bool {
+                    fn _le(self, rhs: #rhs_dtype) -> Self::Output {
                         self.#to_res_type() <= rhs.#to_res_type()
                     }
-                    fn _gt(self, rhs: #rhs_dtype) -> bool {
+                    fn _gt(self, rhs: #rhs_dtype) -> Self::Output {
                         self.#to_res_type() > rhs.#to_res_type()
                     }
-                    fn _ge(self, rhs: #rhs_dtype) -> bool {
+                    fn _ge(self, rhs: #rhs_dtype) -> Self::Output {
                         self.#to_res_type() >= rhs.#to_res_type()
                     }
                 }
             };
             ret.extend(res);
+        }
+    }
+
+    ret.into()
+}
+
+/// implement compare trait
+#[proc_macro]
+pub fn impl_cmp_cuda(_: TokenStream) -> TokenStream {
+    let mut ret = proc_macro2::TokenStream::new();
+
+    let types = [
+        "bool", "f16", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize",
+        "usize",
+    ];
+
+    for lhs in types.iter() {
+        for rhs in types.iter() {
+            let lhs_type = TypeInfo::new(lhs);
+            let rhs_type = TypeInfo::new(rhs);
+            let lhs_dtype = lhs_type.dtype;
+            let rhs_dtype = rhs_type.dtype;
+            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
+            let to_res_type = Ident::new(
+                &format!("to_{}", res_type.to_string()),
+                proc_macro2::Span::call_site(),
+            );
+            let lt = quote! {
+                Scalar::new(format!("({} < {})", self.#to_res_type().val, rhs.#to_res_type().val))
+            };
+            let le = quote! {
+                Scalar::new(format!("({} <= {})", self.#to_res_type().val, rhs.#to_res_type().val))
+            };
+            let gt = quote! {
+                Scalar::new(format!("({} > {})", self.#to_res_type().val, rhs.#to_res_type().val))
+            };
+            let ge = quote! {
+                Scalar::new(format!("({} >= {})", self.#to_res_type().val, rhs.#to_res_type().val))
+            };
+            let eq = quote! {
+                Scalar::new(format!("({} == {})", self.#to_res_type().val, rhs.#to_res_type().val))
+            };
+            let ne = quote! {
+                Scalar::new(format!("({} != {})", self.#to_res_type().val, rhs.#to_res_type().val))
+            };
+            ret.extend(quote! {
+                impl Cmp<Scalar<#rhs_dtype>> for Scalar<#lhs_dtype> {
+                    type Output = Scalar<bool>;
+                    #[inline(always)]
+                    fn _lt(self, rhs: Scalar<#rhs_dtype>) -> Scalar<bool> {
+                        #lt
+                    }
+                     #[inline(always)]
+                    fn _le(self, rhs: Scalar<#rhs_dtype>) -> Scalar<bool> {
+                        #le
+                    }
+                     #[inline(always)]
+                    fn _gt(self, rhs: Scalar<#rhs_dtype>) -> Scalar<bool> {
+                        #gt
+                    }
+                     #[inline(always)]
+                    fn _ge(self, rhs: Scalar<#rhs_dtype>) -> Scalar<bool> {
+                        #ge
+                    }
+                     #[inline(always)]
+                    fn _eq(self, rhs: Scalar<#rhs_dtype>) -> Scalar<bool> {
+                        #eq
+                    }
+                     #[inline(always)]
+                    fn _ne(self, rhs: Scalar<#rhs_dtype>) -> Scalar<bool> {
+                        #ne
+                    }
+                }
+            });
         }
     }
 
@@ -600,19 +787,7 @@ pub fn impl_eval(_: TokenStream) -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
 
     let types = [
-        "bool",
-        "f16",
-        "f32",
-        "f64",
-        "i8",
-        "i16",
-        "i32",
-        "i64",
-        "u8",
-        "u16",
-        "u32",
-        "u64",
-        "isize",
+        "bool", "f16", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize",
         "usize",
     ];
 
@@ -675,8 +850,7 @@ pub fn impl_eval(_: TokenStream) -> TokenStream {
             }
         };
 
-        let res =
-            quote! {
+        let res = quote! {
             impl Eval for #lhs_dtype {
                 type Output = bool;
                 #is_nan

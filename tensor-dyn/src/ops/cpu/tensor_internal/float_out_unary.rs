@@ -649,4 +649,25 @@ impl<T> FloatUaryOps
             Some(out)
         )
     }
+    
+    fn cbrt(&self) -> anyhow::Result<Self::Output> {
+        uary_fn_with_out_simd(
+            self,
+            |x| x._cbrt(),
+            |x| x._cbrt(),
+            None::<Self::Output>
+        )
+    }
+    
+    fn cbrt_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    where
+        U: Borrow<Self::InplaceOutput>,
+    {
+        uary_fn_with_out_simd(
+            self,
+            |x| x._cbrt(),
+            |x| x._cbrt(),
+            Some(out)
+        )
+    }
 }

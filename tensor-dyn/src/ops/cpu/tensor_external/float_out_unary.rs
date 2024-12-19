@@ -992,4 +992,12 @@ impl<T> FloatUaryOps
     fn mish_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::<T, Cpu>::mish_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
+    
+    fn cbrt(&self) -> Result<Self::Output> {
+        Ok(_Tensor::<T, Cpu>::cbrt(self.inner.as_ref())?.into())
+    }
+    
+    fn cbrt_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
+        Ok(_Tensor::<T, Cpu>::cbrt_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+    }
 }

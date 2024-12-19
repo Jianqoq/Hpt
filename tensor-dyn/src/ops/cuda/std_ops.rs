@@ -12,7 +12,7 @@ use tensor_types::type_promote::NormalOut;
 
 // define add, sub, mul, rem for _Tensor
 #[duplicate::duplicate_item(
-    lhs_type      rhs_type   out_type        trait_name   method_name   op_string;
+    lhs_type      rhs_type   out_type        trait_name   method_name        op;
     [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Add]    [add]         [_add];
     [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Sub]    [sub]         [_sub];
     [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Mul]    [mul]         [_mul];
@@ -45,9 +45,8 @@ where
         binary_fn_with_out_simd(
             &self,
             &rhs,
-            |out, x, y| {
-                out.assign(x.op_string(y))
-            },
+            |out, x, y| 
+                out.assign(x.op(y)),
             None::<out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE>>,
         )
         .unwrap()
@@ -56,23 +55,23 @@ where
 
 // define add, sub, mul, rem for Tensor
 #[duplicate::duplicate_item(
-    lhs_type      rhs_type   out_type        trait_name   method_name   op_string;
-    [Tensor]    [Tensor]   [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [Tensor]   [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [Tensor]   [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [Tensor]   [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]   [Tensor]   [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]   [Tensor]   [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]   [Tensor]   [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]   [Tensor]   [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&Tensor]  [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&Tensor]  [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&Tensor]  [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&Tensor]  [Tensor]    [std::ops::Rem]    [rem]         ["%"];
+    lhs_type      rhs_type   out_type        trait_name   method_name;
+    [Tensor]    [Tensor]   [Tensor]    [std::ops::Add]       [add];
+    [Tensor]    [Tensor]   [Tensor]    [std::ops::Sub]       [sub];
+    [Tensor]    [Tensor]   [Tensor]    [std::ops::Mul]       [mul];
+    [Tensor]    [Tensor]   [Tensor]    [std::ops::Rem]       [rem];
+    [&Tensor]   [Tensor]   [Tensor]    [std::ops::Add]       [add];
+    [&Tensor]   [Tensor]   [Tensor]    [std::ops::Sub]       [sub];
+    [&Tensor]   [Tensor]   [Tensor]    [std::ops::Mul]       [mul];
+    [&Tensor]   [Tensor]   [Tensor]    [std::ops::Rem]       [rem];
+    [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Add]       [add];
+    [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Sub]       [sub];
+    [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Mul]       [mul];
+    [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Rem]       [rem];
+    [Tensor]    [&Tensor]  [Tensor]    [std::ops::Add]       [add];
+    [Tensor]    [&Tensor]  [Tensor]    [std::ops::Sub]       [sub];
+    [Tensor]    [&Tensor]  [Tensor]    [std::ops::Mul]       [mul];
+    [Tensor]    [&Tensor]  [Tensor]    [std::ops::Rem]       [rem];
 )]
 impl<T, U, const CUDA_DEVICE: usize> trait_name<rhs_type<U, Cuda, CUDA_DEVICE>>
     for lhs_type<T, Cuda, CUDA_DEVICE>
@@ -92,110 +91,110 @@ where
 
 // define add, sub, mul, rem for Tensor and scalar
 #[duplicate::duplicate_item(
-    lhs_type      rhs_type     out_type      trait_name     method_name   op_string;
-    [Tensor]    [bool]       [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [i8]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [i16]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [i32]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [i64]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [u8]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [u16]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [u32]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [u64]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [f32]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [f64]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [half::f16]  [Tensor]    [std::ops::Add]    [add]         ["+"];
+    lhs_type      rhs_type     out_type      trait_name   method_name;
+    [Tensor]    [bool]       [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [i8]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [i16]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [i32]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [i64]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [u8]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [u16]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [u32]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [u64]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [f32]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [f64]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [half::f16]  [Tensor]    [std::ops::Add]    [add];
 
-    [Tensor]    [bool]       [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [i8]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [i16]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [i32]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [i64]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [u8]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [u16]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [u32]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [u64]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [f32]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [f64]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [half::f16]  [Tensor]    [std::ops::Sub]    [sub]         ["-"];
+    [Tensor]    [bool]       [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [i8]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [i16]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [i32]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [i64]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [u8]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [u16]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [u32]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [u64]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [f32]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [f64]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [half::f16]  [Tensor]    [std::ops::Sub]    [sub];
 
-    [Tensor]    [bool]       [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [i8]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [i16]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [i32]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [i64]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [u8]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [u16]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [u32]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [u64]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [f32]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [f64]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [half::f16]  [Tensor]    [std::ops::Mul]    [mul]         ["*"];
+    [Tensor]    [bool]       [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [i8]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [i16]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [i32]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [i64]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [u8]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [u16]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [u32]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [u64]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [f32]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [f64]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [half::f16]  [Tensor]    [std::ops::Mul]    [mul];
 
-    [Tensor]    [bool]       [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [i8]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [i16]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [i32]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [i64]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [u8]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [u16]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [u32]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [u64]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [f32]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [f64]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [half::f16]  [Tensor]    [std::ops::Rem]    [rem]         ["%"];
+    [Tensor]    [bool]       [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [i8]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [i16]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [i32]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [i64]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [u8]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [u16]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [u32]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [u64]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [f32]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [f64]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [half::f16]  [Tensor]    [std::ops::Rem]    [rem];
 
-    [&Tensor]    [bool]       [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [i8]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [i16]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [i32]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [i64]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [u8]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [u16]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [u32]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [u64]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [f32]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [f64]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Add]    [add]         ["+"];
+    [&Tensor]    [bool]       [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [i8]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [i16]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [i32]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [i64]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [u8]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [u16]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [u32]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [u64]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [f32]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [f64]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Add]    [add];
 
-    [&Tensor]    [bool]       [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [i8]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [i16]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [i32]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [i64]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [u8]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [u16]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [u32]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [u64]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [f32]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [f64]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Sub]    [sub]         ["-"];
+    [&Tensor]    [bool]       [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [i8]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [i16]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [i32]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [i64]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [u8]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [u16]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [u32]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [u64]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [f32]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [f64]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Sub]    [sub];
 
-    [&Tensor]    [bool]       [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [i8]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [i16]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [i32]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [i64]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [u8]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [u16]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [u32]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [u64]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [f32]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [f64]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Mul]    [mul]         ["*"];
+    [&Tensor]    [bool]       [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [i8]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [i16]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [i32]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [i64]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [u8]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [u16]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [u32]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [u64]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [f32]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [f64]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Mul]    [mul];
 
-    [&Tensor]    [bool]       [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [i8]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [i16]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [i32]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [i64]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [u8]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [u16]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [u32]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [u64]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [f32]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [f64]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Rem]    [rem]         ["%"];
+    [&Tensor]    [bool]       [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [i8]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [i16]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [i32]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [i64]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [u8]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [u16]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [u32]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [u64]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [f32]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [f64]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Rem]    [rem];
 )]
 impl<T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE>
 where
@@ -214,110 +213,110 @@ where
 
 // define add, sub, mul, rem for Tensor and &scalar
 #[duplicate::duplicate_item(
-    lhs_type     rhs_type       rhs_type_ident   out_type      trait_name     method_name   op_string;
-    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Add]    [add]         ["+"];
+    lhs_type     rhs_type       rhs_type_ident   out_type      trait_name     method_name;
+    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Add]    [add];
 
-    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Sub]    [sub]         ["-"];
+    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Sub]    [sub];
 
-    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Mul]    [mul]         ["*"];
+    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Mul]    [mul];
 
-    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Rem]    [rem]         ["%"];
+    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Rem]    [rem];
 
-    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Add]    [add]         ["+"];
+    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Add]    [add];
 
-    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Sub]    [sub]         ["-"];
+    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Sub]    [sub];
 
-    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Mul]    [mul]         ["*"];
+    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Mul]    [mul];
 
-    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Rem]    [rem]         ["%"];
+    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Rem]    [rem];
 )]
 impl<'a, T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE>
 where
@@ -336,110 +335,110 @@ where
 
 // define add, sub, mul, rem for scalar and Tensor
 #[duplicate::duplicate_item(
-    rhs_type   lhs_type     out_type      trait_name     method_name   op_string;
-    [Tensor]    [bool]       [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [i8]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [i16]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [i32]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [i64]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [u8]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [u16]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [u32]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [u64]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [f32]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [f64]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [half::f16]  [Tensor]    [std::ops::Add]    [add]         ["+"];
+    rhs_type   lhs_type     out_type      trait_name     method_name;
+    [Tensor]    [bool]       [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [i8]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [i16]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [i32]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [i64]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [u8]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [u16]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [u32]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [u64]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [f32]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [f64]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [half::f16]  [Tensor]    [std::ops::Add]    [add];
 
-    [Tensor]    [bool]       [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [i8]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [i16]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [i32]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [i64]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [u8]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [u16]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [u32]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [u64]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [f32]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [f64]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [half::f16]  [Tensor]    [std::ops::Sub]    [sub]         ["-"];
+    [Tensor]    [bool]       [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [i8]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [i16]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [i32]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [i64]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [u8]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [u16]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [u32]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [u64]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [f32]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [f64]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [half::f16]  [Tensor]    [std::ops::Sub]    [sub];
 
-    [Tensor]    [bool]       [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [i8]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [i16]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [i32]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [i64]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [u8]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [u16]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [u32]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [u64]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [f32]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [f64]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [half::f16]  [Tensor]    [std::ops::Mul]    [mul]         ["*"];
+    [Tensor]    [bool]       [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [i8]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [i16]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [i32]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [i64]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [u8]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [u16]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [u32]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [u64]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [f32]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [f64]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [half::f16]  [Tensor]    [std::ops::Mul]    [mul];
 
-    [Tensor]    [bool]       [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [i8]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [i16]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [i32]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [i64]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [u8]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [u16]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [u32]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [u64]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [f32]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [f64]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [half::f16]  [Tensor]    [std::ops::Rem]    [rem]         ["%"];
+    [Tensor]    [bool]       [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [i8]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [i16]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [i32]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [i64]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [u8]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [u16]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [u32]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [u64]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [f32]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [f64]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [half::f16]  [Tensor]    [std::ops::Rem]    [rem];
 
-    [&Tensor]    [bool]       [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [i8]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [i16]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [i32]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [i64]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [u8]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [u16]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [u32]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [u64]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [f32]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [f64]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Add]    [add]         ["+"];
+    [&Tensor]    [bool]       [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [i8]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [i16]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [i32]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [i64]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [u8]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [u16]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [u32]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [u64]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [f32]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [f64]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Add]    [add];
 
-    [&Tensor]    [bool]       [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [i8]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [i16]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [i32]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [i64]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [u8]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [u16]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [u32]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [u64]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [f32]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [f64]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Sub]    [sub]         ["-"];
+    [&Tensor]    [bool]       [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [i8]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [i16]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [i32]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [i64]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [u8]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [u16]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [u32]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [u64]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [f32]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [f64]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Sub]    [sub];
 
-    [&Tensor]    [bool]       [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [i8]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [i16]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [i32]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [i64]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [u8]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [u16]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [u32]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [u64]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [f32]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [f64]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Mul]    [mul]         ["*"];
+    [&Tensor]    [bool]       [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [i8]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [i16]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [i32]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [i64]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [u8]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [u16]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [u32]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [u64]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [f32]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [f64]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Mul]    [mul];
 
-    [&Tensor]    [bool]       [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [i8]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [i16]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [i32]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [i64]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [u8]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [u16]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [u32]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [u64]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [f32]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [f64]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Rem]    [rem]         ["%"];
+    [&Tensor]    [bool]       [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [i8]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [i16]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [i32]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [i64]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [u8]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [u16]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [u32]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [u64]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [f32]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [f64]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Rem]    [rem];
 )]
 impl<T, const CUDA_DEVICE: usize> trait_name<rhs_type<T, Cuda, CUDA_DEVICE>> for lhs_type
 where
@@ -459,110 +458,110 @@ where
 
 // define add, sub, mul, rem for &scalar and Tensor
 #[duplicate::duplicate_item(
-    rhs_type     lhs_type       lhs_type_ident   out_type      trait_name     method_name   op_string;
-    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Add]    [add]         ["+"];
+    rhs_type     lhs_type       lhs_type_ident   out_type      trait_name     method_name;
+    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Add]    [add];
+    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Add]    [add];
 
-    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Sub]    [sub]         ["-"];
+    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Sub]    [sub];
+    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Sub]    [sub];
 
-    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Mul]    [mul]         ["*"];
+    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Mul]    [mul];
+    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Mul]    [mul];
 
-    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Rem]    [rem]         ["%"];
+    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Rem]    [rem];
+    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Rem]    [rem];
 
-    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Add]    [add]         ["+"];
-    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Add]    [add]         ["+"];
+    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Add]    [add];
+    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Add]    [add];
 
-    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Sub]    [sub]         ["-"];
-    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Sub]    [sub]         ["-"];
+    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Sub]    [sub];
+    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Sub]    [sub];
 
-    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Mul]    [mul]         ["*"];
-    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Mul]    [mul]         ["*"];
+    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Mul]    [mul];
+    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Mul]    [mul];
 
-    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Rem]    [rem]         ["%"];
-    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Rem]    [rem]         ["%"];
+    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Rem]    [rem];
+    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Rem]    [rem];
 )]
 impl<'a, T, const CUDA_DEVICE: usize> trait_name<rhs_type<T, Cuda, CUDA_DEVICE>> for lhs_type
 where
@@ -582,19 +581,19 @@ where
 
 // define bitwise for _Tensor
 #[duplicate::duplicate_item(
-    lhs_type      rhs_type   out_type         trait_name       method_name   op_string;
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::BitOr]     [bitor]         ["|"];
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::BitXor]    [bitxor]        ["^"];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::BitOr]     [bitor]         ["|"];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::BitXor]    [bitxor]        ["^"];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::BitOr]     [bitor]         ["|"];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::BitXor]    [bitxor]        ["^"];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitOr]     [bitor]         ["|"];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitXor]    [bitxor]        ["^"];
+    lhs_type      rhs_type   out_type         trait_name       method_name         op;
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::BitAnd]    [bitand]        [_bitand];
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::BitOr]     [bitor]         [_bitor];
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::BitXor]    [bitxor]        [_bitxor];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::BitAnd]    [bitand]        [_bitand];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::BitOr]     [bitor]         [_bitor];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::BitXor]    [bitxor]        [_bitxor];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::BitAnd]    [bitand]        [_bitand];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::BitOr]     [bitor]         [_bitor];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::BitXor]    [bitxor]        [_bitxor];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitAnd]    [bitand]        [_bitand];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitOr]     [bitor]         [_bitor];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitXor]    [bitxor]        [_bitxor];
 )]
 impl<T, U, const CUDA_DEVICE: usize> trait_name<rhs_type<U, Cuda, CUDA_DEVICE>>
     for lhs_type<T, Cuda, CUDA_DEVICE>
@@ -603,6 +602,7 @@ where
     U: CommonBounds + DeviceRepr,
     <T as BitWiseOut<U>>::Output: CommonBounds + DeviceRepr,
     <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    Scalar<T>: BitWiseOut<Scalar<U>, Output = Scalar<<T as BitWiseOut<U>>::Output>>,
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -610,7 +610,7 @@ where
         binary_fn_with_out_simd(
             &self,
             &rhs,
-            |out, x, y| unimplemented!(),
+            |out, x, y| out.assign(x.op(y)),
             None::<out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>>,
         )
         .unwrap()
@@ -619,19 +619,19 @@ where
 
 // define add, sub, mul, rem for Tensor
 #[duplicate::duplicate_item(
-    lhs_type      rhs_type   out_type        trait_name   method_name   op_string;
-    [Tensor]    [Tensor]   [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [Tensor]   [Tensor]    [std::ops::BitOr]     [bitor]         ["|"];
-    [Tensor]    [Tensor]   [Tensor]    [std::ops::BitXor]    [bitxor]        ["^"];
-    [&Tensor]   [Tensor]   [Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [&Tensor]   [Tensor]   [Tensor]    [std::ops::BitOr]     [bitor]         ["|"];
-    [&Tensor]   [Tensor]   [Tensor]    [std::ops::BitXor]    [bitxor]        ["^"];
-    [&Tensor]   [&Tensor]  [Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [&Tensor]   [&Tensor]  [Tensor]    [std::ops::BitOr]     [bitor]         ["|"];
-    [&Tensor]   [&Tensor]  [Tensor]    [std::ops::BitXor]    [bitxor]        ["^"];
-    [Tensor]    [&Tensor]  [Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [Tensor]    [&Tensor]  [Tensor]    [std::ops::BitOr]     [bitor]         ["|"];
-    [Tensor]    [&Tensor]  [Tensor]    [std::ops::BitXor]    [bitxor]        ["^"];
+    lhs_type      rhs_type   out_type        trait_name     method_name;
+    [Tensor]    [Tensor]   [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [Tensor]   [Tensor]    [std::ops::BitOr]     [bitor];
+    [Tensor]    [Tensor]   [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]   [Tensor]   [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]   [Tensor]   [Tensor]    [std::ops::BitOr]     [bitor];
+    [&Tensor]   [Tensor]   [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]   [&Tensor]  [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]   [&Tensor]  [Tensor]    [std::ops::BitOr]     [bitor];
+    [&Tensor]   [&Tensor]  [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&Tensor]  [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&Tensor]  [Tensor]    [std::ops::BitOr]     [bitor];
+    [Tensor]    [&Tensor]  [Tensor]    [std::ops::BitXor]    [bitxor];
 )]
 impl<T, U, const CUDA_DEVICE: usize> trait_name<rhs_type<U, Cuda, CUDA_DEVICE>>
     for lhs_type<T, Cuda, CUDA_DEVICE>
@@ -640,6 +640,7 @@ where
     U: CommonBounds + DeviceRepr,
     <T as BitWiseOut<U>>::Output: CommonBounds + DeviceRepr,
     <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    Scalar<T>: BitWiseOut<Scalar<U>, Output = Scalar<<T as BitWiseOut<U>>::Output>>,
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -650,90 +651,91 @@ where
 
 // define add, sub, mul, rem for Tensor and scalar
 #[duplicate::duplicate_item(
-    lhs_type      rhs_type     out_type      trait_name     method_name   op_string;
-    [Tensor]    [bool]       [Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [Tensor]    [i8]         [Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [Tensor]    [i16]        [Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [Tensor]    [i32]        [Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [Tensor]    [i64]        [Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [Tensor]    [u8]         [Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [Tensor]    [u16]        [Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [Tensor]    [u32]        [Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [Tensor]    [u64]        [Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [Tensor]    [f32]        [Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [Tensor]    [f64]        [Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
-    [Tensor]    [half::f16]  [Tensor]    [std::ops::BitAnd]    [bitand]        ["&"];
+    lhs_type      rhs_type     out_type      trait_name     method_name;
+    [Tensor]    [bool]       [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [i8]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [i16]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [i32]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [i64]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [u8]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [u16]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [u32]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [u64]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [f32]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [f64]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [half::f16]  [Tensor]    [std::ops::BitAnd]    [bitand];
 
-    [Tensor]    [bool]       [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [i8]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [i16]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [i32]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [i64]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [u8]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [u16]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [u32]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [u64]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [f32]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [f64]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [half::f16]  [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
+    [Tensor]    [bool]       [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [i8]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [i16]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [i32]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [i64]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [u8]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [u16]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [u32]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [u64]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [f32]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [f64]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [half::f16]  [Tensor]    [std::ops::BitOr]    [bitor];
 
-    [Tensor]    [bool]       [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [i8]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [i16]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [i32]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [i64]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [u8]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [u16]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [u32]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [u64]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [f32]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [f64]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [half::f16]  [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
+    [Tensor]    [bool]       [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [i8]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [i16]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [i32]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [i64]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [u8]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [u16]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [u32]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [u64]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [f32]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [f64]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [half::f16]  [Tensor]    [std::ops::BitXor]    [bitxor];
 
-    [&Tensor]    [bool]       [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [i8]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [i16]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [i32]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [i64]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [u8]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [u16]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [u32]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [u64]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [f32]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [f64]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [half::f16]  [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
+    [&Tensor]    [bool]       [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [i8]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [i16]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [i32]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [i64]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [u8]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [u16]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [u32]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [u64]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [f32]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [f64]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [half::f16]  [Tensor]    [std::ops::BitAnd]    [bitand];
 
-    [&Tensor]    [bool]       [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [i8]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [i16]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [i32]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [i64]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [u8]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [u16]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [u32]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [u64]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [f32]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [f64]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [half::f16]  [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
+    [&Tensor]    [bool]       [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [i8]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [i16]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [i32]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [i64]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [u8]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [u16]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [u32]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [u64]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [f32]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [f64]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [half::f16]  [Tensor]    [std::ops::BitOr]    [bitor];
 
-    [&Tensor]    [bool]       [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [i8]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [i16]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [i32]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [i64]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [u8]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [u16]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [u32]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [u64]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [f32]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [f64]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [half::f16]  [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
+    [&Tensor]    [bool]       [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [i8]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [i16]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [i32]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [i64]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [u8]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [u16]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [u32]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [u64]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [f32]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [f64]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [half::f16]  [Tensor]    [std::ops::BitXor]    [bitxor];
 )]
 impl<T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE>
 where
     T: CommonBounds + BitWiseOut<rhs_type> + DeviceRepr,
     <T as BitWiseOut<rhs_type>>::Output: CommonBounds + DeviceRepr,
     <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
+    Scalar<T>: BitWiseOut<Scalar<rhs_type>, Output = Scalar<<T as BitWiseOut<rhs_type>>::Output>>,
 {
     type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -745,84 +747,84 @@ where
 
 // define bitwise for Tensor and &scalar
 #[duplicate::duplicate_item(
-    lhs_type     rhs_type       rhs_type_ident   out_type      trait_name     method_name   op_string;
-    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
+    lhs_type     rhs_type       rhs_type_ident   out_type      trait_name        method_name;
+    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitAnd]    [bitand];
 
-    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
+    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitOr]     [bitor];
+    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitOr]     [bitor];
+    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitOr]     [bitor];
+    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitOr]     [bitor];
+    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitOr]     [bitor];
+    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitOr]     [bitor];
+    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitOr]     [bitor];
+    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitOr]     [bitor];
+    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitOr]     [bitor];
+    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitOr]     [bitor];
+    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitOr]     [bitor];
+    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitOr]     [bitor];
 
-    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
+    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitXor]    [bitxor];
 
-    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
+    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitAnd]    [bitand];
 
-    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
+    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitXor]    [bitxor];
 
-    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
+    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitOr]    [bitor];
 )]
 impl<'a, T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE>
 where
@@ -830,6 +832,7 @@ where
     <T as BitWiseOut<rhs_type_ident>>::Output: CommonBounds + DeviceRepr,
     <T as BitWiseOut<rhs_type_ident>>::Output:
         IntoScalar<<T as BitWiseOut<rhs_type_ident>>::Output>,
+    Scalar<T>: BitWiseOut<Scalar<rhs_type_ident>, Output = Scalar<<T as BitWiseOut<rhs_type_ident>>::Output>>,
 {
     type Output = out_type<<T as BitWiseOut<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -841,84 +844,84 @@ where
 
 // define bitwise for scalar and Tensor
 #[duplicate::duplicate_item(
-    rhs_type   lhs_type     out_type      trait_name     method_name   op_string;
-    [Tensor]    [bool]       [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [i8]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [i16]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [i32]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [i64]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [u8]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [u16]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [u32]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [u64]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [f32]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [f64]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [half::f16]  [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
+    rhs_type   lhs_type     out_type      trait_name         method_name;
+    [Tensor]    [bool]       [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [i8]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [i16]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [i32]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [i64]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [u8]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [u16]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [u32]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [u64]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [f32]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [f64]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [half::f16]  [Tensor]    [std::ops::BitAnd]    [bitand];
 
-    [Tensor]    [bool]       [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [i8]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [i16]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [i32]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [i64]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [u8]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [u16]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [u32]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [u64]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [f32]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [f64]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [half::f16]  [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
+    [Tensor]    [bool]       [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [i8]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [i16]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [i32]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [i64]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [u8]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [u16]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [u32]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [u64]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [f32]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [f64]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [half::f16]  [Tensor]    [std::ops::BitXor]    [bitxor];
 
-    [Tensor]    [bool]       [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [i8]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [i16]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [i32]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [i64]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [u8]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [u16]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [u32]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [u64]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [f32]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [f64]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [half::f16]  [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
+    [Tensor]    [bool]       [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [i8]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [i16]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [i32]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [i64]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [u8]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [u16]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [u32]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [u64]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [f32]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [f64]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [half::f16]  [Tensor]    [std::ops::BitOr]    [bitor];
 
-    [&Tensor]    [bool]       [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [i8]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [i16]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [i32]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [i64]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [u8]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [u16]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [u32]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [u64]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [f32]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [f64]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [half::f16]  [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
+    [&Tensor]    [bool]       [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [i8]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [i16]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [i32]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [i64]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [u8]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [u16]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [u32]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [u64]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [f32]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [f64]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [half::f16]  [Tensor]    [std::ops::BitAnd]    [bitand];
 
-    [&Tensor]    [bool]       [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [i8]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [i16]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [i32]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [i64]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [u8]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [u16]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [u32]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [u64]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [f32]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [f64]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [half::f16]  [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
+    [&Tensor]    [bool]       [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [i8]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [i16]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [i32]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [i64]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [u8]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [u16]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [u32]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [u64]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [f32]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [f64]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [half::f16]  [Tensor]    [std::ops::BitXor]    [bitxor];
 
-    [&Tensor]    [bool]       [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [i8]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [i16]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [i32]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [i64]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [u8]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [u16]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [u32]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [u64]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [f32]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [f64]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [half::f16]  [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
+    [&Tensor]    [bool]       [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [i8]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [i16]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [i32]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [i64]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [u8]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [u16]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [u32]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [u64]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [f32]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [f64]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [half::f16]  [Tensor]    [std::ops::BitOr]    [bitor];
 )]
 impl<T, const CUDA_DEVICE: usize> trait_name<rhs_type<T, Cuda, CUDA_DEVICE>> for lhs_type
 where
@@ -926,6 +929,7 @@ where
     lhs_type: CommonBounds + BitWiseOut<T> + DeviceRepr,
     <lhs_type as BitWiseOut<T>>::Output: CommonBounds + DeviceRepr,
     <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
+    Scalar<lhs_type>: BitWiseOut<Scalar<T>, Output = Scalar<<lhs_type as BitWiseOut<T>>::Output>>,
 {
     type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -937,84 +941,84 @@ where
 
 // define bitwise for &scalar and Tensor
 #[duplicate::duplicate_item(
-    rhs_type     lhs_type       lhs_type_ident   out_type      trait_name     method_name   op_string;
-    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
+    rhs_type     lhs_type       lhs_type_ident   out_type      trait_name        method_name;
+    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitAnd]    [bitand];
 
-    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
+    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitXor]    [bitxor];
 
-    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
+    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitOr]    [bitor];
 
-    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
-    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitOr]    [bitor]         ["|"];
+    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitOr]    [bitor];
+    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitOr]    [bitor];
 
-    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
-    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitAnd]    [bitand]         ["&"];
+    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitAnd]    [bitand];
+    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitAnd]    [bitand];
 
-    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
-    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitXor]    [bitxor]         ["^"];
+    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitXor]    [bitxor];
+    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitXor]    [bitxor];
 )]
 impl<'a, T, const CUDA_DEVICE: usize> trait_name<rhs_type<T, Cuda, CUDA_DEVICE>> for lhs_type
 where
@@ -1023,6 +1027,7 @@ where
     <lhs_type_ident as BitWiseOut<T>>::Output: CommonBounds + DeviceRepr,
     <lhs_type_ident as BitWiseOut<T>>::Output:
         IntoScalar<<lhs_type_ident as BitWiseOut<T>>::Output>,
+    Scalar<lhs_type_ident>: BitWiseOut<Scalar<T>, Output = Scalar<<lhs_type_ident as BitWiseOut<T>>::Output>>,
 {
     type Output = out_type<<lhs_type_ident as BitWiseOut<T>>::Output, Cuda, CUDA_DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]

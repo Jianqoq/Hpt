@@ -783,6 +783,22 @@ pub trait FloatUaryOps {
     /// - [`mish`]: Computes the element-wise Mish of the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn mish_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput>;
+
+    /// Computes the element-wise cube root of the tensor.
+    ///
+    /// This function returns a new tensor where each element is the cube root of the corresponding element in the original tensor.
+    ///
+    /// # Returns
+    ///
+    /// * A new tensor where each element is the cube root of the corresponding element in the original tensor.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn cbrt(&self) -> Result<Self::Output>;
+
+    /// cbrt method with output tensor, this method will write the result to the output tensor
+    /// # See Also
+    /// - [`cbrt`]: Computes the element-wise cube root of the tensor.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn cbrt_<U>(&self, out: U) -> Result<Self::Output> where U: Borrow<Self::InplaceOutput>;
 }
 
 /// A trait for unary operations, the output must be the same type as the input.

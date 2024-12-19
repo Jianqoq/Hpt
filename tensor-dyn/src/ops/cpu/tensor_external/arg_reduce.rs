@@ -4,7 +4,7 @@ use tensor_types::type_promote::{ Cmp, NormalOut };
 
 use crate::tensor::Tensor;
 
-impl<T: CommonBounds + NormalOut<Output = T> + Cmp> IndexReduce for Tensor<T> {
+impl<T: CommonBounds + NormalOut<Output = T> + Cmp<T, Output = bool>> IndexReduce for Tensor<T> {
     type Output = Tensor<i64>;
 
     fn argmax<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {

@@ -1077,4 +1077,15 @@ where
     {
         Ok(_Tensor::mish_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
+    
+    fn cbrt(&self) -> Result<Self::Output> {
+        Ok(_Tensor::cbrt(self.inner.as_ref())?.into())
+    }
+    
+    fn cbrt_<U>(&self, out: U) -> Result<Self::Output>
+    where
+        U: Borrow<Self::InplaceOutput>,
+    {
+        Ok(_Tensor::cbrt_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+    }
 }

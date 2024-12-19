@@ -411,14 +411,14 @@ register_reduction_one_axis!(
     T => [i64],
     argmax,
     argmax_kernel,
-    where T: CommonBounds + NormalOut<T, Output = T> + Cmp
+    where T: CommonBounds + NormalOut<T, Output = T> + Cmp<T, Output = bool>
 );
 
 register_reduction_one_axis!(
     T => [i64],
     argmin,
     argmin_kernel,
-    where T: CommonBounds + NormalOut<T, Output = T> + Cmp
+    where T: CommonBounds + NormalOut<T, Output = T> + Cmp<T, Output = bool>
 );
 
 #[cfg_attr(feature = "track_caller", track_caller)]

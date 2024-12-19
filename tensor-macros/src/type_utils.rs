@@ -380,6 +380,9 @@ impl Type {
             Type::Bool | Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Usize
         )
     }
+    pub fn is_int(&self) -> bool {
+        matches!(self, Type::I8 | Type::I16 | Type::I32 | Type::I64 | Type::Isize)
+    }
     pub fn is_bool(&self) -> bool {
         matches!(self, Type::Bool)
     }
