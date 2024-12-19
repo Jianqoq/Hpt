@@ -1,10 +1,11 @@
 use crate::ops::cuda::binary_normal::*;
-use crate::ops::cuda::cuda_utils::cast_operand;
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use crate::Tensor;
 use cudarc::driver::DeviceRepr;
 use tensor_traits::tensor::CommonBounds;
+use tensor_types::dtype::Dtype;
+use tensor_types::dtype::TypeCommon;
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::BitWiseOut;
 use tensor_types::type_promote::FloatOutBinary;
@@ -44,14 +45,7 @@ where
         binary_fn_with_out_simd(
             &self,
             &rhs,
-            |out, x, y| {
-                format!(
-                    "{out} = {} {} {}",
-                    cast_operand::<<T as NormalOut<U>>::Output, T>(x),
-                    op_string,
-                    cast_operand::<<T as NormalOut<U>>::Output, U>(y),
-                )
-            },
+            |out, x, y| unimplemented!(),
             None::<out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE>>,
         )
         .unwrap()
@@ -609,14 +603,7 @@ where
         binary_fn_with_out_simd(
             &self,
             &rhs,
-            |out, x, y| {
-                format!(
-                    "{out} = {} {} {}",
-                    cast_operand::<<T as BitWiseOut<U>>::Output, T>(x),
-                    op_string,
-                    cast_operand::<<T as BitWiseOut<U>>::Output, U>(y),
-                )
-            },
+            |out, x, y| unimplemented!(),
             None::<out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>>,
         )
         .unwrap()
@@ -1060,14 +1047,7 @@ where
         binary_fn_with_out_simd(
             &self,
             &rhs,
-            |out, x, y| {
-                format!(
-                    "{out} = {} {} {}",
-                    cast_operand::<<T as FloatOutBinary<U>>::Output, T>(x),
-                    op_string,
-                    cast_operand::<<T as FloatOutBinary<U>>::Output, U>(y),
-                )
-            },
+            |out, x, y| unimplemented!(),
             None::<out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE>>,
         )
         .unwrap()

@@ -12,7 +12,7 @@ use cudarc::{
     types::CudaTypeName,
 };
 use tensor_common::axis::{process_axes, Axis};
-use tensor_cudakernels::{RegisterInfo, ARGMAX};
+use tensor_cudakernels::{RegisterInfo, ARGMAX, ARGMIN};
 use tensor_traits::{CommonBounds, IndexReduce, ShapeManipulate, TensorInfo};
 use tensor_types::{
     convertion::Convertor,
@@ -24,7 +24,6 @@ use tensor_types::{
 pub(crate) fn contiguous_reduce<T, const DEVICE_ID: usize>(
     a: &_Tensor<T, Cuda, DEVICE_ID>,
     axes: &[usize],
-    init_val: i64,
     keepdims: bool,
     init_out: bool,
     meta: &phf::Map<
@@ -356,12 +355,17 @@ impl<
 
     fn argmax<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        contiguous_reduce(self, &axes, 0, keep_dims, false, &ARGMAX, "argmax", None)
+        if axes.len() != 1 {
+            return Err(anyhow::anyhow!("argmax only support one axis"));
+        }
+        contiguous_reduce(self, &axes, keep_dims, false, &ARGMAX, "argmax", None)
     }
 
     fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        // argmin(self, axes, 0, keep_dims, None);
-        unimplemented!()
+        if axes.len() != 1 {
+            return Err(anyhow::anyhow!("argmin only support one axis"));
+        }
+        contiguous_reduce(self, &axes, keep_dims, false, &ARGMIN, "argmin", None)
     }
 }

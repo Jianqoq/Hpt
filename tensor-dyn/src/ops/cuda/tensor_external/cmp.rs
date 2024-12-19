@@ -2,7 +2,6 @@
 
 use std::borrow::Borrow;
 
-use crate::ops::cuda::cuda_utils::cast_operand;
 use crate::{ops::cuda::binary_normal::binary_fn_with_out_simd, Cuda};
 use crate::{tensor::Tensor, tensor_base::_Tensor, BoolVector};
 use anyhow::Result;
@@ -42,12 +41,7 @@ where
             self.inner.as_ref(),
             rhs.borrow().inner.as_ref(),
             |out, x, y| {
-                format!(
-                    "{out} = {} {} {}",
-                    cast_operand::<bool, T>(x),
-                    "!=",
-                    cast_operand::<bool, C>(y),
-                )
+                unimplemented!()
             },
             None::<_Tensor<bool, Cuda, DEVICE_ID>>,
         )?;
@@ -74,12 +68,7 @@ where
             self.inner.as_ref(),
             rhs.borrow().inner.as_ref(),
             |out, x, y| {
-                format!(
-                    "{out} = {} {} {}",
-                    cast_operand::<bool, T>(x),
-                    "==",
-                    cast_operand::<bool, C>(y),
-                )
+                unimplemented!()
             },
             None::<_Tensor<bool, Cuda, DEVICE_ID>>,
         )?;
@@ -106,12 +95,7 @@ where
             self.inner.as_ref(),
             rhs.borrow().inner.as_ref(),
             |out, x, y| {
-                format!(
-                    "{out} = {} {} {}",
-                    cast_operand::<bool, T>(x),
-                    "<",
-                    cast_operand::<bool, C>(y),
-                )
+                unimplemented!()
             },
             None::<_Tensor<bool, Cuda, DEVICE_ID>>,
         )?;
@@ -138,12 +122,7 @@ where
             self.inner.as_ref(),
             rhs.borrow().inner.as_ref(),
             |out, x, y| {
-                format!(
-                    "{out} = {} {} {}",
-                    cast_operand::<bool, T>(x),
-                    ">",
-                    cast_operand::<bool, C>(y),
-                )
+                unimplemented!()
             },
             None::<_Tensor<bool, Cuda, DEVICE_ID>>,
         )?;
@@ -170,12 +149,7 @@ where
             self.inner.as_ref(),
             rhs.borrow().inner.as_ref(),
             |out, x, y| {
-                format!(
-                    "{out} = {} {} {}",
-                    cast_operand::<bool, T>(x),
-                    "<=",
-                    cast_operand::<bool, C>(y),
-                )
+                unimplemented!()
             },
             None::<_Tensor<bool, Cuda, DEVICE_ID>>,
         )?;
@@ -202,12 +176,7 @@ where
             self.inner.as_ref(),
             rhs.borrow().inner.as_ref(),
             |out, x, y| {
-                format!(
-                    "{out} = {} {} {}",
-                    cast_operand::<bool, T>(x),
-                    ">=",
-                    cast_operand::<bool, C>(y),
-                )
+                unimplemented!()
             },
             None::<_Tensor<bool, Cuda, DEVICE_ID>>,
         )?;

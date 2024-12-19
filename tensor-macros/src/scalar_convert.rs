@@ -1,8 +1,8 @@
-use proc_macro::TokenStream;
-use crate::type_utils::TypeInfo;
-use quote::quote;
-use proc_macro2::Ident;
 use crate::type_utils::Type;
+use crate::type_utils::TypeInfo;
+use proc_macro::TokenStream;
+use proc_macro2::Ident;
+use quote::quote;
 
 pub fn __impl_scalar_convert() -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
@@ -257,13 +257,11 @@ pub fn __impl_scalar_convert() -> TokenStream {
             };
             funcs.extend(func_gen);
         }
-        ret.extend(
-            quote! {
+        ret.extend(quote! {
             impl Convertor for #lhs_ty {
                 #funcs
             }
-        }
-        );
+        });
     }
 
     ret.into()

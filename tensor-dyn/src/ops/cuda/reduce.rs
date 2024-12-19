@@ -377,7 +377,7 @@ where
             let mut inp = tmp_res;
             let reduce_kernel = a
                 .device()
-                .get_func(&module_name, "contiguous_reduce22")
+                .get_func(&module_name, &format!("contiguous_reduce22_{}", T::ID))
                 .unwrap();
             while reduce_size > 512 {
                 cfg = compute_kernel_launch_config(a.device(), &reg_info, reduce_size);

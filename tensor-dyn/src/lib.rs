@@ -170,6 +170,12 @@ pub mod ops {
             pub(crate) mod shape_manipulate;
             /// a module contains cuda tensor arg reduce impls
             pub(crate) mod arg_reduce;
+            /// a module contains cuda tensor normal out unary impls
+            pub(crate) mod normal_out_unary;
+            /// a module contains cuda tensor float out unary impls
+            pub(crate) mod float_out_unary;
+            /// a module contains cuda tensor windows impls
+            pub(crate) mod windows;
         }
         pub mod tensor_external {
             /// a module contains cuda tensor common reduce impls
@@ -186,6 +192,14 @@ pub mod ops {
             pub(crate) mod cmp;
             /// a module contains cuda tensor arg reduce impls
             pub(crate) mod arg_reduce;
+            /// a module contains cuda tensor slice impls
+            pub(crate) mod slice;
+            /// a module contains cuda tensor normal out unary impls
+            pub(crate) mod normal_out_unary;
+            /// a module contains cuda tensor float out unary impls
+            pub(crate) mod float_out_unary;
+            /// a module contains cuda tensor windows impls
+            pub(crate) mod windows;
         }
         /// a module contains cuda binary normal impls
         pub(crate) mod binary_normal;
@@ -195,8 +209,6 @@ pub mod ops {
         pub(crate) mod cuda_slice;
         /// a module contains cuda utils
         pub(crate) mod cuda_utils;
-        /// a module contains cuda kernel constants
-        pub(crate) mod kernel_constants;
         /// a module contains cuda matmul impls
         pub(crate) mod matmul;
         /// a module contains cuda reduce impls
@@ -207,6 +219,8 @@ pub mod ops {
         pub(crate) mod reduce_utils;
         /// a module contains cuda std ops impls
         pub(crate) mod std_ops;
+        /// a module contains cuda normal out unary impls
+        pub(crate) mod unary;
     }
 }
 

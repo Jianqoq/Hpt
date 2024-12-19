@@ -110,12 +110,11 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         usize: IntoScalar<T>,
         U: Convertor + IntoScalar<T> + Copy,
     {
-        let start: T = start.into_scalar();
-        let end: T = end.into_scalar();
         let size = end.to_i64() - start.to_i64();
         if size <= 0 {
             return _Tensor::<T, Cuda, DEVICE_ID>::empty(Arc::new(vec![0]));
         }
+        let start: T = start.into_scalar();
         let ret = Self::empty(Arc::new(vec![size]))?;
         let (arange_kernel, _) = load_ptx_and_get_data(
             "creation",
@@ -179,9 +178,10 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         Ok(ret)
     }
 
-    fn linspace(start: T, end: T, num: usize, include_end: bool) -> Result<Self>
+    fn linspace<U>(start: U, end: U, num: usize, include_end: bool) -> Result<Self>
     where
-        T: Convertor + num::Float,
+        T: Convertor,
+        U: Convertor + IntoScalar<T> + Copy,
         usize: IntoScalar<T>,
         f64: IntoScalar<T>,
     {
@@ -194,6 +194,8 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
             (_end - _start) / n
         };
         let step_t: T = step.into_scalar();
+        let start_t: T = start.into_scalar();
+        let end_t: T = end.into_scalar();
         let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(Arc::new(vec![num as i64]))?;
 
         let (linspace_kernel, reg_info) = load_ptx_and_get_data(
@@ -205,7 +207,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         )?;
         let cfg = compute_kernel_launch_config(ret.device(), &reg_info, ret.size());
         unsafe {
-            linspace_kernel.launch(cfg, (ret.cuda_slice(), start, step_t, num))?;
+            linspace_kernel.launch(cfg, (ret.cuda_slice(), start_t, step_t, end_t, include_end, num))?;
         }
         Ok(ret)
     }

@@ -73,9 +73,10 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::eye(n, m, k)?.into())
     }
 
-    fn linspace(start: T, end: T, num: usize, include_end: bool) -> Result<Self>
+    fn linspace<U>(start: U, end: U, num: usize, include_end: bool) -> Result<Self>
     where
-        T: Convertor + num::Float,
+        T: Convertor,
+        U: Convertor + IntoScalar<T> + Copy,
         usize: IntoScalar<T>,
         f64: IntoScalar<T>,
     {

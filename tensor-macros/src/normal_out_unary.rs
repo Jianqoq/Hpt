@@ -62,6 +62,65 @@ pub(crate) fn __impl_normal_out_unary() -> TokenStream {
     ret.into()
 }
 
+pub(crate) fn __impl_normal_out_unary_cuda() -> TokenStream {
+    let mut ret = proc_macro2::TokenStream::new();
+
+    let types = [
+        "bool",
+        "f16",
+        "f32",
+        "f64",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "u8",
+        "u16",
+        "u32",
+        "u64",
+        "bf16",
+        "isize",
+        "usize",
+        "Complex32",
+        "Complex64",
+    ];
+
+    for lhs in types.iter() {
+        let lhs_type = TypeInfo::new(lhs);
+        let lhs_dtype = lhs_type.dtype;
+        let neg_method = neg(lhs_dtype);
+        let abs_method = abs(lhs_dtype);
+        let ceil_method = ceil_floor_round(lhs_dtype, 1);
+        let floor_method = ceil_floor_round(lhs_dtype, 2);
+        let sign_method = sign(lhs_dtype);
+        let round_method = ceil_floor_round(lhs_dtype, 0);
+        let relu_method = relu();
+        let relu6_method = relu6();
+        let leaky_relu_method = leaky_relu();
+        let res = quote! {
+            impl NormalOutUnary for #lhs_dtype {
+                type Base = Self;
+                #[inline(always)]
+                fn _square(self) -> Self {
+                    self._mul(self)
+                }
+                #neg_method
+                #abs_method
+                #ceil_method
+                #floor_method
+                #sign_method
+                #round_method
+                #relu_method
+                #relu6_method
+                #leaky_relu_method
+            }
+        };
+        ret.extend(res);
+    }
+
+    ret.into()
+}
+
 fn neg(lhs_dtype: Type) -> proc_macro2::TokenStream {
     let neg_body = if lhs_dtype.is_float() {
         quote! {

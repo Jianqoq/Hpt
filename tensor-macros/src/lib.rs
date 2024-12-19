@@ -376,6 +376,12 @@ pub fn impl_normal_out_unary(_: TokenStream) -> TokenStream {
 
 /// gemerate normal out unary trait
 #[proc_macro]
+pub fn impl_normal_out_unary_cuda(_: TokenStream) -> TokenStream {
+    normal_out_unary::__impl_normal_out_unary_cuda()
+}
+
+/// gemerate normal out unary trait
+#[proc_macro]
 pub fn impl_normal_out_unary_simd(_: TokenStream) -> TokenStream {
     simd_normal_unary::impl_simd_normal_out_unary()
 }

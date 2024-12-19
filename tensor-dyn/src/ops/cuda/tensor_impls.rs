@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::ops::cuda::cuda_utils::{
-    cast_operand, compile_kernel, get_array_str, get_include_1, get_module_name_1,
+    compile_kernel, get_array_str, get_include_1, get_module_name_1,
 };
 use crate::{tensor_base::_Tensor, Cuda, Tensor};
 use crate::{Backend, ALIGN};
@@ -11,8 +11,10 @@ use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_traits::TensorCreator;
 use tensor_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
 use tensor_types::convertion::Convertor;
+use tensor_types::into_scalar::IntoScalar;
 
 use super::cuda_utils::compute_kernel_launch_config;
+use super::unary::uary_fn_with_out_simd;
 
 impl<T, const DEVICE_ID: usize> TensorLike<T> for _Tensor<T, Cuda, DEVICE_ID>
 where
@@ -53,7 +55,7 @@ where
                                 offset += amount % shape[j] * strides[j];
                                 amount /= shape[j];
                             }}
-                            out[idx] = {};
+                            out[idx] = inp[offset];
                             idx += stride;
                         }}
                     }}",
@@ -63,7 +65,6 @@ where
                 T::CUDA_TYPE,
                 self.size(),
                 self.ndim(),
-                cast_operand::<T, T>("inp[offset]"),
             ),
             self.device(),
             &["contiguous"],
@@ -177,8 +178,6 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorAlloc
 // impl<T: CommonBounds> TensorIterator<'_, T> for _Tensor<T, Cuda> {}
 
 impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
-    pub fn memset(&mut self, value: T) {}
-
     // /// copy the data from the other tensor to this tensor
     // pub fn assign(&mut self, other: &_Tensor<T>) {
     //     self.par_iter_mut_simd()
@@ -188,24 +187,21 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVI
     //         });
     // }
 
-    // /// cast the tensor to the new type
-    // pub fn astype<U>(&self) -> anyhow::Result<_Tensor<U, Cuda>>
-    // where
-    //     U: CommonBounds,
-    //     T: IntoScalar<U>,
-    // {
-    //     // Create an empty tensor of the new type with the same shape.
-    //     let mut ret: _Tensor<U, Cuda> = _Tensor::<U, Cuda>::empty(self.layout.shape().clone())?;
-
-    //     // Parallel iteration to convert and copy each element to the new tensor.
-    //     ret.as_raw_mut()
-    //         .par_iter_mut()
-    //         .zip(self.as_raw().par_iter())
-    //         .for_each(|(a, &b)| {
-    //             *a = b.into_scalar();
-    //         });
-    //     Ok(ret)
-    // }
+    /// cast the tensor to the new type
+    pub fn astype<U>(&self) -> anyhow::Result<_Tensor<U, Cuda, DEVICE_ID>>
+    where
+        U: CommonBounds + DeviceRepr,
+        T: IntoScalar<U>,
+    {
+        let mut ret: _Tensor<U, Cuda, DEVICE_ID> =
+            _Tensor::<U, Cuda, DEVICE_ID>::empty(self.layout.shape().clone())?;
+        uary_fn_with_out_simd(
+            &ret,
+            &get_module_name_1("astype", &ret),
+            |out, idx| unimplemented!(),
+            None::<_Tensor<U, Cuda, DEVICE_ID>>,
+        )
+    }
 
     // /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
     // pub fn try_astype<U>(&self) -> anyhow::Result<_Tensor<U, Cuda>>
@@ -319,9 +315,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> Tensor<T, Cuda, DEVIC
     pub fn device(&self) -> Arc<CudaDevice> {
         self.inner.as_ref().device()
     }
-    pub(crate) fn device_cap(&self) -> usize {
-        self.inner.as_ref().device_cap()
-    }
+
     // /// copy the data from the other tensor to this tensor
     // pub fn assign(&mut self, other: &Tensor<T, Cuda>) {
     //     let mut mut_self = self.inner.as_ref().clone();

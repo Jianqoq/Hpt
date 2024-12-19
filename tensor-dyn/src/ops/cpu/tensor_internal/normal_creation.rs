@@ -146,9 +146,10 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
-    fn linspace(start: T, end: T, num: usize, include_end: bool) -> Result<Self>
+    fn linspace<U>(start: U, end: U, num: usize, include_end: bool) -> Result<Self>
     where
-        T: Convertor + num::Float,
+        T: Convertor,
+        U: Convertor + IntoScalar<T> + Copy,
         usize: IntoScalar<T>,
         f64: IntoScalar<T>,
     {
@@ -161,12 +162,18 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             (_end - _start) / n
         };
         let step_t: T = step.into_scalar();
+        let start_t: T = start.into_scalar();
+        let end_t: T = end.into_scalar();
         let mut data = _Tensor::<T, Cpu>::empty(Arc::new(vec![n as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
             .for_each(|(i, x)| {
-                *x = start._add(i.into_scalar()._mul(step_t));
+                if include_end && i == num - 1 {
+                    *x = end_t;
+                } else {
+                    *x = start_t._add(i.into_scalar()._mul(step_t));
+                }
             });
         Ok(data)
     }

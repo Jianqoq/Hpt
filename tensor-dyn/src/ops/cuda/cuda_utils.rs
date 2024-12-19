@@ -19,6 +19,7 @@ pub(crate) fn compile_kernel(
     if let Ok(mut cache) = CUDA_COMPILED.lock() {
         if let Some(set) = cache.get_mut(&device.ordinal()) {
             if let Some(reg_info) = set.get(module) {
+                println!("hit cache");
                 Ok(reg_info.clone())
             } else {
                 let cuda_path = std::env::var("CUDA_PATH").unwrap();
@@ -190,17 +191,6 @@ pub(crate) fn compute_kernel_launch_config(
             1,
         ),
         shared_mem_bytes: 0,
-    }
-}
-
-/// cast operand to the type of the destination
-pub fn cast_operand<Dst: TypeCommon, Src: TypeCommon>(operend: &str) -> String {
-    if Dst::CUDA_TYPE == "half" {
-        format!("__half2float({operend})")
-    } else if Src::CUDA_TYPE == "half" {
-        format!("({})__half2float({operend})", Dst::CUDA_TYPE)
-    } else {
-        format!("({}){operend}", Dst::CUDA_TYPE)
     }
 }
 

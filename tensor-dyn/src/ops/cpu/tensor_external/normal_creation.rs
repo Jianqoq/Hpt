@@ -338,9 +338,10 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// use tensor_dyn::TensorCreator;
     /// let a = Tensor::<f64>::linspace(0.0, 5.0, 5, true).unwrap();
     /// ```
-    fn linspace(start: T, end: T, num: usize, include_end: bool) -> Result<Self>
+    fn linspace<U>(start: U, end: U, num: usize, include_end: bool) -> Result<Self>
     where
-        T: Convertor + num::Float + NormalOut<T, Output = T>,
+        T: Convertor + NormalOut<T, Output = T>,
+        U: Convertor + IntoScalar<T> + Copy,
         usize: IntoScalar<T>,
         f64: IntoScalar<T>,
     {

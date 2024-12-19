@@ -343,9 +343,10 @@ where
     ///
     /// * This function will panic if `num` is zero or if `num` is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn linspace(start: T, end: T, num: usize, include_end: bool) -> anyhow::Result<Output>
+    fn linspace<U>(start: U, end: U, num: usize, include_end: bool) -> anyhow::Result<Output>
     where
-        T: Convertor + num::Float + NormalOut<T, Output = T>,
+        T: Convertor,
+        U: Convertor + IntoScalar<T> + Copy,
         usize: IntoScalar<T>,
         f64: IntoScalar<T>;
 
