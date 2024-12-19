@@ -1,4 +1,5 @@
 #include <cuda_fp16.h>
+#include <cuda_bf16.h>
 
 #define MAKE_VEC4(vec_type, vec_size, value) make_##vec_type##vec_size(value, value, value, value)
 #define MAKE_VEC3(vec_type, vec_size, value) make_##vec_type##vec_size(value, value, value)
@@ -28,10 +29,22 @@
         }                                                                             \
     }
 
-extern "C" __global__ void fill_f16(half *out, half value, size_t N)
+DEFINE_KERNEL(fill_f32, float, float, 4);
+DEFINE_KERNEL(fill_f64, double, double, 4);
+
+DEFINE_KERNEL(fill_i8, char, char, 4);
+DEFINE_KERNEL(fill_i16, short, short, 4);
+DEFINE_KERNEL(fill_i32, int, int, 4);
+DEFINE_KERNEL(fill_i64, longlong, long long, 4);
+DEFINE_KERNEL(fill_u8, uchar, unsigned char, 4);
+DEFINE_KERNEL(fill_u16, ushort, unsigned short, 4);
+DEFINE_KERNEL(fill_u32, uint, unsigned int, 4);
+DEFINE_KERNEL(fill_u64, ulonglong, unsigned long long, 4);
+DEFINE_KERNEL(fill_f16, half, half, 2);
+extern "C" __global__ void fill_bf16(__nv_bfloat16 *out, __nv_bfloat16 value, size_t N)
 {
-    __half2 *out_vec = (__half2 *)out;
-    __half2 value_vec = make_half2(value, value);
+    __nv_bfloat162 *out_vec = (__nv_bfloat162 *)out;
+    __nv_bfloat162 value_vec = make_bfloat162(value, value);
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     size_t stride = blockDim.x * gridDim.x;
     size_t N_vec = N / 2;
@@ -47,17 +60,6 @@ extern "C" __global__ void fill_f16(half *out, half value, size_t N)
         }
     }
 };
-DEFINE_KERNEL(fill_f32, float, float, 4);
-DEFINE_KERNEL(fill_f64, double, double, 4);
-
-DEFINE_KERNEL(fill_i8, char, char, 4);
-DEFINE_KERNEL(fill_i16, short, short, 4);
-DEFINE_KERNEL(fill_i32, int, int, 4);
-DEFINE_KERNEL(fill_i64, longlong, long long, 4);
-DEFINE_KERNEL(fill_u8, uchar, unsigned char, 4);
-DEFINE_KERNEL(fill_u16, ushort, unsigned short, 4);
-DEFINE_KERNEL(fill_u32, uint, unsigned int, 4);
-DEFINE_KERNEL(fill_u64, ulonglong, unsigned long long, 4);
 
 #define DEFINE_GEOMSPACE_KERNEL(func_name, vec_type, type, vec_size, ten)                                               \
     extern "C" __global__ void func_name(type *out, type start, type step, bool neg, size_t n)                          \
@@ -114,15 +116,54 @@ extern "C" __global__ void geomspace_f16(half *out, half base, half start, half 
     for (size_t i = idx; i < n / 2; i += stride)
     {
         __half2 value;
-        value.x = neg ? -pow(10.0f, __half2float(start) + __half2float(step) * (i * 2 + 0)) : pow(10.0f, __half2float(start) + __half2float(step) * (i * 2 + 0));
-        value.y = neg ? -pow(10.0f, __half2float(start) + __half2float(step) * (i * 2 + 1)) : pow(10.0f, __half2float(start) + __half2float(step) * (i * 2 + 1));
-        ((__half2 *)out)[i] = value;
+#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
+        value.x = neg ? -powf(10.0f, start + step * __ull2half_rn((i * 2 + 0))) : powf(10.0f, start + step * __ull2half_rn((i * 2 + 0)));
+        value.y = neg ? -powf(10.0f, start + step * __ull2half_rn((i * 2 + 1))) : powf(10.0f, start + step * __ull2half_rn((i * 2 + 1)));
+#else
+        value.x = neg ? -powf(10.0f, start + step * __uint2half_rn((i * 2 + 0))) : powf(10.0f, start + step * __uint2half_rn((i * 2 + 0)));
+        value.y = neg ? -powf(10.0f, start + step * __uint2half_rn((i * 2 + 1))) : powf(10.0f, start + step * __uint2half_rn((i * 2 + 1)));
+#endif
+        ((half2 *)out)[i] = value;
     }
     if (idx == 0)
     {
         for (size_t i = (n / 2) * 2; i < n; i++)
         {
-            float exponent = __half2float(start) + __half2float(step) * i;
+#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
+            float exponent = __ull2float_rn(start + step * __ull2half_rn(i));
+#else
+            float exponent = __uint2float_rn(start + step * __uint2half_rn(i));
+#endif
+            out[i] = neg ? -pow(10.0f, exponent) : pow(10.0f, exponent);
+        }
+    }
+};
+
+extern "C" __global__ void geomspace_bf16(__nv_bfloat16 *out, __nv_bfloat16 base, __nv_bfloat16 start, __nv_bfloat16 step, bool neg, size_t n)
+{
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t stride = blockDim.x * gridDim.x;
+    for (size_t i = idx; i < n / 2; i += stride)
+    {
+        __nv_bfloat162 value;
+#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
+        value.x = neg ? -powf(10.0f, start + step * __ull2bfloat16_rn((i * 2 + 0))) : powf(10.0f, start + step * __ull2bfloat16_rn((i * 2 + 0)));
+        value.y = neg ? -powf(10.0f, start + step * __ull2bfloat16_rn((i * 2 + 1))) : powf(10.0f, start + step * __ull2bfloat16_rn((i * 2 + 1)));
+#else
+        value.x = neg ? -powf(10.0f, start + step * __uint2bfloat16_rn((i * 2 + 0))) : powf(10.0f, start + step * __uint2bfloat16_rn((i * 2 + 0)));
+        value.y = neg ? -powf(10.0f, start + step * __uint2bfloat16_rn((i * 2 + 1))) : powf(10.0f, start + step * __uint2bfloat16_rn((i * 2 + 1)));
+#endif
+        ((__nv_bfloat162 *)out)[i] = value;
+    }
+    if (idx == 0)
+    {
+        for (size_t i = (n / 2) * 2; i < n; i++)
+        {
+#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
+            float exponent = __ull2float_rn(start + step * __ull2bfloat16_rn(i));
+#else
+            float exponent = __uint2float_rn(start + step * __uint2bfloat16_rn(i));
+#endif
             out[i] = neg ? -pow(10.0f, exponent) : pow(10.0f, exponent);
         }
     }
@@ -191,14 +232,17 @@ extern "C" __global__ void linspace_f16(half *out, half start, half step, half e
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     size_t stride = blockDim.x * gridDim.x;
-    float start_f = __half2float(start);
-    float step_f = __half2float(step);
     for (size_t i = idx; i < n / 2; i += stride)
     {
         half2 value;
         size_t base = i * 2;
-        value.x = __float2half(start_f + step_f * (i * 2 + 0));
-        value.y = __float2half(start_f + step_f * (i * 2 + 1));
+#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
+        value.x = start + step * __ull2half_rn((base + 0));
+        value.y = start + step * __ull2half_rn((base + 1));
+#else
+        value.x = start + step * __uint2half_rn((base + 0));
+        value.y = start + step * __uint2half_rn((base + 1));
+#endif
         if (include_end)
         {
             if (base + 1 >= n - 1)
@@ -213,7 +257,7 @@ extern "C" __global__ void linspace_f16(half *out, half start, half step, half e
     }
     if (idx == 0)
     {
-        for (size_t i = (n / 2) * 2; i < n; i++)
+        for (long long i = (n / 2) * 2; i < n; i++)
         {
             if (include_end && i == n - 1)
             {
@@ -221,40 +265,54 @@ extern "C" __global__ void linspace_f16(half *out, half start, half step, half e
             }
             else
             {
-                out[i] = __float2half(start_f + step_f * i);
+                out[i] = start + step * __ll2half_rn(i);
             }
         }
     }
 };
-
-extern "C" __global__ void linspace_bool(bool *out, bool start, bool step, bool end, bool include_end, size_t n)
+extern "C" __global__ void linspace_bf16(__nv_bfloat16 *out, __nv_bfloat16 start, __nv_bfloat16 step, __nv_bfloat16 end, bool include_end, size_t n)
 {
-
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     size_t stride = blockDim.x * gridDim.x;
-    for (size_t i = idx; i < n; i += stride)
+    for (size_t i = idx; i < n / 2; i += stride)
     {
-        if (n == 1)
+        __nv_bfloat162 value;
+        size_t base = i * 2;
+#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
+        value.x = start + step * __ull2bfloat16_rn((base + 0));
+        value.y = start + step * __ull2bfloat16_rn((base + 1));
+#else
+        value.x = start + step * __uint2bfloat16_rn((base + 0));
+        value.y = start + step * __uint2bfloat16_rn((base + 1));
+#endif
+        if (include_end)
         {
-            out[i] = start;
-        }
-        else if (start == end)
-        {
-            out[i] = start;
-        }
-        else
-        {
-            if (include_end)
+            if (base + 1 >= n - 1)
             {
-                out[i] = (i < n - 1) ? start : end;
+                if (base + 1 == n - 1)
+                    value.y = end;
+                if (base == n - 1)
+                    value.x = end;
+            }
+        }
+        ((__nv_bfloat162 *)out)[i] = value;
+    }
+    if (idx == 0)
+    {
+        for (long long i = (n / 2) * 2; i < n; i++)
+        {
+            if (include_end && i == n - 1)
+            {
+                out[i] = end;
             }
             else
             {
-                out[i] = (i < n / 2) ? start : end;
+                out[i] = start + step * __ll2bfloat16_rn(i);
             }
         }
     }
 };
+
 DEFINE_LINSPACE_KERNEL(linspace_f32, float, float, 4);
 DEFINE_LINSPACE_KERNEL(linspace_f64, double, double, 4);
 
@@ -305,6 +363,7 @@ DEFINE_LINSPACE_KERNEL(linspace_u64, ulonglong, unsigned long long, 4);
 
 DEFINE_TRIU_KERNEL(triu_bool, bool, true, false);
 DEFINE_TRIU_KERNEL(triu_f16, half, __float2half(1.0f), __float2half(0.0f));
+DEFINE_TRIU_KERNEL(triu_bf16, __nv_bfloat16, __float2bfloat16(1.0f), __float2bfloat16(0.0f));
 DEFINE_TRIU_KERNEL(triu_f32, float, 1.0f, 0.0f);
 DEFINE_TRIU_KERNEL(triu_f64, double, 1.0, 0.0);
 
@@ -353,19 +412,54 @@ extern "C" __global__ void arange_f16(half *out, half start, half step, size_t N
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     size_t stride = blockDim.x * gridDim.x;
     size_t N_vec = N / 2;
-    float start_f = __half2float(start);
-    float step_f = __half2float(step);
     for (size_t i = idx; i < N_vec; i += stride)
     {
-        float base = start_f + (i * 2) * step_f;
-        half2 value_vec = make_half2(base, base + step_f);
+#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
+        half base = start + step * __ull2half_rn((i * 2));
+#else
+        half base = start + step * __uint2half_rn((i * 2));
+#endif
+        half2 value_vec = make_half2(base, base + step);
         out_vec[i] = value_vec;
     }
     if (idx == 0)
     {
         for (size_t i = N_vec * 2; i < N; i++)
         {
-            out[i] = start_f + i * step_f;
+#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
+            out[i] = start + __ull2half_rn(i) * step;
+#else
+            out[i] = start + __uint2half_rn(i) * step;
+#endif
+        }
+    }
+};
+
+extern "C" __global__ void arange_bf16(__nv_bfloat16 *out, __nv_bfloat16 start, __nv_bfloat16 step, size_t N)
+{
+    __nv_bfloat162 *out_vec = (__nv_bfloat162 *)out;
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t stride = blockDim.x * gridDim.x;
+    size_t N_vec = N / 2;
+    for (size_t i = idx; i < N_vec; i += stride)
+    {
+#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
+        __nv_bfloat16 base = start + step * __ull2bfloat16_rn((i * 2));
+#else
+        __nv_bfloat16 base = start + step * __uint2bfloat16_rn((i * 2));
+#endif
+        __nv_bfloat162 value_vec = make_bfloat162(base, base + step);
+        out_vec[i] = value_vec;
+    }
+    if (idx == 0)
+    {
+        for (size_t i = N_vec * 2; i < N; i++)
+        {
+#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
+            out[i] = start + __ull2bfloat16_rn(i) * step;
+#else
+            out[i] = start + __uint2bfloat16_rn(i) * step;
+#endif
         }
     }
 };

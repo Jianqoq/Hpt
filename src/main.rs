@@ -7,7 +7,6 @@ fn main() -> anyhow::Result<()> {
     let res = a.erf()?;
     println!("{:?}", now.elapsed());
     println!("{}", res);
-
-
+    
     Ok(())
 }

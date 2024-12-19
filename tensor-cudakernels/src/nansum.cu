@@ -1,4 +1,5 @@
 #include <cuda_fp16.h>
+#include <cuda_bf16.h>
 #include <math.h>
 
 #define WRAP 32
@@ -17,7 +18,8 @@
 #define add_u32(a, b) (a) + (b)
 #define add_u64(a, b) (a) + (b)
 
-#define add_f16(a, b) __float2half(add_f32(__half2float(a), __half2float(b)))
+#define add_f16(a, b) __hadd((a), (b))
+#define add_bf16(a, b) __hadd((a), (b))
 
 #define DEFINE_REDUCE_KERNEL(rust_type, type)                                                                                                                                 \
     __device__ __forceinline__ void warpReduce_##rust_type(volatile type *sdata_##rust_type, unsigned int tid)                                                                \
@@ -251,3 +253,4 @@ DEFINE_REDUCE_KERNEL(u64, unsigned long long)
 DEFINE_REDUCE_KERNEL(f32, float)
 DEFINE_REDUCE_KERNEL(f64, double)
 DEFINE_REDUCE_KERNEL(f16, __half)
+DEFINE_REDUCE_KERNEL(bf16, __nv_bfloat16)

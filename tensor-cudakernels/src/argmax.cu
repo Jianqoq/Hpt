@@ -1,4 +1,5 @@
 #include <cuda_fp16.h>
+#include <cuda_bf16.h>
 #include <limits.h>
 
 #define WRAP 32
@@ -16,6 +17,7 @@
 #define U32_MIN 0
 #define U64_MIN 0
 #define F16_MIN __half((unsigned short)0xFC00U)
+#define BF16_MIN __nv_bfloat16((unsigned short)0xFF80)
 
 #define max_bool(a, b) ((bool)max(((unsigned char)a), ((unsigned char)b)))
 #define max_i8(a, b) max((a), (b))
@@ -29,104 +31,52 @@
 #define max_u16(a, b) max((a), (b))
 #define max_u32(a, b) max((a), (b))
 #define max_u64(a, b) max((a), (b))
-#define max_f16(a, b) __float2half(max(__half2float((a)), __half2float((b))))
+#define max_f16(a, b) __hmax((a), (b))
+#define max_bf16(a, b) __hmax((a), (b))
 
-#define atomicMax_bool(a, b)                           \
-    acquire_lock(&global_lock);                        \
-    (a) = max(((unsigned char)a), ((unsigned char)b)); \
-    release_lock(&global_lock);
-
-#define atomicMax_i8(a, b)      \
-    acquire_lock(&global_lock); \
-    (a) = max((a), (b));        \
-    release_lock(&global_lock);
-
-#define atomicMax_u8(a, b)      \
-    acquire_lock(&global_lock); \
-    (a) = max((a), (b));        \
-    release_lock(&global_lock);
-
-#define atomicMax_i16(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) = max((a), (b));        \
-    release_lock(&global_lock);
-
-#define atomicMax_u16(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) = max((a), (b));        \
-    release_lock(&global_lock);
-
-#define atomicMax_i64(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) = max((a), (b));        \
-    release_lock(&global_lock);
-
-#define atomicMax_u64(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) = max((a), (b));        \
-    release_lock(&global_lock);
-
-#define atomicMax_i32(a, b) atomicMax(&a, b)
-#define atomicMax_u32(a, b) atomicMax(&a, b)
-
-#define atomicMax_f32(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) = max((a), (b));        \
-    release_lock(&global_lock);
-
-#define atomicMax_f64(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) = max((a), (b));        \
-    release_lock(&global_lock);
-
-#define atomicMax_f16(a, b)     \
-    acquire_lock(&global_lock); \
-    (a) = max_f16(a, b);        \
-    release_lock(&global_lock);
-
-__device__ int global_lock = 0;
-
-__device__ void acquire_lock(int *lock)
-{
-    while (atomicCAS(lock, 0, 1) != 0)
-    {
-    }
-}
-
-__device__ void release_lock(int *lock)
-{
-    atomicExch(lock, 0);
-}
+#define eq_bool(a, b) ((a) == (b))
+#define eq_i8(a, b) ((a) == (b))
+#define eq_i16(a, b) ((a) == (b))
+#define eq_i32(a, b) ((a) == (b))
+#define eq_i64(a, b) ((a) == (b))
+#define eq_u8(a, b) ((a) == (b))
+#define eq_u16(a, b) ((a) == (b))
+#define eq_u32(a, b) ((a) == (b))
+#define eq_u64(a, b) ((a) == (b))
+#define eq_f32(a, b) ((a) == (b))
+#define eq_f64(a, b) ((a) == (b))
+#define eq_f16(a, b) (__heq((a), (b)))
+#define eq_bf16(a, b) (__heq((a), (b)))
 
 #define DEFINE_REDUCE_KERNEL(rust_type, type, INIT_VAL)                                                                                                                                           \
     __device__ __forceinline__ void warpReduce_##rust_type(volatile type *sdata_##rust_type, volatile long long *sdata_##rust_type_idx, unsigned int tid)                                         \
     {                                                                                                                                                                                             \
-        if (max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 32]) == sdata_##rust_type[tid + 32])                                                                                  \
+        if (eq_##rust_type(max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 32]), sdata_##rust_type[tid + 32]))                                                                    \
         {                                                                                                                                                                                         \
             sdata_##rust_type_idx[tid] = sdata_##rust_type_idx[tid + 32];                                                                                                                         \
             sdata_##rust_type[tid] = sdata_##rust_type[tid + 32];                                                                                                                                 \
         }                                                                                                                                                                                         \
-        if (max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 16]) == sdata_##rust_type[tid + 16])                                                                                  \
+        if (eq_##rust_type(max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 16]), sdata_##rust_type[tid + 16]))                                                                    \
         {                                                                                                                                                                                         \
             sdata_##rust_type_idx[tid] = sdata_##rust_type_idx[tid + 16];                                                                                                                         \
             sdata_##rust_type[tid] = sdata_##rust_type[tid + 16];                                                                                                                                 \
         }                                                                                                                                                                                         \
-        if (max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 8]) == sdata_##rust_type[tid + 8])                                                                                    \
+        if (eq_##rust_type(max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 8]), sdata_##rust_type[tid + 8]))                                                                      \
         {                                                                                                                                                                                         \
             sdata_##rust_type_idx[tid] = sdata_##rust_type_idx[tid + 8];                                                                                                                          \
             sdata_##rust_type[tid] = sdata_##rust_type[tid + 8];                                                                                                                                  \
         }                                                                                                                                                                                         \
-        if (max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 4]) == sdata_##rust_type[tid + 4])                                                                                    \
+        if (eq_##rust_type(max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 4]), sdata_##rust_type[tid + 4]))                                                                      \
         {                                                                                                                                                                                         \
             sdata_##rust_type_idx[tid] = sdata_##rust_type_idx[tid + 4];                                                                                                                          \
             sdata_##rust_type[tid] = sdata_##rust_type[tid + 4];                                                                                                                                  \
         }                                                                                                                                                                                         \
-        if (max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 2]) == sdata_##rust_type[tid + 2])                                                                                    \
+        if (eq_##rust_type(max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 2]), sdata_##rust_type[tid + 2]))                                                                      \
         {                                                                                                                                                                                         \
             sdata_##rust_type_idx[tid] = sdata_##rust_type_idx[tid + 2];                                                                                                                          \
             sdata_##rust_type[tid] = sdata_##rust_type[tid + 2];                                                                                                                                  \
         }                                                                                                                                                                                         \
-        if (max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 1]) == sdata_##rust_type[tid + 1])                                                                                    \
+        if (eq_##rust_type(max_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 1]), sdata_##rust_type[tid + 1]))                                                                      \
         {                                                                                                                                                                                         \
             sdata_##rust_type_idx[tid] = sdata_##rust_type_idx[tid + 1];                                                                                                                          \
             sdata_##rust_type[tid] = sdata_##rust_type[tid + 1];                                                                                                                                  \
@@ -493,385 +443,5 @@ DEFINE_REDUCE_KERNEL(u32, unsigned int, U32_MIN)
 DEFINE_REDUCE_KERNEL(u64, unsigned long long, U64_MIN)
 DEFINE_REDUCE_KERNEL(f32, float, F32_MIN)
 DEFINE_REDUCE_KERNEL(f64, double, F64_MIN)
-__device__ __forceinline void warpReduce_f16(volatile __half *sdata_f16, volatile long long *sdata_rust_type_idx, unsigned int tid)
-{
-    if (max(__half2float((sdata_f16[tid])), __half2float((sdata_f16[tid + 32]))) == __half2float(sdata_f16[tid + 32]))
-    {
-        sdata_rust_type_idx[tid] = sdata_rust_type_idx[tid + 32];
-        sdata_f16[tid] = sdata_f16[tid + 32];
-    }
-    if (max(__half2float((sdata_f16[tid])), __half2float((sdata_f16[tid + 16]))) == __half2float(sdata_f16[tid + 16]))
-    {
-        sdata_rust_type_idx[tid] = sdata_rust_type_idx[tid + 16];
-        sdata_f16[tid] = sdata_f16[tid + 16];
-    }
-    if (max(__half2float((sdata_f16[tid])), __half2float((sdata_f16[tid + 8]))) == __half2float(sdata_f16[tid + 8]))
-    {
-        sdata_rust_type_idx[tid] = sdata_rust_type_idx[tid + 8];
-        sdata_f16[tid] = sdata_f16[tid + 8];
-    }
-    if (max(__half2float((sdata_f16[tid])), __half2float((sdata_f16[tid + 4]))) == __half2float(sdata_f16[tid + 4]))
-    {
-        sdata_rust_type_idx[tid] = sdata_rust_type_idx[tid + 4];
-        sdata_f16[tid] = sdata_f16[tid + 4];
-    }
-    if (max(__half2float((sdata_f16[tid])), __half2float((sdata_f16[tid + 2]))) == __half2float(sdata_f16[tid + 2]))
-    {
-        sdata_rust_type_idx[tid] = sdata_rust_type_idx[tid + 2];
-        sdata_f16[tid] = sdata_f16[tid + 2];
-    }
-    if (max(__half2float((sdata_f16[tid])), __half2float((sdata_f16[tid + 1]))) == __half2float(sdata_f16[tid + 1]))
-    {
-        sdata_rust_type_idx[tid] = sdata_rust_type_idx[tid + 1];
-        sdata_f16[tid] = sdata_f16[tid + 1];
-    }
-}
-extern "C" __global__ void contiguous_reduce_f16(__half *out, long long *out_idx, __half *in, size_t size)
-{
-    extern __shared__ __half sdata_f16[];
-    long long *sdata_rust_type_idx = (long long *)&sdata_f16[blockDim.x];
-    unsigned int tid = threadIdx.x;
-    unsigned int i = 2 * blockIdx.x * blockDim.x + threadIdx.x;
-    sdata_rust_type_idx[tid] = i;
-    sdata_f16[tid] = __half((unsigned short)0xFC00U);
-    if (i + blockDim.x < size)
-    {
-        __half max_val = __float2half(max(__half2float((in[i])), __half2float((in[i + blockDim.x]))));
-        if (max_val == in[i + blockDim.x])
-        {
-            sdata_f16[tid] = in[i + blockDim.x];
-            sdata_rust_type_idx[tid] = i + blockDim.x;
-        }
-        else
-        {
-            sdata_f16[tid] = in[i];
-        }
-    }
-    else if (i < size)
-    {
-        sdata_f16[tid] = in[i];
-    }
-    __syncthreads();
-    for (unsigned int s = blockDim.x / 2; s > 32; s >>= 1)
-    {
-        if (tid < s)
-        {
-            __half max_val = __float2half(max(__half2float((sdata_f16[tid])), __half2float((sdata_f16[tid + s]))));
-            if (max_val == sdata_f16[tid + s])
-            {
-                sdata_f16[tid] = sdata_f16[tid + s];
-                sdata_rust_type_idx[tid] = sdata_rust_type_idx[tid + s];
-            }
-        }
-        __syncthreads();
-    }
-    if (tid < 32)
-    {
-        warpReduce_f16(sdata_f16, sdata_rust_type_idx, tid);
-    }
-    if (tid == 0)
-    {
-        out[blockIdx.x] = sdata_f16[0];
-        out_idx[blockIdx.x] = sdata_rust_type_idx[0];
-    }
-}
-extern "C" __global__ void contiguous_reduce2_f16(__half *out, long long *out_idx, __half *in, long long *inp_idx, size_t size)
-{
-    extern __shared__ __half sdata_f16[];
-    long long *sdata_rust_type_idx = (long long *)&sdata_f16[blockDim.x];
-    unsigned int tid = threadIdx.x;
-    unsigned int i = 2 * blockIdx.x * blockDim.x + threadIdx.x;
-    sdata_rust_type_idx[tid] = (-9223372036854775807i64 - 1);
-    sdata_f16[tid] = __half((unsigned short)0xFC00U);
-    if (i + blockDim.x < size)
-    {
-        __half max_val = __float2half(max(__half2float((in[i])), __half2float((in[i + blockDim.x]))));
-        if (max_val == in[i + blockDim.x])
-        {
-            sdata_f16[tid] = in[i + blockDim.x];
-            sdata_rust_type_idx[tid] = inp_idx[i + blockDim.x];
-        }
-        else
-        {
-            sdata_f16[tid] = in[i];
-            sdata_rust_type_idx[tid] = inp_idx[i];
-        }
-    }
-    else if (i < size)
-    {
-        sdata_f16[tid] = in[i];
-        sdata_rust_type_idx[tid] = inp_idx[i];
-    }
-    __syncthreads();
-    for (unsigned int s = blockDim.x / 2; s > 32; s >>= 1)
-    {
-        if (tid < s)
-        {
-            __half max_val = __float2half(max(__half2float((sdata_f16[tid])), __half2float((sdata_f16[tid + s]))));
-            if (max_val == sdata_f16[tid + s])
-            {
-                sdata_f16[tid] = sdata_f16[tid + s];
-                sdata_rust_type_idx[tid] = sdata_rust_type_idx[tid + s];
-            }
-        }
-        __syncthreads();
-    }
-    if (tid < 32)
-    {
-        warpReduce_f16(sdata_f16, sdata_rust_type_idx, tid);
-    }
-    if (tid == 0)
-    {
-        out[blockIdx.x] = sdata_f16[0];
-        out_idx[blockIdx.x] = sdata_rust_type_idx[0];
-    }
-}
-extern "C" __global__ void uncontiguous_reduce_f16(__half *out, long long *out_idx, __half *in, long long *shape, long long *strides, size_t ndim, size_t size)
-{
-    extern __shared__ __half sdata_f16[];
-    long long *sdata_rust_type_idx = (long long *)&sdata_f16[blockDim.x];
-    unsigned int tid = threadIdx.x;
-    unsigned int i = 2 * blockIdx.x * blockDim.x + threadIdx.x;
-    sdata_f16[tid] = __half((unsigned short)0xFC00U);
-    sdata_rust_type_idx[tid] = i;
-    if (i + blockDim.x < size)
-    {
-        long long a_amount = i;
-        long long b_amount = i + blockDim.x;
-        long long a_offset = 0;
-        long long b_offset = 0;
-        for (int j = ndim - 1; j >= 0; j--)
-        {
-            a_offset += (a_amount % shape[j]) * strides[j];
-            a_amount /= shape[j];
-            b_offset += (b_amount % shape[j]) * strides[j];
-            b_amount /= shape[j];
-        }
-        __half max_val = __float2half(max(__half2float((in[a_offset])), __half2float((in[b_offset]))));
-        if (max_val == in[b_offset])
-        {
-            sdata_f16[tid] = in[b_offset];
-            sdata_rust_type_idx[tid] = i + blockDim.x;
-        }
-        else
-        {
-            sdata_f16[tid] = in[a_offset];
-        }
-    }
-    else if (i < size)
-    {
-        long long a_amount = i;
-        long long a_offset = 0;
-        for (int j = ndim - 1; j >= 0; j--)
-        {
-            a_offset += (a_amount % shape[j]) * strides[j];
-            a_amount /= shape[j];
-        }
-        sdata_f16[tid] = in[a_offset];
-    }
-    __syncthreads();
-    for (unsigned int s = blockDim.x / 2; s > 32; s >>= 1)
-    {
-        __half max_val = __float2half(max(__half2float((sdata_f16[tid])), __half2float((sdata_f16[tid + s]))));
-        if (max_val == sdata_f16[tid + s])
-        {
-            sdata_f16[tid] = sdata_f16[tid + s];
-            sdata_rust_type_idx[tid] = sdata_rust_type_idx[tid + s];
-        }
-        __syncthreads();
-    }
-    if (tid < 32)
-    {
-        warpReduce_f16(sdata_f16, sdata_rust_type_idx, tid);
-    }
-    if (tid == 0)
-    {
-        out[blockIdx.x] = sdata_f16[0];
-        out_idx[blockIdx.x] = sdata_rust_type_idx[0];
-    }
-}
-extern "C" __global__ void contiguous_reduce3_f16(__half *out, long long *out_idx, __half *in, long long *shape, long long *strides, size_t ndim, size_t cols, size_t num_blocks_per_row)
-{
-    extern __shared__ __half sdata_f16[];
-    long long *sdata_rust_type_idx = (long long *)&sdata_f16[blockDim.x];
-    unsigned int tid = threadIdx.x;
-    unsigned int i = 2 * blockIdx.x * blockDim.x + threadIdx.x;
-    sdata_f16[tid] = __half((unsigned short)0xFC00U);
-    sdata_rust_type_idx[tid] = i;
-    if (i + blockDim.x < cols)
-    {
-        long long a_offset = 0;
-        long long a_amount = i + blockIdx.y * cols;
-        long long b_offset = 0;
-        long long b_amount = i + blockDim.x + blockIdx.y * cols;
-        for (int j = ndim - 1; j >= 0; j--)
-        {
-            a_offset += (a_amount % shape[j]) * strides[j];
-            a_amount /= shape[j];
-            b_offset += (b_amount % shape[j]) * strides[j];
-            b_amount /= shape[j];
-        }
-        __half max_val = __float2half(max(__half2float((in[a_offset])), __half2float((in[b_offset]))));
-        if (max_val == in[b_offset])
-        {
-            sdata_f16[tid] = in[b_offset];
-            sdata_rust_type_idx[tid] = i + blockDim.x;
-        }
-        else
-        {
-            sdata_f16[tid] = in[a_offset];
-        }
-    }
-    else if (i < cols)
-    {
-        long long a_amount = i + blockIdx.y * cols;
-        for (int j = ndim - 1; j >= 0; j--)
-        {
-            in += (a_amount % shape[j]) * strides[j];
-            a_amount /= shape[j];
-        }
-        sdata_f16[tid] = *in;
-    }
-    __syncthreads();
-    for (unsigned int s = blockDim.x / 2; s > 32; s >>= 1)
-    {
-        if (tid < s)
-        {
-            __half max_val = __float2half(max(__half2float((sdata_f16[tid])), __half2float((sdata_f16[tid + s]))));
-            if (max_val == sdata_f16[tid + s])
-            {
-                sdata_f16[tid] = sdata_f16[tid + s];
-                sdata_rust_type_idx[tid] = sdata_rust_type_idx[tid + s];
-            }
-        }
-        __syncthreads();
-    }
-    if (tid < 32)
-    {
-        warpReduce_f16(sdata_f16, sdata_rust_type_idx, tid);
-    }
-    if (tid == 0)
-    {
-        out[blockIdx.x + blockIdx.y * num_blocks_per_row] = sdata_f16[0];
-        out_idx[blockIdx.x + blockIdx.y * num_blocks_per_row] = sdata_rust_type_idx[0];
-    }
-}
-extern "C" __global__ void contiguous_reduce33_f16(__half *out, long long *out_idx, __half *in, long long *inp_idx, size_t cols, size_t num_blocks_per_row)
-{
-    extern __shared__ __half sdata_f16[];
-    long long *sdata_rust_type_idx = (long long *)&sdata_f16[blockDim.x];
-    unsigned int tid = threadIdx.x;
-    unsigned int i = 2 * blockIdx.x * blockDim.x + threadIdx.x;
-    sdata_f16[tid] = __half((unsigned short)0xFC00U);
-    sdata_rust_type_idx[tid] = (-9223372036854775807i64 - 1);
-    if (i + blockDim.x < cols)
-    {
-        __half max_val = __float2half(max(__half2float((in[i + blockIdx.y * cols])), __half2float((in[i + blockDim.x + blockIdx.y * cols]))));
-        if (max_val == in[i + blockDim.x + blockIdx.y * cols])
-        {
-            sdata_f16[tid] = in[i + blockIdx.y * cols];
-            sdata_rust_type_idx[tid] = inp_idx[i + blockIdx.y * cols];
-        }
-        else
-        {
-            sdata_f16[tid] = in[i + blockDim.x + blockIdx.y * cols];
-            sdata_rust_type_idx[tid] = inp_idx[i + blockDim.x + blockIdx.y * cols];
-        }
-    }
-    else if (i < cols)
-    {
-        sdata_f16[tid] = in[i + blockIdx.y * cols];
-        sdata_rust_type_idx[tid] = inp_idx[i + blockIdx.y * cols];
-    }
-    __syncthreads();
-    for (unsigned int s = blockDim.x / 2; s > 32; s >>= 1)
-    {
-        if (tid < s)
-        {
-            __half max_val = __float2half(max(__half2float((sdata_f16[tid])), __half2float((sdata_f16[tid + s]))));
-            if (max_val == sdata_f16[tid + s])
-            {
-                sdata_f16[tid] = sdata_f16[tid + s];
-                sdata_rust_type_idx[tid] = sdata_rust_type_idx[tid + s];
-            }
-        }
-        __syncthreads();
-    }
-    if (tid < 32)
-    {
-        warpReduce_f16(sdata_f16, sdata_rust_type_idx, tid);
-    }
-    if (tid == 0)
-    {
-        out[blockIdx.x + blockIdx.y * num_blocks_per_row] = sdata_f16[0];
-        out_idx[blockIdx.x + blockIdx.y * num_blocks_per_row] = sdata_rust_type_idx[0];
-    }
-}
-extern "C" __global__ void contiguous_reduce4_f16(__half *out, long long *out_idx, __half *in, long long *shape, long long *strides, size_t ndim, size_t cols, size_t rows)
-{
-    extern __shared__ __half sdata_f16[];
-    long long *sdata_rust_type_idx = (long long *)&sdata_f16[blockDim.x * blockDim.y];
-    unsigned int tid = threadIdx.y * blockDim.x + threadIdx.x;
-    unsigned int col_idx = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int row_idx = blockIdx.y * blockDim.y + threadIdx.y;
-    sdata_f16[tid] = __half((unsigned short)0xFC00U);
-    sdata_rust_type_idx[tid] = row_idx * cols + col_idx;
-    if (col_idx >= cols || row_idx >= rows)
-    {
-        return;
-    }
-    unsigned int idx = row_idx * cols + col_idx;
-    long long offset = 0;
-    for (int j = ndim - 1; j >= 0; j--)
-    {
-        offset += (idx % shape[j]) * strides[j];
-        idx /= shape[j];
-    }
-    sdata_f16[tid] = in[offset];
-    __syncthreads();
-    if (threadIdx.y == 0)
-    {
-        for (unsigned int s = 1; s < blockDim.y; s++)
-        {
-            __half max_val = __float2half(max(__half2float((sdata_f16[threadIdx.x])), __half2float((sdata_f16[s * blockDim.x + threadIdx.x]))));
-            if (max_val == sdata_f16[s * blockDim.x + threadIdx.x])
-            {
-                sdata_f16[threadIdx.x] = sdata_f16[s * blockDim.x + threadIdx.x];
-                sdata_rust_type_idx[threadIdx.x] = sdata_rust_type_idx[s * blockDim.x + threadIdx.x];
-            }
-        }
-        out_idx[col_idx + blockIdx.y * cols] = sdata_rust_type_idx[threadIdx.x];
-        out[col_idx + blockIdx.y * cols] = sdata_f16[threadIdx.x];
-    }
-}
-extern "C" __global__ void contiguous_reduce44_f16(__half *out, long long *out_idx, __half *in, long long *inp_idx, size_t ndim, size_t cols, size_t rows)
-{
-    extern __shared__ __half sdata_f16[];
-    long long *sdata_rust_type_idx = (long long *)&sdata_f16[blockDim.x * blockDim.y];
-    unsigned int tid = threadIdx.y * blockDim.x + threadIdx.x;
-    unsigned int col_idx = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int row_idx = blockIdx.y * blockDim.y + threadIdx.y;
-    sdata_f16[tid] = __half((unsigned short)0xFC00U);
-    if (col_idx >= cols || row_idx >= rows)
-    {
-        return;
-    }
-    unsigned int idx = row_idx * cols + col_idx;
-    sdata_f16[tid] = in[idx];
-    sdata_rust_type_idx[tid] = inp_idx[idx];
-    __syncthreads();
-    if (threadIdx.y == 0)
-    {
-        for (unsigned int s = 1; s < blockDim.y; s++)
-        {
-            __half max_val = __float2half(max(__half2float((sdata_f16[threadIdx.x])), __half2float((sdata_f16[s * blockDim.x + threadIdx.x]))));
-            if (max_val == sdata_f16[s * blockDim.x + threadIdx.x])
-            {
-                sdata_f16[threadIdx.x] = sdata_f16[s * blockDim.x + threadIdx.x];
-                sdata_rust_type_idx[threadIdx.x] = sdata_rust_type_idx[s * blockDim.x + threadIdx.x];
-            }
-        }
-        out_idx[col_idx + blockIdx.y * cols] = sdata_rust_type_idx[threadIdx.x];
-        out[col_idx + blockIdx.y * cols] = sdata_f16[threadIdx.x];
-    }
-}
+DEFINE_REDUCE_KERNEL(f16, half, F16_MIN)
+DEFINE_REDUCE_KERNEL(bf16, __nv_bfloat16, BF16_MIN)

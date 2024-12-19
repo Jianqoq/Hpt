@@ -1,4 +1,5 @@
 #include <cuda_fp16.h>
+#include <cuda_bf16.h>
 #include <limits.h>
 
 #define WRAP 32
@@ -16,6 +17,7 @@
 #define U32_MIN 0
 #define U64_MIN 0
 #define F16_MIN __half((unsigned short)0xFC00U)
+#define BF16_MIN __nv_bfloat16((unsigned short)0xFF80U)
 
 #define max_bool(a, b) ((bool)max(((unsigned char)a), ((unsigned char)b)))
 #define max_i8(a, b) max((a), (b))
@@ -30,7 +32,8 @@
 #define max_u32(a, b) max((a), (b))
 #define max_u64(a, b) max((a), (b))
 
-#define max_f16(a, b) __float2half(max(__half2float((a)), __half2float((b))))
+#define max_f16(a, b) __hmax((a), (b))
+#define max_bf16(a, b) __hmax((a), (b))
 
 #define DEFINE_REDUCE_KERNEL(rust_type, type, INIT_VAL)                                                                                                                       \
     __device__ __forceinline__ void warpReduce_##rust_type(volatile type *sdata_##rust_type, unsigned int tid)                                                                \
@@ -264,3 +267,4 @@ DEFINE_REDUCE_KERNEL(u64, unsigned long long, U64_MIN)
 DEFINE_REDUCE_KERNEL(f32, float, F32_MIN)
 DEFINE_REDUCE_KERNEL(f64, double, F64_MIN)
 DEFINE_REDUCE_KERNEL(f16, __half, F16_MIN)
+DEFINE_REDUCE_KERNEL(bf16, __nv_bfloat16, BF16_MIN)

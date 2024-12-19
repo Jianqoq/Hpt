@@ -1,22 +1,24 @@
 #include <cuda_fp16.h>
+#include <cuda_bf16.h>
 #define WRAP 32
 
-#define any_bool(a, b) ((bool)a) || ((bool)b)
-#define any_i8(a, b) ((bool)a) || ((bool)b)
-#define any_i16(a, b) ((bool)a) || ((bool)b)
-#define any_i32(a, b) ((bool)a) || ((bool)b)
-#define any_i64(a, b) ((bool)a) || ((bool)b)
-#define any_f32(a, b) ((bool)a) || ((bool)b)
-#define any_f64(a, b) ((bool)a) || ((bool)b)
+#define any_bool(a, b) (a) || (b)
+#define any_i8(a, b) (a) || (b)
+#define any_i16(a, b) (a) || (b)
+#define any_i32(a, b) (a) || (b)
+#define any_i64(a, b) (a) || (b)
+#define any_f32(a, b) (a) || (b)
+#define any_f64(a, b) (a) || (b)
 
-#define any_u8(a, b) ((bool)a) || ((bool)b)
-#define any_u16(a, b) ((bool)a) || ((bool)b)
-#define any_u32(a, b) ((bool)a) || ((bool)b)
-#define any_u64(a, b) ((bool)a) || ((bool)b)
+#define any_u8(a, b) (a) || (b)
+#define any_u16(a, b) (a) || (b)
+#define any_u32(a, b) (a) || (b)
+#define any_u64(a, b) (a) || (b)
 
-#define any_f16(a, b) ((bool)__half2float(a)) || ((bool)__half2float(b))
+#define any_f16(a, b) (a) || (b)
+#define any_bf16(a, b) (a) || (b)
 
-#define DEFINE_REDUCE_KERNEL(rust_type, type)                                                                                                          \
+#define DEFINE_REDUCE_KERNEL(rust_type, type)                                                                                                                                 \
     __device__ __forceinline__ void warpReduce_##rust_type(volatile bool *sdata_##rust_type, unsigned int tid)                                                                \
     {                                                                                                                                                                         \
         sdata_##rust_type[tid] = any_##rust_type(sdata_##rust_type[tid], sdata_##rust_type[tid + 32]);                                                                        \
@@ -248,3 +250,4 @@ DEFINE_REDUCE_KERNEL(u64, unsigned long long)
 DEFINE_REDUCE_KERNEL(f32, float)
 DEFINE_REDUCE_KERNEL(f64, double)
 DEFINE_REDUCE_KERNEL(f16, __half)
+DEFINE_REDUCE_KERNEL(bf16, __nv_bfloat16)

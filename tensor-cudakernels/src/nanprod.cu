@@ -1,4 +1,5 @@
 #include <cuda_fp16.h>
+#include <cuda_bf16.h>
 #define WRAP 32
 
 #define BOOL_ONE 1
@@ -8,7 +9,8 @@
 #define I64_ONE 1
 #define F32_ONE 1.0f
 #define F64_ONE 1.0
-#define F16_ONE __half((unsigned short)1)
+#define F16_ONE __half((unsigned short)0x3C00U)
+#define BF16_ONE __nv_bfloat16((unsigned short)0x3F80U)
 
 #define U8_ONE 1
 #define U16_ONE 1
@@ -30,8 +32,8 @@
 #define prod_u16(a, b) (a) * (b)
 #define prod_u32(a, b) (a) * (b)
 #define prod_u64(a, b) (a) * (b)
-
-#define prod_f16(a, b) __float2half(__half2float((a)) * __half2float((b)))
+#define prod_f16(a, b) __hmul((a), (b))
+#define prod_bf16(a, b) __hmul((a), (b))
 
 #define DEFINE_REDUCE_KERNEL(rust_type, type, INIT_VAL)                                                                                                                       \
     __device__ __forceinline__ void warpReduce_##rust_type(volatile type *sdata_##rust_type, unsigned int tid)                                                                \
@@ -229,7 +231,7 @@
             out[col_idx + blockIdx.y * cols] = sdata_##rust_type[threadIdx.x];                                                                                                \
         }                                                                                                                                                                     \
     }                                                                                                                                                                         \
-    extern "C" __global__ void contiguous_reduce33_##rust_type(type *out, type *in, size_t ndim, size_t cols, size_t rows)                                                     \
+    extern "C" __global__ void contiguous_reduce33_##rust_type(type *out, type *in, size_t ndim, size_t cols, size_t rows)                                                    \
     {                                                                                                                                                                         \
         extern __shared__ type sdata_##rust_type[];                                                                                                                           \
         unsigned int tid = threadIdx.y * blockDim.x + threadIdx.x;                                                                                                            \
@@ -265,3 +267,4 @@ DEFINE_REDUCE_KERNEL(u64, unsigned long long, U64_ONE)
 DEFINE_REDUCE_KERNEL(f32, float, F32_ONE)
 DEFINE_REDUCE_KERNEL(f64, double, F64_ONE)
 DEFINE_REDUCE_KERNEL(f16, __half, F16_ONE)
+DEFINE_REDUCE_KERNEL(bf16, __nv_bfloat16, BF16_ONE)

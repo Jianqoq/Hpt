@@ -221,6 +221,8 @@ pub mod ops {
         pub(crate) mod std_ops;
         /// a module contains cuda normal out unary impls
         pub(crate) mod unary;
+        /// a module contains cuda dropout impls
+        pub(crate) mod dropout;
     }
 }
 
