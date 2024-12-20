@@ -223,6 +223,8 @@ pub mod ops {
         pub(crate) mod unary;
         /// a module contains cuda dropout impls
         pub(crate) mod dropout;
+        /// a module contains cuda pad impls
+        pub(crate) mod pad;
     }
 }
 
