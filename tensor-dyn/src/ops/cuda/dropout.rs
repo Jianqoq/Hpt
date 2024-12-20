@@ -1,28 +1,82 @@
-use crate::{ backend::Cpu, tensor_base::_Tensor, Cuda, Tensor };
-use cudarc::driver::DeviceRepr;
-use rand_distr::Distribution;
-use rayon::iter::ParallelIterator;
-use tensor_iterator::{ iterator_traits::ParStridedIteratorSimdZip, TensorIterator };
-use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
-use tensor_types::{ into_scalar::IntoScalar, type_promote::NormalOut };
+use crate::ops::cuda::cuda_utils::load_ptx_and_get_data;
+use crate::CUDA_SEED;
+use crate::{tensor_base::_Tensor, Cuda, Tensor};
+use cudarc::driver::{DeviceRepr, LaunchAsync};
+use tensor_cudakernels::DROPOUT;
+use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
+use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOut};
+
+use super::cuda_utils::compute_kernel_launch_config;
 
 impl<T, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID>
-    where
-        T: CommonBounds + NormalOut<bool, Output = T> + NormalOut<T, Output = T> + DeviceRepr,
-        f64: IntoScalar<T>
+where
+    T: CommonBounds + NormalOut<bool, Output = T> + NormalOut<T, Output = T> + DeviceRepr,
+    f64: IntoScalar<T>,
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn dropout(&self, rate: f64) -> anyhow::Result<_Tensor<T, Cuda, DEVICE_ID>> {
         let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(self.shape())?;
-        let scale = (1.0 / (1.0 - rate)) as f32;
+        let scale: T = (1.0 / (1.0 - rate)).into_scalar();
+        if self.is_contiguous() {
+            let (kernel, reg_info) = load_ptx_and_get_data(
+                "dropout",
+                &format!("dropout_{}", T::ID),
+                self.device(),
+                self.device_cap(),
+                &DROPOUT,
+            )
+            .unwrap();
+            let cfg = compute_kernel_launch_config(self.device(), &reg_info, self.size());
+            unsafe {
+                kernel.clone().launch(
+                    cfg,
+                    (
+                        ret.cuda_slice(),
+                        self.cuda_slice(),
+                        rate as f32,
+                        scale,
+                        CUDA_SEED.load(std::sync::atomic::Ordering::Relaxed),
+                        self.size(),
+                    ),
+                )
+            }
+            .unwrap();
+        } else {
+            let (kernel, reg_info) = load_ptx_and_get_data(
+                "dropout",
+                &format!("dropout_uncontiguous_{}", T::ID),
+                self.device(),
+                self.device_cap(),
+                &DROPOUT,
+            )
+            .unwrap();
+            let cfg = compute_kernel_launch_config(self.device(), &reg_info, self.size());
+            unsafe {
+                kernel.clone().launch(
+                    cfg,
+                    (
+                        ret.cuda_slice(),
+                        self.cuda_slice(),
+                        rate as f32,
+                        scale,
+                        CUDA_SEED.load(std::sync::atomic::Ordering::Relaxed),
+                        &self.cuda_shape()?,
+                        &self.cuda_strides()?,
+                        self.ndim(),
+                        self.size(),
+                    ),
+                )
+            }
+            .unwrap();
+        }
         Ok(ret)
     }
 }
 
 impl<T, const DEVICE_ID: usize> Tensor<T, Cuda, DEVICE_ID>
-    where
-        T: CommonBounds + NormalOut<bool, Output = T> + NormalOut<T, Output = T> + DeviceRepr,
-        f64: IntoScalar<T>
+where
+    T: CommonBounds + NormalOut<bool, Output = T> + NormalOut<T, Output = T> + DeviceRepr,
+    f64: IntoScalar<T>,
 {
     /// Applies dropout to the tensor during training.
     ///

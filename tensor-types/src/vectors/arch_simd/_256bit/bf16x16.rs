@@ -1,7 +1,7 @@
 use crate::arch_simd::_256bit::u16x16::u16x16;
 use crate::convertion::VecConvertor;
 use crate::{ traits::VecTrait, vectors::arch_simd::_256bit::f32x8::f32x8 };
-use crate::traits::SimdCompare;
+use crate::traits::{SimdCompare, SimdSelect};
 
 use super::i16x16::i16x16;
 
@@ -141,6 +141,17 @@ impl SimdCompare for bf16x16 {
             let eq = _mm256_cmpeq_epi16(a, b);
             i16x16(_mm256_or_si256(gt, eq))
         }
+    }
+}
+
+impl SimdSelect<bf16x16> for i16x16 {
+    fn select(&self, true_val: bf16x16, false_val: bf16x16) -> bf16x16 {
+        let mut ret = bf16x16::default();
+        let arr = self.as_array();
+        for i in 0..16 {
+            ret.0[i] = if arr[i] != 0 { true_val.0[i] } else { false_val.0[i] };
+        }
+        ret
     }
 }
 

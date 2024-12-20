@@ -662,7 +662,7 @@ pub fn impl_cmp(_: TokenStream) -> TokenStream {
 
     let types = [
         "bool", "f16", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize",
-        "usize",
+        "usize", "bf16",
     ];
 
     for lhs in types.iter() {
@@ -788,7 +788,7 @@ pub fn impl_eval(_: TokenStream) -> TokenStream {
 
     let types = [
         "bool", "f16", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize",
-        "usize",
+        "usize", "bf16",
     ];
 
     for lhs in types.iter() {

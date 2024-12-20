@@ -1,11 +1,9 @@
+use crate::ops::cpu::binary_normal::binary_fn_with_out_simd;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
-use tensor_iterator::iterator_traits::ParStridedIteratorSimdZip;
-use tensor_iterator::TensorIterator;
 use tensor_traits::CommonBounds;
 use tensor_traits::NormalReduce;
 use tensor_types::{
     convertion::{Convertor, VecConvertor},
-    into_scalar::IntoScalar,
     traits::SimdSelect,
     type_promote::{Cmp, Eval, NormalOut, SimdCmp},
 };
@@ -16,7 +14,7 @@ where
     bool: NormalOut<T, Output = T>,
     T::Vec: SimdCmp,
     <T::Vec as SimdCmp>::Output: NormalOut<T::Vec, Output = T::Vec>,
-    T: Eval<Output = bool> + IntoScalar<bool>,
+    T: Eval<Output = bool>,
     T::Vec: Eval + VecConvertor,
     <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
 {
@@ -45,18 +43,16 @@ where
         let max = self.max(axis as i64, true)?;
         let ret = {
             use tensor_types::traits::VecTrait;
-            self.par_iter_simd()
-                .zip(max.par_iter_simd())
-                .strided_map_simd(
-                    |(res, (a, b))| {
-                        *res = a._eq(b)._mul(T::ONE);
-                    },
-                    |(res, (a, b))| {
-                        let one = T::Vec::splat(T::ONE);
-                        res.write_unaligned(a._eq(b)._mul(one));
-                    },
-                )
-                .collect::<_Tensor<T>>()
+            binary_fn_with_out_simd(
+                self,
+                &max,
+                |a, max| a._eq(max)._mul(T::ONE),
+                |a, max| {
+                    let one = T::Vec::splat(T::ONE);
+                    a._eq(max)._mul(one)
+                },
+                None::<_Tensor<T>>,
+            )?
         };
         Ok(ret)
     }
@@ -68,7 +64,7 @@ where
     bool: NormalOut<T, Output = T>,
     T::Vec: SimdCmp,
     <T::Vec as SimdCmp>::Output: NormalOut<T::Vec, Output = T::Vec>,
-    T: Eval<Output = bool> + IntoScalar<bool>,
+    T: Eval<Output = bool>,
     T::Vec: Eval + VecConvertor,
     <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
 {
@@ -89,6 +85,8 @@ where
     /// This function returns a `Result` containing a tensor with the hardmax applied along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn hardmax(&self, axis: i64) -> anyhow::Result<Tensor<T>> {
-        Ok(Tensor::from(_Tensor::hardmax(self.inner.as_ref(), axis)?.into()))
+        Ok(Tensor::from(
+            _Tensor::hardmax(self.inner.as_ref(), axis)?.into(),
+        ))
     }
 }

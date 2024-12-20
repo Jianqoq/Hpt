@@ -1,5 +1,5 @@
 use crate::convertion::VecConvertor;
-use crate::traits::VecTrait;
+use crate::traits::{SimdSelect, VecTrait};
 use crate::vectors::arch_simd::_256bit::f32x8::f32x8;
 use crate::vectors::arch_simd::_256bit::u16x16::u16x16;
 
@@ -157,6 +157,17 @@ impl SimdCompare for f16x16 {
         let x: i16x16 = unsafe { std::mem::transmute(self.0) };
         let y: i16x16 = unsafe { std::mem::transmute(other.0) };
         x.simd_ge(y)
+    }
+}
+
+impl SimdSelect<f16x16> for i16x16 {
+    fn select(&self, true_val: f16x16, false_val: f16x16) -> f16x16 {
+        let mut ret = f16x16::default();
+        let arr = self.as_array();
+        for i in 0..16 {
+            ret.0[i] = if arr[i] != 0 { true_val.0[i] } else { false_val.0[i] };
+        }
+        ret
     }
 }
 
