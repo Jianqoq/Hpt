@@ -53,7 +53,7 @@ pub mod ops {
         /// a module contains all the reduce computation utils
         pub mod reduce_utils;
         /// a module defines shrink operation
-        pub mod shrink;
+        pub mod shrinkage;
         /// a module defines softmax operations
         pub mod softmaxs {
             /// a module defines log_softmax
@@ -225,6 +225,8 @@ pub mod ops {
         pub(crate) mod dropout;
         /// a module contains cuda pad impls
         pub(crate) mod pad;
+        /// a module contains cuda shrinkage impls
+        pub(crate) mod shrinkage;
     }
 }
 

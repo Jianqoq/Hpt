@@ -1,18 +1,22 @@
-use std::ops::{ Add, Neg, Sub };
+use std::ops::{Add, Neg, Sub};
 
-use crate::{ tensor::Tensor, tensor_base::_Tensor };
-use tensor_iterator::TensorIterator;
+use crate::Cuda;
+use crate::{tensor::Tensor, tensor_base::_Tensor};
+use cudarc::driver::DeviceRepr;
 use tensor_traits::CommonBounds;
+use tensor_types::cuda_types::scalar::Scalar;
 use tensor_types::traits::SimdSelect;
 use tensor_types::type_promote::SimdCmp;
-use tensor_types::traits::VecTrait;
-use tensor_types::type_promote::{ NormalOut, NormalOutUnary };
+use tensor_types::type_promote::{NormalOut, NormalOutUnary};
 
-impl<T> _Tensor<T>
-    where
-        T: CommonBounds + PartialOrd + Sub<Output = T> + Neg<Output = T> + Add<Output = T>,
-        T::Vec: SimdCmp + NormalOut<Output = T::Vec>,
-        <T::Vec as SimdCmp>::Output: SimdSelect<T::Vec>
+use super::unary::uary_fn_with_out_simd;
+
+impl<T, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID>
+where
+    T: CommonBounds + PartialOrd + Sub<Output = T> + Neg<Output = T> + Add<Output = T> + DeviceRepr,
+    T::Vec: SimdCmp + NormalOut<Output = T::Vec>,
+    <T::Vec as SimdCmp>::Output: SimdSelect<T::Vec>,
+    Scalar<T>: NormalOutUnary<Base = Scalar<T>> + NormalOut<Output = Scalar<T>>,
 {
     /// Applies the shrinkage operation to the input tensor.
     ///
@@ -35,44 +39,31 @@ impl<T> _Tensor<T>
     ///
     /// This function returns a `Result` containing a new tensor with the shrinkage operation applied.
     #[allow(unused)]
-    pub fn shrink(&self, bias: T, lambda: T) -> anyhow::Result<_Tensor<T>> {
-        let lambda_vec = T::Vec::splat(lambda);
-        let neg_lambda_vec = lambda_vec._neg();
-        let bias_vec = T::Vec::splat(bias);
-
-        Ok(
-            self
-                .par_iter_simd()
-                .strided_map_simd(
-                    |(x, y)| {
-                        *x = if y > lambda {
-                            y - bias
-                        } else if y < -lambda {
-                            y + bias
-                        } else {
-                            T::ZERO
-                        };
-                    },
-                    |(mut x, y)| {
-                        let gt_mask = y._gt(lambda_vec);
-                        let lt_mask = y._lt(neg_lambda_vec);
-                        let sub_bias = y._sub(bias_vec);
-                        let add_bias = y._add(bias_vec);
-                        let zero = T::Vec::splat(T::ZERO);
-                        let res = gt_mask.select(sub_bias, zero);
-                        x.write_unaligned(lt_mask.select(add_bias, res));
-                    }
-                )
-                .collect()
+    pub fn shrinkage(&self, bias: T, lambda: T) -> anyhow::Result<_Tensor<T, Cuda, DEVICE_ID>> {
+        uary_fn_with_out_simd(
+            self,
+            "shrinkage",
+            |out, x| {
+                let sign = x.clone()._sign();
+                let abs = x._abs();
+                let zero = Scalar::<T>::new_from_val(T::ZERO);
+                let lambda = Scalar::<T>::new_from_val(lambda);
+                let bias = Scalar::<T>::new_from_val(bias);
+                let res = sign._mul(abs._sub(lambda)._max(zero))._add(bias);
+                println!("{}", res.val());
+                out.assign(res)
+            },
+            None::<_Tensor<T, Cuda, DEVICE_ID>>,
         )
     }
 }
 
-impl<T> Tensor<T>
-    where
-        T: CommonBounds + PartialOrd + Sub<Output = T> + Neg<Output = T> + Add<Output = T>,
-        T::Vec: SimdCmp + NormalOut<Output = T::Vec>,
-        <T::Vec as SimdCmp>::Output: SimdSelect<T::Vec>
+impl<T, const DEVICE_ID: usize> Tensor<T, Cuda, DEVICE_ID>
+where
+    T: CommonBounds + PartialOrd + Sub<Output = T> + Neg<Output = T> + Add<Output = T> + DeviceRepr,
+    T::Vec: SimdCmp + NormalOut<Output = T::Vec>,
+    <T::Vec as SimdCmp>::Output: SimdSelect<T::Vec>,
+    Scalar<T>: NormalOutUnary<Base = Scalar<T>> + NormalOut<Output = Scalar<T>>,
 {
     /// Applies the shrinkage operation to the input tensor.
     ///
@@ -94,7 +85,7 @@ impl<T> Tensor<T>
     /// # Returns
     ///
     /// This function returns a `Result` containing a new tensor with the shrinkage operation applied.
-    pub fn shrink(&self, bias: T, lambda: T) -> anyhow::Result<Tensor<T>> {
-        Ok(_Tensor::shrink(self.inner.as_ref(), bias, lambda)?.into())
+    pub fn shrinkage(&self, bias: T, lambda: T) -> anyhow::Result<Tensor<T, Cuda, DEVICE_ID>> {
+        Ok(_Tensor::<T, Cuda, DEVICE_ID>::shrinkage(self.inner.as_ref(), bias, lambda)?.into())
     }
 }
