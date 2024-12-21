@@ -206,7 +206,7 @@ where
     } else {
         (a.clone(), axes.to_vec())
     };
-    let (transposed_tensor, result) = reduce_prepare(&a, &axes, c)?;
+    let (transposed_tensor, result) = reduce_prepare(&a, &axes, init_val, init_out, c)?;
 
     let a_last_stride = if keep_fast_dim {
         transposed_tensor.strides()[a.ndim() - axes.len() - 1]
@@ -230,11 +230,7 @@ where
             );
         } else {
             let inner_loop_size_2 = a.size() / result.size();
-            kd(
-                inner_loop_size_2,
-                &result,
-                &transposed_tensor,
-            );
+            kd(inner_loop_size_2, &result, &transposed_tensor);
         }
     }
     result.reshape(a.layout.reduce(axes, keepdims)?.shape())

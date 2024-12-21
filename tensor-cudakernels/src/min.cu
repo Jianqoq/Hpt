@@ -8,8 +8,8 @@
 #define I16_MAX SHRT_MAX
 #define I32_MAX INT_MAX
 #define I64_MAX LLONG_MAX
-#define F32_MAX 1.0f / 0.0f
-#define F64_MAX 1.0 / 0.0
+#define F32_MAX INFINITY
+#define F64_MAX INFINITY
 
 #define U8_MAX UCHAR_MAX
 #define U16_MAX USHRT_MAX

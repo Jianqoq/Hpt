@@ -67,8 +67,13 @@ where
         rhs.layout.shape(),
         rhs.layout.strides()
     );
-    let include = if K::CUDA_TYPE == "half" || A::CUDA_TYPE == "half" || B::CUDA_TYPE == "half" {
+    let half_include = if K::CUDA_TYPE == "half" || A::CUDA_TYPE == "half" || B::CUDA_TYPE == "half" {
         "#include <cuda_fp16.h>"
+    } else {
+        ""
+    };
+    let bfloat16_include = if K::CUDA_TYPE == "bfloat16" || A::CUDA_TYPE == "bfloat16" || B::CUDA_TYPE == "bfloat16" {
+        "#include <cuda_bf16.h>"
     } else {
         ""
     };
@@ -83,7 +88,8 @@ where
                 &module_name,
                 &format!(
                     "
-                    {include}
+                    {half_include}
+                    {bfloat16_include}
                     extern \"C\" __global__ void lhs_scalar_rhs_contiguous({} *out, {} lhs, {} *rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -125,7 +131,8 @@ where
                 &module_name,
                 &format!(
                     "
-                    {include}
+                    {half_include}
+                    {bfloat16_include}
                     __constant__ long long shape[] = {{{}}};
                     __constant__ long long strides[] = {{{}}};
                     extern \"C\" __global__ void lhs_scalar_rhs_contiguous({} *out, {} lhs, {} *rhs)
@@ -182,7 +189,8 @@ where
                 &module_name,
                 &format!(
                     "
-                    {include}
+                    {half_include}
+                    {bfloat16_include}
                     extern \"C\" __global__ void rhs_scalar_lhs_contiguous({} *out, {} *lhs, {} rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -224,7 +232,8 @@ where
                 &module_name,
                 &format!(
                     "
-                    {include}
+                    {half_include}
+                    {bfloat16_include}
                     __constant__ long long shape[] = {{{}}};
                     __constant__ long long strides[] = {{{}}};
                     extern \"C\" __global__ void rhs_scalar_lhs_contiguous({} *out, {} *lhs, {} rhs)
@@ -280,7 +289,8 @@ where
                 &module_name,
                 &format!(
                     "
-                    {include}
+                    {half_include}
+                    {bfloat16_include}
                     extern \"C\" __global__ void lhs_scalar_rhs_contiguous({} *out, {} *lhs, {} *rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -333,7 +343,8 @@ where
                 &module_name,
                 &format!(
                     "
-                    {include}
+                    {half_include}
+                    {bfloat16_include}
                     __constant__ long long lhs_shape[] = {{{}}};
                     __constant__ long long lhs_strides[] = {{{}}};
                     __constant__ long long rhs_shape[] = {{{}}};

@@ -56,12 +56,12 @@ where
             let cublas = cudarc::cublas::CudaBlas::new(res.device())?;
             let config = GemmConfig {
                 transa: cublasOperation_t::CUBLAS_OP_N,
-                transb: cublasOperation_t::CUBLAS_OP_T,
+                transb: cublasOperation_t::CUBLAS_OP_N,
                 m: lhs.shape()[0] as i32,
                 n: rhs.shape()[1] as i32,
-                k: rhs.shape()[0] as i32,
+                k: lhs.shape()[1] as i32,
                 alpha: T::ONE,
-                lda: lhs.shape()[1] as i32,
+                lda: lhs.shape()[0] as i32,
                 ldb: rhs.shape()[1] as i32,
                 beta: T::ZERO,
                 ldc: res.shape()[1] as i32,

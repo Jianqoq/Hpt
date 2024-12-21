@@ -2,12 +2,12 @@ use crate::ops::cuda::cuda_utils::{compile_kernel, compute_kernel_launch_config,
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use cudarc::driver::{DeviceRepr, LaunchAsync};
-use tensor_types::cuda_types::scalar::Scalar;
 use std::borrow::Borrow;
 use std::panic::Location;
 use tensor_common::err_handler::ErrHandler::InvalidOutSize;
 use tensor_traits::tensor::CommonBounds;
 use tensor_traits::{TensorCreator, TensorInfo};
+use tensor_types::cuda_types::scalar::Scalar;
 
 pub(crate) fn uary_fn_with_out_simd<A, O, K, F, const DEVICE_ID: usize>(
     inp: &_Tensor<A, Cuda, DEVICE_ID>,
@@ -35,8 +35,13 @@ where
     } else {
         _Tensor::<K, Cuda, DEVICE_ID>::empty(inp.shape())?
     };
-    let include = if K::CUDA_TYPE == "half" || A::CUDA_TYPE == "half" {
+    let half_include = if K::CUDA_TYPE == "half" || A::CUDA_TYPE == "half" {
         "#include <cuda_fp16.h>"
+    } else {
+        ""
+    };
+    let bfloat16_include = if K::CUDA_TYPE == "bfloat16" || A::CUDA_TYPE == "bfloat16" {
+        "#include <cuda_bf16.h>"
     } else {
         ""
     };
@@ -45,7 +50,8 @@ where
         let scalar_k = Scalar::<K>::new("out[idx]".to_string());
         format!(
             "
-        {include}
+        {half_include}
+        {bfloat16_include}
         extern \"C\" __global__ void unary(const {}* inp, {}* out, int size) {{
             int idx = blockIdx.x * blockDim.x + threadIdx.x;
             if (idx < size) {{
@@ -64,7 +70,8 @@ where
         let scalar_k = Scalar::<K>::new("out[idx]".to_string());
         format!(
             "
-        {include}
+        {half_include}
+        {bfloat16_include}
         __constant__ long long shape[] = {{{}}};
         __constant__ long long strides[] = {{{}}};
         extern \"C\" __global__ void unary(const {}* inp, {}* out, int size) {{

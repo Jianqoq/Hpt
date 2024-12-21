@@ -9,8 +9,8 @@
 #define I16_MIN SHRT_MIN
 #define I32_MIN INT_MIN
 #define I64_MIN LLONG_MIN
-#define F32_MIN -1.0f / 0.0f
-#define F64_MIN -1.0 / 0.0
+#define F32_MIN -INFINITY
+#define F64_MIN -INFINITY
 
 #define U8_MIN 0
 #define U16_MIN 0

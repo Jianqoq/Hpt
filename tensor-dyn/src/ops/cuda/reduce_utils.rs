@@ -1,8 +1,12 @@
+use crate::ops::cuda::cuda_utils::load_ptx_and_get_data;
+use crate::{backend::Cuda, tensor_base::_Tensor};
+use cudarc::driver::LaunchAsync;
 use cudarc::{driver::DeviceRepr, types::CudaTypeName};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
+use tensor_cudakernels::SET_VAL;
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike};
 
-use crate::{backend::Cuda, tensor_base::_Tensor};
+use super::cuda_utils::compute_kernel_launch_config;
 
 pub(crate) fn rearrange_array(ndim: usize, to_reduce: &[usize]) -> Vec<usize> {
     let mut origin_order = (0..ndim).collect::<Vec<usize>>();
@@ -34,6 +38,8 @@ pub(crate) fn reduce_prepare<
 >(
     a: &_Tensor<T, Cuda, DEVICE_ID>,
     axes: &[usize],
+    init_val: O,
+    init_out: bool,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> anyhow::Result<(_Tensor<T, Cuda, DEVICE_ID>, _Tensor<O, Cuda, DEVICE_ID>)> {
     // get permute order, we move to_reduce axes to the end
@@ -60,6 +66,18 @@ pub(crate) fn reduce_prepare<
             return Err(anyhow::Error::msg(
                 "Output array is not contiguous".to_string(),
             ));
+        }
+        if init_out {
+            let (kernel, reg_info) = load_ptx_and_get_data(
+                "set_val",
+                &format!("set_val_{}", O::ID),
+                a.device(),
+                a.device_cap(),
+                &SET_VAL,
+            )
+            .unwrap();
+            let cfg = compute_kernel_launch_config(out.device(), &reg_info, res_layout.size() as usize);
+            unsafe { kernel.launch(cfg, (out.cuda_slice(), init_val, res_layout.size() as usize))? };
         }
         out.reshape(res_layout.shape())?
     } else {
