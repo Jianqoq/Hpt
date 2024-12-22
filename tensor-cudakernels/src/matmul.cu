@@ -127,17 +127,17 @@ __device__ void load_to_smem(
 }
 
 // define tile and thread processing size
-#define TILE_M 16
-#define TILE_N 16
-#define TILE_K 4
-#define THREAD_BLOCK_X 4
-#define THREAD_BLOCK_Y 4
+#define TILE_M 128
+#define TILE_N 128
+#define TILE_K 16
+#define THREAD_BLOCK_X 16
+#define THREAD_BLOCK_Y 16
 #define VEC_SIZE 4
 
 template <typename T, size_t VecSize, size_t ReadPerThread, size_t TileM, size_t TileK>
 __device__ void load_gmem_to_next_a_reg(const T *A, T *next_data_a, size_t txa, size_t tya, size_t k, const size_t tile_idx)
 {
-    const float *pA = (A + (txa * (TileK / VecSize) + tile_idx) + (blockIdx.y * TileM + tya) * k);
+    const float *pA = (A + (txa * ReadPerThread + tile_idx) + (blockIdx.y * TileM + tya) * k);
 #pragma unroll
     for (int i = 0; i < ReadPerThread; i++)
     {
@@ -148,7 +148,7 @@ __device__ void load_gmem_to_next_a_reg(const T *A, T *next_data_a, size_t txa, 
 template <typename T, size_t VecSize, size_t ReadPerThread, size_t TileN, size_t TileK>
 __device__ void load_gmem_to_next_b_reg(const T *B, T *next_data_b, size_t txb, size_t tyb, size_t n, const size_t tile_idx)
 {
-    const float *pB = (B + txb * (TileN / VecSize) + blockIdx.x * blockDim.x + tyb * n + tile_idx * n);
+    const float *pB = (B + txb * ReadPerThread + blockIdx.x * TileN + tyb * n + tile_idx * n);
 
     for (int i = 0; i < ReadPerThread; i++)
     {
@@ -161,7 +161,7 @@ __device__ void store_next_a_data_to_smem(T next_data[ReadPerThread], T smem[sme
 {
     for (int i = 0; i < ReadPerThread; i++)
     {
-        smem[(txa * (TileK / VecSize) + i) * TILE_M + tya] = next_data[i];
+        smem[(txa * ReadPerThread + i) * TILE_M + tya] = next_data[i];
     }
 }
 
@@ -170,7 +170,7 @@ __device__ void store_next_b_data_to_smem(T next_data[ReadPerThread], T smem[sme
 {
     for (int i = 0; i < ReadPerThread; i++)
     {
-        smem[txb * (TileN / VecSize) + i + tyb * TileN] = next_data[i];
+        smem[txb * ReadPerThread + i + tyb * TileN] = next_data[i];
     }
 }
 
@@ -179,7 +179,7 @@ __device__ void load_smem_to_a_reg(T smem[smem_size], T reg[ReadPerThread], size
 {
     for (int i = 0; i < ReadPerThread; i++)
     {
-        reg[i] = smem[ty * ReadPerThread+ i + TileM * j];
+        reg[i] = smem[ty * ReadPerThread + i + TileM * j];
     }
 }
 
@@ -231,17 +231,13 @@ extern "C" __global__ void matmul_blocked2(
     __shared__ type a_tile[2][TILE_K * TILE_M];
     __shared__ type b_tile[2][TILE_K * TILE_N];
 
-    size_t txa = threadIdx.x % (TILE_K / VEC_SIZE);
-    size_t tya = threadIdx.x / (TILE_K / VEC_SIZE);
-
-    size_t txb = threadIdx.x % (TILE_N / VEC_SIZE);
-    size_t tyb = threadIdx.x / (TILE_N / VEC_SIZE);
-
     constexpr const size_t a_read_per_thread = TILE_M * TILE_K / (THREAD_BLOCK_X * THREAD_BLOCK_Y);
     constexpr const size_t b_read_per_thread = TILE_N * TILE_K / (THREAD_BLOCK_X * THREAD_BLOCK_Y);
 
     static_assert(TILE_M % a_read_per_thread == 0, "a_read_per_thread must be multiple of TILE_M");
     static_assert(TILE_K % b_read_per_thread == 0, "b_read_per_thread must be multiple of TILE_K");
+    static_assert(a_read_per_thread < TILE_K, "a_read_per_thread must be less than TILE_K");
+    static_assert(b_read_per_thread < TILE_K, "b_read_per_thread must be less than TILE_K");
 
     type next_data_a[a_read_per_thread];
     type next_data_b[b_read_per_thread];
@@ -251,6 +247,11 @@ extern "C" __global__ void matmul_blocked2(
     // // initialize 4x4 accumulator
     type c_reg[a_read_per_thread][b_read_per_thread] = {{0.0f}};
 
+    size_t txa = threadIdx.x % (TILE_K / a_read_per_thread);
+    size_t tya = threadIdx.x / (TILE_K / a_read_per_thread);
+
+    size_t txb = threadIdx.x % (TILE_N / b_read_per_thread);
+    size_t tyb = threadIdx.x / (TILE_N / b_read_per_thread);
     // load data from global memory to next_data_regs, each next_data_a store TILE_K elements
 
     load_gmem_to_next_a_reg<type, VEC_SIZE, a_read_per_thread, TILE_M, TILE_K>(A, next_data_a, txa, tya, k, 0);
@@ -262,7 +263,6 @@ extern "C" __global__ void matmul_blocked2(
     store_next_b_data_to_smem<type, VEC_SIZE, b_read_per_thread, TILE_N, TILE_K * TILE_N>(next_data_b, b_tile[0], txb, tyb);
     size_t tx = threadIdx.x % THREAD_BLOCK_X;
     size_t ty = threadIdx.x / THREAD_BLOCK_X;
-    // printf("global_idx = %d, A: [%f, %f, %f, %f], B: [%f, %f, %f, %f], (%llu, %llu), c_offset = %d\n", global_idx, next_data_a[0], next_data_a[1], next_data_a[2], next_data_a[3], next_data_b[0], next_data_b[1], next_data_b[2], next_data_b[3], tx, ty, blockIdx.y * TILE_M * n + blockIdx.x * TILE_N);
 
     __syncthreads();
 
@@ -270,39 +270,51 @@ extern "C" __global__ void matmul_blocked2(
     load_smem_to_b_reg<type, TILE_K * TILE_N, b_read_per_thread, TILE_N>(b_tile[0], b_reg[0], tx, ty, 0);
 
     // acquire_lock(&lock);
-    // if (threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 1)
+    // if ((threadIdx.x == 0) && blockIdx.x == 1 && blockIdx.y == 0)
     // {
-    //     printf("global_idx = %d, A: [%f, %f, %f, %f], B: [%f, %f, %f, %f], (%llu, %llu)\n", global_idx, next_data_a[0], next_data_a[1], next_data_a[2], next_data_a[3], next_data_b[0], next_data_b[1], next_data_b[2], next_data_b[3], tx, ty);
-    //     printf("a_tile[0]:\n");
-    //     for (int i = 0; i < TILE_K; i++)
+    //     printf("global_idx = %d, A: [", global_idx);
+    //     for (int i = 0; i < a_read_per_thread; i++)
     //     {
-    //         for (int j = 0; j < TILE_M; j++)
-    //         {
-    //             printf("%f, ", a_tile[0][i * TILE_M + j]);
-    //         }
-    //         printf("\n");
+    //         printf("%f, ", next_data_a[i]);
     //     }
-    //     printf("b_tile[0]:\n");
-    //     for (int i = 0; i < TILE_K; i++)
+    //     printf("], B: [");
+    //     for (int i = 0; i < b_read_per_thread; i++)
     //     {
-    //         for (int j = 0; j < TILE_N; j++)
-    //         {
-    //             printf("%f, ", b_tile[0][i * TILE_N + j]);
-    //         }
-    //         printf("\n");
+    //         printf("%f, ", next_data_b[i]);
     //     }
+    //     printf("], (%llu, %llu)\n", tx, ty);
+    //     // printf("a_tile[0]:\n");
+    //     // for (int i = 0; i < TILE_K; i++)
+    //     // {
+    //     //     for (int j = 0; j < TILE_M; j++)
+    //     //     {
+    //     //         printf("%f, ", a_tile[0][i * TILE_M + j]);
+    //     //     }
+    //     //     printf("\n");
+    //     // }
+    //     // printf("\n");
+    //     // printf("b_tile[0]:\n");
+    //     // for (int i = 0; i < TILE_K; i++)
+    //     // {
+    //     //     for (int j = 0; j < TILE_N; j++)
+    //     //     {
+    //     //         printf("%f, ", b_tile[0][i * TILE_N + j]);
+    //     //     }
+    //     //     printf("\n");
+    //     // }
+    //     // printf("\n");
     //     printf("a_reg[0]:\n");
     //     for (int i = 0; i < a_read_per_thread; i++)
     //     {
     //         printf("%f, ", a_reg[0][i]);
     //     }
     //     printf("\n");
-    //     printf("b_reg[0]:\n");
-    //     for (int i = 0; i < b_read_per_thread; i++)
-    //     {
-    //         printf("%f, ", b_reg[0][i]);
-    //     }
-    //     printf("\n");
+    //     // printf("b_reg[0]:\n");
+    //     // for (int i = 0; i < b_read_per_thread; i++)
+    //     // {
+    //     //     printf("%f, ", b_reg[0][i]);
+    //     // }
+    //     // printf("\n");
     // }
     // release_lock(&lock);
 

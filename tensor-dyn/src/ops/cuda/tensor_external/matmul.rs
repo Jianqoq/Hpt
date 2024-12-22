@@ -110,8 +110,8 @@ where
         )?;
         let mut cfg =
             compute_kernel_launch_config(self.device(), &reg_info, ret.layout.size() as usize);
-        cfg.block_dim = (4 * 4, 1, 1);
-        cfg.grid_dim = (n.div_ceil(16) as u32, m.div_ceil(16) as u32, 1);
+        cfg.block_dim = (16 * 16, 1, 1);
+        cfg.grid_dim = (n.div_ceil(128) as u32, m.div_ceil(128) as u32, 1);
         println!("cfg.block_dim = {:?}, cfg.grid_dim = {:?}", cfg.block_dim, cfg.grid_dim);
         unsafe {
             kernel.launch(

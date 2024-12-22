@@ -1,6 +1,9 @@
+use tensor_common::slice;
 use tensor_dyn::*;
 
 fn main() -> anyhow::Result<()> {
+
+    // set_global_display_lr_elements(16);
     let m = 10000;
     let n = 10000;
     let k = 10000;
@@ -24,7 +27,7 @@ fn main() -> anyhow::Result<()> {
     // let now = std::time::Instant::now();
     // let c = a.matmul(&b)?;
     // println!("{:?}", now.elapsed());
-    // println!("{}", c);
+    // println!("{}", slice!(c[0:16, 127:256])?);
 
     // let c1_cpu = c1.to_cpu()?;
     // let c2_cpu = c2.to_cpu()?;

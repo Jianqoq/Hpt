@@ -256,6 +256,7 @@ pub use tensor_types::traits::VecTrait;
 pub use tensor_types::type_promote::*;
 pub use tensor_types::vectors::*;
 pub use tensor_types::*;
+pub use tensor_common::slice::Slice;
 
 use std::{cell::RefCell, sync::atomic::AtomicUsize};
 thread_local! {
