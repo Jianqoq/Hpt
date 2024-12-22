@@ -26,8 +26,8 @@ fn main() -> anyhow::Result<()> {
     // println!("{:?}", now.elapsed());
     // println!("{}", c);
 
-    let c1_cpu = c1.to_cpu()?;
-    let c2_cpu = c2.to_cpu()?;
-    println!("{}", c1_cpu.allclose(&c2_cpu));
+    // let c1_cpu = c1.to_cpu()?;
+    // let c2_cpu = c2.to_cpu()?;
+    // println!("{}", c1_cpu.allclose(&c2_cpu));
     Ok(())
 }
