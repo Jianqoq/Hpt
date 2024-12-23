@@ -217,7 +217,7 @@ impl std::ops::Mul for i64x2 {
             #[cfg(target_arch = "x86_64")]
             return i64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
-            return i64x2(vld1q_dup_s64(arr3.as_ptr()));
+            return i64x2(vld1q_s64(arr3.as_ptr()));
         }
     }
 }
@@ -234,7 +234,7 @@ impl std::ops::Div for i64x2 {
             #[cfg(target_arch = "x86_64")]
             return i64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
-            return i64x2(vld1q_dup_s64(arr3.as_ptr()));
+            return i64x2(vld1q_s64(arr3.as_ptr()));
         }
     }
 }
@@ -251,7 +251,7 @@ impl std::ops::Rem for i64x2 {
             #[cfg(target_arch = "x86_64")]
             return i64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
-            return i64x2(vld1q_dup_s64(arr3.as_ptr()));
+            return i64x2(vld1q_s64(arr3.as_ptr()));
         }
     }
 }
@@ -346,7 +346,7 @@ impl std::ops::Shr for i64x2 {
             #[cfg(target_arch = "x86_64")]
             return i64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
-            return i64x2(vld1q_dup_s64(result.as_ptr()));
+            return i64x2(vld1q_s64(result.as_ptr()));
         }
     }
 }
@@ -362,7 +362,7 @@ impl SimdMath<i64> for i64x2 {
             #[cfg(target_arch = "x86_64")]
             return i64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
-            return i64x2(vld1q_dup_s64(arr3.as_ptr()));
+            return i64x2(vld1q_s64(arr3.as_ptr()));
         }
     }
     fn min(self, other: Self) -> Self {
@@ -376,7 +376,7 @@ impl SimdMath<i64> for i64x2 {
             #[cfg(target_arch = "x86_64")]
             return i64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
-            return i64x2(vld1q_dup_s64(arr3.as_ptr()));
+            return i64x2(vld1q_s64(arr3.as_ptr()));
         }
     }
     fn relu(self) -> Self {
@@ -389,7 +389,7 @@ impl SimdMath<i64> for i64x2 {
             #[cfg(target_arch = "x86_64")]
             return i64x2(_mm_loadu_si128(arr2.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
-            return i64x2(vld1q_dup_s64(arr2.as_ptr()));
+            return i64x2(vld1q_s64(arr2.as_ptr()));
         }
     }
     fn relu6(self) -> Self {
@@ -402,7 +402,7 @@ impl SimdMath<i64> for i64x2 {
             #[cfg(target_arch = "x86_64")]
             return i64x2(_mm_loadu_si128(arr2.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
-            return i64x2(vld1q_dup_s64(arr2.as_ptr()));
+            return i64x2(vld1q_s64(arr2.as_ptr()));
         }
     }
 }
@@ -424,7 +424,7 @@ impl VecConvertor for i64x2 {
             #[cfg(target_arch = "x86_64")]
             return super::f64x2::f64x2(_mm_loadu_pd(result.as_ptr()));
             #[cfg(target_arch = "aarch64")]
-            return super::f64x2::f64x2(vld1q_dup_f64(result.as_ptr()));
+            return super::f64x2::f64x2(vld1q_f64(result.as_ptr()));
         }
     }
     #[cfg(target_pointer_width = "64")]

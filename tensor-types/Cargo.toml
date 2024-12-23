@@ -13,8 +13,9 @@ sleef = { version = "0.3.2", optional = true }
 libm = "0.2.11"
 
 [dev-dependencies]
-# rug = "1.16"
-# rand = "0.8.5"
+rug = "1.16"
+rand = "0.8.5"
+sleef = { version = "0.3.2" }
 
 [features]
 f16c = []

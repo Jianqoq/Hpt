@@ -57,7 +57,7 @@ impl VecTrait<u16> for u16x8 {
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            self.0 = vld1q_dup_u16(slice.as_ptr());
+            self.0 = vld1q_u16(slice.as_ptr());
         }
     }
     #[inline(always)]
@@ -143,7 +143,7 @@ impl std::ops::Div for u16x8 {
             #[cfg(target_arch = "x86_64")]
             return u16x8(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
-            return u16x8(vld1q_dup_u16(arr3.as_ptr()));
+            return u16x8(vld1q_u16(arr3.as_ptr()));
         }
     }
 }
@@ -160,7 +160,7 @@ impl std::ops::Rem for u16x8 {
             #[cfg(target_arch = "x86_64")]
             return u16x8(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
-            return u16x8(vld1q_dup_u16(arr3.as_ptr()));
+            return u16x8(vld1q_u16(arr3.as_ptr()));
         }
     }
 }
@@ -233,7 +233,7 @@ impl std::ops::Shr for u16x8 {
             #[cfg(target_arch = "x86_64")]
             return u16x8(_mm_loadu_si128(result.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
-            return u16x8(vld1q_dup_u16(result.as_ptr()));
+            return u16x8(vld1q_u16(result.as_ptr()));
         }
     }
 }

@@ -171,7 +171,7 @@ impl std::ops::Div for u8x16 {
             #[cfg(target_arch = "x86_64")]
             return u8x16(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
-            return u8x16(vld1q_dup_u8(arr3.as_ptr()));
+            return u8x16(vld1q_u8(arr3.as_ptr()));
         }
     }
 }
@@ -188,7 +188,7 @@ impl std::ops::Rem for u8x16 {
             #[cfg(target_arch = "x86_64")]
             return u8x16(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
-            return u8x16(vld1q_dup_u8(arr3.as_ptr()));
+            return u8x16(vld1q_u8(arr3.as_ptr()));
         }
     }
 }
@@ -260,7 +260,7 @@ impl std::ops::Shr for u8x16 {
             #[cfg(target_arch = "x86_64")]
             return u8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
-            return u8x16(vld1q_dup_u8(result.as_ptr()));
+            return u8x16(vld1q_u8(result.as_ptr()));
         }
     }
 }

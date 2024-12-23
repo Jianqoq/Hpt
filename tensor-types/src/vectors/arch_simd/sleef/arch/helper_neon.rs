@@ -1,6 +1,5 @@
 use std::arch::aarch64::*;
 
-
 #[inline(always)]
 pub(crate) unsafe fn vtestallones_i_vo32(g: Vopmask) -> i32 {
     let x0 = vand_u32(vget_low_u32(g), vget_high_u32(g));
@@ -16,7 +15,7 @@ pub(crate) unsafe fn vand_vm_vm_vm(x: VMask, y: VMask) -> VMask {
 
 #[inline(always)]
 pub(crate) unsafe fn vandnot_vm_vm_vm(x: VMask, y: VMask) -> VMask {
-    vbicq_u32(y, x) // Note: arguments are swapped compared to x86
+    vbicq_u32(y, x)
 }
 
 #[inline(always)]
@@ -37,7 +36,7 @@ pub(crate) unsafe fn vand_vo_vo_vo(x: Vopmask, y: Vopmask) -> Vopmask {
 
 #[inline(always)]
 pub(crate) unsafe fn vandnot_vo_vo_vo(x: Vopmask, y: Vopmask) -> Vopmask {
-    vbicq_u32(y, x) // Note: arguments are swapped compared to x86
+    vbicq_u32(y, x)
 }
 
 #[inline(always)]
@@ -58,7 +57,7 @@ pub(crate) unsafe fn vand_vm_vo64_vm(x: Vopmask, y: VMask) -> VMask {
 
 #[inline(always)]
 pub(crate) unsafe fn vandnot_vm_vo64_vm(x: Vopmask, y: VMask) -> VMask {
-    vbicq_u32(y, x) // Note: arguments swapped compared to x86
+    vbicq_u32(y, x)
 }
 
 #[inline(always)]
@@ -74,7 +73,7 @@ pub(crate) unsafe fn vand_vm_vo32_vm(x: Vopmask, y: VMask) -> VMask {
 
 #[inline(always)]
 pub(crate) unsafe fn vandnot_vm_vo32_vm(x: Vopmask, y: VMask) -> VMask {
-    vbicq_u32(y, x) // Note: arguments swapped compared to x86
+    vbicq_u32(y, x)
 }
 
 #[inline(always)]
@@ -95,8 +94,8 @@ pub(crate) unsafe fn vcast_vo64_vo32(m: Vopmask) -> Vopmask {
 
 #[inline(always)]
 pub(crate) unsafe fn vcast_vm_i_i(i0: i32, i1: i32) -> VMask {
-    let val = (i0 as u32) | ((i1 as u32) << 32);
-    vdupq_n_u32(val)
+    let val = (i0 as u64) | ((i1 as u64) << 32);
+    std::mem::transmute(vdupq_n_u64(val))
 }
 
 #[inline(always)]
@@ -457,12 +456,12 @@ pub(crate) unsafe fn vsel_vf_vo_f_f(o: Vopmask, v1: f32, v0: f32) -> VFloat {
 
 #[inline(always)]
 pub(crate) unsafe fn vsel_vf_vo_vf_vf(mask: Vopmask, x: VFloat, y: VFloat) -> VFloat {
-    vreinterpretq_f32_u32(vbslq_u32(mask, vreinterpretq_u32_f32(x), vreinterpretq_u32_f32(y)))
+    vbslq_f32(mask, x, y)
 }
 
 #[inline(always)]
 pub(crate) unsafe fn vsel_vi2_vo_vi2_vi2(m: Vopmask, x: VInt2, y: VInt2) -> VInt2 {
-    vreinterpretq_s32_u32(vbslq_u32(m, vreinterpretq_u32_s32(x), vreinterpretq_u32_s32(y)))
+    vbslq_s32(m, x, y)
 }
 
 #[inline(always)]
@@ -502,13 +501,7 @@ pub(crate) unsafe fn vneg_vd_vd(x: VDouble) -> VDouble {
 
 #[inline(always)]
 pub(crate) unsafe fn vsel_vd_vo_vd_vd(mask: Vopmask, x: VDouble, y: VDouble) -> VDouble {
-    vreinterpretq_f64_u64(
-        vbslq_u64(
-            vreinterpretq_u64_u32(vcast_vo32_vo64(mask)),
-            vreinterpretq_u64_f64(x),
-            vreinterpretq_u64_f64(y)
-        )
-    )
+    vbslq_f64(std::mem::transmute(mask), x, y)
 }
 
 #[inline(always)]
@@ -533,7 +526,7 @@ pub(crate) unsafe fn vreinterpret_vm_vd(x: VDouble) -> VMask {
 
 #[inline(always)]
 pub(crate) unsafe fn vrec_vd_vd(x: VDouble) -> VDouble {
-    vrecpeq_f64(x)
+    vdivq_f64(vcast_vd_d(1.0), x)
 }
 
 #[inline(always)]
@@ -558,13 +551,12 @@ pub(crate) unsafe fn vadd_vi_vi_vi(x: VInt, y: VInt) -> VInt {
 
 #[inline(always)]
 pub(crate) unsafe fn vcast_vd_vi(vi: VInt) -> VDouble {
-    vcvtq_f64_s64(vmovl_s32(vget_low_s32(vi)))
+    vcvtq_f64_s64(vreinterpretq_s64_s32(vi))
 }
 
 #[inline(always)]
 pub(crate) unsafe fn vcast_vi_i(i: i32) -> VInt {
-    let zero = vdupq_n_s32(0);
-    vsetq_lane_s32(i, vsetq_lane_s32(i, zero, 0), 1)
+    vdupq_n_s32(i)
 }
 
 #[inline(always)]
@@ -604,7 +596,7 @@ pub(crate) unsafe fn vle_vo_vd_vd(x: VDouble, y: VDouble) -> Vopmask {
 
 #[inline(always)]
 pub(crate) unsafe fn vlt_vo_vd_vd(x: VDouble, y: VDouble) -> Vopmask {
-    vreinterpretq_u32_u64(vcgtq_f64(x, y))
+    vreinterpretq_u32_u64(vcltq_f64(x, y))
 }
 
 #[inline(always)]
@@ -645,7 +637,7 @@ pub(crate) unsafe fn vcastu_vi_vm(vi: VMask) -> VInt {
 
 #[inline(always)]
 pub(crate) unsafe fn vsel_vi_vo_vi_vi(m: Vopmask, x: VInt, y: VInt) -> VInt {
-    vreinterpretq_s32_u32(vbslq_u32(m, vreinterpretq_u32_s32(x), vreinterpretq_u32_s32(y)))
+    vbslq_s32(m, x, y)
 }
 
 #[inline(always)]
@@ -683,7 +675,7 @@ pub(crate) unsafe fn vgt_vo_vi_vi(x: VInt, y: VInt) -> Vopmask {
 
 #[inline(always)]
 pub(crate) unsafe fn visnan_vo_vd(d: VDouble) -> Vopmask {
-    vreinterpretq_u32_u64(vceqzq_u64(vceqq_f64(d, d)))
+    vmvnq_u32(vreinterpretq_u32_u64(vceqq_f64(d, d)))
 }
 
 #[inline(always)]
@@ -704,7 +696,7 @@ pub(crate) unsafe fn vmin_vd_vd_vd(x: VDouble, y: VDouble) -> VDouble {
 
 #[inline(always)]
 pub(crate) unsafe fn vmlapn_vd_vd_vd_vd(x: VDouble, y: VDouble, z: VDouble) -> VDouble {
-    vsubq_f64(vmulq_f64(x, y), z)
+    vmlaq_f64(z, x, y)
 }
 
 #[inline(always)]

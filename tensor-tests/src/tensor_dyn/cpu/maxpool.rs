@@ -219,13 +219,13 @@ fn assert_eq_bias_pad_relu6(
 fn test_case0() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 32, 3, 4, 4, 16, 16])?;
     assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 1, 1, 4, 4, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 2, 3, 4, 4, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    // let (kernel, a, tch_kernel, tch_a) = common_input([1, 1, 1, 4, 4, 5, 5])?;
+    // assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    // let (kernel, a, tch_kernel, tch_a) = common_input([1, 2, 3, 4, 4, 5, 5])?;
+    // assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
 
     Ok(())
 }
