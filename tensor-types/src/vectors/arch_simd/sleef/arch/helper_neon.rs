@@ -1,35 +1,11 @@
 use std::arch::aarch64::*;
 
-#[inline(always)]
-pub(crate) unsafe fn vprefetch_v_p(_ptr: *const std::ffi::c_void) {
-    // Empty implementation
-}
 
 #[inline(always)]
 pub(crate) unsafe fn vtestallones_i_vo32(g: Vopmask) -> i32 {
     let x0 = vand_u32(vget_low_u32(g), vget_high_u32(g));
     let x1 = vpmin_u32(x0, x0);
     vget_lane_u32(x1, 0) as i32
-}
-
-#[inline(always)]
-pub(crate) unsafe fn vloaduf(p: *const f32) -> VFloat {
-    vld1q_f32(p)
-}
-
-#[inline(always)]
-pub(crate) unsafe fn vstoreuf(p: *mut f32, v: VFloat) {
-    vst1q_f32(p, v)
-}
-
-#[inline(always)]
-pub(crate) unsafe fn vloadu_vi2_p(p: *const i32) -> VInt2 {
-    vld1q_s32(p)
-}
-
-#[inline(always)]
-pub(crate) unsafe fn vstoreu_v_p_vi2(p: *mut i32, v: VInt2) {
-    vst1q_s32(p, v)
 }
 
 // Bitwise operations
@@ -90,11 +66,6 @@ pub(crate) unsafe fn vor_vm_vo64_vm(x: Vopmask, y: VMask) -> VMask {
     vorrq_u32(x, y)
 }
 
-#[inline(always)]
-pub(crate) unsafe fn vxor_vm_vo64_vm(x: Vopmask, y: VMask) -> VMask {
-    veorq_u32(x, y)
-}
-
 // 32-bit mask operations
 #[inline(always)]
 pub(crate) unsafe fn vand_vm_vo32_vm(x: Vopmask, y: VMask) -> VMask {
@@ -109,11 +80,6 @@ pub(crate) unsafe fn vandnot_vm_vo32_vm(x: Vopmask, y: VMask) -> VMask {
 #[inline(always)]
 pub(crate) unsafe fn vor_vm_vo32_vm(x: Vopmask, y: VMask) -> VMask {
     vorrq_u32(x, y)
-}
-
-#[inline(always)]
-pub(crate) unsafe fn vxor_vm_vo32_vm(x: Vopmask, y: VMask) -> VMask {
-    veorq_u32(x, y)
 }
 
 // Cast operations
@@ -344,19 +310,6 @@ pub(crate) mod fma_ops {
     }
 
     #[inline(always)]
-    pub(crate) unsafe fn vmlapn_vf_vf_vf_vf(x: VFloat, y: VFloat, z: VFloat) -> VFloat {
-        vneg_vf_vf(vmlsq_f32(z, x, y))
-    }
-
-    #[inline(always)]
-    pub(crate) unsafe fn vdiv_vf_vf_vf(n: VFloat, d: VFloat) -> VFloat {
-        let mut x: float32x4_t = vrecpeq_f32(d);
-        x = vmulq_f32(x, vrecpsq_f32(d, x));
-        let t: float32x4_t = vmulq_f32(n, x);
-        vmlsq_f32(vaddq_f32(t, t), vmulq_f32(t, x), d)
-    }
-
-    #[inline(always)]
     pub(crate) unsafe fn vsqrt_vf_vf(d: VFloat) -> VFloat {
         let mut x: float32x4_t = vrsqrteq_f32(d);
         x = vmulq_f32(x, vrsqrtsq_f32(d, vmulq_f32(x, x)));
@@ -370,17 +323,6 @@ pub(crate) mod fma_ops {
         let mut x: float32x4_t = vrecpeq_f32(d);
         x = vmulq_f32(x, vrecpsq_f32(d, x));
         vmlsq_f32(vaddq_f32(x, x), vmulq_f32(x, x), d)
-    }
-
-    #[inline(always)]
-    pub(crate) unsafe fn vrecsqrt_vf_vf(d: VFloat) -> VFloat {
-        let mut x: float32x4_t = vrsqrteq_f32(d);
-        x = vmulq_f32(x, vrsqrtsq_f32(d, vmulq_f32(x, x)));
-        vmlaq_f32(
-            x,
-            vmlsq_f32(vdupq_n_f32(1.0), x, vmulq_f32(x, d)),
-            vmulq_f32(x, vdupq_n_f32(0.5))
-        )
     }
 }
 
@@ -462,20 +404,10 @@ pub(crate) unsafe fn vor_vi2_vi2_vi2(x: VInt2, y: VInt2) -> VInt2 {
     vorrq_s32(x, y)
 }
 
-#[inline(always)]
-pub(crate) unsafe fn vxor_vi2_vi2_vi2(x: VInt2, y: VInt2) -> VInt2 {
-    veorq_s32(x, y)
-}
-
 // Mask and integer operations
 #[inline(always)]
 pub(crate) unsafe fn vand_vi2_vo_vi2(x: Vopmask, y: VInt2) -> VInt2 {
     vreinterpretq_s32_u32(vandq_u32(x, vreinterpretq_u32_s32(y)))
-}
-
-#[inline(always)]
-pub(crate) unsafe fn vandnot_vi2_vo_vi2(x: Vopmask, y: VInt2) -> VInt2 {
-    vreinterpretq_s32_u32(vbicq_u32(vreinterpretq_u32_s32(y), x))
 }
 
 #[inline(always)]
@@ -511,11 +443,6 @@ pub(crate) unsafe fn visinf_vo_vf(d: VFloat) -> Vopmask {
 #[inline(always)]
 pub(crate) unsafe fn vispinf_vo_vf(d: VFloat) -> Vopmask {
     veq_vo_vf_vf(d, vcast_vf_f(f32::INFINITY))
-}
-
-#[inline(always)]
-pub(crate) unsafe fn visminf_vo_vf(d: VFloat) -> Vopmask {
-    veq_vo_vf_vf(d, vcast_vf_f(f32::NEG_INFINITY))
 }
 
 #[inline(always)]
@@ -819,11 +746,6 @@ pub(crate) unsafe fn vtruncate_vd_vd(vd: VDouble) -> VDouble {
 #[inline(always)]
 pub(crate) unsafe fn vcast_vf_vm(vm: VMask) -> VFloat {
     vreinterpretq_f32_u32(vm)
-}
-
-#[inline(always)]
-pub(crate) unsafe fn vcast_vm_vf(vf: VFloat) -> VMask {
-    vreinterpretq_u32_f32(vf)
 }
 
 #[inline(always)]
