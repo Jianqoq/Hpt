@@ -49,8 +49,9 @@ impl VecTrait<i32> for i32x8 {
 }
 
 impl i32x8 {
-    #[allow(unused)]
-    fn as_array(&self) -> [i32; 8] {
+    /// convert the vector to an array
+    #[inline(always)]
+    pub fn as_array(&self) -> [i32; 8] {
         unsafe { std::mem::transmute(self.0) }
     }
 }

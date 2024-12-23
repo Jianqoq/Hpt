@@ -1,6 +1,6 @@
 use crate::{
     convertion::VecConvertor,
-    traits::{SimdCompare, SimdMath, VecTrait},
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
 };
 
 #[cfg(target_arch = "x86_64")]
@@ -58,8 +58,9 @@ impl VecTrait<i8> for i8x32 {
 }
 
 impl i8x32 {
-    #[allow(unused)]
-    fn as_array(&self) -> [i8; 32] {
+    /// convert the vector to an array
+    #[inline(always)]
+    pub fn as_array(&self) -> [i8; 32] {
         unsafe { std::mem::transmute(self.0) }
     }
 }
@@ -92,6 +93,18 @@ impl SimdCompare for i8x32 {
             let gt = _mm256_cmpgt_epi8(self.0, other.0);
             let eq = _mm256_cmpeq_epi8(self.0, other.0);
             i8x32(_mm256_or_si256(gt, eq))
+        }
+    }
+}
+
+impl SimdSelect<i8x32> for i8x32 {
+    fn select(&self, true_val: i8x32, false_val: i8x32) -> i8x32 {
+        unsafe {
+            i8x32(_mm256_blendv_epi8(
+                false_val.0,
+                true_val.0,
+                std::mem::transmute(self.0),
+            ))
         }
     }
 }
@@ -227,4 +240,3 @@ impl VecConvertor for i8x32 {
         unsafe { std::mem::transmute(self) }
     }
 }
-

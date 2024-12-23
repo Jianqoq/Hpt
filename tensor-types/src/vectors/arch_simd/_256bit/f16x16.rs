@@ -43,8 +43,9 @@ impl VecTrait<half::f16> for f16x16 {
 }
 
 impl f16x16 {
-    #[allow(unused)]
-    fn as_array(&self) -> [half::f16; 16] {
+    /// convert the vector to an array
+    #[inline(always)]
+    pub fn as_array(&self) -> [half::f16; 16] {
         unsafe { std::mem::transmute(self.0) }
     }
 }

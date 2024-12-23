@@ -64,8 +64,9 @@ impl VecTrait<f64> for f64x4 {
 }
 
 impl f64x4 {
-    #[allow(unused)]
-    fn as_array(&self) -> [f64; 4] {
+    /// convert the vector to an array
+    #[inline(always)]
+    pub fn as_array(&self) -> [f64; 4] {
         unsafe { std::mem::transmute(self.0) }
     }
     /// check if the vector is nan

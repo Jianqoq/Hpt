@@ -431,30 +431,15 @@ extern "C" __global__ void matmul_blocked2(
         }                                                                                                     \
     }
 
-#define MMA_VEC(VecSize, AReadPerThread, BReadPerThread, c, a, b) \
-    {                                                             \
-        for (size_t i = 0; i < AReadPerThread / VecSize; ++i)     \
-        {                                                         \
-            for (size_t j = 0; j < BReadPerThread / VecSize; ++j) \
-            {                                                     \
-                c_reg[i][j].x += a[i].x * b[j].x;                 \
-                c_reg[i][j].y += a[i].x * b[j].y;                 \
-                c_reg[i][j].z += a[i].x * b[j].z;                 \
-                c_reg[i][j].w += a[i].x * b[j].w;                 \
-                c_reg[i][j].x += a[i].y * b[j].x;                 \
-                c_reg[i][j].y += a[i].y * b[j].y;                 \
-                c_reg[i][j].z += a[i].y * b[j].z;                 \
-                c_reg[i][j].w += a[i].y * b[j].w;                 \
-                c_reg[i][j].x += a[i].z * b[j].x;                 \
-                c_reg[i][j].y += a[i].z * b[j].y;                 \
-                c_reg[i][j].z += a[i].z * b[j].z;                 \
-                c_reg[i][j].w += a[i].z * b[j].w;                 \
-                c_reg[i][j].x += a[i].w * b[j].x;                 \
-                c_reg[i][j].y += a[i].w * b[j].y;                 \
-                c_reg[i][j].z += a[i].w * b[j].z;                 \
-                c_reg[i][j].w += a[i].w * b[j].w;                 \
-            }                                                     \
-        }                                                         \
+#define MMA_VEC(AReadPerThread, BReadPerThread, c, a, b)                  \
+    {                                                                     \
+        _Pragma("unroll") for (size_t i = 0; i < AReadPerThread; ++i)     \
+        {                                                                 \
+            _Pragma("unroll") for (size_t j = 0; j < BReadPerThread; ++j) \
+            {                                                             \
+                (c)[i * BReadPerThread + j] += (a)[i] * (b)[j];           \
+            }                                                             \
+        }                                                                 \
     }
 
 // matrix multiplication kernel
@@ -480,7 +465,9 @@ extern "C" __global__ void matmul_blocked2_vec(
     type_vec b_reg[2][b_read_per_thread / VEC_SIZE]; // must be multiple of VEC_SIZE
 
     // // initialize 4x4 accumulator
-    type_vec c_reg[a_read_per_thread / VEC_SIZE][b_read_per_thread / VEC_SIZE] = {{0.0f}};
+    type_vec c_reg[a_read_per_thread][b_read_per_thread / VEC_SIZE] = {{make_float4(0.f, 0.f, 0.f, 0.f)}};
+
+    type *c_reg_ptr = reinterpret_cast<type *>(c_reg);
 
     size_t txa = threadIdx.x % (TILE_K / a_read_per_thread);
     size_t tya = threadIdx.x / (TILE_K / a_read_per_thread);
@@ -500,101 +487,8 @@ extern "C" __global__ void matmul_blocked2_vec(
     size_t ty = threadIdx.x / THREAD_BLOCK_X;
 
     __syncthreads();
-    // acquire_lock(&lock);
-    // if ((threadIdx.x == 0) && blockIdx.x == 0 && blockIdx.y == 0)
-    // {
-    //     printf("a_tile[0]:\n");
-    //     for (int i = 0; i < TILE_K; i++)
-    //     {
-    //         for (int j = 0; j < TILE_M / 4; j++)
-    //         {
-    //             printf("%f, ", a_tile[0][i * TILE_M / 4 + j].x);
-    //             printf("%f, ", a_tile[0][i * TILE_M / 4 + j].y);
-    //             printf("%f, ", a_tile[0][i * TILE_M / 4 + j].z);
-    //             printf("%f, ", a_tile[0][i * TILE_M / 4 + j].w);
-    //         }
-    //         printf("\n");
-    //     }
-    //     printf("\n");
-    //     printf("b_tile[0]:\n");
-    //     for (int i = 0; i < TILE_K; i++)
-    //     {
-    //         for (int j = 0; j < TILE_N / 4; j++)
-    //         {
-    //             printf("%f, ", b_tile[0][i * TILE_N / 4 + j].x);
-    //             printf("%f, ", b_tile[0][i * TILE_N / 4 + j].y);
-    //             printf("%f, ", b_tile[0][i * TILE_N / 4 + j].z);
-    //             printf("%f, ", b_tile[0][i * TILE_N / 4 + j].w);
-    //         }
-    //         printf("\n");
-    //     }
-    //     printf("\n");
-    // }
-    // release_lock(&lock);
     LOAD_SMEM_TO_A_REG_VEC(VEC_SIZE, a_read_per_thread, TILE_M, a_reg[0], a_tile[0], ty, 0);
     LOAD_SMEM_TO_B_REG_VEC(VEC_SIZE, b_read_per_thread, TILE_N, b_reg[0], b_tile[0], tx, 0);
-    // acquire_lock(&lock);
-    // if ((threadIdx.x == 0 || threadIdx.x == 1 || threadIdx.x == 2 || threadIdx.x == 3) && blockIdx.x == 0 && blockIdx.y == 0)
-    // {
-    //     printf("===========================================\n");
-    //     printf("global_idx = %d, A: [", global_idx);
-    //     for (int i = 0; i < a_read_per_thread / VEC_SIZE; i++)
-    //     {
-    //         printf("%f, ", next_data_a[i].x);
-    //         printf("%f, ", next_data_a[i].y);
-    //         printf("%f, ", next_data_a[i].z);
-    //         printf("%f, ", next_data_a[i].w);
-    //     }
-    //     printf("], B: [");
-    //     for (int i = 0; i < b_read_per_thread / VEC_SIZE; i++)
-    //     {
-    //         printf("%f, ", next_data_b[i].x);
-    //         printf("%f, ", next_data_b[i].y);
-    //         printf("%f, ", next_data_b[i].z);
-    //         printf("%f, ", next_data_b[i].w);
-    //     }
-    //     printf("], (%llu, %llu)\n", tx, ty);
-    //     // printf("a_tile[0]:\n");
-    //     // for (int i = 0; i < TILE_K; i++)
-    //     // {
-    //     //     for (int j = 0; j < TILE_M; j++)
-    //     //     {
-    //     //         printf("%f, ", a_tile[0][i * TILE_M + j]);
-    //     //     }
-    //     //     printf("\n");
-    //     // }
-    //     // printf("\n");
-    //     // printf("b_tile[0]:\n");
-    //     // for (int i = 0; i < TILE_K; i++)
-    //     // {
-    //     //     for (int j = 0; j < TILE_N; j++)
-    //     //     {
-    //     //         printf("%f, ", b_tile[0][i * TILE_N + j]);
-    //     //     }
-    //     //     printf("\n");
-    //     // }
-    //     // printf("\n");
-    //     printf("a_reg[0]:\n");
-    //     for (int i = 0; i < a_read_per_thread / VEC_SIZE; i++)
-    //     {
-    //         printf("%f, ", a_reg[0][i].x);
-    //         printf("%f, ", a_reg[0][i].y);
-    //         printf("%f, ", a_reg[0][i].z);
-    //         printf("%f, ", a_reg[0][i].w);
-    //     }
-    //     printf("\n");
-    //     printf("b_reg[0]:\n");
-    //     for (int i = 0; i < b_read_per_thread / VEC_SIZE; i++)
-    //     {
-    //         printf("%f, ", b_reg[0][i].x);
-    //         printf("%f, ", b_reg[0][i].y);
-    //         printf("%f, ", b_reg[0][i].z);
-    //         printf("%f, ", b_reg[0][i].w);
-    //     }
-    //     printf("\n");
-    //     printf("===========================================\n");
-    // }
-    // release_lock(&lock);
 
     int write_stage_idx = 1;
     int i = 0;
@@ -605,12 +499,75 @@ extern "C" __global__ void matmul_blocked2_vec(
         LOAD_GMEM_TO_NEXT_B_REG_VEC(VEC_SIZE, b_read_per_thread, TILE_N, TILE_K, B, next_data_b, txb, tyb, n, i);
 
         int load_stage_idx = write_stage_idx ^ 1;
-
+#pragma unroll
         for (int j = 0; j < TILE_K - 1; j++)
         {
             LOAD_SMEM_TO_A_REG_VEC(VEC_SIZE, a_read_per_thread, TILE_M, a_reg[(j + 1) % 2], a_tile[load_stage_idx], ty, j + 1);
             LOAD_SMEM_TO_B_REG_VEC(VEC_SIZE, b_read_per_thread, TILE_N, b_reg[(j + 1) % 2], b_tile[load_stage_idx], tx, j + 1);
-            MMA_VEC(VEC_SIZE, a_read_per_thread, b_read_per_thread, c_reg, a_reg[j % 2], b_reg[j % 2]);
+            c_reg[0][0].x += a_reg[j % 2][0].x * b_reg[j % 2][0].x;
+            c_reg[0][0].y += a_reg[j % 2][0].x * b_reg[j % 2][0].y;
+            c_reg[0][0].z += a_reg[j % 2][0].x * b_reg[j % 2][0].z;
+            c_reg[0][0].w += a_reg[j % 2][0].x * b_reg[j % 2][0].w;
+            c_reg[0][1].x += a_reg[j % 2][0].x * b_reg[j % 2][1].x;
+            c_reg[0][1].y += a_reg[j % 2][0].x * b_reg[j % 2][1].y;
+            c_reg[0][1].z += a_reg[j % 2][0].x * b_reg[j % 2][1].z;
+            c_reg[0][1].w += a_reg[j % 2][0].x * b_reg[j % 2][1].w;
+            c_reg[1][0].x += a_reg[j % 2][0].y * b_reg[j % 2][0].x;
+            c_reg[1][0].y += a_reg[j % 2][0].y * b_reg[j % 2][0].y;
+            c_reg[1][0].z += a_reg[j % 2][0].y * b_reg[j % 2][0].z;
+            c_reg[1][0].w += a_reg[j % 2][0].y * b_reg[j % 2][0].w;
+            c_reg[1][1].x += a_reg[j % 2][0].y * b_reg[j % 2][1].x;
+            c_reg[1][1].y += a_reg[j % 2][0].y * b_reg[j % 2][1].y;
+            c_reg[1][1].z += a_reg[j % 2][0].y * b_reg[j % 2][1].z;
+            c_reg[1][1].w += a_reg[j % 2][0].y * b_reg[j % 2][1].w;
+            c_reg[2][0].x += a_reg[j % 2][0].z * b_reg[j % 2][0].x;
+            c_reg[2][0].y += a_reg[j % 2][0].z * b_reg[j % 2][0].y;
+            c_reg[2][0].z += a_reg[j % 2][0].z * b_reg[j % 2][0].z;
+            c_reg[2][0].w += a_reg[j % 2][0].z * b_reg[j % 2][0].w;
+            c_reg[2][1].x += a_reg[j % 2][0].z * b_reg[j % 2][1].x;
+            c_reg[2][1].y += a_reg[j % 2][0].z * b_reg[j % 2][1].y;
+            c_reg[2][1].z += a_reg[j % 2][0].z * b_reg[j % 2][1].z;
+            c_reg[2][1].w += a_reg[j % 2][0].z * b_reg[j % 2][1].w;
+            c_reg[3][0].x += a_reg[j % 2][0].w * b_reg[j % 2][0].x;
+            c_reg[3][0].y += a_reg[j % 2][0].w * b_reg[j % 2][0].y;
+            c_reg[3][0].z += a_reg[j % 2][0].w * b_reg[j % 2][0].z;
+            c_reg[3][0].w += a_reg[j % 2][0].w * b_reg[j % 2][0].w;
+            c_reg[3][1].x += a_reg[j % 2][0].w * b_reg[j % 2][1].x;
+            c_reg[3][1].y += a_reg[j % 2][0].w * b_reg[j % 2][1].y;
+            c_reg[3][1].z += a_reg[j % 2][0].w * b_reg[j % 2][1].z;
+            c_reg[3][1].w += a_reg[j % 2][0].w * b_reg[j % 2][1].w;
+            c_reg[4][0].x += a_reg[j % 2][1].x * b_reg[j % 2][0].x;
+            c_reg[4][0].y += a_reg[j % 2][1].x * b_reg[j % 2][0].y;
+            c_reg[4][0].z += a_reg[j % 2][1].x * b_reg[j % 2][0].z;
+            c_reg[4][0].w += a_reg[j % 2][1].x * b_reg[j % 2][0].w;
+            c_reg[4][1].x += a_reg[j % 2][1].x * b_reg[j % 2][1].x;
+            c_reg[4][1].y += a_reg[j % 2][1].x * b_reg[j % 2][1].y;
+            c_reg[4][1].z += a_reg[j % 2][1].x * b_reg[j % 2][1].z;
+            c_reg[4][1].w += a_reg[j % 2][1].x * b_reg[j % 2][1].w;
+            c_reg[5][0].x += a_reg[j % 2][1].y * b_reg[j % 2][0].x;
+            c_reg[5][0].y += a_reg[j % 2][1].y * b_reg[j % 2][0].y;
+            c_reg[5][0].z += a_reg[j % 2][1].y * b_reg[j % 2][0].z;
+            c_reg[5][0].w += a_reg[j % 2][1].y * b_reg[j % 2][0].w;
+            c_reg[5][1].x += a_reg[j % 2][1].y * b_reg[j % 2][1].x;
+            c_reg[5][1].y += a_reg[j % 2][1].y * b_reg[j % 2][1].y;
+            c_reg[5][1].z += a_reg[j % 2][1].y * b_reg[j % 2][1].z;
+            c_reg[5][1].w += a_reg[j % 2][1].y * b_reg[j % 2][1].w;
+            c_reg[6][0].x += a_reg[j % 2][1].z * b_reg[j % 2][0].x;
+            c_reg[6][0].y += a_reg[j % 2][1].z * b_reg[j % 2][0].y;
+            c_reg[6][0].z += a_reg[j % 2][1].z * b_reg[j % 2][0].z;
+            c_reg[6][0].w += a_reg[j % 2][1].z * b_reg[j % 2][0].w;
+            c_reg[6][1].x += a_reg[j % 2][1].z * b_reg[j % 2][1].x;
+            c_reg[6][1].y += a_reg[j % 2][1].z * b_reg[j % 2][1].y;
+            c_reg[6][1].z += a_reg[j % 2][1].z * b_reg[j % 2][1].z;
+            c_reg[6][1].w += a_reg[j % 2][1].z * b_reg[j % 2][1].w;
+            c_reg[7][0].x += a_reg[j % 2][1].w * b_reg[j % 2][0].x;
+            c_reg[7][0].y += a_reg[j % 2][1].w * b_reg[j % 2][0].y;
+            c_reg[7][0].z += a_reg[j % 2][1].w * b_reg[j % 2][0].z;
+            c_reg[7][0].w += a_reg[j % 2][1].w * b_reg[j % 2][0].w;
+            c_reg[7][1].x += a_reg[j % 2][1].w * b_reg[j % 2][1].x;
+            c_reg[7][1].y += a_reg[j % 2][1].w * b_reg[j % 2][1].y;
+            c_reg[7][1].z += a_reg[j % 2][1].w * b_reg[j % 2][1].z;
+            c_reg[7][1].w += a_reg[j % 2][1].w * b_reg[j % 2][1].w;
         }
 
         if (i < k)
@@ -623,361 +580,84 @@ extern "C" __global__ void matmul_blocked2_vec(
 
         LOAD_SMEM_TO_A_REG_VEC(VEC_SIZE, a_read_per_thread, TILE_M, a_reg[0], a_tile[load_stage_idx ^ 1], ty, 0);
         LOAD_SMEM_TO_B_REG_VEC(VEC_SIZE, b_read_per_thread, TILE_N, b_reg[0], b_tile[load_stage_idx ^ 1], tx, 0);
-
-        MMA_VEC(VEC_SIZE, a_read_per_thread, b_read_per_thread, c_reg, a_reg[1], b_reg[1]);
+            c_reg[0][0].x += a_reg[1][0].x * b_reg[1][0].x;
+            c_reg[0][0].y += a_reg[1][0].x * b_reg[1][0].y;
+            c_reg[0][0].z += a_reg[1][0].x * b_reg[1][0].z;
+            c_reg[0][0].w += a_reg[1][0].x * b_reg[1][0].w;
+            c_reg[0][1].x += a_reg[1][0].x * b_reg[1][1].x;
+            c_reg[0][1].y += a_reg[1][0].x * b_reg[1][1].y;
+            c_reg[0][1].z += a_reg[1][0].x * b_reg[1][1].z;
+            c_reg[0][1].w += a_reg[1][0].x * b_reg[1][1].w;
+            c_reg[1][0].x += a_reg[1][0].y * b_reg[1][0].x;
+            c_reg[1][0].y += a_reg[1][0].y * b_reg[1][0].y;
+            c_reg[1][0].z += a_reg[1][0].y * b_reg[1][0].z;
+            c_reg[1][0].w += a_reg[1][0].y * b_reg[1][0].w;
+            c_reg[1][1].x += a_reg[1][0].y * b_reg[1][1].x;
+            c_reg[1][1].y += a_reg[1][0].y * b_reg[1][1].y;
+            c_reg[1][1].z += a_reg[1][0].y * b_reg[1][1].z;
+            c_reg[1][1].w += a_reg[1][0].y * b_reg[1][1].w;
+            c_reg[2][0].x += a_reg[1][0].z * b_reg[1][0].x;
+            c_reg[2][0].y += a_reg[1][0].z * b_reg[1][0].y;
+            c_reg[2][0].z += a_reg[1][0].z * b_reg[1][0].z;
+            c_reg[2][0].w += a_reg[1][0].z * b_reg[1][0].w;
+            c_reg[2][1].x += a_reg[1][0].z * b_reg[1][1].x;
+            c_reg[2][1].y += a_reg[1][0].z * b_reg[1][1].y;
+            c_reg[2][1].z += a_reg[1][0].z * b_reg[1][1].z;
+            c_reg[2][1].w += a_reg[1][0].z * b_reg[1][1].w;
+            c_reg[3][0].x += a_reg[1][0].w * b_reg[1][0].x;
+            c_reg[3][0].y += a_reg[1][0].w * b_reg[1][0].y;
+            c_reg[3][0].z += a_reg[1][0].w * b_reg[1][0].z;
+            c_reg[3][0].w += a_reg[1][0].w * b_reg[1][0].w;
+            c_reg[3][1].x += a_reg[1][0].w * b_reg[1][1].x;
+            c_reg[3][1].y += a_reg[1][0].w * b_reg[1][1].y;
+            c_reg[3][1].z += a_reg[1][0].w * b_reg[1][1].z;
+            c_reg[3][1].w += a_reg[1][0].w * b_reg[1][1].w;
+            c_reg[4][0].x += a_reg[1][1].x * b_reg[1][0].x;
+            c_reg[4][0].y += a_reg[1][1].x * b_reg[1][0].y;
+            c_reg[4][0].z += a_reg[1][1].x * b_reg[1][0].z;
+            c_reg[4][0].w += a_reg[1][1].x * b_reg[1][0].w;
+            c_reg[4][1].x += a_reg[1][1].x * b_reg[1][1].x;
+            c_reg[4][1].y += a_reg[1][1].x * b_reg[1][1].y;
+            c_reg[4][1].z += a_reg[1][1].x * b_reg[1][1].z;
+            c_reg[4][1].w += a_reg[1][1].x * b_reg[1][1].w;
+            c_reg[5][0].x += a_reg[1][1].y * b_reg[1][0].x;
+            c_reg[5][0].y += a_reg[1][1].y * b_reg[1][0].y;
+            c_reg[5][0].z += a_reg[1][1].y * b_reg[1][0].z;
+            c_reg[5][0].w += a_reg[1][1].y * b_reg[1][0].w;
+            c_reg[5][1].x += a_reg[1][1].y * b_reg[1][1].x;
+            c_reg[5][1].y += a_reg[1][1].y * b_reg[1][1].y;
+            c_reg[5][1].z += a_reg[1][1].y * b_reg[1][1].z;
+            c_reg[5][1].w += a_reg[1][1].y * b_reg[1][1].w;
+            c_reg[6][0].x += a_reg[1][1].z * b_reg[1][0].x;
+            c_reg[6][0].y += a_reg[1][1].z * b_reg[1][0].y;
+            c_reg[6][0].z += a_reg[1][1].z * b_reg[1][0].z;
+            c_reg[6][0].w += a_reg[1][1].z * b_reg[1][0].w;
+            c_reg[6][1].x += a_reg[1][1].z * b_reg[1][1].x;
+            c_reg[6][1].y += a_reg[1][1].z * b_reg[1][1].y;
+            c_reg[6][1].z += a_reg[1][1].z * b_reg[1][1].z;
+            c_reg[6][1].w += a_reg[1][1].z * b_reg[1][1].w;
+            c_reg[7][0].x += a_reg[1][1].w * b_reg[1][0].x;
+            c_reg[7][0].y += a_reg[1][1].w * b_reg[1][0].y;
+            c_reg[7][0].z += a_reg[1][1].w * b_reg[1][0].z;
+            c_reg[7][0].w += a_reg[1][1].w * b_reg[1][0].w;
+            c_reg[7][1].x += a_reg[1][1].w * b_reg[1][1].x;
+            c_reg[7][1].y += a_reg[1][1].w * b_reg[1][1].y;
+            c_reg[7][1].z += a_reg[1][1].w * b_reg[1][1].z;
+            c_reg[7][1].w += a_reg[1][1].w * b_reg[1][1].w;
     } while (i < k);
 
-    unsigned int offset = blockIdx.y * TILE_M * n + blockIdx.x * TILE_N + tx * a_read_per_thread + ty * b_read_per_thread * n;
     float *pC = C + blockIdx.y * TILE_M * n + blockIdx.x * TILE_N + tx * a_read_per_thread + ty * b_read_per_thread * n;
     // acquire_lock(&lock);
 
-    // printf("global_idx = %d, offset = %d\n", global_idx, offset);
-
     // release_lock(&lock);
-#pragma unroll
+
+#pragma unroll(a_read_per_thread)
     for (int i = 0; i < a_read_per_thread; i++)
     {
-        const type *c = (type *)&c_reg[i][0];
-#pragma unroll
+#pragma unroll(b_read_per_thread)
         for (int j = 0; j < b_read_per_thread; j++)
         {
-            pC[i * n + j] = c[j];
-        }
-    }
-}
-
-#define BLOCK_X 16
-#define BLOCK_Y 16
-
-#define TILE_X 128
-#define TILE_X_4 32
-#define TILE_Y 128
-#define TILE_Y_4 32
-
-#define TILE_K 16
-
-#define WPTN 8
-#define WPTM 8
-#define WPTN_4 2
-
-extern "C" __global__ void gemm_kernel_NN(
-    const float *__restrict__ A,
-    const float *__restrict__ B,
-    float4 *__restrict__ C,
-    float alpha, float beta,
-    int M, int N, int K)
-{
-    __shared__ float4 smem_a[2][TILE_K * TILE_Y_4];
-    __shared__ float4 smem_b[2][TILE_K * TILE_X_4];
-
-    int tx = threadIdx.x % 16;
-    int ty = threadIdx.x / 16;
-
-    int tx4 = threadIdx.x % 4;
-    int ty4 = threadIdx.x / 4;
-
-    int tx32 = threadIdx.x % 32;
-    int ty32 = threadIdx.x / 32;
-
-    //! every thread block read TILE_Y rows of A
-    //! every 4 thread read a row of A with TILE_K  elements
-    //! every thread read 4 elements
-    const float *pA = (A + K * TILE_Y * blockIdx.y + ty4 * K + tx4 * 4);
-    //! every thread block read TILE_X columns of B
-    //! every 32 thread read a row of B with TILE_X elements
-    //! every thread read 4 elements
-    const float *pB = (B + TILE_X * blockIdx.x + ty32 * N + tx32 * 4);
-
-    //! every thread block write TILE_Y/4 rows of C, TILE_X_4 * 4(float4)
-    //! columns of C
-    float4 *pC = C + TILE_Y * blockIdx.y * N / 4 + TILE_X_4 * blockIdx.x;
-
-    int sts_a_offset = tx4 * 4 * TILE_Y + ty4;
-    int sts_b_offset = ty32 * TILE_X_4 + tx32;
-
-    float4 f4_zero = make_float4(0.f, 0.f, 0.f, 0.f);
-    bool valid_ld_a_0 = ((blockIdx.y * TILE_Y + ty4) < M) && ((tx4 * 4) < K);
-    bool valid_ld_a_1 = ((blockIdx.y * TILE_Y + ty4 + 64) < M) && ((tx4 * 4) < K);
-    bool valid_ld_b_0 = ((blockIdx.x * TILE_X + tx32 * 4) < N) && (ty32 < K);
-    bool valid_ld_b_1 = ((blockIdx.x * TILE_X + tx32 * 4) < N) && ((ty32 + 8) < K);
-
-    float4 ldg_a_reg[2];
-    float4 ldg_b_reg[2];
-
-    ldg_a_reg[0] = valid_ld_a_0 ? *(const float4 *)pA : f4_zero;
-    ldg_a_reg[1] = valid_ld_a_1 ? *(const float4 *)(pA + 64 * K) : f4_zero;
-    ldg_b_reg[0] = valid_ld_b_0 ? *(const float4 *)(pB + 0 * N) : f4_zero;
-    ldg_b_reg[1] = valid_ld_b_1 ? *(const float4 *)(pB + 8 * N) : f4_zero;
-
-    float4 c[WPTM][WPTN_4] = {{f4_zero}};
-
-    *((float *)&smem_a[0][0] + sts_a_offset + 0 * TILE_Y + 0) = ldg_a_reg[0].x;
-    *((float *)&smem_a[0][0] + sts_a_offset + 1 * TILE_Y + 0) = ldg_a_reg[0].y;
-    *((float *)&smem_a[0][0] + sts_a_offset + 2 * TILE_Y + 0) = ldg_a_reg[0].z;
-    *((float *)&smem_a[0][0] + sts_a_offset + 3 * TILE_Y + 0) = ldg_a_reg[0].w;
-    *((float *)&smem_a[0][0] + sts_a_offset + 0 * TILE_Y + 64) = ldg_a_reg[1].x;
-    *((float *)&smem_a[0][0] + sts_a_offset + 1 * TILE_Y + 64) = ldg_a_reg[1].y;
-    *((float *)&smem_a[0][0] + sts_a_offset + 2 * TILE_Y + 64) = ldg_a_reg[1].z;
-    *((float *)&smem_a[0][0] + sts_a_offset + 3 * TILE_Y + 64) = ldg_a_reg[1].w;
-
-    smem_b[0][sts_b_offset + 0] = ldg_b_reg[0];
-    smem_b[0][sts_b_offset + 8 * TILE_X_4] = ldg_b_reg[1];
-
-    __syncthreads();
-
-    int i = 0;
-    int write_stage_idx = 1;
-
-    float4 reg_a[2][2];
-    float4 reg_b[2][2];
-
-    reg_a[0][0] = smem_a[0][0 + ty];
-    reg_a[0][1] = smem_a[0][16 + ty];
-    reg_b[0][0] = smem_b[0][0 + tx];
-    reg_b[0][1] = smem_b[0][16 + tx];
-
-    do
-    {
-        i += 16;
-        valid_ld_a_0 = (valid_ld_a_0 && ((tx4 * 4 + i) < K));
-        valid_ld_a_1 = (valid_ld_a_1 && ((tx4 * 4 + i) < K));
-        valid_ld_b_0 = (valid_ld_b_0 && ((ty32 + i) < K));
-        valid_ld_b_1 = (valid_ld_b_1 && ((ty32 + 8 + i) < K));
-
-        ldg_a_reg[0] = (valid_ld_a_0) ? *(const float4 *)(pA + i + 0) : f4_zero;
-        ldg_a_reg[1] = (valid_ld_a_1) ? *(const float4 *)(pA + i + 64 * K) : f4_zero;
-        ldg_b_reg[0] = (valid_ld_b_0) ? *(const float4 *)(pB + (i + 0) * N) : f4_zero;
-        ldg_b_reg[1] = (valid_ld_b_1) ? *(const float4 *)(pB + (i + 8) * N) : f4_zero;
-
-        int load_stage_idx = write_stage_idx ^ 1;
-
-#pragma unroll
-        for (int j = 0; j < TILE_K - 1; j++)
-        {
-            reg_a[(j + 1) % 2][0] = smem_a[load_stage_idx][(j + 1) * TILE_Y_4 + 0 + ty];
-            reg_a[(j + 1) % 2][1] = smem_a[load_stage_idx][(j + 1) * TILE_Y_4 + 16 + ty];
-            reg_b[(j + 1) % 2][0] = smem_b[load_stage_idx][(j + 1) * TILE_X_4 + 0 + tx];
-            reg_b[(j + 1) % 2][1] = smem_b[load_stage_idx][(j + 1) * TILE_X_4 + 16 + tx];
-            c[0][0].x += reg_a[j % 2][0].x * reg_b[j % 2][0].x;
-            c[0][0].y += reg_a[j % 2][0].x * reg_b[j % 2][0].y;
-            c[0][0].z += reg_a[j % 2][0].x * reg_b[j % 2][0].z;
-            c[0][0].w += reg_a[j % 2][0].x * reg_b[j % 2][0].w;
-            c[0][1].x += reg_a[j % 2][0].x * reg_b[j % 2][1].x;
-            c[0][1].y += reg_a[j % 2][0].x * reg_b[j % 2][1].y;
-            c[0][1].z += reg_a[j % 2][0].x * reg_b[j % 2][1].z;
-            c[0][1].w += reg_a[j % 2][0].x * reg_b[j % 2][1].w;
-            c[1][0].x += reg_a[j % 2][0].y * reg_b[j % 2][0].x;
-            c[1][0].y += reg_a[j % 2][0].y * reg_b[j % 2][0].y;
-            c[1][0].z += reg_a[j % 2][0].y * reg_b[j % 2][0].z;
-            c[1][0].w += reg_a[j % 2][0].y * reg_b[j % 2][0].w;
-            c[1][1].x += reg_a[j % 2][0].y * reg_b[j % 2][1].x;
-            c[1][1].y += reg_a[j % 2][0].y * reg_b[j % 2][1].y;
-            c[1][1].z += reg_a[j % 2][0].y * reg_b[j % 2][1].z;
-            c[1][1].w += reg_a[j % 2][0].y * reg_b[j % 2][1].w;
-            c[2][0].x += reg_a[j % 2][0].z * reg_b[j % 2][0].x;
-            c[2][0].y += reg_a[j % 2][0].z * reg_b[j % 2][0].y;
-            c[2][0].z += reg_a[j % 2][0].z * reg_b[j % 2][0].z;
-            c[2][0].w += reg_a[j % 2][0].z * reg_b[j % 2][0].w;
-            c[2][1].x += reg_a[j % 2][0].z * reg_b[j % 2][1].x;
-            c[2][1].y += reg_a[j % 2][0].z * reg_b[j % 2][1].y;
-            c[2][1].z += reg_a[j % 2][0].z * reg_b[j % 2][1].z;
-            c[2][1].w += reg_a[j % 2][0].z * reg_b[j % 2][1].w;
-            c[3][0].x += reg_a[j % 2][0].w * reg_b[j % 2][0].x;
-            c[3][0].y += reg_a[j % 2][0].w * reg_b[j % 2][0].y;
-            c[3][0].z += reg_a[j % 2][0].w * reg_b[j % 2][0].z;
-            c[3][0].w += reg_a[j % 2][0].w * reg_b[j % 2][0].w;
-            c[3][1].x += reg_a[j % 2][0].w * reg_b[j % 2][1].x;
-            c[3][1].y += reg_a[j % 2][0].w * reg_b[j % 2][1].y;
-            c[3][1].z += reg_a[j % 2][0].w * reg_b[j % 2][1].z;
-            c[3][1].w += reg_a[j % 2][0].w * reg_b[j % 2][1].w;
-            c[4][0].x += reg_a[j % 2][1].x * reg_b[j % 2][0].x;
-            c[4][0].y += reg_a[j % 2][1].x * reg_b[j % 2][0].y;
-            c[4][0].z += reg_a[j % 2][1].x * reg_b[j % 2][0].z;
-            c[4][0].w += reg_a[j % 2][1].x * reg_b[j % 2][0].w;
-            c[4][1].x += reg_a[j % 2][1].x * reg_b[j % 2][1].x;
-            c[4][1].y += reg_a[j % 2][1].x * reg_b[j % 2][1].y;
-            c[4][1].z += reg_a[j % 2][1].x * reg_b[j % 2][1].z;
-            c[4][1].w += reg_a[j % 2][1].x * reg_b[j % 2][1].w;
-            c[5][0].x += reg_a[j % 2][1].y * reg_b[j % 2][0].x;
-            c[5][0].y += reg_a[j % 2][1].y * reg_b[j % 2][0].y;
-            c[5][0].z += reg_a[j % 2][1].y * reg_b[j % 2][0].z;
-            c[5][0].w += reg_a[j % 2][1].y * reg_b[j % 2][0].w;
-            c[5][1].x += reg_a[j % 2][1].y * reg_b[j % 2][1].x;
-            c[5][1].y += reg_a[j % 2][1].y * reg_b[j % 2][1].y;
-            c[5][1].z += reg_a[j % 2][1].y * reg_b[j % 2][1].z;
-            c[5][1].w += reg_a[j % 2][1].y * reg_b[j % 2][1].w;
-            c[6][0].x += reg_a[j % 2][1].z * reg_b[j % 2][0].x;
-            c[6][0].y += reg_a[j % 2][1].z * reg_b[j % 2][0].y;
-            c[6][0].z += reg_a[j % 2][1].z * reg_b[j % 2][0].z;
-            c[6][0].w += reg_a[j % 2][1].z * reg_b[j % 2][0].w;
-            c[6][1].x += reg_a[j % 2][1].z * reg_b[j % 2][1].x;
-            c[6][1].y += reg_a[j % 2][1].z * reg_b[j % 2][1].y;
-            c[6][1].z += reg_a[j % 2][1].z * reg_b[j % 2][1].z;
-            c[6][1].w += reg_a[j % 2][1].z * reg_b[j % 2][1].w;
-            c[7][0].x += reg_a[j % 2][1].w * reg_b[j % 2][0].x;
-            c[7][0].y += reg_a[j % 2][1].w * reg_b[j % 2][0].y;
-            c[7][0].z += reg_a[j % 2][1].w * reg_b[j % 2][0].z;
-            c[7][0].w += reg_a[j % 2][1].w * reg_b[j % 2][0].w;
-            c[7][1].x += reg_a[j % 2][1].w * reg_b[j % 2][1].x;
-            c[7][1].y += reg_a[j % 2][1].w * reg_b[j % 2][1].y;
-            c[7][1].z += reg_a[j % 2][1].w * reg_b[j % 2][1].z;
-            c[7][1].w += reg_a[j % 2][1].w * reg_b[j % 2][1].w;
-        }
-
-        //! the last iter K, write the global data to shared memory which will
-        //! be used in the next iteration
-        if (i < K)
-        {
-            *((float *)&smem_a[write_stage_idx][0] + sts_a_offset + 0 * TILE_Y + 0) = ldg_a_reg[0].x;
-            *((float *)&smem_a[write_stage_idx][0] + sts_a_offset + 1 * TILE_Y + 0) = ldg_a_reg[0].y;
-            *((float *)&smem_a[write_stage_idx][0] + sts_a_offset + 2 * TILE_Y + 0) = ldg_a_reg[0].z;
-            *((float *)&smem_a[write_stage_idx][0] + sts_a_offset + 3 * TILE_Y + 0) = ldg_a_reg[0].w;
-            *((float *)&smem_a[write_stage_idx][0] + sts_a_offset + 0 * TILE_Y + 64) = ldg_a_reg[1].x;
-            *((float *)&smem_a[write_stage_idx][0] + sts_a_offset + 1 * TILE_Y + 64) = ldg_a_reg[1].y;
-            *((float *)&smem_a[write_stage_idx][0] + sts_a_offset + 2 * TILE_Y + 64) = ldg_a_reg[1].z;
-            *((float *)&smem_a[write_stage_idx][0] + sts_a_offset + 3 * TILE_Y + 64) = ldg_a_reg[1].w;
-
-            smem_b[write_stage_idx][sts_b_offset + 0] = ldg_b_reg[0];
-            smem_b[write_stage_idx][sts_b_offset + 8 * TILE_X_4] = ldg_b_reg[1];
-            __syncthreads();
-            write_stage_idx ^= 1;
-        }
-
-        //! load data from shared memory to register for the next TILE_K
-        //! iteration
-        reg_a[0][0] = smem_a[load_stage_idx ^ 1][0 + ty];
-        reg_a[0][1] = smem_a[load_stage_idx ^ 1][16 + ty];
-        reg_b[0][0] = smem_b[load_stage_idx ^ 1][0 + tx];
-        reg_b[0][1] = smem_b[load_stage_idx ^ 1][16 + tx];
-
-        //! compute the last TILE_K-1 iteration, the register data is load ahead
-        c[0][0].x += reg_a[1][0].x * reg_b[1][0].x;
-        c[0][0].y += reg_a[1][0].x * reg_b[1][0].y;
-        c[0][0].z += reg_a[1][0].x * reg_b[1][0].z;
-        c[0][0].w += reg_a[1][0].x * reg_b[1][0].w;
-        c[0][1].x += reg_a[1][0].x * reg_b[1][1].x;
-        c[0][1].y += reg_a[1][0].x * reg_b[1][1].y;
-        c[0][1].z += reg_a[1][0].x * reg_b[1][1].z;
-        c[0][1].w += reg_a[1][0].x * reg_b[1][1].w;
-        c[1][0].x += reg_a[1][0].y * reg_b[1][0].x;
-        c[1][0].y += reg_a[1][0].y * reg_b[1][0].y;
-        c[1][0].z += reg_a[1][0].y * reg_b[1][0].z;
-        c[1][0].w += reg_a[1][0].y * reg_b[1][0].w;
-        c[1][1].x += reg_a[1][0].y * reg_b[1][1].x;
-        c[1][1].y += reg_a[1][0].y * reg_b[1][1].y;
-        c[1][1].z += reg_a[1][0].y * reg_b[1][1].z;
-        c[1][1].w += reg_a[1][0].y * reg_b[1][1].w;
-        c[2][0].x += reg_a[1][0].z * reg_b[1][0].x;
-        c[2][0].y += reg_a[1][0].z * reg_b[1][0].y;
-        c[2][0].z += reg_a[1][0].z * reg_b[1][0].z;
-        c[2][0].w += reg_a[1][0].z * reg_b[1][0].w;
-        c[2][1].x += reg_a[1][0].z * reg_b[1][1].x;
-        c[2][1].y += reg_a[1][0].z * reg_b[1][1].y;
-        c[2][1].z += reg_a[1][0].z * reg_b[1][1].z;
-        c[2][1].w += reg_a[1][0].z * reg_b[1][1].w;
-        c[3][0].x += reg_a[1][0].w * reg_b[1][0].x;
-        c[3][0].y += reg_a[1][0].w * reg_b[1][0].y;
-        c[3][0].z += reg_a[1][0].w * reg_b[1][0].z;
-        c[3][0].w += reg_a[1][0].w * reg_b[1][0].w;
-        c[3][1].x += reg_a[1][0].w * reg_b[1][1].x;
-        c[3][1].y += reg_a[1][0].w * reg_b[1][1].y;
-        c[3][1].z += reg_a[1][0].w * reg_b[1][1].z;
-        c[3][1].w += reg_a[1][0].w * reg_b[1][1].w;
-        c[4][0].x += reg_a[1][1].x * reg_b[1][0].x;
-        c[4][0].y += reg_a[1][1].x * reg_b[1][0].y;
-        c[4][0].z += reg_a[1][1].x * reg_b[1][0].z;
-        c[4][0].w += reg_a[1][1].x * reg_b[1][0].w;
-        c[4][1].x += reg_a[1][1].x * reg_b[1][1].x;
-        c[4][1].y += reg_a[1][1].x * reg_b[1][1].y;
-        c[4][1].z += reg_a[1][1].x * reg_b[1][1].z;
-        c[4][1].w += reg_a[1][1].x * reg_b[1][1].w;
-        c[5][0].x += reg_a[1][1].y * reg_b[1][0].x;
-        c[5][0].y += reg_a[1][1].y * reg_b[1][0].y;
-        c[5][0].z += reg_a[1][1].y * reg_b[1][0].z;
-        c[5][0].w += reg_a[1][1].y * reg_b[1][0].w;
-        c[5][1].x += reg_a[1][1].y * reg_b[1][1].x;
-        c[5][1].y += reg_a[1][1].y * reg_b[1][1].y;
-        c[5][1].z += reg_a[1][1].y * reg_b[1][1].z;
-        c[5][1].w += reg_a[1][1].y * reg_b[1][1].w;
-        c[6][0].x += reg_a[1][1].z * reg_b[1][0].x;
-        c[6][0].y += reg_a[1][1].z * reg_b[1][0].y;
-        c[6][0].z += reg_a[1][1].z * reg_b[1][0].z;
-        c[6][0].w += reg_a[1][1].z * reg_b[1][0].w;
-        c[6][1].x += reg_a[1][1].z * reg_b[1][1].x;
-        c[6][1].y += reg_a[1][1].z * reg_b[1][1].y;
-        c[6][1].z += reg_a[1][1].z * reg_b[1][1].z;
-        c[6][1].w += reg_a[1][1].z * reg_b[1][1].w;
-        c[7][0].x += reg_a[1][1].w * reg_b[1][0].x;
-        c[7][0].y += reg_a[1][1].w * reg_b[1][0].y;
-        c[7][0].z += reg_a[1][1].w * reg_b[1][0].z;
-        c[7][0].w += reg_a[1][1].w * reg_b[1][0].w;
-        c[7][1].x += reg_a[1][1].w * reg_b[1][1].x;
-        c[7][1].y += reg_a[1][1].w * reg_b[1][1].y;
-        c[7][1].z += reg_a[1][1].w * reg_b[1][1].z;
-        c[7][1].w += reg_a[1][1].w * reg_b[1][1].w;
-
-    } while (i < K);
-
-#pragma unroll
-    for (int wm = 0; wm < WPTM; wm++)
-    {
-#pragma unroll
-        for (int wn = 0; wn < WPTN_4; wn++)
-        {
-            c[wm][wn].x *= alpha;
-            c[wm][wn].y *= alpha;
-            c[wm][wn].z *= alpha;
-            c[wm][wn].w *= alpha;
-        }
-    }
-
-#pragma unroll
-    for (int wm = 0; wm < 4; wm++)
-    {
-#pragma unroll
-        for (int wn = 0; wn < WPTN_4; wn++)
-        {
-            if (((blockIdx.y * TILE_Y + ty * 4 + wm) < M) && ((blockIdx.x * TILE_X + wn * 64 + tx * 4) < N))
-            {
-                if (beta != 0)
-                {
-                    float4 vec4c = *(pC + ((ty * 4 + wm) * N / 4 + wn * 16 + tx));
-                    vec4c.x = vec4c.x * beta + c[wm][wn].x;
-                    vec4c.y = vec4c.y * beta + c[wm][wn].y;
-                    vec4c.z = vec4c.z * beta + c[wm][wn].z;
-                    vec4c.w = vec4c.w * beta + c[wm][wn].w;
-                    *(pC + (ty * 4 + wm) * N / 4 + wn * 16 + tx) = vec4c;
-                }
-                else
-                {
-                    *(pC + (ty * 4 + wm) * N / 4 + wn * 16 + tx) = c[wm][wn];
-                }
-            }
-        }
-    }
-
-#pragma unroll
-    for (int wm = 0; wm < 4; wm++)
-    {
-#pragma unroll
-        for (int wn = 0; wn < WPTN_4; wn++)
-        {
-            if (((blockIdx.y * TILE_Y + 64 + ty * 4 + wm) < M) && ((blockIdx.x * TILE_X + wn * 64 + tx * 4) < N))
-            {
-                if (beta != 0)
-                {
-                    float4 vec4c = *(pC + ((64 + ty * 4 + wm) * N / 4 + wn * 16 + tx));
-                    vec4c.x = vec4c.x * beta + c[wm + 4][wn].x;
-                    vec4c.y = vec4c.y * beta + c[wm + 4][wn].y;
-                    vec4c.z = vec4c.z * beta + c[wm + 4][wn].z;
-                    vec4c.w = vec4c.w * beta + c[wm + 4][wn].w;
-                    *(pC + (64 + ty * 4 + wm) * N / 4 + wn * 16 + tx) = vec4c;
-                }
-                else
-                {
-                    *(pC + (64 + ty * 4 + wm) * N / 4 + wn * 16 + tx) = c[wm + 4][wn];
-                }
-            }
+            pC[i * n + j] = c_reg_ptr[i * b_read_per_thread + j];
         }
     }
 }

@@ -1,4 +1,7 @@
-use crate::{convertion::VecConvertor, traits::{ SimdCompare, SimdMath, VecTrait }};
+use crate::{
+    convertion::VecConvertor,
+    traits::{SimdCompare, SimdMath, VecTrait},
+};
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
@@ -30,7 +33,12 @@ impl VecTrait<u8> for u8x32 {
     type Base = u8;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[u8]) {
-        unsafe { _mm256_storeu_si256(&mut self.0, _mm256_loadu_si256(slice.as_ptr() as *const __m256i)) }
+        unsafe {
+            _mm256_storeu_si256(
+                &mut self.0,
+                _mm256_loadu_si256(slice.as_ptr() as *const __m256i),
+            )
+        }
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
@@ -49,8 +57,9 @@ impl VecTrait<u8> for u8x32 {
 }
 
 impl u8x32 {
-    #[allow(unused)]
-    fn as_array(&self) -> [u8; 32] {
+    /// convert the vector to an array
+    #[inline(always)]
+    pub fn as_array(&self) -> [u8; 32] {
         unsafe { std::mem::transmute(self.0) }
     }
 }
@@ -65,7 +74,7 @@ impl SimdCompare for u8x32 {
         }
     }
     fn simd_ne(self, other: Self) -> i8x32 {
-        unsafe { 
+        unsafe {
             let lhs: i8x32 = std::mem::transmute(self.0);
             let rhs: i8x32 = std::mem::transmute(other.0);
             lhs.simd_ne(rhs)
@@ -79,7 +88,7 @@ impl SimdCompare for u8x32 {
         }
     }
     fn simd_le(self, other: Self) -> i8x32 {
-        unsafe { 
+        unsafe {
             let lhs: i8x32 = std::mem::transmute(self.0);
             let rhs: i8x32 = std::mem::transmute(other.0);
             lhs.simd_le(rhs)
@@ -93,7 +102,7 @@ impl SimdCompare for u8x32 {
         }
     }
     fn simd_ge(self, other: Self) -> i8x32 {
-        unsafe { 
+        unsafe {
             let lhs: i8x32 = std::mem::transmute(self.0);
             let rhs: i8x32 = std::mem::transmute(other.0);
             lhs.simd_ge(rhs)

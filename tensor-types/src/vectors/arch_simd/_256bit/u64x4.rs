@@ -59,8 +59,9 @@ impl VecTrait<u64> for u64x4 {
 }
 
 impl u64x4 {
+    /// convert the vector to an array
     #[allow(unused)]
-    fn as_array(&self) -> [u64; 4] {
+    pub fn as_array(&self) -> [u64; 4] {
         unsafe { std::mem::transmute(self.0) }
     }
 }
@@ -118,7 +119,7 @@ impl SimdCompare for u64x4 {
     }
 }
 
-impl SimdSelect<u64x4> for u64x4 {
+impl SimdSelect<u64x4> for i64x4 {
     fn select(&self, true_val: u64x4, false_val: u64x4) -> u64x4 {
         unsafe { u64x4(_mm256_blendv_epi8(false_val.0, true_val.0, self.0)) }
     }

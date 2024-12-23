@@ -5,7 +5,7 @@ use cudarc::{
     driver::DeviceRepr,
 };
 use tensor_cudakernels::MATMUL;
-use tensor_traits::{CommonBounds, Matmul, TensorInfo};
+use tensor_traits::{CommonBounds, Matmul};
 
 use crate::ops::cuda::cuda_utils::compute_kernel_launch_config;
 use crate::{

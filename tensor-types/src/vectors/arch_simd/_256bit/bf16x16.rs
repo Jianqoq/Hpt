@@ -39,8 +39,9 @@ impl VecTrait<half::bf16> for bf16x16 {
 }
 
 impl bf16x16 {
-    #[allow(unused)]
-    fn as_array(&self) -> [half::bf16; 16] {
+    /// convert the vector to an array
+    #[inline(always)]
+    pub fn as_array(&self) -> [half::bf16; 16] {
         unsafe { std::mem::transmute(self.0) }
     }
 }

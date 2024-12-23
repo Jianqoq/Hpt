@@ -1,5 +1,5 @@
 use crate::convertion::VecConvertor;
-use crate::traits::VecTrait;
+use crate::traits::{SimdSelect, VecTrait};
 use crate::vectors::arch_simd::_256bit::u8x32::u8x32;
 use crate::traits::SimdCompare;
 
@@ -32,8 +32,9 @@ impl VecTrait<bool> for boolx32 {
 }
 
 impl boolx32 {
-    #[allow(unused)]
-    fn as_array(&self) -> [bool; 32] {
+    /// convert the vector to an array
+    #[inline(always)]
+    pub fn as_array(&self) -> [bool; 32] {
         unsafe { std::mem::transmute(self.0) }
     }
 }
@@ -81,6 +82,17 @@ impl SimdCompare for boolx32 {
             res[i] = if self.0[i] >= rhs.0[i] { -1 } else { 0 };
         }
         i8x32(unsafe { std::mem::transmute(res) })
+    }
+}
+
+impl SimdSelect<boolx32> for i8x32 {
+    fn select(&self, true_val: boolx32, false_val: boolx32) -> boolx32 {
+        let mut ret = boolx32::default();
+        let arr = self.as_array();
+        for i in 0..32 {
+            ret.0[i] = if arr[i] != 0 { true_val.0[i] } else { false_val.0[i] };
+        }
+        ret
     }
 }
 

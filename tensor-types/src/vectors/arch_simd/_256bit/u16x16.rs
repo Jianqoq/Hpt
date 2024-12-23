@@ -58,8 +58,9 @@ impl VecTrait<u16> for u16x16 {
 }
 
 impl u16x16 {
+    /// convert the vector to an array
     #[allow(unused)]
-    fn as_array(&self) -> [u16; 16] {
+    pub fn as_array(&self) -> [u16; 16] {
         unsafe { std::mem::transmute(self.0) }
     }
 }
