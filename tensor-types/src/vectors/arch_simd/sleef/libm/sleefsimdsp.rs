@@ -61,7 +61,6 @@ pub(crate) unsafe fn vsignbit_vm_vf(f: VFloat) -> VMask {
     vand_vm_vm_vm(vreinterpret_vm_vf(f), vreinterpret_vm_vf(vcast_vf_f(-0.0)))
 }
 
-// #if !(defined(ENABLE_RVVM1) || defined(ENABLE_RVVM1NOFMA) || defined(ENABLE_RVVM2) || defined(ENABLE_RVVM2NOFMA))
 #[inline(always)]
 pub(crate) unsafe fn vmulsign_vf_vf_vf(x: VFloat, y: VFloat) -> VFloat {
     vreinterpret_vf_vm(vxor_vm_vm_vm(vreinterpret_vm_vf(x), vsignbit_vm_vf(y)))
@@ -74,7 +73,6 @@ pub(crate) unsafe fn vcopysign_vf_vf_vf(x: VFloat, y: VFloat) -> VFloat {
         vand_vm_vm_vm(vreinterpret_vm_vf(vcast_vf_f(-0.0)), vreinterpret_vm_vf(y)),
     ))
 }
-// #endif
 
 #[inline(always)]
 pub(crate) unsafe fn vsignbit_vo_vf(d: VFloat) -> Vopmask {
@@ -89,7 +87,6 @@ pub(crate) unsafe fn vsel_vi2_vf_vf_vi2_vi2(f0: VFloat, f1: VFloat, x: VInt2, y:
     vsel_vi2_vo_vi2_vi2(vlt_vo_vf_vf(f0, f1), x, y)
 }
 
-// #if !defined(ENABLE_AVX512F) && !defined(ENABLE_AVX512FNOFMA)
 #[inline(always)]
 pub(crate) unsafe fn vilogbk_vi2_vf(d: VFloat) -> VInt2 {
     let o = vlt_vo_vf_vf(d, vcast_vf_f(5.421010862427522e-20));
@@ -116,7 +113,6 @@ pub(crate) unsafe fn vilogb2k_vi2_vf(d: VFloat) -> VInt2 {
     q = vsub_vi2_vi2_vi2(q, vcast_vi2_i(0x7f));
     q
 }
-// #endif
 
 #[inline(always)]
 pub(crate) unsafe fn vpow2i_vf_vi2(q: VInt2) -> VFloat {
@@ -160,7 +156,6 @@ pub(crate) unsafe fn vldexp3_vf_vf_vi2(d: VFloat, q: VInt2) -> VFloat {
     ))
 }
 
-// #if !(defined(ENABLE_SVE) || defined(ENABLE_SVENOFMA) || defined(ENABLE_RVVM1) || defined(ENABLE_RVVM1NOFMA) || defined(ENABLE_RVVM2) || defined(ENABLE_RVVM2NOFMA))
 #[derive(Clone, Copy)]
 pub(crate) struct Fit {
     pub(crate) d: VFloat,
@@ -208,14 +203,11 @@ pub(crate) unsafe fn dfisetdf_dfi_dfi_vf2(mut dfi: Dfit, v: VFloat2) -> Dfit {
     dfi.df = v;
     dfi
 }
-// #endif
 
-// #if !(defined(ENABLE_RVVM1) || defined(ENABLE_RVVM1NOFMA) || defined(ENABLE_RVVM2) || defined(ENABLE_RVVM2NOFMA))
 #[inline(always)]
 pub(crate) unsafe fn vorsign_vf_vf_vf(x: VFloat, y: VFloat) -> VFloat {
     vreinterpret_vf_vm(vor_vm_vm_vm(vreinterpret_vm_vf(x), vsignbit_vm_vf(y)))
 }
-// #endif
 
 #[inline(always)]
 pub(crate) unsafe fn rempisubf(x: VFloat) -> Fit {
@@ -307,16 +299,14 @@ pub(crate) unsafe fn xsinf_u1(d: VFloat) -> VFloat {
     let mut t: VFloat2;
     let x: VFloat2;
 
-    // Initial range reduction
-    u = vrint_vf_vf(vmul_vf_vf_vf(d, vcast_vf_f(M_1_PI as f32)));
+        u = vrint_vf_vf(vmul_vf_vf_vf(d, vcast_vf_f(M_1_PI as f32)));
     q = vrint_vi2_vf(u);
     v = vmla_vf_vf_vf_vf(u, vcast_vf_f(-PI_A2F), d);
     s = dfadd2_vf2_vf_vf(v, vmul_vf_vf_vf(u, vcast_vf_f(-PI_B2F)));
     s = dfadd_vf2_vf2_vf(s, vmul_vf_vf_vf(u, vcast_vf_f(-PI_C2F)));
     let g = vlt_vo_vf_vf(vabs_vf_vf(d), vcast_vf_f(TRIGRANGEMAX2F));
 
-    // Handle large arguments
-    if vtestallones_i_vo32(g) == 0 {
+        if vtestallones_i_vo32(g) == 0 {
         let dfi = rempif(d);
         let mut q2 = vand_vi2_vi2_vi2(dfigeti_vi2_dfi(dfi), vcast_vi2_i(3));
         q2 = vadd_vi2_vi2_vi2(
@@ -361,12 +351,10 @@ pub(crate) unsafe fn xsinf_u1(d: VFloat) -> VFloat {
         s = vsel_vf2_vo_vf2_vf2(g, s, t);
     }
 
-    // Taylor series approximation
-    t = s;
+        t = s;
     s = dfsqu_vf2_vf2(s);
 
-    // Polynomial evaluation
-    u = vcast_vf_f(2.6083159809786593541503e-06f32);
+        u = vcast_vf_f(2.6083159809786593541503e-06f32);
     u = vmla_vf_vf_vf_vf(
         u,
         vf2getx_vf_vf2(s),
@@ -391,8 +379,7 @@ pub(crate) unsafe fn xsinf_u1(d: VFloat) -> VFloat {
 
     u = dfmul_vf_vf2_vf2(t, x);
 
-    // Sign handling
-    u = vreinterpret_vf_vm(vxor_vm_vm_vm(
+        u = vreinterpret_vf_vm(vxor_vm_vm_vm(
         vand_vm_vo32_vm(
             veq_vo_vi2_vi2(vand_vi2_vi2_vi2(q, vcast_vi2_i(1)), vcast_vi2_i(1)),
             vreinterpret_vm_vf(vcast_vf_f(-0.0)),
@@ -400,8 +387,7 @@ pub(crate) unsafe fn xsinf_u1(d: VFloat) -> VFloat {
         vreinterpret_vm_vf(u),
     ));
 
-    // Handle special case for negative zero
-    vsel_vf_vo_vf_vf(visnegzero_vo_vf(d), d, u)
+        vsel_vf_vo_vf_vf(visnegzero_vo_vf(d), d, u)
 }
 
 #[inline(always)]
@@ -412,8 +398,7 @@ pub(crate) unsafe fn xcosf_u1(d: VFloat) -> VFloat {
     let mut t: VFloat2;
     let x: VFloat2;
 
-    // 计算 (d * M_1_PI - 0.5) * 2 + 1，用于确定象限
-    let dq = vmla_vf_vf_vf_vf(
+        let dq = vmla_vf_vf_vf_vf(
         vrint_vf_vf(vmla_vf_vf_vf_vf(
             d,
             vcast_vf_f(M_1_PI as f32),
@@ -424,16 +409,13 @@ pub(crate) unsafe fn xcosf_u1(d: VFloat) -> VFloat {
     );
     q = vrint_vi2_vf(dq);
 
-    // 计算精确余数
-    s = dfadd2_vf2_vf_vf(d, vmul_vf_vf_vf(dq, vcast_vf_f(-PI_A2F * 0.5)));
+        s = dfadd2_vf2_vf_vf(d, vmul_vf_vf_vf(dq, vcast_vf_f(-PI_A2F * 0.5)));
     s = dfadd2_vf2_vf2_vf(s, vmul_vf_vf_vf(dq, vcast_vf_f(-PI_B2F * 0.5)));
     s = dfadd2_vf2_vf2_vf(s, vmul_vf_vf_vf(dq, vcast_vf_f(-PI_C2F * 0.5)));
 
-    // 检查是否在有效范围内
-    let g = vlt_vo_vf_vf(vabs_vf_vf(d), vcast_vf_f(TRIGRANGEMAX2F));
+        let g = vlt_vo_vf_vf(vabs_vf_vf(d), vcast_vf_f(TRIGRANGEMAX2F));
 
-    // 处理大数和特殊值
-    if vtestallones_i_vo32(g) == 0 {
+        if vtestallones_i_vo32(g) == 0 {
         let dfi = rempif(d);
         let mut q2 = vand_vi2_vi2_vi2(dfigeti_vi2_dfi(dfi), vcast_vi2_i(3));
         q2 = vadd_vi2_vi2_vi2(
@@ -466,8 +448,7 @@ pub(crate) unsafe fn xcosf_u1(d: VFloat) -> VFloat {
         let dfi = dfisetdf_dfi_dfi_vf2(dfi, vsel_vf2_vo_vf2_vf2(o, x, dfigetdf_vf2_dfi(dfi)));
         t = dfnormalize_vf2_vf2(dfigetdf_vf2_dfi(dfi));
 
-        // 处理无穷大和NaN
-        t = vf2setx_vf2_vf2_vf(
+                t = vf2setx_vf2_vf2_vf(
             t,
             vreinterpret_vf_vm(vor_vm_vo32_vm(
                 vor_vo_vo_vo(visinf_vo_vf(d), visnan_vo_vf(d)),
@@ -480,10 +461,8 @@ pub(crate) unsafe fn xcosf_u1(d: VFloat) -> VFloat {
     }
 
     t = s;
-    s = dfsqu_vf2_vf2(s); // s = s^2
-
-    // 多项式逼近
-    u = vcast_vf_f(2.6083159809786593541503e-06);
+    s = dfsqu_vf2_vf2(s); 
+        u = vcast_vf_f(2.6083159809786593541503e-06);
     u = vmla_vf_vf_vf_vf(
         u,
         vf2getx_vf_vf2(s),
@@ -508,8 +487,7 @@ pub(crate) unsafe fn xcosf_u1(d: VFloat) -> VFloat {
 
     u = dfmul_vf_vf2_vf2(t, x);
 
-    // 根据象限调整符号
-    u = vreinterpret_vf_vm(vxor_vm_vm_vm(
+        u = vreinterpret_vf_vm(vxor_vm_vm_vm(
         vand_vm_vo32_vm(
             veq_vo_vi2_vi2(vand_vi2_vi2_vi2(q, vcast_vi2_i(2)), vcast_vi2_i(0)),
             vreinterpret_vm_vf(vcast_vf_f(-0.0)),
@@ -829,41 +807,32 @@ pub(crate) unsafe fn xatanf_u1(d: VFloat) -> VFloat {
 
 #[inline(always)]
 unsafe fn visinf2_vf_vf_vf(d: VFloat, m: VFloat) -> VFloat {
-    // 1. 检查d是否为无穷大
-    let is_inf = visinf_vo_vf(d);
+        let is_inf = visinf_vo_vf(d);
 
-    // 2. 获取d的符号位
-    let sign = vsignbit_vm_vf(d);
+        let sign = vsignbit_vm_vf(d);
 
-    // 3. 将符号位与m的位表示合并
-    let merged = vor_vm_vm_vm(sign, vreinterpret_vm_vf(m));
+        let merged = vor_vm_vm_vm(sign, vreinterpret_vm_vf(m));
 
-    // 4. 如果d是无穷大，返回带符号的m；否则返回0
-    vreinterpret_vf_vm(vand_vm_vo32_vm(is_inf, merged))
+        vreinterpret_vf_vm(vand_vm_vo32_vm(is_inf, merged))
 }
 
 #[inline(always)]
 pub(crate) unsafe fn xatan2f_u1(y: VFloat, x: VFloat) -> VFloat {
-    // Handle subnormal numbers by scaling up
-    let o = vlt_vo_vf_vf(
+        let o = vlt_vo_vf_vf(
         vabs_vf_vf(x),
-        vcast_vf_f(2.9387372783541830947e-39f32), // nexttowardf((1.0 / FLT_MAX), 1)
-    );
+        vcast_vf_f(2.9387372783541830947e-39f32),     );
     let x = vsel_vf_vo_vf_vf(o, vmul_vf_vf_vf(x, vcast_vf_f((1 << 24) as f32)), x);
     let y = vsel_vf_vo_vf_vf(o, vmul_vf_vf_vf(y, vcast_vf_f((1 << 24) as f32)), y);
 
-    // Calculate atan2 using double-float arithmetic
-    let d = atan2kf_u1(
+        let d = atan2kf_u1(
         vcast_vf2_vf_vf(vabs_vf_vf(y), vcast_vf_f(0.0)),
         vcast_vf2_vf_vf(x, vcast_vf_f(0.0)),
     );
     let mut r = vadd_vf_vf_vf(vf2getx_vf_vf2(d), vf2gety_vf_vf2(d));
 
-    // Adjust sign based on x
-    r = vmulsign_vf_vf_vf(r, x);
+        r = vmulsign_vf_vf_vf(r, x);
 
-    // Handle special cases
-    r = vsel_vf_vo_vf_vf(
+        r = vsel_vf_vo_vf_vf(
         vor_vo_vo_vo(visinf_vo_vf(x), veq_vo_vf_vf(x, vcast_vf_f(0.0))),
         vsub_vf_vf_vf(
             vcast_vf_f(std::f32::consts::PI / 2.0),
@@ -875,8 +844,7 @@ pub(crate) unsafe fn xatan2f_u1(y: VFloat, x: VFloat) -> VFloat {
         r,
     );
 
-    // Handle infinite y
-    r = vsel_vf_vo_vf_vf(
+        r = vsel_vf_vo_vf_vf(
         visinf_vo_vf(y),
         vsub_vf_vf_vf(
             vcast_vf_f(std::f32::consts::PI / 2.0),
@@ -888,8 +856,7 @@ pub(crate) unsafe fn xatan2f_u1(y: VFloat, x: VFloat) -> VFloat {
         r,
     );
 
-    // Handle y = 0
-    r = vsel_vf_vo_vf_vf(
+        r = vsel_vf_vo_vf_vf(
         veq_vo_vf_vf(y, vcast_vf_f(0.0)),
         vreinterpret_vf_vm(vand_vm_vo32_vm(
             vsignbit_vo_vf(x),
@@ -898,8 +865,7 @@ pub(crate) unsafe fn xatan2f_u1(y: VFloat, x: VFloat) -> VFloat {
         r,
     );
 
-    // Handle NaN and final sign adjustment
-    r = vreinterpret_vf_vm(vor_vm_vo32_vm(
+        r = vreinterpret_vf_vm(vor_vm_vo32_vm(
         vor_vo_vo_vo(visnan_vo_vf(x), visnan_vo_vf(y)),
         vreinterpret_vm_vf(vmulsign_vf_vf_vf(r, y)),
     ));
@@ -920,20 +886,16 @@ pub(crate) unsafe fn xsincosf_u1(d: VFloat) -> VFloat2 {
     let mut t: VFloat2;
     let mut x: VFloat2;
 
-    // 将输入角度转换为象限数
-    u = vrint_vf_vf(vmul_vf_vf_vf(d, vcast_vf_f((2.0 * M_1_PI) as f32)));
+        u = vrint_vf_vf(vmul_vf_vf_vf(d, vcast_vf_f((2.0 * M_1_PI) as f32)));
     q = vrint_vi2_vf(u);
 
-    // 计算精确的余数
-    v = vmla_vf_vf_vf_vf(u, vcast_vf_f(-PI_A2F * 0.5), d);
+        v = vmla_vf_vf_vf_vf(u, vcast_vf_f(-PI_A2F * 0.5), d);
     s = dfadd2_vf2_vf_vf(v, vmul_vf_vf_vf(u, vcast_vf_f(-PI_B2F * 0.5)));
     s = dfadd_vf2_vf2_vf(s, vmul_vf_vf_vf(u, vcast_vf_f(-PI_C2F * 0.5)));
 
-    // 检查是否在有效范围内
-    let g = vlt_vo_vf_vf(vabs_vf_vf(d), vcast_vf_f(TRIGRANGEMAX2F));
+        let g = vlt_vo_vf_vf(vabs_vf_vf(d), vcast_vf_f(TRIGRANGEMAX2F));
 
-    // 处理大数和特殊值
-    if vtestallones_i_vo32(g) == 0 {
+        if vtestallones_i_vo32(g) == 0 {
         let dfi = rempif(d);
         t = dfigetdf_vf2_dfi(dfi);
         o = vor_vo_vo_vo(visinf_vo_vf(d), visnan_vo_vf(d));
@@ -947,11 +909,9 @@ pub(crate) unsafe fn xsincosf_u1(d: VFloat) -> VFloat2 {
 
     t = s;
 
-    // 计算s^2用于多项式求值
-    s = vf2setx_vf2_vf2_vf(s, dfsqu_vf_vf2(s));
+        s = vf2setx_vf2_vf2_vf(s, dfsqu_vf_vf2(s));
 
-    // 正弦多项式
-    u = vcast_vf_f(-0.000195169282960705459117889);
+        u = vcast_vf_f(-0.000195169282960705459117889);
     u = vmla_vf_vf_vf_vf(
         u,
         vf2getx_vf_vf2(s),
@@ -968,11 +928,9 @@ pub(crate) unsafe fn xsincosf_u1(d: VFloat) -> VFloat2 {
     x = dfadd_vf2_vf2_vf(t, u);
     rx = vadd_vf_vf_vf(vf2getx_vf_vf2(x), vf2gety_vf_vf2(x));
 
-    // 处理-0.0的特殊情况
-    rx = vsel_vf_vo_vf_vf(visnegzero_vo_vf(d), vcast_vf_f(-0.0), rx);
+        rx = vsel_vf_vo_vf_vf(visnegzero_vo_vf(d), vcast_vf_f(-0.0), rx);
 
-    // 余弦多项式
-    u = vcast_vf_f(-2.71811842367242206819355e-07);
+        u = vcast_vf_f(-2.71811842367242206819355e-07);
     u = vmla_vf_vf_vf_vf(
         u,
         vf2getx_vf_vf2(s),
@@ -993,12 +951,10 @@ pub(crate) unsafe fn xsincosf_u1(d: VFloat) -> VFloat2 {
     x = dfadd_vf2_vf_vf2(vcast_vf_f(1.0), dfmul_vf2_vf_vf(vf2getx_vf_vf2(s), u));
     ry = vadd_vf_vf_vf(vf2getx_vf_vf2(x), vf2gety_vf_vf2(x));
 
-    // 根据象限调整结果
-    o = veq_vo_vi2_vi2(vand_vi2_vi2_vi2(q, vcast_vi2_i(1)), vcast_vi2_i(0));
+        o = veq_vo_vi2_vi2(vand_vi2_vi2_vi2(q, vcast_vi2_i(1)), vcast_vi2_i(0));
     r = vf2setxy_vf2_vf_vf(vsel_vf_vo_vf_vf(o, rx, ry), vsel_vf_vo_vf_vf(o, ry, rx));
 
-    // 处理符号
-    o = veq_vo_vi2_vi2(vand_vi2_vi2_vi2(q, vcast_vi2_i(2)), vcast_vi2_i(2));
+        o = veq_vo_vi2_vi2(vand_vi2_vi2_vi2(q, vcast_vi2_i(2)), vcast_vi2_i(2));
     r = vf2setx_vf2_vf2_vf(
         r,
         vreinterpret_vf_vm(vxor_vm_vm_vm(
@@ -1377,9 +1333,7 @@ pub(crate) unsafe fn xpowf(x: VFloat, y: VFloat) -> VFloat {
         vlt_vo_vf_vf(vabs_vf_vf(y), vcast_vf_f((1 << 24) as f32)),
     );
 
-    // #[cfg(target_feature = "neon32")]
-    // let yisodd = vandnot_vm_vo32_vm(visinf_vo_vf(y), yisodd);
-
+        
     let mut result = expkf(dfmul_vf2_vf2_vf(logkf(vabs_vf_vf(x)), y));
 
     result = vsel_vf_vo_vf_vf(visnan_vo_vf(result), vcast_vf_f(f32::INFINITY), result);
@@ -2048,8 +2002,7 @@ pub(crate) unsafe fn xlog1pf(d: VFloat) -> VFloat {
 
     let mut r = vadd_vf_vf_vf(vf2getx_vf_vf2(s), vf2gety_vf_vf2(s));
 
-    // Use log(d) if d too large to use core approximation
-    let ocore = vle_vo_vf_vf(d, vcast_vf_f(LOG1PF_BOUND));
+        let ocore = vle_vo_vf_vf(d, vcast_vf_f(LOG1PF_BOUND));
     if !(vtestallones_i_vo32(ocore) != 0) {
         r = vsel_vf_vo_vf_vf(ocore, r, xlogf_u1(d));
     }
@@ -2344,8 +2297,7 @@ pub(crate) unsafe fn xerff_u1(a: VFloat) -> VFloat {
     let o25 = vle_vo_vf_vf(x, vcast_vf_f(2.5));
 
     if vtestallones_i_vo32(o25) != 0 {
-        // Abramowitz and Stegun approximation
-        t = poly6(
+                t = poly6(
             x,
             x2,
             x4,

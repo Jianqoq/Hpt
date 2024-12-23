@@ -1,8 +1,6 @@
-use tensor_common::slice;
 use tensor_dyn::*;
 
 fn main() -> anyhow::Result<()> {
-
     // set_global_display_lr_elements(16);
     let m = 8192;
     let n = 8192;

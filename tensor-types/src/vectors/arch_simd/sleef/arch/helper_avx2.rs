@@ -34,7 +34,6 @@ pub(crate) unsafe fn vtestallones_i_vo64(g: Vopmask) -> i32 {
     _mm_test_all_ones(_mm_and_si128(_mm256_extractf128_si256(g, 0), _mm256_extractf128_si256(g, 1)))
 }
 
-//
 #[inline(always)]
 pub(crate) unsafe fn vcast_vd_d(d: f64) -> VDouble {
     _mm256_set1_pd(d)
@@ -47,7 +46,6 @@ pub(crate) unsafe fn vreinterpret_vm_vd(d: __m256d) -> VMask {
 pub(crate) unsafe fn vreinterpret_vd_vm(m: VMask) -> VDouble {
     _mm256_castsi256_pd(m)
 }
-//
 
 #[inline(always)]
 pub(crate) unsafe fn vloadu_vi2_p(p: *const i32) -> __m256i {
@@ -66,7 +64,6 @@ pub(crate) unsafe fn vstoreu_v_p_vi(p: *mut i32, v: __m128i) {
     _mm_storeu_si128(p as *mut __m128i, v)
 }
 
-//
 
 #[inline(always)]
 pub(crate) unsafe fn vand_vm_vm_vm(x: VMask, y: VMask) -> VMask {
@@ -163,7 +160,6 @@ pub(crate) unsafe fn vcast_vo_i(i: i32) -> Vopmask {
     _mm256_set1_epi64x(if i != 0 { -1 } else { 0 })
 }
 
-//
 
 #[inline(always)]
 pub(crate) unsafe fn vrint_vi_vd(vd: VDouble) -> VInt {
@@ -251,7 +247,6 @@ pub(crate) unsafe fn vadd64_vm_vm_vm(x: VMask, y: VMask) -> VMask {
     _mm256_add_epi64(x, y)
 }
 
-//
 
 #[inline(always)]
 pub(crate) unsafe fn vadd_vd_vd_vd(x: VDouble, y: VDouble) -> VDouble {
@@ -393,7 +388,6 @@ pub(crate) unsafe fn vge_vo_vd_vd(x: VDouble, y: VDouble) -> Vopmask {
     vreinterpret_vm_vd(_mm256_cmp_pd(x, y, _CMP_GE_OQ))
 }
 
-//
 
 #[inline(always)]
 pub(crate) unsafe fn vadd_vi_vi_vi(x: VInt, y: VInt) -> VInt {

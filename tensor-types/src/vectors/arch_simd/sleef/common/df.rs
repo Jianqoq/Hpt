@@ -17,8 +17,6 @@ use helper::{
 
 use crate::sleef_types::{VFloat, Vopmask};
 
-// #if !(defined(ENABLE_SVE) || defined(ENABLE_SVENOFMA) || defined(ENABLE_RVVM1) || defined(ENABLE_RVVM1NOFMA) || defined(ENABLE_RVVM2) || defined(ENABLE_RVVM2NOFMA))
-// #if !defined(SLEEF_ENABLE_CUDA)
 #[derive(Clone, Copy)]
 pub(crate) struct VFloat2 {
     pub(crate) x: VFloat,
@@ -43,7 +41,6 @@ pub(crate) fn vf2sety_vf2_vf2_vf(mut v: VFloat2, y: VFloat) -> VFloat2 {
     v
 }
 
-// #endif
 
 #[inline(always)]
 pub(crate) unsafe fn vupper_vf_vf(d: VFloat) -> VFloat {
@@ -317,8 +314,7 @@ pub(crate) unsafe fn dfadd_vf2_vf_vf2(x: VFloat, y: VFloat2) -> VFloat2 {
 
 #[inline(always)]
 pub(crate) unsafe fn dfadd_vf2_vf2_vf2(x: VFloat2, y: VFloat2) -> VFloat2 {
-    // |x| >= |y|
-    let s = vadd_vf_vf_vf(vf2getx_vf_vf2(x), vf2getx_vf_vf2(y));
+        let s = vadd_vf_vf_vf(vf2getx_vf_vf2(x), vf2getx_vf_vf2(y));
     vf2setxy_vf2_vf_vf(
         s,
         vadd_vf_4vf(
@@ -346,22 +342,19 @@ pub(crate) unsafe fn dfadd2_vf2_vf2_vf2(x: VFloat2, y: VFloat2) -> VFloat2 {
 
 #[inline(always)]
 pub(crate) unsafe fn dfsub_vf2_vf_vf(x: VFloat, y: VFloat) -> VFloat2 {
-    // |x| >= |y|
-    let s = vsub_vf_vf_vf(x, y);
+        let s = vsub_vf_vf_vf(x, y);
     vf2setxy_vf2_vf_vf(s, vsub_vf_vf_vf(vsub_vf_vf_vf(x, s), y))
 }
 
 #[inline(always)]
 pub(crate) unsafe fn dfsub_vf2_vf2_vf2(x: VFloat2, y: VFloat2) -> VFloat2 {
-    // |x| >= |y|
-    let s = vsub_vf_vf_vf(vf2getx_vf_vf2(x), vf2getx_vf_vf2(y));
+        let s = vsub_vf_vf_vf(vf2getx_vf_vf2(x), vf2getx_vf_vf2(y));
     let mut t = vsub_vf_vf_vf(vf2getx_vf_vf2(x), s);
     t = vsub_vf_vf_vf(t, vf2getx_vf_vf2(y));
     t = vadd_vf_vf_vf(t, vf2gety_vf_vf2(x));
     vf2setxy_vf2_vf_vf(s, vsub_vf_vf_vf(t, vf2gety_vf_vf2(y)))
 }
 
-// #ifdef ENABLE_FMA_SP
 #[inline(always)]
 #[cfg(target_feature = "fma")]
 pub(crate) unsafe fn dfdiv_vf2_vf2_vf2(n: VFloat2, d: VFloat2) -> VFloat2 {
@@ -494,7 +487,6 @@ pub(crate) unsafe fn dfrec_vf2_vf2(d: VFloat2) -> VFloat2 {
         ),
     )
 }
-// #else
 #[inline(always)]
 #[cfg(not(target_feature = "fma"))]
 pub(crate) unsafe fn dfdiv_vf2_vf2_vf2(n: VFloat2, d: VFloat2) -> VFloat2 {
