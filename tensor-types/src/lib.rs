@@ -281,7 +281,7 @@ pub mod vectors {
                 pub mod helper_sse;
                 /// A module defines a set of vector types for helper
                 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-                pub mod helper_neon;
+                pub mod helper_aarch64;
             }
             /// A module defines a set of vector types for common
             pub mod common {
@@ -374,6 +374,6 @@ pub(crate) mod sleef_types {
     pub(crate) type VMask = uint32x4_t;
     pub(crate) type Vopmask = uint32x4_t;
     pub(crate) type VFloat = float32x4_t;
-    pub(crate) type VInt = int32x4_t;
+    pub(crate) type VInt = int32x2_t;
     pub(crate) type VInt2 = int32x4_t;
 }

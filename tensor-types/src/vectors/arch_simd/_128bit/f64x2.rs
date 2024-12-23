@@ -3,7 +3,7 @@ use crate::arch_simd::sleef::arch::helper_avx2 as helper;
 #[cfg(all(target_arch = "x86_64", target_feature = "sse", not(target_feature = "avx2")))]
 use crate::arch_simd::sleef::arch::helper_sse as helper;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::arch_simd::sleef::arch::helper_neon as helper;
+use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
 use helper::vabs_vd_vd;
 use crate::{
     arch_simd::sleef::libm::sleefsimddp::{
@@ -159,7 +159,7 @@ impl f64x2 {
         unsafe { f64x2(_mm_div_pd(_mm_set1_pd(1.0), self.0)) }
         #[cfg(target_arch = "aarch64")]
         unsafe { 
-            use crate::simd::sleef::arch::helper_neon::vrec_vd_vd;
+            use crate::simd::sleef::arch::helper_aarch64::vrec_vd_vd;
             f64x2(vrec_vd_vd(self.0))
          }
     }
@@ -705,39 +705,39 @@ mod tests {
             };
         }
         define_func!(sinf, sin, xsin_u1, f64::MIN..=f64::MAX);
-        // define_func!(cosf, cos, xcos_u1, f64::MIN..=f64::MAX);
-        // define_func!(tanf, tan, xtan_u1, f64::MIN..=f64::MAX);
-        // define_func!(asin, asin, xasin_u1, f64::MIN..=f64::MAX);
-        // define_func!(acos, acos, xacos_u1, f64::MIN..=f64::MAX);
-        // define_func!(atan, atan, xatan_u1, f64::MIN..=f64::MAX);
-        // define_func!(sinh, sinh, xsinh, -709.0..=709.0);
-        // define_func!(cosh, cosh, xcosh, -709.0..=709.0);
-        // define_func!(tanh, tanh, xtanh, -19.0..=19.0);
-        // define_func!(
-        //     asinh,
-        //     asinh,
-        //     xasinh,
-        //     -SQRT_FLT_MAX as f64..=SQRT_FLT_MAX as f64
-        // );
-        // define_func!(
-        //     acosh,
-        //     acosh,
-        //     xacosh,
-        //     -SQRT_FLT_MAX as f64..=SQRT_FLT_MAX as f64
-        // );
-        // define_func!(atanh, atanh, xatanh, f64::MIN..=f64::MAX);
-        // define_func!(round, round, xround, f64::MIN..=f64::MAX);
-        // define_func!(sqrt, sqrt, xsqrt_u05, f64::MIN..=f64::MAX);
-        // define_func!(exp, exp, xexp, -1000.0..=710.0);
-        // define_func!(exp2, exp2, xexp2, -2000.0..=1024.0);
-        // define_func!(exp10, exp10, xexp10, -350.0..=308.26);
-        // define_func!(expm1, exp_m1, xexpm1, -37.0..=710.0);
-        // define_func!(log10, log10, xlog10, 0.0..=f64::MAX);
-        // define_func!(log2, log2, xlog2, 0.0..=f64::MAX);
-        // define_func!(log1p, ln_1p, xlog1p, -1.0..=1e+38);
-        // define_func!(trunc, trunc, xtrunc, f64::MIN..=f64::MAX);
-        // define_func!(erf, erf, xerf_u1, f64::MIN..=f64::MAX);
-        // define_func!(cbrt, cbrt, xcbrt_u1, f64::MIN..=f64::MAX);
-        // define_func!(ln, ln, xlog_u1, 0.0..=f64::MAX);
+        define_func!(cosf, cos, xcos_u1, f64::MIN..=f64::MAX);
+        define_func!(tanf, tan, xtan_u1, f64::MIN..=f64::MAX);
+        define_func!(asin, asin, xasin_u1, f64::MIN..=f64::MAX);
+        define_func!(acos, acos, xacos_u1, f64::MIN..=f64::MAX);
+        define_func!(atan, atan, xatan_u1, f64::MIN..=f64::MAX);
+        define_func!(sinh, sinh, xsinh, -709.0..=709.0);
+        define_func!(cosh, cosh, xcosh, -709.0..=709.0);
+        define_func!(tanh, tanh, xtanh, -19.0..=19.0);
+        define_func!(
+            asinh,
+            asinh,
+            xasinh,
+            -SQRT_FLT_MAX as f64..=SQRT_FLT_MAX as f64
+        );
+        define_func!(
+            acosh,
+            acosh,
+            xacosh,
+            -SQRT_FLT_MAX as f64..=SQRT_FLT_MAX as f64
+        );
+        define_func!(atanh, atanh, xatanh, f64::MIN..=f64::MAX);
+        define_func!(round, round, xround, f64::MIN..=f64::MAX);
+        define_func!(sqrt, sqrt, xsqrt_u05, f64::MIN..=f64::MAX);
+        define_func!(exp, exp, xexp, -1000.0..=710.0);
+        define_func!(exp2, exp2, xexp2, -2000.0..=1024.0);
+        define_func!(exp10, exp10, xexp10, -350.0..=308.26);
+        define_func!(expm1, exp_m1, xexpm1, -37.0..=710.0);
+        define_func!(log10, log10, xlog10, 0.0..=f64::MAX);
+        define_func!(log2, log2, xlog2, 0.0..=f64::MAX);
+        define_func!(log1p, ln_1p, xlog1p, -1.0..=1e+38);
+        define_func!(trunc, trunc, xtrunc, f64::MIN..=f64::MAX);
+        define_func!(erf, erf, xerf_u1, f64::MIN..=f64::MAX);
+        define_func!(cbrt, cbrt, xcbrt_u1, f64::MIN..=f64::MAX);
+        define_func!(ln, ln, xlog_u1, 0.0..=f64::MAX);
     }
 }

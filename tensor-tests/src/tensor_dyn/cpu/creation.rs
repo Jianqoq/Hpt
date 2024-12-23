@@ -29,7 +29,7 @@ fn assert_eq(b: &Tensor<f64>, a: &tch::Tensor) {
         let relative_diff = abs_diff / b.abs().max(f64::EPSILON);
 
         if abs_diff > tolerance && relative_diff > tolerance {
-            println!(
+            panic!(
                 "{} != {} (abs_diff: {}, relative_diff: {})",
                 a, b, abs_diff, relative_diff
             );
