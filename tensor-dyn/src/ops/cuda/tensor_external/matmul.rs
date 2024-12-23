@@ -112,7 +112,10 @@ where
             compute_kernel_launch_config(self.device(), &reg_info, ret.layout.size() as usize);
         cfg.block_dim = (16 * 16, 1, 1);
         cfg.grid_dim = (n.div_ceil(128) as u32, m.div_ceil(128) as u32, 1);
-        println!("cfg.block_dim = {:?}, cfg.grid_dim = {:?}", cfg.block_dim, cfg.grid_dim);
+        println!(
+            "cfg.block_dim = {:?}, cfg.grid_dim = {:?}",
+            cfg.block_dim, cfg.grid_dim
+        );
         unsafe {
             kernel.launch(
                 cfg,
@@ -124,6 +127,95 @@ where
                     n,
                     k,
                     1,
+                ),
+            )?;
+        }
+        Ok(ret.into())
+    }
+
+    /// Blocked matmul implementation
+    pub fn matmul_blocked_vec(
+        &self,
+        rhs: &Tensor<T, Cuda, CUDA_DEVICE>,
+    ) -> anyhow::Result<Tensor<T, Cuda, CUDA_DEVICE>> {
+        let ret = _Tensor::<T, Cuda, CUDA_DEVICE>::zeros(vec![
+            self.inner.layout.shape()[0],
+            rhs.inner.layout.shape()[1],
+        ])?;
+        let m = self.inner.layout.shape()[0] as usize;
+        let n = rhs.inner.layout.shape()[1] as usize;
+        let k = self.inner.layout.shape()[1] as usize;
+        let (kernel, reg_info) = load_ptx_and_get_data(
+            "matmul",
+            "matmul_blocked2_vec",
+            self.device(),
+            self.inner.device_cap(),
+            &MATMUL,
+        )?;
+        let mut cfg =
+            compute_kernel_launch_config(self.device(), &reg_info, ret.layout.size() as usize);
+        cfg.block_dim = (16 * 16, 1, 1);
+        cfg.grid_dim = (n.div_ceil(128) as u32, m.div_ceil(128) as u32, 1);
+        println!(
+            "cfg.block_dim = {:?}, cfg.grid_dim = {:?}",
+            cfg.block_dim, cfg.grid_dim
+        );
+        unsafe {
+            kernel.launch(
+                cfg,
+                (
+                    self.inner.cuda_slice(),
+                    rhs.inner.cuda_slice(),
+                    ret.cuda_slice(),
+                    m,
+                    n,
+                    k,
+                    1,
+                ),
+            )?;
+        }
+        Ok(ret.into())
+    }
+
+    /// Blocked matmul implementation
+    pub fn matmul_nn(
+        &self,
+        rhs: &Tensor<T, Cuda, CUDA_DEVICE>,
+    ) -> anyhow::Result<Tensor<T, Cuda, CUDA_DEVICE>> {
+        let ret = _Tensor::<T, Cuda, CUDA_DEVICE>::zeros(vec![
+            self.inner.layout.shape()[0],
+            rhs.inner.layout.shape()[1],
+        ])?;
+        let m = self.inner.layout.shape()[0] as usize;
+        let n = rhs.inner.layout.shape()[1] as usize;
+        let k = self.inner.layout.shape()[1] as usize;
+        let (kernel, reg_info) = load_ptx_and_get_data(
+            "matmul",
+            "gemm_kernel_NN",
+            self.device(),
+            self.inner.device_cap(),
+            &MATMUL,
+        )?;
+        let mut cfg =
+            compute_kernel_launch_config(self.device(), &reg_info, ret.layout.size() as usize);
+        cfg.block_dim = (16 * 16, 1, 1);
+        cfg.grid_dim = (n.div_ceil(128) as u32, m.div_ceil(128) as u32, 1);
+        println!(
+            "cfg.block_dim = {:?}, cfg.grid_dim = {:?}",
+            cfg.block_dim, cfg.grid_dim
+        );
+        unsafe {
+            kernel.launch(
+                cfg,
+                (
+                    self.inner.cuda_slice(),
+                    rhs.inner.cuda_slice(),
+                    ret.cuda_slice(),
+                    T::ONE,
+                    T::ZERO,
+                    m,
+                    n,
+                    k,
                 ),
             )?;
         }

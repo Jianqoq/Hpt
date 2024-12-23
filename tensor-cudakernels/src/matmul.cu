@@ -1,5 +1,5 @@
 #include <stdio.h>
-
+#include <assert.h>
 #define type float
 #define type_vec float4
 
@@ -135,7 +135,7 @@ __device__ void load_to_smem(
 #define VEC_SIZE 4
 
 template <typename T, size_t VecSize, size_t ReadPerThread, size_t TileM, size_t TileK>
-__device__ void load_gmem_to_next_a_reg(const T *A, T *next_data_a, size_t txa, size_t tya, size_t k, const size_t tile_idx)
+__device__ void load_gmem_to_next_a_reg(const T *A, T next_data_a[ReadPerThread], size_t txa, size_t tya, size_t k, const size_t tile_idx)
 {
     const float *pA = (A + (txa * ReadPerThread + tile_idx) + (blockIdx.y * TileM + tya) * k);
 #pragma unroll
@@ -146,28 +146,30 @@ __device__ void load_gmem_to_next_a_reg(const T *A, T *next_data_a, size_t txa, 
 }
 
 template <typename T, size_t VecSize, size_t ReadPerThread, size_t TileN, size_t TileK>
-__device__ void load_gmem_to_next_b_reg(const T *B, T *next_data_b, size_t txb, size_t tyb, size_t n, const size_t tile_idx)
+__device__ void load_gmem_to_next_b_reg(const T *B, T next_data_b[ReadPerThread], size_t txb, size_t tyb, size_t n, const size_t tile_idx)
 {
     const float *pB = (B + txb * ReadPerThread + blockIdx.x * TileN + tyb * n + tile_idx * n);
-
+#pragma unroll
     for (int i = 0; i < ReadPerThread; i++)
     {
         next_data_b[i] = pB[i];
     }
 }
 
-template <typename T, size_t VecSize, size_t ReadPerThread, size_t TileK, size_t smem_size>
+template <typename T, size_t VecSize, size_t ReadPerThread, size_t TileM, size_t smem_size>
 __device__ void store_next_a_data_to_smem(T next_data[ReadPerThread], T smem[smem_size], size_t txa, size_t tya)
 {
+#pragma unroll
     for (int i = 0; i < ReadPerThread; i++)
     {
-        smem[(txa * ReadPerThread + i) * TILE_M + tya] = next_data[i];
+        smem[(txa * ReadPerThread + i) * TileM + tya] = next_data[i];
     }
 }
 
 template <typename T, size_t VecSize, size_t ReadPerThread, size_t TileN, size_t smem_size>
 __device__ void store_next_b_data_to_smem(T next_data[ReadPerThread], T smem[smem_size], size_t txb, size_t tyb)
 {
+#pragma unroll
     for (int i = 0; i < ReadPerThread; i++)
     {
         smem[txb * ReadPerThread + i + tyb * TileN] = next_data[i];
@@ -177,6 +179,7 @@ __device__ void store_next_b_data_to_smem(T next_data[ReadPerThread], T smem[sme
 template <typename T, size_t smem_size, size_t ReadPerThread, size_t TileM>
 __device__ void load_smem_to_a_reg(T smem[smem_size], T reg[ReadPerThread], size_t tx, size_t ty, size_t j)
 {
+#pragma unroll
     for (int i = 0; i < ReadPerThread; i++)
     {
         reg[i] = smem[ty * ReadPerThread + i + TileM * j];
@@ -186,6 +189,7 @@ __device__ void load_smem_to_a_reg(T smem[smem_size], T reg[ReadPerThread], size
 template <typename T, size_t smem_size, size_t ReadPerThread, size_t TileN>
 __device__ void load_smem_to_b_reg(T smem[smem_size], T reg[ReadPerThread], size_t tx, size_t ty, size_t j)
 {
+#pragma unroll
     for (int i = 0; i < ReadPerThread; i++)
     {
         reg[i] = smem[tx * ReadPerThread + i + TileN * j];
@@ -224,7 +228,7 @@ __device__ void release_lock(int *lock)
 
 // matrix multiplication kernel
 extern "C" __global__ void matmul_blocked2(
-    const type *A, const type *B, type *C,
+    const type *__restrict__ A, const type *__restrict__ B, type *__restrict__ C,
     size_t m, size_t n, size_t k, size_t batch_size)
 {
     // define shared memory
@@ -257,9 +261,9 @@ extern "C" __global__ void matmul_blocked2(
     load_gmem_to_next_a_reg<type, VEC_SIZE, a_read_per_thread, TILE_M, TILE_K>(A, next_data_a, txa, tya, k, 0);
     load_gmem_to_next_b_reg<type, VEC_SIZE, b_read_per_thread, TILE_N, TILE_K>(B, next_data_b, txb, tyb, n, 0);
 
-    int global_idx = threadIdx.x + blockIdx.x * blockDim.x + blockIdx.y * (gridDim.x * blockDim.x);
+    // int global_idx = threadIdx.x + blockIdx.x * blockDim.x + blockIdx.y * (gridDim.x * blockDim.x);
 
-    store_next_a_data_to_smem<type, VEC_SIZE, a_read_per_thread, TILE_K, TILE_K * TILE_M>(next_data_a, a_tile[0], txa, tya);
+    store_next_a_data_to_smem<type, VEC_SIZE, a_read_per_thread, TILE_M, TILE_K * TILE_M>(next_data_a, a_tile[0], txa, tya);
     store_next_b_data_to_smem<type, VEC_SIZE, b_read_per_thread, TILE_N, TILE_K * TILE_N>(next_data_b, b_tile[0], txb, tyb);
     size_t tx = threadIdx.x % THREAD_BLOCK_X;
     size_t ty = threadIdx.x / THREAD_BLOCK_X;
@@ -338,7 +342,7 @@ extern "C" __global__ void matmul_blocked2(
 
         if (i < k)
         {
-            store_next_a_data_to_smem<type, VEC_SIZE, a_read_per_thread, TILE_K, TILE_K * TILE_M>(next_data_a, a_tile[write_stage_idx], txa, tya);
+            store_next_a_data_to_smem<type, VEC_SIZE, a_read_per_thread, TILE_M, TILE_K * TILE_M>(next_data_a, a_tile[write_stage_idx], txa, tya);
             store_next_b_data_to_smem<type, VEC_SIZE, b_read_per_thread, TILE_N, TILE_K * TILE_N>(next_data_b, b_tile[write_stage_idx], txb, tyb);
             __syncthreads();
             write_stage_idx ^= 1;
@@ -358,6 +362,286 @@ extern "C" __global__ void matmul_blocked2(
         for (int j = 0; j < b_read_per_thread; j++)
         {
             pC[i * n + j] = c_reg[i][j];
+        }
+    }
+}
+
+#define LOAD_GMEM_TO_NEXT_A_REG_VEC(VecSize, ReadPerThread, TileM, TileK, A, next_data_a, txa, tya, k, tile_idx)       \
+    {                                                                                                                  \
+        const float *pA = (A + (txa * ReadPerThread + tile_idx) + (blockIdx.y * TileM + tya) * k);                     \
+        _Pragma("unroll") for (int j = 0; j < ReadPerThread / VecSize; j++)                                            \
+        {                                                                                                              \
+            /*assert(((txa * ReadPerThread + tile_idx) + (blockIdx.y * TileM + tya) * k + j * VecSize + 3) < m * k);*/ \
+            next_data_a[j].x = pA[j * VecSize + 0];                                                                    \
+            next_data_a[j].y = pA[j * VecSize + 1];                                                                    \
+            next_data_a[j].z = pA[j * VecSize + 2];                                                                    \
+            next_data_a[j].w = pA[j * VecSize + 3];                                                                    \
+        }                                                                                                              \
+    }
+
+#define LOAD_GMEM_TO_NEXT_B_REG_VEC(VecSize, ReadPerThread, TileN, TileK, B, next_data_b, txb, tyb, n, tile_idx)       \
+    {                                                                                                                  \
+        const float *pB = (B + txb * ReadPerThread + blockIdx.x * TileN + tyb * n + tile_idx * n);                     \
+        _Pragma("unroll") for (int j = 0; j < ReadPerThread / VecSize; j++)                                            \
+        {                                                                                                              \
+            /*assert((txb * ReadPerThread + blockIdx.x * TileN + tyb * n + tile_idx * n + j * VecSize + 3) < n * k);*/ \
+            next_data_b[j].x = pB[j * VecSize + 0];                                                                    \
+            next_data_b[j].y = pB[j * VecSize + 1];                                                                    \
+            next_data_b[j].z = pB[j * VecSize + 2];                                                                    \
+            next_data_b[j].w = pB[j * VecSize + 3];                                                                    \
+        }                                                                                                              \
+    }
+
+#define STORE_NEXT_A_DATA_TO_SMEM_VEC(T, VecSize, ReadPerThread, TileM, next_data, smem, txa, tya)  \
+    {                                                                                               \
+        _Pragma("unroll") for (int i = 0; i < ReadPerThread / VecSize; i++)                         \
+        {                                                                                           \
+            /*assert(((txa * ReadPerThread + i * VecSize + 3) * TILE_M + tya) < TILE_K * TILE_M);*/ \
+            ((T *)&smem)[(txa * ReadPerThread + i * VecSize + 0) * TileM + tya] = next_data[i].x;   \
+            ((T *)&smem)[(txa * ReadPerThread + i * VecSize + 1) * TileM + tya] = next_data[i].y;   \
+            ((T *)&smem)[(txa * ReadPerThread + i * VecSize + 2) * TileM + tya] = next_data[i].z;   \
+            ((T *)&smem)[(txa * ReadPerThread + i * VecSize + 3) * TileM + tya] = next_data[i].w;   \
+        }                                                                                           \
+    }
+
+#define STORE_NEXT_B_DATA_TO_SMEM_VEC(VecSize, ReadPerThread, TileN, next_data, smem, txb, tyb)                          \
+    {                                                                                                                    \
+        _Pragma("unroll") for (int i = 0; i < ReadPerThread / VecSize; i++)                                              \
+        {                                                                                                                \
+            /*assert((txb * ReadPerThread + i * VecSize + tyb * (TileN / ReadPerThread)) < TILE_K * TILE_N / VecSize);*/ \
+            smem[txb * ReadPerThread / VecSize + i + tyb * (TileN / VecSize)] = next_data[i];                            \
+        }                                                                                                                \
+    }
+
+#define LOAD_SMEM_TO_A_REG_VEC(VecSize, ReadPerThread, TileM, reg, smem, ty, j)                                     \
+    {                                                                                                               \
+        _Pragma("unroll") for (int i = 0; i < (ReadPerThread) / (VecSize); i++)                                     \
+        {                                                                                                           \
+            /*assert((ty) * (ReadPerThread) / VecSize + i + (TileM / VecSize) * (j) < TILE_K * TILE_M / VecSize);*/ \
+            reg[i] = smem[(ty) * (ReadPerThread) / VecSize + i + (TileM / VecSize) * (j)];                          \
+        }                                                                                                           \
+    }
+
+#define LOAD_SMEM_TO_B_REG_VEC(VecSize, ReadPerThread, TileN, reg, smem, tx, j)                               \
+    {                                                                                                         \
+        _Pragma("unroll") for (int i = 0; i < ReadPerThread / VecSize; i++)                                   \
+        {                                                                                                     \
+            /*assert(tx *ReadPerThread / VecSize + i + (TileN / VecSize) * (j) < TILE_K * TileN / VecSize);*/ \
+            reg[i] = smem[(tx * ReadPerThread / VecSize + i /* x cols*/) + (TileN / VecSize) * (j)];          \
+        }                                                                                                     \
+    }
+
+#define MMA_VEC(VecSize, AReadPerThread, BReadPerThread, c, a, b) \
+    {                                                             \
+        for (size_t i = 0; i < AReadPerThread / VecSize; ++i)     \
+        {                                                         \
+            for (size_t j = 0; j < BReadPerThread / VecSize; ++j) \
+            {                                                     \
+                c_reg[i][j].x += a[i].x * b[j].x;                 \
+                c_reg[i][j].y += a[i].x * b[j].y;                 \
+                c_reg[i][j].z += a[i].x * b[j].z;                 \
+                c_reg[i][j].w += a[i].x * b[j].w;                 \
+                c_reg[i][j].x += a[i].y * b[j].x;                 \
+                c_reg[i][j].y += a[i].y * b[j].y;                 \
+                c_reg[i][j].z += a[i].y * b[j].z;                 \
+                c_reg[i][j].w += a[i].y * b[j].w;                 \
+                c_reg[i][j].x += a[i].z * b[j].x;                 \
+                c_reg[i][j].y += a[i].z * b[j].y;                 \
+                c_reg[i][j].z += a[i].z * b[j].z;                 \
+                c_reg[i][j].w += a[i].z * b[j].w;                 \
+                c_reg[i][j].x += a[i].w * b[j].x;                 \
+                c_reg[i][j].y += a[i].w * b[j].y;                 \
+                c_reg[i][j].z += a[i].w * b[j].z;                 \
+                c_reg[i][j].w += a[i].w * b[j].w;                 \
+            }                                                     \
+        }                                                         \
+    }
+
+// matrix multiplication kernel
+extern "C" __global__ void matmul_blocked2_vec(
+    const type *__restrict__ A, const type *__restrict__ B, type *__restrict__ C,
+    size_t m, size_t n, size_t k, size_t batch_size)
+{
+    // define shared memory
+    __shared__ type_vec a_tile[2][TILE_K * TILE_M / VEC_SIZE];
+    __shared__ type_vec b_tile[2][TILE_K * TILE_N / VEC_SIZE];
+
+    constexpr const size_t a_read_per_thread = TILE_M * TILE_K / (THREAD_BLOCK_X * THREAD_BLOCK_Y);
+    constexpr const size_t b_read_per_thread = TILE_N * TILE_K / (THREAD_BLOCK_X * THREAD_BLOCK_Y);
+
+    static_assert(TILE_M % a_read_per_thread == 0, "a_read_per_thread must be multiple of TILE_M");
+    static_assert(TILE_K % b_read_per_thread == 0, "b_read_per_thread must be multiple of TILE_K");
+    static_assert(a_read_per_thread < TILE_K, "a_read_per_thread must be less than TILE_K");
+    static_assert(b_read_per_thread < TILE_K, "b_read_per_thread must be less than TILE_K");
+
+    type_vec next_data_a[a_read_per_thread / VEC_SIZE];
+    type_vec next_data_b[b_read_per_thread / VEC_SIZE];
+    type_vec a_reg[2][a_read_per_thread / VEC_SIZE]; // must be multiple of VEC_SIZE
+    type_vec b_reg[2][b_read_per_thread / VEC_SIZE]; // must be multiple of VEC_SIZE
+
+    // // initialize 4x4 accumulator
+    type_vec c_reg[a_read_per_thread / VEC_SIZE][b_read_per_thread / VEC_SIZE] = {{0.0f}};
+
+    size_t txa = threadIdx.x % (TILE_K / a_read_per_thread);
+    size_t tya = threadIdx.x / (TILE_K / a_read_per_thread);
+
+    size_t txb = threadIdx.x % (TILE_N / b_read_per_thread);
+    size_t tyb = threadIdx.x / (TILE_N / b_read_per_thread);
+
+    LOAD_GMEM_TO_NEXT_A_REG_VEC(VEC_SIZE, a_read_per_thread, TILE_M, TILE_K, A, next_data_a, txa, tya, k, 0);
+    LOAD_GMEM_TO_NEXT_B_REG_VEC(VEC_SIZE, b_read_per_thread, TILE_N, TILE_K, B, next_data_b, txb, tyb, n, 0);
+
+    int global_idx = threadIdx.x + blockIdx.x * blockDim.x + blockIdx.y * (gridDim.x * blockDim.x);
+
+    STORE_NEXT_A_DATA_TO_SMEM_VEC(type, VEC_SIZE, a_read_per_thread, TILE_M, next_data_a, a_tile[0], txa, tya);
+    STORE_NEXT_B_DATA_TO_SMEM_VEC(VEC_SIZE, b_read_per_thread, TILE_N, next_data_b, b_tile[0], txb, tyb);
+
+    size_t tx = threadIdx.x % THREAD_BLOCK_X;
+    size_t ty = threadIdx.x / THREAD_BLOCK_X;
+
+    __syncthreads();
+    // acquire_lock(&lock);
+    // if ((threadIdx.x == 0) && blockIdx.x == 0 && blockIdx.y == 0)
+    // {
+    //     printf("a_tile[0]:\n");
+    //     for (int i = 0; i < TILE_K; i++)
+    //     {
+    //         for (int j = 0; j < TILE_M / 4; j++)
+    //         {
+    //             printf("%f, ", a_tile[0][i * TILE_M / 4 + j].x);
+    //             printf("%f, ", a_tile[0][i * TILE_M / 4 + j].y);
+    //             printf("%f, ", a_tile[0][i * TILE_M / 4 + j].z);
+    //             printf("%f, ", a_tile[0][i * TILE_M / 4 + j].w);
+    //         }
+    //         printf("\n");
+    //     }
+    //     printf("\n");
+    //     printf("b_tile[0]:\n");
+    //     for (int i = 0; i < TILE_K; i++)
+    //     {
+    //         for (int j = 0; j < TILE_N / 4; j++)
+    //         {
+    //             printf("%f, ", b_tile[0][i * TILE_N / 4 + j].x);
+    //             printf("%f, ", b_tile[0][i * TILE_N / 4 + j].y);
+    //             printf("%f, ", b_tile[0][i * TILE_N / 4 + j].z);
+    //             printf("%f, ", b_tile[0][i * TILE_N / 4 + j].w);
+    //         }
+    //         printf("\n");
+    //     }
+    //     printf("\n");
+    // }
+    // release_lock(&lock);
+    LOAD_SMEM_TO_A_REG_VEC(VEC_SIZE, a_read_per_thread, TILE_M, a_reg[0], a_tile[0], ty, 0);
+    LOAD_SMEM_TO_B_REG_VEC(VEC_SIZE, b_read_per_thread, TILE_N, b_reg[0], b_tile[0], tx, 0);
+    // acquire_lock(&lock);
+    // if ((threadIdx.x == 0 || threadIdx.x == 1 || threadIdx.x == 2 || threadIdx.x == 3) && blockIdx.x == 0 && blockIdx.y == 0)
+    // {
+    //     printf("===========================================\n");
+    //     printf("global_idx = %d, A: [", global_idx);
+    //     for (int i = 0; i < a_read_per_thread / VEC_SIZE; i++)
+    //     {
+    //         printf("%f, ", next_data_a[i].x);
+    //         printf("%f, ", next_data_a[i].y);
+    //         printf("%f, ", next_data_a[i].z);
+    //         printf("%f, ", next_data_a[i].w);
+    //     }
+    //     printf("], B: [");
+    //     for (int i = 0; i < b_read_per_thread / VEC_SIZE; i++)
+    //     {
+    //         printf("%f, ", next_data_b[i].x);
+    //         printf("%f, ", next_data_b[i].y);
+    //         printf("%f, ", next_data_b[i].z);
+    //         printf("%f, ", next_data_b[i].w);
+    //     }
+    //     printf("], (%llu, %llu)\n", tx, ty);
+    //     // printf("a_tile[0]:\n");
+    //     // for (int i = 0; i < TILE_K; i++)
+    //     // {
+    //     //     for (int j = 0; j < TILE_M; j++)
+    //     //     {
+    //     //         printf("%f, ", a_tile[0][i * TILE_M + j]);
+    //     //     }
+    //     //     printf("\n");
+    //     // }
+    //     // printf("\n");
+    //     // printf("b_tile[0]:\n");
+    //     // for (int i = 0; i < TILE_K; i++)
+    //     // {
+    //     //     for (int j = 0; j < TILE_N; j++)
+    //     //     {
+    //     //         printf("%f, ", b_tile[0][i * TILE_N + j]);
+    //     //     }
+    //     //     printf("\n");
+    //     // }
+    //     // printf("\n");
+    //     printf("a_reg[0]:\n");
+    //     for (int i = 0; i < a_read_per_thread / VEC_SIZE; i++)
+    //     {
+    //         printf("%f, ", a_reg[0][i].x);
+    //         printf("%f, ", a_reg[0][i].y);
+    //         printf("%f, ", a_reg[0][i].z);
+    //         printf("%f, ", a_reg[0][i].w);
+    //     }
+    //     printf("\n");
+    //     printf("b_reg[0]:\n");
+    //     for (int i = 0; i < b_read_per_thread / VEC_SIZE; i++)
+    //     {
+    //         printf("%f, ", b_reg[0][i].x);
+    //         printf("%f, ", b_reg[0][i].y);
+    //         printf("%f, ", b_reg[0][i].z);
+    //         printf("%f, ", b_reg[0][i].w);
+    //     }
+    //     printf("\n");
+    //     printf("===========================================\n");
+    // }
+    // release_lock(&lock);
+
+    int write_stage_idx = 1;
+    int i = 0;
+    do
+    {
+        i += TILE_K;
+        LOAD_GMEM_TO_NEXT_A_REG_VEC(VEC_SIZE, a_read_per_thread, TILE_M, TILE_K, A, next_data_a, txa, tya, k, i);
+        LOAD_GMEM_TO_NEXT_B_REG_VEC(VEC_SIZE, b_read_per_thread, TILE_N, TILE_K, B, next_data_b, txb, tyb, n, i);
+
+        int load_stage_idx = write_stage_idx ^ 1;
+
+        for (int j = 0; j < TILE_K - 1; j++)
+        {
+            LOAD_SMEM_TO_A_REG_VEC(VEC_SIZE, a_read_per_thread, TILE_M, a_reg[(j + 1) % 2], a_tile[load_stage_idx], ty, j + 1);
+            LOAD_SMEM_TO_B_REG_VEC(VEC_SIZE, b_read_per_thread, TILE_N, b_reg[(j + 1) % 2], b_tile[load_stage_idx], tx, j + 1);
+            MMA_VEC(VEC_SIZE, a_read_per_thread, b_read_per_thread, c_reg, a_reg[j % 2], b_reg[j % 2]);
+        }
+
+        if (i < k)
+        {
+            STORE_NEXT_A_DATA_TO_SMEM_VEC(type, VEC_SIZE, a_read_per_thread, TILE_M, next_data_a, a_tile[write_stage_idx], txa, tya);
+            STORE_NEXT_B_DATA_TO_SMEM_VEC(VEC_SIZE, b_read_per_thread, TILE_N, next_data_b, b_tile[write_stage_idx], txb, tyb);
+            __syncthreads();
+            write_stage_idx ^= 1;
+        }
+
+        LOAD_SMEM_TO_A_REG_VEC(VEC_SIZE, a_read_per_thread, TILE_M, a_reg[0], a_tile[load_stage_idx ^ 1], ty, 0);
+        LOAD_SMEM_TO_B_REG_VEC(VEC_SIZE, b_read_per_thread, TILE_N, b_reg[0], b_tile[load_stage_idx ^ 1], tx, 0);
+
+        MMA_VEC(VEC_SIZE, a_read_per_thread, b_read_per_thread, c_reg, a_reg[1], b_reg[1]);
+    } while (i < k);
+
+    unsigned int offset = blockIdx.y * TILE_M * n + blockIdx.x * TILE_N + tx * a_read_per_thread + ty * b_read_per_thread * n;
+    float *pC = C + blockIdx.y * TILE_M * n + blockIdx.x * TILE_N + tx * a_read_per_thread + ty * b_read_per_thread * n;
+    // acquire_lock(&lock);
+
+    // printf("global_idx = %d, offset = %d\n", global_idx, offset);
+
+    // release_lock(&lock);
+#pragma unroll
+    for (int i = 0; i < a_read_per_thread; i++)
+    {
+        const type *c = (type *)&c_reg[i][0];
+#pragma unroll
+        for (int j = 0; j < b_read_per_thread; j++)
+        {
+            pC[i * n + j] = c[j];
         }
     }
 }
