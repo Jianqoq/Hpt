@@ -1,4 +1,3 @@
-use std::arch::x86_64::*;
 
 use crate::{
     arch_simd::_128bit::i64x2::i64x2,
@@ -12,34 +11,34 @@ use super::usizex2::usizex2;
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(16))]
-pub struct isizex2(pub(crate) __m128i);
+#[cfg(target_pointer_width = "64")]
+pub struct isizex2(pub(crate) i64x2);
+#[cfg(target_pointer_width = "32")]
+pub struct isizex4(pub(crate) i32x4);
 
-impl Default for isizex2 {
+#[cfg(target_pointer_width = "32")]
+type ISizeVEC = isizex4;
+#[cfg(target_pointer_width = "64")]
+type ISizeVEC = isizex2;
+
+#[cfg(target_pointer_width = "32")]
+type ISizeBase = i32x4;
+#[cfg(target_pointer_width = "64")]
+type ISizeBase = i64x2;
+
+impl Default for ISizeVEC {
     fn default() -> Self {
-        isizex2(unsafe { _mm_setzero_si128() })
+        Self(ISizeBase::default())
     }
 }
 
-impl PartialEq for isizex2 {
+impl PartialEq for ISizeVEC {
     fn eq(&self, other: &Self) -> bool {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let cmp = _mm_cmpeq_epi64(self.0, other.0);
-                _mm_movemask_epi8(cmp) == -1
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let cmp = _mm_cmpeq_epi32(self.0, other.0);
-                _mm_movemask_epi8(cmp) == -1
-            }
-        }
+        self.0 == other.0
     }
 }
 
-impl VecTrait<isize> for isizex2 {
+impl VecTrait<isize> for ISizeVEC {
     #[cfg(target_pointer_width = "64")]
     const SIZE: usize = 2;
     #[cfg(target_pointer_width = "32")]
@@ -47,62 +46,18 @@ impl VecTrait<isize> for isizex2 {
     type Base = isize;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[isize]) {
-        self.0 = unsafe { _mm_loadu_si128(slice.as_ptr() as *const __m128i) };
+        ISizeBase::copy_from_slice(&mut self.0, unsafe { std::mem::transmute(slice) });
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let arr: [i64; 2] = std::mem::transmute(self.0);
-                let arr_a: [i64; 2] = std::mem::transmute(a.0);
-                let arr_b: [i64; 2] = std::mem::transmute(b.0);
-                let ret = [arr[0] * arr_a[0] + arr_b[0], arr[1] * arr_a[1] + arr_b[1]];
-                isizex2(std::mem::transmute(ret))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let arr: [i32; 4] = std::mem::transmute(self.0);
-                let arr_a: [i32; 4] = std::mem::transmute(a.0);
-                let arr_b: [i32; 4] = std::mem::transmute(b.0);
-                let ret = [
-                    arr[0] * arr_a[0] + arr_b[0],
-                    arr[1] * arr_a[1] + arr_b[1],
-                    arr[2] * arr_a[2] + arr_b[2],
-                    arr[3] * arr_a[3] + arr_b[3],
-                ];
-                isizex2(std::mem::transmute(ret))
-            }
-        }
+        Self(self.0.mul_add(a.0, b.0))
     }
     #[inline(always)]
     fn sum(&self) -> isize {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let arr: [i64; 2] = std::mem::transmute(self.0);
-                arr.iter().sum::<i64>() as isize
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let arr: [i32; 4] = std::mem::transmute(self.0);
-                arr.iter().sum::<i32>() as isize
-            }
-        }
+        self.0.sum() as isize
     }
-    fn splat(val: isize) -> isizex2 {
-        #[cfg(target_pointer_width = "64")]
-        {
-            isizex2(unsafe { _mm_set1_epi64x(val as i64) })
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            isizex2(unsafe { _mm_set1_epi32(val as i32) })
-        }
+    fn splat(val: isize) -> ISizeVEC {
+        Self(ISizeBase::splat(val as i64))
     }
 }
 
@@ -122,392 +77,109 @@ impl isizex2 {
 impl SimdCompare for isizex2 {
     type SimdMask = isizex2;
     fn simd_eq(self, other: Self) -> isizex2 {
-        unsafe {
-            #[cfg(target_pointer_width = "64")]
-            {
-                let lhs: i64x2 = std::mem::transmute(self.0);
-                let rhs: i64x2 = std::mem::transmute(other.0);
-                let ret = lhs.simd_eq(rhs);
-                isizex2(std::mem::transmute(ret.0))
-            }
-            #[cfg(target_pointer_width = "32")]
-            {
-                let lhs: i32x4 = std::mem::transmute(self.0);
-                let rhs: i32x4 = std::mem::transmute(other.0);
-                let ret = lhs.simd_eq(rhs);
-                isizex2(std::mem::transmute(ret.0))
-            }
-        }
+        Self(self.0.simd_eq(other.0))
     }
     fn simd_ne(self, other: Self) -> isizex2 {
-        unsafe {
-            #[cfg(target_pointer_width = "64")]
-            {
-                let lhs: i64x2 = std::mem::transmute(self.0);
-                let rhs: i64x2 = std::mem::transmute(other.0);
-                let ret = lhs.simd_ne(rhs);
-                isizex2(std::mem::transmute(ret.0))
-            }
-            #[cfg(target_pointer_width = "32")]
-            {
-                let lhs: i32x4 = std::mem::transmute(self.0);
-                let rhs: i32x4 = std::mem::transmute(other.0);
-                let ret = lhs.simd_ne(rhs);
-                isizex2(std::mem::transmute(ret.0))
-            }
-        }
+        Self(self.0.simd_ne(other.0))
     }
     fn simd_lt(self, other: Self) -> isizex2 {
-        unsafe {
-            #[cfg(target_pointer_width = "64")]
-            {
-                let lhs: i64x2 = std::mem::transmute(self.0);
-                let rhs: i64x2 = std::mem::transmute(other.0);
-                let ret = lhs.simd_lt(rhs);
-                isizex2(std::mem::transmute(ret.0))
-            }
-            #[cfg(target_pointer_width = "32")]
-            {
-                let lhs: i32x4 = std::mem::transmute(self.0);
-                let rhs: i32x4 = std::mem::transmute(other.0);
-                let ret = lhs.simd_lt(rhs);
-                isizex2(std::mem::transmute(ret.0))
-            }
-        }
+        Self(self.0.simd_lt(other.0))
     }
     fn simd_le(self, other: Self) -> isizex2 {
-        unsafe {
-            #[cfg(target_pointer_width = "64")]
-            {
-                let lhs: i64x2 = std::mem::transmute(self.0);
-                let rhs: i64x2 = std::mem::transmute(other.0);
-                let ret = lhs.simd_le(rhs);
-                isizex2(std::mem::transmute(ret.0))
-            }
-            #[cfg(target_pointer_width = "32")]
-            {
-                let lhs: i32x4 = std::mem::transmute(self.0);
-                let rhs: i32x4 = std::mem::transmute(other.0);
-                let ret = lhs.simd_le(rhs);
-                isizex2(std::mem::transmute(ret.0))
-            }
-        }
+        Self(self.0.simd_le(other.0))
     }
     fn simd_gt(self, other: Self) -> isizex2 {
-        unsafe {
-            #[cfg(target_pointer_width = "64")]
-            {
-                let lhs: i64x2 = std::mem::transmute(self.0);
-                let rhs: i64x2 = std::mem::transmute(other.0);
-                let ret = lhs.simd_gt(rhs);
-                isizex2(std::mem::transmute(ret.0))
-            }
-            #[cfg(target_pointer_width = "32")]
-            {
-                let lhs: i32x4 = std::mem::transmute(self.0);
-                let rhs: i32x4 = std::mem::transmute(other.0);
-                let ret = lhs.simd_gt(rhs);
-                isizex2(std::mem::transmute(ret.0))
-            }
-        }
+        Self(self.0.simd_gt(other.0))
     }
     fn simd_ge(self, other: Self) -> isizex2 {
-        unsafe {
-            #[cfg(target_pointer_width = "64")]
-            {
-                let lhs: i64x2 = std::mem::transmute(self.0);
-                let rhs: i64x2 = std::mem::transmute(other.0);
-                let ret = lhs.simd_ge(rhs);
-                isizex2(std::mem::transmute(ret.0))
-            }
-            #[cfg(target_pointer_width = "32")]
-            {
-                let lhs: i32x4 = std::mem::transmute(self.0);
-                let rhs: i32x4 = std::mem::transmute(other.0);
-                let ret = lhs.simd_ge(rhs);
-                isizex2(std::mem::transmute(ret.0))
-            }
-        }
+        Self(self.0.simd_ge(other.0))
     }
 }
 
 impl std::ops::Add for isizex2 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            isizex2(unsafe { _mm_add_epi64(self.0, rhs.0) })
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            isizex2(unsafe { _mm_add_epi32(self.0, rhs.0) })
-        }
+        Self(self.0.add(rhs.0))
     }
 }
 impl std::ops::Sub for isizex2 {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            isizex2(unsafe { _mm_sub_epi64(self.0, rhs.0) })
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            isizex2(unsafe { _mm_sub_epi32(self.0, rhs.0) })
-        }
+        Self(self.0.sub(rhs.0))
     }
 }
 impl std::ops::Mul for isizex2 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let arr: [i64; 2] = std::mem::transmute(self.0);
-                let arr_rhs: [i64; 2] = std::mem::transmute(rhs.0);
-                let ret = [arr[0] * arr_rhs[0], arr[1] * arr_rhs[1]];
-                isizex2(std::mem::transmute(ret))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let arr: [i32; 4] = std::mem::transmute(self.0);
-                let arr_rhs: [i32; 4] = std::mem::transmute(rhs.0);
-                let ret = [
-                    arr[0] * arr_rhs[0],
-                    arr[1] * arr_rhs[1],
-                    arr[2] * arr_rhs[2],
-                    arr[3] * arr_rhs[3],
-                ];
-                isizex2(std::mem::transmute(ret))
-            }
-        }
+        Self(self.0.mul(rhs.0))
     }
 }
 impl std::ops::Div for isizex2 {
     type Output = Self;
     fn div(self, rhs: Self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let arr: [i64; 2] = std::mem::transmute(self.0);
-                let arr_rhs: [i64; 2] = std::mem::transmute(rhs.0);
-                let ret = [arr[0] / arr_rhs[0], arr[1] / arr_rhs[1]];
-                isizex2(std::mem::transmute(ret))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let arr: [i32; 4] = std::mem::transmute(self.0);
-                let arr_rhs: [i32; 4] = std::mem::transmute(rhs.0);
-                let ret = [
-                    arr[0] / arr_rhs[0],
-                    arr[1] / arr_rhs[1],
-                    arr[2] / arr_rhs[2],
-                    arr[3] / arr_rhs[3],
-                ];
-                isizex2(std::mem::transmute(ret))
-            }
-        }
+        Self(self.0.div(rhs.0))
     }
 }
 impl std::ops::Rem for isizex2 {
     type Output = Self;
     fn rem(self, rhs: Self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let arr: [i64; 2] = std::mem::transmute(self.0);
-                let arr_rhs: [i64; 2] = std::mem::transmute(rhs.0);
-                let ret = [arr[0] % arr_rhs[0], arr[1] % arr_rhs[1]];
-                isizex2(std::mem::transmute(ret))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let arr: [i32; 4] = std::mem::transmute(self.0);
-                let arr_rhs: [i32; 4] = std::mem::transmute(rhs.0);
-                let ret = [
-                    arr[0] % arr_rhs[0],
-                    arr[1] % arr_rhs[1],
-                    arr[2] % arr_rhs[2],
-                    arr[3] % arr_rhs[3],
-                ];
-                isizex2(std::mem::transmute(ret))
-            }
-        }
+        Self(self.0.rem(rhs.0))
     }
 }
 impl std::ops::Neg for isizex2 {
     type Output = Self;
     fn neg(self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe { isizex2(_mm_sub_epi64(_mm_setzero_si128(), self.0)) }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            isizex2(unsafe { _mm_sign_epi32(self.0, _mm_set1_epi32(-1)) })
-        }
+        Self(SimdMath::neg(self.0))
     }
 }
 impl std::ops::BitAnd for isizex2 {
     type Output = Self;
     fn bitand(self, rhs: Self) -> Self::Output {
-        unsafe { isizex2(_mm_and_si128(self.0, rhs.0)) }
+        Self(self.0.bitand(rhs.0))
     }
 }
 impl std::ops::BitOr for isizex2 {
     type Output = Self;
     fn bitor(self, rhs: Self) -> Self::Output {
-        unsafe { isizex2(_mm_or_si128(self.0, rhs.0)) }
+        Self(self.0.bitor(rhs.0))
     }
 }
 impl std::ops::BitXor for isizex2 {
     type Output = Self;
     fn bitxor(self, rhs: Self) -> Self::Output {
-        unsafe { isizex2(_mm_xor_si128(self.0, rhs.0)) }
+        Self(self.0.bitxor(rhs.0))
     }
 }
 impl std::ops::Not for isizex2 {
     type Output = Self;
     fn not(self) -> Self::Output {
-        unsafe { isizex2(_mm_xor_si128(self.0, _mm_set1_epi64x(-1))) }
+        Self(self.0.not())
     }
 }
 impl std::ops::Shl for isizex2 {
     type Output = Self;
     fn shl(self, rhs: Self) -> Self::Output {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let a: [i64; 2] = std::mem::transmute(self.0);
-                let b: [i64; 2] = std::mem::transmute(rhs.0);
-                let mut result = [0; 2];
-                for i in 0..2 {
-                    result[i] = a[i].wrapping_shl(b[i] as u32);
-                }
-                isizex2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let a: [i32; 4] = std::mem::transmute(self.0);
-                let b: [i32; 4] = std::mem::transmute(rhs.0);
-                let mut result = [0; 4];
-                for i in 0..4 {
-                    result[i] = a[i].wrapping_shl(b[i] as u32);
-                }
-                isizex2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
-            }
-        }
+        Self(self.0.shl(rhs.0))
     }
 }
 impl std::ops::Shr for isizex2 {
     type Output = Self;
     fn shr(self, rhs: Self) -> Self::Output {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let a: [i64; 2] = std::mem::transmute(self.0);
-                let b: [i64; 2] = std::mem::transmute(rhs.0);
-                let mut result = [0; 2];
-                for i in 0..2 {
-                    result[i] = a[i].wrapping_shr(b[i] as u32);
-                }
-                isizex2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let a: [i32; 4] = std::mem::transmute(self.0);
-                let b: [i32; 4] = std::mem::transmute(rhs.0);
-                let mut result = [0; 4];
-                for i in 0..4 {
-                    result[i] = a[i].wrapping_shr(b[i] as u32);
-                }
-                isizex2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
-            }
-        }
+        Self(self.0.shr(rhs.0))
     }
 }
 impl SimdMath<isize> for isizex2 {
     fn max(self, other: Self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let lhs: i64x2 = std::mem::transmute(self.0);
-                let rhs: i64x2 = std::mem::transmute(other.0);
-                let ret = lhs.max(rhs);
-                isizex2(std::mem::transmute(ret.0))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let lhs: i32x4 = std::mem::transmute(self.0);
-                let rhs: i32x4 = std::mem::transmute(other.0);
-                let ret = lhs.max(rhs);
-                isizex2(std::mem::transmute(ret.0))
-            }
-        }
+        Self(self.0.max(other.0))
     }
     fn min(self, other: Self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let lhs: i64x2 = std::mem::transmute(self.0);
-                let rhs: i64x2 = std::mem::transmute(other.0);
-                let ret = lhs.min(rhs);
-                isizex2(std::mem::transmute(ret.0))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let lhs: i32x4 = std::mem::transmute(self.0);
-                let rhs: i32x4 = std::mem::transmute(other.0);
-                let ret = lhs.min(rhs);
-                isizex2(std::mem::transmute(ret.0))
-            }
-        }
+        Self(self.0.min(other.0))
     }
     fn relu(self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let lhs: i64x2 = std::mem::transmute(self.0);
-                isizex2(std::mem::transmute(lhs.relu()))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let lhs: i32x4 = std::mem::transmute(self.0);
-                isizex2(std::mem::transmute(lhs.relu()))
-            }
-        }
+        Self(self.0.relu())
     }
     fn relu6(self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let lhs: i64x2 = std::mem::transmute(self.0);
-                isizex2(std::mem::transmute(lhs.relu6()))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let lhs: i32x4 = std::mem::transmute(self.0);
-                isizex2(std::mem::transmute(lhs.relu6()))
-            }
-        }
+        Self(self.0.relu6())
     }
 }
 

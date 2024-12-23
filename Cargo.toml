@@ -16,9 +16,10 @@ members = [
     "tensor-display",
     "tensor-bench",
     "tensor-tests",
-    "tensor-dataloader", 
-    "tensor-codegen"
-, "tensor-cudakernels"]
+    "tensor-dataloader",
+    "tensor-codegen",
+    "tensor-cudakernels",
+]
 
 [dependencies]
 tensor-dyn = { path = "tensor-dyn", features = ["track_caller"] }
@@ -30,8 +31,8 @@ rayon = "1.8.0"
 cache-size = "0.7.0"
 rust_xlsxwriter = "=0.25.0"
 num-complex = "0.4"
-candle-core = {version = "0.8.1", features = ["cuda"]}
 regex = "1.11.1"
+
 [[test]]
 name = "tensor-tests"
 path = "tensor-tests"

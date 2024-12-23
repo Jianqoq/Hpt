@@ -1,7 +1,5 @@
 use crate::convertion::Convertor;
 use crate::convertion::VecConvertor;
-use crate::cuda_types::convertion::CudaConvertor;
-use crate::cuda_types::scalar::Scalar;
 use crate::dtype::FloatConst;
 use crate::dtype::TypeCommon;
 #[cfg(any(
@@ -25,6 +23,10 @@ use num_complex::{Complex32, Complex64};
 use num_traits::float::Float;
 #[cfg(feature = "stdsimd")]
 use sleef::Sleef;
+#[cfg(feature = "cuda")]
+use crate::cuda_types::convertion::CudaConvertor;
+#[cfg(feature = "cuda")]
+use crate::cuda_types::scalar::Scalar;
 use tensor_macros::impl_cuda_bitwise_out;
 use std::ops::Neg;
 use tensor_macros::{
@@ -47,6 +49,7 @@ pub trait FloatOutBinary<RHS = Self> {
 }
 
 float_out_binary!();
+#[cfg(feature = "cuda")]
 float_out_binary_cuda!();
 float_out_binary_simd!();
 float_out_binary_simd_with_rhs_scalar!();
@@ -78,6 +81,8 @@ pub trait NormalOut<RHS = Self> {
 }
 
 impl_normal_out_binary!();
+
+#[cfg(feature = "cuda")]
 impl_cuda_normal_out_binary!();
 
 impl_normal_out_simd!();
@@ -121,6 +126,8 @@ pub trait NormalOutUnary {
 }
 
 impl_normal_out_unary!();
+
+#[cfg(feature = "cuda")]
 impl_normal_out_unary_cuda!();
 
 impl_normal_out_unary_simd!();
@@ -144,6 +151,8 @@ pub trait BitWiseOut<RHS = Self> {
 }
 
 impl_bitwise_out!();
+
+#[cfg(feature = "cuda")]
 impl_cuda_bitwise_out!();
 
 simd_bitwise!();
@@ -167,6 +176,8 @@ pub trait Cmp<RHS = Self> {
 }
 
 impl_cmp!();
+
+#[cfg(feature = "cuda")]
 impl_cmp_cuda!();
 
 /// this trait is used to perform comparison operations on simd
@@ -350,6 +361,7 @@ pub trait FloatOutUnary {
 
 float_out_unary!();
 
+#[cfg(feature = "cuda")]
 float_out_unary_cuda!();
 
 simd_float_out_unary!();

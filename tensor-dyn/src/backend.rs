@@ -4,7 +4,10 @@
 
 use std::sync::Arc;
 
-use tensor_allocator::{clone_storage, cuda_clone_storage, CPU_STORAGE};
+use tensor_allocator::{clone_storage, CPU_STORAGE};
+
+#[cfg(feature = "cuda")]
+use tensor_allocator::cuda_clone_storage;
 
 /// Cpu backend
 ///
@@ -13,6 +16,7 @@ pub struct Cpu {
     pub(crate) ptr: u64,
 }
 
+#[cfg(feature = "cuda")]
 /// Cuda backend
 pub struct Cuda {
     pub(crate) ptr: u64,
@@ -50,6 +54,7 @@ impl Backend<Cpu> {
     }
 }
 
+#[cfg(feature = "cuda")]
 impl Clone for Cuda {
     fn clone(&self) -> Self {
         // increment the reference count
@@ -62,6 +67,7 @@ impl Clone for Cuda {
     }
 }
 
+#[cfg(feature = "cuda")]
 impl Backend<Cuda> {
     /// create a new Cuda backend
     pub fn new(address: u64, device: Arc<cudarc::driver::CudaDevice>) -> Self {
@@ -95,6 +101,7 @@ impl Buffer for Cpu {
     }
 }
 
+#[cfg(feature = "cuda")]
 impl Buffer for Cuda {
     fn get_ptr(&self) -> u64 {
         self.ptr
@@ -119,7 +126,7 @@ impl BackendTy for Cpu {
     const ID: u8 = 0;
 }
 
-// reserved for future use
+#[cfg(feature = "cuda")]
 impl BackendTy for Cuda {
     const ID: u8 = 1;
 }

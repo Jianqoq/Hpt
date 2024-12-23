@@ -8,6 +8,9 @@ use std::process::Command;
 use regex::Regex;
 
 fn main() {
+    if !cfg!(feature = "cuda") {
+        return;
+    }
     let caps = compute_cap();
     let cu_files = find_cu_files(Path::new("src")).expect("find cu files");
     for cu_file in &cu_files {

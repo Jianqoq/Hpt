@@ -7,6 +7,7 @@ use crate::traits::SimdCompare;
 
 use super::i16x8::i16x8;
 
+#[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
 /// a vector of 8 f16 values

@@ -1,5 +1,7 @@
 use std::sync::Arc;
-use tensor_allocator::{CACHE, CUDA_CACHE};
+use tensor_allocator::CACHE;
+#[cfg(feature = "cuda")]
+use tensor_allocator::CUDA_CACHE;
 use tensor_common::{layout::Layout, pointer::Pointer};
 
 use crate::backend::{Backend, BackendTy, Buffer, Cpu};
@@ -35,6 +37,7 @@ where
                 self._backend._backend.get_ptr() as *mut u8,
                 &self.mem_layout,
             ),
+            #[cfg(feature = "cuda")]
             1 => {
                 if let Ok(mut cuda_cache) = CUDA_CACHE.lock() {
                     cuda_cache.deallocate(

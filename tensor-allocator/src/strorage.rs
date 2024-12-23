@@ -7,6 +7,7 @@ use once_cell::sync::Lazy;
 pub static CPU_STORAGE: Lazy<Mutex<HashMap<crate::allocator::SafePtr, usize>>> =
     Lazy::new(|| HashMap::new().into());
 
+#[cfg(feature = "cuda")]
 /// This is a global variable that stores the allocated ptrs and their reference count
 pub static CUDA_STORAGE: Lazy<Mutex<HashMap<usize, HashMap<crate::cuda_allocator::SafePtr, usize>>>> =
     Lazy::new(|| HashMap::new().into());

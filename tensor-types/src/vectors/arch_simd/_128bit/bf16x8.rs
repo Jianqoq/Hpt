@@ -1,11 +1,15 @@
 use crate::arch_simd::_128bit::u16x8::u16x8;
 use crate::convertion::VecConvertor;
 use crate::traits::SimdCompare;
-use crate::{traits::VecTrait, vectors::arch_simd::_128bit::f32x4::f32x4};
+use crate::{ traits::VecTrait, vectors::arch_simd::_128bit::f32x4::f32x4 };
 
 use super::i16x8::i16x8;
 
+#[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+
+#[cfg(target_arch = "aarch64")]
+use std::arch::aarch64::*;
 
 /// a vector of 8 bf16 values
 #[allow(non_camel_case_types)]
@@ -83,63 +87,46 @@ impl SimdCompare for bf16x8 {
     type SimdMask = i16x8;
     fn simd_eq(self, other: Self) -> i16x8 {
         unsafe {
-            let self_ptr = &self.0 as *const _ as *const __m128i;
-            let other_ptr = &other.0 as *const _ as *const __m128i;
-            let a = _mm_loadu_si128(self_ptr);
-            let b = _mm_loadu_si128(other_ptr);
-            i16x8(_mm_cmpeq_epi16(a, b))
+            let self_i16: i16x8 = std::mem::transmute(self);
+            let other_i16: i16x8 = std::mem::transmute(other);
+            self_i16.simd_eq(other_i16)
         }
     }
 
     fn simd_ne(self, other: Self) -> i16x8 {
         unsafe {
-            let self_ptr = &self.0 as *const _ as *const __m128i;
-            let other_ptr = &other.0 as *const _ as *const __m128i;
-            let a = _mm_loadu_si128(self_ptr);
-            let b = _mm_loadu_si128(other_ptr);
-            let eq = _mm_cmpeq_epi16(a, b);
-            i16x8(_mm_xor_si128(eq, _mm_set1_epi16(-1)))
+            let self_i16: i16x8 = std::mem::transmute(self);
+            let other_i16: i16x8 = std::mem::transmute(other);
+            self_i16.simd_ne(other_i16)
         }
     }
 
     fn simd_lt(self, other: Self) -> i16x8 {
         unsafe {
-            let self_ptr = &self.0 as *const _ as *const __m128i;
-            let other_ptr = &other.0 as *const _ as *const __m128i;
-            let a = _mm_loadu_si128(self_ptr);
-            let b = _mm_loadu_si128(other_ptr);
-            i16x8(_mm_cmplt_epi16(a, b))
+            let self_i16: i16x8 = std::mem::transmute(self);
+            let other_i16: i16x8 = std::mem::transmute(other);
+            self_i16.simd_lt(other_i16)
         }
     }
     fn simd_le(self, other: Self) -> i16x8 {
         unsafe {
-            let self_ptr = &self.0 as *const _ as *const __m128i;
-            let other_ptr = &other.0 as *const _ as *const __m128i;
-            let a = _mm_loadu_si128(self_ptr);
-            let b = _mm_loadu_si128(other_ptr);
-            let lt = _mm_cmplt_epi16(a, b);
-            let eq = _mm_cmpeq_epi16(a, b);
-            i16x8(_mm_or_si128(lt, eq))
+            let self_i16: i16x8 = std::mem::transmute(self);
+            let other_i16: i16x8 = std::mem::transmute(other);
+            self_i16.simd_le(other_i16)
         }
     }
     fn simd_gt(self, other: Self) -> i16x8 {
         unsafe {
-            let self_ptr = &self.0 as *const _ as *const __m128i;
-            let other_ptr = &other.0 as *const _ as *const __m128i;
-            let a = _mm_loadu_si128(self_ptr);
-            let b = _mm_loadu_si128(other_ptr);
-            i16x8(_mm_cmpgt_epi16(a, b))
+            let self_i16: i16x8 = std::mem::transmute(self);
+            let other_i16: i16x8 = std::mem::transmute(other);
+            self_i16.simd_gt(other_i16)
         }
     }
     fn simd_ge(self, other: Self) -> i16x8 {
         unsafe {
-            let self_ptr = &self.0 as *const _ as *const __m128i;
-            let other_ptr = &other.0 as *const _ as *const __m128i;
-            let a = _mm_loadu_si128(self_ptr);
-            let b = _mm_loadu_si128(other_ptr);
-            let gt = _mm_cmpgt_epi16(a, b);
-            let eq = _mm_cmpeq_epi16(a, b);
-            i16x8(_mm_or_si128(gt, eq))
+            let self_i16: i16x8 = std::mem::transmute(self);
+            let other_i16: i16x8 = std::mem::transmute(other);
+            self_i16.simd_ge(other_i16)
         }
     }
 }
@@ -219,6 +206,7 @@ impl VecConvertor for bf16x8 {
         unsafe { std::mem::transmute(self) }
     }
     fn to_i16(self) -> super::i16x8::i16x8 {
+        #[cfg(target_arch = "x86_64")]
         unsafe {
             let [x0, x1]: [f32x4; 2] = std::mem::transmute(self.to_2_f32x4());
             let i0 = _mm_cvtps_epi32(x0.0);
@@ -226,14 +214,29 @@ impl VecConvertor for bf16x8 {
             let packed = _mm_packs_epi32(i0, i1);
             super::i16x8::i16x8(packed)
         }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            let [x0, x1]: [f32x4; 2] = std::mem::transmute(self.to_2_f32x4());
+            let i0 = vcvtq_s32_f32(x0.0);
+            let i1 = vcvtq_s32_f32(x1.0);
+            super::i16x8::i16x8(vqmovn_high_s32(vqmovn_s32(i0), i1))
+        }
     }
     fn to_u16(self) -> super::u16x8::u16x8 {
+        #[cfg(target_arch = "x86_64")]
         unsafe {
             let [x0, x1]: [f32x4; 2] = std::mem::transmute(self.to_2_f32x4());
             let i0 = _mm_cvtps_epi32(x0.0);
             let i1 = _mm_cvtps_epi32(x1.0);
             let packed = _mm_packus_epi32(i0, i1);
             super::u16x8::u16x8(packed)
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            let [x0, x1]: [f32x4; 2] = std::mem::transmute(self.to_2_f32x4());
+            let i0 = vcvtq_u32_f32(x0.0);
+            let i1 = vcvtq_u32_f32(x1.0);
+            super::u16x8::u16x8(vqmovn_high_u32(vqmovn_u32(i0), i1))
         }
     }
 }

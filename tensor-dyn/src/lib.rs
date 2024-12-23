@@ -154,6 +154,7 @@ pub mod ops {
         pub(crate) mod tensor_impls;
     }
 
+    #[cfg(feature = "cuda")]
     /// a module contains cuda tensor impls
     pub(crate) mod cuda {
         /// a module contains cuda tensor impls
@@ -364,6 +365,7 @@ const SIMD_WIDTH: usize = 128;
 #[cfg(feature = "cuda")]
 const CUDA_SEED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(2621654116416541);
 
+#[cfg(feature = "cuda")]
 /// Set the CUDA seed for random number generation
 pub fn set_cuda_seed(seed: u64) {
     CUDA_SEED.store(seed, std::sync::atomic::Ordering::Relaxed);

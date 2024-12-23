@@ -20,4 +20,5 @@ libm = "0.2.11"
 f16c = []
 stdsimd = ["dep:sleef"]
 archsimd = []
+cuda = []
 default = ["f16c", "archsimd"]

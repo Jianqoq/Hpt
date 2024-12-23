@@ -5,19 +5,19 @@ fn main() -> anyhow::Result<()> {
     let m = 8192;
     let n = 8192;
     let k = 1024;
-    let a = Tensor::<f32, Cuda, 0>::arange(0, m * k)?.reshape([m, k])?;
-    let b = Tensor::<f32, Cuda, 0>::arange(0, k * n)?.reshape([k, n])?;
-    let now = std::time::Instant::now();
-    let c1 = a.matmul_blocked_vec(&b)?;
-    c1.device().synchronize()?;
-    println!("{:?}", now.elapsed());
-    println!("{}", c1);
+    // let a = Tensor::<f32, Cuda, 0>::arange(0, m * k)?.reshape([m, k])?;
+    // let b = Tensor::<f32, Cuda, 0>::arange(0, k * n)?.reshape([k, n])?;
+    // let now = std::time::Instant::now();
+    // let c1 = a.matmul_blocked_vec(&b)?;
+    // c1.device().synchronize()?;
+    // println!("{:?}", now.elapsed());
+    // println!("{}", c1);
 
-    let now = std::time::Instant::now();
-    let c2 = a.matmul(b)?;
-    c2.device().synchronize()?;
-    println!("{:?}", now.elapsed());
-    println!("{}", c2);
+    // let now = std::time::Instant::now();
+    // let c2 = a.matmul(b)?;
+    // c2.device().synchronize()?;
+    // println!("{:?}", now.elapsed());
+    // println!("{}", c2);
 
     let a = Tensor::<f32, Cpu, 0>::arange(0, m * k)?.reshape([m, k])?;
     let b = Tensor::<f32, Cpu, 0>::arange(0, k * n)?.reshape([k, n])?;

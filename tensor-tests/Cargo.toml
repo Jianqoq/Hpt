@@ -21,6 +21,9 @@ paste = "1.0.15"
 candle-core = "0.7.2"
 macrotest = "1.0.13"
 
+[features]
+cuda = ["tensor-dyn/cuda"]
+
 [profile.dev]
 opt-level = 0
 incremental = true

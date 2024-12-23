@@ -18,6 +18,7 @@ pub mod tensor_dyn {
         pub mod topk;
         pub mod unary;
     }
+    #[cfg(feature = "cuda")]
     pub mod cuda {
         pub mod creation;
     }

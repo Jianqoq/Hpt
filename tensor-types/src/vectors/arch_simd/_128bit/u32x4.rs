@@ -2,6 +2,8 @@ use crate::{convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelec
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+#[cfg(target_arch = "aarch64")]
+use std::arch::aarch64::*;
 
 use super::i32x4::i32x4;
 
@@ -9,19 +11,33 @@ use super::i32x4::i32x4;
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(16))]
-pub struct u32x4(pub(crate) __m128i);
+pub struct u32x4(
+    #[cfg(target_arch = "x86_64")]
+    pub(crate) __m128i,
+    #[cfg(target_arch = "aarch64")]
+    pub(crate) uint32x4_t,
+);
 
 impl Default for u32x4 {
     fn default() -> Self {
+        #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_setzero_si128()) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(vdupq_n_u32(0)) }
     }
 }
 
 impl PartialEq for u32x4 {
     fn eq(&self, other: &Self) -> bool {
+        #[cfg(target_arch = "x86_64")]
         unsafe {
             let cmp = _mm_cmpeq_epi32(self.0, other.0);
             _mm_movemask_epi8(cmp) == -1
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            let cmp = vceqq_u32(self.0, other.0);
+            vmaxvq_u32(cmp) == 0xFFFFFFFF && vminvq_u32(cmp) == 0xFFFFFFFF
         }
     }
 }
@@ -30,11 +46,19 @@ impl VecTrait<u32> for u32x4 {
     type Base = u32;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[u32]) {
+        #[cfg(target_arch = "x86_64")]
         unsafe { _mm_storeu_si128(&mut self.0, _mm_loadu_si128(slice.as_ptr() as *const __m128i)) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            self.0 = vld1q_u32(slice.as_ptr());
+        }
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
+        #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_add_epi32(self.0, _mm_mullo_epi32(a.0, b.0))) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(vaddq_u32(self.0, vmulq_u32(a.0, b.0))) }
     }
     #[inline(always)]
     fn sum(&self) -> u32 {
@@ -44,7 +68,10 @@ impl VecTrait<u32> for u32x4 {
         }
     }
     fn splat(val: u32) -> u32x4 {
+        #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_set1_epi32(val as i32)) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(vdupq_n_u32(val)) }
     }
 }
 
@@ -109,7 +136,10 @@ impl SimdCompare for u32x4 {
 
 impl SimdSelect<u32x4> for u32x4 {
     fn select(&self, true_val: u32x4, false_val: u32x4) -> u32x4 {
+        #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_blendv_epi8(false_val.0, true_val.0, self.0)) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(vbslq_u32(self.0, true_val.0, false_val.0)) }
     }
 }
 
@@ -117,20 +147,29 @@ impl std::ops::Add for u32x4 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
+        #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_add_epi32(self.0, rhs.0)) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(vaddq_u32(self.0, rhs.0)) }
     }
 }
 impl std::ops::Sub for u32x4 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
+        #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_sub_epi32(self.0, rhs.0)) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(vsubq_u32(self.0, rhs.0)) }
     }
 }
 impl std::ops::Mul for u32x4 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self::Output {
+        #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_mullo_epi32(self.0, rhs.0)) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(vmulq_u32(self.0, rhs.0)) }
     }
 }
 impl std::ops::Div for u32x4 {
@@ -143,7 +182,10 @@ impl std::ops::Div for u32x4 {
             for i in 0..4 {
                 arr3[i] = arr[i] / arr2[i];
             }
-            u32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
+            #[cfg(target_arch = "x86_64")]
+            return u32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            #[cfg(target_arch = "aarch64")]
+            return u32x4(vld1q_u32(arr3.as_ptr()));
         }
     }
 }
@@ -157,37 +199,53 @@ impl std::ops::Rem for u32x4 {
             for i in 0..4 {
                 arr3[i] = arr[i] % arr2[i];
             }
-            u32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
+            #[cfg(target_arch = "x86_64")]
+            return u32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            #[cfg(target_arch = "aarch64")]
+            return u32x4(vld1q_u32(arr3.as_ptr()));
         }
     }
 }
 impl std::ops::BitAnd for u32x4 {
     type Output = Self;
     fn bitand(self, rhs: Self) -> Self::Output {
+        #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_and_si128(self.0, rhs.0)) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(vandq_u32(self.0, rhs.0)) }
     }
 }
 impl std::ops::BitOr for u32x4 {
     type Output = Self;
     fn bitor(self, rhs: Self) -> Self::Output {
+        #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_or_si128(self.0, rhs.0)) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(vorrq_u32(self.0, rhs.0)) }
     }
 }
 impl std::ops::BitXor for u32x4 {
     type Output = Self;
     fn bitxor(self, rhs: Self) -> Self::Output {
+        #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_xor_si128(self.0, rhs.0)) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(veorq_u32(self.0, rhs.0)) }
     }
 }
 impl std::ops::Not for u32x4 {
     type Output = Self;
     fn not(self) -> Self::Output {
+        #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_xor_si128(self.0, _mm_set1_epi32(-1))) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(vmvnq_u32(self.0)) }
     }
 }
 impl std::ops::Shl for u32x4 {
     type Output = Self;
     fn shl(self, rhs: Self) -> Self::Output {
+        #[cfg(target_arch = "x86_64")]
         unsafe {
             let a: [u32; 4] = std::mem::transmute(self.0);
             let b: [u32; 4] = std::mem::transmute(rhs.0);
@@ -197,6 +255,8 @@ impl std::ops::Shl for u32x4 {
             }
             u32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(vshlq_u32(self.0, vreinterpretq_s32_u32(rhs.0))) }
     }
 }
 impl std::ops::Shr for u32x4 {
@@ -209,23 +269,38 @@ impl std::ops::Shr for u32x4 {
             for i in 0..4 {
                 result[i] = a[i].wrapping_shr(b[i] as u32);
             }
-            u32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i))
+            #[cfg(target_arch = "x86_64")]
+            return u32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            #[cfg(target_arch = "aarch64")]
+            return u32x4(vld1q_u32(result.as_ptr()));
         }
     }
 }
 
 impl SimdMath<u32> for u32x4 {
     fn max(self, other: Self) -> Self {
+        #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_max_epi32(self.0, other.0)) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(vmaxq_u32(self.0, other.0)) }
     }
     fn min(self, other: Self) -> Self {
+        #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_min_epi32(self.0, other.0)) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(vminq_u32(self.0, other.0)) }
     }
     fn relu(self) -> Self {
+        #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_max_epi32(self.0, _mm_setzero_si128())) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(vmaxq_u32(self.0, vdupq_n_u32(0))) }
     }
     fn relu6(self) -> Self {
+        #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_min_epi32(self.relu().0, _mm_set1_epi32(6))) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(vminq_u32(self.relu().0, vdupq_n_u32(6))) }
     }
 }
 
@@ -243,7 +318,10 @@ impl VecConvertor for u32x4 {
             for i in 0..4 {
                 result[i] = arr[i] as f32;
             }
-            super::f32x4::f32x4(_mm_loadu_ps(result.as_ptr()))
+            #[cfg(target_arch = "x86_64")]
+            return super::f32x4::f32x4(_mm_loadu_ps(result.as_ptr()));
+            #[cfg(target_arch = "aarch64")]
+            return super::f32x4::f32x4(vld1q_f32(result.as_ptr()));
         }
     }
     #[cfg(target_pointer_width = "32")]

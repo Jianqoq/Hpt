@@ -37,13 +37,13 @@ cudarc = { version = "0.12.1", optional = true, features = [
 regex = { version = "1.11.1", optional = true }
 bindgen_cuda = { version = "0.1.5", optional = true }
 phf = { version = "0.11.1", optional = true }
-xxhash-rust = { version = "0.8.12", optional = true, features = ["xxh64"]}
+xxhash-rust = { version = "0.8.12", optional = true, features = ["xxh64"] }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 raw-cpuid = { version = "11.2.0", default-features = false }
 
 [features]
-default = ["track_caller", "archsimd", "cuda"]
+default = ["track_caller", "archsimd"]
 track_caller = [
     "tensor-traits/track_caller",
     "tensor-common/track_caller",
@@ -57,9 +57,10 @@ cuda = [
     "bindgen_cuda",
     "tensor-allocator/cuda",
     "regex",
-    "tensor-cudakernels",
+    "tensor-cudakernels/cuda",
     "phf",
     "xxhash-rust",
+    "tensor-types/cuda",
 ]
 
 [package.metadata.rust-analyzer]
