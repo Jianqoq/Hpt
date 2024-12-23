@@ -1,52 +1,28 @@
-#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
-use crate::arch_simd::sleef::arch::helper_avx2 as helper;
-#[cfg(all(target_arch = "x86_64", target_feature = "sse", not(target_feature = "avx2")))]
-use crate::arch_simd::sleef::arch::helper_sse as helper;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
-use helper::vabs_vd_vd;
+#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+use crate::arch_simd::sleef::arch::helper_avx2 as helper;
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "sse",
+    not(target_feature = "avx2")
+))]
+use crate::arch_simd::sleef::arch::helper_sse as helper;
 use crate::{
     arch_simd::sleef::libm::sleefsimddp::{
-        xacos_u1,
-        xacosh,
-        xasin_u1,
-        xasinh,
-        xatan2_u1,
-        xatan_u1,
-        xatanh,
-        xcbrt_u1,
-        xcos_u1,
-        xcosh,
-        xerf_u1,
-        xexp,
-        xexp10,
-        xexp2,
-        xexpm1,
-        xfmax,
-        xfmin,
-        xhypot_u05,
-        xlog10,
-        xlog1p,
-        xlog2,
-        xlog_u1,
-        xpow,
-        xround,
-        xsin_u1,
-        xsincos_u1,
-        xsinh,
-        xsqrt_u05,
-        xtan_u1,
-        xtanh,
-        xtrunc,
+        xacos_u1, xacosh, xasin_u1, xasinh, xatan2_u1, xatan_u1, xatanh, xcbrt_u1, xcos_u1, xcosh,
+        xerf_u1, xexp, xexp10, xexp2, xexpm1, xfmax, xfmin, xhypot_u05, xlog10, xlog1p, xlog2,
+        xlog_u1, xpow, xround, xsin_u1, xsincos_u1, xsinh, xsqrt_u05, xtan_u1, xtanh, xtrunc,
     },
     convertion::VecConvertor,
-    traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait },
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
 };
+use helper::vabs_vd_vd;
 
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::*;
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
 
 use super::i64x2::i64x2;
 
@@ -69,8 +45,7 @@ impl PartialEq for f64x2 {
         #[cfg(target_arch = "aarch64")]
         unsafe {
             let cmp = vceqq_f64(self.0, other.0);
-            vgetq_lane_u64(cmp, 0) == u64::MAX && 
-            vgetq_lane_u64(cmp, 1) == u64::MAX
+            vgetq_lane_u64(cmp, 0) == u64::MAX && vgetq_lane_u64(cmp, 1) == u64::MAX
         }
     }
 }
@@ -78,9 +53,13 @@ impl PartialEq for f64x2 {
 impl Default for f64x2 {
     fn default() -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_setzero_pd()) }
+        unsafe {
+            f64x2(_mm_setzero_pd())
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { f64x2(vdupq_n_f64(0.0)) }
+        unsafe {
+            f64x2(vdupq_n_f64(0.0))
+        }
     }
 }
 
@@ -91,7 +70,10 @@ impl VecTrait<f64> for f64x2 {
     fn copy_from_slice(&mut self, slice: &[f64]) {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            _mm_storeu_pd(&mut self.0 as *mut _ as *mut f64, _mm_loadu_pd(slice.as_ptr()));
+            _mm_storeu_pd(
+                &mut self.0 as *mut _ as *mut f64,
+                _mm_loadu_pd(slice.as_ptr()),
+            );
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -101,22 +83,34 @@ impl VecTrait<f64> for f64x2 {
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_fmadd_pd(self.0, a.0, b.0)) }
+        unsafe {
+            f64x2(_mm_fmadd_pd(self.0, a.0, b.0))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { f64x2(vfmaq_f64(self.0, a.0, b.0)) }
+        unsafe {
+            f64x2(vfmaq_f64(self.0, a.0, b.0))
+        }
     }
     #[inline(always)]
     fn sum(&self) -> f64 {
         #[cfg(target_arch = "x86_64")]
-        unsafe { _mm_cvtsd_f64(_mm_hadd_pd(self.0, self.0)) }
+        unsafe {
+            _mm_cvtsd_f64(_mm_hadd_pd(self.0, self.0))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { vaddvq_f64(self.0) }
+        unsafe {
+            vaddvq_f64(self.0)
+        }
     }
     fn splat(val: f64) -> f64x2 {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_set1_pd(val)) }
+        unsafe {
+            f64x2(_mm_set1_pd(val))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { f64x2(vdupq_n_f64(val)) }
+        unsafe {
+            f64x2(vdupq_n_f64(val))
+        }
     }
 }
 
@@ -128,9 +122,11 @@ impl f64x2 {
     /// check if the vector is nan
     pub fn is_nan(&self) -> f64x2 {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_cmpunord_pd(self.0, self.0)) }
+        unsafe {
+            f64x2(_mm_cmpunord_pd(self.0, self.0))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { 
+        unsafe {
             // vceqq_f64 returns true (all bits set) if values are equal
             // NaN compared with itself always returns false
             let cmp = vceqq_f64(self.0, self.0);
@@ -150,18 +146,23 @@ impl f64x2 {
             // Clear sign bit to get absolute value
             let abs = vabsq_f64(self.0);
             // Compare with infinity
-            f64x2(vreinterpretq_f64_u64(vceqq_f64(abs, vdupq_n_f64(f64::INFINITY))))
+            f64x2(vreinterpretq_f64_u64(vceqq_f64(
+                abs,
+                vdupq_n_f64(f64::INFINITY),
+            )))
         }
     }
     /// reciprocal of the vector
     pub fn recip(&self) -> f64x2 {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_div_pd(_mm_set1_pd(1.0), self.0)) }
+        unsafe {
+            f64x2(_mm_div_pd(_mm_set1_pd(1.0), self.0))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { 
+        unsafe {
             use crate::simd::sleef::arch::helper_aarch64::vrec_vd_vd;
             f64x2(vrec_vd_vd(self.0))
-         }
+        }
     }
 }
 
@@ -251,9 +252,21 @@ impl SimdCompare for f64x2 {
 impl SimdSelect<f64x2> for i64x2 {
     fn select(&self, true_val: f64x2, false_val: f64x2) -> f64x2 {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_blendv_pd(false_val.0, true_val.0, std::mem::transmute(self.0))) }
+        unsafe {
+            f64x2(_mm_blendv_pd(
+                false_val.0,
+                true_val.0,
+                std::mem::transmute(self.0),
+            ))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { f64x2(vbslq_f64(vreinterpretq_u64_s64(self.0), true_val.0, false_val.0)) }
+        unsafe {
+            f64x2(vbslq_f64(
+                vreinterpretq_u64_s64(self.0),
+                true_val.0,
+                false_val.0,
+            ))
+        }
     }
 }
 
@@ -261,36 +274,52 @@ impl std::ops::Add for f64x2 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_add_pd(self.0, rhs.0)) }
+        unsafe {
+            f64x2(_mm_add_pd(self.0, rhs.0))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { f64x2(vaddq_f64(self.0, rhs.0)) }
+        unsafe {
+            f64x2(vaddq_f64(self.0, rhs.0))
+        }
     }
 }
 impl std::ops::Sub for f64x2 {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_sub_pd(self.0, rhs.0)) }
+        unsafe {
+            f64x2(_mm_sub_pd(self.0, rhs.0))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { f64x2(vsubq_f64(self.0, rhs.0)) }
+        unsafe {
+            f64x2(vsubq_f64(self.0, rhs.0))
+        }
     }
 }
 impl std::ops::Mul for f64x2 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_mul_pd(self.0, rhs.0)) }
+        unsafe {
+            f64x2(_mm_mul_pd(self.0, rhs.0))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { f64x2(vmulq_f64(self.0, rhs.0)) }
+        unsafe {
+            f64x2(vmulq_f64(self.0, rhs.0))
+        }
     }
 }
 impl std::ops::Div for f64x2 {
     type Output = Self;
     fn div(self, rhs: Self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_div_pd(self.0, rhs.0)) }
+        unsafe {
+            f64x2(_mm_div_pd(self.0, rhs.0))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { f64x2(vdivq_f64(self.0, rhs.0)) }
+        unsafe {
+            f64x2(vdivq_f64(self.0, rhs.0))
+        }
     }
 }
 impl std::ops::Rem for f64x2 {
@@ -307,7 +336,7 @@ impl std::ops::Rem for f64x2 {
         unsafe {
             let x: [f64; 2] = std::mem::transmute(self.0);
             let y: [f64; 2] = std::mem::transmute(rhs.0);
-                let result = [x[0] % y[0], x[1] % y[1]];
+            let result = [x[0] % y[0], x[1] % y[1]];
             f64x2(vld1q_f64(result.as_ptr()))
         }
     }
@@ -316,9 +345,13 @@ impl std::ops::Neg for f64x2 {
     type Output = Self;
     fn neg(self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_xor_pd(self.0, _mm_set1_pd(-0.0))) }
+        unsafe {
+            f64x2(_mm_xor_pd(self.0, _mm_set1_pd(-0.0)))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { f64x2(vnegq_f64(self.0)) }
+        unsafe {
+            f64x2(vnegq_f64(self.0))
+        }
     }
 }
 
@@ -335,9 +368,13 @@ impl SimdMath<f64> for f64x2 {
 
     fn square(self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_mul_pd(self.0, self.0)) }
+        unsafe {
+            f64x2(_mm_mul_pd(self.0, self.0))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { f64x2(vmulq_f64(self.0, self.0)) }
+        unsafe {
+            f64x2(vmulq_f64(self.0, self.0))
+        }
     }
 
     fn sqrt(self) -> Self {
@@ -350,23 +387,35 @@ impl SimdMath<f64> for f64x2 {
 
     fn floor(self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_floor_pd(self.0)) }
+        unsafe {
+            f64x2(_mm_floor_pd(self.0))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { f64x2(vrndmq_f64(self.0)) }
+        unsafe {
+            f64x2(vrndmq_f64(self.0))
+        }
     }
 
     fn ceil(self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_ceil_pd(self.0)) }
+        unsafe {
+            f64x2(_mm_ceil_pd(self.0))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { f64x2(vrndpq_f64(self.0)) }
+        unsafe {
+            f64x2(vrndpq_f64(self.0))
+        }
     }
 
     fn neg(self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_sub_pd(_mm_setzero_pd(), self.0)) }
+        unsafe {
+            f64x2(_mm_sub_pd(_mm_setzero_pd(), self.0))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { f64x2(vnegq_f64(self.0)) }
+        unsafe {
+            f64x2(vnegq_f64(self.0))
+        }
     }
 
     fn round(self) -> Self {
@@ -375,7 +424,9 @@ impl SimdMath<f64> for f64x2 {
 
     fn sign(self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_and_pd(self.0, _mm_set1_pd(0.0f64))) }
+        unsafe {
+            f64x2(_mm_and_pd(self.0, _mm_set1_pd(0.0f64)))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             let zero = vdupq_n_f64(0.0);
@@ -383,11 +434,7 @@ impl SimdMath<f64> for f64x2 {
             let neg_ones = vdupq_n_f64(-1.0);
             let gt = vcgtq_f64(self.0, zero);
             let lt = vcltq_f64(self.0, zero);
-            f64x2(vbslq_f64(
-                gt,
-                ones,
-                vbslq_f64(lt, neg_ones, zero)
-            ))
+            f64x2(vbslq_f64(gt, ones, vbslq_f64(lt, neg_ones, zero)))
         }
     }
 
@@ -397,7 +444,9 @@ impl SimdMath<f64> for f64x2 {
 
     fn relu(self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_max_pd(self.0, _mm_setzero_pd())) }
+        unsafe {
+            f64x2(_mm_max_pd(self.0, _mm_setzero_pd()))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             let zero = vdupq_n_f64(0.0);
@@ -407,7 +456,9 @@ impl SimdMath<f64> for f64x2 {
 
     fn relu6(self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f64x2(_mm_min_pd(self.relu().0, _mm_set1_pd(6.0f64))) }
+        unsafe {
+            f64x2(_mm_min_pd(self.relu().0, _mm_set1_pd(6.0f64)))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             let six = vdupq_n_f64(6.0);
@@ -579,6 +630,7 @@ impl VecConvertor for f64x2 {
     }
 }
 
+#[cfg(target_os = "linux")]
 #[cfg(test)]
 mod tests {
     use crate::arch_simd::sleef::common::misc::SQRT_FLT_MAX;
@@ -594,29 +646,29 @@ mod tests {
         if (c2 == 0. || c2.is_subnormal()) && (d == 0. || d.is_subnormal()) {
             return 0.;
         }
-    
+
         if (c2 == 0.) && (d != 0.) {
             return 10000.;
         }
-    
+
         if c2.is_infinite() && d.is_infinite() {
             return 0.;
         }
-    
+
         let prec = c.prec();
-    
+
         let mut fry = Float::with_val(prec, d);
-    
+
         let mut frw = Float::new(prec);
-    
+
         let (_, e) = c.to_f64_exp();
-    
+
         frw.assign(Float::u_exp(1, e - 53_i32));
-    
+
         fry -= c;
         fry /= &frw;
         let u = sleef::Sleef::abs(fry.to_f64());
-    
+
         u
     }
     fn f32_gen_input(
@@ -637,8 +689,7 @@ mod tests {
     fn gen_input(
         rng: &mut rand::rngs::ThreadRng,
         range: core::ops::RangeInclusive<f64>,
-    ) -> float64x2_t
-    {
+    ) -> float64x2_t {
         let mut arr = [0.; 2];
         for i in 0..2 {
             arr[i] = f32_gen_input(rng, range.clone());
@@ -651,8 +702,7 @@ mod tests {
         range: core::ops::RangeInclusive<f64>,
         ulp_ex: f64,
         name: &str,
-    )
-    {
+    ) {
         test_c_f_f(
             f_tested,
             f_sample,
@@ -668,8 +718,7 @@ mod tests {
         range: core::ops::RangeInclusive<f64>,
         cf: impl Fn(f64, f64, &rug::Float) -> (bool, String),
         name: &str,
-    )
-    {
+    ) {
         let mut rng = rand::thread_rng();
         for n in 0..TEST_REPEAT {
             let input = gen_input(&mut rng, range.clone());
@@ -697,8 +746,7 @@ mod tests {
     fn tests() {
         macro_rules! define_func {
             ($func:ident, $f:ident, $x_func:expr, $range:expr) => {
-                fn $func(d: float64x2_t) -> float64x2_t
-                {
+                fn $func(d: float64x2_t) -> float64x2_t {
                     unsafe { $x_func(d).into() }
                 }
                 test_f_f($func, rug::Float::$f, $range, 1., stringify!($func));

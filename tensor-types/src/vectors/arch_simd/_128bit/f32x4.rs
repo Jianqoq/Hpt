@@ -589,6 +589,7 @@ impl VecConvertor for f32x4 {
     }
 }
 
+#[cfg(target_os = "linux")]
 #[cfg(test)]
 mod tests {
     use crate::arch_simd::sleef::common::misc::SQRT_FLT_MAX;
