@@ -35,12 +35,14 @@ type USizeBase = u32x8;
 type USizeBase = u64x4;
 
 impl PartialEq for USizeVEC {
+    #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         self.0.eq(&other.0)
     }
 }
 
 impl Default for USizeVEC {
+    #[inline(always)]
     fn default() -> Self {
         Self(USizeBase::default())
     }
@@ -64,6 +66,7 @@ impl VecTrait<usize> for USizeVEC {
     fn sum(&self) -> usize {
         self.0.sum() as usize
     }
+    #[inline(always)]
     fn splat(val: usize) -> Self {
         #[cfg(target_pointer_width = "64")]
         {
@@ -80,12 +83,14 @@ impl USizeVEC {
     /// convert the vector to an array
     #[cfg(target_pointer_width = "64")]
     #[allow(unused)]
+    #[inline(always)]
     pub fn as_array(&self) -> [usize; 4] {
         unsafe { std::mem::transmute(self.0) }
     }
     /// convert the vector to an array
     #[cfg(target_pointer_width = "32")]
     #[allow(unused)]
+    #[inline(always)]
     pub fn as_array(&self) -> [usize; 8] {
         unsafe { std::mem::transmute(self.0) }
     }
@@ -96,7 +101,7 @@ impl SimdCompare for USizeVEC {
     type SimdMask = isizex4;
     #[cfg(target_pointer_width = "32")]
     type SimdMask = isizex8;
-
+    #[inline(always)]
     fn simd_eq(self, other: Self) -> Self::SimdMask {
         #[cfg(target_pointer_width = "64")]
         {
@@ -108,6 +113,7 @@ impl SimdCompare for USizeVEC {
         }
     }
 
+    #[inline(always)]
     fn simd_ne(self, other: Self) -> Self::SimdMask {
         #[cfg(target_pointer_width = "64")]
         {
@@ -119,6 +125,7 @@ impl SimdCompare for USizeVEC {
         }
     }
 
+    #[inline(always)]
     fn simd_lt(self, other: Self) -> Self::SimdMask {
         #[cfg(target_pointer_width = "64")]
         {
@@ -130,6 +137,7 @@ impl SimdCompare for USizeVEC {
         }
     }
 
+    #[inline(always)]
     fn simd_le(self, other: Self) -> Self::SimdMask {
         #[cfg(target_pointer_width = "64")]
         {
@@ -141,6 +149,7 @@ impl SimdCompare for USizeVEC {
         }
     }
 
+    #[inline(always)]
     fn simd_gt(self, other: Self) -> Self::SimdMask {
         #[cfg(target_pointer_width = "64")]
         {
@@ -152,6 +161,7 @@ impl SimdCompare for USizeVEC {
         }
     }
 
+    #[inline(always)]
     fn simd_ge(self, other: Self) -> Self::SimdMask {
         #[cfg(target_pointer_width = "64")]
         {
@@ -170,6 +180,7 @@ type Isize = isizex4;
 type Isize = isizex8;
 
 impl SimdSelect<USizeVEC> for Isize {
+    #[inline(always)]
     fn select(&self, true_val: USizeVEC, false_val: USizeVEC) -> USizeVEC {
         #[cfg(target_pointer_width = "64")]
         {
@@ -182,207 +193,130 @@ impl SimdSelect<USizeVEC> for Isize {
     }
 }
 
-
 impl std::ops::Add for USizeVEC {
     type Output = Self;
 
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
         Self(self.0.add(rhs.0))
     }
 }
 impl std::ops::Sub for usizex4 {
     type Output = Self;
-
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         Self(self.0.sub(rhs.0))
     }
 }
 impl std::ops::Mul for usizex4 {
     type Output = Self;
-
+    #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let arr: [u64; 4] = std::mem::transmute(self.0);
-                let arr_rhs: [u64; 4] = std::mem::transmute(rhs.0);
-                let ret = [
-                    arr[0] * arr_rhs[0],
-                    arr[1] * arr_rhs[1],
-                    arr[2] * arr_rhs[2],
-                    arr[3] * arr_rhs[3],
-                ];
-                usizex4(std::mem::transmute(ret))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let arr: [u32; 8] = std::mem::transmute(self.0);
-                let arr_rhs: [u32; 8] = std::mem::transmute(rhs.0);
-                let ret = [
-                    arr[0] * arr_rhs[0],
-                    arr[1] * arr_rhs[1],
-                    arr[2] * arr_rhs[2],
-                    arr[3] * arr_rhs[3],
-                    arr[4] * arr_rhs[4],
-                    arr[5] * arr_rhs[5],
-                    arr[6] * arr_rhs[6],
-                    arr[7] * arr_rhs[7],
-                ];
-                usizex4(std::mem::transmute(ret))
-            }
-        }
+        Self(self.0.mul(rhs.0))
     }
 }
 impl std::ops::Div for usizex4 {
     type Output = Self;
-
+    #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let arr: [u64; 4] = std::mem::transmute(self.0);
-                let arr_rhs: [u64; 4] = std::mem::transmute(rhs.0);
-                let ret = [
-                    arr[0] / arr_rhs[0],
-                    arr[1] / arr_rhs[1],
-                    arr[2] / arr_rhs[2],
-                    arr[3] / arr_rhs[3],
-                ];
-                usizex4(std::mem::transmute(ret))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let arr: [u32; 8] = std::mem::transmute(self.0);
-                let arr_rhs: [u32; 8] = std::mem::transmute(rhs.0);
-                let ret = [
-                    arr[0] / arr_rhs[0],
-                    arr[1] / arr_rhs[1],
-                    arr[2] / arr_rhs[2],
-                    arr[3] / arr_rhs[3],
-                    arr[4] / arr_rhs[4],
-                    arr[5] / arr_rhs[5],
-                    arr[6] / arr_rhs[6],
-                    arr[7] / arr_rhs[7],
-                ];
-                usizex4(std::mem::transmute(ret))
-            }
-        }
+        Self(self.0.div(rhs.0))
     }
 }
 impl std::ops::Rem for usizex4 {
     type Output = Self;
-
+    #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let arr: [u64; 4] = std::mem::transmute(self.0);
-                let arr_rhs: [u64; 4] = std::mem::transmute(rhs.0);
-                let ret = [
-                    arr[0] % arr_rhs[0],
-                    arr[1] % arr_rhs[1],
-                    arr[2] % arr_rhs[2],
-                    arr[3] % arr_rhs[3],
-                ];
-                usizex4(std::mem::transmute(ret))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let arr: [u32; 8] = std::mem::transmute(self.0);
-                let arr_rhs: [u32; 8] = std::mem::transmute(rhs.0);
-                let ret = [
-                    arr[0] % arr_rhs[0],
-                    arr[1] % arr_rhs[1],
-                    arr[2] % arr_rhs[2],
-                    arr[3] % arr_rhs[3],
-                    arr[4] % arr_rhs[4],
-                    arr[5] % arr_rhs[5],
-                    arr[6] % arr_rhs[6],
-                    arr[7] % arr_rhs[7],
-                ];
-                usizex4(std::mem::transmute(ret))
-            }
-        }
+        Self(self.0.rem(rhs.0))
     }
 }
 impl std::ops::BitAnd for usizex4 {
     type Output = Self;
+    #[inline(always)]
     fn bitand(self, rhs: Self) -> Self {
         Self(self.0.bitand(rhs.0))
     }
 }
 impl std::ops::BitOr for usizex4 {
     type Output = Self;
+    #[inline(always)]
     fn bitor(self, rhs: Self) -> Self {
         Self(self.0.bitor(rhs.0))
     }
 }
 impl std::ops::BitXor for usizex4 {
     type Output = Self;
+    #[inline(always)]
     fn bitxor(self, rhs: Self) -> Self {
         Self(self.0.bitxor(rhs.0))
     }
 }
 impl std::ops::Not for usizex4 {
     type Output = Self;
+    #[inline(always)]
     fn not(self) -> Self {
         Self(self.0.not())
     }
 }
 impl std::ops::Shl for usizex4 {
     type Output = Self;
+    #[inline(always)]
     fn shl(self, rhs: Self) -> Self {
         Self(self.0.shl(rhs.0))
     }
 }
 impl std::ops::Shr for usizex4 {
     type Output = Self;
+    #[inline(always)]
     fn shr(self, rhs: Self) -> Self {
         Self(self.0.shr(rhs.0))
     }
 }
 impl SimdMath<usize> for usizex4 {
+    #[inline(always)]
     fn max(self, other: Self) -> Self {
         Self(self.0.max(other.0))
     }
+    #[inline(always)]
     fn min(self, other: Self) -> Self {
         Self(self.0.min(other.0))
     }
+    #[inline(always)]
     fn relu(self) -> Self {
         Self(self.0.relu())
     }
+    #[inline(always)]
     fn relu6(self) -> Self {
         Self(self.0.relu6())
     }
 }
 
 impl VecConvertor for usizex4 {
+    #[inline(always)]
     fn to_usize(self) -> usizex4 {
         self
     }
     #[cfg(target_pointer_width = "64")]
+    #[inline(always)]
     fn to_u64(self) -> u64x4 {
         unsafe { std::mem::transmute(self) }
     }
     #[cfg(target_pointer_width = "32")]
+    #[inline(always)]
     fn to_u32(self) -> u32x8 {
         unsafe { std::mem::transmute(self) }
     }
     #[cfg(target_pointer_width = "32")]
+    #[inline(always)]
     fn to_f32(self) -> super::f32x8::f32x8 {
         self.to_u32().to_f32()
     }
     #[cfg(target_pointer_width = "64")]
+    #[inline(always)]
     fn to_i64(self) -> crate::simd::_256bit::i64x4::i64x4 {
         unsafe { std::mem::transmute(self) }
     }
     #[cfg(target_pointer_width = "32")]
+    #[inline(always)]
     fn to_i32(self) -> crate::simd::_256bit::i32x8::i32x8 {
         unsafe { std::mem::transmute(self) }
     }

@@ -33,6 +33,7 @@ impl VecTrait<half::bf16> for bf16x16 {
     fn sum(&self) -> half::bf16 {
         self.0.iter().sum()
     }
+    #[inline(always)]
     fn splat(val: half::bf16) -> bf16x16 {
         bf16x16([val; 16])
     }
@@ -48,22 +49,26 @@ impl bf16x16 {
 
 impl bf16x16 {
     /// convert to 2 f32x8
+    #[inline(always)]
     pub fn to_2_f32x8(&self) -> [f32x8; 2] {
         todo!()
     }
 
     /// convert from 2 f32x8
+    #[inline(always)]
     pub fn from_2_f32x8(_: [f32x8; 2]) -> Self {
         todo!()
     }
 
     /// check if the value is NaN and return a mask
+    #[inline(always)]
     pub fn is_nan(&self) -> i16x16 {
         let res: [i16; 16] = self.0.map(|x| if x.is_nan() { 1 } else { 0 });
         unsafe { std::mem::transmute(res) }
     }
 
     /// check if the value is infinite and return a mask
+    #[inline(always)]
     pub fn is_infinite(&self) -> u16x16 {
         let x = u16x16::splat(0x7f80u16);
         let y = u16x16::splat(0x007fu16);
@@ -82,6 +87,7 @@ impl bf16x16 {
 }
 impl SimdCompare for bf16x16 {
     type SimdMask = i16x16;
+    #[inline(always)]
     fn simd_eq(self, other: Self) -> i16x16 {
         unsafe {
             let self_ptr = &self.0 as *const _ as *const __m256i;
@@ -91,7 +97,7 @@ impl SimdCompare for bf16x16 {
             i16x16(_mm256_cmpeq_epi16(a, b))
         }
     }
-
+    #[inline(always)]
     fn simd_ne(self, other: Self) -> i16x16 {
         unsafe {
             let self_ptr = &self.0 as *const _ as *const __m256i;
@@ -102,7 +108,7 @@ impl SimdCompare for bf16x16 {
             i16x16(_mm256_xor_si256(eq, _mm256_set1_epi16(-1)))
         }
     }
-
+    #[inline(always)]
     fn simd_lt(self, other: Self) -> i16x16 {
         unsafe {
             let self_ptr = &self.0 as *const _ as *const __m256i;
@@ -112,6 +118,7 @@ impl SimdCompare for bf16x16 {
             i16x16(_mm256_cmpgt_epi16(b, a))
         }
     }
+    #[inline(always)]
     fn simd_le(self, other: Self) -> i16x16 {
         unsafe {
             let self_ptr = &self.0 as *const _ as *const __m256i;
@@ -123,6 +130,7 @@ impl SimdCompare for bf16x16 {
             i16x16(_mm256_or_si256(lt, eq))
         }
     }
+    #[inline(always)]
     fn simd_gt(self, other: Self) -> i16x16 {
         unsafe {
             let self_ptr = &self.0 as *const _ as *const __m256i;
@@ -132,6 +140,7 @@ impl SimdCompare for bf16x16 {
             i16x16(_mm256_cmpgt_epi16(a, b))
         }
     }
+    #[inline(always)]
     fn simd_ge(self, other: Self) -> i16x16 {
         unsafe {
             let self_ptr = &self.0 as *const _ as *const __m256i;
@@ -146,6 +155,7 @@ impl SimdCompare for bf16x16 {
 }
 
 impl SimdSelect<bf16x16> for i16x16 {
+    #[inline(always)]
     fn select(&self, true_val: bf16x16, false_val: bf16x16) -> bf16x16 {
         let mut ret = bf16x16::default();
         let arr = self.as_array();
@@ -158,7 +168,7 @@ impl SimdSelect<bf16x16> for i16x16 {
 
 impl std::ops::Add for bf16x16 {
     type Output = Self;
-
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
         let mut ret = bf16x16::default();
         for i in 0..8 {
@@ -169,7 +179,7 @@ impl std::ops::Add for bf16x16 {
 }
 impl std::ops::Sub for bf16x16 {
     type Output = Self;
-
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         let mut ret = bf16x16::default();
         for i in 0..8 {
@@ -180,7 +190,7 @@ impl std::ops::Sub for bf16x16 {
 }
 impl std::ops::Mul for bf16x16 {
     type Output = Self;
-
+    #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
         let mut ret = bf16x16::default();
         for i in 0..8 {
@@ -191,7 +201,7 @@ impl std::ops::Mul for bf16x16 {
 }
 impl std::ops::Div for bf16x16 {
     type Output = Self;
-
+    #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
         let mut ret = bf16x16::default();
         for i in 0..8 {
@@ -202,7 +212,7 @@ impl std::ops::Div for bf16x16 {
 }
 impl std::ops::Rem for bf16x16 {
     type Output = Self;
-
+    #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
         let mut ret = bf16x16::default();
         for i in 0..8 {
@@ -213,7 +223,7 @@ impl std::ops::Rem for bf16x16 {
 }
 impl std::ops::Neg for bf16x16 {
     type Output = Self;
-
+    #[inline(always)]
     fn neg(self) -> Self::Output {
         let mut ret = bf16x16::default();
         for i in 0..8 {
@@ -224,12 +234,15 @@ impl std::ops::Neg for bf16x16 {
 }
 
 impl VecConvertor for bf16x16 {
+    #[inline(always)]
     fn to_bf16(self) -> bf16x16 {
         self
     }
+    #[inline(always)]
     fn to_f16(self) -> super::f16x16::f16x16 {
         unsafe { std::mem::transmute(self) }
     }
+    #[inline(always)]
     fn to_i16(self) -> super::i16x16::i16x16 {
         unsafe {
             let [x0, x1]: [f32x8; 2] = std::mem::transmute(self.to_2_f32x8());
@@ -239,6 +252,7 @@ impl VecConvertor for bf16x16 {
             super::i16x16::i16x16(packed)
         }
     }
+    #[inline(always)]
     fn to_u16(self) -> super::u16x16::u16x16 {
         unsafe {
             let [x0, x1]: [f32x8; 2] = std::mem::transmute(self.to_2_f32x8());

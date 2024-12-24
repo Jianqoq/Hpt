@@ -21,6 +21,7 @@ use super::i32x8::i32x8;
 pub struct f32x8(pub(crate) __m256);
 
 impl PartialEq for f32x8 {
+    #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         unsafe {
             let cmp = _mm256_cmp_ps(self.0, other.0, _CMP_EQ_OQ);
@@ -30,6 +31,7 @@ impl PartialEq for f32x8 {
 }
 
 impl Default for f32x8 {
+    #[inline(always)]
     fn default() -> Self {
         unsafe { f32x8(_mm256_setzero_ps()) }
     }
@@ -66,6 +68,7 @@ impl VecTrait<f32> for f32x8 {
             _mm_cvtss_f32(_mm256_castps256_ps128(sum))
         }
     }
+    #[inline(always)]
     fn splat(val: f32) -> f32x8 {
         unsafe { f32x8(_mm256_set1_ps(val)) }
     }
@@ -78,10 +81,12 @@ impl f32x8 {
         unsafe { std::mem::transmute(self.0) }
     }
     /// check if the vector is nan
+    #[inline(always)]
     pub fn is_nan(&self) -> f32x8 {
         unsafe { f32x8(_mm256_cmp_ps(self.0, self.0, _CMP_UNORD_Q)) }
     }
     /// check if the vector is infinite
+    #[inline(always)]
     pub fn is_infinite(&self) -> f32x8 {
         unsafe {
             let abs = _mm256_andnot_ps(_mm256_set1_ps(-0.0), self.0);
@@ -93,6 +98,7 @@ impl f32x8 {
         }
     }
     /// reciprocal of the vector
+    #[inline(always)]
     pub fn recip(&self) -> f32x8 {
         unsafe { f32x8(_mm256_rcp_ps(self.0)) }
     }
@@ -100,6 +106,7 @@ impl f32x8 {
 
 impl SimdCompare for f32x8 {
     type SimdMask = i32x8;
+    #[inline(always)]
     fn simd_eq(self, rhs: Self) -> Self::SimdMask {
         unsafe {
             i32x8(_mm256_castps_si256(_mm256_cmp_ps(
@@ -107,6 +114,7 @@ impl SimdCompare for f32x8 {
             )))
         }
     }
+    #[inline(always)]
     fn simd_ne(self, rhs: Self) -> Self::SimdMask {
         unsafe {
             i32x8(_mm256_castps_si256(_mm256_cmp_ps(
@@ -116,6 +124,7 @@ impl SimdCompare for f32x8 {
             )))
         }
     }
+    #[inline(always)]
     fn simd_lt(self, rhs: Self) -> Self::SimdMask {
         unsafe {
             i32x8(_mm256_castps_si256(_mm256_cmp_ps(
@@ -123,6 +132,7 @@ impl SimdCompare for f32x8 {
             )))
         }
     }
+    #[inline(always)]
     fn simd_le(self, rhs: Self) -> Self::SimdMask {
         unsafe {
             i32x8(_mm256_castps_si256(_mm256_cmp_ps(
@@ -130,6 +140,7 @@ impl SimdCompare for f32x8 {
             )))
         }
     }
+    #[inline(always)]
     fn simd_gt(self, rhs: Self) -> Self::SimdMask {
         unsafe {
             i32x8(_mm256_castps_si256(_mm256_cmp_ps(
@@ -137,6 +148,7 @@ impl SimdCompare for f32x8 {
             )))
         }
     }
+    #[inline(always)]
     fn simd_ge(self, rhs: Self) -> Self::SimdMask {
         unsafe {
             i32x8(_mm256_castps_si256(_mm256_cmp_ps(
@@ -147,6 +159,7 @@ impl SimdCompare for f32x8 {
 }
 
 impl SimdSelect<f32x8> for i32x8 {
+    #[inline(always)]
     fn select(&self, true_val: f32x8, false_val: f32x8) -> f32x8 {
         unsafe {
             f32x8(_mm256_blendv_ps(
@@ -160,7 +173,7 @@ impl SimdSelect<f32x8> for i32x8 {
 
 impl std::ops::Add for f32x8 {
     type Output = Self;
-
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
         unsafe { f32x8(_mm256_add_ps(self.0, rhs.0)) }
     }
@@ -168,7 +181,7 @@ impl std::ops::Add for f32x8 {
 
 impl std::ops::Sub for f32x8 {
     type Output = Self;
-
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         unsafe { f32x8(_mm256_sub_ps(self.0, rhs.0)) }
     }
@@ -176,7 +189,7 @@ impl std::ops::Sub for f32x8 {
 
 impl std::ops::Mul for f32x8 {
     type Output = Self;
-
+    #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
         unsafe { f32x8(_mm256_mul_ps(self.0, rhs.0)) }
     }
@@ -184,7 +197,7 @@ impl std::ops::Mul for f32x8 {
 
 impl std::ops::Div for f32x8 {
     type Output = Self;
-
+    #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
         unsafe { f32x8(_mm256_div_ps(self.0, rhs.0)) }
     }
@@ -192,7 +205,7 @@ impl std::ops::Div for f32x8 {
 
 impl std::ops::Rem for f32x8 {
     type Output = Self;
-
+    #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
         unsafe {
             let a: [f32; 8] = std::mem::transmute(self.0);
@@ -213,192 +226,200 @@ impl std::ops::Rem for f32x8 {
 }
 impl std::ops::Neg for f32x8 {
     type Output = Self;
-
+    #[inline(always)]
     fn neg(self) -> Self::Output {
         unsafe { f32x8(_mm256_xor_ps(self.0, _mm256_set1_ps(-0.0))) }
     }
 }
 
 impl SimdMath<f32> for f32x8 {
+    #[inline(always)]
     fn sin(self) -> Self {
         f32x8(unsafe { xsinf_u1(self.0) })
     }
+    #[inline(always)]
     fn cos(self) -> Self {
         f32x8(unsafe { xcosf_u1(self.0) })
     }
+    #[inline(always)]
     fn tan(self) -> Self {
         f32x8(unsafe { xtanf_u1(self.0) })
     }
-
+    #[inline(always)]
     fn square(self) -> Self {
         f32x8(unsafe { _mm256_mul_ps(self.0, self.0) })
     }
-
+    #[inline(always)]
     fn sqrt(self) -> Self {
         f32x8(unsafe { xsqrtf_u05(self.0) })
     }
-
+    #[inline(always)]
     fn abs(self) -> Self {
         f32x8(unsafe { vabs_vf_vf(self.0) })
     }
-
+    #[inline(always)]
     fn floor(self) -> Self {
         f32x8(unsafe { _mm256_floor_ps(self.0) })
     }
-
+    #[inline(always)]
     fn ceil(self) -> Self {
         f32x8(unsafe { _mm256_ceil_ps(self.0) })
     }
-
+    #[inline(always)]
     fn neg(self) -> Self {
         f32x8(unsafe { _mm256_sub_ps(_mm256_setzero_ps(), self.0) })
     }
-
+    #[inline(always)]
     fn round(self) -> Self {
         f32x8(unsafe { xroundf(self.0) })
     }
-
+    #[inline(always)]
     fn sign(self) -> Self {
         f32x8(unsafe { _mm256_and_ps(self.0, _mm256_set1_ps(0.0f32)) })
     }
-
+    #[inline(always)]
     fn leaky_relu(self, _: f32) -> Self {
         todo!()
     }
-
+    #[inline(always)]
     fn relu(self) -> Self {
         f32x8(unsafe { _mm256_max_ps(self.0, _mm256_setzero_ps()) })
     }
-
+    #[inline(always)]
     fn relu6(self) -> Self {
         f32x8(unsafe { _mm256_min_ps(self.relu().0, _mm256_set1_ps(6.0f32)) })
     }
-
+    #[inline(always)]
     fn pow(self, exp: Self) -> Self {
         f32x8(unsafe { xpowf(self.0, exp.0) })
     }
-
+    #[inline(always)]
     fn asin(self) -> Self {
         f32x8(unsafe { xasinf_u1(self.0) })
     }
-
+    #[inline(always)]
     fn acos(self) -> Self {
         f32x8(unsafe { xacosf_u1(self.0) })
     }
-
+    #[inline(always)]
     fn atan(self) -> Self {
         f32x8(unsafe { xatanf_u1(self.0) })
     }
-
+    #[inline(always)]
     fn sinh(self) -> Self {
         f32x8(unsafe { xsinhf(self.0) })
     }
-
+    #[inline(always)]
     fn cosh(self) -> Self {
         f32x8(unsafe { xcoshf(self.0) })
     }
-
+    #[inline(always)]
     fn tanh(self) -> Self {
         f32x8(unsafe { xtanhf(self.0) })
     }
-
+    #[inline(always)]
     fn asinh(self) -> Self {
         f32x8(unsafe { xasinhf(self.0) })
     }
-
+    #[inline(always)]
     fn acosh(self) -> Self {
         f32x8(unsafe { xacoshf(self.0) })
     }
-
+    #[inline(always)]
     fn atanh(self) -> Self {
         f32x8(unsafe { xatanhf(self.0) })
     }
-
+    #[inline(always)]
     fn exp2(self) -> Self {
         f32x8(unsafe { xexp2f(self.0) })
     }
-
+    #[inline(always)]
     fn exp10(self) -> Self {
         f32x8(unsafe { xexp10f(self.0) })
     }
-
+    #[inline(always)]
     fn expm1(self) -> Self {
         f32x8(unsafe { xexpm1f(self.0) })
     }
-
+    #[inline(always)]
     fn log10(self) -> Self {
         f32x8(unsafe { xlog10f(self.0) })
     }
-
+    #[inline(always)]
     fn log2(self) -> Self {
         f32x8(unsafe { xlog2f(self.0) })
     }
-
+    #[inline(always)]
     fn log1p(self) -> Self {
         f32x8(unsafe { xlog1pf(self.0) })
     }
-
+    #[inline(always)]
     fn hypot(self, other: Self) -> Self {
         f32x8(unsafe { xhypotf_u05(self.0, other.0) })
     }
-
+    #[inline(always)]
     fn trunc(self) -> Self {
         f32x8(unsafe { xtruncf(self.0) })
     }
-
+    #[inline(always)]
     fn erf(self) -> Self {
         f32x8(unsafe { xerff_u1(self.0) })
     }
-
+    #[inline(always)]
     fn cbrt(self) -> Self {
         f32x8(unsafe { xcbrtf_u1(self.0) })
     }
-
+    #[inline(always)]
     fn exp(self) -> Self {
         f32x8(unsafe { xexpf(self.0) })
     }
-
+    #[inline(always)]
     fn ln(self) -> Self {
         f32x8(unsafe { xlogf_u1(self.0) })
     }
-
+    #[inline(always)]
     fn log(self) -> Self {
         f32x8(unsafe { xlogf_u1(self.0) })
     }
-
+    #[inline(always)]
     fn sincos(self) -> (Self, Self) {
         let ret = unsafe { xsincosf_u1(self.0) };
         (f32x8(ret.x), f32x8(ret.y))
     }
-
+    #[inline(always)]
     fn atan2(self, other: Self) -> Self {
         f32x8(unsafe { xatan2f_u1(self.0, other.0) })
     }
-
+    #[inline(always)]
     fn min(self, other: Self) -> Self {
         f32x8(unsafe { xminf(self.0, other.0) })
     }
-
+    #[inline(always)]
     fn max(self, other: Self) -> Self {
         f32x8(unsafe { xmaxf(self.0, other.0) })
     }
 }
 
 impl VecConvertor for f32x8 {
+    #[inline(always)]
     fn to_u32(self) -> super::u32x8::u32x8 {
         unsafe { u32x8(_mm256_cvtps_epi32(self.0)) }
     }
+    #[inline(always)]
     fn to_i32(self) -> super::i32x8::i32x8 {
         unsafe { i32x8(_mm256_cvtps_epi32(self.0)) }
     }
+    #[inline(always)]
     #[cfg(target_pointer_width = "32")]
     fn to_isize(self) -> super::isizex2::isizex2 {
         self.to_i32().to_isize()
     }
+    #[inline(always)]
     #[cfg(target_pointer_width = "32")]
     fn to_usize(self) -> super::usizex2::usizex2 {
         self.to_u32().to_usize()
     }
+    #[inline(always)]
     fn to_f32(self) -> f32x8 {
         self
     }

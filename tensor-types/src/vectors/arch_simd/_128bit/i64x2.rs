@@ -17,6 +17,7 @@ pub struct i64x2(
 );
 
 impl PartialEq for i64x2 {
+    #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -33,6 +34,7 @@ impl PartialEq for i64x2 {
 }
 
 impl Default for i64x2 {
+    #[inline(always)]
     fn default() -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe { i64x2(_mm_setzero_si128()) }
@@ -81,6 +83,7 @@ impl VecTrait<i64> for i64x2 {
             vaddvq_s64(self.0)
         }
     }
+    #[inline(always)]
     fn splat(val: i64) -> i64x2 {
         #[cfg(target_arch = "x86_64")]
         unsafe { i64x2(_mm_set1_epi64x(val)) }
@@ -91,6 +94,7 @@ impl VecTrait<i64> for i64x2 {
 
 impl i64x2 {
     #[allow(unused)]
+    #[inline(always)]
     fn as_array(&self) -> [i64; 2] {
         unsafe { std::mem::transmute(self.0) }
     }
@@ -98,6 +102,7 @@ impl i64x2 {
 
 impl SimdCompare for i64x2 {
     type SimdMask = i64x2;
+    #[inline(always)]
     fn simd_eq(self, other: Self) -> i64x2 {
         #[cfg(target_arch = "x86_64")]
         unsafe { i64x2(_mm_cmpeq_epi64(self.0, other.0)) }
@@ -106,6 +111,7 @@ impl SimdCompare for i64x2 {
             i64x2(vreinterpretq_s64_u64(vceqq_s64(self.0, other.0)))
         }
     }
+    #[inline(always)]
     fn simd_ne(self, other: Self) -> i64x2 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -117,6 +123,7 @@ impl SimdCompare for i64x2 {
             i64x2(vreinterpretq_s64_u64(vceqq_s64(self.0, other.0)))
         }
     }
+    #[inline(always)]
     fn simd_lt(self, other: Self) -> i64x2 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -133,6 +140,7 @@ impl SimdCompare for i64x2 {
             i64x2(vreinterpretq_s64_u64(vcltq_s64(self.0, other.0)))
         }
     }
+    #[inline(always)]
     fn simd_le(self, other: Self) -> i64x2 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -149,6 +157,7 @@ impl SimdCompare for i64x2 {
             i64x2(vreinterpretq_s64_u64(vcleq_s64(self.0, other.0)))
         }
     }
+    #[inline(always)]
     fn simd_gt(self, other: Self) -> i64x2 {
         #[cfg(target_arch = "x86_64")]
         unsafe { i64x2(_mm_cmpgt_epi64(self.0, other.0)) }
@@ -157,6 +166,7 @@ impl SimdCompare for i64x2 {
             i64x2(vreinterpretq_s64_u64(vcgtq_s64(self.0, other.0)))
         }
     }
+    #[inline(always)]
     fn simd_ge(self, other: Self) -> i64x2 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -172,6 +182,7 @@ impl SimdCompare for i64x2 {
 }
 
 impl SimdSelect<i64x2> for crate::vectors::arch_simd::_128bit::i64x2::i64x2 {
+    #[inline(always)]
     fn select(&self, true_val: i64x2, false_val: i64x2) -> i64x2 {
         #[cfg(target_arch = "x86_64")]
         unsafe { i64x2(_mm_blendv_epi8(false_val.0, true_val.0, self.0)) }
@@ -184,6 +195,7 @@ impl SimdSelect<i64x2> for crate::vectors::arch_simd::_128bit::i64x2::i64x2 {
 
 impl std::ops::Add for i64x2 {
     type Output = i64x2;
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe { i64x2(_mm_add_epi64(self.0, rhs.0)) }
@@ -195,6 +207,7 @@ impl std::ops::Add for i64x2 {
 }
 impl std::ops::Sub for i64x2 {
     type Output = i64x2;
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe { i64x2(_mm_sub_epi64(self.0, rhs.0)) }
@@ -206,6 +219,7 @@ impl std::ops::Sub for i64x2 {
 }
 impl std::ops::Mul for i64x2 {
     type Output = i64x2;
+    #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
         unsafe {
             let arr: [i64; 2] = std::mem::transmute(self.0);
@@ -223,6 +237,7 @@ impl std::ops::Mul for i64x2 {
 }
 impl std::ops::Div for i64x2 {
     type Output = i64x2;
+    #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
         unsafe {
             let arr: [i64; 2] = std::mem::transmute(self.0);
@@ -240,6 +255,7 @@ impl std::ops::Div for i64x2 {
 }
 impl std::ops::Rem for i64x2 {
     type Output = i64x2;
+    #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
         unsafe {
             let arr: [i64; 2] = std::mem::transmute(self.0);
@@ -257,6 +273,7 @@ impl std::ops::Rem for i64x2 {
 }
 impl std::ops::Neg for i64x2 {
     type Output = i64x2;
+    #[inline(always)]
     fn neg(self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -272,6 +289,7 @@ impl std::ops::Neg for i64x2 {
 
 impl std::ops::BitAnd for i64x2 {
     type Output = i64x2;
+    #[inline(always)]
     fn bitand(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe { i64x2(_mm_and_si128(self.0, rhs.0)) }
@@ -283,6 +301,7 @@ impl std::ops::BitAnd for i64x2 {
 }
 impl std::ops::BitOr for i64x2 {
     type Output = i64x2;
+    #[inline(always)]
     fn bitor(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe { i64x2(_mm_or_si128(self.0, rhs.0)) }
@@ -294,6 +313,7 @@ impl std::ops::BitOr for i64x2 {
 }
 impl std::ops::BitXor for i64x2 {
     type Output = i64x2;
+    #[inline(always)]
     fn bitxor(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe { i64x2(_mm_xor_si128(self.0, rhs.0)) }
@@ -305,6 +325,7 @@ impl std::ops::BitXor for i64x2 {
 }
 impl std::ops::Not for i64x2 {
     type Output = Self;
+    #[inline(always)]
     fn not(self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe { i64x2(_mm_xor_si128(self.0, _mm_set1_epi64x(-1))) }
@@ -316,6 +337,7 @@ impl std::ops::Not for i64x2 {
 }
 impl std::ops::Shl for i64x2 {
     type Output = Self;
+    #[inline(always)]
     fn shl(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -335,6 +357,7 @@ impl std::ops::Shl for i64x2 {
 }
 impl std::ops::Shr for i64x2 {
     type Output = Self;
+    #[inline(always)]
     fn shr(self, rhs: Self) -> Self::Output {
         unsafe {
             let a: [i64; 2] = std::mem::transmute(self.0);
@@ -351,6 +374,7 @@ impl std::ops::Shr for i64x2 {
     }
 }
 impl SimdMath<i64> for i64x2 {
+    #[inline(always)]
     fn max(self, other: Self) -> Self {
         unsafe {
             let arr: [i64; 2] = std::mem::transmute(self.0);
@@ -365,6 +389,7 @@ impl SimdMath<i64> for i64x2 {
             return i64x2(vld1q_s64(arr3.as_ptr()));
         }
     }
+    #[inline(always)]
     fn min(self, other: Self) -> Self {
         unsafe {
             let arr: [i64; 2] = std::mem::transmute(self.0);
@@ -379,6 +404,7 @@ impl SimdMath<i64> for i64x2 {
             return i64x2(vld1q_s64(arr3.as_ptr()));
         }
     }
+    #[inline(always)]
     fn relu(self) -> Self {
         unsafe {
             let arr: [i64; 2] = std::mem::transmute(self.0);
@@ -392,6 +418,7 @@ impl SimdMath<i64> for i64x2 {
             return i64x2(vld1q_s64(arr2.as_ptr()));
         }
     }
+    #[inline(always)]
     fn relu6(self) -> Self {
         unsafe {
             let arr: [i64; 2] = std::mem::transmute(self.0);
@@ -408,12 +435,15 @@ impl SimdMath<i64> for i64x2 {
 }
 
 impl VecConvertor for i64x2 {
+    #[inline(always)]
     fn to_i64(self) -> i64x2 {
         self
     }
+    #[inline(always)]
     fn to_u64(self) -> u64x2 {
         unsafe { std::mem::transmute(self) }
     }
+    #[inline(always)]
     fn to_f64(self) -> super::f64x2::f64x2 {
         unsafe {
             let arr: [i64; 2] = std::mem::transmute(self.0);
@@ -428,10 +458,12 @@ impl VecConvertor for i64x2 {
         }
     }
     #[cfg(target_pointer_width = "64")]
+    #[inline(always)]
     fn to_isize(self) -> super::isizex2::isizex2 {
         unsafe { std::mem::transmute(self) }
     }
     #[cfg(target_pointer_width = "64")]
+    #[inline(always)]
     fn to_usize(self) -> super::usizex2::usizex2 {
         unsafe { std::mem::transmute(self) }
     }

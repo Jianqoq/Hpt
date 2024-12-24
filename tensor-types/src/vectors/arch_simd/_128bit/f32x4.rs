@@ -63,6 +63,7 @@ pub struct f32x4(
 );
 
 impl PartialEq for f32x4 {
+    #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -78,6 +79,7 @@ impl PartialEq for f32x4 {
 }
 
 impl Default for f32x4 {
+    #[inline(always)]
     fn default() -> Self {
         #[cfg(target_arch = "x86_64")]
         return unsafe { f32x4(_mm_setzero_ps()) };
@@ -131,6 +133,7 @@ impl VecTrait<f32> for f32x4 {
             vaddvq_f32(self.0)
         }
     }
+    #[inline(always)]
     fn splat(val: f32) -> f32x4 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -145,10 +148,12 @@ impl VecTrait<f32> for f32x4 {
 
 impl f32x4 {
     #[allow(unused)]
+    #[inline(always)]
     fn as_array(&self) -> [f32; 4] {
         unsafe { std::mem::transmute(self.0) }
     }
     /// check if the vector is nan
+    #[inline(always)]
     pub fn is_nan(&self) -> f32x4 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -160,6 +165,7 @@ impl f32x4 {
         }
     }
     /// check if the vector is infinite
+    #[inline(always)]
     pub fn is_infinite(&self) -> f32x4 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -172,6 +178,7 @@ impl f32x4 {
         }
     }
     /// reciprocal of the vector
+    #[inline(always)]
     pub fn recip(&self) -> f32x4 {
         #[cfg(target_arch = "x86_64")]
         unsafe { f32x4(_mm_rcp_ps(self.0)) }
@@ -184,6 +191,7 @@ impl f32x4 {
 
 impl SimdCompare for f32x4 {
     type SimdMask = i32x4;
+    #[inline(always)]
     fn simd_eq(self, rhs: Self) -> Self::SimdMask {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -194,6 +202,7 @@ impl SimdCompare for f32x4 {
             i32x4(vreinterpretq_s32_u32(vceqq_f32(self.0, rhs.0)))
         }
     }
+    #[inline(always)]
     fn simd_ne(self, rhs: Self) -> Self::SimdMask {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -204,6 +213,7 @@ impl SimdCompare for f32x4 {
             i32x4(vreinterpretq_s32_u32(vceqq_f32(self.0, rhs.0)))
         }
     }
+    #[inline(always)]
     fn simd_lt(self, rhs: Self) -> Self::SimdMask {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -214,6 +224,7 @@ impl SimdCompare for f32x4 {
             i32x4(vreinterpretq_s32_u32(vcltq_f32(self.0, rhs.0)))
         }
     }
+    #[inline(always)]
     fn simd_le(self, rhs: Self) -> Self::SimdMask {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -224,6 +235,7 @@ impl SimdCompare for f32x4 {
             i32x4(vreinterpretq_s32_u32(vcleq_f32(self.0, rhs.0)))
         }
     }
+    #[inline(always)]
     fn simd_gt(self, rhs: Self) -> Self::SimdMask {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -234,6 +246,7 @@ impl SimdCompare for f32x4 {
             i32x4(vreinterpretq_s32_u32(vcgtq_f32(self.0, rhs.0)))
         }
     }
+    #[inline(always)]
     fn simd_ge(self, rhs: Self) -> Self::SimdMask {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -247,6 +260,7 @@ impl SimdCompare for f32x4 {
 }
 
 impl SimdSelect<f32x4> for i32x4 {
+    #[inline(always)]
     fn select(&self, true_val: f32x4, false_val: f32x4) -> f32x4 {
         #[cfg(target_arch = "x86_64")]
         unsafe { f32x4(_mm_blendv_ps(false_val.0, true_val.0, std::mem::transmute(self.0))) }
@@ -259,7 +273,7 @@ impl SimdSelect<f32x4> for i32x4 {
 
 impl std::ops::Add for f32x4 {
     type Output = Self;
-
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe { f32x4(_mm_add_ps(self.0, rhs.0)) }
@@ -272,7 +286,7 @@ impl std::ops::Add for f32x4 {
 
 impl std::ops::Sub for f32x4 {
     type Output = Self;
-
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe { f32x4(_mm_sub_ps(self.0, rhs.0)) }
@@ -285,7 +299,7 @@ impl std::ops::Sub for f32x4 {
 
 impl std::ops::Mul for f32x4 {
     type Output = Self;
-
+    #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe { f32x4(_mm_mul_ps(self.0, rhs.0)) }
@@ -298,7 +312,7 @@ impl std::ops::Mul for f32x4 {
 
 impl std::ops::Div for f32x4 {
     type Output = Self;
-
+    #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe { f32x4(_mm_div_ps(self.0, rhs.0)) }
@@ -311,7 +325,7 @@ impl std::ops::Div for f32x4 {
 
 impl std::ops::Rem for f32x4 {
     type Output = Self;
-
+    #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -330,7 +344,7 @@ impl std::ops::Rem for f32x4 {
 }
 impl std::ops::Neg for f32x4 {
     type Output = Self;
-
+    #[inline(always)]
     fn neg(self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -344,16 +358,19 @@ impl std::ops::Neg for f32x4 {
 }
 
 impl SimdMath<f32> for f32x4 {
+    #[inline(always)]
     fn sin(self) -> Self {
         f32x4(unsafe { xsinf_u1(self.0) })
     }
+    #[inline(always)]
     fn cos(self) -> Self {
         f32x4(unsafe { xcosf_u1(self.0) })
     }
+    #[inline(always)]
     fn tan(self) -> Self {
         f32x4(unsafe { xtanf_u1(self.0) })
     }
-
+    #[inline(always)]
     fn square(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe { f32x4(_mm_mul_ps(self.0, self.0)) }
@@ -363,14 +380,17 @@ impl SimdMath<f32> for f32x4 {
         }
     }
 
+    #[inline(always)]
     fn sqrt(self) -> Self {
         f32x4(unsafe { xsqrtf_u05(self.0) })
     }
 
+    #[inline(always)]
     fn abs(self) -> Self {
         f32x4(unsafe { vabs_vf_vf(self.0) })
     }
 
+    #[inline(always)]
     fn floor(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe { f32x4(_mm_floor_ps(self.0)) }
@@ -380,6 +400,7 @@ impl SimdMath<f32> for f32x4 {
         }
     }
 
+    #[inline(always)]
     fn ceil(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe { f32x4(_mm_ceil_ps(self.0)) }
@@ -389,6 +410,7 @@ impl SimdMath<f32> for f32x4 {
         }
     }
 
+    #[inline(always)]
     fn neg(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe { f32x4(_mm_sub_ps(_mm_setzero_ps(), self.0)) }
@@ -398,10 +420,12 @@ impl SimdMath<f32> for f32x4 {
         }
     }
 
+    #[inline(always)]
     fn round(self) -> Self {
         f32x4(unsafe { xroundf(self.0) })
     }
 
+    #[inline(always)]
     fn sign(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -427,10 +451,12 @@ impl SimdMath<f32> for f32x4 {
         }
     }
 
+    #[inline(always)]
     fn leaky_relu(self, _: f32) -> Self {
         todo!()
     }
 
+    #[inline(always)]
     fn relu(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe { f32x4(_mm_max_ps(self.0, _mm_setzero_ps())) }
@@ -440,6 +466,7 @@ impl SimdMath<f32> for f32x4 {
         }
     }
 
+    #[inline(always)]
     fn relu6(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe { f32x4(_mm_min_ps(self.relu().0, _mm_set1_ps(6.0f32))) }
@@ -449,117 +476,145 @@ impl SimdMath<f32> for f32x4 {
         }
     }
 
+    #[inline(always)]
     fn pow(self, exp: Self) -> Self {
         f32x4(unsafe { xpowf(self.0, exp.0) })
     }
 
+    #[inline(always)]
     fn asin(self) -> Self {
         f32x4(unsafe { xasinf_u1(self.0) })
     }
 
+    #[inline(always)]
     fn acos(self) -> Self {
         f32x4(unsafe { xacosf_u1(self.0) })
     }
 
+    #[inline(always)]
     fn atan(self) -> Self {
         f32x4(unsafe { xatanf_u1(self.0) })
     }
 
+    #[inline(always)]
     fn sinh(self) -> Self {
         f32x4(unsafe { xsinhf(self.0) })
     }
 
+    #[inline(always)]
     fn cosh(self) -> Self {
         f32x4(unsafe { xcoshf(self.0) })
     }
 
+    #[inline(always)]
     fn tanh(self) -> Self {
         f32x4(unsafe { xtanhf(self.0) })
     }
 
+    #[inline(always)]
     fn asinh(self) -> Self {
         f32x4(unsafe { xasinhf(self.0) })
     }
 
+    #[inline(always)]
     fn acosh(self) -> Self {
         f32x4(unsafe { xacoshf(self.0) })
     }
 
+    #[inline(always)]
     fn atanh(self) -> Self {
         f32x4(unsafe { xatanhf(self.0) })
     }
 
+    #[inline(always)]
     fn exp2(self) -> Self {
         f32x4(unsafe { xexp2f(self.0) })
     }
 
+    #[inline(always)]
     fn exp10(self) -> Self {
         f32x4(unsafe { xexp10f(self.0) })
     }
 
+    #[inline(always)]
     fn expm1(self) -> Self {
         f32x4(unsafe { xexpm1f(self.0) })
     }
 
+    #[inline(always)]
     fn log10(self) -> Self {
         f32x4(unsafe { xlog10f(self.0) })
     }
 
+    #[inline(always)]
     fn log2(self) -> Self {
         f32x4(unsafe { xlog2f(self.0) })
     }
 
+    #[inline(always)]
     fn log1p(self) -> Self {
         f32x4(unsafe { xlog1pf(self.0) })
     }
 
+    #[inline(always)]
     fn hypot(self, other: Self) -> Self {
         f32x4(unsafe { xhypotf_u05(self.0, other.0) })
     }
 
+    #[inline(always)]
     fn trunc(self) -> Self {
         f32x4(unsafe { xtruncf(self.0) })
     }
 
+    #[inline(always)]
     fn erf(self) -> Self {
         f32x4(unsafe { xerff_u1(self.0) })
     }
 
+    #[inline(always)]
     fn cbrt(self) -> Self {
         f32x4(unsafe { xcbrtf_u1(self.0) })
     }
 
+    #[inline(always)]
     fn exp(self) -> Self {
         f32x4(unsafe { xexpf(self.0) })
     }
 
+    #[inline(always)]
     fn ln(self) -> Self {
         f32x4(unsafe { xlogf_u1(self.0) })
     }
 
+    #[inline(always)]
     fn log(self) -> Self {
         f32x4(unsafe { xlogf_u1(self.0) })
     }
 
+    #[inline(always)]
     fn sincos(self) -> (Self, Self) {
         let ret = unsafe { xsincosf_u1(self.0) };
         (f32x4(ret.x), f32x4(ret.y))
     }
 
+    #[inline(always)]
     fn atan2(self, other: Self) -> Self {
         f32x4(unsafe { xatan2f_u1(self.0, other.0) })
     }
 
+    #[inline(always)]
     fn min(self, other: Self) -> Self {
         f32x4(unsafe { xminf(self.0, other.0) })
     }
 
+    #[inline(always)]
     fn max(self, other: Self) -> Self {
         f32x4(unsafe { xmaxf(self.0, other.0) })
     }
 }
 
 impl VecConvertor for f32x4 {
+    #[inline(always)]
     fn to_u32(self) -> super::u32x4::u32x4 {
         #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_cvtps_epi32(self.0)) }
@@ -568,6 +623,7 @@ impl VecConvertor for f32x4 {
             u32x4(vcvtq_u32_f32(self.0))
         }
     }
+    #[inline(always)]
     fn to_i32(self) -> super::i32x4::i32x4 {
         #[cfg(target_arch = "x86_64")]
         unsafe { i32x4(_mm_cvtps_epi32(self.0)) }
@@ -577,13 +633,16 @@ impl VecConvertor for f32x4 {
         }
     }
     #[cfg(target_pointer_width = "32")]
+    #[inline(always)]
     fn to_isize(self) -> super::isizex2::isizex2 {
         self.to_i32().to_isize()
     }
     #[cfg(target_pointer_width = "32")]
+    #[inline(always)]
     fn to_usize(self) -> super::usizex2::usizex2 {
         self.to_u32().to_usize()
     }
+    #[inline(always)]
     fn to_f32(self) -> f32x4 {
         self
     }

@@ -27,12 +27,14 @@ type ISizeBase = i32x4;
 type ISizeBase = i64x2;
 
 impl Default for ISizeVEC {
+    #[inline(always)]
     fn default() -> Self {
         Self(ISizeBase::default())
     }
 }
 
 impl PartialEq for ISizeVEC {
+    #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
@@ -56,6 +58,7 @@ impl VecTrait<isize> for ISizeVEC {
     fn sum(&self) -> isize {
         self.0.sum() as isize
     }
+    #[inline(always)]
     fn splat(val: isize) -> ISizeVEC {
         Self(ISizeBase::splat(val as i64))
     }
@@ -64,11 +67,13 @@ impl VecTrait<isize> for ISizeVEC {
 impl isizex2 {
     #[allow(unused)]
     #[cfg(target_pointer_width = "64")]
+    #[inline(always)]
     fn as_array(&self) -> [isize; 2] {
         unsafe { std::mem::transmute(self.0) }
     }
     #[allow(unused)]
     #[cfg(target_pointer_width = "32")]
+    #[inline(always)]
     fn as_array(&self) -> [isize; 4] {
         unsafe { std::mem::transmute(self.0) }
     }
@@ -76,21 +81,27 @@ impl isizex2 {
 
 impl SimdCompare for isizex2 {
     type SimdMask = isizex2;
+    #[inline(always)]
     fn simd_eq(self, other: Self) -> isizex2 {
         Self(self.0.simd_eq(other.0))
     }
+    #[inline(always)]
     fn simd_ne(self, other: Self) -> isizex2 {
         Self(self.0.simd_ne(other.0))
     }
+    #[inline(always)]
     fn simd_lt(self, other: Self) -> isizex2 {
         Self(self.0.simd_lt(other.0))
     }
+    #[inline(always)]
     fn simd_le(self, other: Self) -> isizex2 {
         Self(self.0.simd_le(other.0))
     }
+    #[inline(always)]
     fn simd_gt(self, other: Self) -> isizex2 {
         Self(self.0.simd_gt(other.0))
     }
+    #[inline(always)]
     fn simd_ge(self, other: Self) -> isizex2 {
         Self(self.0.simd_ge(other.0))
     }
@@ -98,115 +109,138 @@ impl SimdCompare for isizex2 {
 
 impl std::ops::Add for isizex2 {
     type Output = Self;
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self {
         Self(self.0.add(rhs.0))
     }
 }
 impl std::ops::Sub for isizex2 {
     type Output = Self;
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self {
         Self(self.0.sub(rhs.0))
     }
 }
 impl std::ops::Mul for isizex2 {
     type Output = Self;
+    #[inline(always)]
     fn mul(self, rhs: Self) -> Self {
         Self(self.0.mul(rhs.0))
     }
 }
 impl std::ops::Div for isizex2 {
     type Output = Self;
+    #[inline(always)]
     fn div(self, rhs: Self) -> Self {
         Self(self.0.div(rhs.0))
     }
 }
 impl std::ops::Rem for isizex2 {
     type Output = Self;
+    #[inline(always)]
     fn rem(self, rhs: Self) -> Self {
         Self(self.0.rem(rhs.0))
     }
 }
 impl std::ops::Neg for isizex2 {
     type Output = Self;
+    #[inline(always)]
     fn neg(self) -> Self {
         Self(SimdMath::neg(self.0))
     }
 }
 impl std::ops::BitAnd for isizex2 {
     type Output = Self;
+    #[inline(always)]
     fn bitand(self, rhs: Self) -> Self::Output {
         Self(self.0.bitand(rhs.0))
     }
 }
 impl std::ops::BitOr for isizex2 {
     type Output = Self;
+    #[inline(always)]
     fn bitor(self, rhs: Self) -> Self::Output {
         Self(self.0.bitor(rhs.0))
     }
 }
 impl std::ops::BitXor for isizex2 {
     type Output = Self;
+    #[inline(always)]
     fn bitxor(self, rhs: Self) -> Self::Output {
         Self(self.0.bitxor(rhs.0))
     }
 }
 impl std::ops::Not for isizex2 {
     type Output = Self;
+    #[inline(always)]
     fn not(self) -> Self::Output {
         Self(self.0.not())
     }
 }
 impl std::ops::Shl for isizex2 {
     type Output = Self;
+    #[inline(always)]
     fn shl(self, rhs: Self) -> Self::Output {
         Self(self.0.shl(rhs.0))
     }
 }
 impl std::ops::Shr for isizex2 {
     type Output = Self;
+    #[inline(always)]
     fn shr(self, rhs: Self) -> Self::Output {
         Self(self.0.shr(rhs.0))
     }
 }
 impl SimdMath<isize> for isizex2 {
+    #[inline(always)]
     fn max(self, other: Self) -> Self {
         Self(self.0.max(other.0))
     }
+    #[inline(always)]
     fn min(self, other: Self) -> Self {
         Self(self.0.min(other.0))
     }
+    #[inline(always)]
     fn relu(self) -> Self {
         Self(self.0.relu())
     }
+    #[inline(always)]
     fn relu6(self) -> Self {
         Self(self.0.relu6())
     }
 }
 
 impl VecConvertor for isizex2 {
+    #[inline(always)]
     fn to_isize(self) -> isizex2 {
         self
     }
+    #[inline(always)]
     fn to_usize(self) -> usizex2 {
         unsafe { std::mem::transmute(self) }
     }
     #[cfg(target_pointer_width = "64")]
+    #[inline(always)]
     fn to_i64(self) -> i64x2 {
         unsafe { std::mem::transmute(self) }
     }
     #[cfg(target_pointer_width = "32")]
+    #[inline(always)]
     fn to_i32(self) -> i32x4 {
         unsafe { std::mem::transmute(self) }
     }
     #[cfg(target_pointer_width = "32")]
+    #[inline(always)]
     fn to_u32(self) -> u32x4 {
         unsafe { std::mem::transmute(self) }
     }
     #[cfg(target_pointer_width = "32")]
+    #[inline(always)]
     fn to_f32(self) -> super::f32x4::f32x4 {
         self.to_i32().to_f32()
     }
     #[cfg(target_pointer_width = "64")]
+    #[inline(always)]
     fn to_f64(self) -> super::f64x2::f64x2 {
         self.to_i64().to_f64()
     }

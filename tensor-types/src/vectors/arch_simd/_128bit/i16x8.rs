@@ -17,6 +17,7 @@ pub struct i16x8(
 );
 
 impl PartialEq for i16x8 {
+    #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -31,6 +32,7 @@ impl PartialEq for i16x8 {
     }
 }
 impl Default for i16x8 {
+    #[inline(always)]
     fn default() -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -74,6 +76,7 @@ impl VecTrait<i16> for i16x8 {
             arr.iter().sum()
         }
     }
+    #[inline(always)]
     fn splat(val: i16) -> i16x8 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -95,6 +98,7 @@ impl i16x8 {
 
 impl SimdCompare for i16x8 {
     type SimdMask = i16x8;
+    #[inline(always)]
     fn simd_eq(self, other: Self) -> i16x8 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -105,6 +109,7 @@ impl SimdCompare for i16x8 {
             i16x8(vreinterpretq_s16_u16(vceqq_s16(self.0, other.0)))
         }
     }
+    #[inline(always)]
     fn simd_ne(self, other: Self) -> i16x8 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -117,6 +122,7 @@ impl SimdCompare for i16x8 {
             i16x8(vmvnq_s16(vreinterpretq_s16_u16(eq)))
         }
     }
+    #[inline(always)]
     fn simd_lt(self, other: Self) -> i16x8 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -127,6 +133,7 @@ impl SimdCompare for i16x8 {
             i16x8(vreinterpretq_s16_u16(vcltq_s16(self.0, other.0)))
         }
     }
+    #[inline(always)]
     fn simd_le(self, other: Self) -> i16x8 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -141,12 +148,14 @@ impl SimdCompare for i16x8 {
             i16x8(vreinterpretq_s16_u16(vorrq_u16(lt, eq)))
         }
     }
+    #[inline(always)]
     fn simd_gt(self, other: Self) -> i16x8 {
         #[cfg(target_arch = "x86_64")]
         unsafe { i16x8(_mm_cmpgt_epi16(self.0, other.0)) }
         #[cfg(target_arch = "aarch64")]
         unsafe { i16x8(vreinterpretq_s16_u16(vcgtq_s16(self.0, other.0))) }
     }
+    #[inline(always)]
     fn simd_ge(self, other: Self) -> i16x8 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -164,6 +173,7 @@ impl SimdCompare for i16x8 {
 }
 
 impl SimdSelect<i16x8> for crate::vectors::arch_simd::_128bit::i16x8::i16x8 {
+    #[inline(always)]
     fn select(&self, true_val: i16x8, false_val: i16x8) -> i16x8 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -178,7 +188,7 @@ impl SimdSelect<i16x8> for crate::vectors::arch_simd::_128bit::i16x8::i16x8 {
 
 impl std::ops::Add for i16x8 {
     type Output = Self;
-
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -192,7 +202,7 @@ impl std::ops::Add for i16x8 {
 }
 impl std::ops::Sub for i16x8 {
     type Output = Self;
-
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -206,7 +216,7 @@ impl std::ops::Sub for i16x8 {
 }
 impl std::ops::Mul for i16x8 {
     type Output = Self;
-
+    #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -220,7 +230,7 @@ impl std::ops::Mul for i16x8 {
 }
 impl std::ops::Div for i16x8 {
     type Output = Self;
-
+    #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -246,7 +256,7 @@ impl std::ops::Div for i16x8 {
 }
 impl std::ops::Rem for i16x8 {
     type Output = Self;
-
+    #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -272,7 +282,7 @@ impl std::ops::Rem for i16x8 {
 }
 impl std::ops::Neg for i16x8 {
     type Output = Self;
-
+    #[inline(always)]
     fn neg(self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -286,6 +296,7 @@ impl std::ops::Neg for i16x8 {
 }
 impl std::ops::BitAnd for i16x8 {
     type Output = Self;
+    #[inline(always)]
     fn bitand(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -299,6 +310,7 @@ impl std::ops::BitAnd for i16x8 {
 }
 impl std::ops::BitOr for i16x8 {
     type Output = Self;
+    #[inline(always)]
     fn bitor(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -312,6 +324,7 @@ impl std::ops::BitOr for i16x8 {
 }
 impl std::ops::BitXor for i16x8 {
     type Output = Self;
+    #[inline(always)]
     fn bitxor(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -325,6 +338,7 @@ impl std::ops::BitXor for i16x8 {
 }
 impl std::ops::Not for i16x8 {
     type Output = Self;
+    #[inline(always)]
     fn not(self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -338,6 +352,7 @@ impl std::ops::Not for i16x8 {
 }
 impl std::ops::Shl for i16x8 {
     type Output = Self;
+    #[inline(always)]
     fn shl(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -357,6 +372,7 @@ impl std::ops::Shl for i16x8 {
 }
 impl std::ops::Shr for i16x8 {
     type Output = Self;
+    #[inline(always)]
     fn shr(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -382,6 +398,7 @@ impl std::ops::Shr for i16x8 {
 }
 
 impl SimdMath<i16> for i16x8 {
+    #[inline(always)]
     fn max(self, other: Self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -392,6 +409,7 @@ impl SimdMath<i16> for i16x8 {
             i16x8(vmaxq_s16(self.0, other.0))
         }
     }
+    #[inline(always)]
     fn min(self, other: Self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -402,6 +420,7 @@ impl SimdMath<i16> for i16x8 {
             i16x8(vminq_s16(self.0, other.0))
         }
     }
+    #[inline(always)]
     fn relu(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -412,6 +431,7 @@ impl SimdMath<i16> for i16x8 {
             i16x8(vmaxq_s16(self.0, vdupq_n_s16(0)))
         }
     }
+    #[inline(always)]
     fn relu6(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe {
@@ -425,12 +445,15 @@ impl SimdMath<i16> for i16x8 {
 }
 
 impl VecConvertor for i16x8 {
+    #[inline(always)]
     fn to_i16(self) -> i16x8 {
         self
     }
+    #[inline(always)]
     fn to_u16(self) -> u16x8 {
         unsafe { std::mem::transmute(self) }
     }
+    #[inline(always)]
     fn to_f16(self) -> super::f16x8::f16x8 {
         let mut result = [half::f16::ZERO; 8];
         let arr: [i16; 8] = unsafe { std::mem::transmute(self.0) };

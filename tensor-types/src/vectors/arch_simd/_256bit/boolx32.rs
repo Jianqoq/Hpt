@@ -26,6 +26,7 @@ impl VecTrait<bool> for boolx32 {
     fn sum(&self) -> bool {
         self.0.iter().map(|&x| x as u8).sum::<u8>() > 0
     }
+    #[inline(always)]
     fn splat(val: bool) -> boolx32 {
         boolx32([val; 32])
     }
@@ -41,6 +42,7 @@ impl boolx32 {
 
 impl SimdCompare for boolx32 {
     type SimdMask = i8x32;
+    #[inline(always)]
     fn simd_eq(self, rhs: Self) -> i8x32 {
         let mut res = [0i8; 32];
         for i in 0..32 {
@@ -48,6 +50,7 @@ impl SimdCompare for boolx32 {
         }
         i8x32(unsafe { std::mem::transmute(res) })
     }
+    #[inline(always)]
     fn simd_ne(self, rhs: Self) -> i8x32 {
         let mut res = [0i8; 32];
         for i in 0..32 {
@@ -55,6 +58,7 @@ impl SimdCompare for boolx32 {
         }
         i8x32(unsafe { std::mem::transmute(res) })
     }
+    #[inline(always)]
     fn simd_lt(self, rhs: Self) -> i8x32 {
         let mut res = [0i8; 32];
         for i in 0..32 {
@@ -62,6 +66,7 @@ impl SimdCompare for boolx32 {
         }
         i8x32(unsafe { std::mem::transmute(res) })
     }
+    #[inline(always)]
     fn simd_le(self, rhs: Self) -> i8x32 {
         let mut res = [0i8; 32];
         for i in 0..32 {
@@ -69,6 +74,7 @@ impl SimdCompare for boolx32 {
         }
         i8x32(unsafe { std::mem::transmute(res) })
     }
+    #[inline(always)]
     fn simd_gt(self, rhs: Self) -> i8x32 {
         let mut res = [0i8; 32];
         for i in 0..32 {
@@ -76,6 +82,7 @@ impl SimdCompare for boolx32 {
         }
         i8x32(unsafe { std::mem::transmute(res) })
     }
+    #[inline(always)]
     fn simd_ge(self, rhs: Self) -> i8x32 {
         let mut res = [0i8; 32];
         for i in 0..32 {
@@ -86,6 +93,7 @@ impl SimdCompare for boolx32 {
 }
 
 impl SimdSelect<boolx32> for i8x32 {
+    #[inline(always)]
     fn select(&self, true_val: boolx32, false_val: boolx32) -> boolx32 {
         let mut ret = boolx32::default();
         let arr = self.as_array();
@@ -98,7 +106,7 @@ impl SimdSelect<boolx32> for i8x32 {
 
 impl std::ops::Add for boolx32 {
     type Output = Self;
-
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
         let mut ret = boolx32::default();
         for i in 0..32 {
@@ -109,7 +117,7 @@ impl std::ops::Add for boolx32 {
 }
 impl std::ops::Sub for boolx32 {
     type Output = Self;
-
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         let mut ret = boolx32::default();
         for i in 0..32 {
@@ -120,7 +128,7 @@ impl std::ops::Sub for boolx32 {
 }
 impl std::ops::Mul for boolx32 {
     type Output = Self;
-
+    #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
         let mut ret = boolx32::default();
         for i in 0..32 {
@@ -131,7 +139,7 @@ impl std::ops::Mul for boolx32 {
 }
 impl std::ops::Div for boolx32 {
     type Output = Self;
-
+    #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
         let mut ret = boolx32::default();
         for i in 0..32 {
@@ -142,7 +150,7 @@ impl std::ops::Div for boolx32 {
 }
 impl std::ops::Rem for boolx32 {
     type Output = Self;
-
+    #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
         let mut ret = boolx32::default();
         for i in 0..32 {
@@ -153,7 +161,7 @@ impl std::ops::Rem for boolx32 {
 }
 impl std::ops::BitOr for boolx32 {
     type Output = Self;
-
+    #[inline(always)]
     fn bitor(self, rhs: Self) -> Self::Output {
         let mask: u8x32 = unsafe { std::mem::transmute(self) };
         let rhs: u8x32 = unsafe { std::mem::transmute(rhs) };
@@ -162,7 +170,7 @@ impl std::ops::BitOr for boolx32 {
 }
 impl std::ops::BitAnd for boolx32 {
     type Output = Self;
-
+    #[inline(always)]
     fn bitand(self, rhs: Self) -> Self::Output {
         let mask: u8x32 = unsafe { std::mem::transmute(self) };
         let rhs: u8x32 = unsafe { std::mem::transmute(rhs) };
@@ -171,12 +179,15 @@ impl std::ops::BitAnd for boolx32 {
 }
 
 impl VecConvertor for boolx32 {
+    #[inline(always)]
     fn to_bool(self) -> boolx32 {
         self
     }
+    #[inline(always)]
     fn to_i8(self) -> i8x32 {
         unsafe { std::mem::transmute(self) }
     }
+    #[inline(always)]
     fn to_u8(self) -> u8x32 {
         unsafe { std::mem::transmute(self) }
     }
