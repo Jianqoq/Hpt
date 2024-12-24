@@ -1,20 +1,20 @@
 use std::{
-    borrow::{ Borrow, BorrowMut },
-    fmt::{ Debug, Display },
-    sync::{ atomic::Ordering, Arc },
+    borrow::{Borrow, BorrowMut},
+    fmt::{Debug, Display},
+    sync::{atomic::Ordering, Arc},
 };
 
 use crate::{
-    backend::{ BackendTy, Buffer, Cpu },
+    backend::{BackendTy, Buffer, Cpu},
     tensor_base::_Tensor,
-    DISPLAY_LR_ELEMENTS,
-    DISPLAY_PRECISION,
+    DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION,
 };
 use anyhow::Result;
-use tensor_common::{ layout::Layout, pointer::Pointer, shape::Shape };
+use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
+use tensor_dataloader::DataLoader;
 use tensor_display::display;
 use tensor_iterator::TensorIterator;
-use tensor_traits::tensor::{ CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike };
+use tensor_traits::tensor::{CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike};
 use tensor_types::convertion::Convertor;
 
 /// `Tensor` is alias of N-dimensional array.
@@ -25,19 +25,24 @@ use tensor_types::convertion::Convertor;
 /// - `parent`: The parent tensor of the tensor. parent is always the root tensor (`not a view`).
 /// - `mem_layout`: std::alloc::layout, use for deallocate the memory and find cache in the allocator.
 #[derive(Clone)]
-pub struct Tensor<T, B = Cpu, const DEVICE_ID: usize = 0> where B: BackendTy + Buffer {
+pub struct Tensor<T, B = Cpu, const DEVICE_ID: usize = 0>
+where
+    B: BackendTy + Buffer,
+{
     pub(crate) inner: Arc<_Tensor<T, B, DEVICE_ID>>,
 }
 
-impl<T> TensorLike<T> for Tensor<T> where T: CommonBounds {
+impl<T> TensorLike<T> for Tensor<T>
+where
+    T: CommonBounds,
+{
     fn as_raw(&self) -> &[T] {
         self.inner.as_raw()
     }
 
     fn as_raw_mut(&mut self) -> &mut [T] {
-        let slice = unsafe {
-            std::slice::from_raw_parts_mut(self.inner.ptr().ptr as *mut T, self.size())
-        };
+        let slice =
+            unsafe { std::slice::from_raw_parts_mut(self.inner.ptr().ptr as *mut T, self.size()) };
         slice
     }
 
@@ -48,7 +53,10 @@ impl<T> TensorLike<T> for Tensor<T> where T: CommonBounds {
 
 impl<T: CommonBounds> TensorIterator<'_, T> for Tensor<T> {}
 
-impl<T> TensorInfo<T> for Tensor<T> where T: CommonBounds {
+impl<T> TensorInfo<T> for Tensor<T>
+where
+    T: CommonBounds,
+{
     fn ptr(&self) -> Pointer<T> {
         self.inner.ptr().clone()
     }
@@ -82,7 +90,10 @@ impl<T> TensorInfo<T> for Tensor<T> where T: CommonBounds {
     }
 }
 
-impl<T> TensorInfo<T> for &Tensor<T> where T: CommonBounds {
+impl<T> TensorInfo<T> for &Tensor<T>
+where
+    T: CommonBounds,
+{
     fn ptr(&self) -> Pointer<T> {
         self.inner.ptr().clone()
     }
@@ -118,12 +129,18 @@ impl<T> TensorInfo<T> for &Tensor<T> where T: CommonBounds {
 
 impl<T: CommonBounds> TensorAlloc for Tensor<T> {
     type Meta = T;
-    fn _empty<S: Into<Shape>>(shape: S) -> Result<Self> where Self: Sized {
+    fn _empty<S: Into<Shape>>(shape: S) -> Result<Self>
+    where
+        Self: Sized,
+    {
         Self::empty(shape)
     }
 }
 
-impl<T> Display for Tensor<T> where T: CommonBounds + Convertor {
+impl<T> Display for Tensor<T>
+where
+    T: CommonBounds + Convertor,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
         let lr_element_size = DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed);
@@ -131,7 +148,10 @@ impl<T> Display for Tensor<T> where T: CommonBounds + Convertor {
     }
 }
 
-impl<T> Debug for Tensor<T> where T: CommonBounds + Convertor {
+impl<T> Debug for Tensor<T>
+where
+    T: CommonBounds + Convertor,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
         let lr_element_size = DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed);
@@ -139,7 +159,8 @@ impl<T> Debug for Tensor<T> where T: CommonBounds + Convertor {
     }
 }
 
-impl<T, B: BackendTy + Buffer, const DEVICE_ID: usize> Borrow<_Tensor<T, B, DEVICE_ID>> for Tensor<T, B, DEVICE_ID>
+impl<T, B: BackendTy + Buffer, const DEVICE_ID: usize> Borrow<_Tensor<T, B, DEVICE_ID>>
+    for Tensor<T, B, DEVICE_ID>
 where
     T: CommonBounds,
 {
@@ -148,7 +169,8 @@ where
     }
 }
 
-impl<T, B: BackendTy + Buffer, const DEVICE_ID: usize> Borrow<_Tensor<T, B, DEVICE_ID>> for &Tensor<T, B, DEVICE_ID>
+impl<T, B: BackendTy + Buffer, const DEVICE_ID: usize> Borrow<_Tensor<T, B, DEVICE_ID>>
+    for &Tensor<T, B, DEVICE_ID>
 where
     T: CommonBounds,
 {
@@ -157,7 +179,8 @@ where
     }
 }
 
-impl<T, B: BackendTy + Buffer, const DEVICE_ID: usize> Borrow<_Tensor<T, B, DEVICE_ID>> for &mut Tensor<T, B, DEVICE_ID>
+impl<T, B: BackendTy + Buffer, const DEVICE_ID: usize> Borrow<_Tensor<T, B, DEVICE_ID>>
+    for &mut Tensor<T, B, DEVICE_ID>
 where
     T: CommonBounds,
 {
@@ -166,7 +189,8 @@ where
     }
 }
 
-impl<T, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize> BorrowMut<_Tensor<T, B, DEVICE_ID>> for &mut Tensor<T, B, DEVICE_ID>
+impl<T, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize> BorrowMut<_Tensor<T, B, DEVICE_ID>>
+    for &mut Tensor<T, B, DEVICE_ID>
 where
     T: CommonBounds,
 {
@@ -175,11 +199,22 @@ where
     }
 }
 
-impl<T, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize> BorrowMut<_Tensor<T, B, DEVICE_ID>> for Tensor<T, B, DEVICE_ID>
+impl<T, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize> BorrowMut<_Tensor<T, B, DEVICE_ID>>
+    for Tensor<T, B, DEVICE_ID>
 where
     T: CommonBounds,
 {
     fn borrow_mut(&mut self) -> &mut _Tensor<T, B, DEVICE_ID> {
         Arc::make_mut(&mut self.inner)
+    }
+}
+
+impl<T, const DEVICE_ID: usize> From<Tensor<T, Cpu, DEVICE_ID>> for DataLoader<T> {
+    fn from(value: Tensor<T, Cpu, DEVICE_ID>) -> Self {
+        DataLoader::new(
+            value.inner.layout.shape().clone(),
+            value.inner.layout.strides().clone(),
+            value.inner.data.ptr,
+        )
     }
 }

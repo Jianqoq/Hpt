@@ -78,20 +78,6 @@ where
         shape: Vec<i64>,
         strides: Vec<i64>,
     ) -> _Tensor<T, B, DEVICE> {
-        let (shape, strides) = if shape.contains(&0) {
-            let mut new_shape = Vec::new();
-            let mut new_strides = Vec::new();
-            for (i, &s) in shape.iter().enumerate() {
-                if s == 0 {
-                    continue;
-                }
-                new_shape.push(s);
-                new_strides.push(strides[i]);
-            }
-            (new_shape, new_strides)
-        } else {
-            (shape, strides)
-        };
         // Create a new tensor, either as a child of a parent tensor or as a standalone tensor
         if self.parent.is_none() {
             let layout = Layout::new(shape, strides);

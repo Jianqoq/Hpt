@@ -14,6 +14,8 @@ tensor-macros = { path = "../tensor-macros" }
 tensor-display = { path = "../tensor-display" }
 tensor-codegen = { path = "../tensor-codegen" }
 tensor-cudakernels = { path = "../tensor-cudakernels", optional = true }
+tensor-dataloader = { path = "../tensor-dataloader" }
+flate2 = "1.0.28"
 rand_distr = "0.4.3"
 rustfft = "6.1.0"
 rand = "0.8.5"

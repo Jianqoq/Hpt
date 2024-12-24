@@ -89,7 +89,7 @@ pub fn slice_process(
     shape: Vec<i64>,
     strides: Vec<i64>,
     index: &[Slice],
-    alpha: i64
+    alpha: i64,
 ) -> Result<(Vec<i64>, Vec<i64>, i64)> {
     let mut res_shape: Vec<i64> = shape.clone();
     let mut res_strides: Vec<i64> = strides.clone();
@@ -115,21 +115,24 @@ pub fn slice_process(
                 }
                 index *= alpha;
                 if index >= shape[idx] {
-                    return Err(
-                        ErrHandler::SliceIndexOutOfRange(
-                            index,
-                            idx as i64,
-                            shape[idx],
-                            Location::caller()
-                        ).into()
-                    );
+                    return Err(ErrHandler::SliceIndexOutOfRange(
+                        index,
+                        idx as i64,
+                        shape[idx],
+                        Location::caller(),
+                    )
+                    .into());
                 }
                 res_shape[idx] = alpha;
                 res_ptr += res_strides[idx] * index;
             }
             // tested
             Slice::RangeFrom(mut __index) => {
-                let index = if __index >= 0 { __index } else { __index + shape[idx] };
+                let index = if __index >= 0 {
+                    __index
+                } else {
+                    __index + shape[idx]
+                };
                 let length = (shape[idx] - index) * alpha;
                 res_shape[idx] = if length > 0 { length } else { 0 };
                 res_ptr += res_strides[idx] * index;
@@ -176,7 +179,11 @@ pub fn slice_process(
             }
             // tested
             Slice::StepByRangeFromTo((start, end, step)) => {
-                let mut start = if *start >= 0 { *start } else { *start + shape[idx] };
+                let mut start = if *start >= 0 {
+                    *start
+                } else {
+                    *start + shape[idx]
+                };
                 let mut end = if *end >= 0 { *end } else { *end + shape[idx] };
                 if start >= shape[idx] {
                     start = shape[idx] - 1;
@@ -205,7 +212,11 @@ pub fn slice_process(
             }
             // tested
             Slice::StepByRangeFrom((start, step)) => {
-                let mut start = if *start >= 0 { *start } else { *start + shape[idx] };
+                let mut start = if *start >= 0 {
+                    *start
+                } else {
+                    *start + shape[idx]
+                };
                 let end = if *step > 0 { shape[idx] } else { 0 };
                 if start >= shape[idx] {
                     start = shape[idx] - 1;
@@ -252,7 +263,17 @@ pub fn slice_process(
             _ => {}
         }
     }
-    Ok((res_shape, res_strides, res_ptr))
+
+    let mut new_shape = Vec::new();
+    let mut new_strides = Vec::new();
+    for (i, &s) in res_shape.iter().enumerate() {
+        if s == 0 {
+            continue;
+        }
+        new_shape.push(s);
+        new_strides.push(res_strides[i]);
+    }
+    Ok((new_shape, new_strides, res_ptr))
 }
 
 /// slice operation for tensor

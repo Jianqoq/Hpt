@@ -161,44 +161,44 @@ pub mod ops {
         pub(crate) mod tensor_impls;
         /// a module contains cuda tensor internal impls
         pub(crate) mod tensor_internal {
+            /// a module contains cuda tensor arg reduce impls
+            pub(crate) mod arg_reduce;
             /// a module contains cuda tensor common reduce impls
             pub(crate) mod common_reduce;
+            /// a module contains cuda tensor float out unary impls
+            pub(crate) mod float_out_unary;
             /// a module contains cuda tensor normal creation impls
             pub(crate) mod normal_creation;
+            /// a module contains cuda tensor normal out unary impls
+            pub(crate) mod normal_out_unary;
             /// a module contains cuda tensor random impls
             pub(crate) mod random;
             /// a module contains cuda tensor shape manipulation impls
             pub(crate) mod shape_manipulate;
-            /// a module contains cuda tensor arg reduce impls
-            pub(crate) mod arg_reduce;
-            /// a module contains cuda tensor normal out unary impls
-            pub(crate) mod normal_out_unary;
-            /// a module contains cuda tensor float out unary impls
-            pub(crate) mod float_out_unary;
             /// a module contains cuda tensor windows impls
             pub(crate) mod windows;
         }
         pub mod tensor_external {
+            /// a module contains cuda tensor arg reduce impls
+            pub(crate) mod arg_reduce;
+            /// a module contains cuda tensor cmp impls
+            pub(crate) mod cmp;
             /// a module contains cuda tensor common reduce impls
             pub(crate) mod common_reduce;
+            /// a module contains cuda tensor float out unary impls
+            pub(crate) mod float_out_unary;
             /// a module contains cuda tensor matmul impls
             pub(crate) mod matmul;
             /// a module contains cuda tensor normal creation impls
             pub(crate) mod normal_creation;
+            /// a module contains cuda tensor normal out unary impls
+            pub(crate) mod normal_out_unary;
             /// a module contains cuda tensor random impls
             pub(crate) mod random;
             /// a module contains cuda tensor shape manipulation impls
             pub(crate) mod shape_manipulate;
-            /// a module contains cuda tensor cmp impls
-            pub(crate) mod cmp;
-            /// a module contains cuda tensor arg reduce impls
-            pub(crate) mod arg_reduce;
             /// a module contains cuda tensor slice impls
             pub(crate) mod slice;
-            /// a module contains cuda tensor normal out unary impls
-            pub(crate) mod normal_out_unary;
-            /// a module contains cuda tensor float out unary impls
-            pub(crate) mod float_out_unary;
             /// a module contains cuda tensor windows impls
             pub(crate) mod windows;
         }
@@ -210,24 +210,24 @@ pub mod ops {
         pub(crate) mod cuda_slice;
         /// a module contains cuda utils
         pub(crate) mod cuda_utils;
+        /// a module contains cuda dropout impls
+        pub(crate) mod dropout;
         /// a module contains cuda matmul impls
         pub(crate) mod matmul;
+        /// a module contains cuda pad impls
+        pub(crate) mod pad;
         /// a module contains cuda reduce impls
         pub(crate) mod reduce;
         /// a module contains cuda reduce template impls    
         pub(crate) mod reduce_template;
         /// a module contains cuda reduce utils impls
         pub(crate) mod reduce_utils;
+        /// a module contains cuda shrinkage impls
+        pub(crate) mod shrinkage;
         /// a module contains cuda std ops impls
         pub(crate) mod std_ops;
         /// a module contains cuda normal out unary impls
         pub(crate) mod unary;
-        /// a module contains cuda dropout impls
-        pub(crate) mod dropout;
-        /// a module contains cuda pad impls
-        pub(crate) mod pad;
-        /// a module contains cuda shrinkage impls
-        pub(crate) mod shrinkage;
     }
 }
 
@@ -246,10 +246,14 @@ pub use tensor_iterator::iterator_traits::*;
 pub use tensor_iterator::TensorIterator;
 
 pub use crate::backend::*;
+pub use flate2;
 pub use rayon::prelude::*;
 pub use tensor::Tensor;
 pub use tensor_codegen::compile;
 pub use tensor_codegen::fuse_proc_macro;
+pub use tensor_common::slice::Slice;
+pub use tensor_dataloader::data_loader::*;
+pub use tensor_dataloader::*;
 pub use tensor_macros::match_selection;
 pub use tensor_traits::*;
 pub use tensor_types::dtype::TypeCommon;
@@ -257,7 +261,6 @@ pub use tensor_types::traits::VecTrait;
 pub use tensor_types::type_promote::*;
 pub use tensor_types::vectors::*;
 pub use tensor_types::*;
-pub use tensor_common::slice::Slice;
 
 use std::{cell::RefCell, sync::atomic::AtomicUsize};
 thread_local! {
@@ -370,4 +373,3 @@ const CUDA_SEED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::ne
 pub fn set_cuda_seed(seed: u64) {
     CUDA_SEED.store(seed, std::sync::atomic::Ordering::Relaxed);
 }
-

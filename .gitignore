@@ -6,6 +6,7 @@ Cargo.lock
 *.zip
 *.ll
 *.xlsx
+*.7z
 
 /src/**/target
 /src/**/true
