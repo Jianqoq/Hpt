@@ -264,6 +264,34 @@ impl IntoScalar<bf16> for bf16 {
     }
 }
 
+impl IntoScalar<Complex32> for bf16 {
+    #[inline(always)]
+    fn into_scalar(self) -> Complex32 {
+        Complex32::new(self.to_f32(), self.to_f32())
+    }
+}
+
+impl IntoScalar<Complex64> for bf16 {
+    #[inline(always)]
+    fn into_scalar(self) -> Complex64 {
+        Complex64::new(self.to_f64(), self.to_f64())
+    }
+}
+
+impl IntoScalar<Complex32> for isize {
+    #[inline(always)]
+    fn into_scalar(self) -> Complex32 {
+        Complex32::new(self as f32, self as f32)
+    }
+}
+
+impl IntoScalar<Complex64> for isize {
+    #[inline(always)]
+    fn into_scalar(self) -> Complex64 {
+        Complex64::new(self as f64, self as f64)
+    }
+}
+
 impl IntoScalar<bf16> for f16 {
     #[inline(always)]
     fn into_scalar(self) -> bf16 {
@@ -492,6 +520,13 @@ impl IntoScalar<Complex32> for usize {
     #[inline(always)]
     fn into_scalar(self) -> Complex32 {
         Complex32::new(self as f32, 0.0)
+    }
+}
+
+impl IntoScalar<Complex64> for usize {
+    #[inline(always)]
+    fn into_scalar(self) -> Complex64 {
+        Complex64::new(self as f64, 0.0)
     }
 }
 
