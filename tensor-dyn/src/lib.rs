@@ -75,8 +75,6 @@ pub mod ops {
         pub mod unary;
         /// a module defines all the kernels
         pub mod kernels {
-            /// a module defines the avgpool2d kernels
-            pub mod avgpool_kernels;
             /// a module defines the conv2d kernels
             pub mod conv;
             /// a module defines the dwconv2d kernels
