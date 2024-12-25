@@ -9,6 +9,8 @@ use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 pub struct cplx32x8(pub(crate) [Complex32; 8]);
 
 impl VecTrait<Complex32> for cplx32x8 {
+    const SIZE: usize = 8;
+    type Base = Complex32;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[Complex32]) {
         self.0.copy_from_slice(slice);
@@ -33,9 +35,9 @@ impl VecTrait<Complex32> for cplx32x8 {
     fn sum(&self) -> Complex32 {
         self.0.iter().sum()
     }
-
-    fn extract(self, idx: usize) -> Complex32 {
-        self.0[idx]
+    #[inline(always)]
+    fn splat(val: Complex32) -> Self {
+        cplx32x8([val; 8])
     }
 }
 impl VecCommon for cplx32x8 {

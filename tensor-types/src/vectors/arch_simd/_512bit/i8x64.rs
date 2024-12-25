@@ -20,6 +20,8 @@ impl DerefMut for i8x64 {
     }
 }
 impl VecTrait<i8> for i8x64 {
+    const SIZE: usize = 64;
+    type Base = i8;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[i8]) {
         self.as_mut_array().copy_from_slice(slice);
@@ -44,9 +46,9 @@ impl VecTrait<i8> for i8x64 {
     fn sum(&self) -> i8 {
         self.as_array().iter().sum()
     }
-    
-    fn extract(self, idx: usize) -> i8 {
-        self.as_array()[idx]
+    #[inline(always)]
+    fn splat(val: i8) -> Self {
+        i8x64(std::simd::i8x64::splat(val))
     }
 }
 impl VecCommon for i8x64 {

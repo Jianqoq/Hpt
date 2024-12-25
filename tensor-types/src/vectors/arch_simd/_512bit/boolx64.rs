@@ -9,6 +9,8 @@ use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 pub struct boolx64(pub(crate) [bool; 64]);
 
 impl VecTrait<bool> for boolx64 {
+    const SIZE: usize = 64;
+    type Base = bool;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[bool]) {
         self.0.copy_from_slice(slice);
@@ -36,9 +38,9 @@ impl VecTrait<bool> for boolx64 {
             .map(|&x| x as u8)
             .sum::<u8>() > 0
     }
-
-    fn extract(self, idx: usize) -> bool {
-        self.0[idx]
+    #[inline(always)]
+    fn splat(val: bool) -> Self {
+        boolx64([val; 64])
     }
 }
 impl VecCommon for boolx64 {

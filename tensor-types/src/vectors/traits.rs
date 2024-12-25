@@ -24,6 +24,7 @@ pub trait VecTrait<T: Copy> {
     }
     /// extract a value from vector
     fn extract(&self, idx: usize) -> T {
+        assert!(idx < Self::SIZE);
         unsafe { *self.as_ptr().add(idx) }
     }
     /// get the sum of all elements in vector

@@ -244,7 +244,7 @@ pub(crate) unsafe fn rempif(a: VFloat) -> Dfit {
 
     #[cfg(target_feature = "avx512f")]
     {
-        ex = vandnot_vi2_vi2_vi2(vsra_vi2_vi2_i(ex, 31), ex);
+        ex = vandnot_vi2_vi2_vi2(vsra_vi2_vi2_i::<31>(ex), ex);
         ex = vand_vi2_vi2_vi2(ex, vcast_vi2_i(127));
     }
 
