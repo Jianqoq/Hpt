@@ -17,6 +17,8 @@ pub mod ops {
         pub mod concat;
         /// a module defines conv2d operation
         pub mod conv2d {
+            /// a module defines avgpool2d operation
+            pub mod avg_pool;
             /// a module defines conv2d operation
             pub mod conv2d;
             /// a module defines conv2d_group operation
@@ -25,9 +27,11 @@ pub mod ops {
             pub mod dwconv2d;
             /// a module defines maxpool2d operation
             pub mod max_pool;
-            /// a module defines avgpool2d operation
-            pub mod avg_pool;
+            /// a module defines batchnorm_conv2d operation
+            pub mod batchnorm_conv2d;
         }
+        /// a module defines reduce kernels
+        pub mod argreduce_kernels;
         /// a module defines dropout operation
         pub mod dropout;
         /// a module defines gather operation
@@ -46,22 +50,20 @@ pub mod ops {
         pub mod pad;
         /// a module defines internal reduce functions
         pub mod reduce;
-        /// a module defines reduce kernels
-        pub mod argreduce_kernels;
         /// a module defines reduce template
         pub mod reduce_template;
         /// a module contains all the reduce computation utils
         pub mod reduce_utils;
         /// a module defines shrink operation
-        pub mod shrink;
+        pub mod shrinkage;
         /// a module defines softmax operations
         pub mod softmaxs {
+            /// a module defines log_softmax
+            pub mod log_softmax;
             /// a module defines softmax
             pub mod softmax;
             /// a module defines softmax utils
             pub mod softmax_utils;
-            /// a module defines log_softmax
-            pub mod log_softmax;
         }
         /// a module defines all the std::ops operations
         pub mod std_ops;
@@ -77,21 +79,23 @@ pub mod ops {
             pub mod avgpool_kernels;
             /// a module defines the conv2d kernels
             pub mod conv;
-            /// a module defines the lp_pool2d kernels
-            pub mod lp_pool_kernels;
-            /// a module defines the reduce kernels
-            pub mod reduce;
             /// a module defines the dwconv2d kernels
             pub mod conv_group;
             /// a module defines the dwconv2d kernels
             pub mod dwconv;
-            /// a module defines the softmax kernels
-            pub mod softmax;
             /// a module defines the logsoftmax kernels
             pub mod logsoftmax;
+            /// a module defines the lp_pool2d kernels
+            pub mod lp_pool_kernels;
+            /// a module defines the reduce kernels
+            pub mod reduce;
+            /// a module defines the softmax kernels
+            pub mod softmax;
+            /// a module defines the batchnorm conv2d kernels
+            pub mod batch_norm_conv;
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
-        pub mod tensor_expose {
+        pub mod tensor_external {
             /// a module that contains all the arg reduce functions
             pub mod arg_reduce;
             /// a module that contains all the tensor compare functions
@@ -150,6 +154,84 @@ pub mod ops {
             /// a module contains cache utils
             pub(crate) mod cache;
         }
+        /// a module contains cpu tensor impls
+        pub(crate) mod tensor_impls;
+    }
+
+    #[cfg(feature = "cuda")]
+    /// a module contains cuda tensor impls
+    pub(crate) mod cuda {
+        /// a module contains cuda tensor impls
+        pub(crate) mod tensor_impls;
+        /// a module contains cuda tensor internal impls
+        pub(crate) mod tensor_internal {
+            /// a module contains cuda tensor arg reduce impls
+            pub(crate) mod arg_reduce;
+            /// a module contains cuda tensor common reduce impls
+            pub(crate) mod common_reduce;
+            /// a module contains cuda tensor float out unary impls
+            pub(crate) mod float_out_unary;
+            /// a module contains cuda tensor normal creation impls
+            pub(crate) mod normal_creation;
+            /// a module contains cuda tensor normal out unary impls
+            pub(crate) mod normal_out_unary;
+            /// a module contains cuda tensor random impls
+            pub(crate) mod random;
+            /// a module contains cuda tensor shape manipulation impls
+            pub(crate) mod shape_manipulate;
+            /// a module contains cuda tensor windows impls
+            pub(crate) mod windows;
+        }
+        pub mod tensor_external {
+            /// a module contains cuda tensor arg reduce impls
+            pub(crate) mod arg_reduce;
+            /// a module contains cuda tensor cmp impls
+            pub(crate) mod cmp;
+            /// a module contains cuda tensor common reduce impls
+            pub(crate) mod common_reduce;
+            /// a module contains cuda tensor float out unary impls
+            pub(crate) mod float_out_unary;
+            /// a module contains cuda tensor matmul impls
+            pub(crate) mod matmul;
+            /// a module contains cuda tensor normal creation impls
+            pub(crate) mod normal_creation;
+            /// a module contains cuda tensor normal out unary impls
+            pub(crate) mod normal_out_unary;
+            /// a module contains cuda tensor random impls
+            pub(crate) mod random;
+            /// a module contains cuda tensor shape manipulation impls
+            pub(crate) mod shape_manipulate;
+            /// a module contains cuda tensor slice impls
+            pub(crate) mod slice;
+            /// a module contains cuda tensor windows impls
+            pub(crate) mod windows;
+        }
+        /// a module contains cuda binary normal impls
+        pub(crate) mod binary_normal;
+        /// a module contains cuda concat impls
+        pub(crate) mod concat;
+        /// a module contains cuda slice impls
+        pub(crate) mod cuda_slice;
+        /// a module contains cuda utils
+        pub(crate) mod cuda_utils;
+        /// a module contains cuda dropout impls
+        pub(crate) mod dropout;
+        /// a module contains cuda matmul impls
+        pub(crate) mod matmul;
+        /// a module contains cuda pad impls
+        pub(crate) mod pad;
+        /// a module contains cuda reduce impls
+        pub(crate) mod reduce;
+        /// a module contains cuda reduce template impls    
+        pub(crate) mod reduce_template;
+        /// a module contains cuda reduce utils impls
+        pub(crate) mod reduce_utils;
+        /// a module contains cuda shrinkage impls
+        pub(crate) mod shrinkage;
+        /// a module contains cuda std ops impls
+        pub(crate) mod std_ops;
+        /// a module contains cuda normal out unary impls
+        pub(crate) mod unary;
     }
 }
 
@@ -167,28 +249,29 @@ use ctor::ctor;
 pub use tensor_iterator::iterator_traits::*;
 pub use tensor_iterator::TensorIterator;
 
-pub use tensor_macros::match_selection;
-pub use tensor_codegen::fuse_proc_macro;
-pub use tensor_codegen::compile;
-pub use tensor_traits::*;
-pub use tensor_types::vectors::*;
-pub use tensor_types::*;
-pub use tensor_types::type_promote::*;
-pub use tensor::Tensor;
+pub use crate::backend::*;
+pub use flate2;
 pub use rayon::prelude::*;
+pub use tensor::Tensor;
+pub use tensor_codegen::compile;
+pub use tensor_codegen::fuse_proc_macro;
+pub use tensor_common::slice::Slice;
+pub use tensor_dataloader::data_loader::*;
+pub use tensor_dataloader::*;
+pub use tensor_macros::match_selection;
+pub use tensor_traits::*;
 pub use tensor_types::dtype::TypeCommon;
 pub use tensor_types::traits::VecTrait;
-pub use crate::backend::*;
+pub use tensor_types::type_promote::*;
+pub use tensor_types::vectors::*;
+pub use tensor_types::*;
 
-use std::{ cell::RefCell, sync::atomic::AtomicUsize };
+use std::{cell::RefCell, sync::atomic::AtomicUsize};
 thread_local! {
     static THREAD_POOL: RefCell<threadpool::ThreadPool> = RefCell::new(
         threadpool::ThreadPool::new(num_cpus::get_physical())
     );
 }
-
-static DISPLAY_PRECISION: AtomicUsize = AtomicUsize::new(4);
-static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
 
 /// Set the Tensor display precision
 pub fn set_global_display_precision(precision: usize) {
@@ -208,12 +291,10 @@ pub fn set_num_threads(num_threads: usize) {
     THREAD_POOL.with(|x| {
         x.borrow_mut().set_num_threads(num_threads);
     });
-    match
-        rayon::ThreadPoolBuilder
-            ::new()
-            .num_threads(num_threads)
-            .stack_size(4 * 1024 * 1024)
-            .build_global()
+    match rayon::ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .stack_size(4 * 1024 * 1024)
+        .build_global()
     {
         Ok(_) => {}
         Err(_) => {}
@@ -223,6 +304,24 @@ pub fn set_num_threads(num_threads: usize) {
 /// Get the global number of threads
 pub fn get_num_threads() -> usize {
     THREAD_POOL.with(|x| x.borrow().max_count())
+}
+
+static DISPLAY_PRECISION: AtomicUsize = AtomicUsize::new(4);
+static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
+
+#[cfg(feature = "cuda")]
+pub(crate) mod cuda_compiled {
+    use std::{
+        collections::HashMap,
+        sync::{Arc, Mutex},
+    };
+
+    use once_cell::sync::Lazy;
+    use tensor_cudakernels::RegisterInfo;
+
+    pub(crate) static CUDA_COMPILED: Lazy<
+        Mutex<HashMap<usize, HashMap<String, Arc<HashMap<String, RegisterInfo>>>>>,
+    > = Lazy::new(|| Mutex::new(HashMap::new()));
 }
 
 #[ctor]
@@ -241,35 +340,40 @@ pub(crate) const REGNUM: usize = 8;
 #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 pub(crate) const REGNUM: usize = 32;
 
-#[cfg(feature = "stdsimd")]
-use tensor_types::std_simd as simd;
 #[cfg(feature = "archsimd")]
 use tensor_types::arch_simd as simd;
+#[cfg(feature = "stdsimd")]
+use tensor_types::std_simd as simd;
 
 #[cfg(target_feature = "avx2")]
 type BoolVector = simd::_256bit::boolx32::boolx32;
 #[cfg(any(target_feature = "avx512f"))]
 type BoolVector = simd::_512bit::boolx64::boolx64;
-#[cfg(
-    any(
-        all(not(target_feature = "avx2"), target_feature = "sse"),
-        target_arch = "arm",
-        target_arch = "aarch64",
-        target_feature = "neon"
-    )
-)]
+#[cfg(any(
+    all(not(target_feature = "avx2"), target_feature = "sse"),
+    target_arch = "arm",
+    target_arch = "aarch64",
+    target_feature = "neon"
+))]
 type BoolVector = simd::_128bit::boolx16::boolx16;
 
 #[cfg(target_feature = "avx2")]
 const SIMD_WIDTH: usize = 256;
 #[cfg(any(target_feature = "avx512f"))]
 const SIMD_WIDTH: usize = 512;
-#[cfg(
-    any(
-        all(not(target_feature = "avx2"), target_feature = "sse"),
-        target_arch = "arm",
-        target_arch = "aarch64",
-        target_feature = "neon"
-    )
-)]
+#[cfg(any(
+    all(not(target_feature = "avx2"), target_feature = "sse"),
+    target_arch = "arm",
+    target_arch = "aarch64",
+    target_feature = "neon"
+))]
 const SIMD_WIDTH: usize = 128;
+
+#[cfg(feature = "cuda")]
+const CUDA_SEED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(2621654116416541);
+
+#[cfg(feature = "cuda")]
+/// Set the CUDA seed for random number generation
+pub fn set_cuda_seed(seed: u64) {
+    CUDA_SEED.store(seed, std::sync::atomic::Ordering::Relaxed);
+}

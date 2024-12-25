@@ -1,9 +1,5 @@
 use std::fmt::Debug;
-use std::{
-    borrow::Borrow,
-    fmt::Display,
-    ops::{Div, Sub},
-};
+use std::{borrow::Borrow, fmt::Display};
 use tensor_common::{axis::Axis, layout::Layout, pointer::Pointer, shape::Shape, strides::Strides};
 #[cfg(feature = "archsimd")]
 use tensor_types::arch_simd as simd;
@@ -347,9 +343,10 @@ where
     ///
     /// * This function will panic if `num` is zero or if `num` is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn linspace(start: T, end: T, num: usize, include_end: bool) -> anyhow::Result<Output>
+    fn linspace<U>(start: U, end: U, num: usize, include_end: bool) -> anyhow::Result<Output>
     where
-        T: Convertor + num::Float + NormalOut<T, Output = T>,
+        T: Convertor,
+        U: Convertor + IntoScalar<T> + Copy,
         usize: IntoScalar<T>,
         f64: IntoScalar<T>;
 
@@ -400,18 +397,8 @@ where
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> anyhow::Result<Output>
     where
-        T: PartialOrd
-            + FloatOutUnary
-            + NormalOut<T, Output = T>
-            + FromScalar<<T as FloatOutUnary>::Output>
-            + std::ops::Neg<Output = T>,
-        <T as FloatOutUnary>::Output: Sub<Output = <T as FloatOutUnary>::Output>
-            + FromScalar<usize>
-            + FromScalar<f64>
-            + Div<Output = <T as FloatOutUnary>::Output>
-            + NormalOut<Output = <T as FloatOutUnary>::Output>
-            + CommonBounds,
-        <<T as FloatOutUnary>::Output as TypeCommon>::Vec: Send + Sync;
+        f64: IntoScalar<T>,
+        usize: IntoScalar<T>;
 
     /// Creates a 2D triangular matrix of size `n` by `m`, with ones below or on the `k`th diagonal and zeros elsewhere.
     ///
@@ -613,26 +600,26 @@ where
     where
         O: Borrow<Self::Output>;
 
-    /// Computes the sum of the elements along the specified axis, with an initial value.
-    ///
-    /// The `sum_with_init` function computes the sum of elements along the specified axes, starting from a given initial value.
-    ///
-    /// # Parameters
-    ///
-    /// - `init_val`: The initial value to start the summation.
-    /// - `axes`: The axes along which to sum the elements.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements along the specified axes.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn sum_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool,
-    ) -> anyhow::Result<Self::Output>;
+    // /// Computes the sum of the elements along the specified axis, with an initial value.
+    // ///
+    // /// The `sum_with_init` function computes the sum of elements along the specified axes, starting from a given initial value.
+    // ///
+    // /// # Parameters
+    // ///
+    // /// - `init_val`: The initial value to start the summation.
+    // /// - `axes`: The axes along which to sum the elements.
+    // /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    // ///
+    // /// # Returns
+    // ///
+    // /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements along the specified axes.
+    // #[cfg_attr(feature = "track_caller", track_caller)]
+    // fn sum_with_init<S: Into<Axis>>(
+    //     &self,
+    //     init_val: T,
+    //     axes: S,
+    //     keep_dims: bool,
+    // ) -> anyhow::Result<Self::Output>;
 
     /// Computes the product of the elements along the specified axis.
     ///
@@ -653,26 +640,26 @@ where
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 
-    /// Computes the product of the elements along the specified axis, with an initial value.
-    ///
-    /// The `prod_with_init` function computes the product of elements along the specified axes, starting from a given initial value.
-    ///
-    /// # Parameters
-    ///
-    /// - `init_val`: The initial value to start the product computation.
-    /// - `axes`: The axes along which to compute the product.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements along the specified axes.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn prod_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool,
-    ) -> anyhow::Result<Self::Output>;
+    // /// Computes the product of the elements along the specified axis, with an initial value.
+    // ///
+    // /// The `prod_with_init` function computes the product of elements along the specified axes, starting from a given initial value.
+    // ///
+    // /// # Parameters
+    // ///
+    // /// - `init_val`: The initial value to start the product computation.
+    // /// - `axes`: The axes along which to compute the product.
+    // /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    // ///
+    // /// # Returns
+    // ///
+    // /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements along the specified axes.
+    // #[cfg_attr(feature = "track_caller", track_caller)]
+    // fn prod_with_init<S: Into<Axis>>(
+    //     &self,
+    //     init_val: T,
+    //     axes: S,
+    //     keep_dims: bool,
+    // ) -> anyhow::Result<Self::Output>;
 
     /// Computes the minimum value along the specified axis.
     ///
@@ -693,26 +680,26 @@ where
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self>;
 
-    /// Computes the minimum value along the specified axis, with an initial value.
-    ///
-    /// The `min_with_init` function computes the minimum value along the specified axes, starting from a given initial value.
-    ///
-    /// # Parameters
-    ///
-    /// - `init_val`: The initial value to compare against.
-    /// - `axes`: The axes along which to compute the minimum value.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self>`: A tensor containing the minimum values along the specified axes.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn min_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool,
-    ) -> anyhow::Result<Self>;
+    // /// Computes the minimum value along the specified axis, with an initial value.
+    // ///
+    // /// The `min_with_init` function computes the minimum value along the specified axes, starting from a given initial value.
+    // ///
+    // /// # Parameters
+    // ///
+    // /// - `init_val`: The initial value to compare against.
+    // /// - `axes`: The axes along which to compute the minimum value.
+    // /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    // ///
+    // /// # Returns
+    // ///
+    // /// - `anyhow::Result<Self>`: A tensor containing the minimum values along the specified axes.
+    // #[cfg_attr(feature = "track_caller", track_caller)]
+    // fn min_with_init<S: Into<Axis>>(
+    //     &self,
+    //     init_val: T,
+    //     axes: S,
+    //     keep_dims: bool,
+    // ) -> anyhow::Result<Self>;
 
     /// Computes the maximum value along the specified axis.
     ///
@@ -733,26 +720,26 @@ where
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self>;
 
-    /// Computes the maximum value along the specified axis, with an initial value.
-    ///
-    /// The `max_with_init` function computes the maximum value along the specified axes, starting from a given initial value.
-    ///
-    /// # Parameters
-    ///
-    /// - `init_val`: The initial value to compare against.
-    /// - `axes`: The axes along which to compute the maximum value.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self>`: A tensor containing the maximum values along the specified axes.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn max_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool,
-    ) -> anyhow::Result<Self>;
+    // /// Computes the maximum value along the specified axis, with an initial value.
+    // ///
+    // /// The `max_with_init` function computes the maximum value along the specified axes, starting from a given initial value.
+    // ///
+    // /// # Parameters
+    // ///
+    // /// - `init_val`: The initial value to compare against.
+    // /// - `axes`: The axes along which to compute the maximum value.
+    // /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    // ///
+    // /// # Returns
+    // ///
+    // /// - `anyhow::Result<Self>`: A tensor containing the maximum values along the specified axes.
+    // #[cfg_attr(feature = "track_caller", track_caller)]
+    // fn max_with_init<S: Into<Axis>>(
+    //     &self,
+    //     init_val: T,
+    //     axes: S,
+    //     keep_dims: bool,
+    // ) -> anyhow::Result<Self>;
 
     /// Reduces the tensor along the specified axis using the L1 norm (sum of absolute values).
     ///
@@ -847,26 +834,26 @@ pub trait NormalEvalReduce<T> {
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn nansum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 
-    /// Computes the sum of the elements along the specified axis, with an initial value, ignoring NaN values.
-    ///
-    /// The `nansum_with_init` function computes the sum of elements along the specified axes, starting from a given initial value and ignoring NaN values.
-    ///
-    /// # Parameters
-    ///
-    /// - `init_val`: The initial value to start the summation.
-    /// - `axes`: The axes along which to sum the elements.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements, ignoring NaN values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn nansum_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool,
-    ) -> anyhow::Result<Self::Output>;
+    // /// Computes the sum of the elements along the specified axis, with an initial value, ignoring NaN values.
+    // ///
+    // /// The `nansum_with_init` function computes the sum of elements along the specified axes, starting from a given initial value and ignoring NaN values.
+    // ///
+    // /// # Parameters
+    // ///
+    // /// - `init_val`: The initial value to start the summation.
+    // /// - `axes`: The axes along which to sum the elements.
+    // /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    // ///
+    // /// # Returns
+    // ///
+    // /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements, ignoring NaN values.
+    // #[cfg_attr(feature = "track_caller", track_caller)]
+    // fn nansum_with_init<S: Into<Axis>>(
+    //     &self,
+    //     init_val: T,
+    //     axes: S,
+    //     keep_dims: bool,
+    // ) -> anyhow::Result<Self::Output>;
 
     /// Computes the product of the elements along the specified axis, ignoring NaN values.
     ///
@@ -883,26 +870,26 @@ pub trait NormalEvalReduce<T> {
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
 
-    /// Computes the product of the elements along the specified axis, with an initial value, ignoring NaN values.
-    ///
-    /// The `nanprod_with_init` function computes the product of elements along the specified axes, starting from a given initial value and ignoring NaN values.
-    ///
-    /// # Parameters
-    ///
-    /// - `init_val`: The initial value to start the product computation.
-    /// - `axes`: The axes along which to compute the product.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements, ignoring NaN values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    fn nanprod_with_init<S: Into<Axis>>(
-        &self,
-        init_val: T,
-        axes: S,
-        keep_dims: bool,
-    ) -> anyhow::Result<Self::Output>;
+    // /// Computes the product of the elements along the specified axis, with an initial value, ignoring NaN values.
+    // ///
+    // /// The `nanprod_with_init` function computes the product of elements along the specified axes, starting from a given initial value and ignoring NaN values.
+    // ///
+    // /// # Parameters
+    // ///
+    // /// - `init_val`: The initial value to start the product computation.
+    // /// - `axes`: The axes along which to compute the product.
+    // /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    // ///
+    // /// # Returns
+    // ///
+    // /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements, ignoring NaN values.
+    // #[cfg_attr(feature = "track_caller", track_caller)]
+    // fn nanprod_with_init<S: Into<Axis>>(
+    //     &self,
+    //     init_val: T,
+    //     axes: S,
+    //     keep_dims: bool,
+    // ) -> anyhow::Result<Self::Output>;
 }
 
 /// A trait for tensor reduction operations, the output must be a floating-point tensor.

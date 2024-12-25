@@ -190,9 +190,7 @@ impl<T> _Tensor<T>
             [ks0 as usize, ks1 as usize],
             [kernel_height as usize, kernel_width as usize]
         );
-        // println!("{}", kernels);
-        // println!("{}", ro_kernel);
-
+        
         let ic_block_size = ic_nvec * T::Vec::SIZE; // in channel block size
         (0..outer).into_par_iter().for_each(|idx| {
             let mut out = out.clone();

@@ -74,7 +74,7 @@ macro_rules! impl_type_num {
                         parent: None,
                         layout: ly,
                         mem_layout: Arc::new(layout),
-                        _backend: Backend::new(ptr as u64),
+                        _backend: Backend::<Cpu>::new(ptr as u64),
                     };
                 }
             }
@@ -118,7 +118,7 @@ macro_rules! impl_type_num {
                         parent: None,
                         layout: ly,
                         mem_layout: Arc::new(layout),
-                        _backend: Backend::new(ptr as u64),
+                        _backend: Backend::<Cpu>::new(ptr as u64),
                     };
                 }
             }
@@ -163,7 +163,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
-                    _backend: Backend::new(ptr as u64),
+                    _backend: Backend::<Cpu>::new(ptr as u64),
                 };
             }
         }
@@ -259,7 +259,7 @@ macro_rules! impl_type_num {
                 parent: None,
                 layout: ly,
                 mem_layout: Arc::new(layout),
-                _backend: Backend::new(ptr as u64),
+                _backend: Backend::<Cpu>::new(ptr as u64),
             };
         }
     }
@@ -304,7 +304,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
-                    _backend: Backend::new(ptr as u64),
+                    _backend: Backend::<Cpu>::new(ptr as u64),
                 };
             }
         }
@@ -349,7 +349,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
-                    _backend: Backend::new(ptr as u64),
+                    _backend: Backend::<Cpu>::new(ptr as u64),
                 };
             }
         }

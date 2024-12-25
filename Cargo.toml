@@ -16,8 +16,9 @@ members = [
     "tensor-display",
     "tensor-bench",
     "tensor-tests",
-    "tensor-dataloader", 
+    "tensor-dataloader",
     "tensor-codegen",
+    "tensor-cudakernels",
 ]
 
 [dependencies]
@@ -30,7 +31,7 @@ rayon = "1.8.0"
 cache-size = "0.7.0"
 rust_xlsxwriter = "=0.25.0"
 num-complex = "0.4"
-# candle-core = "0.7.2"
+regex = "1.11.1"
 
 [[test]]
 name = "tensor-tests"
@@ -41,9 +42,9 @@ name = "etensor"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 0
-incremental = false
-debug = false
+opt-level = 3
+incremental = true
+debug = true
 # lto = "fat"
 # codegen-units = 1
 

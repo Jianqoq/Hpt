@@ -6,6 +6,8 @@ use crate::arch_simd::sleef::arch::helper_avx2 as helper;
     not(target_feature = "avx2")
 ))]
 use crate::arch_simd::sleef::arch::helper_sse as helper;
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
 
 use helper::{
     vabs_vd_vd, vadd_vd_vd_vd, vadd_vi_vi_vi, vand_vi_vi_vi, vand_vi_vo_vi, vand_vm_vm_vm,
@@ -69,44 +71,36 @@ unsafe fn rempi(a: VDouble) -> DDI {
     let mut x: VDouble2;
     let mut y: VDouble2;
 
-    // 计算指数
-    let mut ex = vilogb2k_vi_vd(a);
+        let mut ex = vilogb2k_vi_vd(a);
 
-    // AVX512 特定的处理
-    #[cfg(target_feature = "avx512f")]
+        #[cfg(target_feature = "avx512f")]
     {
         ex = vandnot_vi_vi_vi(vsra_vi_vi_i(ex, 31), ex);
         ex = vand_vi_vi_vi(ex, vcast_vi_i(1023));
     }
 
-    // 调整指数
-    ex = vsub_vi_vi_vi(ex, vcast_vi_i(55));
+        ex = vsub_vi_vi_vi(ex, vcast_vi_i(55));
 
-    // 处理大数
-    let q = vand_vi_vo_vi(vgt_vo_vi_vi(ex, vcast_vi_i(700 - 55)), vcast_vi_i(-64));
+        let q = vand_vi_vo_vi(vgt_vo_vi_vi(ex, vcast_vi_i(700 - 55)), vcast_vi_i(-64));
     let a = vldexp3_vd_vd_vi(a, q);
 
-    // 规范化指数
-    ex = vandnot_vi_vi_vi(vsra_vi_vi_i::<31>(ex), ex);
+        ex = vandnot_vi_vi_vi(vsra_vi_vi_i::<31>(ex), ex);
     ex = vsll_vi_vi_i::<2>(ex);
 
-    // 第一次乘法和归约
-    x = ddmul_vd2_vd_vd(a, vgather_vd_p_vi(SLEEF_REMPITABDP.as_ptr(), ex));
+        x = ddmul_vd2_vd_vd(a, vgather_vd_p_vi(SLEEF_REMPITABDP.as_ptr(), ex));
     let mut di = rempisub(vd2getx_vd_vd2(x));
     let mut q = digeti_vi_di(di);
     x = vd2setx_vd2_vd2_vd(x, digetd_vd_di(di));
     x = ddnormalize_vd2_vd2(x);
 
-    // 第二次乘法和归约
-    y = ddmul_vd2_vd_vd(a, vgather_vd_p_vi(SLEEF_REMPITABDP.as_ptr().add(1), ex));
+        y = ddmul_vd2_vd_vd(a, vgather_vd_p_vi(SLEEF_REMPITABDP.as_ptr().add(1), ex));
     x = ddadd2_vd2_vd2_vd2(x, y);
     di = rempisub(vd2getx_vd_vd2(x));
     q = vadd_vi_vi_vi(q, digeti_vi_di(di));
     x = vd2setx_vd2_vd2_vd(x, digetd_vd_di(di));
     x = ddnormalize_vd2_vd2(x);
 
-    // 第三次乘法和归约
-    y = vcast_vd2_vd_vd(
+        y = vcast_vd2_vd_vd(
         vgather_vd_p_vi(SLEEF_REMPITABDP.as_ptr().add(2), ex),
         vgather_vd_p_vi(SLEEF_REMPITABDP.as_ptr().add(3), ex),
     );
@@ -114,22 +108,19 @@ unsafe fn rempi(a: VDouble) -> DDI {
     x = ddadd2_vd2_vd2_vd2(x, y);
     x = ddnormalize_vd2_vd2(x);
 
-    // 最终乘以 2π
-    x = ddmul_vd2_vd2_vd2(
+        x = ddmul_vd2_vd2_vd2(
         x,
         vcast_vd2_d_d(3.141592653589793116 * 2.0, 1.2246467991473532072e-16 * 2.0),
     );
 
-    // 处理小数
-    let o = vlt_vo_vd_vd(vabs_vd_vd(a), vcast_vd_d(0.7));
+        let o = vlt_vo_vd_vd(vabs_vd_vd(a), vcast_vd_d(0.7));
     x = vd2setx_vd2_vd2_vd(x, vsel_vd_vo_vd_vd(o, a, vd2getx_vd_vd2(x)));
     x = vd2sety_vd2_vd2_vd(
         x,
         vreinterpret_vd_vm(vandnot_vm_vo64_vm(o, vreinterpret_vm_vd(vd2gety_vd_vd2(x)))),
     );
 
-    // 返回结果
-    ddisetddi_ddi_vd2_vi(x, q)
+        ddisetddi_ddi_vd2_vi(x, q)
 }
 
 #[inline(always)]
@@ -140,15 +131,13 @@ pub(crate) unsafe fn xsin_u1(d: VDouble) -> VDouble {
     let mut x: VDouble2;
     let mut ql: VInt;
 
-    // First range check
-    let mut g = vlt_vo_vd_vd(vabs_vd_vd(d), vcast_vd_d(TRIGRANGEMAX2));
+        let mut g = vlt_vo_vd_vd(vabs_vd_vd(d), vcast_vd_d(TRIGRANGEMAX2));
     let dql = vrint_vd_vd(vmul_vd_vd_vd(d, vcast_vd_d(M_1_PI)));
     ql = vrint_vi_vd(dql);
     u = vmla_vd_vd_vd_vd(dql, vcast_vd_d(-PI_A2), d);
     x = ddadd_vd2_vd_vd(u, vmul_vd_vd_vd(dql, vcast_vd_d(-PI_B2)));
 
-    // Medium range handling
-    if vtestallones_i_vo64(g) == 0 {
+        if vtestallones_i_vo64(g) == 0 {
         let mut dqh = vtruncate_vd_vd(vmul_vd_vd_vd(d, vcast_vd_d(M_1_PI / (1 << 24) as f64)));
         dqh = vmul_vd_vd_vd(dqh, vcast_vd_d((1 << 24) as f64));
         let dql = vrint_vd_vd(vmlapn_vd_vd_vd_vd(d, vcast_vd_d(M_1_PI), dqh));
@@ -165,8 +154,7 @@ pub(crate) unsafe fn xsin_u1(d: VDouble) -> VDouble {
         x = vsel_vd2_vo_vd2_vd2(g, x, s);
         g = vlt_vo_vd_vd(vabs_vd_vd(d), vcast_vd_d(TRIGRANGEMAX));
 
-        // Large range handling
-        if vtestallones_i_vo64(g) == 0 {
+                if vtestallones_i_vo64(g) == 0 {
             let ddi = rempi(d);
             let mut ql2 = vand_vi_vi_vi(ddigeti_vi_ddi(ddi), vcast_vi_i(3));
             ql2 = vadd_vi_vi_vi(
@@ -216,15 +204,13 @@ pub(crate) unsafe fn xsin_u1(d: VDouble) -> VDouble {
         }
     }
 
-    // Taylor series approximation
-    t = x;
+        t = x;
     s = ddsqu_vd2_vd2(x);
 
     let s2 = vmul_vd_vd_vd(vd2getx_vd_vd2(s), vd2getx_vd_vd2(s));
     let s4 = vmul_vd_vd_vd(s2, s2);
 
-    // Polynomial evaluation
-    u = poly6d(
+        u = poly6d(
         vd2getx_vd_vd2(s),
         s2,
         s4,
@@ -242,8 +228,7 @@ pub(crate) unsafe fn xsin_u1(d: VDouble) -> VDouble {
         vcast_vd_d(0.00833333333333318056201922),
     );
 
-    // Final computations
-    x = ddadd_vd2_vd_vd2(
+        x = ddadd_vd2_vd_vd2(
         vcast_vd_d(1.0),
         ddmul_vd2_vd2_vd2(
             ddadd_vd2_vd_vd(
@@ -255,8 +240,7 @@ pub(crate) unsafe fn xsin_u1(d: VDouble) -> VDouble {
     );
     u = ddmul_vd_vd2_vd2(t, x);
 
-    // Sign handling
-    u = vreinterpret_vd_vm(vxor_vm_vm_vm(
+        u = vreinterpret_vd_vm(vxor_vm_vm_vm(
         vand_vm_vo64_vm(
             vcast_vo64_vo32(veq_vo_vi_vi(
                 vand_vi_vi_vi(ql, vcast_vi_i(1)),
@@ -267,8 +251,7 @@ pub(crate) unsafe fn xsin_u1(d: VDouble) -> VDouble {
         vreinterpret_vm_vd(u),
     ));
 
-    // Handle special case for zero
-    vsel_vd_vo_vd_vd(veq_vo_vd_vd(d, vcast_vd_d(0.0)), d, u)
+        vsel_vd_vo_vd_vd(veq_vo_vd_vd(d, vcast_vd_d(0.0)), d, u)
 }
 
 #[inline(always)]
@@ -279,16 +262,14 @@ pub(crate) unsafe fn xcos_u1(d: VDouble) -> VDouble {
     let mut x: VDouble2;
     let mut ql: VInt;
 
-    // First range check
-    let mut g = vlt_vo_vd_vd(vabs_vd_vd(d), vcast_vd_d(TRIGRANGEMAX2));
+        let mut g = vlt_vo_vd_vd(vabs_vd_vd(d), vcast_vd_d(TRIGRANGEMAX2));
     let mut dql = vrint_vd_vd(vmla_vd_vd_vd_vd(d, vcast_vd_d(M_1_PI), vcast_vd_d(-0.5)));
     dql = vmla_vd_vd_vd_vd(vcast_vd_d(2.0), dql, vcast_vd_d(1.0));
     ql = vrint_vi_vd(dql);
     x = ddadd2_vd2_vd_vd(d, vmul_vd_vd_vd(dql, vcast_vd_d(-PI_A2 * 0.5)));
     x = ddadd_vd2_vd2_vd(x, vmul_vd_vd_vd(dql, vcast_vd_d(-PI_B2 * 0.5)));
 
-    // Medium range handling
-    if vtestallones_i_vo64(g) == 0 {
+        if vtestallones_i_vo64(g) == 0 {
         let mut dqh = vtruncate_vd_vd(vmla_vd_vd_vd_vd(
             d,
             vcast_vd_d(M_1_PI / (1 << 23) as f64),
@@ -317,8 +298,7 @@ pub(crate) unsafe fn xcos_u1(d: VDouble) -> VDouble {
         x = vsel_vd2_vo_vd2_vd2(g, x, s);
         g = vlt_vo_vd_vd(vabs_vd_vd(d), vcast_vd_d(TRIGRANGEMAX));
 
-        // Large range handling
-        if vtestallones_i_vo64(g) == 0 {
+                if vtestallones_i_vo64(g) == 0 {
             let ddi = rempi(d);
             let mut ql2 = vand_vi_vi_vi(ddigeti_vi_ddi(ddi), vcast_vi_i(3));
             ql2 = vadd_vi_vi_vi(
@@ -368,15 +348,13 @@ pub(crate) unsafe fn xcos_u1(d: VDouble) -> VDouble {
         }
     }
 
-    // Taylor series approximation
-    t = x;
+        t = x;
     s = ddsqu_vd2_vd2(x);
 
     let s2 = vmul_vd_vd_vd(vd2getx_vd_vd2(s), vd2getx_vd_vd2(s));
     let s4 = vmul_vd_vd_vd(s2, s2);
 
-    // Polynomial evaluation
-    u = poly6d(
+        u = poly6d(
         vd2getx_vd_vd2(s),
         s2,
         s4,
@@ -394,8 +372,7 @@ pub(crate) unsafe fn xcos_u1(d: VDouble) -> VDouble {
         vcast_vd_d(0.00833333333333318056201922),
     );
 
-    // Final computations
-    x = ddadd_vd2_vd_vd2(
+        x = ddadd_vd2_vd_vd2(
         vcast_vd_d(1.0),
         ddmul_vd2_vd2_vd2(
             ddadd_vd2_vd_vd(
@@ -407,8 +384,7 @@ pub(crate) unsafe fn xcos_u1(d: VDouble) -> VDouble {
     );
     u = ddmul_vd_vd2_vd2(t, x);
 
-    // Sign handling
-    u = vreinterpret_vd_vm(vxor_vm_vm_vm(
+        u = vreinterpret_vd_vm(vxor_vm_vm_vm(
         vand_vm_vo64_vm(
             vcast_vo64_vo32(veq_vo_vi_vi(
                 vand_vi_vi_vi(ql, vcast_vi_i(2)),
@@ -434,15 +410,13 @@ pub(crate) unsafe fn xsincos_u1(d: VDouble) -> VDouble2 {
     let mut x: VDouble2;
     let mut ql: VInt;
 
-    // Initial range reduction
-    let dql = vrint_vd_vd(vmul_vd_vd_vd(d, vcast_vd_d(2.0 * M_1_PI)));
+        let dql = vrint_vd_vd(vmul_vd_vd_vd(d, vcast_vd_d(2.0 * M_1_PI)));
     ql = vrint_vi_vd(dql);
     u = vmla_vd_vd_vd_vd(dql, vcast_vd_d(-PI_A2 * 0.5), d);
     s = ddadd_vd2_vd_vd(u, vmul_vd_vd_vd(dql, vcast_vd_d(-PI_B2 * 0.5)));
     let mut g = vlt_vo_vd_vd(vabs_vd_vd(d), vcast_vd_d(TRIGRANGEMAX2));
 
-    // Medium range handling
-    if vtestallones_i_vo64(g) == 0 {
+        if vtestallones_i_vo64(g) == 0 {
         let mut dqh = vtruncate_vd_vd(vmul_vd_vd_vd(
             d,
             vcast_vd_d(2.0 * M_1_PI / (1 << 24) as f64),
@@ -468,8 +442,7 @@ pub(crate) unsafe fn xsincos_u1(d: VDouble) -> VDouble2 {
         s = vsel_vd2_vo_vd2_vd2(g, s, x);
         g = vlt_vo_vd_vd(vabs_vd_vd(d), vcast_vd_d(TRIGRANGEMAX));
 
-        // Large range handling
-        if vtestallones_i_vo64(g) == 0 {
+                if vtestallones_i_vo64(g) == 0 {
             let ddi = rempi(d);
             x = ddigetdd_vd2_ddi(ddi);
             o = vor_vo_vo_vo(visinf_vo_vd(d), visnan_vo_vd(d));
@@ -487,12 +460,10 @@ pub(crate) unsafe fn xsincos_u1(d: VDouble) -> VDouble2 {
         }
     }
 
-    // Calculate sine
-    t = s;
+        t = s;
     s = vd2setx_vd2_vd2_vd(s, ddsqu_vd_vd2(s));
 
-    // Sine polynomial
-    u = vcast_vd_d(1.58938307283228937328511e-10);
+        u = vcast_vd_d(1.58938307283228937328511e-10);
     u = vmla_vd_vd_vd_vd(
         u,
         vd2getx_vd_vd2(s),
@@ -526,8 +497,7 @@ pub(crate) unsafe fn xsincos_u1(d: VDouble) -> VDouble2 {
 
     rx = vsel_vd_vo_vd_vd(visnegzero_vo_vd(d), vcast_vd_d(-0.0), rx);
 
-    // Cosine polynomial
-    u = vcast_vd_d(-1.13615350239097429531523e-11);
+        u = vcast_vd_d(-1.13615350239097429531523e-11);
     u = vmla_vd_vd_vd_vd(
         u,
         vd2getx_vd_vd2(s),
@@ -558,15 +528,13 @@ pub(crate) unsafe fn xsincos_u1(d: VDouble) -> VDouble2 {
     x = ddadd_vd2_vd_vd2(vcast_vd_d(1.0), ddmul_vd2_vd_vd(vd2getx_vd_vd2(s), u));
     ry = vadd_vd_vd_vd(vd2getx_vd_vd2(x), vd2gety_vd_vd2(x));
 
-    // Quadrant handling
-    o = vcast_vo64_vo32(veq_vo_vi_vi(
+        o = vcast_vo64_vo32(veq_vo_vi_vi(
         vand_vi_vi_vi(ql, vcast_vi_i(1)),
         vcast_vi_i(0),
     ));
     r = vd2setxy_vd2_vd_vd(vsel_vd_vo_vd_vd(o, rx, ry), vsel_vd_vo_vd_vd(o, ry, rx));
 
-    // Sign handling for sine
-    o = vcast_vo64_vo32(veq_vo_vi_vi(
+        o = vcast_vo64_vo32(veq_vo_vi_vi(
         vand_vi_vi_vi(ql, vcast_vi_i(2)),
         vcast_vi_i(2),
     ));
@@ -578,8 +546,7 @@ pub(crate) unsafe fn xsincos_u1(d: VDouble) -> VDouble2 {
         )),
     );
 
-    // Sign handling for cosine
-    o = vcast_vo64_vo32(veq_vo_vi_vi(
+        o = vcast_vo64_vo32(veq_vo_vi_vi(
         vand_vi_vi_vi(vadd_vi_vi_vi(ql, vcast_vi_i(1)), vcast_vi_i(2)),
         vcast_vi_i(2),
     ));
@@ -604,15 +571,13 @@ pub(crate) unsafe fn xtan_u1(d: VDouble) -> VDouble {
     let mut o: Vopmask;
     let mut ql: VInt;
 
-    // Initial range reduction
-    let dql = vrint_vd_vd(vmul_vd_vd_vd(d, vcast_vd_d(2.0 * M_1_PI)));
+        let dql = vrint_vd_vd(vmul_vd_vd_vd(d, vcast_vd_d(2.0 * M_1_PI)));
     ql = vrint_vi_vd(dql);
     u = vmla_vd_vd_vd_vd(dql, vcast_vd_d(-PI_A2 * 0.5), d);
     s = ddadd_vd2_vd_vd(u, vmul_vd_vd_vd(dql, vcast_vd_d(-PI_B2 * 0.5)));
     let mut g = vlt_vo_vd_vd(vabs_vd_vd(d), vcast_vd_d(TRIGRANGEMAX2));
 
-    // Medium range handling
-    if vtestallones_i_vo64(g) == 0 {
+        if vtestallones_i_vo64(g) == 0 {
         let mut dqh = vtruncate_vd_vd(vmul_vd_vd_vd(
             d,
             vcast_vd_d(2.0 * M_1_PI / (1 << 24) as f64),
@@ -646,8 +611,7 @@ pub(crate) unsafe fn xtan_u1(d: VDouble) -> VDouble {
         s = vsel_vd2_vo_vd2_vd2(g, s, x);
         g = vlt_vo_vd_vd(vabs_vd_vd(d), vcast_vd_d(TRIGRANGEMAX));
 
-        // Large range handling
-        if vtestallones_i_vo64(g) == 0 {
+                if vtestallones_i_vo64(g) == 0 {
             let ddi = rempi(d);
             x = ddigetdd_vd2_ddi(ddi);
             o = vor_vo_vo_vo(visinf_vo_vd(d), visnan_vo_vd(d));
@@ -665,8 +629,7 @@ pub(crate) unsafe fn xtan_u1(d: VDouble) -> VDouble {
         }
     }
 
-    // Polynomial approximation
-    t = ddscale_vd2_vd2_vd(s, vcast_vd_d(0.5));
+        t = ddscale_vd2_vd2_vd(s, vcast_vd_d(0.5));
     s = ddsqu_vd2_vd2(t);
 
     let s2 = vmul_vd_vd_vd(vd2getx_vd_vd2(s), vd2getx_vd_vd2(s));
@@ -689,8 +652,7 @@ pub(crate) unsafe fn xtan_u1(d: VDouble) -> VDouble {
     u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(s), vcast_vd_d(0.3333333333333343695e+0));
     x = ddadd_vd2_vd2_vd2(t, ddmul_vd2_vd2_vd(ddmul_vd2_vd2_vd2(s, t), u));
 
-    // Final computations
-    y = ddadd_vd2_vd_vd2(vcast_vd_d(-1.0), ddsqu_vd2_vd2(x));
+        y = ddadd_vd2_vd_vd2(vcast_vd_d(-1.0), ddsqu_vd2_vd2(x));
     x = ddscale_vd2_vd2_vd(x, vcast_vd_d(-2.0));
 
     o = vcast_vo64_vo32(veq_vo_vi_vi(
@@ -705,8 +667,7 @@ pub(crate) unsafe fn xtan_u1(d: VDouble) -> VDouble {
 
     u = vadd_vd_vd_vd(vd2getx_vd_vd2(x), vd2gety_vd_vd2(x));
 
-    // Handle special case for zero
-    vsel_vd_vo_vd_vd(veq_vo_vd_vd(d, vcast_vd_d(0.0)), d, u)
+        vsel_vd_vo_vd_vd(veq_vo_vd_vd(d, vcast_vd_d(0.0)), d, u)
 }
 
 #[inline(always)]
@@ -717,8 +678,7 @@ pub(crate) unsafe fn atan2k_u1(y: VDouble2, x: VDouble2) -> VDouble2 {
     let mut q: VInt;
     let mut p: Vopmask;
 
-    // Handle x < 0 case
-    q = vsel_vi_vd_vi(vd2getx_vd_vd2(x), vcast_vi_i(-2));
+        q = vsel_vi_vd_vi(vd2getx_vd_vd2(x), vcast_vi_i(-2));
     p = vlt_vo_vd_vd(vd2getx_vd_vd2(x), vcast_vd_d(0.0));
     let b = vand_vm_vo64_vm(p, vreinterpret_vm_vd(vcast_vd_d(-0.0)));
     let x = vd2setx_vd2_vd2_vd(
@@ -730,8 +690,7 @@ pub(crate) unsafe fn atan2k_u1(y: VDouble2, x: VDouble2) -> VDouble2 {
         vreinterpret_vd_vm(vxor_vm_vm_vm(b, vreinterpret_vm_vd(vd2gety_vd_vd2(x)))),
     );
 
-    // Determine quadrant
-    q = vsel_vi_vd_vd_vi_vi(
+        q = vsel_vi_vd_vd_vi_vi(
         vd2getx_vd_vd2(x),
         vd2getx_vd_vd2(y),
         vadd_vi_vi_vi(q, vcast_vi_i(1)),
@@ -741,13 +700,11 @@ pub(crate) unsafe fn atan2k_u1(y: VDouble2, x: VDouble2) -> VDouble2 {
     s = vsel_vd2_vo_vd2_vd2(p, ddneg_vd2_vd2(x), y);
     t = vsel_vd2_vo_vd2_vd2(p, y, x);
 
-    // Calculate ratio and square
-    s = dddiv_vd2_vd2_vd2(s, t);
+        s = dddiv_vd2_vd2_vd2(s, t);
     t = ddsqu_vd2_vd2(s);
     t = ddnormalize_vd2_vd2(t);
 
-    // Polynomial evaluation
-    let t2 = vmul_vd_vd_vd(vd2getx_vd_vd2(t), vd2getx_vd_vd2(t));
+        let t2 = vmul_vd_vd_vd(vd2getx_vd_vd2(t), vd2getx_vd_vd2(t));
     let t4 = vmul_vd_vd_vd(t2, t2);
     let t8 = vmul_vd_vd_vd(t4, t4);
 
@@ -774,8 +731,7 @@ pub(crate) unsafe fn atan2k_u1(y: VDouble2, x: VDouble2) -> VDouble2 {
         -0.0909090442773387574781907,
     );
 
-    // Final polynomial terms
-    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(t), vcast_vd_d(0.111111108376896236538123));
+        u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(t), vcast_vd_d(0.111111108376896236538123));
     u = vmla_vd_vd_vd_vd(
         u,
         vd2getx_vd_vd2(t),
@@ -788,11 +744,9 @@ pub(crate) unsafe fn atan2k_u1(y: VDouble2, x: VDouble2) -> VDouble2 {
         vcast_vd_d(-0.333333333333317605173818),
     );
 
-    // Combine results
-    t = ddadd_vd2_vd2_vd2(s, ddmul_vd2_vd2_vd(ddmul_vd2_vd2_vd2(s, t), u));
+        t = ddadd_vd2_vd2_vd2(s, ddmul_vd2_vd2_vd(ddmul_vd2_vd2_vd2(s, t), u));
 
-    // Add pi/2 * q
-    t = ddadd_vd2_vd2_vd2(
+        t = ddadd_vd2_vd2_vd2(
         ddmul_vd2_vd2_vd(
             vcast_vd2_d_d(1.570796326794896557998982, 6.12323399573676603586882e-17),
             vcast_vd_vi(q),
@@ -805,41 +759,32 @@ pub(crate) unsafe fn atan2k_u1(y: VDouble2, x: VDouble2) -> VDouble2 {
 
 #[inline(always)]
 pub(crate) unsafe fn visinf2_vd_vd_vd(d: VDouble, m: VDouble) -> VDouble {
-    // Returns m with the sign of d if d is infinite, 0 otherwise
-    vreinterpret_vd_vm(vand_vm_vo64_vm(
-        visinf_vo_vd(d), // Mask for infinite values
-        vor_vm_vm_vm(
+        vreinterpret_vd_vm(vand_vm_vo64_vm(
+        visinf_vo_vd(d),         vor_vm_vm_vm(
             vand_vm_vm_vm(
                 vreinterpret_vm_vd(d),
-                vreinterpret_vm_vd(vcast_vd_d(-0.0)), // Extract sign bit
-            ),
-            vreinterpret_vm_vd(m), // Original value
-        ),
+                vreinterpret_vm_vd(vcast_vd_d(-0.0)),             ),
+            vreinterpret_vm_vd(m),         ),
     ))
 }
 
 #[inline(always)]
 pub(crate) unsafe fn xatan2_u1(y: VDouble, x: VDouble) -> VDouble {
-    // Handle subnormal numbers by scaling up
-    let o = vlt_vo_vd_vd(
+        let o = vlt_vo_vd_vd(
         vabs_vd_vd(x),
-        vcast_vd_d(5.5626846462680083984e-309), // nexttoward((1.0 / DBL_MAX), 1)
-    );
+        vcast_vd_d(5.5626846462680083984e-309),     );
     let x = vsel_vd_vo_vd_vd(o, vmul_vd_vd_vd(x, vcast_vd_d((1u64 << 53) as f64)), x);
     let y = vsel_vd_vo_vd_vd(o, vmul_vd_vd_vd(y, vcast_vd_d((1u64 << 53) as f64)), y);
 
-    // Calculate atan2 using double-double arithmetic
-    let d = atan2k_u1(
+        let d = atan2k_u1(
         vcast_vd2_vd_vd(vabs_vd_vd(y), vcast_vd_d(0.0)),
         vcast_vd2_vd_vd(x, vcast_vd_d(0.0)),
     );
     let mut r = vadd_vd_vd_vd(vd2getx_vd_vd2(d), vd2gety_vd_vd2(d));
 
-    // Apply sign of x
-    r = vmulsign_vd_vd_vd(r, x);
+        r = vmulsign_vd_vd_vd(r, x);
 
-    // Handle special cases for x
-    r = vsel_vd_vo_vd_vd(
+        r = vsel_vd_vo_vd_vd(
         vor_vo_vo_vo(visinf_vo_vd(x), veq_vo_vd_vd(x, vcast_vd_d(0.0))),
         vsub_vd_vd_vd(
             vcast_vd_d(M_PI / 2.0),
@@ -848,8 +793,7 @@ pub(crate) unsafe fn xatan2_u1(y: VDouble, x: VDouble) -> VDouble {
         r,
     );
 
-    // Handle infinite y
-    r = vsel_vd_vo_vd_vd(
+        r = vsel_vd_vo_vd_vd(
         visinf_vo_vd(y),
         vsub_vd_vd_vd(
             vcast_vd_d(M_PI / 2.0),
@@ -858,8 +802,7 @@ pub(crate) unsafe fn xatan2_u1(y: VDouble, x: VDouble) -> VDouble {
         r,
     );
 
-    // Handle zero y
-    r = vsel_vd_vo_vd_vd(
+        r = vsel_vd_vo_vd_vd(
         veq_vo_vd_vd(y, vcast_vd_d(0.0)),
         vreinterpret_vd_vm(vand_vm_vo64_vm(
             vsignbit_vo_vd(x),
@@ -868,8 +811,7 @@ pub(crate) unsafe fn xatan2_u1(y: VDouble, x: VDouble) -> VDouble {
         r,
     );
 
-    // Handle NaN inputs and apply sign of y
-    r = vreinterpret_vd_vm(vor_vm_vo64_vm(
+        r = vreinterpret_vd_vm(vor_vm_vo64_vm(
         vor_vo_vo_vo(visnan_vo_vd(x), visnan_vo_vd(y)),
         vreinterpret_vm_vd(vmulsign_vd_vd_vd(r, y)),
     ));
@@ -879,43 +821,35 @@ pub(crate) unsafe fn xatan2_u1(y: VDouble, x: VDouble) -> VDouble {
 
 #[inline(always)]
 pub(crate) unsafe fn xasin_u1(d: VDouble) -> VDouble {
-    // Check if |d| < 0.5
-    let o = vlt_vo_vd_vd(vabs_vd_vd(d), vcast_vd_d(0.5));
+        let o = vlt_vo_vd_vd(vabs_vd_vd(d), vcast_vd_d(0.5));
 
-    // Calculate x² based on input range
-    let x2 = vsel_vd_vo_vd_vd(
+        let x2 = vsel_vd_vo_vd_vd(
         o,
-        vmul_vd_vd_vd(d, d), // d² for small inputs
-        vmul_vd_vd_vd(
-            // 0.5(1-|d|) for larger inputs
-            vsub_vd_vd_vd(vcast_vd_d(1.0), vabs_vd_vd(d)),
+        vmul_vd_vd_vd(d, d),         vmul_vd_vd_vd(
+                        vsub_vd_vd_vd(vcast_vd_d(1.0), vabs_vd_vd(d)),
             vcast_vd_d(0.5),
         ),
     );
 
     let mut u: VDouble;
 
-    // Calculate square root for larger inputs
-    let mut x = vsel_vd2_vo_vd2_vd2(
+        let mut x = vsel_vd2_vo_vd2_vd2(
         o,
         vcast_vd2_vd_vd(vabs_vd_vd(d), vcast_vd_d(0.0)),
         ddsqrt_vd2_vd(x2),
     );
 
-    // Handle edge case |d| = 1
-    x = vsel_vd2_vo_vd2_vd2(
+        x = vsel_vd2_vo_vd2_vd2(
         veq_vo_vd_vd(vabs_vd_vd(d), vcast_vd_d(1.0)),
         vcast_vd2_d_d(0.0, 0.0),
         x,
     );
 
-    // Calculate powers of x
-    let x4 = vmul_vd_vd_vd(x2, x2);
+        let x4 = vmul_vd_vd_vd(x2, x2);
     let x8 = vmul_vd_vd_vd(x4, x4);
     let x16 = vmul_vd_vd_vd(x8, x8);
 
-    // Polynomial approximation
-    u = poly12d(
+        u = poly12d(
         x2,
         x4,
         x8,
@@ -934,11 +868,9 @@ pub(crate) unsafe fn xasin_u1(d: VDouble) -> VDouble {
         0.1666666666666497543e+0,
     );
 
-    // Multiply by x²x
-    u = vmul_vd_vd_vd(u, vmul_vd_vd_vd(x2, vd2getx_vd_vd2(x)));
+        u = vmul_vd_vd_vd(u, vmul_vd_vd_vd(x2, vd2getx_vd_vd2(x)));
 
-    // Calculate π/4 - x - u using double-double arithmetic
-    let y = ddsub_vd2_vd2_vd(
+        let y = ddsub_vd2_vd2_vd(
         ddsub_vd2_vd2_vd2(
             vcast_vd2_d_d(3.141592653589793116 / 4.0, 1.2246467991473532072e-16 / 4.0),
             x,
@@ -946,8 +878,7 @@ pub(crate) unsafe fn xasin_u1(d: VDouble) -> VDouble {
         u,
     );
 
-    // Select final result based on input range
-    let r = vsel_vd_vo_vd_vd(
+        let r = vsel_vd_vo_vd_vd(
         o,
         vadd_vd_vd_vd(u, vd2getx_vd_vd2(x)),
         vmul_vd_vd_vd(
@@ -956,48 +887,39 @@ pub(crate) unsafe fn xasin_u1(d: VDouble) -> VDouble {
         ),
     );
 
-    // Apply sign of input
-    vmulsign_vd_vd_vd(r, d)
+        vmulsign_vd_vd_vd(r, d)
 }
 
 #[inline(always)]
 pub(crate) unsafe fn xacos_u1(d: VDouble) -> VDouble {
-    // Check if |d| < 0.5
-    let o = vlt_vo_vd_vd(vabs_vd_vd(d), vcast_vd_d(0.5));
+        let o = vlt_vo_vd_vd(vabs_vd_vd(d), vcast_vd_d(0.5));
 
-    // Calculate x² based on input range
-    let x2 = vsel_vd_vo_vd_vd(
+        let x2 = vsel_vd_vo_vd_vd(
         o,
-        vmul_vd_vd_vd(d, d), // d² for small inputs
-        vmul_vd_vd_vd(
-            // 0.5(1-|d|) for larger inputs
-            vsub_vd_vd_vd(vcast_vd_d(1.0), vabs_vd_vd(d)),
+        vmul_vd_vd_vd(d, d),         vmul_vd_vd_vd(
+                        vsub_vd_vd_vd(vcast_vd_d(1.0), vabs_vd_vd(d)),
             vcast_vd_d(0.5),
         ),
     );
     let mut u: VDouble;
 
-    // Calculate square root for larger inputs
-    let mut x = vsel_vd2_vo_vd2_vd2(
+        let mut x = vsel_vd2_vo_vd2_vd2(
         o,
         vcast_vd2_vd_vd(vabs_vd_vd(d), vcast_vd_d(0.0)),
         ddsqrt_vd2_vd(x2),
     );
 
-    // Handle edge case |d| = 1
-    x = vsel_vd2_vo_vd2_vd2(
+        x = vsel_vd2_vo_vd2_vd2(
         veq_vo_vd_vd(vabs_vd_vd(d), vcast_vd_d(1.0)),
         vcast_vd2_d_d(0.0, 0.0),
         x,
     );
 
-    // Calculate powers of x
-    let x4 = vmul_vd_vd_vd(x2, x2);
+        let x4 = vmul_vd_vd_vd(x2, x2);
     let x8 = vmul_vd_vd_vd(x4, x4);
     let x16 = vmul_vd_vd_vd(x8, x8);
 
-    // Polynomial approximation
-    u = poly12d(
+        u = poly12d(
         x2,
         x4,
         x8,
@@ -1016,11 +938,9 @@ pub(crate) unsafe fn xacos_u1(d: VDouble) -> VDouble {
         0.1666666666666497543e+0,
     );
 
-    // Multiply by x²x
-    u = vmul_vd_vd_vd(u, vmul_vd_vd_vd(x2, vd2getx_vd_vd2(x)));
+        u = vmul_vd_vd_vd(u, vmul_vd_vd_vd(x2, vd2getx_vd_vd2(x)));
 
-    // Calculate π/2 - (x + u) using double-double arithmetic
-    let mut y = ddsub_vd2_vd2_vd2(
+        let mut y = ddsub_vd2_vd2_vd2(
         vcast_vd2_d_d(3.141592653589793116 / 2.0, 1.2246467991473532072e-16 / 2.0),
         ddadd_vd2_vd_vd(
             vmulsign_vd_vd_vd(vd2getx_vd_vd2(x), d),
@@ -1029,11 +949,9 @@ pub(crate) unsafe fn xacos_u1(d: VDouble) -> VDouble {
     );
     x = ddadd_vd2_vd2_vd(x, u);
 
-    // Select result based on input range
-    y = vsel_vd2_vo_vd2_vd2(o, y, ddscale_vd2_vd2_vd(x, vcast_vd_d(2.0)));
+        y = vsel_vd2_vo_vd2_vd2(o, y, ddscale_vd2_vd2_vd(x, vcast_vd_d(2.0)));
 
-    // Handle negative inputs
-    y = vsel_vd2_vo_vd2_vd2(
+        y = vsel_vd2_vo_vd2_vd2(
         vandnot_vo_vo_vo(o, vlt_vo_vd_vd(d, vcast_vd_d(0.0))),
         ddsub_vd2_vd2_vd2(
             vcast_vd2_d_d(3.141592653589793116, 1.2246467991473532072e-16),
@@ -1042,30 +960,22 @@ pub(crate) unsafe fn xacos_u1(d: VDouble) -> VDouble {
         y,
     );
 
-    // Combine high and low parts
-    vadd_vd_vd_vd(vd2getx_vd_vd2(y), vd2gety_vd_vd2(y))
+        vadd_vd_vd_vd(vd2getx_vd_vd2(y), vd2gety_vd_vd2(y))
 }
 
 #[inline(always)]
 pub(crate) unsafe fn xatan_u1(d: VDouble) -> VDouble {
-    // Calculate atan using atan2k_u1 with denominator of 1
-    let d2 = atan2k_u1(
-        vcast_vd2_vd_vd(vabs_vd_vd(d), vcast_vd_d(0.0)), // numerator
-        vcast_vd2_d_d(1.0, 0.0),                         // denominator
-    );
+        let d2 = atan2k_u1(
+        vcast_vd2_vd_vd(vabs_vd_vd(d), vcast_vd_d(0.0)),         vcast_vd2_d_d(1.0, 0.0),                             );
 
-    // Combine high and low parts
-    let mut r = vadd_vd_vd_vd(vd2getx_vd_vd2(d2), vd2gety_vd_vd2(d2));
+        let mut r = vadd_vd_vd_vd(vd2getx_vd_vd2(d2), vd2gety_vd_vd2(d2));
 
-    // Handle infinite inputs
-    r = vsel_vd_vo_vd_vd(
+        r = vsel_vd_vo_vd_vd(
         visinf_vo_vd(d),
-        vcast_vd_d(1.570796326794896557998982), // π/2
-        r,
+        vcast_vd_d(1.570796326794896557998982),         r,
     );
 
-    // Apply sign of input
-    vmulsign_vd_vd_vd(r, d)
+        vmulsign_vd_vd_vd(r, d)
 }
 
 #[inline(always)]
@@ -1074,8 +984,7 @@ pub(crate) unsafe fn xlog_u1(d: VDouble) -> VDouble {
     let t: VDouble;
     let x2: VDouble;
 
-    // Handle subnormal numbers and extract exponent/mantissa
-    #[cfg(not(target_feature = "avx512f"))]
+        #[cfg(not(target_feature = "avx512f"))]
     let (m, e) = {
         let o = vlt_vo_vd_vd(d, vcast_vd_d(SLEEF_DBL_MIN));
         let d = vsel_vd_vo_vd_vd(
@@ -1097,15 +1006,13 @@ pub(crate) unsafe fn xlog_u1(d: VDouble) -> VDouble {
         (m, e)
     };
 
-    // Calculate main approximation
-    x = dddiv_vd2_vd2_vd2(
+        x = dddiv_vd2_vd2_vd2(
         ddadd2_vd2_vd_vd(vcast_vd_d(-1.0), m),
         ddadd2_vd2_vd_vd(vcast_vd_d(1.0), m),
     );
     x2 = vmul_vd_vd_vd(vd2getx_vd_vd2(x), vd2getx_vd_vd2(x));
 
-    // Polynomial evaluation
-    let x4 = vmul_vd_vd_vd(x2, x2);
+        let x4 = vmul_vd_vd_vd(x2, x2);
     let x8 = vmul_vd_vd_vd(x4, x4);
     t = poly7d(
         x2,
@@ -1120,8 +1027,7 @@ pub(crate) unsafe fn xlog_u1(d: VDouble) -> VDouble {
         0.6666666666667333541e+0,
     );
 
-    // Combine with exponent
-    #[cfg(not(target_feature = "avx512f"))]
+        #[cfg(not(target_feature = "avx512f"))]
     let mut s = ddmul_vd2_vd2_vd(
         vcast_vd2_d_d(0.693147180559945286226764, 2.319046813846299558417771e-17),
         vcast_vd_vi(e),
@@ -1133,14 +1039,12 @@ pub(crate) unsafe fn xlog_u1(d: VDouble) -> VDouble {
         e,
     );
 
-    // Final computations
-    s = ddadd_vd2_vd2_vd2(s, ddscale_vd2_vd2_vd(x, vcast_vd_d(2.0)));
+        s = ddadd_vd2_vd2_vd2(s, ddscale_vd2_vd2_vd(x, vcast_vd_d(2.0)));
     s = ddadd_vd2_vd2_vd(s, vmul_vd_vd_vd(vmul_vd_vd_vd(x2, vd2getx_vd_vd2(x)), t));
 
     let mut r = vadd_vd_vd_vd(vd2getx_vd_vd2(s), vd2gety_vd_vd2(s));
 
-    // Handle special cases
-    #[cfg(not(target_feature = "avx512f"))]
+        #[cfg(not(target_feature = "avx512f"))]
     {
         r = vsel_vd_vo_vd_vd(vispinf_vo_vd(d), vcast_vd_d(f64::INFINITY), r);
         r = vsel_vd_vo_vd_vd(
@@ -1181,24 +1085,20 @@ pub(crate) unsafe fn xcbrt_u1(d: VDouble) -> VDouble {
     let qu: VInt;
     let re: VInt;
 
-    // Store original input for AVX512
-    #[cfg(target_feature = "avx512f")]
+        #[cfg(target_feature = "avx512f")]
     let s = d;
 
-    // Extract exponent and normalize input
-    e = vadd_vi_vi_vi(vilogbk_vi_vd(vabs_vd_vd(d)), vcast_vi_i(1));
+        e = vadd_vi_vi_vi(vilogbk_vi_vd(vabs_vd_vd(d)), vcast_vi_i(1));
     let mut d = vldexp2_vd_vd_vi(d, vneg_vi_vi(e));
 
-    // Calculate quotient and remainder for cube root
-    t = vadd_vd_vd_vd(vcast_vd_vi(e), vcast_vd_d(6144.0));
+        t = vadd_vd_vd_vd(vcast_vd_vi(e), vcast_vd_d(6144.0));
     qu = vtruncate_vi_vd(vmul_vd_vd_vd(t, vcast_vd_d(1.0 / 3.0)));
     re = vtruncate_vi_vd(vsub_vd_vd_vd(
         t,
         vmul_vd_vd_vd(vcast_vd_vi(qu), vcast_vd_d(3.0)),
     ));
 
-    // Select correction factor based on remainder
-    q2 = vsel_vd2_vo_vd2_vd2(
+        q2 = vsel_vd2_vo_vd2_vd2(
         vcast_vo64_vo32(veq_vo_vi_vi(re, vcast_vi_i(1))),
         vcast_vd2_d_d(1.2599210498948731907, -2.5899333753005069177e-17),
         q2,
@@ -1209,23 +1109,20 @@ pub(crate) unsafe fn xcbrt_u1(d: VDouble) -> VDouble {
         q2,
     );
 
-    // Apply sign to correction factor
-    q2 = vd2setxy_vd2_vd_vd(
+        q2 = vd2setxy_vd2_vd_vd(
         vmulsign_vd_vd_vd(vd2getx_vd_vd2(q2), d),
         vmulsign_vd_vd_vd(vd2gety_vd_vd2(q2), d),
     );
     d = vabs_vd_vd(d);
 
-    // Initial approximation using polynomial
-    x = vcast_vd_d(-0.640245898480692909870982);
+        x = vcast_vd_d(-0.640245898480692909870982);
     x = vmla_vd_vd_vd_vd(x, d, vcast_vd_d(2.96155103020039511818595));
     x = vmla_vd_vd_vd_vd(x, d, vcast_vd_d(-5.73353060922947843636166));
     x = vmla_vd_vd_vd_vd(x, d, vcast_vd_d(6.03990368989458747961407));
     x = vmla_vd_vd_vd_vd(x, d, vcast_vd_d(-3.85841935510444988821632));
     x = vmla_vd_vd_vd_vd(x, d, vcast_vd_d(2.2307275302496609725722));
 
-    // First refinement step
-    y = vmul_vd_vd_vd(x, x);
+        y = vmul_vd_vd_vd(x, x);
     y = vmul_vd_vd_vd(y, y);
     x = vsub_vd_vd_vd(
         x,
@@ -1234,15 +1131,13 @@ pub(crate) unsafe fn xcbrt_u1(d: VDouble) -> VDouble {
 
     z = x;
 
-    // Second refinement step using double-double arithmetic
-    u = ddmul_vd2_vd_vd(x, x);
+        u = ddmul_vd2_vd_vd(x, x);
     u = ddmul_vd2_vd2_vd2(u, u);
     u = ddmul_vd2_vd2_vd(u, d);
     u = ddadd2_vd2_vd2_vd(u, vneg_vd_vd(x));
     y = vadd_vd_vd_vd(vd2getx_vd_vd2(u), vd2gety_vd_vd2(u));
 
-    // Final refinement and scaling
-    y = vmul_vd_vd_vd(vmul_vd_vd_vd(vcast_vd_d(-2.0 / 3.0), y), z);
+        y = vmul_vd_vd_vd(vmul_vd_vd_vd(vcast_vd_d(-2.0 / 3.0), y), z);
     v = ddadd2_vd2_vd2_vd(ddmul_vd2_vd_vd(z, z), y);
     v = ddmul_vd2_vd2_vd(v, d);
     v = ddmul_vd2_vd2_vd2(v, q2);
@@ -1251,8 +1146,7 @@ pub(crate) unsafe fn xcbrt_u1(d: VDouble) -> VDouble {
         vsub_vi_vi_vi(qu, vcast_vi_i(2048)),
     );
 
-    // Handle special cases
-    #[cfg(not(target_feature = "avx512f"))]
+        #[cfg(not(target_feature = "avx512f"))]
     {
         z = vsel_vd_vo_vd_vd(
             visinf_vo_vd(d),
@@ -1285,12 +1179,10 @@ pub(crate) unsafe fn xcbrt_u1(d: VDouble) -> VDouble {
 
 #[inline(always)]
 pub(crate) unsafe fn xexp(d: VDouble) -> VDouble {
-    // Round d/ln(2) to get multiplier for scaling
-    let u = vrint_vd_vd(vmul_vd_vd_vd(d, vcast_vd_d(R_LN2)));
+        let u = vrint_vd_vd(vmul_vd_vd_vd(d, vcast_vd_d(R_LN2)));
     let q = vrint_vi_vd(u);
 
-    // Range reduction: s = d - u*ln(2)
-    let mut s = vmla_vd_vd_vd_vd(u, vcast_vd_d(-L2U), d);
+        let mut s = vmla_vd_vd_vd_vd(u, vcast_vd_d(-L2U), d);
     s = vmla_vd_vd_vd_vd(u, vcast_vd_d(-L2L), s);
 
     let mut u: VDouble;
@@ -1298,13 +1190,11 @@ pub(crate) unsafe fn xexp(d: VDouble) -> VDouble {
     #[cfg(target_feature = "fma")]
     {
         use helper::vfma_vd_vd_vd_vd;
-        // Calculate powers of s
-        let s2 = vmul_vd_vd_vd(s, s);
+                let s2 = vmul_vd_vd_vd(s, s);
         let s4 = vmul_vd_vd_vd(s2, s2);
         let s8 = vmul_vd_vd_vd(s4, s4);
 
-        // Polynomial approximation with FMA
-        u = poly10d(
+                u = poly10d(
             s,
             s2,
             s4,
@@ -1321,21 +1211,18 @@ pub(crate) unsafe fn xexp(d: VDouble) -> VDouble {
             0.1666666666666669072e+0,
         );
 
-        // Final polynomial terms using FMA
-        u = vfma_vd_vd_vd_vd(u, s, vcast_vd_d(0.5000000000000000000e+0));
+                u = vfma_vd_vd_vd_vd(u, s, vcast_vd_d(0.5000000000000000000e+0));
         u = vfma_vd_vd_vd_vd(u, s, vcast_vd_d(0.1000000000000000000e+1));
         u = vfma_vd_vd_vd_vd(u, s, vcast_vd_d(0.1000000000000000000e+1));
     }
 
     #[cfg(not(target_feature = "fma"))]
     {
-        // Calculate powers of s
-        let s2 = vmul_vd_vd_vd(s, s);
+                let s2 = vmul_vd_vd_vd(s, s);
         let s4 = vmul_vd_vd_vd(s2, s2);
         let s8 = vmul_vd_vd_vd(s4, s4);
 
-        // Polynomial approximation without FMA
-        u = poly10d(
+                u = poly10d(
             s,
             s2,
             s4,
@@ -1352,16 +1239,13 @@ pub(crate) unsafe fn xexp(d: VDouble) -> VDouble {
             0.166666666666666851703837,
         );
 
-        // Final polynomial terms without FMA
-        u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.5000000000000000000e+0));
+                u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.5000000000000000000e+0));
         u = vadd_vd_vd_vd(vcast_vd_d(1.0), vmla_vd_vd_vd_vd(vmul_vd_vd_vd(s, s), u, s));
     }
 
-    // Scale result by 2^q
-    u = vldexp2_vd_vd_vi(u, q);
+        u = vldexp2_vd_vd_vi(u, q);
 
-    // Handle overflow and underflow
-    let o = vgt_vo_vd_vd(d, vcast_vd_d(LOG_DBL_MAX));
+        let o = vgt_vo_vd_vd(d, vcast_vd_d(LOG_DBL_MAX));
     u = vsel_vd_vo_vd_vd(o, vcast_vd_d(f64::INFINITY), u);
     u = vreinterpret_vd_vm(vandnot_vm_vo64_vm(
         vlt_vo_vd_vd(d, vcast_vd_d(-1000.0)),
@@ -1378,8 +1262,7 @@ unsafe fn logk(d: VDouble) -> VDouble2 {
     let mut s: VDouble2;
     let t: VDouble;
 
-    // Handle subnormal numbers and extract exponent/mantissa
-    #[cfg(not(target_feature = "avx512f"))]
+        #[cfg(not(target_feature = "avx512f"))]
     let (m, e) = {
         let o = vlt_vo_vd_vd(d, vcast_vd_d(SLEEF_DBL_MIN));
         let d = vsel_vd_vo_vd_vd(
@@ -1401,15 +1284,13 @@ unsafe fn logk(d: VDouble) -> VDouble2 {
         (m, e)
     };
 
-    // Calculate main approximation
-    x = dddiv_vd2_vd2_vd2(
+        x = dddiv_vd2_vd2_vd2(
         ddadd2_vd2_vd_vd(vcast_vd_d(-1.0), m),
         ddadd2_vd2_vd_vd(vcast_vd_d(1.0), m),
     );
     x2 = ddsqu_vd2_vd2(x);
 
-    // Polynomial evaluation
-    let x4 = vmul_vd_vd_vd(vd2getx_vd_vd2(x2), vd2getx_vd_vd2(x2));
+        let x4 = vmul_vd_vd_vd(vd2getx_vd_vd2(x2), vd2getx_vd_vd2(x2));
     let x8 = vmul_vd_vd_vd(x4, x4);
     let x16 = vmul_vd_vd_vd(x8, x8);
     t = poly9d(
@@ -1428,8 +1309,7 @@ unsafe fn logk(d: VDouble) -> VDouble2 {
         0.400000000000000077715612,
     );
 
-    // Final computations
-    let c = vcast_vd2_d_d(0.666666666666666629659233, 3.80554962542412056336616e-17);
+        let c = vcast_vd2_d_d(0.666666666666666629659233, 3.80554962542412056336616e-17);
 
     #[cfg(not(target_feature = "avx512f"))]
     {
@@ -1458,8 +1338,7 @@ unsafe fn logk(d: VDouble) -> VDouble2 {
 
 #[inline(always)]
 unsafe fn expk(d: VDouble2) -> VDouble {
-    // Calculate q = round(d/ln(2))
-    let u = vmul_vd_vd_vd(
+        let u = vmul_vd_vd_vd(
         vadd_vd_vd_vd(vd2getx_vd_vd2(d), vd2gety_vd_vd2(d)),
         vcast_vd_d(R_LN2),
     );
@@ -1468,20 +1347,16 @@ unsafe fn expk(d: VDouble2) -> VDouble {
     let mut s: VDouble2;
     let mut t: VDouble2;
 
-    // Range reduction: s = d - q*ln(2)
-    s = ddadd2_vd2_vd2_vd(d, vmul_vd_vd_vd(dq, vcast_vd_d(-L2U)));
+        s = ddadd2_vd2_vd2_vd(d, vmul_vd_vd_vd(dq, vcast_vd_d(-L2U)));
     s = ddadd2_vd2_vd2_vd(s, vmul_vd_vd_vd(dq, vcast_vd_d(-L2L)));
 
-    // Normalize the reduced range
-    s = ddnormalize_vd2_vd2(s);
+        s = ddnormalize_vd2_vd2(s);
 
-    // Calculate powers of s
-    let s2 = vmul_vd_vd_vd(vd2getx_vd_vd2(s), vd2getx_vd_vd2(s));
+        let s2 = vmul_vd_vd_vd(vd2getx_vd_vd2(s), vd2getx_vd_vd2(s));
     let s4 = vmul_vd_vd_vd(s2, s2);
     let s8 = vmul_vd_vd_vd(s4, s4);
 
-    // Polynomial approximation
-    let mut u = poly10d(
+        let mut u = poly10d(
         vd2getx_vd_vd2(s),
         s2,
         s4,
@@ -1498,18 +1373,14 @@ unsafe fn expk(d: VDouble2) -> VDouble {
         0.500000000000000999200722,
     );
 
-    // Combine polynomial terms
-    t = ddadd_vd2_vd_vd2(vcast_vd_d(1.0), s);
+        t = ddadd_vd2_vd_vd2(vcast_vd_d(1.0), s);
     t = ddadd_vd2_vd2_vd2(t, ddmul_vd2_vd2_vd(ddsqu_vd2_vd2(s), u));
 
-    // Combine high and low parts
-    u = vadd_vd_vd_vd(vd2getx_vd_vd2(t), vd2gety_vd_vd2(t));
+        u = vadd_vd_vd_vd(vd2getx_vd_vd2(t), vd2gety_vd_vd2(t));
 
-    // Scale by 2^q
-    u = vldexp2_vd_vd_vi(u, q);
+        u = vldexp2_vd_vd_vi(u, q);
 
-    // Handle underflow
-    u = vreinterpret_vd_vm(vandnot_vm_vo64_vm(
+        u = vreinterpret_vd_vm(vandnot_vm_vo64_vm(
         vlt_vo_vd_vd(vd2getx_vd_vd2(d), vcast_vd_d(-1000.0)),
         vreinterpret_vm_vd(u),
     ));
@@ -1519,20 +1390,16 @@ unsafe fn expk(d: VDouble2) -> VDouble {
 
 #[inline(always)]
 pub(crate) unsafe fn xpow(x: VDouble, y: VDouble) -> VDouble {
-    // Check if y is an integer and if it's odd
-    let yisint = visint_vo_vd(y);
+        let yisint = visint_vo_vd(y);
     let yisodd = vand_vo_vo_vo(visodd_vo_vd(y), yisint);
 
-    // Calculate log(x) * y
-    let d = ddmul_vd2_vd2_vd(logk(vabs_vd_vd(x)), y);
+        let d = ddmul_vd2_vd2_vd(logk(vabs_vd_vd(x)), y);
     let mut result = expk(d);
 
-    // Handle overflow
-    let o = vgt_vo_vd_vd(vd2getx_vd_vd2(d), vcast_vd_d(LOG_DBL_MAX));
+        let o = vgt_vo_vd_vd(vd2getx_vd_vd2(d), vcast_vd_d(LOG_DBL_MAX));
     result = vsel_vd_vo_vd_vd(o, vcast_vd_d(f64::INFINITY), result);
 
-    // Adjust result for negative x
-    result = vmul_vd_vd_vd(
+        result = vmul_vd_vd_vd(
         result,
         vsel_vd_vo_vd_vd(
             vgt_vo_vd_vd(x, vcast_vd_d(0.0)),
@@ -1545,8 +1412,7 @@ pub(crate) unsafe fn xpow(x: VDouble, y: VDouble) -> VDouble {
         ),
     );
 
-    // Handle infinite y
-    let efx = vmulsign_vd_vd_vd(vsub_vd_vd_vd(vabs_vd_vd(x), vcast_vd_d(1.0)), y);
+        let efx = vmulsign_vd_vd_vd(vsub_vd_vd_vd(vabs_vd_vd(x), vcast_vd_d(1.0)), y);
     result = vsel_vd_vo_vd_vd(
         visinf_vo_vd(y),
         vreinterpret_vd_vm(vandnot_vm_vo64_vm(
@@ -1560,8 +1426,7 @@ pub(crate) unsafe fn xpow(x: VDouble, y: VDouble) -> VDouble {
         result,
     );
 
-    // Handle x = 0 or x = infinity
-    result = vsel_vd_vo_vd_vd(
+        result = vsel_vd_vo_vd_vd(
         vor_vo_vo_vo(visinf_vo_vd(x), veq_vo_vd_vd(x, vcast_vd_d(0.0))),
         vmulsign_vd_vd_vd(
             vsel_vd_vo_vd_vd(
@@ -1574,14 +1439,12 @@ pub(crate) unsafe fn xpow(x: VDouble, y: VDouble) -> VDouble {
         result,
     );
 
-    // Handle NaN inputs
-    result = vreinterpret_vd_vm(vor_vm_vo64_vm(
+        result = vreinterpret_vd_vm(vor_vm_vo64_vm(
         vor_vo_vo_vo(visnan_vo_vd(x), visnan_vo_vd(y)),
         vreinterpret_vm_vd(result),
     ));
 
-    // Handle y = 0 or x = 1
-    result = vsel_vd_vo_vd_vd(
+        result = vsel_vd_vo_vd_vd(
         vor_vo_vo_vo(
             veq_vo_vd_vd(y, vcast_vd_d(0.0)),
             veq_vo_vd_vd(x, vcast_vd_d(1.0)),
@@ -1595,8 +1458,7 @@ pub(crate) unsafe fn xpow(x: VDouble, y: VDouble) -> VDouble {
 
 #[inline(always)]
 unsafe fn expk2(d: VDouble2) -> VDouble2 {
-    // Calculate q = round(d/ln(2))
-    let u = vmul_vd_vd_vd(
+        let u = vmul_vd_vd_vd(
         vadd_vd_vd_vd(vd2getx_vd_vd2(d), vd2gety_vd_vd2(d)),
         vcast_vd_d(R_LN2),
     );
@@ -1605,17 +1467,14 @@ unsafe fn expk2(d: VDouble2) -> VDouble2 {
     let mut s: VDouble2;
     let mut t: VDouble2;
 
-    // Range reduction: s = d - q*ln(2)
-    s = ddadd2_vd2_vd2_vd(d, vmul_vd_vd_vd(dq, vcast_vd_d(-L2U)));
+        s = ddadd2_vd2_vd2_vd(d, vmul_vd_vd_vd(dq, vcast_vd_d(-L2U)));
     s = ddadd2_vd2_vd2_vd(s, vmul_vd_vd_vd(dq, vcast_vd_d(-L2L)));
 
-    // Calculate powers using double-double arithmetic
-    let s2 = ddsqu_vd2_vd2(s);
+        let s2 = ddsqu_vd2_vd2(s);
     let s4 = ddsqu_vd2_vd2(s2);
     let s8 = vmul_vd_vd_vd(vd2getx_vd_vd2(s4), vd2getx_vd_vd2(s4));
 
-    // Polynomial approximation
-    let u = poly10d(
+        let u = poly10d(
         vd2getx_vd_vd2(s),
         vd2getx_vd_vd2(s2),
         vd2getx_vd_vd2(s4),
@@ -1632,8 +1491,7 @@ unsafe fn expk2(d: VDouble2) -> VDouble2 {
         0.4166666666666669905e-1,
     );
 
-    // Combine polynomial terms using double-double arithmetic
-    t = ddadd_vd2_vd_vd2(
+        t = ddadd_vd2_vd_vd2(
         vcast_vd_d(0.5),
         ddmul_vd2_vd2_vd(s, vcast_vd_d(0.1666666666666666574e+0)),
     );
@@ -1641,12 +1499,10 @@ unsafe fn expk2(d: VDouble2) -> VDouble2 {
     t = ddadd_vd2_vd_vd2(vcast_vd_d(1.0), ddmul_vd2_vd2_vd2(t, s));
     t = ddadd_vd2_vd2_vd2(t, ddmul_vd2_vd2_vd(s4, u));
 
-    // Scale both parts by 2^q
-    t = vd2setx_vd2_vd2_vd(t, vldexp2_vd_vd_vi(vd2getx_vd_vd2(t), q));
+        t = vd2setx_vd2_vd2_vd(t, vldexp2_vd_vd_vi(vd2getx_vd_vd2(t), q));
     t = vd2sety_vd2_vd2_vd(t, vldexp2_vd_vd_vi(vd2gety_vd_vd2(t), q));
 
-    // Handle underflow for both parts
-    t = vd2setx_vd2_vd2_vd(
+        t = vd2setx_vd2_vd2_vd(
         t,
         vreinterpret_vd_vm(vandnot_vm_vo64_vm(
             vlt_vo_vd_vd(vd2getx_vd_vd2(d), vcast_vd_d(-1000.0)),
@@ -1666,21 +1522,17 @@ unsafe fn expk2(d: VDouble2) -> VDouble2 {
 
 #[inline(always)]
 pub(crate) unsafe fn xsinh(x: VDouble) -> VDouble {
-    // Get absolute value of input
-    let mut y = vabs_vd_vd(x);
+        let mut y = vabs_vd_vd(x);
 
-    // Calculate exp(x) using double-double arithmetic
-    let mut d = expk2(vcast_vd2_vd_vd(y, vcast_vd_d(0.0)));
+        let mut d = expk2(vcast_vd2_vd_vd(y, vcast_vd_d(0.0)));
 
-    // Calculate sinh(x) = (exp(x) - 1/exp(x))/2
-    d = ddsub_vd2_vd2_vd2(d, ddrec_vd2_vd2(d));
+        d = ddsub_vd2_vd2_vd2(d, ddrec_vd2_vd2(d));
     y = vmul_vd_vd_vd(
         vadd_vd_vd_vd(vd2getx_vd_vd2(d), vd2gety_vd_vd2(d)),
         vcast_vd_d(0.5),
     );
 
-    // Handle overflow and NaN
-    y = vsel_vd_vo_vd_vd(
+        y = vsel_vd_vo_vd_vd(
         vor_vo_vo_vo(
             vgt_vo_vd_vd(vabs_vd_vd(x), vcast_vd_d(710.0)),
             visnan_vo_vd(y),
@@ -1689,32 +1541,26 @@ pub(crate) unsafe fn xsinh(x: VDouble) -> VDouble {
         y,
     );
 
-    // Apply sign of input
-    y = vmulsign_vd_vd_vd(y, x);
+        y = vmulsign_vd_vd_vd(y, x);
 
-    // Propagate NaN
-    y = vreinterpret_vd_vm(vor_vm_vo64_vm(visnan_vo_vd(x), vreinterpret_vm_vd(y)));
+        y = vreinterpret_vd_vm(vor_vm_vo64_vm(visnan_vo_vd(x), vreinterpret_vm_vd(y)));
 
     y
 }
 
 #[inline(always)]
 pub(crate) unsafe fn xcosh(x: VDouble) -> VDouble {
-    // Get absolute value of input
-    let mut y = vabs_vd_vd(x);
+        let mut y = vabs_vd_vd(x);
 
-    // Calculate exp(x) using double-double arithmetic
-    let mut d = expk2(vcast_vd2_vd_vd(y, vcast_vd_d(0.0)));
+        let mut d = expk2(vcast_vd2_vd_vd(y, vcast_vd_d(0.0)));
 
-    // Calculate cosh(x) = (exp(x) + 1/exp(x))/2
-    d = ddadd_vd2_vd2_vd2(d, ddrec_vd2_vd2(d));
+        d = ddadd_vd2_vd2_vd2(d, ddrec_vd2_vd2(d));
     y = vmul_vd_vd_vd(
         vadd_vd_vd_vd(vd2getx_vd_vd2(d), vd2gety_vd_vd2(d)),
         vcast_vd_d(0.5),
     );
 
-    // Handle overflow and NaN
-    y = vsel_vd_vo_vd_vd(
+        y = vsel_vd_vo_vd_vd(
         vor_vo_vo_vo(
             vgt_vo_vd_vd(vabs_vd_vd(x), vcast_vd_d(710.0)),
             visnan_vo_vd(y),
@@ -1723,32 +1569,26 @@ pub(crate) unsafe fn xcosh(x: VDouble) -> VDouble {
         y,
     );
 
-    // Propagate NaN
-    y = vreinterpret_vd_vm(vor_vm_vo64_vm(visnan_vo_vd(x), vreinterpret_vm_vd(y)));
+        y = vreinterpret_vd_vm(vor_vm_vo64_vm(visnan_vo_vd(x), vreinterpret_vm_vd(y)));
 
     y
 }
 
 #[inline(always)]
 pub(crate) unsafe fn xtanh(x: VDouble) -> VDouble {
-    // Get absolute value of input
-    let mut y = vabs_vd_vd(x);
+        let mut y = vabs_vd_vd(x);
 
-    // Calculate exp(x) using double-double arithmetic
-    let d = expk2(vcast_vd2_vd_vd(y, vcast_vd_d(0.0)));
+        let d = expk2(vcast_vd2_vd_vd(y, vcast_vd_d(0.0)));
 
-    // Calculate 1/exp(x)
-    let e = ddrec_vd2_vd2(d);
+        let e = ddrec_vd2_vd2(d);
 
-    // Calculate tanh(x) = (exp(x) - 1/exp(x))/(exp(x) + 1/exp(x))
-    let d = dddiv_vd2_vd2_vd2(
+        let d = dddiv_vd2_vd2_vd2(
         ddadd2_vd2_vd2_vd2(d, ddneg_vd2_vd2(e)),
         ddadd2_vd2_vd2_vd2(d, e),
     );
     y = vadd_vd_vd_vd(vd2getx_vd_vd2(d), vd2gety_vd_vd2(d));
 
-    // Handle overflow (approaches ±1) and NaN
-    y = vsel_vd_vo_vd_vd(
+        y = vsel_vd_vo_vd_vd(
         vor_vo_vo_vo(
             vgt_vo_vd_vd(vabs_vd_vd(x), vcast_vd_d(18.714973875)),
             visnan_vo_vd(y),
@@ -1757,11 +1597,9 @@ pub(crate) unsafe fn xtanh(x: VDouble) -> VDouble {
         y,
     );
 
-    // Apply sign of input
-    y = vmulsign_vd_vd_vd(y, x);
+        y = vmulsign_vd_vd_vd(y, x);
 
-    // Propagate NaN
-    y = vreinterpret_vd_vm(vor_vm_vo64_vm(visnan_vo_vd(x), vreinterpret_vm_vd(y)));
+        y = vreinterpret_vd_vm(vor_vm_vo64_vm(visnan_vo_vd(x), vreinterpret_vm_vd(y)));
 
     y
 }
@@ -1774,24 +1612,20 @@ unsafe fn logk2(d: VDouble2) -> VDouble2 {
     let mut s: VDouble2;
     let mut t: VDouble;
 
-    // Extract exponent
-    let e = vilogbk_vi_vd(vmul_vd_vd_vd(vd2getx_vd_vd2(d), vcast_vd_d(1.0 / 0.75)));
+        let e = vilogbk_vi_vd(vmul_vd_vd_vd(vd2getx_vd_vd2(d), vcast_vd_d(1.0 / 0.75)));
 
-    // Normalize mantissa
-    m = vd2setxy_vd2_vd_vd(
+        m = vd2setxy_vd2_vd_vd(
         vldexp2_vd_vd_vi(vd2getx_vd_vd2(d), vneg_vi_vi(e)),
         vldexp2_vd_vd_vi(vd2gety_vd_vd2(d), vneg_vi_vi(e)),
     );
 
-    // Calculate (m-1)/(m+1)
-    x = dddiv_vd2_vd2_vd2(
+        x = dddiv_vd2_vd2_vd2(
         ddadd2_vd2_vd2_vd(m, vcast_vd_d(-1.0)),
         ddadd2_vd2_vd2_vd(m, vcast_vd_d(1.0)),
     );
     x2 = ddsqu_vd2_vd2(x);
 
-    // Polynomial approximation
-    let x4 = vmul_vd_vd_vd(vd2getx_vd_vd2(x2), vd2getx_vd_vd2(x2));
+        let x4 = vmul_vd_vd_vd(vd2getx_vd_vd2(x2), vd2getx_vd_vd2(x2));
     let x8 = vmul_vd_vd_vd(x4, x4);
     t = poly7d(
         vd2getx_vd_vd2(x2),
@@ -1811,8 +1645,7 @@ unsafe fn logk2(d: VDouble2) -> VDouble2 {
         vcast_vd_d(0.666666666666664853302393),
     );
 
-    // Combine terms
-    s = ddmul_vd2_vd2_vd(
+        s = ddmul_vd2_vd2_vd(
         vcast_vd2_d_d(0.693147180559945286226764, 2.319046813846299558417771e-17),
         vcast_vd_vi(e),
     );
@@ -1824,32 +1657,23 @@ unsafe fn logk2(d: VDouble2) -> VDouble2 {
 
 #[inline(always)]
 pub(crate) unsafe fn xasinh(x: VDouble) -> VDouble {
-    // Get absolute value of input
-    let mut y = vabs_vd_vd(x);
+        let mut y = vabs_vd_vd(x);
 
-    // Check if |x| > 1
-    let o = vgt_vo_vd_vd(y, vcast_vd_d(1.0));
+        let o = vgt_vo_vd_vd(y, vcast_vd_d(1.0));
     let mut d: VDouble2;
 
-    // Select computation path based on magnitude
-    d = vsel_vd2_vo_vd2_vd2(
+        d = vsel_vd2_vo_vd2_vd2(
         o,
-        ddrec_vd2_vd(x),                     // if |x| > 1: 1/x
-        vcast_vd2_vd_vd(y, vcast_vd_d(0.0)), // if |x| ≤ 1: |x|
-    );
+        ddrec_vd2_vd(x),                             vcast_vd2_vd_vd(y, vcast_vd_d(0.0)),     );
 
-    // Calculate sqrt(d^2 + 1)
-    d = ddsqrt_vd2_vd2(ddadd2_vd2_vd2_vd(ddsqu_vd2_vd2(d), vcast_vd_d(1.0)));
+        d = ddsqrt_vd2_vd2(ddadd2_vd2_vd2_vd(ddsqu_vd2_vd2(d), vcast_vd_d(1.0)));
 
-    // If |x| > 1, multiply by |x|
-    d = vsel_vd2_vo_vd2_vd2(o, ddmul_vd2_vd2_vd(d, y), d);
+        d = vsel_vd2_vo_vd2_vd2(o, ddmul_vd2_vd2_vd(d, y), d);
 
-    // Calculate log(d + x)
-    d = logk2(ddnormalize_vd2_vd2(ddadd2_vd2_vd2_vd(d, x)));
+        d = logk2(ddnormalize_vd2_vd2(ddadd2_vd2_vd2_vd(d, x)));
     y = vadd_vd_vd_vd(vd2getx_vd_vd2(d), vd2gety_vd_vd2(d));
 
-    // Handle overflow and NaN
-    y = vsel_vd_vo_vd_vd(
+        y = vsel_vd_vo_vd_vd(
         vor_vo_vo_vo(
             vgt_vo_vd_vd(vabs_vd_vd(x), vcast_vd_d(SQRT_DBL_MAX)),
             visnan_vo_vd(y),
@@ -1858,19 +1682,16 @@ pub(crate) unsafe fn xasinh(x: VDouble) -> VDouble {
         y,
     );
 
-    // Propagate NaN
-    y = vreinterpret_vd_vm(vor_vm_vo64_vm(visnan_vo_vd(x), vreinterpret_vm_vd(y)));
+        y = vreinterpret_vd_vm(vor_vm_vo64_vm(visnan_vo_vd(x), vreinterpret_vm_vd(y)));
 
-    // Handle negative zero
-    y = vsel_vd_vo_vd_vd(visnegzero_vo_vd(x), vcast_vd_d(-0.0), y);
+        y = vsel_vd_vo_vd_vd(visnegzero_vo_vd(x), vcast_vd_d(-0.0), y);
 
     y
 }
 
 #[inline(always)]
 pub(crate) unsafe fn xacosh(x: VDouble) -> VDouble {
-    // Calculate acosh using log: acosh(x) = log(x + sqrt((x+1)(x-1)))
-    let d = logk2(ddadd2_vd2_vd2_vd(
+        let d = logk2(ddadd2_vd2_vd2_vd(
         ddmul_vd2_vd2_vd2(
             ddsqrt_vd2_vd2(ddadd2_vd2_vd_vd(x, vcast_vd_d(1.0))),
             ddsqrt_vd2_vd2(ddadd2_vd2_vd_vd(x, vcast_vd_d(-1.0))),
@@ -1879,8 +1700,7 @@ pub(crate) unsafe fn xacosh(x: VDouble) -> VDouble {
     ));
     let mut y = vadd_vd_vd_vd(vd2getx_vd_vd2(d), vd2gety_vd_vd2(d));
 
-    // Handle overflow and NaN
-    y = vsel_vd_vo_vd_vd(
+        y = vsel_vd_vo_vd_vd(
         vor_vo_vo_vo(
             vgt_vo_vd_vd(vabs_vd_vd(x), vcast_vd_d(SQRT_DBL_MAX)),
             visnan_vo_vd(y),
@@ -1889,37 +1709,31 @@ pub(crate) unsafe fn xacosh(x: VDouble) -> VDouble {
         y,
     );
 
-    // Handle x = 1 (acosh(1) = 0)
-    y = vreinterpret_vd_vm(vandnot_vm_vo64_vm(
+        y = vreinterpret_vd_vm(vandnot_vm_vo64_vm(
         veq_vo_vd_vd(x, vcast_vd_d(1.0)),
         vreinterpret_vm_vd(y),
     ));
 
-    // Return NaN for x < 1 (domain error)
-    y = vreinterpret_vd_vm(vor_vm_vo64_vm(
+        y = vreinterpret_vd_vm(vor_vm_vo64_vm(
         vlt_vo_vd_vd(x, vcast_vd_d(1.0)),
         vreinterpret_vm_vd(y),
     ));
 
-    // Propagate NaN input
-    y = vreinterpret_vd_vm(vor_vm_vo64_vm(visnan_vo_vd(x), vreinterpret_vm_vd(y)));
+        y = vreinterpret_vd_vm(vor_vm_vo64_vm(visnan_vo_vd(x), vreinterpret_vm_vd(y)));
 
     y
 }
 
 #[inline(always)]
 pub(crate) unsafe fn xatanh(x: VDouble) -> VDouble {
-    // Get absolute value of input
-    let y = vabs_vd_vd(x);
+        let y = vabs_vd_vd(x);
 
-    // Calculate atanh using log: atanh(x) = 0.5 * log((1+x)/(1-x))
-    let d = logk2(dddiv_vd2_vd2_vd2(
+        let d = logk2(dddiv_vd2_vd2_vd2(
         ddadd2_vd2_vd_vd(vcast_vd_d(1.0), y),
         ddadd2_vd2_vd_vd(vcast_vd_d(1.0), vneg_vd_vd(y)),
     ));
 
-    // Handle domain and special cases
-    let mut y = vreinterpret_vd_vm(vor_vm_vo64_vm(
+        let mut y = vreinterpret_vd_vm(vor_vm_vo64_vm(
         vgt_vo_vd_vd(y, vcast_vd_d(1.0)),
         vreinterpret_vm_vd(vsel_vd_vo_vd_vd(
             veq_vo_vd_vd(y, vcast_vd_d(1.0)),
@@ -1931,35 +1745,29 @@ pub(crate) unsafe fn xatanh(x: VDouble) -> VDouble {
         )),
     ));
 
-    // Apply sign of input
-    y = vmulsign_vd_vd_vd(y, x);
+        y = vmulsign_vd_vd_vd(y, x);
 
-    // Handle infinite inputs
-    y = vreinterpret_vd_vm(vor_vm_vo64_vm(
+        y = vreinterpret_vd_vm(vor_vm_vo64_vm(
         vor_vo_vo_vo(visinf_vo_vd(x), visnan_vo_vd(y)),
         vreinterpret_vm_vd(y),
     ));
 
-    // Propagate NaN
-    y = vreinterpret_vd_vm(vor_vm_vo64_vm(visnan_vo_vd(x), vreinterpret_vm_vd(y)));
+        y = vreinterpret_vd_vm(vor_vm_vo64_vm(visnan_vo_vd(x), vreinterpret_vm_vd(y)));
 
     y
 }
 
 #[inline(always)]
 pub(crate) unsafe fn xexp2(d: VDouble) -> VDouble {
-    // Round to nearest integer and get fractional part
-    let u = vrint_vd_vd(d);
+        let u = vrint_vd_vd(d);
     let s = vsub_vd_vd_vd(d, u);
     let q = vrint_vi_vd(u);
 
-    // Calculate powers of s for polynomial
-    let s2 = vmul_vd_vd_vd(s, s);
+        let s2 = vmul_vd_vd_vd(s, s);
     let s4 = vmul_vd_vd_vd(s2, s2);
     let s8 = vmul_vd_vd_vd(s4, s4);
 
-    // Polynomial approximation
-    let mut u = poly10d(
+        let mut u = poly10d(
         s,
         s2,
         s4,
@@ -1976,11 +1784,9 @@ pub(crate) unsafe fn xexp2(d: VDouble) -> VDouble {
         0.2402265069591012214e+0,
     );
 
-    // Add ln(2) term
-    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.6931471805599452862e+0));
+        u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.6931471805599452862e+0));
 
-    // Final computation differs based on FMA support
-    #[cfg(target_feature = "fma")]
+        #[cfg(target_feature = "fma")]
     {
         use helper::vfma_vd_vd_vd_vd;
         u = vfma_vd_vd_vd_vd(u, s, vcast_vd_d(1.0));
@@ -1994,11 +1800,9 @@ pub(crate) unsafe fn xexp2(d: VDouble) -> VDouble {
         )));
     }
 
-    // Scale by 2^q
-    u = vldexp2_vd_vd_vi(u, q);
+        u = vldexp2_vd_vd_vi(u, q);
 
-    // Handle special cases
-    u = vsel_vd_vo_vd_vd(
+        u = vsel_vd_vo_vd_vd(
         vge_vo_vd_vd(d, vcast_vd_d(1024.0)),
         vcast_vd_d(f64::INFINITY),
         u,
@@ -2013,16 +1817,13 @@ pub(crate) unsafe fn xexp2(d: VDouble) -> VDouble {
 
 #[inline(always)]
 pub(crate) unsafe fn xexp10(d: VDouble) -> VDouble {
-    // Calculate q = round(d * log10(2))
-    let u = vrint_vd_vd(vmul_vd_vd_vd(d, vcast_vd_d(LOG10_2)));
+        let u = vrint_vd_vd(vmul_vd_vd_vd(d, vcast_vd_d(LOG10_2)));
     let q = vrint_vi_vd(u);
 
-    // Range reduction: s = d - u * log10(e)
-    let mut s = vmla_vd_vd_vd_vd(u, vcast_vd_d(-L10_U), d);
+        let mut s = vmla_vd_vd_vd_vd(u, vcast_vd_d(-L10_U), d);
     s = vmla_vd_vd_vd_vd(u, vcast_vd_d(-L10_L), s);
 
-    // Polynomial approximation of exp10(s)
-    let mut u = vcast_vd_d(0.2411463498334267652e-3);
+        let mut u = vcast_vd_d(0.2411463498334267652e-3);
     u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.1157488415217187375e-2));
     u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.5013975546789733659e-2));
     u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.1959762320720533080e-1));
@@ -2034,8 +1835,7 @@ pub(crate) unsafe fn xexp10(d: VDouble) -> VDouble {
     u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.2650949055239205876e+1));
     u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.2302585092994045901e+1));
 
-    // Combine terms
-    #[cfg(target_feature = "fma")]
+        #[cfg(target_feature = "fma")]
     {
         use helper::vfma_vd_vd_vd_vd;
         u = vfma_vd_vd_vd_vd(u, s, vcast_vd_d(1.0));
@@ -2048,11 +1848,9 @@ pub(crate) unsafe fn xexp10(d: VDouble) -> VDouble {
         )));
     }
 
-    // Scale by 2^q
-    u = vldexp2_vd_vd_vi(u, q);
+        u = vldexp2_vd_vd_vi(u, q);
 
-    // Handle overflow and underflow
-    u = vsel_vd_vo_vd_vd(
+        u = vsel_vd_vo_vd_vd(
         vgt_vo_vd_vd(d, vcast_vd_d(308.25471555991671)),
         vcast_vd_d(f64::INFINITY),
         u,
@@ -2067,26 +1865,22 @@ pub(crate) unsafe fn xexp10(d: VDouble) -> VDouble {
 
 #[inline(always)]
 pub(crate) unsafe fn xexpm1(a: VDouble) -> VDouble {
-    // Calculate exp(a) - 1 using double-double arithmetic
-    let d = ddadd2_vd2_vd2_vd(expk2(vcast_vd2_vd_vd(a, vcast_vd_d(0.0))), vcast_vd_d(-1.0));
+        let d = ddadd2_vd2_vd2_vd(expk2(vcast_vd2_vd_vd(a, vcast_vd_d(0.0))), vcast_vd_d(-1.0));
     let mut x = vadd_vd_vd_vd(vd2getx_vd_vd2(d), vd2gety_vd_vd2(d));
 
-    // Handle overflow
-    x = vsel_vd_vo_vd_vd(
+        x = vsel_vd_vo_vd_vd(
         vgt_vo_vd_vd(a, vcast_vd_d(709.782712893383996732223)),
         vcast_vd_d(f64::INFINITY),
         x,
     );
 
-    // Handle underflow
-    x = vsel_vd_vo_vd_vd(
+        x = vsel_vd_vo_vd_vd(
         vlt_vo_vd_vd(a, vcast_vd_d(-36.736800569677101399113302437)),
         vcast_vd_d(-1.0),
         x,
     );
 
-    // Handle negative zero
-    x = vsel_vd_vo_vd_vd(visnegzero_vo_vd(a), vcast_vd_d(-0.0), x);
+        x = vsel_vd_vo_vd_vd(visnegzero_vo_vd(a), vcast_vd_d(-0.0), x);
 
     x
 }
@@ -2097,8 +1891,7 @@ pub(crate) unsafe fn xlog10(d: VDouble) -> VDouble {
     let t: VDouble;
     let x2: VDouble;
 
-    // Handle subnormal numbers and extract exponent/mantissa
-    #[cfg(not(target_feature = "avx512f"))]
+        #[cfg(not(target_feature = "avx512f"))]
     let (m, e) = {
         let o = vlt_vo_vd_vd(d, vcast_vd_d(SLEEF_DBL_MIN));
         let d = vsel_vd_vo_vd_vd(o, vmul_vd_vd_vd(d, vcast_vd_d(2_f64.powi(64))), d);
@@ -2116,15 +1909,13 @@ pub(crate) unsafe fn xlog10(d: VDouble) -> VDouble {
         (m, e)
     };
 
-    // Calculate (m-1)/(m+1) and its square
-    x = dddiv_vd2_vd2_vd2(
+        x = dddiv_vd2_vd2_vd2(
         ddadd2_vd2_vd_vd(vcast_vd_d(-1.0), m),
         ddadd2_vd2_vd_vd(vcast_vd_d(1.0), m),
     );
     x2 = vmul_vd_vd_vd(vd2getx_vd_vd2(x), vd2getx_vd_vd2(x));
 
-    // Polynomial approximation
-    let x4 = vmul_vd_vd_vd(x2, x2);
+        let x4 = vmul_vd_vd_vd(x2, x2);
     let x8 = vmul_vd_vd_vd(x4, x4);
     t = poly7d(
         x2,
@@ -2139,8 +1930,7 @@ pub(crate) unsafe fn xlog10(d: VDouble) -> VDouble {
         0.2895296546021972617e+0,
     );
 
-    // Combine terms
-    #[cfg(not(target_feature = "avx512f"))]
+        #[cfg(not(target_feature = "avx512f"))]
     let mut s = ddmul_vd2_vd2_vd(
         vcast_vd2_d_d(0.30102999566398119802, -2.803728127785170339e-18),
         vcast_vd_vi(e),
@@ -2163,8 +1953,7 @@ pub(crate) unsafe fn xlog10(d: VDouble) -> VDouble {
 
     let mut r = vadd_vd_vd_vd(vd2getx_vd_vd2(s), vd2gety_vd_vd2(s));
 
-    // Handle special cases
-    #[cfg(not(target_feature = "avx512f"))]
+        #[cfg(not(target_feature = "avx512f"))]
     {
         r = vsel_vd_vo_vd_vd(vispinf_vo_vd(d), vcast_vd_d(f64::INFINITY), r);
         r = vsel_vd_vo_vd_vd(
@@ -2198,8 +1987,7 @@ pub(crate) unsafe fn xlog2(d: VDouble) -> VDouble {
     let t: VDouble;
     let x2: VDouble;
 
-    // Handle subnormal numbers and extract exponent/mantissa
-    #[cfg(not(target_feature = "avx512f"))]
+        #[cfg(not(target_feature = "avx512f"))]
     let (m, e) = {
         let o = vlt_vo_vd_vd(d, vcast_vd_d(SLEEF_DBL_MIN));
         let d = vsel_vd_vo_vd_vd(o, vmul_vd_vd_vd(d, vcast_vd_d(2_f64.powi(64))), d);
@@ -2217,15 +2005,13 @@ pub(crate) unsafe fn xlog2(d: VDouble) -> VDouble {
         (m, e)
     };
 
-    // Calculate (m-1)/(m+1) and its square
-    x = dddiv_vd2_vd2_vd2(
+        x = dddiv_vd2_vd2_vd2(
         ddadd2_vd2_vd_vd(vcast_vd_d(-1.0), m),
         ddadd2_vd2_vd_vd(vcast_vd_d(1.0), m),
     );
     x2 = vmul_vd_vd_vd(vd2getx_vd_vd2(x), vd2getx_vd_vd2(x));
 
-    // Polynomial approximation
-    let x4 = vmul_vd_vd_vd(x2, x2);
+        let x4 = vmul_vd_vd_vd(x2, x2);
     let x8 = vmul_vd_vd_vd(x4, x4);
     t = poly7d(
         x2,
@@ -2240,8 +2026,7 @@ pub(crate) unsafe fn xlog2(d: VDouble) -> VDouble {
         0.96179669392608091449,
     );
 
-    // Combine terms
-    #[cfg(not(target_feature = "avx512f"))]
+        #[cfg(not(target_feature = "avx512f"))]
     let mut s = ddadd2_vd2_vd_vd2(
         vcast_vd_vi(e),
         ddmul_vd2_vd2_vd2(
@@ -2263,8 +2048,7 @@ pub(crate) unsafe fn xlog2(d: VDouble) -> VDouble {
 
     let mut r = vadd_vd_vd_vd(vd2getx_vd_vd2(s), vd2gety_vd_vd2(s));
 
-    // Handle special cases
-    #[cfg(not(target_feature = "avx512f"))]
+        #[cfg(not(target_feature = "avx512f"))]
     {
         r = vsel_vd_vo_vd_vd(vispinf_vo_vd(d), vcast_vd_d(f64::INFINITY), r);
         r = vsel_vd_vo_vd_vd(
@@ -2300,8 +2084,7 @@ pub(crate) unsafe fn xlog1p(d: VDouble) -> VDouble {
 
     let dp1 = vadd_vd_vd_vd(d, vcast_vd_d(1.0));
 
-    // Handle subnormal numbers and extract exponent/mantissa
-    #[cfg(not(target_feature = "avx512f"))]
+        #[cfg(not(target_feature = "avx512f"))]
     let (m, s) = {
         let o = vlt_vo_vd_vd(dp1, vcast_vd_d(SLEEF_DBL_MIN));
         let dp1 = vsel_vd_vo_vd_vd(o, vmul_vd_vd_vd(dp1, vcast_vd_d(2_f64.powi(64))), dp1);
@@ -2329,15 +2112,13 @@ pub(crate) unsafe fn xlog1p(d: VDouble) -> VDouble {
         (m, s)
     };
 
-    // Calculate x/(2+x) and its square
-    x = dddiv_vd2_vd2_vd2(
+        x = dddiv_vd2_vd2_vd2(
         vcast_vd2_vd_vd(m, vcast_vd_d(0.0)),
         ddadd_vd2_vd_vd(vcast_vd_d(2.0), m),
     );
     x2 = vmul_vd_vd_vd(vd2getx_vd_vd2(x), vd2getx_vd_vd2(x));
 
-    // Polynomial approximation
-    let x4 = vmul_vd_vd_vd(x2, x2);
+        let x4 = vmul_vd_vd_vd(x2, x2);
     let x8 = vmul_vd_vd_vd(x4, x4);
     t = poly7d(
         x2,
@@ -2352,20 +2133,17 @@ pub(crate) unsafe fn xlog1p(d: VDouble) -> VDouble {
         0.6666666666667333541e+0,
     );
 
-    // Combine terms
-    let mut s = ddadd_vd2_vd2_vd2(s, ddscale_vd2_vd2_vd(x, vcast_vd_d(2.0)));
+        let mut s = ddadd_vd2_vd2_vd2(s, ddscale_vd2_vd2_vd(x, vcast_vd_d(2.0)));
     s = ddadd_vd2_vd2_vd(s, vmul_vd_vd_vd(vmul_vd_vd_vd(x2, vd2getx_vd_vd2(x)), t));
 
     let mut r = vadd_vd_vd_vd(vd2getx_vd_vd2(s), vd2gety_vd_vd2(s));
 
-    // Use log(d) if d too large
-    let ocore = vle_vo_vd_vd(d, vcast_vd_d(LOG1P_BOUND));
+        let ocore = vle_vo_vd_vd(d, vcast_vd_d(LOG1P_BOUND));
     if vtestallones_i_vo64(ocore) == 0 {
         r = vsel_vd_vo_vd_vd(ocore, r, xlog_u1(d));
     }
 
-    // Handle special cases
-    r = vsel_vd_vo_vd_vd(
+        r = vsel_vd_vo_vd_vd(
         vor_vo_vo_vo(vlt_vo_vd_vd(d, vcast_vd_d(-1.0)), visnan_vo_vd(d)),
         vcast_vd_d(f64::NAN),
         r,
@@ -2391,22 +2169,18 @@ pub(crate) unsafe fn xsqrt_u05(d: VDouble) -> VDouble {
         let mut y: VDouble;
         let mut z: VDouble;
 
-        // Handle negative input
-        let mut d = vsel_vd_vo_vd_vd(vlt_vo_vd_vd(d, vcast_vd_d(0.0)), vcast_vd_d(f64::NAN), d);
+                let mut d = vsel_vd_vo_vd_vd(vlt_vo_vd_vd(d, vcast_vd_d(0.0)), vcast_vd_d(f64::NAN), d);
 
-        // Handle subnormal numbers
-        let o = vlt_vo_vd_vd(d, vcast_vd_d(8.636168555094445E-78));
+                let o = vlt_vo_vd_vd(d, vcast_vd_d(8.636168555094445E-78));
         d = vsel_vd_vo_vd_vd(o, vmul_vd_vd_vd(d, vcast_vd_d(1.157920892373162E77)), d);
         q = vsel_vd_vo_vd_vd(o, vcast_vd_d(2.9387358770557188E-39), vcast_vd_d(1.0));
 
-        // Initial approximation
-        y = vreinterpret_vd_vm(vsub64_vm_vm_vm(
+                y = vreinterpret_vd_vm(vsub64_vm_vm_vm(
             vcast_vm_i_i(0x5fe6ec85, 0xe7de30dau32 as i32),
             vsrl64_vm_vm_i::<1>(vreinterpret_vm_vd(d)),
         ));
 
-        // Newton-Raphson iterations with FMA
-        x = vmul_vd_vd_vd(d, y);
+                x = vmul_vd_vd_vd(d, y);
         w = vmul_vd_vd_vd(vcast_vd_d(0.5), y);
         y = vfmanp_vd_vd_vd_vd(x, w, vcast_vd_d(0.5));
 
@@ -2421,24 +2195,21 @@ pub(crate) unsafe fn xsqrt_u05(d: VDouble) -> VDouble {
         x = vfma_vd_vd_vd_vd(x, y, x);
         w = vfma_vd_vd_vd_vd(w, y, w);
 
-        // Final refinement steps
-        y = vfmanp_vd_vd_vd_vd(x, w, vcast_vd_d(1.5));
+                y = vfmanp_vd_vd_vd_vd(x, w, vcast_vd_d(1.5));
         w = vadd_vd_vd_vd(w, w);
         w = vmul_vd_vd_vd(w, y);
         x = vmul_vd_vd_vd(w, d);
         y = vfmapn_vd_vd_vd_vd(w, d, x);
         z = vfmanp_vd_vd_vd_vd(w, x, vcast_vd_d(1.0));
 
-        // Final correction
-        z = vfmanp_vd_vd_vd_vd(w, y, z);
+                z = vfmanp_vd_vd_vd_vd(w, y, z);
         w = vmul_vd_vd_vd(vcast_vd_d(0.5), x);
         w = vfma_vd_vd_vd_vd(w, z, y);
         w = vadd_vd_vd_vd(w, x);
 
         w = vmul_vd_vd_vd(w, q);
 
-        // Handle special cases
-        w = vsel_vd_vo_vd_vd(
+                w = vsel_vd_vo_vd_vd(
             vor_vo_vo_vo(
                 veq_vo_vd_vd(d, vcast_vd_d(0.0)),
                 veq_vo_vd_vd(d, vcast_vd_d(f64::INFINITY)),
@@ -2458,27 +2229,22 @@ pub(crate) unsafe fn xsqrt_u05(d: VDouble) -> VDouble {
         let mut q: VDouble;
         let mut o: VMask;
 
-        // Handle negative input
-        let mut d = vsel_vd_vo_vd_vd(vlt_vo_vd_vd(d, vcast_vd_d(0.0)), vcast_vd_d(f64::NAN), d);
+                let mut d = vsel_vd_vo_vd_vd(vlt_vo_vd_vd(d, vcast_vd_d(0.0)), vcast_vd_d(f64::NAN), d);
 
-        // Handle very small numbers
-        o = vlt_vo_vd_vd(d, vcast_vd_d(8.636168555094445E-78));
+                o = vlt_vo_vd_vd(d, vcast_vd_d(8.636168555094445E-78));
         d = vsel_vd_vo_vd_vd(o, vmul_vd_vd_vd(d, vcast_vd_d(1.157920892373162E77)), d);
         q = vsel_vd_vo_vd_vd(o, vcast_vd_d(2.9387358770557188E-39 * 0.5), vcast_vd_d(0.5));
 
-        // Handle very large numbers
-        o = vgt_vo_vd_vd(d, vcast_vd_d(1.3407807929942597e+154));
+                o = vgt_vo_vd_vd(d, vcast_vd_d(1.3407807929942597e+154));
         d = vsel_vd_vo_vd_vd(o, vmul_vd_vd_vd(d, vcast_vd_d(7.4583407312002070e-155)), d);
         q = vsel_vd_vo_vd_vd(o, vcast_vd_d(1.1579208923731620e+77 * 0.5), q);
 
-        // Initial approximation
-        let mut x = vreinterpret_vd_vm(vsub64_vm_vm_vm(
+                let mut x = vreinterpret_vd_vm(vsub64_vm_vm_vm(
             vcast_vm_i_i(0x5fe6ec86, 0),
             vsrl64_vm_vm_i::<1>(vreinterpret_vm_vd(vadd_vd_vd_vd(d, vcast_vd_d(1e-320)))),
         ));
 
-        // Newton-Raphson iterations
-        x = vmul_vd_vd_vd(
+                x = vmul_vd_vd_vd(
             x,
             vsub_vd_vd_vd(
                 vcast_vd_d(1.5),
@@ -2501,14 +2267,11 @@ pub(crate) unsafe fn xsqrt_u05(d: VDouble) -> VDouble {
         );
         x = vmul_vd_vd_vd(x, d);
 
-        // Final refinement using double-double arithmetic
-        let d2 = ddmul_vd2_vd2_vd2(ddadd2_vd2_vd_vd2(d, ddmul_vd2_vd_vd(x, x)), ddrec_vd2_vd(x));
+                let d2 = ddmul_vd2_vd2_vd2(ddadd2_vd2_vd_vd2(d, ddmul_vd2_vd_vd(x, x)), ddrec_vd2_vd(x));
 
-        // Combine terms and apply scaling
-        x = vmul_vd_vd_vd(vadd_vd_vd_vd(vd2getx_vd_vd2(d2), vd2gety_vd_vd2(d2)), q);
+                x = vmul_vd_vd_vd(vadd_vd_vd_vd(vd2getx_vd_vd2(d2), vd2gety_vd_vd2(d2)), q);
 
-        // Handle special cases
-        x = vsel_vd_vo_vd_vd(vispinf_vo_vd(d), vcast_vd_d(f64::INFINITY), x);
+                x = vsel_vd_vo_vd_vd(vispinf_vo_vd(d), vcast_vd_d(f64::INFINITY), x);
         x = vsel_vd_vo_vd_vd(veq_vo_vd_vd(d, vcast_vd_d(0.0)), d, x);
 
         x
@@ -2517,42 +2280,32 @@ pub(crate) unsafe fn xsqrt_u05(d: VDouble) -> VDouble {
 
 #[inline(always)]
 unsafe fn ddmla_vd2_vd_vd2_vd2(x: VDouble, y: VDouble2, z: VDouble2) -> VDouble2 {
-    // 计算 z + (y * x)
-    // 1. 先计算 y * x
-    let mul = ddmul_vd2_vd2_vd(y, x);
+            let mul = ddmul_vd2_vd2_vd(y, x);
 
-    // 2. 再将结果与z相加
-    ddadd_vd2_vd2_vd2(z, mul)
+        ddadd_vd2_vd2_vd2(z, mul)
 }
 
 #[inline(always)]
 unsafe fn poly2dd_b(x: VDouble, c1: VDouble2, c0: VDouble2) -> VDouble2 {
-    // 计算 c1*x + c0，其中c1和c0都是双精度系数
-    ddmla_vd2_vd_vd2_vd2(x, c1, c0)
+        ddmla_vd2_vd_vd2_vd2(x, c1, c0)
 }
 
 #[inline(always)]
 unsafe fn poly2dd(x: VDouble, c1: VDouble, c0: VDouble2) -> VDouble2 {
-    // 将单精度系数c1转换为双精度系数
-    let c1_dd = vcast_vd2_vd_vd(c1, vcast_vd_d(0.0));
+        let c1_dd = vcast_vd2_vd_vd(c1, vcast_vd_d(0.0));
 
-    // 计算 c1*x + c0，其中c1是单精度系数，c0是双精度系数
-    ddmla_vd2_vd_vd2_vd2(x, c1_dd, c0)
+        ddmla_vd2_vd_vd2_vd2(x, c1_dd, c0)
 }
 
 #[inline(always)]
 unsafe fn poly4dd(x: VDouble, c3: VDouble, c2: VDouble2, c1: VDouble2, c0: VDouble2) -> VDouble2 {
-    // 计算 x^2
-    let x2 = vmul_vd_vd_vd(x, x);
+        let x2 = vmul_vd_vd_vd(x, x);
 
-    // 计算高阶项 c3*x^3 + c2*x^2
-    let high = poly2dd(x, c3, c2);
+        let high = poly2dd(x, c3, c2);
 
-    // 计算低阶项 c1*x + c0
-    let low = poly2dd_b(x, c1, c0);
+        let low = poly2dd_b(x, c1, c0);
 
-    // 组合: (c3*x^3 + c2*x^2)*x^2 + (c1*x + c0)
-    ddmla_vd2_vd_vd2_vd2(x2, high, low)
+        ddmla_vd2_vd_vd2_vd2(x2, high, low)
 }
 
 #[inline(always)]
@@ -2567,8 +2320,7 @@ pub(crate) unsafe fn xerf_u1(a: VDouble) -> VDouble {
     let o25 = vle_vo_vd_vd(x, vcast_vd_d(2.5));
 
     if vtestallones_i_vo64(o25) != 0 {
-        // Abramowitz and Stegun approximation for x ≤ 2.5
-        t = poly21d(
+                t = poly21d(
             x,
             x2,
             x4,
@@ -2612,8 +2364,7 @@ pub(crate) unsafe fn xerf_u1(a: VDouble) -> VDouble {
         t2 = ddsqu_vd2_vd2(t2);
         t2 = ddrec_vd2_vd2(t2);
     } else {
-        // Path for x > 2.5
-        t = poly21d_(
+                t = poly21d_(
             x,
             x2,
             x4,
@@ -2689,23 +2440,19 @@ pub(crate) unsafe fn xerf_u1(a: VDouble) -> VDouble {
 
 #[inline(always)]
 pub(crate) unsafe fn xhypot_u05(x: VDouble, y: VDouble) -> VDouble {
-    // Take absolute values
-    let x = vabs_vd_vd(x);
+        let x = vabs_vd_vd(x);
     let y = vabs_vd_vd(y);
 
-    // Find min and max values
-    let min = vmin_vd_vd_vd(x, y);
+        let min = vmin_vd_vd_vd(x, y);
     let mut n = min;
     let max = vmax_vd_vd_vd(x, y);
     let mut d = max;
 
-    // Handle subnormal numbers
-    let o = vlt_vo_vd_vd(max, vcast_vd_d(SLEEF_DBL_MIN));
+        let o = vlt_vo_vd_vd(max, vcast_vd_d(SLEEF_DBL_MIN));
     n = vsel_vd_vo_vd_vd(o, vmul_vd_vd_vd(n, vcast_vd_d(2_f64.powi(54))), n);
     d = vsel_vd_vo_vd_vd(o, vmul_vd_vd_vd(d, vcast_vd_d(2_f64.powi(54))), d);
 
-    // Calculate sqrt(1 + (min/max)^2) * max using double-double arithmetic
-    let t = dddiv_vd2_vd2_vd2(
+        let t = dddiv_vd2_vd2_vd2(
         vcast_vd2_vd_vd(n, vcast_vd_d(0.0)),
         vcast_vd2_vd_vd(d, vcast_vd_d(0.0)),
     );
@@ -2714,11 +2461,9 @@ pub(crate) unsafe fn xhypot_u05(x: VDouble, y: VDouble) -> VDouble {
         max,
     );
 
-    // Combine high and low parts
-    let mut ret = vadd_vd_vd_vd(vd2getx_vd_vd2(t), vd2gety_vd_vd2(t));
+        let mut ret = vadd_vd_vd_vd(vd2getx_vd_vd2(t), vd2gety_vd_vd2(t));
 
-    // Handle special cases
-    ret = vsel_vd_vo_vd_vd(visnan_vo_vd(ret), vcast_vd_d(f64::INFINITY), ret);
+        ret = vsel_vd_vo_vd_vd(visnan_vo_vd(ret), vcast_vd_d(f64::INFINITY), ret);
     ret = vsel_vd_vo_vd_vd(veq_vo_vd_vd(min, vcast_vd_d(0.0)), max, ret);
     ret = vsel_vd_vo_vd_vd(
         vor_vo_vo_vo(visnan_vo_vd(x), visnan_vo_vd(y)),
@@ -2739,14 +2484,12 @@ pub(crate) unsafe fn xhypot_u05(x: VDouble, y: VDouble) -> VDouble {
 
 #[inline(always)]
 pub(crate) unsafe fn xtrunc(x: VDouble) -> VDouble {
-    // 截断取整：去掉小数部分
-    vtruncate2_vd_vd(x)
+        vtruncate2_vd_vd(x)
 }
 
 #[inline(always)]
 pub(crate) unsafe fn xround(x: VDouble) -> VDouble {
-    // 四舍五入取整
-    vround2_vd_vd(x)
+        vround2_vd_vd(x)
 }
 
 #[inline(always)]

@@ -1,90 +1,220 @@
-use rust_xlsxwriter::{ Format, Workbook };
-use std::io::Write;
+use std::io::BufRead;
+
+use tensor_common::slice;
 use tensor_dyn::*;
 
 
-fn main() -> anyhow::Result<()> {
-    // conv2d()?;
-    // let a = Tensor::<f32>::arange(0, 10000)?;
-    // let b = _Tensor::<f32>::arange(0, 10000)?;
-    // let now = std::time::Instant::now();
-    // let c = compute(a, b)?;
-    Ok(())
+struct Conv2dBatchNorm {
+    weight: Tensor<f32>,
+    bias: Tensor<f32>,
+    gamma: Tensor<f32>,
+    beta: Tensor<f32>,
+    mean: Tensor<f32>,
+    var: Tensor<f32>,
+    epsilon: f32,
 }
 
-fn conv2d() -> Result<(), anyhow::Error> {
-    let oc_sets = [128, 256, 512, 1024, 2048, 4096, 8192];
-    let ic_sets = [8192];
-    let kh_sets = [4];
-    let kw_sets = [4];
-    let h_sets = [256];
-    let w_sets = [256];
-
-    // set_num_threads(10);
-    let mut workbook = Workbook::new();
-    let decimal_format = Format::new().set_num_format("0.0000000000");
-    let format = Format::new();
-    let worksheet = workbook.add_worksheet();
-
-    let mut row = 0;
-    for ic in ic_sets {
-        for kh in kh_sets {
-            for kw in kw_sets {
-                for h in h_sets {
-                    for w in w_sets {
-                        let a = Tensor::<f32>
-                            ::arange(0, 1 * ic * h * w)?
-                            .reshape([1, ic, h, w])?
-                            .permute([0, 2, 3, 1])?
-                            .contiguous()?;
-                        // let device = Device::Cpu;
-                        // let a = Tensor::randn(1.0, 1.0, &[1, ic, h, w], &device)?;
-                        // let kernel = Tensor::randn(1.0, 1.0, &[oc, ic, kh, kw], &device)?;
-                        let now = std::time::Instant::now();
-                        for _ in 0..10 {
-                            let _ = a.maxpool2d(
-                                &[kh, kw].into(),
-                                [1, 1],
-                                [
-                                    (0, 0),
-                                    (0, 0),
-                                ],
-                                [2, 2]
-                            )?;
-                        }
-                        println!("{:?}", now.elapsed() / 10);
-                        worksheet.write_number(
-                            row,
-                            0,
-                            (now.elapsed().as_millis() as f64) / 10.0,
-                            &decimal_format
-                        )?;
-                        worksheet.write_string(
-                            row,
-                            1,
-                            &format!("({}, {}, {}, {}, {})", ic, kh, kw, h, w),
-                            &format
-                        )?;
-                        print!(
-                            "\rprogress: {}%",
-                            ((row + 1) * 100) /
-                                (
-                                    (ic_sets.len() *
-                                        oc_sets.len() *
-                                        kh_sets.len() *
-                                        kw_sets.len() *
-                                        h_sets.len() *
-                                        w_sets.len()) as u32
-                                )
-                        );
-                        std::io::stdout().flush().expect("Failed to flush stdout");
-                        row += 1;
-                    }
-                }
-            }
-        }
+impl Conv2dBatchNorm {
+    fn new() -> Self {
+        todo!()
     }
+    fn forward(&self, x: Tensor<f32>) -> Tensor<f32> {
+        todo!()
+    }
+}
 
-    workbook.save("conv2d_result.xlsx")?;
+struct Relu;
+
+impl Relu {
+    fn new() -> Self {
+        todo!()
+    }
+    fn forward(&self, x: Tensor<f32>) -> Tensor<f32> {
+        todo!()
+    }
+}
+
+struct MaxPool2d;
+
+impl MaxPool2d {
+    fn new() -> Self {
+        todo!()
+    }
+    fn forward(&self, x: Tensor<f32>) -> Tensor<f32> {
+        todo!()
+    }
+}
+
+struct BasicBlock {
+    conv2d_bn: Conv2dBatchNorm,
+    relu: Relu,
+    conv2d_bn2: Conv2dBatchNorm,
+    downsample: Conv2dBatchNorm,
+}
+
+impl BasicBlock {
+    fn new() -> Self {
+        todo!()
+    }
+    fn forward(&self, x: Tensor<f32>) -> Tensor<f32> {
+        todo!()
+    }
+}
+
+struct AvgPool2d;
+
+impl AvgPool2d {
+    fn new() -> Self {
+        todo!()
+    }
+    fn forward(&self, x: Tensor<f32>) -> Tensor<f32> {
+        todo!()
+    }
+}
+
+struct Sequential {
+    layers: Vec<BasicBlock>,
+}
+
+impl Sequential {
+    fn new() -> Self {
+        todo!()
+    }
+    fn forward(&self, x: Tensor<f32>) -> Tensor<f32> {
+        todo!()
+    }
+}
+
+struct ResNet {
+    conv2d_bn: Conv2dBatchNorm,
+    relu: Relu,
+    maxpool2d: MaxPool2d,
+    layer1: Sequential,
+    layer2: Sequential,
+    layer3: Sequential,
+    layer4: Sequential,
+    avgpool2d: AvgPool2d,
+}
+
+impl ResNet {
+    fn new() -> Self {
+        todo!()
+    }
+    fn forward(&self, x: Tensor<f32>) -> Tensor<f32> {
+        todo!()
+    }
+}
+
+fn main() -> anyhow::Result<()> {
+    let loader: Vec<Tensor<f32>> = TensorLoader::new("test.ftz".into())
+        .push("test", &[])
+        .load()?;
+
+    println!("{}", loader[0]);
+
     Ok(())
 }
+
+// fn visit_dirs(dir: &str) -> std::io::Result<()> {
+//     let mut saver = TensorSaver::new("weights/data.ftz".into());
+//     // 读取当前目录的条目
+//     for entry_result in std::fs::read_dir(dir)? {
+//         let entry = entry_result?;
+//         let file_name = entry.file_name();
+//         let path = entry.path();
+
+//         // 如果是目录，递归调用
+//         if path.is_dir() {
+//             visit_dirs(path.to_str().unwrap())?;
+//         } else {
+//             let file = std::fs::File::open(&path)?;
+//             let reader = std::io::BufReader::new(file);
+//             let mut lines = reader.lines();
+//             let shape = lines.next().unwrap().unwrap();
+//             let after_shape = shape.strip_prefix("shape:").unwrap().trim();
+//             let mut shape = Vec::new();
+//             if !after_shape.is_empty() {
+//                 let tokens = after_shape.split_whitespace();
+//                 for token in tokens {
+//                     // 尝试解析为整数
+//                     if let Ok(val) = token.parse::<i64>() {
+//                         shape.push(val);
+//                     }
+//                 }
+//             }
+//             println!("{}: {:?}", file_name.to_str().unwrap(), shape);
+//             let mut data = Vec::new();
+//             while let Some(line) = lines.next() {
+//                 let line = line?;
+//                 let tokens = line.split_whitespace();
+//                 for token in tokens {
+//                     if let Ok(val) = token.parse::<f32>() {
+//                         data.push(val);
+//                     }
+//                 }
+//             }
+//             if shape.len() > 0 {
+//                 let tensor = Tensor::<f32>::new(data.clone()).reshape(shape).unwrap();
+//                 saver = saver.push(
+//                     file_name.to_str().unwrap(),
+//                     tensor,
+//                     CompressionAlgo::Gzip,
+//                     Endian::Native,
+//                     9,
+//                 );
+//             }
+//         }
+//     }
+//     saver.save()?;
+//     Ok(())
+// }
+
+// fn load_dirs(dir: &str) -> std::io::Result<()> {
+//     // 读取当前目录的条目
+//     for entry_result in std::fs::read_dir(dir)? {
+//         let entry = entry_result?;
+//         let file_name = entry.file_name();
+//         let path = entry.path();
+
+//         // 如果是目录，递归调用
+//         if path.is_dir() {
+//             visit_dirs(path.to_str().unwrap())?;
+//         } else {
+//             let file = std::fs::File::open(&path)?;
+//             let reader = std::io::BufReader::new(file);
+//             let mut lines = reader.lines();
+//             let shape = lines.next().unwrap().unwrap();
+//             let after_shape = shape.strip_prefix("shape:").unwrap().trim();
+//             let mut shape = Vec::new();
+//             if !after_shape.is_empty() {
+//                 let tokens = after_shape.split_whitespace();
+//                 for token in tokens {
+//                     // 尝试解析为整数
+//                     if let Ok(val) = token.parse::<i64>() {
+//                         shape.push(val);
+//                     }
+//                 }
+//             }
+//             println!("{}: {:?}", file_name.to_str().unwrap(), shape);
+//             let mut data = Vec::new();
+//             while let Some(line) = lines.next() {
+//                 let line = line?;
+//                 let tokens = line.split_whitespace();
+//                 for token in tokens {
+//                     if let Ok(val) = token.parse::<f32>() {
+//                         data.push(val);
+//                     }
+//                 }
+//             }
+//             if shape.len() > 0 {
+//                 let loader = TensorLoader::new(r"C:\Users\123\eTensor-1\weights\data.ftz".into());
+//                 let res = loader
+//                     .push(file_name.to_str().unwrap(), &[])
+//                     .load::<f32, Tensor<f32>, 4>()?;
+//                 println!("{}", res[0]);
+//                 std::thread::sleep(std::time::Duration::from_millis(1000));
+//             }
+//         }
+//     }
+//     Ok(())
+// }

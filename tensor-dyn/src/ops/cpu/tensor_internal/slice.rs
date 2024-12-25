@@ -1,12 +1,19 @@
 //! Slice operations for dynamic tensors.
 
+use crate::BackendTy;
+use crate::{tensor_base::_Tensor, Buffer};
 use anyhow::Result;
-use tensor_common::{ layout::Layout, pointer::Pointer, slice::{ slice_process, Slice } };
-use tensor_traits::tensor::{ CommonBounds, TensorInfo };
+use tensor_common::{
+    layout::Layout,
+    pointer::Pointer,
+    slice::{slice_process, Slice},
+};
+use tensor_traits::tensor::CommonBounds;
 
-use crate::tensor_base::_Tensor;
-
-impl<T> _Tensor<T> where T: CommonBounds {
+impl<T, B: BackendTy + Buffer + Clone, const DEVICE: usize> _Tensor<T, B, DEVICE>
+where
+    T: CommonBounds,
+{
     /// Extracts a slice of the tensor based on the provided indices.
     ///
     /// This method creates a new tensor that represents a slice of the original tensor.
@@ -22,26 +29,26 @@ impl<T> _Tensor<T> where T: CommonBounds {
     ///
     /// Returns a `Result` containing the sliced tensor as a new tensor. If any slicing error occurs
     /// (e.g., out-of-bounds access), an error message is returned.
-    pub fn slice(&self, index: &[Slice]) -> Result<_Tensor<T>> {
+    pub fn slice(&self, index: &[Slice]) -> Result<_Tensor<T, B, DEVICE>> {
         let (res_shape, res_strides, offset) = slice_process(
-            self.shape().to_vec(),
-            self.strides().to_vec(),
+            self.layout.shape().to_vec(),
+            self.layout.strides().to_vec(),
             index,
-            1
+            1,
         )?;
         let res_ptr: *mut T = unsafe { self.data.ptr.offset(offset as isize) };
         #[cfg(feature = "bound_check")]
         {
-            if offset < 0 || offset >= (self.ptr().len as i64) {
+            if offset < 0 || offset >= (self.data.len as i64) {
                 panic!(
                     "index out of bounds, got offset: {}, origin shape: {}, origin strides: {}, slices: {:?}",
                     offset,
-                    self.shape(),
-                    self.strides(),
+                    self.layout.shape(),
+                    self.layout.strides(),
                     index
                 );
             }
-            let len = self.ptr().len - offset;
+            let len = self.data.len - offset;
             Ok(self.from_slice(Pointer::new(res_ptr, len), res_shape, res_strides))
         }
         #[cfg(not(feature = "bound_check"))]
@@ -65,21 +72,12 @@ impl<T> _Tensor<T> where T: CommonBounds {
     /// # Returns
     ///
     /// Returns a new `_Tensor` referencing the specified slice of memory.
-    fn from_slice(&self, ptr: Pointer<T>, shape: Vec<i64>, strides: Vec<i64>) -> _Tensor<T> {
-        let (shape, strides) = if shape.contains(&0) {
-            let mut new_shape = Vec::new();
-            let mut new_strides = Vec::new();
-            for (i, &s) in shape.iter().enumerate() {
-                if s == 0 {
-                    continue;
-                }
-                new_shape.push(s);
-                new_strides.push(strides[i]);
-            }
-            (new_shape, new_strides)
-        } else {
-            (shape, strides)
-        };
+    fn from_slice(
+        &self,
+        ptr: Pointer<T>,
+        shape: Vec<i64>,
+        strides: Vec<i64>,
+    ) -> _Tensor<T, B, DEVICE> {
         // Create a new tensor, either as a child of a parent tensor or as a standalone tensor
         if self.parent.is_none() {
             let layout = Layout::new(shape, strides);

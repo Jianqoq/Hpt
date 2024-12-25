@@ -24,6 +24,7 @@ use super::i64x4::i64x4;
 pub struct f64x4(pub(crate) __m256d);
 
 impl PartialEq for f64x4 {
+    #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         unsafe {
             let cmp = _mm256_cmp_pd(self.0, other.0, _CMP_EQ_OQ);
@@ -33,6 +34,7 @@ impl PartialEq for f64x4 {
 }
 
 impl Default for f64x4 {
+    #[inline(always)]
     fn default() -> Self {
         unsafe { f64x4(_mm256_setzero_pd()) }
     }
@@ -58,21 +60,25 @@ impl VecTrait<f64> for f64x4 {
     fn sum(&self) -> f64 {
         unsafe { _mm256_cvtsd_f64(_mm256_hadd_pd(self.0, self.0)) }
     }
+    #[inline(always)]
     fn splat(val: f64) -> f64x4 {
         unsafe { f64x4(_mm256_set1_pd(val)) }
     }
 }
 
 impl f64x4 {
-    #[allow(unused)]
-    fn as_array(&self) -> [f64; 4] {
+    /// convert the vector to an array
+    #[inline(always)]
+    pub fn as_array(&self) -> [f64; 4] {
         unsafe { std::mem::transmute(self.0) }
     }
     /// check if the vector is nan
+    #[inline(always)]
     pub fn is_nan(&self) -> f64x4 {
         unsafe { f64x4(_mm256_cmp_pd(self.0, self.0, _CMP_UNORD_Q)) }
     }
     /// check if the vector is infinite
+    #[inline(always)]
     pub fn is_infinite(&self) -> f64x4 {
         unsafe {
             let abs = _mm256_andnot_pd(_mm256_set1_pd(-0.0), self.0);
@@ -80,6 +86,7 @@ impl f64x4 {
         }
     }
     /// reciprocal of the vector
+    #[inline(always)]
     pub fn recip(&self) -> f64x4 {
         unsafe { f64x4(_mm256_div_pd(_mm256_set1_pd(1.0), self.0)) }
     }
@@ -87,7 +94,7 @@ impl f64x4 {
 
 impl SimdCompare for f64x4 {
     type SimdMask = i64x4;
-
+    #[inline(always)]
     fn simd_eq(self, other: Self) -> Self::SimdMask {
         unsafe {
             let cmp = _mm256_cmp_pd(self.0, other.0, _CMP_EQ_OQ);
@@ -95,35 +102,35 @@ impl SimdCompare for f64x4 {
             i64x4(_mm256_set1_epi64x(if mask == 3 { -1 } else { 0 }))
         }
     }
-
+    #[inline(always)]
     fn simd_ne(self, other: Self) -> Self::SimdMask {
         unsafe {
             let cmp = _mm256_cmp_pd(self.0, other.0, _CMP_NEQ_OQ);
             i64x4(_mm256_castpd_si256(cmp))
         }
     }
-
+    #[inline(always)]
     fn simd_lt(self, other: Self) -> Self::SimdMask {
         unsafe {
             let cmp = _mm256_cmp_pd(self.0, other.0, _CMP_LT_OQ);
             i64x4(_mm256_castpd_si256(cmp))
         }
     }
-
+    #[inline(always)]
     fn simd_le(self, other: Self) -> Self::SimdMask {
         unsafe {
             let cmp = _mm256_cmp_pd(self.0, other.0, _CMP_LE_OQ);
             i64x4(_mm256_castpd_si256(cmp))
         }
     }
-
+    #[inline(always)]
     fn simd_gt(self, other: Self) -> Self::SimdMask {
         unsafe {
             let cmp = _mm256_cmp_pd(self.0, other.0, _CMP_GT_OQ);
             i64x4(_mm256_castpd_si256(cmp))
         }
     }
-
+    #[inline(always)]
     fn simd_ge(self, other: Self) -> Self::SimdMask {
         unsafe {
             let cmp = _mm256_cmp_pd(self.0, other.0, _CMP_GE_OQ);
@@ -133,6 +140,7 @@ impl SimdCompare for f64x4 {
 }
 
 impl SimdSelect<f64x4> for i64x4 {
+    #[inline(always)]
     fn select(&self, true_val: f64x4, false_val: f64x4) -> f64x4 {
         unsafe {
             f64x4(_mm256_blendv_pd(
@@ -146,30 +154,35 @@ impl SimdSelect<f64x4> for i64x4 {
 
 impl std::ops::Add for f64x4 {
     type Output = Self;
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self {
         unsafe { f64x4(_mm256_add_pd(self.0, rhs.0)) }
     }
 }
 impl std::ops::Sub for f64x4 {
     type Output = Self;
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self {
         unsafe { f64x4(_mm256_sub_pd(self.0, rhs.0)) }
     }
 }
 impl std::ops::Mul for f64x4 {
     type Output = Self;
+    #[inline(always)]
     fn mul(self, rhs: Self) -> Self {
         unsafe { f64x4(_mm256_mul_pd(self.0, rhs.0)) }
     }
 }
 impl std::ops::Div for f64x4 {
     type Output = Self;
+    #[inline(always)]
     fn div(self, rhs: Self) -> Self {
         unsafe { f64x4(_mm256_div_pd(self.0, rhs.0)) }
     }
 }
 impl std::ops::Rem for f64x4 {
     type Output = Self;
+    #[inline(always)]
     fn rem(self, rhs: Self) -> Self {
         unsafe {
             let x: [f64; 4] = std::mem::transmute(self.0);
@@ -181,171 +194,175 @@ impl std::ops::Rem for f64x4 {
 }
 impl std::ops::Neg for f64x4 {
     type Output = Self;
+    #[inline(always)]
     fn neg(self) -> Self {
         unsafe { f64x4(_mm256_xor_pd(self.0, _mm256_set1_pd(-0.0))) }
     }
 }
 
 impl SimdMath<f64> for f64x4 {
+    #[inline(always)]
     fn sin(self) -> Self {
         f64x4(unsafe { xsin_u1(self.0) })
     }
+    #[inline(always)]
     fn cos(self) -> Self {
         f64x4(unsafe { xcos_u1(self.0) })
     }
+    #[inline(always)]
     fn tan(self) -> Self {
         f64x4(unsafe { xtan_u1(self.0) })
     }
-
+    #[inline(always)]
     fn square(self) -> Self {
         f64x4(unsafe { _mm256_mul_pd(self.0, self.0) })
     }
-
+    #[inline(always)]
     fn sqrt(self) -> Self {
         f64x4(unsafe { xsqrt_u05(self.0) })
     }
-
+    #[inline(always)]
     fn abs(self) -> Self {
         f64x4(unsafe { vabs_vd_vd(self.0) })
     }
-
+    #[inline(always)]
     fn floor(self) -> Self {
         f64x4(unsafe { _mm256_floor_pd(self.0) })
     }
-
+    #[inline(always)]
     fn ceil(self) -> Self {
         f64x4(unsafe { _mm256_ceil_pd(self.0) })
     }
-
+    #[inline(always)]
     fn neg(self) -> Self {
         f64x4(unsafe { _mm256_sub_pd(_mm256_setzero_pd(), self.0) })
     }
-
+    #[inline(always)]
     fn round(self) -> Self {
         f64x4(unsafe { xround(self.0) })
     }
-
+    #[inline(always)]
     fn sign(self) -> Self {
         f64x4(unsafe { _mm256_and_pd(self.0, _mm256_set1_pd(0.0f64)) })
     }
-
+    #[inline(always)]
     fn leaky_relu(self, _: f64) -> Self {
         todo!()
     }
-
+    #[inline(always)]
     fn relu(self) -> Self {
         f64x4(unsafe { _mm256_max_pd(self.0, _mm256_setzero_pd()) })
     }
-
+    #[inline(always)]
     fn relu6(self) -> Self {
         f64x4(unsafe { _mm256_min_pd(self.relu().0, _mm256_set1_pd(6.0f64)) })
     }
-
+    #[inline(always)]
     fn pow(self, exp: Self) -> Self {
         f64x4(unsafe { xpow(self.0, exp.0) })
     }
-
+    #[inline(always)]
     fn asin(self) -> Self {
         f64x4(unsafe { xasin_u1(self.0) })
     }
-
+    #[inline(always)]
     fn acos(self) -> Self {
         f64x4(unsafe { xacos_u1(self.0) })
     }
-
+    #[inline(always)]
     fn atan(self) -> Self {
         f64x4(unsafe { xatan_u1(self.0) })
     }
-
+    #[inline(always)]
     fn sinh(self) -> Self {
         f64x4(unsafe { xsinh(self.0) })
     }
-
+    #[inline(always)]
     fn cosh(self) -> Self {
         f64x4(unsafe { xcosh(self.0) })
     }
-
+    #[inline(always)]
     fn tanh(self) -> Self {
         f64x4(unsafe { xtanh(self.0) })
     }
-
+    #[inline(always)]
     fn asinh(self) -> Self {
         f64x4(unsafe { xasinh(self.0) })
     }
-
+    #[inline(always)]
     fn acosh(self) -> Self {
         f64x4(unsafe { xacosh(self.0) })
     }
-
+    #[inline(always)]
     fn atanh(self) -> Self {
         f64x4(unsafe { xatanh(self.0) })
     }
-
+    #[inline(always)]
     fn exp2(self) -> Self {
         f64x4(unsafe { xexp2(self.0) })
     }
-
+    #[inline(always)]
     fn exp10(self) -> Self {
         f64x4(unsafe { xexp10(self.0) })
     }
-
+    #[inline(always)]
     fn expm1(self) -> Self {
         f64x4(unsafe { xexpm1(self.0) })
     }
-
+    #[inline(always)]
     fn log10(self) -> Self {
         f64x4(unsafe { xlog10(self.0) })
     }
-
+    #[inline(always)]
     fn log2(self) -> Self {
         f64x4(unsafe { xlog2(self.0) })
     }
-
+    #[inline(always)]
     fn log1p(self) -> Self {
         f64x4(unsafe { xlog1p(self.0) })
     }
-
+    #[inline(always)]
     fn hypot(self, other: Self) -> Self {
         f64x4(unsafe { xhypot_u05(self.0, other.0) })
     }
-
+    #[inline(always)]
     fn trunc(self) -> Self {
         f64x4(unsafe { xtrunc(self.0) })
     }
-
+    #[inline(always)]
     fn erf(self) -> Self {
         f64x4(unsafe { xerf_u1(self.0) })
     }
-
+    #[inline(always)]
     fn cbrt(self) -> Self {
         f64x4(unsafe { xcbrt_u1(self.0) })
     }
-
+    #[inline(always)]
     fn exp(self) -> Self {
         f64x4(unsafe { xexp(self.0) })
     }
-
+    #[inline(always)]
     fn ln(self) -> Self {
         f64x4(unsafe { xlog_u1(self.0) })
     }
-
+    #[inline(always)]
     fn log(self) -> Self {
         f64x4(unsafe { xlog_u1(self.0) })
     }
-
+    #[inline(always)]
     fn atan2(self, other: Self) -> Self {
         f64x4(unsafe { xatan2_u1(self.0, other.0) })
     }
-
+    #[inline(always)]
     fn sincos(self) -> (Self, Self) {
         let ret = unsafe { xsincos_u1(self.0) };
         (f64x4(ret.x), f64x4(ret.y))
     }
-
+    #[inline(always)]
     fn min(self, other: Self) -> Self {
         f64x4(unsafe { xfmin(self.0, other.0) })
     }
-
+    #[inline(always)]
     fn max(self, other: Self) -> Self {
         f64x4(unsafe { xfmax(self.0, other.0) })
     }

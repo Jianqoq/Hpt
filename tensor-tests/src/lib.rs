@@ -1,29 +1,35 @@
 pub mod tensor_dyn {
-    pub mod conv2d_group;
-    pub mod conv2d;
-    pub mod dwconv2d;
-    pub mod pwconv2d;
-    pub mod reduce;
-    pub mod unary;
-    pub mod creation;
-    pub mod shape_manipulate;
-    pub mod binary;
-    pub mod lp_pool2d;
-    pub mod slice;
-    pub mod test_lib;
-    pub mod binary_out;
-    pub mod softmax;
-    pub mod maxpool;
-    pub mod cumulate;
-    pub mod topk;
+    pub mod cpu {
+        pub mod binary;
+        pub mod binary_out;
+        pub mod conv2d;
+        pub mod conv2d_group;
+        pub mod creation;
+        pub mod cumulate;
+        pub mod dwconv2d;
+        pub mod lp_pool2d;
+        pub mod maxpool;
+        pub mod pwconv2d;
+        pub mod reduce;
+        pub mod shape_manipulate;
+        pub mod slice;
+        pub mod softmax;
+        pub mod test_lib;
+        pub mod topk;
+        pub mod unary;
+    }
+    #[cfg(feature = "cuda")]
+    pub mod cuda {
+        pub mod creation;
+    }
 }
 
 pub mod tensor_common {
-    pub mod shape_utils;
     pub mod axis;
     pub mod err_handler;
     pub mod layout;
     pub mod pointer;
     pub mod shape;
+    pub mod shape_utils;
     pub mod strides;
 }

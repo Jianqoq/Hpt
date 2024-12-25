@@ -36,6 +36,7 @@ impl VecTrait<Complex32> for cplx32x4 {
     fn sum(&self) -> Complex32 {
         self.0.iter().sum()
     }
+    #[inline(always)]
     fn splat(val: Complex32) -> cplx32x4 {
         cplx32x4([val; 4])
     }
@@ -43,7 +44,7 @@ impl VecTrait<Complex32> for cplx32x4 {
 
 impl std::ops::Add for cplx32x4 {
     type Output = Self;
-
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
         let mut ret = cplx32x4::default();
         for i in 0..4 {
@@ -54,7 +55,7 @@ impl std::ops::Add for cplx32x4 {
 }
 impl std::ops::Sub for cplx32x4 {
     type Output = Self;
-
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         let mut ret = cplx32x4::default();
         for i in 0..4 {
@@ -65,7 +66,7 @@ impl std::ops::Sub for cplx32x4 {
 }
 impl std::ops::Mul for cplx32x4 {
     type Output = Self;
-
+    #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
         let mut ret = cplx32x4::default();
         for i in 0..4 {
@@ -76,7 +77,7 @@ impl std::ops::Mul for cplx32x4 {
 }
 impl std::ops::Div for cplx32x4 {
     type Output = Self;
-
+    #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
         let mut ret = cplx32x4::default();
         for i in 0..4 {
@@ -88,7 +89,7 @@ impl std::ops::Div for cplx32x4 {
 
 impl std::ops::Neg for cplx32x4 {
     type Output = Self;
-
+    #[inline(always)]
     fn neg(self) -> Self::Output {
         let mut ret = cplx32x4::default();
         for i in 0..4 {
@@ -100,7 +101,7 @@ impl std::ops::Neg for cplx32x4 {
 
 impl std::ops::Rem for cplx32x4 {
     type Output = Self;
-
+    #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
         let mut ret = cplx32x4::default();
         for i in 0..4 {
@@ -111,6 +112,7 @@ impl std::ops::Rem for cplx32x4 {
 }
 
 impl VecConvertor for cplx32x4 {
+    #[inline(always)]
     fn to_complex32(self) -> cplx32x4 {
         self
     }

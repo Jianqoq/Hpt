@@ -1,8 +1,8 @@
-use proc_macro::TokenStream;
-use crate::type_utils::TypeInfo;
-use quote::quote;
-use proc_macro2::Ident;
 use crate::type_utils::Type;
+use crate::type_utils::TypeInfo;
+use proc_macro::TokenStream;
+use proc_macro2::Ident;
+use quote::quote;
 
 pub fn __impl_scalar_convert() -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
@@ -103,7 +103,7 @@ pub fn __impl_scalar_convert() -> TokenStream {
                         Type::BF16 => {
                             if rhs_ty == Type::F16 {
                                 quote! {
-                                    f16::from_bits((self.to_bits() >> 16) as u16)
+                                    f16::from_f32(self.to_f32())
                                 }
                             } else {
                                 quote! {
@@ -118,7 +118,7 @@ pub fn __impl_scalar_convert() -> TokenStream {
                                 }
                             } else {
                                 quote! {
-                                    bf16::from_bits(((self.to_bits() as u32) & 0xFFFF_0000) as u16)
+                                    bf16::from_f32(self.to_f32())
                                 }
                             }
                         }
@@ -257,13 +257,11 @@ pub fn __impl_scalar_convert() -> TokenStream {
             };
             funcs.extend(func_gen);
         }
-        ret.extend(
-            quote! {
+        ret.extend(quote! {
             impl Convertor for #lhs_ty {
                 #funcs
             }
-        }
-        );
+        });
     }
 
     ret.into()

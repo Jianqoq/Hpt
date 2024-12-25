@@ -36,6 +36,7 @@ impl VecTrait<Complex64> for cplx64x2 {
     fn sum(&self) -> Complex64 {
         self.0.iter().sum()
     }
+    #[inline(always)]
     fn splat(val: Complex64) -> cplx64x2 {
         cplx64x2([val; 2])
     }
@@ -43,7 +44,7 @@ impl VecTrait<Complex64> for cplx64x2 {
 
 impl std::ops::Add for cplx64x2 {
     type Output = Self;
-
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
         let mut ret = cplx64x2::default();
         for i in 0..2 {
@@ -54,7 +55,7 @@ impl std::ops::Add for cplx64x2 {
 }
 impl std::ops::Sub for cplx64x2 {
     type Output = Self;
-
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         let mut ret = cplx64x2::default();
         for i in 0..2 {
@@ -65,7 +66,7 @@ impl std::ops::Sub for cplx64x2 {
 }
 impl std::ops::Mul for cplx64x2 {
     type Output = Self;
-
+    #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
         let mut ret = cplx64x2::default();
         for i in 0..2 {
@@ -76,7 +77,7 @@ impl std::ops::Mul for cplx64x2 {
 }
 impl std::ops::Div for cplx64x2 {
     type Output = Self;
-
+    #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
         let mut ret = cplx64x2::default();
         for i in 0..2 {
@@ -88,7 +89,7 @@ impl std::ops::Div for cplx64x2 {
 
 impl std::ops::Neg for cplx64x2 {
     type Output = Self;
-
+    #[inline(always)]
     fn neg(self) -> Self::Output {
         let mut ret = cplx64x2::default();
         for i in 0..2 {
@@ -100,7 +101,7 @@ impl std::ops::Neg for cplx64x2 {
 
 impl std::ops::Rem for cplx64x2 {
     type Output = Self;
-
+    #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
         let mut ret = cplx64x2::default();
         for i in 0..2 {
@@ -111,6 +112,7 @@ impl std::ops::Rem for cplx64x2 {
 }
 
 impl VecConvertor for cplx64x2 {
+    #[inline(always)]
     fn to_complex64(self) -> cplx64x2 {
         self
     }

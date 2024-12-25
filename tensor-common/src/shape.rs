@@ -47,6 +47,11 @@ impl Shape {
             .collect::<Vec<i64>>()
             .into()
     }
+
+    /// Returns a pointer to the inner data
+    pub fn as_ptr(&self) -> *const i64 {
+        self.inner.as_ptr()
+    }
 }
 
 impl std::fmt::Debug for Shape {

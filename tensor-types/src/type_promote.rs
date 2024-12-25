@@ -2,42 +2,70 @@ use crate::convertion::Convertor;
 use crate::convertion::VecConvertor;
 use crate::dtype::FloatConst;
 use crate::dtype::TypeCommon;
+#[cfg(
+    any(
+        all(not(target_feature = "avx2"), target_feature = "sse"),
+        target_arch = "arm",
+        target_arch = "aarch64",
+        target_feature = "neon"
+    )
+)]
+use crate::simd::_128bit::*;
+#[cfg(target_feature = "avx2")]
+use crate::simd::_256bit::*;
+#[cfg(target_feature = "avx512f")]
+use crate::simd::_512bit::*;
 use crate::traits::SimdMath;
 use crate::vectors::traits::SimdCompare;
 use crate::vectors::traits::SimdSelect;
 use crate::vectors::traits::VecTrait;
 use half::bf16;
 use half::f16;
-use num_complex::{Complex32, Complex64};
+use num_complex::{ Complex32, Complex64 };
 use num_traits::float::Float;
-#[cfg(any(
-    all(not(target_feature = "avx2"), target_feature = "sse"),
-    target_arch = "arm",
-    target_arch = "aarch64",
-    target_feature = "neon"
-))]
-use crate::simd::_128bit::*;
-#[cfg(target_feature = "avx2")]
-use crate::simd::_256bit::*;
-#[cfg(target_feature = "avx512f")]
-use crate::simd::_512bit::*;
 #[cfg(feature = "stdsimd")]
 use sleef::Sleef;
 use std::ops::Neg;
-use tensor_macros::float_out_binary_simd_with_lhs_scalar;
-use tensor_macros::float_out_binary_simd_with_rhs_scalar;
-use tensor_macros::float_out_unary;
-use tensor_macros::impl_normal_out_binary;
-use tensor_macros::impl_normal_out_simd;
-use tensor_macros::impl_normal_out_simd_with_lhs_scalar;
-use tensor_macros::impl_normal_out_simd_with_rhs_scalar;
-use tensor_macros::impl_normal_out_unary;
-use tensor_macros::impl_normal_out_unary_simd;
 use tensor_macros::{
-    float_out_binary, impl_bitwise_out, impl_cmp, impl_eval, simd_cmp, simd_eval,
+    float_out_binary,
+    float_out_binary_simd_with_lhs_scalar,
+    float_out_binary_simd_with_rhs_scalar,
+    float_out_unary,
+    impl_bitwise_out,
+    impl_cmp,
+    impl_eval,
+    impl_normal_out_binary,
+    impl_normal_out_simd,
+    impl_normal_out_simd_with_lhs_scalar,
+    impl_normal_out_simd_with_rhs_scalar,
+    impl_normal_out_unary,
+    impl_normal_out_unary_simd,
+    simd_cmp,
+    simd_eval,
     simd_float_out_unary,
 };
-use tensor_macros::{float_out_binary_simd, simd_bitwise};
+#[cfg(feature = "cuda")]
+mod cuda_imports {
+    use tensor_macros::{
+        impl_cuda_bitwise_out,
+        float_out_binary_cuda,
+        float_out_unary_cuda,
+        impl_cmp_cuda,
+        impl_cuda_normal_out_binary,
+        impl_normal_out_unary_cuda,
+    };
+    use crate::cuda_types::scalar::Scalar;
+    use crate::cuda_types::convertion::CudaConvertor;
+    use super::*;
+    float_out_binary_cuda!();
+    impl_cuda_normal_out_binary!();
+    impl_normal_out_unary_cuda!();
+    impl_cuda_bitwise_out!();
+    impl_cmp_cuda!();
+    float_out_unary_cuda!();
+}
+
+use tensor_macros::{ float_out_binary_simd, simd_bitwise };
 /// this trait is used to perform type promotion in dynamic graph
 pub trait FloatOutBinary<RHS = Self> {
     /// the output type
@@ -121,6 +149,7 @@ pub trait NormalOutUnary {
 }
 
 impl_normal_out_unary!();
+
 impl_normal_out_unary_simd!();
 
 /// this trait is used to perform bitwise operations
@@ -147,18 +176,20 @@ simd_bitwise!();
 
 /// this trait is used to perform comparison operations
 pub trait Cmp<RHS = Self> {
+    /// the output type
+    type Output;
     /// perform a == b
-    fn _eq(self, rhs: RHS) -> bool;
+    fn _eq(self, rhs: RHS) -> Self::Output;
     /// perform a != b
-    fn _ne(self, rhs: RHS) -> bool;
+    fn _ne(self, rhs: RHS) -> Self::Output;
     /// perform a < b
-    fn _lt(self, rhs: RHS) -> bool;
+    fn _lt(self, rhs: RHS) -> Self::Output;
     /// perform a <= b
-    fn _le(self, rhs: RHS) -> bool;
+    fn _le(self, rhs: RHS) -> Self::Output;
     /// perform a > b
-    fn _gt(self, rhs: RHS) -> bool;
+    fn _gt(self, rhs: RHS) -> Self::Output;
     /// perform a >= b
-    fn _ge(self, rhs: RHS) -> bool;
+    fn _ge(self, rhs: RHS) -> Self::Output;
 }
 
 impl_cmp!();

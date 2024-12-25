@@ -14,4 +14,3 @@ rand_distr = "0.4.3"
 track_caller = []
 stdsimd = ["tensor-types/stdsimd"]
 archsimd = ["tensor-types/archsimd"]
-

@@ -25,6 +25,7 @@ impl VecTrait<Complex32> for cplx32x2 {
     fn sum(&self) -> Complex32 {
         self.0.iter().sum()
     }
+    #[inline(always)]
     fn splat(val: Complex32) -> cplx32x2 {
         cplx32x2([val; 2])
     }
@@ -32,6 +33,7 @@ impl VecTrait<Complex32> for cplx32x2 {
 
 impl cplx32x2 {
     #[allow(unused)]
+    #[inline(always)]
     fn as_array(&self) -> [Complex32; 2] {
         unsafe { std::mem::transmute(self.0) }
     }
@@ -39,7 +41,7 @@ impl cplx32x2 {
 
 impl std::ops::Add for cplx32x2 {
     type Output = Self;
-
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
         let mut ret = cplx32x2::default();
         for i in 0..2 {
@@ -50,7 +52,7 @@ impl std::ops::Add for cplx32x2 {
 }
 impl std::ops::Sub for cplx32x2 {
     type Output = Self;
-
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         let mut ret = cplx32x2::default();
         for i in 0..2 {
@@ -61,7 +63,7 @@ impl std::ops::Sub for cplx32x2 {
 }
 impl std::ops::Mul for cplx32x2 {
     type Output = Self;
-
+    #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
         let mut ret = cplx32x2::default();
         for i in 0..2 {
@@ -72,7 +74,7 @@ impl std::ops::Mul for cplx32x2 {
 }
 impl std::ops::Div for cplx32x2 {
     type Output = Self;
-
+    #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
         let mut ret = cplx32x2::default();
         for i in 0..2 {
@@ -83,7 +85,7 @@ impl std::ops::Div for cplx32x2 {
 }
 impl std::ops::Neg for cplx32x2 {
     type Output = Self;
-
+    #[inline(always)]
     fn neg(self) -> Self::Output {
         let mut ret = cplx32x2::default();
         for i in 0..2 {
@@ -94,7 +96,7 @@ impl std::ops::Neg for cplx32x2 {
 }
 impl std::ops::Rem for cplx32x2 {
     type Output = Self;
-
+    #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
         let mut ret = cplx32x2::default();
         for i in 0..2 {
@@ -105,7 +107,9 @@ impl std::ops::Rem for cplx32x2 {
 }
 
 impl VecConvertor for cplx32x2 {
+    #[inline(always)]
     fn to_complex32(self) -> cplx32x2 {
         self
     }
 }
+

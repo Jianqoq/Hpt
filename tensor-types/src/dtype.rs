@@ -143,8 +143,12 @@ pub trait TypeCommon where Self: Sized + Copy {
     const TWO: Self;
     /// the six value of the data type
     const SIX: Self;
+    /// the ten value of the data type
+    const TEN: Self;
     /// the string representation of the data type
     const STR: &'static str;
+    /// cuda type of the data type
+    const CUDA_TYPE: &'static str;
     /// the bit size of the data type, alias of `std::mem::size_of()`
     const BIT_SIZE: usize;
     /// the simd vector type of the data type
@@ -185,7 +189,9 @@ macro_rules! impl_type_common {
         $neg_inf:expr,
         $two:expr,
         $six:expr,
+        $ten:expr,
         $str:expr,
+        $cuda_type:expr,
         $vec:ty,
         $mask:ty
     ) => {
@@ -220,7 +226,9 @@ macro_rules! impl_type_common {
             const NEG_INF: Self = $neg_inf;
             const TWO: Self = $two;
             const SIX: Self = $six;
+            const TEN: Self = $ten;
             const STR: &'static str = $str;
+            const CUDA_TYPE: &'static str = $cuda_type;
             const BIT_SIZE: usize = size_of::<$type>();
             type Vec = $vec;
             type Mask = $mask;
@@ -252,6 +260,8 @@ mod type_impl {
         false,
         false,
         true,
+        true,
+        "bool",
         "bool",
         boolx32::boolx32,
         u8
@@ -267,7 +277,9 @@ mod type_impl {
         i8::MIN,
         2,
         6,
+        10,
         "i8",
+        "char",
         i8x32::i8x32,
         u8
     );
@@ -282,7 +294,9 @@ mod type_impl {
         u8::MIN,
         2,
         6,
+        10,
         "u8",
+        "unsigned char",
         u8x32::u8x32,
         u8
     );
@@ -297,7 +311,9 @@ mod type_impl {
         i16::MIN,
         2,
         6,
+        10,
         "i16",
+        "short",
         i16x16::i16x16,
         u16
     );
@@ -312,7 +328,9 @@ mod type_impl {
         u16::MIN,
         2,
         6,
+        10,
         "u16",
+        "unsigned short",
         u16x16::u16x16,
         u16
     );
@@ -327,7 +345,9 @@ mod type_impl {
         i32::MIN,
         2,
         6,
+        10,
         "i32",
+        "int",
         i32x8::i32x8,
         u32
     );
@@ -342,7 +362,9 @@ mod type_impl {
         u32::MIN,
         2,
         6,
+        10,
         "u32",
+        "unsigned int",
         u32x8::u32x8,
         u32
     );
@@ -357,7 +379,9 @@ mod type_impl {
         i64::MIN,
         2,
         6,
+        10,
         "i64",
+        "long long",
         i64x4::i64x4,
         u64
     );
@@ -372,7 +396,9 @@ mod type_impl {
         u64::MIN,
         2,
         6,
+        10,
         "u64",
+        "unsigned long long",
         u64x4::u64x4,
         u64
     );
@@ -387,7 +413,9 @@ mod type_impl {
         f32::NEG_INFINITY,
         2.0,
         6.0,
+        10.0,
         "f32",
+        "float",
         f32x8::f32x8,
         u32
     );
@@ -402,7 +430,9 @@ mod type_impl {
         f64::NEG_INFINITY,
         2.0,
         6.0,
+        10.0,
         "f64",
+        "double",
         f64x4::f64x4,
         u64
     );
@@ -418,7 +448,9 @@ mod type_impl {
         isize::MIN,
         2,
         6,
+        10,
         "isize",
+        "long long",
         isizex4::isizex4,
         usize
     );
@@ -434,7 +466,9 @@ mod type_impl {
         isize::MIN,
         2,
         6,
+        10,
         "isize",
+        "long long",
         isizex8::isizex8,
         usize
     );
@@ -450,7 +484,9 @@ mod type_impl {
         usize::MIN,
         2,
         6,
+        10,
         "usize",
+        "unsigned long long",
         usizex4::usizex4,
         usize
     );
@@ -466,7 +502,9 @@ mod type_impl {
         usize::MIN,
         2,
         6,
+        10,
         "usize",
+        "unsigned int",
         usizex8::usizex8,
         usize
     );
@@ -481,7 +519,9 @@ mod type_impl {
         f16::NEG_INFINITY,
         f16::from_f32_const(2.0),
         f16::from_f32_const(6.0),
+        f16::from_f32_const(10.0),
         "f16",
+        "half",
         f16x16::f16x16,
         u16
     );
@@ -496,7 +536,9 @@ mod type_impl {
         bf16::NEG_INFINITY,
         bf16::from_f32_const(2.0),
         bf16::from_f32_const(6.0),
+        bf16::from_f32_const(10.0),
         "bf16",
+        "bfloat16",
         bf16x16::bf16x16,
         u16
     );
@@ -511,7 +553,9 @@ mod type_impl {
         Complex32::new(f32::NEG_INFINITY, f32::NEG_INFINITY),
         Complex32::new(2.0, 0.0),
         Complex32::new(6.0, 0.0),
+        Complex32::new(10.0, 0.0),
         "c32",
+        "complex float",
         cplx32x4::cplx32x4,
         (u32, u32)
     );
@@ -526,7 +570,9 @@ mod type_impl {
         Complex64::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
         Complex64::new(2.0, 0.0),
         Complex64::new(6.0, 0.0),
+        Complex64::new(10.0, 0.0),
         "c64",
+        "complex double",
         cplx64x2::cplx64x2,
         (u64, u64)
     );
@@ -559,6 +605,8 @@ mod type_impl {
         false,
         false,
         true,
+        true,
+        "bool",
         "bool",
         boolx16::boolx16,
         u8
@@ -574,7 +622,9 @@ mod type_impl {
         i8::MIN,
         2,
         6,
+        10,
         "i8",
+        "char",
         i8x16::i8x16,
         u8
     );
@@ -589,7 +639,9 @@ mod type_impl {
         u8::MIN,
         2,
         6,
+        10,
         "u8",
+        "unsigned char",
         u8x16::u8x16,
         u8
     );
@@ -604,7 +656,9 @@ mod type_impl {
         i16::MIN,
         2,
         6,
+        10,
         "i16",
+        "short",
         i16x8::i16x8,
         u16
     );
@@ -619,7 +673,9 @@ mod type_impl {
         u16::MIN,
         2,
         6,
+        10,
         "u16",
+        "unsigned short",
         u16x8::u16x8,
         u16
     );
@@ -634,7 +690,9 @@ mod type_impl {
         i32::MIN,
         2,
         6,
+        10,
         "i32",
+        "int",
         i32x4::i32x4,
         u32
     );
@@ -649,7 +707,9 @@ mod type_impl {
         u32::MIN,
         2,
         6,
+        10,
         "u32",
+        "unsigned int",
         u32x4::u32x4,
         u32
     );
@@ -664,7 +724,9 @@ mod type_impl {
         i64::MIN,
         2,
         6,
+        10,
         "i64",
+        "long long",
         i64x2::i64x2,
         u64
     );
@@ -679,7 +741,9 @@ mod type_impl {
         u64::MIN,
         2,
         6,
+        10,
         "u64",
+        "unsigned long long",
         u64x2::u64x2,
         u64
     );
@@ -694,7 +758,9 @@ mod type_impl {
         f32::NEG_INFINITY,
         2.0,
         6.0,
+        10.0,
         "f32",
+        "float",
         f32x4::f32x4,
         u32
     );
@@ -709,7 +775,9 @@ mod type_impl {
         f64::NEG_INFINITY,
         2.0,
         6.0,
+        10.0,
         "f64",
+        "double",
         f64x2::f64x2,
         u64
     );
@@ -725,7 +793,9 @@ mod type_impl {
         isize::MIN,
         2,
         6,
+        10,
         "isize",
+        "long long",
         isizex2::isizex2,
         u64
     );
@@ -741,7 +811,9 @@ mod type_impl {
         isize::MIN,
         2,
         6,
+        10,
         "isize",
+        "int",
         isizex4::isizex4,
         u32
     );
@@ -757,7 +829,9 @@ mod type_impl {
         usize::MIN,
         2,
         6,
+        10,
         "usize",
+        "unsigned long long",
         usizex2::usizex2,
         usize
     );
@@ -773,7 +847,9 @@ mod type_impl {
         usize::MIN,
         2,
         6,
+        10,
         "usize",
+        "unsigned int",
         usizex4::usizex4,
         usize
     );
@@ -788,7 +864,9 @@ mod type_impl {
         f16::NEG_INFINITY,
         f16::from_f32_const(2.0),
         f16::from_f32_const(6.0),
+        f16::from_f32_const(10.0),
         "f16",
+        "half",
         f16x8::f16x8,
         u16
     );
@@ -803,7 +881,9 @@ mod type_impl {
         bf16::NEG_INFINITY,
         bf16::from_f32_const(2.0),
         bf16::from_f32_const(6.0),
+        bf16::from_f32_const(10.0),
         "bf16",
+        "bfloat16",
         bf16x8::bf16x8,
         u16
     );
@@ -818,7 +898,9 @@ mod type_impl {
         Complex32::new(f32::NEG_INFINITY, f32::NEG_INFINITY),
         Complex32::new(2.0, 0.0),
         Complex32::new(6.0, 0.0),
+        Complex32::new(10.0, 0.0),
         "c32",
+        "complex32",
         cplx32x2::cplx32x2,
         (u32, u32)
     );
@@ -833,7 +915,9 @@ mod type_impl {
         Complex64::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
         Complex64::new(2.0, 0.0),
         Complex64::new(6.0, 0.0),
+        Complex64::new(10.0, 0.0),
         "c64",
+        "complex64",
         cplx64x1::cplx64x1,
         (u64, u64)
     );

@@ -279,6 +279,9 @@ pub mod vectors {
                     not(target_feature = "avx2")
                 ))]
                 pub mod helper_sse;
+                /// A module defines a set of vector types for helper
+                #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+                pub mod helper_aarch64;
             }
             /// A module defines a set of vector types for common
             pub mod common {
@@ -307,6 +310,16 @@ pub mod vectors {
     /// A module defines a set of utils for vector
     pub mod utils;
 }
+
+#[cfg(feature = "cuda")]
+/// A module defines a set of types for cuda
+pub mod cuda_types {
+    /// A module defines a scalar type for cuda
+    pub mod scalar;
+    /// A module defines convertion for cuda types
+    pub mod convertion;
+}
+
 pub use vectors::*;
 #[cfg(feature = "archsimd")]
 mod simd {
@@ -348,4 +361,15 @@ pub(crate) mod sleef_types {
     pub(crate) type VFloat = __m128;
     pub(crate) type VInt = __m128i;
     pub(crate) type VInt2 = __m128i;
+}
+
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+pub(crate) mod sleef_types {
+    use std::arch::aarch64::*;
+    pub(crate) type VDouble = float64x2_t;
+    pub(crate) type VMask = uint32x4_t;
+    pub(crate) type Vopmask = uint32x4_t;
+    pub(crate) type VFloat = float32x4_t;
+    pub(crate) type VInt = int32x2_t;
+    pub(crate) type VInt2 = int32x4_t;
 }

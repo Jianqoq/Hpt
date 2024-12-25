@@ -8,6 +8,8 @@ use crate::arch_simd::sleef::arch::helper_avx2 as helper;
     not(target_feature = "avx2")
 ))]
 use crate::arch_simd::sleef::arch::helper_sse as helper;
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
 
 use helper::{vcast_vd_d, vcast_vf_f, vmla_vd_vd_vd_vd, vmla_vf_vf_vf_vf};
 

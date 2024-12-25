@@ -45,7 +45,6 @@ impl<T> _Tensor<T>
     ///
     /// This function returns a `Result` containing the output tensor after applying the 2D convolution operation.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    #[inline(never)]
     pub fn conv2d(
         &self,
         kernels: &_Tensor<T>,
@@ -1515,7 +1514,6 @@ impl<T> Tensor<T>
     ///
     /// This function returns a `Result` containing the output tensor after applying the 2D convolution operation.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    #[inline(never)]
     pub fn conv2d(
         &self,
         kernels: &Tensor<T>,
