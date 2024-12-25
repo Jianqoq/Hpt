@@ -456,6 +456,7 @@ fn template_function<T: CommonBounds>(
     activation: fn(T::Vec) -> T::Vec,
 ) where
     bool: IntoScalar<T>,
+    T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
 {
     let Params {
         arg1: [ii, i_end],
@@ -555,9 +556,27 @@ fn template_function<T: CommonBounds>(
             let bias_vec = unsafe {
                 T::Vec::from_ptr(&bias[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
             };
+            let mean_vec = unsafe {
+                T::Vec::from_ptr(&bn_mean[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
+            };
+            let var_vec = unsafe {
+                T::Vec::from_ptr(&bn_var[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
+            };
+            let gamma_vec = unsafe {
+                T::Vec::from_ptr(&bn_gamma[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
+            };
+            let beta_vec = unsafe {
+                T::Vec::from_ptr(&bn_beta[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
+            };
+            let epsilon_vec = T::Vec::splat(epsilon);
+            let res = results[v as usize][kk as usize]
+                ._add(bias_vec)
+                ._sub(mean_vec)
+                ._mul(gamma_vec)
+                ._div(var_vec._add(epsilon_vec)._sqrt())
+                ._add(beta_vec);
             unsafe {
-                out_vec
-                    .write_unaligned(activation(results[v as usize][kk as usize]._add(bias_vec)));
+                out_vec.write_unaligned(activation(res));
             }
         }
     }
@@ -695,8 +714,7 @@ fn template_function<T: CommonBounds>(
                 ._add(beta_vec);
 
             unsafe {
-                out_vec
-                    .write_unaligned(activation(results[v as usize][kk as usize]._add(bias_vec)));
+                out_vec.write_unaligned(activation(res));
             }
         }
     }
@@ -916,6 +934,7 @@ fn template_function<T: CommonBounds>(
     activation: fn(T::Vec) -> T::Vec,
 ) where
     bool: IntoScalar<T>,
+    T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
 {
     let PartialParams {
         arg1: [ii, i_end],
@@ -995,7 +1014,13 @@ fn template_function<T: CommonBounds>(
     }
     for kk in 0..OW_BLOCK as i64 {
         for v in 0..oc_remain as usize {
-            results[0][kk as usize][v] = results[0][kk as usize][v]._add(bias[j + (v as i64)]);
+            let idx = j + (v as i64);
+            let res = results[0][kk as usize][v]._add(bias[idx]);
+            results[0][kk as usize][v] = res
+                ._sub(bn_mean[idx])
+                ._mul(bn_gamma[idx])
+                ._div(bn_var[idx]._add(epsilon)._sqrt())
+                ._add(bn_beta[idx]);
         }
         let res = activation(results[0][kk as usize]);
         for v in 0..oc_remain as usize {
@@ -1027,6 +1052,7 @@ fn template_function<T: CommonBounds>(
     activation: fn(T::Vec) -> T::Vec,
 ) where
     bool: IntoScalar<T>,
+    T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
 {
     let PartialParams {
         arg1: [ii, i_end],
@@ -1093,7 +1119,14 @@ fn template_function<T: CommonBounds>(
     }
     for kk in 0..OW_BLOCK as i64 {
         for v in 0..oc_remain as usize {
-            results[0][kk as usize][v] = results[0][kk as usize][v]._add(bias[j + (v as i64)]);
+            let idx = j + (v as i64);
+            let res = results[0][kk as usize][v]._add(bias[idx]);
+
+            results[0][kk as usize][v] = res
+                ._sub(bn_mean[idx])
+                ._mul(bn_gamma[idx])
+                ._div(bn_var[idx]._add(epsilon)._sqrt())
+                ._add(bn_beta[idx]);
         }
         let res = activation(results[0][kk as usize]);
         for v in 0..oc_remain as usize {
@@ -1366,6 +1399,7 @@ pub(crate) fn bn_remain_oc_kernel_dispatch<T: CommonBounds>(
 >
 where
     bool: IntoScalar<T>,
+    T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
 {
     let kernels: [fn(
         PartialParams,

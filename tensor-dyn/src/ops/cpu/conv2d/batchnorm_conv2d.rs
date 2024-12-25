@@ -27,6 +27,7 @@ where
     T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
     T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
     T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
+    T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
     bool: IntoScalar<T>,
 {
     /// Performs a 2D convolution operation on the input tensor.
@@ -1647,6 +1648,7 @@ where
         + NormalOut<Output = T::Vec>
         + FloatOutBinary<Output = T::Vec>
         + FloatOutUnary<Output = T::Vec>,
+    T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
     bool: IntoScalar<T>,
 {
     /// Performs a 2D convolution operation on the input tensor.
