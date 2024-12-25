@@ -4,6 +4,7 @@ use crate::arch_simd::sleef::arch::helper_avx2 as helper;
 use crate::arch_simd::sleef::arch::helper_sse as helper;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::simd::sleef::arch::helper_aarch64::{vcast_vf_vo, visinf_vo_vf, visnan_vo_vf, vneg_vf_vf};
 
 use helper::vabs_vf_vf;

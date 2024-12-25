@@ -318,10 +318,6 @@ pub mod cuda_types {
     pub mod scalar;
     /// A module defines convertion for cuda types
     pub mod convertion;
-    /// A module implements normal out unary for cuda types
-    pub mod normal_out_unary;
-    /// A module implements normal out binary for cuda types
-    pub mod normal_out_binary;
 }
 
 pub use vectors::*;
