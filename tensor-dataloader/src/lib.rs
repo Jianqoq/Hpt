@@ -9,7 +9,7 @@ pub use data_loader::Endian;
 pub use compression_trait::CompressionAlgo;
 
 pub(crate) mod save;
-pub(crate) mod load_compressed_slice;
+pub(crate) mod load;
 pub(crate) mod utils;
 
 pub(crate) const CHUNK_BUFF: usize = 1024 * 1024;

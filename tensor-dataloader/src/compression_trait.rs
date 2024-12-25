@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use tensor_common::{shape::Shape, slice::Slice, strides::Strides};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 
-use crate::{data_loader::Endian, load_compressed_slice::load_compressed_slice, save::save};
+use crate::{data_loader::Endian, load::load_compressed_slice, save::save};
 
 pub trait CompressionTrait {
     fn write_all_data(&mut self, buf: &[u8]) -> std::io::Result<()>;

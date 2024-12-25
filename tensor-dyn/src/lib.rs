@@ -27,6 +27,8 @@ pub mod ops {
             pub mod dwconv2d;
             /// a module defines maxpool2d operation
             pub mod max_pool;
+            /// a module defines batchnorm_conv2d operation
+            pub mod batchnorm_conv2d;
         }
         /// a module defines reduce kernels
         pub mod argreduce_kernels;
@@ -89,6 +91,8 @@ pub mod ops {
             pub mod reduce;
             /// a module defines the softmax kernels
             pub mod softmax;
+            /// a module defines the batchnorm conv2d kernels
+            pub mod batch_norm_conv;
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_external {
