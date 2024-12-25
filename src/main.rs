@@ -8,15 +8,15 @@ fn main() -> anyhow::Result<()> {
     // visit_dirs(dir_path)?;
     // load_dirs(dir_path)?;
 
-    let a = Tensor::<f32>::arange(0, 10 * 100 * 10 * 100)?.reshape([10, 100, 10, 100])?;
-    let res = slice!(a[:, :, :, 0:-1:-1])?;
+    let a = Tensor::<f32>::arange(0, 100 * 1024 * 10)?.reshape([100, 1024, 10])?;
+    let res = slice!(a[:, 1024:0:-200, :])?;
     println!("{}", res);
 
     // TensorSaver::new("test.ftz".into())
     //     .push("test", a, CompressionAlgo::Gzip, Endian::Big, 9)
     //     .save()?;
     let loader: Vec<Tensor<f32>> = TensorLoader::new("test.ftz".into())
-        .push("test", &match_selection!(:, :, :, 0:-1:-1))
+        .push("test", &match_selection!(:, 1024:0:-200, :))
         .load()?;
 
     println!("{}", loader[0]);

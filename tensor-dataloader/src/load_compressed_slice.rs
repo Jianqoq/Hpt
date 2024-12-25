@@ -44,8 +44,7 @@ pub(crate) fn load_compressed_slice<
             &slices,
             std::mem::size_of::<T>() as i64,
         )?;
-        println!("res_shape: {:?}, res_strides: {:?}", res_shape, res_strides);
-
+        
         let mut strides = res_strides.clone();
         strides.iter_mut().for_each(|x| {
             *x /= std::mem::size_of::<T>() as i64;
@@ -92,10 +91,9 @@ pub(crate) fn load_compressed_slice<
         let outer = shape.iter().product::<i64>() / inner;
 
         let mut start_idx = (local_row_offset * inner_loop_size + local_col_offset as usize) as i64;
-        let mut res_idx = 0;
         let pack = get_pack_closure::<T, N>(info.endian);
 
-        for _ in 0..outer * inner {
+        for idx in 0..(outer * inner) as usize {
             if start_idx < 0 {
                 let jumped_eles2 = -start_idx;
                 let jumped_rows2 = jumped_eles2 / inner_loop_size as i64;
@@ -134,8 +132,7 @@ pub(crate) fn load_compressed_slice<
             }
             let val = &uncompressed_data
                 [start_idx as usize..start_idx as usize + std::mem::size_of::<T>()];
-            res[res_idx] = pack(val);
-            res_idx += 1;
+            res[idx] = pack(val);
 
             for j in (0..shape.len()).rev() {
                 if prg[j] < (shape[j] - 1) {
