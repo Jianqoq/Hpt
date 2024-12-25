@@ -187,11 +187,11 @@ impl TensorLoader {
         }
     }
 
-    pub fn push(mut self, name: &str, slices: Vec<Slice>) -> Self {
+    pub fn push(mut self, name: &str, slices: &[Slice]) -> Self {
         if let Some(to_loads) = &mut self.to_loads {
-            to_loads.push((name.to_string(), slices));
+            to_loads.push((name.to_string(), slices.to_vec()));
         } else {
-            self.to_loads = Some(vec![(name.to_string(), slices)]);
+            self.to_loads = Some(vec![(name.to_string(), slices.to_vec())]);
         }
         self
     }
