@@ -1,17 +1,14 @@
 use std::panic::Location;
 
 use tensor_common::{
-    err_handler::ErrHandler,
-    prg_update::next_sub1,
-    shape_utils::mt_intervals,
-    slice::Slice,
+    err_handler::ErrHandler, prg_update::next_sub1, shape_utils::mt_intervals, slice::Slice,
 };
 use tensor_traits::{
     shape_manipulate::ShapeManipulate,
-    tensor::{ CommonBounds, TensorCreator, TensorInfo },
+    tensor::{CommonBounds, TensorCreator, TensorInfo},
 };
 
-use crate::{ tensor_base::_Tensor, THREAD_POOL };
+use crate::{tensor_base::_Tensor, THREAD_POOL};
 
 /// Concatenates multiple tensors along a specified axis.
 ///
@@ -36,53 +33,39 @@ use crate::{ tensor_base::_Tensor, THREAD_POOL };
 pub(crate) fn concat<T>(
     tensors: Vec<&_Tensor<T>>,
     axis: usize,
-    keepdims: bool
-) -> anyhow::Result<_Tensor<T>>
-    where T: CommonBounds
+    keepdims: bool,
+) -> std::result::Result<_Tensor<T>, ErrHandler>
+where
+    T: CommonBounds,
 {
     let length = tensors.len();
-    let mut all_same_shape = true;
     for i in tensors.iter() {
-        tensors[0]
-            .shape()
-            .iter()
-            .enumerate()
-            .try_for_each(|(idx, x)| {
-                if
-                    idx != axis &&
-                    i.shape().len() == tensors[0].shape().len() &&
-                    *x != i.shape()[idx]
-                {
-                    return Err(
-                        anyhow::Error::msg("Shapes except the axis to stack must be the same")
-                    );
-                } else if i.shape().len() != tensors[0].shape().len() {
-                    return Err(
-                        ErrHandler::NdimMismatched(
-                            tensors[0].ndim(),
-                            i.ndim(),
-                            Location::caller()
-                        ).into()
-                    );
-                } else if idx == axis && *x != i.shape()[idx] {
-                    all_same_shape = false;
-                }
-                Ok(())
-            })?;
+        for (idx, x) in tensors[0].shape().iter().enumerate() {
+            if idx != axis && i.shape().len() == tensors[0].shape().len() && *x != i.shape()[idx] {
+                return Err(ErrHandler::ConcatError(
+                    axis,
+                    *x as usize,
+                    Location::caller(),
+                ));
+            } else if i.shape().len() != tensors[0].shape().len() {
+                return Err(ErrHandler::NdimMismatched(
+                    tensors[0].ndim(),
+                    i.ndim(),
+                    Location::caller(),
+                )
+                .into());
+            }
+        }
     }
     let mut new_shape: Vec<i64> = vec![0; tensors[0].ndim()];
     tensors.iter().for_each(|x| {
         new_shape[axis] += x.shape()[axis];
     });
-    tensors[0]
-        .shape()
-        .iter()
-        .enumerate()
-        .for_each(|(i, x)| {
-            if i != axis {
-                new_shape[i] = *x;
-            }
-        });
+    tensors[0].shape().iter().enumerate().for_each(|(i, x)| {
+        if i != axis {
+            new_shape[i] = *x;
+        }
+    });
     let new_tensor = _Tensor::<T>::empty(&new_shape)?;
     let mut begin = 0;
     let mut res_slices = Vec::with_capacity(length);
@@ -127,7 +110,7 @@ pub(crate) fn concat<T>(
                             input.shape(),
                             [&mut a_data, &mut res_ptr],
                             [&input.shape(), &res.shape()],
-                            [&input.strides(), &res.strides()]
+                            [&input.strides(), &res.strides()],
                         );
                     }
                 }

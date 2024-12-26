@@ -1,3 +1,4 @@
+use std::panic::Location;
 use std::sync::Arc;
 
 use crate::ops::cuda::cuda_utils::{
@@ -7,6 +8,7 @@ use crate::{tensor_base::_Tensor, Cuda, Tensor};
 use crate::{Backend, ALIGN};
 use cudarc::driver::{CudaDevice, DeviceRepr, LaunchAsync};
 use tensor_allocator::CUDA_CACHE;
+use tensor_common::err_handler::ErrHandler;
 use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_traits::TensorCreator;
 use tensor_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
@@ -28,7 +30,7 @@ where
         unimplemented!()
     }
 
-    fn contiguous(&self) -> anyhow::Result<Self> {
+    fn contiguous(&self) -> std::result::Result<Self, ErrHandler> {
         let res = Self::empty(self.shape().clone())?;
         let shape_str = get_array_str(self.shape());
         let strides_str = get_array_str(self.strides());
@@ -74,7 +76,14 @@ where
         let inp_slice = self.cuda_slice();
         let reg_info = map.get("contiguous").expect("func_name not found");
         let cfg = compute_kernel_launch_config(res.device(), reg_info, res.size());
-        unsafe { kernel.launch(cfg, (out_slice, inp_slice)) }?;
+        unsafe { kernel.launch(cfg, (out_slice, inp_slice)) }.map_err(|e| {
+            ErrHandler::CudaKernelLaunchingError(
+                module_name.into(),
+                "contiguous".into(),
+                Location::caller(),
+                e,
+            )
+        })?;
         Ok(res)
     }
 }
@@ -91,7 +100,7 @@ where
         unimplemented!()
     }
 
-    fn contiguous(&self) -> anyhow::Result<Self> {
+    fn contiguous(&self) -> std::result::Result<Self, ErrHandler> {
         Ok(self.inner.as_ref().contiguous()?.into())
     }
 }
@@ -167,7 +176,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorAlloc
     for _Tensor<T, Cuda, DEVICE_ID>
 {
     type Meta = T;
-    fn _empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Self>
+    fn _empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler>
     where
         Self: Sized,
     {
@@ -177,7 +186,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorAlloc
 
 // impl<T: CommonBounds> TensorIterator<'_, T> for _Tensor<T, Cuda> {}
 
-impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
+impl<T: CommonBounds, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
     // /// copy the data from the other tensor to this tensor
     // pub fn assign(&mut self, other: &_Tensor<T>) {
     //     self.par_iter_mut_simd()
@@ -188,7 +197,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVI
     // }
 
     /// cast the tensor to the new type
-    pub fn astype<U>(&self) -> anyhow::Result<_Tensor<U, Cuda, DEVICE_ID>>
+    pub fn astype<U>(&self) -> std::result::Result<_Tensor<U, Cuda, DEVICE_ID>, ErrHandler>
     where
         U: CommonBounds + DeviceRepr,
         T: IntoScalar<U>,
@@ -217,7 +226,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVI
     // }
 
     /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
-    pub fn static_cast<Dst>(&self) -> anyhow::Result<_Tensor<Dst, Cuda, DEVICE_ID>>
+    pub fn static_cast<Dst>(&self) -> std::result::Result<_Tensor<Dst, Cuda, DEVICE_ID>, ErrHandler>
     where
         Dst: CommonBounds,
     {
@@ -277,8 +286,11 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVI
     //     folder.reduce(|| true, |a, b| a && b)
     // }
 
-    pub fn to_cpu(&self) -> anyhow::Result<Tensor<T>> {
-        let mut data = _Tensor::<T>::empty(self.layout.shape().clone()).unwrap();
+    pub fn to_cpu(&self) -> std::result::Result<Tensor<T>, ErrHandler>
+    where
+        T: DeviceRepr,
+    {
+        let mut data = _Tensor::<T>::empty(self.layout.shape().clone())?;
         let device = self.device();
         let ptr = unsafe { device.upgrade_device_ptr(self.data.ptr as u64, self.size()) };
         self.device()
@@ -295,11 +307,19 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVI
             inner: self.data.ptr as u64,
         }
     }
-    pub(crate) fn cuda_shape(&self) -> anyhow::Result<cudarc::driver::CudaSlice<i64>> {
-        Ok(self.device().htod_sync_copy(self.shape())?)
+    pub(crate) fn cuda_shape(
+        &self,
+    ) -> std::result::Result<cudarc::driver::CudaSlice<i64>, ErrHandler> {
+        self.device()
+            .htod_sync_copy(self.shape())
+            .map_err(|x| ErrHandler::CudaHostToDeviceError(Location::caller(), x))
     }
-    pub(crate) fn cuda_strides(&self) -> anyhow::Result<cudarc::driver::CudaSlice<i64>> {
-        Ok(self.device().htod_sync_copy(self.strides())?)
+    pub(crate) fn cuda_strides(
+        &self,
+    ) -> std::result::Result<cudarc::driver::CudaSlice<i64>, ErrHandler> {
+        self.device()
+            .htod_sync_copy(self.strides())
+            .map_err(|x| ErrHandler::CudaHostToDeviceError(Location::caller(), x))
     }
     pub(crate) fn device_cap(&self) -> usize {
         self._backend._backend.cap

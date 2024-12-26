@@ -7,6 +7,7 @@ use crate::Cuda;
 use cudarc::driver::DeviceRepr;
 use cudarc::types::CudaTypeName;
 use tensor_common::axis::{process_axes, Axis};
+use tensor_common::err_handler::ErrHandler;
 use tensor_cudakernels::{ALL, ANY, MAX, MIN, NANPROD, NANSUM, PROD, REDUCEL1, SUM};
 use tensor_traits::{CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce, TensorInfo};
 use tensor_types::convertion::VecConvertor;
@@ -21,7 +22,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
 {
     type Output = Self;
 
-    fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler> {
         let axes = process_axes(axes, self.ndim())?;
         reduce(
             self,
@@ -44,7 +45,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
         keep_dims: bool,
         init_out: bool,
         out: O,
-    ) -> anyhow::Result<Self::Output>
+    ) -> std::result::Result<Self::Output, ErrHandler>
     where
         O: Borrow<Self::Output>,
     {
@@ -86,7 +87,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
     //     )
     // }
 
-    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler> {
         let axes = process_axes(axis, self.ndim())?;
         reduce(
             self,
@@ -125,7 +126,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
     //     )
     // }
 
-    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
+    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self, ErrHandler> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
@@ -164,7 +165,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
     //     )
     // }
 
-    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
+    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self, ErrHandler> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
@@ -203,7 +204,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
     //     )
     // }
 
-    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
@@ -226,7 +227,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
         )
     }
 
-    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce2(
             self,
@@ -251,7 +252,7 @@ where
     T: CommonBounds + Eval<Output = bool> + IntoScalar<bool> + DeviceRepr + CudaTypeName,
 {
     type BoolOutput = _Tensor<bool, Cuda, DEVICE_ID>;
-    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
+    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::BoolOutput, ErrHandler> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce2(
             self,
@@ -273,7 +274,7 @@ where
         )
     }
 
-    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
+    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::BoolOutput, ErrHandler> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce2(
             self,
@@ -305,7 +306,7 @@ where
 {
     type Output = Self;
 
-    fn nansum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn nansum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler> {
         let axes = process_axes(axes, self.ndim())?;
         reduce(
             self,
@@ -404,7 +405,7 @@ where
     //     )
     // }
 
-    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,

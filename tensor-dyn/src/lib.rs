@@ -231,6 +231,14 @@ pub mod ops {
         /// a module contains cuda normal out unary impls
         pub(crate) mod unary;
     }
+
+    /// a module contains all the common ops
+    pub mod common {
+        /// a module contains all the shape manipulation ops
+        pub mod shape_manipulate;
+        /// a module contains all the functions to help create a tensor
+        pub mod creation;
+    }
 }
 
 pub mod backend;

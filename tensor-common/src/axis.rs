@@ -5,10 +5,16 @@ use crate::err_handler::ErrHandler;
 /// `Axis` struct to hold the axes for operations
 ///
 /// it stores the axes the user wants to perform operations on
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Axis {
     /// the axes to be processed
     pub axes: Vec<i64>,
+}
+
+impl std::fmt::Display for Axis {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Axis({:?})", self.axes)
+    }
 }
 
 /// function to process the axes
@@ -29,7 +35,10 @@ pub struct Axis {
 ///
 /// if the axis is out of `0..ndim`
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub fn process_axes<T: Into<Axis>>(axes: T, ndim: usize) -> anyhow::Result<Vec<usize>> {
+pub fn process_axes<T: Into<Axis>>(
+    axes: T,
+    ndim: usize,
+) -> std::result::Result<Vec<usize>, ErrHandler> {
     let ndim = ndim as i64;
     let axes = axes.into().axes;
     let mut new_axes = Vec::with_capacity(axes.len());
@@ -42,15 +51,16 @@ pub fn process_axes<T: Into<Axis>>(axes: T, ndim: usize) -> anyhow::Result<Vec<u
                     axis,
                     val,
                     Location::caller(),
-                )
-                .into());
+                ));
             }
             new_axes.push(val as usize);
         } else {
             if axis >= ndim {
-                return Err(
-                    ErrHandler::IndexOutOfRange(ndim as usize, axis, Location::caller()).into(),
-                );
+                return Err(ErrHandler::IndexOutOfRange(
+                    ndim as usize,
+                    axis,
+                    Location::caller(),
+                ));
             }
             new_axes.push(axis as usize);
         }
@@ -242,25 +252,33 @@ impl<'a> From<&'a Vec<i64>> for Axis {
 
 impl<'a> From<&'a Vec<i32>> for Axis {
     fn from(axes: &'a Vec<i32>) -> Self {
-        Axis { axes: axes.iter().map(|x| *x as i64).collect() }
+        Axis {
+            axes: axes.iter().map(|x| *x as i64).collect(),
+        }
     }
 }
 
 impl<'a> From<&'a Vec<i16>> for Axis {
     fn from(axes: &'a Vec<i16>) -> Self {
-        Axis { axes: axes.iter().map(|x| *x as i64).collect() }
+        Axis {
+            axes: axes.iter().map(|x| *x as i64).collect(),
+        }
     }
 }
 
 impl<'a> From<&'a Vec<i8>> for Axis {
     fn from(axes: &'a Vec<i8>) -> Self {
-        Axis { axes: axes.iter().map(|x| *x as i64).collect() }
+        Axis {
+            axes: axes.iter().map(|x| *x as i64).collect(),
+        }
     }
 }
 
 impl<'a> From<&'a Vec<i128>> for Axis {
     fn from(axes: &'a Vec<i128>) -> Self {
-        Axis { axes: axes.iter().map(|x| *x as i64).collect() }
+        Axis {
+            axes: axes.iter().map(|x| *x as i64).collect(),
+        }
     }
 }
 
@@ -302,72 +320,96 @@ impl From<&i64> for Axis {
 
 impl From<i32> for Axis {
     fn from(axes: i32) -> Self {
-        Axis { axes: vec![axes as i64] }
+        Axis {
+            axes: vec![axes as i64],
+        }
     }
 }
 
 impl From<&i32> for Axis {
     fn from(axes: &i32) -> Self {
-        Axis { axes: vec![*axes as i64] }
+        Axis {
+            axes: vec![*axes as i64],
+        }
     }
 }
 
 impl From<i16> for Axis {
     fn from(axes: i16) -> Self {
-        Axis { axes: vec![axes as i64] }
+        Axis {
+            axes: vec![axes as i64],
+        }
     }
 }
 
 impl From<&i16> for Axis {
     fn from(axes: &i16) -> Self {
-        Axis { axes: vec![*axes as i64] }
+        Axis {
+            axes: vec![*axes as i64],
+        }
     }
 }
 
 impl From<i8> for Axis {
     fn from(axes: i8) -> Self {
-        Axis { axes: vec![axes as i64] }
+        Axis {
+            axes: vec![axes as i64],
+        }
     }
 }
 
 impl From<&i8> for Axis {
     fn from(axes: &i8) -> Self {
-        Axis { axes: vec![*axes as i64] }
+        Axis {
+            axes: vec![*axes as i64],
+        }
     }
 }
 
 impl From<i128> for Axis {
     fn from(axes: i128) -> Self {
-        Axis { axes: vec![axes as i64] }
+        Axis {
+            axes: vec![axes as i64],
+        }
     }
 }
 
 impl From<&i128> for Axis {
     fn from(axes: &i128) -> Self {
-        Axis { axes: vec![*axes as i64] }
+        Axis {
+            axes: vec![*axes as i64],
+        }
     }
 }
 
 impl From<usize> for Axis {
     fn from(axes: usize) -> Self {
-        Axis { axes: vec![axes as i64] }
+        Axis {
+            axes: vec![axes as i64],
+        }
     }
 }
 
 impl From<&usize> for Axis {
     fn from(axes: &usize) -> Self {
-        Axis { axes: vec![*axes as i64] }
+        Axis {
+            axes: vec![*axes as i64],
+        }
     }
 }
 
 impl From<isize> for Axis {
     fn from(axes: isize) -> Self {
-        Axis { axes: vec![axes as i64] }
+        Axis {
+            axes: vec![axes as i64],
+        }
     }
 }
 
 impl From<&isize> for Axis {
     fn from(axes: &isize) -> Self {
-        Axis { axes: vec![*axes as i64] }
+        Axis {
+            axes: vec![*axes as i64],
+        }
     }
 }

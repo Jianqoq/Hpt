@@ -1,6 +1,7 @@
 use std::{
     alloc::Layout,
     num::NonZeroUsize,
+    panic::Location,
     sync::{Arc, Mutex},
 };
 
@@ -8,6 +9,7 @@ use cudarc::driver::DeviceRepr;
 use hashbrown::{HashMap, HashSet};
 use lru::LruCache;
 use once_cell::sync::Lazy;
+use tensor_common::err_handler::ErrHandler;
 
 use crate::CUDA_STORAGE;
 
@@ -55,7 +57,7 @@ impl CudaAllocator {
         &mut self,
         layout: Layout,
         device_id: usize,
-    ) -> anyhow::Result<(*mut u8, Arc<cudarc::driver::CudaDevice>)> {
+    ) -> std::result::Result<(*mut u8, Arc<cudarc::driver::CudaDevice>), ErrHandler> {
         if let Some((device, allocator)) = self.allocator.get_mut(&device_id) {
             Ok((
                 allocator.allocate(layout, device_id, device.clone())?,
@@ -176,12 +178,13 @@ impl _Allocator {
     /// # Safety
     ///
     /// This function checks `null` ptr internally, any memory allocated through this method, downstream don't need to check for `null` ptr
+    #[cfg_attr(feature = "track_caller", track_caller)]
     fn allocate(
         &mut self,
         layout: Layout,
         device_id: usize,
         device: Arc<cudarc::driver::CudaDevice>,
-    ) -> anyhow::Result<*mut u8> {
+    ) -> std::result::Result<*mut u8, ErrHandler> {
         let ptr = if let Some(ptr) = self.cache.get_mut(&layout)
         /*check if we previously allocated same layout of memory */
         {
@@ -189,25 +192,43 @@ impl _Allocator {
             if let Some(safe_ptr) = ptr.pop() {
                 safe_ptr.ptr
             } else {
-                let res = unsafe { device.alloc::<u8>(layout.size())? };
+                let res = unsafe {
+                    device.alloc::<u8>(layout.size()).map_err(|e| {
+                        ErrHandler::CudaRcMemAllocFailed(
+                            layout.size() / 1024 / 1024,
+                            Location::caller(),
+                            e,
+                        )
+                    })?
+                };
                 let ptr = res.leak() as *mut u8;
                 if ptr.is_null() {
-                    anyhow::bail!(
-                        "Failed to allocate memory, for {} MB",
-                        layout.size() / 1024 / 1024
-                    );
+                    return Err(ErrHandler::MemAllocFailed(
+                        "cpu",
+                        layout.size() / 1024 / 1024,
+                        Location::caller(),
+                    ));
                 }
                 self.allocated.insert(SafePtr { ptr });
                 ptr
             }
         } else {
-            let res = unsafe { device.alloc::<u8>(layout.size())? };
+            let res = unsafe {
+                device.alloc::<u8>(layout.size()).map_err(|e| {
+                    ErrHandler::CudaRcMemAllocFailed(
+                        layout.size() / 1024 / 1024,
+                        Location::caller(),
+                        e,
+                    )
+                })?
+            };
             let ptr = res.leak() as *mut u8;
             if ptr.is_null() {
-                anyhow::bail!(
-                    "Failed to allocate memory, for {} MB",
-                    layout.size() / 1024 / 1024
-                );
+                return Err(ErrHandler::MemAllocFailed(
+                    "cpu",
+                    layout.size() / 1024 / 1024,
+                    Location::caller(),
+                ));
             }
             self.allocated.insert(SafePtr { ptr });
             ptr
@@ -229,7 +250,12 @@ impl _Allocator {
                 if let Some(cnt) = device.get_mut(&SafePtr { ptr }) {
                     *cnt = match cnt.checked_add(1) {
                         Some(cnt) => cnt,
-                        None => anyhow::bail!("Reference count overflow"),
+                        None => {
+                            return Err(ErrHandler::ReferenceCountOverflow(
+                                "cpu",
+                                Location::caller(),
+                            ))
+                        }
                     };
                 } else {
                     device.insert(SafePtr { ptr }, 1);

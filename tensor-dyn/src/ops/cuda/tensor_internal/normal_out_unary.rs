@@ -4,6 +4,7 @@ use crate::{
     Cuda,
 };
 use cudarc::driver::DeviceRepr;
+use tensor_common::err_handler::ErrHandler;
 use std::borrow::Borrow;
 use tensor_traits::{CommonBounds, NormalUaryOps, TensorLike};
 use tensor_types::cuda_types::scalar::Scalar;
@@ -26,7 +27,7 @@ where
 
     type OutputMeta = NormalType<T>;
 
-    fn floor(&self) -> anyhow::Result<Self> {
+    fn floor(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("floor", self),
@@ -35,7 +36,7 @@ where
         )
     }
 
-    fn floor_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn floor_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -47,7 +48,7 @@ where
         )
     }
 
-    fn square(&self) -> anyhow::Result<Self> {
+    fn square(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("square", self),
@@ -56,7 +57,7 @@ where
         )
     }
 
-    fn square_<U>(&self, out: U) -> anyhow::Result<Self>
+    fn square_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -68,7 +69,7 @@ where
         )
     }
 
-    fn abs(&self) -> anyhow::Result<Self> {
+    fn abs(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("abs", self),
@@ -77,7 +78,7 @@ where
         )
     }
 
-    fn abs_<U>(&self, out: U) -> anyhow::Result<Self>
+    fn abs_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -89,7 +90,7 @@ where
         )
     }
 
-    fn ceil(&self) -> anyhow::Result<Self> {
+    fn ceil(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("ceil", self),
@@ -97,7 +98,7 @@ where
             None::<Self::Output>,
         )
     }
-    fn ceil_<U>(&self, out: U) -> anyhow::Result<Self>
+    fn ceil_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -109,7 +110,7 @@ where
         )
     }
 
-    fn sign(&self) -> anyhow::Result<Self> {
+    fn sign(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("sign", self),
@@ -117,7 +118,7 @@ where
             None::<Self::Output>,
         )
     }
-    fn sign_<U>(&self, out: U) -> anyhow::Result<Self>
+    fn sign_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -128,7 +129,7 @@ where
             Some(out),
         )
     }
-    fn clamp(&self, min: NormalType<T>, max: NormalType<T>) -> anyhow::Result<Self> {
+    fn clamp(&self, min: NormalType<T>, max: NormalType<T>) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("clamp", self),
@@ -140,7 +141,7 @@ where
             None::<Self::Output>,
         )
     }
-    fn clamp_<U>(&self, min: NormalType<T>, max: NormalType<T>, out: U) -> anyhow::Result<Self>
+    fn clamp_<U>(&self, min: NormalType<T>, max: NormalType<T>, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -155,7 +156,7 @@ where
             Some(out),
         )
     }
-    fn round(&self) -> anyhow::Result<Self> {
+    fn round(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("round", self),
@@ -163,7 +164,7 @@ where
             None::<Self::Output>,
         )
     }
-    fn round_<U>(&self, out: U) -> anyhow::Result<Self>
+    fn round_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -175,7 +176,7 @@ where
         )
     }
 
-    fn neg(&self) -> anyhow::Result<Self> {
+    fn neg(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("neg", self),
@@ -184,7 +185,7 @@ where
         )
     }
 
-    fn neg_<U>(&self, out: U) -> anyhow::Result<Self>
+    fn neg_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -196,7 +197,7 @@ where
         )
     }
 
-    fn relu(&self) -> anyhow::Result<Self::Output> {
+    fn relu(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("relu", self),
@@ -205,7 +206,7 @@ where
         )
     }
 
-    fn relu_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn relu_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -217,7 +218,7 @@ where
         )
     }
 
-    fn leaky_relu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
+    fn leaky_relu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("leaky_relu", self),
@@ -229,7 +230,7 @@ where
         )
     }
 
-    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
+    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -244,7 +245,7 @@ where
         )
     }
 
-    fn relu6(&self) -> anyhow::Result<Self::Output> {
+    fn relu6(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("leaky_relu", self),
@@ -253,7 +254,7 @@ where
         )
     }
 
-    fn relu6_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn relu6_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {

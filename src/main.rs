@@ -3,7 +3,6 @@ use std::io::BufRead;
 use tensor_common::slice;
 use tensor_dyn::*;
 
-
 struct Conv2dBatchNorm {
     weight: Tensor<f32>,
     bias: Tensor<f32>,

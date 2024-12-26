@@ -77,6 +77,17 @@ impl VecTrait<usize> for USizeVEC {
             Self(USizeBase::splat(val as u32))
         }
     }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const usize) -> Self {
+        #[cfg(target_pointer_width = "64")]
+        {
+            Self(USizeBase::from_ptr(ptr as *const u64))
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            Self(USizeBase::from_ptr(ptr as *const u32))
+        }
+    }
 }
 
 impl USizeVEC {

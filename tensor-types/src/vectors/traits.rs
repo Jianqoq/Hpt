@@ -54,14 +54,7 @@ pub trait VecTrait<T: Copy> {
     /// # Safety
     ///
     /// This function is unsafe because it can cause undefined behavior if the pointer is invalid or the data len is less than the vector size
-    #[inline(always)]
-    unsafe fn from_ptr(ptr: *const T) -> Self
-    where
-        Self: Sized,
-    {
-        let ptr = ptr as *const Self;
-        unsafe { ptr.read_unaligned() }
-    }
+    unsafe fn from_ptr(ptr: *const T) -> Self;
 }
 
 /// a trait to select value from two vectors

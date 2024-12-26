@@ -7,7 +7,7 @@ impl<T> _Tensor<T, Cpu> where T: CommonBounds {
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn gather_elements(&self, indices: &_Tensor<i64, Cpu>, axis: i64) -> anyhow::Result<Self> {
         let axis = (if axis < 0 { (self.ndim() as i64) + axis } else { axis }) as usize;
-        let ret = _Tensor::<T, Cpu>::empty(indices.shape())?;
+        let ret: _Tensor<T> = _Tensor::<T, Cpu>::empty(indices.shape())?;
         let inner_loop_size = indices.shape()[indices.ndim() - 1] as usize;
         let outer_loop_size = indices.size() / inner_loop_size;
 

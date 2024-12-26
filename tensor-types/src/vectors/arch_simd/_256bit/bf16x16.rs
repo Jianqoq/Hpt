@@ -1,7 +1,7 @@
 use crate::arch_simd::_256bit::u16x16::u16x16;
 use crate::convertion::VecConvertor;
-use crate::{ traits::VecTrait, vectors::arch_simd::_256bit::f32x8::f32x8 };
 use crate::traits::{SimdCompare, SimdSelect};
+use crate::{traits::VecTrait, vectors::arch_simd::_256bit::f32x8::f32x8};
 
 use super::i16x16::i16x16;
 
@@ -36,6 +36,27 @@ impl VecTrait<half::bf16> for bf16x16 {
     #[inline(always)]
     fn splat(val: half::bf16) -> bf16x16 {
         bf16x16([val; 16])
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const half::bf16) -> Self {
+        bf16x16([
+            ptr.read_unaligned(),
+            ptr.add(1).read_unaligned(),
+            ptr.add(2).read_unaligned(),
+            ptr.add(3).read_unaligned(),
+            ptr.add(4).read_unaligned(),
+            ptr.add(5).read_unaligned(),
+            ptr.add(6).read_unaligned(),
+            ptr.add(7).read_unaligned(),
+            ptr.add(8).read_unaligned(),
+            ptr.add(9).read_unaligned(),
+            ptr.add(10).read_unaligned(),
+            ptr.add(11).read_unaligned(),
+            ptr.add(12).read_unaligned(),
+            ptr.add(13).read_unaligned(),
+            ptr.add(14).read_unaligned(),
+            ptr.add(15).read_unaligned(),
+        ])
     }
 }
 
@@ -125,7 +146,7 @@ impl SimdCompare for bf16x16 {
             let other_ptr = &other.0 as *const _ as *const __m256i;
             let a = _mm256_loadu_si256(self_ptr);
             let b = _mm256_loadu_si256(other_ptr);
-            let lt = _mm256_cmpgt_epi16(b, a);  // 交换 a 和 b
+            let lt = _mm256_cmpgt_epi16(b, a); // 交换 a 和 b
             let eq = _mm256_cmpeq_epi16(a, b);
             i16x16(_mm256_or_si256(lt, eq))
         }
@@ -160,7 +181,11 @@ impl SimdSelect<bf16x16> for i16x16 {
         let mut ret = bf16x16::default();
         let arr = self.as_array();
         for i in 0..16 {
-            ret.0[i] = if arr[i] != 0 { true_val.0[i] } else { false_val.0[i] };
+            ret.0[i] = if arr[i] != 0 {
+                true_val.0[i]
+            } else {
+                false_val.0[i]
+            };
         }
         ret
     }

@@ -1,8 +1,11 @@
+use std::panic::Location;
+
 use crate::ops::cuda::cuda_utils::load_ptx_and_get_data;
 use crate::{backend::Cuda, tensor_base::_Tensor};
 use cudarc::driver::LaunchAsync;
 use cudarc::{driver::DeviceRepr, types::CudaTypeName};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
+use tensor_common::err_handler::ErrHandler;
 use tensor_cudakernels::SET_VAL;
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike};
 
@@ -41,7 +44,7 @@ pub(crate) fn reduce_prepare<
     init_val: O,
     init_out: bool,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
-) -> anyhow::Result<(_Tensor<T, Cuda, DEVICE_ID>, _Tensor<O, Cuda, DEVICE_ID>)> {
+) -> std::result::Result<(_Tensor<T, Cuda, DEVICE_ID>, _Tensor<O, Cuda, DEVICE_ID>), ErrHandler> {
     // get permute order, we move to_reduce axes to the end
     let mut transposed_axis = rearrange_array(a.layout.ndim(), axes);
 
@@ -56,17 +59,7 @@ pub(crate) fn reduce_prepare<
     let res = if let Some(out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
-        if res_layout.size() != out.layout.size() {
-            return Err(anyhow::Error::msg(format!(
-                "Output array has incorrect size, expected {}, got {}",
-                res_layout.size(),
-                out.layout.size()
-            )));
-        } else if !out.layout.is_contiguous() {
-            return Err(anyhow::Error::msg(
-                "Output array is not contiguous".to_string(),
-            ));
-        }
+        ErrHandler::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
         if init_out {
             let (kernel, reg_info) = load_ptx_and_get_data(
                 "set_val",
@@ -76,8 +69,23 @@ pub(crate) fn reduce_prepare<
                 &SET_VAL,
             )
             .unwrap();
-            let cfg = compute_kernel_launch_config(out.device(), &reg_info, res_layout.size() as usize);
-            unsafe { kernel.launch(cfg, (out.cuda_slice(), init_val, res_layout.size() as usize))? };
+            let cfg =
+                compute_kernel_launch_config(out.device(), &reg_info, res_layout.size() as usize);
+            unsafe {
+                kernel
+                    .launch(
+                        cfg,
+                        (out.cuda_slice(), init_val, res_layout.size() as usize),
+                    )
+                    .map_err(|e| {
+                        ErrHandler::CudaKernelLaunchingError(
+                            "set_val".to_string(),
+                            format!("set_val_{}", O::ID),
+                            Location::caller(),
+                            e,
+                        )
+                    })?
+            };
         }
         out.reshape(res_layout.shape())?
     } else {
@@ -97,12 +105,15 @@ pub(crate) fn uncontiguous_reduce_prepare<
     init_val: O,
     init_out: bool,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
-) -> anyhow::Result<(
-    bool,
-    _Tensor<T, Cuda, DEVICE_ID>,
-    _Tensor<O, Cuda, DEVICE_ID>,
-    Vec<usize>,
-)> {
+) -> std::result::Result<
+    (
+        bool,
+        _Tensor<T, Cuda, DEVICE_ID>,
+        _Tensor<O, Cuda, DEVICE_ID>,
+        Vec<usize>,
+    ),
+    ErrHandler,
+> {
     let mut keep_fast_dim = true;
     for axis in axes.iter() {
         if a.strides()[*axis] == 1 {
@@ -127,11 +138,7 @@ pub(crate) fn uncontiguous_reduce_prepare<
     let res = if let Some(mut out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
-        if res_layout.shape().inner() != out.shape().inner() {
-            return Err(anyhow::Error::msg(
-                "Output array has incorrect shape".to_string(),
-            ));
-        }
+        ErrHandler::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
         if init_out {
             out.as_raw_mut().par_iter_mut().for_each(|x| {
                 *x = init_val;

@@ -2,7 +2,7 @@
 
 use crate::BackendTy;
 use crate::{tensor_base::_Tensor, Buffer};
-use anyhow::Result;
+use tensor_common::err_handler::ErrHandler;
 use tensor_common::{
     layout::Layout,
     pointer::Pointer,
@@ -29,7 +29,7 @@ where
     ///
     /// Returns a `Result` containing the sliced tensor as a new tensor. If any slicing error occurs
     /// (e.g., out-of-bounds access), an error message is returned.
-    pub fn slice(&self, index: &[Slice]) -> Result<_Tensor<T, B, DEVICE>> {
+    pub fn slice(&self, index: &[Slice]) -> std::result::Result<_Tensor<T, B, DEVICE>, ErrHandler> {
         let (res_shape, res_strides, offset) = slice_process(
             self.layout.shape().to_vec(),
             self.layout.strides().to_vec(),

@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use tensor_common::err_handler::ErrHandler;
 use tensor_traits::{ CommonBounds, NormalUaryOps, TensorLike };
 use tensor_types::{ traits::VecTrait, type_promote::{ NormalOut, NormalOutUnary } };
 
@@ -20,16 +21,16 @@ impl<T> NormalUaryOps
 
     type OutputMeta = NormalType<T>;
 
-    fn floor(&self) -> anyhow::Result<_Tensor<NormalType<T>>> {
+    fn floor(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._floor(),
             |x| x._floor(),
-            None::<_Tensor<NormalType<T>>>
+            None::<Self::Output>
         )
     }
 
-    fn floor_<U>(&self, out: U) -> anyhow::Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
+    fn floor_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
         uary_fn_with_out_simd(
             self,
             |x| x._floor(),
@@ -38,16 +39,16 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn square(&self) -> anyhow::Result<_Tensor<NormalType<T>>> {
+    fn square(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._square(),
             |x| x._square(),
-            None::<_Tensor<NormalType<T>>>
+            None::<Self::Output>
         )
     }
 
-    fn square_<U>(&self, out: U) -> anyhow::Result<_Tensor<NormalType<T>>>
+    fn square_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -58,7 +59,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn abs(&self) -> anyhow::Result<Self> {
+    fn abs(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._abs(),
@@ -67,7 +68,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn abs_<U>(&self, out: U) -> anyhow::Result<Self> where U: Borrow<Self::InplaceOutput> {
+    fn abs_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
         uary_fn_with_out_simd(
             self,
             |x| x._abs(),
@@ -76,15 +77,15 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn ceil(&self) -> anyhow::Result<_Tensor<NormalType<T>>> {
+    fn ceil(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._ceil(),
             |x| x._ceil(),
-            None::<_Tensor<NormalType<T>>>
+            None::<Self::Output>
         )
     }
-    fn ceil_<U>(&self, out: U) -> anyhow::Result<_Tensor<NormalType<T>>>
+    fn ceil_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -95,15 +96,15 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn sign(&self) -> anyhow::Result<_Tensor<NormalType<T>>> {
+    fn sign(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._sign(),
             |x| x._sign(),
-            None::<_Tensor<NormalType<T>>>
+            None::<Self::Output>
         )
     }
-    fn sign_<U>(&self, out: U) -> anyhow::Result<_Tensor<NormalType<T>>>
+    fn sign_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -117,14 +118,14 @@ impl<T> NormalUaryOps
         &self,
         min: NormalType<T>,
         max: NormalType<T>
-    ) -> anyhow::Result<_Tensor<NormalType<T>>> {
+    ) -> std::result::Result<Self::Output, ErrHandler> {
         let min_vec = T::Vec::splat(min);
         let max_vec = T::Vec::splat(max);
         uary_fn_with_out_simd(
             self,
             |x| x._clip(min_vec, max_vec),
             |x| <T as NormalOut<T>>::_clip(x, min, max),
-            None::<_Tensor<NormalType<T>>>
+            None::<Self::Output>
         )
     }
     fn clamp_<U>(
@@ -132,7 +133,7 @@ impl<T> NormalUaryOps
         min: NormalType<T>,
         max: NormalType<T>,
         out: U
-    ) -> anyhow::Result<_Tensor<NormalType<T>>>
+    ) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         let min_vec = T::Vec::splat(min);
@@ -144,15 +145,15 @@ impl<T> NormalUaryOps
             Some(out)
         )
     }
-    fn round(&self) -> anyhow::Result<_Tensor<NormalType<T>>> {
+    fn round(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._round(),
             |x| x._round(),
-            None::<_Tensor<NormalType<T>>>
+            None::<Self::Output>
         )
     }
-    fn round_<U>(&self, out: U) -> anyhow::Result<_Tensor<NormalType<T>>>
+    fn round_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -163,16 +164,16 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn neg(&self) -> anyhow::Result<_Tensor<NormalType<T>>> {
+    fn neg(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._neg(),
             |x| x._neg(),
-            None::<_Tensor<NormalType<T>>>
+            None::<Self::Output>
         )
     }
 
-    fn neg_<U>(&self, out: U) -> anyhow::Result<_Tensor<NormalType<T>>>
+    fn neg_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -183,16 +184,16 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn relu(&self) -> anyhow::Result<Self::Output> {
+    fn relu(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._relu(),
             |x| x._relu(),
-            None::<_Tensor<NormalType<T>>>
+            None::<Self::Output>
         )
     }
 
-    fn relu_<U>(&self, out: U) -> anyhow::Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
+    fn relu_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
         uary_fn_with_out_simd(
             self,
             |x| x._relu(),
@@ -201,16 +202,16 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn leaky_relu(&self, alpha: Self::OutputMeta) -> anyhow::Result<Self::Output> {
+    fn leaky_relu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._leaky_relu(alpha),
             |x| x._leaky_relu(alpha),
-            None::<_Tensor<NormalType<T>>>
+            None::<Self::Output>
         )
     }
 
-    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> anyhow::Result<Self::Output>
+    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -221,16 +222,16 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn relu6(&self) -> anyhow::Result<Self::Output> {
+    fn relu6(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._relu6(),
             |x| x._relu6(),
-            None::<_Tensor<NormalType<T>>>
+            None::<Self::Output>
         )
     }
 
-    fn relu6_<U>(&self, out: U) -> anyhow::Result<Self::Output> where U: Borrow<Self::InplaceOutput> {
+    fn relu6_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
         uary_fn_with_out_simd(
             self,
             |x| x._relu6(),

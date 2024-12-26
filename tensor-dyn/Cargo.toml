@@ -60,6 +60,7 @@ cuda = [
     "tensor-allocator/cuda",
     "regex",
     "tensor-cudakernels/cuda",
+    "tensor-common/cuda",
     "phf",
     "xxhash-rust",
     "tensor-types/cuda",

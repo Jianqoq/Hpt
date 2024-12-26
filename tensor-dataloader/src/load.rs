@@ -14,7 +14,7 @@ use crate::{data_loader::HeaderInfo, CompressionAlgo, Endian};
 pub(crate) fn load_compressed_slice<
     'a,
     T: CommonBounds + FromBytes<Bytes = [u8; N]>,
-    B: TensorCreator<T> + Clone + TensorInfo<T>,
+    B: TensorCreator<T, Output = B> + Clone + TensorInfo<T>,
     const N: usize,
 >(
     file_name: &str,

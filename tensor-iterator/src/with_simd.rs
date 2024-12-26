@@ -63,7 +63,8 @@ where
                     } else {
                         for _ in 0..outer_loop_size {
                             for idx in 0..n {
-                                vec_op(self.inner_loop_next_simd(idx));
+                                let val = self.inner_loop_next_simd(idx);
+                                vec_op(val);
                             }
                             for idx in n * vec_size..inner_loop_size {
                                 folder = folder.consume(self.inner_loop_next(idx));

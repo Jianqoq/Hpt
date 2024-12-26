@@ -1,5 +1,6 @@
 use std::borrow::Borrow;
 
+use tensor_common::err_handler::ErrHandler;
 use tensor_traits::{ CommonBounds, FloatUaryOps };
 use tensor_types::{
     dtype::TypeCommon,
@@ -29,7 +30,7 @@ impl<T> FloatUaryOps
 
     type OutputMeta = FloatUnaryType<T>;
 
-    fn sin(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn sin(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._sin(),
@@ -38,7 +39,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn cos(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn cos(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._cos(),
@@ -47,7 +48,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn tan(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn tan(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._tan(),
@@ -56,7 +57,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn asin(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn asin(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._asin(),
@@ -65,7 +66,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn acos(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn acos(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._acos(),
@@ -74,7 +75,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn atan(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn atan(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._atan(),
@@ -83,7 +84,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn sinh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn sinh(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._sinh(),
@@ -92,7 +93,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn cosh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn cosh(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._cosh(),
@@ -101,7 +102,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn tanh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn tanh(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._tanh(),
@@ -110,7 +111,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn asinh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn asinh(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._asinh(),
@@ -119,7 +120,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn acosh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn acosh(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._acosh(),
@@ -128,7 +129,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn atanh(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn atanh(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._atanh(),
@@ -137,7 +138,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn sin_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn sin_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<_Tensor<FloatUnaryType<T>>>
     {
         uary_fn_with_out_simd(
@@ -148,7 +149,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn cos_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn cos_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -159,7 +160,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn tan_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn tan_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -170,7 +171,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn asin_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn asin_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -181,7 +182,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn acos_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn acos_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -192,7 +193,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn atan_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn atan_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -203,7 +204,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn sinh_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn sinh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -214,7 +215,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn cosh_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn cosh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -225,7 +226,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn tanh_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn tanh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -236,7 +237,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn asinh_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn asinh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -247,7 +248,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn acosh_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn acosh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -258,7 +259,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn atanh_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn atanh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -269,7 +270,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn exp(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn exp(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._exp(),
@@ -278,7 +279,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn exp_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn exp_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -289,7 +290,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn exp2(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn exp2(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._exp2(),
@@ -298,7 +299,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn exp2_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn exp2_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -309,7 +310,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn sqrt(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn sqrt(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._sqrt(),
@@ -318,7 +319,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn sqrt_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn sqrt_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -329,7 +330,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn recip(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn recip(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._recip(),
@@ -338,7 +339,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn recip_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn recip_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -349,7 +350,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn ln(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn ln(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._ln(),
@@ -358,7 +359,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn ln_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn ln_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -369,7 +370,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn log2(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn log2(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._log2(),
@@ -378,7 +379,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn log2_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn log2_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -389,7 +390,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn log10(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn log10(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._log10(),
@@ -398,7 +399,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn log10_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn log10_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -409,7 +410,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn celu(&self, alpha: FloatUnaryType<T>) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn celu(&self, alpha: FloatUnaryType<T>) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             move |x| x._celu(alpha),
@@ -422,7 +423,7 @@ impl<T> FloatUaryOps
         &self,
         alpha: FloatUnaryType<T>,
         out: U
-    ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    ) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -433,7 +434,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn sigmoid(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn sigmoid(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._sigmoid(),
@@ -442,7 +443,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn sigmoid_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn sigmoid_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -453,7 +454,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn elu(&self, alpha: FloatUnaryType<T>) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn elu(&self, alpha: FloatUnaryType<T>) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._elu(alpha),
@@ -466,7 +467,7 @@ impl<T> FloatUaryOps
         &self,
         alpha: FloatUnaryType<T>,
         out: U
-    ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    ) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -477,7 +478,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn erf(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn erf(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._erf(),
@@ -486,7 +487,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn fast_hard_sigmoid(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn fast_hard_sigmoid(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._fast_hard_sigmoid(),
@@ -495,7 +496,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn gelu(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn gelu(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._gelu(),
@@ -504,7 +505,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn gelu_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn gelu_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -519,7 +520,7 @@ impl<T> FloatUaryOps
         &self,
         alpha: U,
         gamma: U,
-    ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> where U: Into<Option<Self::OutputMeta>> {
+    ) -> std::result::Result<Self::Output, ErrHandler> where U: Into<Option<Self::OutputMeta>> {
         let alpha = alpha.into();
         let gamma = gamma.into();
         let alpha = alpha.unwrap_or((1.6732632423543772848170429916717).into_scalar());
@@ -537,7 +538,7 @@ impl<T> FloatUaryOps
         alpha: Option<FloatUnaryType<T>>,
         gamma: Option<FloatUnaryType<T>>,
         out: U
-    ) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    ) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         let alpha = alpha.unwrap_or((1.67326319217681884765625).into_scalar());
@@ -550,7 +551,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn hard_sigmoid(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn hard_sigmoid(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._hard_sigmoid(),
@@ -559,7 +560,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn hard_sigmoid_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn hard_sigmoid_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -570,7 +571,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn hard_swish(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn hard_swish(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._hard_swish(),
@@ -579,7 +580,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn hard_swish_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn hard_swish_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -590,7 +591,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn softplus(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn softplus(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._softplus(),
@@ -599,7 +600,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn softplus_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn softplus_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -610,7 +611,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn softsign(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn softsign(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._softsign(),
@@ -619,7 +620,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn softsign_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn softsign_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -630,7 +631,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn mish(&self) -> anyhow::Result<_Tensor<FloatUnaryType<T>>> {
+    fn mish(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._mish(),
@@ -639,7 +640,7 @@ impl<T> FloatUaryOps
         )
     }
 
-    fn mish_<U>(&self, out: U) -> anyhow::Result<_Tensor<FloatUnaryType<T>>>
+    fn mish_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -650,7 +651,7 @@ impl<T> FloatUaryOps
         )
     }
     
-    fn cbrt(&self) -> anyhow::Result<Self::Output> {
+    fn cbrt(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._cbrt(),
@@ -659,7 +660,7 @@ impl<T> FloatUaryOps
         )
     }
     
-    fn cbrt_<U>(&self, out: U) -> anyhow::Result<Self::Output>
+    fn cbrt_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {

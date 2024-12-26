@@ -41,6 +41,27 @@ impl VecTrait<half::f16> for f16x16 {
     fn splat(val: half::f16) -> f16x16 {
         f16x16([val; 16])
     }
+
+    unsafe fn from_ptr(ptr: *const half::f16) -> Self {
+        f16x16([
+            ptr.read_unaligned(),
+            ptr.add(1).read_unaligned(),
+            ptr.add(2).read_unaligned(),
+            ptr.add(3).read_unaligned(),
+            ptr.add(4).read_unaligned(),
+            ptr.add(5).read_unaligned(),
+            ptr.add(6).read_unaligned(),
+            ptr.add(7).read_unaligned(),
+            ptr.add(8).read_unaligned(),
+            ptr.add(9).read_unaligned(),
+            ptr.add(10).read_unaligned(),
+            ptr.add(11).read_unaligned(),
+            ptr.add(12).read_unaligned(),
+            ptr.add(13).read_unaligned(),
+            ptr.add(14).read_unaligned(),
+            ptr.add(15).read_unaligned(),
+        ])
+    }
 }
 
 impl f16x16 {

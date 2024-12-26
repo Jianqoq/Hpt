@@ -1,3 +1,5 @@
+use std::panic::Location;
+
 use crate::{
     ops::cuda::{
         cuda_utils::{compute_kernel_launch_config, load_ptx_and_get_data},
@@ -11,7 +13,10 @@ use cudarc::{
     driver::{DeviceRepr, DeviceSlice, LaunchAsync},
     types::CudaTypeName,
 };
-use tensor_common::axis::{process_axes, Axis};
+use tensor_common::{
+    axis::{process_axes, Axis},
+    err_handler::ErrHandler,
+};
 use tensor_cudakernels::{RegisterInfo, ARGMAX, ARGMIN};
 use tensor_traits::{CommonBounds, IndexReduce, ShapeManipulate, TensorInfo};
 use tensor_types::{
@@ -36,7 +41,7 @@ pub(crate) fn contiguous_reduce<T, const DEVICE_ID: usize>(
     >,
     module_name: &str,
     c: Option<_Tensor<i64, Cuda, DEVICE_ID>>,
-) -> anyhow::Result<_Tensor<i64, Cuda, DEVICE_ID>>
+) -> std::result::Result<_Tensor<i64, Cuda, DEVICE_ID>, ErrHandler>
 where
     T: CommonBounds + IntoScalar<i64> + Convertor + DeviceRepr + CudaTypeName,
 {
@@ -353,18 +358,28 @@ impl<
 {
     type Output = _Tensor<i64, Cuda, DEVICE_ID>;
 
-    fn argmax<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+    fn argmax<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, ErrHandler> {
+        let axis: Axis = axis.into();
+        let axes: Vec<usize> = process_axes(axis.clone(), self.ndim())?;
         if axes.len() != 1 {
-            return Err(anyhow::anyhow!("argmax only support one axis"));
+            return Err(ErrHandler::ArgReduceErr(axis, Location::caller()));
         }
         contiguous_reduce(self, &axes, keep_dims, false, &ARGMAX, "argmax", None)
     }
 
-    fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
-        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+    fn argmin<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, ErrHandler> {
+        let axis: Axis = axis.into();
+        let axes: Vec<usize> = process_axes(axis.clone(), self.ndim())?;
         if axes.len() != 1 {
-            return Err(anyhow::anyhow!("argmin only support one axis"));
+            return Err(ErrHandler::ArgReduceErr(axis, Location::caller()));
         }
         contiguous_reduce(self, &axes, keep_dims, false, &ARGMIN, "argmin", None)
     }

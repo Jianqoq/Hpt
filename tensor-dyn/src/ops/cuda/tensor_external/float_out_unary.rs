@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 
 use cudarc::driver::DeviceRepr;
+use tensor_common::err_handler::ErrHandler;
 use tensor_traits::{CommonBounds, FloatUaryOps};
 use tensor_types::{cuda_types::scalar::Scalar, dtype::TypeCommon, into_scalar::IntoScalar, type_promote::FloatOutUnary};
 
@@ -8,7 +9,6 @@ use crate::{
     ops::cpu::tensor_internal::float_out_unary::FloatUnaryType, tensor::Tensor,
     tensor_base::_Tensor, Cuda,
 };
-use anyhow::Result;
 
 impl<T, const DEVICE_ID: usize> FloatUaryOps for Tensor<T, Cuda, DEVICE_ID>
 where
@@ -47,7 +47,7 @@ where
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.sin().unwrap();
     /// ```
-    fn sin(&self) -> Result<Self::Output> {
+    fn sin(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::sin(self.inner.as_ref())?.into())
     }
 
@@ -72,7 +72,7 @@ where
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.cos().unwrap();
     /// ```
-    fn cos(&self) -> Result<Self::Output> {
+    fn cos(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::cos(self.inner.as_ref())?.into())
     }
 
@@ -97,7 +97,7 @@ where
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.tan().unwrap();
     /// ```
-    fn tan(&self) -> Result<Self::Output> {
+    fn tan(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::tan(self.inner.as_ref())?.into())
     }
 
@@ -122,7 +122,7 @@ where
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.asin().unwrap();
     /// ```
-    fn asin(&self) -> Result<Self::Output> {
+    fn asin(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::asin(self.inner.as_ref())?.into())
     }
 
@@ -147,7 +147,7 @@ where
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.acos().unwrap();
     /// ```
-    fn acos(&self) -> Result<Self::Output> {
+    fn acos(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::acos(self.inner.as_ref())?.into())
     }
 
@@ -172,7 +172,7 @@ where
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.atan().unwrap();
     /// ```
-    fn atan(&self) -> Result<Self::Output> {
+    fn atan(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::atan(self.inner.as_ref())?.into())
     }
 
@@ -197,7 +197,7 @@ where
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.sinh().unwrap();
     /// ```
-    fn sinh(&self) -> Result<Self::Output> {
+    fn sinh(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::sinh(self.inner.as_ref())?.into())
     }
 
@@ -222,7 +222,7 @@ where
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.cosh().unwrap();
     /// ```
-    fn cosh(&self) -> Result<Self::Output> {
+    fn cosh(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::cosh(self.inner.as_ref())?.into())
     }
 
@@ -247,7 +247,7 @@ where
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.tanh().unwrap();
     /// ```
-    fn tanh(&self) -> Result<Self::Output> {
+    fn tanh(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::tanh(self.inner.as_ref())?.into())
     }
 
@@ -272,7 +272,7 @@ where
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.asinh().unwrap();
     /// ```
-    fn asinh(&self) -> Result<Self::Output> {
+    fn asinh(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::asinh(self.inner.as_ref())?.into())
     }
 
@@ -297,7 +297,7 @@ where
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.acosh().unwrap();
     /// ```
-    fn acosh(&self) -> Result<Self::Output> {
+    fn acosh(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::acosh(self.inner.as_ref())?.into())
     }
 
@@ -322,88 +322,88 @@ where
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.atanh().unwrap();
     /// ```
-    fn atanh(&self) -> Result<Self::Output> {
+    fn atanh(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::atanh(self.inner.as_ref())?.into())
     }
 
-    fn sin_<U>(&self, out: U) -> Result<Self::Output>
+    fn sin_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::sin_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn cos_<U>(&self, out: U) -> Result<Self::Output>
+    fn cos_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::cos_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn tan_<U>(&self, out: U) -> Result<Self::Output>
+    fn tan_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::tan_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn asin_<U>(&self, out: U) -> Result<Self::Output>
+    fn asin_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::asin_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn acos_<U>(&self, out: U) -> Result<Self::Output>
+    fn acos_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::acos_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn atan_<U>(&self, out: U) -> Result<Self::Output>
+    fn atan_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::atan_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn sinh_<U>(&self, out: U) -> Result<Self::Output>
+    fn sinh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::sinh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn cosh_<U>(&self, out: U) -> Result<Self::Output>
+    fn cosh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::cosh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn tanh_<U>(&self, out: U) -> Result<Self::Output>
+    fn tanh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::tanh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn asinh_<U>(&self, out: U) -> Result<Self::Output>
+    fn asinh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::asinh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn acosh_<U>(&self, out: U) -> Result<Self::Output>
+    fn acosh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::acosh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn atanh_<U>(&self, out: U) -> Result<Self::Output>
+    fn atanh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -430,11 +430,11 @@ where
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.exp().unwrap();
     /// ```
-    fn exp(&self) -> Result<Self::Output> {
+    fn exp(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::exp(self.inner.as_ref())?.into())
     }
 
-    fn exp_<U>(&self, out: U) -> Result<Self::Output>
+    fn exp_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -466,11 +466,11 @@ where
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.exp2().unwrap();
     /// ```
-    fn exp2(&self) -> Result<Self::Output> {
+    fn exp2(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::exp2(self.inner.as_ref())?.into())
     }
 
-    fn exp2_<U>(&self, out: U) -> Result<Self::Output>
+    fn exp2_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -502,11 +502,11 @@ where
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.sqrt().unwrap();
     /// ```
-    fn sqrt(&self) -> Result<Self::Output> {
+    fn sqrt(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::sqrt(self.inner.as_ref())?.into())
     }
 
-    fn sqrt_<U>(&self, out: U) -> Result<Self::Output>
+    fn sqrt_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -537,11 +537,11 @@ where
     /// let a = Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0]);
     /// let b = a.recip().unwrap();
     /// ```
-    fn recip(&self) -> Result<Self::Output> {
+    fn recip(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::recip(self.inner.as_ref())?.into())
     }
 
-    fn recip_<U>(&self, out: U) -> Result<Self::Output>
+    fn recip_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -573,11 +573,11 @@ where
     /// let a = Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0]);
     /// let b = a.ln().unwrap();
     /// ```
-    fn ln(&self) -> Result<Self::Output> {
+    fn ln(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::ln(self.inner.as_ref())?.into())
     }
 
-    fn ln_<U>(&self, out: U) -> Result<Self::Output>
+    fn ln_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -609,11 +609,11 @@ where
     /// let a = Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0]);
     /// let b = a.log2().unwrap();
     /// ```
-    fn log2(&self) -> Result<Self::Output> {
+    fn log2(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::log2(self.inner.as_ref())?.into())
     }
 
-    fn log2_<U>(&self, out: U) -> Result<Self::Output>
+    fn log2_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -645,11 +645,11 @@ where
     /// let a = Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0]);
     /// let b = a.log10().unwrap();
     /// ```
-    fn log10(&self) -> Result<Self::Output> {
+    fn log10(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::log10(self.inner.as_ref())?.into())
     }
 
-    fn log10_<U>(&self, out: U) -> Result<Self::Output>
+    fn log10_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -680,11 +680,11 @@ where
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.celu(1.0).unwrap();
     /// ```
-    fn celu(&self, alpha: Self::OutputMeta) -> Result<Self::Output> {
+    fn celu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::celu(self.inner.as_ref(), alpha)?.into())
     }
 
-    fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
+    fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -715,11 +715,11 @@ where
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.sigmoid().unwrap();
     /// ```
-    fn sigmoid(&self) -> Result<Self::Output> {
+    fn sigmoid(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::sigmoid(self.inner.as_ref())?.into())
     }
 
-    fn sigmoid_<U>(&self, out: U) -> Result<Self::Output>
+    fn sigmoid_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -750,11 +750,11 @@ where
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.elu(1.0).unwrap();
     /// ```
-    fn elu(&self, alpha: Self::OutputMeta) -> Result<Self::Output> {
+    fn elu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::elu(self.inner.as_ref(), alpha)?.into())
     }
 
-    fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output>
+    fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -785,7 +785,7 @@ where
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.erf().unwrap();
     /// ```
-    fn erf(&self) -> Result<Self::Output> {
+    fn erf(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::erf(self.inner.as_ref())?.into())
     }
 
@@ -813,7 +813,7 @@ where
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.fast_hard_sigmoid().unwrap();
     /// ```
-    fn fast_hard_sigmoid(&self) -> Result<Self::Output> {
+    fn fast_hard_sigmoid(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::fast_hard_sigmoid(self.inner.as_ref())?.into())
     }
 
@@ -841,11 +841,11 @@ where
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.gelu().unwrap();
     /// ```
-    fn gelu(&self) -> Result<Self::Output> {
+    fn gelu(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::gelu(self.inner.as_ref())?.into())
     }
 
-    fn gelu_<U>(&self, out: U) -> Result<Self::Output>
+    fn gelu_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -878,7 +878,7 @@ where
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.selu(None, None).unwrap();
     /// ```
-    fn selu<U>(&self, alpha: U, gamma: U) -> anyhow::Result<Self::Output>
+    fn selu<U>(&self, alpha: U, gamma: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Into<Option<Self::OutputMeta>>,
     {
@@ -890,7 +890,7 @@ where
         alpha: Option<Self::OutputMeta>,
         gamma: Option<Self::OutputMeta>,
         out: U,
-    ) -> Result<Self::Output>
+    ) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -927,11 +927,11 @@ where
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.hard_sigmoid().unwrap();
     /// ```
-    fn hard_sigmoid(&self) -> Result<Self::Output> {
+    fn hard_sigmoid(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::hard_sigmoid(self.inner.as_ref())?.into())
     }
 
-    fn hard_sigmoid_<U>(&self, out: U) -> Result<Self::Output>
+    fn hard_sigmoid_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -962,11 +962,11 @@ where
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.hard_swish().unwrap();
     /// ```
-    fn hard_swish(&self) -> Result<Self::Output> {
+    fn hard_swish(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::hard_swish(self.inner.as_ref())?.into())
     }
 
-    fn hard_swish_<U>(&self, out: U) -> Result<Self::Output>
+    fn hard_swish_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -997,11 +997,11 @@ where
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.softplus().unwrap();
     /// ```
-    fn softplus(&self) -> Result<Self::Output> {
+    fn softplus(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::softplus(self.inner.as_ref())?.into())
     }
 
-    fn softplus_<U>(&self, out: U) -> Result<Self::Output>
+    fn softplus_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -1032,11 +1032,11 @@ where
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.softsign().unwrap();
     /// ```
-    fn softsign(&self) -> Result<Self::Output> {
+    fn softsign(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::softsign(self.inner.as_ref())?.into())
     }
 
-    fn softsign_<U>(&self, out: U) -> Result<Self::Output>
+    fn softsign_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -1067,22 +1067,22 @@ where
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.mish().unwrap();
     /// ```
-    fn mish(&self) -> Result<Self::Output> {
+    fn mish(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::mish(self.inner.as_ref())?.into())
     }
 
-    fn mish_<U>(&self, out: U) -> Result<Self::Output>
+    fn mish_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::mish_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
     
-    fn cbrt(&self) -> Result<Self::Output> {
+    fn cbrt(&self) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(_Tensor::cbrt(self.inner.as_ref())?.into())
     }
     
-    fn cbrt_<U>(&self, out: U) -> Result<Self::Output>
+    fn cbrt_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         U: Borrow<Self::InplaceOutput>,
     {

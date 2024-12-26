@@ -4,6 +4,7 @@ use std::borrow::Borrow;
 use tensor_traits::{ops::binary::NormalBinOps, tensor::CommonBounds};
 use tensor_types::dtype::TypeCommon;
 use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOut};
+use tensor_common::err_handler::ErrHandler;
 
 /// a type alias for the output type of the binary operations of `A` and `B`
 pub(crate) type NormalType<A, B> = <A as NormalOut<B>>::Output;
@@ -28,28 +29,28 @@ macro_rules! impl_bin_ops {
         type InplaceOutput = _Tensor<NormalType<A, B>>;
 
         #[cfg_attr(feature = "track_caller", track_caller)]
-        fn add_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
+        fn add_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, ErrHandler>
             where
                 U: Borrow<Self::InplaceOutput>
         {
             binary_fn_with_out_simd(self, &rhs, |a, b| a._add(b), |a, b| a._add(b), Some(out))
         }
         #[cfg_attr(feature = "track_caller", track_caller)]
-        fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
+        fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, ErrHandler>
             where
                 U: Borrow<Self::InplaceOutput>
         {
             binary_fn_with_out_simd(self, &rhs, |a, b| a._sub(b), |a, b| a._sub(b), Some(out))
         }
         #[cfg_attr(feature = "track_caller", track_caller)]
-        fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
+        fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, ErrHandler>
             where
                 U: Borrow<Self::InplaceOutput>
         {
             binary_fn_with_out_simd(self, &rhs, |a, b| a._mul(b), |a, b| a._mul(b), Some(out))
         }
         #[cfg_attr(feature = "track_caller", track_caller)]
-        fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
+        fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, ErrHandler>
             where
                 U: Borrow<Self::InplaceOutput>
         {
@@ -84,7 +85,7 @@ macro_rules! impl_bin_ops_basic {
         type InplaceOutput = Tensor<NormalType<A, B>>;
         #[cfg_attr(feature = "track_caller", track_caller)]
         #[inline]
-        fn add_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
+        fn add_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, ErrHandler>
             where
                 U: Borrow<Self::InplaceOutput>
         {
@@ -92,7 +93,7 @@ macro_rules! impl_bin_ops_basic {
         }
         #[cfg_attr(feature = "track_caller", track_caller)]
         #[inline]
-        fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
+        fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, ErrHandler>
             where
                 U: Borrow<Self::InplaceOutput>
         {
@@ -100,7 +101,7 @@ macro_rules! impl_bin_ops_basic {
         }
         #[cfg_attr(feature = "track_caller", track_caller)]
         #[inline]
-        fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
+        fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, ErrHandler>
             where
                 U: Borrow<Self::InplaceOutput>
         {
@@ -108,7 +109,7 @@ macro_rules! impl_bin_ops_basic {
         }
         #[cfg_attr(feature = "track_caller", track_caller)]
         #[inline]
-        fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> anyhow::Result<Self::Output>
+        fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, ErrHandler>
             where
                 U: Borrow<Self::InplaceOutput>
         {

@@ -30,6 +30,43 @@ impl VecTrait<bool> for boolx32 {
     fn splat(val: bool) -> boolx32 {
         boolx32([val; 32])
     }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const bool) -> Self {
+        boolx32([
+            ptr.read_unaligned(),
+            ptr.add(1).read_unaligned(),
+            ptr.add(2).read_unaligned(),
+            ptr.add(3).read_unaligned(),
+            ptr.add(4).read_unaligned(),
+            ptr.add(5).read_unaligned(),
+            ptr.add(6).read_unaligned(),
+            ptr.add(7).read_unaligned(),
+            ptr.add(8).read_unaligned(),
+            ptr.add(9).read_unaligned(),
+            ptr.add(10).read_unaligned(),
+            ptr.add(11).read_unaligned(),
+            ptr.add(12).read_unaligned(),
+            ptr.add(13).read_unaligned(),
+            ptr.add(14).read_unaligned(),
+            ptr.add(15).read_unaligned(),
+            ptr.add(16).read_unaligned(),
+            ptr.add(17).read_unaligned(),
+            ptr.add(18).read_unaligned(),
+            ptr.add(19).read_unaligned(),
+            ptr.add(20).read_unaligned(),
+            ptr.add(21).read_unaligned(),
+            ptr.add(22).read_unaligned(),
+            ptr.add(23).read_unaligned(),
+            ptr.add(24).read_unaligned(),
+            ptr.add(25).read_unaligned(),
+            ptr.add(26).read_unaligned(),
+            ptr.add(27).read_unaligned(),
+            ptr.add(28).read_unaligned(),
+            ptr.add(29).read_unaligned(),
+            ptr.add(30).read_unaligned(),
+            ptr.add(31).read_unaligned(),
+        ])
+    }
 }
 
 impl boolx32 {

@@ -178,7 +178,7 @@ impl Layout {
     ///
     /// if the length of `axes` is not equal to the layout's ndim
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn permute<A: Into<Axis>>(&self, axes: A) -> anyhow::Result<Layout> {
+    pub fn permute<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Layout, ErrHandler> {
         let axes = process_axes(axes, self.shape.len())?;
         ErrHandler::check_ndim_match(axes.len(), self.shape.len())?;
         let mut new_shape = self.shape().to_vec();
@@ -204,7 +204,7 @@ impl Layout {
     /// # Returns
     ///
     /// * `Result<Layout>` - the new layout after inverse permutation
-    pub fn permute_inv<A: Into<Axis>>(&self, axes: A) -> anyhow::Result<Layout> {
+    pub fn permute_inv<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Layout, ErrHandler> {
         let axes = process_axes(axes, self.shape.len())?;
         ErrHandler::check_ndim_match(axes.len(), self.shape.len())?;
         let mut new_shape = self.shape().to_vec();
@@ -235,7 +235,7 @@ impl Layout {
     ///
     /// if the reshape is not possible
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn inplace_reshape(&self, shape: &Shape) -> anyhow::Result<Layout> {
+    pub fn inplace_reshape(&self, shape: &Shape) -> std::result::Result<Layout, ErrHandler> {
         if let Some(new_strides) = self.is_reshape_possible(shape) {
             Ok(Layout {
                 shape: shape.clone(),
@@ -271,7 +271,7 @@ impl Layout {
     /// if the `axis1` and `axis2` are the same
     ///
     /// if the `axis1` or `axis2` is out of range
-    pub fn swap_axis(&self, mut axis1: i64, mut axis2: i64) -> anyhow::Result<Layout> {
+    pub fn swap_axis(&self, mut axis1: i64, mut axis2: i64) -> std::result::Result<Layout, ErrHandler> {
         ErrHandler::check_same_axis(axis1, axis2)?;
         ErrHandler::check_index_in_range_mut(self.ndim(), &mut axis1)?;
         ErrHandler::check_index_in_range_mut(self.ndim(), &mut axis2)?;
@@ -298,7 +298,7 @@ impl Layout {
     ///
     /// if the broadcast is not possible
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn broadcast(&self, other: &Layout) -> anyhow::Result<Layout> {
+    pub fn broadcast(&self, other: &Layout) -> std::result::Result<Layout, ErrHandler> {
         let shape = predict_broadcast_shape(&self.shape, &other.shape)?;
         let strides = shape_to_strides(&shape);
         Ok(Layout { shape, strides })
@@ -327,7 +327,7 @@ impl Layout {
     /// if the `axes` contains the same axis as the layout's ndim
     ///
     /// if the `axes` contains the axis out of range
-    pub fn reduce<A: Into<Axis>>(&self, axes: A, keep_dims: bool) -> anyhow::Result<Layout> {
+    pub fn reduce<A: Into<Axis>>(&self, axes: A, keep_dims: bool) -> std::result::Result<Layout, ErrHandler> {
         let axis = process_axes(axes, self.shape.len())?;
         let new_shape = if keep_dims {
             let mut vec = Vec::with_capacity(self.shape.len());

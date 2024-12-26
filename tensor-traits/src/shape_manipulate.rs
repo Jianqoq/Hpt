@@ -1,10 +1,14 @@
-use anyhow::Result;
-use tensor_common::{ axis::Axis, shape::Shape };
+use tensor_common::{axis::Axis, err_handler::ErrHandler, shape::Shape};
 
 /// A trait for manipulating the shape of a tensor.
-pub trait ShapeManipulate<Output = Self> where Self: Sized {
+pub trait ShapeManipulate
+where
+    Self: Sized,
+{
     /// tensor data type
     type Meta;
+    /// the output type
+    type Output;
 
     /// Removes dimensions of size 1 from the tensor along the specified axes.
     ///
@@ -25,7 +29,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if the specified axes do not have a dimension of 1 or if the axes are out of bounds.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn squeeze<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
+    fn squeeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Adds a new dimension of size 1 to the tensor at the specified axes.
     ///
@@ -46,7 +50,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if the specified axes are out of bounds for the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
+    fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Reshapes the tensor into the specified shape without changing its data.
     ///
@@ -68,7 +72,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if the new shape does not match the total number of elements in the original tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn reshape<S: Into<Shape>>(&self, shape: S) -> Result<Output>;
+    fn reshape<S: Into<Shape>>(&self, shape: S) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Swaps two axes of the tensor, effectively transposing the dimensions along the specified axes.
     ///
@@ -93,7 +97,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// - [`permute`]: Rearranges all axes of the tensor according to a given order.
     /// - [`swap_axes`]: Swaps two specified axes in the tensor (an alias for `transpose`).
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn transpose(&self, axis1: i64, axis2: i64) -> Result<Output>;
+    fn transpose(&self, axis1: i64, axis2: i64) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Reorders the dimensions of the tensor according to the specified axes.
     ///
@@ -115,7 +119,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// * This function will panic if the length of `axes` does not match the number of dimensions in the tensor,
     /// or if any of the axes are out of bounds.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn permute<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
+    fn permute<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Reverses the permutation of the dimensions of the tensor according to the specified axes.
     ///
@@ -136,7 +140,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// * This function will panic if the length of `axes` does not match the number of dimensions in the tensor,
     /// or if any of the axes are out of bounds.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
+    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Expands the tensor to a larger shape without copying data, using broadcasting.
     ///
@@ -160,7 +164,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// * This function will panic if the target shape is incompatible with the tensor's current shape,
     /// or if the dimension to expand is not `1`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn expand<S: Into<Shape>>(&self, shape: S) -> Result<Output>;
+    fn expand<S: Into<Shape>>(&self, shape: S) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Returns the transpose of the tensor by swapping the last two dimensions.
     ///
@@ -181,7 +185,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// * This function will panic if the tensor has fewer than two dimensions, as transposing the last two dimensions requires
     /// the tensor to be at least 2D.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn t(&self) -> Result<Output>;
+    fn t(&self) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// reverse the dimensions of the tensor.
     ///
@@ -199,7 +203,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if the tensor is not 2D. It is only valid for matrices.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn mt(&self) -> Result<Output>;
+    fn mt(&self) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Reverses the order of elements along the specified axes of the tensor.
     ///
@@ -218,7 +222,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if any of the specified axes are out of bounds for the tensor.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn flip<A: Into<Axis>>(&self, axes: A) -> Result<Output>;
+    fn flip<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Reverses the order of elements along the last dimension (columns) of a 2D tensor (matrix).
     ///
@@ -239,7 +243,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if the tensor has fewer than two dimensions.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn fliplr(&self) -> Result<Output>;
+    fn fliplr(&self) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Reverses the order of elements along the first dimension (rows) of a 2D tensor (matrix).
     ///
@@ -258,7 +262,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if the tensor has fewer than one dimension.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn flipud(&self) -> Result<Output>;
+    fn flipud(&self) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Repeats the tensor along the specified axes according to the given repetition values.
     ///
@@ -280,7 +284,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// * This function will panic if the length of `reps` does not match the number of dimensions in the tensor,
     ///   or if any repetition value is negative.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn tile<S: Into<Axis>>(&self, reps: S) -> Result<Output>;
+    fn tile<S: Into<Axis>>(&self, reps: S) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Removes leading or trailing zeros from the tensor based on the specified trim mode.
     ///
@@ -307,7 +311,9 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * `Self::Meta` must implement `PartialEq`, as it is used to compare the tensor elements for equality with zero.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn trim_zeros(&self, trim: &str) -> Result<Output> where Self::Meta: PartialEq;
+    fn trim_zeros(&self, trim: &str) -> std::result::Result<Self::Output, ErrHandler>
+    where
+        Self::Meta: PartialEq;
 
     /// Repeats the elements of the tensor along the specified axis a given number of times.
     ///
@@ -327,7 +333,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if the `axis` is out of bounds for the tensor, or if `repeats` is zero.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn repeat(&self, repeats: usize, axis: i16) -> Result<Output>;
+    fn repeat(&self, repeats: usize, axis: i16) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Splits the tensor into multiple sub-tensors along the specified axis.
     ///
@@ -352,7 +358,11 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     /// * It will also panic if the indices in `indices_or_sections` are out of range, or if `indices_or_sections` is an integer
     ///   that does not evenly divide the tensor along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn split(&self, indices_or_sections: &[i64], axis: i64) -> Result<Vec<Output>>;
+    fn split(
+        &self,
+        indices_or_sections: &[i64],
+        axis: i64,
+    ) -> std::result::Result<Vec<Self::Output>, ErrHandler>;
 
     /// Splits the tensor into multiple sub-tensors along the depth axis (third dimension).
     ///
@@ -371,7 +381,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if the tensor has fewer than 3 dimensions or if any of the indices are out of bounds.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn dsplit(&self, indices: &[i64]) -> Result<Vec<Output>>;
+    fn dsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self::Output>, ErrHandler>;
 
     /// Splits the tensor into multiple sub-tensors along the horizontal axis (second dimension).
     ///
@@ -390,7 +400,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if the tensor has fewer than 2 dimensions or if any of the indices are out of bounds.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn hsplit(&self, indices: &[i64]) -> Result<Vec<Output>>;
+    fn hsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self::Output>, ErrHandler>;
 
     /// Splits the tensor into multiple sub-tensors along the vertical axis (first dimension).
     ///
@@ -409,7 +419,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if the tensor has fewer than 2 dimensions or if any of the indices are out of bounds.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn vsplit(&self, indices: &[i64]) -> Result<Vec<Output>>;
+    fn vsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self::Output>, ErrHandler>;
 
     /// Swaps two axes of the tensor, effectively transposing the data along the specified axes.
     ///
@@ -428,7 +438,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if either `axis1` or `axis2` are out of bounds.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn swap_axes(&self, axis1: i64, axis2: i64) -> Result<Output>;
+    fn swap_axes(&self, axis1: i64, axis2: i64) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Flattens a range of dimensions into a single dimension.
     ///
@@ -447,7 +457,9 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if `start` or `end` are out of bounds or if `start` is greater than `end`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn flatten<A>(&self, start: A, end: A) -> Result<Output> where A: Into<Option<usize>>;
+    fn flatten<A>(&self, start: A, end: A) -> std::result::Result<Self::Output, ErrHandler>
+    where
+        A: Into<Option<usize>>;
 
     /// Concatenates multiple tensors along a specified axis.
     ///
@@ -468,7 +480,11 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if the tensors have incompatible shapes along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn concat(tensors: Vec<&Self>, axis: usize, keepdims: bool) -> Result<Output>;
+    fn concat(
+        tensors: Vec<&Self>,
+        axis: usize,
+        keepdims: bool,
+    ) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Stacks multiple tensors vertically (along the first axis).
     ///
@@ -486,7 +502,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if the tensors have incompatible shapes along the first dimension.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn vstack(tensors: Vec<&Self>) -> Result<Output>;
+    fn vstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Stacks multiple tensors horizontally (along the second axis).
     ///
@@ -504,7 +520,7 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if the tensors have incompatible shapes along the second dimension.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn hstack(tensors: Vec<&Self>) -> Result<Output>;
+    fn hstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Stacks multiple tensors along the depth axis (third dimension).
     ///
@@ -522,5 +538,5 @@ pub trait ShapeManipulate<Output = Self> where Self: Sized {
     ///
     /// * This function will panic if the tensors have incompatible shapes along the third dimension.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn dstack(tensors: Vec<&Self>) -> Result<Output>;
+    fn dstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, ErrHandler>;
 }

@@ -40,6 +40,15 @@ impl VecTrait<Complex32> for cplx32x4 {
     fn splat(val: Complex32) -> cplx32x4 {
         cplx32x4([val; 4])
     }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const Complex32) -> Self {
+        cplx32x4([
+            ptr.read_unaligned(),
+            ptr.add(1).read_unaligned(),
+            ptr.add(2).read_unaligned(),
+            ptr.add(3).read_unaligned(),
+        ])
+    }
 }
 
 impl std::ops::Add for cplx32x4 {

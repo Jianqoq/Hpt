@@ -49,6 +49,10 @@ impl VecTrait<i32> for i32x8 {
     fn splat(val: i32) -> i32x8 {
         unsafe { i32x8(_mm256_set1_epi32(val)) }
     }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const i32) -> Self {
+        i32x8(_mm256_loadu_si256(ptr as *const __m256i))
+    }
 }
 
 impl i32x8 {

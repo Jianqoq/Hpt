@@ -1,26 +1,31 @@
 use std::borrow::Borrow;
 
-use crate::ops::cpu::reduce::{ reduce, reduce2, reduce3 };
+use crate::ops::cpu::reduce::{reduce, reduce2, reduce3};
 use crate::ops::cpu::tensor_internal::float_out_unary::FloatBinaryType;
 use crate::tensor_base::_Tensor;
-use tensor_common::axis::{ process_axes, Axis };
+use tensor_common::axis::{process_axes, Axis};
+use tensor_common::err_handler::ErrHandler;
 use tensor_iterator::iterator_traits::ParStridedIteratorSimd;
 use tensor_iterator::TensorIterator;
-use tensor_traits::{ CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce, TensorInfo };
+use tensor_traits::{CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce, TensorInfo};
 use tensor_types::type_promote::NormalOutUnary;
 use tensor_types::vectors::traits::VecTrait;
 use tensor_types::{
-    convertion::{ Convertor, VecConvertor },
+    convertion::{Convertor, VecConvertor},
     dtype::TypeCommon,
     into_scalar::IntoScalar,
-    type_promote::{ Eval, FloatOutBinary, FloatOutUnary, NormalOut },
+    type_promote::{Eval, FloatOutBinary, FloatOutUnary, NormalOut},
     vectors::traits::SimdSelect,
 };
 
 impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
     type Output = Self;
 
-    fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn sum<S: Into<Axis>>(
+        &self,
+        axes: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, ErrHandler> {
         let axes = process_axes(axes, self.ndim())?;
         reduce(
             self,
@@ -31,7 +36,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
             T::ZERO,
             keep_dims,
             false,
-            None
+            None,
         )
     }
 
@@ -40,9 +45,10 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         axes: S,
         keep_dims: bool,
         init_out: bool,
-        out: O
-    ) -> anyhow::Result<Self::Output>
-        where O: Borrow<Self::Output>
+        out: O,
+    ) -> std::result::Result<Self::Output, ErrHandler>
+    where
+        O: Borrow<Self::Output>,
     {
         let axes = process_axes(axes, self.ndim())?;
         reduce(
@@ -54,7 +60,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
             T::ZERO,
             keep_dims,
             init_out,
-            Some(out.borrow().clone())
+            Some(out.borrow().clone()),
         )
     }
 
@@ -78,7 +84,11 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
     //     )
     // }
 
-    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn prod<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, ErrHandler> {
         let axes = process_axes(axis, self.ndim())?;
         reduce(
             self,
@@ -89,7 +99,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
             T::ONE,
             keep_dims,
             false,
-            None
+            None,
         )
     }
 
@@ -113,7 +123,11 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
     //     )
     // }
 
-    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
+    fn min<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self, ErrHandler> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
@@ -124,7 +138,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
             T::INF,
             keep_dims,
             false,
-            None
+            None,
         )
     }
 
@@ -148,7 +162,11 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
     //     )
     // }
 
-    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self> {
+    fn max<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self, ErrHandler> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
@@ -159,7 +177,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
             T::NEG_INF,
             keep_dims,
             false,
-            None
+            None,
         )
     }
 
@@ -183,7 +201,11 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
     //     )
     // }
 
-    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn reducel1<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, ErrHandler> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
@@ -200,11 +222,15 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
             T::ZERO,
             keep_dims,
             false,
-            None
+            None,
         )
     }
 
-    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn sum_square<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, ErrHandler> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce2(
             self,
@@ -217,14 +243,21 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
             T::ZERO,
             keep_dims,
             false,
-            None
+            None,
         )
     }
 }
 
-impl<T> EvalReduce for _Tensor<T> where T: CommonBounds + Eval<Output = bool> + IntoScalar<bool> {
+impl<T> EvalReduce for _Tensor<T>
+where
+    T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
+{
     type BoolOutput = _Tensor<bool>;
-    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
+    fn all<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::BoolOutput, ErrHandler> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce2(
             self,
@@ -235,16 +268,20 @@ impl<T> EvalReduce for _Tensor<T> where T: CommonBounds + Eval<Output = bool> + 
                 let mask = b.to_bool();
                 mask & a
             },
-            |a, b| { b & a },
+            |a, b| b & a,
             &axes,
             true,
             keep_dims,
             false,
-            None
+            None,
         )
     }
 
-    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput> {
+    fn any<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::BoolOutput, ErrHandler> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce2(
             self,
@@ -255,34 +292,45 @@ impl<T> EvalReduce for _Tensor<T> where T: CommonBounds + Eval<Output = bool> + 
                 let mask = b.to_bool();
                 mask | a
             },
-            |a, b| { b | a },
+            |a, b| b | a,
             &axes,
             false,
             keep_dims,
             false,
-            None
+            None,
         )
     }
 }
 
-impl<T> NormalEvalReduce<T>
-    for _Tensor<T>
-    where
-        T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
-        T::Vec: Eval,
-        <T::Vec as Eval>::Output: SimdSelect<T::Vec>
+impl<T> NormalEvalReduce<T> for _Tensor<T>
+where
+    T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
+    T::Vec: Eval,
+    <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
 {
     type Output = Self;
 
-    fn nansum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn nansum<S: Into<Axis>>(
+        &self,
+        axes: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, ErrHandler> {
         let axes = process_axes(axes, self.ndim())?;
         reduce(
             self,
             |a, b| {
-                if b._is_nan() { a } else { b._add(a) }
+                if b._is_nan() {
+                    a
+                } else {
+                    b._add(a)
+                }
             },
             |a, b| {
-                if b._is_nan() { a } else { b._add(a) }
+                if b._is_nan() {
+                    a
+                } else {
+                    b._add(a)
+                }
             },
             |a, b| {
                 let mask = b._is_nan();
@@ -292,7 +340,7 @@ impl<T> NormalEvalReduce<T>
             T::ZERO,
             keep_dims,
             false,
-            None
+            None,
         )
     }
 
@@ -323,15 +371,27 @@ impl<T> NormalEvalReduce<T>
     //     )
     // }
 
-    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn nanprod<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, ErrHandler> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
             |a, b| {
-                if b._is_nan() { a } else { b._mul(a) }
+                if b._is_nan() {
+                    a
+                } else {
+                    b._mul(a)
+                }
             },
             |a, b| {
-                if b._is_nan() { a } else { b._mul(a) }
+                if b._is_nan() {
+                    a
+                } else {
+                    b._mul(a)
+                }
             },
             |a, b| {
                 let mask = b._is_nan();
@@ -341,7 +401,7 @@ impl<T> NormalEvalReduce<T>
             T::ONE,
             keep_dims,
             false,
-            None
+            None,
         )
     }
 
@@ -374,19 +434,16 @@ impl<T> NormalEvalReduce<T>
 }
 
 impl<T> _Tensor<T>
-    where
-        T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output> + Convertor,
-        <T as FloatOutBinary>::Output: CommonBounds +
-            FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
-        <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
-            T::Vec,
-            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
-        > +
-            FloatOutUnary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec> +
-            NormalOut<
-                <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-                Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
-            >
+where
+    T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output> + Convertor,
+    <T as FloatOutBinary>::Output:
+        CommonBounds + FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
+    <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<T::Vec, Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
+        + FloatOutUnary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
+        + NormalOut<
+            <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+        >,
 {
     /// Computes the mean (average) of elements along a specified axis.
     ///
@@ -412,17 +469,18 @@ impl<T> _Tensor<T>
     pub fn mean<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool
-    )
-        -> anyhow::Result<_Tensor<FloatBinaryType<T>>>
-        where
-            f64: IntoScalar<<T as FloatOutBinary>::Output>,
-            <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
+        keep_dims: bool,
+    ) -> std::result::Result<_Tensor<FloatBinaryType<T>>, ErrHandler>
+    where
+        f64: IntoScalar<<T as FloatOutBinary>::Output>,
+        <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
     {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        let reduce_size: FloatBinaryType<T> = (
-            axes.iter().fold(1, |acc, &x| acc * (self.shape()[x] as usize)) as f64
-        ).into_scalar();
+        let reduce_size: FloatBinaryType<T> = (axes
+            .iter()
+            .fold(1, |acc, &x| acc * (self.shape()[x] as usize))
+            as f64)
+            .into_scalar();
         let reduce_vec = <FloatBinaryType<T> as TypeCommon>::Vec::splat(reduce_size);
         reduce3(
             self,
@@ -437,7 +495,7 @@ impl<T> _Tensor<T>
             <T as FloatOutBinary>::Output::ZERO,
             keep_dims,
             false,
-            None
+            None,
         )
     }
     /// Computes the L2 norm (Euclidean norm) along a specified axis.
@@ -465,18 +523,17 @@ impl<T> _Tensor<T>
     pub fn reducel2<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool
-    )
-        -> anyhow::Result<_Tensor<FloatBinaryType<T>>>
-        where
-            T: NormalOut,
-            <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
+        keep_dims: bool,
+    ) -> std::result::Result<_Tensor<FloatBinaryType<T>>, ErrHandler>
+    where
+        T: NormalOut,
+        <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
     {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce3(
             self,
-            |a, b| { a._add(b._square()) },
-            |a, b| { a._add(b._square()) },
+            |a, b| a._add(b._square()),
+            |a, b| a._add(b._square()),
             |a, b| a._add(b),
             move |a| a._sqrt(),
             |a, b| a._add(b._mul(b)),
@@ -486,7 +543,7 @@ impl<T> _Tensor<T>
             <T as FloatOutBinary>::Output::ZERO,
             keep_dims,
             false,
-            None
+            None,
         )
     }
 
@@ -516,16 +573,15 @@ impl<T> _Tensor<T>
     pub fn reducel3<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool
-    )
-        -> anyhow::Result<_Tensor<FloatBinaryType<T>>>
-        where
-            f64: IntoScalar<<T as FloatOutBinary>::Output>,
-            <T as FloatOutBinary>::Output: TypeCommon,
-            T::Vec: NormalOut<
-                <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-                Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
-            >
+        keep_dims: bool,
+    ) -> std::result::Result<_Tensor<FloatBinaryType<T>>, ErrHandler>
+    where
+        f64: IntoScalar<<T as FloatOutBinary>::Output>,
+        <T as FloatOutBinary>::Output: TypeCommon,
+        T::Vec: NormalOut<
+            <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+        >,
     {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         let three: <T as FloatOutBinary>::Output = (3.0).into_scalar();
@@ -557,7 +613,7 @@ impl<T> _Tensor<T>
             <T as FloatOutBinary>::Output::ZERO,
             keep_dims,
             false,
-            None
+            None,
         )?;
         let one_third: <T as FloatOutBinary>::Output = (1.0f64 / 3.0f64).into_scalar();
         let one_third_vec = <<T as FloatOutBinary>::Output as TypeCommon>::Vec::splat(one_third);
@@ -567,7 +623,7 @@ impl<T> _Tensor<T>
             },
             |mut x| {
                 x.write_unaligned(x.read_unaligned()._pow(one_third_vec));
-            }
+            },
         );
         Ok(res)
     }
@@ -597,9 +653,10 @@ impl<T> _Tensor<T>
     pub fn logsumexp<S: Into<Axis>>(
         &self,
         _: S,
-        _: bool
-    ) -> anyhow::Result<_Tensor<FloatBinaryType<T>>>
-        where T: CommonBounds
+        _: bool,
+    ) -> std::result::Result<_Tensor<FloatBinaryType<T>>, ErrHandler>
+    where
+        T: CommonBounds,
     {
         todo!()
         // let axes: Vec<usize> = process_axes(axis, self.ndim())?;

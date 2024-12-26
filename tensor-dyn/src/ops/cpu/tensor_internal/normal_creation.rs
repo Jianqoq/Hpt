@@ -2,10 +2,10 @@ use std::{panic::Location, sync::Arc};
 
 use crate::{
     backend::{Backend, Cpu},
+    ops::common::creation::geomspace_preprocess_start_step,
     tensor_base::_Tensor,
     BoolVector, ALIGN,
 };
-use anyhow::Result;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use tensor_allocator::CACHE;
 use tensor_common::{err_handler::ErrHandler, layout::Layout, pointer::Pointer, shape::Shape};
@@ -17,7 +17,8 @@ use tensor_types::{
 };
 
 impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
-    fn empty<S: Into<Shape>>(shape: S) -> Result<Self> {
+    type Output = _Tensor<T>;
+    fn empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
         let size = res_shape
@@ -28,7 +29,8 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             size.checked_mul(size_of::<T>())
                 .unwrap_or((isize::MAX as usize) - (ALIGN - 1)), // when overflow happened, we use max memory `from_size_align` accept
             ALIGN,
-        )?;
+        )
+        .map_err(|e| ErrHandler::StdMemLayoutError(ALIGN, size, Location::caller(), e))?;
         let ptr = CACHE.allocate(layout)?;
         Ok(_Tensor {
             #[cfg(feature = "bound_check")]
@@ -42,33 +44,33 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         })
     }
 
-    fn zeros<S: Into<Shape>>(shape: S) -> Result<Self> {
+    fn zeros<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler> {
         Self::full(T::ZERO, shape)
     }
 
-    fn ones<S: Into<Shape>>(shape: S) -> Result<Self>
+    fn ones<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler>
     where
         u8: IntoScalar<T>,
     {
         Self::full(T::ONE, shape)
     }
 
-    fn empty_like(&self) -> Result<Self> {
+    fn empty_like(&self) -> std::result::Result<Self, ErrHandler> {
         Self::empty(self.shape())
     }
 
-    fn zeros_like(&self) -> Result<Self> {
+    fn zeros_like(&self) -> std::result::Result<Self, ErrHandler> {
         Self::zeros(self.shape())
     }
 
-    fn ones_like(&self) -> Result<Self>
+    fn ones_like(&self) -> std::result::Result<Self, ErrHandler>
     where
         u8: IntoScalar<T>,
     {
         Self::ones(self.shape())
     }
 
-    fn full<S: Into<Shape>>(val: T, shape: S) -> Result<Self> {
+    fn full<S: Into<Shape>>(val: T, shape: S) -> std::result::Result<Self, ErrHandler> {
         let empty = Self::empty(shape)?;
         let ptr = empty.ptr().ptr;
         let size = empty.size();
@@ -81,11 +83,11 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(empty)
     }
 
-    fn full_like(&self, val: T) -> Result<Self> {
+    fn full_like(&self, val: T) -> std::result::Result<Self, ErrHandler> {
         _Tensor::full(val, self.shape())
     }
 
-    fn arange<U>(start: U, end: U) -> Result<Self>
+    fn arange<U>(start: U, end: U) -> std::result::Result<Self, ErrHandler>
     where
         T: Convertor + FromScalar<U>,
         usize: IntoScalar<T>,
@@ -107,7 +109,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(data)
     }
 
-    fn arange_step(start: T, end: T, step: T) -> Result<Self>
+    fn arange_step(start: T, end: T, step: T) -> std::result::Result<Self, ErrHandler>
     where
         T: Convertor + FromScalar<usize>,
     {
@@ -125,7 +127,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(data)
     }
 
-    fn eye(n: usize, m: usize, k: usize) -> Result<Self>
+    fn eye(n: usize, m: usize, k: usize) -> std::result::Result<Self, ErrHandler>
     where
         u8: IntoScalar<T>,
     {
@@ -146,7 +148,12 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
-    fn linspace<U>(start: U, end: U, num: usize, include_end: bool) -> Result<Self>
+    fn linspace<U>(
+        start: U,
+        end: U,
+        num: usize,
+        include_end: bool,
+    ) -> std::result::Result<Self, ErrHandler>
     where
         T: Convertor,
         U: Convertor + IntoScalar<T> + Copy,
@@ -178,7 +185,13 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(data)
     }
 
-    fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> Result<Self>
+    fn logspace(
+        start: T,
+        end: T,
+        num: usize,
+        include_end: bool,
+        base: T,
+    ) -> std::result::Result<Self, ErrHandler>
     where
         T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64>,
     {
@@ -201,7 +214,12 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(data)
     }
 
-    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self>
+    fn geomspace(
+        start: T,
+        end: T,
+        n: usize,
+        include_end: bool,
+    ) -> std::result::Result<Self, ErrHandler>
     where
         f64: IntoScalar<T>,
         usize: IntoScalar<T>,
@@ -209,30 +227,11 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let start_f64 = start.to_f64();
         let end_f64 = end.to_f64();
         let both_negative = start_f64 < 0.0 && end_f64 < 0.0;
-        let float_n = n.to_f64();
-        let step = if include_end {
-            if start_f64 >= 0.0 && end_f64 > 0.0 {
-                (end_f64.log10() - start_f64.log10()) / (float_n - 1.0)
-            } else if start_f64 < 0.0 && end_f64 < 0.0 {
-                (end_f64.abs().log10() - start_f64.abs().log10()) / (float_n - 1.0)
-            } else {
-                return Err(anyhow::Error::msg("start and end must have the same sign"));
-            }
-        } else if start_f64 >= 0.0 && end_f64 > 0.0 {
-            (end_f64.log10() - start_f64.log10()) / float_n
-        } else if start_f64 < 0.0 && end_f64 < 0.0 {
-            (end_f64.abs().log10() - start_f64.abs().log10()) / float_n
-        } else {
-            return Err(anyhow::Error::msg("start and end must have the same sign"));
-        };
-        let mut data = _Tensor::<T>::empty(Arc::new(vec![n as i64]))?;
-        let start = if start_f64 > 0.0 {
-            start_f64.log10()
-        } else {
-            start_f64.abs().log10()
-        };
-        let start_t: T = start.into_scalar();
+        let (new_start, step) =
+            geomspace_preprocess_start_step(start_f64, end_f64, n, include_end)?;
+        let start_t: T = new_start.into_scalar();
         let step_t: T = step.into_scalar();
+        let mut data = _Tensor::<T>::empty(Arc::new(vec![n as i64]))?;
         if both_negative {
             data.as_raw_mut()
                 .into_par_iter()
@@ -255,7 +254,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(data)
     }
 
-    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self>
+    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> std::result::Result<Self, ErrHandler>
     where
         u8: IntoScalar<T>,
     {
@@ -292,7 +291,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
-    fn tril(&self, k: i64) -> Result<Self>
+    fn tril(&self, k: i64) -> std::result::Result<Self, ErrHandler>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T>,
         T::Vec: NormalOut<BoolVector, Output = T::Vec>,
@@ -312,7 +311,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
-    fn triu(&self, k: i64) -> Result<Self>
+    fn triu(&self, k: i64) -> std::result::Result<Self, ErrHandler>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T>,
         T::Vec: NormalOut<BoolVector, Output = T::Vec>,
@@ -332,7 +331,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
-    fn identity(n: usize) -> Result<Self>
+    fn identity(n: usize) -> std::result::Result<Self, ErrHandler>
     where
         u8: IntoScalar<T>,
     {

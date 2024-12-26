@@ -1,6 +1,7 @@
 use crate::ops::cuda::{cuda_utils::get_module_name_1, unary::uary_fn_with_out_simd};
 use crate::{tensor_base::_Tensor, Cuda};
 use cudarc::driver::DeviceRepr;
+use tensor_common::err_handler::ErrHandler;
 use std::ops::{Mul, Sub};
 use tensor_traits::{CommonBounds, TensorCreator};
 use tensor_types::cuda_types::scalar::Scalar;
@@ -36,7 +37,7 @@ where
     pub(crate) fn hamming_window(
         window_length: i64,
         periodic: bool,
-    ) -> anyhow::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>> {
+    ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, ErrHandler> {
         Self::__hamming_window(
             window_length,
             (0.54).into_scalar(),
@@ -49,7 +50,7 @@ where
     pub(crate) fn hann_window(
         window_length: i64,
         periodic: bool,
-    ) -> anyhow::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>> {
+    ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, ErrHandler> {
         Self::__hamming_window(
             window_length,
             (0.5).into_scalar(),
@@ -64,7 +65,7 @@ where
         alpha: FBO<T>,
         beta: FBO<T>,
         periodic: bool,
-    ) -> anyhow::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>> {
+    ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, ErrHandler> {
         let length_usize = (if periodic {
             window_length
         } else {
@@ -72,7 +73,7 @@ where
         }) as usize;
         let length: FBO<T> = length_usize.into_scalar();
         let ret = _Tensor::<FBO<T>, Cuda, DEVICE_ID>::empty(&[length_usize as i64])?;
-        let ret: Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, anyhow::Error> = uary_fn_with_out_simd(
+        uary_fn_with_out_simd(
             &ret,
             &get_module_name_1("hamming_window", &ret),
             |out, idx| {
@@ -101,8 +102,7 @@ where
                 Scalar::<FBO<T>>::new(res)
             },
             None::<_Tensor<FBO<T>, Cuda, DEVICE_ID>>,
-        );
-        ret
+        )
     }
 
     /// Generates a Blackman window tensor.
@@ -127,7 +127,7 @@ where
     pub fn blackman_window(
         window_length: i64,
         periodic: bool,
-    ) -> anyhow::Result<_Tensor<<T as FloatOutBinary>::Output, Cuda, DEVICE_ID>>
+    ) -> std::result::Result<_Tensor<<T as FloatOutBinary>::Output, Cuda, DEVICE_ID>, ErrHandler>
     where
         T: FloatConst,
         i64: IntoScalar<<T as FloatOutBinary>::Output>,

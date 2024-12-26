@@ -58,6 +58,10 @@ impl VecTrait<u16> for u16x16 {
     fn splat(val: u16) -> u16x16 {
         unsafe { u16x16(_mm256_set1_epi16(val as i16)) }
     }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const u16) -> Self {
+        u16x16(_mm256_loadu_si256(ptr as *const __m256i))
+    }
 }
 
 impl u16x16 {

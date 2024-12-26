@@ -3,6 +3,7 @@ use std::ops::{Add, Neg, Sub};
 use crate::Cuda;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
 use cudarc::driver::DeviceRepr;
+use tensor_common::err_handler::ErrHandler;
 use tensor_traits::CommonBounds;
 use tensor_types::cuda_types::scalar::Scalar;
 use tensor_types::traits::SimdSelect;
@@ -39,7 +40,7 @@ where
     ///
     /// This function returns a `Result` containing a new tensor with the shrinkage operation applied.
     #[allow(unused)]
-    pub fn shrinkage(&self, bias: T, lambda: T) -> anyhow::Result<_Tensor<T, Cuda, DEVICE_ID>> {
+    pub fn shrinkage(&self, bias: T, lambda: T) -> std::result::Result<_Tensor<T, Cuda, DEVICE_ID>, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             "shrinkage",
@@ -85,7 +86,7 @@ where
     /// # Returns
     ///
     /// This function returns a `Result` containing a new tensor with the shrinkage operation applied.
-    pub fn shrinkage(&self, bias: T, lambda: T) -> anyhow::Result<Tensor<T, Cuda, DEVICE_ID>> {
+    pub fn shrinkage(&self, bias: T, lambda: T) -> std::result::Result<Tensor<T, Cuda, DEVICE_ID>, ErrHandler> {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::shrinkage(self.inner.as_ref(), bias, lambda)?.into())
     }
 }

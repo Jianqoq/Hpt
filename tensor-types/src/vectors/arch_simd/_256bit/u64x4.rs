@@ -59,6 +59,10 @@ impl VecTrait<u64> for u64x4 {
     fn splat(val: u64) -> u64x4 {
         unsafe { u64x4(_mm256_set1_epi64x(val as i64)) }
     }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const u64) -> Self {
+        u64x4(_mm256_loadu_si256(ptr as *const __m256i))
+    }
 }
 
 impl u64x4 {

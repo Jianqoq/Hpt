@@ -40,6 +40,10 @@ impl VecTrait<Complex64> for cplx64x2 {
     fn splat(val: Complex64) -> cplx64x2 {
         cplx64x2([val; 2])
     }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const Complex64) -> Self {
+        cplx64x2([ptr.read_unaligned(), ptr.add(1).read_unaligned()])
+    }
 }
 
 impl std::ops::Add for cplx64x2 {

@@ -1,7 +1,7 @@
 use std::borrow::BorrowMut;
 
 use rayon::iter::{ IntoParallelRefMutIterator, ParallelIterator };
-use tensor_common::{ pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides };
+use tensor_common::{ err_handler::ErrHandler, pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides };
 use tensor_traits::{ CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike };
 
 use crate::{ backend::Cpu, tensor_base::_Tensor };
@@ -35,7 +35,7 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds>(
     init_val: O,
     init_out: bool,
     c: Option<_Tensor<O>>
-) -> anyhow::Result<(_Tensor<T>, _Tensor<O>)> {
+) -> std::result::Result<(_Tensor<T>, _Tensor<O>), ErrHandler> {
     // get permute order, we move to_reduce axes to the end
     let mut transposed_axis = rearrange_array(a.ndim(), axes);
 
@@ -48,19 +48,7 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds>(
     let res = if let Some(mut out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
-        if res_layout.size() != out.layout().size() {
-            return Err(
-                anyhow::Error::msg(
-                    format!(
-                        "Output array has incorrect size, expected {}, got {}",
-                        res_layout.size(),
-                        out.layout().size()
-                    )
-                )
-            );
-        } else if !out.is_contiguous() {
-            return Err(anyhow::Error::msg("Output array is not contiguous".to_string()));
-        }
+        ErrHandler::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
         if init_out {
             out.as_raw_mut()
                 .par_iter_mut()
@@ -81,7 +69,7 @@ pub(crate) fn uncontiguous_reduce_prepare<T: CommonBounds, O: CommonBounds>(
     init_val: O,
     init_out: bool,
     c: Option<_Tensor<O>>
-) -> anyhow::Result<(bool, _Tensor<T>, _Tensor<O>, Vec<usize>)> {
+) -> std::result::Result<(bool, _Tensor<T>, _Tensor<O>, Vec<usize>), ErrHandler> {
     let mut keep_fast_dim = true;
     for axis in axes.iter() {
         if a.strides()[*axis] == 1 {
@@ -104,9 +92,7 @@ pub(crate) fn uncontiguous_reduce_prepare<T: CommonBounds, O: CommonBounds>(
     let res = if let Some(mut out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
-        if res_layout.shape().inner() != out.shape().inner() {
-            return Err(anyhow::Error::msg("Output array has incorrect shape".to_string()));
-        }
+        ErrHandler::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
         if init_out {
             out.as_raw_mut()
                 .par_iter_mut()

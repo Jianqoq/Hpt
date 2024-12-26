@@ -82,6 +82,17 @@ impl VecTrait<isize> for ISizeVEC {
             Self(ISizeBase::splat(val as i32))
         }
     }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const isize) -> Self {
+        #[cfg(target_pointer_width = "64")]
+        {
+            Self(ISizeBase::from_ptr(ptr as *const i64))
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            Self(ISizeBase::from_ptr(ptr as *const i32))
+        }
+    }
 }
 
 impl ISizeVEC {

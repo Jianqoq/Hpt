@@ -12,6 +12,7 @@ use cudarc::driver::DeviceRepr;
 use cudarc::driver::LaunchAsync;
 use cudarc::driver::LaunchConfig;
 use cudarc::types::CudaTypeName;
+use tensor_common::err_handler::ErrHandler;
 use tensor_cudakernels::RegisterInfo;
 use tensor_traits::shape_manipulate::ShapeManipulate;
 use tensor_traits::tensor::CommonBounds;
@@ -41,7 +42,7 @@ pub(crate) fn reduce<T, F, F2, F3, const DEVICE_ID: usize>(
     >,
     module_name: &str,
     c: Option<_Tensor<T, Cuda, DEVICE_ID>>,
-) -> anyhow::Result<_Tensor<T, Cuda, DEVICE_ID>>
+) -> std::result::Result<_Tensor<T, Cuda, DEVICE_ID>, ErrHandler>
 where
     T: CommonBounds + IntoScalar<T> + Convertor + DeviceRepr + CudaTypeName,
     F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
@@ -96,7 +97,7 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O, const DEVICE_ID: usize>(
     >,
     module_name: &str,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
-) -> anyhow::Result<_Tensor<O, Cuda, DEVICE_ID>>
+) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, ErrHandler>
 where
     T: CommonBounds + IntoScalar<O> + Convertor + DeviceRepr + CudaTypeName,
     F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
@@ -157,7 +158,7 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE_ID: usize>(
     >,
     module_name: &str,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
-) -> anyhow::Result<_Tensor<O, Cuda, DEVICE_ID>>
+) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, ErrHandler>
 where
     T: CommonBounds + IntoScalar<O> + Convertor + DeviceRepr + CudaTypeName,
     F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
@@ -229,7 +230,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE_ID
     >,
     module_name: &str,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
-) -> anyhow::Result<_Tensor<O, Cuda, DEVICE_ID>>
+) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, ErrHandler>
 where
     T: CommonBounds + IntoScalar<O> + Convertor + DeviceRepr + CudaTypeName,
     O: CommonBounds + DeviceRepr + CudaTypeName,
@@ -500,7 +501,7 @@ where
         let mut new_shape = res_shape.clone();
         new_shape.pop();
         new_shape.extend(fused_dims.iter());
-        res.reshape(&new_shape)
+        Ok(res.reshape(&new_shape)?)
     } else {
         Ok(res)
     }
@@ -519,7 +520,7 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE_ID: usiz
     keepdims: bool,
     init_out: bool,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
-) -> anyhow::Result<_Tensor<O, Cuda, DEVICE_ID>>
+) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, ErrHandler>
 where
     T: CommonBounds + IntoScalar<O> + Convertor + DeviceRepr + CudaTypeName,
     O: CommonBounds + DeviceRepr + CudaTypeName,

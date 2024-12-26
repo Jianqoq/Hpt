@@ -5,10 +5,11 @@ use crate::{ argmax_kernel, argmin_kernel };
 
 use crate::ops::cpu::reduce_utils::{ ReductionPreprocessor, UCReductionPreprocessor };
 use crate::THREAD_POOL;
-use anyhow;
+use tensor_common::shape::Shape;
 use rayon::iter::ParallelIterator;
 use rayon::iter::{ IndexedParallelIterator, IntoParallelRefMutIterator };
 use rayon::iter::{ IntoParallelIterator, IntoParallelRefIterator };
+use tensor_common::err_handler::ErrHandler;
 use std::sync::Arc;
 use std::sync::Barrier;
 use tensor_common::shape_utils::{ mt_intervals, mt_intervals_simd };
@@ -100,23 +101,7 @@ macro_rules! body_one_axis {
         }
         let res_shape = Arc::new(res_shape);
         if let Some(out) = $c {
-            if let Some(s) = &new_shape {
-                for i in 0..a_.ndim() {
-                    if s[i] != out.shape()[i] {
-                        return Err(anyhow::Error::msg(format!(
-                            "Output array has incorrect shape"
-                        )));
-                    }
-                }
-            } else {
-                for i in 0..a_.ndim() - $axes.len() {
-                    if a_shape_cpy[i] != out.shape()[i] {
-                        return Err(anyhow::Error::msg(format!(
-                            "Output array has incorrect shape"
-                        )));
-                    }
-                }
-            }
+            ErrHandler::check_inplace_out_layout_valid(&Shape::from(res_shape.clone()), &out.layout())?;
             result = out;
             result_size = result.size();
         } else {
@@ -191,7 +176,7 @@ macro_rules! register_reduction_one_axis {
     ) => {
         #[cfg_attr(feature = "track_caller", track_caller)]
         pub(crate) fn $fn_name<$generic_a, $generic_b>(a: &_Tensor<$generic_a>, axes: Vec<usize>,
-             init_val: $generic_b, keepdims: bool, c: Option<_Tensor<$generic_b>>) -> anyhow::Result<_Tensor<$generic_b>> $($trait_bound)*
+             init_val: $generic_b, keepdims: bool, c: Option<_Tensor<$generic_b>>) -> std::result::Result<_Tensor<$generic_b>, ErrHandler> $($trait_bound)*
          {
             body_one_axis!(axes, a, init_val, keepdims, c, $kernel_name, $generic_a, $generic_b);
         }
@@ -204,7 +189,7 @@ macro_rules! register_reduction_one_axis {
     ) => {
         #[cfg_attr(feature = "track_caller", track_caller)]
         pub(crate) fn $fn_name<$generic_a>(a: &_Tensor<$generic_a>, axes: Vec<usize>,
-             init_val: $generic_a, keepdims: bool, c: Option<_Tensor<$generic_a>>) -> anyhow::Result<_Tensor<$generic_a>> $($trait_bound)*
+             init_val: $generic_a, keepdims: bool, c: Option<_Tensor<$generic_a>>) -> std::result::Result<_Tensor<$generic_a>, ErrHandler> $($trait_bound)*
          {
             body_one_axis!(axes, a, init_val, keepdims, c, $kernel_name, $generic_a, $generic_a);
         }
@@ -217,7 +202,7 @@ macro_rules! register_reduction_one_axis {
     ) => {
         #[cfg_attr(feature = "track_caller", track_caller)]
         pub(crate) fn $fn_name<$generic_a>(a: &_Tensor<$generic_a>, axes: Vec<usize>,
-             init_val: $($specific_type)*, keepdims: bool, c: Option<_Tensor<$($specific_type)*>>) -> anyhow::Result<_Tensor<$($specific_type)*>> $($trait_bound)*
+             init_val: $($specific_type)*, keepdims: bool, c: Option<_Tensor<$($specific_type)*>>) -> std::result::Result<_Tensor<$($specific_type)*>, ErrHandler> $($trait_bound)*
          {
             body_one_axis!(axes, a, init_val, keepdims, c, $kernel_name, $generic_a, $($specific_type)*);
         }
@@ -245,7 +230,7 @@ pub(crate) fn reduce<T, F, F2, F3>(
     init_out: bool,
     c: Option<_Tensor<T>>
 )
-    -> anyhow::Result<_Tensor<T>>
+    -> std::result::Result<_Tensor<T>, ErrHandler>
     where
         T: CommonBounds + IntoScalar<T> + Convertor,
         F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
@@ -300,7 +285,7 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O>(
     init_out: bool,
     c: Option<_Tensor<O>>
 )
-    -> anyhow::Result<_Tensor<O>>
+    -> std::result::Result<_Tensor<O>, ErrHandler>
     where
         T: CommonBounds + IntoScalar<O> + Convertor,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
@@ -361,7 +346,7 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O>(
     init_out: bool,
     c: Option<_Tensor<O>>
 )
-    -> anyhow::Result<_Tensor<O>>
+    -> std::result::Result<_Tensor<O>, ErrHandler>
     where
         T: CommonBounds + IntoScalar<O> + Convertor,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
@@ -437,7 +422,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O>(
     init_out: bool,
     c: Option<_Tensor<O>>
 )
-    -> anyhow::Result<_Tensor<O>>
+    -> std::result::Result<_Tensor<O>, ErrHandler>
     where
         T: CommonBounds + IntoScalar<O> + Convertor,
         O: CommonBounds,
@@ -683,7 +668,7 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O>(
     init_out: bool,
     c: Option<_Tensor<O>>
 )
-    -> anyhow::Result<_Tensor<O>>
+    -> std::result::Result<_Tensor<O>, ErrHandler>
     where
         T: CommonBounds + IntoScalar<O> + Convertor,
         O: CommonBounds,

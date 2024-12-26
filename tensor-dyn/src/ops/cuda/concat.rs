@@ -37,37 +37,28 @@ pub(crate) fn concat<T, const DEVICE: usize>(
     tensors: Vec<&_Tensor<T, Cuda, DEVICE>>,
     axis: usize,
     keepdims: bool,
-) -> anyhow::Result<_Tensor<T, Cuda, DEVICE>>
+) -> std::result::Result<_Tensor<T, Cuda, DEVICE>, ErrHandler>
 where
     T: CommonBounds + DeviceRepr + CudaTypeName,
 {
     let length = tensors.len();
-    let mut all_same_shape = true;
     for i in tensors.iter() {
-        tensors[0]
-            .shape()
-            .iter()
-            .enumerate()
-            .try_for_each(|(idx, x)| {
-                if idx != axis
-                    && i.shape().len() == tensors[0].shape().len()
-                    && *x != i.shape()[idx]
-                {
-                    return Err(anyhow::Error::msg(
-                        "Shapes except the axis to stack must be the same",
-                    ));
-                } else if i.shape().len() != tensors[0].shape().len() {
-                    return Err(ErrHandler::NdimMismatched(
-                        tensors[0].ndim(),
-                        i.ndim(),
-                        Location::caller(),
-                    )
-                    .into());
-                } else if idx == axis && *x != i.shape()[idx] {
-                    all_same_shape = false;
-                }
-                Ok(())
-            })?;
+        for (idx, x) in tensors[0].shape().iter().enumerate() {
+            if idx != axis && i.shape().len() == tensors[0].shape().len() && *x != i.shape()[idx] {
+                return Err(ErrHandler::ConcatError(
+                    axis,
+                    *x as usize,
+                    Location::caller(),
+                ));
+            } else if i.shape().len() != tensors[0].shape().len() {
+                return Err(ErrHandler::NdimMismatched(
+                    tensors[0].ndim(),
+                    i.ndim(),
+                    Location::caller(),
+                )
+                .into());
+            }
+        }
     }
     let mut new_shape: Vec<i64> = vec![0; tensors[0].ndim()];
     tensors.iter().for_each(|x| {
@@ -135,26 +126,36 @@ where
     for (res, input) in res_slices.into_iter().zip(tensors.into_iter()) {
         let out_slice = res.cuda_slice();
         let inp_slice = input.cuda_slice();
-        let inp_shape = new_tensor.device().htod_sync_copy(input.shape())?;
-        let inp_strides = new_tensor.device().htod_sync_copy(input.strides())?;
-        let shape = new_tensor.device().htod_sync_copy(res.shape())?;
-        let strides = new_tensor.device().htod_sync_copy(res.strides())?;
+        let inp_shape = new_tensor.cuda_shape()?;
+        let inp_strides = new_tensor.cuda_strides()?;
+        let shape = new_tensor.cuda_shape()?;
+        let strides = new_tensor.cuda_strides()?;
         let cfg = compute_kernel_launch_config(res.device(), reg_info, input.size());
         unsafe {
-            kernel.clone().launch(
-                cfg,
-                (
-                    out_slice,
-                    inp_slice,
-                    &shape,
-                    &strides,
-                    &inp_shape,
-                    &inp_strides,
-                    input.ndim() as u64,
-                    input.size() as u64,
-                ),
-            )
-        }?;
+            kernel
+                .clone()
+                .launch(
+                    cfg,
+                    (
+                        out_slice,
+                        inp_slice,
+                        &shape,
+                        &strides,
+                        &inp_shape,
+                        &inp_strides,
+                        input.ndim() as u64,
+                        input.size() as u64,
+                    ),
+                )
+                .map_err(|e| {
+                    ErrHandler::CudaKernelLaunchingError(
+                        module_name.clone(),
+                        "assign".to_string(),
+                        Location::caller(),
+                        e,
+                    )
+                })?;
+        };
     }
     if keepdims {
         let mut res_shape = Vec::with_capacity(new_shape.len() + 1);

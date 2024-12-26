@@ -11,6 +11,8 @@ hashbrown = "0.14.3"
 ctor = "0.2.8"
 anyhow = "1.0.75"
 cudarc = {version = "0.12.1", optional = true}
+tensor-common = {path = "../tensor-common"}
 
 [features]
 cuda = ["cudarc"]
+track_caller = []
