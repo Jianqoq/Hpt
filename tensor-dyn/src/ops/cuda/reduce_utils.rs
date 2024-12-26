@@ -55,7 +55,6 @@ pub(crate) fn reduce_prepare<
         .sort_by(|x, y| a.layout.strides()[*y].cmp(&a.layout.strides()[*x]));
 
     let res_layout = a.layout.reduce(axes, false)?;
-
     let res = if let Some(out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
