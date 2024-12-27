@@ -358,12 +358,7 @@ impl Eval2 for boolx32 {
     type Output = i8x32;
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
-        unsafe {
-            std::mem::transmute([
-                0i8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0,
-            ])
-        }
+        unsafe { std::mem::transmute([0i8; 32]) }
     }
 
     #[inline(always)]

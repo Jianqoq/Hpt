@@ -303,28 +303,7 @@ impl VecConvertor for bf16x16 {
     #[inline(always)]
     fn to_f16(self) -> super::f16x16::f16x16 {
         let [x0, x1] = self.to_2_f32x8();
-        let high = super::f16x16::f32x8_to_f16x8(x0);
-        let low = super::f16x16::f32x8_to_f16x8(x1);
-        unsafe {
-            std::mem::transmute([
-                half::bf16::from_bits(high[0]),
-                half::bf16::from_bits(high[1]),
-                half::bf16::from_bits(high[2]),
-                half::bf16::from_bits(high[3]),
-                half::bf16::from_bits(high[4]),
-                half::bf16::from_bits(high[5]),
-                half::bf16::from_bits(high[6]),
-                half::bf16::from_bits(high[7]),
-                half::bf16::from_bits(low[0]),
-                half::bf16::from_bits(low[1]),
-                half::bf16::from_bits(low[2]),
-                half::bf16::from_bits(low[3]),
-                half::bf16::from_bits(low[4]),
-                half::bf16::from_bits(low[5]),
-                half::bf16::from_bits(low[6]),
-                half::bf16::from_bits(low[7]),
-            ])
-        }
+        super::f16x16::f32x8_to_f16x16([x0, x1])
     }
     #[inline(always)]
     fn to_i16(self) -> super::i16x16::i16x16 {

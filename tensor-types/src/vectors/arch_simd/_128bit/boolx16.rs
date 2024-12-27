@@ -180,3 +180,158 @@ impl VecConvertor for boolx16 {
         unsafe { std::mem::transmute(self) }
     }
 }
+
+impl FloatOutBinary2 for boolx16 {
+    #[inline(always)]
+    fn __div(self, _: Self) -> Self {
+        panic!("Division operation is not supported for boolean type")
+    }
+
+    #[inline(always)]
+    fn __log(self, _: Self) -> Self {
+        panic!("Logarithm operation is not supported for bool")
+    }
+}
+
+impl NormalOut2 for boolx16 {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, _: Self) -> Self {
+        panic!("Subtraction is not supported for boolean type")
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, _: Self) -> Self {
+        panic!("Power operation is not supported for boolean type")
+    }
+
+    #[inline(always)]
+    fn __rem(self, _: Self) -> Self {
+        panic!("Remainder operation is not supported for boolean type")
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self | rhs
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self & rhs
+    }
+
+    #[inline(always)]
+    fn __clip(self, _: Self, _: Self) -> Self {
+        self
+    }
+}
+
+impl NormalOutUnary2 for boolx16 {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __sign(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, _: Self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self
+    }
+}
+
+impl Eval2 for boolx16 {
+    type Output = i8x16;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        unsafe {
+            std::mem::transmute([0i8; 16])
+        }
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        unsafe {
+            std::mem::transmute([
+                self[0]._is_true(),
+                self[1]._is_true(),
+                self[2]._is_true(),
+                self[3]._is_true(),
+                self[4]._is_true(),
+                self[5]._is_true(),
+                self[6]._is_true(),
+                self[7]._is_true(),
+                self[8]._is_true(),
+                self[9]._is_true(),
+                self[10]._is_true(),
+                self[11]._is_true(),
+                self[12]._is_true(),
+                self[13]._is_true(),
+                self[14]._is_true(),
+                self[15]._is_true(),
+            ])
+        }
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        unsafe {
+            std::mem::transmute([
+                0i8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0,
+            ])
+        }
+    }
+}

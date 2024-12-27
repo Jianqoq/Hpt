@@ -113,3 +113,127 @@ impl VecConvertor for cplx64x1 {
     }
 }
 
+impl FloatOutBinary2 for cplx64x1 {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
+
+    #[inline(always)]
+    fn __log(self, base: Self) -> Self {
+        let res = [self[0].__log(base[0])];
+        cplx64x1(unsafe { std::mem::transmute(res) })
+    }
+}
+
+impl NormalOut2 for cplx64x1 {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        let res = [self[0].__pow(rhs[0])];
+        cplx64x1(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        let res = [self[0].__max(rhs[0])];
+        cplx64x1(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        let res = [self[0].__min(rhs[0])];
+        cplx64x1(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __clip(self, min: Self, max: Self) -> Self {
+        let res = [
+            self[0].__clip(min[0], max[0]),
+        ];
+        cplx64x1(unsafe { std::mem::transmute(res) })
+    }
+}
+
+impl NormalOutUnary2 for cplx64x1 {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        let res = [self[0].__abs()];
+        cplx64x1(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        let res = [self[0].__ceil()];
+        cplx64x1(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        let res = [self[0].__floor()];
+        cplx64x1(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        -self
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        let res = [self[0].__round()];
+        cplx64x1(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __sign(self) -> Self {
+        let res = [self[0].__sign()];
+        cplx64x1(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, _: Self) -> Self {
+        unreachable!()
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        let res = [self[0].__relu()];
+        cplx64x1(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        let res = [self[0].__relu6()];
+        cplx64x1(unsafe { std::mem::transmute(res) })
+    }
+}
