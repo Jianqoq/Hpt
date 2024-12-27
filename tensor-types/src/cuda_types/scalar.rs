@@ -88,4 +88,28 @@ where
         self.val = val;
         self
     }
+    /// equal
+    pub(crate) fn __eq(self, rhs: Self) -> Scalar<bool> {
+        Scalar::new(format!("({} == {})", self.val, rhs.val))
+    }
+    /// not equal
+    pub(crate) fn __ne(self, rhs: Self) -> Scalar<bool> {
+        Scalar::new(format!("({} != {})", self.val, rhs.val))
+    }
+    /// less than
+    pub(crate) fn __lt(self, rhs: Self) -> Scalar<bool> {
+        Scalar::new(format!("({} < {})", self.val, rhs.val))
+    }
+    /// less than or equal
+    pub(crate) fn __le(self, rhs: Self) -> Scalar<bool> {
+        Scalar::new(format!("({} <= {})", self.val, rhs.val))
+    }
+    /// greater than
+    pub(crate) fn __gt(self, rhs: Self) -> Scalar<bool> {
+        Scalar::new(format!("({} > {})", self.val, rhs.val))
+    }
+    /// greater than or equal
+    pub(crate) fn __ge(self, rhs: Self) -> Scalar<bool> {
+        Scalar::new(format!("({} >= {})", self.val, rhs.val))
+    }
 }

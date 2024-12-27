@@ -30,7 +30,6 @@ use tensor_macros::{
 #[cfg(feature = "cuda")]
 mod cuda_imports {
     use super::*;
-    use crate::cuda_types::convertion::CudaConvertor;
     use crate::cuda_types::scalar::Scalar;
     use tensor_macros::{
         float_out_binary_cuda, float_out_unary_cuda, impl_cmp_cuda, impl_cuda_bitwise_out,
