@@ -1,7 +1,6 @@
 use crate::type_promote::{
     BitWiseOut2, Eval2, FloatOutBinary2, FloatOutUnary2, NormalOut2, NormalOutUnary2,
 };
-use num_traits::FloatConst;
 impl FloatOutBinary2 for f64 {
     #[inline(always)]
     fn __div(self, rhs: Self) -> Self {
@@ -178,7 +177,8 @@ impl FloatOutUnary2 for f64 {
     }
     #[inline(always)]
     fn __celu(self, alpha: Self) -> Self {
-        self.max(0.0) + alpha * (self.exp() - 0.0).min(0.0)
+        let gt_mask = (self > 0.0) as i32 as f64;
+        gt_mask * self + (1.0 - gt_mask) * (alpha * (self.exp() - 1.0))
     }
     #[inline(always)]
     fn __log2(self) -> Self {
@@ -259,7 +259,7 @@ impl FloatOutUnary2 for f64 {
     }
 
     fn __gelu(self) -> Self {
-        0.5 * self * (1.0 + libm::erf(f64::FRAC_1_SQRT_2() * self))
+        0.5 * self * (libm::erf(self * std::f64::consts::FRAC_1_SQRT_2) + 1.0)
     }
 
     fn __selu(self, alpha: Self, scale: Self) -> Self {
@@ -267,11 +267,13 @@ impl FloatOutUnary2 for f64 {
     }
 
     fn __hard_sigmoid(self) -> Self {
-        (self * 0.2 + 0.5).clamp(0.0, 1.0)
+        let add = 0.2 * self + 0.5;
+        add.min(1.0).max(0.0)
     }
 
     fn __fast_hard_sigmoid(self) -> Self {
-        (self + 1.0).clamp(0.0, 2.0) * 0.5
+        let result = self * (1.0 / 6.0) + 0.5;
+        result.min(1.0).max(0.0)
     }
 
     fn __hard_swish(self) -> Self {
@@ -279,7 +281,7 @@ impl FloatOutUnary2 for f64 {
     }
 
     fn __softplus(self) -> Self {
-        self.max(20.0) + (1.0 + (-self.abs()).exp()).ln()
+        (1.0 + self.exp()).ln()
     }
 
     fn __softsign(self) -> Self {

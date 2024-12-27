@@ -5,6 +5,7 @@ macro_rules! impl_float_out_binary_promote {
         impl FloatOutBinaryPromote<$rhs> for $lhs {
             type Output = $output;
         }
+        #[cfg(feature = "cuda")]
         impl FloatOutBinaryPromote<Scalar<$rhs>> for Scalar<$lhs> {
             type Output = Scalar<$output>;
         }
@@ -23,6 +24,7 @@ macro_rules! impl_normal_out_promote {
         impl NormalOutPromote<$rhs> for $lhs {
             type Output = $output;
         }
+        #[cfg(feature = "cuda")]
         impl NormalOutPromote<Scalar<$rhs>> for Scalar<$lhs> {
             type Output = Scalar<$output>;
         }
@@ -53,6 +55,7 @@ macro_rules! impl_float_out_unary_promote {
         impl FloatOutUnaryPromote for $lhs {
             type Output = $output;
         }
+        #[cfg(feature = "cuda")]
         impl FloatOutUnaryPromote for Scalar<$lhs> {
             type Output = Scalar<$output>;
         }

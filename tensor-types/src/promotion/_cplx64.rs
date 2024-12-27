@@ -1,3 +1,4 @@
+#[cfg(feature = "cuda")]
 use crate::cuda_types::scalar::Scalar;
 use crate::type_promote::{FloatOutBinaryPromote, FloatOutUnaryPromote, NormalOutPromote};
 use crate::vectors::vector_promote::*;

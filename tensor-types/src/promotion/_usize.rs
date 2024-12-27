@@ -1,5 +1,6 @@
 #[cfg(target_pointer_width = "64")]
 mod impl_isize {
+    #[cfg(feature = "cuda")]
     use crate::cuda_types::scalar::Scalar;
     use crate::type_promote::{
         FloatOutBinaryPromote, FloatOutUnaryPromote, NormalOutPromote, SimdCmpPromote,
@@ -68,6 +69,7 @@ mod impl_isize {
 
 #[cfg(target_pointer_width = "32")]
 mod impl_isize {
+    #[cfg(feature = "cuda")]
     use crate::cuda_types::scalar::Scalar;
     use crate::type_promote::{
         FloatOutBinaryPromote, FloatOutUnaryPromote, NormalOutPromote, SimdCmpPromote,

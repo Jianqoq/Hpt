@@ -438,8 +438,8 @@ impl NormalOutUnary2 for u64x4 {
     }
 
     #[inline(always)]
-    fn __leaky_relu(self, _: Self) -> Self {
-        unreachable!()
+    fn __leaky_relu(self, alpha: Self) -> Self {
+        self.max(u64x4::splat(0)) + alpha * self.min(u64x4::splat(0))
     }
 
     #[inline(always)]

@@ -382,8 +382,8 @@ impl NormalOutUnary2 for i16x16 {
     }
 
     #[inline(always)]
-    fn __leaky_relu(self, _: Self) -> Self {
-        unreachable!()
+    fn __leaky_relu(self, alpha: Self) -> Self {
+        self.max(i16x16::splat(0)) + alpha * self.min(i16x16::splat(0))
     }
 
     #[inline(always)]

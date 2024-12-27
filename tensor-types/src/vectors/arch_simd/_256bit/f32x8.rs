@@ -287,8 +287,9 @@ impl SimdMath<f32> for f32x8 {
         f32x8(unsafe { _mm256_and_ps(self.0, _mm256_set1_ps(0.0f32)) })
     }
     #[inline(always)]
-    fn leaky_relu(self, _: f32) -> Self {
-        todo!()
+    fn leaky_relu(self, alpha: f32) -> Self {
+        let alpha = f32x8::splat(alpha);
+        self.max(f32x8::splat(0.0)) + alpha * self.min(f32x8::splat(0.0))
     }
     #[inline(always)]
     fn relu(self) -> Self {
@@ -406,6 +407,93 @@ impl SimdMath<f32> for f32x8 {
     #[inline(always)]
     fn max(self, other: Self) -> Self {
         f32x8(unsafe { xmaxf(self.0, other.0) })
+    }
+    #[inline(always)]
+    fn hard_sigmoid(self) -> Self {
+        let point_two = Self::splat(0.2);
+        let half = Self::splat(0.5);
+        let one = Self::splat(1.0);
+        let zero = Self::splat(0.0);
+        let add = point_two * self + half;
+        add.min(one).max(zero)
+    }
+
+    #[inline(always)]
+    fn fast_hard_sigmoid(self) -> Self {
+        let sixth = Self::splat(1.0 / 6.0);
+        let half = Self::splat(0.5);
+        let one = Self::splat(1.0);
+        let zero = Self::splat(0.0);
+        let result = self * sixth + half;
+        result.min(one).max(zero)
+    }
+
+    #[inline(always)]
+    fn elu(self, alpha: f32) -> Self {
+        let mask = self.simd_gt(Self::splat(0.0));
+        mask.select(self, Self::splat(alpha) * (self.expm1()))
+    }
+
+    #[inline(always)]
+    fn selu(self, alpha: f32, scale: f32) -> Self {
+        let scale = Self::splat(scale);
+        scale * self.elu(alpha)
+    }
+
+    #[inline(always)]
+    fn celu(self, alpha: f32) -> Self {
+        let scale = Self::splat(alpha);
+        let gt_mask = self.simd_gt(Self::splat(0.0));
+        gt_mask.select(self, scale * (self.exp() - Self::splat(1.0)))
+    }
+
+    #[inline(always)]
+    fn gelu(self) -> Self {
+        let erf = (self * Self::splat(std::f32::consts::FRAC_1_SQRT_2)).erf() + Self::splat(1.0);
+        let half = Self::splat(0.5);
+        half * self * erf
+    }
+
+    #[inline(always)]
+    fn hard_swish(self) -> Self {
+        let three = Self::splat(3.0);
+        self * (self + three).relu6() * Self::splat(1.0 / 6.0)
+    }
+
+    #[inline(always)]
+    fn mish(self) -> Self {
+        self * self.softplus().tanh()
+    }
+
+    #[inline(always)]
+    fn softplus(self) -> Self {
+        let one = Self::splat(1.0);
+        (one + self.exp()).ln()
+    }
+
+    #[inline(always)]
+    fn recip(self) -> Self {
+        Self(unsafe {
+            let is_nan = _mm256_cmp_ps(self.0, self.0, _CMP_UNORD_Q);
+            let is_zero = _mm256_cmp_ps(self.0, _mm256_setzero_ps(), _CMP_EQ_OQ);
+            let recip = _mm256_div_ps(_mm256_set1_ps(1.0), self.0);
+            _mm256_blendv_ps(
+                recip,
+                _mm256_or_ps(
+                    _mm256_and_ps(is_zero, _mm256_set1_ps(f32::INFINITY)),
+                    _mm256_and_ps(is_nan, _mm256_set1_ps(f32::NAN)),
+                ),
+                _mm256_or_ps(is_nan, is_zero),
+            )
+        })
+    }
+    #[inline(always)]
+    fn sigmoid(self) -> Self {
+        Self::splat(1.0) / (Self::splat(1.0) + (-self).exp())
+    }
+    #[inline(always)]
+    fn softsign(self) -> Self {
+        self / (Self::splat(1.0) + self.abs())
     }
 }
 
@@ -540,8 +628,8 @@ impl NormalOutUnary2 for f32x8 {
     }
 
     #[inline(always)]
-    fn __leaky_relu(self, _: Self) -> Self {
-        unreachable!()
+    fn __leaky_relu(self, alpha: Self) -> Self {
+        self.max(f32x8::splat(0.0)) + alpha * self.min(f32x8::splat(0.0))
     }
 
     #[inline(always)]

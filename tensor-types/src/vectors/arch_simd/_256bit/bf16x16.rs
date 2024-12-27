@@ -349,7 +349,393 @@ impl VecConvertor for bf16x16 {
 }
 
 impl SimdMath<bf16> for bf16x16 {
-    
+    #[inline(always)]
+    fn sin(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_sin = high.sin();
+        let low_sin = low.sin();
+        Self::from_2_f32x8([high_sin, low_sin])
+    }
+    #[inline(always)]
+    fn cos(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_cos = high.cos();
+        let low_cos = low.cos();
+        Self::from_2_f32x8([high_cos, low_cos])
+    }
+    #[inline(always)]
+    fn tan(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_tan = high.tan();
+        let low_tan = low.tan();
+        Self::from_2_f32x8([high_tan, low_tan])
+    }
+    #[inline(always)]
+    fn square(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_square = high.square();
+        let low_square = low.square();
+        Self::from_2_f32x8([high_square, low_square])
+    }
+    #[inline(always)]
+    fn sqrt(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_sqrt = high.sqrt();
+        let low_sqrt = low.sqrt();
+        Self::from_2_f32x8([high_sqrt, low_sqrt])
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_abs = high.abs();
+        let low_abs = low.abs();
+        Self::from_2_f32x8([high_abs, low_abs])
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_floor = high.floor();
+        let low_floor = low.floor();
+        Self::from_2_f32x8([high_floor, low_floor])
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_ceil = high.ceil();
+        let low_ceil = low.ceil();
+        Self::from_2_f32x8([high_ceil, low_ceil])
+    }
+    #[inline(always)]
+    fn neg(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_neg = high.neg();
+        let low_neg = low.neg();
+        Self::from_2_f32x8([high_neg, low_neg])
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_round = high.round();
+        let low_round = low.round();
+        Self::from_2_f32x8([high_round, low_round])
+    }
+    #[inline(always)]
+    fn sign(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_sign = high.sign();
+        let low_sign = low.sign();
+        Self::from_2_f32x8([high_sign, low_sign])
+    }
+    #[inline(always)]
+    fn leaky_relu(self, alpha: half::bf16) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_leaky_relu = high.leaky_relu(alpha.to_f32());
+        let low_leaky_relu = low.leaky_relu(alpha.to_f32());
+        Self::from_2_f32x8([high_leaky_relu, low_leaky_relu])
+    }
+    #[inline(always)]
+    fn relu(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_relu = high.relu();
+        let low_relu = low.relu();
+        Self::from_2_f32x8([high_relu, low_relu])
+    }
+    #[inline(always)]
+    fn relu6(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_relu6 = high.relu6();
+        let low_relu6 = low.relu6();
+        Self::from_2_f32x8([high_relu6, low_relu6])
+    }
+    #[inline(always)]
+    fn pow(self, exp: Self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_pow = high.pow(exp.to_f32());
+        let low_pow = low.pow(exp.to_f32());
+        Self::from_2_f32x8([high_pow, low_pow])
+    }
+    #[inline(always)]
+    fn asin(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_asin = high.asin();
+        let low_asin = low.asin();
+        Self::from_2_f32x8([high_asin, low_asin])
+    }
+    #[inline(always)]
+    fn acos(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_acos = high.acos();
+        let low_acos = low.acos();
+        Self::from_2_f32x8([high_acos, low_acos])
+    }
+    #[inline(always)]
+    fn atan(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_atan = high.atan();
+        let low_atan = low.atan();
+        Self::from_2_f32x8([high_atan, low_atan])
+    }
+    #[inline(always)]
+    fn sinh(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_sinh = high.sinh();
+        let low_sinh = low.sinh();
+        Self::from_2_f32x8([high_sinh, low_sinh])
+    }
+    #[inline(always)]
+    fn cosh(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_cosh = high.cosh();
+        let low_cosh = low.cosh();
+        Self::from_2_f32x8([high_cosh, low_cosh])
+    }
+    #[inline(always)]
+    fn tanh(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_tanh = high.tanh();
+        let low_tanh = low.tanh();
+        Self::from_2_f32x8([high_tanh, low_tanh])
+    }
+    #[inline(always)]
+    fn asinh(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_asinh = high.asinh();
+        let low_asinh = low.asinh();
+        Self::from_2_f32x8([high_asinh, low_asinh])
+    }
+    #[inline(always)]
+    fn acosh(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_acosh = high.acosh();
+        let low_acosh = low.acosh();
+        Self::from_2_f32x8([high_acosh, low_acosh])
+    }
+    #[inline(always)]
+    fn atanh(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_atanh = high.atanh();
+        let low_atanh = low.atanh();
+        Self::from_2_f32x8([high_atanh, low_atanh])
+    }
+    #[inline(always)]
+    fn exp2(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_exp2 = high.exp2();
+        let low_exp2 = low.exp2();
+        Self::from_2_f32x8([high_exp2, low_exp2])
+    }
+    #[inline(always)]
+    fn exp10(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_exp10 = high.exp10();
+        let low_exp10 = low.exp10();
+        Self::from_2_f32x8([high_exp10, low_exp10])
+    }
+    #[inline(always)]
+    fn expm1(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_expm1 = high.expm1();
+        let low_expm1 = low.expm1();
+        Self::from_2_f32x8([high_expm1, low_expm1])
+    }
+    #[inline(always)]
+    fn log10(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_log10 = high.log10();
+        let low_log10 = low.log10();
+        Self::from_2_f32x8([high_log10, low_log10])
+    }
+    #[inline(always)]
+    fn log2(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_log2 = high.log2();
+        let low_log2 = low.log2();
+        Self::from_2_f32x8([high_log2, low_log2])
+    }
+    #[inline(always)]
+    fn log1p(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_log1p = high.log1p();
+        let low_log1p = low.log1p();
+        Self::from_2_f32x8([high_log1p, low_log1p])
+    }
+    #[inline(always)]
+    fn hypot(self, other: Self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let [high_other, low_other] = other.to_2_f32x8();
+        let high_hypot = high.hypot(high_other);
+        let low_hypot = low.hypot(low_other);
+        Self::from_2_f32x8([high_hypot, low_hypot])
+    }
+    #[inline(always)]
+    fn trunc(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_trunc = high.trunc();
+        let low_trunc = low.trunc();
+        Self::from_2_f32x8([high_trunc, low_trunc])
+    }
+    #[inline(always)]
+    fn erf(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_erf = high.erf();
+        let low_erf = low.erf();
+        Self::from_2_f32x8([high_erf, low_erf])
+    }
+    #[inline(always)]
+    fn cbrt(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_cbrt = high.cbrt();
+        let low_cbrt = low.cbrt();
+        Self::from_2_f32x8([high_cbrt, low_cbrt])
+    }
+    #[inline(always)]
+    fn exp(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_exp = high.exp();
+        let low_exp = low.exp();
+        Self::from_2_f32x8([high_exp, low_exp])
+    }
+    #[inline(always)]
+    fn ln(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_ln = high.ln();
+        let low_ln = low.ln();
+        Self::from_2_f32x8([high_ln, low_ln])
+    }
+    #[inline(always)]
+    fn log(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_log = high.log();
+        let low_log = low.log();
+        Self::from_2_f32x8([high_log, low_log])
+    }
+    #[inline(always)]
+    fn sincos(self) -> (Self, Self) {
+        let [high, low] = self.to_2_f32x8();
+        let (high_sin, high_cos) = high.sincos();
+        let (low_sin, low_cos) = low.sincos();
+        (
+            Self::from_2_f32x8([high_sin, low_sin]),
+            Self::from_2_f32x8([high_cos, low_cos]),
+        )
+    }
+    #[inline(always)]
+    fn atan2(self, other: Self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let [high_other, low_other] = other.to_2_f32x8();
+        let high_atan2 = high.atan2(high_other);
+        let low_atan2 = low.atan2(low_other);
+        Self::from_2_f32x8([high_atan2, low_atan2])
+    }
+    #[inline(always)]
+    fn min(self, other: Self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let [high_other, low_other] = other.to_2_f32x8();
+        let high_min = high.min(high_other);
+        let low_min = low.min(low_other);
+        Self::from_2_f32x8([high_min, low_min])
+    }
+    #[inline(always)]
+    fn max(self, other: Self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let [high_other, low_other] = other.to_2_f32x8();
+        let high_max = high.max(high_other);
+        let low_max = low.max(low_other);
+        Self::from_2_f32x8([high_max, low_max])
+    }
+    #[inline(always)]
+    fn hard_sigmoid(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_hard_sigmoid = high.hard_sigmoid();
+        let low_hard_sigmoid = low.hard_sigmoid();
+        Self::from_2_f32x8([high_hard_sigmoid, low_hard_sigmoid])
+    }
+
+    #[inline(always)]
+    fn fast_hard_sigmoid(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_fast_hard_sigmoid = high.fast_hard_sigmoid();
+        let low_fast_hard_sigmoid = low.fast_hard_sigmoid();
+        Self::from_2_f32x8([high_fast_hard_sigmoid, low_fast_hard_sigmoid])
+    }
+
+    #[inline(always)]
+    fn elu(self, alpha: half::bf16) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_elu = high.elu(alpha.to_f32());
+        let low_elu = low.elu(alpha.to_f32());
+        Self::from_2_f32x8([high_elu, low_elu])
+    }
+
+    #[inline(always)]
+    fn selu(self, alpha: half::bf16, scale: half::bf16) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_selu = high.selu(alpha.to_f32(), scale.to_f32());
+        let low_selu = low.selu(alpha.to_f32(), scale.to_f32());
+        Self::from_2_f32x8([high_selu, low_selu])
+    }
+
+    #[inline(always)]
+    fn celu(self, alpha: half::bf16) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_celu = high.celu(alpha.to_f32());
+        let low_celu = low.celu(alpha.to_f32());
+        Self::from_2_f32x8([high_celu, low_celu])
+    }
+
+    #[inline(always)]
+    fn gelu(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_gelu = high.gelu();
+        let low_gelu = low.gelu();
+        Self::from_2_f32x8([high_gelu, low_gelu])
+    }
+
+    #[inline(always)]
+    fn hard_swish(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_hard_swish = high.hard_swish();
+        let low_hard_swish = low.hard_swish();
+        Self::from_2_f32x8([high_hard_swish, low_hard_swish])
+    }
+
+    #[inline(always)]
+    fn mish(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_mish = high.mish();
+        let low_mish = low.mish();
+        Self::from_2_f32x8([high_mish, low_mish])
+    }
+
+    #[inline(always)]
+    fn softplus(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_softplus = high.softplus();
+        let low_softplus = low.softplus();
+        Self::from_2_f32x8([high_softplus, low_softplus])
+    }
+
+    #[inline(always)]
+    fn recip(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_recip = high.recip();
+        let low_recip = low.recip();
+        Self::from_2_f32x8([high_recip, low_recip])
+    }
+    #[inline(always)]
+    fn sigmoid(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_sigmoid = high.sigmoid();
+        let low_sigmoid = low.sigmoid();
+        Self::from_2_f32x8([high_sigmoid, low_sigmoid])
+    }
+    #[inline(always)]
+    fn softsign(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_softsign = high.softsign();
+        let low_softsign = low.softsign();
+        Self::from_2_f32x8([high_softsign, low_softsign])
+    }
 }
 
 impl FloatOutBinary2 for bf16x16 {
@@ -487,8 +873,9 @@ impl NormalOutUnary2 for bf16x16 {
     }
 
     #[inline(always)]
-    fn __leaky_relu(self, _: Self) -> Self {
-        unreachable!()
+    fn __leaky_relu(self, alpha: Self) -> Self {
+        self.max(bf16x16::splat(half::bf16::from_f32_const(0.0)))
+            + alpha * self.min(bf16x16::splat(half::bf16::from_f32_const(0.0)))
     }
 
     #[inline(always)]

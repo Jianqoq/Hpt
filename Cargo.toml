@@ -42,7 +42,7 @@ name = "etensor"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 3
+opt-level = 0
 incremental = true
 debug = true
 # lto = "fat"
