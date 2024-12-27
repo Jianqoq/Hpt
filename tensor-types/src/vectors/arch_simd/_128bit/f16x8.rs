@@ -171,7 +171,7 @@ impl f16x8 {
                     result[i] = half::f16::from_f32(arr[0][i]).to_bits();
                     result[i + 4] = half::f16::from_f32(arr[1][i]).to_bits();
                 }
-                result
+                std::mem::transmute(result)
             }
         }
     }

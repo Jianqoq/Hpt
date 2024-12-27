@@ -495,9 +495,14 @@ impl Eval2 for u32x4 {
 
     #[inline(always)]
     fn __is_true(&self) -> Self::Output {
+        #[cfg(target_arch = "x86_64")]
         unsafe {
             let eq = _mm_cmpeq_epi32(self.0, _mm_setzero_si128());
             i32x4(_mm_xor_si128(eq, _mm_set1_epi32(-1)))
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            i32x4(vmvnq_s32(vreinterpretq_s32_u32(vceqq_u32(self.0, vdupq_n_u32(0)))))
         }
     }
 

@@ -533,7 +533,7 @@ impl NormalOut2 for i32x4 {
 
     #[inline(always)]
     fn __clip(self, min: Self, max: Self) -> Self {
-        unsafe { i32x4(_mm_min_epi32(_mm_max_epi32(self.0, min.0), max.0)) }
+        self.max(min).min(max)
     }
 }
 
@@ -545,7 +545,14 @@ impl NormalOutUnary2 for i32x4 {
 
     #[inline(always)]
     fn __abs(self) -> Self {
-        i32x4(unsafe { _mm_abs_epi32(self.0) })
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            i32x4(unsafe { _mm_abs_epi32(self.0) })
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            i32x4(vabsq_s32(self.0))
+        }
     }
 
     #[inline(always)]
@@ -560,7 +567,7 @@ impl NormalOutUnary2 for i32x4 {
 
     #[inline(always)]
     fn __neg(self) -> Self {
-        unsafe { Self(_mm_sub_epi32(_mm_setzero_si128(), self.0)) }
+        -self
     }
 
     #[inline(always)]
@@ -598,9 +605,14 @@ impl Eval2 for i32x4 {
 
     #[inline(always)]
     fn __is_true(&self) -> Self::Output {
+        #[cfg(target_arch = "x86_64")]
         unsafe {
             let eq = _mm_cmpeq_epi32(self.0, _mm_setzero_si128());
             Self(_mm_xor_si128(eq, _mm_set1_epi32(-1)))
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            i32x4(vmvnq_s32(vreinterpretq_s32_u32(vceqq_s32(self.0, vdupq_n_s32(0)))))
         }
     }
 

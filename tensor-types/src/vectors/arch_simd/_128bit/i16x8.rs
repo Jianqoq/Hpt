@@ -545,7 +545,14 @@ impl NormalOutUnary2 for i16x8 {
 
     #[inline(always)]
     fn __abs(self) -> Self {
-        i16x8(unsafe { _mm_abs_epi16(self.0) })
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            i16x8(unsafe { _mm_abs_epi16(self.0) })
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            i16x8(vabsq_s16(self.0))
+        }
     }
 
     #[inline(always)]
@@ -560,7 +567,7 @@ impl NormalOutUnary2 for i16x8 {
 
     #[inline(always)]
     fn __neg(self) -> Self {
-        unsafe { Self(_mm_sub_epi16(_mm_setzero_si128(), self.0)) }
+        -self
     }
 
     #[inline(always)]
@@ -598,9 +605,14 @@ impl Eval2 for i16x8 {
 
     #[inline(always)]
     fn __is_true(&self) -> Self::Output {
+        #[cfg(target_arch = "x86_64")]
         unsafe {
             let eq = _mm_cmpeq_epi16(self.0, _mm_setzero_si128());
             Self(_mm_xor_si128(eq, _mm_set1_epi16(-1)))
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            i16x8(vmvnq_s16(vreinterpretq_s16_u16(vceqq_s16(self.0, vdupq_n_s16(0)))))
         }
     }
 

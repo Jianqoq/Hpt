@@ -544,9 +544,14 @@ impl Eval2 for u64x2 {
 
     #[inline(always)]
     fn __is_true(&self) -> Self::Output {
+        #[cfg(target_arch = "x86_64")]
         unsafe {
             let eq = _mm_cmpeq_epi64(self.0, _mm_setzero_si128());
             i64x2(_mm_xor_si128(eq, _mm_set1_epi64x(-1)))
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            i64x2(veorq_s64(vreinterpretq_s64_u64(vceqq_u64(self.0, vdupq_n_u64(0))), vdupq_n_s64(-1)))
         }
     }
 
