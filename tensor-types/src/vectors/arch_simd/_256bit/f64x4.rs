@@ -10,6 +10,7 @@ use crate::{
     },
     convertion::VecConvertor,
     traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
 
 #[cfg(target_arch = "x86_64")]
@@ -22,6 +23,10 @@ use super::i64x4::i64x4;
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(32))]
 pub struct f64x4(pub(crate) __m256d);
+
+/// helper to impl the promote trait
+#[allow(non_camel_case_types)]
+pub(crate) type f64_promote = f64x4;
 
 impl PartialEq for f64x4 {
     #[inline(always)]
@@ -64,6 +69,10 @@ impl VecTrait<f64> for f64x4 {
     fn splat(val: f64) -> f64x4 {
         unsafe { f64x4(_mm256_set1_pd(val)) }
     }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const f64) -> Self {
+        f64x4(_mm256_loadu_pd(ptr))
+    }
 }
 
 impl f64x4 {
@@ -82,7 +91,11 @@ impl f64x4 {
     pub fn is_infinite(&self) -> f64x4 {
         unsafe {
             let abs = _mm256_andnot_pd(_mm256_set1_pd(-0.0), self.0);
-            f64x4(_mm256_cmp_pd(abs, _mm256_set1_pd(f64::INFINITY), _CMP_EQ_OQ))
+            f64x4(_mm256_cmp_pd(
+                abs,
+                _mm256_set1_pd(f64::INFINITY),
+                _CMP_EQ_OQ,
+            ))
         }
     }
     /// reciprocal of the vector
@@ -246,8 +259,9 @@ impl SimdMath<f64> for f64x4 {
         f64x4(unsafe { _mm256_and_pd(self.0, _mm256_set1_pd(0.0f64)) })
     }
     #[inline(always)]
-    fn leaky_relu(self, _: f64) -> Self {
-        todo!()
+    fn leaky_relu(self, alpha: f64) -> Self {
+        let alpha = f64x4::splat(alpha);
+        self.max(f64x4::splat(0.0)) + alpha * self.min(f64x4::splat(0.0))
     }
     #[inline(always)]
     fn relu(self) -> Self {
@@ -366,6 +380,93 @@ impl SimdMath<f64> for f64x4 {
     fn max(self, other: Self) -> Self {
         f64x4(unsafe { xfmax(self.0, other.0) })
     }
+    #[inline(always)]
+    fn hard_sigmoid(self) -> Self {
+        let point_two = f64x4::splat(0.2);
+        let half = f64x4::splat(0.5);
+        let one = f64x4::splat(1.0);
+        let zero = f64x4::splat(0.0);
+        let add = point_two * self + half;
+        add.min(one).max(zero)
+    }
+
+    #[inline(always)]
+    fn fast_hard_sigmoid(self) -> Self {
+        let sixth = f64x4::splat(1.0 / 6.0);
+        let half = f64x4::splat(0.5);
+        let one = f64x4::splat(1.0);
+        let zero = f64x4::splat(0.0);
+        let result = self * sixth + half;
+        result.min(one).max(zero)
+    }
+
+    #[inline(always)]
+    fn elu(self, alpha: f64) -> Self {
+        let mask = self.simd_gt(Self::splat(0.0));
+        mask.select(self, Self::splat(alpha) * (self.expm1()))
+    }
+
+    #[inline(always)]
+    fn selu(self, alpha: f64, scale: f64) -> Self {
+        let scale = Self::splat(scale);
+        scale * self.elu(alpha)
+    }
+
+    #[inline(always)]
+    fn celu(self, alpha: f64) -> Self {
+        let scale = Self::splat(alpha);
+        let gt_mask = self.simd_gt(Self::splat(0.0));
+        gt_mask.select(self, scale * (self.exp() - Self::splat(1.0)))
+    }
+
+    #[inline(always)]
+    fn gelu(self) -> Self {
+        let erf = (self * Self::splat(std::f64::consts::FRAC_1_SQRT_2)).erf() + Self::splat(1.0);
+        let half = Self::splat(0.5);
+        half * self * erf
+    }
+
+    #[inline(always)]
+    fn hard_swish(self) -> Self {
+        let three = Self::splat(3.0);
+        self * (self + three).relu6() * Self::splat(1.0 / 6.0)
+    }
+
+    #[inline(always)]
+    fn mish(self) -> Self {
+        self * self.softplus().tanh()
+    }
+
+    #[inline(always)]
+    fn softplus(self) -> Self {
+        let one = Self::splat(1.0);
+        (one + self.exp()).ln()
+    }
+
+    #[inline(always)]
+    fn recip(self) -> Self {
+        Self(unsafe {
+            let is_nan = _mm256_cmp_pd(self.0, self.0, _CMP_UNORD_Q);
+            let is_zero = _mm256_cmp_pd(self.0, _mm256_setzero_pd(), _CMP_EQ_OQ);
+            let recip = _mm256_div_pd(_mm256_set1_pd(1.0), self.0);
+            _mm256_blendv_pd(
+                recip,
+                _mm256_or_pd(
+                    _mm256_and_pd(is_zero, _mm256_set1_pd(f64::INFINITY)),
+                    _mm256_and_pd(is_nan, _mm256_set1_pd(f64::NAN)),
+                ),
+                _mm256_or_pd(is_nan, is_zero),
+            )
+        })
+    }
+    #[inline(always)]
+    fn sigmoid(self) -> Self {
+        Self::splat(1.0) / (Self::splat(1.0) + (-self).exp())
+    }
+    #[inline(always)]
+    fn softsign(self) -> Self {
+        self / (Self::splat(1.0) + self.abs())
+    }
 }
 
 impl VecConvertor for f64x4 {
@@ -402,165 +503,297 @@ impl VecConvertor for f64x4 {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::arch_simd::sleef::common::misc::SQRT_FLT_MAX;
+impl FloatOutBinary2 for f64x4 {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
 
-//     use super::*;
-//     use rug::Assign;
-//     use rug::Float;
-//     const TEST_REPEAT: usize = 100_000;
-//     const PRECF64: u32 = 128;
-//     pub fn f32_count_ulp(d: f64, c: &Float) -> f64 {
-//         let c2 = c.to_f64();
+    #[inline(always)]
+    fn __log(self, base: Self) -> Self {
+        let res = [
+            self[0].log(base[0]),
+            self[1].log(base[1]),
+            self[2].log(base[2]),
+            self[3].log(base[3]),
+        ];
+        f64x4(unsafe { std::mem::transmute(res) })
+    }
+}
 
-//         if (c2 == 0. || c2.is_subnormal()) && (d == 0. || d.is_subnormal()) {
-//             return 0.;
-//         }
-    
-//         if (c2 == 0.) && (d != 0.) {
-//             return 10000.;
-//         }
-    
-//         if c2.is_infinite() && d.is_infinite() {
-//             return 0.;
-//         }
-    
-//         let prec = c.prec();
-    
-//         let mut fry = Float::with_val(prec, d);
-    
-//         let mut frw = Float::new(prec);
-    
-//         let (_, e) = c.to_f64_exp();
-    
-//         frw.assign(Float::u_exp(1, e - 53_i32));
-    
-//         fry -= c;
-//         fry /= &frw;
-//         let u = sleef::Sleef::abs(fry.to_f64());
-    
-//         u
-//     }
-//     fn f32_gen_input(
-//         rng: &mut rand::rngs::ThreadRng,
-//         range: core::ops::RangeInclusive<f64>,
-//     ) -> f64 {
-//         use rand::Rng;
-//         let mut start = *range.start();
-//         if start == f64::MIN {
-//             start = -1e306;
-//         }
-//         let mut end = *range.end();
-//         if end == f64::MAX {
-//             end = 1e306;
-//         }
-//         rng.gen_range(start..=end)
-//     }
-//     fn gen_input(
-//         rng: &mut rand::rngs::ThreadRng,
-//         range: core::ops::RangeInclusive<f64>,
-//     ) -> __m256d
-//     {
-//         let mut arr = [0.; 4];
-//         for i in 0..4 {
-//             arr[i] = f32_gen_input(rng, range.clone());
-//         }
-//         unsafe { std::mem::transmute(arr) }
-//     }
-//     pub fn test_f_f(
-//         f_tested: fn(__m256d) -> __m256d,
-//         f_sample: fn(rug::Float) -> rug::Float,
-//         range: core::ops::RangeInclusive<f64>,
-//         ulp_ex: f64,
-//         name: &str,
-//     )
-//     {
-//         test_c_f_f(
-//             f_tested,
-//             f_sample,
-//             range,
-//             |ulp, _, _| (ulp <= ulp_ex, format!("ULP: {ulp} > {ulp_ex}")),
-//             name,
-//         )
-//     }
+impl NormalOut2 for f64x4 {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
 
-//     pub fn test_c_f_f(
-//         f_tested: fn(__m256d) -> __m256d,
-//         f_sample: fn(rug::Float) -> rug::Float,
-//         range: core::ops::RangeInclusive<f64>,
-//         cf: impl Fn(f64, f64, &rug::Float) -> (bool, String),
-//         name: &str,
-//     )
-//     {
-//         let mut rng = rand::thread_rng();
-//         for n in 0..TEST_REPEAT {
-//             let input = gen_input(&mut rng, range.clone());
-//             let in_fx: [f64; 4] = unsafe { std::mem::transmute(input) };
-//             let out_fx: [f64; 4] = unsafe { std::mem::transmute(f_tested(input)) };
-//             for i in 0..4 {
-//                 let input = in_fx[i];
-//                 let output = out_fx[i];
-//                 let expected = f_sample(rug::Float::with_val(PRECF64, input));
-//                 if expected.is_nan() && output.is_nan() {
-//                     continue;
-//                 }
-//                 let ulp = f32_count_ulp(output, &expected);
-//                 let (b, fault_string) = cf(ulp, output, &expected);
-//                 assert!(
-//                     b,
-//                     "{}: Iteration: {n}, Position: {i}, Input: {input:e}, Output: {output}, Expected: {expected}, {}",
-//                     name,
-//                     fault_string
-//                 );
-//             }
-//         }
-//     }
-//     #[test]
-//     fn tests() {
-//         macro_rules! define_func {
-//             ($func:ident, $f:ident, $x_func:expr, $range:expr) => {
-//                 fn $func(d: __m256d) -> __m256d
-//                 {
-//                     unsafe { $x_func(d).into() }
-//                 }
-//                 test_f_f($func, rug::Float::$f, $range, 1., stringify!($func));
-//             };
-//         }
-//         define_func!(sinf, sin, xsin_u1, f64::MIN..=f64::MAX);
-//         define_func!(cosf, cos, xcos_u1, f64::MIN..=f64::MAX);
-//         define_func!(tanf, tan, xtan_u1, f64::MIN..=f64::MAX);
-//         define_func!(asin, asin, xasin_u1, f64::MIN..=f64::MAX);
-//         define_func!(acos, acos, xacos_u1, f64::MIN..=f64::MAX);
-//         define_func!(atan, atan, xatan_u1, f64::MIN..=f64::MAX);
-//         define_func!(sinh, sinh, xsinh, -709.0..=709.0);
-//         define_func!(cosh, cosh, xcosh, -709.0..=709.0);
-//         define_func!(tanh, tanh, xtanh, -19.0..=19.0);
-//         define_func!(
-//             asinh,
-//             asinh,
-//             xasinh,
-//             -SQRT_FLT_MAX as f64..=SQRT_FLT_MAX as f64
-//         );
-//         define_func!(
-//             acosh,
-//             acosh,
-//             xacosh,
-//             -SQRT_FLT_MAX as f64..=SQRT_FLT_MAX as f64
-//         );
-//         define_func!(atanh, atanh, xatanh, f64::MIN..=f64::MAX);
-//         define_func!(round, round, xround, f64::MIN..=f64::MAX);
-//         define_func!(sqrt, sqrt, xsqrt_u05, f64::MIN..=f64::MAX);
-//         define_func!(exp, exp, xexp, -1000.0..=710.0);
-//         define_func!(exp2, exp2, xexp2, -2000.0..=1024.0);
-//         define_func!(exp10, exp10, xexp10, -350.0..=308.26);
-//         define_func!(expm1, exp_m1, xexpm1, -37.0..=710.0);
-//         define_func!(log10, log10, xlog10, 0.0..=f64::MAX);
-//         define_func!(log2, log2, xlog2, 0.0..=f64::MAX);
-//         define_func!(log1p, ln_1p, xlog1p, -1.0..=1e+38);
-//         define_func!(trunc, trunc, xtrunc, f64::MIN..=f64::MAX);
-//         define_func!(erf, erf, xerf_u1, f64::MIN..=f64::MAX);
-//         define_func!(cbrt, cbrt, xcbrt_u1, f64::MIN..=f64::MAX);
-//         define_func!(ln, ln, xlog_u1, 0.0..=f64::MAX);
-//     }
-// }
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
+
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self.max(rhs)
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self.min(rhs)
+    }
+
+    #[inline(always)]
+    fn __clip(self, min: Self, max: Self) -> Self {
+        self.max(min).min(max)
+    }
+}
+
+impl NormalOutUnary2 for f64x4 {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        self.abs()
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self.ceil()
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self.floor()
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        -self
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self.round()
+    }
+
+    #[inline(always)]
+    fn __sign(self) -> Self {
+        self.sign()
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, alpha: Self) -> Self {
+        self.max(f64x4::splat(0.0)) + alpha * self.min(f64x4::splat(0.0))
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self.relu()
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self.relu6()
+    }
+}
+
+impl Eval2 for f64x4 {
+    type Output = i64x4;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        unsafe { std::mem::transmute(self.is_nan()) }
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        unreachable!()
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        unsafe { std::mem::transmute(self.is_infinite()) }
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[cfg(test)]
+mod tests {
+    use crate::arch_simd::sleef::common::misc::SQRT_FLT_MAX;
+
+    use super::*;
+    use rug::Assign;
+    use rug::Float;
+    const TEST_REPEAT: usize = 100_000;
+    const PRECF64: u32 = 128;
+    pub fn f32_count_ulp(d: f64, c: &Float) -> f64 {
+        let c2 = c.to_f64();
+
+        if (c2 == 0. || c2.is_subnormal()) && (d == 0. || d.is_subnormal()) {
+            return 0.;
+        }
+
+        if (c2 == 0.) && (d != 0.) {
+            return 10000.;
+        }
+
+        if c2.is_infinite() && d.is_infinite() {
+            return 0.;
+        }
+
+        let prec = c.prec();
+
+        let mut fry = Float::with_val(prec, d);
+
+        let mut frw = Float::new(prec);
+
+        let (_, e) = c.to_f64_exp();
+
+        frw.assign(Float::u_exp(1, e - 53_i32));
+
+        fry -= c;
+        fry /= &frw;
+        let u = sleef::Sleef::abs(fry.to_f64());
+
+        u
+    }
+    fn f32_gen_input(
+        rng: &mut rand::rngs::ThreadRng,
+        range: core::ops::RangeInclusive<f64>,
+    ) -> f64 {
+        use rand::Rng;
+        let mut start = *range.start();
+        if start == f64::MIN {
+            start = -1e306;
+        }
+        let mut end = *range.end();
+        if end == f64::MAX {
+            end = 1e306;
+        }
+        rng.gen_range(start..=end)
+    }
+    fn gen_input(
+        rng: &mut rand::rngs::ThreadRng,
+        range: core::ops::RangeInclusive<f64>,
+    ) -> __m256d {
+        let mut arr = [0.; 4];
+        for i in 0..4 {
+            arr[i] = f32_gen_input(rng, range.clone());
+        }
+        unsafe { std::mem::transmute(arr) }
+    }
+    pub fn test_f_f(
+        f_tested: fn(__m256d) -> __m256d,
+        f_sample: fn(rug::Float) -> rug::Float,
+        range: core::ops::RangeInclusive<f64>,
+        ulp_ex: f64,
+        name: &str,
+    ) {
+        test_c_f_f(
+            f_tested,
+            f_sample,
+            range,
+            |ulp, _, _| (ulp <= ulp_ex, format!("ULP: {ulp} > {ulp_ex}")),
+            name,
+        )
+    }
+
+    pub fn test_c_f_f(
+        f_tested: fn(__m256d) -> __m256d,
+        f_sample: fn(rug::Float) -> rug::Float,
+        range: core::ops::RangeInclusive<f64>,
+        cf: impl Fn(f64, f64, &rug::Float) -> (bool, String),
+        name: &str,
+    ) {
+        let mut rng = rand::thread_rng();
+        for n in 0..TEST_REPEAT {
+            let input = gen_input(&mut rng, range.clone());
+            let in_fx: [f64; 4] = unsafe { std::mem::transmute(input) };
+            let out_fx: [f64; 4] = unsafe { std::mem::transmute(f_tested(input)) };
+            for i in 0..4 {
+                let input = in_fx[i];
+                let output = out_fx[i];
+                let expected = f_sample(rug::Float::with_val(PRECF64, input));
+                if expected.is_nan() && output.is_nan() {
+                    continue;
+                }
+                let ulp = f32_count_ulp(output, &expected);
+                let (b, fault_string) = cf(ulp, output, &expected);
+                assert!(
+                    b,
+                    "{}: Iteration: {n}, Position: {i}, Input: {input:e}, Output: {output}, Expected: {expected}, {}",
+                    name,
+                    fault_string
+                );
+            }
+        }
+    }
+    #[test]
+    fn tests() {
+        macro_rules! define_func {
+            ($func:ident, $f:ident, $x_func:expr, $range:expr) => {
+                fn $func(d: __m256d) -> __m256d {
+                    unsafe { $x_func(d).into() }
+                }
+                test_f_f($func, rug::Float::$f, $range, 1., stringify!($func));
+            };
+        }
+        define_func!(sinf, sin, xsin_u1, f64::MIN..=f64::MAX);
+        define_func!(cosf, cos, xcos_u1, f64::MIN..=f64::MAX);
+        define_func!(tanf, tan, xtan_u1, f64::MIN..=f64::MAX);
+        define_func!(asin, asin, xasin_u1, f64::MIN..=f64::MAX);
+        define_func!(acos, acos, xacos_u1, f64::MIN..=f64::MAX);
+        define_func!(atan, atan, xatan_u1, f64::MIN..=f64::MAX);
+        define_func!(sinh, sinh, xsinh, -709.0..=709.0);
+        define_func!(cosh, cosh, xcosh, -709.0..=709.0);
+        define_func!(tanh, tanh, xtanh, -19.0..=19.0);
+        define_func!(
+            asinh,
+            asinh,
+            xasinh,
+            -SQRT_FLT_MAX as f64..=SQRT_FLT_MAX as f64
+        );
+        define_func!(
+            acosh,
+            acosh,
+            xacosh,
+            -SQRT_FLT_MAX as f64..=SQRT_FLT_MAX as f64
+        );
+        define_func!(atanh, atanh, xatanh, f64::MIN..=f64::MAX);
+        define_func!(round, round, xround, f64::MIN..=f64::MAX);
+        define_func!(sqrt, sqrt, xsqrt_u05, f64::MIN..=f64::MAX);
+        define_func!(exp, exp, xexp, -1000.0..=710.0);
+        define_func!(exp2, exp2, xexp2, -2000.0..=1024.0);
+        define_func!(exp10, exp10, xexp10, -350.0..=308.26);
+        define_func!(expm1, exp_m1, xexpm1, -37.0..=710.0);
+        define_func!(log10, log10, xlog10, 0.0..=f64::MAX);
+        define_func!(log2, log2, xlog2, 0.0..=f64::MAX);
+        define_func!(log1p, ln_1p, xlog1p, -1.0..=1e+38);
+        define_func!(trunc, trunc, xtrunc, f64::MIN..=f64::MAX);
+        define_func!(erf, erf, xerf_u1, f64::MIN..=f64::MAX);
+        define_func!(cbrt, cbrt, xcbrt_u1, f64::MIN..=f64::MAX);
+        define_func!(ln, ln, xlog_u1, 0.0..=f64::MAX);
+    }
+}

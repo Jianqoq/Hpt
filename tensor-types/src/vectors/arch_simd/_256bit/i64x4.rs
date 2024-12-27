@@ -1,6 +1,6 @@
 use crate::{
     convertion::VecConvertor,
-    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait}, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
 
 #[cfg(target_arch = "x86_64")]
@@ -13,6 +13,10 @@ use super::u64x4::u64x4;
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(32))]
 pub struct i64x4(pub(crate) __m256i);
+
+/// helper to impl the promote trait
+#[allow(non_camel_case_types)]
+pub(crate) type i64_promote = i64x4;
 
 impl PartialEq for i64x4 {
     #[inline(always)]
@@ -66,6 +70,10 @@ impl VecTrait<i64> for i64x4 {
     #[inline(always)]
     fn splat(val: i64) -> i64x4 {
         unsafe { i64x4(_mm256_set1_epi64x(val)) }
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const i64) -> Self {
+        i64x4(_mm256_loadu_si256(ptr as *const __m256i))
     }
 }
 
@@ -173,6 +181,9 @@ impl std::ops::Div for i64x4 {
             let arr2: [i64; 4] = std::mem::transmute(rhs.0);
             let mut arr3: [i64; 4] = [0; 4];
             for i in 0..4 {
+                if arr2[i] == 0 {
+                    panic!("Division by zero for i64");
+                }
                 arr3[i] = arr[i] / arr2[i];
             }
             i64x4(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
@@ -340,5 +351,137 @@ impl VecConvertor for i64x4 {
     #[cfg(target_pointer_width = "64")]
     fn to_usize(self) -> super::usizex4::usizex4 {
         unsafe { std::mem::transmute(self) }
+    }
+}
+
+impl FloatOutBinary2 for i64x4 {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
+
+    #[inline(always)]
+    fn __log(self, _: Self) -> Self {
+        panic!("Logarithm operation is not supported for i32")
+    }
+}
+
+impl NormalOut2 for i64x4 {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
+
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self.max(rhs)
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self.min(rhs)
+    }
+
+    #[inline(always)]
+    fn __clip(self, min: Self, max: Self) -> Self {
+        self.max(min).min(max)
+    }
+}
+
+impl NormalOutUnary2 for i64x4 {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        self.abs()
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        self.neg()
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __sign(self) -> Self {
+        self.sign()
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, alpha: Self) -> Self {
+        self.max(i64x4::splat(0)) + alpha * self.min(i64x4::splat(0))
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self.relu()
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self.relu6()
+    }
+}
+
+impl Eval2 for i64x4 {
+    type Output = i64x4;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        i64x4::default()
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        unsafe { 
+            let eq = _mm256_cmpeq_epi64(self.0, _mm256_setzero_si256());
+            Self(_mm256_xor_si256(eq, _mm256_set1_epi64x(-1)))
+        }
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        i64x4::default()
     }
 }

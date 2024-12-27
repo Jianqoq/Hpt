@@ -9,6 +9,8 @@ use crate::vectors::traits::{ Init, VecCommon, VecTrait };
 pub struct cplx64x4(pub(crate) [Complex64; 4]);
 
 impl VecTrait<Complex64> for cplx64x4 {
+    const SIZE: usize = 4;
+    type Base = Complex64;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[Complex64]) {
         self.0.copy_from_slice(slice);
@@ -33,18 +35,8 @@ impl VecTrait<Complex64> for cplx64x4 {
     fn sum(&self) -> Complex64 {
         self.0.iter().sum()
     }
-    
-    fn extract(self, idx: usize) -> Complex64 {
-        self.0[idx]
-    }
-}
-impl VecCommon for cplx64x4 {
-    const SIZE: usize = 4;
-    
-    type Base = Complex64;
-}
-impl Init<Complex64> for cplx64x4 {
-    fn splat(val: Complex64) -> cplx64x4 {
+    #[inline(always)]
+    fn splat(val: Complex64) -> Self {
         cplx64x4([val; 4])
     }
 }

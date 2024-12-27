@@ -75,8 +75,6 @@ pub mod ops {
         pub mod unary;
         /// a module defines all the kernels
         pub mod kernels {
-            /// a module defines the avgpool2d kernels
-            pub mod avgpool_kernels;
             /// a module defines the conv2d kernels
             pub mod conv;
             /// a module defines the dwconv2d kernels
@@ -232,6 +230,14 @@ pub mod ops {
         pub(crate) mod std_ops;
         /// a module contains cuda normal out unary impls
         pub(crate) mod unary;
+    }
+
+    /// a module contains all the common ops
+    pub mod common {
+        /// a module contains all the shape manipulation ops
+        pub mod shape_manipulate;
+        /// a module contains all the functions to help create a tensor
+        pub mod creation;
     }
 }
 

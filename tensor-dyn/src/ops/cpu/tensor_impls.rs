@@ -8,6 +8,7 @@ use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
 use tensor_allocator::CACHE;
+use tensor_common::err_handler::ErrHandler;
 use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_display::display;
 use tensor_iterator::iterator_traits::ParStridedIteratorZip;
@@ -44,9 +45,8 @@ where
         slice
     }
 
-    fn contiguous(&self) -> anyhow::Result<Self> {
-        let res = self.par_iter().strided_map(|x| x).collect();
-        Ok(res)
+    fn contiguous(&self) -> std::result::Result<Self, ErrHandler> {
+       Ok(self.par_iter().strided_map(|x| x).collect())
     }
 }
 
@@ -119,7 +119,7 @@ where
 
 impl<T: CommonBounds> TensorAlloc for _Tensor<T> {
     type Meta = T;
-    fn _empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Self>
+    fn _empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler>
     where
         Self: Sized,
     {
@@ -140,7 +140,7 @@ impl<T: CommonBounds> _Tensor<T> {
     }
 
     /// cast the tensor to the new type
-    pub fn astype<U>(&self) -> anyhow::Result<_Tensor<U>>
+    pub fn astype<U>(&self) -> std::result::Result<_Tensor<U>, ErrHandler>
     where
         U: CommonBounds,
         T: IntoScalar<U>,
@@ -159,7 +159,7 @@ impl<T: CommonBounds> _Tensor<T> {
     }
 
     /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
-    pub fn try_astype<U>(&self) -> anyhow::Result<_Tensor<U>>
+    pub fn try_astype<U>(&self) -> std::result::Result<_Tensor<U>, ErrHandler>
     where
         U: CommonBounds,
         T: IntoScalar<U>,
@@ -172,7 +172,7 @@ impl<T: CommonBounds> _Tensor<T> {
     }
 
     /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
-    pub fn static_cast<Dst>(&self) -> anyhow::Result<_Tensor<Dst>>
+    pub fn static_cast<Dst>(&self) -> std::result::Result<_Tensor<Dst>, ErrHandler>
     where
         Dst: CommonBounds,
     {

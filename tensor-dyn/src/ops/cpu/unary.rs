@@ -24,7 +24,7 @@ pub(crate) fn uary_fn_with_out_simd<A, O, K, F, F2>(
     f2: F2,
     out: Option<O>
 )
-    -> anyhow::Result<_Tensor<K, Cpu>>
+    -> std::result::Result<_Tensor<K, Cpu>, ErrHandler>
     where
         A: CommonBounds,
         K: CommonBounds,
@@ -101,7 +101,7 @@ impl<T> _Tensor<T>
         <T as Eval>::Output: CommonBounds,
         T::Vec: Eval<Output = <<T as Eval>::Output as TypeCommon>::Vec>
 {
-    pub fn is_inf(&self) -> anyhow::Result<_Tensor<<T as Eval>::Output>> {
+    pub fn is_inf(&self) -> std::result::Result<_Tensor<<T as Eval>::Output>, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._is_inf(),
@@ -110,7 +110,7 @@ impl<T> _Tensor<T>
         )
     }
 
-    pub fn is_nan(&self) -> anyhow::Result<_Tensor<<T as Eval>::Output>> {
+    pub fn is_nan(&self) -> std::result::Result<_Tensor<<T as Eval>::Output>, ErrHandler> {
         uary_fn_with_out_simd(
             self,
             |x| x._is_nan(),
@@ -123,7 +123,7 @@ impl<T> _Tensor<T>
 impl<T> _Tensor<T> where T: CommonBounds {
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn cumsum<A: Into<Option<i64>>>(&self, axis: A) -> anyhow::Result<Self>
+    pub fn cumsum<A: Into<Option<i64>>>(&self, axis: A) -> std::result::Result<Self, ErrHandler>
         where T: NormalOut<T, Output = T>
     {
         match axis.into() {

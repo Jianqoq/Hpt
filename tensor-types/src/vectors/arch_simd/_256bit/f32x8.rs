@@ -7,6 +7,7 @@ use crate::arch_simd::sleef::libm::sleefsimdsp::{
 };
 use crate::convertion::VecConvertor;
 use crate::traits::{SimdCompare, SimdMath, SimdSelect, VecTrait};
+use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
 use crate::vectors::arch_simd::_256bit::u32x8::u32x8;
 
 #[cfg(target_arch = "x86_64")]
@@ -19,6 +20,10 @@ use super::i32x8::i32x8;
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(32))]
 pub struct f32x8(pub(crate) __m256);
+
+/// helper to impl the promote trait
+#[allow(non_camel_case_types)]
+pub(crate) type f32_promote = f32x8;
 
 impl PartialEq for f32x8 {
     #[inline(always)]
@@ -71,6 +76,10 @@ impl VecTrait<f32> for f32x8 {
     #[inline(always)]
     fn splat(val: f32) -> f32x8 {
         unsafe { f32x8(_mm256_set1_ps(val)) }
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const f32) -> Self {
+        f32x8(_mm256_loadu_ps(ptr))
     }
 }
 
@@ -278,8 +287,9 @@ impl SimdMath<f32> for f32x8 {
         f32x8(unsafe { _mm256_and_ps(self.0, _mm256_set1_ps(0.0f32)) })
     }
     #[inline(always)]
-    fn leaky_relu(self, _: f32) -> Self {
-        todo!()
+    fn leaky_relu(self, alpha: f32) -> Self {
+        let alpha = f32x8::splat(alpha);
+        self.max(f32x8::splat(0.0)) + alpha * self.min(f32x8::splat(0.0))
     }
     #[inline(always)]
     fn relu(self) -> Self {
@@ -398,6 +408,93 @@ impl SimdMath<f32> for f32x8 {
     fn max(self, other: Self) -> Self {
         f32x8(unsafe { xmaxf(self.0, other.0) })
     }
+    #[inline(always)]
+    fn hard_sigmoid(self) -> Self {
+        let point_two = Self::splat(0.2);
+        let half = Self::splat(0.5);
+        let one = Self::splat(1.0);
+        let zero = Self::splat(0.0);
+        let add = point_two * self + half;
+        add.min(one).max(zero)
+    }
+
+    #[inline(always)]
+    fn fast_hard_sigmoid(self) -> Self {
+        let sixth = Self::splat(1.0 / 6.0);
+        let half = Self::splat(0.5);
+        let one = Self::splat(1.0);
+        let zero = Self::splat(0.0);
+        let result = self * sixth + half;
+        result.min(one).max(zero)
+    }
+
+    #[inline(always)]
+    fn elu(self, alpha: f32) -> Self {
+        let mask = self.simd_gt(Self::splat(0.0));
+        mask.select(self, Self::splat(alpha) * (self.expm1()))
+    }
+
+    #[inline(always)]
+    fn selu(self, alpha: f32, scale: f32) -> Self {
+        let scale = Self::splat(scale);
+        scale * self.elu(alpha)
+    }
+
+    #[inline(always)]
+    fn celu(self, alpha: f32) -> Self {
+        let scale = Self::splat(alpha);
+        let gt_mask = self.simd_gt(Self::splat(0.0));
+        gt_mask.select(self, scale * (self.exp() - Self::splat(1.0)))
+    }
+
+    #[inline(always)]
+    fn gelu(self) -> Self {
+        let erf = (self * Self::splat(std::f32::consts::FRAC_1_SQRT_2)).erf() + Self::splat(1.0);
+        let half = Self::splat(0.5);
+        half * self * erf
+    }
+
+    #[inline(always)]
+    fn hard_swish(self) -> Self {
+        let three = Self::splat(3.0);
+        self * (self + three).relu6() * Self::splat(1.0 / 6.0)
+    }
+
+    #[inline(always)]
+    fn mish(self) -> Self {
+        self * self.softplus().tanh()
+    }
+
+    #[inline(always)]
+    fn softplus(self) -> Self {
+        let one = Self::splat(1.0);
+        (one + self.exp()).ln()
+    }
+
+    #[inline(always)]
+    fn recip(self) -> Self {
+        Self(unsafe {
+            let is_nan = _mm256_cmp_ps(self.0, self.0, _CMP_UNORD_Q);
+            let is_zero = _mm256_cmp_ps(self.0, _mm256_setzero_ps(), _CMP_EQ_OQ);
+            let recip = _mm256_div_ps(_mm256_set1_ps(1.0), self.0);
+            _mm256_blendv_ps(
+                recip,
+                _mm256_or_ps(
+                    _mm256_and_ps(is_zero, _mm256_set1_ps(f32::INFINITY)),
+                    _mm256_and_ps(is_nan, _mm256_set1_ps(f32::NAN)),
+                ),
+                _mm256_or_ps(is_nan, is_zero),
+            )
+        })
+    }
+    #[inline(always)]
+    fn sigmoid(self) -> Self {
+        Self::splat(1.0) / (Self::splat(1.0) + (-self).exp())
+    }
+    #[inline(always)]
+    fn softsign(self) -> Self {
+        self / (Self::splat(1.0) + self.abs())
+    }
 }
 
 impl VecConvertor for f32x8 {
@@ -425,165 +522,141 @@ impl VecConvertor for f32x8 {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::arch_simd::sleef::common::misc::SQRT_FLT_MAX;
+impl FloatOutBinary2 for f32x8 {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
 
-//     use super::*;
-//     use rug::Assign;
-//     use rug::Float;
-//     const TEST_REPEAT: usize = 100_000;
-//     const PRECF32: u32 = 80;
-//     pub fn f32_count_ulp(d: f32, c: &Float) -> f32 {
-//         let c2 = c.to_f32();
+    #[inline(always)]
+    fn __log(self, base: Self) -> Self {
+        let res = [
+            self[0].log(base[0]),
+            self[1].log(base[1]),
+            self[2].log(base[2]),
+            self[3].log(base[3]),
+            self[4].log(base[4]),
+            self[5].log(base[5]),
+            self[6].log(base[6]),
+            self[7].log(base[7]),
+        ];
+        f32x8(unsafe { std::mem::transmute(res) })
+    }
+}
 
-//         if (c2 == 0. || c2.is_subnormal()) && (d == 0. || d.is_subnormal()) {
-//             return 0.;
-//         }
+impl NormalOut2 for f32x8 {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
 
-//         if (c2 == 0.) && (d != 0.) {
-//             return 10000.;
-//         }
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
 
-//         if c2.is_infinite() && d.is_infinite() {
-//             return 0.;
-//         }
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
 
-//         let prec = c.prec();
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
 
-//         let mut fry = Float::with_val(prec, d);
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
 
-//         let mut frw = Float::new(prec);
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
 
-//         let (_, e) = c.to_f32_exp();
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self.max(rhs)
+    }
 
-//         frw.assign(Float::u_exp(1, e - 24_i32));
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self.min(rhs)
+    }
 
-//         fry -= c;
-//         fry /= &frw;
-//         let u = f32::from_bits(0x_7fff_ffff & fry.to_f32().to_bits());
+    #[inline(always)]
+    fn __clip(self, min: Self, max: Self) -> Self {
+        self.max(min).min(max)
+    }
+}
 
-//         u
-//     }
-//     fn f32_gen_input(
-//         rng: &mut rand::rngs::ThreadRng,
-//         range: core::ops::RangeInclusive<f32>,
-//     ) -> f32 {
-//         use rand::Rng;
-//         let mut start = *range.start();
-//         if start == f32::MIN {
-//             start = -1e37;
-//         }
-//         let mut end = *range.end();
-//         if end == f32::MAX {
-//             end = 1e37;
-//         }
-//         rng.gen_range(start..=end)
-//     }
-//     fn gen_input(
-//         rng: &mut rand::rngs::ThreadRng,
-//         range: core::ops::RangeInclusive<f32>,
-//     ) -> __m256
-//     {
-//         let mut arr = [0.; 8];
-//         for i in 0..8 {
-//             arr[i] = f32_gen_input(rng, range.clone());
-//         }
-//         unsafe { std::mem::transmute(arr) }
-//     }
-//     pub fn test_f_f(
-//         f_tested: fn(__m256) -> __m256,
-//         f_sample: fn(rug::Float) -> rug::Float,
-//         range: core::ops::RangeInclusive<f32>,
-//         ulp_ex: f32,
-//         name: &str,
-//     )
-//     {
-//         test_c_f_f(
-//             f_tested,
-//             f_sample,
-//             range,
-//             |ulp, _, _| (ulp <= ulp_ex, format!("ULP: {ulp} > {ulp_ex}")),
-//             name,
-//         )
-//     }
+impl NormalOutUnary2 for f32x8 {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
 
-//     pub fn test_c_f_f(
-//         f_tested: fn(__m256) -> __m256,
-//         f_sample: fn(rug::Float) -> rug::Float,
-//         range: core::ops::RangeInclusive<f32>,
-//         cf: impl Fn(f32, f32, &rug::Float) -> (bool, String),
-//         name: &str,
-//     )
-//     {
-//         let mut rng = rand::thread_rng();
-//         for n in 0..TEST_REPEAT {
-//             let input = gen_input(&mut rng, range.clone());
-//             let in_fx: [f32; 8] = unsafe { std::mem::transmute(input) };
-//             let out_fx: [f32; 8] = unsafe { std::mem::transmute(f_tested(input)) };
-//             for i in 0..8 {
-//                 let input = in_fx[i];
-//                 let output = out_fx[i];
-//                 let expected = f_sample(rug::Float::with_val(PRECF32, input));
-//                 if expected.is_nan() && output.is_nan() {
-//                     continue;
-//                 }
-//                 let ulp = f32_count_ulp(output, &expected);
-//                 let (b, fault_string) = cf(ulp, output, &expected);
-//                 assert!(
-//                     b,
-//                     "{}: Iteration: {n}, Position: {i}, Input: {input:e}, Output: {output}, Expected: {expected}, {}",
-//                     name,
-//                     fault_string
-//                 );
-//             }
-//         }
-//     }
-//     #[test]
-//     fn tests() {
-//         macro_rules! define_func {
-//             ($func:ident, $f:ident, $x_func:expr, $range:expr) => {
-//                 fn $func(d: __m256) -> __m256
-//                 {
-//                     unsafe { $x_func(d).into() }
-//                 }
-//                 test_f_f($func, rug::Float::$f, $range, 1., stringify!($func));
-//             };
-//         }
-//         define_func!(sinf, sin, xsinf_u1, f32::MIN..=f32::MAX);
-//         define_func!(cosf, cos, xcosf_u1, f32::MIN..=f32::MAX);
-//         define_func!(tanf, tan, xtanf_u1, f32::MIN..=f32::MAX);
-//         define_func!(asin, asin, xasinf_u1, f32::MIN..=f32::MAX);
-//         define_func!(acos, acos, xacosf_u1, f32::MIN..=f32::MAX);
-//         define_func!(atan, atan, xatanf_u1, f32::MIN..=f32::MAX);
-//         define_func!(sinh, sinh, xsinhf, -88.5..=88.5);
-//         define_func!(cosh, cosh, xcoshf, -88.5..=88.5);
-//         define_func!(tanh, tanh, xtanhf, -8.7..=8.7);
-//         define_func!(
-//             asinh,
-//             asinh,
-//             xasinhf,
-//             -SQRT_FLT_MAX as f32..=SQRT_FLT_MAX as f32
-//         );
-//         define_func!(
-//             acosh,
-//             acosh,
-//             xacoshf,
-//             -SQRT_FLT_MAX as f32..=SQRT_FLT_MAX as f32
-//         );
-//         define_func!(atanh, atanh, xatanhf, f32::MIN..=f32::MAX);
-//         define_func!(round, round, xroundf, f32::MIN..=f32::MAX);
-//         define_func!(sqrt, sqrt, xsqrtf_u05, f32::MIN..=f32::MAX);
-//         define_func!(exp, exp, xexpf, -104.0..=100.0);
-//         define_func!(exp2, exp2, xexp2f, -150.0..=128.0);
-//         define_func!(exp10, exp10, xexp10f, -50.0..=38.54);
-//         define_func!(expm1, exp_m1, xexpm1f, -16.64..=88.73);
-//         define_func!(log10, log10, xlog10f, 0.0..=f32::MAX);
-//         define_func!(log2, log2, xlog2f, 0.0..=f32::MAX);
-//         define_func!(log1p, ln_1p, xlog1pf, -1.0..=1e+38);
-//         define_func!(trunc, trunc, xtruncf, f32::MIN..=f32::MAX);
-//         define_func!(erf, erf, xerff_u1, f32::MIN..=f32::MAX);
-//         define_func!(cbrt, cbrt, xcbrtf_u1, f32::MIN..=f32::MAX);
-//         define_func!(ln, ln, xlogf_u1, 0.0..=f32::MAX);
-//     }
-// }
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        self.abs()
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self.ceil()
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self.floor()
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        -self
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self.round()
+    }
+
+    #[inline(always)]
+    fn __sign(self) -> Self {
+        self.sign()
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, alpha: Self) -> Self {
+        self.max(f32x8::splat(0.0)) + alpha * self.min(f32x8::splat(0.0))
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self.relu()
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self.relu6()
+    }
+}
+
+impl Eval2 for f32x8 {
+    type Output = i32x8;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        unsafe { std::mem::transmute(self.is_nan()) }
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        unreachable!()
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        unsafe { std::mem::transmute(self.is_infinite()) }
+    }
+}

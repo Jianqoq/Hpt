@@ -1,6 +1,7 @@
 use crate::{Cuda, Tensor};
 use cudarc::{driver::DeviceRepr, types::CudaTypeName};
 use tensor_common::axis::Axis;
+use tensor_common::err_handler::ErrHandler;
 use tensor_traits::{CommonBounds, IndexReduce};
 use tensor_types::{
     into_scalar::IntoScalar,
@@ -13,11 +14,11 @@ impl<
 {
     type Output = Tensor<i64, Cuda, DEVICE_ID>;
 
-    fn argmax<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn argmax<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(self.inner.argmax(axis, keep_dims)?.into())
     }
 
-    fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output> {
+    fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler> {
         Ok(self.inner.argmin(axis, keep_dims)?.into())
     }
 }

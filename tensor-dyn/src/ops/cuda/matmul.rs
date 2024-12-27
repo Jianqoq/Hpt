@@ -18,7 +18,7 @@ pub(crate) fn matmul_with_out<T, O, const CUDA_DEVICE: usize>(
     lhs: &_Tensor<T, Cuda, CUDA_DEVICE>,
     rhs: &_Tensor<T, Cuda, CUDA_DEVICE>,
     out: Option<O>,
-) -> anyhow::Result<_Tensor<T, Cuda, CUDA_DEVICE>>
+) -> std::result::Result<_Tensor<T, Cuda, CUDA_DEVICE>, ErrHandler>
 where
     T: CommonBounds + DeviceRepr,
     CudaBlas: Gemm<T>,
@@ -44,7 +44,8 @@ where
                             .upgrade_device_ptr(out.ptr().ptr as u64, out.size())
                     };
                     out.device()
-                        .htod_sync_copy_into(&vec![T::ZERO; out.size() as usize], &mut slice)?;
+                        .htod_sync_copy_into(&vec![T::ZERO; out.size() as usize], &mut slice)
+                        .map_err(|e| ErrHandler::CudaHostToDeviceError(Location::caller(), e))?;
                     slice.leak();
                     out
                 } else {
@@ -53,7 +54,8 @@ where
             } else {
                 _Tensor::<T, Cuda, CUDA_DEVICE>::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?
             };
-            let cublas = cudarc::cublas::CudaBlas::new(res.device())?;
+            let cublas = cudarc::cublas::CudaBlas::new(res.device())
+                .map_err(|e| ErrHandler::CudaCreateCublasHandleError(Location::caller(), e))?;
             let config = GemmConfig {
                 transa: cublasOperation_t::CUBLAS_OP_N,
                 transb: cublasOperation_t::CUBLAS_OP_N,
@@ -78,7 +80,11 @@ where
                 rhs.device()
                     .upgrade_device_ptr::<T>(rhs.ptr().ptr as u64, rhs.size())
             };
-            unsafe { cublas.gemm(config, &a_slice, &b_slice, &mut slice)? };
+            unsafe {
+                cublas
+                    .gemm(config, &a_slice, &b_slice, &mut slice)
+                    .map_err(|e| ErrHandler::CudaCublasExecuteError(Location::caller(), e))?
+            };
             slice.leak();
             a_slice.leak();
             b_slice.leak();
@@ -119,7 +125,8 @@ where
                             .upgrade_device_ptr(out.ptr().ptr as u64, out.size())
                     };
                     out.device()
-                        .htod_sync_copy_into(&vec![T::ZERO; out.size() as usize], &mut slice)?;
+                        .htod_sync_copy_into(&vec![T::ZERO; out.size() as usize], &mut slice)
+                        .map_err(|e| ErrHandler::CudaHostToDeviceError(Location::caller(), e))?;
                     slice.leak();
                     out
                 } else {
@@ -128,7 +135,8 @@ where
             } else {
                 _Tensor::<T, Cuda, CUDA_DEVICE>::zeros(res_shape)?
             };
-            let cublas = cudarc::cublas::CudaBlas::new(res.device())?;
+            let cublas = cudarc::cublas::CudaBlas::new(res.device())
+                .map_err(|e| ErrHandler::CudaCreateCublasHandleError(Location::caller(), e))?;
             let config = GemmConfig {
                 transa: cublasOperation_t::CUBLAS_OP_N,
                 transb: cublasOperation_t::CUBLAS_OP_T,
@@ -160,7 +168,11 @@ where
                 rhs.device()
                     .upgrade_device_ptr(rhs.ptr().ptr as u64, rhs.size())
             };
-            unsafe { cublas.gemm_strided_batched(config, &a_slice, &b_slice, &mut slice)? };
+            unsafe {
+                cublas
+                    .gemm_strided_batched(config, &a_slice, &b_slice, &mut slice)
+                    .map_err(|e| ErrHandler::CudaCublasExecuteError(Location::caller(), e))?
+            };
             slice.leak();
             a_slice.leak();
             b_slice.leak();

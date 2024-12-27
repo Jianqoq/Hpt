@@ -48,6 +48,8 @@ mod simd_float_out_unary;
 mod simd_normal_out;
 mod simd_normal_unary;
 mod type_utils;
+mod into_cuda_scalar;
+mod into_scalar;
 
 use crate::simd_cmp::impl_simd_cmp;
 use crate::simd_normal_out::impl_simd_normal_out;
@@ -264,61 +266,6 @@ pub fn infer_enum_type(input: TokenStream) -> TokenStream {
     ret.into()
 }
 
-struct GenericCal {
-    lhs: Ident,
-    rhs: Ident,
-    method: Ident,
-}
-
-impl parse::Parse for GenericCal {
-    fn parse(input: parse::ParseStream) -> syn::Result<Self> {
-        let lhs = input.parse::<Ident>().expect("lhs is not found");
-        input.parse::<Token![,]>()?;
-        let rhs = input
-            .parse::<Ident>()
-            .expect("rhs is not found, use sapce when not needed");
-        input.parse::<Token![,]>()?;
-        let method = input.parse::<Ident>()?;
-        Ok(Self { lhs, rhs, method })
-    }
-}
-
-/// infer the type of the result
-#[proc_macro]
-pub fn infer_cal_res_type(input: TokenStream) -> TokenStream {
-    let res: GenericCal = parse_macro_input!(input as GenericCal);
-    let lhs_str = res.lhs.to_string();
-    let rhs_str = res.rhs.to_string();
-    let method = res.method;
-    let left_type = TypeInfo::new(&lhs_str);
-    let mut ret = proc_macro2::TokenStream::new();
-
-    match method.to_string().as_str() {
-        "normal" => {
-            if rhs_str.is_empty() {
-                let res_type = left_type.infer_normal_res_type_uary();
-                ret.extend(quote! { #res_type });
-            } else {
-                let right_type = TypeInfo::new(&rhs_str);
-                let res_type = left_type.infer_normal_res_type(&right_type);
-                ret.extend(quote! { #res_type });
-            }
-        }
-        "float" => {
-            if rhs_str.is_empty() {
-                let res_type = left_type.infer_float_res_type_uary();
-                ret.extend(quote! { #res_type });
-            } else {
-                let right_type = TypeInfo::new(&rhs_str);
-                let res_type = left_type.infer_float_res_type(&right_type);
-                ret.extend(quote! { #res_type });
-            }
-        }
-        _ => todo!(),
-    }
-    ret.into()
-}
-
 /// implement float out binary trait
 #[proc_macro]
 pub fn float_out_binary(_: TokenStream) -> TokenStream {
@@ -457,6 +404,18 @@ pub fn impl_into_vec(_: TokenStream) -> TokenStream {
     into_vec::into_vec()
 }
 
+/// implment into cuda scalar trait
+#[proc_macro]
+pub fn impl_into_cuda_scalar(_: TokenStream) -> TokenStream {
+    into_cuda_scalar::__impl_into_cuda_scalar().into()
+}
+
+/// implment into scalar trait
+#[proc_macro]
+pub fn impl_into_scalar(_: TokenStream) -> TokenStream {
+    into_scalar::__impl_into_scalar().into()
+}
+
 /// implement bitwise out trait
 #[proc_macro]
 pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
@@ -472,64 +431,76 @@ pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
             let rhs_type = TypeInfo::new(rhs);
             let lhs_dtype = lhs_type.dtype;
             let rhs_dtype = rhs_type.dtype;
-            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
-
-            let shift = if res_type.is_bool() {
+            let res = if lhs_dtype == rhs_dtype {
                 quote! {
-                    #[inline(always)]
-                    fn _shl(self, rhs: #rhs_dtype) -> Self::Output {
-                        self || rhs
-                    }
-                    #[inline(always)]
-                    fn _shr(self, rhs: #rhs_dtype) -> Self::Output {
-                        self && !rhs
+                    impl BitWiseOut<#rhs_dtype> for #lhs_dtype {
+                        type Output = <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output;
+                        #[inline(always)]
+                        fn _bitand(self, rhs: #rhs_dtype) -> Self::Output {
+                            self.__bitand(rhs)
+                        }
+                        #[inline(always)]
+                        fn _bitor(self, rhs: #rhs_dtype) -> Self::Output {
+                            self.__bitor(rhs)
+                        }
+                        #[inline(always)]
+                        fn _bitxor(self, rhs: #rhs_dtype) -> Self::Output {
+                            self.__bitxor(rhs)
+                        }
+                        #[inline(always)]
+                        fn _not(self) -> Self::Output {
+                            self.__not()
+                        }
+                        #[inline(always)]
+                        fn _shl(self, rhs: #rhs_dtype) -> Self::Output {
+                            self.__shl(rhs)
+                        }
+                        #[inline(always)]
+                        fn _shr(self, rhs: #rhs_dtype) -> Self::Output {
+                            self.__shr(rhs)
+                        }
                     }
                 }
             } else {
                 quote! {
-                    #[inline(always)]
-                    fn _shl(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().wrapping_shl(rhs.to_u32())
+                    impl BitWiseOut<#rhs_dtype> for #lhs_dtype {
+                        type Output = <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output;
+                        #[inline(always)]
+                        fn _bitand(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: Self::Output = self.into_scalar();
+                            let rhs: Self::Output = rhs.into_scalar();
+                            lhs.__bitand(rhs)
+                        }
+                        #[inline(always)]
+                        fn _bitor(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: Self::Output = self.into_scalar();
+                            let rhs: Self::Output = rhs.into_scalar();
+                            lhs.__bitor(rhs)
+                        }
+                        #[inline(always)]
+                        fn _bitxor(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: Self::Output = self.into_scalar();
+                            let rhs: Self::Output = rhs.into_scalar();
+                            lhs.__bitxor(rhs)
+                        }
+                        #[inline(always)]
+                        fn _not(self) -> Self::Output {
+                            let lhs: Self::Output = self.into_scalar();
+                            lhs.__not()
+                        }
+                        #[inline(always)]
+                        fn _shl(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: Self::Output = self.into_scalar();
+                            let rhs: Self::Output = rhs.into_scalar();
+                            lhs.__shl(rhs)
+                        }
+                        #[inline(always)]
+                        fn _shr(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: Self::Output = self.into_scalar();
+                            let rhs: Self::Output = rhs.into_scalar();
+                            lhs.__shr(rhs)
                         }
                     }
-                    #[inline(always)]
-                    fn _shr(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]().wrapping_shr(rhs.to_u32())
-                        }
-                    }
-                }
-            };
-
-            let res = quote! {
-                impl BitWiseOut<#rhs_dtype> for #lhs_dtype {
-                    type Output = #res_type;
-                    #[inline(always)]
-                    fn _bitand(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() & rhs.[<to_ #res_type>]()
-                        }
-                    }
-                    #[inline(always)]
-                    fn _bitor(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() | rhs.[<to_ #res_type>]()
-                        }
-                    }
-                    #[inline(always)]
-                    fn _bitxor(self, rhs: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            self.[<to_ #res_type>]() ^ rhs.[<to_ #res_type>]()
-                        }
-                    }
-                    #[inline(always)]
-                    fn _not(self) -> Self::Output {
-                        paste::paste! {
-                            !self.[<to_ #res_type>]()
-                        }
-                    }
-                    #shift
                 }
             };
             ret.extend(res);
@@ -554,98 +525,76 @@ pub fn impl_cuda_bitwise_out(_: TokenStream) -> TokenStream {
             let rhs_type = TypeInfo::new(rhs);
             let lhs_dtype = lhs_type.dtype;
             let rhs_dtype = rhs_type.dtype;
-            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
-            let to_res_type = Ident::new(
-                &format!("to_{}", res_type.to_string()),
-                proc_macro2::Span::call_site(),
-            );
-            let ty_str = res_type.to_string();
-            let shift = if res_type.is_unsigned() || res_type.is_int() {
+            let res = if lhs_dtype == rhs_dtype {
                 quote! {
-                    #[inline(always)]
-                    fn _shl(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                        Scalar::new(format!("({} << {})", self.#to_res_type().val, rhs.#to_res_type().val))
-                    }
-                    #[inline(always)]
-                    fn _shr(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                        Scalar::new(format!("({} >> {})", self.#to_res_type().val, rhs.#to_res_type().val))
+                    impl BitWiseOut<Scalar<#rhs_dtype>> for Scalar<#lhs_dtype> {
+                        type Output = <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output;
+                        #[inline(always)]
+                        fn _bitand(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            self.__bitand(rhs)
+                        }
+                        #[inline(always)]
+                        fn _bitor(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            self.__bitor(rhs)
+                        }
+                        #[inline(always)]
+                        fn _bitxor(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            self.__bitxor(rhs)
+                        }
+                        #[inline(always)]
+                        fn _not(self) -> Self::Output {
+                            self.__not()
+                        }
+                        #[inline(always)]
+                        fn _shl(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            self.__shl(rhs)
+                        }
+                        #[inline(always)]
+                        fn _shr(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            self.__shr(rhs)
+                        }
                     }
                 }
             } else {
                 quote! {
-                    #[inline(always)]
-                    fn _shl(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                        panic!("shift operation is not supported for {}", #ty_str);
+                    impl BitWiseOut<Scalar<#rhs_dtype>> for Scalar<#lhs_dtype> {
+                        type Output = <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output;
+                        #[inline(always)]
+                        fn _bitand(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            let lhs: Self::Output = self.into_scalar();
+                            let rhs: Self::Output = rhs.into_scalar();
+                            lhs.__bitand(rhs)
+                        }
+                        #[inline(always)]
+                        fn _bitor(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            let lhs: Self::Output = self.into_scalar();
+                            let rhs: Self::Output = rhs.into_scalar();
+                            lhs.__bitor(rhs)
+                        }
+                        #[inline(always)]
+                        fn _bitxor(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            let lhs: Self::Output = self.into_scalar();
+                            let rhs: Self::Output = rhs.into_scalar();
+                            lhs.__bitxor(rhs)
+                        }
+                        #[inline(always)]
+                        fn _not(self) -> Self::Output {
+                            let lhs: Self::Output = self.into_scalar();
+                            lhs.__not()
+                        }
+                        #[inline(always)]
+                        fn _shl(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            let lhs: Self::Output = self.into_scalar();
+                            let rhs: Self::Output = rhs.into_scalar();
+                            lhs.__shl(rhs)
+                        }
+                        #[inline(always)]
+                        fn _shr(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            let lhs: Self::Output = self.into_scalar();
+                            let rhs: Self::Output = rhs.into_scalar();
+                            lhs.__shr(rhs)
+                        }
                     }
-                    #[inline(always)]
-                    fn _shr(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                        panic!("shift operation is not supported for {}", #ty_str);
-                    }
-                }
-            };
-
-            let bitwise = if res_type.is_unsigned() || res_type.is_int() {
-                quote! {
-                    #[inline(always)]
-                    fn _bitand(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                        Scalar::new(format!("({} & {})", self.#to_res_type().val, rhs.#to_res_type().val))
-                    }
-                    #[inline(always)]
-                    fn _bitor(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                        Scalar::new(format!("({} | {})", self.#to_res_type().val, rhs.#to_res_type().val))
-                    }
-                    #[inline(always)]
-                    fn _bitxor(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                        Scalar::new(format!("({} ^ {})", self.#to_res_type().val, rhs.#to_res_type().val))
-                    }
-                }
-            } else {
-                let ty_str = res_type.to_string();
-                quote! {
-                    #[inline(always)]
-                    fn _bitand(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                        panic!("bitwise operation is not supported for {}", #ty_str);
-                    }
-                    #[inline(always)]
-                    fn _bitor(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                        panic!("bitwise operation is not supported for {}", #ty_str);
-                    }
-                    #[inline(always)]
-                    fn _bitxor(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                        panic!("bitwise operation is not supported for {}", #ty_str);
-                    }
-                }
-            };
-
-            let not = if res_type.is_bool() {
-                quote! {
-                    #[inline(always)]
-                    fn _not(self) -> Self::Output {
-                        Scalar::new(format!("(!{})", self.#to_res_type().val))
-                    }
-                }
-            } else if res_type.is_unsigned() || res_type.is_int() {
-                quote! {
-                    #[inline(always)]
-                    fn _not(self) -> Self::Output {
-                        Scalar::new(format!("(~{})", self.#to_res_type().val))
-                    }
-                }
-            } else {
-                quote! {
-                    #[inline(always)]
-                    fn _not(self) -> Self::Output {
-                        panic!("not operation is not supported for {}", #ty_str);
-                    }
-                }
-            };
-
-            let res = quote! {
-                impl BitWiseOut<Scalar<#rhs_dtype>> for Scalar<#lhs_dtype> {
-                    type Output = Scalar<#res_type>;
-                    #bitwise
-                    #not
-                    #shift
                 }
             };
             ret.extend(res);
@@ -671,32 +620,66 @@ pub fn impl_cmp(_: TokenStream) -> TokenStream {
             let rhs_type = TypeInfo::new(rhs);
             let lhs_dtype = lhs_type.dtype;
             let rhs_dtype = rhs_type.dtype;
-            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
-            let to_res_type = Ident::new(
-                &format!("to_{}", res_type.to_string()),
-                proc_macro2::Span::call_site(),
-            );
-            let res = quote! {
-                impl Cmp<#rhs_dtype> for #lhs_dtype {
-                    type Output = bool;
-                    fn _eq(self, rhs: #rhs_dtype) -> Self::Output {
-                        self.#to_res_type() == rhs.#to_res_type()
+            let res = if lhs_dtype == rhs_dtype {
+                quote! {
+                    impl Cmp<#rhs_dtype> for #lhs_dtype {
+                        type Output = bool;
+                        fn _eq(self, rhs: #rhs_dtype) -> Self::Output {
+                            self == rhs
+                        }
+                        fn _ne(self, rhs: #rhs_dtype) -> Self::Output {
+                            self != rhs
+                        }
+                        fn _lt(self, rhs: #rhs_dtype) -> Self::Output {
+                            self < rhs
+                        }
+    
+                        fn _le(self, rhs: #rhs_dtype) -> Self::Output {
+                            self <= rhs
+                        }
+                        fn _gt(self, rhs: #rhs_dtype) -> Self::Output {
+                            self > rhs
+                        }
+                        fn _ge(self, rhs: #rhs_dtype) -> Self::Output {
+                            self >= rhs
+                        }
                     }
-                    fn _ne(self, rhs: #rhs_dtype) -> Self::Output {
-                        self.#to_res_type() != rhs.#to_res_type()
-                    }
-                    fn _lt(self, rhs: #rhs_dtype) -> Self::Output {
-                        self.#to_res_type() < rhs.#to_res_type()
-                    }
-
-                    fn _le(self, rhs: #rhs_dtype) -> Self::Output {
-                        self.#to_res_type() <= rhs.#to_res_type()
-                    }
-                    fn _gt(self, rhs: #rhs_dtype) -> Self::Output {
-                        self.#to_res_type() > rhs.#to_res_type()
-                    }
-                    fn _ge(self, rhs: #rhs_dtype) -> Self::Output {
-                        self.#to_res_type() >= rhs.#to_res_type()
+                }
+            } else {
+                quote! {
+                    impl Cmp<#rhs_dtype> for #lhs_dtype {
+                        type Output = bool;
+                        fn _eq(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.into_scalar();
+                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.into_scalar();
+                            lhs == rhs
+                        }
+                        fn _ne(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.into_scalar();
+                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.into_scalar();
+                            lhs != rhs
+                        }
+                        fn _lt(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.into_scalar();
+                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.into_scalar();
+                            lhs < rhs
+                        }
+    
+                        fn _le(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.into_scalar();
+                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.into_scalar();
+                            lhs <= rhs
+                        }
+                        fn _gt(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.into_scalar();
+                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.into_scalar();
+                            lhs > rhs
+                        }
+                        fn _ge(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.into_scalar();
+                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.into_scalar();
+                            lhs >= rhs
+                        }
                     }
                 }
             };
@@ -714,7 +697,7 @@ pub fn impl_cmp_cuda(_: TokenStream) -> TokenStream {
 
     let types = [
         "bool", "f16", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "isize",
-        "usize",
+        "usize", "bf16",
     ];
 
     for lhs in types.iter() {
@@ -723,58 +706,70 @@ pub fn impl_cmp_cuda(_: TokenStream) -> TokenStream {
             let rhs_type = TypeInfo::new(rhs);
             let lhs_dtype = lhs_type.dtype;
             let rhs_dtype = rhs_type.dtype;
-            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
-            let to_res_type = Ident::new(
-                &format!("to_{}", res_type.to_string()),
-                proc_macro2::Span::call_site(),
-            );
-            let lt = quote! {
-                Scalar::new(format!("({} < {})", self.#to_res_type().val, rhs.#to_res_type().val))
-            };
-            let le = quote! {
-                Scalar::new(format!("({} <= {})", self.#to_res_type().val, rhs.#to_res_type().val))
-            };
-            let gt = quote! {
-                Scalar::new(format!("({} > {})", self.#to_res_type().val, rhs.#to_res_type().val))
-            };
-            let ge = quote! {
-                Scalar::new(format!("({} >= {})", self.#to_res_type().val, rhs.#to_res_type().val))
-            };
-            let eq = quote! {
-                Scalar::new(format!("({} == {})", self.#to_res_type().val, rhs.#to_res_type().val))
-            };
-            let ne = quote! {
-                Scalar::new(format!("({} != {})", self.#to_res_type().val, rhs.#to_res_type().val))
-            };
-            ret.extend(quote! {
-                impl Cmp<Scalar<#rhs_dtype>> for Scalar<#lhs_dtype> {
-                    type Output = Scalar<bool>;
-                    #[inline(always)]
-                    fn _lt(self, rhs: Scalar<#rhs_dtype>) -> Scalar<bool> {
-                        #lt
-                    }
-                     #[inline(always)]
-                    fn _le(self, rhs: Scalar<#rhs_dtype>) -> Scalar<bool> {
-                        #le
-                    }
-                     #[inline(always)]
-                    fn _gt(self, rhs: Scalar<#rhs_dtype>) -> Scalar<bool> {
-                        #gt
-                    }
-                     #[inline(always)]
-                    fn _ge(self, rhs: Scalar<#rhs_dtype>) -> Scalar<bool> {
-                        #ge
-                    }
-                     #[inline(always)]
-                    fn _eq(self, rhs: Scalar<#rhs_dtype>) -> Scalar<bool> {
-                        #eq
-                    }
-                     #[inline(always)]
-                    fn _ne(self, rhs: Scalar<#rhs_dtype>) -> Scalar<bool> {
-                        #ne
+            let res = if lhs_dtype == rhs_dtype {
+                quote! {
+                    impl Cmp<Scalar<#rhs_dtype>> for Scalar<#lhs_dtype> {
+                        type Output = Scalar<bool>;
+                        fn _eq(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            self.__eq(rhs)
+                        }
+                        fn _ne(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            self.__ne(rhs)
+                        }
+                        fn _lt(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            self.__lt(rhs)
+                        }
+    
+                        fn _le(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            self.__le(rhs)
+                        }
+                        fn _gt(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            self.__gt(rhs)
+                        }
+                        fn _ge(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            self.__ge(rhs)
+                        }
                     }
                 }
-            });
+            } else {
+                quote! {
+                    impl Cmp<Scalar<#rhs_dtype>> for Scalar<#lhs_dtype> {
+                        type Output = Scalar<bool>;
+                        fn _eq(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.into_scalar();
+                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.into_scalar();
+                            lhs.__eq(rhs)
+                        }
+                        fn _ne(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.into_scalar();
+                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.into_scalar();
+                            lhs.__ne(rhs)
+                        }
+                        fn _lt(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.into_scalar();
+                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.into_scalar();
+                            lhs.__lt(rhs)
+                        }
+    
+                        fn _le(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.into_scalar();
+                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.into_scalar();
+                            lhs.__le(rhs)
+                        }
+                        fn _gt(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.into_scalar();
+                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.into_scalar();
+                            lhs.__gt(rhs)
+                        }
+                        fn _ge(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.into_scalar();
+                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.into_scalar();
+                            lhs.__ge(rhs)
+                        }
+                    }
+                }
+            };
+            ret.extend(res);
         }
     }
 
@@ -795,67 +790,21 @@ pub fn impl_eval(_: TokenStream) -> TokenStream {
         let lhs_type = TypeInfo::new(lhs);
         let lhs_dtype = lhs_type.dtype;
 
-        let is_nan = if lhs_dtype.is_float() {
-            quote! {
-                fn _is_nan(&self) -> bool {
-                    self.is_nan()
-                }
-            }
-        } else {
-            quote! {
-                fn _is_nan(&self) -> bool {
-                    false
-                }
-            }
-        };
-
-        let is_true = if lhs_dtype.is_bool() {
-            quote! {
-                #[inline(always)]
-                fn _is_true(&self) -> bool {
-                    *self
-                }
-            }
-        } else {
-            if lhs_dtype.is_f32() {
-                quote! {
-                    #[inline(always)]
-                    fn _is_true(&self) -> bool {
-                        self != &0.0
-                    }
-                }
-            } else {
-                quote! {
-                    #[inline(always)]
-                    fn _is_true(&self) -> bool {
-                        self != &#lhs_dtype::ZERO
-                    }
-                }
-            }
-        };
-
-        let is_inf = if lhs_dtype.is_float() {
-            quote! {
-                #[inline(always)]
-                fn _is_inf(&self) -> bool {
-                    self.is_infinite()
-                }
-            }
-        } else {
-            quote! {
-                #[inline(always)]
-                fn _is_inf(&self) -> bool {
-                    false
-                }
-            }
-        };
-
         let res = quote! {
             impl Eval for #lhs_dtype {
                 type Output = bool;
-                #is_nan
-                #is_true
-                #is_inf
+                #[inline(always)]
+                fn _is_nan(&self) -> bool {
+                    self.__is_nan()
+                }
+                #[inline(always)]
+                fn _is_true(&self) -> bool {
+                    self.__is_true()
+                }
+                #[inline(always)]
+                fn _is_inf(&self) -> bool {
+                    self.__is_inf()
+                }
             }
         };
         ret.extend(res);

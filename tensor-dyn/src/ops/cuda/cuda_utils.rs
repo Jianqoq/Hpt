@@ -1,33 +1,55 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, panic::Location, sync::Arc};
 
 use cudarc::{
     driver::{CudaDevice, CudaFunction, LaunchConfig},
     nvrtc::{compile_ptx_with_opts, CompileOptions},
 };
 use regex::Regex;
+use tensor_common::err_handler::ErrHandler;
 use tensor_cudakernels::RegisterInfo;
 use tensor_types::dtype::TypeCommon;
 
 use crate::{cuda_compiled::CUDA_COMPILED, tensor_base::_Tensor, Cuda};
 
+#[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn compile_kernel(
     module: &str,
     code: &str,
     device: Arc<CudaDevice>,
     kernels: &[&'static str],
-) -> anyhow::Result<Arc<HashMap<String, RegisterInfo>>> {
+) -> std::result::Result<Arc<HashMap<String, RegisterInfo>>, ErrHandler> {
     if let Ok(mut cache) = CUDA_COMPILED.lock() {
         if let Some(set) = cache.get_mut(&device.ordinal()) {
             if let Some(reg_info) = set.get(module) {
-                println!("hit cache");
                 Ok(reg_info.clone())
             } else {
-                let cuda_path = std::env::var("CUDA_PATH").unwrap();
+                let cuda_path = if let Ok(cuda_path) = std::env::var("CUDA_PATH") {
+                    cuda_path
+                } else {
+                    return Err(ErrHandler::EnvVarNotSet(
+                        "CUDA_PATH",
+                        "compile_kernel",
+                        Location::caller(),
+                    ));
+                };
                 let mut opts = CompileOptions::default();
                 opts.include_paths.push(format!("{}/include", cuda_path));
-                let ptx = compile_ptx_with_opts(code, opts)?;
+                let ptx = compile_ptx_with_opts(code, opts).map_err(|_| {
+                    ErrHandler::CudaKernelCompileError(
+                        module.to_string(),
+                        code.to_string(),
+                        Location::caller(),
+                    )
+                })?;
                 let reg_counts = count_registers(&ptx.to_src());
-                device.load_ptx(ptx, module, kernels)?;
+                device.load_ptx(ptx, module, kernels).map_err(|x| {
+                    ErrHandler::CudaLoadPTXFailed(
+                        module.to_string(),
+                        code.to_string(),
+                        Location::caller(),
+                        x,
+                    )
+                })?;
                 set.insert(module.to_string(), Arc::new(reg_counts));
                 Ok(set.get(module).unwrap().clone())
             }
@@ -36,16 +58,29 @@ pub(crate) fn compile_kernel(
             let cuda_path = std::env::var("CUDA_PATH").unwrap();
             let mut opts = CompileOptions::default();
             opts.include_paths.push(format!("{}/include", cuda_path));
-            let ptx = compile_ptx_with_opts(code, opts)?;
+            let ptx = compile_ptx_with_opts(code, opts).map_err(|_| {
+                ErrHandler::CudaKernelCompileError(
+                    module.to_string(),
+                    code.to_string(),
+                    Location::caller(),
+                )
+            })?;
             let reg_counts = count_registers(&ptx.to_src());
-            device.load_ptx(ptx, module, kernels)?;
+            device.load_ptx(ptx, module, kernels).map_err(|x| {
+                ErrHandler::CudaLoadPTXFailed(
+                    module.to_string(),
+                    code.to_string(),
+                    Location::caller(),
+                    x,
+                )
+            })?;
             let reg_counts = Arc::new(reg_counts);
             map.insert(module.to_string(), reg_counts.clone());
             cache.insert(device.ordinal(), map);
             Ok(reg_counts)
         }
     } else {
-        Err(anyhow::anyhow!("failed to lock CUDA_COMPILED"))
+        Err(ErrHandler::LockFailed("compile_kernel", Location::caller()))
     }
 }
 
@@ -62,27 +97,54 @@ pub(crate) fn load_ptx_and_get_data(
             &'static [&str],
         ),
     >,
-) -> anyhow::Result<(CudaFunction, RegisterInfo)> {
+) -> std::result::Result<(CudaFunction, RegisterInfo), ErrHandler> {
     if let Some(func) = device.get_func(module, func_name) {
         if let Some(meta) = meta.get(&cap) {
             if let Some(reg_info) = meta.1.get(func_name) {
                 Ok((func, *reg_info))
             } else {
-                Err(anyhow::anyhow!("no reg info for {}", func_name))
+                Err(ErrHandler::CudaKernelReginfoNotFound(
+                    module.to_string(),
+                    func_name.to_string(),
+                    Location::caller(),
+                ))
             }
         } else {
-            Err(anyhow::anyhow!("no meta for cap {}", cap))
+            Err(ErrHandler::CudaKernelMetaNotFound(
+                cap,
+                module.to_string(),
+                func_name.to_string(),
+                Location::caller(),
+            ))
         }
     } else {
         if let Some(meta) = meta.get(&cap) {
-            device.load_ptx(meta.0.into(), module, meta.2)?;
+            device
+                .load_ptx(meta.0.into(), module, meta.2)
+                .map_err(|x| {
+                    ErrHandler::CudaLoadPTXFailed(
+                        module.to_string(),
+                        meta.0.to_string(),
+                        Location::caller(),
+                        x,
+                    )
+                })?;
             if let Some(reg_info) = meta.1.get(func_name) {
                 Ok((device.get_func(module, func_name).unwrap(), *reg_info))
             } else {
-                Err(anyhow::anyhow!("no reg info for {}", func_name))
+                Err(ErrHandler::CudaKernelReginfoNotFound(
+                    module.to_string(),
+                    func_name.to_string(),
+                    Location::caller(),
+                ))
             }
         } else {
-            Err(anyhow::anyhow!("no meta for cap {}", cap))
+            Err(ErrHandler::CudaKernelMetaNotFound(
+                cap,
+                module.to_string(),
+                func_name.to_string(),
+                Location::caller(),
+            ))
         }
     }
 }
@@ -90,7 +152,6 @@ pub(crate) fn load_ptx_and_get_data(
 fn count_registers(ptx: &str) -> HashMap<String, RegisterInfo> {
     let mut reg_counts = HashMap::new();
 
-    // 匹配函数名和寄存器声明
     let func_re = Regex::new(r"\.visible \.entry (\w+)\(").unwrap();
     let pred_re = Regex::new(r"\.reg \.pred\s+%p<(\d+)>").unwrap();
     let b32_re = Regex::new(r"\.reg \.b32\s+%r<(\d+)>").unwrap();

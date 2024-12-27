@@ -1,7 +1,6 @@
-use crate::type_utils::{ type_simd_is_arr, type_simd_lanes, SimdType, Type, TypeInfo };
+use crate::type_utils::{type_simd_lanes, SimdType, Type, TypeInfo};
 use crate::TokenStream2;
 use proc_macro::TokenStream;
-use proc_macro2::Ident;
 use quote::quote;
 
 pub fn impl_simd_normal_out() -> TokenStream {
@@ -33,195 +32,98 @@ pub fn impl_simd_normal_out() -> TokenStream {
             let rhs_lanes = *rhs_lanes;
             let lhs_type = TypeInfo::new(&lhs_ty.to_lowercase());
             let rhs_type = TypeInfo::new(&rhs_ty.to_lowercase());
-            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
-            let res_lanes = type_simd_lanes(&res_type.to_string());
-            if lhs_lanes != rhs_lanes || lhs_lanes != res_lanes || rhs_lanes != res_lanes {
-                ret.extend(
-                    impl_unreachable(
-                        (*lhs).into(),
-                        (*rhs).into(),
-                        res_type.to_string().as_str().into()
-                    )
-                );
+            if lhs_lanes != rhs_lanes {
+                ret.extend(impl_unreachable((*lhs).into(), (*rhs).into()));
                 continue;
             }
             let lhs_simd: SimdType = (*lhs).into();
             let rhs_simd: SimdType = (*rhs).into();
-            let res_simd_ty = Ident::new(
-                &format!(
-                    "{}x{}",
-                    if res_type.is_cplx() {
-                        match res_type.to_string().as_str() {
-                            "complex32" => "cplx32".to_string(),
-                            "complex64" => "cplx64".to_string(),
-                            _ => unreachable!(),
-                        }
-                    } else {
-                        res_type.to_string()
-                    },
-                    type_simd_lanes(&res_type.to_string())
-                ),
-                proc_macro2::Span::call_site()
-            );
-            let to_res_type = Ident::new(
-                &format!("to_{}", res_type.to_string().to_lowercase()),
-                proc_macro2::Span::call_site()
-            );
 
-            let mul_add_method = if res_type.is_float() {
+            let res = if lhs_type.dtype == rhs_type.dtype {
                 quote! {
-                    fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
-                        self.#to_res_type()._mul_add(a.#to_res_type(), b.#to_res_type())
-                    }
-                }
-            } else if res_type.is_bool() {
-                quote! {
-                    fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
-                        self.#to_res_type() & (a.#to_res_type() | b.#to_res_type())
-                    }
-                }
-            } else if !type_simd_is_arr(lhs) && !type_simd_is_arr(rhs) {
-                quote! {
-                    fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
-                            self.#to_res_type() * a.#to_res_type() + b.#to_res_type()
+                    impl NormalOut<#rhs_simd> for #lhs_simd {
+                        type Output = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output;
+                        fn _add(self, rhs: #rhs_simd) -> Self::Output {
+                            self.__add(rhs)
                         }
+                        fn _sub(self, rhs: #rhs_simd) -> Self::Output {
+                            self.__sub(rhs)
+                        }
+                        fn _mul(self, rhs: #rhs_simd) -> Self::Output {
+                            self.__mul(rhs)
+                        }
+                        fn _pow(self, rhs: #rhs_simd) -> Self::Output {
+                            self.__pow(rhs)
+                        }
+                        fn _max(self, rhs: #rhs_simd) -> Self::Output {
+                            self.__max(rhs)
+                        }
+                        fn _min(self, rhs: #rhs_simd) -> Self::Output {
+                            self.__min(rhs)
+                        }
+                        fn _rem(self, rhs: #rhs_simd) -> Self::Output {
+                            self.__rem(rhs)
+                        }
+                        fn _clip(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
+                            self.__clip(min, max)
+                        }
+                        fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
+                            self.__mul_add(a, b)
+                        }
+                    }
                 }
             } else {
                 quote! {
-                    fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
-                        let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                        for i in 0..#lhs_lanes as usize {
-                            arr[i] = self[i].#to_res_type() * a[i].#to_res_type() + b[i].#to_res_type();
+                    impl NormalOut<#rhs_simd> for #lhs_simd {
+                        type Output = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output;
+                        fn _add(self, rhs: #rhs_simd) -> Self::Output {
+                            let x: Self::Output = self.into_vec();
+                            let y: Self::Output = rhs.into_vec();
+                            x.__add(y)
                         }
-                        unsafe {
-                            std::mem::transmute(arr)
+                        fn _sub(self, rhs: #rhs_simd) -> Self::Output {
+                            let x: Self::Output = self.into_vec();
+                            let y: Self::Output = rhs.into_vec();
+                            x.__sub(y)
                         }
-                    }
-                }
-            };
-            let pow_method = if res_type.is_float() {
-                if res_type.is_f32() {
-                    quote! {
+                        fn _mul(self, rhs: #rhs_simd) -> Self::Output {
+                            let x: Self::Output = self.into_vec();
+                            let y: Self::Output = rhs.into_vec();
+                            x.__mul(y)
+                        }
                         fn _pow(self, rhs: #rhs_simd) -> Self::Output {
-                            SimdMath::pow(self.to_f32(), rhs.to_f32())
+                            let x: Self::Output = self.into_vec();
+                            let y: Self::Output = rhs.into_vec();
+                            x.__pow(y)
                         }
                         fn _max(self, rhs: #rhs_simd) -> Self::Output {
-                            SimdMath::max(self.to_f32(), rhs.to_f32())
+                            let x: Self::Output = self.into_vec();
+                            let y: Self::Output = rhs.into_vec();
+                            x.__max(y)
                         }
                         fn _min(self, rhs: #rhs_simd) -> Self::Output {
-                            SimdMath::min(self.to_f32(), rhs.to_f32())
+                            let x: Self::Output = self.into_vec();
+                            let y: Self::Output = rhs.into_vec();
+                            x.__min(y)
+                        }
+                        fn _rem(self, rhs: #rhs_simd) -> Self::Output {
+                            let x: Self::Output = self.into_vec();
+                            let y: Self::Output = rhs.into_vec();
+                            x.__rem(y)
+                        }
+                        fn _clip(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
+                            let x: Self::Output = self.into_vec();
+                            let y: Self::Output = min.into_vec();
+                            let z: Self::Output = max.into_vec();
+                            x.__clip(y, z)
+                        }
+                        fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
+                            let x: Self::Output = self.into_vec();
+                            let y: Self::Output = a.into_vec();
+                            let z: Self::Output = b.into_vec();
+                            x.__mul_add(y, z)
                         }
                     }
-                } else if res_type.is_f64() {
-                    quote! {
-                        fn _pow(self, rhs: #rhs_simd) -> Self::Output {
-                            SimdMath::pow(self.to_f64(), rhs.to_f64())
-                        }
-                        fn _max(self, rhs: #rhs_simd) -> Self::Output {
-                            SimdMath::max(self.to_f64(), rhs.to_f64())
-                        }
-                        fn _min(self, rhs: #rhs_simd) -> Self::Output {
-                            SimdMath::min(self.to_f64(), rhs.to_f64())
-                        }
-                    }
-                } else {
-                    let pow = array_cal(
-                        lhs,
-                        rhs,
-                        res_type,
-                        lhs_lanes,
-                        rhs_simd,
-                        Ident::new("_pow", proc_macro2::Span::call_site())
-                    );
-                    let max = array_cal(
-                        lhs,
-                        rhs,
-                        res_type,
-                        lhs_lanes,
-                        rhs_simd,
-                        Ident::new("_max", proc_macro2::Span::call_site())
-                    );
-                    let min = array_cal(
-                        lhs,
-                        rhs,
-                        res_type,
-                        lhs_lanes,
-                        rhs_simd,
-                        Ident::new("_min", proc_macro2::Span::call_site())
-                    );
-                    quote! {
-                        #pow
-                        #max
-                        #min
-                    }
-                }
-            } else {
-                let pow = array_cal(
-                    lhs,
-                    rhs,
-                    res_type,
-                    lhs_lanes,
-                    rhs_simd,
-                    Ident::new("_pow", proc_macro2::Span::call_site())
-                );
-                let b2 = if !type_simd_is_arr(rhs) && !type_simd_is_arr(lhs) {
-                    quote! {
-                        fn _max(self, rhs: #rhs_simd) -> Self::Output {
-                            SimdMath::max(self.#to_res_type(), rhs.#to_res_type())
-                        }
-                        fn _min(self, rhs: #rhs_simd) -> Self::Output {
-                            SimdMath::min(self.#to_res_type(), rhs.#to_res_type())
-                        }
-                    }
-                } else {
-                    let max = array_cal(
-                        lhs,
-                        rhs,
-                        res_type,
-                        lhs_lanes,
-                        rhs_simd,
-                        Ident::new("_max", proc_macro2::Span::call_site())
-                    );
-                    let min = array_cal(
-                        lhs,
-                        rhs,
-                        res_type,
-                        lhs_lanes,
-                        rhs_simd,
-                        Ident::new("_min", proc_macro2::Span::call_site())
-                    );
-                    quote! {
-                        #max
-                        #min
-                    }
-                };
-                quote! {
-                    #pow
-                    #b2
-                }
-            };
-
-            let res =
-                quote! {
-                impl NormalOut<#rhs_simd> for #lhs_simd {
-                    type Output = #res_simd_ty::#res_simd_ty;
-                    fn _add(self, rhs: #rhs_simd) -> Self::Output {
-                        self.#to_res_type() + rhs.#to_res_type()
-                    }
-                    fn _sub(self, rhs: #rhs_simd) -> Self::Output {
-                        self.#to_res_type() - rhs.#to_res_type()
-                    }
-                    fn _mul(self, rhs: #rhs_simd) -> Self::Output {
-                        self.#to_res_type() * rhs.#to_res_type()
-                    }
-                    #pow_method
-                    fn _rem(self, rhs: #rhs_simd) -> Self::Output {
-                        self.#to_res_type() % rhs.#to_res_type()
-                    }
-                    fn _clip(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
-                        self._max(min.#to_res_type())._min(max.#to_res_type())
-                    }
-                    #mul_add_method
                 }
             };
             ret.extend(res);
@@ -230,10 +132,10 @@ pub fn impl_simd_normal_out() -> TokenStream {
 
     ret.into()
 }
-fn impl_unreachable(lhs_dtype: SimdType, rhs_simd: SimdType, res_type: SimdType) -> TokenStream2 {
+fn impl_unreachable(lhs_dtype: SimdType, rhs_simd: SimdType) -> TokenStream2 {
     quote! {
         impl NormalOut<#rhs_simd> for #lhs_dtype {
-            type Output = #res_type;
+            type Output = <#lhs_dtype as NormalOutPromote<#rhs_simd>>::Output;
             fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
@@ -264,80 +166,15 @@ fn impl_unreachable(lhs_dtype: SimdType, rhs_simd: SimdType, res_type: SimdType)
         }
     }
 }
-fn array_cal(
-    lhs: &str,
-    rhs: &str,
-    res_type: Type,
-    lhs_lanes: u8,
-    rhs_simd: SimdType,
-    method: Ident
-) -> TokenStream2 {
-    match (type_simd_is_arr(lhs), type_simd_is_arr(rhs)) {
-        (true, true) => {
-            quote! {
-                fn #method(self, rhs: #rhs_simd) -> Self::Output {
-                    let lhs_arr = self.0;
-                    let rhs_arr = rhs.0;
-                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                    for i in 0..#lhs_lanes as usize {
-                        arr[i] = lhs_arr[i].#method(rhs_arr[i]);
-                    }
-                    unsafe {
-                        std::mem::transmute(arr)
-                    }
-                }
-            }
-        }
-        (true, false) => {
-            quote! {
-                fn #method(self, rhs: #rhs_simd) -> Self::Output {
-                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                    for i in 0..#lhs_lanes as usize {
-                        arr[i] = self[i].#method(rhs[i]);
-                    }
-                    unsafe {
-                        std::mem::transmute(arr)
-                    }
-                }
-            }
-        }
-        (false, true) => {
-            quote! {
-                fn #method(self, rhs: #rhs_simd) -> Self::Output {
-                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                    for i in 0..#lhs_lanes as usize {
-                        arr[i] = self[i].#method(rhs[i]);
-                    }
-                    unsafe {
-                        std::mem::transmute(arr)
-                    }
-                }
-            }
-        }
-        (false, false) => {
-            quote! {
-                fn #method(self, rhs: #rhs_simd) -> Self::Output {
-                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                    for i in 0..#lhs_lanes as usize {
-                        arr[i] = self[i].#method(rhs[i]);
-                    }
-                    unsafe {
-                        std::mem::transmute(arr)
-                    }
-                }
-            }
-        }
-    }
-}
 
 fn impl_unreachable_with_rhs_scalar(
     lhs_dtype: SimdType,
     rhs_scalar_ty: Type,
-    res_type: SimdType
+    rhs_type: SimdType,
 ) -> TokenStream2 {
     quote! {
         impl NormalOut<#rhs_scalar_ty> for #lhs_dtype {
-            type Output = #res_type;
+            type Output = <#lhs_dtype as NormalOutPromote<#rhs_type>>::Output;
             fn _mul_add(self, a: #rhs_scalar_ty, b: #rhs_scalar_ty) -> Self::Output {
                 unreachable!()
             }
@@ -399,194 +236,111 @@ pub fn impl_simd_normal_out_with_rhs_scalar() -> TokenStream {
             let lhs_type = TypeInfo::new(&lhs_ty.to_lowercase());
             let rhs_type = TypeInfo::new(&rhs_ty.to_lowercase());
             let rhs_dtype = rhs_type.dtype;
-            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
-            let res_lanes = type_simd_lanes(&res_type.to_string());
-            if lhs_lanes != rhs_lanes || lhs_lanes != res_lanes || rhs_lanes != res_lanes {
-                ret.extend(
-                    impl_unreachable_with_rhs_scalar(
-                        (*lhs).into(),
-                        rhs_dtype,
-                        res_type.to_string().as_str().into()
-                    )
-                );
+            let lhs_simd: SimdType = (*lhs).into();
+            let rhs_simd: SimdType = (*rhs).into();
+            if lhs_lanes != rhs_lanes {
+                ret.extend(impl_unreachable_with_rhs_scalar(
+                    lhs_simd, rhs_dtype, rhs_simd,
+                ));
                 continue;
             }
-            let lhs_simd: SimdType = (*lhs).into();
-            let res_simd_ty = Ident::new(
-                &format!(
-                    "{}x{}",
-                    if res_type.is_cplx() {
-                        match res_type.to_string().as_str() {
-                            "complex32" => "cplx32".to_string(),
-                            "complex64" => "cplx64".to_string(),
-                            _ => unreachable!(),
-                        }
-                    } else {
-                        res_type.to_string()
-                    },
-                    type_simd_lanes(&res_type.to_string())
-                ),
-                proc_macro2::Span::call_site()
-            );
-            let to_res_type = Ident::new(
-                &format!("to_{}", res_type.to_string().to_lowercase()),
-                proc_macro2::Span::call_site()
-            );
 
-            let mul_add_method = if res_type.is_float() {
+            let res = if lhs_type.dtype == rhs_type.dtype {
                 quote! {
-                    fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
-                        self.#to_res_type()._mul_add(#res_simd_ty::#res_simd_ty::splat(a.#to_res_type()), #res_simd_ty::#res_simd_ty::splat(b.#to_res_type()))
-                    }
-                }
-            } else if res_type.is_bool() {
-                quote! {
-                    fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
-                        self.#to_res_type() | (#res_simd_ty::#res_simd_ty::splat(a.#to_res_type()) & #res_simd_ty::#res_simd_ty::splat(b.#to_res_type()))
-                    }
-                }
-            } else if !type_simd_is_arr(lhs) && !type_simd_is_arr(rhs) {
-                quote! {
-                    fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
-                        self.#to_res_type() + #res_simd_ty::#res_simd_ty::splat(a.#to_res_type() * b.#to_res_type())
+                    impl NormalOut<#rhs_dtype> for #lhs_simd {
+                        type Output = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output;
+                        fn _add(self, rhs: #rhs_dtype) -> Self::Output {
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs);
+                            self.__add(rhs)
+                        }
+                        fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs);
+                            self.__sub(rhs)
+                        }
+                        fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs);
+                            self.__mul(rhs)
+                        }
+                        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs);
+                            self.__pow(rhs)
+                        }
+                        fn _max(self, rhs: #rhs_dtype) -> Self::Output {
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs);
+                            self.__max(rhs)
+                        }
+                        fn _min(self, rhs: #rhs_dtype) -> Self::Output {
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs);
+                            self.__min(rhs)
+                        }
+                        fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs);
+                            self.__rem(rhs)
+                        }
+                        fn _clip(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
+                            let min = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(min);
+                            let max = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(max);
+                            self.__clip(min, max)
+                        }
+                        fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
+                            let a = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(a);
+                            let b = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(b);
+                            self.__mul_add(a, b)
+                        }
                     }
                 }
             } else {
                 quote! {
-                    fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
-                        let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                        for i in 0..#lhs_lanes as usize {
-                            arr[i] = self[i].#to_res_type() * a.#to_res_type() + b.#to_res_type();
+                    impl NormalOut<#rhs_dtype> for #lhs_simd {
+                        type Output = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output;
+                        fn _add(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.into_scalar());
+                            lhs.__add(rhs)
                         }
-                        unsafe {
-                            std::mem::transmute(arr)
+                        fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.into_scalar());
+                            lhs.__sub(rhs)
                         }
-                    }
-                }
-            };
-            let pow_method = if res_type.is_float() {
-                if res_type.is_f32() {
-                    quote! {
+                        fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.into_scalar());
+                            lhs.__mul(rhs)
+                        }
                         fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
-                            SimdMath::pow(self.to_f32(), #res_simd_ty::#res_simd_ty::splat(rhs.to_f32()))
+                            let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.into_scalar());
+                            lhs.__pow(rhs)
                         }
                         fn _max(self, rhs: #rhs_dtype) -> Self::Output {
-                            SimdMath::max(self.to_f32(), #res_simd_ty::#res_simd_ty::splat(rhs.to_f32()))
+                            let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.into_scalar());
+                            lhs.__max(rhs)
                         }
                         fn _min(self, rhs: #rhs_dtype) -> Self::Output {
-                            SimdMath::min(self.to_f32(), #res_simd_ty::#res_simd_ty::splat(rhs.to_f32()))
+                            let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.into_scalar());
+                            lhs.__min(rhs)
+                        }
+                        fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.into_scalar());
+                            lhs.__rem(rhs)
+                        }
+                        fn _clip(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
+                            let min = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(min.into_scalar());
+                            let max = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(max.into_scalar());
+                            let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
+                            lhs.__clip(min, max)
+                        }
+                        fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
+                            let a = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(a.into_scalar());
+                            let b = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(b.into_scalar());
+                            let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
+                            lhs.__mul_add(a, b)
                         }
                     }
-                } else if res_type.is_f64() {
-                    quote! {
-                        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
-                            SimdMath::pow(self.to_f64(), #res_simd_ty::#res_simd_ty::splat(rhs.to_f64()))
-                        }
-                        fn _max(self, rhs: #rhs_dtype) -> Self::Output {
-                            SimdMath::max(self.to_f64(), #res_simd_ty::#res_simd_ty::splat(rhs.to_f64()))
-                        }
-                        fn _min(self, rhs: #rhs_dtype) -> Self::Output {
-                            SimdMath::min(self.to_f64(), #res_simd_ty::#res_simd_ty::splat(rhs.to_f64()))
-                        }
-                    }
-                } else {
-                    let pow = array_cal_rhs_scalar(
-                        lhs,
-                        rhs,
-                        res_type,
-                        lhs_lanes,
-                        rhs_dtype,
-                        Ident::new("_pow", proc_macro2::Span::call_site())
-                    );
-                    let max = array_cal_rhs_scalar(
-                        lhs,
-                        rhs,
-                        res_type,
-                        lhs_lanes,
-                        rhs_dtype,
-                        Ident::new("_max", proc_macro2::Span::call_site())
-                    );
-                    let min = array_cal_rhs_scalar(
-                        lhs,
-                        rhs,
-                        res_type,
-                        lhs_lanes,
-                        rhs_dtype,
-                        Ident::new("_min", proc_macro2::Span::call_site())
-                    );
-                    quote! {
-                        #pow
-                        #max
-                        #min
-                    }
-                }
-            } else {
-                let pow = array_cal_rhs_scalar(
-                    lhs,
-                    rhs,
-                    res_type,
-                    lhs_lanes,
-                    rhs_dtype,
-                    Ident::new("_pow", proc_macro2::Span::call_site())
-                );
-                let b2 = if !type_simd_is_arr(rhs) && !type_simd_is_arr(lhs) {
-                    quote! {
-                        fn _max(self, rhs: #rhs_dtype) -> Self::Output {
-                            SimdMath::max(self.#to_res_type(), #res_simd_ty::#res_simd_ty::splat(rhs.#to_res_type()))
-                        }
-                        fn _min(self, rhs: #rhs_dtype) -> Self::Output {
-                            SimdMath::min(self.#to_res_type(), #res_simd_ty::#res_simd_ty::splat(rhs.#to_res_type()))
-                        }
-                    }
-                } else {
-                    let max = array_cal_rhs_scalar(
-                        lhs,
-                        rhs,
-                        res_type,
-                        lhs_lanes,
-                        rhs_dtype,
-                        Ident::new("_max", proc_macro2::Span::call_site())
-                    );
-                    let min = array_cal_rhs_scalar(
-                        lhs,
-                        rhs,
-                        res_type,
-                        lhs_lanes,
-                        rhs_dtype,
-                        Ident::new("_min", proc_macro2::Span::call_site())
-                    );
-                    quote! {
-                        #max
-                        #min
-                    }
-                };
-                quote! {
-                    #pow
-                    #b2
-                }
-            };
-
-            let res =
-                quote! {
-                impl NormalOut<#rhs_dtype> for #lhs_simd {
-                    type Output = #res_simd_ty::#res_simd_ty;
-                    fn _add(self, rhs: #rhs_dtype) -> Self::Output {
-                        self.#to_res_type() + #res_simd_ty::#res_simd_ty::splat(rhs.#to_res_type())
-                    }
-                    fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
-                        self.#to_res_type() - #res_simd_ty::#res_simd_ty::splat(rhs.#to_res_type())
-                    }
-                    fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
-                        self.#to_res_type() * #res_simd_ty::#res_simd_ty::splat(rhs.#to_res_type())
-                    }
-                    #pow_method
-                    fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
-                        self.#to_res_type() % #res_simd_ty::#res_simd_ty::splat(rhs.#to_res_type())
-                    }
-                    fn _clip(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
-                        self._max(#res_simd_ty::#res_simd_ty::splat(min.#to_res_type()))._min(#res_simd_ty::#res_simd_ty::splat(max.#to_res_type()))
-                    }
-                    #mul_add_method
                 }
             };
             ret.extend(res);
@@ -595,71 +349,6 @@ pub fn impl_simd_normal_out_with_rhs_scalar() -> TokenStream {
 
     ret.into()
 }
-
-fn array_cal_rhs_scalar(
-    lhs: &str,
-    rhs: &str,
-    res_type: Type,
-    lhs_lanes: u8,
-    rhs_scalar_ty: Type,
-    method: Ident
-) -> TokenStream2 {
-    match (type_simd_is_arr(lhs), type_simd_is_arr(rhs)) {
-        (true, true) => {
-            quote! {
-                fn #method(self, rhs: #rhs_scalar_ty) -> Self::Output {
-                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                    for i in 0..#lhs_lanes as usize {
-                        arr[i] = self[i].#method(rhs);
-                    }
-                    unsafe {
-                        std::mem::transmute(arr)
-                    }
-                }
-            }
-        }
-        (true, false) => {
-            quote! {
-                fn #method(self, rhs: #rhs_scalar_ty) -> Self::Output {
-                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                    for i in 0..#lhs_lanes as usize {
-                        arr[i] = self[i].#method(rhs);
-                    }
-                    unsafe {
-                        std::mem::transmute(arr)
-                    }
-                }
-            }
-        }
-        (false, true) => {
-            quote! {
-                fn #method(self, rhs: #rhs_scalar_ty) -> Self::Output {
-                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                    for i in 0..#lhs_lanes as usize {
-                        arr[i] = self[i].#method(rhs);
-                    }
-                    unsafe {
-                        std::mem::transmute(arr)
-                    }
-                }
-            }
-        }
-        (false, false) => {
-            quote! {
-                fn #method(self, rhs: #rhs_scalar_ty) -> Self::Output {
-                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                    for i in 0..#lhs_lanes as usize {
-                        arr[i] = self[i].#method(rhs);
-                    }
-                    unsafe {
-                        std::mem::transmute(arr)
-                    }
-                }
-            }
-        }
-    }
-}
-
 
 pub fn impl_simd_normal_out_with_lhs_scalar() -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
@@ -691,195 +380,96 @@ pub fn impl_simd_normal_out_with_lhs_scalar() -> TokenStream {
             let lhs_type = TypeInfo::new(&lhs_ty.to_lowercase());
             let rhs_type = TypeInfo::new(&rhs_ty.to_lowercase());
             let lhs_dtype = lhs_type.dtype;
-            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
-            let res_lanes = type_simd_lanes(&res_type.to_string());
-            if lhs_lanes != rhs_lanes || lhs_lanes != res_lanes || rhs_lanes != res_lanes {
-                ret.extend(
-                    impl_unreachable_lhs_scalar(
-                        lhs_dtype,
-                        (*rhs).into(),
-                        res_type.to_string().as_str().into()
-                    )
-                );
+            let rhs_simd = (*rhs).into();
+            let lhs_simd = (*lhs).into();
+            if lhs_lanes != rhs_lanes {
+                ret.extend(impl_unreachable_lhs_scalar(lhs_dtype, rhs_simd, lhs_simd));
                 continue;
             }
-            let rhs_simd: SimdType = (*rhs).into();
-            let res_simd_ty = Ident::new(
-                &format!(
-                    "{}x{}",
-                    if res_type.is_cplx() {
-                        match res_type.to_string().as_str() {
-                            "complex32" => "cplx32".to_string(),
-                            "complex64" => "cplx64".to_string(),
-                            _ => unreachable!(),
-                        }
-                    } else {
-                        res_type.to_string()
-                    },
-                    type_simd_lanes(&res_type.to_string())
-                ),
-                proc_macro2::Span::call_site()
-            );
-            let to_res_type = Ident::new(
-                &format!("to_{}", res_type.to_string().to_lowercase()),
-                proc_macro2::Span::call_site()
-            );
 
-            let mul_add_method = if res_type.is_float() {
+            let res = if lhs_type.dtype == rhs_type.dtype {
                 quote! {
-                    fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty::splat(self.#to_res_type())._mul_add(a.#to_res_type(), b.#to_res_type())
-                    }
-                }
-            } else if res_type.is_bool() {
-                quote! {
-                    fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty::splat(self.#to_res_type()) | (a.#to_res_type() & b.#to_res_type())
-                    }
-                }
-            } else if !type_simd_is_arr(lhs) && !type_simd_is_arr(rhs) {
-                quote! {
-                    fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty::splat(self.#to_res_type()) + a.#to_res_type() * b.#to_res_type()
+                    impl NormalOut<#rhs_simd> for #lhs_dtype {
+                        type Output = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output;
+                        fn _add(self, rhs: #rhs_simd) -> Self::Output {
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self);
+                            lhs.__add(rhs)
                         }
-
+                        fn _sub(self, rhs: #rhs_simd) -> Self::Output {
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self);
+                            lhs.__sub(rhs)
+                        }
+                        fn _mul(self, rhs: #rhs_simd) -> Self::Output {
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self);
+                            lhs.__mul(rhs)
+                        }
+                        fn _pow(self, rhs: #rhs_simd) -> Self::Output {
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self);
+                            lhs.__pow(rhs)
+                        }
+                        fn _max(self, rhs: #rhs_simd) -> Self::Output {
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self);
+                            lhs.__max(rhs)
+                        }
+                        fn _min(self, rhs: #rhs_simd) -> Self::Output {
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self);
+                            lhs.__min(rhs)
+                        }
+                        fn _rem(self, rhs: #rhs_simd) -> Self::Output {
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self);
+                            lhs.__rem(rhs)
+                        }
+                        fn _clip(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self);
+                            lhs.__clip(min, max)
+                        }
+                        fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self);
+                            lhs.__mul_add(a, b)
+                        }
+                    }
                 }
             } else {
                 quote! {
-                    fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
-                        let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                        for i in 0..#lhs_lanes as usize {
-                            arr[i] = self.#to_res_type() * a[i].#to_res_type() + b[i].#to_res_type();
+                    impl NormalOut<#rhs_simd> for #lhs_dtype {
+                        type Output = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output;
+                        fn _add(self, rhs: #rhs_simd) -> Self::Output {
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            lhs.__add(rhs.into_vec())
                         }
-                        unsafe {
-                            std::mem::transmute(arr)
+                        fn _sub(self, rhs: #rhs_simd) -> Self::Output {
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            lhs.__sub(rhs.into_vec())
                         }
-                    }
-                }
-            };
-            let pow_method = if res_type.is_float() {
-                if res_type.is_f32() {
-                    quote! {
+                        fn _mul(self, rhs: #rhs_simd) -> Self::Output {
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            lhs.__mul(rhs.into_vec())
+                        }
                         fn _pow(self, rhs: #rhs_simd) -> Self::Output {
-                            SimdMath::pow(#res_simd_ty::#res_simd_ty::splat(self.to_f32()), rhs.to_f32())
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            lhs.__pow(rhs.into_vec())
                         }
                         fn _max(self, rhs: #rhs_simd) -> Self::Output {
-                            SimdMath::max(#res_simd_ty::#res_simd_ty::splat(self.to_f32()), rhs.to_f32())
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            lhs.__max(rhs.into_vec())
                         }
                         fn _min(self, rhs: #rhs_simd) -> Self::Output {
-                            SimdMath::min(#res_simd_ty::#res_simd_ty::splat(self.to_f32()), rhs.to_f32())
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            lhs.__min(rhs.into_vec())
+                        }
+                        fn _rem(self, rhs: #rhs_simd) -> Self::Output {
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            lhs.__rem(rhs.into_vec())
+                        }
+                        fn _clip(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            lhs.__clip(min.into_vec(), max.into_vec())
+                        }
+                        fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            lhs.__mul_add(a.into_vec(), b.into_vec())
                         }
                     }
-                } else if res_type.is_f64() {
-                    quote! {
-                        fn _pow(self, rhs: #rhs_simd) -> Self::Output {
-                            SimdMath::pow(#res_simd_ty::#res_simd_ty::splat(self.to_f64()), rhs.to_f64())
-                        }
-                        fn _max(self, rhs: #rhs_simd) -> Self::Output {
-                            SimdMath::max(#res_simd_ty::#res_simd_ty::splat(self.to_f64()), rhs.to_f64())
-                        }
-                        fn _min(self, rhs: #rhs_simd) -> Self::Output {
-                            SimdMath::min(#res_simd_ty::#res_simd_ty::splat(self.to_f64()), rhs.to_f64())
-                        }
-                    }
-                } else {
-                    let pow = array_cal_lhs_scalar(
-                        lhs,
-                        rhs,
-                        res_type,
-                        lhs_lanes,
-                        rhs_simd,
-                        Ident::new("_pow", proc_macro2::Span::call_site())
-                    );
-                    let max = array_cal_lhs_scalar(
-                        lhs,
-                        rhs,
-                        res_type,
-                        lhs_lanes,
-                        rhs_simd,
-                        Ident::new("_max", proc_macro2::Span::call_site())
-                    );
-                    let min = array_cal_lhs_scalar(
-                        lhs,
-                        rhs,
-                        res_type,
-                        lhs_lanes,
-                        rhs_simd,
-                        Ident::new("_min", proc_macro2::Span::call_site())
-                    );
-                    quote! {
-                        #pow
-                        #max
-                        #min
-                    }
-                }
-            } else {
-                let pow = array_cal_lhs_scalar(
-                    lhs,
-                    rhs,
-                    res_type,
-                    lhs_lanes,
-                    rhs_simd,
-                    Ident::new("_pow", proc_macro2::Span::call_site())
-                );
-                let b2 = if !type_simd_is_arr(rhs) && !type_simd_is_arr(lhs) {
-                    quote! {
-                        fn _max(self, rhs: #rhs_simd) -> Self::Output {
-                            SimdMath::max(#res_simd_ty::#res_simd_ty::splat(self.#to_res_type()), rhs.#to_res_type())
-                        }
-                        fn _min(self, rhs: #rhs_simd) -> Self::Output {
-                            SimdMath::min(#res_simd_ty::#res_simd_ty::splat(self.#to_res_type()), rhs.#to_res_type())
-                        }
-                    }
-                } else {
-                    let max = array_cal_lhs_scalar(
-                        lhs,
-                        rhs,
-                        res_type,
-                        lhs_lanes,
-                        rhs_simd,
-                        Ident::new("_max", proc_macro2::Span::call_site())
-                    );
-                    let min = array_cal_lhs_scalar(
-                        lhs,
-                        rhs,
-                        res_type,
-                        lhs_lanes,
-                        rhs_simd,
-                        Ident::new("_min", proc_macro2::Span::call_site())
-                    );
-                    quote! {
-                        #max
-                        #min
-                    }
-                };
-                quote! {
-                    #pow
-                    #b2
-                }
-            };
-
-            let res =
-                quote! {
-                impl NormalOut<#rhs_simd> for #lhs_dtype {
-                    type Output = #res_simd_ty::#res_simd_ty;
-                    fn _add(self, rhs: #rhs_simd) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty::splat(self.#to_res_type()) + rhs.#to_res_type()
-                    }
-                    fn _sub(self, rhs: #rhs_simd) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty::splat(self.#to_res_type()) - rhs.#to_res_type()
-                    }
-                    fn _mul(self, rhs: #rhs_simd) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty::splat(self.#to_res_type()) * rhs.#to_res_type()
-                    }
-                    #pow_method
-                    fn _rem(self, rhs: #rhs_simd) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty::splat(self.#to_res_type()) % rhs.#to_res_type()
-                    }
-                    fn _clip(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty::splat(self.#to_res_type())._max(min.#to_res_type())._min(max.#to_res_type())
-                    }
-                    #mul_add_method
                 }
             };
             ret.extend(res);
@@ -889,10 +479,14 @@ pub fn impl_simd_normal_out_with_lhs_scalar() -> TokenStream {
     ret.into()
 }
 
-fn impl_unreachable_lhs_scalar(lhs_dtype: Type, rhs_simd: SimdType, res_type: SimdType) -> TokenStream2 {
+fn impl_unreachable_lhs_scalar(
+    lhs_dtype: Type,
+    rhs_simd: SimdType,
+    lhs_type: SimdType,
+) -> TokenStream2 {
     quote! {
         impl NormalOut<#rhs_simd> for #lhs_dtype {
-            type Output = #res_type;
+            type Output = <#lhs_type as NormalOutPromote<#rhs_simd>>::Output;
             fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
@@ -919,70 +513,6 @@ fn impl_unreachable_lhs_scalar(lhs_dtype: Type, rhs_simd: SimdType, res_type: Si
             }
             fn _min(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
-            }
-        }
-    }
-}
-
-fn array_cal_lhs_scalar(
-    lhs: &str,
-    rhs: &str,
-    res_type: Type,
-    lhs_lanes: u8,
-    rhs_simd: SimdType,
-    method: Ident
-) -> TokenStream2 {
-    match (type_simd_is_arr(lhs), type_simd_is_arr(rhs)) {
-        (true, true) => {
-            quote! {
-                fn #method(self, rhs: #rhs_simd) -> Self::Output {
-                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                    for i in 0..#lhs_lanes as usize {
-                        arr[i] = self.#method(rhs[i]);
-                    }
-                    unsafe {
-                        std::mem::transmute(arr)
-                    }
-                }
-            }
-        }
-        (true, false) => {
-            quote! {
-                fn #method(self, rhs: #rhs_simd) -> Self::Output {
-                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                    for i in 0..#lhs_lanes as usize {
-                        arr[i] = self.#method(rhs[i]);
-                    }
-                    unsafe {
-                        std::mem::transmute(arr)
-                    }
-                }
-            }
-        }
-        (false, true) => {
-            quote! {
-                fn #method(self, rhs: #rhs_simd) -> Self::Output {
-                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                    for i in 0..#lhs_lanes as usize {
-                        arr[i] = self.#method(rhs[i]);
-                    }
-                    unsafe {
-                        std::mem::transmute(arr)
-                    }
-                }
-            }
-        }
-        (false, false) => {
-            quote! {
-                fn #method(self, rhs: #rhs_simd) -> Self::Output {
-                    let mut arr = [#res_type::ZERO; #lhs_lanes as usize];
-                    for i in 0..#lhs_lanes as usize {
-                        arr[i] = self.#method(rhs[i]);
-                    }
-                    unsafe {
-                        std::mem::transmute(arr)
-                    }
-                }
             }
         }
     }

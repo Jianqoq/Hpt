@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::{borrow::Borrow, fmt::Display};
+use tensor_common::err_handler::ErrHandler;
 use tensor_common::{axis::Axis, layout::Layout, pointer::Pointer, shape::Shape, strides::Strides};
 #[cfg(feature = "archsimd")]
 use tensor_types::arch_simd as simd;
@@ -93,7 +94,7 @@ pub trait TensorLike<T>: Sized {
     /// This function will return a contiguous tensor. If the tensor is already contiguous, it will return a clone of the tensor.
     ///
     /// If the tensor is a view tensor, it will return a new tensor with the same data but with a contiguous layout.
-    fn contiguous(&self) -> anyhow::Result<Self>;
+    fn contiguous(&self) -> std::result::Result<Self, ErrHandler>;
 
     /// Returns the data type memory size in bytes.
     fn elsize() -> usize {
@@ -102,10 +103,13 @@ pub trait TensorLike<T>: Sized {
 }
 
 /// A trait defines a set of functions to create tensors.
-pub trait TensorCreator<T, Output = Self>
+pub trait TensorCreator<T>
 where
     Self: Sized,
 {
+    /// the output type of the creator
+    type Output;
+
     /// Creates a tensor with uninitialized elements of the specified shape.
     ///
     /// This function allocates memory for a tensor of the given shape, but the values are uninitialized, meaning they may contain random data.
@@ -122,7 +126,7 @@ where
     ///
     /// * This function may panic if the requested shape is invalid or too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>;
+    fn empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Creates a tensor filled with zeros of the specified shape.
     ///
@@ -140,7 +144,7 @@ where
     ///
     /// * This function may panic if the requested shape is invalid or too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn zeros<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>;
+    fn zeros<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Creates a tensor filled with ones of the specified shape.
     ///
@@ -158,7 +162,7 @@ where
     ///
     /// * This function may panic if the requested shape is invalid or too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn ones<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>
+    fn ones<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, ErrHandler>
     where
         u8: IntoScalar<T>;
 
@@ -178,7 +182,7 @@ where
     ///
     /// * This function may panic if the shape is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn empty_like(&self) -> anyhow::Result<Output>;
+    fn empty_like(&self) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Creates a tensor filled with zeros, having the same shape as the input tensor.
     ///
@@ -196,7 +200,7 @@ where
     ///
     /// * This function may panic if the shape is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn zeros_like(&self) -> anyhow::Result<Output>;
+    fn zeros_like(&self) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Creates a tensor filled with ones, having the same shape as the input tensor.
     ///
@@ -214,7 +218,7 @@ where
     ///
     /// * This function may panic if the shape is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn ones_like(&self) -> anyhow::Result<Output>
+    fn ones_like(&self) -> std::result::Result<Self::Output, ErrHandler>
     where
         u8: IntoScalar<T>;
 
@@ -235,7 +239,7 @@ where
     ///
     /// * This function may panic if the requested shape is invalid or too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn full<S: Into<Shape>>(val: T, shape: S) -> anyhow::Result<Output>;
+    fn full<S: Into<Shape>>(val: T, shape: S) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Creates a tensor filled with a specified value, having the same shape as the input tensor.
     ///
@@ -253,7 +257,7 @@ where
     ///
     /// * This function may panic if the shape is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn full_like(&self, val: T) -> anyhow::Result<Output>;
+    fn full_like(&self, val: T) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Creates a tensor with values within a specified range.
     ///
@@ -272,7 +276,7 @@ where
     ///
     /// * This function will panic if `start` is greater than or equal to `end`, or if the range is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn arange<U>(start: U, end: U) -> anyhow::Result<Output>
+    fn arange<U>(start: U, end: U) -> std::result::Result<Self::Output, ErrHandler>
     where
         T: Convertor + FromScalar<U> + NormalOut<T, Output = T>,
         usize: IntoScalar<T>,
@@ -297,7 +301,7 @@ where
     ///
     /// * This function will panic if `step` is zero or if the range and step values are incompatible.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn arange_step(start: T, end: T, step: T) -> anyhow::Result<Output>
+    fn arange_step(start: T, end: T, step: T) -> std::result::Result<Self::Output, ErrHandler>
     where
         T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>;
 
@@ -319,7 +323,7 @@ where
     ///
     /// * This function will panic if `n` or `m` is zero, or if memory constraints are exceeded.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn eye(n: usize, m: usize, k: usize) -> anyhow::Result<Output>
+    fn eye(n: usize, m: usize, k: usize) -> std::result::Result<Self::Output, ErrHandler>
     where
         u8: IntoScalar<T>;
 
@@ -343,7 +347,7 @@ where
     ///
     /// * This function will panic if `num` is zero or if `num` is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn linspace<U>(start: U, end: U, num: usize, include_end: bool) -> anyhow::Result<Output>
+    fn linspace<U>(start: U, end: U, num: usize, include_end: bool) ->  std::result::Result<Self::Output, ErrHandler>
     where
         T: Convertor,
         U: Convertor + IntoScalar<T> + Copy,
@@ -371,7 +375,7 @@ where
     ///
     /// * This function will panic if `num` is zero or if `base` is less than or equal to zero.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> anyhow::Result<Output>
+    fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> std::result::Result<Self::Output, ErrHandler>
     where
         T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64> + NormalOut<T, Output = T>;
 
@@ -395,7 +399,7 @@ where
     ///
     /// * This function will panic if `n` is zero, if `start` or `end` is negative, or if the values result in undefined behavior.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> anyhow::Result<Output>
+    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> std::result::Result<Self::Output, ErrHandler>
     where
         f64: IntoScalar<T>,
         usize: IntoScalar<T>;
@@ -419,7 +423,7 @@ where
     ///
     /// * This function will panic if `n` or `m` is zero.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> anyhow::Result<Output>
+    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> std::result::Result<Self::Output, ErrHandler>
     where
         u8: IntoScalar<T>;
 
@@ -439,7 +443,7 @@ where
     ///
     /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn tril(&self, k: i64) -> anyhow::Result<Self>
+    fn tril(&self, k: i64) -> std::result::Result<Self::Output, ErrHandler>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
         <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>;
@@ -460,7 +464,7 @@ where
     ///
     /// * This function should not panic under normal conditions.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn triu(&self, k: i64) -> anyhow::Result<Self>
+    fn triu(&self, k: i64) -> std::result::Result<Self::Output, ErrHandler>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
         <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>;
@@ -481,7 +485,7 @@ where
     ///
     /// * This function will panic if `n` is zero.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn identity(n: usize) -> anyhow::Result<Output>
+    fn identity(n: usize) -> std::result::Result<Self::Output, ErrHandler>
     where
         u8: IntoScalar<T>;
 }
@@ -496,7 +500,7 @@ pub trait TensorAlloc<Output = Self> {
     ///
     /// This function doesn't initialize the tensor's elements.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn _empty<S: Into<Shape>>(shape: S) -> anyhow::Result<Output>
+    fn _empty<S: Into<Shape>>(shape: S) -> std::result::Result<Output, ErrHandler>
     where
         Self: Sized;
 }
@@ -526,7 +530,7 @@ where
     ///
     /// - [`argmin`]: Returns the indices of the minimum values along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn argmax<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+    fn argmax<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Returns the indices of the minimum values along the specified axis.
     ///
@@ -545,7 +549,7 @@ where
     ///
     /// - [`argmax`]: Returns the indices of the maximum values along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+    fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler>;
 }
 
 /// A trait for normal tensor reduction operations.
@@ -573,7 +577,7 @@ where
     ///
     /// - [`nansum`]: Computes the sum while ignoring NaN values.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn sum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+    fn sum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Computes the sum of the elements along the specified axis, storing the result in a pre-allocated tensor.
     ///
@@ -596,7 +600,7 @@ where
         keep_dims: bool,
         init_out: bool,
         out: O,
-    ) -> anyhow::Result<Self::Output>
+    ) -> std::result::Result<Self::Output, ErrHandler>
     where
         O: Borrow<Self::Output>;
 
@@ -638,7 +642,7 @@ where
     ///
     /// - [`nanprod`]: Computes the product while ignoring NaN values.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler>;
 
     // /// Computes the product of the elements along the specified axis, with an initial value.
     // ///
@@ -678,7 +682,7 @@ where
     ///
     /// - [`max`]: Computes the maximum value along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self>;
+    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler>;
 
     // /// Computes the minimum value along the specified axis, with an initial value.
     // ///
@@ -718,7 +722,7 @@ where
     ///
     /// - [`min`]: Computes the minimum value along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self>;
+    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler>;
 
     // /// Computes the maximum value along the specified axis, with an initial value.
     // ///
@@ -754,7 +758,7 @@ where
     ///
     /// - `anyhow::Result<Self::Output>`: A tensor with the L1 norm computed along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Computes the sum of the squares of the elements along the specified axis.
     ///
@@ -769,7 +773,7 @@ where
     ///
     /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of squares of elements along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler>;
 }
 
 /// A trait for tensor reduction operations, the output must be a boolean tensor.
@@ -793,7 +797,7 @@ pub trait EvalReduce {
     ///
     /// - [`any`]: Returns `true` if any element along the specified axis evaluates to `true`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput>;
+    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::BoolOutput, ErrHandler>;
 
     /// Returns `true` if any element along the specified axis evaluates to `true`.
     ///
@@ -812,7 +816,7 @@ pub trait EvalReduce {
     ///
     /// - [`all`]: Returns `true` if all elements along the specified axis evaluate to `true`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::BoolOutput>;
+    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::BoolOutput, ErrHandler>;
 }
 
 /// A trait for tensor reduction operations, the output must remain the same tensor type.
@@ -832,7 +836,7 @@ pub trait NormalEvalReduce<T> {
     ///
     /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements, ignoring NaN values.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn nansum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+    fn nansum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler>;
 
     // /// Computes the sum of the elements along the specified axis, with an initial value, ignoring NaN values.
     // ///
@@ -868,7 +872,7 @@ pub trait NormalEvalReduce<T> {
     ///
     /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements, ignoring NaN values.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler>;
 
     // /// Computes the product of the elements along the specified axis, with an initial value, ignoring NaN values.
     // ///

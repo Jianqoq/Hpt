@@ -1,7 +1,5 @@
 use std::{fmt::Display, panic::Location};
 
-use anyhow::Result;
-
 use crate::err_handler::ErrHandler;
 
 /// Slice enum to hold the slice information
@@ -90,7 +88,7 @@ pub fn slice_process(
     strides: Vec<i64>,
     index: &[Slice],
     alpha: i64,
-) -> Result<(Vec<i64>, Vec<i64>, i64)> {
+) -> std::result::Result<(Vec<i64>, Vec<i64>, i64), ErrHandler> {
     let mut res_shape: Vec<i64> = shape.clone();
     let mut res_strides: Vec<i64> = strides.clone();
     res_shape.iter_mut().for_each(|x| {
@@ -101,8 +99,11 @@ pub fn slice_process(
     });
     let mut res_ptr = 0;
     if index.len() > res_shape.len() {
-        let message = "slice input out of range".to_string();
-        return Err(anyhow::Error::msg(message));
+        return Err(ErrHandler::SliceIndexLengthNotMatch(
+            index.len() as i64,
+            res_shape.len() as i64,
+            Location::caller(),
+        ));
     }
     for (idx, slice) in index.iter().enumerate() {
         match slice {

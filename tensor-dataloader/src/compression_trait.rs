@@ -199,7 +199,7 @@ impl TensorLoader {
     pub fn load<T, B, const N: usize>(self) -> std::io::Result<Vec<B>>
     where
         T: CommonBounds + FromBytes<Bytes = [u8; N]>,
-        B: TensorCreator<T> + Clone + TensorInfo<T>,
+        B: TensorCreator<T, Output = B> + Clone + TensorInfo<T>,
     {
         let res = load_compressed_slice::<T, B, N>(
             self.file_path.to_str().unwrap().into(),

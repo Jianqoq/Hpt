@@ -1,6 +1,6 @@
 use std::borrow::{ Borrow, BorrowMut };
 
-use anyhow::Result;
+use tensor_common::err_handler::ErrHandler;
 use tensor_types::dtype::TypeCommon;
 
 use crate::tensor::CommonBounds;
@@ -21,7 +21,7 @@ pub trait NormalBinOps<RHS = Self>
     /// # See Also
     ///
     /// - [`add`]: Perform addition of `self` and `rhs` element-wise, with auto broadcasting.
-    fn add_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
+    fn add_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>;
 
     /// Inplace version of subtraction
@@ -29,7 +29,7 @@ pub trait NormalBinOps<RHS = Self>
     /// # See Also
     ///
     /// - [`sub`]: Perform subtraction of `self` and `rhs` element-wise, with auto broadcasting.
-    fn sub_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
+    fn sub_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>;
 
     /// Inplace version of multiplication
@@ -37,7 +37,7 @@ pub trait NormalBinOps<RHS = Self>
     /// # See Also
     ///
     /// - [`mul`]: Perform multiplication of `self` and `rhs` element-wise, with auto broadcasting.
-    fn mul_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
+    fn mul_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>;
 
     /// Inplace version of rem
@@ -45,7 +45,7 @@ pub trait NormalBinOps<RHS = Self>
     /// # See Also
     ///
     /// - [`div`]: Perform rem of `self` and `rhs` element-wise, with auto broadcasting.
-    fn rem_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
+    fn rem_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput>;
 }
 
@@ -83,7 +83,7 @@ pub trait Matmul<RHS = Self>
     ///   multiplication on the last two dimensions.
     /// - **Compatibility**: The input tensors must have compatible shapes for matrix multiplication.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn matmul(&self, rhs: RHS) -> Result<Self::Output>;
+    fn matmul(&self, rhs: RHS) -> std::result::Result<Self::Output, ErrHandler>;
 
     /// Inplace version of matmul
     ///
@@ -91,6 +91,6 @@ pub trait Matmul<RHS = Self>
     ///
     /// - [`matmul`]: Perform matrix multiplication of `self` and `rhs`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn matmul_<U>(&self, rhs: RHS, out: U) -> Result<Self::Output>
+    fn matmul_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, ErrHandler>
         where U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;
 }

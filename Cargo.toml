@@ -22,7 +22,7 @@ members = [
 ]
 
 [dependencies]
-tensor-dyn = { path = "tensor-dyn", features = ["track_caller"] }
+tensor-dyn = { path = "tensor-dyn", features = ["track_caller", "cuda"] }
 tensor-common = { path = "tensor-common" }
 anyhow = "1.0.40"
 half = "2.4.1"
@@ -42,7 +42,7 @@ name = "etensor"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 3
+opt-level = 0
 incremental = true
 debug = true
 # lto = "fat"

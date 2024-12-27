@@ -1,0 +1,44 @@
+#[cfg(feature = "cuda")]
+use crate::cuda_types::scalar::Scalar;
+use crate::type_promote::{FloatOutBinaryPromote, FloatOutUnaryPromote, NormalOutPromote};
+use crate::vectors::vector_promote::*;
+use crate::{impl_float_out_binary_promote, impl_float_out_unary_promote, impl_normal_out_promote};
+use half::{bf16, f16};
+use num_complex::{Complex32, Complex64};
+impl_float_out_binary_promote!(Complex64, bool, Complex64);
+impl_float_out_binary_promote!(Complex64, i8, Complex64);
+impl_float_out_binary_promote!(Complex64, i16, Complex64);
+impl_float_out_binary_promote!(Complex64, i32, Complex64);
+impl_float_out_binary_promote!(Complex64, i64, Complex64);
+impl_float_out_binary_promote!(Complex64, isize, Complex64);
+impl_float_out_binary_promote!(Complex64, u8, Complex64);
+impl_float_out_binary_promote!(Complex64, u16, Complex64);
+impl_float_out_binary_promote!(Complex64, u32, Complex64);
+impl_float_out_binary_promote!(Complex64, u64, Complex64);
+impl_float_out_binary_promote!(Complex64, usize, Complex64);
+impl_float_out_binary_promote!(Complex64, f16, Complex64);
+impl_float_out_binary_promote!(Complex64, bf16, Complex64);
+impl_float_out_binary_promote!(Complex64, f32, Complex64);
+impl_float_out_binary_promote!(Complex64, f64, Complex64);
+impl_float_out_binary_promote!(Complex64, Complex32, Complex64);
+impl_float_out_binary_promote!(Complex64, Complex64, Complex64);
+
+impl_normal_out_promote!(Complex64, bool, Complex64);
+impl_normal_out_promote!(Complex64, i8, Complex64);
+impl_normal_out_promote!(Complex64, i16, Complex64);
+impl_normal_out_promote!(Complex64, i32, Complex64);
+impl_normal_out_promote!(Complex64, i64, Complex64);
+impl_normal_out_promote!(Complex64, isize, Complex64);
+impl_normal_out_promote!(Complex64, u8, Complex64);
+impl_normal_out_promote!(Complex64, u16, Complex64);
+impl_normal_out_promote!(Complex64, u32, Complex64);
+impl_normal_out_promote!(Complex64, u64, Complex64);
+impl_normal_out_promote!(Complex64, usize, Complex64);
+impl_normal_out_promote!(Complex64, f16, Complex64);
+impl_normal_out_promote!(Complex64, bf16, Complex64);
+impl_normal_out_promote!(Complex64, f32, Complex64);
+impl_normal_out_promote!(Complex64, f64, Complex64);
+impl_normal_out_promote!(Complex64, Complex32, Complex64);
+impl_normal_out_promote!(Complex64, Complex64, Complex64);
+
+impl_float_out_unary_promote!(Complex64, Complex64);

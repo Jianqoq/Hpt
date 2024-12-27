@@ -9,6 +9,8 @@ use crate::vectors::{ _512bit::f32x16::f32x16, traits::{ Init, VecCommon, VecTra
 pub struct bf16x32(pub(crate) [half::bf16; 32]);
 
 impl VecTrait<half::bf16> for bf16x32 {
+    const SIZE: usize = 32;
+    type Base = half::bf16;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[half::bf16]) {
         self.0.copy_from_slice(slice);
@@ -38,18 +40,8 @@ impl VecTrait<half::bf16> for bf16x32 {
     fn sum(&self) -> half::bf16 {
         self.0.iter().sum()
     }
-
-    fn extract(self, idx: usize) -> half::bf16 {
-        self.0[idx]
-    }
-}
-impl VecCommon for bf16x32 {
-    const SIZE: usize = 32;
-    
-    type Base = half::bf16;
-}
-impl Init<half::bf16> for bf16x32 {
-    fn splat(val: half::bf16) -> bf16x32 {
+    #[inline(always)]
+    fn splat(val: half::bf16) -> Self {
         bf16x32([val; 32])
     }
 }

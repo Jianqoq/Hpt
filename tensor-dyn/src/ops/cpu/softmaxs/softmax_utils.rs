@@ -1,6 +1,6 @@
 use std::borrow::BorrowMut;
 
-use tensor_common::{pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides};
+use tensor_common::{err_handler::ErrHandler, pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides};
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo};
 use tensor_types::into_scalar::IntoScalar;
 
@@ -226,7 +226,7 @@ pub(crate) fn softmax_prepare<T: CommonBounds, O: CommonBounds>(
     a: &_Tensor<T>,
     axis: usize,
     c: Option<_Tensor<O>>
-) -> anyhow::Result<(bool, _Tensor<T>, _Tensor<O>)> {
+) -> std::result::Result<(bool, _Tensor<T>, _Tensor<O>), ErrHandler> {
     let mut keep_fast_dim = true;
     if a.strides()[axis] == 1 {
         keep_fast_dim = false;
@@ -241,11 +241,7 @@ pub(crate) fn softmax_prepare<T: CommonBounds, O: CommonBounds>(
     let res = if let Some(out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
-        if a.shape().inner() != out.shape().inner() {
-            return Err(anyhow::Error::msg("Output array has incorrect shape".to_string()));
-        } else if !out.is_contiguous() {
-            return Err(anyhow::Error::msg("Output array is not contiguous".to_string()));
-        }
+        ErrHandler::check_inplace_out_layout_valid(a.shape(), out.layout())?;
         Ok(out)
     } else {
         _Tensor::<O, Cpu>::empty(a.shape())
@@ -315,7 +311,7 @@ pub(crate) fn uncontiguous_softmax_template<T, F1, F2, F3, O>(
     nkd: F2,
     kd: F3
 )
-    -> anyhow::Result<_Tensor<O>>
+    -> std::result::Result<_Tensor<O>, ErrHandler>
     where
         T: CommonBounds + IntoScalar<O>,
         O: CommonBounds,

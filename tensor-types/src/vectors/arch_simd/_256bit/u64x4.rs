@@ -1,4 +1,4 @@
-use crate::{convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait }};
+use crate::{convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait }, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2}};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -10,6 +10,10 @@ use super::i64x4::i64x4;
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(32))]
 pub struct u64x4(pub(crate) __m256i);
+
+/// helper to impl the promote trait
+#[allow(non_camel_case_types)]
+pub(crate) type u64_promote = u64x4;
 
 impl PartialEq for u64x4 {
     #[inline(always)]
@@ -58,6 +62,10 @@ impl VecTrait<u64> for u64x4 {
     #[inline(always)]
     fn splat(val: u64) -> u64x4 {
         unsafe { u64x4(_mm256_set1_epi64x(val as i64)) }
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const u64) -> Self {
+        u64x4(_mm256_loadu_si256(ptr as *const __m256i))
     }
 }
 
@@ -331,5 +339,137 @@ impl VecConvertor for u64x4 {
     #[inline(always)]
     fn to_usize(self) -> super::usizex4::usizex4 {
         unsafe { std::mem::transmute(self) }
+    }
+}
+
+impl FloatOutBinary2 for u64x4 {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
+
+    #[inline(always)]
+    fn __log(self, _: Self) -> Self {
+        panic!("Logarithm operation is not supported for u64")
+    }
+}
+
+impl NormalOut2 for u64x4 {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
+
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self.max(rhs)
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self.min(rhs)
+    }
+
+    #[inline(always)]
+    fn __clip(self, min: Self, max: Self) -> Self {
+        self.max(min).min(max)
+    }
+}
+
+impl NormalOutUnary2 for u64x4 {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __sign(self) -> Self {
+        self.sign()
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, alpha: Self) -> Self {
+        self.max(u64x4::splat(0)) + alpha * self.min(u64x4::splat(0))
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self.relu()
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self.relu6()
+    }
+}
+
+impl Eval2 for u64x4 {
+    type Output = i64x4;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        i64x4::default()
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        unsafe {
+            let eq = _mm256_cmpeq_epi64(self.0, _mm256_setzero_si256());
+            i64x4(_mm256_xor_si256(eq, _mm256_set1_epi64x(-1)))
+        }
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        i64x4::default()
     }
 }

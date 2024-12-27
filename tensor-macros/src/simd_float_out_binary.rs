@@ -1,7 +1,6 @@
-use crate::type_utils::{ type_simd_lanes, SimdType, Type, TypeInfo };
+use crate::type_utils::{type_simd_lanes, SimdType, Type, TypeInfo};
 use crate::TokenStream2;
 use proc_macro::TokenStream;
-use proc_macro2::Ident;
 use quote::quote;
 
 pub fn impl_simd_binary_out_float() -> TokenStream {
@@ -33,50 +32,41 @@ pub fn impl_simd_binary_out_float() -> TokenStream {
             let rhs_lanes = *rhs_lanes;
             let lhs_type = TypeInfo::new(&lhs_ty.to_lowercase());
             let rhs_type = TypeInfo::new(&rhs_ty.to_lowercase());
-            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
-            let res_lanes = type_simd_lanes(&res_type.to_string());
-            if lhs_lanes != rhs_lanes || lhs_lanes != res_lanes || rhs_lanes != res_lanes {
-                ret.extend(
-                    impl_unreachable(
-                        (*lhs).into(),
-                        (*rhs).into(),
-                        res_type.to_string().as_str().into()
-                    )
-                );
+            if lhs_lanes != rhs_lanes {
+                ret.extend(impl_unreachable((*lhs).into(), (*rhs).into()));
                 continue;
             }
             let lhs_simd: SimdType = (*lhs).into();
             let rhs_simd: SimdType = (*rhs).into();
-            let res_simd_ty = Ident::new(
-                &format!(
-                    "{}x{}",
-                    if res_type.is_cplx() {
-                        match res_type.to_string().as_str() {
-                            "complex32" => "cplx32".to_string(),
-                            "complex64" => "cplx64".to_string(),
-                            _ => unreachable!(),
-                        }
-                    } else {
-                        res_type.to_string()
-                    },
-                    type_simd_lanes(&res_type.to_string())
-                ),
-                proc_macro2::Span::call_site()
-            );
-            let to_res_type = Ident::new(
-                &format!("to_{}", res_type.to_string().to_lowercase()),
-                proc_macro2::Span::call_site()
-            );
 
-            let res =
+            let res = if lhs_type.dtype == rhs_type.dtype
+                && (lhs_type.dtype.is_float() || lhs_type.dtype.is_cplx())
+            {
                 quote! {
-                impl FloatOutBinary<#rhs_simd> for #lhs_simd {
-                    type Output = #res_simd_ty::#res_simd_ty;
-                    fn _div(self, rhs: #rhs_simd) -> Self::Output {
-                        self.#to_res_type() / rhs.#to_res_type()
+                    impl FloatOutBinary<#rhs_simd> for #lhs_simd {
+                        type Output = <#lhs_simd as FloatOutBinaryPromote<#rhs_simd>>::Output;
+                        fn _div(self, rhs: #rhs_simd) -> Self::Output {
+                            self / rhs
+                        }
+                        fn _log(self, base: #rhs_simd) -> Self::Output {
+                            self.__log(base)
+                        }
                     }
-                    fn _log(self, base: #rhs_simd) -> Self::Output {
-                        todo!()
+                }
+            } else {
+                quote! {
+                    impl FloatOutBinary<#rhs_simd> for #lhs_simd {
+                        type Output = <#lhs_simd as FloatOutBinaryPromote<#rhs_simd>>::Output;
+                        fn _div(self, rhs: #rhs_simd) -> Self::Output {
+                            let lhs: Self::Output = self.into_vec();
+                            let rhs: Self::Output = rhs.into_vec();
+                            lhs / rhs
+                        }
+                        fn _log(self, base: #rhs_simd) -> Self::Output {
+                            let lhs: Self::Output = self.into_vec();
+                            let base: Self::Output = base.into_vec();
+                            lhs.__log(base)
+                        }
                     }
                 }
             };
@@ -87,10 +77,10 @@ pub fn impl_simd_binary_out_float() -> TokenStream {
     ret.into()
 }
 
-fn impl_unreachable(lhs_dtype: SimdType, rhs_simd: SimdType, res_type: SimdType) -> TokenStream2 {
+fn impl_unreachable(lhs_dtype: SimdType, rhs_simd: SimdType) -> TokenStream2 {
     quote! {
         impl FloatOutBinary<#rhs_simd> for #lhs_dtype {
-            type Output = #res_type;
+            type Output = <#lhs_dtype as FloatOutBinaryPromote<#rhs_simd>>::Output;
             fn _div(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
@@ -124,56 +114,52 @@ pub fn impl_simd_binary_out_float_lhs_scalar() -> TokenStream {
         ("Complex64", type_simd_lanes("complex64"), "complex64"),
     ];
 
-    for (lhs_ty, lhs_lanes, _) in types.iter() {
+    for (lhs_ty, lhs_lanes, lhs) in types.iter() {
         for (rhs_ty, rhs_lanes, rhs) in types.iter() {
             let lhs_lanes = *lhs_lanes;
             let rhs_lanes = *rhs_lanes;
             let lhs_type = TypeInfo::new(&lhs_ty.to_lowercase());
             let rhs_type = TypeInfo::new(&rhs_ty.to_lowercase());
             let lhs_dtype = lhs_type.dtype;
-            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
-            let res_lanes = type_simd_lanes(&res_type.to_string());
-            if lhs_lanes != rhs_lanes || lhs_lanes != res_lanes || rhs_lanes != res_lanes {
-                ret.extend(
-                    impl_unreachable_lhs_scalar(
-                        lhs_dtype,
-                        (*rhs).into(),
-                        res_type.to_string().as_str().into()
-                    )
-                );
+            if lhs_lanes != rhs_lanes {
+                ret.extend(impl_unreachable_lhs_scalar(
+                    lhs_dtype,
+                    (*rhs).into(),
+                    (*lhs).into(),
+                ));
                 continue;
             }
             let rhs_simd: SimdType = (*rhs).into();
-            let res_simd_ty = Ident::new(
-                &format!(
-                    "{}x{}",
-                    if res_type.is_cplx() {
-                        match res_type.to_string().as_str() {
-                            "complex32" => "cplx32".to_string(),
-                            "complex64" => "cplx64".to_string(),
-                            _ => unreachable!(),
-                        }
-                    } else {
-                        res_type.to_string()
-                    },
-                    type_simd_lanes(&res_type.to_string())
-                ),
-                proc_macro2::Span::call_site()
-            );
-            let to_res_type = Ident::new(
-                &format!("to_{}", res_type.to_string().to_lowercase()),
-                proc_macro2::Span::call_site()
-            );
+            let lhs_simd: SimdType = (*lhs).into();
 
-            let res =
+            let res = if lhs_type.dtype == rhs_type.dtype
+                && (lhs_type.dtype.is_float() || lhs_type.dtype.is_cplx())
+            {
                 quote! {
-                impl FloatOutBinary<#rhs_simd> for #lhs_dtype {
-                    type Output = #res_simd_ty::#res_simd_ty;
-                    fn _div(self, rhs: #rhs_simd) -> Self::Output {
-                        #res_simd_ty::#res_simd_ty::splat(self.#to_res_type()) / rhs.#to_res_type()
+                    impl FloatOutBinary<#rhs_simd> for #lhs_dtype {
+                        type Output = <#lhs_simd as FloatOutBinaryPromote<#rhs_simd>>::Output;
+                        fn _div(self, rhs: #rhs_simd) -> Self::Output {
+                            Self::Output::splat(self.into_scalar()) / rhs
+                        }
+                        fn _log(self, base: #rhs_simd) -> Self::Output {
+                            Self::Output::splat(self.into_scalar()).__log(base)
+                        }
                     }
-                    fn _log(self, base: #rhs_simd) -> Self::Output {
-                        todo!()
+                }
+            } else {
+                quote! {
+                    impl FloatOutBinary<#rhs_simd> for #lhs_dtype {
+                        type Output = <#lhs_simd as FloatOutBinaryPromote<#rhs_simd>>::Output;
+                        fn _div(self, rhs: #rhs_simd) -> Self::Output {
+                            let lhs: Self::Output = Self::Output::splat(self.into_scalar());
+                            let rhs: Self::Output = rhs.into_vec();
+                            lhs / rhs
+                        }
+                        fn _log(self, base: #rhs_simd) -> Self::Output {
+                            let lhs: Self::Output = Self::Output::splat(self.into_scalar());
+                            let base: Self::Output = base.into_vec();
+                            lhs.__log(base)
+                        }
                     }
                 }
             };
@@ -187,11 +173,11 @@ pub fn impl_simd_binary_out_float_lhs_scalar() -> TokenStream {
 fn impl_unreachable_lhs_scalar(
     lhs_dtype: Type,
     rhs_simd: SimdType,
-    res_type: SimdType
+    lhs_simd: SimdType,
 ) -> TokenStream2 {
     quote! {
         impl FloatOutBinary<#rhs_simd> for #lhs_dtype {
-            type Output = #res_type;
+            type Output = <#lhs_simd as FloatOutBinaryPromote<#rhs_simd>>::Output;
             fn _div(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
@@ -226,55 +212,51 @@ pub fn impl_simd_binary_out_float_rhs_scalar() -> TokenStream {
     ];
 
     for (lhs_ty, lhs_lanes, lhs) in types.iter() {
-        for (rhs_ty, rhs_lanes, _) in types.iter() {
+        for (rhs_ty, rhs_lanes, rhs) in types.iter() {
             let lhs_lanes = *lhs_lanes;
             let rhs_lanes = *rhs_lanes;
             let lhs_type = TypeInfo::new(&lhs_ty.to_lowercase());
             let rhs_type = TypeInfo::new(&rhs_ty.to_lowercase());
-            let rhs_dtype = rhs_type.dtype;
-            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
-            let res_lanes = type_simd_lanes(&res_type.to_string());
-            if lhs_lanes != rhs_lanes || lhs_lanes != res_lanes || rhs_lanes != res_lanes {
-                ret.extend(
-                    impl_unreachable_rhs_scalar(
-                        (*lhs).into(),
-                        rhs_dtype,
-                        res_type.to_string().as_str().into()
-                    )
-                );
+            if lhs_lanes != rhs_lanes {
+                ret.extend(impl_unreachable_rhs_scalar(
+                    (*lhs).into(),
+                    rhs_type.dtype,
+                    (*rhs).into(),
+                ));
                 continue;
             }
             let lhs_simd: SimdType = (*lhs).into();
-            let res_simd_ty = Ident::new(
-                &format!(
-                    "{}x{}",
-                    if res_type.is_cplx() {
-                        match res_type.to_string().as_str() {
-                            "complex32" => "cplx32".to_string(),
-                            "complex64" => "cplx64".to_string(),
-                            _ => unreachable!(),
-                        }
-                    } else {
-                        res_type.to_string()
-                    },
-                    type_simd_lanes(&res_type.to_string())
-                ),
-                proc_macro2::Span::call_site()
-            );
-            let to_res_type = Ident::new(
-                &format!("to_{}", res_type.to_string().to_lowercase()),
-                proc_macro2::Span::call_site()
-            );
+            let rhs_simd: SimdType = (*rhs).into();
+            let rhs_dtype = rhs_type.dtype;
 
-            let res =
+            let res = if lhs_type.dtype == rhs_type.dtype
+                && (lhs_type.dtype.is_float() || lhs_type.dtype.is_cplx())
+            {
                 quote! {
-                impl FloatOutBinary<#rhs_dtype> for #lhs_simd {
-                    type Output = #res_simd_ty::#res_simd_ty;
-                    fn _div(self, rhs: #rhs_dtype) -> Self::Output {
-                        self.#to_res_type() / #res_simd_ty::#res_simd_ty::splat(rhs.#to_res_type())
+                    impl FloatOutBinary<#rhs_dtype> for #lhs_simd {
+                        type Output = <#lhs_simd as FloatOutBinaryPromote<#rhs_simd>>::Output;
+                        fn _div(self, rhs: #rhs_dtype) -> Self::Output {
+                            self / Self::Output::splat(rhs.into_scalar())
+                        }
+                        fn _log(self, base: #rhs_dtype) -> Self::Output {
+                            self.__log(Self::Output::splat(base.into_scalar()))
+                        }
                     }
-                    fn _log(self, base: #rhs_dtype) -> Self::Output {
-                        todo!()
+                }
+            } else {
+                quote! {
+                    impl FloatOutBinary<#rhs_dtype> for #lhs_simd {
+                        type Output = <#lhs_simd as FloatOutBinaryPromote<#rhs_simd>>::Output;
+                        fn _div(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: Self::Output = self.into_vec();
+                            let rhs: Self::Output = Self::Output::splat(rhs.into_scalar());
+                            lhs / rhs
+                        }
+                        fn _log(self, base: #rhs_dtype) -> Self::Output {
+                            let lhs: Self::Output = self.into_vec();
+                            let base: Self::Output = Self::Output::splat(base.into_scalar());
+                            lhs.__log(base)
+                        }
                     }
                 }
             };
@@ -288,11 +270,11 @@ pub fn impl_simd_binary_out_float_rhs_scalar() -> TokenStream {
 fn impl_unreachable_rhs_scalar(
     lhs_simd: SimdType,
     rhs_dtype: Type,
-    res_type: SimdType
+    rhs_simd: SimdType,
 ) -> TokenStream2 {
     quote! {
         impl FloatOutBinary<#rhs_dtype> for #lhs_simd {
-            type Output = #res_type;
+            type Output = <#lhs_simd as FloatOutBinaryPromote<#rhs_simd>>::Output;
             fn _div(self, rhs: #rhs_dtype) -> Self::Output {
                 unreachable!()
             }

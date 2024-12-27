@@ -15,7 +15,7 @@ use rayon::iter::{
     IntoParallelRefMutIterator,
     ParallelIterator,
 };
-use tensor_common::shape::Shape;
+use tensor_common::{err_handler::ErrHandler, shape::Shape};
 use tensor_traits::{ CommonBounds, TensorInfo, TensorLike };
 use tensor_types::{
     convertion::Convertor,
@@ -264,7 +264,7 @@ pub(crate) fn uncontiguous_log_softmax<T, O>(
     axis: i64,
     c: Option<_Tensor<O>>
 )
-    -> anyhow::Result<_Tensor<O>>
+    -> std::result::Result<_Tensor<O>, ErrHandler>
     where
         T: CommonBounds + IntoScalar<O> + Convertor + FloatOutUnary<Output = O>,
         O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
@@ -277,7 +277,7 @@ pub(crate) fn uncontiguous_log_softmax<T, O>(
         axis,
         c,
         move |res| {
-            let a = a.contiguous().unwrap();
+            let a = a.contiguous().expect("contiguous failed");
             let ptr = a.ptr();
             let raw = unsafe { std::slice::from_raw_parts_mut(ptr.ptr, a.size() as usize) };
             let max = raw

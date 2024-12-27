@@ -17,7 +17,7 @@ tensor-cudakernels = { path = "../tensor-cudakernels", optional = true }
 tensor-dataloader = { path = "../tensor-dataloader" }
 flate2 = "1.0.28"
 rand_distr = "0.4.3"
-rustfft = "6.1.0"
+# rustfft = "6.2.0"
 rand = "0.8.5"
 threadpool = "1.8.1"
 paste = "1.0.15"
@@ -60,6 +60,7 @@ cuda = [
     "tensor-allocator/cuda",
     "regex",
     "tensor-cudakernels/cuda",
+    "tensor-common/cuda",
     "phf",
     "xxhash-rust",
     "tensor-types/cuda",

@@ -22,7 +22,7 @@ pub mod par_strided_map_mut_simd {
         ParallelIterator,
     };
     use std::sync::Arc;
-    use tensor_common::{shape::Shape, simd_ref::MutVec};
+    use tensor_common::{pointer::Pointer, shape::Shape, simd_ref::MutVec};
     use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
     use tensor_types::traits::VecTrait;
@@ -114,7 +114,10 @@ pub mod par_strided_map_mut_simd {
     {
         type Item = &'a mut T;
 
-        type SimdItem = MutVec<'a, T::Vec> where Self: 'a;
+        type SimdItem
+            = MutVec<'a, T::Vec>
+        where
+            Self: 'a;
 
         fn set_end_index(&mut self, end_index: usize) {
             self.base.set_end_index(end_index);
@@ -186,14 +189,11 @@ pub mod par_strided_map_mut_simd {
         #[inline(always)]
         fn inner_loop_next_simd(&mut self, index: usize) -> Self::SimdItem {
             unsafe {
-                std::mem::transmute(
-                    self.base
-                        .ptr
-                        .get_ptr()
-                        .add(index * T::Vec::SIZE)
-                        .as_mut()
-                        .unwrap_unchecked(),
-                )
+                let ptr = self.base.ptr.get_ptr().add(index * T::Vec::SIZE) as *mut T::Vec;
+                #[cfg(feature = "bound_check")]
+                return MutVec::new(Pointer::new(ptr, T::Vec::SIZE as i64));
+                #[cfg(not(feature = "bound_check"))]
+                return MutVec::new(Pointer::new(ptr));
             }
         }
 

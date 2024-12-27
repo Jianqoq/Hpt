@@ -1,6 +1,7 @@
 use crate::{
     convertion::VecConvertor,
     traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
 
 #[cfg(target_arch = "x86_64")]
@@ -13,6 +14,10 @@ use super::i16x16::i16x16;
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(32))]
 pub struct u16x16(pub(crate) __m256i);
+
+/// helper to impl the promote trait
+#[allow(non_camel_case_types)]
+pub(crate) type u16_promote = u16x16;
 
 impl PartialEq for u16x16 {
     #[inline(always)]
@@ -57,6 +62,10 @@ impl VecTrait<u16> for u16x16 {
     #[inline(always)]
     fn splat(val: u16) -> u16x16 {
         unsafe { u16x16(_mm256_set1_epi16(val as i16)) }
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const u16) -> Self {
+        u16x16(_mm256_loadu_si256(ptr as *const __m256i))
     }
 }
 
@@ -286,5 +295,137 @@ impl VecConvertor for u16x16 {
             }
             super::bf16x16::bf16x16(result)
         }
+    }
+}
+
+impl FloatOutBinary2 for u16x16 {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
+
+    #[inline(always)]
+    fn __log(self, _: Self) -> Self {
+        panic!("Logarithm operation is not supported for u16")
+    }
+}
+
+impl NormalOut2 for u16x16 {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
+
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self.max(rhs)
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self.min(rhs)
+    }
+
+    #[inline(always)]
+    fn __clip(self, min: Self, max: Self) -> Self {
+        self.max(min).min(max)
+    }
+}
+
+impl NormalOutUnary2 for u16x16 {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __sign(self) -> Self {
+        self.sign()
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, alpha: Self) -> Self {
+        self.max(u16x16::splat(0)) + alpha * self.min(u16x16::splat(0))
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self.relu()
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self.relu6()
+    }
+}
+
+impl Eval2 for u16x16 {
+    type Output = i16x16;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        i16x16::default()
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        unsafe {
+            let eq = _mm256_cmpeq_epi16(self.0, _mm256_setzero_si256());
+            i16x16(_mm256_xor_si256(eq, _mm256_set1_epi16(-1)))
+        }
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        i16x16::default()
     }
 }

@@ -1486,6 +1486,7 @@ fn test_uncontiguous_all2() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[test]
 fn test_any() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let sum = a.any(0, false)?;

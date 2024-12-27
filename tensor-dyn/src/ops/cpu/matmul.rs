@@ -23,7 +23,7 @@ pub(crate) fn matmul_with_out<A, B, O, Q>(
     rhs: &_Tensor<B>,
     out: Option<O>
 )
-    -> anyhow::Result<_Tensor<<A as NormalOut<B>>::Output>>
+    -> std::result::Result<_Tensor<<A as NormalOut<B>>::Output>, ErrHandler>
     where
         A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
         B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,

@@ -14,6 +14,8 @@ use super::u16x32::u16x32;
 pub struct f16x32(pub(crate) [half::f16; 32]);
 
 impl VecTrait<half::f16> for f16x32 {
+    const SIZE: usize = 32;
+    type Base = half::f16;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[half::f16]) {
         self.0.copy_from_slice(slice);
@@ -45,21 +47,12 @@ impl VecTrait<half::f16> for f16x32 {
     fn sum(&self) -> half::f16 {
         self.0.iter().sum()
     }
-
-    fn extract(self, idx: usize) -> half::f16 {
-        self.0[idx]
-    }
-}
-impl VecCommon for f16x32 {
-    const SIZE: usize = 32;
-    
-    type Base = half::f16;
-}
-impl Init<half::f16> for f16x32 {
-    fn splat(val: half::f16) -> f16x32 {
+    #[inline(always)]
+    fn splat(val: half::f16) -> Self {
         f16x32([val; 32])
     }
 }
+
 impl f16x32 {
     pub fn is_nan(&self) -> u16x32 {
         let x = u16x32::splat(0x7c00u16);

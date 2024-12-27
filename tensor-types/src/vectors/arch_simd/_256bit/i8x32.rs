@@ -1,6 +1,7 @@
 use crate::{
     convertion::VecConvertor,
     traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
 
 #[cfg(target_arch = "x86_64")]
@@ -13,6 +14,10 @@ use super::u8x32::u8x32;
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(32))]
 pub struct i8x32(pub(crate) __m256i);
+
+/// helper to impl the promote trait
+#[allow(non_camel_case_types)]
+pub(crate) type i8_promote = i8x32;
 
 impl PartialEq for i8x32 {
     #[inline(always)]
@@ -57,6 +62,10 @@ impl VecTrait<i8> for i8x32 {
     #[inline(always)]
     fn splat(val: i8) -> i8x32 {
         unsafe { i8x32(_mm256_set1_epi8(val)) }
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const i8) -> Self {
+        i8x32(_mm256_loadu_si256(ptr as *const __m256i))
     }
 }
 
@@ -149,6 +158,9 @@ impl std::ops::Div for i8x32 {
             let b: [i8; 32] = std::mem::transmute(rhs.0);
             let mut result = [0; 32];
             for i in 0..32 {
+                if b[i] == 0 {
+                    panic!("Division by zero for i8");
+                }
                 result[i] = a[i] / b[i];
             }
             i8x32(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
@@ -267,5 +279,137 @@ impl VecConvertor for i8x32 {
     #[inline(always)]
     fn to_bool(self) -> super::boolx32::boolx32 {
         unsafe { std::mem::transmute(self) }
+    }
+}
+
+impl FloatOutBinary2 for i8x32 {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
+
+    #[inline(always)]
+    fn __log(self, _: Self) -> Self {
+        panic!("Logarithm operation is not supported for i8")
+    }
+}
+
+impl NormalOut2 for i8x32 {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
+
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self.max(rhs)
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self.min(rhs)
+    }
+
+    #[inline(always)]
+    fn __clip(self, min: Self, max: Self) -> Self {
+        self.max(min).min(max)
+    }
+}
+
+impl NormalOutUnary2 for i8x32 {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        i8x32(unsafe { _mm256_abs_epi8(self.0) })
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        unsafe { Self(_mm256_sub_epi8(_mm256_setzero_si256(), self.0)) }
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __sign(self) -> Self {
+        self.sign()
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, alpha: Self) -> Self {
+        self.max(i8x32::splat(0)) + alpha * self.min(i8x32::splat(0))
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self.relu()
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self.relu6()
+    }
+}
+
+impl Eval2 for i8x32 {
+    type Output = i8x32;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        i8x32::default()
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        unsafe {
+            let eq = _mm256_cmpeq_epi8(self.0, _mm256_setzero_si256());
+            Self(_mm256_xor_si256(eq, _mm256_set1_epi8(-1)))
+        }
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        i8x32::default()
     }
 }

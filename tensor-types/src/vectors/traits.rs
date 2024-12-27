@@ -24,6 +24,7 @@ pub trait VecTrait<T: Copy> {
     }
     /// extract a value from vector
     fn extract(&self, idx: usize) -> T {
+        assert!(idx < Self::SIZE);
         unsafe { *self.as_ptr().add(idx) }
     }
     /// get the sum of all elements in vector
@@ -53,14 +54,7 @@ pub trait VecTrait<T: Copy> {
     /// # Safety
     ///
     /// This function is unsafe because it can cause undefined behavior if the pointer is invalid or the data len is less than the vector size
-    #[inline(always)]
-    unsafe fn from_ptr(ptr: *const T) -> Self
-    where
-        Self: Sized,
-    {
-        let ptr = ptr as *const Self;
-        unsafe { ptr.read_unaligned() }
-    }
+    unsafe fn from_ptr(ptr: *const T) -> Self;
 }
 
 /// a trait to select value from two vectors
@@ -251,6 +245,54 @@ pub trait SimdMath<T>: Copy {
     }
     /// max
     fn max(self, _: Self) -> Self {
+        unreachable!()
+    }
+    /// reciprocal
+    fn recip(self) -> Self {
+        unreachable!()
+    }
+    /// sigmoid
+    fn sigmoid(self) -> Self {
+        unreachable!()
+    }
+    /// gelu
+    fn gelu(self) -> Self {
+        unreachable!()
+    }
+    /// softplus
+    fn softplus(self) -> Self {
+        unreachable!()
+    }
+    /// softsign
+    fn softsign(self) -> Self {
+        unreachable!()
+    }
+    /// mish
+    fn mish(self) -> Self {
+        unreachable!()
+    }
+    /// celu
+    fn celu(self, _: T) -> Self {
+        unreachable!()
+    }
+    /// selu
+    fn selu(self, _: T, _: T) -> Self {
+        unreachable!()
+    }
+    /// elu
+    fn elu(self, _: T) -> Self {
+        unreachable!()
+    }
+    /// hard sigmoid
+    fn hard_sigmoid(self) -> Self {
+        unreachable!()
+    }
+    /// fast hard sigmoid
+    fn fast_hard_sigmoid(self) -> Self {
+        unreachable!()
+    }
+    /// hard swish
+    fn hard_swish(self) -> Self {
         unreachable!()
     }
 }
