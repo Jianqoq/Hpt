@@ -1,12 +1,16 @@
-
+use crate::{
+    convertion::VecConvertor, traits::SimdMath, type_promote::{FloatOutBinary2, NormalOut2, NormalOutUnary2}, vectors::traits::VecTrait
+};
 use num_complex::Complex64;
-use crate::{convertion::VecConvertor, vectors::traits::VecTrait};
 
 /// a vector of 1 Complex64 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 #[repr(transparent)]
 pub struct cplx64x1(pub(crate) [Complex64; 1]);
+
+#[allow(non_camel_case_types)]
+pub(crate) type Complex64_promote = cplx64x1;
 
 impl VecTrait<Complex64> for cplx64x1 {
     const SIZE: usize = 1;
@@ -27,6 +31,10 @@ impl VecTrait<Complex64> for cplx64x1 {
     #[inline(always)]
     fn splat(val: Complex64) -> cplx64x1 {
         cplx64x1([val; 1])
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const Complex64) -> Self {
+        cplx64x1([unsafe { *ptr }])
     }
 }
 
@@ -112,7 +120,7 @@ impl VecConvertor for cplx64x1 {
         self
     }
 }
-
+impl SimdMath<Complex64> for cplx64x1 {}
 impl FloatOutBinary2 for cplx64x1 {
     #[inline(always)]
     fn __div(self, rhs: Self) -> Self {
@@ -172,9 +180,7 @@ impl NormalOut2 for cplx64x1 {
 
     #[inline(always)]
     fn __clip(self, min: Self, max: Self) -> Self {
-        let res = [
-            self[0].__clip(min[0], max[0]),
-        ];
+        let res = [self[0].__clip(min[0], max[0])];
         cplx64x1(unsafe { std::mem::transmute(res) })
     }
 }

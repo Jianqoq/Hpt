@@ -6,6 +6,7 @@ use crate::arch_simd::sleef::arch::helper_sse as helper;
 use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::simd::sleef::arch::helper_aarch64::{vcast_vf_vo, visinf_vo_vf, visnan_vo_vf, vneg_vf_vf};
+use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
 
 use helper::vabs_vf_vf;
 use crate::arch_simd::sleef::libm::sleefsimdsp::{
@@ -62,6 +63,9 @@ pub struct f32x4(
     #[cfg(target_arch = "aarch64")]
     pub(crate) float32x4_t,
 );
+
+#[allow(non_camel_case_types)]
+pub(crate) type f32_promote = f32x4;
 
 impl PartialEq for f32x4 {
     #[inline(always)]
@@ -143,6 +147,17 @@ impl VecTrait<f32> for f32x4 {
         #[cfg(target_arch = "aarch64")]
         unsafe {
             f32x4(vdupq_n_f32(val))
+        }
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const f32) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            f32x4(_mm_loadu_ps(ptr))
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            f32x4(vld1q_f32(ptr))
         }
     }
 }

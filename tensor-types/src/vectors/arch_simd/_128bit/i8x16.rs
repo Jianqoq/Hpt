@@ -1,4 +1,4 @@
-use crate::{ convertion::VecConvertor, traits::{ SimdCompare, SimdMath, VecTrait } };
+use crate::{ convertion::VecConvertor, traits::{ SimdCompare, SimdMath, VecTrait }, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2} };
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -16,6 +16,9 @@ pub struct i8x16(
     #[cfg(target_arch = "x86_64")] pub(crate) __m128i,
     #[cfg(target_arch = "aarch64")] pub(crate) int8x16_t,
 );
+
+#[allow(non_camel_case_types)]
+pub(crate) type i8_promote = i8x16;
 
 impl PartialEq for i8x16 {
     #[inline(always)]
@@ -93,6 +96,17 @@ impl VecTrait<i8> for i8x16 {
         #[cfg(target_arch = "aarch64")]
         unsafe {
             i8x16(vdupq_n_s8(val))
+        }
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const i8) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            i8x16(_mm_loadu_si128(ptr as *const __m128i))
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            i8x16(vld1q_s8(ptr))
         }
     }
 }

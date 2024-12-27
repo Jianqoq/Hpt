@@ -1,7 +1,8 @@
 use crate::convertion::VecConvertor;
-use crate::traits::VecTrait;
-use crate::vectors::arch_simd::_128bit::u8x16::u8x16;
 use crate::traits::SimdCompare;
+use crate::traits::VecTrait;
+use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
+use crate::vectors::arch_simd::_128bit::u8x16::u8x16;
 
 use super::i8x16::i8x16;
 
@@ -10,6 +11,9 @@ use super::i8x16::i8x16;
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 #[repr(C, align(16))]
 pub struct boolx16(pub(crate) [bool; 16]);
+
+#[allow(non_camel_case_types)]
+pub(crate) type bool_promote = boolx16;
 
 impl VecTrait<bool> for boolx16 {
     const SIZE: usize = 16;
@@ -29,6 +33,14 @@ impl VecTrait<bool> for boolx16 {
     #[inline(always)]
     fn splat(val: bool) -> boolx16 {
         boolx16([val; 16])
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const bool) -> Self {
+        let mut result = [false; 16];
+        for i in 0..16 {
+            result[i] = unsafe { *ptr.add(i) };
+        }
+        boolx16(result)
     }
 }
 
@@ -296,42 +308,35 @@ impl Eval2 for boolx16 {
     type Output = i8x16;
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
-        unsafe {
-            std::mem::transmute([0i8; 16])
-        }
+        unsafe { std::mem::transmute([0i8; 16]) }
     }
 
     #[inline(always)]
     fn __is_true(&self) -> Self::Output {
         unsafe {
             std::mem::transmute([
-                self[0]._is_true(),
-                self[1]._is_true(),
-                self[2]._is_true(),
-                self[3]._is_true(),
-                self[4]._is_true(),
-                self[5]._is_true(),
-                self[6]._is_true(),
-                self[7]._is_true(),
-                self[8]._is_true(),
-                self[9]._is_true(),
-                self[10]._is_true(),
-                self[11]._is_true(),
-                self[12]._is_true(),
-                self[13]._is_true(),
-                self[14]._is_true(),
-                self[15]._is_true(),
+                self[0] as i8,
+                self[1] as i8,
+                self[2] as i8,
+                self[3] as i8,
+                self[4] as i8,
+                self[5] as i8,
+                self[6] as i8,
+                self[7] as i8,
+                self[8] as i8,
+                self[9] as i8,
+                self[10] as i8,
+                self[11] as i8,
+                self[12] as i8,
+                self[13] as i8,
+                self[14] as i8,
+                self[15] as i8,
             ])
         }
     }
 
     #[inline(always)]
     fn __is_inf(&self) -> Self::Output {
-        unsafe {
-            std::mem::transmute([
-                0i8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0,
-            ])
-        }
+        unsafe { std::mem::transmute([0i8; 16]) }
     }
 }

@@ -2,7 +2,7 @@
 use crate::{
     arch_simd::_128bit::i64x2::i64x2,
     convertion::VecConvertor,
-    traits::{SimdCompare, SimdMath, VecTrait},
+    traits::{SimdCompare, SimdMath, VecTrait}, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
 
 use super::usizex2::usizex2;
@@ -15,6 +15,13 @@ use super::usizex2::usizex2;
 pub struct isizex2(pub(crate) i64x2);
 #[cfg(target_pointer_width = "32")]
 pub struct isizex4(pub(crate) i32x4);
+
+#[cfg(target_pointer_width = "64")]
+#[allow(non_camel_case_types)]
+pub(crate) type isize_promote = isizex2;
+#[cfg(target_pointer_width = "32")]
+#[allow(non_camel_case_types)]
+pub(crate) type isize_promote = isizex4;
 
 #[cfg(target_pointer_width = "32")]
 type ISizeVEC = isizex4;
@@ -61,6 +68,17 @@ impl VecTrait<isize> for ISizeVEC {
     #[inline(always)]
     fn splat(val: isize) -> ISizeVEC {
         Self(ISizeBase::splat(val as i64))
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const isize) -> Self {
+        #[cfg(target_pointer_width = "64")]
+        {
+            Self(unsafe { ISizeBase::from_ptr(ptr as *const i64) })
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            Self(unsafe { ISizeBase::from_ptr(ptr as *const i32) })
+        }
     }
 }
 

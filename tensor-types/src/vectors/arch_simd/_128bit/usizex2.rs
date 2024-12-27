@@ -1,11 +1,8 @@
 use crate::{
     arch_simd::_128bit::u64x2::u64x2,
     convertion::VecConvertor,
-    traits::{ SimdCompare, SimdMath, VecTrait },
+    traits::{ SimdCompare, SimdMath, VecTrait }, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
-
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
 
 use super::{ i64x2::i64x2, isizex2::isizex2 };
 
@@ -17,6 +14,13 @@ use super::{ i64x2::i64x2, isizex2::isizex2 };
 pub struct usizex2(pub(crate) u64x2);
 #[cfg(target_pointer_width = "32")]
 pub struct usizex4(pub(crate) u32x4);
+
+#[cfg(target_pointer_width = "32")]
+#[allow(non_camel_case_types)]
+pub(crate) type usize_promote = usizex4;
+#[cfg(target_pointer_width = "64")]
+#[allow(non_camel_case_types)]
+pub(crate) type usize_promote = usizex2;
 
 #[cfg(target_pointer_width = "32")]
 type USizeVEC = usizex4;
@@ -63,6 +67,17 @@ impl VecTrait<usize> for usizex2 {
     #[inline(always)]
     fn splat(val: usize) -> Self {
         Self(USizeBase::splat(val as u64))
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const usize) -> Self {
+        #[cfg(target_pointer_width = "64")]
+        {
+            Self(unsafe { USizeBase::from_ptr(ptr as *const u64) })
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            Self(unsafe { USizeBase::from_ptr(ptr as *const u32) })
+        }
     }
 }
 

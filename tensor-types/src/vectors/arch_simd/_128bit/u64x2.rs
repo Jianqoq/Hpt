@@ -1,4 +1,4 @@
-use crate::{convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait }};
+use crate::{convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait }, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2}};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -15,6 +15,9 @@ use super::i64x2::i64x2;
 pub struct u64x2(
     #[cfg(target_arch = "x86_64")] pub(crate) __m128i,
     #[cfg(target_arch = "aarch64")] pub(crate) uint64x2_t);
+
+#[allow(non_camel_case_types)]
+pub(crate) type u64_promote = u64x2;
 
 impl PartialEq for u64x2 {
     #[inline(always)]
@@ -88,6 +91,13 @@ impl VecTrait<u64> for u64x2 {
         unsafe { u64x2(_mm_set1_epi64x(val as i64)) }
         #[cfg(target_arch = "aarch64")]
         unsafe { u64x2(vdupq_n_u64(val)) }
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const u64) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        unsafe { u64x2(_mm_loadu_si128(ptr as *const __m128i)) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u64x2(vld1q_u64(ptr)) }
     }
 }
 
@@ -536,7 +546,7 @@ impl Eval2 for u64x2 {
     fn __is_true(&self) -> Self::Output {
         unsafe {
             let eq = _mm_cmpeq_epi64(self.0, _mm_setzero_si128());
-            i64x4(_mm_xor_si128(eq, _mm_set1_epi64x(-1)))
+            i64x2(_mm_xor_si128(eq, _mm_set1_epi64x(-1)))
         }
     }
 

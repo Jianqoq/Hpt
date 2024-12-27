@@ -15,7 +15,7 @@ use crate::{
         xlog_u1, xpow, xround, xsin_u1, xsincos_u1, xsinh, xsqrt_u05, xtan_u1, xtanh, xtrunc,
     },
     convertion::VecConvertor,
-    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait}, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
 use helper::vabs_vd_vd;
 
@@ -34,6 +34,9 @@ pub struct f64x2(
     #[cfg(target_arch = "x86_64")] pub(crate) __m128d,
     #[cfg(target_arch = "aarch64")] pub(crate) float64x2_t,
 );
+
+#[allow(non_camel_case_types)]
+pub(crate) type f64_promote = f64x2;
 
 impl PartialEq for f64x2 {
     #[inline(always)]
@@ -113,6 +116,17 @@ impl VecTrait<f64> for f64x2 {
         #[cfg(target_arch = "aarch64")]
         unsafe {
             f64x2(vdupq_n_f64(val))
+        }
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const f64) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            f64x2(_mm_loadu_pd(ptr))
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            f64x2(vld1q_f64(ptr))
         }
     }
 }

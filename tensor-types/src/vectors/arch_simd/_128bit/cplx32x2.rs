@@ -1,12 +1,15 @@
 use num_complex::Complex32;
 
-use crate::{convertion::VecConvertor, vectors::traits::VecTrait};
+use crate::{convertion::VecConvertor, traits::SimdMath, type_promote::{FloatOutBinary2, NormalOut2, NormalOutUnary2}, vectors::traits::VecTrait};
 
 /// a vector of 2 Complex32 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 #[repr(C, align(16))]
 pub struct cplx32x2(pub(crate) [Complex32; 2]);
+
+#[allow(non_camel_case_types)]
+pub(crate) type Complex32_promote = cplx32x2;
 
 impl VecTrait<Complex32> for cplx32x2 {
     const SIZE: usize = 2;
@@ -28,6 +31,14 @@ impl VecTrait<Complex32> for cplx32x2 {
     #[inline(always)]
     fn splat(val: Complex32) -> cplx32x2 {
         cplx32x2([val; 2])
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const Complex32) -> Self {
+        let mut result = [Complex32::ZERO; 2];
+        for i in 0..2 {
+            result[i] = unsafe { *ptr.add(i) };
+        }
+        cplx32x2(result)
     }
 }
 
@@ -113,6 +124,9 @@ impl VecConvertor for cplx32x2 {
     }
 }
 
+impl SimdMath<Complex32> for cplx32x2 {
+}
+
 impl FloatOutBinary2 for cplx32x2 {
     #[inline(always)]
     fn __div(self, rhs: Self) -> Self {
@@ -192,7 +206,7 @@ impl NormalOut2 for cplx32x2 {
     }
 }
 
-impl NormalOutUnary2 for cplx32x4 {
+impl NormalOutUnary2 for cplx32x2 {
     #[inline(always)]
     fn __square(self) -> Self {
         self * self

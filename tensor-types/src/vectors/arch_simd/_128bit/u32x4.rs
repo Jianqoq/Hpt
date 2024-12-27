@@ -1,4 +1,4 @@
-use crate::{convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait }};
+use crate::{convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait }, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2}};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -17,6 +17,9 @@ pub struct u32x4(
     #[cfg(target_arch = "aarch64")]
     pub(crate) uint32x4_t,
 );
+
+#[allow(non_camel_case_types)]
+pub(crate) type u32_promote = u32x4;
 
 impl Default for u32x4 {
     #[inline(always)]
@@ -75,6 +78,13 @@ impl VecTrait<u32> for u32x4 {
         unsafe { u32x4(_mm_set1_epi32(val as i32)) }
         #[cfg(target_arch = "aarch64")]
         unsafe { u32x4(vdupq_n_u32(val)) }
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const u32) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        unsafe { u32x4(_mm_loadu_si128(ptr as *const __m128i)) }
+        #[cfg(target_arch = "aarch64")]
+        unsafe { u32x4(vld1q_u32(ptr)) }
     }
 }
 

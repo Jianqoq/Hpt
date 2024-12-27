@@ -1,5 +1,6 @@
 use crate::convertion::VecConvertor;
-use crate::traits::VecTrait;
+use crate::traits::{SimdMath, VecTrait};
+use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
 use crate::vectors::arch_simd::_128bit::f32x4::f32x4;
 use crate::vectors::arch_simd::_128bit::u16x8::u16x8;
 
@@ -15,6 +16,9 @@ use std::arch::x86_64::*;
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 #[repr(C, align(16))]
 pub struct f16x8(pub(crate) [half::f16; 8]);
+
+#[allow(non_camel_case_types)]
+pub(crate) type f16_promote = f16x8;
 
 impl VecTrait<half::f16> for f16x8 {
     const SIZE: usize = 8;
@@ -41,6 +45,14 @@ impl VecTrait<half::f16> for f16x8 {
     #[inline(always)]
     fn splat(val: half::f16) -> f16x8 {
         f16x8([val; 8])
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const half::f16) -> Self {
+        let mut result = [half::f16::ZERO; 8];
+        for i in 0..8 {
+            result[i] = unsafe { *ptr.add(i) };
+        }
+        f16x8(result)
     }
 }
 
@@ -72,7 +84,7 @@ impl f16x8 {
     }
     /// check if the value is infinite, and return a mask
     #[inline(always)]
-    pub fn is_infinite(&self) -> u16x8 {
+    pub fn is_infinite(&self) -> i16x8 {
         let x = u16x8::splat(0x7c00u16);
         let y = u16x8::splat(0x03ffu16);
         let i: u16x8 = unsafe { std::mem::transmute(self.0) };
@@ -136,6 +148,30 @@ impl f16x8 {
             {
                 let [high, low]: [[u16; 4]; 2] = std::mem::transmute(self.0);
                 std::mem::transmute([u16_to_f32(high), u16_to_f32(low)])
+            }
+        }
+    }
+
+    /// convert from 2 f32x4
+    #[inline(always)]
+    pub fn from_2_f32x4(val: [f32x4; 2]) -> Self {
+        unsafe {
+            #[cfg(all(target_feature = "f16c", target_arch = "x86_64"))]
+            {
+                let f16_high = _mm_cvtps_ph(val[0].0, _MM_FROUND_TO_NEAREST_INT);
+                let f16_low = _mm_cvtps_ph(val[1].0, _MM_FROUND_TO_NEAREST_INT);
+                let result = _mm_unpacklo_epi64(f16_low, f16_high);
+                std::mem::transmute(result)
+            }
+            #[cfg(not(all(target_feature = "f16c", target_arch = "x86_64")))]
+            {
+                let arr: [[f32; 4]; 2] = std::mem::transmute(val);
+                let mut result = [0u16; 8];
+                for i in 0..4 {
+                    result[i] = half::f16::from_f32(arr[0][i]).to_bits();
+                    result[i + 4] = half::f16::from_f32(arr[1][i]).to_bits();
+                }
+                result
             }
         }
     }
@@ -275,29 +311,6 @@ pub(crate) fn f32x4_to_f16x4(_: f32x4) -> [u16; 4] {
     unimplemented!()
 }
 
-#[inline(always)]
-pub(crate) fn f32x4_to_f16x8(val: [f32x4; 2]) -> f16x8 {
-    unsafe {
-        #[cfg(all(target_feature = "f16c", target_arch = "x86_64"))]
-        {
-            let f16_high = _mm_cvtps_ph(val[0].0, _MM_FROUND_TO_NEAREST_INT);
-            let f16_low = _mm_cvtps_ph(val[1].0, _MM_FROUND_TO_NEAREST_INT);
-            let result = _mm_insertf128_ps(_mm_castsi128_ps(f16_low), f16_high, 1);
-            std::mem::transmute(result)
-        }
-        #[cfg(not(all(target_feature = "f16c", target_arch = "x86_64")))]
-        {
-            let arr: [[f32; 4]; 2] = std::mem::transmute(val);
-            let mut result = [0u16; 8];
-            for i in 0..4 {
-                result[i] = half::f16::from_f32(arr[0][i]).to_bits();
-                result[i + 4] = half::f16::from_f32(arr[1][i]).to_bits();
-            }
-            result
-        }
-    }
-}
-
 impl VecConvertor for f16x8 {
     #[inline(always)]
     fn to_i16(self) -> super::i16x8::i16x8 {
@@ -338,7 +351,6 @@ impl VecConvertor for f16x8 {
         self
     }
 }
-
 
 impl SimdMath<half::f16> for f16x8 {
     #[inline(always)]
@@ -419,7 +431,7 @@ impl SimdMath<half::f16> for f16x8 {
         Self::from_2_f32x4([high_sign, low_sign])
     }
     #[inline(always)]
-    fn leaky_relu(self, alpha: half::bf16) -> Self {
+    fn leaky_relu(self, alpha: half::f16) -> Self {
         let [high, low] = self.to_2_f32x4();
         let high_leaky_relu = high.leaky_relu(alpha.to_f32());
         let low_leaky_relu = low.leaky_relu(alpha.to_f32());
@@ -603,7 +615,7 @@ impl SimdMath<half::f16> for f16x8 {
     }
     #[inline(always)]
     fn sincos(self) -> (Self, Self) {
-        let [high, low] = self.to_2_f32x8();
+        let [high, low] = self.to_2_f32x4();
         let (high_sin, high_cos) = high.sincos();
         let (low_sin, low_cos) = low.sincos();
         (
@@ -652,7 +664,7 @@ impl SimdMath<half::f16> for f16x8 {
     }
 
     #[inline(always)]
-    fn elu(self, alpha: half::bf16) -> Self {
+    fn elu(self, alpha: half::f16) -> Self {
         let [high, low] = self.to_2_f32x4();
         let high_elu = high.elu(alpha.to_f32());
         let low_elu = low.elu(alpha.to_f32());
@@ -660,7 +672,7 @@ impl SimdMath<half::f16> for f16x8 {
     }
 
     #[inline(always)]
-    fn selu(self, alpha: half::bf16, scale: half::bf16) -> Self {
+    fn selu(self, alpha: half::f16, scale: half::f16) -> Self {
         let [high, low] = self.to_2_f32x4();
         let high_selu = high.selu(alpha.to_f32(), scale.to_f32());
         let low_selu = low.selu(alpha.to_f32(), scale.to_f32());
@@ -668,7 +680,7 @@ impl SimdMath<half::f16> for f16x8 {
     }
 
     #[inline(always)]
-    fn celu(self, alpha: half::bf16) -> Self {
+    fn celu(self, alpha: half::f16) -> Self {
         let [high, low] = self.to_2_f32x4();
         let high_celu = high.celu(alpha.to_f32());
         let low_celu = low.celu(alpha.to_f32());
@@ -730,7 +742,7 @@ impl SimdMath<half::f16> for f16x8 {
     }
 }
 
-impl FloatOutBinary2 for bf16x16 {
+impl FloatOutBinary2 for f16x8 {
     #[inline(always)]
     fn __div(self, rhs: Self) -> Self {
         self / rhs
@@ -742,11 +754,11 @@ impl FloatOutBinary2 for bf16x16 {
         let [high_base, low_base] = base.to_2_f32x4();
         let high_log = high.__log(high_base);
         let low_log = low.__log(low_base);
-        bf16x16::from_2_f32x4([high_log, low_log])
+        f16x8::from_2_f32x4([high_log, low_log])
     }
 }
 
-impl NormalOut2 for bf16x16 {
+impl NormalOut2 for f16x8 {
     #[inline(always)]
     fn __add(self, rhs: Self) -> Self {
         self + rhs
@@ -773,7 +785,7 @@ impl NormalOut2 for bf16x16 {
         let [high_rhs, low_rhs] = rhs.to_2_f32x4();
         let high_pow = high.__pow(high_rhs);
         let low_pow = low.__pow(low_rhs);
-        bf16x16::from_2_f32x4([high_pow, low_pow])
+        f16x8::from_2_f32x4([high_pow, low_pow])
     }
 
     #[inline(always)]
@@ -787,7 +799,7 @@ impl NormalOut2 for bf16x16 {
         let [high_rhs, low_rhs] = rhs.to_2_f32x4();
         let high_max = high.__max(high_rhs);
         let low_max = low.__max(low_rhs);
-        bf16x16::from_2_f32x4([high_max, low_max])
+        f16x8::from_2_f32x4([high_max, low_max])
     }
 
     #[inline(always)]
@@ -796,7 +808,7 @@ impl NormalOut2 for bf16x16 {
         let [high_rhs, low_rhs] = rhs.to_2_f32x4();
         let high_min = high.__min(high_rhs);
         let low_min = low.__min(low_rhs);
-        bf16x16::from_2_f32x4([high_min, low_min])
+        f16x8::from_2_f32x4([high_min, low_min])
     }
 
     #[inline(always)]
@@ -806,11 +818,11 @@ impl NormalOut2 for bf16x16 {
         let [high_max, low_max] = max.to_2_f32x4();
         let high_clip = high.__clip(high_min, high_max);
         let low_clip = low.__clip(low_min, low_max);
-        bf16x16::from_2_f32x4([high_clip, low_clip])
+        f16x8::from_2_f32x4([high_clip, low_clip])
     }
 }
 
-impl NormalOutUnary2 for bf16x16 {
+impl NormalOutUnary2 for f16x8 {
     #[inline(always)]
     fn __square(self) -> Self {
         self * self
@@ -821,7 +833,7 @@ impl NormalOutUnary2 for bf16x16 {
         let [high, low] = self.to_2_f32x4();
         let high_abs = high.__abs();
         let low_abs = low.__abs();
-        bf16x16::from_2_f32x4([high_abs, low_abs])
+        f16x8::from_2_f32x4([high_abs, low_abs])
     }
 
     #[inline(always)]
@@ -829,7 +841,7 @@ impl NormalOutUnary2 for bf16x16 {
         let [high, low] = self.to_2_f32x4();
         let high_ceil = high.__ceil();
         let low_ceil = low.__ceil();
-        bf16x16::from_2_f32x4([high_ceil, low_ceil])
+        f16x8::from_2_f32x4([high_ceil, low_ceil])
     }
 
     #[inline(always)]
@@ -837,7 +849,7 @@ impl NormalOutUnary2 for bf16x16 {
         let [high, low] = self.to_2_f32x4();
         let high_floor = high.__floor();
         let low_floor = low.__floor();
-        bf16x16::from_2_f32x4([high_floor, low_floor])
+        f16x8::from_2_f32x4([high_floor, low_floor])
     }
 
     #[inline(always)]
@@ -845,7 +857,7 @@ impl NormalOutUnary2 for bf16x16 {
         let [high, low] = self.to_2_f32x4();
         let high_neg = high.__neg();
         let low_neg = low.__neg();
-        bf16x16::from_2_f32x4([high_neg, low_neg])
+        f16x8::from_2_f32x4([high_neg, low_neg])
     }
 
     #[inline(always)]
@@ -853,7 +865,7 @@ impl NormalOutUnary2 for bf16x16 {
         let [high, low] = self.to_2_f32x4();
         let high_round = high.__round();
         let low_round = low.__round();
-        bf16x16::from_2_f32x4([high_round, low_round])
+        f16x8::from_2_f32x4([high_round, low_round])
     }
 
     #[inline(always)]
@@ -861,13 +873,13 @@ impl NormalOutUnary2 for bf16x16 {
         let [high, low] = self.to_2_f32x4();
         let high_sign = high.__sign();
         let low_sign = low.__sign();
-        bf16x16::from_2_f32x4([high_sign, low_sign])
+        f16x8::from_2_f32x4([high_sign, low_sign])
     }
 
     #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
-        self.max(bf16x16::splat(half::bf16::from_f32_const(0.0)))
-            + alpha * self.min(bf16x16::splat(half::bf16::from_f32_const(0.0)))
+        self.max(f16x8::splat(half::f16::from_f32_const(0.0)))
+            + alpha * self.min(f16x8::splat(half::f16::from_f32_const(0.0)))
     }
 
     #[inline(always)]
@@ -875,7 +887,7 @@ impl NormalOutUnary2 for bf16x16 {
         let [high, low] = self.to_2_f32x4();
         let high_relu = high.__relu();
         let low_relu = low.__relu();
-        bf16x16::from_2_f32x4([high_relu, low_relu])
+        f16x8::from_2_f32x4([high_relu, low_relu])
     }
 
     #[inline(always)]
@@ -883,12 +895,12 @@ impl NormalOutUnary2 for bf16x16 {
         let [high, low] = self.to_2_f32x4();
         let high_relu6 = high.__relu6();
         let low_relu6 = low.__relu6();
-        bf16x16::from_2_f32x4([high_relu6, low_relu6])
+        f16x8::from_2_f32x4([high_relu6, low_relu6])
     }
 }
 
-impl Eval2 for bf16x16 {
-    type Output = i16x16;
+impl Eval2 for f16x8 {
+    type Output = i16x8;
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
         self.is_nan()
