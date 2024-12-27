@@ -48,6 +48,8 @@ mod simd_float_out_unary;
 mod simd_normal_out;
 mod simd_normal_unary;
 mod type_utils;
+mod into_cuda_scalar;
+mod into_scalar;
 
 use crate::simd_cmp::impl_simd_cmp;
 use crate::simd_normal_out::impl_simd_normal_out;
@@ -455,6 +457,18 @@ pub fn simd_cmp(_: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn impl_into_vec(_: TokenStream) -> TokenStream {
     into_vec::into_vec()
+}
+
+/// implment into cuda scalar trait
+#[proc_macro]
+pub fn impl_into_cuda_scalar(_: TokenStream) -> TokenStream {
+    into_cuda_scalar::__impl_into_cuda_scalar().into()
+}
+
+/// implment into scalar trait
+#[proc_macro]
+pub fn impl_into_scalar(_: TokenStream) -> TokenStream {
+    into_scalar::__impl_into_scalar().into()
 }
 
 /// implement bitwise out trait

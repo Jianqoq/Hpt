@@ -425,6 +425,7 @@ pub mod cuda_types {
     pub(crate) mod _cplx32;
     pub(crate) mod _cplx64;
     pub(crate) mod _f16;
+    pub(crate) mod _bf16;
     pub(crate) mod _f32;
     pub(crate) mod _f64;
     pub(crate) mod _i16;

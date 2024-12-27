@@ -1,9 +1,14 @@
-use crate::type_promote::{FloatOutBinaryPromote, NormalOutPromote, SimdCmpPromote, FloatOutUnaryPromote};
+use crate::cuda_types::scalar::Scalar;
+use crate::type_promote::{
+    FloatOutBinaryPromote, FloatOutUnaryPromote, NormalOutPromote, SimdCmpPromote,
+};
 use crate::vectors::vector_promote::*;
-use crate::{impl_float_out_binary_promote, impl_normal_out_promote, impl_simd_cmp_promote, impl_float_out_unary_promote};
+use crate::{
+    impl_float_out_binary_promote, impl_float_out_unary_promote, impl_normal_out_promote,
+    impl_simd_cmp_promote,
+};
 use half::{bf16, f16};
 use num_complex::{Complex32, Complex64};
-
 impl_float_out_binary_promote!(f32, bool, f32);
 impl_float_out_binary_promote!(f32, i8, f32);
 impl_float_out_binary_promote!(f32, i16, f32);
