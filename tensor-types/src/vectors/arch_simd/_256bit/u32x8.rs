@@ -1,4 +1,8 @@
-use crate::{convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait }};
+use crate::{
+    convertion::VecConvertor,
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -10,6 +14,10 @@ use super::i32x8::i32x8;
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(32))]
 pub struct u32x8(pub(crate) __m256i);
+
+/// helper to impl the promote trait
+#[allow(non_camel_case_types)]
+pub(crate) type u32_promote = u32x8;
 
 impl Default for u32x8 {
     #[inline(always)]
@@ -32,7 +40,12 @@ impl VecTrait<u32> for u32x8 {
     type Base = u32;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[u32]) {
-        unsafe { _mm256_storeu_si256(&mut self.0, _mm256_loadu_si256(slice.as_ptr() as *const __m256i)) }
+        unsafe {
+            _mm256_storeu_si256(
+                &mut self.0,
+                _mm256_loadu_si256(slice.as_ptr() as *const __m256i),
+            )
+        }
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
@@ -289,5 +302,137 @@ impl VecConvertor for u32x8 {
     #[cfg(target_pointer_width = "32")]
     fn to_isize(self) -> super::isizex4::isizex4 {
         unsafe { std::mem::transmute(self) }
+    }
+}
+
+impl FloatOutBinary2 for u32x8 {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
+
+    #[inline(always)]
+    fn __log(self, _: Self) -> Self {
+        panic!("Logarithm operation is not supported for u16")
+    }
+}
+
+impl NormalOut2 for u32x8 {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
+
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self.max(rhs)
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self.min(rhs)
+    }
+
+    #[inline(always)]
+    fn __clip(self, min: Self, max: Self) -> Self {
+        self.max(min).min(max)
+    }
+}
+
+impl NormalOutUnary2 for u32x8 {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __sign(self) -> Self {
+        self.sign()
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, _: Self) -> Self {
+        unreachable!()
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self.relu()
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self.relu6()
+    }
+}
+
+impl Eval2 for u32x8 {
+    type Output = i32x8;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        i32x8::default()
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        unsafe {
+            let eq = _mm256_cmpeq_epi32(self.0, _mm256_setzero_si256());
+            i32x8(_mm256_xor_si256(eq, _mm256_set1_epi32(-1)))
+        }
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        i32x8::default()
     }
 }

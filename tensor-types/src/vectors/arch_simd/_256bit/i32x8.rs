@@ -1,4 +1,8 @@
-use crate::{convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait }};
+use crate::{
+    convertion::VecConvertor,
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+};
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
@@ -9,6 +13,10 @@ use super::u32x8::u32x8;
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(32))]
 pub struct i32x8(pub(crate) __m256i);
+
+/// helper to impl the promote trait
+#[allow(non_camel_case_types)]
+pub(crate) type i32_promote = i32x8;
 
 impl PartialEq for i32x8 {
     #[inline(always)]
@@ -32,7 +40,12 @@ impl VecTrait<i32> for i32x8 {
     type Base = i32;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[i32]) {
-        unsafe { _mm256_storeu_si256(&mut self.0, _mm256_loadu_si256(slice.as_ptr() as *const __m256i)) }
+        unsafe {
+            _mm256_storeu_si256(
+                &mut self.0,
+                _mm256_loadu_si256(slice.as_ptr() as *const __m256i),
+            )
+        }
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
@@ -71,7 +84,7 @@ impl SimdCompare for i32x8 {
     }
     #[inline(always)]
     fn simd_ne(self, other: Self) -> i32x8 {
-        unsafe { 
+        unsafe {
             let eq = _mm256_cmpeq_epi32(self.0, other.0);
             i32x8(_mm256_xor_si256(eq, _mm256_set1_epi32(-1)))
         }
@@ -82,7 +95,7 @@ impl SimdCompare for i32x8 {
     }
     #[inline(always)]
     fn simd_le(self, other: Self) -> i32x8 {
-        unsafe { 
+        unsafe {
             let lt = _mm256_cmpgt_epi32(other.0, self.0);
             let eq = _mm256_cmpeq_epi32(self.0, other.0);
             i32x8(_mm256_or_si256(lt, eq))
@@ -94,7 +107,7 @@ impl SimdCompare for i32x8 {
     }
     #[inline(always)]
     fn simd_ge(self, other: Self) -> i32x8 {
-        unsafe { 
+        unsafe {
             let gt = _mm256_cmpgt_epi32(self.0, other.0);
             let eq = _mm256_cmpeq_epi32(self.0, other.0);
             i32x8(_mm256_or_si256(gt, eq))
@@ -139,6 +152,9 @@ impl std::ops::Div for i32x8 {
             let arr2: [i32; 8] = std::mem::transmute(rhs.0);
             let mut arr3: [i32; 8] = [0; 8];
             for i in 0..8 {
+                if arr2[i] == 0 {
+                    panic!("Division by zero for i32");
+                }
                 arr3[i] = arr[i] / arr2[i];
             }
             i32x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
@@ -255,9 +271,7 @@ impl VecConvertor for i32x8 {
     }
     #[inline(always)]
     fn to_f32(self) -> super::f32x8::f32x8 {
-        unsafe {
-            super::f32x8::f32x8(_mm256_cvtepi32_ps(self.0))
-        }
+        unsafe { super::f32x8::f32x8(_mm256_cvtepi32_ps(self.0)) }
     }
     #[inline(always)]
     #[cfg(target_pointer_width = "32")]
@@ -268,5 +282,137 @@ impl VecConvertor for i32x8 {
     #[cfg(target_pointer_width = "32")]
     fn to_usize(self) -> super::usizex4::usizex4 {
         unsafe { std::mem::transmute(self) }
+    }
+}
+
+impl FloatOutBinary2 for i32x8 {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
+
+    #[inline(always)]
+    fn __log(self, _: Self) -> Self {
+        panic!("Logarithm operation is not supported for i32")
+    }
+}
+
+impl NormalOut2 for i32x8 {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
+
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self.max(rhs)
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self.min(rhs)
+    }
+
+    #[inline(always)]
+    fn __clip(self, min: Self, max: Self) -> Self {
+        unsafe { i32x8(_mm256_min_epi32(_mm256_max_epi32(self.0, min.0), max.0)) }
+    }
+}
+
+impl NormalOutUnary2 for i32x8 {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        i32x8(unsafe { _mm256_abs_epi32(self.0) })
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        unsafe { Self(_mm256_sub_epi32(_mm256_setzero_si256(), self.0)) }
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __sign(self) -> Self {
+        self.sign()
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, _: Self) -> Self {
+        unreachable!()
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self.relu()
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self.relu6()
+    }
+}
+
+impl Eval2 for i32x8 {
+    type Output = i32x8;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        i32x8::default()
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        unsafe {
+            let eq = _mm256_cmpeq_epi32(self.0, _mm256_setzero_si256());
+            Self(_mm256_xor_si256(eq, _mm256_set1_epi32(-1)))
+        }
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        i32x8::default()
     }
 }

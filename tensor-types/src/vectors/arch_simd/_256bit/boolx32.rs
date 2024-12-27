@@ -1,7 +1,8 @@
 use crate::convertion::VecConvertor;
-use crate::traits::{SimdSelect, VecTrait};
-use crate::vectors::arch_simd::_256bit::u8x32::u8x32;
 use crate::traits::SimdCompare;
+use crate::traits::{SimdSelect, VecTrait};
+use crate::type_promote::{Eval, Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
+use crate::vectors::arch_simd::_256bit::u8x32::u8x32;
 
 use super::i8x32::i8x32;
 
@@ -11,6 +12,10 @@ use super::i8x32::i8x32;
 #[repr(C, align(32))]
 pub struct boolx32(pub(crate) [bool; 32]);
 
+/// helper to impl the promote trait
+#[allow(non_camel_case_types)]
+pub(crate) type bool_promote = boolx32;
+
 impl VecTrait<bool> for boolx32 {
     const SIZE: usize = 32;
     type Base = bool;
@@ -19,8 +24,12 @@ impl VecTrait<bool> for boolx32 {
         self.0.copy_from_slice(slice);
     }
     #[inline(always)]
-    fn mul_add(self, _: Self, _: Self) -> Self {
-        todo!()
+    fn mul_add(self, a: Self, b: Self) -> Self {
+        let mut ret = boolx32::default();
+        for i in 0..32 {
+            ret.0[i] = (self.0[i] && a.0[i]) || b.0[i];
+        }
+        ret
     }
     #[inline(always)]
     fn sum(&self) -> bool {
@@ -135,7 +144,11 @@ impl SimdSelect<boolx32> for i8x32 {
         let mut ret = boolx32::default();
         let arr = self.as_array();
         for i in 0..32 {
-            ret.0[i] = if arr[i] != 0 { true_val.0[i] } else { false_val.0[i] };
+            ret.0[i] = if arr[i] != 0 {
+                true_val.0[i]
+            } else {
+                false_val.0[i]
+            };
         }
         ret
     }
@@ -227,5 +240,179 @@ impl VecConvertor for boolx32 {
     #[inline(always)]
     fn to_u8(self) -> u8x32 {
         unsafe { std::mem::transmute(self) }
+    }
+}
+
+impl FloatOutBinary2 for boolx32 {
+    #[inline(always)]
+    fn __div(self, _: Self) -> Self {
+        panic!("Division operation is not supported for boolean type")
+    }
+
+    #[inline(always)]
+    fn __log(self, _: Self) -> Self {
+        panic!("Logarithm operation is not supported for bool")
+    }
+}
+
+impl NormalOut2 for boolx32 {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, _: Self) -> Self {
+        panic!("Subtraction is not supported for boolean type")
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, _: Self) -> Self {
+        panic!("Power operation is not supported for boolean type")
+    }
+
+    #[inline(always)]
+    fn __rem(self, _: Self) -> Self {
+        panic!("Remainder operation is not supported for boolean type")
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self | rhs
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self & rhs
+    }
+
+    #[inline(always)]
+    fn __clip(self, _: Self, _: Self) -> Self {
+        self
+    }
+}
+
+impl NormalOutUnary2 for boolx32 {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __sign(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, _: Self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self
+    }
+}
+
+impl Eval2 for boolx32 {
+    type Output = i8x32;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        unsafe {
+            std::mem::transmute([
+                0i8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0,
+            ])
+        }
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        unsafe {
+            std::mem::transmute([
+                self[0]._is_true(),
+                self[1]._is_true(),
+                self[2]._is_true(),
+                self[3]._is_true(),
+                self[4]._is_true(),
+                self[5]._is_true(),
+                self[6]._is_true(),
+                self[7]._is_true(),
+                self[8]._is_true(),
+                self[9]._is_true(),
+                self[10]._is_true(),
+                self[11]._is_true(),
+                self[12]._is_true(),
+                self[13]._is_true(),
+                self[14]._is_true(),
+                self[15]._is_true(),
+                self[16]._is_true(),
+                self[17]._is_true(),
+                self[18]._is_true(),
+                self[19]._is_true(),
+                self[20]._is_true(),
+                self[21]._is_true(),
+                self[22]._is_true(),
+                self[23]._is_true(),
+                self[24]._is_true(),
+                self[25]._is_true(),
+                self[26]._is_true(),
+                self[27]._is_true(),
+                self[28]._is_true(),
+                self[29]._is_true(),
+                self[30]._is_true(),
+                self[31]._is_true(),
+            ])
+        }
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        unsafe {
+            std::mem::transmute([
+                0i8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0,
+            ])
+        }
     }
 }

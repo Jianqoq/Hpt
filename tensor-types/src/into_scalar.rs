@@ -1,5 +1,5 @@
-use half::{ f16, bf16 };
-use num_complex::{ Complex32, Complex64 };
+use half::{bf16, f16};
+use num_complex::{Complex32, Complex64};
 
 /// A trait for converting a scalar into another scalar type.
 pub trait IntoScalar<T> {
@@ -55,7 +55,7 @@ macro_rules! impl_into_scalar_for_f16 {
 
 macro_rules! impl_into_scalar_not_bool {
     ($source:ident, $($target:ident),*) => {
-        $(  
+        $(
         impl IntoScalar<$target> for $source {
             #[inline(always)]
             fn into_scalar(self) -> $target {
@@ -67,7 +67,7 @@ macro_rules! impl_into_scalar_not_bool {
 
 macro_rules! impl_into_scalar_not_bool_ref {
     (&$source:ident, $($target:ident),*) => {
-        $(  
+        $(
         impl IntoScalar<$target> for &$source {
             #[inline(always)]
             fn into_scalar(self) -> $target {
@@ -79,7 +79,7 @@ macro_rules! impl_into_scalar_not_bool_ref {
 
 macro_rules! impl_into_scalar_not_bool_to_bool {
     ($($source:ident),*) => {
-        $(  
+        $(
         impl IntoScalar<bool> for $source {
             #[inline(always)]
             fn into_scalar(self) -> bool {
@@ -95,7 +95,7 @@ macro_rules! impl_into_scalar_not_bool_to_bool {
 
 macro_rules! impl_into_scalar_bool {
     ($source:ident, $($target:ident),*) => {
-        $(  
+        $(
         impl IntoScalar<$target> for $source {
             #[inline(always)]
             fn into_scalar(self) -> $target {
@@ -111,7 +111,7 @@ macro_rules! impl_into_scalar_bool {
 
 macro_rules! impl_into_scalar_bool_ref {
     (&$source:ident, $($target:ident),*) => {
-        $(  
+        $(
         impl IntoScalar<$target> for &$source {
             #[inline(always)]
             fn into_scalar(self) -> $target {
@@ -257,12 +257,104 @@ impl IntoScalar<bf16> for u8 {
     }
 }
 
+impl IntoScalar<bool> for bf16 {
+    #[inline(always)]
+    fn into_scalar(self) -> bool {
+        self.to_bits() != 0
+    }
+}
+
+impl IntoScalar<i8> for bf16 {
+    #[inline(always)]
+    fn into_scalar(self) -> i8 {
+        self.to_f32() as i8
+    }
+}
+
+impl IntoScalar<u8> for bf16 {
+    #[inline(always)]
+    fn into_scalar(self) -> u8 {
+        self.to_f32() as u8
+    }
+}
+
+impl IntoScalar<i16> for bf16 {
+    #[inline(always)]
+    fn into_scalar(self) -> i16 {
+        self.to_f32() as i16
+    }
+}
+
+impl IntoScalar<u16> for bf16 {
+    #[inline(always)]
+    fn into_scalar(self) -> u16 {
+        self.to_f32() as u16
+    }
+}
+
+impl IntoScalar<i32> for bf16 {
+    #[inline(always)]
+    fn into_scalar(self) -> i32 {
+        self.to_f32() as i32
+    }
+}
+
+impl IntoScalar<u32> for bf16 {
+    #[inline(always)]
+    fn into_scalar(self) -> u32 {
+        self.to_f32() as u32
+    }
+}
+
+impl IntoScalar<i64> for bf16 {
+    #[inline(always)]
+    fn into_scalar(self) -> i64 {
+        self.to_f64() as i64
+    }
+}
+
+impl IntoScalar<u64> for bf16 {
+    #[inline(always)]
+    fn into_scalar(self) -> u64 {
+        self.to_f64() as u64
+    }
+}
+
 impl IntoScalar<bf16> for bf16 {
     #[inline(always)]
     fn into_scalar(self) -> bf16 {
         self
     }
 }
+
+impl IntoScalar<isize> for bf16 {
+    #[inline(always)]
+    fn into_scalar(self) -> isize {
+        #[cfg(target_pointer_width = "64")]
+        {
+            self.to_f64() as isize
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            self.to_f32() as isize
+        }
+    }
+}
+
+impl IntoScalar<usize> for bf16 {
+    #[inline(always)]
+    fn into_scalar(self) -> usize {
+        #[cfg(target_pointer_width = "64")]
+        {
+            self.to_f64() as usize
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            self.to_f32() as usize
+        }
+    }
+}
+
 
 impl IntoScalar<Complex32> for bf16 {
     #[inline(always)]
@@ -323,7 +415,25 @@ impl IntoScalar<bool> for f16 {
 impl IntoScalar<Complex32> for bool {
     #[inline(always)]
     fn into_scalar(self) -> Complex32 {
-        if self { Complex32::new(1.0, 1.0) } else { Complex32::new(0.0, 0.0) }
+        if self {
+            Complex32::new(1.0, 1.0)
+        } else {
+            Complex32::new(0.0, 0.0)
+        }
+    }
+}
+
+impl IntoScalar<bool> for isize {
+    #[inline(always)]
+    fn into_scalar(self) -> bool {
+        self != 0
+    }
+}
+
+impl IntoScalar<isize> for bool {
+    #[inline(always)]
+    fn into_scalar(self) -> isize {
+        self as isize
     }
 }
 
@@ -331,6 +441,13 @@ impl IntoScalar<bool> for Complex32 {
     #[inline(always)]
     fn into_scalar(self) -> bool {
         self.re != 0.0
+    }
+}
+
+impl IntoScalar<isize> for Complex32 {
+    #[inline(always)]
+    fn into_scalar(self) -> isize {
+        self.re as isize
     }
 }
 
@@ -347,6 +464,14 @@ impl IntoScalar<f16> for Complex32 {
         f16::from_f32(self.re)
     }
 }
+
+impl IntoScalar<half::bf16> for Complex32 {
+    #[inline(always)]
+    fn into_scalar(self) -> half::bf16 {
+        half::bf16::from_f32(self.re)
+    }
+}
+
 
 impl IntoScalar<Complex32> for f32 {
     #[inline(always)]
@@ -554,7 +679,11 @@ impl IntoScalar<Complex64> for Complex32 {
 impl IntoScalar<Complex64> for bool {
     #[inline(always)]
     fn into_scalar(self) -> Complex64 {
-        if self { Complex64::new(1.0, 1.0) } else { Complex64::new(0.0, 0.0) }
+        if self {
+            Complex64::new(1.0, 1.0)
+        } else {
+            Complex64::new(0.0, 0.0)
+        }
     }
 }
 
@@ -562,6 +691,13 @@ impl IntoScalar<bool> for Complex64 {
     #[inline(always)]
     fn into_scalar(self) -> bool {
         self.re != 0.0
+    }
+}
+
+impl IntoScalar<isize> for Complex64 {
+    #[inline(always)]
+    fn into_scalar(self) -> isize {
+        self.re as isize
     }
 }
 
@@ -576,6 +712,13 @@ impl IntoScalar<f16> for Complex64 {
     #[inline(always)]
     fn into_scalar(self) -> f16 {
         f16::from_f64(self.re)
+    }
+}
+
+impl IntoScalar<bf16> for Complex64 {
+    #[inline(always)]
+    fn into_scalar(self) -> bf16 {
+        bf16::from_f64(self.re)
     }
 }
 
@@ -762,445 +905,91 @@ impl IntoScalar<Complex64> for Complex64 {
 }
 
 into_f16_from_32!(i16, u16, i32, u32);
-into_f16_from_64!(i64, u64, i128, u128, usize);
-impl_into_scalar_for_f16!(i16, i8, u8, u16, i32, u32, i64, u64, i128, u128, usize, f32, f64);
+into_f16_from_64!(i64, u64, i128, u128, usize, isize);
+impl_into_scalar_for_f16!(i16, i8, u8, u16, i32, u32, i64, u64, i128, u128, usize, isize, f32, f64);
 impl_into_scalar_same!(
-    bool,
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f16,
-    f32,
-    f64,
-    usize,
-    isize
+    bool, i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f16, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool!(
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool_ref!(
-    &i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    &i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool!(
-    u8,
-    i8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    u8, i8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool_ref!(
-    &u8,
-    i8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    &u8, i8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool!(
-    i16,
-    i8,
-    u8,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    i16, i8, u8, u16, i32, u32, i64, u64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool_ref!(
-    &i16,
-    i8,
-    u8,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    &i16, i8, u8, u16, i32, u32, i64, u64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool!(
-    u16,
-    i8,
-    u8,
-    i16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    u16, i8, u8, i16, i32, u32, i64, u64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool_ref!(
-    &u16,
-    i8,
-    u8,
-    i16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    &u16, i8, u8, i16, i32, u32, i64, u64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool!(
-    i32,
-    i8,
-    u8,
-    i16,
-    u16,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    i32, i8, u8, i16, u16, u32, i64, u64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool_ref!(
-    &i32,
-    i8,
-    u8,
-    i16,
-    u16,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    &i32, i8, u8, i16, u16, u32, i64, u64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool!(
-    u32,
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    u32, i8, u8, i16, u16, i32, i64, u64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool_ref!(
-    &u32,
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    &u32, i8, u8, i16, u16, i32, i64, u64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool!(
-    i64,
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    i64, i8, u8, i16, u16, i32, u32, u64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool_ref!(
-    &i64,
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    &i64, i8, u8, i16, u16, i32, u32, u64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool!(
-    u64,
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    u64, i8, u8, i16, u16, i32, u32, i64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool_ref!(
-    &u64,
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    &u64, i8, u8, i16, u16, i32, u32, i64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool!(
-    i128,
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    i128, i8, u8, i16, u16, i32, u32, i64, u64, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool_ref!(
-    &i128,
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    &i128, i8, u8, i16, u16, i32, u32, i64, u64, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool!(
-    u128,
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    f32,
-    f64,
-    usize,
-    isize
+    u128, i8, u8, i16, u16, i32, u32, i64, u64, i128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool_ref!(
-    &u128,
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    f32,
-    f64,
-    usize,
-    isize
+    &u128, i8, u8, i16, u16, i32, u32, i64, u64, i128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool!(
-    usize,
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    isize
+    usize, i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, isize
 );
 impl_into_scalar_not_bool_ref!(
-    &usize,
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    &usize, i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, usize, isize
 );
 impl_into_scalar_not_bool!(
-    isize,
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize
+    isize, i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, usize
 );
 impl_into_scalar_not_bool_ref!(
-    &isize,
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize,
-    isize
+    &isize, i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, usize, isize
 );
-impl_into_scalar_not_bool!(f32, i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f64, usize);
-impl_into_scalar_not_bool_ref!(&f32, i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f64, usize);
-impl_into_scalar_not_bool!(f64, i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, usize);
-impl_into_scalar_not_bool_ref!(&f64, i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, usize);
+impl_into_scalar_not_bool!(f32, i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f64, usize, isize);
+impl_into_scalar_not_bool_ref!(&f32, i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f64, usize, isize);
+impl_into_scalar_not_bool!(f64, i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, usize, isize);
+impl_into_scalar_not_bool_ref!(&f64, i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, usize, isize);
 impl_into_scalar_bool!(bool, i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, usize);
 impl_into_scalar_bool_ref!(
-    &bool,
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize
+    &bool, i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, usize
 );
 impl_into_scalar_not_bool_to_bool!(
-    i8,
-    u8,
-    i16,
-    u16,
-    i32,
-    u32,
-    i64,
-    u64,
-    i128,
-    u128,
-    f32,
-    f64,
-    usize
+    i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, usize
 );

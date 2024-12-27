@@ -1,6 +1,6 @@
 use crate::{
     convertion::VecConvertor,
-    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait}, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
 
 use super::usizex4::usizex4;
@@ -17,12 +17,22 @@ use crate::arch_simd::_256bit::i64x4::i64x4;
 #[repr(C, align(16))]
 pub struct isizex8(pub(crate) i32x8);
 
+#[cfg(target_pointer_width = "32")]
+/// helper to impl the promote trait
+#[allow(non_camel_case_types)]
+pub(crate) type isize_promote = isizex8;
+
 #[cfg(target_pointer_width = "64")]
 /// a vector of 4 isize values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(16))]
 pub struct isizex4(pub(crate) i64x4);
+
+#[cfg(target_pointer_width = "64")]
+/// helper to impl the promote trait
+#[allow(non_camel_case_types)]
+pub(crate) type isize_promote = isizex4;
 
 #[cfg(target_pointer_width = "32")]
 type ISizeVEC = isizex8;
@@ -281,5 +291,134 @@ impl VecConvertor for ISizeVEC {
     #[cfg(target_pointer_width = "64")]
     fn to_f64(self) -> super::f64x4::f64x4 {
         self.to_i64().to_f64()
+    }
+}
+
+impl FloatOutBinary2 for ISizeVEC {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
+
+    #[inline(always)]
+    fn __log(self, _: Self) -> Self {
+        panic!("Logarithm operation is not supported for i32")
+    }
+}
+
+impl NormalOut2 for ISizeVEC {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
+
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self.max(rhs)
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self.min(rhs)
+    }
+
+    #[inline(always)]
+    fn __clip(self, min: Self, max: Self) -> Self {
+        self.max(min).min(max)
+    }
+}
+
+impl NormalOutUnary2 for ISizeVEC {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        self.abs()
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        -self
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __sign(self) -> Self {
+        self.sign()
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, _: Self) -> Self {
+        unreachable!()
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self.relu()
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self.relu6()
+    }
+}
+
+impl Eval2 for ISizeVEC {
+    type Output = ISizeVEC;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        ISizeVEC::default()
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        Self(self.0.__is_true())
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        ISizeVEC::default()
     }
 }

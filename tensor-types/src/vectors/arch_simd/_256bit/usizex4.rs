@@ -1,6 +1,7 @@
 use crate::{
     convertion::VecConvertor,
     traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
 
 #[cfg(target_pointer_width = "32")]
@@ -17,12 +18,22 @@ use super::isizex4::isizex4;
 #[repr(C, align(16))]
 pub struct usizex8(pub(crate) u32x8);
 
+#[cfg(target_pointer_width = "32")]
+/// helper to impl the promote trait
+#[allow(non_camel_case_types)]
+pub(crate) type usize_promote = usizex8;
+
 #[cfg(target_pointer_width = "64")]
 /// a vector of 4 usize values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(16))]
 pub struct usizex4(pub(crate) u64x4);
+
+#[cfg(target_pointer_width = "64")]
+/// helper to impl the promote trait
+#[allow(non_camel_case_types)]
+pub(crate) type usize_promote = usizex4;
 
 #[cfg(target_pointer_width = "32")]
 type USizeVEC = usizex8;
@@ -330,5 +341,158 @@ impl VecConvertor for usizex4 {
     #[inline(always)]
     fn to_i32(self) -> crate::simd::_256bit::i32x8::i32x8 {
         unsafe { std::mem::transmute(self) }
+    }
+}
+
+impl FloatOutBinary2 for USizeVEC {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
+
+    #[inline(always)]
+    fn __log(self, _: Self) -> Self {
+        panic!("Logarithm operation is not supported for i32")
+    }
+}
+
+impl NormalOut2 for USizeVEC {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
+
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self.max(rhs)
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self.min(rhs)
+    }
+
+    #[inline(always)]
+    fn __clip(self, min: Self, max: Self) -> Self {
+        self.max(min).min(max)
+    }
+}
+
+impl NormalOutUnary2 for USizeVEC {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __sign(self) -> Self {
+        self.sign()
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, _: Self) -> Self {
+        unreachable!()
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self.relu()
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self.relu6()
+    }
+}
+
+impl Eval2 for USizeVEC {
+    #[cfg(target_pointer_width = "64")]
+    type Output = isizex4;
+    #[cfg(target_pointer_width = "32")]
+    type Output = isizex8;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        #[cfg(target_pointer_width = "64")]
+        {
+            isizex4::default()
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            isizex8::default()
+        }
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        #[cfg(target_pointer_width = "64")]
+        {
+            isizex4(self.0.__is_true())
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            isizex8(self.0.__is_true())
+        }
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        #[cfg(target_pointer_width = "64")]
+        {
+            isizex4::default()
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            isizex8::default()
+        }
     }
 }

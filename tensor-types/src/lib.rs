@@ -14,6 +14,48 @@ pub mod into_scalar;
 pub mod into_vec;
 /// A module defines a set of traits for tensor operations, and implement computation functions for scalar and vector types
 pub mod type_promote;
+/// A module defines a set of traits for scalar operations
+pub(crate) mod scalars {
+    pub(crate) mod _bf16;
+    pub(crate) mod _bool;
+    pub(crate) mod _cplx32;
+    pub(crate) mod _cplx64;
+    pub(crate) mod _f16;
+    pub(crate) mod _f32;
+    pub(crate) mod _f64;
+    pub(crate) mod _i16;
+    pub(crate) mod _i32;
+    pub(crate) mod _i64;
+    pub(crate) mod _i8;
+    pub(crate) mod _isize;
+    pub(crate) mod _u16;
+    pub(crate) mod _u32;
+    pub(crate) mod _u64;
+    pub(crate) mod _u8;
+    pub(crate) mod _usize;
+}
+
+/// A module defines a set of traits for type promotion
+pub mod promotion {
+    pub(crate) mod _bf16;
+    pub(crate) mod _bool;
+    pub(crate) mod _cplx32;
+    pub(crate) mod _cplx64;
+    pub(crate) mod _f16;
+    pub(crate) mod _f32;
+    pub(crate) mod _f64;
+    pub(crate) mod _i16;
+    pub(crate) mod _i32;
+    pub(crate) mod _i64;
+    pub(crate) mod _i8;
+    pub(crate) mod _isize;
+    pub(crate) mod _u16;
+    pub(crate) mod _u32;
+    pub(crate) mod _u64;
+    pub(crate) mod _u8;
+    pub(crate) mod _usize;
+    pub(crate) mod utils;
+}
 
 /// A module defines a set of vector types
 pub mod vectors {
@@ -270,6 +312,9 @@ pub mod vectors {
             /// A module defines a set of vector types for helper
             pub mod arch {
                 /// A module defines a set of vector types for helper
+                #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+                pub mod helper_aarch64;
+                /// A module defines a set of vector types for helper
                 #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
                 pub mod helper_avx2;
                 /// A module defines a set of vector types for helper
@@ -279,9 +324,6 @@ pub mod vectors {
                     not(target_feature = "avx2")
                 ))]
                 pub mod helper_sse;
-                /// A module defines a set of vector types for helper
-                #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-                pub mod helper_aarch64;
             }
             /// A module defines a set of vector types for common
             pub mod common {
@@ -309,15 +351,92 @@ pub mod vectors {
     pub mod traits;
     /// A module defines a set of utils for vector
     pub mod utils;
+
+    #[cfg(target_feature = "avx2")]
+    pub(crate) mod vector_promote {
+        #[cfg(target_pointer_width = "64")]
+        pub(crate) use crate::vectors::arch_simd::_256bit::isizex4::isize_promote;
+        #[cfg(target_pointer_width = "32")]
+        pub(crate) use crate::vectors::arch_simd::_256bit::isizex8::isize_promote;
+        #[cfg(target_pointer_width = "64")]
+        pub(crate) use crate::vectors::arch_simd::_256bit::usizex4::usize_promote;
+        #[cfg(target_pointer_width = "32")]
+        pub(crate) use crate::vectors::arch_simd::_256bit::usizex8::usize_promote;
+        pub(crate) use crate::vectors::arch_simd::_256bit::{
+            bf16x16::bf16_promote, boolx32::bool_promote, cplx32x4::Complex32_promote,
+            cplx64x2::Complex64_promote, f16x16::f16_promote, f32x8::f32_promote,
+            f64x4::f64_promote, i16x16::i16_promote, i32x8::i32_promote, i64x4::i64_promote,
+            i8x32::i8_promote, u16x16::u16_promote, u32x8::u32_promote, u64x4::u64_promote,
+            u8x32::u8_promote,
+        };
+    }
+    #[cfg(any(
+        all(not(target_feature = "avx2"), target_feature = "sse"),
+        target_arch = "arm",
+        target_arch = "aarch64",
+        target_feature = "neon"
+    ))]
+    pub(crate) mod vector_promote {
+        #[cfg(target_pointer_width = "64")]
+        pub(crate) use crate::vectors::arch_simd::_128bit::isizex2::isize_promote;
+        #[cfg(target_pointer_width = "32")]
+        pub(crate) use crate::vectors::arch_simd::_128bit::isizex4::isize_promote;
+        #[cfg(target_pointer_width = "64")]
+        pub(crate) use crate::vectors::arch_simd::_128bit::usizex2::usize_promote;
+        #[cfg(target_pointer_width = "32")]
+        pub(crate) use crate::vectors::arch_simd::_128bit::usizex4::usize_promote;
+        pub(crate) use crate::vectors::arch_simd::_128bit::{
+            bf16x8::bf16_promote, boolx16::bool_promote, cplx32x2::Complex32_promote,
+            cplx64x1::Complex64_promote, f16x8::f16_promote, f32x4::f32_promote,
+            f64x2::f64_promote, i16x8::i16_promote, i32x4::i32_promote, i64x2::i64_promote,
+            i8x16::i8_promote, u16x8::u16_promote, u32x4::u32_promote, u64x2::u64_promote,
+            u8x16::u8_promote,
+        };
+    }
+    #[cfg(target_feature = "avx512f")]
+    pub(crate) mod vector_promote {
+        #[cfg(target_pointer_width = "32")]
+        pub(crate) use crate::vectors::arch_simd::_512bit::isizex16::isize_promote;
+        #[cfg(target_pointer_width = "64")]
+        pub(crate) use crate::vectors::arch_simd::_512bit::isizex8::isize_promote;
+        #[cfg(target_pointer_width = "32")]
+        pub(crate) use crate::vectors::arch_simd::_512bit::usizex16::usize_promote;
+        #[cfg(target_pointer_width = "64")]
+        pub(crate) use crate::vectors::arch_simd::_512bit::usizex8::usize_promote;
+        pub(crate) use crate::vectors::arch_simd::_512bit::{
+            bf16x32::bf16_promote, boolx64::bool_promote, cplx32x8::Complex32_promote,
+            cplx64x4::Complex64_promote, f16x32::f16_promote, f32x16::f32_promote,
+            f64x8::f64_promote, i16x32::i16_promote, i32x16::i32_promote, i64x8::i64_promote,
+            i8x64::i8_promote, u16x32::u16_promote, u32x16::u32_promote, u64x8::u64_promote,
+            u8x64::u8_promote,
+        };
+    }
 }
 
 #[cfg(feature = "cuda")]
 /// A module defines a set of types for cuda
 pub mod cuda_types {
-    /// A module defines a scalar type for cuda
-    pub mod scalar;
     /// A module defines convertion for cuda types
     pub mod convertion;
+    /// A module defines a scalar type for cuda
+    pub mod scalar;
+
+    pub(crate) mod _bool;
+    pub(crate) mod _cplx32;
+    pub(crate) mod _cplx64;
+    pub(crate) mod _f16;
+    pub(crate) mod _f32;
+    pub(crate) mod _f64;
+    pub(crate) mod _i16;
+    pub(crate) mod _i32;
+    pub(crate) mod _i64;
+    pub(crate) mod _i8;
+    pub(crate) mod _isize;
+    pub(crate) mod _u16;
+    pub(crate) mod _u32;
+    pub(crate) mod _u64;
+    pub(crate) mod _u8;
+    pub(crate) mod _usize;
 }
 
 pub use vectors::*;

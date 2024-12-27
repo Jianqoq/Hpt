@@ -29,31 +29,50 @@ pub(crate) fn __impl_normal_out_unary() -> TokenStream {
     for lhs in types.iter() {
         let lhs_type = TypeInfo::new(lhs);
         let lhs_dtype = lhs_type.dtype;
-        let neg_method = neg(lhs_dtype);
-        let abs_method = abs(lhs_dtype);
-        let ceil_method = ceil_floor_round(lhs_dtype, 1);
-        let floor_method = ceil_floor_round(lhs_dtype, 2);
-        let sign_method = sign(lhs_dtype);
-        let round_method = ceil_floor_round(lhs_dtype, 0);
-        let relu_method = relu();
-        let relu6_method = relu6();
-        let leaky_relu_method = leaky_relu();
+
         let res = quote! {
             impl NormalOutUnary for #lhs_dtype {
-                type Base = Self;
+                type Base = <Self as NormalOutPromote<Self>>::Output;
                 #[inline(always)]
                 fn _square(self) -> Self {
                     self._mul(self)
                 }
-                #neg_method
-                #abs_method
-                #ceil_method
-                #floor_method
-                #sign_method
-                #round_method
-                #relu_method
-                #relu6_method
-                #leaky_relu_method
+                #[inline(always)]
+                fn _neg(self) -> Self {
+                    self.__neg()
+                }
+                #[inline(always)]
+                fn _abs(self) -> Self {
+                    self.__abs()
+                }
+                #[inline(always)]
+                fn _ceil(self) -> Self {
+                    self.__ceil()
+                }
+                #[inline(always)]
+                fn _floor(self) -> Self {
+                    self.__floor()
+                }
+                #[inline(always)]
+                fn _round(self) -> Self {
+                    self.__round()
+                }
+                #[inline(always)]
+                fn _sign(self) -> Self {
+                    self.__sign()
+                }
+                #[inline(always)]
+                fn _relu(self) -> Self {
+                    self.__relu()
+                }
+                #[inline(always)]
+                fn _relu6(self) -> Self {
+                    self.__relu6()
+                }
+                #[inline(always)]
+                fn _leaky_relu(self, alpha: Self::Base) -> Self {
+                    self.__leaky_relu(alpha)
+                }
             }
         };
         ret.extend(res);
@@ -119,141 +138,6 @@ pub(crate) fn __impl_normal_out_unary_cuda() -> TokenStream {
     }
 
     ret.into()
-}
-
-fn neg(lhs_dtype: Type) -> proc_macro2::TokenStream {
-    let neg_body = if lhs_dtype.is_float() {
-        quote! {
-            -self
-        }
-    } else if lhs_dtype.is_bool() {
-        quote! {
-            !self
-        }
-    } else if lhs_dtype.is_unsigned() {
-        quote! {
-            !self + 1
-        }
-    } else {
-        quote! {
-            -self
-        }
-    };
-    quote! {
-        #[inline(always)]
-        fn _neg(self) -> Self {
-            #neg_body
-        }
-    }
-}
-
-fn abs(lhs_dtype: Type) -> proc_macro2::TokenStream {
-    let abs_body = if lhs_dtype.is_unsigned() {
-        quote! {
-            self
-        }
-    } else if lhs_dtype.is_cplx() {
-        quote! {
-                panic!("abs method is not supported for complex number")
-        }
-    } else {
-        quote! {
-            self.abs()
-        }
-    };
-    quote! {
-        #[inline(always)]
-        fn _abs(self) -> Self {
-            #abs_body
-        }
-    }
-}
-
-fn ceil_floor_round(lhs_dtype: Type, mode: u8) -> proc_macro2::TokenStream {
-    let ceil_body = if lhs_dtype.is_float() {
-        match mode {
-            0 => quote! {
-                self.round()
-            },
-            1 => quote! {
-                self.ceil()
-            },
-            2 => quote! {
-                self.floor()
-            },
-            _ => unreachable!(),
-        }
-    } else {
-        quote! {
-            self
-        }
-    };
-    let method = match mode {
-        0 => "_round",
-        1 => "_ceil",
-        2 => "_floor",
-        _ => unreachable!(),
-    };
-    let method_ident = Ident::new(method, proc_macro2::Span::call_site());
-    quote! {
-        #[inline(always)]
-        fn #method_ident(self) -> Self {
-            #ceil_body
-        }
-    }
-}
-
-fn sign(res_type: Type) -> proc_macro2::TokenStream {
-    let sign_body = if res_type.is_float() {
-        quote! {
-            self.signum()
-        }
-    } else if res_type.is_cplx() {
-        quote! {
-            panic!("sign method is not supported for complex number")
-        }
-    } else if res_type.is_unsigned() {
-        quote! {
-            #res_type::ZERO
-        }
-    } else {
-        quote! {
-            self.signum()
-        }
-    };
-    quote! {
-        #[inline(always)]
-        fn _sign(self) -> Self {
-            #sign_body
-        }
-    }
-}
-
-fn relu() -> proc_macro2::TokenStream {
-    quote! {
-        #[inline(always)]
-        fn _relu(self) -> Self {
-            self._max(Self::ZERO)
-        }
-    }
-}
-
-fn relu6() -> proc_macro2::TokenStream {
-    quote! {
-        #[inline(always)]
-        fn _relu6(self) -> Self {
-            self._max(Self::ZERO)._min(Self::SIX)
-        }
-    }
-}
-
-fn leaky_relu() -> proc_macro2::TokenStream {
-    quote! {
-        #[inline(always)]
-        fn _leaky_relu(self, alpha: Self::Base) -> Self {
-            self._max(Self::ZERO)._add(alpha._mul(self._min(Self::ZERO)))
-        }
-    }
 }
 
 fn cuda_neg(lhs_dtype: Type) -> proc_macro2::TokenStream {

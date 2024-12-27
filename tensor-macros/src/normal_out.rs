@@ -32,56 +32,109 @@ pub(crate) fn __impl_normal_out_binary() -> TokenStream {
             let rhs_type = TypeInfo::new(rhs);
             let lhs_dtype = lhs_type.dtype;
             let rhs_dtype = rhs_type.dtype;
-            let res_type = lhs_type.infer_normal_res_type(&rhs_type);
-            let res_type_ident = Ident::new(
-                &res_type.to_string().to_lowercase(),
-                proc_macro2::Span::call_site(),
-            );
-            let to_res_type = Ident::new(
-                &format!("to_{}", res_type.to_string().to_lowercase()),
-                proc_macro2::Span::call_site(),
-            );
-            let mul_add_method = mul_add(rhs_dtype, res_type, to_res_type.clone());
-            let pow_method = pow(rhs_dtype, res_type, to_res_type.clone());
-            let cmp_method = cmp(rhs_dtype, res_type, to_res_type.clone());
-            let std_ops = std_ops(rhs_dtype, res_type, to_res_type.clone());
-
-            let clamp = if res_type.is_cplx() {
+            let res = if lhs_dtype == rhs_dtype {
                 quote! {
-                    #[inline(always)]
-                    fn _clip(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            let c = self.[<to_ #res_type_ident>]();
-                            let min = min.[<to_ #res_type_ident>]();
-                            let max = max.[<to_ #res_type_ident>]();
-                            let clamped_re = c.re.clamp(min.re, max.re);
-                            let clamped_im = c.im.clamp(min.im, max.im);
-                            #res_type::new(clamped_re, clamped_im)
+                    impl NormalOut<#rhs_dtype> for #lhs_dtype {
+                        type Output = <Self as NormalOutPromote<#rhs_dtype>>::Output;
+                        #[inline(always)]
+                        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
+                            self.__pow(rhs)
+                        }
+                        #[inline(always)]
+                        fn _clip(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
+                            self.__clip(min, max)
+                        }
+                        #[inline(always)]
+                        fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
+                            self.__mul_add(a, b)
+                        }
+                        #[inline(always)]
+                        fn _add(self, rhs: #rhs_dtype) -> Self::Output {
+                            self.__add(rhs)
+                        }
+                        #[inline(always)]
+                        fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
+                            self.__sub(rhs)
+                        }
+                        #[inline(always)]
+                        fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
+                            self.__mul(rhs)
+                        }
+                        #[inline(always)]
+                        fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
+                            self.__rem(rhs)
+                        }
+                        #[inline(always)]
+                        fn _max(self, rhs: #rhs_dtype) -> Self::Output {
+                            self.__max(rhs)
+                        }
+                        #[inline(always)]
+                        fn _min(self, rhs: #rhs_dtype) -> Self::Output {
+                            self.__min(rhs)
                         }
                     }
                 }
             } else {
                 quote! {
-                    #[inline(always)]
-                    fn _clip(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
-                        paste::paste! {
-                            let a = self.[<to_ #res_type_ident>]();
-                            let min = min.[<to_ #res_type_ident>]();
-                            let max = max.[<to_ #res_type_ident>]();
-                            if a < min { min } else if a > max { max } else { a }
+                    impl NormalOut<#rhs_dtype> for #lhs_dtype {
+                        type Output = <Self as NormalOutPromote<#rhs_dtype>>::Output;
+                        #[inline(always)]
+                        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs_scalar: Self::Output = self.into_scalar();
+                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            lhs_scalar.__pow(rhs_scalar)
+                        }
+                        #[inline(always)]
+                        fn _clip(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
+                            let lhs_scalar: Self::Output = self.into_scalar();
+                            let min_scalar: Self::Output = min.into_scalar();
+                            let max_scalar: Self::Output = max.into_scalar();
+                            lhs_scalar.__clip(min_scalar, max_scalar)
+                        }
+                        #[inline(always)]
+                        fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
+                            let lhs_scalar: Self::Output = self.into_scalar();
+                            let a_scalar: Self::Output = a.into_scalar();
+                            let b_scalar: Self::Output = b.into_scalar();
+                            lhs_scalar.__mul_add(a_scalar, b_scalar)
+                        }
+                        #[inline(always)]
+                        fn _add(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs_scalar: Self::Output = self.into_scalar();
+                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            lhs_scalar.__add(rhs_scalar)
+                        }
+                        #[inline(always)]
+                        fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs_scalar: Self::Output = self.into_scalar();
+                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            lhs_scalar.__sub(rhs_scalar)
+                        }
+                        #[inline(always)]
+                        fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs_scalar: Self::Output = self.into_scalar();
+                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            lhs_scalar.__mul(rhs_scalar)
+                        }
+                        #[inline(always)]
+                        fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs_scalar: Self::Output = self.into_scalar();
+                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            lhs_scalar.__rem(rhs_scalar)
+                        }
+                        #[inline(always)]
+                        fn _max(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs_scalar: Self::Output = self.into_scalar();
+                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            lhs_scalar.__max(rhs_scalar)
+                        }
+                        #[inline(always)]
+                        fn _min(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs_scalar: Self::Output = self.into_scalar();
+                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            lhs_scalar.__min(rhs_scalar)
                         }
                     }
-                }
-            };
-
-            let res = quote! {
-                impl NormalOut<#rhs_dtype> for #lhs_dtype {
-                    type Output = #res_type;
-                    #pow_method
-                    #clamp
-                    #mul_add_method
-                    #std_ops
-                    #cmp_method
                 }
             };
             ret.extend(res);
@@ -89,166 +142,6 @@ pub(crate) fn __impl_normal_out_binary() -> TokenStream {
     }
 
     ret.into()
-}
-
-fn mul_add(rhs_type: Type, res_type: Type, to_res_type: Ident) -> proc_macro2::TokenStream {
-    let mul_add_body = if res_type.is_float() {
-        quote! {
-            self.#to_res_type() * a.#to_res_type() + b.#to_res_type()
-        }
-    } else if res_type.is_bool() {
-        quote! {
-            self || a && b
-        }
-    } else if res_type.is_cplx() {
-        quote! {
-            self.#to_res_type() * a.#to_res_type() + b.#to_res_type()
-        }
-    } else {
-        quote! {
-                self.#to_res_type().wrapping_mul(a.#to_res_type()) + b.#to_res_type()
-        }
-    };
-    quote! {
-        #[inline(always)]
-        fn _mul_add(self, a: #rhs_type, b: #rhs_type) -> Self::Output {
-            #mul_add_body
-        }
-    }
-}
-
-fn pow(rhs_dtype: Type, res_type: Type, to_res_type: Ident) -> proc_macro2::TokenStream {
-    let pow_body = if res_type.is_float() {
-        quote! {
-            self.#to_res_type().powf(rhs.#to_res_type())
-        }
-    } else if res_type.is_cplx() {
-        quote! {
-            self.#to_res_type().powc(rhs.#to_res_type())
-        }
-    } else {
-        if res_type.is_bool() {
-            quote! {
-                self || rhs
-            }
-        } else {
-            quote! {
-                self.#to_res_type().pow(rhs.to_u32())
-            }
-        }
-    };
-    quote! {
-        #[inline(always)]
-        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
-            #pow_body
-        }
-    }
-}
-
-fn cmp(rhs_dtype: Type, res_type: Type, to_res_type: Ident) -> proc_macro2::TokenStream {
-    let (max_body, min_body) = if res_type.is_bool() {
-        let max_body = quote! {
-            self | rhs
-        };
-        let min_body = quote! {
-            self & rhs
-        };
-        (max_body, min_body)
-    } else if res_type.is_cplx() {
-        let max_body = quote! {
-            panic!("max method is not supported for complex number")
-        };
-        let min_body = quote! {
-            panic!("min method is not supported for complex number")
-        };
-        (max_body, min_body)
-    } else {
-        let max_body = quote! {
-            self.#to_res_type().max(rhs.#to_res_type())
-        };
-        let min_body = quote! {
-            self.#to_res_type().min(rhs.#to_res_type())
-        };
-        (max_body, min_body)
-    };
-    quote! {
-        #[inline(always)]
-        fn _max(self, rhs: #rhs_dtype) -> Self::Output {
-            #max_body
-        }
-        #[inline(always)]
-        fn _min(self, rhs: #rhs_dtype) -> Self::Output {
-            #min_body
-        }
-    }
-}
-
-fn std_ops(rhs_dtype: Type, res_type: Type, to_res_type: Ident) -> proc_macro2::TokenStream {
-    let (add, sub, mul, rem) = if res_type.is_bool() {
-        let add = quote! {
-            let res = self.to_i8() + rhs.to_i8();
-            res != 0
-        };
-        let sub = quote! {
-            let res = self.to_i8() - rhs.to_i8();
-            res != 0
-        };
-        let mul = quote! {
-            let res = self.to_i8() * rhs.to_i8();
-            res != 0
-        };
-        let rem = quote! {
-            let res = self.to_i8() % rhs.to_i8();
-            res != 0
-        };
-        (add, sub, mul, rem)
-    } else if res_type.is_cplx() || res_type.is_float() {
-        let add = quote! {
-            self.#to_res_type() + rhs.#to_res_type()
-        };
-        let sub = quote! {
-            self.#to_res_type() - rhs.#to_res_type()
-        };
-        let mul = quote! {
-            self.#to_res_type() * rhs.#to_res_type()
-        };
-        let rem = quote! {
-            self.#to_res_type() % rhs.#to_res_type()
-        };
-        (add, sub, mul, rem)
-    } else {
-        let add = quote! {
-            self.#to_res_type().wrapping_add(rhs.#to_res_type())
-        };
-        let sub = quote! {
-            self.#to_res_type().wrapping_sub(rhs.#to_res_type())
-        };
-        let mul = quote! {
-            self.#to_res_type().wrapping_mul(rhs.#to_res_type())
-        };
-        let rem = quote! {
-            self.#to_res_type().wrapping_rem(rhs.#to_res_type())
-        };
-        (add, sub, mul, rem)
-    };
-    quote! {
-        #[inline(always)]
-        fn _add(self, rhs: #rhs_dtype) -> Self::Output {
-            #add
-        }
-        #[inline(always)]
-        fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
-            #sub
-        }
-        #[inline(always)]
-        fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
-            #mul
-        }
-        #[inline(always)]
-        fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
-            #rem
-        }
-    }
 }
 
 pub(crate) fn __impl_cuda_normal_out_binary() -> TokenStream {

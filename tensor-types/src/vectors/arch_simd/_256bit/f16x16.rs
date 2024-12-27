@@ -1,5 +1,6 @@
 use crate::convertion::VecConvertor;
-use crate::traits::{SimdSelect, VecTrait};
+use crate::traits::{SimdMath, SimdSelect, VecTrait};
+use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
 use crate::vectors::arch_simd::_256bit::f32x8::f32x8;
 use crate::vectors::arch_simd::_256bit::u16x16::u16x16;
 
@@ -14,6 +15,10 @@ use std::arch::x86_64::*;
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 #[repr(C, align(32))]
 pub struct f16x16(pub(crate) [half::f16; 16]);
+
+/// helper to impl the promote trait
+#[allow(non_camel_case_types)]
+pub(crate) type f16_promote = f16x16;
 
 impl VecTrait<half::f16> for f16x16 {
     const SIZE: usize = 16;
@@ -92,7 +97,7 @@ impl f16x16 {
     }
     /// check if the value is infinite, and return a mask
     #[inline(always)]
-    pub fn is_infinite(&self) -> u16x16 {
+    pub fn is_infinite(&self) -> i16x16 {
         let x = u16x16::splat(0x7c00u16);
         let y = u16x16::splat(0x03ffu16);
         let i: u16x16 = unsafe { std::mem::transmute(self.0) };
@@ -299,10 +304,24 @@ pub fn u16_to_f32(val: [u16; 8]) -> f32x8 {
     }
 }
 
-/// fallback to convert f32 to f16
 #[inline(always)]
-pub(crate) fn f32x8_to_f16x8(_: f32x8) -> [u16; 8] {
-    unimplemented!()
+pub(crate) fn f32x8_to_f16x8(val: f32x8) -> [u16; 8] {
+    unsafe {
+        #[cfg(all(target_feature = "f16c", target_arch = "x86_64"))]
+        {
+            let f16_bits = _mm256_cvtps_ph(val.0, _MM_FROUND_TO_NEAREST_INT);
+            std::mem::transmute(f16_bits)
+        }
+        #[cfg(not(all(target_feature = "f16c", target_arch = "x86_64")))]
+        {
+            let arr: [f32; 8] = std::mem::transmute(val);
+            let mut result = [0u16; 8];
+            for i in 0..8 {
+                result[i] = half::f16::from_f32(arr[i]).to_bits();
+            }
+            result
+        }
+    }
 }
 
 impl VecConvertor for f16x16 {
@@ -367,5 +386,404 @@ impl VecConvertor for f16x16 {
     #[inline(always)]
     fn to_f16(self) -> f16x16 {
         self
+    }
+}
+
+impl SimdMath<half::f16> for f16x16 {
+    
+}
+
+impl FloatOutBinary2 for f16x16 {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
+
+    #[inline(always)]
+    fn __log(self, base: Self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let [high_base, low_base] = base.to_2_f32x8();
+        let high_log = f32x8_to_f16x8(high.__log(high_base));
+        let low_log = f32x8_to_f16x8(low.__log(low_base));
+        f16x16([
+            half::f16::from_bits(high_log[0]),
+            half::f16::from_bits(high_log[1]),
+            half::f16::from_bits(high_log[2]),
+            half::f16::from_bits(high_log[3]),
+            half::f16::from_bits(high_log[4]),
+            half::f16::from_bits(high_log[5]),
+            half::f16::from_bits(high_log[6]),
+            half::f16::from_bits(high_log[7]),
+            half::f16::from_bits(low_log[0]),
+            half::f16::from_bits(low_log[1]),
+            half::f16::from_bits(low_log[2]),
+            half::f16::from_bits(low_log[3]),
+            half::f16::from_bits(low_log[4]),
+            half::f16::from_bits(low_log[5]),
+            half::f16::from_bits(low_log[6]),
+            half::f16::from_bits(low_log[7]),
+        ])
+    }
+}
+
+impl NormalOut2 for f16x16 {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let [high_base, low_base] = rhs.to_2_f32x8();
+        let high_pow = f32x8_to_f16x8(high.__pow(high_base));
+        let low_pow = f32x8_to_f16x8(low.__pow(low_base));
+        f16x16([
+            half::f16::from_bits(high_pow[0]),
+            half::f16::from_bits(high_pow[1]),
+            half::f16::from_bits(high_pow[2]),
+            half::f16::from_bits(high_pow[3]),
+            half::f16::from_bits(high_pow[4]),
+            half::f16::from_bits(high_pow[5]),
+            half::f16::from_bits(high_pow[6]),
+            half::f16::from_bits(high_pow[7]),
+            half::f16::from_bits(low_pow[0]),
+            half::f16::from_bits(low_pow[1]),
+            half::f16::from_bits(low_pow[2]),
+            half::f16::from_bits(low_pow[3]),
+            half::f16::from_bits(low_pow[4]),
+            half::f16::from_bits(low_pow[5]),
+            half::f16::from_bits(low_pow[6]),
+            half::f16::from_bits(low_pow[7]),
+        ])
+    }
+
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let [high_base, low_base] = rhs.to_2_f32x8();
+        let high_max = f32x8_to_f16x8(high.__max(high_base));
+        let low_max = f32x8_to_f16x8(low.__max(low_base));
+        f16x16([
+            half::f16::from_bits(high_max[0]),
+            half::f16::from_bits(high_max[1]),
+            half::f16::from_bits(high_max[2]),
+            half::f16::from_bits(high_max[3]),
+            half::f16::from_bits(high_max[4]),
+            half::f16::from_bits(high_max[5]),
+            half::f16::from_bits(high_max[6]),
+            half::f16::from_bits(high_max[7]),
+            half::f16::from_bits(low_max[0]),
+            half::f16::from_bits(low_max[1]),
+            half::f16::from_bits(low_max[2]),
+            half::f16::from_bits(low_max[3]),
+            half::f16::from_bits(low_max[4]),
+            half::f16::from_bits(low_max[5]),
+            half::f16::from_bits(low_max[6]),
+            half::f16::from_bits(low_max[7]),
+        ])
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let [high_base, low_base] = rhs.to_2_f32x8();
+        let high_min = f32x8_to_f16x8(high.__min(high_base));
+        let low_min = f32x8_to_f16x8(low.__min(low_base));
+        f16x16([
+            half::f16::from_bits(high_min[0]),
+            half::f16::from_bits(high_min[1]),
+            half::f16::from_bits(high_min[2]),
+            half::f16::from_bits(high_min[3]),
+            half::f16::from_bits(high_min[4]),
+            half::f16::from_bits(high_min[5]),
+            half::f16::from_bits(high_min[6]),
+            half::f16::from_bits(high_min[7]),
+            half::f16::from_bits(low_min[0]),
+            half::f16::from_bits(low_min[1]),
+            half::f16::from_bits(low_min[2]),
+            half::f16::from_bits(low_min[3]),
+            half::f16::from_bits(low_min[4]),
+            half::f16::from_bits(low_min[5]),
+            half::f16::from_bits(low_min[6]),
+            half::f16::from_bits(low_min[7]),
+        ])
+    }
+
+    #[inline(always)]
+    fn __clip(self, min: Self, max: Self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let [high_min, low_min] = min.to_2_f32x8();
+        let [high_max, low_max] = max.to_2_f32x8();
+        let high_clip = f32x8_to_f16x8(high.__clip(high_min, high_max));
+        let low_clip = f32x8_to_f16x8(low.__clip(low_min, low_max));
+        f16x16([
+            half::f16::from_bits(high_clip[0]),
+            half::f16::from_bits(high_clip[1]),
+            half::f16::from_bits(high_clip[2]),
+            half::f16::from_bits(high_clip[3]),
+            half::f16::from_bits(high_clip[4]),
+            half::f16::from_bits(high_clip[5]),
+            half::f16::from_bits(high_clip[6]),
+            half::f16::from_bits(high_clip[7]),
+            half::f16::from_bits(low_clip[0]),
+            half::f16::from_bits(low_clip[1]),
+            half::f16::from_bits(low_clip[2]),
+            half::f16::from_bits(low_clip[3]),
+            half::f16::from_bits(low_clip[4]),
+            half::f16::from_bits(low_clip[5]),
+            half::f16::from_bits(low_clip[6]),
+            half::f16::from_bits(low_clip[7]),
+        ])
+    }
+}
+
+impl NormalOutUnary2 for f16x16 {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_abs = f32x8_to_f16x8(high.__abs());
+        let low_abs = f32x8_to_f16x8(low.__abs());
+        f16x16([
+            half::f16::from_bits(high_abs[0]),
+            half::f16::from_bits(high_abs[1]),
+            half::f16::from_bits(high_abs[2]),
+            half::f16::from_bits(high_abs[3]),
+            half::f16::from_bits(high_abs[4]),
+            half::f16::from_bits(high_abs[5]),
+            half::f16::from_bits(high_abs[6]),
+            half::f16::from_bits(high_abs[7]),
+            half::f16::from_bits(low_abs[0]),
+            half::f16::from_bits(low_abs[1]),
+            half::f16::from_bits(low_abs[2]),
+            half::f16::from_bits(low_abs[3]),
+            half::f16::from_bits(low_abs[4]),
+            half::f16::from_bits(low_abs[5]),
+            half::f16::from_bits(low_abs[6]),
+            half::f16::from_bits(low_abs[7]),
+        ])
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_ceil = f32x8_to_f16x8(high.__ceil());
+        let low_ceil = f32x8_to_f16x8(low.__ceil());
+        f16x16([
+            half::f16::from_bits(high_ceil[0]),
+            half::f16::from_bits(high_ceil[1]),
+            half::f16::from_bits(high_ceil[2]),
+            half::f16::from_bits(high_ceil[3]),
+            half::f16::from_bits(high_ceil[4]),
+            half::f16::from_bits(high_ceil[5]),
+            half::f16::from_bits(high_ceil[6]),
+            half::f16::from_bits(high_ceil[7]),
+            half::f16::from_bits(low_ceil[0]),
+            half::f16::from_bits(low_ceil[1]),
+            half::f16::from_bits(low_ceil[2]),
+            half::f16::from_bits(low_ceil[3]),
+            half::f16::from_bits(low_ceil[4]),
+            half::f16::from_bits(low_ceil[5]),
+            half::f16::from_bits(low_ceil[6]),
+            half::f16::from_bits(low_ceil[7]),
+        ])
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_floor = f32x8_to_f16x8(high.__floor());
+        let low_floor = f32x8_to_f16x8(low.__floor());
+        f16x16([
+            half::f16::from_bits(high_floor[0]),
+            half::f16::from_bits(high_floor[1]),
+            half::f16::from_bits(high_floor[2]),
+            half::f16::from_bits(high_floor[3]),
+            half::f16::from_bits(high_floor[4]),
+            half::f16::from_bits(high_floor[5]),
+            half::f16::from_bits(high_floor[6]),
+            half::f16::from_bits(high_floor[7]),
+            half::f16::from_bits(low_floor[0]),
+            half::f16::from_bits(low_floor[1]),
+            half::f16::from_bits(low_floor[2]),
+            half::f16::from_bits(low_floor[3]),
+            half::f16::from_bits(low_floor[4]),
+            half::f16::from_bits(low_floor[5]),
+            half::f16::from_bits(low_floor[6]),
+            half::f16::from_bits(low_floor[7]),
+        ])
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_neg = f32x8_to_f16x8(high.__neg());
+        let low_neg = f32x8_to_f16x8(low.__neg());
+        f16x16([
+            half::f16::from_bits(high_neg[0]),
+            half::f16::from_bits(high_neg[1]),
+            half::f16::from_bits(high_neg[2]),
+            half::f16::from_bits(high_neg[3]),
+            half::f16::from_bits(high_neg[4]),
+            half::f16::from_bits(high_neg[5]),
+            half::f16::from_bits(high_neg[6]),
+            half::f16::from_bits(high_neg[7]),
+            half::f16::from_bits(low_neg[0]),
+            half::f16::from_bits(low_neg[1]),
+            half::f16::from_bits(low_neg[2]),
+            half::f16::from_bits(low_neg[3]),
+            half::f16::from_bits(low_neg[4]),
+            half::f16::from_bits(low_neg[5]),
+            half::f16::from_bits(low_neg[6]),
+            half::f16::from_bits(low_neg[7]),
+        ])
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_round = f32x8_to_f16x8(high.__round());
+        let low_round = f32x8_to_f16x8(low.__round());
+        f16x16([
+            half::f16::from_bits(high_round[0]),
+            half::f16::from_bits(high_round[1]),
+            half::f16::from_bits(high_round[2]),
+            half::f16::from_bits(high_round[3]),
+            half::f16::from_bits(high_round[4]),
+            half::f16::from_bits(high_round[5]),
+            half::f16::from_bits(high_round[6]),
+            half::f16::from_bits(high_round[7]),
+            half::f16::from_bits(low_round[0]),
+            half::f16::from_bits(low_round[1]),
+            half::f16::from_bits(low_round[2]),
+            half::f16::from_bits(low_round[3]),
+            half::f16::from_bits(low_round[4]),
+            half::f16::from_bits(low_round[5]),
+            half::f16::from_bits(low_round[6]),
+            half::f16::from_bits(low_round[7]),
+        ])
+    }
+
+    #[inline(always)]
+    fn __sign(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_sign = f32x8_to_f16x8(high.__sign());
+        let low_sign = f32x8_to_f16x8(low.__sign());
+        f16x16([
+            half::f16::from_bits(high_sign[0]),
+            half::f16::from_bits(high_sign[1]),
+            half::f16::from_bits(high_sign[2]),
+            half::f16::from_bits(high_sign[3]),
+            half::f16::from_bits(high_sign[4]),
+            half::f16::from_bits(high_sign[5]),
+            half::f16::from_bits(high_sign[6]),
+            half::f16::from_bits(high_sign[7]),
+            half::f16::from_bits(low_sign[0]),
+            half::f16::from_bits(low_sign[1]),
+            half::f16::from_bits(low_sign[2]),
+            half::f16::from_bits(low_sign[3]),
+            half::f16::from_bits(low_sign[4]),
+            half::f16::from_bits(low_sign[5]),
+            half::f16::from_bits(low_sign[6]),
+            half::f16::from_bits(low_sign[7]),
+        ])
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, _: Self) -> Self {
+        unreachable!()
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_relu = f32x8_to_f16x8(high.__relu());
+        let low_relu = f32x8_to_f16x8(low.__relu());
+        f16x16([
+            half::f16::from_bits(high_relu[0]),
+            half::f16::from_bits(high_relu[1]),
+            half::f16::from_bits(high_relu[2]),
+            half::f16::from_bits(high_relu[3]),
+            half::f16::from_bits(high_relu[4]),
+            half::f16::from_bits(high_relu[5]),
+            half::f16::from_bits(high_relu[6]),
+            half::f16::from_bits(high_relu[7]),
+            half::f16::from_bits(low_relu[0]),
+            half::f16::from_bits(low_relu[1]),
+            half::f16::from_bits(low_relu[2]),
+            half::f16::from_bits(low_relu[3]),
+            half::f16::from_bits(low_relu[4]),
+            half::f16::from_bits(low_relu[5]),
+            half::f16::from_bits(low_relu[6]),
+            half::f16::from_bits(low_relu[7]),
+        ])
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        let [high, low] = self.to_2_f32x8();
+        let high_relu6 = f32x8_to_f16x8(high.__relu6());
+        let low_relu6 = f32x8_to_f16x8(low.__relu6());
+        f16x16([
+            half::f16::from_bits(high_relu6[0]),
+            half::f16::from_bits(high_relu6[1]),
+            half::f16::from_bits(high_relu6[2]),
+            half::f16::from_bits(high_relu6[3]),
+            half::f16::from_bits(high_relu6[4]),
+            half::f16::from_bits(high_relu6[5]),
+            half::f16::from_bits(high_relu6[6]),
+            half::f16::from_bits(high_relu6[7]),
+            half::f16::from_bits(low_relu6[0]),
+            half::f16::from_bits(low_relu6[1]),
+            half::f16::from_bits(low_relu6[2]),
+            half::f16::from_bits(low_relu6[3]),
+            half::f16::from_bits(low_relu6[4]),
+            half::f16::from_bits(low_relu6[5]),
+            half::f16::from_bits(low_relu6[6]),
+            half::f16::from_bits(low_relu6[7]),
+        ])
+    }
+}
+
+impl Eval2 for f16x16 {
+    type Output = i16x16;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        self.is_nan()
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        unreachable!()
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        self.is_infinite()
     }
 }
