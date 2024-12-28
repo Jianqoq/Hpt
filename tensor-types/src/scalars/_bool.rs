@@ -91,7 +91,7 @@ impl NormalOutUnary2 for bool {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
+    fn __signum(self) -> Self {
         self
     }
 

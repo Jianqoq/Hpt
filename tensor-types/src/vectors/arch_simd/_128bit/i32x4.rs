@@ -586,7 +586,7 @@ impl NormalOutUnary2 for i32x4 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
+    fn __signum(self) -> Self {
         self.signum()
     }
 

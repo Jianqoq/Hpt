@@ -92,7 +92,7 @@ impl NormalOutUnary2 for f64 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
+    fn __signum(self) -> Self {
         self.signum()
     }
 

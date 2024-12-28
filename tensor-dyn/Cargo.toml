@@ -64,6 +64,7 @@ cuda = [
     "phf",
     "xxhash-rust",
     "tensor-types/cuda",
+    "tensor-macros/cuda",
 ]
 
 [package.metadata.rust-analyzer]

@@ -108,7 +108,7 @@ impl NormalOutUnary2 for Complex64 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
+    fn __signum(self) -> Self {
         if self == Complex64::new(0.0, 0.0) {
             self
         } else {

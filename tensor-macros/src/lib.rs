@@ -48,6 +48,7 @@ mod simd_float_out_unary;
 mod simd_normal_out;
 mod simd_normal_unary;
 mod type_utils;
+#[cfg(feature = "cuda")]
 mod into_cuda_scalar;
 mod into_scalar;
 
@@ -404,6 +405,7 @@ pub fn impl_into_vec(_: TokenStream) -> TokenStream {
     into_vec::into_vec()
 }
 
+#[cfg(feature = "cuda")]
 /// implment into cuda scalar trait
 #[proc_macro]
 pub fn impl_into_cuda_scalar(_: TokenStream) -> TokenStream {

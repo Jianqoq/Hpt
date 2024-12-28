@@ -33,7 +33,6 @@ pub fn impl_float_out_unary() -> TokenStream {
             quote! {
                 impl FloatOutUnary for #lhs_dtype {
                     type Output = <#lhs_dtype as FloatOutUnaryPromote>::Output;
-                    type Base = <#lhs_dtype as FloatOutUnaryPromote>::Output;
                     fn _exp(self) -> Self::Output {
                         self.__exp()
                     }
@@ -94,19 +93,19 @@ pub fn impl_float_out_unary() -> TokenStream {
                     fn _erf(self) -> Self::Output {
                         self.__erf()
                     }
-                    fn _celu(self, alpha: Self::Base) -> Self::Output {
+                    fn _celu(self, alpha: Self::Output) -> Self::Output {
                         self.__celu(alpha)
                     }
                     fn _sigmoid(self) -> Self::Output {
                         self.__sigmoid()
                     }
-                    fn _elu(self, alpha: Self::Base) -> Self::Output {
+                    fn _elu(self, alpha: Self::Output) -> Self::Output {
                         self.__elu(alpha)
                     }
                     fn _gelu(self) -> Self::Output {
                         self.__gelu()
                     }
-                    fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output {
+                    fn _selu(self, alpha: Self::Output, scale: Self::Output) -> Self::Output {
                         self.__selu(alpha, scale)
                     }
                     fn _hard_sigmoid(self) -> Self::Output {
@@ -136,7 +135,6 @@ pub fn impl_float_out_unary() -> TokenStream {
             quote! {
                 impl FloatOutUnary for #lhs_dtype {
                     type Output = <#lhs_dtype as FloatOutUnaryPromote>::Output;
-                    type Base = <#lhs_dtype as FloatOutUnaryPromote>::Output;
                     fn _exp(self) -> Self::Output {
                         let lhs: Self::Output = self.into_scalar();
                         lhs.__exp()
@@ -217,24 +215,28 @@ pub fn impl_float_out_unary() -> TokenStream {
                         let lhs: Self::Output = self.into_scalar();
                         lhs.__erf()
                     }
-                    fn _celu(self, alpha: Self::Base) -> Self::Output {
+                    fn _celu(self, alpha: Self::Output) -> Self::Output {
                         let lhs: Self::Output = self.into_scalar();
+                        let alpha: Self::Output = alpha.into_scalar();
                         lhs.__celu(alpha)
                     }
                     fn _sigmoid(self) -> Self::Output {
                         let lhs: Self::Output = self.into_scalar();
                         lhs.__sigmoid()
                     }
-                    fn _elu(self, alpha: Self::Base) -> Self::Output {
+                    fn _elu(self, alpha: Self::Output) -> Self::Output {
                         let lhs: Self::Output = self.into_scalar();
+                        let alpha: Self::Output = alpha.into_scalar();
                         lhs.__elu(alpha)
                     }
                     fn _gelu(self) -> Self::Output {
                         let lhs: Self::Output = self.into_scalar();
                         lhs.__gelu()
                     }
-                    fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output {
+                    fn _selu(self, alpha: Self::Output, scale: Self::Output) -> Self::Output {
                         let lhs: Self::Output = self.into_scalar();
+                        let alpha: Self::Output = alpha.into_scalar();
+                        let scale: Self::Output = scale.into_scalar();
                         lhs.__selu(alpha, scale)
                     }
                     fn _hard_sigmoid(self) -> Self::Output {
@@ -366,19 +368,19 @@ pub fn impl_cuda_float_out_unary() -> TokenStream {
                     fn _erf(self) -> Self::Output {
                         self.__erf()
                     }
-                    fn _celu(self, alpha: Self::Base) -> Self::Output {
+                    fn _celu(self, alpha: Self) -> Self::Output {
                         self.__celu(alpha)
                     }
                     fn _sigmoid(self) -> Self::Output {
                         self.__sigmoid()
                     }
-                    fn _elu(self, alpha: Self::Base) -> Self::Output {
+                    fn _elu(self, alpha: Self) -> Self::Output {
                         self.__elu(alpha)
                     }
                     fn _gelu(self) -> Self::Output {
                         self.__gelu()
                     }
-                    fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output {
+                    fn _selu(self, alpha: Self, scale: Self) -> Self::Output {
                         self.__selu(alpha, scale)
                     }
                     fn _hard_sigmoid(self) -> Self::Output {
@@ -489,7 +491,7 @@ pub fn impl_cuda_float_out_unary() -> TokenStream {
                         let lhs: Self::Output = self.into_scalar();
                         lhs.__erf()
                     }
-                    fn _celu(self, alpha: Self::Base) -> Self::Output {
+                    fn _celu(self, alpha: Self) -> Self::Output {
                         let lhs: Self::Output = self.into_scalar();
                         lhs.__celu(alpha)
                     }
@@ -497,7 +499,7 @@ pub fn impl_cuda_float_out_unary() -> TokenStream {
                         let lhs: Self::Output = self.into_scalar();
                         lhs.__sigmoid()
                     }
-                    fn _elu(self, alpha: Self::Base) -> Self::Output {
+                    fn _elu(self, alpha: Self) -> Self::Output {
                         let lhs: Self::Output = self.into_scalar();
                         lhs.__elu(alpha)
                     }
@@ -505,7 +507,7 @@ pub fn impl_cuda_float_out_unary() -> TokenStream {
                         let lhs: Self::Output = self.into_scalar();
                         lhs.__gelu()
                     }
-                    fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output {
+                    fn _selu(self, alpha: Self, scale: Self) -> Self::Output {
                         let lhs: Self::Output = self.into_scalar();
                         lhs.__selu(alpha, scale)
                     }

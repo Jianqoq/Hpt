@@ -57,8 +57,8 @@ pub(crate) fn __impl_normal_out_unary() -> TokenStream {
                     self.__round()
                 }
                 #[inline(always)]
-                fn _sign(self) -> Self {
-                    self.__sign()
+                fn _signum(self) -> Self {
+                    self.__signum()
                 }
                 #[inline(always)]
                 fn _relu(self) -> Self {
@@ -135,8 +135,8 @@ pub(crate) fn __impl_normal_out_unary_cuda() -> TokenStream {
                     self.__round()
                 }
                 #[inline(always)]
-                fn _sign(self) -> Self {
-                    self.__sign()
+                fn _signum(self) -> Self {
+                    self.__signum()
                 }
                 #[inline(always)]
                 fn _relu(self) -> Self {

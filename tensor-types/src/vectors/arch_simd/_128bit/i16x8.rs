@@ -592,7 +592,7 @@ impl NormalOutUnary2 for i16x8 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
+    fn __signum(self) -> Self {
         self.signum()
     }
 

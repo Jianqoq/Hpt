@@ -637,26 +637,30 @@ impl SimdMath<half::bf16> for bf16x8 {
     }
 
     #[inline(always)]
-    fn elu(self, alpha: half::bf16) -> Self {
+    fn elu(self, alpha: Self) -> Self {
         let [high, low] = self.to_2_f32x4();
-        let high_elu = high.elu(alpha.to_f32());
-        let low_elu = low.elu(alpha.to_f32());
+        let [high_alpha, low_alpha] = alpha.to_2_f32x4();
+        let high_elu = high.elu(high_alpha);
+        let low_elu = low.elu(low_alpha);
         Self::from_2_f32vec([high_elu, low_elu])
     }
 
     #[inline(always)]
-    fn selu(self, alpha: half::bf16, scale: half::bf16) -> Self {
+    fn selu(self, alpha: Self, scale: Self) -> Self {
         let [high, low] = self.to_2_f32x4();
-        let high_selu = high.selu(alpha.to_f32(), scale.to_f32());
-        let low_selu = low.selu(alpha.to_f32(), scale.to_f32());
+        let [high_alpha, low_alpha] = alpha.to_2_f32x4();
+        let [high_scale, low_scale] = scale.to_2_f32x4();
+        let high_selu = high.selu(high_alpha, high_scale);
+        let low_selu = low.selu(low_alpha, low_scale);
         Self::from_2_f32vec([high_selu, low_selu])
     }
 
     #[inline(always)]
-    fn celu(self, alpha: half::bf16) -> Self {
+    fn celu(self, scale: Self) -> Self {
         let [high, low] = self.to_2_f32x4();
-        let high_celu = high.celu(alpha.to_f32());
-        let low_celu = low.celu(alpha.to_f32());
+        let [high_scale, low_scale] = scale.to_2_f32x4();
+        let high_celu = high.celu(high_scale);
+        let low_celu = low.celu(low_scale);
         Self::from_2_f32vec([high_celu, low_celu])
     }
 
@@ -842,10 +846,10 @@ impl NormalOutUnary2 for bf16x8 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
+    fn __signum(self) -> Self {
         let [high, low] = self.to_2_f32x4();
-        let high_sign = high.__sign();
-        let low_sign = low.__sign();
+        let high_sign = high.__signum();
+        let low_sign = low.__signum();
         bf16x8::from_2_f32vec([high_sign, low_sign])
     }
 

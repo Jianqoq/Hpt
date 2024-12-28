@@ -93,7 +93,7 @@ impl NormalOutUnary2 for half::f16 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
+    fn __signum(self) -> Self {
         self.signum()
     }
 

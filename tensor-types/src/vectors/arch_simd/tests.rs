@@ -296,6 +296,41 @@ pub(crate) fn test_computes_2operands<
     }
 }
 
+pub(crate) fn test_computes_2operands_float<
+    T: TypeCommon + SampleUniform + std::cmp::PartialOrd + std::fmt::Display,
+    const N: usize,
+>(
+    lhs_range: core::ops::RangeInclusive<T>,
+    rhs_range: core::ops::RangeInclusive<T>,
+    repeats: usize,
+    scalar_op: impl Fn(T, T) -> T,
+    op: impl Fn(T::Vec, T::Vec) -> T::Vec,
+    assert_op: impl Fn(T, T) -> bool,
+    msg: &str,
+) {
+    let mut rng = rand::thread_rng();
+    for _ in 0..repeats {
+        let input = gen_vector_random::<T, N>(&mut rng, lhs_range.clone());
+        let input2 = gen_vector_random::<T, N>(&mut rng, rhs_range.clone());
+        let vec = unsafe { T::Vec::from_ptr(input.as_ptr()) };
+        let vec2 = unsafe { T::Vec::from_ptr(input2.as_ptr()) };
+        let res = op(vec, vec2);
+        let mut result = vec![T::ZERO; N];
+        for i in 0..N {
+            result[i] = scalar_op(input[i], input2[i]);
+        }
+        let simd_result = unsafe { std::mem::transmute::<&T::Vec, &[T; N]>(&res) };
+        for i in 0..N {
+            if !assert_op(result[i], simd_result[i]) {
+                panic!(
+                    "{}: input: {} actual: {} != simd: {}",
+                    msg, input[i], result[i], simd_result[i]
+                );
+            }
+        }
+    }
+}
+
 pub(crate) fn test_computes_1operands_float<
     T: TypeCommon + SampleUniform + std::cmp::PartialOrd + std::fmt::Display,
     const N: usize,
@@ -361,6 +396,15 @@ pub(crate) fn test_computes_3operands<
 }
 
 macro_rules! test_computes_2operands_for_type {
+    ($T:ty, $size:expr, $repeats:literal, $range: expr, $msg:expr, $op:ident, $vec_op:ident) => {
+        test_computes_2operands::<$T, $size>(
+            $range,
+            $repeats,
+            |a, b| a.$op(b),
+            |a, b| a.$vec_op(b),
+            $msg,
+        );
+    };
     ($T:ty, $size:expr, $repeats:literal, $range: expr, $msg:expr, $op:ident, $vec_op:tt) => {
         test_computes_2operands::<$T, $size>(
             $range,
@@ -492,9 +536,10 @@ fn f64_ulp_diff(a: f64, b: f64) -> i64 {
 mod tests {
     use crate::{
         convertion::Convertor,
+        dtype::FloatConst,
         simd::sleef::common::misc::SQRT_FLT_MAX,
         traits::{SimdCompare, SimdMath},
-        type_promote::Eval2,
+        type_promote::{Eval2, FloatOutBinary2, FloatOutUnary2, NormalOut2, NormalOutUnary2},
     };
 
     use super::*;
@@ -555,60 +600,69 @@ mod tests {
         bf16_to_f32_test_single(half::bf16::INFINITY, "bf16::to_f32 inf");
     }
 
+    #[rustfmt::skip]
     #[test]
     fn test_add() {
-        test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, i8::MIN..=i8::MAX, "i8::add", wrapping_add, +);
-        test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, i16::MIN..=i16::MAX, "i16::add", wrapping_add, +);
-        test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, i32::MIN..=i32::MAX, "i32::add", wrapping_add, +);
-        test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, i64::MIN..=i64::MAX, "i64::add", wrapping_add, +);
-        test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, isize::MIN..=isize::MAX, "isize::add", wrapping_add, +);
-        test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, u8::MIN..=u8::MAX, "u8::add", wrapping_add, +);
-        test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, u16::MIN..=u16::MAX, "u16::add", wrapping_add, +);
-        test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, u32::MIN..=u32::MAX, "u32::add", wrapping_add, +);
-        test_computes_2operands_for_type!(u64, { U64Vec::SIZE }, 1000, u64::MIN..=u64::MAX, "u64::add", wrapping_add, +);
-        test_computes_2operands_for_type!(usize, { UsizeVec::SIZE }, 1000, usize::MIN..=usize::MAX, "usize::add", wrapping_add, +);
-        test_computes_2operands_for_type!(f32, { F32Vec::SIZE }, 1000, -1e15..=1e15, "f32::add", +);
-        test_computes_2operands_for_type!(half::f16, { F16Vec::SIZE }, 1000, half::f16::from_f32_const(i16::MIN as f32)..=half::f16::from_f32_const(i16::MAX as f32), "f16::add", +);
-        test_computes_2operands_for_type!(half::bf16, { Bf16Vec::SIZE }, 1000, half::bf16::from_f32_const(i16::MIN as f32)..=half::bf16::from_f32_const(i16::MAX as f32), "bf16::add", +);
-        test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, -1e15..=1e15, "f64::add", +);
+        test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, i8::MIN..=i8::MAX, "i8::add", wrapping_add, __add);
+        test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, i16::MIN..=i16::MAX, "i16::add", wrapping_add, __add);
+        test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, i32::MIN..=i32::MAX, "i32::add", wrapping_add, __add);
+        test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, i64::MIN..=i64::MAX, "i64::add", wrapping_add, __add);
+        test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, isize::MIN..=isize::MAX, "isize::add", wrapping_add, __add);
+        test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, u8::MIN..=u8::MAX, "u8::add", wrapping_add, __add);
+        test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, u16::MIN..=u16::MAX, "u16::add", wrapping_add, __add);
+        test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, u32::MIN..=u32::MAX, "u32::add", wrapping_add, __add);
+        test_computes_2operands_for_type!(u64, { U64Vec::SIZE }, 1000, u64::MIN..=u64::MAX, "u64::add", wrapping_add, __add);
+        test_computes_2operands_for_type!(usize, { UsizeVec::SIZE }, 1000, usize::MIN..=usize::MAX, "usize::add", wrapping_add, __add);
+        use std::ops::Add;
+        test_computes_2operands_for_type!(f32, { F32Vec::SIZE }, 1000, -1e15..=1e15, "f32::add", add, __add);
+        test_computes_2operands_for_type!(half::f16, { F16Vec::SIZE }, 1000, half::f16::from_f32_const(i16::MIN as f32)..=half::f16::from_f32_const(i16::MAX as f32), "f16::add", add, __add);
+        test_computes_2operands_for_type!(half::bf16, { Bf16Vec::SIZE }, 1000, half::bf16::from_f32_const(i16::MIN as f32)..=half::bf16::from_f32_const(i16::MAX as f32), "bf16::add", add, __add);
+        test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, -1e15..=1e15, "f64::add", add, __add);
     }
 
+    #[rustfmt::skip]
     #[test]
     fn test_sub() {
-        test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, i8::MIN..=i8::MAX, "i8::sub", wrapping_sub, -);
-        test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, i16::MIN..=i16::MAX, "i16::sub", wrapping_sub, -);
-        test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, i32::MIN..=i32::MAX, "i32::sub", wrapping_sub, -);
-        test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, i64::MIN..=i64::MAX, "i64::sub", wrapping_sub, -);
-        test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, isize::MIN..=isize::MAX, "isize::sub", wrapping_sub, -);
-        test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, u8::MIN..=u8::MAX, "u8::sub", wrapping_sub, -);
-        test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, u16::MIN..=u16::MAX, "u16::sub", wrapping_sub, -);
-        test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, u32::MIN..=u32::MAX, "u32::sub", wrapping_sub, -);
-        test_computes_2operands_for_type!(u64, { U64Vec::SIZE }, 1000, u64::MIN..=u64::MAX, "u64::sub", wrapping_sub, -);
-        test_computes_2operands_for_type!(usize, { UsizeVec::SIZE }, 1000, usize::MIN..=usize::MAX, "usize::sub", wrapping_sub, -);
-        test_computes_2operands_for_type!(f32, { F32Vec::SIZE }, 1000, -1e15..=1e15, "f32::sub", -);
-        test_computes_2operands_for_type!(half::f16, { F16Vec::SIZE }, 1000, half::f16::from_f32_const(i16::MIN as f32)..=half::f16::from_f32_const(i16::MAX as f32), "f16::sub", -);
-        test_computes_2operands_for_type!(half::bf16, { Bf16Vec::SIZE }, 1000, half::bf16::from_f32_const(i16::MIN as f32)..=half::bf16::from_f32_const(i16::MAX as f32), "bf16::sub", -);
-        test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, -1e15..=1e15, "f64::sub", -);
+        test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, i8::MIN..=i8::MAX, "i8::sub", wrapping_sub, __sub);
+        test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, i16::MIN..=i16::MAX, "i16::sub", wrapping_sub, __sub);
+        test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, i32::MIN..=i32::MAX, "i32::sub", wrapping_sub, __sub);
+        test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, i64::MIN..=i64::MAX, "i64::sub", wrapping_sub, __sub);
+        test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, isize::MIN..=isize::MAX, "isize::sub", wrapping_sub, __sub);
+        test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, u8::MIN..=u8::MAX, "u8::sub", wrapping_sub, __sub);
+        test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, u16::MIN..=u16::MAX, "u16::sub", wrapping_sub, __sub);
+        test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, u32::MIN..=u32::MAX, "u32::sub", wrapping_sub, __sub);
+        test_computes_2operands_for_type!(u64, { U64Vec::SIZE }, 1000, u64::MIN..=u64::MAX, "u64::sub", wrapping_sub, __sub);
+        test_computes_2operands_for_type!(usize, { UsizeVec::SIZE }, 1000, usize::MIN..=usize::MAX, "usize::sub", wrapping_sub, __sub);
+
+        use std::ops::Sub;
+        test_computes_2operands_for_type!(f32, { F32Vec::SIZE }, 1000, -1e15..=1e15, "f32::sub", sub, __sub);
+        test_computes_2operands_for_type!(half::f16, { F16Vec::SIZE }, 1000, half::f16::from_f32_const(i16::MIN as f32)..=half::f16::from_f32_const(i16::MAX as f32), "f16::sub", sub, __sub);
+        test_computes_2operands_for_type!(half::bf16, { Bf16Vec::SIZE }, 1000, half::bf16::from_f32_const(i16::MIN as f32)..=half::bf16::from_f32_const(i16::MAX as f32), "bf16::sub", sub, __sub);
+        test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, -1e15..=1e15, "f64::sub", sub, __sub);
     }
 
+    #[rustfmt::skip]
     #[test]
     fn test_mul() {
-        test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, 10..=10, "i8::mul", wrapping_mul, *);
-        test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, 100..=100, "i16::mul", wrapping_mul, *);
-        test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, 1000..=1000, "i32::mul", wrapping_mul, *);
-        test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, 1000..=1000, "i64::mul", wrapping_mul, *);
-        test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, 1000..=1000, "isize::mul", wrapping_mul, *);
-        test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, 10..=10, "u8::mul", wrapping_mul, *);
-        test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, 100..=100, "u16::mul", wrapping_mul, *);
-        test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, 1000..=1000, "u32::mul", wrapping_mul, *);
-        test_computes_2operands_for_type!(u64, { U64Vec::SIZE }, 1000, 1000..=1000, "u64::mul", wrapping_mul, *);
-        test_computes_2operands_for_type!(usize, { UsizeVec::SIZE }, 1000, 1000..=1000, "usize::mul", wrapping_mul, *);
-        test_computes_2operands_for_type!(f32, { F32Vec::SIZE }, 1000, -1e5..=1e5, "f32::mul", *);
-        test_computes_2operands_for_type!(half::f16, { F16Vec::SIZE }, 1000, half::f16::from_f32_const(i16::MIN as f32)..=half::f16::from_f32_const(i16::MAX as f32), "f16::mul", *);
-        test_computes_2operands_for_type!(half::bf16, { Bf16Vec::SIZE }, 1000, half::bf16::from_f32_const(i16::MIN as f32)..=half::bf16::from_f32_const(i16::MAX as f32), "bf16::mul", *);
-        test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, -1e5..=1e5, "f64::mul", *);
+        test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, 10..=10, "i8::mul", wrapping_mul, __mul);
+        test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, 100..=100, "i16::mul", wrapping_mul, __mul);
+        test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, 1000..=1000, "i32::mul", wrapping_mul, __mul);
+        test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, 1000..=1000, "i64::mul", wrapping_mul, __mul);
+        test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, 1000..=1000, "isize::mul", wrapping_mul, __mul);
+        test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, 10..=10, "u8::mul", wrapping_mul, __mul);
+        test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, 100..=100, "u16::mul", wrapping_mul, __mul);
+        test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, 1000..=1000, "u32::mul", wrapping_mul, __mul);
+        test_computes_2operands_for_type!(u64, { U64Vec::SIZE }, 1000, 1000..=1000, "u64::mul", wrapping_mul, __mul);
+        test_computes_2operands_for_type!(usize, { UsizeVec::SIZE }, 1000, 1000..=1000, "usize::mul", wrapping_mul, __mul);
+
+        use std::ops::Mul;
+        test_computes_2operands_for_type!(f32, { F32Vec::SIZE }, 1000, -1e5..=1e5, "f32::mul", mul, __mul);
+        test_computes_2operands_for_type!(half::f16, { F16Vec::SIZE }, 1000, half::f16::from_f32_const(i16::MIN as f32)..=half::f16::from_f32_const(i16::MAX as f32), "f16::mul", mul, __mul);
+        test_computes_2operands_for_type!(half::bf16, { Bf16Vec::SIZE }, 1000, half::bf16::from_f32_const(i16::MIN as f32)..=half::bf16::from_f32_const(i16::MAX as f32), "bf16::mul", mul, __mul);
+        test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, -1e5..=1e5, "f64::mul", mul, __mul);
     }
 
+    #[rustfmt::skip]
     #[test]
     fn test_mul_add() {
         use num_traits::real::Real;
@@ -620,7 +674,7 @@ mod tests {
             10..=10,
             "i8::mul_add",
             mul_add,
-            mul_add
+            __mul_add
         );
         test_computes_3operands_for_type!(
             i16,
@@ -629,7 +683,7 @@ mod tests {
             100..=100,
             "i16::mul_add",
             mul_add,
-            mul_add
+            __mul_add
         );
         test_computes_3operands_for_type!(
             i32,
@@ -638,7 +692,7 @@ mod tests {
             1000..=1000,
             "i32::mul_add",
             mul_add,
-            mul_add
+            __mul_add
         );
         test_computes_3operands_for_type!(
             i64,
@@ -647,7 +701,7 @@ mod tests {
             1000..=1000,
             "i64::mul_add",
             mul_add,
-            mul_add
+            __mul_add
         );
         test_computes_3operands_for_type!(
             isize,
@@ -656,7 +710,7 @@ mod tests {
             1000..=1000,
             "isize::mul_add",
             mul_add,
-            mul_add
+            __mul_add
         );
         test_computes_3operands_for_type!(
             u8,
@@ -665,7 +719,7 @@ mod tests {
             10..=10,
             "u8::mul_add",
             mul_add,
-            mul_add
+            __mul_add
         );
         test_computes_3operands_for_type!(
             u16,
@@ -674,7 +728,7 @@ mod tests {
             100..=100,
             "u16::mul_add",
             mul_add,
-            mul_add
+            __mul_add
         );
         test_computes_3operands_for_type!(
             u32,
@@ -683,7 +737,7 @@ mod tests {
             1000..=1000,
             "u32::mul_add",
             mul_add,
-            mul_add
+            __mul_add
         );
         test_computes_3operands_for_type!(
             u64,
@@ -692,7 +746,7 @@ mod tests {
             1000..=1000,
             "u64::mul_add",
             mul_add,
-            mul_add
+            __mul_add
         );
         test_computes_3operands_for_type!(
             usize,
@@ -701,7 +755,7 @@ mod tests {
             1000..=1000,
             "usize::mul_add",
             mul_add,
-            mul_add
+            __mul_add
         );
         test_computes_3operands_for_type!(
             f32,
@@ -710,7 +764,7 @@ mod tests {
             -1e5..=1e5,
             "f32::mul_add",
             mul_add,
-            mul_add
+            __mul_add
         );
         test_computes_3operands_for_type!(
             half::f16,
@@ -719,7 +773,7 @@ mod tests {
             half::f16::from_f32_const(i16::MIN as f32)..=half::f16::from_f32_const(i16::MAX as f32),
             "f16::mul_add",
             mul_add,
-            mul_add
+            __mul_add
         );
         test_computes_3operands_for_type!(
             half::bf16,
@@ -729,7 +783,7 @@ mod tests {
                 ..=half::bf16::from_f32_const(i16::MAX as f32),
             "bf16::mul_add",
             mul_add,
-            mul_add
+            __mul_add
         );
         test_computes_3operands_for_type!(
             f64,
@@ -738,26 +792,139 @@ mod tests {
             -1e5..=1e5,
             "f64::mul_add",
             mul_add,
-            mul_add
+            __mul_add
         );
     }
 
     #[test]
     fn test_div() {
-        test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, 1..=i8::MAX, "i8::div", wrapping_div, /);
-        test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, 1..=i16::MAX, "i16::div", wrapping_div, /);
-        test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, 1..=i32::MAX, "i32::div", wrapping_div, /);
-        test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, 1..=i64::MAX, "i64::div", wrapping_div, /);
-        test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, 1..=isize::MAX, "isize::div", wrapping_div, /);
-        test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, 1..=u8::MAX, "u8::div", wrapping_div, /);
-        test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, 1..=u16::MAX, "u16::div", wrapping_div, /);
-        test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, 1..=u32::MAX, "u32::div", wrapping_div, /);
-        test_computes_2operands_for_type!(u64, { U64Vec::SIZE }, 1000, 1..=u64::MAX, "u64::div", wrapping_div, /);
-        test_computes_2operands_for_type!(usize, { UsizeVec::SIZE }, 1000, 1..=usize::MAX, "usize::div", wrapping_div, /);
-        test_computes_2operands_for_type!(f32, { F32Vec::SIZE }, 1000, 1.0..=1e15, "f32::div", /);
-        test_computes_2operands_for_type!(half::f16, { F16Vec::SIZE }, 1000, half::f16::from_f32_const(1f32)..=half::f16::from_f32_const(i16::MAX as f32), "f16::div", /);
-        test_computes_2operands_for_type!(half::bf16, { Bf16Vec::SIZE }, 1000, half::bf16::from_f32_const(1f32)..=half::bf16::from_f32_const(i16::MAX as f32), "bf16::div", /);
-        test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, 1.0..=1e15, "f64::div", /);
+        test_computes_2operands_for_type!(
+            i8,
+            { I8Vec::SIZE },
+            1000,
+            1..=i8::MAX,
+            "i8::div",
+            wrapping_div,
+            __div
+        );
+        test_computes_2operands_for_type!(
+            i16,
+            { I16Vec::SIZE },
+            1000,
+            1..=i16::MAX,
+            "i16::div",
+            wrapping_div,
+            __div
+        );
+        test_computes_2operands_for_type!(
+            i32,
+            { I32Vec::SIZE },
+            1000,
+            1..=i32::MAX,
+            "i32::div",
+            wrapping_div,
+            __div
+        );
+        test_computes_2operands_for_type!(
+            i64,
+            { I64Vec::SIZE },
+            1000,
+            1..=i64::MAX,
+            "i64::div",
+            wrapping_div,
+            __div
+        );
+        test_computes_2operands_for_type!(
+            isize,
+            { IsizeVec::SIZE },
+            1000,
+            1..=isize::MAX,
+            "isize::div",
+            wrapping_div,
+            __div
+        );
+        test_computes_2operands_for_type!(
+            u8,
+            { U8Vec::SIZE },
+            1000,
+            1..=u8::MAX,
+            "u8::div",
+            wrapping_div,
+            __div
+        );
+        test_computes_2operands_for_type!(
+            u16,
+            { U16Vec::SIZE },
+            1000,
+            1..=u16::MAX,
+            "u16::div",
+            wrapping_div,
+            __div
+        );
+        test_computes_2operands_for_type!(
+            u32,
+            { U32Vec::SIZE },
+            1000,
+            1..=u32::MAX,
+            "u32::div",
+            wrapping_div,
+            __div
+        );
+        test_computes_2operands_for_type!(
+            u64,
+            { U64Vec::SIZE },
+            1000,
+            1..=u64::MAX,
+            "u64::div",
+            wrapping_div,
+            __div
+        );
+        test_computes_2operands_for_type!(
+            usize,
+            { UsizeVec::SIZE },
+            1000,
+            1..=usize::MAX,
+            "usize::div",
+            wrapping_div,
+            __div
+        );
+        use std::ops::Div;
+        test_computes_2operands_for_type!(
+            f32,
+            { F32Vec::SIZE },
+            1000,
+            1.0..=1e15,
+            "f32::div",
+            div,
+            __div
+        );
+        test_computes_2operands_for_type!(
+            half::f16,
+            { F16Vec::SIZE },
+            1000,
+            half::f16::from_f32_const(1f32)..=half::f16::from_f32_const(i16::MAX as f32),
+            "f16::div",
+            div,
+            __div
+        );
+        test_computes_2operands_for_type!(
+            half::bf16,
+            { Bf16Vec::SIZE },
+            1000,
+            half::bf16::from_f32_const(1f32)..=half::bf16::from_f32_const(i16::MAX as f32),
+            "bf16::div",
+            div,
+            __div
+        );
+        test_computes_2operands_for_type!(
+            f64,
+            { F64Vec::SIZE },
+            1000,
+            1.0..=1e15,
+            "f64::div",
+            div,
+            __div
+        );
     }
 
     #[should_panic(expected = "division by zero")]
@@ -1139,7 +1306,7 @@ mod tests {
     #[test]
     fn test_float_simd_math() {
         macro_rules! test_float_simd_math {
-            ($type:ty, $size:expr, $range:expr, $repeat:expr, $op:ident) => {
+            ($type:ty, $size:expr, $range:expr, $repeat:expr, $tolerance: literal, $op:ident) => {
                 test_computes_1operands_float::<$type, { $size }>(
                     $range,
                     $repeat,
@@ -1147,15 +1314,204 @@ mod tests {
                     |x| SimdMath::$op(x),
                     |a, b| {
                         paste::paste! {
-                            [<$type _ulp_diff>](a, b) <= 1
+                            [<$type _ulp_diff>](a, b) <= $tolerance
                         }
                     },
                     stringify!($type::$op),
                 );
             };
-            ($type:ty, $size:expr, $range:expr, $repeat:expr, $scalar_op:expr, $vec_op:expr) => {
+            ($type:ty, $size:expr, $range:expr, $repeat:expr, $tolerance: literal, $scalar_op:expr, $vec_op:expr) => {
                 test_computes_1operands_float::<$type, { $size }>(
                     $range,
+                    $repeat,
+                    $scalar_op,
+                    $vec_op,
+                    |a, b| {
+                        paste::paste! {
+                            [<$type _ulp_diff>](a, b) <= $tolerance
+                        }
+                    },
+                    stringify!($type::$scalar_op),
+                );
+            };
+        }
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, sin);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, cos);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, tan);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, asin);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, acos);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, atan);
+        test_float_simd_math!(f32, F32Vec::SIZE, -88.5..=88.5, 1000, 1, sinh);
+        test_float_simd_math!(f32, F32Vec::SIZE, -88.5..=88.5, 1000, 1, cosh);
+        test_float_simd_math!(f32, F32Vec::SIZE, -8.7..=8.7, 1000, 1, tanh);
+        test_float_simd_math!(f32, F32Vec::SIZE, -SQRT_FLT_MAX as f32..=SQRT_FLT_MAX as f32, 1000, 1, asinh);
+        test_float_simd_math!(f32, F32Vec::SIZE, -SQRT_FLT_MAX as f32..=SQRT_FLT_MAX as f32, 1000, 1, acosh);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, atanh);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e19..=1e19, 1000, 1, |x| x * x, |x| SimdMath::square(x));
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e19..=1e19, 1000, 1, |x| x * x, |x| x.__square());
+        test_float_simd_math!(f32, F32Vec::SIZE, 0.0..=1e37, 1000, 1, sqrt);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, abs);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, |x| x.abs(), |x| x.__abs());
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, floor);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, |x| x.floor(), |x| x.__floor());
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, ceil);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, |x| x.ceil(), |x| x.__ceil());
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, |x| -x, |x| SimdMath::neg(x));
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, |x| -x, |x| x.__neg());
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, round);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, |x| x.round(), |x| x.__round());
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, signum);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, |x| x.signum(), |x| x.__signum());
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, |x| if x > 0.0 {x} else {0.0}, |x| SimdMath::relu(x));
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, |x| if x > 0.0 {x} else {0.0}, |x| x.__relu());
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, |x| x.max(0.0).min(6.0), |x| SimdMath::relu6(x));
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, |x| x.max(0.0).min(6.0), |x| x.__relu6());
+        test_float_simd_math!(f32, F32Vec::SIZE, -88.0..=88.0, 1000, 1, exp);
+        test_float_simd_math!(f32, F32Vec::SIZE, -88.0..=88.0, 1000, 1, |x| x.exp2(), |x| SimdMath::exp2(x));
+        test_float_simd_math!(f32, F32Vec::SIZE, -88.0..=88.0, 1000, 1, |x| x.exp_m1(), |x| x.expm1());
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, ln);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, |x| x.ln(), |x| SimdMath::log(x));
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, log2);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, log10);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, cbrt);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, |x| libm::erff(x), |x| SimdMath::erf(x));
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, trunc);
+        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, recip);
+        test_float_simd_math!(f32, F32Vec::SIZE, -0.9999999..=1e37, 1000, 1, |x| x.ln_1p(), |x| SimdMath::log1p(x));
+        test_float_simd_math!(f32, F32Vec::SIZE, -88.0..=88.0, 1000, 1, |x| 1.0 / (1.0 + (-x).exp()), |x| SimdMath::sigmoid(x));
+        test_float_simd_math!(f32, F32Vec::SIZE, -10.0..=10.0, 1000, 1, |x| (0.2 * x + 0.5).min(1.0).max(0.0), |x| SimdMath::hard_sigmoid(x));
+        test_float_simd_math!(f32, F32Vec::SIZE, -88.0..=88.0, 1000, 1, 
+            |x| 0.5 * x * (libm::erff(x * std::f32::consts::FRAC_1_SQRT_2) + 1.0),
+            |x| SimdMath::gelu(x));
+        test_float_simd_math!(f32, F32Vec::SIZE, -4.0..=4.0, 1000, 1, |x| x * (x + 3.0).__relu6() * (1.0 / 6.0), |x| SimdMath::hard_swish(x));
+        test_float_simd_math!(f32, F32Vec::SIZE, -88.0..=88.0, 1000, 1, |x| (1.0 + x.exp()).ln(), |x| SimdMath::softplus(x));
+        test_float_simd_math!(f32, F32Vec::SIZE, -88.0..=88.0, 1000, 1, |x| x / (1.0 + x.abs()), |x| SimdMath::softsign(x));
+        test_float_simd_math!(f32, F32Vec::SIZE, -88.0..=88.0, 1000, 1, |x| x.__softplus().tanh(), |x| SimdMath::mish(x));
+
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, sin);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, cos);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, tan);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, asin);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, acos);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, atan);
+        test_float_simd_math!(f64, F64Vec::SIZE, -709.0..=709.0, 1000, 1, sinh);
+        test_float_simd_math!(f64, F64Vec::SIZE, -709.0..=709.0, 1000, 1, cosh);
+        test_float_simd_math!(f64, F64Vec::SIZE, -19.0..=19.0, 1000, 1, tanh);
+        test_float_simd_math!(f64, F64Vec::SIZE, -SQRT_FLT_MAX as f64..=SQRT_FLT_MAX as f64, 1000, 1, asinh);
+        test_float_simd_math!(f64, F64Vec::SIZE, -SQRT_FLT_MAX as f64..=SQRT_FLT_MAX as f64, 1000, 1, acosh);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, atanh);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e150..=1e150, 1000, 1, |x| x * x, |x| SimdMath::square(x));
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e150..=1e150, 1000, 1, |x| x * x, |x| x.__square());
+        test_float_simd_math!(f64, F64Vec::SIZE, 0.0..=1e300, 1000, 1, sqrt);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, abs);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, |x| x.abs(), |x| x.__abs());
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, floor);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, |x| x.floor(), |x| x.__floor());
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, ceil);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, |x| x.ceil(), |x| x.__ceil());
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, |x| -x, |x| SimdMath::neg(x));
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, |x| -x, |x| x.__neg());
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, round);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, |x| x.round(), |x| x.__round());
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, signum);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, |x| x.signum(), |x| x.__signum());
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, |x| if x > 0.0 {x} else {0.0}, |x| SimdMath::relu(x));
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, |x| if x > 0.0 {x} else {0.0}, |x| x.__relu());
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, |x| x.max(0.0).min(6.0), |x| SimdMath::relu6(x));
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, |x| x.max(0.0).min(6.0), |x| x.__relu6());
+        test_float_simd_math!(f64, F64Vec::SIZE, -708.0..=708.0, 1000, 1, exp);
+        test_float_simd_math!(f64, F64Vec::SIZE, -708.0..=708.0, 1000, 1, |x| x.exp2(), |x| SimdMath::exp2(x));
+        test_float_simd_math!(f64, F64Vec::SIZE, -708.0..=708.0, 1000, 1, |x| x.exp_m1(), |x| x.expm1());
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, ln);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, |x| x.ln(), |x| SimdMath::log(x));
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, log2);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, log10);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, cbrt);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, |x| libm::erf(x), |x| SimdMath::erf(x));
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, trunc);
+        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, recip);
+        test_float_simd_math!(f64, F64Vec::SIZE, -0.9999999999999999..=1e306, 1000, 1, |x| x.ln_1p(), |x| SimdMath::log1p(x));
+        test_float_simd_math!(f64, F64Vec::SIZE, -88.0..=88.0, 1000, 1, |x| 1.0 / (1.0 + (-x).exp()), |x| SimdMath::sigmoid(x));
+        test_float_simd_math!(f64, F64Vec::SIZE, -10.0..=10.0, 1000, 1, |x| (0.2 * x + 0.5).min(1.0).max(0.0), |x| SimdMath::hard_sigmoid(x));
+        test_float_simd_math!(f64, F64Vec::SIZE, -88.0..=88.0, 1000, 1, 
+            |x| 0.5 * x * (libm::erf(x * std::f64::consts::FRAC_1_SQRT_2) + 1.0),
+            |x| SimdMath::gelu(x));
+        test_float_simd_math!(f64, F64Vec::SIZE, -4.0..=4.0, 1000, 1, |x| x * (x + 3.0).__relu6() * (1.0 / 6.0), |x| SimdMath::hard_swish(x));
+        test_float_simd_math!(f64, F64Vec::SIZE, -88.0..=88.0, 1000, 1, |x| (1.0 + x.exp()).ln(), |x| SimdMath::softplus(x));
+        test_float_simd_math!(f64, F64Vec::SIZE, -88.0..=88.0, 1000, 1, |x| x / (1.0 + x.abs()), |x| SimdMath::softsign(x));
+        test_float_simd_math!(f64, F64Vec::SIZE, -88.0..=88.0, 1000, 1, |x| x.__softplus().tanh(), |x| SimdMath::mish(x));
+
+        use num_traits::Float;
+        use half::f16;
+        let range1 = half::f16::from_f32(-1e4)..=half::f16::from_f32(1e4);
+        let range2 = half::f16::from_f32(-11.0)..=half::f16::from_f32(11.0);
+        let range3 = half::f16::from_f32(-8.7)..=half::f16::from_f32(8.7);
+        let range4 = half::f16::from_f32(-130.0)..=half::f16::from_f32(130.0);
+        let range5 = half::f16::from_f32(0.0)..=half::f16::from_f32(6e4);
+        let range6 = half::f16::from_f32(-14.0)..=half::f16::from_f32(15.0); // exp2
+        let range7 = half::f16::from_f32(-0.999)..=half::f16::from_f32(6e4);
+        let hard_sigmoid_range = half::f16::from_f32(-5.0)..=half::f16::from_f32(5.0);
+        let hard_swish_range = half::f16::from_f32(-4.0)..=half::f16::from_f32(4.0);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, sin);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, cos);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, tan);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, asin);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, acos);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, atan);
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, sinh);
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, cosh);
+        test_float_simd_math!(f16, F16Vec::SIZE, range3.clone(), 1000, 1, tanh);
+        test_float_simd_math!(f16, F16Vec::SIZE, range4.clone(), 1000, 1, asinh);
+        test_float_simd_math!(f16, F16Vec::SIZE, range4.clone(), 1000, 1, acosh);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, atanh);
+        test_float_simd_math!(f16, F16Vec::SIZE, range4.clone(), 1000, 1, |x| x * x, |x| SimdMath::square(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, range4.clone(), 1000, 1, |x| x * x, |x| x.__square());
+        test_float_simd_math!(f16, F16Vec::SIZE, range5.clone(), 1000, 1, sqrt);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, abs);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, |x| x.abs(), |x| x.__abs());
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, floor);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, |x| x.floor(), |x| x.__floor());
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, ceil);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, |x| x.ceil(), |x| x.__ceil());
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, |x| -x, |x| SimdMath::neg(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, |x| -x, |x| x.__neg());
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, round);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, |x| x.round(), |x| x.__round());
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, signum);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, |x| x.signum(), |x| x.__signum());
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, |x| if x > half::f16::ZERO {x} else {half::f16::ZERO}, |x| SimdMath::relu(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, |x| x.max(half::f16::ZERO).min(half::f16::from_f32(6.0)), |x| SimdMath::relu6(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, exp);
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| x.exp2(), |x| SimdMath::exp2(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| x.exp_m1(), |x| x.expm1());
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, ln);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, |x| x.ln(), |x| SimdMath::log(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, log2);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, log10);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, cbrt);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, |x| libm::erff(x.to_f32()).to_f16(), |x| SimdMath::erf(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, trunc);
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, recip);
+        test_float_simd_math!(f16, F16Vec::SIZE, range7.clone(), 1000, 1, |x| x.ln_1p(), |x| SimdMath::log1p(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| f16::ONE / (f16::ONE + (-x).exp()), |x| SimdMath::sigmoid(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, hard_sigmoid_range.clone(), 1000, 1, |x| (f16::POINT_TWO * x + f16::HALF).min(f16::ONE).max(f16::ZERO), |x| SimdMath::hard_sigmoid(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1,
+            |x| f16::HALF * x * (libm::erff(x.to_f32() * std::f32::consts::FRAC_1_SQRT_2).to_f16() + f16::ONE),
+            |x| SimdMath::gelu(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, hard_swish_range.clone(), 1000, 1, |x| x * (x + f16::THREE).__relu6() * (f16::ONE / f16::SIX), |x| SimdMath::hard_swish(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| (f16::ONE + x.exp()).ln(), |x| SimdMath::softplus(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| x / (f16::ONE + x.abs()), |x| SimdMath::softsign(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| x.__softplus().tanh(), |x| SimdMath::mish(x));
+    }
+
+    #[rustfmt::skip]
+    #[test]
+    fn test_float_simd_math_2operands() {
+        macro_rules! test_float_simd_math_2operands {
+            ($type:ty, $size:expr, $lhs_range:expr, $rhs_range:expr, $repeat:expr, $scalar_op:expr, $vec_op:expr) => {
+                test_computes_2operands_float::<$type, { $size }>(
+                    $lhs_range,
+                    $rhs_range,
                     $repeat,
                     $scalar_op,
                     $vec_op,
@@ -1168,119 +1524,48 @@ mod tests {
                 );
             };
         }
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, sin);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, cos);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, tan);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, asin);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, acos);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, atan);
-        test_float_simd_math!(f32, F32Vec::SIZE, -88.5..=88.5, 1000, sinh);
-        test_float_simd_math!(f32, F32Vec::SIZE, -88.5..=88.5, 1000, cosh);
-        test_float_simd_math!(f32, F32Vec::SIZE, -8.7..=8.7, 1000, tanh);
-        test_float_simd_math!(f32, F32Vec::SIZE, -SQRT_FLT_MAX as f32..=SQRT_FLT_MAX as f32, 1000, asinh);
-        test_float_simd_math!(f32, F32Vec::SIZE, -SQRT_FLT_MAX as f32..=SQRT_FLT_MAX as f32, 1000, acosh);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, atanh);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e19..=1e19, 1000, |x| x * x, |x| SimdMath::square(x));
-        test_float_simd_math!(f32, F32Vec::SIZE, 0.0..=1e37, 1000, sqrt);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, abs);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, floor);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, ceil);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, |x| -x, |x| SimdMath::neg(x));
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, round);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, signum);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, |x| if x > 0.0 {x} else {0.0}, |x| SimdMath::relu(x));
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, |x| x.max(0.0).min(6.0), |x| SimdMath::relu6(x));
-        test_float_simd_math!(f32, F32Vec::SIZE, -88.0..=88.0, 1000, exp);
-        // test_float_simd_math!(f32, F32Vec::SIZE, -127.0..=127.0, 1000, |x| x.exp2(), |x| SimdMath::exp2(x));
-        // test_float_simd_math!(f32, F32Vec::SIZE, -88.0..=88.0, 1000, |x| x.exp_m1(), |x| x.expm1());
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, ln);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, |x| x.ln(), |x| SimdMath::log(x));
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, log2);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, log10);
-        // test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, cbrt);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, |x| libm::erff(x), |x| SimdMath::erf(x));
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, trunc);
-        test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, recip);
-        test_float_simd_math!(f32, F32Vec::SIZE, -0.9999999..=1e37, 1000, |x| x.ln_1p(), |x| SimdMath::log1p(x));
+        test_float_simd_math_2operands!(f32, F32Vec::SIZE, -10.0..=10.0, -2.0..=2.0, 1000, |x, y| x.powf(y), |x, y| SimdMath::pow(x, y));
+        test_float_simd_math_2operands!(f32, F32Vec::SIZE, -10.0..=10.0, -2.0..=2.0, 1000, |x, y| x.powf(y), |x, y| x.__pow(y));
+        test_float_simd_math_2operands!(f32, F32Vec::SIZE, -1e37..=1e37, -1e37..=1e37, 1000, |x, y| x / y, |x, y| x.__div(y));
+        test_float_simd_math_2operands!(f32, F32Vec::SIZE, -1e37..=1e37, -1e37..=1e37, 1000, |x, y| x.max(0.0) + y * x.min(0.0), |x, y| SimdMath::leaky_relu(x, y));
+        test_float_simd_math_2operands!(f32, F32Vec::SIZE, -1e37..=1e37, -1e37..=1e37, 1000, |x, y| x.max(0.0) + y * x.min(0.0), |x, y| x.__leaky_relu(y));
+        test_float_simd_math_2operands!(f32, F32Vec::SIZE, 0.1..=0.9, 1.1..=1e37, 1000, |x, y| x.log(y), |x, y| x.__log(y));
+        test_float_simd_math_2operands!(f32, F32Vec::SIZE, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x + y, |x, y| x.__add(y));
+        test_float_simd_math_2operands!(f32, F32Vec::SIZE, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x - y, |x, y| x.__sub(y));
+        test_float_simd_math_2operands!(f32, F32Vec::SIZE, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x % y, |x, y| x.__rem(y));
+        test_float_simd_math_2operands!(f32, F32Vec::SIZE, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x.max(y), |x, y| x.__max(y));
+        test_float_simd_math_2operands!(f32, F32Vec::SIZE, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x.min(y), |x, y| x.__min(y));
 
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, sin);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, cos);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, tan);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, asin);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, acos);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, atan);
-        test_float_simd_math!(f64, F64Vec::SIZE, -709.0..=709.0, 1000, sinh);
-        test_float_simd_math!(f64, F64Vec::SIZE, -709.0..=709.0, 1000, cosh);
-        test_float_simd_math!(f64, F64Vec::SIZE, -19.0..=19.0, 1000, tanh);
-        test_float_simd_math!(f64, F64Vec::SIZE, -SQRT_FLT_MAX as f64..=SQRT_FLT_MAX as f64, 1000, asinh);
-        test_float_simd_math!(f64, F64Vec::SIZE, -SQRT_FLT_MAX as f64..=SQRT_FLT_MAX as f64, 1000, acosh);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, atanh);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e150..=1e150, 1000, |x| x * x, |x| SimdMath::square(x));
-        test_float_simd_math!(f64, F64Vec::SIZE, 0.0..=1e300, 1000, sqrt);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, abs);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, floor);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, ceil);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, |x| -x, |x| SimdMath::neg(x));
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, round);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, signum);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, |x| if x > 0.0 {x} else {0.0}, |x| SimdMath::relu(x));
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, |x| x.max(0.0).min(6.0), |x| SimdMath::relu6(x));
-        test_float_simd_math!(f64, F64Vec::SIZE, -708.0..=708.0, 1000, exp);
-        // test_float_simd_math!(f64, F64Vec::SIZE, -1022.0..=1023.0, 1000, |x| x.exp2(), |x| SimdMath::exp2(x));
-        // test_float_simd_math!(f64, F64Vec::SIZE, -708.0..=708.0, 1000, |x| x.exp_m1(), |x| x.expm1());
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, ln);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, |x| x.ln(), |x| SimdMath::log(x));
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, log2);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, log10);
-        // test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, cbrt);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, |x| libm::erf(x), |x| SimdMath::erf(x));
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, trunc);
-        test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, recip);
-        test_float_simd_math!(f64, F64Vec::SIZE, -0.9999999999999999..=1e306, 1000, |x| x.ln_1p(), |x| SimdMath::log1p(x));
+        test_float_simd_math_2operands!(f64, F64Vec::SIZE, -100.0..=100.0, -2.0..=2.0, 1000, |x, y| x.powf(y), |x, y| SimdMath::pow(x, y));
+        test_float_simd_math_2operands!(f64, F64Vec::SIZE, -100.0..=100.0, -2.0..=2.0, 1000, |x, y| x.powf(y), |x, y| x.__pow(y));
+        test_float_simd_math_2operands!(f64, F64Vec::SIZE, -1e306..=1e306, -1e306..=1e306, 1000, |x, y| x / y, |x, y| x.__div(y));
+        test_float_simd_math_2operands!(f64, F64Vec::SIZE, -1e306..=1e306, -1e306..=1e306, 1000, |x, y| x.max(0.0) + y * x.min(0.0), |x, y| SimdMath::leaky_relu(x, y));
+        test_float_simd_math_2operands!(f64, F64Vec::SIZE, -1e306..=1e306, -1e306..=1e306, 1000, |x, y| x.max(0.0) + y * x.min(0.0), |x, y| x.__leaky_relu(y));
+        test_float_simd_math_2operands!(f64, F64Vec::SIZE, 0.1..=0.9, 1.1..=1e306, 1000, |x, y| x.log(y), |x, y| x.__log(y));
+        test_float_simd_math_2operands!(f64, F64Vec::SIZE, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x + y, |x, y| x.__add(y));
+        test_float_simd_math_2operands!(f64, F64Vec::SIZE, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x - y, |x, y| x.__sub(y));
+        test_float_simd_math_2operands!(f64, F64Vec::SIZE, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x % y, |x, y| x.__rem(y));
+        test_float_simd_math_2operands!(f64, F64Vec::SIZE, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x.max(y), |x, y| x.__max(y));
+        test_float_simd_math_2operands!(f64, F64Vec::SIZE, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x.min(y), |x, y| x.__min(y));
 
-        use num_traits::Float;
         use half::f16;
-        let range1 = half::f16::from_f32(-1e4)..=half::f16::from_f32(1e4);
-        let range2 = half::f16::from_f32(-11.0)..=half::f16::from_f32(11.0);
-        let range3 = half::f16::from_f32(-8.7)..=half::f16::from_f32(8.7);
-        let range4 = half::f16::from_f32(-130.0)..=half::f16::from_f32(130.0);
-        let range5 = half::f16::from_f32(0.0)..=half::f16::from_f32(6e4);
-        // let range6 = half::f16::from_f32(-14.0)..=half::f16::from_f32(15.0); // exp2
-        let range7 = half::f16::from_f32(-0.999)..=half::f16::from_f32(6e4);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, sin);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, cos);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, tan);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, asin);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, acos);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, atan);
-        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, sinh);
-        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, cosh);
-        test_float_simd_math!(f16, F16Vec::SIZE, range3.clone(), 1000, tanh);
-        test_float_simd_math!(f16, F16Vec::SIZE, range4.clone(), 1000, asinh);
-        test_float_simd_math!(f16, F16Vec::SIZE, range4.clone(), 1000, acosh);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, atanh);
-        test_float_simd_math!(f16, F16Vec::SIZE, range4.clone(), 1000, |x| x * x, |x| SimdMath::square(x));
-        test_float_simd_math!(f16, F16Vec::SIZE, range5.clone(), 1000, sqrt);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, abs);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, floor);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, ceil);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, |x| -x, |x| SimdMath::neg(x));
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, round);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, signum);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, |x| if x > half::f16::ZERO {x} else {half::f16::ZERO}, |x| SimdMath::relu(x));
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, |x| x.max(half::f16::ZERO).min(half::f16::from_f32(6.0)), |x| SimdMath::relu6(x));
-        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, exp);
-        // test_float_simd_math!(f16, F16Vec::SIZE, range6.clone(), 1000, |x| x.exp2(), |x| SimdMath::exp2(x));
-        // test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, |x| x.exp_m1(), |x| x.expm1());
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, ln);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, |x| x.ln(), |x| SimdMath::log(x));
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, log2);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, log10);
-        // test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, cbrt);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, |x| libm::erff(x.to_f32()).to_f16(), |x| SimdMath::erf(x));
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, trunc);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, recip);
-        test_float_simd_math!(f16, F16Vec::SIZE, range7.clone(), 1000, |x| x.ln_1p(), |x| SimdMath::log1p(x));
+        let range1 = half::f16::from_f32(-4.0)..=half::f16::from_f32(4.0);
+        let range2 = half::f16::from_f32(-1.0)..=half::f16::from_f32(1.0);
+        let range3 = half::f16::from_f32(-1e4)..=half::f16::from_f32(1e4);
+        let log_range_base = half::f16::from_f32(0.1)..=half::f16::from_f32(0.9);
+        let log_range_base2 = half::f16::from_f32(1.1)..=half::f16::from_f32(1e4);
+        use num_traits::real::Real;
+        test_float_simd_math_2operands!(f16, F16Vec::SIZE, range1.clone(), range2.clone(), 1000, |x, y| x.powf(y), |x, y| SimdMath::pow(x, y));
+        test_float_simd_math_2operands!(f16, F16Vec::SIZE, range1.clone(), range2.clone(), 1000, |x, y| x.powf(y), |x, y| x.__pow(y));
+        test_float_simd_math_2operands!(f16, F16Vec::SIZE, range3.clone(), range3.clone(), 1000, |x, y| x / y, |x, y| x.__div(y));
+        test_float_simd_math_2operands!(f16, F16Vec::SIZE, range3.clone(), range3.clone(), 1000, |x, y| x.max(f16::ZERO) + y * x.min(f16::ZERO), |x, y| SimdMath::leaky_relu(x, y));
+        test_float_simd_math_2operands!(f16, F16Vec::SIZE, range3.clone(), range3.clone(), 1000, |x, y| x.max(f16::ZERO) + y * x.min(f16::ZERO), |x, y| x.__leaky_relu(y));
+        test_float_simd_math_2operands!(f16, F16Vec::SIZE, log_range_base.clone(), log_range_base2.clone(), 1000, |x, y| x.log(y), |x, y| x.__log(y));
+        test_float_simd_math_2operands!(f16, F16Vec::SIZE, f16::MIN..=f16::MAX, f16::MIN..=f16::MAX, 1000, |x, y| x + y, |x, y| x.__add(y));
+        test_float_simd_math_2operands!(f16, F16Vec::SIZE, f16::MIN..=f16::MAX, f16::MIN..=f16::MAX, 1000, |x, y| x - y, |x, y| x.__sub(y));
+        test_float_simd_math_2operands!(f16, F16Vec::SIZE, f16::MIN..=f16::MAX, f16::MIN..=f16::MAX, 1000, |x, y| x % y, |x, y| x.__rem(y));
+        test_float_simd_math_2operands!(f16, F16Vec::SIZE, f16::MIN..=f16::MAX, f16::MIN..=f16::MAX, 1000, |x, y| x.max(y), |x, y| x.__max(y));
+        test_float_simd_math_2operands!(f16, F16Vec::SIZE, f16::MIN..=f16::MAX, f16::MIN..=f16::MAX, 1000, |x, y| x.min(y), |x, y| x.__min(y));
     }
 
     #[test]
@@ -1390,4 +1675,7 @@ mod tests {
         test_is_nan!(2, usize, UsizeVec, IsizeVec);
         test_is_nan!(2, isize, IsizeVec, IsizeVec);
     }
+
+    #[test]
+    fn test_sum() {}
 }

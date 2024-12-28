@@ -276,15 +276,15 @@ pub trait SimdMath<T>: Copy {
         unreachable!()
     }
     /// celu
-    fn celu(self, _: T) -> Self {
+    fn celu(self, _: Self) -> Self {
         unreachable!()
     }
     /// selu
-    fn selu(self, _: T, _: T) -> Self {
+    fn selu(self, _: Self, _: Self) -> Self {
         unreachable!()
     }
     /// elu
-    fn elu(self, _: T) -> Self {
+    fn elu(self, _: Self) -> Self {
         unreachable!()
     }
     /// hard sigmoid

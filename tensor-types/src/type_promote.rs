@@ -150,7 +150,7 @@ pub trait NormalOutUnary {
     /// perform rounding
     fn _round(self) -> Self;
     /// get the sign of x
-    fn _sign(self) -> Self;
+    fn _signum(self) -> Self;
 
     /// Perform the leaky ReLU (Rectified Linear Unit) activation function.
     ///
@@ -182,7 +182,7 @@ pub(crate) trait NormalOutUnary2 {
     /// perform rounding
     fn __round(self) -> Self;
     /// get the sign of x
-    fn __sign(self) -> Self;
+    fn __signum(self) -> Self;
 
     /// Perform the leaky ReLU (Rectified Linear Unit) activation function.
     ///
@@ -339,8 +339,6 @@ simd_eval!();
 pub trait FloatOutUnary {
     /// The output type.
     type Output;
-    /// The base type, typically used for parameters like `alpha`.
-    type Base;
 
     /// Perform the natural exponential function: e<sup>x</sup>.
     fn _exp(self) -> Self::Output;
@@ -354,7 +352,7 @@ pub trait FloatOutUnary {
     /// Perform the CELU (Continuously Differentiable Exponential Linear Unit) activation function.
     ///
     /// Formula: f(x) = max(0, x) + min(0, alpha * (e<sup>(x / alpha)</sup> - 1))
-    fn _celu(self, alpha: Self::Base) -> Self::Output;
+    fn _celu(self, alpha: Self::Output) -> Self::Output;
 
     /// Perform the base-2 logarithm: log<sub>2</sub>(x).
     fn _log2(self) -> Self::Output;
@@ -413,7 +411,7 @@ pub trait FloatOutUnary {
     /// Perform the ELU (Exponential Linear Unit) activation function.
     ///
     /// Formula: f(x) = x if x > 0 else alpha * (e<sup>x</sup> - 1)
-    fn _elu(self, alpha: Self::Base) -> Self::Output;
+    fn _elu(self, alpha: Self::Output) -> Self::Output;
 
     /// Perform the GELU (Gaussian Error Linear Unit) activation function.
     fn _gelu(self) -> Self::Output;
@@ -421,7 +419,7 @@ pub trait FloatOutUnary {
     /// Perform the SELU (Scaled Exponential Linear Unit) activation function.
     ///
     /// Formula: f(x) = scale * (x if x > 0 else alpha * (e<sup>x</sup> - 1))
-    fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output;
+    fn _selu(self, alpha: Self::Output, scale: Self::Output) -> Self::Output;
 
     /// Perform the hard sigmoid activation function.
     ///

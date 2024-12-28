@@ -14,9 +14,9 @@ libm = "0.2.11"
 
 [dev-dependencies]
 rand = "0.8.5"
+rug = "1.16"
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
-rug = "1.16"
 sleef = { version = "0.3.2" }
 
 [features]

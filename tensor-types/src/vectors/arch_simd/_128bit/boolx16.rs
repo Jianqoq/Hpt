@@ -284,7 +284,7 @@ impl NormalOutUnary2 for boolx16 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
+    fn __signum(self) -> Self {
         self
     }
 

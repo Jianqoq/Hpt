@@ -242,8 +242,8 @@ impl NormalOutUnary2 for cplx32x2 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
-        let res = [self[0].__sign(), self[1].__sign()];
+    fn __signum(self) -> Self {
+        let res = [self[0].__signum(), self[1].__signum()];
         cplx32x2(unsafe { std::mem::transmute(res) })
     }
 

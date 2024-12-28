@@ -95,7 +95,7 @@ impl NormalOutUnary2 for i64 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
+    fn __signum(self) -> Self {
         self.signum()
     }
 

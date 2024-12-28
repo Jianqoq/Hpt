@@ -3,12 +3,12 @@ use crate::vectors::_512bit::*;
 use crate::{
     convertion::VecConvertor,
     into_vec::IntoVec,
-    type_promote::{ BitWiseOut, Eval, FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary },
+    type_promote::{BitWiseOut, FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary},
     vectors::traits::VecTrait,
 };
 use core::f32;
-use half::{ bf16, f16 };
-use std::fmt::{ Debug, Display };
+use half::{bf16, f16};
+use std::fmt::{Debug, Display};
 use tensor_macros::infer_enum_type;
 
 /// enum for data type
@@ -124,7 +124,10 @@ impl Dtype {
 /// common trait for all data types
 ///
 /// This trait is used to define the common properties of all data types
-pub trait TypeCommon where Self: Sized + Copy {
+pub trait TypeCommon
+where
+    Self: Sized + Copy,
+{
     /// the data type id
     const ID: Dtype;
     /// the maximum value of the data type
@@ -152,23 +155,22 @@ pub trait TypeCommon where Self: Sized + Copy {
     /// the bit size of the data type, alias of `std::mem::size_of()`
     const BIT_SIZE: usize;
     /// the simd vector type of the data type
-    type Vec: VecTrait<Self> +
-        Send +
-        Copy +
-        IntoVec<Self::Vec> +
-        std::ops::Index<usize, Output = Self> +
-        std::ops::IndexMut<usize> +
-        Sync +
-        Debug +
-        NormalOutUnary +
-        NormalOut<Self::Vec, Output = Self::Vec> +
-        FloatOutUnary +
-        FloatOutBinary +
-        FloatOutBinary<
+    type Vec: VecTrait<Self>
+        + Send
+        + Copy
+        + IntoVec<Self::Vec>
+        + std::ops::Index<usize, Output = Self>
+        + std::ops::IndexMut<usize>
+        + Sync
+        + Debug
+        + NormalOutUnary
+        + NormalOut<Self::Vec, Output = Self::Vec>
+        + FloatOutUnary
+        + FloatOutBinary
+        + FloatOutBinary<
             <Self::Vec as FloatOutUnary>::Output,
-            Output = <Self::Vec as FloatOutUnary>::Output
-        > +
-        VecConvertor;
+            Output = <Self::Vec as FloatOutUnary>::Output,
+        > + VecConvertor;
     /// the mask type of the data type
     type Mask;
     /// convert the value to the mask
@@ -199,21 +201,25 @@ macro_rules! impl_type_common {
             type Output = $type;
             fn index(&self, index: usize) -> &Self::Output {
                 if index >= <$vec>::SIZE {
-                    panic!("index out of bounds: the len is {} but the index is {}", <$vec>::SIZE, index);
+                    panic!(
+                        "index out of bounds: the len is {} but the index is {}",
+                        <$vec>::SIZE,
+                        index
+                    );
                 }
-                unsafe {
-                    &*self.as_ptr().add(index)
-                }
+                unsafe { &*self.as_ptr().add(index) }
             }
         }
         impl std::ops::IndexMut<usize> for $vec {
             fn index_mut(&mut self, index: usize) -> &mut Self::Output {
                 if index >= <$vec>::SIZE {
-                    panic!("index out of bounds: the len is {} but the index is {}", <$vec>::SIZE, index);
+                    panic!(
+                        "index out of bounds: the len is {} but the index is {}",
+                        <$vec>::SIZE,
+                        index
+                    );
                 }
-                unsafe {
-                    &mut *self.as_mut_ptr().add(index)
-                }
+                unsafe { &mut *self.as_mut_ptr().add(index) }
             }
         }
         impl TypeCommon for $type {
@@ -244,11 +250,11 @@ macro_rules! impl_type_common {
 
 #[cfg(target_feature = "avx2")]
 mod type_impl {
-    use super::{ Dtype, TypeCommon };
-    use crate::vectors::traits::VecTrait;
+    use super::{Dtype, TypeCommon};
     use crate::simd::_256bit::*;
+    use crate::vectors::traits::VecTrait;
     use half::*;
-    use num_complex::{ Complex32, Complex64 };
+    use num_complex::{Complex32, Complex64};
     impl_type_common!(
         bool,
         Bool,
@@ -578,22 +584,20 @@ mod type_impl {
     );
 }
 
-#[cfg(
-    all(
-        any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
-        not(target_feature = "avx2")
-    )
-)]
+#[cfg(all(
+    any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
+    not(target_feature = "avx2")
+))]
 mod type_impl {
-    use super::{ Dtype, TypeCommon };
-    #[cfg(feature = "stdsimd")]
-    use crate::vectors::std_simd as simd;
+    use super::{Dtype, TypeCommon};
     #[cfg(feature = "archsimd")]
     use crate::vectors::arch_simd as simd;
-    use simd::_128bit::*;
-    use half::*;
-    use num_complex::{ Complex32, Complex64 };
+    #[cfg(feature = "stdsimd")]
+    use crate::vectors::std_simd as simd;
     use crate::vectors::traits::VecTrait;
+    use half::*;
+    use num_complex::{Complex32, Complex64};
+    use simd::_128bit::*;
     impl_type_common!(
         bool,
         Bool,
@@ -1052,134 +1056,5 @@ impl BitWiseOut for Dtype {
 
     fn _shr(self, rhs: Self) -> Self::Output {
         infer_enum_type!(self, rhs, normal)
-    }
-}
-
-impl FloatOutUnary for Dtype {
-    type Output = Dtype;
-    type Base = Self;
-    fn _exp(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _exp2(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _ln(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _celu(self, _: Self::Output) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _log2(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _log10(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _sqrt(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _sin(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _cos(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _tan(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _asin(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _acos(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _atan(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _sinh(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _cosh(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _tanh(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _asinh(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _acosh(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _atanh(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _recip(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _erf(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _sigmoid(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _elu(self, _: Self::Output) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _gelu(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _selu(self, _: Self, _: Self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _hard_sigmoid(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _fast_hard_sigmoid(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _hard_swish(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _softplus(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-    fn _softsign(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-
-    fn _mish(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-
-    fn _cbrt(self) -> Self::Output {
-        infer_enum_type!(self, null, uary_float)
-    }
-}
-
-impl FloatOutBinary for Dtype {
-    type Output = Dtype;
-
-    fn _div(self, rhs: Self) -> Self::Output {
-        infer_enum_type!(self, rhs, binary_float)
-    }
-    fn _log(self, base: Self) -> Self::Output {
-        infer_enum_type!(self, base, binary_float)
-    }
-}
-
-impl Eval for Dtype {
-    type Output = Dtype;
-    fn _is_nan(&self) -> Dtype {
-        Dtype::Bool
-    }
-
-    fn _is_true(&self) -> Dtype {
-        Dtype::Bool
-    }
-
-    fn _is_inf(&self) -> Self::Output {
-        Dtype::Bool
     }
 }

@@ -612,6 +612,74 @@ impl SimdMath<f64> for f64x2 {
             f64x2(vrec_vd_vd(self.0))
         }
     }
+    #[inline(always)]
+    fn fast_hard_sigmoid(self) -> Self {
+        let sixth = Self::splat(1.0 / 6.0);
+        let half = Self::splat(0.5);
+        let one = Self::splat(1.0);
+        let zero = Self::splat(0.0);
+        let result = self * sixth + half;
+        result.min(one).max(zero)
+    }
+    #[inline(always)]
+    fn hard_sigmoid(self) -> Self {
+        let point_two = Self::splat(0.2);
+        let half = Self::splat(0.5);
+        let one = Self::splat(1.0);
+        let zero = Self::splat(0.0);
+        let add = point_two * self + half;
+        add.min(one).max(zero)
+    }
+
+    #[inline(always)]
+    fn elu(self, alpha: Self) -> Self {
+        let mask = self.simd_gt(Self::splat(0.0));
+        mask.select(self, alpha * (self.expm1()))
+    }
+
+    #[inline(always)]
+    fn selu(self, alpha: Self, scale: Self) -> Self {
+        scale * self.elu(alpha)
+    }
+
+    #[inline(always)]
+    fn celu(self, scale: Self) -> Self {
+        let gt_mask = self.simd_gt(Self::splat(0.0));
+        gt_mask.select(self, scale * (self.exp() - Self::splat(1.0)))
+    }
+
+    #[inline(always)]
+    fn gelu(self) -> Self {
+        let erf = (self * Self::splat(std::f64::consts::FRAC_1_SQRT_2)).erf() + Self::splat(1.0);
+        let half = Self::splat(0.5);
+        half * self * erf
+    }
+
+    #[inline(always)]
+    fn hard_swish(self) -> Self {
+        let three = Self::splat(3.0);
+        self * (self + three).relu6() * Self::splat(1.0 / 6.0)
+    }
+
+    #[inline(always)]
+    fn mish(self) -> Self {
+        self * self.softplus().tanh()
+    }
+
+    #[inline(always)]
+    fn softplus(self) -> Self {
+        let one = Self::splat(1.0);
+        (one + self.exp()).ln()
+    }
+
+    #[inline(always)]
+    fn sigmoid(self) -> Self {
+        Self::splat(1.0) / (Self::splat(1.0) + (-self).exp())
+    }
+    #[inline(always)]
+    fn softsign(self) -> Self {
+        self / (Self::splat(1.0) + self.abs())
+    }
 }
 
 impl VecConvertor for f64x2 {
@@ -765,7 +833,7 @@ impl NormalOutUnary2 for f64x2 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
+    fn __signum(self) -> Self {
         self.signum()
     }
 
