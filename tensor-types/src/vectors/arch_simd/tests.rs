@@ -390,28 +390,71 @@ macro_rules! test_computes_3operands_for_type {
     };
 }
 
-fn f32_ulp_diff(a: f32, b: f32) -> f32 {
+fn f16_ulp_diff(a: half::f16, b: half::f16) -> i32 {
+    let a = a.to_f32();
+    let b = b.to_f32();
     if a == b {
-        return 0.0;
+        return 0;
     }
     if (a == 0.0 || a.is_subnormal()) && (b == 0.0 || b.is_subnormal()) {
-        return 0.0;
+        return 0;
     }
     if a == 0.0 && b != 0.0 {
-        return 10000.0;
+        return 10000;
     }
-    if a.is_infinite() && b.is_infinite() {
-        return 0.0;
+    if (a.is_infinite() && b.is_infinite()) || (a.is_nan() && b.is_nan()) {
+        return 0;
     }
 
-    let bits_a = a.to_bits();
-    let bits_b = b.to_bits();
-    (bits_a as i32 - bits_b as i32).abs() as f32
+    let bits_a = unsafe { std::mem::transmute::<f32, i32>(a) };
+    let bits_b = unsafe { std::mem::transmute::<f32, i32>(b) };
+    (bits_a - bits_b).abs()
+}
+
+fn f32_ulp_diff(a: f32, b: f32) -> i32 {
+    if a == b {
+        return 0;
+    }
+    if (a == 0.0 || a.is_subnormal()) && (b == 0.0 || b.is_subnormal()) {
+        return 0;
+    }
+    if a == 0.0 && b != 0.0 {
+        return 10000;
+    }
+    if (a.is_infinite() && b.is_infinite()) || (a.is_nan() && b.is_nan()) {
+        return 0;
+    }
+
+    let bits_a = unsafe { std::mem::transmute::<f32, i32>(a) };
+    let bits_b = unsafe { std::mem::transmute::<f32, i32>(b) };
+    (bits_a - bits_b).abs()
+}
+
+fn f64_ulp_diff(a: f64, b: f64) -> i64 {
+    if a == b {
+        return 0;
+    }
+    if (a == 0.0 || a.is_subnormal()) && (b == 0.0 || b.is_subnormal()) {
+        return 0;
+    }
+    if a == 0.0 && b != 0.0 {
+        return 10000;
+    }
+    if (a.is_infinite() && b.is_infinite()) || (a.is_nan() && b.is_nan()) {
+        return 0;
+    }
+
+    let bits_a = unsafe { std::mem::transmute::<f64, i64>(a) };
+    let bits_b = unsafe { std::mem::transmute::<f64, i64>(b) };
+    (bits_a - bits_b).abs()
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::traits::{SimdCompare, SimdMath};
+    use crate::{
+        simd::sleef::common::misc::SQRT_FLT_MAX,
+        traits::{SimdCompare, SimdMath},
+    };
 
     use super::*;
     #[test]
@@ -1010,19 +1053,70 @@ mod tests {
         test_simd_le!(2, Bf16Vec, I16Vec, half::bf16, "bf16::simd_le: simd_result[i] is not 0", "bf16::simd_le: simd_result[i] is not -1", "bf16::simd_le: simd_result[i] is not 1", 0 <= 0: -1, 10.0 <= 0: 0, -1.0 <= 0.0: -1);
     }
 
+    #[rustfmt::skip]
     #[test]
     fn test_trig() {
         macro_rules! test_trig {
-            () => {};
+            ($type:ty, $size:expr, $range:expr, $repeat:expr, $op:ident) => {
+                test_computes_1operands_float::<$type, { $size }>(
+                    $range,
+                    $repeat,
+                    |x| x.$op(),
+                    |x| SimdMath::$op(x),
+                    |a, b| {
+                        paste::paste! {
+                            [<$type _ulp_diff>](a, b) <= 1
+                        }
+                    },
+                    stringify!($type::$op),
+                );
+            };
         }
+        test_trig!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, sin);
+        test_trig!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, cos);
+        test_trig!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, tan);
+        test_trig!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, asin);
+        test_trig!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, acos);
+        test_trig!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, atan);
+        test_trig!(f32, F32Vec::SIZE, -88.5..=88.5, 1000, sinh);
+        test_trig!(f32, F32Vec::SIZE, -88.5..=88.5, 1000, cosh);
+        test_trig!(f32, F32Vec::SIZE, -8.7..=8.7, 1000, tanh);
+        test_trig!(f32, F32Vec::SIZE, -SQRT_FLT_MAX as f32..=SQRT_FLT_MAX as f32, 1000, asinh);
+        test_trig!(f32, F32Vec::SIZE, -SQRT_FLT_MAX as f32..=SQRT_FLT_MAX as f32, 1000, acosh);
+        test_trig!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, atanh);
+        test_trig!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, sin);
 
-        test_computes_1operands_float(
-            f32::MIN..=f32::MAX,
-            1000,
-            |x| x.sin(),
-            |x| SimdMath::sin(x),
-            |a, b| f32_count_ulp(a, b) <= 1,
-            "f32::sin",
-        );
+        test_trig!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, sin);
+        test_trig!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, cos);
+        test_trig!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, tan);
+        test_trig!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, asin);
+        test_trig!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, acos);
+        test_trig!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, atan);
+        test_trig!(f64, F64Vec::SIZE, -709.0..=709.0, 1000, sinh);
+        test_trig!(f64, F64Vec::SIZE, -709.0..=709.0, 1000, cosh);
+        test_trig!(f64, F64Vec::SIZE, -19.0..=19.0, 1000, tanh);
+        test_trig!(f64, F64Vec::SIZE, -SQRT_FLT_MAX as f64..=SQRT_FLT_MAX as f64, 1000, asinh);
+        test_trig!(f64, F64Vec::SIZE, -SQRT_FLT_MAX as f64..=SQRT_FLT_MAX as f64, 1000, acosh);
+        test_trig!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, atanh);
+        test_trig!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, sin);
+        use num_traits::Float;
+        use half::f16;
+        let range1 = half::f16::from_f32(-1e4)..=half::f16::from_f32(1e4);
+        let range2 = half::f16::from_f32(-11.0)..=half::f16::from_f32(11.0);
+        let range3 = half::f16::from_f32(-8.7)..=half::f16::from_f32(8.7);
+        let range4 = half::f16::from_f32(-SQRT_FLT_MAX as f32)..=half::f16::from_f32(SQRT_FLT_MAX as f32);
+        test_trig!(f16, F16Vec::SIZE, range1.clone(), 1000, sin);
+        test_trig!(f16, F16Vec::SIZE, range1.clone(), 1000, cos);
+        test_trig!(f16, F16Vec::SIZE, range1.clone(), 1000, tan);
+        test_trig!(f16, F16Vec::SIZE, range1.clone(), 1000, asin);
+        test_trig!(f16, F16Vec::SIZE, range1.clone(), 1000, acos);
+        test_trig!(f16, F16Vec::SIZE, range1.clone(), 1000, atan);
+        test_trig!(f16, F16Vec::SIZE, range2.clone(), 1000, sinh);
+        test_trig!(f16, F16Vec::SIZE, range2.clone(), 1000, cosh);
+        test_trig!(f16, F16Vec::SIZE, range3.clone(), 1000, tanh);
+        test_trig!(f16, F16Vec::SIZE, range4.clone(), 1000, asinh);
+        test_trig!(f16, F16Vec::SIZE, range4.clone(), 1000, acosh);
+        test_trig!(f16, F16Vec::SIZE, range1.clone(), 1000, atanh);
+        test_trig!(f16, F16Vec::SIZE, range1.clone(), 1000, sin);
     }
 }
