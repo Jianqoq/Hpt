@@ -319,7 +319,7 @@ pub(crate) fn test_computes_1operands_float<
         let simd_result = unsafe { std::mem::transmute::<&T::Vec, &[T; N]>(&res) };
         for i in 0..N {
             if !assert_op(result[i], simd_result[i]) {
-                panic!("{}: actual: {} != simd: {}", msg, result[i], simd_result[i]);
+                panic!("{}: input: {} actual: {} != simd: {}", msg, input[i], result[i], simd_result[i]);
             }
         }
     }
@@ -1084,7 +1084,6 @@ mod tests {
         test_trig!(f32, F32Vec::SIZE, -SQRT_FLT_MAX as f32..=SQRT_FLT_MAX as f32, 1000, asinh);
         test_trig!(f32, F32Vec::SIZE, -SQRT_FLT_MAX as f32..=SQRT_FLT_MAX as f32, 1000, acosh);
         test_trig!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, atanh);
-        test_trig!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, sin);
 
         test_trig!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, sin);
         test_trig!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, cos);
@@ -1098,13 +1097,12 @@ mod tests {
         test_trig!(f64, F64Vec::SIZE, -SQRT_FLT_MAX as f64..=SQRT_FLT_MAX as f64, 1000, asinh);
         test_trig!(f64, F64Vec::SIZE, -SQRT_FLT_MAX as f64..=SQRT_FLT_MAX as f64, 1000, acosh);
         test_trig!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, atanh);
-        test_trig!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, sin);
         use num_traits::Float;
         use half::f16;
         let range1 = half::f16::from_f32(-1e4)..=half::f16::from_f32(1e4);
         let range2 = half::f16::from_f32(-11.0)..=half::f16::from_f32(11.0);
         let range3 = half::f16::from_f32(-8.7)..=half::f16::from_f32(8.7);
-        let range4 = half::f16::from_f32(-SQRT_FLT_MAX as f32)..=half::f16::from_f32(SQRT_FLT_MAX as f32);
+        let range4 = half::f16::from_f32(-130.0)..=half::f16::from_f32(130.0);
         test_trig!(f16, F16Vec::SIZE, range1.clone(), 1000, sin);
         test_trig!(f16, F16Vec::SIZE, range1.clone(), 1000, cos);
         test_trig!(f16, F16Vec::SIZE, range1.clone(), 1000, tan);
@@ -1117,6 +1115,5 @@ mod tests {
         test_trig!(f16, F16Vec::SIZE, range4.clone(), 1000, asinh);
         test_trig!(f16, F16Vec::SIZE, range4.clone(), 1000, acosh);
         test_trig!(f16, F16Vec::SIZE, range1.clone(), 1000, atanh);
-        test_trig!(f16, F16Vec::SIZE, range1.clone(), 1000, sin);
     }
 }

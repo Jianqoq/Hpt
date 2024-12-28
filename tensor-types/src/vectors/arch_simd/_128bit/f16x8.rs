@@ -158,7 +158,7 @@ impl f16x8 {
             {
                 let f16_high = _mm_cvtps_ph(val[0].0, _MM_FROUND_TO_NEAREST_INT);
                 let f16_low = _mm_cvtps_ph(val[1].0, _MM_FROUND_TO_NEAREST_INT);
-                let result = _mm_unpacklo_epi64(f16_low, f16_high);
+                let result = _mm_unpacklo_epi64(f16_high, f16_low);
                 std::mem::transmute(result)
             }
             #[cfg(not(all(target_feature = "f16c", target_arch = "x86_64")))]
