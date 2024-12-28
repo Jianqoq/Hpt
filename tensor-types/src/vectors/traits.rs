@@ -163,8 +163,12 @@ pub trait SimdMath<T>: Copy {
     fn round(self) -> Self {
         unreachable!()
     }
-    /// compute the sign of the vector
-    fn sign(self) -> Self {
+    /// compute the signum of the vector
+    fn signum(self) -> Self {
+        unreachable!()
+    }
+    /// compute the copysign of the vector
+    fn copysign(self, _: Self) -> Self {
         unreachable!()
     }
     /// compute the square root of the vector
@@ -172,7 +176,7 @@ pub trait SimdMath<T>: Copy {
         unreachable!()
     }
     /// leaky relu
-    fn leaky_relu(self, _: T) -> Self {
+    fn leaky_relu(self, _: Self) -> Self {
         unreachable!()
     }
     /// relu

@@ -15,7 +15,9 @@ use crate::{
         xlog_u1, xpow, xround, xsin_u1, xsincos_u1, xsinh, xsqrt_u05, xtan_u1, xtanh, xtrunc,
     },
     convertion::VecConvertor,
-    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait}, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    simd::sleef::libm::sleefsimddp::{xceil, xcopysign, xfloor},
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
 use helper::vabs_vd_vd;
 
@@ -151,38 +153,6 @@ impl f64x2 {
             let cmp = vceqq_f64(self.0, self.0);
             // Invert the comparison result to get true for NaN values
             f64x2(vreinterpretq_f64_u64(vceqzq_u64(cmp)))
-        }
-    }
-    /// check if the vector is infinite
-    #[inline(always)]
-    pub fn is_infinite(&self) -> f64x2 {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            let abs = _mm_andnot_pd(_mm_set1_pd(-0.0), self.0);
-            f64x2(_mm_cmpeq_pd(abs, _mm_set1_pd(f64::INFINITY)))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            // Clear sign bit to get absolute value
-            let abs = vabsq_f64(self.0);
-            // Compare with infinity
-            f64x2(vreinterpretq_f64_u64(vceqq_f64(
-                abs,
-                vdupq_n_f64(f64::INFINITY),
-            )))
-        }
-    }
-    /// reciprocal of the vector
-    #[inline(always)]
-    pub fn recip(&self) -> f64x2 {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            f64x2(_mm_div_pd(_mm_set1_pd(1.0), self.0))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            use crate::simd::sleef::arch::helper_aarch64::vrec_vd_vd;
-            f64x2(vrec_vd_vd(self.0))
         }
     }
 }
@@ -426,26 +396,12 @@ impl SimdMath<f64> for f64x2 {
 
     #[inline(always)]
     fn floor(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            f64x2(_mm_floor_pd(self.0))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            f64x2(vrndmq_f64(self.0))
-        }
+        f64x2(unsafe { xfloor(self.0) })
     }
 
     #[inline(always)]
     fn ceil(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            f64x2(_mm_ceil_pd(self.0))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            f64x2(vrndpq_f64(self.0))
-        }
+        f64x2(unsafe { xceil(self.0) })
     }
 
     #[inline(always)]
@@ -466,10 +422,15 @@ impl SimdMath<f64> for f64x2 {
     }
 
     #[inline(always)]
-    fn sign(self) -> Self {
+    fn signum(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            f64x2(_mm_and_pd(self.0, _mm_set1_pd(0.0f64)))
+            let zero = _mm_set1_pd(0.0);
+            let ones = _mm_set1_pd(1.0);
+            let neg_ones = _mm_set1_pd(-1.0);
+            let gt = _mm_cmpgt_pd(self.0, zero);
+            let lt = _mm_cmplt_pd(self.0, zero);
+            f64x2(_mm_or_pd(_mm_and_pd(gt, ones), _mm_and_pd(lt, neg_ones)))
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -483,34 +444,24 @@ impl SimdMath<f64> for f64x2 {
     }
 
     #[inline(always)]
-    fn leaky_relu(self, _: f64) -> Self {
-        todo!()
+    fn copysign(self, rhs: Self) -> Self {
+        f64x2(unsafe { xcopysign(self.0, rhs.0) })
+    }
+
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        let mask = self.simd_gt(Self::splat(0.0));
+        mask.select(self, self * alpha)
     }
 
     #[inline(always)]
     fn relu(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            f64x2(_mm_max_pd(self.0, _mm_setzero_pd()))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            let zero = vdupq_n_f64(0.0);
-            f64x2(vmaxq_f64(self.0, zero))
-        }
+        self.max(Self::splat(0.0))
     }
 
     #[inline(always)]
     fn relu6(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            f64x2(_mm_min_pd(self.relu().0, _mm_set1_pd(6.0f64)))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            let six = vdupq_n_f64(6.0);
-            f64x2(vminq_f64(self.relu().0, six))
-        }
+        self.max(Self::splat(0.0)).min(Self::splat(6.0))
     }
 
     #[inline(always)]
@@ -647,6 +598,19 @@ impl SimdMath<f64> for f64x2 {
     #[inline(always)]
     fn max(self, other: Self) -> Self {
         f64x2(unsafe { xfmax(self.0, other.0) })
+    }
+
+    #[inline(always)]
+    fn recip(self) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            f64x2(_mm_div_pd(_mm_set1_pd(1.0), self.0))
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            use crate::simd::sleef::arch::helper_aarch64::vrec_vd_vd;
+            f64x2(vrec_vd_vd(self.0))
+        }
     }
 }
 
@@ -802,7 +766,7 @@ impl NormalOutUnary2 for f64x2 {
 
     #[inline(always)]
     fn __sign(self) -> Self {
-        self.sign()
+        self.signum()
     }
 
     #[inline(always)]
@@ -835,7 +799,20 @@ impl Eval2 for f64x2 {
 
     #[inline(always)]
     fn __is_inf(&self) -> Self::Output {
-        unsafe { std::mem::transmute(self.is_infinite()) }
+        let i: i64x2 = unsafe { std::mem::transmute(self.0) };
+        let sign_mask = i64x2::splat(-(0x8000_0000_0000_0000i64));
+        let inf_mask = i64x2::splat(0x7ff0_0000_0000_0000);
+        let frac_mask = i64x2::splat(0x000f_ffff_ffff_ffff);
+
+        let exp = i & inf_mask;
+        let frac = i & frac_mask;
+        let is_inf = exp.simd_eq(inf_mask) & frac.simd_eq(i64x2::splat(0));
+        let is_neg = (i & sign_mask).simd_ne(i64x2::splat(0));
+
+        is_inf.select(
+            is_neg.select(i64x2::splat(-1), i64x2::splat(1)),
+            i64x2::splat(0),
+        )
     }
 }
 

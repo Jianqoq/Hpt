@@ -145,7 +145,7 @@ impl SimdCompare for i64x2 {
             let b: [i64; 2] = std::mem::transmute(other.0);
             let mut result = [0; 2];
             for i in 0..2 {
-                result[i] = if a[i] < b[i] { -1 } else { 0 };
+                result[i] = if a[i] < b[i] { -1i64 } else { 0 };
             }
             i64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
@@ -576,7 +576,7 @@ impl NormalOutUnary2 for i64x2 {
 
     #[inline(always)]
     fn __sign(self) -> Self {
-        self.sign()
+        self.signum()
     }
 
     #[inline(always)]

@@ -283,3 +283,4 @@ pub(crate) unsafe fn rempisub(x: VDouble) -> DI {
         vtruncate_vi_vd(vmla_vd_vd_vd_vd(vcast_vd_d(-4.0), rintx, rint4x))
     )
 }
+

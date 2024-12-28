@@ -356,7 +356,7 @@ impl NormalOutUnary2 for ISizeVEC {
 
     #[inline(always)]
     fn __sign(self) -> Self {
-        self.sign()
+        self.signum()
     }
 
     #[inline(always)]

@@ -1,55 +1,35 @@
-#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
-use crate::arch_simd::sleef::arch::helper_avx2 as helper;
-#[cfg(all(target_arch = "x86_64", target_feature = "sse", not(target_feature = "avx2")))]
-use crate::arch_simd::sleef::arch::helper_sse as helper;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
+#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+use crate::arch_simd::sleef::arch::helper_avx2 as helper;
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "sse",
+    not(target_feature = "avx2")
+))]
+use crate::arch_simd::sleef::arch::helper_sse as helper;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::simd::sleef::arch::helper_aarch64::{vcast_vf_vo, visinf_vo_vf, visnan_vo_vf, vneg_vf_vf};
+use crate::simd::sleef::arch::helper_aarch64::{
+    vcast_vf_vo, visinf_vo_vf, visnan_vo_vf, vneg_vf_vf,
+};
+use crate::simd::sleef::libm::sleefsimdsp::{xceilf, xcopysignf, xfloorf};
 use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
 
-use helper::vabs_vf_vf;
 use crate::arch_simd::sleef::libm::sleefsimdsp::{
-    xacosf_u1,
-    xacoshf,
-    xasinf_u1,
-    xasinhf,
-    xatan2f_u1,
-    xatanf_u1,
-    xatanhf,
-    xcbrtf_u1,
-    xcosf_u1,
-    xcoshf,
-    xerff_u1,
-    xexp10f,
-    xexp2f,
-    xexpf,
-    xexpm1f,
-    xhypotf_u05,
-    xlog10f,
-    xlog1pf,
-    xlog2f,
-    xlogf_u1,
-    xmaxf,
-    xminf,
-    xpowf,
-    xroundf,
-    xsincosf_u1,
-    xsinf_u1,
-    xsinhf,
-    xsqrtf_u05,
-    xtanf_u1,
-    xtanhf,
-    xtruncf,
+    xacosf_u1, xacoshf, xasinf_u1, xasinhf, xatan2f_u1, xatanf_u1, xatanhf, xcbrtf_u1, xcosf_u1,
+    xcoshf, xerff_u1, xexp10f, xexp2f, xexpf, xexpm1f, xhypotf_u05, xlog10f, xlog1pf, xlog2f,
+    xlogf_u1, xmaxf, xminf, xpowf, xroundf, xsincosf_u1, xsinf_u1, xsinhf, xsqrtf_u05, xtanf_u1,
+    xtanhf, xtruncf,
 };
 use crate::convertion::VecConvertor;
-use crate::traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait };
+use crate::traits::{SimdCompare, SimdMath, SimdSelect, VecTrait};
 use crate::vectors::arch_simd::_128bit::u32x4::u32x4;
+use helper::vabs_vf_vf;
 
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::*;
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
 
 use super::i32x4::i32x4;
 
@@ -58,10 +38,8 @@ use super::i32x4::i32x4;
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(16))]
 pub struct f32x4(
-    #[cfg(target_arch = "x86_64")]
-    pub(crate) __m128,
-    #[cfg(target_arch = "aarch64")]
-    pub(crate) float32x4_t,
+    #[cfg(target_arch = "x86_64")] pub(crate) __m128,
+    #[cfg(target_arch = "aarch64")] pub(crate) float32x4_t,
 );
 
 #[allow(non_camel_case_types)]
@@ -101,7 +79,10 @@ impl VecTrait<f32> for f32x4 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
             assert_eq!(slice.len(), 4);
-            _mm_storeu_ps(&mut self.0 as *mut _ as *mut f32, _mm_loadu_ps(slice.as_ptr()));
+            _mm_storeu_ps(
+                &mut self.0 as *mut _ as *mut f32,
+                _mm_loadu_ps(slice.as_ptr()),
+            );
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -168,41 +149,6 @@ impl f32x4 {
     #[inline(always)]
     fn as_array(&self) -> [f32; 4] {
         unsafe { std::mem::transmute(self.0) }
-    }
-    /// check if the vector is nan
-    #[inline(always)]
-    pub fn is_nan(&self) -> f32x4 {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            f32x4(_mm_cmpunord_ps(self.0, self.0))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            f32x4(vcast_vf_vo(visnan_vo_vf(self.0)))
-        }
-    }
-    /// check if the vector is infinite
-    #[inline(always)]
-    pub fn is_infinite(&self) -> f32x4 {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            let abs = _mm_andnot_ps(_mm_set1_ps(-0.0), self.0);
-            f32x4(_mm_cmpeq_ps(abs, _mm_set1_ps(f32::INFINITY)))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            f32x4(vcast_vf_vo(visinf_vo_vf(self.0)))
-        }
-    }
-    /// reciprocal of the vector
-    #[inline(always)]
-    pub fn recip(&self) -> f32x4 {
-        #[cfg(target_arch = "x86_64")]
-        unsafe { f32x4(_mm_rcp_ps(self.0)) }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            f32x4(vrecpeq_f32(self.0))
-        }
     }
 }
 
@@ -280,10 +226,20 @@ impl SimdSelect<f32x4> for i32x4 {
     #[inline(always)]
     fn select(&self, true_val: f32x4, false_val: f32x4) -> f32x4 {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f32x4(_mm_blendv_ps(false_val.0, true_val.0, std::mem::transmute(self.0))) }
+        unsafe {
+            f32x4(_mm_blendv_ps(
+                false_val.0,
+                true_val.0,
+                std::mem::transmute(self.0),
+            ))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            f32x4(vbslq_f32(vreinterpretq_u32_s32(self.0), true_val.0, false_val.0))
+            f32x4(vbslq_f32(
+                vreinterpretq_u32_s32(self.0),
+                true_val.0,
+                false_val.0,
+            ))
         }
     }
 }
@@ -293,7 +249,9 @@ impl std::ops::Add for f32x4 {
     #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f32x4(_mm_add_ps(self.0, rhs.0)) }
+        unsafe {
+            f32x4(_mm_add_ps(self.0, rhs.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             f32x4(vaddq_f32(self.0, rhs.0))
@@ -306,7 +264,9 @@ impl std::ops::Sub for f32x4 {
     #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f32x4(_mm_sub_ps(self.0, rhs.0)) }
+        unsafe {
+            f32x4(_mm_sub_ps(self.0, rhs.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             f32x4(vsubq_f32(self.0, rhs.0))
@@ -319,7 +279,9 @@ impl std::ops::Mul for f32x4 {
     #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f32x4(_mm_mul_ps(self.0, rhs.0)) }
+        unsafe {
+            f32x4(_mm_mul_ps(self.0, rhs.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             f32x4(vmulq_f32(self.0, rhs.0))
@@ -332,7 +294,9 @@ impl std::ops::Div for f32x4 {
     #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f32x4(_mm_div_ps(self.0, rhs.0)) }
+        unsafe {
+            f32x4(_mm_div_ps(self.0, rhs.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             f32x4(vdivq_f32(self.0, rhs.0))
@@ -390,7 +354,9 @@ impl SimdMath<f32> for f32x4 {
     #[inline(always)]
     fn square(self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f32x4(_mm_mul_ps(self.0, self.0)) }
+        unsafe {
+            f32x4(_mm_mul_ps(self.0, self.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             f32x4(vmulq_f32(self.0, self.0))
@@ -409,28 +375,20 @@ impl SimdMath<f32> for f32x4 {
 
     #[inline(always)]
     fn floor(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe { f32x4(_mm_floor_ps(self.0)) }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            f32x4(vrndmq_f32(self.0))
-        }
+        f32x4(unsafe { xfloorf(self.0) })
     }
 
     #[inline(always)]
     fn ceil(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe { f32x4(_mm_ceil_ps(self.0)) }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            f32x4(vrndpq_f32(self.0))
-        }
+        f32x4(unsafe { xceilf(self.0) })
     }
 
     #[inline(always)]
     fn neg(self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { f32x4(_mm_sub_ps(_mm_setzero_ps(), self.0)) }
+        unsafe {
+            f32x4(_mm_sub_ps(_mm_setzero_ps(), self.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             f32x4(vneg_vf_vf(self.0))
@@ -443,54 +401,52 @@ impl SimdMath<f32> for f32x4 {
     }
 
     #[inline(always)]
-    fn sign(self) -> Self {
+    fn signum(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            // Create masks for > 0 and < 0
-            let pos = _mm_cmpgt_ps(self.0, _mm_setzero_ps());
-            let neg = _mm_cmplt_ps(self.0, _mm_setzero_ps());
-            // Convert masks to -1.0 or 1.0
-            let pos_ones = _mm_and_ps(pos, _mm_set1_ps(1.0));
-            let neg_ones = _mm_and_ps(neg, _mm_set1_ps(-1.0));
-            // Combine results
-            f32x4(_mm_or_ps(pos_ones, neg_ones))
+            let zero = _mm_setzero_ps();
+            let one = _mm_set1_ps(1.0);
+            let neg_one = _mm_set1_ps(-1.0);
+            let is_positive = _mm_cmpgt_ps(self.0, zero);
+            let is_negative = _mm_cmplt_ps(self.0, zero);
+            let pos_result = _mm_and_ps(is_positive, one);
+            let neg_result = _mm_and_ps(is_negative, neg_one);
+            f32x4(_mm_or_ps(pos_result, neg_result))
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            // Create masks for > 0 and < 0
-            let pos = vcgtq_f32(self.0, vdupq_n_f32(0.0));
-            let neg = vcltq_f32(self.0, vdupq_n_f32(0.0));
-            // Convert masks to -1.0 or 1.0
-            let pos_ones = vbslq_f32(pos, vdupq_n_f32(1.0), vdupq_n_f32(0.0));
-            let neg_ones = vbslq_f32(neg, vdupq_n_f32(-1.0), vdupq_n_f32(0.0));
-            // Combine results
-            f32x4(vaddq_f32(pos_ones, neg_ones))
+            let zero = vdupq_n_f32(0.0);
+            let one = vdupq_n_f32(1.0);
+            let neg_one = vdupq_n_f32(-1.0);
+            let is_positive = vcgtq_f32(self.0, zero);
+            let is_negative = vcltq_f32(self.0, zero);
+            let pos_result =
+                vreinterpretq_f32_u32(vandq_u32(vreinterpretq_u32_f32(one), is_positive));
+            let neg_result =
+                vreinterpretq_f32_u32(vandq_u32(vreinterpretq_u32_f32(neg_one), is_negative));
+            f32x4(vorrq_f32(pos_result, neg_result))
         }
     }
 
     #[inline(always)]
-    fn leaky_relu(self, _: f32) -> Self {
-        todo!()
+    fn copysign(self, rhs: Self) -> Self {
+        f32x4(unsafe { xcopysignf(self.0, rhs.0) })
+    }
+
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        let mask = self.simd_gt(Self::splat(0.0));
+        mask.select(self, self * alpha)
     }
 
     #[inline(always)]
     fn relu(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe { f32x4(_mm_max_ps(self.0, _mm_setzero_ps())) }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            f32x4(vmaxq_f32(self.0, vdupq_n_f32(0.0)))
-        }
+        self.max(Self::splat(0.0))
     }
 
     #[inline(always)]
     fn relu6(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe { f32x4(_mm_min_ps(self.relu().0, _mm_set1_ps(6.0f32))) }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            f32x4(vminq_f32(self.relu().0, vdupq_n_f32(6.0)))
-        }
+        self.max(Self::splat(0.0)).min(Self::splat(6.0))
     }
 
     #[inline(always)]
@@ -628,13 +584,28 @@ impl SimdMath<f32> for f32x4 {
     fn max(self, other: Self) -> Self {
         f32x4(unsafe { xmaxf(self.0, other.0) })
     }
+
+    #[inline(always)]
+    fn recip(self) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            Self(_mm_div_ps(_mm_set1_ps(1.0), self.0))
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            use crate::simd::sleef::arch::helper_aarch64::vrec_vd_vd;
+            f32x4(vrecpeq_f32(self.0))
+        }
+    }
 }
 
 impl VecConvertor for f32x4 {
     #[inline(always)]
     fn to_u32(self) -> super::u32x4::u32x4 {
         #[cfg(target_arch = "x86_64")]
-        unsafe { u32x4(_mm_cvtps_epi32(self.0)) }
+        unsafe {
+            u32x4(_mm_cvtps_epi32(self.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             u32x4(vcvtq_u32_f32(self.0))
@@ -643,7 +614,9 @@ impl VecConvertor for f32x4 {
     #[inline(always)]
     fn to_i32(self) -> super::i32x4::i32x4 {
         #[cfg(target_arch = "x86_64")]
-        unsafe { i32x4(_mm_cvtps_epi32(self.0)) }
+        unsafe {
+            i32x4(_mm_cvtps_epi32(self.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             i32x4(vcvtq_s32_f32(self.0))
@@ -763,7 +736,7 @@ impl NormalOutUnary2 for f32x4 {
 
     #[inline(always)]
     fn __sign(self) -> Self {
-        self.sign()
+        self.signum()
     }
 
     #[inline(always)]
@@ -786,7 +759,14 @@ impl Eval2 for f32x4 {
     type Output = i32x4;
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
-        unsafe { std::mem::transmute(self.is_nan()) }
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            i32x4(std::mem::transmute(_mm_cmpunord_ps(self.0, self.0)))
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            i32x4(std::mem::transmute(visnan_vo_vf(self.0)))
+        }
     }
 
     #[inline(always)]
@@ -796,7 +776,20 @@ impl Eval2 for f32x4 {
 
     #[inline(always)]
     fn __is_inf(&self) -> Self::Output {
-        unsafe { std::mem::transmute(self.is_infinite()) }
+        let i: i32x4 = unsafe { std::mem::transmute(self.0) };
+        let sign_mask = i32x4::splat(-0x8000_0000i32);
+        let inf_mask = i32x4::splat(0x7f80_0000i32);
+        let frac_mask = i32x4::splat(0x007f_ffffi32);
+
+        let exp = i & inf_mask;
+        let frac = i & frac_mask;
+        let is_inf = exp.simd_eq(inf_mask) & frac.simd_eq(i32x4::splat(0));
+        let is_neg = (i & sign_mask).simd_ne(i32x4::splat(0));
+
+        is_inf.select(
+            is_neg.select(i32x4::splat(-1), i32x4::splat(1)),
+            i32x4::splat(0),
+        )
     }
 }
 
@@ -859,8 +852,7 @@ mod tests {
     fn gen_input(
         rng: &mut rand::rngs::ThreadRng,
         range: core::ops::RangeInclusive<f32>,
-    ) -> float32x4_t
-    {
+    ) -> float32x4_t {
         let mut arr = [0.; 4];
         for i in 0..4 {
             arr[i] = f32_gen_input(rng, range.clone());
@@ -873,8 +865,7 @@ mod tests {
         range: core::ops::RangeInclusive<f32>,
         ulp_ex: f32,
         name: &str,
-    )
-    {
+    ) {
         test_c_f_f(
             f_tested,
             f_sample,
@@ -890,8 +881,7 @@ mod tests {
         range: core::ops::RangeInclusive<f32>,
         cf: impl Fn(f32, f32, &rug::Float) -> (bool, String),
         name: &str,
-    )
-    {
+    ) {
         let mut rng = rand::thread_rng();
         for n in 0..TEST_REPEAT {
             let input = gen_input(&mut rng, range.clone());
@@ -919,8 +909,7 @@ mod tests {
     fn tests() {
         macro_rules! define_func {
             ($func:ident, $f:ident, $x_func:expr, $range:expr) => {
-                fn $func(d: float32x4_t) -> float32x4_t
-                {
+                fn $func(d: float32x4_t) -> float32x4_t {
                     unsafe { $x_func(d).into() }
                 }
                 test_f_f($func, rug::Float::$f, $range, 1., stringify!($func));

@@ -1,4 +1,6 @@
 #![allow(unused)]
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
 #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
 use crate::arch_simd::sleef::arch::helper_avx2 as helper;
 #[cfg(all(
@@ -7,8 +9,6 @@ use crate::arch_simd::sleef::arch::helper_avx2 as helper;
     not(target_feature = "avx2")
 ))]
 use crate::arch_simd::sleef::arch::helper_sse as helper;
-#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
 
 use helper::{
     vabs_vf_vf, vadd_vf_vf_vf, vadd_vi2_vi2_vi2, vand_vi2_vi2_vi2, vand_vi2_vo_vi2, vand_vm_vm_vm,
@@ -301,14 +301,14 @@ pub(crate) unsafe fn xsinf_u1(d: VFloat) -> VFloat {
     let mut t: VFloat2;
     let x: VFloat2;
 
-        u = vrint_vf_vf(vmul_vf_vf_vf(d, vcast_vf_f(M_1_PI as f32)));
+    u = vrint_vf_vf(vmul_vf_vf_vf(d, vcast_vf_f(M_1_PI as f32)));
     q = vrint_vi2_vf(u);
     v = vmla_vf_vf_vf_vf(u, vcast_vf_f(-PI_A2F), d);
     s = dfadd2_vf2_vf_vf(v, vmul_vf_vf_vf(u, vcast_vf_f(-PI_B2F)));
     s = dfadd_vf2_vf2_vf(s, vmul_vf_vf_vf(u, vcast_vf_f(-PI_C2F)));
     let g = vlt_vo_vf_vf(vabs_vf_vf(d), vcast_vf_f(TRIGRANGEMAX2F));
 
-        if vtestallones_i_vo32(g) == 0 {
+    if vtestallones_i_vo32(g) == 0 {
         let dfi = rempif(d);
         let mut q2 = vand_vi2_vi2_vi2(dfigeti_vi2_dfi(dfi), vcast_vi2_i(3));
         q2 = vadd_vi2_vi2_vi2(
@@ -353,10 +353,10 @@ pub(crate) unsafe fn xsinf_u1(d: VFloat) -> VFloat {
         s = vsel_vf2_vo_vf2_vf2(g, s, t);
     }
 
-        t = s;
+    t = s;
     s = dfsqu_vf2_vf2(s);
 
-        u = vcast_vf_f(2.6083159809786593541503e-06f32);
+    u = vcast_vf_f(2.6083159809786593541503e-06f32);
     u = vmla_vf_vf_vf_vf(
         u,
         vf2getx_vf_vf2(s),
@@ -381,7 +381,7 @@ pub(crate) unsafe fn xsinf_u1(d: VFloat) -> VFloat {
 
     u = dfmul_vf_vf2_vf2(t, x);
 
-        u = vreinterpret_vf_vm(vxor_vm_vm_vm(
+    u = vreinterpret_vf_vm(vxor_vm_vm_vm(
         vand_vm_vo32_vm(
             veq_vo_vi2_vi2(vand_vi2_vi2_vi2(q, vcast_vi2_i(1)), vcast_vi2_i(1)),
             vreinterpret_vm_vf(vcast_vf_f(-0.0)),
@@ -389,7 +389,7 @@ pub(crate) unsafe fn xsinf_u1(d: VFloat) -> VFloat {
         vreinterpret_vm_vf(u),
     ));
 
-        vsel_vf_vo_vf_vf(visnegzero_vo_vf(d), d, u)
+    vsel_vf_vo_vf_vf(visnegzero_vo_vf(d), d, u)
 }
 
 #[inline(always)]
@@ -400,7 +400,7 @@ pub(crate) unsafe fn xcosf_u1(d: VFloat) -> VFloat {
     let mut t: VFloat2;
     let x: VFloat2;
 
-        let dq = vmla_vf_vf_vf_vf(
+    let dq = vmla_vf_vf_vf_vf(
         vrint_vf_vf(vmla_vf_vf_vf_vf(
             d,
             vcast_vf_f(M_1_PI as f32),
@@ -411,13 +411,13 @@ pub(crate) unsafe fn xcosf_u1(d: VFloat) -> VFloat {
     );
     q = vrint_vi2_vf(dq);
 
-        s = dfadd2_vf2_vf_vf(d, vmul_vf_vf_vf(dq, vcast_vf_f(-PI_A2F * 0.5)));
+    s = dfadd2_vf2_vf_vf(d, vmul_vf_vf_vf(dq, vcast_vf_f(-PI_A2F * 0.5)));
     s = dfadd2_vf2_vf2_vf(s, vmul_vf_vf_vf(dq, vcast_vf_f(-PI_B2F * 0.5)));
     s = dfadd2_vf2_vf2_vf(s, vmul_vf_vf_vf(dq, vcast_vf_f(-PI_C2F * 0.5)));
 
-        let g = vlt_vo_vf_vf(vabs_vf_vf(d), vcast_vf_f(TRIGRANGEMAX2F));
+    let g = vlt_vo_vf_vf(vabs_vf_vf(d), vcast_vf_f(TRIGRANGEMAX2F));
 
-        if vtestallones_i_vo32(g) == 0 {
+    if vtestallones_i_vo32(g) == 0 {
         let dfi = rempif(d);
         let mut q2 = vand_vi2_vi2_vi2(dfigeti_vi2_dfi(dfi), vcast_vi2_i(3));
         q2 = vadd_vi2_vi2_vi2(
@@ -450,7 +450,7 @@ pub(crate) unsafe fn xcosf_u1(d: VFloat) -> VFloat {
         let dfi = dfisetdf_dfi_dfi_vf2(dfi, vsel_vf2_vo_vf2_vf2(o, x, dfigetdf_vf2_dfi(dfi)));
         t = dfnormalize_vf2_vf2(dfigetdf_vf2_dfi(dfi));
 
-                t = vf2setx_vf2_vf2_vf(
+        t = vf2setx_vf2_vf2_vf(
             t,
             vreinterpret_vf_vm(vor_vm_vo32_vm(
                 vor_vo_vo_vo(visinf_vo_vf(d), visnan_vo_vf(d)),
@@ -463,8 +463,8 @@ pub(crate) unsafe fn xcosf_u1(d: VFloat) -> VFloat {
     }
 
     t = s;
-    s = dfsqu_vf2_vf2(s); 
-        u = vcast_vf_f(2.6083159809786593541503e-06);
+    s = dfsqu_vf2_vf2(s);
+    u = vcast_vf_f(2.6083159809786593541503e-06);
     u = vmla_vf_vf_vf_vf(
         u,
         vf2getx_vf_vf2(s),
@@ -489,7 +489,7 @@ pub(crate) unsafe fn xcosf_u1(d: VFloat) -> VFloat {
 
     u = dfmul_vf_vf2_vf2(t, x);
 
-        u = vreinterpret_vf_vm(vxor_vm_vm_vm(
+    u = vreinterpret_vf_vm(vxor_vm_vm_vm(
         vand_vm_vo32_vm(
             veq_vo_vi2_vi2(vand_vi2_vi2_vi2(q, vcast_vi2_i(2)), vcast_vi2_i(0)),
             vreinterpret_vm_vf(vcast_vf_f(-0.0)),
@@ -809,32 +809,30 @@ pub(crate) unsafe fn xatanf_u1(d: VFloat) -> VFloat {
 
 #[inline(always)]
 unsafe fn visinf2_vf_vf_vf(d: VFloat, m: VFloat) -> VFloat {
-        let is_inf = visinf_vo_vf(d);
+    let is_inf = visinf_vo_vf(d);
 
-        let sign = vsignbit_vm_vf(d);
+    let sign = vsignbit_vm_vf(d);
 
-        let merged = vor_vm_vm_vm(sign, vreinterpret_vm_vf(m));
+    let merged = vor_vm_vm_vm(sign, vreinterpret_vm_vf(m));
 
-        vreinterpret_vf_vm(vand_vm_vo32_vm(is_inf, merged))
+    vreinterpret_vf_vm(vand_vm_vo32_vm(is_inf, merged))
 }
 
 #[inline(always)]
 pub(crate) unsafe fn xatan2f_u1(y: VFloat, x: VFloat) -> VFloat {
-        let o = vlt_vo_vf_vf(
-        vabs_vf_vf(x),
-        vcast_vf_f(2.9387372783541830947e-39f32),     );
+    let o = vlt_vo_vf_vf(vabs_vf_vf(x), vcast_vf_f(2.9387372783541830947e-39f32));
     let x = vsel_vf_vo_vf_vf(o, vmul_vf_vf_vf(x, vcast_vf_f((1 << 24) as f32)), x);
     let y = vsel_vf_vo_vf_vf(o, vmul_vf_vf_vf(y, vcast_vf_f((1 << 24) as f32)), y);
 
-        let d = atan2kf_u1(
+    let d = atan2kf_u1(
         vcast_vf2_vf_vf(vabs_vf_vf(y), vcast_vf_f(0.0)),
         vcast_vf2_vf_vf(x, vcast_vf_f(0.0)),
     );
     let mut r = vadd_vf_vf_vf(vf2getx_vf_vf2(d), vf2gety_vf_vf2(d));
 
-        r = vmulsign_vf_vf_vf(r, x);
+    r = vmulsign_vf_vf_vf(r, x);
 
-        r = vsel_vf_vo_vf_vf(
+    r = vsel_vf_vo_vf_vf(
         vor_vo_vo_vo(visinf_vo_vf(x), veq_vo_vf_vf(x, vcast_vf_f(0.0))),
         vsub_vf_vf_vf(
             vcast_vf_f(std::f32::consts::PI / 2.0),
@@ -846,7 +844,7 @@ pub(crate) unsafe fn xatan2f_u1(y: VFloat, x: VFloat) -> VFloat {
         r,
     );
 
-        r = vsel_vf_vo_vf_vf(
+    r = vsel_vf_vo_vf_vf(
         visinf_vo_vf(y),
         vsub_vf_vf_vf(
             vcast_vf_f(std::f32::consts::PI / 2.0),
@@ -858,7 +856,7 @@ pub(crate) unsafe fn xatan2f_u1(y: VFloat, x: VFloat) -> VFloat {
         r,
     );
 
-        r = vsel_vf_vo_vf_vf(
+    r = vsel_vf_vo_vf_vf(
         veq_vo_vf_vf(y, vcast_vf_f(0.0)),
         vreinterpret_vf_vm(vand_vm_vo32_vm(
             vsignbit_vo_vf(x),
@@ -867,7 +865,7 @@ pub(crate) unsafe fn xatan2f_u1(y: VFloat, x: VFloat) -> VFloat {
         r,
     );
 
-        r = vreinterpret_vf_vm(vor_vm_vo32_vm(
+    r = vreinterpret_vf_vm(vor_vm_vo32_vm(
         vor_vo_vo_vo(visnan_vo_vf(x), visnan_vo_vf(y)),
         vreinterpret_vm_vf(vmulsign_vf_vf_vf(r, y)),
     ));
@@ -888,16 +886,16 @@ pub(crate) unsafe fn xsincosf_u1(d: VFloat) -> VFloat2 {
     let mut t: VFloat2;
     let mut x: VFloat2;
 
-        u = vrint_vf_vf(vmul_vf_vf_vf(d, vcast_vf_f((2.0 * M_1_PI) as f32)));
+    u = vrint_vf_vf(vmul_vf_vf_vf(d, vcast_vf_f((2.0 * M_1_PI) as f32)));
     q = vrint_vi2_vf(u);
 
-        v = vmla_vf_vf_vf_vf(u, vcast_vf_f(-PI_A2F * 0.5), d);
+    v = vmla_vf_vf_vf_vf(u, vcast_vf_f(-PI_A2F * 0.5), d);
     s = dfadd2_vf2_vf_vf(v, vmul_vf_vf_vf(u, vcast_vf_f(-PI_B2F * 0.5)));
     s = dfadd_vf2_vf2_vf(s, vmul_vf_vf_vf(u, vcast_vf_f(-PI_C2F * 0.5)));
 
-        let g = vlt_vo_vf_vf(vabs_vf_vf(d), vcast_vf_f(TRIGRANGEMAX2F));
+    let g = vlt_vo_vf_vf(vabs_vf_vf(d), vcast_vf_f(TRIGRANGEMAX2F));
 
-        if vtestallones_i_vo32(g) == 0 {
+    if vtestallones_i_vo32(g) == 0 {
         let dfi = rempif(d);
         t = dfigetdf_vf2_dfi(dfi);
         o = vor_vo_vo_vo(visinf_vo_vf(d), visnan_vo_vf(d));
@@ -911,9 +909,9 @@ pub(crate) unsafe fn xsincosf_u1(d: VFloat) -> VFloat2 {
 
     t = s;
 
-        s = vf2setx_vf2_vf2_vf(s, dfsqu_vf_vf2(s));
+    s = vf2setx_vf2_vf2_vf(s, dfsqu_vf_vf2(s));
 
-        u = vcast_vf_f(-0.000195169282960705459117889);
+    u = vcast_vf_f(-0.000195169282960705459117889);
     u = vmla_vf_vf_vf_vf(
         u,
         vf2getx_vf_vf2(s),
@@ -930,9 +928,9 @@ pub(crate) unsafe fn xsincosf_u1(d: VFloat) -> VFloat2 {
     x = dfadd_vf2_vf2_vf(t, u);
     rx = vadd_vf_vf_vf(vf2getx_vf_vf2(x), vf2gety_vf_vf2(x));
 
-        rx = vsel_vf_vo_vf_vf(visnegzero_vo_vf(d), vcast_vf_f(-0.0), rx);
+    rx = vsel_vf_vo_vf_vf(visnegzero_vo_vf(d), vcast_vf_f(-0.0), rx);
 
-        u = vcast_vf_f(-2.71811842367242206819355e-07);
+    u = vcast_vf_f(-2.71811842367242206819355e-07);
     u = vmla_vf_vf_vf_vf(
         u,
         vf2getx_vf_vf2(s),
@@ -953,10 +951,10 @@ pub(crate) unsafe fn xsincosf_u1(d: VFloat) -> VFloat2 {
     x = dfadd_vf2_vf_vf2(vcast_vf_f(1.0), dfmul_vf2_vf_vf(vf2getx_vf_vf2(s), u));
     ry = vadd_vf_vf_vf(vf2getx_vf_vf2(x), vf2gety_vf_vf2(x));
 
-        o = veq_vo_vi2_vi2(vand_vi2_vi2_vi2(q, vcast_vi2_i(1)), vcast_vi2_i(0));
+    o = veq_vo_vi2_vi2(vand_vi2_vi2_vi2(q, vcast_vi2_i(1)), vcast_vi2_i(0));
     r = vf2setxy_vf2_vf_vf(vsel_vf_vo_vf_vf(o, rx, ry), vsel_vf_vo_vf_vf(o, ry, rx));
 
-        o = veq_vo_vi2_vi2(vand_vi2_vi2_vi2(q, vcast_vi2_i(2)), vcast_vi2_i(2));
+    o = veq_vo_vi2_vi2(vand_vi2_vi2_vi2(q, vcast_vi2_i(2)), vcast_vi2_i(2));
     r = vf2setx_vf2_vf2_vf(
         r,
         vreinterpret_vf_vm(vxor_vm_vm_vm(
@@ -1335,7 +1333,6 @@ pub(crate) unsafe fn xpowf(x: VFloat, y: VFloat) -> VFloat {
         vlt_vo_vf_vf(vabs_vf_vf(y), vcast_vf_f((1 << 24) as f32)),
     );
 
-        
     let mut result = expkf(dfmul_vf2_vf2_vf(logkf(vabs_vf_vf(x)), y));
 
     result = vsel_vf_vo_vf_vf(visnan_vo_vf(result), vcast_vf_f(f32::INFINITY), result);
@@ -2004,7 +2001,7 @@ pub(crate) unsafe fn xlog1pf(d: VFloat) -> VFloat {
 
     let mut r = vadd_vf_vf_vf(vf2getx_vf_vf2(s), vf2gety_vf_vf2(s));
 
-        let ocore = vle_vo_vf_vf(d, vcast_vf_f(LOG1PF_BOUND));
+    let ocore = vle_vo_vf_vf(d, vcast_vf_f(LOG1PF_BOUND));
     if !(vtestallones_i_vo32(ocore) != 0) {
         r = vsel_vf_vo_vf_vf(ocore, r, xlogf_u1(d));
     }
@@ -2190,14 +2187,13 @@ pub(crate) unsafe fn xtruncf(x: VFloat) -> VFloat {
     vsel_vf_vo_vf_vf(
         vor_vo_vo_vo(
             visinf_vo_vf(x),
-            vge_vo_vf_vf(vabs_vf_vf(x), vcast_vf_f(f32::from_bits(1 << 23))),
+            vge_vo_vf_vf(vabs_vf_vf(x), vcast_vf_f((1i64 << 23) as f32)),
         ),
         x,
         vcopysign_vf_vf_vf(vsub_vf_vf_vf(x, fr), x),
     )
 }
 
-#[allow(unused)]
 #[inline(always)]
 pub(crate) unsafe fn xfloorf(x: VFloat) -> VFloat {
     let mut fr = vsub_vf_vf_vf(x, vcast_vf_vi2(vtruncate_vi2_vf(x)));
@@ -2209,14 +2205,13 @@ pub(crate) unsafe fn xfloorf(x: VFloat) -> VFloat {
     vsel_vf_vo_vf_vf(
         vor_vo_vo_vo(
             visinf_vo_vf(x),
-            vge_vo_vf_vf(vabs_vf_vf(x), vcast_vf_f(f32::from_bits(1 << 23))),
+            vge_vo_vf_vf(vabs_vf_vf(x), vcast_vf_f((1i64 << 23) as f32)),
         ),
         x,
         vcopysign_vf_vf_vf(vsub_vf_vf_vf(x, fr), x),
     )
 }
 
-#[allow(unused)]
 #[inline(always)]
 pub(crate) unsafe fn xceilf(x: VFloat) -> VFloat {
     let mut fr = vsub_vf_vf_vf(x, vcast_vf_vi2(vtruncate_vi2_vf(x)));
@@ -2228,7 +2223,7 @@ pub(crate) unsafe fn xceilf(x: VFloat) -> VFloat {
     vsel_vf_vo_vf_vf(
         vor_vo_vo_vo(
             visinf_vo_vf(x),
-            vge_vo_vf_vf(vabs_vf_vf(x), vcast_vf_f(f32::from_bits(1 << 23))),
+            vge_vo_vf_vf(vabs_vf_vf(x), vcast_vf_f((1i64 << 23) as f32)),
         ),
         x,
         vcopysign_vf_vf_vf(vsub_vf_vf_vf(x, fr), x),
@@ -2260,11 +2255,16 @@ pub(crate) unsafe fn xroundf(d: VFloat) -> VFloat {
     vsel_vf_vo_vf_vf(
         vor_vo_vo_vo(
             visinf_vo_vf(d),
-            vge_vo_vf_vf(vabs_vf_vf(d), vcast_vf_f(f32::from_bits(1 << 23))),
+            vge_vo_vf_vf(vabs_vf_vf(d), vcast_vf_f((1i64 << 23) as f32)),
         ),
         d,
         vcopysign_vf_vf_vf(vsub_vf_vf_vf(x, fr), d),
     )
+}
+
+#[inline(always)]
+pub(crate) unsafe fn xcopysignf(x: VFloat, y: VFloat) -> VFloat {
+    vcopysign_vf_vf_vf(x, y)
 }
 
 #[inline(always)]
@@ -2299,7 +2299,7 @@ pub(crate) unsafe fn xerff_u1(a: VFloat) -> VFloat {
     let o25 = vle_vo_vf_vf(x, vcast_vf_f(2.5));
 
     if vtestallones_i_vo32(o25) != 0 {
-                t = poly6(
+        t = poly6(
             x,
             x2,
             x4,

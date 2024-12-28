@@ -1,5 +1,5 @@
 use crate::convertion::VecConvertor;
-use crate::traits::{SimdMath, VecTrait};
+use crate::traits::{SimdMath, SimdSelect, VecTrait};
 use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
 use crate::vectors::arch_simd::_128bit::f32x4::f32x4;
 use crate::vectors::arch_simd::_128bit::u16x8::u16x8;
@@ -63,40 +63,6 @@ impl f16x8 {
 }
 
 impl f16x8 {
-    /// check if the value is NaN, and return a mask
-    #[inline(always)]
-    pub fn is_nan(&self) -> i16x8 {
-        let x = u16x8::splat(0x7c00u16);
-        let y = u16x8::splat(0x03ffu16);
-        let i: u16x8 = unsafe { std::mem::transmute(self.0) };
-
-        let and = i & x;
-        let eq = and.simd_eq(x);
-
-        let and2 = i & y;
-        let neq_zero = and2.simd_ne(u16x8::splat(0));
-
-        let result = eq & neq_zero;
-
-        unsafe { std::mem::transmute(result) }
-    }
-    /// check if the value is infinite, and return a mask
-    #[inline(always)]
-    pub fn is_infinite(&self) -> i16x8 {
-        let x = u16x8::splat(0x7c00u16);
-        let y = u16x8::splat(0x03ffu16);
-        let i: u16x8 = unsafe { std::mem::transmute(self.0) };
-
-        let and = i & x;
-        let eq = and.simd_eq(x);
-
-        let and2 = i & y;
-        let eq_zero = and2.simd_eq(u16x8::splat(0));
-
-        let result = eq & eq_zero;
-
-        unsafe { std::mem::transmute(result) }
-    }
     /// convert to f32x4
     #[inline(always)]
     pub fn to_2_f32x4(self) -> [f32x4; 2] {
@@ -428,17 +394,27 @@ impl SimdMath<half::f16> for f16x8 {
         Self::from_2_f32x4([high_round, low_round])
     }
     #[inline(always)]
-    fn sign(self) -> Self {
+    fn signum(self) -> Self {
         let [high, low] = self.to_2_f32x4();
-        let high_sign = high.sign();
-        let low_sign = low.sign();
+        let high_sign = high.signum();
+        let low_sign = low.signum();
         Self::from_2_f32x4([high_sign, low_sign])
     }
     #[inline(always)]
-    fn leaky_relu(self, alpha: half::f16) -> Self {
+    fn copysign(self, rhs: Self) -> Self {
         let [high, low] = self.to_2_f32x4();
-        let high_leaky_relu = high.leaky_relu(alpha.to_f32());
-        let low_leaky_relu = low.leaky_relu(alpha.to_f32());
+        let [high_rhs, low_rhs] = rhs.to_2_f32x4();
+        let high_copysign = high.copysign(high_rhs);
+        let low_copysign = low.copysign(low_rhs);
+        Self::from_2_f32x4([high_copysign, low_copysign])
+    }
+
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        let [high, low] = self.to_2_f32x4();
+        let [high_alpha, low_alpha] = alpha.to_2_f32x4();
+        let high_leaky_relu = high.leaky_relu(high_alpha);
+        let low_leaky_relu = low.leaky_relu(low_alpha);
         Self::from_2_f32x4([high_leaky_relu, low_leaky_relu])
     }
     #[inline(always)]
@@ -907,7 +883,19 @@ impl Eval2 for f16x8 {
     type Output = i16x8;
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
-        self.is_nan()
+        let x = u16x8::splat(0x7c00u16);
+        let y = u16x8::splat(0x03ffu16);
+        let i: u16x8 = unsafe { std::mem::transmute(self.0) };
+
+        let and = i & x;
+        let eq = and.simd_eq(x);
+
+        let and2 = i & y;
+        let neq_zero = and2.simd_ne(u16x8::splat(0));
+
+        let result = eq & neq_zero;
+
+        unsafe { std::mem::transmute(result) }
     }
 
     #[inline(always)]
@@ -917,6 +905,23 @@ impl Eval2 for f16x8 {
 
     #[inline(always)]
     fn __is_inf(&self) -> Self::Output {
-        self.is_infinite()
+        let sign_mask = u16x8::splat(0x8000u16);
+        let inf_mask = u16x8::splat(0x7c00u16);
+        let frac_mask = u16x8::splat(0x03ffu16);
+
+        let i: u16x8 = unsafe { std::mem::transmute(self.0) };
+
+        let exp = i & inf_mask;
+        let frac = i & frac_mask;
+        let is_inf = exp.simd_eq(inf_mask) & frac.simd_eq(u16x8::splat(0));
+
+        let is_neg = (i & sign_mask).simd_ne(u16x8::splat(0));
+
+        let result = is_inf.select(
+            is_neg.select(i16x8::splat(-1), i16x8::splat(1)),
+            i16x8::splat(0),
+        );
+
+        result
     }
 }

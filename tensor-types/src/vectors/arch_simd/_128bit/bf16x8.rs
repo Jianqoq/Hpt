@@ -150,30 +150,6 @@ impl bf16x8 {
         }
     }
 
-    /// check if the value is NaN and return a mask
-    #[inline(always)]
-    pub fn is_nan(&self) -> i16x8 {
-        let res: [i16; 8] = self.0.map(|x| if x.is_nan() { 1 } else { 0 });
-        unsafe { std::mem::transmute(res) }
-    }
-
-    /// check if the value is infinite and return a mask
-    #[inline(always)]
-    pub fn is_infinite(&self) -> i16x8 {
-        let x = u16x8::splat(0x7f80u16);
-        let y = u16x8::splat(0x007fu16);
-        let i: u16x8 = unsafe { std::mem::transmute(self.0) };
-
-        let and = i & x;
-        let eq = and.simd_eq(x);
-
-        let and2 = i & y;
-        let eq_zero = and2.simd_eq(u16x8::splat(0));
-
-        let result = eq & eq_zero;
-
-        unsafe { std::mem::transmute(result) }
-    }
 }
 impl SimdCompare for bf16x8 {
     type SimdMask = i16x8;
@@ -421,14 +397,14 @@ impl SimdMath<half::bf16> for bf16x8 {
         Self::from_2_f32vec([high_round, low_round])
     }
     #[inline(always)]
-    fn sign(self) -> Self {
+    fn signum(self) -> Self {
         let [high, low] = self.to_2_f32x4();
-        let high_sign = high.sign();
-        let low_sign = low.sign();
+        let high_sign = high.signum();
+        let low_sign = low.signum();
         Self::from_2_f32vec([high_sign, low_sign])
     }
     #[inline(always)]
-    fn leaky_relu(self, alpha: half::bf16) -> Self {
+    fn leaky_relu(self, alpha: Self) -> Self {
         let [high, low] = self.to_2_f32x4();
         let high_leaky_relu = high.leaky_relu(alpha.to_f32());
         let low_leaky_relu = low.leaky_relu(alpha.to_f32());
@@ -900,7 +876,8 @@ impl Eval2 for bf16x8 {
     type Output = i16x8;
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
-        self.is_nan()
+        let res: [i16; 8] = self.0.map(|x| if x.is_nan() { -1 } else { 0 });
+        unsafe { std::mem::transmute(res) }
     }
 
     #[inline(always)]
@@ -910,6 +887,22 @@ impl Eval2 for bf16x8 {
 
     #[inline(always)]
     fn __is_inf(&self) -> Self::Output {
-        self.is_infinite()
+        let sign_mask = u16x8::splat(0x8000u16);
+        let inf_mask = u16x8::splat(0x7f80u16);
+        let frac_mask = u16x8::splat(0x007fu16);
+
+        let i: u16x8 = unsafe { std::mem::transmute(self.0) };
+
+        let exp = i & inf_mask;
+        let frac = i & frac_mask;
+        let is_inf = exp.simd_eq(inf_mask) & frac.simd_eq(u16x8::splat(0));
+        let is_neg = (i & sign_mask).simd_ne(u16x8::splat(0));
+
+        let result = is_inf.select(
+            is_neg.select(i16x8::splat(-1), i16x8::splat(1)),
+            i16x8::splat(0),
+        );
+
+        result
     }
 }
