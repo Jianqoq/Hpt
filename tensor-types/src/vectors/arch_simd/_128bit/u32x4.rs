@@ -91,7 +91,7 @@ impl VecTrait<u32> for u32x4 {
 impl u32x4 {
     #[allow(unused)]
     #[inline(always)]
-    fn as_array(&self) -> [u32; 4] {
+    pub(crate)fn as_array(&self) -> [u32; 4] {
         unsafe { std::mem::transmute(self.0) }
     }
 }
@@ -154,7 +154,7 @@ impl SimdCompare for u32x4 {
     }
 }
 
-impl SimdSelect<u32x4> for u32x4 {
+impl SimdSelect<u32x4> for i32x4 {
     #[inline(always)]
     fn select(&self, true_val: u32x4, false_val: u32x4) -> u32x4 {
         #[cfg(target_arch = "x86_64")]
@@ -205,6 +205,7 @@ impl std::ops::Div for u32x4 {
             let arr2: [u32; 4] = std::mem::transmute(rhs.0);
             let mut arr3: [u32; 4] = [0; 4];
             for i in 0..4 {
+                assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
             #[cfg(target_arch = "x86_64")]

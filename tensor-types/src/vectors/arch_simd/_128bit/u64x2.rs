@@ -225,6 +225,7 @@ impl std::ops::Div for u64x2 {
             let arr2: [u64; 2] = std::mem::transmute(rhs.0);
             let mut arr3: [u64; 2] = [0; 2];
             for i in 0..2 {
+                assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
             #[cfg(target_arch = "x86_64")]

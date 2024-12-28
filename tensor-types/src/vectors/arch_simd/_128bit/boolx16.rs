@@ -308,35 +308,16 @@ impl Eval2 for boolx16 {
     type Output = i8x16;
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
-        unsafe { std::mem::transmute([0i8; 16]) }
+        unsafe { std::mem::transmute(boolx16::default()) }
     }
 
     #[inline(always)]
     fn __is_true(&self) -> Self::Output {
-        unsafe {
-            std::mem::transmute([
-                self[0] as i8,
-                self[1] as i8,
-                self[2] as i8,
-                self[3] as i8,
-                self[4] as i8,
-                self[5] as i8,
-                self[6] as i8,
-                self[7] as i8,
-                self[8] as i8,
-                self[9] as i8,
-                self[10] as i8,
-                self[11] as i8,
-                self[12] as i8,
-                self[13] as i8,
-                self[14] as i8,
-                self[15] as i8,
-            ])
-        }
+        self.simd_ne(boolx16::default())
     }
 
     #[inline(always)]
     fn __is_inf(&self) -> Self::Output {
-        unsafe { std::mem::transmute([0i8; 16]) }
+        unsafe { std::mem::transmute(boolx16::default()) }
     }
 }

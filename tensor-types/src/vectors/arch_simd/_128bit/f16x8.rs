@@ -29,14 +29,12 @@ impl VecTrait<half::f16> for f16x8 {
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
-        let [x0, x1]: [f32x4; 2] = unsafe { std::mem::transmute(self.to_2_f32x4()) };
-        let [a0, a1]: [f32x4; 2] = unsafe { std::mem::transmute(a.to_2_f32x4()) };
-        let [b0, b1]: [f32x4; 2] = unsafe { std::mem::transmute(b.to_2_f32x4()) };
+        let [x0, x1] = self.to_2_f32x4();
+        let [a0, a1] = a.to_2_f32x4();
+        let [b0, b1] = b.to_2_f32x4();
         let res0 = x0.mul_add(a0, b0);
         let res1 = x1.mul_add(a1, b1);
-        let res0 = f32x4_to_f16x4(res0);
-        let res1 = f32x4_to_f16x4(res1);
-        unsafe { std::mem::transmute([res0, res1]) }
+        from_2_f32vec([res0, res1])
     }
     #[inline(always)]
     fn sum(&self) -> half::f16 {
@@ -307,8 +305,14 @@ pub fn u16_to_f32(val: [u16; 4]) -> f32x4 {
 
 /// fallback to convert f32 to f16
 #[inline(always)]
-pub(crate) fn f32x4_to_f16x4(_: f32x4) -> [u16; 4] {
-    unimplemented!()
+pub(crate) fn from_2_f32vec(val: [f32x4; 2]) -> f16x8 {
+    #[cfg(all(target_feature = "f16c", target_arch = "x86_64"))]
+    unsafe {
+        let f16_high = _mm_cvtps_ph(val[0].0, _MM_FROUND_TO_NEAREST_INT);
+        let f16_low = _mm_cvtps_ph(val[1].0, _MM_FROUND_TO_NEAREST_INT);
+        let result = _mm_unpacklo_epi64(f16_high, f16_low);
+        f16x8(std::mem::transmute(result))
+    }
 }
 
 impl VecConvertor for f16x8 {
@@ -908,7 +912,7 @@ impl Eval2 for f16x8 {
 
     #[inline(always)]
     fn __is_true(&self) -> Self::Output {
-        unreachable!()
+        self.simd_ne(f16x8::default())
     }
 
     #[inline(always)]

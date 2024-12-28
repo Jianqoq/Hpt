@@ -1,0 +1,1028 @@
+use rand::distributions::uniform::SampleUniform;
+
+use crate::{dtype::TypeCommon, traits::VecTrait};
+
+type F32Vec = <f32 as TypeCommon>::Vec;
+type F16Vec = <half::f16 as TypeCommon>::Vec;
+type Bf16Vec = <half::bf16 as TypeCommon>::Vec;
+type F64Vec = <f64 as TypeCommon>::Vec;
+type I8Vec = <i8 as TypeCommon>::Vec;
+type I16Vec = <i16 as TypeCommon>::Vec;
+type I32Vec = <i32 as TypeCommon>::Vec;
+type I64Vec = <i64 as TypeCommon>::Vec;
+type U8Vec = <u8 as TypeCommon>::Vec;
+type U16Vec = <u16 as TypeCommon>::Vec;
+type U32Vec = <u32 as TypeCommon>::Vec;
+type U64Vec = <u64 as TypeCommon>::Vec;
+type IsizeVec = <isize as TypeCommon>::Vec;
+type UsizeVec = <usize as TypeCommon>::Vec;
+
+pub(crate) fn f32_to_f16<const N: usize, F>(ptr: [f32; N], conv_func: F, msg: &str)
+where
+    F: Fn([f32; N]) -> [half::f16; N],
+{
+    let mut result = [half::f16::from_f32_const(0.0); N];
+    for i in 0..N {
+        result[i] = half::f16::from_f32_const(ptr[i]);
+    }
+    let simd_result = conv_func(ptr);
+    for i in 0..N {
+        if result[i] != simd_result[i] && (!result[i].is_nan() && !simd_result[i].is_nan()) {
+            panic!("{}: actual: {} != simd: {}", msg, result[i], simd_result[i]);
+        }
+    }
+}
+
+pub(crate) fn f16_to_f32<const N: usize, F>(ptr: [half::f16; N], conv_func: F, msg: &str)
+where
+    F: Fn([half::f16; N]) -> [f32; N],
+{
+    let mut result = [0.0; N];
+    for i in 0..N {
+        result[i] = ptr[i].to_f32();
+    }
+    let simd_result = conv_func(ptr);
+    for i in 0..N {
+        if result[i] != simd_result[i] && (!result[i].is_nan() && !simd_result[i].is_nan()) {
+            panic!("{}: actual: {} != simd: {}", msg, result[i], simd_result[i]);
+        }
+    }
+}
+
+pub(crate) fn f32_to_bf16<const N: usize, F>(ptr: [f32; N], conv_func: F, msg: &str)
+where
+    F: Fn([f32; N]) -> [half::bf16; N],
+{
+    let mut result = [half::bf16::from_f32_const(0.0); N];
+    for i in 0..N {
+        result[i] = half::bf16::from_f32_const(ptr[i]);
+    }
+    let simd_result = conv_func(ptr);
+    for i in 0..N {
+        if result[i] != simd_result[i] && (!result[i].is_nan() && !simd_result[i].is_nan()) {
+            panic!(
+                "{}: input: {:?}, actual: {} != simd: {}",
+                msg, ptr[i], result[i], simd_result[i]
+            );
+        }
+    }
+}
+
+pub(crate) fn bf16_to_f32<const N: usize, F>(ptr: [half::bf16; N], conv_func: F, msg: &str)
+where
+    F: Fn([half::bf16; N]) -> [f32; N],
+{
+    let mut result = [0.0; N];
+    for i in 0..N {
+        result[i] = ptr[i].to_f32();
+    }
+    let simd_result = conv_func(ptr);
+    for i in 0..N {
+        if result[i] != simd_result[i] && (!result[i].is_nan() && !simd_result[i].is_nan()) {
+            panic!("{}: actual: {} != simd: {}", msg, result[i], simd_result[i]);
+        }
+    }
+}
+
+pub(crate) fn gen_input<T: TypeCommon + SampleUniform + std::cmp::PartialOrd>(
+    rng: &mut rand::rngs::ThreadRng,
+    range: core::ops::RangeInclusive<T>,
+) -> T {
+    use rand::Rng;
+    rng.gen_range(range)
+}
+
+pub(crate) fn gen_vector_random<
+    T: TypeCommon + SampleUniform + std::cmp::PartialOrd,
+    const N: usize,
+>(
+    rng: &mut rand::rngs::ThreadRng,
+    range: core::ops::RangeInclusive<T>,
+) -> [T; N] {
+    let mut result = [T::ZERO; N];
+    for i in 0..N {
+        result[i] = gen_input(rng, range.clone());
+    }
+    result
+}
+
+pub(crate) fn f32_to_f16_test(range: core::ops::RangeInclusive<f32>, repeats: usize, msg: &str) {
+    let mut rng = rand::thread_rng();
+    for _ in 0..repeats {
+        let input = gen_vector_random::<f32, { F32Vec::SIZE * 2 }>(&mut rng, range.clone());
+        f32_to_f16(
+            input,
+            |x| {
+                let mut high = F32Vec::default();
+                let mut low = F32Vec::default();
+                high.copy_from_slice(&x[0..F32Vec::SIZE]);
+                low.copy_from_slice(&x[F32Vec::SIZE..]);
+                let res = F16Vec::from_2_f32x4([high, low]);
+                unsafe { std::mem::transmute(res) }
+            },
+            msg,
+        );
+    }
+}
+
+pub(crate) fn f16_to_f32_test(
+    range: core::ops::RangeInclusive<half::f16>,
+    repeats: usize,
+    msg: &str,
+) {
+    let mut rng = rand::thread_rng();
+    for _ in 0..repeats {
+        let input = gen_vector_random::<half::f16, { F16Vec::SIZE }>(&mut rng, range.clone());
+        f16_to_f32(
+            input,
+            |x| {
+                let mut val = F16Vec::default();
+                val.copy_from_slice(&x);
+                let res = val.to_2_f32x4();
+                let mut result = [0.0; F16Vec::SIZE];
+                for i in 0..F16Vec::SIZE / 2 {
+                    result[i] = res[0][i];
+                    result[i + F16Vec::SIZE / 2] = res[1][i];
+                }
+                result
+            },
+            msg,
+        );
+    }
+}
+
+pub(crate) fn f32_to_bf16_test(range: core::ops::RangeInclusive<f32>, repeats: usize, msg: &str) {
+    let mut rng = rand::thread_rng();
+    for _ in 0..repeats {
+        let input = gen_vector_random::<f32, { F32Vec::SIZE * 2 }>(&mut rng, range.clone());
+        f32_to_bf16(
+            input,
+            |x| {
+                let mut high = F32Vec::default();
+                let mut low = F32Vec::default();
+                high.copy_from_slice(&x[0..F32Vec::SIZE]);
+                low.copy_from_slice(&x[F32Vec::SIZE..]);
+                let res = Bf16Vec::from_2_f32vec([high, low]);
+                unsafe { std::mem::transmute(res) }
+            },
+            msg,
+        );
+    }
+}
+
+pub(crate) fn bf16_to_f32_test(
+    range: core::ops::RangeInclusive<half::bf16>,
+    repeats: usize,
+    msg: &str,
+) {
+    let mut rng = rand::thread_rng();
+    for _ in 0..repeats {
+        let input = gen_vector_random::<half::bf16, { Bf16Vec::SIZE }>(&mut rng, range.clone());
+        bf16_to_f32(
+            input,
+            |x| {
+                let mut val = Bf16Vec::default();
+                val.copy_from_slice(&x);
+                let res = val.to_2_f32x4();
+                let mut result = [0.0; Bf16Vec::SIZE];
+                for i in 0..Bf16Vec::SIZE / 2 {
+                    result[i] = res[0][i];
+                    result[i + Bf16Vec::SIZE / 2] = res[1][i];
+                }
+                result
+            },
+            msg,
+        );
+    }
+}
+
+pub(crate) fn f32_to_f16_test_single(val: f32, msg: &str) {
+    let res = [val; F32Vec::SIZE * 2];
+    f32_to_f16::<{ F32Vec::SIZE * 2 }, _>(
+        res,
+        |x| {
+            let mut high = F32Vec::default();
+            let mut low = F32Vec::default();
+            high.copy_from_slice(&x[0..F32Vec::SIZE]);
+            low.copy_from_slice(&x[F32Vec::SIZE..]);
+            let res = F16Vec::from_2_f32x4([high, low]);
+            unsafe { std::mem::transmute(res) }
+        },
+        msg,
+    );
+}
+
+pub(crate) fn f16_to_f32_test_single(val: half::f16, msg: &str) {
+    let res = [val; F16Vec::SIZE];
+    f16_to_f32::<{ F16Vec::SIZE }, _>(
+        res,
+        |x| {
+            let mut val = F16Vec::default();
+            val.copy_from_slice(&x);
+            let res = val.to_2_f32x4();
+            let mut result = [0.0; F16Vec::SIZE];
+            for i in 0..F16Vec::SIZE / 2 {
+                result[i] = res[0][i];
+                result[i + F16Vec::SIZE / 2] = res[1][i];
+            }
+            result
+        },
+        msg,
+    );
+}
+
+pub(crate) fn f32_to_bf16_test_single(val: f32, msg: &str) {
+    let res = [val; F32Vec::SIZE * 2];
+    f32_to_bf16::<{ F32Vec::SIZE * 2 }, _>(
+        res,
+        |x| {
+            let mut high = F32Vec::default();
+            let mut low = F32Vec::default();
+            high.copy_from_slice(&x[0..F32Vec::SIZE]);
+            low.copy_from_slice(&x[F32Vec::SIZE..]);
+            let res = Bf16Vec::from_2_f32vec([high, low]);
+            unsafe { std::mem::transmute(res) }
+        },
+        msg,
+    );
+}
+
+pub(crate) fn bf16_to_f32_test_single(val: half::bf16, msg: &str) {
+    let res = [val; Bf16Vec::SIZE];
+    bf16_to_f32::<{ Bf16Vec::SIZE }, _>(
+        res,
+        |x| {
+            let mut val = Bf16Vec::default();
+            val.copy_from_slice(&x);
+            let res = val.to_2_f32x4();
+            let mut result = [0.0; Bf16Vec::SIZE];
+            for i in 0..Bf16Vec::SIZE / 2 {
+                result[i] = res[0][i];
+                result[i + Bf16Vec::SIZE / 2] = res[1][i];
+            }
+            result
+        },
+        msg,
+    );
+}
+
+pub(crate) fn test_computes_2operands<
+    T: TypeCommon + SampleUniform + std::cmp::PartialOrd + std::fmt::Display,
+    const N: usize,
+>(
+    range: core::ops::RangeInclusive<T>,
+    repeats: usize,
+    scalar_op: impl Fn(T, T) -> T,
+    op: impl Fn(T::Vec, T::Vec) -> T::Vec,
+    msg: &str,
+) {
+    let mut rng = rand::thread_rng();
+    for _ in 0..repeats {
+        let input = gen_vector_random::<T, N>(&mut rng, range.clone());
+        let input2 = gen_vector_random::<T, N>(&mut rng, range.clone());
+        let vec = unsafe { T::Vec::from_ptr(input.as_ptr()) };
+        let vec2 = unsafe { T::Vec::from_ptr(input2.as_ptr()) };
+        let res = op(vec, vec2);
+        let mut result = vec![T::ZERO; N];
+        for i in 0..N {
+            result[i] = scalar_op(input[i], input2[i]);
+        }
+        let simd_result = unsafe { std::mem::transmute::<&T::Vec, &[T; N]>(&res) };
+        for i in 0..N {
+            if result[i] != simd_result[i] {
+                panic!("{}: actual: {} != simd: {}", msg, result[i], simd_result[i]);
+            }
+        }
+    }
+}
+
+pub(crate) fn test_computes_1operands_float<
+    T: TypeCommon + SampleUniform + std::cmp::PartialOrd + std::fmt::Display,
+    const N: usize,
+>(
+    range: core::ops::RangeInclusive<T>,
+    repeats: usize,
+    scalar_op: impl Fn(T) -> T,
+    op: impl Fn(T::Vec) -> T::Vec,
+    assert_op: impl Fn(T, T) -> bool,
+    msg: &str,
+) {
+    let mut rng = rand::thread_rng();
+    for _ in 0..repeats {
+        let input = gen_vector_random::<T, N>(&mut rng, range.clone());
+        let vec = unsafe { T::Vec::from_ptr(input.as_ptr()) };
+        let res = op(vec);
+        let mut result = vec![T::ZERO; N];
+        for i in 0..N {
+            result[i] = scalar_op(input[i]);
+        }
+        let simd_result = unsafe { std::mem::transmute::<&T::Vec, &[T; N]>(&res) };
+        for i in 0..N {
+            if !assert_op(result[i], simd_result[i]) {
+                panic!("{}: actual: {} != simd: {}", msg, result[i], simd_result[i]);
+            }
+        }
+    }
+}
+
+pub(crate) fn test_computes_3operands<
+    T: TypeCommon + SampleUniform + std::cmp::PartialOrd + std::fmt::Display,
+    const N: usize,
+>(
+    range: core::ops::RangeInclusive<T>,
+    repeats: usize,
+    scalar_op: impl Fn(T, T, T) -> T,
+    op: impl Fn(T::Vec, T::Vec, T::Vec) -> T::Vec,
+    msg: &str,
+) {
+    let mut rng = rand::thread_rng();
+    for _ in 0..repeats {
+        let input = gen_vector_random::<T, N>(&mut rng, range.clone());
+        let input2 = gen_vector_random::<T, N>(&mut rng, range.clone());
+        let input3 = gen_vector_random::<T, N>(&mut rng, range.clone());
+        let vec = unsafe { T::Vec::from_ptr(input.as_ptr()) };
+        let vec2 = unsafe { T::Vec::from_ptr(input2.as_ptr()) };
+        let vec3 = unsafe { T::Vec::from_ptr(input3.as_ptr()) };
+        let res = op(vec, vec2, vec3);
+        let mut result = vec![T::ZERO; N];
+        for i in 0..N {
+            result[i] = scalar_op(input[i], input2[i], input3[i]);
+        }
+        let simd_result = unsafe { std::mem::transmute::<&T::Vec, &[T; N]>(&res) };
+        for i in 0..N {
+            if result[i] != simd_result[i] {
+                panic!("{}: actual: {} != simd: {}", msg, result[i], simd_result[i]);
+            }
+        }
+    }
+}
+
+macro_rules! test_computes_2operands_for_type {
+    ($T:ty, $size:expr, $repeats:literal, $range: expr, $msg:expr, $op:ident, $vec_op:tt) => {
+        test_computes_2operands::<$T, $size>(
+            $range,
+            $repeats,
+            |a, b| a.$op(b),
+            |a, b| a $vec_op b,
+            $msg,
+        );
+    };
+    ($T:ty, $size:expr, $repeats:literal, $range: expr, $msg:expr, $op:tt) => {
+        test_computes_2operands::<$T, $size>(
+            $range,
+            $repeats,
+            |a, b| a $op b,
+            |a, b| a $op b,
+            $msg,
+        );
+    };
+}
+
+macro_rules! test_computes_3operands_for_type {
+    ($T:ty, $size:expr, $repeats:literal, $range: expr, $msg:expr, $op:ident, $vec_op:ident) => {
+        test_computes_3operands::<$T, $size>(
+            $range,
+            $repeats,
+            |a, b, c| a.$op(b, c),
+            |a, b, c| a.$vec_op(b, c),
+            $msg,
+        );
+    };
+}
+
+fn f32_ulp_diff(a: f32, b: f32) -> f32 {
+    if a == b {
+        return 0.0;
+    }
+    if (a == 0.0 || a.is_subnormal()) && (b == 0.0 || b.is_subnormal()) {
+        return 0.0;
+    }
+    if a == 0.0 && b != 0.0 {
+        return 10000.0;
+    }
+    if a.is_infinite() && b.is_infinite() {
+        return 0.0;
+    }
+
+    let bits_a = a.to_bits();
+    let bits_b = b.to_bits();
+    (bits_a as i32 - bits_b as i32).abs() as f32
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::traits::{SimdCompare, SimdMath};
+
+    use super::*;
+    #[test]
+    fn test_convert_f32_to_f16() {
+        f32_to_f16_test(-f32::MIN..=f32::MAX, 1000, "f16::from_f32 min..max");
+        f32_to_f16_test_single(f32::INFINITY, "f16::from_f32 inf");
+        f32_to_f16_test_single(f32::NEG_INFINITY, "f16::from_f32 neg_inf");
+        f32_to_f16_test_single(-0.0, "f16::from_f32 neg_zero");
+        f32_to_f16_test_single(0.0, "f16::from_f32 zero");
+        f32_to_f16_test_single(f32::MAX, "f16::from_f32 max");
+        f32_to_f16_test_single(f32::MIN, "f16::from_f32 min");
+        f32_to_f16_test_single(f32::NAN, "f16::from_f32 nan");
+    }
+    #[test]
+    fn test_convert_f32_to_bf16() {
+        f32_to_bf16_test(-f32::MIN..=f32::MAX, 1000, "bf16::from_f32 min..max");
+        f32_to_bf16_test_single(f32::INFINITY, "bf16::from_f32 inf");
+        f32_to_bf16_test_single(f32::NEG_INFINITY, "bf16::from_f32 neg_inf");
+        f32_to_bf16_test_single(-0.0, "bf16::from_f32 neg_zero");
+        f32_to_bf16_test_single(0.0, "bf16::from_f32 zero");
+        f32_to_bf16_test_single(f32::MAX, "bf16::from_f32 max");
+        f32_to_bf16_test_single(f32::MIN, "bf16::from_f32 min");
+        f32_to_bf16_test_single(f32::NAN, "bf16::from_f32 nan");
+    }
+    #[test]
+    fn test_convert_f16_to_f32() {
+        f16_to_f32_test(
+            -half::f16::MIN..=half::f16::MAX,
+            1000,
+            "f16::to_f32 min..max",
+        );
+        f16_to_f32_test_single(half::f16::MAX, "f16::to_f32 max");
+        f16_to_f32_test_single(half::f16::MIN, "f16::to_f32 min");
+        f16_to_f32_test_single(half::f16::NAN, "f16::to_f32 nan");
+        f16_to_f32_test_single(half::f16::ZERO, "f16::to_f32 zero");
+        f16_to_f32_test_single(half::f16::ONE, "f16::to_f32 one");
+        f16_to_f32_test_single(half::f16::NEG_ZERO, "f16::to_f32 neg_zero");
+        f16_to_f32_test_single(half::f16::NEG_ONE, "f16::to_f32 neg_one");
+        f16_to_f32_test_single(half::f16::NEG_INFINITY, "f16::to_f32 neg_inf");
+        f16_to_f32_test_single(half::f16::INFINITY, "f16::to_f32 inf");
+    }
+    #[test]
+    fn test_convert_bf16_to_f32() {
+        bf16_to_f32_test(
+            -half::bf16::MIN..=half::bf16::MAX,
+            1000,
+            "bf16::to_f32 min..max",
+        );
+        bf16_to_f32_test_single(half::bf16::MAX, "bf16::to_f32 max");
+        bf16_to_f32_test_single(half::bf16::MIN, "bf16::to_f32 min");
+        bf16_to_f32_test_single(half::bf16::NAN, "bf16::to_f32 nan");
+        bf16_to_f32_test_single(half::bf16::ZERO, "bf16::to_f32 zero");
+        bf16_to_f32_test_single(half::bf16::ONE, "bf16::to_f32 one");
+        bf16_to_f32_test_single(half::bf16::NEG_ZERO, "bf16::to_f32 neg_zero");
+        bf16_to_f32_test_single(half::bf16::NEG_ONE, "bf16::to_f32 neg_one");
+        bf16_to_f32_test_single(half::bf16::NEG_INFINITY, "bf16::to_f32 neg_inf");
+        bf16_to_f32_test_single(half::bf16::INFINITY, "bf16::to_f32 inf");
+    }
+
+    #[test]
+    fn test_add() {
+        test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, i8::MIN..=i8::MAX, "i8::add", wrapping_add, +);
+        test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, i16::MIN..=i16::MAX, "i16::add", wrapping_add, +);
+        test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, i32::MIN..=i32::MAX, "i32::add", wrapping_add, +);
+        test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, i64::MIN..=i64::MAX, "i64::add", wrapping_add, +);
+        test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, isize::MIN..=isize::MAX, "isize::add", wrapping_add, +);
+        test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, u8::MIN..=u8::MAX, "u8::add", wrapping_add, +);
+        test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, u16::MIN..=u16::MAX, "u16::add", wrapping_add, +);
+        test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, u32::MIN..=u32::MAX, "u32::add", wrapping_add, +);
+        test_computes_2operands_for_type!(u64, { U64Vec::SIZE }, 1000, u64::MIN..=u64::MAX, "u64::add", wrapping_add, +);
+        test_computes_2operands_for_type!(usize, { UsizeVec::SIZE }, 1000, usize::MIN..=usize::MAX, "usize::add", wrapping_add, +);
+        test_computes_2operands_for_type!(f32, { F32Vec::SIZE }, 1000, -1e15..=1e15, "f32::add", +);
+        test_computes_2operands_for_type!(half::f16, { F16Vec::SIZE }, 1000, half::f16::from_f32_const(i16::MIN as f32)..=half::f16::from_f32_const(i16::MAX as f32), "f16::add", +);
+        test_computes_2operands_for_type!(half::bf16, { Bf16Vec::SIZE }, 1000, half::bf16::from_f32_const(i16::MIN as f32)..=half::bf16::from_f32_const(i16::MAX as f32), "bf16::add", +);
+        test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, -1e15..=1e15, "f64::add", +);
+    }
+
+    #[test]
+    fn test_sub() {
+        test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, i8::MIN..=i8::MAX, "i8::sub", wrapping_sub, -);
+        test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, i16::MIN..=i16::MAX, "i16::sub", wrapping_sub, -);
+        test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, i32::MIN..=i32::MAX, "i32::sub", wrapping_sub, -);
+        test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, i64::MIN..=i64::MAX, "i64::sub", wrapping_sub, -);
+        test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, isize::MIN..=isize::MAX, "isize::sub", wrapping_sub, -);
+        test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, u8::MIN..=u8::MAX, "u8::sub", wrapping_sub, -);
+        test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, u16::MIN..=u16::MAX, "u16::sub", wrapping_sub, -);
+        test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, u32::MIN..=u32::MAX, "u32::sub", wrapping_sub, -);
+        test_computes_2operands_for_type!(u64, { U64Vec::SIZE }, 1000, u64::MIN..=u64::MAX, "u64::sub", wrapping_sub, -);
+        test_computes_2operands_for_type!(usize, { UsizeVec::SIZE }, 1000, usize::MIN..=usize::MAX, "usize::sub", wrapping_sub, -);
+        test_computes_2operands_for_type!(f32, { F32Vec::SIZE }, 1000, -1e15..=1e15, "f32::sub", -);
+        test_computes_2operands_for_type!(half::f16, { F16Vec::SIZE }, 1000, half::f16::from_f32_const(i16::MIN as f32)..=half::f16::from_f32_const(i16::MAX as f32), "f16::sub", -);
+        test_computes_2operands_for_type!(half::bf16, { Bf16Vec::SIZE }, 1000, half::bf16::from_f32_const(i16::MIN as f32)..=half::bf16::from_f32_const(i16::MAX as f32), "bf16::sub", -);
+        test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, -1e15..=1e15, "f64::sub", -);
+    }
+
+    #[test]
+    fn test_mul() {
+        test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, 10..=10, "i8::mul", wrapping_mul, *);
+        test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, 100..=100, "i16::mul", wrapping_mul, *);
+        test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, 1000..=1000, "i32::mul", wrapping_mul, *);
+        test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, 1000..=1000, "i64::mul", wrapping_mul, *);
+        test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, 1000..=1000, "isize::mul", wrapping_mul, *);
+        test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, 10..=10, "u8::mul", wrapping_mul, *);
+        test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, 100..=100, "u16::mul", wrapping_mul, *);
+        test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, 1000..=1000, "u32::mul", wrapping_mul, *);
+        test_computes_2operands_for_type!(u64, { U64Vec::SIZE }, 1000, 1000..=1000, "u64::mul", wrapping_mul, *);
+        test_computes_2operands_for_type!(usize, { UsizeVec::SIZE }, 1000, 1000..=1000, "usize::mul", wrapping_mul, *);
+        test_computes_2operands_for_type!(f32, { F32Vec::SIZE }, 1000, -1e5..=1e5, "f32::mul", *);
+        test_computes_2operands_for_type!(half::f16, { F16Vec::SIZE }, 1000, half::f16::from_f32_const(i16::MIN as f32)..=half::f16::from_f32_const(i16::MAX as f32), "f16::mul", *);
+        test_computes_2operands_for_type!(half::bf16, { Bf16Vec::SIZE }, 1000, half::bf16::from_f32_const(i16::MIN as f32)..=half::bf16::from_f32_const(i16::MAX as f32), "bf16::mul", *);
+        test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, -1e5..=1e5, "f64::mul", *);
+    }
+
+    #[test]
+    fn test_mul_add() {
+        use num_traits::real::Real;
+        use num_traits::MulAdd;
+        test_computes_3operands_for_type!(
+            i8,
+            { I8Vec::SIZE },
+            1000,
+            10..=10,
+            "i8::mul_add",
+            mul_add,
+            mul_add
+        );
+        test_computes_3operands_for_type!(
+            i16,
+            { I16Vec::SIZE },
+            1000,
+            100..=100,
+            "i16::mul_add",
+            mul_add,
+            mul_add
+        );
+        test_computes_3operands_for_type!(
+            i32,
+            { I32Vec::SIZE },
+            1000,
+            1000..=1000,
+            "i32::mul_add",
+            mul_add,
+            mul_add
+        );
+        test_computes_3operands_for_type!(
+            i64,
+            { I64Vec::SIZE },
+            1000,
+            1000..=1000,
+            "i64::mul_add",
+            mul_add,
+            mul_add
+        );
+        test_computes_3operands_for_type!(
+            isize,
+            { IsizeVec::SIZE },
+            1000,
+            1000..=1000,
+            "isize::mul_add",
+            mul_add,
+            mul_add
+        );
+        test_computes_3operands_for_type!(
+            u8,
+            { U8Vec::SIZE },
+            1000,
+            10..=10,
+            "u8::mul_add",
+            mul_add,
+            mul_add
+        );
+        test_computes_3operands_for_type!(
+            u16,
+            { U16Vec::SIZE },
+            1000,
+            100..=100,
+            "u16::mul_add",
+            mul_add,
+            mul_add
+        );
+        test_computes_3operands_for_type!(
+            u32,
+            { U32Vec::SIZE },
+            1000,
+            1000..=1000,
+            "u32::mul_add",
+            mul_add,
+            mul_add
+        );
+        test_computes_3operands_for_type!(
+            u64,
+            { U64Vec::SIZE },
+            1000,
+            1000..=1000,
+            "u64::mul_add",
+            mul_add,
+            mul_add
+        );
+        test_computes_3operands_for_type!(
+            usize,
+            { UsizeVec::SIZE },
+            1000,
+            1000..=1000,
+            "usize::mul_add",
+            mul_add,
+            mul_add
+        );
+        test_computes_3operands_for_type!(
+            f32,
+            { F32Vec::SIZE },
+            1000,
+            -1e5..=1e5,
+            "f32::mul_add",
+            mul_add,
+            mul_add
+        );
+        test_computes_3operands_for_type!(
+            half::f16,
+            { F16Vec::SIZE },
+            1000,
+            half::f16::from_f32_const(i16::MIN as f32)..=half::f16::from_f32_const(i16::MAX as f32),
+            "f16::mul_add",
+            mul_add,
+            mul_add
+        );
+        test_computes_3operands_for_type!(
+            half::bf16,
+            { Bf16Vec::SIZE },
+            1000,
+            half::bf16::from_f32_const(i16::MIN as f32)
+                ..=half::bf16::from_f32_const(i16::MAX as f32),
+            "bf16::mul_add",
+            mul_add,
+            mul_add
+        );
+        test_computes_3operands_for_type!(
+            f64,
+            { F64Vec::SIZE },
+            1000,
+            -1e5..=1e5,
+            "f64::mul_add",
+            mul_add,
+            mul_add
+        );
+    }
+
+    #[test]
+    fn test_div() {
+        test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, 1..=i8::MAX, "i8::div", wrapping_div, /);
+        test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, 1..=i16::MAX, "i16::div", wrapping_div, /);
+        test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, 1..=i32::MAX, "i32::div", wrapping_div, /);
+        test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, 1..=i64::MAX, "i64::div", wrapping_div, /);
+        test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, 1..=isize::MAX, "isize::div", wrapping_div, /);
+        test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, 1..=u8::MAX, "u8::div", wrapping_div, /);
+        test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, 1..=u16::MAX, "u16::div", wrapping_div, /);
+        test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, 1..=u32::MAX, "u32::div", wrapping_div, /);
+        test_computes_2operands_for_type!(u64, { U64Vec::SIZE }, 1000, 1..=u64::MAX, "u64::div", wrapping_div, /);
+        test_computes_2operands_for_type!(usize, { UsizeVec::SIZE }, 1000, 1..=usize::MAX, "usize::div", wrapping_div, /);
+        test_computes_2operands_for_type!(f32, { F32Vec::SIZE }, 1000, 1.0..=1e15, "f32::div", /);
+        test_computes_2operands_for_type!(half::f16, { F16Vec::SIZE }, 1000, half::f16::from_f32_const(1f32)..=half::f16::from_f32_const(i16::MAX as f32), "f16::div", /);
+        test_computes_2operands_for_type!(half::bf16, { Bf16Vec::SIZE }, 1000, half::bf16::from_f32_const(1f32)..=half::bf16::from_f32_const(i16::MAX as f32), "bf16::div", /);
+        test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, 1.0..=1e15, "f64::div", /);
+    }
+
+    #[should_panic(expected = "division by zero")]
+    #[test]
+    fn test_div_i8_0() {
+        test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, 0..=0, "i8::div", wrapping_div, /);
+    }
+    #[should_panic(expected = "division by zero")]
+    #[test]
+    fn test_div_i16_0() {
+        test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, 0..=0, "i16::div", wrapping_div, /);
+    }
+    #[should_panic(expected = "division by zero")]
+    #[test]
+    fn test_div_i32_0() {
+        test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, 0..=0, "i32::div", wrapping_div, /);
+    }
+    #[should_panic(expected = "division by zero")]
+    #[test]
+    fn test_div_i64_0() {
+        test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, 0..=0, "i64::div", wrapping_div, /);
+    }
+    #[should_panic(expected = "division by zero")]
+    #[test]
+    fn test_div_isize_0() {
+        test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, 0..=0, "isize::div", wrapping_div, /);
+    }
+    #[should_panic(expected = "division by zero")]
+    #[test]
+    fn test_div_u8_0() {
+        test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, 0..=0, "u8::div", wrapping_div, /);
+    }
+    #[should_panic(expected = "division by zero")]
+    #[test]
+    fn test_div_u16_0() {
+        test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, 0..=0, "u16::div", wrapping_div, /);
+    }
+    #[should_panic(expected = "division by zero")]
+    #[test]
+    fn test_div_u32_0() {
+        test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, 0..=0, "u32::div", wrapping_div, /);
+    }
+    #[should_panic(expected = "division by zero")]
+    #[test]
+    fn test_div_u64_0() {
+        test_computes_2operands_for_type!(u64, { U64Vec::SIZE }, 1000, 0..=0, "u64::div", wrapping_div, /);
+    }
+    #[should_panic(expected = "division by zero")]
+    #[test]
+    fn test_div_usize_0() {
+        test_computes_2operands_for_type!(usize, { UsizeVec::SIZE }, 1000, 0..=0, "usize::div", wrapping_div, /);
+    }
+    #[test]
+    fn test_div_float_0() {
+        macro_rules! test_div_float_0 {
+            ($type_vec:ident, $type:ty, $msg:expr) => {
+                let res = $type_vec::splat(<$type>::ZERO) / $type_vec::splat(<$type>::ZERO);
+                let simd_result =
+                    unsafe { std::mem::transmute::<&$type_vec, &[$type; $type_vec::SIZE]>(&res) };
+                for i in 0..$type_vec::SIZE {
+                    assert!(simd_result[i].is_nan(), $msg);
+                }
+            };
+        }
+        test_div_float_0!(F32Vec, f32, "f32::div: simd_result[i] is not nan");
+        test_div_float_0!(F64Vec, f64, "f64::div: simd_result[i] is not nan");
+        test_div_float_0!(F16Vec, half::f16, "f16::div: simd_result[i] is not nan");
+        test_div_float_0!(Bf16Vec, half::bf16, "bf16::div: simd_result[i] is not nan");
+    }
+    #[test]
+    fn test_div_float_nan() {
+        macro_rules! test_div_float_nan {
+            ($type_vec:ident, $type:ty, $msg:expr) => {
+                let res = $type_vec::splat(<$type>::NAN) / $type_vec::splat(<$type>::NAN);
+                let simd_result =
+                    unsafe { std::mem::transmute::<&$type_vec, &[$type; $type_vec::SIZE]>(&res) };
+                for i in 0..$type_vec::SIZE {
+                    assert!(simd_result[i].is_nan(), $msg);
+                }
+                let res = $type_vec::splat(<$type>::ZERO) / $type_vec::splat(<$type>::NAN);
+                let simd_result =
+                    unsafe { std::mem::transmute::<&$type_vec, &[$type; $type_vec::SIZE]>(&res) };
+                for i in 0..$type_vec::SIZE {
+                    assert!(simd_result[i].is_nan(), $msg);
+                }
+                let res = $type_vec::splat(<$type>::NAN) / $type_vec::splat(<$type>::ONE);
+                let simd_result =
+                    unsafe { std::mem::transmute::<&$type_vec, &[$type; $type_vec::SIZE]>(&res) };
+                for i in 0..$type_vec::SIZE {
+                    assert!(simd_result[i].is_nan(), $msg);
+                }
+            };
+        }
+        test_div_float_nan!(F32Vec, f32, "f32::div: simd_result[i] is not nan");
+        test_div_float_nan!(F64Vec, f64, "f64::div: simd_result[i] is not nan");
+        test_div_float_nan!(F16Vec, half::f16, "f16::div: simd_result[i] is not nan");
+        test_div_float_nan!(Bf16Vec, half::bf16, "bf16::div: simd_result[i] is not nan");
+    }
+
+    #[rustfmt::skip]
+    #[test]
+    fn test_simd_eq() {
+        macro_rules! test_simd_eq {
+            ($type_vec:ident, $mask_type:ident, $type:ty, $msg1:expr, $msg2:expr, 0 == 0: $val:literal, $val2: literal == 0: $val3:literal) => {
+                let mut input_vec = $type_vec::default();
+                let res = input_vec.simd_eq(input_vec);
+                assert_eq!(res, $mask_type::splat($val), $msg1);
+        
+                let input = [$val2; $type_vec::SIZE];
+                input_vec.copy_from_slice(&input);
+                let res = input_vec.simd_eq($type_vec::default());
+                assert_eq!(res, $mask_type::splat($val3), $msg2);
+            };
+            (2, $type_vec:ident, $mask_type:ident, $type:ty, $msg1:expr, $msg2:expr, 0 == 0: $val:literal, $val2: literal == 0: $val3:literal) => {
+                let mut input_vec = $type_vec::default();
+                let res = input_vec.simd_eq(input_vec);
+                assert_eq!(res, $mask_type::splat($val), $msg1);
+        
+                let input = [<$type>::from_f32_const($val2); $type_vec::SIZE];
+                input_vec.copy_from_slice(&input);
+                let res = input_vec.simd_eq($type_vec::default());
+                assert_eq!(res, $mask_type::splat($val3), $msg2);
+            };
+        }
+        test_simd_eq!(I8Vec, I8Vec, i8, "i8::simd_eq: simd_result[i] is not -1", "i8::simd_eq: simd_result[i] is not 0", 0 == 0: -1, 10 == 0: 0);
+        test_simd_eq!(I16Vec, I16Vec, i16, "i16::simd_eq: simd_result[i] is not -1", "i16::simd_eq: simd_result[i] is not 0", 0 == 0: -1, 10 == 0: 0);
+        test_simd_eq!(I32Vec, I32Vec, i32, "i32::simd_eq: simd_result[i] is not -1", "i32::simd_eq: simd_result[i] is not 0", 0 == 0: -1, 10 == 0: 0);
+        test_simd_eq!(I64Vec, I64Vec, i64, "i64::simd_eq: simd_result[i] is not -1", "i64::simd_eq: simd_result[i] is not 0", 0 == 0: -1, 10 == 0: 0);
+        test_simd_eq!(IsizeVec, IsizeVec, isize, "isize::simd_eq: simd_result[i] is not -1", "isize::simd_eq: simd_result[i] is not 0", 0 == 0: -1, 10 == 0: 0);
+        test_simd_eq!(U8Vec, I8Vec, u8, "u8::simd_eq: simd_result[i] is not -1", "u8::simd_eq: simd_result[i] is not 0", 0 == 0: -1, 10 == 0: 0);
+        test_simd_eq!(U16Vec, I16Vec, u16, "u16::simd_eq: simd_result[i] is not -1", "u16::simd_eq: simd_result[i] is not 0", 0 == 0: -1, 10 == 0: 0);
+        test_simd_eq!(U32Vec, I32Vec, u32, "u32::simd_eq: simd_result[i] is not -1", "u32::simd_eq: simd_result[i] is not 0", 0 == 0: -1, 10 == 0: 0);
+        test_simd_eq!(U64Vec, I64Vec, u64, "u64::simd_eq: simd_result[i] is not -1", "u64::simd_eq: simd_result[i] is not 0", 0 == 0: -1, 10 == 0: 0);
+        test_simd_eq!(UsizeVec, IsizeVec, usize, "usize::simd_eq: simd_result[i] is not -1", "usize::simd_eq: simd_result[i] is not 0", 0 == 0: -1, 10 == 0: 0);
+        test_simd_eq!(F32Vec, I32Vec, f32, "f32::simd_eq: simd_result[i] is not -1", "f32::simd_eq: simd_result[i] is not 0", 0 == 0: -1, 10.0 == 0: 0);
+        test_simd_eq!(F64Vec, I64Vec, f64, "f64::simd_eq: simd_result[i] is not -1", "f64::simd_eq: simd_result[i] is not 0", 0 == 0: -1, 10.0 == 0: 0);
+        test_simd_eq!(2, F16Vec, I16Vec, half::f16, "f16::simd_eq: simd_result[i] is not -1", "f16::simd_eq: simd_result[i] is not 0", 0 == 0: -1, 10.0 == 0: 0);
+        test_simd_eq!(2, Bf16Vec, I16Vec, half::bf16, "bf16::simd_eq: simd_result[i] is not -1", "bf16::simd_eq: simd_result[i] is not 0", 0 == 0: -1, 10.0 == 0: 0);
+    }
+
+    #[rustfmt::skip]
+    #[test]
+    fn test_simd_ne() {
+        macro_rules! test_simd_ne {
+            ($type_vec:ident, $mask_type:ident, $type:ty, $msg1:expr, $msg2:expr, 0 != 0: $val:literal, $val2: literal != 0: $val3:expr) => {
+                let mut input_vec = $type_vec::default();
+                let res = input_vec.simd_ne(input_vec);
+                assert_eq!(res, $mask_type::splat($val), $msg1);
+        
+                let input = [$val2; $type_vec::SIZE];
+                input_vec.copy_from_slice(&input);
+                let res = input_vec.simd_ne($type_vec::default());
+                assert_eq!(res, $mask_type::splat($val3), $msg2);
+            };
+            (2, $type_vec:ident, $mask_type:ident, $type:ty, $msg1:expr, $msg2:expr, 0 != 0: $val:literal, $val2: literal != 0: $val3:expr) => {
+                let mut input_vec = $type_vec::default();
+                let res = input_vec.simd_ne(input_vec);
+                assert_eq!(res, $mask_type::splat($val), $msg1);
+        
+                let input = [<$type>::from_f32_const($val2); $type_vec::SIZE];
+                input_vec.copy_from_slice(&input);
+                let res = input_vec.simd_ne($type_vec::default());
+                assert_eq!(res, $mask_type::splat($val3), $msg2);
+            };
+        }
+        test_simd_ne!(I8Vec, I8Vec, i8, "i8::simd_ne: simd_result[i] is not 0", "i8::simd_ne: simd_result[i] is not -1", 0 != 0: 0, 10 != 0: -1);
+        test_simd_ne!(I16Vec, I16Vec, i16, "i16::simd_ne: simd_result[i] is not 0", "i16::simd_ne: simd_result[i] is not -1", 0 != 0: 0, 10 != 0: -1);
+        test_simd_ne!(I32Vec, I32Vec, i32, "i32::simd_ne: simd_result[i] is not 0", "i32::simd_ne: simd_result[i] is not -1", 0 != 0: 0, 10 != 0: -1);
+        test_simd_ne!(I64Vec, I64Vec, i64, "i64::simd_ne: simd_result[i] is not 0", "i64::simd_ne: simd_result[i] is not -1", 0 != 0: 0, 10 != 0: -1);
+        test_simd_ne!(IsizeVec, IsizeVec, isize, "isize::simd_ne: simd_result[i] is not 0", "isize::simd_ne: simd_result[i] is not -1", 0 != 0: 0, 10 != 0: -1);
+        test_simd_ne!(U8Vec, I8Vec, u8, "u8::simd_ne: simd_result[i] is not 0", "u8::simd_ne: simd_result[i] is not -1", 0 != 0: 0, 10 != 0: -1);
+        test_simd_ne!(U16Vec, I16Vec, u16, "u16::simd_ne: simd_result[i] is not 0", "u16::simd_ne: simd_result[i] is not -1", 0 != 0: 0, 10 != 0: -1);
+        test_simd_ne!(U32Vec, I32Vec, u32, "u32::simd_ne: simd_result[i] is not 0", "u32::simd_ne: simd_result[i] is not -1", 0 != 0: 0, 10 != 0: -1);
+        test_simd_ne!(U64Vec, I64Vec, u64, "u64::simd_ne: simd_result[i] is not 0", "u64::simd_ne: simd_result[i] is not -1", 0 != 0: 0, 10 != 0: -1);
+        test_simd_ne!(UsizeVec, IsizeVec, usize, "usize::simd_ne: simd_result[i] is not 0", "usize::simd_ne: simd_result[i] is not -1", 0 != 0: 0, 10 != 0: -1);
+        test_simd_ne!(F32Vec, I32Vec, f32, "f32::simd_ne: simd_result[i] is not 0", "f32::simd_ne: simd_result[i] is not -1", 0 != 0: 0, 10.0 != 0: -1);
+        test_simd_ne!(F64Vec, I64Vec, f64, "f64::simd_ne: simd_result[i] is not 0", "f64::simd_ne: simd_result[i] is not -1", 0 != 0: 0, 10.0 != 0: -1);
+        test_simd_ne!(2, F16Vec, I16Vec, half::f16, "f16::simd_ne: simd_result[i] is not 0", "f16::simd_ne: simd_result[i] is not -1", 0 != 0: 0, 10.0 != 0: -1);
+        test_simd_ne!(2, Bf16Vec, I16Vec, half::bf16, "bf16::simd_ne: simd_result[i] is not 0", "bf16::simd_ne: simd_result[i] is not -1", 0 != 0: 0, 10.0 != 0: -1);
+    }
+
+    #[rustfmt::skip]
+    #[test]
+    fn test_simd_gt() {
+        macro_rules! test_simd_gt {
+            ($type_vec:ident, $mask_type:ident, $type:ty, $msg1:expr, $msg2:expr, 0 > 0: $val:literal, $val2: literal > 0: $val3:literal) => {
+                let mut input_vec = $type_vec::default();
+                let res = input_vec.simd_gt(input_vec);
+                assert_eq!(res, $mask_type::splat($val), $msg1);
+        
+                let input = [$val2; $type_vec::SIZE];
+                input_vec.copy_from_slice(&input);
+                let res = input_vec.simd_gt($type_vec::default());
+                assert_eq!(res, $mask_type::splat($val3), $msg2);
+            };
+            (2, $type_vec:ident, $mask_type:ident, $type:ty, $msg1:expr, $msg2:expr, 0 > 0: $val:literal, $val2: literal > 0: $val3:literal) => {
+                let mut input_vec = $type_vec::default();
+                let res = input_vec.simd_gt(input_vec);
+                assert_eq!(res, $mask_type::splat($val), $msg1);
+        
+                let input = [<$type>::from_f32_const($val2); $type_vec::SIZE];
+                input_vec.copy_from_slice(&input);
+                let res = input_vec.simd_gt($type_vec::default());
+                assert_eq!(res, $mask_type::splat($val3), $msg2);
+            };
+        }
+        test_simd_gt!(I8Vec, I8Vec, i8, "i8::simd_gt: simd_result[i] is not 0", "i8::simd_gt: simd_result[i] is not -1", 0 > 0: 0, 10 > 0: -1);
+        test_simd_gt!(I16Vec, I16Vec, i16, "i16::simd_gt: simd_result[i] is not 0", "i16::simd_gt: simd_result[i] is not -1", 0 > 0: 0, 10 > 0: -1);
+        test_simd_gt!(I32Vec, I32Vec, i32, "i32::simd_gt: simd_result[i] is not 0", "i32::simd_gt: simd_result[i] is not -1", 0 > 0: 0, 10 > 0: -1);
+        test_simd_gt!(I64Vec, I64Vec, i64, "i64::simd_gt: simd_result[i] is not 0", "i64::simd_gt: simd_result[i] is not -1", 0 > 0: 0, 10 > 0: -1);
+        test_simd_gt!(IsizeVec, IsizeVec, isize, "isize::simd_gt: simd_result[i] is not 0", "isize::simd_gt: simd_result[i] is not -1", 0 > 0: 0, 10 > 0: -1);
+        test_simd_gt!(U8Vec, I8Vec, u8, "u8::simd_gt: simd_result[i] is not 0", "u8::simd_gt: simd_result[i] is not -1", 0 > 0: 0, 10 > 0: -1);
+        test_simd_gt!(U16Vec, I16Vec, u16, "u16::simd_gt: simd_result[i] is not 0", "u16::simd_gt: simd_result[i] is not -1", 0 > 0: 0, 10 > 0: -1);
+        test_simd_gt!(U32Vec, I32Vec, u32, "u32::simd_gt: simd_result[i] is not 0", "u32::simd_gt: simd_result[i] is not -1", 0 > 0: 0, 10 > 0: -1);
+        test_simd_gt!(U64Vec, I64Vec, u64, "u64::simd_gt: simd_result[i] is not 0", "u64::simd_gt: simd_result[i] is not -1", 0 > 0: 0, 10 > 0: -1);
+        test_simd_gt!(UsizeVec, IsizeVec, usize, "usize::simd_gt: simd_result[i] is not 0", "usize::simd_gt: simd_result[i] is not -1", 0 > 0: 0, 10 > 0: -1);
+        test_simd_gt!(F32Vec, I32Vec, f32, "f32::simd_gt: simd_result[i] is not 0", "f32::simd_gt: simd_result[i] is not -1", 0 > 0: 0, 10.0 > 0: -1);
+        test_simd_gt!(F64Vec, I64Vec, f64, "f64::simd_gt: simd_result[i] is not 0", "f64::simd_gt: simd_result[i] is not -1", 0 > 0: 0, 10.0 > 0: -1);
+        test_simd_gt!(2, F16Vec, I16Vec, half::f16, "f16::simd_gt: simd_result[i] is not 0", "f16::simd_gt: simd_result[i] is not -1", 0 > 0: 0, 10.0 > 0: -1);
+        test_simd_gt!(2, Bf16Vec, I16Vec, half::bf16, "bf16::simd_gt: simd_result[i] is not 0", "bf16::simd_gt: simd_result[i] is not -1", 0 > 0: 0, 10.0 > 0: -1);
+    }
+
+    #[rustfmt::skip]
+    #[test]
+    fn test_simd_ge() {
+        macro_rules! test_simd_ge {
+            ($type_vec:ident, $mask_type:ident, $type:ty, $msg1:expr, $msg2:expr, $msg3:expr, 0 >= 0: $val:literal, $val2: literal >= 0: $val3:expr, $val4:literal >= $val5:literal: $val6:literal) => {
+                let mut input_vec = $type_vec::default();
+                let res = input_vec.simd_ge(input_vec);
+                assert_eq!(res, $mask_type::splat($val), $msg1);
+        
+                let input = [$val2; $type_vec::SIZE];
+                input_vec.copy_from_slice(&input);
+                let res = input_vec.simd_ge($type_vec::default());
+                assert_eq!(res, $mask_type::splat($val3), $msg2);
+
+                let input = [$val4; $type_vec::SIZE];
+                input_vec.copy_from_slice(&input);
+                let input2 = [$val5; $type_vec::SIZE];
+                let mut input_vec2 = $type_vec::default();
+                input_vec2.copy_from_slice(&input2);
+                let res = input_vec.simd_ge(input_vec2);
+                assert_eq!(res, $mask_type::splat($val6), $msg3);
+            };
+            (2, $type_vec:ident, $mask_type:ident, $type:ty, $msg1:expr, $msg2:expr, $msg3:expr, 0 >= 0: $val:literal, $val2: literal >= 0: $val3:expr, $val4:literal >= $val5:literal: $val6:literal) => {
+                let mut input_vec = $type_vec::default();
+                let res = input_vec.simd_ge(input_vec);
+                assert_eq!(res, $mask_type::splat($val), $msg1);
+        
+                let input = [<$type>::from_f32_const($val2); $type_vec::SIZE];
+                input_vec.copy_from_slice(&input);
+                let res = input_vec.simd_ge($type_vec::default());
+                assert_eq!(res, $mask_type::splat($val3), $msg2);
+
+                let input = [<$type>::from_f32_const($val4); $type_vec::SIZE];
+                input_vec.copy_from_slice(&input);
+                let input2 = [<$type>::from_f32_const($val5); $type_vec::SIZE];
+                let mut input_vec2 = $type_vec::default();
+                input_vec2.copy_from_slice(&input2);
+                let res = input_vec.simd_ge(input_vec2);
+                assert_eq!(res, $mask_type::splat($val6), $msg3);
+            };
+        }
+        test_simd_ge!(I8Vec, I8Vec, i8, "i8::simd_ge: simd_result[i] is not 0", "i8::simd_ge: simd_result[i] is not -1", "i8::simd_ge: simd_result[i] is not 1", 0 >= 0: -1, 10 >= 0: -1, -1 >= 0: 0);
+        test_simd_ge!(I16Vec, I16Vec, i16, "i16::simd_ge: simd_result[i] is not 0", "i16::simd_ge: simd_result[i] is not -1", "i16::simd_ge: simd_result[i] is not 1", 0 >= 0: -1, 10 >= 0: -1, -1 >= 0: 0);
+        test_simd_ge!(I32Vec, I32Vec, i32, "i32::simd_ge: simd_result[i] is not 0", "i32::simd_ge: simd_result[i] is not -1", "i32::simd_ge: simd_result[i] is not 1", 0 >= 0: -1, 10 >= 0: -1, -1 >= 0: 0);
+        test_simd_ge!(I64Vec, I64Vec, i64, "i64::simd_ge: simd_result[i] is not 0", "i64::simd_ge: simd_result[i] is not -1", "i64::simd_ge: simd_result[i] is not 1", 0 >= 0: -1, 10 >= 0: -1, -1 >= 0: 0);
+        test_simd_ge!(IsizeVec, IsizeVec, isize, "isize::simd_ge: simd_result[i] is not 0", "isize::simd_ge: simd_result[i] is not -1", "isize::simd_ge: simd_result[i] is not 1", 0 >= 0: -1, 10 >= 0: -1, -1 >= 0: 0);
+        test_simd_ge!(U8Vec, I8Vec, u8, "u8::simd_ge: simd_result[i] is not 0", "u8::simd_ge: simd_result[i] is not -1", "u8::simd_ge: simd_result[i] is not 1", 0 >= 0: -1, 10 >= 0: -1, 0 >= 2: 0);
+        test_simd_ge!(U16Vec, I16Vec, u16, "u16::simd_ge: simd_result[i] is not 0", "u16::simd_ge: simd_result[i] is not -1", "u16::simd_ge: simd_result[i] is not 1", 0 >= 0: -1, 10 >= 0: -1, 0 >= 2: 0);
+        test_simd_ge!(U32Vec, I32Vec, u32, "u32::simd_ge: simd_result[i] is not 0", "u32::simd_ge: simd_result[i] is not -1", "u32::simd_ge: simd_result[i] is not 1", 0 >= 0: -1, 10 >= 0: -1, 0 >= 2: 0); 
+        test_simd_ge!(U64Vec, I64Vec, u64, "u64::simd_ge: simd_result[i] is not 0", "u64::simd_ge: simd_result[i] is not -1", "u64::simd_ge: simd_result[i] is not 1", 0 >= 0: -1, 10 >= 0: -1, 0 >= 2: 0);
+        test_simd_ge!(UsizeVec, IsizeVec, usize, "usize::simd_ge: simd_result[i] is not 0", "usize::simd_ge: simd_result[i] is not -1", "usize::simd_ge: simd_result[i] is not 1", 0 >= 0: -1, 10 >= 0: -1, 0 >= 2: 0);
+        test_simd_ge!(F32Vec, I32Vec, f32, "f32::simd_ge: simd_result[i] is not 0", "f32::simd_ge: simd_result[i] is not -1", "f32::simd_ge: simd_result[i] is not 1", 0 >= 0: -1, 10.0 >= 0: -1, -1.0 >= 0.0: 0);
+        test_simd_ge!(F64Vec, I64Vec, f64, "f64::simd_ge: simd_result[i] is not 0", "f64::simd_ge: simd_result[i] is not -1", "f64::simd_ge: simd_result[i] is not 1", 0 >= 0: -1, 10.0 >= 0: -1, -1.0 >= 0.0: 0);
+        test_simd_ge!(2, F16Vec, I16Vec, half::f16, "f16::simd_ge: simd_result[i] is not 0", "f16::simd_ge: simd_result[i] is not -1", "f16::simd_ge: simd_result[i] is not 1", 0 >= 0: -1, 10.0 >= 0: -1, -1.0 >= 0.0: 0);
+        test_simd_ge!(2, Bf16Vec, I16Vec, half::bf16, "bf16::simd_ge: simd_result[i] is not 0", "bf16::simd_ge: simd_result[i] is not -1", "bf16::simd_ge: simd_result[i] is not 1", 0 >= 0: -1, 10.0 >= 0: -1, -1.0 >= 0.0: 0);
+    }
+
+    #[rustfmt::skip]
+    #[test]
+    fn test_simd_le() {
+        macro_rules! test_simd_le {
+            ($type_vec:ident, $mask_type:ident, $type:ty, $msg1:expr, $msg2:expr, $msg3:expr, 0 <= 0: $val:literal, $val2: literal <= 0: $val3:expr, $val4:literal <= $val5:literal: $val6:literal) => {
+                let mut input_vec = $type_vec::default();
+                let res = input_vec.simd_le(input_vec);
+                assert_eq!(res, $mask_type::splat($val), $msg1);
+        
+                let input = [$val2; $type_vec::SIZE];
+                input_vec.copy_from_slice(&input);
+                let res = input_vec.simd_le($type_vec::default());
+                assert_eq!(res, $mask_type::splat($val3), $msg2);
+
+                let input = [$val4; $type_vec::SIZE];
+                input_vec.copy_from_slice(&input);
+                let input2 = [$val5; $type_vec::SIZE];
+                let mut input_vec2 = $type_vec::default();
+                input_vec2.copy_from_slice(&input2);
+                let res = input_vec.simd_le(input_vec2);
+                assert_eq!(res, $mask_type::splat($val6), $msg3);
+            };
+            (2, $type_vec:ident, $mask_type:ident, $type:ty, $msg1:expr, $msg2:expr, $msg3:expr, 0 <= 0: $val:literal, $val2: literal <= 0: $val3:expr, $val4:literal <= $val5:literal: $val6:literal) => {
+                let mut input_vec = $type_vec::default();
+                let res = input_vec.simd_le(input_vec);
+                assert_eq!(res, $mask_type::splat($val), $msg1);
+        
+                let input = [<$type>::from_f32_const($val2); $type_vec::SIZE];
+                input_vec.copy_from_slice(&input);
+                let res = input_vec.simd_le($type_vec::default());
+                assert_eq!(res, $mask_type::splat($val3), $msg2);
+
+                let input = [<$type>::from_f32_const($val4); $type_vec::SIZE];
+                input_vec.copy_from_slice(&input);
+                let input2 = [<$type>::from_f32_const($val5); $type_vec::SIZE];
+                let mut input_vec2 = $type_vec::default();
+                input_vec2.copy_from_slice(&input2);
+                let res = input_vec.simd_le(input_vec2);
+                assert_eq!(res, $mask_type::splat($val6), $msg3);
+            };
+        }
+        test_simd_le!(I8Vec, I8Vec, i8, "i8::simd_le: simd_result[i] is not 0", "i8::simd_le: simd_result[i] is not -1", "i8::simd_le: simd_result[i] is not 1", 0 <= 0: -1, 10 <= 0: 0, -1 <= 0: -1);
+        test_simd_le!(I16Vec, I16Vec, i16, "i16::simd_le: simd_result[i] is not 0", "i16::simd_le: simd_result[i] is not -1", "i16::simd_le: simd_result[i] is not 1", 0 <= 0: -1, 10 <= 0: 0, -1 <= 0: -1);
+        test_simd_le!(I32Vec, I32Vec, i32, "i32::simd_le: simd_result[i] is not 0", "i32::simd_le: simd_result[i] is not -1", "i32::simd_le: simd_result[i] is not 1", 0 <= 0: -1, 10 <= 0: 0, -1 <= 0: -1);
+        test_simd_le!(I64Vec, I64Vec, i64, "i64::simd_le: simd_result[i] is not -1", "i64::simd_le: simd_result[i] is not -1", "i64::simd_le: simd_result[i] is not 1", 0 <= 0: -1, 10 <= 0: 0, -1 <= 0: -1);
+        test_simd_le!(IsizeVec, IsizeVec, isize, "isize::simd_le: simd_result[i] is not 0", "isize::simd_le: simd_result[i] is not -1", "isize::simd_le: simd_result[i] is not 1", 0 <= 0: -1, 10 <= 0: 0, -1 <= 0: -1);
+        test_simd_le!(U8Vec, I8Vec, u8, "u8::simd_le: simd_result[i] is not 0", "u8::simd_le: simd_result[i] is not -1", "u8::simd_le: simd_result[i] is not 1", 0 <= 0: -1, 10 <= 0: 0, 0 <= 2: -1);
+        test_simd_le!(U16Vec, I16Vec, u16, "u16::simd_le: simd_result[i] is not 0", "u16::simd_le: simd_result[i] is not -1", "u16::simd_le: simd_result[i] is not 1", 0 <= 0: -1, 10 <= 0: 0, 0 <= 2: -1);
+        test_simd_le!(U32Vec, I32Vec, u32, "u32::simd_le: simd_result[i] is not 0", "u32::simd_le: simd_result[i] is not -1", "u32::simd_le: simd_result[i] is not 1", 0 <= 0: -1, 10 <= 0: 0, 0 <= 2: -1); 
+        test_simd_le!(U64Vec, I64Vec, u64, "u64::simd_le: simd_result[i] is not 0", "u64::simd_le: simd_result[i] is not -1", "u64::simd_le: simd_result[i] is not 1", 0 <= 0: -1, 10 <= 0: 0, 0 <= 2: -1);
+        test_simd_le!(UsizeVec, IsizeVec, usize, "usize::simd_le: simd_result[i] is not 0", "usize::simd_le: simd_result[i] is not -1", "usize::simd_le: simd_result[i] is not 1", 0 <= 0: -1, 10 <= 0: 0, 0 <= 2: -1);
+        test_simd_le!(F32Vec, I32Vec, f32, "f32::simd_le: simd_result[i] is not 0", "f32::simd_le: simd_result[i] is not -1", "f32::simd_le: simd_result[i] is not 1", 0 <= 0: -1, 10.0 <= 0: 0, -1.0 <= 0.0: -1);
+        test_simd_le!(F64Vec, I64Vec, f64, "f64::simd_le: simd_result[i] is not 0", "f64::simd_le: simd_result[i] is not -1", "f64::simd_le: simd_result[i] is not 1", 0 <= 0: -1, 10.0 <= 0: 0, -1.0 <= 0.0: -1);
+        test_simd_le!(2, F16Vec, I16Vec, half::f16, "f16::simd_le: simd_result[i] is not 0", "f16::simd_le: simd_result[i] is not -1", "f16::simd_le: simd_result[i] is not 1", 0 <= 0: -1, 10.0 <= 0: 0, -1.0 <= 0.0: -1);
+        test_simd_le!(2, Bf16Vec, I16Vec, half::bf16, "bf16::simd_le: simd_result[i] is not 0", "bf16::simd_le: simd_result[i] is not -1", "bf16::simd_le: simd_result[i] is not 1", 0 <= 0: -1, 10.0 <= 0: 0, -1.0 <= 0.0: -1);
+    }
+
+    #[test]
+    fn test_trig() {
+        macro_rules! test_trig {
+            () => {};
+        }
+
+        test_computes_1operands_float(
+            f32::MIN..=f32::MAX,
+            1000,
+            |x| x.sin(),
+            |x| SimdMath::sin(x),
+            |a, b| f32_count_ulp(a, b) <= 1,
+            "f32::sin",
+        );
+    }
+}

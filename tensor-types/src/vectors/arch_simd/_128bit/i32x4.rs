@@ -1,8 +1,12 @@
-use crate::{ convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait }, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2} };
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
+use crate::{
+    convertion::VecConvertor,
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+};
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::*;
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
 
 use super::u32x4::u32x4;
 
@@ -24,7 +28,7 @@ impl PartialEq for i32x4 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
             let cmp = _mm_cmpeq_epi32(self.0, other.0);
-            _mm_movemask_epi8(cmp) == -1
+            _mm_movemask_epi8(cmp) == 0xFFFF
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -55,7 +59,10 @@ impl VecTrait<i32> for i32x4 {
     fn copy_from_slice(&mut self, slice: &[i32]) {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            _mm_storeu_si128(&mut self.0, _mm_loadu_si128(slice.as_ptr() as *const __m128i))
+            _mm_storeu_si128(
+                &mut self.0,
+                _mm_loadu_si128(slice.as_ptr() as *const __m128i),
+            )
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -267,6 +274,7 @@ impl std::ops::Div for i32x4 {
             let arr2: [i32; 4] = std::mem::transmute(rhs.0);
             let mut arr3: [i32; 4] = [0; 4];
             for i in 0..4 {
+                assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
             #[cfg(target_arch = "x86_64")]
@@ -460,7 +468,9 @@ impl VecConvertor for i32x4 {
     #[inline(always)]
     fn to_f32(self) -> super::f32x4::f32x4 {
         #[cfg(target_arch = "x86_64")]
-        unsafe { super::f32x4::f32x4(_mm_cvtepi32_ps(self.0)) }
+        unsafe {
+            super::f32x4::f32x4(_mm_cvtepi32_ps(self.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             super::f32x4::f32x4(vcvtq_f32_s32(self.0))
@@ -547,7 +557,7 @@ impl NormalOutUnary2 for i32x4 {
     fn __abs(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            i32x4(unsafe { _mm_abs_epi32(self.0) })
+            i32x4(_mm_abs_epi32(self.0))
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -612,7 +622,10 @@ impl Eval2 for i32x4 {
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i32x4(vmvnq_s32(vreinterpretq_s32_u32(vceqq_s32(self.0, vdupq_n_s32(0)))))
+            i32x4(vmvnq_s32(vreinterpretq_s32_u32(vceqq_s32(
+                self.0,
+                vdupq_n_s32(0),
+            ))))
         }
     }
 

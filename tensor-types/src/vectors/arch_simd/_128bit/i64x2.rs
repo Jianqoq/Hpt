@@ -25,7 +25,7 @@ impl PartialEq for i64x2 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
             let cmp = _mm_cmpeq_epi64(self.0, other.0);
-            _mm_movemask_epi8(cmp) == -1
+            _mm_movemask_epi8(cmp) == 0xFFFF
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -162,7 +162,7 @@ impl SimdCompare for i64x2 {
             let b: [i64; 2] = std::mem::transmute(other.0);
             let mut result = [0; 2];
             for i in 0..2 {
-                result[i] = if a[i] <= b[i] { -1 } else { 0 };
+                result[i] = if a[i] <= b[i] { -1i64 } else { 0i64 };
             }
             i64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
@@ -258,6 +258,7 @@ impl std::ops::Div for i64x2 {
             let arr2: [i64; 2] = std::mem::transmute(rhs.0);
             let mut arr3: [i64; 2] = [0; 2];
             for i in 0..2 {
+                assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
             #[cfg(target_arch = "x86_64")]

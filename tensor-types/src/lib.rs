@@ -346,6 +346,12 @@ pub mod vectors {
                 pub mod sleefsimdsp;
             }
         }
+
+        
+
+        #[cfg(test)]
+        /// A module defines a set of vector types for test
+        pub mod tests;
     }
     /// A module defines a set of traits for vector
     pub mod traits;

@@ -100,6 +100,7 @@ impl VecTrait<f32> for f32x4 {
     fn copy_from_slice(&mut self, slice: &[f32]) {
         #[cfg(target_arch = "x86_64")]
         unsafe {
+            assert_eq!(slice.len(), 4);
             _mm_storeu_ps(&mut self.0 as *mut _ as *mut f32, _mm_loadu_ps(slice.as_ptr()));
         }
         #[cfg(target_arch = "aarch64")]
@@ -790,7 +791,7 @@ impl Eval2 for f32x4 {
 
     #[inline(always)]
     fn __is_true(&self) -> Self::Output {
-        unreachable!()
+        self.simd_ne(f32x4::default())
     }
 
     #[inline(always)]

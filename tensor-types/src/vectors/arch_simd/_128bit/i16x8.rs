@@ -1,9 +1,13 @@
-use crate::{ convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait }, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2} };
+use crate::{
+    convertion::VecConvertor,
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+};
 
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::*;
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
 
 use super::u16x8::u16x8;
 
@@ -25,7 +29,7 @@ impl PartialEq for i16x8 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
             let cmp = _mm_cmpeq_epi16(self.0, other.0);
-            _mm_movemask_epi8(cmp) == -1
+            _mm_movemask_epi8(cmp) == 0xFFFF
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -54,7 +58,10 @@ impl VecTrait<i16> for i16x8 {
     fn copy_from_slice(&mut self, slice: &[i16]) {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            _mm_storeu_si128(&mut self.0, _mm_loadu_si128(slice.as_ptr() as *const __m128i))
+            _mm_storeu_si128(
+                &mut self.0,
+                _mm_loadu_si128(slice.as_ptr() as *const __m128i),
+            )
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -165,9 +172,13 @@ impl SimdCompare for i16x8 {
     #[inline(always)]
     fn simd_gt(self, other: Self) -> i16x8 {
         #[cfg(target_arch = "x86_64")]
-        unsafe { i16x8(_mm_cmpgt_epi16(self.0, other.0)) }
+        unsafe {
+            i16x8(_mm_cmpgt_epi16(self.0, other.0))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { i16x8(vreinterpretq_s16_u16(vcgtq_s16(self.0, other.0))) }
+        unsafe {
+            i16x8(vreinterpretq_s16_u16(vcgtq_s16(self.0, other.0)))
+        }
     }
     #[inline(always)]
     fn simd_ge(self, other: Self) -> i16x8 {
@@ -195,7 +206,11 @@ impl SimdSelect<i16x8> for crate::vectors::arch_simd::_128bit::i16x8::i16x8 {
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i16x8(vbslq_s16(vreinterpretq_u16_s16(self.0), true_val.0, false_val.0))
+            i16x8(vbslq_s16(
+                vreinterpretq_u16_s16(self.0),
+                true_val.0,
+                false_val.0,
+            ))
         }
     }
 }
@@ -252,6 +267,7 @@ impl std::ops::Div for i16x8 {
             let arr2: [i16; 8] = std::mem::transmute(rhs.0);
             let mut arr3: [i16; 8] = [0; 8];
             for i in 0..8 {
+                assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
             i16x8(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
@@ -547,7 +563,7 @@ impl NormalOutUnary2 for i16x8 {
     fn __abs(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            i16x8(unsafe { _mm_abs_epi16(self.0) })
+            i16x8(_mm_abs_epi16(self.0))
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -612,7 +628,10 @@ impl Eval2 for i16x8 {
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i16x8(vmvnq_s16(vreinterpretq_s16_u16(vceqq_s16(self.0, vdupq_n_s16(0)))))
+            i16x8(vmvnq_s16(vreinterpretq_s16_u16(vceqq_s16(
+                self.0,
+                vdupq_n_s16(0),
+            ))))
         }
     }
 

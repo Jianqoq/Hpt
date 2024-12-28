@@ -1,4 +1,8 @@
-use crate::{ convertion::VecConvertor, traits::{ SimdCompare, SimdMath, VecTrait }, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2} };
+use crate::{
+    convertion::VecConvertor,
+    traits::{SimdCompare, SimdMath, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -26,7 +30,7 @@ impl PartialEq for i8x16 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
             let cmp = _mm_cmpeq_epi8(self.0, other.0);
-            _mm_movemask_epi8(cmp) == -1
+            _mm_movemask_epi8(cmp) == 0xFFFF
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -57,7 +61,10 @@ impl VecTrait<i8> for i8x16 {
     fn copy_from_slice(&mut self, slice: &[i8]) {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            _mm_storeu_si128(&mut self.0, _mm_loadu_si128(slice.as_ptr() as *const __m128i));
+            _mm_storeu_si128(
+                &mut self.0,
+                _mm_loadu_si128(slice.as_ptr() as *const __m128i),
+            );
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -68,7 +75,14 @@ impl VecTrait<i8> for i8x16 {
     fn mul_add(self, a: Self, b: Self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            i8x16(_mm_add_epi8(_mm_mullo_epi16(self.0, a.0), b.0))
+            let mut res = [0i8; 16];
+            let x: [i8; 16] = std::mem::transmute(self.0);
+            let y: [i8; 16] = std::mem::transmute(a.0);
+            let z: [i8; 16] = std::mem::transmute(b.0);
+            for i in 0..16 {
+                res[i] = x[i].wrapping_mul(y[i]).wrapping_add(z[i]);
+            }
+            i8x16(_mm_loadu_si128(res.as_ptr() as *const __m128i))
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -165,9 +179,10 @@ impl SimdCompare for i8x16 {
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i8x16(
-                vreinterpretq_s8_u8(vorrq_u8(vcltq_s8(self.0, other.0), vceqq_s8(self.0, other.0)))
-            )
+            i8x16(vreinterpretq_s8_u8(vorrq_u8(
+                vcltq_s8(self.0, other.0),
+                vceqq_s8(self.0, other.0),
+            )))
         }
     }
     #[inline(always)]
@@ -191,7 +206,10 @@ impl SimdCompare for i8x16 {
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i8x16(vreinterpretq_s8_u8(vorrq_u8(vcgtq_s8(self.0, other.0), vceqq_s8(self.0, other.0))))
+            i8x16(vreinterpretq_s8_u8(vorrq_u8(
+                vcgtq_s8(self.0, other.0),
+                vceqq_s8(self.0, other.0),
+            )))
         }
     }
 }
@@ -230,7 +248,13 @@ impl std::ops::Mul for i8x16 {
     fn mul(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            i8x16(_mm_mullo_epi16(self.0, rhs.0))
+            let a: [i8; 16] = std::mem::transmute(self.0);
+            let b: [i8; 16] = std::mem::transmute(rhs.0);
+            let mut result = [0i8; 16];
+            for i in 0..16 {
+                result[i] = a[i].wrapping_mul(b[i]);
+            }
+            i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -248,6 +272,7 @@ impl std::ops::Div for i8x16 {
             let b: [i8; 16] = std::mem::transmute(rhs.0);
             let mut result = [0; 16];
             for i in 0..16 {
+                assert!(b[i] != 0, "division by zero");
                 result[i] = a[i] / b[i];
             }
             i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i))
@@ -538,7 +563,7 @@ impl NormalOutUnary2 for i8x16 {
     fn __abs(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            i8x16(unsafe { _mm_abs_epi8(self.0) })
+            i8x16(_mm_abs_epi8(self.0))
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -603,7 +628,10 @@ impl Eval2 for i8x16 {
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i8x16(vmvnq_s8(vreinterpretq_s8_u8(vceqq_s8(self.0, vdupq_n_s8(0)))))
+            i8x16(vmvnq_s8(vreinterpretq_s8_u8(vceqq_s8(
+                self.0,
+                vdupq_n_s8(0),
+            ))))
         }
     }
 
