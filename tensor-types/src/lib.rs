@@ -23,16 +23,7 @@ pub(crate) mod scalars {
     pub(crate) mod _f16;
     pub(crate) mod _f32;
     pub(crate) mod _f64;
-    pub(crate) mod _i16;
-    pub(crate) mod _i32;
-    pub(crate) mod _i64;
-    pub(crate) mod _i8;
-    pub(crate) mod _isize;
-    pub(crate) mod _u16;
-    pub(crate) mod _u32;
-    pub(crate) mod _u64;
-    pub(crate) mod _u8;
-    pub(crate) mod _usize;
+    pub(crate) mod impls;
 }
 
 /// A module defines a set of traits for type promotion

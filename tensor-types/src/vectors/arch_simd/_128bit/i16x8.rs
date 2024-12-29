@@ -412,17 +412,10 @@ impl std::ops::Shr for i16x8 {
             for i in 0..8 {
                 result[i] = a[i].wrapping_shr(b[i] as u32);
             }
-            i16x8(_mm_loadu_si128(result.as_ptr() as *const __m128i))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            let a: [i16; 8] = std::mem::transmute(self.0);
-            let b: [i16; 8] = std::mem::transmute(rhs.0);
-            let mut result = [0i16; 8];
-            for i in 0..8 {
-                result[i] = a[i].wrapping_shr(b[i] as u32);
-            }
-            i16x8(vld1q_s16(result.as_ptr()))
+            #[cfg(target_arch = "x86_64")]
+            return i16x8(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            #[cfg(target_arch = "aarch64")]
+            return i16x8(vld1q_s16(result.as_ptr()));
         }
     }
 }
@@ -690,13 +683,10 @@ impl Eval2 for i16x8 {
             let result = _mm_andnot_si128(eq, _mm_set1_epi16(1));
             Self(result)
         }
-    
+
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            let neq = vmvnq_s16(vreinterpretq_s16_u16(vceqq_s16(
-                self.0,
-                vdupq_n_s16(0),
-            )));
+            let neq = vmvnq_s16(vreinterpretq_s16_u16(vceqq_s16(self.0, vdupq_n_s16(0))));
             i16x8(vandq_s16(neq, vdupq_n_s16(1)))
         }
     }

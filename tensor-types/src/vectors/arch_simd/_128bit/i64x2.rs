@@ -240,7 +240,7 @@ impl std::ops::Mul for i64x2 {
             let arr2: [i64; 2] = std::mem::transmute(rhs.0);
             let mut arr3: [i64; 2] = [0; 2];
             for i in 0..2 {
-                arr3[i] = arr[i] * arr2[i];
+                arr3[i] = arr[i].wrapping_mul(arr2[i]);
             }
             #[cfg(target_arch = "x86_64")]
             return i64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
