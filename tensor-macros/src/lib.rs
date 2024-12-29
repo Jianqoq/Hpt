@@ -35,7 +35,6 @@ mod float_unary;
 mod from_scalar;
 mod into_vec;
 mod kernel_gen_helper;
-mod list_enum;
 mod normal_out;
 mod normal_out_unary;
 mod scalar_convert;

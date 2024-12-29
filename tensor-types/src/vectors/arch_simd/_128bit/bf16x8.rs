@@ -406,8 +406,9 @@ impl SimdMath<half::bf16> for bf16x8 {
     #[inline(always)]
     fn leaky_relu(self, alpha: Self) -> Self {
         let [high, low] = self.to_2_f32x4();
-        let high_leaky_relu = high.leaky_relu(alpha.to_f32());
-        let low_leaky_relu = low.leaky_relu(alpha.to_f32());
+        let [high_alpha, low_alpha] = alpha.to_2_f32x4();
+        let high_leaky_relu = high.leaky_relu(high_alpha);
+        let low_leaky_relu = low.leaky_relu(low_alpha);
         Self::from_2_f32vec([high_leaky_relu, low_leaky_relu])
     }
     #[inline(always)]
@@ -427,8 +428,9 @@ impl SimdMath<half::bf16> for bf16x8 {
     #[inline(always)]
     fn pow(self, exp: Self) -> Self {
         let [high, low] = self.to_2_f32x4();
-        let high_pow = high.pow(exp.to_f32());
-        let low_pow = low.pow(exp.to_f32());
+        let [high_exp, low_exp] = exp.to_2_f32x4();
+        let high_pow = high.pow(high_exp);
+        let low_pow = low.pow(low_exp);
         Self::from_2_f32vec([high_pow, low_pow])
     }
     #[inline(always)]

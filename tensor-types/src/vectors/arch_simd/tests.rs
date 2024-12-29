@@ -545,6 +545,49 @@ fn f16_ulp_diff(a: half::f16, b: half::f16) -> i32 {
     }
 }
 
+fn bf16_ulp_diff(a: half::bf16, b: half::bf16) -> i32 {
+    let a = a.to_f32();
+    let b = b.to_f32();
+    if a == b {
+        return 0;
+    }
+    let rel_diff = ((a - b) / (a.abs() + b.abs() + f32::EPSILON)).abs();
+    if rel_diff < 0.005 {
+        return 0;
+    }
+    if (a == 0.0 || a.is_subnormal()) && (b == 0.0 || b.is_subnormal()) {
+        return 0;
+    }
+    if a == 0.0 && b != 0.0 {
+        return 10000;
+    }
+    if (a.is_infinite() && b.is_infinite()) || (a.is_nan() && b.is_nan()) {
+        return 0;
+    }
+
+    let bits_a = unsafe { std::mem::transmute::<f32, i32>(a) };
+    let bits_b = unsafe { std::mem::transmute::<f32, i32>(b) };
+    match bits_a.checked_sub(bits_b) {
+        Some(diff) => {
+            if diff == i32::MIN {
+                i32::MAX
+            } else {
+                diff.abs()
+            }
+        }
+        None => match bits_b.checked_sub(bits_a) {
+            Some(diff) => {
+                if diff == i32::MIN {
+                    i32::MAX
+                } else {
+                    diff.abs()
+                }
+            }
+            None => i32::MAX,
+        },
+    }
+}
+
 fn f32_ulp_diff(a: f32, b: f32) -> i32 {
     if a == b {
         return 0;
@@ -1518,6 +1561,66 @@ mod tests {
         test_float_simd_math!(f64, F64Vec::SIZE, -88.0..=88.0, 1000, 1, |x| x * x.__softplus().tanh(), |x| SimdMath::mish(x));
 
         use num_traits::Float;
+        use half::bf16;
+        let range1 = bf16::from_f32(-1e4)..=bf16::from_f32(1e4);
+        let range2 = bf16::from_f32(-11.0)..=bf16::from_f32(11.0);
+        let range3 = bf16::from_f32(-8.7)..=bf16::from_f32(8.7);
+        let range4 = bf16::from_f32(-130.0)..=bf16::from_f32(130.0);
+        let range5 = bf16::from_f32(0.0)..=bf16::from_f32(6e4);
+        let range7 = bf16::from_f32(-0.999)..=bf16::from_f32(6e4);
+        let hard_sigmoid_range = bf16::from_f32(-5.0)..=bf16::from_f32(5.0);
+        let hard_swish_range = bf16::from_f32(-4.0)..=bf16::from_f32(4.0);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, sin);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, cos);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, tan);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, asin);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, acos);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, atan);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, sinh);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, cosh);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range3.clone(), 1000, 1, tanh);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range4.clone(), 1000, 1, asinh);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range4.clone(), 1000, 1, acosh);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, atanh);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range4.clone(), 1000, 1, |x| x * x, |x| SimdMath::square(x));
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range4.clone(), 1000, 1, |x| x * x, |x| x.__square());
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range5.clone(), 1000, 1, sqrt);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, abs);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, |x| x.abs(), |x| x.__abs());
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, floor);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, |x| x.floor(), |x| x.__floor());
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, ceil);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, |x| x.ceil(), |x| x.__ceil());
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, |x| -x, |x| SimdMath::neg(x));
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, |x| -x, |x| x.__neg());
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, round);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, |x| x.round(), |x| x.__round());
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, signum);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, |x| x.signum(), |x| x.__signum());
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, |x| if x > half::bf16::ZERO {x} else {half::bf16::ZERO}, |x| SimdMath::relu(x));
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, |x| x.max(half::bf16::ZERO).min(half::bf16::from_f32(6.0)), |x| SimdMath::relu6(x));
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, exp);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, |x| x.exp2(), |x| SimdMath::exp2(x));
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, |x| x.exp_m1(), |x| x.expm1());
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, ln);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, |x| x.ln(), |x| SimdMath::log(x));
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, log2);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, log10);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, cbrt);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, |x| libm::erff(x.to_f32()).to_bf16(), |x| SimdMath::erf(x));
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, trunc);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, recip);
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range7.clone(), 1000, 1, |x| x.ln_1p(), |x| SimdMath::log1p(x));
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, |x| (1.0 / (1.0 + (-x.to_f32()).exp())).to_bf16(), |x| SimdMath::sigmoid(x));
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, hard_sigmoid_range.clone(), 10, 1, |x| (0.2 * x.to_f32() + 0.5).min(1.0).max(0.0).to_bf16(), |x| SimdMath::hard_sigmoid(x));
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1,
+            |x| (0.5 * x.to_f32() * (libm::erff(x.to_f32() * std::f32::consts::FRAC_1_SQRT_2) + 1.0)).to_bf16(),
+            |x| SimdMath::gelu(x));
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, hard_swish_range.clone(), 1000, 1, |x| (x.to_f32() * (x.to_f32() + 3.0).__relu6() * (1.0 / 6.0)).to_bf16(), |x| SimdMath::hard_swish(x));
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, |x| (1.0 + x.to_f32().exp()).ln().to_bf16(), |x| SimdMath::softplus(x));
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, |x| (x.to_f32() / (1.0 + x.to_f32().abs())).to_bf16(), |x| SimdMath::softsign(x));
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, |x| (x.to_f32() * x.to_f32().__softplus().tanh()).to_bf16(), |x| SimdMath::mish(x));
+
         use half::f16;
         let range1 = half::f16::from_f32(-1e4)..=half::f16::from_f32(1e4);
         let range2 = half::f16::from_f32(-11.0)..=half::f16::from_f32(11.0);
@@ -1709,6 +1812,25 @@ mod tests {
         test_float_simd_math_2operands!(f16, F16Vec::SIZE, f16::MIN..=f16::MAX, f16::MIN..=f16::MAX, 1000, |x, y| x % y, |x, y| x.__rem(y));
         test_float_simd_math_2operands!(f16, F16Vec::SIZE, f16::MIN..=f16::MAX, f16::MIN..=f16::MAX, 1000, |x, y| x.max(y), |x, y| x.__max(y));
         test_float_simd_math_2operands!(f16, F16Vec::SIZE, f16::MIN..=f16::MAX, f16::MIN..=f16::MAX, 1000, |x, y| x.min(y), |x, y| x.__min(y));
+
+        use half::bf16;
+        let range1 = half::bf16::from_f32(-4.0)..=half::bf16::from_f32(4.0);
+        let range2 = half::bf16::from_f32(-1.0)..=half::bf16::from_f32(1.0);
+        let range3 = half::bf16::from_f32(-1e4)..=half::bf16::from_f32(1e4);
+        let log_range_base = half::bf16::from_f32(0.1)..=half::bf16::from_f32(0.9);
+        let log_range_base2 = half::bf16::from_f32(1.1)..=half::bf16::from_f32(1e4);
+        let normal_range = half::bf16::from_f32(bf16::MIN.to_f32() / 2.0)..=half::bf16::from_f32(bf16::MAX.to_f32() / 2.0);
+        test_float_simd_math_2operands!(bf16, Bf16Vec::SIZE, range1.clone(), range2.clone(), 1000, |x, y| x.powf(y), |x, y| SimdMath::pow(x, y));
+        test_float_simd_math_2operands!(bf16, Bf16Vec::SIZE, range1.clone(), range2.clone(), 1000, |x, y| x.powf(y), |x, y| x.__pow(y));
+        test_float_simd_math_2operands!(bf16, Bf16Vec::SIZE, range3.clone(), range3.clone(), 1000, |x, y| x / y, |x, y| x.__div(y));
+        test_float_simd_math_2operands!(bf16, Bf16Vec::SIZE, range3.clone(), range3.clone(), 1000, |x, y| x.max(bf16::ZERO) + y * x.min(bf16::ZERO), |x, y| SimdMath::leaky_relu(x, y));
+        test_float_simd_math_2operands!(bf16, Bf16Vec::SIZE, range3.clone(), range3.clone(), 1000, |x, y| x.max(bf16::ZERO) + y * x.min(bf16::ZERO), |x, y| x.__leaky_relu(y));
+        test_float_simd_math_2operands!(bf16, Bf16Vec::SIZE, log_range_base.clone(), log_range_base2.clone(), 1000, |x, y| x.log(y), |x, y| x.__log(y));
+        test_float_simd_math_2operands!(bf16, Bf16Vec::SIZE, normal_range.clone(), normal_range.clone(), 1000, |x, y| x + y, |x, y| x.__add(y));
+        test_float_simd_math_2operands!(bf16, Bf16Vec::SIZE, normal_range.clone(), normal_range.clone(), 1000, |x, y| x - y, |x, y| x.__sub(y));
+        test_float_simd_math_2operands!(bf16, Bf16Vec::SIZE, normal_range.clone(), normal_range.clone(), 1000, |x, y| x % y, |x, y| x.__rem(y));
+        test_float_simd_math_2operands!(bf16, Bf16Vec::SIZE, normal_range.clone(), normal_range.clone(), 1000, |x, y| x.max(y), |x, y| x.__max(y));
+        test_float_simd_math_2operands!(bf16, Bf16Vec::SIZE, normal_range.clone(), normal_range.clone(), 1000, |x, y| x.min(y), |x, y| x.__min(y));
     }
 
     #[rustfmt::skip]
