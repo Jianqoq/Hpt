@@ -61,7 +61,8 @@ pub trait FloatOutBinaryPromote<RHS = Self> {
     type Output;
 }
 
-pub(crate) trait FloatOutBinary2 {
+/// internal trait for float out binary
+pub trait FloatOutBinary2 {
     /// perform a / b
     fn __div(self, rhs: Self) -> Self;
     /// perform log<sub>b</sub>(x)
@@ -98,7 +99,8 @@ pub trait NormalOut<RHS = Self> {
     fn _clamp(self, min: RHS, max: RHS) -> Self::Output;
 }
 
-pub(crate) trait NormalOut2 {
+/// internal trait for normal out
+pub trait NormalOut2 {
     /// perform a + b
     fn __add(self, rhs: Self) -> Self;
     /// perform a - b
@@ -168,7 +170,8 @@ pub trait NormalOutUnary {
     fn _relu6(self) -> Self;
 }
 
-pub(crate) trait NormalOutUnary2 {
+/// internal trait for normal out unary
+pub trait NormalOutUnary2 {
     /// perform x<sup>2</sup>
     fn __square(self) -> Self;
     /// perform |x|
@@ -222,7 +225,8 @@ pub trait BitWiseOut<RHS = Self> {
     fn _shr(self, rhs: RHS) -> Self::Output;
 }
 
-pub(crate) trait BitWiseOut2 {
+/// internal trait for bitwise out
+pub trait BitWiseOut2 {
     /// perform a & b
     fn __bitand(self, rhs: Self) -> Self;
     /// perform a | b
@@ -322,7 +326,9 @@ pub trait Eval {
     fn _is_inf(&self) -> Self::Output;
 }
 
-pub(crate) trait Eval2 {
+/// internal trait for eval
+pub trait Eval2 {
+    /// the output type
     type Output;
     /// check if the value is nan
     fn __is_nan(&self) -> Self::Output;
@@ -453,7 +459,8 @@ pub trait FloatOutUnary {
     fn _cbrt(self) -> Self::Output;
 }
 
-pub(crate) trait FloatOutUnary2 {
+/// internal trait for float out unary
+pub trait FloatOutUnary2 {
     /// Perform the natural exponential function: e<sup>x</sup>.
     fn __exp(self) -> Self;
 

@@ -15,10 +15,10 @@
 #![deny(missing_docs)]
 use crate::binary_float_out::impl_cuda_float_out_binary;
 use binary_float_out::impl_float_out_binary;
-use float_unary::{impl_cuda_float_out_unary, impl_float_out_unary};
+use float_unary::impl_float_out_unary;
 use from_scalar::__impl_from_scalar;
 use kernel_gen_helper::{__gen_fast_reduce_simd_helper, __gen_reduce_dim_not_include_simd_helper};
-use normal_out::{__impl_cuda_normal_out_binary, __impl_normal_out_binary};
+use normal_out::__impl_normal_out_binary;
 use proc_macro::TokenStream;
 use scalar_convert::__impl_scalar_convert;
 use simd_bitwise::impl_simd_bitwise_out;
@@ -47,7 +47,6 @@ mod simd_float_out_unary;
 mod simd_normal_out;
 mod simd_normal_unary;
 mod type_utils;
-#[cfg(feature = "cuda")]
 mod into_cuda_scalar;
 mod into_scalar;
 
@@ -221,10 +220,11 @@ pub fn float_out_unary(_: TokenStream) -> TokenStream {
     impl_float_out_unary()
 }
 
+#[cfg(feature = "cuda")]
 /// implement float out unary trait for cuda
 #[proc_macro]
 pub fn float_out_unary_cuda(_: TokenStream) -> TokenStream {
-    impl_cuda_float_out_unary()
+    crate::float_unary::impl_cuda_float_out_unary()
 }
 
 /// implement simd float out unary trait
@@ -251,10 +251,11 @@ pub fn impl_normal_out_binary(_: TokenStream) -> TokenStream {
     __impl_normal_out_binary()
 }
 
+#[cfg(feature = "cuda")]
 /// generate notmal out trait
 #[proc_macro]
 pub fn impl_cuda_normal_out_binary(_: TokenStream) -> TokenStream {
-    __impl_cuda_normal_out_binary()
+    crate::normal_out::__impl_cuda_normal_out_binary()
 }
 
 /// gemerate normal out unary trait
@@ -263,6 +264,7 @@ pub fn impl_normal_out_unary(_: TokenStream) -> TokenStream {
     normal_out_unary::__impl_normal_out_unary()
 }
 
+#[cfg(feature = "cuda")]
 /// gemerate normal out unary trait
 #[proc_macro]
 pub fn impl_normal_out_unary_cuda(_: TokenStream) -> TokenStream {
@@ -553,7 +555,7 @@ pub fn impl_cmp(_: TokenStream) -> TokenStream {
                         fn _lt(self, rhs: #rhs_dtype) -> Self::Output {
                             self < rhs
                         }
-    
+
                         fn _le(self, rhs: #rhs_dtype) -> Self::Output {
                             self <= rhs
                         }
@@ -584,7 +586,7 @@ pub fn impl_cmp(_: TokenStream) -> TokenStream {
                             let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.into_scalar();
                             lhs < rhs
                         }
-    
+
                         fn _le(self, rhs: #rhs_dtype) -> Self::Output {
                             let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.into_scalar();
                             let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.into_scalar();
@@ -639,7 +641,7 @@ pub fn impl_cmp_cuda(_: TokenStream) -> TokenStream {
                         fn _lt(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
                             self.__lt(rhs)
                         }
-    
+
                         fn _le(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
                             self.__le(rhs)
                         }
@@ -670,7 +672,7 @@ pub fn impl_cmp_cuda(_: TokenStream) -> TokenStream {
                             let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.into_scalar();
                             lhs.__lt(rhs)
                         }
-    
+
                         fn _le(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
                             let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.into_scalar();
                             let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.into_scalar();

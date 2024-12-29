@@ -276,6 +276,7 @@ pub fn impl_float_out_unary() -> TokenStream {
     ret.into()
 }
 
+#[cfg(feature = "cuda")]
 pub fn impl_cuda_float_out_unary() -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
 

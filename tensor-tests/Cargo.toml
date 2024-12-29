@@ -20,6 +20,13 @@ rayon = { version = "1.10.0", default-features = false }
 paste = "1.0.15"
 candle-core = "0.7.2"
 macrotest = "1.0.13"
+rand = "0.8.5"
+num-traits = "0.2.19"
+libm = "0.2.11"
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+sleef = { version = "0.3.2" }
+rug = "1.16"
 
 [features]
 cuda = ["tensor-dyn/cuda"]

@@ -33,3 +33,8 @@ pub mod tensor_common {
     pub mod shape_utils;
     pub mod strides;
 }
+
+pub mod tensor_types {
+    pub mod tests;
+}
+

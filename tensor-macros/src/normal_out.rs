@@ -143,6 +143,7 @@ pub(crate) fn __impl_normal_out_binary() -> TokenStream {
     ret.into()
 }
 
+#[cfg(feature = "cuda")]
 pub(crate) fn __impl_cuda_normal_out_binary() -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
 
