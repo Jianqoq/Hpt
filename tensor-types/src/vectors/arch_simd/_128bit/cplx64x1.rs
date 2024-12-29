@@ -179,8 +179,8 @@ impl NormalOut2 for cplx64x1 {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
-        let res = [self[0].__clip(min[0], max[0])];
+    fn __clamp(self, min: Self, max: Self) -> Self {
+        let res = [self[0].__clamp(min[0], max[0])];
         cplx64x1(unsafe { std::mem::transmute(res) })
     }
 }

@@ -58,7 +58,7 @@ impl NormalOut2 for isize {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
+    fn __clamp(self, min: Self, max: Self) -> Self {
         self.clamp(min, max)
     }
 }

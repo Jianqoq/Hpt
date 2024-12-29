@@ -64,7 +64,7 @@ impl NormalOut2 for Complex32 {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
+    fn __clamp(self, min: Self, max: Self) -> Self {
         let norm = self.norm();
         if norm < min.norm() {
             self * (min.norm() / norm)

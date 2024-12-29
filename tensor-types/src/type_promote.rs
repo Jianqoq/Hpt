@@ -95,7 +95,7 @@ pub trait NormalOut<RHS = Self> {
     /// perform min(x, y)
     fn _min(self, rhs: RHS) -> Self::Output;
     /// restrict the value of x to the range [min, max]
-    fn _clip(self, min: RHS, max: RHS) -> Self::Output;
+    fn _clamp(self, min: RHS, max: RHS) -> Self::Output;
 }
 
 pub(crate) trait NormalOut2 {
@@ -117,7 +117,7 @@ pub(crate) trait NormalOut2 {
     /// perform min(x, y)
     fn __min(self, rhs: Self) -> Self;
     /// restrict the value of x to the range [min, max]
-    fn __clip(self, min: Self, max: Self) -> Self;
+    fn __clamp(self, min: Self, max: Self) -> Self;
 }
 
 /// this trait is used to perform type promotion for normal out operations

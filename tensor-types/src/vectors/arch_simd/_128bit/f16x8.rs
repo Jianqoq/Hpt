@@ -776,12 +776,12 @@ impl NormalOut2 for f16x8 {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
+    fn __clamp(self, min: Self, max: Self) -> Self {
         let [high, low] = self.to_2_f32x4();
         let [high_min, low_min] = min.to_2_f32x4();
         let [high_max, low_max] = max.to_2_f32x4();
-        let high_clip = high.__clip(high_min, high_max);
-        let low_clip = low.__clip(low_min, low_max);
+        let high_clip = high.__clamp(high_min, high_max);
+        let low_clip = low.__clamp(low_min, low_max);
         f16x8::from_2_f32x4([high_clip, low_clip])
     }
 }

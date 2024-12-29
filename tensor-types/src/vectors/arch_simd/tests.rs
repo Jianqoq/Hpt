@@ -365,6 +365,31 @@ pub(crate) fn test_computes_2operands_int<
     }
 }
 
+pub(crate) fn test_computes_2operands_int_scalar<
+    T: SampleUniform + std::cmp::PartialOrd + std::fmt::Display + TypeCommon,
+>(
+    lhs_range: core::ops::RangeInclusive<T>,
+    rhs_range: core::ops::RangeInclusive<T>,
+    repeats: usize,
+    op1: impl Fn(T, T) -> T,
+    op2: impl Fn(T, T) -> T,
+    msg: &str,
+) {
+    let mut rng = rand::thread_rng();
+    for _ in 0..repeats {
+        let input = gen_input(&mut rng, lhs_range.clone());
+        let input2 = gen_input(&mut rng, rhs_range.clone());
+        let res = op2(input, input2);
+        let result = op1(input, input2);
+        if result != res {
+            panic!(
+                "{}: input: {} actual: {} != simd: {}",
+                msg, input, result, res
+            );
+        }
+    }
+}
+
 pub(crate) fn test_computes_1operands_float<
     T: TypeCommon + SampleUniform + std::cmp::PartialOrd + std::fmt::Display,
     const N: usize,
@@ -424,6 +449,29 @@ pub(crate) fn test_computes_1operands_int<
                     msg, input[i], result[i], simd_result[i]
                 );
             }
+        }
+    }
+}
+
+pub(crate) fn test_computes_1operands_int_scalar<
+    T: TypeCommon + SampleUniform + std::cmp::PartialOrd + std::fmt::Display,
+>(
+    range: core::ops::RangeInclusive<T>,
+    repeats: usize,
+    op1: impl Fn(T) -> T,
+    op2: impl Fn(T) -> T,
+    msg: &str,
+) {
+    let mut rng = rand::thread_rng();
+    for _ in 0..repeats {
+        let input = gen_input(&mut rng, range.clone());
+        let res = op2(input);
+        let result = op1(input);
+        if result != res {
+            panic!(
+                "{}: input: {} actual: {} != simd: {}",
+                msg, input, result, res
+            );
         }
     }
 }
@@ -658,7 +706,9 @@ mod tests {
         convertion::Convertor,
         simd::sleef::common::misc::SQRT_FLT_MAX,
         traits::{SimdCompare, SimdMath},
-        type_promote::{BitWiseOut, Eval2, FloatOutBinary2, FloatOutUnary2, NormalOut2, NormalOutUnary2},
+        type_promote::{
+            BitWiseOut, Eval2, FloatOutBinary2, FloatOutUnary2, NormalOut2, NormalOutUnary2,
+        },
     };
 
     use super::*;
@@ -1752,6 +1802,56 @@ mod tests {
 
     #[rustfmt::skip]
     #[test]
+    fn test_int_simd_math_scalar() {
+        macro_rules! test_int_simd_math {
+            ($type:ty, $range:expr, $repeat:expr, $op1:expr, $op2:expr) => {
+                test_computes_1operands_int_scalar::<$type>(
+                    $range,
+                    $repeat,
+                    $op1,
+                    $op2,
+                    stringify!($type::$op1),
+                );
+            };
+        }
+        macro_rules! test_int_simd_template {
+            ($type:ty, $repeat:expr) => {
+                test_int_simd_math!($type, (<$type>::MIN as f64).sqrt() as $type..=(<$type>::MAX as f64).sqrt() as $type, $repeat, |x| x * x, |x| x.__square());
+                test_int_simd_math!($type, <$type>::MIN + 1..=<$type>::MAX - 1, $repeat, |x| x.abs(), |x| x.__abs());
+                test_int_simd_math!($type, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.__floor());
+                test_int_simd_math!($type, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.__ceil());
+                test_int_simd_math!($type, <$type>::MIN + 1..=<$type>::MAX - 1, $repeat, |x| -x, |x| x.__neg());
+                test_int_simd_math!($type, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.__round());
+                test_int_simd_math!($type, <$type>::MIN..=<$type>::MAX, $repeat, |x| x.signum(), |x| x.__signum());
+                test_int_simd_math!($type, <$type>::MIN..=<$type>::MAX, $repeat, |x| if x > 0 {x} else {0}, |x| x.__relu());
+                test_int_simd_math!($type, <$type>::MIN..=<$type>::MAX, $repeat, |x| x.max(0).min(6), |x| x.__relu6());
+                test_int_simd_math!($type, <$type>::MIN..=<$type>::MAX, $repeat, |x| (x != 0) as $type, |x| x.__is_true() as $type);
+            };
+            (unsigned, $type:ty, $repeat:expr) => {
+                test_int_simd_math!($type, (<$type>::MIN as f64).sqrt() as $type..=(<$type>::MAX as f64).sqrt() as $type, $repeat, |x| x * x, |x| x.__square());
+                test_int_simd_math!($type, <$type>::MIN + 1..=<$type>::MAX - 1, $repeat, |x| x, |x| x.__abs());
+                test_int_simd_math!($type, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.__floor());
+                test_int_simd_math!($type, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.__ceil());
+                test_int_simd_math!($type, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.__round());
+                test_int_simd_math!($type, <$type>::MIN..=<$type>::MAX, $repeat, |x| if x > 0 {x} else {0}, |x| x.__relu());
+                test_int_simd_math!($type, <$type>::MIN..=<$type>::MAX, $repeat, |x| x.max(0).min(6), |x| x.__relu6());
+                // test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| (x != 0) as $type, |x| x.__is_true());
+            };
+        }
+        test_int_simd_template!(i8, 100);
+        test_int_simd_template!(i16, 100);
+        test_int_simd_template!(i32, 100);
+        test_int_simd_template!(i64, 100);
+        test_int_simd_template!(isize, 100);
+        test_int_simd_template!(unsigned, u8, 100);
+        test_int_simd_template!(unsigned, u16, 100);
+        test_int_simd_template!(unsigned, u32, 100);
+        test_int_simd_template!(unsigned, u64, 100);
+        test_int_simd_template!(unsigned, usize, 100);
+    }
+
+    #[rustfmt::skip]
+    #[test]
     fn test_float_simd_math_2operands() {
         macro_rules! test_float_simd_math_2operands {
             ($type:ty, $size:expr, $lhs_range:expr, $rhs_range:expr, $repeat:expr, $scalar_op:expr, $vec_op:expr) => {
@@ -1879,6 +1979,61 @@ mod tests {
                 test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=10, 0..=2, 100, |x, y| x ^ y, |x, y| x._bitxor(y));
             };
         }
+        test_int_simd_math_2operands!(i8, I8Vec);
+        test_int_simd_math_2operands!(i16, I16Vec);
+        test_int_simd_math_2operands!(i32, I32Vec);
+        test_int_simd_math_2operands!(i64, I64Vec);
+        test_int_simd_math_2operands!(isize, IsizeVec);
+        test_int_simd_math_2operands!(unsigned, u8, U8Vec);
+        test_int_simd_math_2operands!(unsigned, u16, U16Vec);
+        test_int_simd_math_2operands!(unsigned, u32, U32Vec);
+        test_int_simd_math_2operands!(unsigned, u64, U64Vec);
+        test_int_simd_math_2operands!(unsigned, usize, UsizeVec);
+    }
+
+    #[rustfmt::skip]
+    #[test]
+    fn test_int_simd_math_2operands_scalar() {
+        macro_rules! test_2operands_int_scalar {
+            ($type:ty, $lhs_range:expr, $rhs_range:expr, $repeat:expr, $op1:expr, $op2:expr) => {
+                test_computes_2operands_int_scalar::<$type>(
+                    $lhs_range,
+                    $rhs_range,
+                    $repeat,
+                    $op1,
+                    $op2,
+                    stringify!($type::$scalar_op),
+                );
+            };
+        }
+        macro_rules! test_int_simd_math_2operands {
+            ($type: ty, $type_vec: ident) => {
+                test_2operands_int_scalar!($type, -2..=2, 0..=5, 100, |x, y| x.pow(y as u32), |x, y| x.__pow(y));
+                test_2operands_int_scalar!($type, -63..=63, -2..=2, 100, |x, y| x.max(0) + y * x.min(0), |x, y| x.__leaky_relu(y));
+                test_2operands_int_scalar!($type, -63..=63, -63..=63, 100, |x, y| x + y, |x, y| x.__add(y));
+                test_2operands_int_scalar!($type, -63..=63, -63..=63, 100, |x, y| x - y, |x, y| x.__sub(y));
+                test_2operands_int_scalar!($type, -63..=63, 1..=63, 100, |x, y| x % y, |x, y| x.__rem(y));
+                test_2operands_int_scalar!($type, <$type>::MIN..=<$type>::MAX, <$type>::MIN..=<$type>::MAX, 100, |x, y| x.max(y), |x, y| x.__max(y));
+                test_2operands_int_scalar!($type, <$type>::MIN..=<$type>::MAX, <$type>::MIN..=<$type>::MAX, 100, |x, y| x.min(y), |x, y| x.__min(y));
+                test_2operands_int_scalar!($type, 0..=10, 0..=2, 100, |x, y| x >> y, |x, y| x.__shr(y));
+                test_2operands_int_scalar!($type, 0..=10, 0..=2, 100, |x, y| x << y, |x, y| x.__shl(y));
+            };
+            (unsigned, $type: ty, $type_vec: ident) => {
+                test_2operands_int_scalar!($type, 0..=3, 0..=5, 100, |x, y| x.pow(y as u32), |x, y| x.__pow(y));
+                test_2operands_int_scalar!($type, 0..=63, 0..=2, 100, |x, y| x.max(0) + y * x.min(0), |x, y| x.__leaky_relu(y));
+                test_2operands_int_scalar!($type, 0..=63, 0..=63, 100, |x, y| x + y, |x, y| x.__add(y));
+                test_2operands_int_scalar!($type, 30..=63, 0..=30, 100, |x, y| x - y, |x, y| x.__sub(y));
+                test_2operands_int_scalar!($type, 0..=63, 1..=63, 100, |x, y| x % y, |x, y| x.__rem(y));
+                test_2operands_int_scalar!($type, <$type>::MIN..=<$type>::MAX, <$type>::MIN..=<$type>::MAX, 100, |x, y| x.max(y), |x, y| x.__max(y));
+                test_2operands_int_scalar!($type, <$type>::MIN..=<$type>::MAX, <$type>::MIN..=<$type>::MAX, 100, |x, y| x.min(y), |x, y| x.__min(y));
+                test_2operands_int_scalar!($type, 0..=10, 0..=2, 100, |x, y| x >> y, |x, y| x.__shr(y));
+                test_2operands_int_scalar!($type, 0..=10, 0..=2, 100, |x, y| x << y, |x, y| x.__shl(y));
+                test_2operands_int_scalar!($type, 0..=10, 0..=2, 100, |x, y| x | y, |x, y| x.__bitor(y));
+                test_2operands_int_scalar!($type, 0..=10, 0..=2, 100, |x, y| x & y, |x, y| x.__bitand(y));
+                test_2operands_int_scalar!($type, 0..=10, 0..=2, 100, |x, y| x ^ y, |x, y| x.__bitxor(y));
+            };
+        }
+        use crate::type_promote::BitWiseOut2;
         test_int_simd_math_2operands!(i8, I8Vec);
         test_int_simd_math_2operands!(i16, I16Vec);
         test_int_simd_math_2operands!(i32, I32Vec);

@@ -64,8 +64,8 @@ pub fn impl_simd_normal_out() -> TokenStream {
                         fn _rem(self, rhs: #rhs_simd) -> Self::Output {
                             self.__rem(rhs)
                         }
-                        fn _clip(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
-                            self.__clip(min, max)
+                        fn _clamp(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
+                            self.__clamp(min, max)
                         }
                         fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
                             self.__mul_add(a, b)
@@ -111,11 +111,11 @@ pub fn impl_simd_normal_out() -> TokenStream {
                             let y: Self::Output = rhs.into_vec();
                             x.__rem(y)
                         }
-                        fn _clip(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
+                        fn _clamp(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
                             let x: Self::Output = self.into_vec();
                             let y: Self::Output = min.into_vec();
                             let z: Self::Output = max.into_vec();
-                            x.__clip(y, z)
+                            x.__clamp(y, z)
                         }
                         fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
                             let x: Self::Output = self.into_vec();
@@ -154,7 +154,7 @@ fn impl_unreachable(lhs_dtype: SimdType, rhs_simd: SimdType) -> TokenStream2 {
             fn _rem(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _clip(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
+            fn _clamp(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
             fn _max(self, rhs: #rhs_simd) -> Self::Output {
@@ -193,7 +193,7 @@ fn impl_unreachable_with_rhs_scalar(
             fn _rem(self, rhs: #rhs_scalar_ty) -> Self::Output {
                 unreachable!()
             }
-            fn _clip(self, min: #rhs_scalar_ty, max: #rhs_scalar_ty) -> Self::Output {
+            fn _clamp(self, min: #rhs_scalar_ty, max: #rhs_scalar_ty) -> Self::Output {
                 unreachable!()
             }
             fn _max(self, rhs: #rhs_scalar_ty) -> Self::Output {
@@ -277,10 +277,10 @@ pub fn impl_simd_normal_out_with_rhs_scalar() -> TokenStream {
                             let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs);
                             self.__rem(rhs)
                         }
-                        fn _clip(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
+                        fn _clamp(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
                             let min = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(min);
                             let max = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(max);
-                            self.__clip(min, max)
+                            self.__clamp(min, max)
                         }
                         fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
                             let a = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(a);
@@ -328,11 +328,11 @@ pub fn impl_simd_normal_out_with_rhs_scalar() -> TokenStream {
                             let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.into_scalar());
                             lhs.__rem(rhs)
                         }
-                        fn _clip(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
+                        fn _clamp(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
                             let min = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(min.into_scalar());
                             let max = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(max.into_scalar());
                             let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
-                            lhs.__clip(min, max)
+                            lhs.__clamp(min, max)
                         }
                         fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
                             let a = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(a.into_scalar());
@@ -419,9 +419,9 @@ pub fn impl_simd_normal_out_with_lhs_scalar() -> TokenStream {
                             let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self);
                             lhs.__rem(rhs)
                         }
-                        fn _clip(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
+                        fn _clamp(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
                             let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self);
-                            lhs.__clip(min, max)
+                            lhs.__clamp(min, max)
                         }
                         fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
                             let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self);
@@ -461,9 +461,9 @@ pub fn impl_simd_normal_out_with_lhs_scalar() -> TokenStream {
                             let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
                             lhs.__rem(rhs.into_vec())
                         }
-                        fn _clip(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
+                        fn _clamp(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
                             let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
-                            lhs.__clip(min.into_vec(), max.into_vec())
+                            lhs.__clamp(min.into_vec(), max.into_vec())
                         }
                         fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
                             let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
@@ -505,7 +505,7 @@ fn impl_unreachable_lhs_scalar(
             fn _rem(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _clip(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
+            fn _clamp(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
             fn _max(self, rhs: #rhs_simd) -> Self::Output {

@@ -54,7 +54,7 @@ impl NormalOut2 for bool {
     }
 
     #[inline(always)]
-    fn __clip(self, _: Self, _: Self) -> Self {
+    fn __clamp(self, _: Self, _: Self) -> Self {
         self
     }
 }

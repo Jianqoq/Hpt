@@ -197,10 +197,10 @@ impl NormalOut2 for cplx32x2 {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
+    fn __clamp(self, min: Self, max: Self) -> Self {
         let res = [
-            self[0].__clip(min[0], max[0]),
-            self[1].__clip(min[1], max[1]),
+            self[0].__clamp(min[0], max[0]),
+            self[1].__clamp(min[1], max[1]),
         ];
         cplx32x2(unsafe { std::mem::transmute(res) })
     }
