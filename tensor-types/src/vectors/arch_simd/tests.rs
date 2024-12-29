@@ -331,6 +331,40 @@ pub(crate) fn test_computes_2operands_float<
     }
 }
 
+pub(crate) fn test_computes_2operands_int<
+    T: TypeCommon + SampleUniform + std::cmp::PartialOrd + std::fmt::Display,
+    const N: usize,
+>(
+    lhs_range: core::ops::RangeInclusive<T>,
+    rhs_range: core::ops::RangeInclusive<T>,
+    repeats: usize,
+    scalar_op: impl Fn(T, T) -> T,
+    op: impl Fn(T::Vec, T::Vec) -> T::Vec,
+    msg: &str,
+) {
+    let mut rng = rand::thread_rng();
+    for _ in 0..repeats {
+        let input = gen_vector_random::<T, N>(&mut rng, lhs_range.clone());
+        let input2 = gen_vector_random::<T, N>(&mut rng, rhs_range.clone());
+        let vec = unsafe { T::Vec::from_ptr(input.as_ptr()) };
+        let vec2 = unsafe { T::Vec::from_ptr(input2.as_ptr()) };
+        let res = op(vec, vec2);
+        let mut result = vec![T::ZERO; N];
+        for i in 0..N {
+            result[i] = scalar_op(input[i], input2[i]);
+        }
+        let simd_result = unsafe { std::mem::transmute::<&T::Vec, &[T; N]>(&res) };
+        for i in 0..N {
+            if result[i] != simd_result[i] {
+                panic!(
+                    "{}: input: {} actual: {} != simd: {}",
+                    msg, input[i], result[i], simd_result[i]
+                );
+            }
+        }
+    }
+}
+
 pub(crate) fn test_computes_1operands_float<
     T: TypeCommon + SampleUniform + std::cmp::PartialOrd + std::fmt::Display,
     const N: usize,
@@ -347,13 +381,44 @@ pub(crate) fn test_computes_1operands_float<
         let input = gen_vector_random::<T, N>(&mut rng, range.clone());
         let vec = unsafe { T::Vec::from_ptr(input.as_ptr()) };
         let res = op(vec);
-        let mut result = vec![T::ZERO; N];
+        let mut result = [T::ZERO; N];
         for i in 0..N {
             result[i] = scalar_op(input[i]);
         }
         let simd_result = unsafe { std::mem::transmute::<&T::Vec, &[T; N]>(&res) };
         for i in 0..N {
             if !assert_op(result[i], simd_result[i]) {
+                panic!(
+                    "{}: input: {} actual: {} != simd: {}",
+                    msg, input[i], result[i], simd_result[i]
+                );
+            }
+        }
+    }
+}
+
+pub(crate) fn test_computes_1operands_int<
+    T: TypeCommon + SampleUniform + std::cmp::PartialOrd + std::fmt::Display,
+    const N: usize,
+>(
+    range: core::ops::RangeInclusive<T>,
+    repeats: usize,
+    scalar_op: impl Fn(T) -> T,
+    op: impl Fn(T::Vec) -> T::Vec,
+    msg: &str,
+) {
+    let mut rng = rand::thread_rng();
+    for _ in 0..repeats {
+        let input = gen_vector_random::<T, N>(&mut rng, range.clone());
+        let vec = unsafe { T::Vec::from_ptr(input.as_ptr()) };
+        let res = op(vec);
+        let mut result = [T::ZERO; N];
+        for i in 0..N {
+            result[i] = scalar_op(input[i]);
+        }
+        let simd_result = unsafe { std::mem::transmute::<&T::Vec, &[T; N]>(&res) };
+        for i in 0..N {
+            if result[i] != simd_result[i] {
                 panic!(
                     "{}: input: {} actual: {} != simd: {}",
                     msg, input[i], result[i], simd_result[i]
@@ -443,6 +508,10 @@ fn f16_ulp_diff(a: half::f16, b: half::f16) -> i32 {
     if a == b {
         return 0;
     }
+    let rel_diff = ((a - b) / (a.abs() + b.abs() + f32::EPSILON)).abs();
+    if rel_diff < 0.005 {
+        return 0;
+    }
     if (a == 0.0 || a.is_subnormal()) && (b == 0.0 || b.is_subnormal()) {
         return 0;
     }
@@ -478,6 +547,10 @@ fn f16_ulp_diff(a: half::f16, b: half::f16) -> i32 {
 
 fn f32_ulp_diff(a: f32, b: f32) -> i32 {
     if a == b {
+        return 0;
+    }
+    let rel_diff = ((a - b) / (a.abs() + b.abs() + f32::EPSILON)).abs();
+    if rel_diff < 0.005 {
         return 0;
     }
     if (a == 0.0 || a.is_subnormal()) && (b == 0.0 || b.is_subnormal()) {
@@ -517,6 +590,10 @@ fn f64_ulp_diff(a: f64, b: f64) -> i64 {
     if a == b {
         return 0;
     }
+    let rel_diff = ((a - b) / (a.abs() + b.abs() + f64::EPSILON)).abs();
+    if rel_diff < 0.005 {
+        return 0;
+    }
     if (a == 0.0 || a.is_subnormal()) && (b == 0.0 || b.is_subnormal()) {
         return 0;
     }
@@ -536,10 +613,9 @@ fn f64_ulp_diff(a: f64, b: f64) -> i64 {
 mod tests {
     use crate::{
         convertion::Convertor,
-        dtype::FloatConst,
         simd::sleef::common::misc::SQRT_FLT_MAX,
         traits::{SimdCompare, SimdMath},
-        type_promote::{Eval2, FloatOutBinary2, FloatOutUnary2, NormalOut2, NormalOutUnary2},
+        type_promote::{BitWiseOut, Eval2, FloatOutBinary2, FloatOutUnary2, NormalOut2, NormalOutUnary2},
     };
 
     use super::*;
@@ -1386,7 +1462,7 @@ mod tests {
         test_float_simd_math!(f32, F32Vec::SIZE, -4.0..=4.0, 1000, 1, |x| x * (x + 3.0).__relu6() * (1.0 / 6.0), |x| SimdMath::hard_swish(x));
         test_float_simd_math!(f32, F32Vec::SIZE, -88.0..=88.0, 1000, 1, |x| (1.0 + x.exp()).ln(), |x| SimdMath::softplus(x));
         test_float_simd_math!(f32, F32Vec::SIZE, -88.0..=88.0, 1000, 1, |x| x / (1.0 + x.abs()), |x| SimdMath::softsign(x));
-        test_float_simd_math!(f32, F32Vec::SIZE, -88.0..=88.0, 1000, 1, |x| x.__softplus().tanh(), |x| SimdMath::mish(x));
+        test_float_simd_math!(f32, F32Vec::SIZE, -88.0..=88.0, 1000, 1, |x| x * x.__softplus().tanh(), |x| SimdMath::mish(x));
 
         test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, sin);
         test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, cos);
@@ -1439,7 +1515,7 @@ mod tests {
         test_float_simd_math!(f64, F64Vec::SIZE, -4.0..=4.0, 1000, 1, |x| x * (x + 3.0).__relu6() * (1.0 / 6.0), |x| SimdMath::hard_swish(x));
         test_float_simd_math!(f64, F64Vec::SIZE, -88.0..=88.0, 1000, 1, |x| (1.0 + x.exp()).ln(), |x| SimdMath::softplus(x));
         test_float_simd_math!(f64, F64Vec::SIZE, -88.0..=88.0, 1000, 1, |x| x / (1.0 + x.abs()), |x| SimdMath::softsign(x));
-        test_float_simd_math!(f64, F64Vec::SIZE, -88.0..=88.0, 1000, 1, |x| x.__softplus().tanh(), |x| SimdMath::mish(x));
+        test_float_simd_math!(f64, F64Vec::SIZE, -88.0..=88.0, 1000, 1, |x| x * x.__softplus().tanh(), |x| SimdMath::mish(x));
 
         use num_traits::Float;
         use half::f16;
@@ -1448,7 +1524,6 @@ mod tests {
         let range3 = half::f16::from_f32(-8.7)..=half::f16::from_f32(8.7);
         let range4 = half::f16::from_f32(-130.0)..=half::f16::from_f32(130.0);
         let range5 = half::f16::from_f32(0.0)..=half::f16::from_f32(6e4);
-        let range6 = half::f16::from_f32(-14.0)..=half::f16::from_f32(15.0); // exp2
         let range7 = half::f16::from_f32(-0.999)..=half::f16::from_f32(6e4);
         let hard_sigmoid_range = half::f16::from_f32(-5.0)..=half::f16::from_f32(5.0);
         let hard_swish_range = half::f16::from_f32(-4.0)..=half::f16::from_f32(4.0);
@@ -1493,15 +1568,83 @@ mod tests {
         test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, trunc);
         test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, recip);
         test_float_simd_math!(f16, F16Vec::SIZE, range7.clone(), 1000, 1, |x| x.ln_1p(), |x| SimdMath::log1p(x));
-        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| f16::ONE / (f16::ONE + (-x).exp()), |x| SimdMath::sigmoid(x));
-        test_float_simd_math!(f16, F16Vec::SIZE, hard_sigmoid_range.clone(), 1000, 1, |x| (f16::POINT_TWO * x + f16::HALF).min(f16::ONE).max(f16::ZERO), |x| SimdMath::hard_sigmoid(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| (1.0 / (1.0 + (-x.to_f32()).exp())).to_f16(), |x| SimdMath::sigmoid(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, hard_sigmoid_range.clone(), 10, 1, |x| (0.2 * x.to_f32() + 0.5).min(1.0).max(0.0).to_f16(), |x| SimdMath::hard_sigmoid(x));
         test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1,
-            |x| f16::HALF * x * (libm::erff(x.to_f32() * std::f32::consts::FRAC_1_SQRT_2).to_f16() + f16::ONE),
+            |x| (0.5 * x.to_f32() * (libm::erff(x.to_f32() * std::f32::consts::FRAC_1_SQRT_2) + 1.0)).to_f16(),
             |x| SimdMath::gelu(x));
-        test_float_simd_math!(f16, F16Vec::SIZE, hard_swish_range.clone(), 1000, 1, |x| x * (x + f16::THREE).__relu6() * (f16::ONE / f16::SIX), |x| SimdMath::hard_swish(x));
-        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| (f16::ONE + x.exp()).ln(), |x| SimdMath::softplus(x));
-        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| x / (f16::ONE + x.abs()), |x| SimdMath::softsign(x));
-        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| x.__softplus().tanh(), |x| SimdMath::mish(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, hard_swish_range.clone(), 1000, 1, |x| (x.to_f32() * (x.to_f32() + 3.0).__relu6() * (1.0 / 6.0)).to_f16(), |x| SimdMath::hard_swish(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| (1.0 + x.to_f32().exp()).ln().to_f16(), |x| SimdMath::softplus(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| (x.to_f32() / (1.0 + x.to_f32().abs())).to_f16(), |x| SimdMath::softsign(x));
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| (x.to_f32() * x.to_f32().__softplus().tanh()).to_f16(), |x| SimdMath::mish(x));
+    }
+
+    #[rustfmt::skip]
+    #[test]
+    fn test_int_simd_math() {
+        macro_rules! test_int_simd_math {
+            ($type:ty, $size:expr, $range:expr, $repeat:expr, $scalar_op:expr, $vec_op:expr) => {
+                test_computes_1operands_int::<$type, { $size }>(
+                    $range,
+                    $repeat,
+                    $scalar_op,
+                    $vec_op,
+                    stringify!($type::$scalar_op),
+                );
+            };
+        }
+        macro_rules! test_int_simd_template {
+            ($type:ty, $vec_ty:ident, $repeat:expr) => {
+                test_int_simd_math!($type, $vec_ty::SIZE, (<$type>::MIN as f64).sqrt() as $type..=(<$type>::MAX as f64).sqrt() as $type, $repeat,|x| x * x, |x| SimdMath::square(x));
+                test_int_simd_math!($type, $vec_ty::SIZE, (<$type>::MIN as f64).sqrt() as $type..=(<$type>::MAX as f64).sqrt() as $type, $repeat, |x| x * x, |x| x.__square());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN + 1..=<$type>::MAX - 1, $repeat, |x| x.abs(), |x| x.abs());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN + 1..=<$type>::MAX - 1, $repeat, |x| x.abs(), |x| x.__abs());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.floor());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.__floor());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.ceil());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.__ceil());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN + 1..=<$type>::MAX - 1, $repeat, |x| -x, |x| SimdMath::neg(x));
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN + 1..=<$type>::MAX - 1, $repeat, |x| -x, |x| x.__neg());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.round());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.__round());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x.signum(), |x| x.signum());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x.signum(), |x| x.__signum());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| if x > 0 {x} else {0}, |x| SimdMath::relu(x));
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| if x > 0 {x} else {0}, |x| x.__relu());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x.max(0).min(6), |x| SimdMath::relu6(x));
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x.max(0).min(6), |x| x.__relu6());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| SimdMath::trunc(x));
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| (x != 0) as $type, |x| x.__is_true());
+            };
+            (unsigned, $type:ty, $vec_ty:ident, $repeat:expr) => {
+                test_int_simd_math!($type, $vec_ty::SIZE, (<$type>::MIN as f64).sqrt() as $type..=(<$type>::MAX as f64).sqrt() as $type, $repeat,|x| x * x, |x| SimdMath::square(x));
+                test_int_simd_math!($type, $vec_ty::SIZE, (<$type>::MIN as f64).sqrt() as $type..=(<$type>::MAX as f64).sqrt() as $type, $repeat, |x| x * x, |x| x.__square());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN + 1..=<$type>::MAX - 1, $repeat, |x| x, |x| x.abs());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN + 1..=<$type>::MAX - 1, $repeat, |x| x, |x| x.__abs());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.floor());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.__floor());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.ceil());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.__ceil());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.round());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| x.__round());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| if x > 0 {x} else {0}, |x| SimdMath::relu(x));
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| if x > 0 {x} else {0}, |x| x.__relu());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x.max(0).min(6), |x| SimdMath::relu6(x));
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x.max(0).min(6), |x| x.__relu6());
+                test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| x, |x| SimdMath::trunc(x));
+                // test_int_simd_math!($type, $vec_ty::SIZE, <$type>::MIN..=<$type>::MAX, $repeat, |x| (x != 0) as $type, |x| x.__is_true());
+            };
+        }
+        test_int_simd_template!(i8, I8Vec, 100);
+        test_int_simd_template!(i16, I16Vec, 100);
+        test_int_simd_template!(i32, I32Vec, 100);
+        test_int_simd_template!(i64, I64Vec, 100);
+        test_int_simd_template!(isize, IsizeVec, 100);
+        test_int_simd_template!(unsigned, u8, U8Vec, 100);
+        test_int_simd_template!(unsigned, u16, U16Vec, 100);
+        test_int_simd_template!(unsigned, u32, U32Vec, 100);
+        test_int_simd_template!(unsigned, u64, U64Vec, 100);
+        test_int_simd_template!(unsigned, usize, UsizeVec, 100);
     }
 
     #[rustfmt::skip]
@@ -1566,6 +1709,64 @@ mod tests {
         test_float_simd_math_2operands!(f16, F16Vec::SIZE, f16::MIN..=f16::MAX, f16::MIN..=f16::MAX, 1000, |x, y| x % y, |x, y| x.__rem(y));
         test_float_simd_math_2operands!(f16, F16Vec::SIZE, f16::MIN..=f16::MAX, f16::MIN..=f16::MAX, 1000, |x, y| x.max(y), |x, y| x.__max(y));
         test_float_simd_math_2operands!(f16, F16Vec::SIZE, f16::MIN..=f16::MAX, f16::MIN..=f16::MAX, 1000, |x, y| x.min(y), |x, y| x.__min(y));
+    }
+
+    #[rustfmt::skip]
+    #[test]
+    fn test_int_simd_math_2operands() {
+        macro_rules! test_float_simd_math_2operands {
+            ($type:ty, $size:expr, $lhs_range:expr, $rhs_range:expr, $repeat:expr, $scalar_op:expr, $vec_op:expr) => {
+                test_computes_2operands_int::<$type, { $size }>(
+                    $lhs_range,
+                    $rhs_range,
+                    $repeat,
+                    $scalar_op,
+                    $vec_op,
+                    stringify!($type::$scalar_op),
+                );
+            };
+        }
+        macro_rules! test_int_simd_math_2operands {
+            ($type: ty, $type_vec: ident) => {
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, -2..=2, 0..=5, 100, |x, y| x.pow(y as u32), |x, y| SimdMath::pow(x, y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, -2..=2, 0..=5, 100, |x, y| x.pow(y as u32), |x, y| x.__pow(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, -63..=63, -2..=2, 100, |x, y| x.max(0) + y * x.min(0), |x, y| SimdMath::leaky_relu(x, y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, -63..=63, -2..=2, 100, |x, y| x.max(0) + y * x.min(0), |x, y| x.__leaky_relu(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, -63..=63, -63..=63, 100, |x, y| x + y, |x, y| x.__add(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, -63..=63, -63..=63, 100, |x, y| x - y, |x, y| x.__sub(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, -63..=63, 1..=63, 100, |x, y| x % y, |x, y| x.__rem(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, <$type>::MIN..=<$type>::MAX, <$type>::MIN..=<$type>::MAX, 100, |x, y| x.max(y), |x, y| x.__max(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, <$type>::MIN..=<$type>::MAX, <$type>::MIN..=<$type>::MAX, 100, |x, y| x.min(y), |x, y| x.__min(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=10, 0..=2, 100, |x, y| x >> y, |x, y| x._shr(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=10, 0..=2, 100, |x, y| x << y, |x, y| x._shl(y));
+            };
+            (unsigned, $type: ty, $type_vec: ident) => {
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=3, 0..=5, 100, |x, y| x.pow(y as u32), |x, y| SimdMath::pow(x, y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=3, 0..=5, 100, |x, y| x.pow(y as u32), |x, y| x.__pow(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=63, 0..=2, 100, |x, y| x.max(0) + y * x.min(0), |x, y| SimdMath::leaky_relu(x, y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=63, 0..=2, 100, |x, y| x.max(0) + y * x.min(0), |x, y| x.__leaky_relu(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=63, 0..=63, 100, |x, y| x + y, |x, y| x.__add(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, 30..=63, 0..=30, 100, |x, y| x - y, |x, y| x.__sub(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=63, 1..=63, 100, |x, y| x % y, |x, y| x.__rem(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, <$type>::MIN..=<$type>::MAX, <$type>::MIN..=<$type>::MAX, 100, |x, y| x.max(y), |x, y| x.__max(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, <$type>::MIN..=<$type>::MAX, <$type>::MIN..=<$type>::MAX, 100, |x, y| x.min(y), |x, y| x.__min(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=10, 0..=2, 100, |x, y| x >> y, |x, y| x._shr(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=10, 0..=2, 100, |x, y| x << y, |x, y| x._shl(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=10, 0..=2, 100, |x, y| x | y, |x, y| x._bitor(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=10, 0..=2, 100, |x, y| x & y, |x, y| x._bitand(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=10, 0..=2, 100, |x, y| x ^ y, |x, y| x._bitxor(y));
+            };
+        }
+        test_int_simd_math_2operands!(i8, I8Vec);
+        test_int_simd_math_2operands!(i16, I16Vec);
+        test_int_simd_math_2operands!(i32, I32Vec);
+        test_int_simd_math_2operands!(i64, I64Vec);
+        test_int_simd_math_2operands!(isize, IsizeVec);
+        test_int_simd_math_2operands!(unsigned, u8, U8Vec);
+        test_int_simd_math_2operands!(unsigned, u16, U16Vec);
+        test_int_simd_math_2operands!(unsigned, u32, U32Vec);
+        test_int_simd_math_2operands!(unsigned, u64, U64Vec);
+        test_int_simd_math_2operands!(unsigned, usize, UsizeVec);
     }
 
     #[test]

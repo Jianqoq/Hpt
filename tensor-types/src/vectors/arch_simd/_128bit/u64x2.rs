@@ -362,31 +362,54 @@ impl SimdMath<u64> for u64x2 {
     }
     #[inline(always)]
     fn relu(self) -> Self {
-        unsafe {
-            let arr: [u64; 2] = std::mem::transmute(self.0);
-            let mut arr2: [u64; 2] = [0; 2];
-            for i in 0..2 {
-                arr2[i] = arr[i].max(0);
-            }
-            #[cfg(target_arch = "x86_64")]
-            return u64x2(_mm_loadu_si128(arr2.as_ptr() as *const __m128i));
-            #[cfg(target_arch = "aarch64")]
-            return u64x2(vld1q_u64(arr2.as_ptr()));
-        }
+        self.max(Self::splat(0))
     }
     #[inline(always)]
     fn relu6(self) -> Self {
+        self.min(Self::splat(6)).max(Self::splat(0))
+    }
+    #[inline(always)]
+    fn trunc(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn square(self) -> Self {
+        self * self
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn pow(self, rhs: Self) -> Self {
         unsafe {
-            let arr: [u64; 2] = std::mem::transmute(self.0);
-            let mut arr2: [u64; 2] = [0; 2];
+            let a: [u64; 2] = std::mem::transmute(self.0);
+            let b: [u64; 2] = std::mem::transmute(rhs.0);
+            let mut result = [0u64; 2];
             for i in 0..2 {
-                arr2[i] = arr[i].max(0).min(6);
+                result[i] = a[i].pow(b[i] as u32);
             }
             #[cfg(target_arch = "x86_64")]
-            return u64x2(_mm_loadu_si128(arr2.as_ptr() as *const __m128i));
+            return u64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
-            return u64x2(vld1q_u64(arr2.as_ptr()));
+            return u64x2(vld1q_u64(result.as_ptr()));
         }
+    }
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        self.max(Self::splat(0)) + alpha * self.min(Self::splat(0))
     }
 }
 

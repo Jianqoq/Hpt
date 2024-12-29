@@ -457,25 +457,74 @@ impl SimdMath<i8> for i8x16 {
     }
     #[inline(always)]
     fn relu(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            i8x16(_mm_max_epi8(self.0, _mm_setzero_si128()))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            i8x16(vmaxq_s8(self.0, vdupq_n_s8(0)))
-        }
+        self.max(Self::splat(0))
     }
     #[inline(always)]
     fn relu6(self) -> Self {
+        self.min(Self::splat(6)).max(Self::splat(0))
+    }
+    #[inline(always)]
+    fn trunc(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn square(self) -> Self {
+        self * self
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            i8x16(_mm_min_epi8(self.relu().0, _mm_set1_epi8(6)))
+            i8x16(_mm_abs_epi8(self.0))
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i8x16(vminq_s8(self.relu().0, vdupq_n_s8(6)))
+            i8x16(vabsq_s8(self.0))
         }
+    }
+    #[inline(always)]
+    fn neg(self) -> Self {
+        -self
+    }
+    #[inline(always)]
+    fn signum(self) -> Self {
+        let zero = Self::splat(0);
+        let gt = self.simd_gt(zero);
+        let lt = self.simd_lt(zero);
+        let pos = gt & Self::splat(1);
+        let neg = lt & Self::splat(-1);
+        pos | neg
+    }
+    #[inline(always)]
+    fn pow(self, rhs: Self) -> Self {
+        unsafe {
+            let a: [i8; 16] = std::mem::transmute(self.0);
+            let b: [i8; 16] = std::mem::transmute(rhs.0);
+            let mut result = [0i8; 16];
+            for i in 0..16 {
+                result[i] = a[i].pow(b[i] as u32);
+            }
+            #[cfg(target_arch = "x86_64")]
+            return i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            #[cfg(target_arch = "aarch64")]
+            return i8x16(vld1q_s8(result.as_ptr()));
+        }
+    }
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        self.max(i8x16::splat(0)) + alpha * self.min(i8x16::splat(0))
     }
 }
 
@@ -556,19 +605,12 @@ impl NormalOut2 for i8x16 {
 impl NormalOutUnary2 for i8x16 {
     #[inline(always)]
     fn __square(self) -> Self {
-        self * self
+        self.square()
     }
 
     #[inline(always)]
     fn __abs(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            i8x16(_mm_abs_epi8(self.0))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            i8x16(vabsq_s8(self.0))
-        }
+        self.abs()
     }
 
     #[inline(always)]
@@ -624,14 +666,14 @@ impl Eval2 for i8x16 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
             let eq = _mm_cmpeq_epi8(self.0, _mm_setzero_si128());
-            Self(_mm_xor_si128(eq, _mm_set1_epi8(-1)))
+            let result = _mm_andnot_si128(eq, _mm_set1_epi8(1));
+            Self(result)
         }
+
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i8x16(vmvnq_s8(vreinterpretq_s8_u8(vceqq_s8(
-                self.0,
-                vdupq_n_s8(0),
-            ))))
+            let neq = vmvnq_s8(vreinterpretq_s8_u8(vceqq_s8(self.0, vdupq_n_s8(0))));
+            i8x16(vandq_s8(neq, vdupq_n_s8(1)))
         }
     }
 

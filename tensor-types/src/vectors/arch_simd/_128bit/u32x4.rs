@@ -314,30 +314,67 @@ impl SimdMath<u32> for u32x4 {
     #[inline(always)]
     fn max(self, other: Self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { u32x4(_mm_max_epi32(self.0, other.0)) }
+        unsafe { u32x4(_mm_max_epu32(self.0, other.0)) }
         #[cfg(target_arch = "aarch64")]
         unsafe { u32x4(vmaxq_u32(self.0, other.0)) }
     }
     #[inline(always)]
     fn min(self, other: Self) -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { u32x4(_mm_min_epi32(self.0, other.0)) }
+        unsafe { u32x4(_mm_min_epu32(self.0, other.0)) }
         #[cfg(target_arch = "aarch64")]
         unsafe { u32x4(vminq_u32(self.0, other.0)) }
     }
     #[inline(always)]
     fn relu(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe { u32x4(_mm_max_epi32(self.0, _mm_setzero_si128())) }
-        #[cfg(target_arch = "aarch64")]
-        unsafe { u32x4(vmaxq_u32(self.0, vdupq_n_u32(0))) }
+        self.max(Self::splat(0))
     }
     #[inline(always)]
     fn relu6(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe { u32x4(_mm_min_epi32(self.relu().0, _mm_set1_epi32(6))) }
-        #[cfg(target_arch = "aarch64")]
-        unsafe { u32x4(vminq_u32(self.relu().0, vdupq_n_u32(6))) }
+        self.min(Self::splat(6)).max(Self::splat(0))
+    }
+    #[inline(always)]
+    fn trunc(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn square(self) -> Self {
+        self * self
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn pow(self, rhs: Self) -> Self {
+        unsafe {
+            let a: [u32; 4] = std::mem::transmute(self.0);
+            let b: [u32; 4] = std::mem::transmute(rhs.0);
+            let mut result = [0u32; 4];
+            for i in 0..4 {
+                result[i] = a[i].pow(b[i] as u32);
+            }
+            #[cfg(target_arch = "x86_64")]
+            return u32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            #[cfg(target_arch = "aarch64")]
+            return u32x4(vld1q_u32(result.as_ptr()));
+        }
+    }
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        self.max(Self::splat(0)) + alpha * self.min(Self::splat(0))
     }
 }
 

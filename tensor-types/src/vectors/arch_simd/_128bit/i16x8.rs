@@ -472,6 +472,69 @@ impl SimdMath<i16> for i16x8 {
             i16x8(vminq_s16(self.relu().0, vdupq_n_s16(6)))
         }
     }
+    #[inline(always)]
+    fn pow(self, rhs: Self) -> Self {
+        unsafe {
+            let a: [i16; 8] = std::mem::transmute(self.0);
+            let b: [i16; 8] = std::mem::transmute(rhs.0);
+            let mut result = [0i16; 8];
+            for i in 0..8 {
+                result[i] = a[i].pow(b[i] as u32);
+            }
+            #[cfg(target_arch = "x86_64")]
+            return i16x8(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            #[cfg(target_arch = "aarch64")]
+            return i16x8(vld1q_s16(result.as_ptr()));
+        }
+    }
+    #[inline(always)]
+    fn trunc(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn square(self) -> Self {
+        self * self
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            i16x8(_mm_abs_epi16(self.0))
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            i16x8(vabsq_s16(self.0))
+        }
+    }
+    #[inline(always)]
+    fn neg(self) -> Self {
+        -self
+    }
+    #[inline(always)]
+    fn signum(self) -> Self {
+        let zero = Self::splat(0);
+        let gt = self.simd_gt(zero);
+        let lt = self.simd_lt(zero);
+        let pos = gt & Self::splat(1);
+        let neg = lt & Self::splat(-1);
+        pos | neg
+    }
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        self.max(i16x8::splat(0)) + alpha * self.min(i16x8::splat(0))
+    }
 }
 
 impl VecConvertor for i16x8 {
@@ -624,14 +687,17 @@ impl Eval2 for i16x8 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
             let eq = _mm_cmpeq_epi16(self.0, _mm_setzero_si128());
-            Self(_mm_xor_si128(eq, _mm_set1_epi16(-1)))
+            let result = _mm_andnot_si128(eq, _mm_set1_epi16(1));
+            Self(result)
         }
+    
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i16x8(vmvnq_s16(vreinterpretq_s16_u16(vceqq_s16(
+            let neq = vmvnq_s16(vreinterpretq_s16_u16(vceqq_s16(
                 self.0,
                 vdupq_n_s16(0),
-            ))))
+            )));
+            i16x8(vandq_s16(neq, vdupq_n_s16(1)))
         }
     }
 

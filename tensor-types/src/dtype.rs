@@ -3,13 +3,12 @@ use crate::vectors::_512bit::*;
 use crate::{
     convertion::VecConvertor,
     into_vec::IntoVec,
-    type_promote::{BitWiseOut, FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary},
+    type_promote::{FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary},
     vectors::traits::VecTrait,
 };
 use core::f32;
 use half::{bf16, f16};
 use std::fmt::{Debug, Display};
-use tensor_macros::infer_enum_type;
 
 /// enum for data type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -989,72 +988,4 @@ impl FloatConst for bf16 {
     const FOURPI: Self = bf16::from_f32_const(f32::consts::PI * 4.0);
     const POINT_TWO: Self = bf16::from_f32_const(0.2);
     const FRAC_1_SQRT_2: Self = bf16::from_f32_const(f32::consts::FRAC_1_SQRT_2);
-}
-
-impl NormalOut for Dtype {
-    type Output = Dtype;
-
-    fn _add(self, rhs: Self) -> Dtype {
-        infer_enum_type!(self, rhs, normal)
-    }
-
-    fn _sub(self, rhs: Self) -> Dtype {
-        infer_enum_type!(self, rhs, normal)
-    }
-
-    fn _mul_add(self, a: Self, _: Self) -> Self::Output {
-        infer_enum_type!(self, a, normal)
-    }
-
-    fn _mul(self, rhs: Self) -> Dtype {
-        infer_enum_type!(self, rhs, normal)
-    }
-
-    fn _pow(self, rhs: Self) -> Self::Output {
-        infer_enum_type!(self, rhs, normal)
-    }
-
-    fn _rem(self, rhs: Self) -> Dtype {
-        infer_enum_type!(self, rhs, normal)
-    }
-
-    fn _max(self, rhs: Self) -> Self::Output {
-        infer_enum_type!(self, rhs, normal)
-    }
-
-    fn _min(self, rhs: Self) -> Self::Output {
-        infer_enum_type!(self, rhs, normal)
-    }
-
-    fn _clip(self, min: Self::Output, _: Self::Output) -> Self::Output {
-        infer_enum_type!(self, min, normal)
-    }
-}
-
-impl BitWiseOut for Dtype {
-    type Output = Dtype;
-
-    fn _bitand(self, rhs: Self) -> Self::Output {
-        infer_enum_type!(self, rhs, normal)
-    }
-
-    fn _bitor(self, rhs: Self) -> Self::Output {
-        infer_enum_type!(self, rhs, normal)
-    }
-
-    fn _bitxor(self, rhs: Self) -> Self::Output {
-        infer_enum_type!(self, rhs, normal)
-    }
-
-    fn _not(self) -> Self::Output {
-        self
-    }
-
-    fn _shl(self, rhs: Self) -> Self::Output {
-        infer_enum_type!(self, rhs, normal)
-    }
-
-    fn _shr(self, rhs: Self) -> Self::Output {
-        infer_enum_type!(self, rhs, normal)
-    }
 }

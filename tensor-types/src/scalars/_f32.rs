@@ -108,7 +108,7 @@ impl NormalOutUnary2 for f32 {
 
     #[inline(always)]
     fn __relu6(self) -> Self {
-        self.min(6.0).max(0.0)
+        self.max(0.0).min(6.0)
     }
 }
 
