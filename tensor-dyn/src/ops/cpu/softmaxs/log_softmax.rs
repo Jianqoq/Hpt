@@ -148,26 +148,26 @@ pub(crate) fn contiguous_log_softmax<T, O>(
                     || O::NEG_INF,
                     |a, b| a._max(b)
                 );
+            
             let res_raw = unsafe { std::slice::from_raw_parts_mut(res, a.size() as usize) };
-            res_raw
-                .par_iter_mut()
-                .zip(raw.par_iter())
-                .for_each(|(res, &x)| {
-                    *res = x._sub(max)._exp();
-                });
-            let sum = res_raw
+            
+            let sum = raw
                 .par_iter()
                 .fold(
                     || O::ZERO,
-                    |acc, &x| acc._add(x)
+                    |acc, &x| acc._add((x._sub(max))._exp())
                 )
                 .reduce(
                     || O::ZERO,
                     |a, b| a._add(b)
                 );
-            res_raw.par_iter_mut().for_each(|x| {
-                *x = x._div(sum);
-            });
+            let log_sum = sum._ln();
+            res_raw
+                .par_iter_mut()
+                .zip(raw.par_iter())
+                .for_each(|(res, &x)| {
+                    *res = x._sub(max)._sub(log_sum);
+                });
         },
         move |num_threads, inner_loop_size, result, transposed_tensor| {
             let reduce_shape: Shape = transposed_tensor
@@ -290,26 +290,28 @@ pub(crate) fn uncontiguous_log_softmax<T, O>(
                     || O::NEG_INF,
                     |a, b| a._max(b)
                 );
+            
             let res_raw = unsafe { std::slice::from_raw_parts_mut(res, a.size() as usize) };
-            res_raw
-                .par_iter_mut()
-                .zip(raw.par_iter())
-                .for_each(|(res, &x)| {
-                    *res = x._sub(max)._exp();
-                });
-            let sum = res_raw
+            
+            let sum = raw
                 .par_iter()
                 .fold(
                     || O::ZERO,
-                    |acc, &x| acc._add(x)
+                    |acc, &x| acc._add((x._sub(max))._exp())
                 )
                 .reduce(
                     || O::ZERO,
                     |a, b| a._add(b)
                 );
-            res_raw.par_iter_mut().for_each(|x| {
-                *x = x._div(sum);
-            });
+            
+            // 3. 计算 log_softmax = (x - max) - log(sum)
+            let log_sum = sum._ln();
+            res_raw
+                .par_iter_mut()
+                .zip(raw.par_iter())
+                .for_each(|(res, &x)| {
+                    *res = x._sub(max)._sub(log_sum);
+                });
         },
         move |num_threads, inner_loop_size, result, transposed_tensor| {
             let reduce_shape: Shape = transposed_tensor

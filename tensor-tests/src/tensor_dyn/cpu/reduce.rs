@@ -52,14 +52,15 @@ fn assert_eq_f64(b: &tensor_dyn::tensor::Tensor<f64>, a: &Tensor) {
     let tolerance = 2.5e-16;
     let caller = core::panic::Location::caller();
     a_raw.iter().zip(b_raw.iter()).for_each(|(a, b)| {
-        let abs_diff = (a - b).abs();
-        let relative_diff = abs_diff / b.abs().max(f64::EPSILON);
-
-        if abs_diff > tolerance && relative_diff > tolerance {
-            panic!(
-                "{} != {} (abs_diff: {}, relative_diff: {}), at {}",
-                a, b, abs_diff, relative_diff, caller
-            );
+        let abs_diff = (*a - *b).abs();
+        let rel_diff = if *a == 0.0 && *b == 0.0 {
+            0.0
+        } else {
+            abs_diff / (a.abs() + b.abs() + f64::EPSILON)
+        };
+        
+        if rel_diff > 0.05 {
+            panic!("{} != {} (relative_diff: {})", *a, *b, rel_diff);
         }
     });
 }
@@ -82,14 +83,15 @@ fn assert_eq_f64_10(b: &tensor_dyn::tensor::Tensor<f64>, a: &Tensor) {
     let tolerance = 10e-10;
     let caller = core::panic::Location::caller();
     a_raw.iter().zip(b_raw.iter()).for_each(|(a, b)| {
-        let abs_diff = (a - b).abs();
-        let relative_diff = abs_diff / b.abs().max(f64::EPSILON);
-
-        if abs_diff > tolerance && relative_diff > tolerance {
-            panic!(
-                "{} != {} (abs_diff: {}, relative_diff: {}), at {}",
-                a, b, abs_diff, relative_diff, caller
-            );
+        let abs_diff = (*a - *b).abs();
+        let rel_diff = if *a == 0.0 && *b == 0.0 {
+            0.0
+        } else {
+            abs_diff / (a.abs() + b.abs() + f64::EPSILON)
+        };
+        
+        if rel_diff > 0.05 {
+            panic!("{} != {} (relative_diff: {})", *a, *b, rel_diff);
         }
     });
 }

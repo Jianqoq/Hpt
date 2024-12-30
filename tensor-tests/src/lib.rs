@@ -2,6 +2,7 @@ pub mod tensor_dyn {
     pub mod cpu {
         pub mod binary;
         pub mod binary_out;
+        pub mod bn_conv2d;
         pub mod conv2d;
         pub mod conv2d_group;
         pub mod creation;
@@ -35,6 +36,11 @@ pub mod tensor_common {
 }
 
 pub mod tensor_types {
+    pub mod test_display;
+    pub mod test_vector_index;
     pub mod tests;
 }
 
+pub mod macro_tests {
+    pub mod tests;
+}

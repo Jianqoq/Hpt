@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate tensor_tests;
-use tensor_dyn::*;
+use tensor_codegen::*;
 pub fn main() {
     fn case1(a: f32, b: f32) -> anyhow::Result<f32> {
         let __block_out_0 = { a + b };

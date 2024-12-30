@@ -1112,13 +1112,10 @@ pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     [kh, kw]: [i64; 2],
     oc: &mut usize, // output channels block size
     kb: &mut usize // outwidth block size
-) -> Option<ConvKernel<T>>
+) -> ConvKernel<T>
     where bool: IntoScalar<T>
 {
-    let kernels: [
-        [fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec); 5];
-        4
-    ] = if kh == 1 && kw == 1 {
+    let kernels = if kh == 1 && kw == 1 {
         [
             [
                 pw_micro_kernel_1x1,
@@ -1195,14 +1192,7 @@ pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds>(
         *oc = 8;
     }
 
-    let kernel_fn = kernels
-        .get(map_oc)
-        .map(|x| x.get(map_kb))
-        .flatten();
-
-    // println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc, map_kb);
-
-    kernel_fn.cloned().map(|kernel| ConvKernel::new(kernel))
+    ConvKernel::new(kernels[map_oc][map_kb])
 }
 
 pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds>(
@@ -1315,7 +1305,7 @@ pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds>(
 pub(crate) fn remain_oc_kernel_dispatch<T: CommonBounds>(
     [kh, kw]: [i64; 2],
     kb: &mut usize // outwidth block size
-) -> Option<ConvPartialKernel<T>>
+) -> ConvPartialKernel<T>
     where bool: IntoScalar<T>
 {
     let kernels: [ConvPartialKernel<T>; 5] = if kh == 1 && kw == 1 {
@@ -1340,15 +1330,13 @@ pub(crate) fn remain_oc_kernel_dispatch<T: CommonBounds>(
     let map_kb = map_kb(*kb);
     *kb = map_kb + 1;
 
-    let kernel_fn = kernels.get(map_kb);
-
-    kernel_fn.cloned()
+    kernels[map_kb]
 }
 
 pub(crate) fn bias_remain_oc_kernel_dispatch<T: CommonBounds>(
     [kh, kw]: [i64; 2],
     kb: &mut usize // outwidth block size
-) -> Option<
+) -> 
         fn(
             PartialParams,
             &mut Pointer<T>,
@@ -1357,20 +1345,9 @@ pub(crate) fn bias_remain_oc_kernel_dispatch<T: CommonBounds>(
             &Pointer<T>,
             fn(T::Vec) -> T::Vec
         )
-    >
     where bool: IntoScalar<T>
 {
-    let kernels: [
-        fn(
-            PartialParams,
-            &mut Pointer<T>,
-            &mut Pointer<T>,
-            &Pointer<T>,
-            &Pointer<T>,
-            fn(T::Vec) -> T::Vec
-        );
-        5
-    ] = if kh == 1 && kw == 1 {
+    let kernels = if kh == 1 && kw == 1 {
         [
             pw_bias_micro_kernel_1_1,
             pw_bias_micro_kernel_2_1,
@@ -1388,13 +1365,10 @@ pub(crate) fn bias_remain_oc_kernel_dispatch<T: CommonBounds>(
         ]
     };
 
-    // println!("picked iconv2d_remain_microkernel_{} at {}", kb, map_kb(kb));
     let map_kb = map_kb(*kb);
     *kb = map_kb + 1;
 
-    let kernel_fn = kernels.get(map_kb);
-
-    kernel_fn.cloned()
+    kernels[map_kb]
 }
 
 fn map_kb(kb: usize) -> usize {

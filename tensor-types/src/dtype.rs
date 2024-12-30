@@ -73,53 +73,6 @@ impl Display for Dtype {
     }
 }
 
-impl Dtype {
-    /// get the size of the data type in bytes
-    pub const fn size(&self) -> usize {
-        match self {
-            Dtype::Bool => size_of::<bool>(),
-            Dtype::I8 => size_of::<i8>(),
-            Dtype::U8 => size_of::<u8>(),
-            Dtype::I16 => size_of::<i16>(),
-            Dtype::U16 => size_of::<u16>(),
-            Dtype::I32 => size_of::<i32>(),
-            Dtype::U32 => size_of::<u32>(),
-            Dtype::I64 => size_of::<i64>(),
-            Dtype::U64 => size_of::<u64>(),
-            Dtype::BF16 => size_of::<u16>(),
-            Dtype::F16 => size_of::<u16>(),
-            Dtype::F32 => size_of::<f32>(),
-            Dtype::F64 => size_of::<f64>(),
-            Dtype::C32 => size_of::<f32>() * 2,
-            Dtype::C64 => size_of::<f64>() * 2,
-            Dtype::Isize => size_of::<isize>(),
-            Dtype::Usize => size_of::<usize>(),
-        }
-    }
-    /// get the number of bits in the data type
-    pub const fn bits(&self) -> usize {
-        match self {
-            Dtype::Bool => 1,
-            Dtype::I8 => 8,
-            Dtype::U8 => 8,
-            Dtype::I16 => 16,
-            Dtype::U16 => 16,
-            Dtype::I32 => 32,
-            Dtype::U32 => 32,
-            Dtype::I64 => 64,
-            Dtype::U64 => 64,
-            Dtype::BF16 => 16,
-            Dtype::F16 => 16,
-            Dtype::F32 => 32,
-            Dtype::F64 => 64,
-            Dtype::C32 => 32,
-            Dtype::C64 => 64,
-            Dtype::Isize => 64,
-            Dtype::Usize => 64,
-        }
-    }
-}
-
 /// common trait for all data types
 ///
 /// This trait is used to define the common properties of all data types
@@ -170,12 +123,6 @@ where
             <Self::Vec as FloatOutUnary>::Output,
             Output = <Self::Vec as FloatOutUnary>::Output,
         > + VecConvertor;
-    /// the mask type of the data type
-    type Mask;
-    /// convert the value to the mask
-    fn to_mask(self) -> Self::Mask;
-    /// convert the mask to the value
-    fn from_mask(mask: Self::Mask) -> Self;
 }
 
 macro_rules! impl_type_common {
@@ -236,13 +183,6 @@ macro_rules! impl_type_common {
             const CUDA_TYPE: &'static str = $cuda_type;
             const BIT_SIZE: usize = size_of::<$type>();
             type Vec = $vec;
-            type Mask = $mask;
-            fn to_mask(self) -> Self::Mask {
-                unsafe { std::mem::transmute(self) }
-            }
-            fn from_mask(mask: Self::Mask) -> Self {
-                unsafe { std::mem::transmute(mask) }
-            }
         }
     };
 }

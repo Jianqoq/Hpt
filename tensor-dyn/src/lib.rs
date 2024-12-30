@@ -259,7 +259,9 @@ pub use crate::backend::*;
 pub use flate2;
 pub use rayon::prelude::*;
 pub use tensor::Tensor;
+#[cfg(feature = "codegen")]
 pub use tensor_codegen::compile;
+#[cfg(feature = "codegen")]
 pub use tensor_codegen::fuse_proc_macro;
 pub use tensor_common::slice::Slice;
 pub use tensor_dataloader::data_loader::*;

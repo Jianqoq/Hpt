@@ -705,75 +705,73 @@ fn f64_ulp_diff(a: f64, b: f64) -> i64 {
     (bits_a - bits_b).abs()
 }
 
-#[cfg(test)]
-mod tests {
-    use tensor_types::{
-        convertion::Convertor,
-        traits::{SimdCompare, SimdMath},
-        type_promote::{
-            BitWiseOut, Eval2, FloatOutBinary2, FloatOutUnary2, NormalOut2, NormalOutUnary2,
-        },
-    };
+use tensor_types::{
+    convertion::Convertor,
+    traits::{SimdCompare, SimdMath},
+    type_promote::{
+        BitWiseOut, Eval2, FloatOutBinary2, FloatOutUnary2, NormalOut2, NormalOutUnary2,
+    },
+};
 
-    use super::*;
-    #[test]
-    fn test_convert_f32_to_f16() {
-        f32_to_f16_test(-f32::MIN..=f32::MAX, 1000, "f16::from_f32 min..max");
-        f32_to_f16_test_single(f32::INFINITY, "f16::from_f32 inf");
-        f32_to_f16_test_single(f32::NEG_INFINITY, "f16::from_f32 neg_inf");
-        f32_to_f16_test_single(-0.0, "f16::from_f32 neg_zero");
-        f32_to_f16_test_single(0.0, "f16::from_f32 zero");
-        f32_to_f16_test_single(f32::MAX, "f16::from_f32 max");
-        f32_to_f16_test_single(f32::MIN, "f16::from_f32 min");
-        f32_to_f16_test_single(f32::NAN, "f16::from_f32 nan");
-    }
-    #[test]
-    fn test_convert_f32_to_bf16() {
-        f32_to_bf16_test(-f32::MIN..=f32::MAX, 1000, "bf16::from_f32 min..max");
-        f32_to_bf16_test_single(f32::INFINITY, "bf16::from_f32 inf");
-        f32_to_bf16_test_single(f32::NEG_INFINITY, "bf16::from_f32 neg_inf");
-        f32_to_bf16_test_single(-0.0, "bf16::from_f32 neg_zero");
-        f32_to_bf16_test_single(0.0, "bf16::from_f32 zero");
-        f32_to_bf16_test_single(f32::MAX, "bf16::from_f32 max");
-        f32_to_bf16_test_single(f32::MIN, "bf16::from_f32 min");
-        f32_to_bf16_test_single(f32::NAN, "bf16::from_f32 nan");
-    }
-    #[test]
-    fn test_convert_f16_to_f32() {
-        f16_to_f32_test(
-            -half::f16::MIN..=half::f16::MAX,
-            1000,
-            "f16::to_f32 min..max",
-        );
-        f16_to_f32_test_single(half::f16::MAX, "f16::to_f32 max");
-        f16_to_f32_test_single(half::f16::MIN, "f16::to_f32 min");
-        f16_to_f32_test_single(half::f16::NAN, "f16::to_f32 nan");
-        f16_to_f32_test_single(half::f16::ZERO, "f16::to_f32 zero");
-        f16_to_f32_test_single(half::f16::ONE, "f16::to_f32 one");
-        f16_to_f32_test_single(half::f16::NEG_ZERO, "f16::to_f32 neg_zero");
-        f16_to_f32_test_single(half::f16::NEG_ONE, "f16::to_f32 neg_one");
-        f16_to_f32_test_single(half::f16::NEG_INFINITY, "f16::to_f32 neg_inf");
-        f16_to_f32_test_single(half::f16::INFINITY, "f16::to_f32 inf");
-    }
-    #[test]
-    fn test_convert_bf16_to_f32() {
-        bf16_to_f32_test(
-            -half::bf16::MIN..=half::bf16::MAX,
-            1000,
-            "bf16::to_f32 min..max",
-        );
-        bf16_to_f32_test_single(half::bf16::MAX, "bf16::to_f32 max");
-        bf16_to_f32_test_single(half::bf16::MIN, "bf16::to_f32 min");
-        bf16_to_f32_test_single(half::bf16::NAN, "bf16::to_f32 nan");
-        bf16_to_f32_test_single(half::bf16::ZERO, "bf16::to_f32 zero");
-        bf16_to_f32_test_single(half::bf16::ONE, "bf16::to_f32 one");
-        bf16_to_f32_test_single(half::bf16::NEG_ZERO, "bf16::to_f32 neg_zero");
-        bf16_to_f32_test_single(half::bf16::NEG_ONE, "bf16::to_f32 neg_one");
-        bf16_to_f32_test_single(half::bf16::NEG_INFINITY, "bf16::to_f32 neg_inf");
-        bf16_to_f32_test_single(half::bf16::INFINITY, "bf16::to_f32 inf");
-    }
+use super::*;
+#[test]
+fn test_convert_f32_to_f16() {
+    f32_to_f16_test(-f32::MIN..=f32::MAX, 1000, "f16::from_f32 min..max");
+    f32_to_f16_test_single(f32::INFINITY, "f16::from_f32 inf");
+    f32_to_f16_test_single(f32::NEG_INFINITY, "f16::from_f32 neg_inf");
+    f32_to_f16_test_single(-0.0, "f16::from_f32 neg_zero");
+    f32_to_f16_test_single(0.0, "f16::from_f32 zero");
+    f32_to_f16_test_single(f32::MAX, "f16::from_f32 max");
+    f32_to_f16_test_single(f32::MIN, "f16::from_f32 min");
+    f32_to_f16_test_single(f32::NAN, "f16::from_f32 nan");
+}
+#[test]
+fn test_convert_f32_to_bf16() {
+    f32_to_bf16_test(-f32::MIN..=f32::MAX, 1000, "bf16::from_f32 min..max");
+    f32_to_bf16_test_single(f32::INFINITY, "bf16::from_f32 inf");
+    f32_to_bf16_test_single(f32::NEG_INFINITY, "bf16::from_f32 neg_inf");
+    f32_to_bf16_test_single(-0.0, "bf16::from_f32 neg_zero");
+    f32_to_bf16_test_single(0.0, "bf16::from_f32 zero");
+    f32_to_bf16_test_single(f32::MAX, "bf16::from_f32 max");
+    f32_to_bf16_test_single(f32::MIN, "bf16::from_f32 min");
+    f32_to_bf16_test_single(f32::NAN, "bf16::from_f32 nan");
+}
+#[test]
+fn test_convert_f16_to_f32() {
+    f16_to_f32_test(
+        -half::f16::MIN..=half::f16::MAX,
+        1000,
+        "f16::to_f32 min..max",
+    );
+    f16_to_f32_test_single(half::f16::MAX, "f16::to_f32 max");
+    f16_to_f32_test_single(half::f16::MIN, "f16::to_f32 min");
+    f16_to_f32_test_single(half::f16::NAN, "f16::to_f32 nan");
+    f16_to_f32_test_single(half::f16::ZERO, "f16::to_f32 zero");
+    f16_to_f32_test_single(half::f16::ONE, "f16::to_f32 one");
+    f16_to_f32_test_single(half::f16::NEG_ZERO, "f16::to_f32 neg_zero");
+    f16_to_f32_test_single(half::f16::NEG_ONE, "f16::to_f32 neg_one");
+    f16_to_f32_test_single(half::f16::NEG_INFINITY, "f16::to_f32 neg_inf");
+    f16_to_f32_test_single(half::f16::INFINITY, "f16::to_f32 inf");
+}
+#[test]
+fn test_convert_bf16_to_f32() {
+    bf16_to_f32_test(
+        -half::bf16::MIN..=half::bf16::MAX,
+        1000,
+        "bf16::to_f32 min..max",
+    );
+    bf16_to_f32_test_single(half::bf16::MAX, "bf16::to_f32 max");
+    bf16_to_f32_test_single(half::bf16::MIN, "bf16::to_f32 min");
+    bf16_to_f32_test_single(half::bf16::NAN, "bf16::to_f32 nan");
+    bf16_to_f32_test_single(half::bf16::ZERO, "bf16::to_f32 zero");
+    bf16_to_f32_test_single(half::bf16::ONE, "bf16::to_f32 one");
+    bf16_to_f32_test_single(half::bf16::NEG_ZERO, "bf16::to_f32 neg_zero");
+    bf16_to_f32_test_single(half::bf16::NEG_ONE, "bf16::to_f32 neg_one");
+    bf16_to_f32_test_single(half::bf16::NEG_INFINITY, "bf16::to_f32 neg_inf");
+    bf16_to_f32_test_single(half::bf16::INFINITY, "bf16::to_f32 inf");
+}
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     #[test]
     fn test_add() {
         test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, i8::MIN..=i8::MAX, "i8::add", wrapping_add, __add);
@@ -793,7 +791,7 @@ mod tests {
         test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, -1e15..=1e15, "f64::add", add, __add);
     }
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     #[test]
     fn test_sub() {
         test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, i8::MIN..=i8::MAX, "i8::sub", wrapping_sub, __sub);
@@ -814,7 +812,7 @@ mod tests {
         test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, -1e15..=1e15, "f64::sub", sub, __sub);
     }
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     #[test]
     fn test_mul() {
         test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, 10..=10, "i8::mul", wrapping_mul, __mul);
@@ -835,7 +833,7 @@ mod tests {
         test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, -1e5..=1e5, "f64::mul", mul, __mul);
     }
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     #[test]
     fn test_mul_add() {
         use num_traits::real::Real;
@@ -969,235 +967,235 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_div() {
-        test_computes_2operands_for_type!(
-            i8,
-            { I8Vec::SIZE },
-            1000,
-            1..=i8::MAX,
-            "i8::div",
-            wrapping_div,
-            __div
-        );
-        test_computes_2operands_for_type!(
-            i16,
-            { I16Vec::SIZE },
-            1000,
-            1..=i16::MAX,
-            "i16::div",
-            wrapping_div,
-            __div
-        );
-        test_computes_2operands_for_type!(
-            i32,
-            { I32Vec::SIZE },
-            1000,
-            1..=i32::MAX,
-            "i32::div",
-            wrapping_div,
-            __div
-        );
-        test_computes_2operands_for_type!(
-            i64,
-            { I64Vec::SIZE },
-            1000,
-            1..=i64::MAX,
-            "i64::div",
-            wrapping_div,
-            __div
-        );
-        test_computes_2operands_for_type!(
-            isize,
-            { IsizeVec::SIZE },
-            1000,
-            1..=isize::MAX,
-            "isize::div",
-            wrapping_div,
-            __div
-        );
-        test_computes_2operands_for_type!(
-            u8,
-            { U8Vec::SIZE },
-            1000,
-            1..=u8::MAX,
-            "u8::div",
-            wrapping_div,
-            __div
-        );
-        test_computes_2operands_for_type!(
-            u16,
-            { U16Vec::SIZE },
-            1000,
-            1..=u16::MAX,
-            "u16::div",
-            wrapping_div,
-            __div
-        );
-        test_computes_2operands_for_type!(
-            u32,
-            { U32Vec::SIZE },
-            1000,
-            1..=u32::MAX,
-            "u32::div",
-            wrapping_div,
-            __div
-        );
-        test_computes_2operands_for_type!(
-            u64,
-            { U64Vec::SIZE },
-            1000,
-            1..=u64::MAX,
-            "u64::div",
-            wrapping_div,
-            __div
-        );
-        test_computes_2operands_for_type!(
-            usize,
-            { UsizeVec::SIZE },
-            1000,
-            1..=usize::MAX,
-            "usize::div",
-            wrapping_div,
-            __div
-        );
-        use std::ops::Div;
-        test_computes_2operands_for_type!(
-            f32,
-            { F32Vec::SIZE },
-            1000,
-            1.0..=1e15,
-            "f32::div",
-            div,
-            __div
-        );
-        test_computes_2operands_for_type!(
-            half::f16,
-            { F16Vec::SIZE },
-            1000,
-            half::f16::from_f32_const(1f32)..=half::f16::from_f32_const(i16::MAX as f32),
-            "f16::div",
-            div,
-            __div
-        );
-        test_computes_2operands_for_type!(
-            half::bf16,
-            { Bf16Vec::SIZE },
-            1000,
-            half::bf16::from_f32_const(1f32)..=half::bf16::from_f32_const(i16::MAX as f32),
-            "bf16::div",
-            div,
-            __div
-        );
-        test_computes_2operands_for_type!(
-            f64,
-            { F64Vec::SIZE },
-            1000,
-            1.0..=1e15,
-            "f64::div",
-            div,
-            __div
-        );
-    }
+#[test]
+fn test_div() {
+    test_computes_2operands_for_type!(
+        i8,
+        { I8Vec::SIZE },
+        1000,
+        1..=i8::MAX,
+        "i8::div",
+        wrapping_div,
+        __div
+    );
+    test_computes_2operands_for_type!(
+        i16,
+        { I16Vec::SIZE },
+        1000,
+        1..=i16::MAX,
+        "i16::div",
+        wrapping_div,
+        __div
+    );
+    test_computes_2operands_for_type!(
+        i32,
+        { I32Vec::SIZE },
+        1000,
+        1..=i32::MAX,
+        "i32::div",
+        wrapping_div,
+        __div
+    );
+    test_computes_2operands_for_type!(
+        i64,
+        { I64Vec::SIZE },
+        1000,
+        1..=i64::MAX,
+        "i64::div",
+        wrapping_div,
+        __div
+    );
+    test_computes_2operands_for_type!(
+        isize,
+        { IsizeVec::SIZE },
+        1000,
+        1..=isize::MAX,
+        "isize::div",
+        wrapping_div,
+        __div
+    );
+    test_computes_2operands_for_type!(
+        u8,
+        { U8Vec::SIZE },
+        1000,
+        1..=u8::MAX,
+        "u8::div",
+        wrapping_div,
+        __div
+    );
+    test_computes_2operands_for_type!(
+        u16,
+        { U16Vec::SIZE },
+        1000,
+        1..=u16::MAX,
+        "u16::div",
+        wrapping_div,
+        __div
+    );
+    test_computes_2operands_for_type!(
+        u32,
+        { U32Vec::SIZE },
+        1000,
+        1..=u32::MAX,
+        "u32::div",
+        wrapping_div,
+        __div
+    );
+    test_computes_2operands_for_type!(
+        u64,
+        { U64Vec::SIZE },
+        1000,
+        1..=u64::MAX,
+        "u64::div",
+        wrapping_div,
+        __div
+    );
+    test_computes_2operands_for_type!(
+        usize,
+        { UsizeVec::SIZE },
+        1000,
+        1..=usize::MAX,
+        "usize::div",
+        wrapping_div,
+        __div
+    );
+    use std::ops::Div;
+    test_computes_2operands_for_type!(
+        f32,
+        { F32Vec::SIZE },
+        1000,
+        1.0..=1e15,
+        "f32::div",
+        div,
+        __div
+    );
+    test_computes_2operands_for_type!(
+        half::f16,
+        { F16Vec::SIZE },
+        1000,
+        half::f16::from_f32_const(1f32)..=half::f16::from_f32_const(i16::MAX as f32),
+        "f16::div",
+        div,
+        __div
+    );
+    test_computes_2operands_for_type!(
+        half::bf16,
+        { Bf16Vec::SIZE },
+        1000,
+        half::bf16::from_f32_const(1f32)..=half::bf16::from_f32_const(i16::MAX as f32),
+        "bf16::div",
+        div,
+        __div
+    );
+    test_computes_2operands_for_type!(
+        f64,
+        { F64Vec::SIZE },
+        1000,
+        1.0..=1e15,
+        "f64::div",
+        div,
+        __div
+    );
+}
 
-    #[should_panic(expected = "division by zero")]
-    #[test]
-    fn test_div_i8_0() {
-        test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, 0..=0, "i8::div", wrapping_div, /);
+#[should_panic(expected = "division by zero")]
+#[test]
+fn test_div_i8_0() {
+    test_computes_2operands_for_type!(i8, { I8Vec::SIZE }, 1000, 0..=0, "i8::div", wrapping_div, /);
+}
+#[should_panic(expected = "division by zero")]
+#[test]
+fn test_div_i16_0() {
+    test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, 0..=0, "i16::div", wrapping_div, /);
+}
+#[should_panic(expected = "division by zero")]
+#[test]
+fn test_div_i32_0() {
+    test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, 0..=0, "i32::div", wrapping_div, /);
+}
+#[should_panic(expected = "division by zero")]
+#[test]
+fn test_div_i64_0() {
+    test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, 0..=0, "i64::div", wrapping_div, /);
+}
+#[should_panic(expected = "division by zero")]
+#[test]
+fn test_div_isize_0() {
+    test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, 0..=0, "isize::div", wrapping_div, /);
+}
+#[should_panic(expected = "division by zero")]
+#[test]
+fn test_div_u8_0() {
+    test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, 0..=0, "u8::div", wrapping_div, /);
+}
+#[should_panic(expected = "division by zero")]
+#[test]
+fn test_div_u16_0() {
+    test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, 0..=0, "u16::div", wrapping_div, /);
+}
+#[should_panic(expected = "division by zero")]
+#[test]
+fn test_div_u32_0() {
+    test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, 0..=0, "u32::div", wrapping_div, /);
+}
+#[should_panic(expected = "division by zero")]
+#[test]
+fn test_div_u64_0() {
+    test_computes_2operands_for_type!(u64, { U64Vec::SIZE }, 1000, 0..=0, "u64::div", wrapping_div, /);
+}
+#[should_panic(expected = "division by zero")]
+#[test]
+fn test_div_usize_0() {
+    test_computes_2operands_for_type!(usize, { UsizeVec::SIZE }, 1000, 0..=0, "usize::div", wrapping_div, /);
+}
+#[test]
+fn test_div_float_0() {
+    macro_rules! test_div_float_0 {
+        ($type_vec:ident, $type:ty, $msg:expr) => {
+            let res = $type_vec::splat(<$type>::ZERO) / $type_vec::splat(<$type>::ZERO);
+            let simd_result =
+                unsafe { std::mem::transmute::<&$type_vec, &[$type; $type_vec::SIZE]>(&res) };
+            for i in 0..$type_vec::SIZE {
+                assert!(simd_result[i].is_nan(), $msg);
+            }
+        };
     }
-    #[should_panic(expected = "division by zero")]
-    #[test]
-    fn test_div_i16_0() {
-        test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, 0..=0, "i16::div", wrapping_div, /);
+    test_div_float_0!(F32Vec, f32, "f32::div: simd_result[i] is not nan");
+    test_div_float_0!(F64Vec, f64, "f64::div: simd_result[i] is not nan");
+    test_div_float_0!(F16Vec, half::f16, "f16::div: simd_result[i] is not nan");
+    test_div_float_0!(Bf16Vec, half::bf16, "bf16::div: simd_result[i] is not nan");
+}
+#[test]
+fn test_div_float_nan() {
+    macro_rules! test_div_float_nan {
+        ($type_vec:ident, $type:ty, $msg:expr) => {
+            let res = $type_vec::splat(<$type>::NAN) / $type_vec::splat(<$type>::NAN);
+            let simd_result =
+                unsafe { std::mem::transmute::<&$type_vec, &[$type; $type_vec::SIZE]>(&res) };
+            for i in 0..$type_vec::SIZE {
+                assert!(simd_result[i].is_nan(), $msg);
+            }
+            let res = $type_vec::splat(<$type>::ZERO) / $type_vec::splat(<$type>::NAN);
+            let simd_result =
+                unsafe { std::mem::transmute::<&$type_vec, &[$type; $type_vec::SIZE]>(&res) };
+            for i in 0..$type_vec::SIZE {
+                assert!(simd_result[i].is_nan(), $msg);
+            }
+            let res = $type_vec::splat(<$type>::NAN) / $type_vec::splat(<$type>::ONE);
+            let simd_result =
+                unsafe { std::mem::transmute::<&$type_vec, &[$type; $type_vec::SIZE]>(&res) };
+            for i in 0..$type_vec::SIZE {
+                assert!(simd_result[i].is_nan(), $msg);
+            }
+        };
     }
-    #[should_panic(expected = "division by zero")]
-    #[test]
-    fn test_div_i32_0() {
-        test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, 0..=0, "i32::div", wrapping_div, /);
-    }
-    #[should_panic(expected = "division by zero")]
-    #[test]
-    fn test_div_i64_0() {
-        test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, 0..=0, "i64::div", wrapping_div, /);
-    }
-    #[should_panic(expected = "division by zero")]
-    #[test]
-    fn test_div_isize_0() {
-        test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, 0..=0, "isize::div", wrapping_div, /);
-    }
-    #[should_panic(expected = "division by zero")]
-    #[test]
-    fn test_div_u8_0() {
-        test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, 0..=0, "u8::div", wrapping_div, /);
-    }
-    #[should_panic(expected = "division by zero")]
-    #[test]
-    fn test_div_u16_0() {
-        test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, 0..=0, "u16::div", wrapping_div, /);
-    }
-    #[should_panic(expected = "division by zero")]
-    #[test]
-    fn test_div_u32_0() {
-        test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, 0..=0, "u32::div", wrapping_div, /);
-    }
-    #[should_panic(expected = "division by zero")]
-    #[test]
-    fn test_div_u64_0() {
-        test_computes_2operands_for_type!(u64, { U64Vec::SIZE }, 1000, 0..=0, "u64::div", wrapping_div, /);
-    }
-    #[should_panic(expected = "division by zero")]
-    #[test]
-    fn test_div_usize_0() {
-        test_computes_2operands_for_type!(usize, { UsizeVec::SIZE }, 1000, 0..=0, "usize::div", wrapping_div, /);
-    }
-    #[test]
-    fn test_div_float_0() {
-        macro_rules! test_div_float_0 {
-            ($type_vec:ident, $type:ty, $msg:expr) => {
-                let res = $type_vec::splat(<$type>::ZERO) / $type_vec::splat(<$type>::ZERO);
-                let simd_result =
-                    unsafe { std::mem::transmute::<&$type_vec, &[$type; $type_vec::SIZE]>(&res) };
-                for i in 0..$type_vec::SIZE {
-                    assert!(simd_result[i].is_nan(), $msg);
-                }
-            };
-        }
-        test_div_float_0!(F32Vec, f32, "f32::div: simd_result[i] is not nan");
-        test_div_float_0!(F64Vec, f64, "f64::div: simd_result[i] is not nan");
-        test_div_float_0!(F16Vec, half::f16, "f16::div: simd_result[i] is not nan");
-        test_div_float_0!(Bf16Vec, half::bf16, "bf16::div: simd_result[i] is not nan");
-    }
-    #[test]
-    fn test_div_float_nan() {
-        macro_rules! test_div_float_nan {
-            ($type_vec:ident, $type:ty, $msg:expr) => {
-                let res = $type_vec::splat(<$type>::NAN) / $type_vec::splat(<$type>::NAN);
-                let simd_result =
-                    unsafe { std::mem::transmute::<&$type_vec, &[$type; $type_vec::SIZE]>(&res) };
-                for i in 0..$type_vec::SIZE {
-                    assert!(simd_result[i].is_nan(), $msg);
-                }
-                let res = $type_vec::splat(<$type>::ZERO) / $type_vec::splat(<$type>::NAN);
-                let simd_result =
-                    unsafe { std::mem::transmute::<&$type_vec, &[$type; $type_vec::SIZE]>(&res) };
-                for i in 0..$type_vec::SIZE {
-                    assert!(simd_result[i].is_nan(), $msg);
-                }
-                let res = $type_vec::splat(<$type>::NAN) / $type_vec::splat(<$type>::ONE);
-                let simd_result =
-                    unsafe { std::mem::transmute::<&$type_vec, &[$type; $type_vec::SIZE]>(&res) };
-                for i in 0..$type_vec::SIZE {
-                    assert!(simd_result[i].is_nan(), $msg);
-                }
-            };
-        }
-        test_div_float_nan!(F32Vec, f32, "f32::div: simd_result[i] is not nan");
-        test_div_float_nan!(F64Vec, f64, "f64::div: simd_result[i] is not nan");
-        test_div_float_nan!(F16Vec, half::f16, "f16::div: simd_result[i] is not nan");
-        test_div_float_nan!(Bf16Vec, half::bf16, "bf16::div: simd_result[i] is not nan");
-    }
+    test_div_float_nan!(F32Vec, f32, "f32::div: simd_result[i] is not nan");
+    test_div_float_nan!(F64Vec, f64, "f64::div: simd_result[i] is not nan");
+    test_div_float_nan!(F16Vec, half::f16, "f16::div: simd_result[i] is not nan");
+    test_div_float_nan!(Bf16Vec, half::bf16, "bf16::div: simd_result[i] is not nan");
+}
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     #[test]
     fn test_simd_eq() {
         macro_rules! test_simd_eq {
@@ -1238,7 +1236,7 @@ mod tests {
         test_simd_eq!(2, Bf16Vec, I16Vec, half::bf16, "bf16::simd_eq: simd_result[i] is not -1", "bf16::simd_eq: simd_result[i] is not 0", 0 == 0: -1, 10.0 == 0: 0);
     }
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     #[test]
     fn test_simd_ne() {
         macro_rules! test_simd_ne {
@@ -1279,7 +1277,7 @@ mod tests {
         test_simd_ne!(2, Bf16Vec, I16Vec, half::bf16, "bf16::simd_ne: simd_result[i] is not 0", "bf16::simd_ne: simd_result[i] is not -1", 0 != 0: 0, 10.0 != 0: -1);
     }
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     #[test]
     fn test_simd_gt() {
         macro_rules! test_simd_gt {
@@ -1320,7 +1318,7 @@ mod tests {
         test_simd_gt!(2, Bf16Vec, I16Vec, half::bf16, "bf16::simd_gt: simd_result[i] is not 0", "bf16::simd_gt: simd_result[i] is not -1", 0 > 0: 0, 10.0 > 0: -1);
     }
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     #[test]
     fn test_simd_ge() {
         macro_rules! test_simd_ge {
@@ -1377,7 +1375,7 @@ mod tests {
         test_simd_ge!(2, Bf16Vec, I16Vec, half::bf16, "bf16::simd_ge: simd_result[i] is not 0", "bf16::simd_ge: simd_result[i] is not -1", "bf16::simd_ge: simd_result[i] is not 1", 0 >= 0: -1, 10.0 >= 0: -1, -1.0 >= 0.0: 0);
     }
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     #[test]
     fn test_simd_lt() {
         macro_rules! test_simd_lt {
@@ -1418,7 +1416,7 @@ mod tests {
         test_simd_lt!(2, Bf16Vec, I16Vec, half::bf16, "bf16::simd_lt: simd_result[i] is not 0", "bf16::simd_lt: simd_result[i] is not -1", 0 < 0: 0, 10.0 < 100.0: -1);
     }
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     #[test]
     fn test_simd_le() {
         macro_rules! test_simd_le {
@@ -1475,7 +1473,7 @@ mod tests {
         test_simd_le!(2, Bf16Vec, I16Vec, half::bf16, "bf16::simd_le: simd_result[i] is not 0", "bf16::simd_le: simd_result[i] is not -1", "bf16::simd_le: simd_result[i] is not 1", 0 <= 0: -1, 10.0 <= 0: 0, -1.0 <= 0.0: -1);
     }
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     #[test]
     fn test_float_simd_math() {
         macro_rules! test_float_simd_math {
@@ -1736,7 +1734,7 @@ mod tests {
         test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| (x.to_f32() * x.to_f32().__softplus().tanh()).to_f16(), |x| SimdMath::mish(x));
     }
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     #[test]
     fn test_int_simd_math() {
         macro_rules! test_int_simd_math {
@@ -1804,7 +1802,7 @@ mod tests {
         test_int_simd_template!(unsigned, usize, UsizeVec, 100);
     }
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     #[test]
     fn test_int_simd_math_scalar() {
         macro_rules! test_int_simd_math {
@@ -1858,7 +1856,7 @@ mod tests {
         test_int_simd_template!(unsigned, usize, 100);
     }
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     #[test]
     fn test_float_simd_math_2operands() {
         macro_rules! test_float_simd_math_2operands {
@@ -1941,7 +1939,7 @@ mod tests {
         test_float_simd_math_2operands!(bf16, Bf16Vec::SIZE, normal_range.clone(), normal_range.clone(), 1000, |x, y| x.min(y), |x, y| x.__min(y));
     }
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     #[test]
     fn test_int_simd_math_2operands() {
         macro_rules! test_float_simd_math_2operands {
@@ -2003,7 +2001,7 @@ mod tests {
         test_int_simd_math_2operands!(unsigned, usize, UsizeVec);
     }
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     #[test]
     fn test_int_simd_math_2operands_scalar() {
         macro_rules! test_2operands_int_scalar {
@@ -2065,9 +2063,9 @@ mod tests {
         test_int_simd_math_2operands!(unsigned, usize, UsizeVec);
     }
 
-    #[test]
-    fn test_is_infinite() {
-        macro_rules! test_is_infinite {
+#[test]
+fn test_is_infinite() {
+    macro_rules! test_is_infinite {
             ($type: ty, $vec_ty: ident, $mask_type: ident) => {
                 let arr = [<$type>::INFINITY; $vec_ty::SIZE];
                 let a = unsafe { $vec_ty::from_ptr(arr.as_ptr()) };
@@ -2103,25 +2101,25 @@ mod tests {
                 }, stringify!($type of -inf is_inf));
             };
         }
-        test_is_infinite!(f32, F32Vec, I32Vec);
-        test_is_infinite!(f64, F64Vec, I64Vec);
-        test_is_infinite!(half::f16, F16Vec, I16Vec);
-        test_is_infinite!(half::bf16, Bf16Vec, I16Vec);
-        test_is_infinite!(2, i8, I8Vec, I8Vec);
-        test_is_infinite!(2, i16, I16Vec, I16Vec);
-        test_is_infinite!(2, i32, I32Vec, I32Vec);
-        test_is_infinite!(2, i64, I64Vec, I64Vec);
-        test_is_infinite!(2, u8, U8Vec, I8Vec);
-        test_is_infinite!(2, u16, U16Vec, I16Vec);
-        test_is_infinite!(2, u32, U32Vec, I32Vec);
-        test_is_infinite!(2, u64, U64Vec, I64Vec);
-        test_is_infinite!(2, usize, UsizeVec, IsizeVec);
-        test_is_infinite!(2, isize, IsizeVec, IsizeVec);
-    }
+    test_is_infinite!(f32, F32Vec, I32Vec);
+    test_is_infinite!(f64, F64Vec, I64Vec);
+    test_is_infinite!(half::f16, F16Vec, I16Vec);
+    test_is_infinite!(half::bf16, Bf16Vec, I16Vec);
+    test_is_infinite!(2, i8, I8Vec, I8Vec);
+    test_is_infinite!(2, i16, I16Vec, I16Vec);
+    test_is_infinite!(2, i32, I32Vec, I32Vec);
+    test_is_infinite!(2, i64, I64Vec, I64Vec);
+    test_is_infinite!(2, u8, U8Vec, I8Vec);
+    test_is_infinite!(2, u16, U16Vec, I16Vec);
+    test_is_infinite!(2, u32, U32Vec, I32Vec);
+    test_is_infinite!(2, u64, U64Vec, I64Vec);
+    test_is_infinite!(2, usize, UsizeVec, IsizeVec);
+    test_is_infinite!(2, isize, IsizeVec, IsizeVec);
+}
 
-    #[test]
-    fn test_is_nan() {
-        macro_rules! test_is_nan {
+#[test]
+fn test_is_nan() {
+    macro_rules! test_is_nan {
             ($type: ty, $vec_ty: ident, $mask_type: ident) => {
                 let arr = [<$type>::INFINITY; $vec_ty::SIZE];
                 let a = unsafe { $vec_ty::from_ptr(arr.as_ptr()) };
@@ -2157,22 +2155,21 @@ mod tests {
                 }, stringify!($type of -inf is_nan));
             };
         }
-        test_is_nan!(f32, F32Vec, I32Vec);
-        test_is_nan!(f64, F64Vec, I64Vec);
-        test_is_nan!(half::f16, F16Vec, I16Vec);
-        test_is_nan!(half::bf16, Bf16Vec, I16Vec);
-        test_is_nan!(2, i8, I8Vec, I8Vec);
-        test_is_nan!(2, i16, I16Vec, I16Vec);
-        test_is_nan!(2, i32, I32Vec, I32Vec);
-        test_is_nan!(2, i64, I64Vec, I64Vec);
-        test_is_nan!(2, u8, U8Vec, I8Vec);
-        test_is_nan!(2, u16, U16Vec, I16Vec);
-        test_is_nan!(2, u32, U32Vec, I32Vec);
-        test_is_nan!(2, u64, U64Vec, I64Vec);
-        test_is_nan!(2, usize, UsizeVec, IsizeVec);
-        test_is_nan!(2, isize, IsizeVec, IsizeVec);
-    }
-
-    #[test]
-    fn test_sum() {}
+    test_is_nan!(f32, F32Vec, I32Vec);
+    test_is_nan!(f64, F64Vec, I64Vec);
+    test_is_nan!(half::f16, F16Vec, I16Vec);
+    test_is_nan!(half::bf16, Bf16Vec, I16Vec);
+    test_is_nan!(2, i8, I8Vec, I8Vec);
+    test_is_nan!(2, i16, I16Vec, I16Vec);
+    test_is_nan!(2, i32, I32Vec, I32Vec);
+    test_is_nan!(2, i64, I64Vec, I64Vec);
+    test_is_nan!(2, u8, U8Vec, I8Vec);
+    test_is_nan!(2, u16, U16Vec, I16Vec);
+    test_is_nan!(2, u32, U32Vec, I32Vec);
+    test_is_nan!(2, u64, U64Vec, I64Vec);
+    test_is_nan!(2, usize, UsizeVec, IsizeVec);
+    test_is_nan!(2, isize, IsizeVec, IsizeVec);
 }
+
+#[test]
+fn test_sum() {}

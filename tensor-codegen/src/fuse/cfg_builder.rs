@@ -559,6 +559,14 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         let mut current_block_id = core::mem::take(&mut self.block_ids);
         let visibility_block = self.new_block(BlockType::FnVisibility(i.vis.clone()));
         let visibility_block_id = BlockId::new(visibility_block);
+        let fn_type_block = if let Some(_) = i.sig.asyncness {
+            self.new_block(BlockType::FnType(Some(syn::Ident::new("async", proc_macro2::Span::call_site()))))
+        } else if let Some(_) = i.sig.constness {
+            self.new_block(BlockType::FnType(Some(syn::Ident::new("const", proc_macro2::Span::call_site()))))
+        } else {
+            self.new_block(BlockType::FnType(None))
+        };
+        let fn_type_block_id = BlockId::new(fn_type_block);
         let args_block = self.new_block(BlockType::FnArgs);
         let args_block_id = BlockId::new(args_block);
         let name_block = self.new_block(BlockType::FnName);
@@ -582,6 +590,8 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         let after_fn_block_id = BlockId::new(after_fn_block);
         self.connect_to(visibility_block);
         self.set_current_block(visibility_block);
+        self.connect_to(fn_type_block);
+        self.set_current_block(fn_type_block);
         self.connect_to(name_block);
         self.set_current_block(name_block);
         let name = &i.sig.ident;
@@ -630,6 +640,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         self.visit_block(&i.block);
         let body_block_id = core::mem::take(&mut self.block_ids);
         current_block_id.children.push(visibility_block_id);
+        current_block_id.children.push(fn_type_block_id);
         current_block_id.children.push(name_block_id);
         current_block_id.children.push(generics_block_id);
         current_block_id.children.push(args_block_id);

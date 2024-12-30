@@ -135,6 +135,8 @@ impl_normal_out_simd!();
 impl_normal_out_simd_with_rhs_scalar!();
 
 impl_normal_out_simd_with_lhs_scalar!();
+
+//~^ NormalOutUnary is not implemented for {Self}
 /// this trait is used to perform normal unary operations that don't require type promotion
 pub trait NormalOutUnary {
     /// the base type,
@@ -341,6 +343,7 @@ pub trait Eval2 {
 impl_eval!();
 simd_eval!();
 
+//~^ FloatOutUnary is not implemented for {Self}
 /// This trait is used to perform various unary floating-point operations.
 pub trait FloatOutUnary {
     /// The output type.

@@ -12,6 +12,7 @@ tensor-dyn = { path = "../tensor-dyn", features = [
     "bound_check",
     "archsimd",
 ] }
+tensor-codegen = { path = "../tensor-codegen" }
 tensor-types = { path = "../tensor-types" }
 serde_json = "1"
 tch = {version = "0.17.0", features = ["download-libtorch"]}
@@ -22,6 +23,7 @@ candle-core = "0.7.2"
 macrotest = "1.0.13"
 rand = "0.8.5"
 num-traits = "0.2.19"
+num-complex = "0.4"
 libm = "0.2.11"
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]

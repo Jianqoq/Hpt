@@ -48,6 +48,7 @@ pub(crate) enum BlockType {
     FnName,
     FnRet(syn::ReturnType),
     Generics(syn::Generics),
+    FnType(Option<syn::Ident>),
     FnBody,
     Where(syn::WhereClause),
     MatchCond(syn::Expr),
@@ -91,6 +92,7 @@ impl std::fmt::Debug for BlockType {
             Self::AsyncBlock => write!(f, "AsyncBlock"),
             Self::ConstBlock => write!(f, "ConstBlock"),
             Self::UnsafeBlock => write!(f, "UnsafeBlock"),
+            Self::FnType(_) => write!(f, "FnType"),
         }
     }
 }
@@ -734,7 +736,7 @@ impl CFG {
                 body.extend(quote::quote!(#vis));
             }
             BlockType::FnName => {
-                body.extend(quote::quote!(fn #code));
+                body.extend(quote::quote!(#code));
             }
             BlockType::FnRet(ret) => {
                 body.extend(quote::quote!(#ret));
@@ -760,6 +762,13 @@ impl CFG {
             BlockType::UnsafeBlock => {
                 body.extend(quote::quote!(unsafe { #code #child_code };));
             }
+            BlockType::FnType(ident) => {
+                if let Some(ident) = ident {
+                    body.extend(quote::quote!(#ident fn));
+                } else {
+                    body.extend(quote::quote!(fn));
+                }
+            },
         }
         body
     }

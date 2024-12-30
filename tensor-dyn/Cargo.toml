@@ -12,8 +12,8 @@ tensor-traits = { path = "../tensor-traits" }
 tensor-allocator = { path = "../tensor-allocator" }
 tensor-macros = { path = "../tensor-macros" }
 tensor-display = { path = "../tensor-display" }
-tensor-codegen = { path = "../tensor-codegen" }
 tensor-cudakernels = { path = "../tensor-cudakernels", optional = true }
+tensor-codegen = { path = "../tensor-codegen", optional = true }
 tensor-dataloader = { path = "../tensor-dataloader" }
 flate2 = "1.0.28"
 rand_distr = "0.4.3"
@@ -66,6 +66,7 @@ cuda = [
     "tensor-types/cuda",
     "tensor-macros/cuda",
 ]
+codegen = ["tensor-codegen"]
 
 [package.metadata.rust-analyzer]
 rustc_private = true

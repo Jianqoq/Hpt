@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate tensor_tests;
-use tensor_dyn::*;
+use tensor_codegen::*;
 pub fn main() {
     fn array() {
         let a = [1, 2, 3, 4];

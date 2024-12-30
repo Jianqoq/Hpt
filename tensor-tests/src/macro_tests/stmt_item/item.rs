@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate tensor_tests;
-use tensor_dyn::*;
+use tensor_codegen::*;
 pub fn main() {
     fuse_proc_macro!(
         fn struct_item(a: f32, b: f32) -> anyhow::Result<f32>{
