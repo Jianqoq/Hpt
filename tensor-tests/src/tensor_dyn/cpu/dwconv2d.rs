@@ -1,6 +1,7 @@
 #![allow(unused)]
 use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
 use tch;
+use tensor_dyn::traits::SimdMath;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::{ set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo };
@@ -71,8 +72,6 @@ fn assert_eq(
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let res2 = b.conv2d(&b_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], groups);
-    // println!("{}", res);
-    // println!("{}", res2);
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
     res_slice
@@ -95,7 +94,7 @@ fn assert_eq_pad(
     groups: i64
 ) -> anyhow::Result<()> {
     let res = a
-        .conv2d_group(
+        .dwconv2d(
             &a_kernel,
             None,
             [1, 1],
@@ -104,7 +103,6 @@ fn assert_eq_pad(
                 (2, 2),
             ],
             [1, 1],
-            groups,
             None
         )?
         .permute([0, 3, 1, 2])?
@@ -133,7 +131,7 @@ fn assert_eq_bias(
 ) -> anyhow::Result<()> {
     let bias = Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
     let res = a
-        .conv2d_group(
+        .dwconv2d(
             &a_kernel,
             Some(&bias),
             [1, 1],
@@ -142,12 +140,11 @@ fn assert_eq_bias(
                 (0, 0),
             ],
             [1, 1],
-            groups,
             None
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
-    let tch_bias = tch::Tensor::arange(b_kernel.size()[0], (tch::Kind::Int64, tch::Device::Cpu));
+    let tch_bias = tch::Tensor::arange(*a_kernel.shape().last().unwrap(), (tch::Kind::Int64, tch::Device::Cpu));
     let res2 = b.conv2d(&b_kernel, Some(tch_bias), &[1, 1], &[0, 0], &[1, 1], groups);
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
@@ -172,7 +169,7 @@ fn assert_eq_bias_pad(
 ) -> anyhow::Result<()> {
     let bias = Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
     let res = a
-        .conv2d_group(
+        .dwconv2d(
             &a_kernel,
             Some(&bias),
             [1, 1],
@@ -181,7 +178,6 @@ fn assert_eq_bias_pad(
                 (2, 2),
             ],
             [1, 1],
-            groups,
             None
         )?
         .permute([0, 3, 1, 2])?
@@ -211,7 +207,7 @@ fn assert_eq_bias_pad_relu(
 ) -> anyhow::Result<()> {
     let bias = Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
     let res = a
-        .conv2d_group(
+        .dwconv2d(
             &a_kernel,
             Some(&bias),
             [1, 1],
@@ -220,13 +216,12 @@ fn assert_eq_bias_pad_relu(
                 (2, 2),
             ],
             [1, 1],
-            groups,
-            None
+            Some(|x| x.relu())
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_bias = tch::Tensor::arange(b_kernel.size()[0], (tch::Kind::Int64, tch::Device::Cpu));
-    let res2 = b.conv2d(&b_kernel, Some(tch_bias), &[1, 1], &[2, 2], &[1, 1], groups);
+    let res2 = b.conv2d(&b_kernel, Some(tch_bias), &[1, 1], &[2, 2], &[1, 1], groups).relu();
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
     res_slice
@@ -244,21 +239,21 @@ fn assert_eq_bias_pad_relu(
 fn test_case0() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 3, 3, 3, 4, 4, 3])?;
     assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
 
     // test when outwidth is less than regnum
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 8, 8, 3, 3, 5, 5, 8])?;
     assert_eq(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 1)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 8)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 8)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 8)?;
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 16, 16, 3, 3, 5, 5, 16])?;
     assert_eq(&a, &kernel, &tch_a, &tch_kernel, 16)?;
-    // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 16)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 16)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 16)?;
 
     Ok(())
 }
@@ -267,9 +262,9 @@ fn test_case0() -> anyhow::Result<()> {
 fn test_case1() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 33, 33, 3, 3, 3, 3, 33])?;
     assert_eq(&a, &kernel, &tch_a, &tch_kernel, 33)?;
-    // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 33)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 33)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 33)?;
     Ok(())
 }
 
@@ -277,9 +272,9 @@ fn test_case1() -> anyhow::Result<()> {
 fn test_case2() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 80, 80, 3, 3, 20, 20, 80])?;
     assert_eq(&a, &kernel, &tch_a, &tch_kernel, 80)?;
-    // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    // assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    // assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 8)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 80)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 80)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 80)?;
     Ok(())
 }
 
@@ -287,9 +282,9 @@ fn test_case2() -> anyhow::Result<()> {
 fn test_case5() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 19, 19, 3, 3, 19, 19, 19])?;
     assert_eq(&a, &kernel, &tch_a, &tch_kernel, 19)?;
-    // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 19)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 19)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 19)?;
     Ok(())
 }
 
@@ -297,8 +292,8 @@ fn test_case5() -> anyhow::Result<()> {
 fn test_case6() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 30, 30, 3, 3, 20, 20, 30])?;
     assert_eq(&a, &kernel, &tch_a, &tch_kernel, 30)?;
-    // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
+    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 30)?;
+    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 30)?;
+    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 30)?;
     Ok(())
 }

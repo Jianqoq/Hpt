@@ -1,9 +1,9 @@
 #![allow(unused_imports)]
-use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
-use tensor_dyn::{ Tensor, TensorCreator };
-use tensor_dyn::TensorInfo;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use tensor_dyn::ShapeManipulate;
+use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
+use tensor_dyn::{Tensor, TensorCreator};
 
 #[allow(unused)]
 fn assert_eq(b: &Tensor<f64>, a: &tch::Tensor) {
@@ -12,7 +12,7 @@ fn assert_eq(b: &Tensor<f64>, a: &tch::Tensor) {
             .shape()
             .iter()
             .zip(b.strides().iter())
-            .filter(|(sp, s)| { **s != 0 })
+            .filter(|(sp, s)| **s != 0)
             .fold(1, |acc, (sp, _)| acc * sp);
         unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, size as usize) }
     } else {
@@ -21,17 +21,17 @@ fn assert_eq(b: &Tensor<f64>, a: &tch::Tensor) {
     let b_raw = b.as_raw();
     let tolerance = 2.5e-16;
 
-    a_raw
-        .iter()
-        .zip(b_raw.iter())
-        .for_each(|(a, b)| {
-            let abs_diff = (a - b).abs();
-            let relative_diff = abs_diff / b.abs().max(f64::EPSILON);
+    a_raw.iter().zip(b_raw.iter()).for_each(|(a, b)| {
+        let abs_diff = (a - b).abs();
+        let relative_diff = abs_diff / b.abs().max(f64::EPSILON);
 
-            if abs_diff > tolerance && relative_diff > tolerance {
-                panic!("{} != {} (abs_diff: {}, relative_diff: {})", a, b, abs_diff, relative_diff);
-            }
-        });
+        if abs_diff > tolerance && relative_diff > tolerance {
+            panic!(
+                "{} != {} (abs_diff: {}, relative_diff: {})",
+                a, b, abs_diff, relative_diff
+            );
+        }
+    });
 }
 #[test]
 fn test_transpose() -> anyhow::Result<()> {
@@ -46,6 +46,28 @@ fn test_transpose() -> anyhow::Result<()> {
     assert_eq(&b, &tch_b);
     assert_eq!(&tch_b.size(), b.shape().inner());
     Ok(())
+}
+
+#[test]
+fn test_mt() -> anyhow::Result<()> {
+    let tch_a = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let mut a = Tensor::<f64>::empty(&[10, 10, 10])?;
+    let a_size = a.size();
+    a.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
+    });
+    let b = a.mt()?;
+    let tch_b = tch_a.permute(&[2, 1, 0][..]);
+    assert_eq(&b, &tch_b);
+    assert_eq!(&tch_b.size(), b.shape().inner());
+    Ok(())
+}
+
+#[should_panic(expected = "transpose failed")]
+#[test]
+fn test_transpose_panic() {
+    let a = Tensor::<f64>::empty(&[10]).unwrap();
+    a.t().expect("transpose failed");
 }
 
 #[test]
@@ -95,6 +117,13 @@ fn test_squeeze() -> anyhow::Result<()> {
     assert_eq(&b, &tch_b);
     assert_eq!(&tch_b.size(), b.shape().inner());
     Ok(())
+}
+
+#[should_panic(expected = "squeeze failed")]
+#[test]
+fn test_squeeze_panic() {
+    let a = Tensor::<f64>::empty(&[1, 10, 1]).unwrap();
+    a.squeeze(1).expect("squeeze failed");
 }
 
 #[test]
@@ -153,23 +182,26 @@ fn test_split() -> anyhow::Result<()> {
     });
     let b = a.split(&[2, 5], 1)?;
     let tch_b = tch_a.split_with_sizes(&[2, 3, 5], 1);
-    b.iter().zip(tch_b.iter()).for_each(|(b, tch_b)| assert_eq(b, tch_b));
+    b.iter()
+        .zip(tch_b.iter())
+        .for_each(|(b, tch_b)| assert_eq(b, tch_b));
     Ok(())
 }
 
-// #[test]
-// fn test_tile() -> anyhow::Result<()> {
-//     let tch_a = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
-//     let a = _Tensor::<f64>::empty(&[10, 10, 10])?;
-//     a.as_raw_mut().copy_from_slice(unsafe {
-//         std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a.size())
-//     });
-//     let b = a.tile(&[2, 3, 4])?;
-//     let tch_b = tch_a.tile(&[2, 3, 4]);
-//     assert_eq(&b, &tch_b);
-//     assert_eq!(&tch_b.size(), b.shape().inner());
-//     Ok(())
-// }
+#[test]
+fn test_tile() -> anyhow::Result<()> {
+    let tch_a = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let mut a = Tensor::<f64>::empty(&[10, 10, 10])?;
+    let size = a.size();
+    a.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, size)
+    });
+    let b = a.tile(&[2, 3, 4])?;
+    let tch_b = tch_a.tile(&[2, 3, 4]);
+    assert_eq(&b, &tch_b);
+    assert_eq!(&tch_b.size(), b.shape().inner());
+    Ok(())
+}
 
 #[test]
 fn test_reshape() -> anyhow::Result<()> {
@@ -181,6 +213,30 @@ fn test_reshape() -> anyhow::Result<()> {
     });
     let b = a.reshape(&[10, 100])?;
     let tch_b = tch_a.reshape(&[10, 100]);
+    assert_eq(&b, &tch_b);
+    assert_eq!(&tch_b.size(), b.shape().inner());
+    Ok(())
+}
+
+#[should_panic(expected = "reshape failed")]
+#[test]
+fn test_reshape_panic() {
+    Tensor::<f64>::empty(&[10, 10, 10])
+        .unwrap()
+        .reshape(&[10, 100, 10])
+        .expect("reshape failed");
+}
+
+#[test]
+fn test_reshape_uncontiguous() -> anyhow::Result<()> {
+    let tch_a = tch::Tensor::randn(&[10, 10, 10], (tch::Kind::Double, tch::Device::Cpu));
+    let mut a = Tensor::<f64>::empty(&[10, 10, 10])?;
+    let a_size = a.size();
+    a.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
+    });
+    let b = a.permute([1, 0, 2])?.reshape(&[10, 100])?;
+    let tch_b = tch_a.permute(&[1, 0, 2][..]).reshape(&[10, 100]);
     assert_eq(&b, &tch_b);
     assert_eq!(&tch_b.size(), b.shape().inner());
     Ok(())

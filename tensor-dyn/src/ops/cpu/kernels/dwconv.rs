@@ -331,7 +331,7 @@ fn template_function<T: CommonBounds>(
                 [b * osb + l * osh + (k + kk) * osw + (v * T::Vec::SIZE) as i64 + ii]
                 as *mut _ as *mut T::Vec; // prettier-ignore
             let bias_vec = unsafe {
-                T::Vec::from_ptr(&bias[(v * T::Vec::SIZE) as i64] as *const _ as *const T)
+                T::Vec::from_ptr(&bias[ii + (v * T::Vec::SIZE) as i64] as *const _ as *const T)
             };
             unsafe {
                 out_vec
@@ -524,7 +524,7 @@ fn template_function<T: CommonBounds>(
     }
     for kk in 0..OW_BLOCK as i64 {
         for v in 0..ic_remain as usize {
-            results[0][kk as usize][v] = results[0][kk as usize][v]._add(bias[v as i64]);
+            results[0][kk as usize][v] = results[0][kk as usize][v]._add(bias[ii + v as i64]);
         }
         let res = activation(results[0][kk as usize]);
         for v in 0..ic_remain as usize {
