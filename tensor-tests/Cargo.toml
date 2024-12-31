@@ -27,10 +27,6 @@ num-complex = "0.4"
 libm = "0.2.11"
 duplicate = "2.0.0"
 
-[target.'cfg(target_os = "linux")'.dev-dependencies]
-sleef = { version = "0.3.2" }
-rug = "1.16"
-
 [features]
 cuda = ["tensor-dyn/cuda"]
 
