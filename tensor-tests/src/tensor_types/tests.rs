@@ -1,7 +1,9 @@
 #![allow(unused)]
 
+use num_complex::{Complex32, Complex64};
 use rand::distributions::uniform::SampleUniform;
 use tensor_types::half;
+use tensor_types::type_promote::BitWiseOut2;
 use tensor_types::{dtype::TypeCommon, traits::VecTrait};
 
 type F32Vec = <f32 as TypeCommon>::Vec;
@@ -18,6 +20,9 @@ type U32Vec = <u32 as TypeCommon>::Vec;
 type U64Vec = <u64 as TypeCommon>::Vec;
 type IsizeVec = <isize as TypeCommon>::Vec;
 type UsizeVec = <usize as TypeCommon>::Vec;
+type BoolVec = <bool as TypeCommon>::Vec;
+type Complex32Vec = <Complex32 as TypeCommon>::Vec;
+type Complex64Vec = <Complex64 as TypeCommon>::Vec;
 
 // Maximum square root value for single precision
 const SQRT_FLT_MAX: f64 = 18446743523953729536.0;
@@ -388,7 +393,33 @@ pub(crate) fn test_computes_2operands_int_scalar<
         let result = op1(input, input2);
         if result != res {
             panic!(
-                "{}: input: {} actual: {} != simd: {}",
+                "{}: input: {} actual: {} != hpt: {}",
+                msg, input, result, res
+            );
+        }
+    }
+}
+
+pub(crate) fn test_computes_2operands_float_scalar<
+    T: SampleUniform + std::cmp::PartialOrd + std::fmt::Display + TypeCommon,
+>(
+    lhs_range: core::ops::RangeInclusive<T>,
+    rhs_range: core::ops::RangeInclusive<T>,
+    repeats: usize,
+    op1: impl Fn(T, T) -> T,
+    op2: impl Fn(T, T) -> T,
+    assert_op: impl Fn(T, T) -> bool,
+    msg: &str,
+) {
+    let mut rng = rand::thread_rng();
+    for _ in 0..repeats {
+        let input = gen_input(&mut rng, lhs_range.clone());
+        let input2 = gen_input(&mut rng, rhs_range.clone());
+        let res = op2(input, input2);
+        let result = op1(input, input2);
+        if !assert_op(result, res) {
+            panic!(
+                "{}: input: {} actual: {} != hpt: {}",
                 msg, input, result, res
             );
         }
@@ -789,6 +820,10 @@ fn test_convert_bf16_to_f32() {
         test_computes_2operands_for_type!(half::f16, { F16Vec::SIZE }, 1000, half::f16::from_f32_const(i16::MIN as f32)..=half::f16::from_f32_const(i16::MAX as f32), "f16::add", add, __add);
         test_computes_2operands_for_type!(half::bf16, { Bf16Vec::SIZE }, 1000, half::bf16::from_f32_const(i16::MIN as f32)..=half::bf16::from_f32_const(i16::MAX as f32), "bf16::add", add, __add);
         test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, -1e15..=1e15, "f64::add", add, __add);
+
+        assert_eq!(true || false, true.__add(false));
+        assert_eq!(Complex32::new(1.0, 1.0).__add(Complex32::new(1.0, 1.0)), Complex32::new(2.0, 2.0));
+        assert_eq!(Complex64::new(1.0, 1.0).__add(Complex64::new(1.0, 1.0)), Complex64::new(2.0, 2.0));
     }
 
 #[rustfmt::skip]
@@ -810,6 +845,9 @@ fn test_convert_bf16_to_f32() {
         test_computes_2operands_for_type!(half::f16, { F16Vec::SIZE }, 1000, half::f16::from_f32_const(i16::MIN as f32)..=half::f16::from_f32_const(i16::MAX as f32), "f16::sub", sub, __sub);
         test_computes_2operands_for_type!(half::bf16, { Bf16Vec::SIZE }, 1000, half::bf16::from_f32_const(i16::MIN as f32)..=half::bf16::from_f32_const(i16::MAX as f32), "bf16::sub", sub, __sub);
         test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, -1e15..=1e15, "f64::sub", sub, __sub);
+
+        assert_eq!(Complex32::new(1.0, 1.0).__sub(Complex32::new(1.0, 1.0)), Complex32::new(0.0, 0.0));
+        assert_eq!(Complex64::new(1.0, 1.0).__sub(Complex64::new(1.0, 1.0)), Complex64::new(0.0, 0.0));
     }
 
 #[rustfmt::skip]
@@ -831,6 +869,10 @@ fn test_convert_bf16_to_f32() {
         test_computes_2operands_for_type!(half::f16, { F16Vec::SIZE }, 1000, half::f16::from_f32_const(i16::MIN as f32)..=half::f16::from_f32_const(i16::MAX as f32), "f16::mul", mul, __mul);
         test_computes_2operands_for_type!(half::bf16, { Bf16Vec::SIZE }, 1000, half::bf16::from_f32_const(i16::MIN as f32)..=half::bf16::from_f32_const(i16::MAX as f32), "bf16::mul", mul, __mul);
         test_computes_2operands_for_type!(f64, { F64Vec::SIZE }, 1000, -1e5..=1e5, "f64::mul", mul, __mul);
+
+        assert_eq!(true.__mul(false), false);
+        assert_eq!(Complex32::new(1.0, 1.0).__mul(Complex32::new(1.0, 1.0)), Complex32::new(0.0, 2.0));
+        assert_eq!(Complex64::new(1.0, 1.0).__mul(Complex64::new(1.0, 1.0)), Complex64::new(0.0, 2.0));
     }
 
 #[rustfmt::skip]
@@ -965,6 +1007,10 @@ fn test_convert_bf16_to_f32() {
             mul_add,
             __mul_add
         );
+
+        assert_eq!(true.__mul_add(false, true), true);
+        assert_eq!(Complex32::new(1.0, 1.0).__mul_add(Complex32::new(1.0, 1.0), Complex32::new(1.0, 1.0)), Complex32::new(1.0, 3.0));
+        assert_eq!(Complex64::new(1.0, 1.0).__mul_add(Complex64::new(1.0, 1.0), Complex64::new(1.0, 1.0)), Complex64::new(1.0, 3.0));
     }
 
 #[test]
@@ -1096,6 +1142,15 @@ fn test_div() {
         div,
         __div
     );
+
+    assert_eq!(
+        Complex32::new(1.0, 1.0).__div(Complex32::new(1.0, 1.0)),
+        Complex32::new(1.0, 0.0)
+    );
+    assert_eq!(
+        Complex64::new(1.0, 1.0).__div(Complex64::new(1.0, 1.0)),
+        Complex64::new(1.0, 0.0)
+    );
 }
 
 #[should_panic(expected = "division by zero")]
@@ -1193,6 +1248,12 @@ fn test_div_float_nan() {
     test_div_float_nan!(F64Vec, f64, "f64::div: simd_result[i] is not nan");
     test_div_float_nan!(F16Vec, half::f16, "f16::div: simd_result[i] is not nan");
     test_div_float_nan!(Bf16Vec, half::bf16, "bf16::div: simd_result[i] is not nan");
+    let res = Complex32::new(1.0, 1.0).__div(Complex32::new(f32::NAN, f32::NAN));
+    assert!(res.re.is_nan());
+    assert!(res.im.is_nan());
+    let res = Complex64::new(1.0, 1.0).__div(Complex64::new(f64::NAN, f64::NAN));
+    assert!(res.re.is_nan());
+    assert!(res.im.is_nan());
 }
 
 #[rustfmt::skip]
@@ -2063,6 +2124,81 @@ fn test_div_float_nan() {
         test_int_simd_math_2operands!(unsigned, usize, UsizeVec);
     }
 
+#[rustfmt::skip]
+    #[test]
+    fn test_float_simd_math_2operands_scalar() {
+        macro_rules! test_float_simd_math_2operands {
+            ($type:ty, $lhs_range:expr, $rhs_range:expr, $repeat:expr, $op1:expr, $op2:expr) => {
+                test_computes_2operands_float_scalar::<$type>(
+                    $lhs_range,
+                    $rhs_range,
+                    $repeat,
+                    $op1,
+                    $op2,
+                    |a, b| {
+                        paste::paste! {
+                            [<$type _ulp_diff>](a, b) <= 1
+                        }
+                    },
+                    stringify!($type::$scalar_op),
+                );
+            };
+        }
+        test_float_simd_math_2operands!(f32, -10.0..=10.0, -2.0..=2.0, 1000, |x, y| x.powf(y), |x, y| x.__pow(y));
+        test_float_simd_math_2operands!(f32, -1e37..=1e37, -1e37..=1e37, 1000, |x, y| x / y, |x, y| x.__div(y));
+        test_float_simd_math_2operands!(f32, -1e37..=1e37, -1e37..=1e37, 1000, |x, y| x.max(0.0) + y * x.min(0.0), |x, y| x.__leaky_relu(y));
+        test_float_simd_math_2operands!(f32, 0.1..=0.9, 1.1..=1e37, 1000, |x, y| x.log(y), |x, y| x.__log(y));
+        test_float_simd_math_2operands!(f32, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x + y, |x, y| x.__add(y));
+        test_float_simd_math_2operands!(f32, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x - y, |x, y| x.__sub(y));
+        test_float_simd_math_2operands!(f32, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x % y, |x, y| x.__rem(y));
+        test_float_simd_math_2operands!(f32, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x.max(y), |x, y| x.__max(y));
+        test_float_simd_math_2operands!(f32, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x.min(y), |x, y| x.__min(y));
+
+        test_float_simd_math_2operands!(f64, -100.0..=100.0, -2.0..=2.0, 1000, |x, y| x.powf(y), |x, y| x.__pow(y));
+        test_float_simd_math_2operands!(f64, -1e306..=1e306, -1e306..=1e306, 1000, |x, y| x / y, |x, y| x.__div(y));
+        test_float_simd_math_2operands!(f64, -1e306..=1e306, -1e306..=1e306, 1000, |x, y| x.max(0.0) + y * x.min(0.0), |x, y| x.__leaky_relu(y));
+        test_float_simd_math_2operands!(f64, 0.1..=0.9, 1.1..=1e306, 1000, |x, y| x.log(y), |x, y| x.__log(y));
+        test_float_simd_math_2operands!(f64, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x + y, |x, y| x.__add(y));
+        test_float_simd_math_2operands!(f64, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x - y, |x, y| x.__sub(y));
+        test_float_simd_math_2operands!(f64, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x % y, |x, y| x.__rem(y));
+        test_float_simd_math_2operands!(f64, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x.max(y), |x, y| x.__max(y));
+        test_float_simd_math_2operands!(f64, -1e15..=1e15, -1e15..=1e15, 1000, |x, y| x.min(y), |x, y| x.__min(y));
+
+        use half::f16;
+        let range1 = half::f16::from_f32(-4.0)..=half::f16::from_f32(4.0);
+        let range2 = half::f16::from_f32(-1.0)..=half::f16::from_f32(1.0);
+        let range3 = half::f16::from_f32(-1e4)..=half::f16::from_f32(1e4);
+        let log_range_base = half::f16::from_f32(0.1)..=half::f16::from_f32(0.9);
+        let log_range_base2 = half::f16::from_f32(1.1)..=half::f16::from_f32(1e4);
+        use num_traits::real::Real;
+        test_float_simd_math_2operands!(f16, range1.clone(), range2.clone(), 1000, |x, y| x.powf(y), |x, y| x.__pow(y));
+        test_float_simd_math_2operands!(f16, range3.clone(), range3.clone(), 1000, |x, y| x / y, |x, y| x.__div(y));
+        test_float_simd_math_2operands!(f16, range3.clone(), range3.clone(), 1000, |x, y| x.max(f16::ZERO) + y * x.min(f16::ZERO), |x, y| x.__leaky_relu(y));
+        test_float_simd_math_2operands!(f16, log_range_base.clone(), log_range_base2.clone(), 1000, |x, y| x.log(y), |x, y| x.__log(y));
+        test_float_simd_math_2operands!(f16, f16::MIN..=f16::MAX, f16::MIN..=f16::MAX, 1000, |x, y| x + y, |x, y| x.__add(y));
+        test_float_simd_math_2operands!(f16, f16::MIN..=f16::MAX, f16::MIN..=f16::MAX, 1000, |x, y| x - y, |x, y| x.__sub(y));
+        test_float_simd_math_2operands!(f16, f16::MIN..=f16::MAX, f16::MIN..=f16::MAX, 1000, |x, y| x % y, |x, y| x.__rem(y));
+        test_float_simd_math_2operands!(f16, f16::MIN..=f16::MAX, f16::MIN..=f16::MAX, 1000, |x, y| x.max(y), |x, y| x.__max(y));
+        test_float_simd_math_2operands!(f16, f16::MIN..=f16::MAX, f16::MIN..=f16::MAX, 1000, |x, y| x.min(y), |x, y| x.__min(y));
+
+        use half::bf16;
+        let range1 = half::bf16::from_f32(-4.0)..=half::bf16::from_f32(4.0);
+        let range2 = half::bf16::from_f32(-1.0)..=half::bf16::from_f32(1.0);
+        let range3 = half::bf16::from_f32(-1e4)..=half::bf16::from_f32(1e4);
+        let log_range_base = half::bf16::from_f32(0.1)..=half::bf16::from_f32(0.9);
+        let log_range_base2 = half::bf16::from_f32(1.1)..=half::bf16::from_f32(1e4);
+        let normal_range = half::bf16::from_f32(bf16::MIN.to_f32() / 2.0)..=half::bf16::from_f32(bf16::MAX.to_f32() / 2.0);
+        test_float_simd_math_2operands!(bf16, range1.clone(), range2.clone(), 1000, |x, y| x.powf(y), |x, y| x.__pow(y));
+        test_float_simd_math_2operands!(bf16, range3.clone(), range3.clone(), 1000, |x, y| x / y, |x, y| x.__div(y));
+        test_float_simd_math_2operands!(bf16, range3.clone(), range3.clone(), 1000, |x, y| x.max(bf16::ZERO) + y * x.min(bf16::ZERO), |x, y| x.__leaky_relu(y));
+        test_float_simd_math_2operands!(bf16, log_range_base.clone(), log_range_base2.clone(), 1000, |x, y| x.log(y), |x, y| x.__log(y));
+        test_float_simd_math_2operands!(bf16, normal_range.clone(), normal_range.clone(), 1000, |x, y| x + y, |x, y| x.__add(y));
+        test_float_simd_math_2operands!(bf16, normal_range.clone(), normal_range.clone(), 1000, |x, y| x - y, |x, y| x.__sub(y));
+        test_float_simd_math_2operands!(bf16, normal_range.clone(), normal_range.clone(), 1000, |x, y| x % y, |x, y| x.__rem(y));
+        test_float_simd_math_2operands!(bf16, normal_range.clone(), normal_range.clone(), 1000, |x, y| x.max(y), |x, y| x.__max(y));
+        test_float_simd_math_2operands!(bf16, normal_range.clone(), normal_range.clone(), 1000, |x, y| x.min(y), |x, y| x.__min(y));
+    }
+
 #[test]
 fn test_is_infinite() {
     macro_rules! test_is_infinite {
@@ -2171,5 +2307,110 @@ fn test_is_nan() {
     test_is_nan!(2, isize, IsizeVec, IsizeVec);
 }
 
+#[should_panic(expected = "erf is not supported for complex numbers")]
 #[test]
-fn test_sum() {}
+fn test_complex_erf() {
+    let cplx32 = Complex32::new(1.0, 1.0);
+    let cplx64 = Complex64::new(1.0, 1.0);
+    cplx32.__erf();
+    cplx64.__erf();
+}
+
+#[should_panic(expected = "elu is not supported for complex numbers")]
+#[test]
+fn test_complex_elu() {
+    let cplx32 = Complex32::new(1.0, 1.0);
+    let cplx64 = Complex64::new(1.0, 1.0);
+    cplx32.__elu(cplx32);
+    cplx64.__elu(cplx64);
+}
+
+#[should_panic(expected = "gelu is not supported for complex numbers")]
+#[test]
+fn test_complex_gelu() {
+    let cplx32 = Complex32::new(1.0, 1.0);
+    let cplx64 = Complex64::new(1.0, 1.0);
+    cplx32.__gelu();
+    cplx64.__gelu();
+}
+
+#[should_panic(expected = "selu is not supported for complex numbers")]
+#[test]
+fn test_complex_selu() {
+    let cplx32 = Complex32::new(1.0, 1.0);
+    let cplx64 = Complex64::new(1.0, 1.0);
+    cplx32.__selu(cplx32, cplx32);
+    cplx64.__selu(cplx64, cplx64);
+}
+
+#[should_panic(expected = "celu is not supported for complex numbers")]
+#[test]
+fn test_complex_celu() {
+    let cplx32 = Complex32::new(1.0, 1.0);
+    let cplx64 = Complex64::new(1.0, 1.0);
+    cplx32.__celu(cplx32);
+    cplx64.__celu(cplx64);
+}
+
+#[should_panic(expected = "hard sigmoid is not supported for complex numbers")]
+#[test]
+fn test_complex_hard_sigmoid() {
+    let cplx32 = Complex32::new(1.0, 1.0);
+    let cplx64 = Complex64::new(1.0, 1.0);
+    cplx32.__hard_sigmoid();
+    cplx64.__hard_sigmoid();
+}
+
+#[should_panic(expected = "fast hard sigmoid is not supported for complex numbers")]
+#[test]
+fn test_complex_fast_hard_sigmoid() {
+    let cplx32 = Complex32::new(1.0, 1.0);
+    let cplx64 = Complex64::new(1.0, 1.0);
+    cplx32.__fast_hard_sigmoid();
+    cplx64.__fast_hard_sigmoid();
+}
+
+#[should_panic(expected = "hard swish is not supported for complex numbers")]
+#[test]
+fn test_complex_hard_swish() {
+    let cplx32 = Complex32::new(1.0, 1.0);
+    let cplx64 = Complex64::new(1.0, 1.0);
+    cplx32.__hard_swish();
+    cplx64.__hard_swish();
+}
+
+#[should_panic(expected = "softplus is not supported for complex numbers")]
+#[test]
+fn test_complex_softplus() {
+    let cplx32 = Complex32::new(1.0, 1.0);
+    let cplx64 = Complex64::new(1.0, 1.0);
+    cplx32.__softplus();
+    cplx64.__softplus();
+}
+
+#[should_panic(expected = "cbrt is not supported for complex numbers")]
+#[test]
+fn test_complex_cbrt() {
+    let cplx32 = Complex32::new(1.0, 1.0);
+    let cplx64 = Complex64::new(1.0, 1.0);
+    cplx32.__cbrt();
+    cplx64.__cbrt();
+}
+
+#[should_panic(expected = "shift left is not supported for complex numbers")]
+#[test]
+fn test_complex_shift_left() {
+    let cplx32 = Complex32::new(1.0, 1.0);
+    let cplx64 = Complex64::new(1.0, 1.0);
+    cplx32.__shl(cplx32);
+    cplx64.__shl(cplx64);
+}
+
+#[should_panic(expected = "shift right is not supported for complex numbers")]
+#[test]
+fn test_complex_shift_right() {
+    let cplx32 = Complex32::new(1.0, 1.0);
+    let cplx64 = Complex64::new(1.0, 1.0);
+    cplx32.__shr(cplx32);
+    cplx64.__shr(cplx64);
+}

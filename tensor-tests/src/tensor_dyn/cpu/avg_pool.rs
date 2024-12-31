@@ -1,5 +1,6 @@
 #![allow(unused)]
 use tch;
+use tensor_dyn::set_num_threads;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::{ CommonBounds, TensorInfo };
@@ -28,23 +29,23 @@ fn common_input<T>([batch, in_channel, kernel_height, kernel_width, height, widt
         .contiguous()?;
 
     let tch_kernel = tch::Tensor
-        ::arange(kernel_height * kernel_width, (tch::Kind::Int64, tch::Device::Cpu))
+        ::arange(kernel_height * kernel_width, (tch::Kind::Double, tch::Device::Cpu))
         .reshape(&[kernel_height, kernel_width]);
     let tch_a = tch::Tensor
-        ::arange(batch * in_channel * height * width, (tch::Kind::Int64, tch::Device::Cpu))
+        ::arange(batch * in_channel * height * width, (tch::Kind::Double, tch::Device::Cpu))
         .reshape(&[batch, in_channel, height, width]);
     Ok((kernel, a, tch_kernel, tch_a))
 }
 
 #[track_caller]
 fn assert_eq(
-    a: &Tensor<i64>,
-    a_kernel: &Tensor<i64>,
+    a: &Tensor<f64>,
+    a_kernel: &Tensor<f64>,
     b: &tch::Tensor,
-    b_kernel: &tch::Tensor
+    b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let res = a
-        .maxpool2d(
+        .avgpool2d(
             &a_kernel.shape(),
             [1, 1],
             [
@@ -55,15 +56,22 @@ fn assert_eq(
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
-    let res2 = b.max_pool2d(&b_kernel.size(), &[1, 1], &[0, 0], &[1, 1], false);
+    let res2 = b.avg_pool2d(&b_kernel.size(), &[1, 1], &[0, 0], false, true, None);
     let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
+    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const f64, res.size()) };
     res_slice
         .iter()
         .zip(res2.iter())
         .for_each(|(a, b)| {
-            if a != b {
-                assert_eq!(a, b);
+            let abs_diff = (*a - *b).abs();
+            let rel_diff = if *a == 0.0 && *b == 0.0 {
+                0.0
+            } else {
+                abs_diff / (a.abs() + b.abs() + f64::EPSILON)
+            };
+    
+            if rel_diff > 0.05 {
+                panic!("{} != {} (relative_diff: {})", *a, *b, rel_diff);
             }
         });
     Ok(())
@@ -71,13 +79,13 @@ fn assert_eq(
 
 #[track_caller]
 fn assert_eq_pad(
-    a: &Tensor<i64>,
-    a_kernel: &Tensor<i64>,
+    a: &Tensor<f64>,
+    a_kernel: &Tensor<f64>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
     let res = a
-        .maxpool2d(
+        .avgpool2d(
             &a_kernel.shape(),
             [1, 1],
             [
@@ -88,15 +96,22 @@ fn assert_eq_pad(
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
-    let res2 = b.max_pool2d(&b_kernel.size(), &[1, 1], &[2, 2], &[1, 1], false);
+    let res2 = b.avg_pool2d(&b_kernel.size(), &[1, 1], &[2, 2], false, true, None);
     let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
+    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const f64, res.size()) };
     res_slice
         .iter()
         .zip(res2.iter())
         .for_each(|(a, b)| {
-            if a != b {
-                assert_eq!(a, b);
+            let abs_diff = (*a - *b).abs();
+            let rel_diff = if *a == 0.0 && *b == 0.0 {
+                0.0
+            } else {
+                abs_diff / (a.abs() + b.abs() + f64::EPSILON)
+            };
+    
+            if rel_diff > 0.05 {
+                panic!("{} != {} (relative_diff: {})", *a, *b, rel_diff);
             }
         });
     Ok(())

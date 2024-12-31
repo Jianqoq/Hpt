@@ -20,13 +20,8 @@ fn assert_eq(b: &Tensor<f64>, a: &TchTensor) {
     let tolerance = 2.5e-16;
 
     for i in 0..b.size() {
-        let abs_diff = (a_raw[i] - b_raw[i]).abs();
-        let rel_diff = if a_raw[i] == 0.0 && b_raw[i] == 0.0 {
-            0.0
-        } else {
-            abs_diff / (a_raw[i].abs() + b_raw[i].abs() + f64::EPSILON)
-        };
-        
+        let rel_diff =
+            ((a_raw[i] - b_raw[i]) / (a_raw[i].abs() + b_raw[i].abs() + f64::EPSILON)).abs();
         if rel_diff > 0.05 {
             panic!("{} != {} (relative_diff: {})", a_raw[i], b_raw[i], rel_diff);
         }
@@ -387,3 +382,21 @@ test_binarys_scalar!(
     common_input_i64,
     no_assert_i64
 );
+
+#[test]
+fn test_batch_matmul() -> anyhow::Result<()> {
+    let ((tch_a, tch_b), (a, b)) = common_input([13, 13, 13], [13, 13, 13])?;
+    let c = a.matmul(&b)?;
+    let tch_c = tch_a.matmul(&tch_b);
+    assert_eq(&c, &tch_c);
+    Ok(())
+}
+
+#[should_panic(expected = "should panic")]
+#[test]
+fn test_batch_matmul_panic() {
+    let a = Tensor::<f64>::empty([13, 4]).expect("should not panic");
+    let b = Tensor::<f64>::empty([3, 13]).expect("should not panic");
+    a.matmul(&b).expect("should panic");
+}
+

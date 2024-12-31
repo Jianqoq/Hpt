@@ -1,9 +1,7 @@
 use std::{fmt::Display, sync::atomic::Ordering, sync::Arc};
 
 use crate::Cpu;
-use crate::{
-    tensor_base::_Tensor, Backend, Tensor, ALIGN, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION,
-};
+use crate::{tensor_base::_Tensor, Backend, Tensor, ALIGN, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION};
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
@@ -12,7 +10,7 @@ use tensor_common::err_handler::ErrHandler;
 use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_display::display;
 use tensor_iterator::iterator_traits::ParStridedIteratorZip;
-use tensor_iterator::{iterator_traits::ParStridedIteratorSimdZip, TensorIterator};
+use tensor_iterator::TensorIterator;
 use tensor_traits::TensorCreator;
 use tensor_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
 use tensor_types::{convertion::Convertor, into_scalar::IntoScalar};
@@ -46,7 +44,7 @@ where
     }
 
     fn contiguous(&self) -> std::result::Result<Self, ErrHandler> {
-       Ok(self.par_iter().strided_map(|x| x).collect())
+        Ok(self.par_iter().strided_map(|x| x).collect())
     }
 }
 
@@ -130,15 +128,6 @@ impl<T: CommonBounds> TensorAlloc for _Tensor<T> {
 impl<T: CommonBounds> TensorIterator<'_, T> for _Tensor<T> {}
 
 impl<T: CommonBounds> _Tensor<T> {
-    /// copy the data from the other tensor to this tensor
-    pub fn assign(&mut self, other: &_Tensor<T>) {
-        self.par_iter_mut_simd()
-            .zip(other.par_iter_simd())
-            .for_each(|(a, b)| {
-                *a = b;
-            });
-    }
-
     /// cast the tensor to the new type
     pub fn astype<U>(&self) -> std::result::Result<_Tensor<U>, ErrHandler>
     where
@@ -234,12 +223,6 @@ impl<T: CommonBounds> _Tensor<T> {
 }
 
 impl<T: CommonBounds> Tensor<T> {
-    /// copy the data from the other tensor to this tensor
-    pub fn assign(&mut self, other: &Tensor<T>) {
-        let mut mut_self = self.inner.as_ref().clone();
-        mut_self.assign(&other.inner.as_ref());
-    }
-
     /// cast the tensor to the new type
     pub fn astype<U>(&self) -> anyhow::Result<Tensor<U>>
     where

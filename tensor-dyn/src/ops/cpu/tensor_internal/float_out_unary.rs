@@ -452,8 +452,8 @@ where
     where
         U: Borrow<Self::InplaceOutput>,
     {
-        let alpha = alpha.unwrap_or((1.67326319217681884765625).into_scalar());
-        let gamma = gamma.unwrap_or((1.05070102214813232421875).into_scalar());
+        let alpha = alpha.unwrap_or((1.6732632423543772848170429916717).into_scalar());
+        let gamma = gamma.unwrap_or((1.0507009873554804934193349852946).into_scalar());
         let alpha_vec = <FloatUnaryType<T> as TypeCommon>::Vec::splat(alpha);
         let gamma_vec = <FloatUnaryType<T> as TypeCommon>::Vec::splat(gamma);
         uary_fn_with_out_simd(

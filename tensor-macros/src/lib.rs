@@ -13,6 +13,7 @@
 //! ```
 
 #![deny(missing_docs)]
+#[cfg(feature = "cuda")]
 use crate::binary_float_out::impl_cuda_float_out_binary;
 use binary_float_out::impl_float_out_binary;
 use float_unary::impl_float_out_unary;
@@ -190,6 +191,7 @@ pub fn float_out_binary(_: TokenStream) -> TokenStream {
     impl_float_out_binary()
 }
 
+#[cfg(feature = "cuda")]
 /// implement float out binary trait for cuda
 #[proc_macro]
 pub fn float_out_binary_cuda(_: TokenStream) -> TokenStream {

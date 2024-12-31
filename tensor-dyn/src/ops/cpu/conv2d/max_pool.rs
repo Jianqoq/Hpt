@@ -44,7 +44,7 @@ impl<T> _Tensor<T>
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2]
-    ) -> anyhow::Result<_Tensor<T>> {
+    ) -> std::result::Result<_Tensor<T>, ErrHandler> {
         let img_shape = self.shape();
         if img_shape.len() != 4 {
             return Err(
@@ -257,7 +257,7 @@ impl<T> Tensor<T>
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2]
-    ) -> anyhow::Result<Tensor<T>> {
+    ) -> std::result::Result<Tensor<T>, ErrHandler> {
         Ok(self.inner.maxpool2d(&kernels_shape, steps, padding, dilation)?.into())
     }
 }

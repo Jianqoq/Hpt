@@ -18,6 +18,7 @@ pub mod tensor_dyn {
         pub mod test_lib;
         pub mod topk;
         pub mod unary;
+        pub mod avg_pool;
     }
     #[cfg(feature = "cuda")]
     pub mod cuda {
