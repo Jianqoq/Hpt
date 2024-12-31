@@ -89,23 +89,6 @@ impl f32x8 {
     pub fn as_array(&self) -> [f32; 8] {
         unsafe { std::mem::transmute(self.0) }
     }
-    /// check if the vector is nan
-    #[inline(always)]
-    pub fn is_nan(&self) -> f32x8 {
-        unsafe { f32x8(_mm256_cmp_ps(self.0, self.0, _CMP_UNORD_Q)) }
-    }
-    /// check if the vector is infinite
-    #[inline(always)]
-    pub fn is_infinite(&self) -> f32x8 {
-        unsafe {
-            let abs = _mm256_andnot_ps(_mm256_set1_ps(-0.0), self.0);
-            f32x8(_mm256_cmp_ps(
-                abs,
-                _mm256_set1_ps(f32::INFINITY),
-                _CMP_EQ_OQ,
-            ))
-        }
-    }
     /// reciprocal of the vector
     #[inline(always)]
     pub fn recip(&self) -> f32x8 {
@@ -283,21 +266,27 @@ impl SimdMath<f32> for f32x8 {
         f32x8(unsafe { xroundf(self.0) })
     }
     #[inline(always)]
-    fn sign(self) -> Self {
-        f32x8(unsafe { _mm256_and_ps(self.0, _mm256_set1_ps(0.0f32)) })
+    fn signum(self) -> Self {
+        unsafe {
+            let zero = _mm256_set1_ps(0.0);
+            let ones = _mm256_set1_ps(1.0);
+            let neg_ones = _mm256_set1_ps(-1.0);
+            let gt = _mm256_cmp_ps(self.0, zero, _CMP_GT_OQ);
+            let lt = _mm256_cmp_ps(self.0, zero, _CMP_LT_OQ);
+            f32x8(_mm256_or_ps(_mm256_and_ps(gt, ones), _mm256_and_ps(lt, neg_ones)))
+        }
     }
     #[inline(always)]
-    fn leaky_relu(self, alpha: f32) -> Self {
-        let alpha = f32x8::splat(alpha);
+    fn leaky_relu(self, alpha: Self) -> Self {
         self.max(f32x8::splat(0.0)) + alpha * self.min(f32x8::splat(0.0))
     }
     #[inline(always)]
     fn relu(self) -> Self {
-        f32x8(unsafe { _mm256_max_ps(self.0, _mm256_setzero_ps()) })
+        self.max(Self::splat(0.0))
     }
     #[inline(always)]
     fn relu6(self) -> Self {
-        f32x8(unsafe { _mm256_min_ps(self.relu().0, _mm256_set1_ps(6.0f32)) })
+        self.max(Self::splat(0.0)).min(Self::splat(6.0))
     }
     #[inline(always)]
     fn pow(self, exp: Self) -> Self {
@@ -429,20 +418,18 @@ impl SimdMath<f32> for f32x8 {
     }
 
     #[inline(always)]
-    fn elu(self, alpha: f32) -> Self {
+    fn elu(self, alpha: Self) -> Self {
         let mask = self.simd_gt(Self::splat(0.0));
-        mask.select(self, Self::splat(alpha) * (self.expm1()))
+        mask.select(self, alpha * (self.expm1()))
     }
 
     #[inline(always)]
-    fn selu(self, alpha: f32, scale: f32) -> Self {
-        let scale = Self::splat(scale);
+    fn selu(self, alpha: Self, scale: Self) -> Self {
         scale * self.elu(alpha)
     }
 
     #[inline(always)]
-    fn celu(self, alpha: f32) -> Self {
-        let scale = Self::splat(alpha);
+    fn celu(self, scale: Self) -> Self {
         let gt_mask = self.simd_gt(Self::splat(0.0));
         gt_mask.select(self, scale * (self.exp() - Self::splat(1.0)))
     }
@@ -586,7 +573,7 @@ impl NormalOut2 for f32x8 {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
+    fn __clamp(self, min: Self, max: Self) -> Self {
         self.max(min).min(max)
     }
 }
@@ -623,13 +610,13 @@ impl NormalOutUnary2 for f32x8 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
-        self.sign()
+    fn __signum(self) -> Self {
+        self.signum()
     }
 
     #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
-        self.max(f32x8::splat(0.0)) + alpha * self.min(f32x8::splat(0.0))
+        self.max(Self::splat(0.0)) + alpha * self.min(Self::splat(0.0))
     }
 
     #[inline(always)]
@@ -647,16 +634,31 @@ impl Eval2 for f32x8 {
     type Output = i32x8;
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
-        unsafe { std::mem::transmute(self.is_nan()) }
+        unsafe {
+            i32x8(std::mem::transmute(_mm256_cmp_ps(self.0, self.0, _CMP_UNORD_Q)))
+        }
     }
 
     #[inline(always)]
     fn __is_true(&self) -> Self::Output {
-        unreachable!()
+        self.simd_ne(f32x8::default())
     }
 
     #[inline(always)]
     fn __is_inf(&self) -> Self::Output {
-        unsafe { std::mem::transmute(self.is_infinite()) }
+        let i: i32x8 = unsafe { std::mem::transmute(self.0) };
+        let sign_mask = i32x8::splat(-0x8000_0000i32);
+        let inf_mask = i32x8::splat(0x7f80_0000i32);
+        let frac_mask = i32x8::splat(0x007f_ffffi32);
+
+        let exp = i & inf_mask;
+        let frac = i & frac_mask;
+        let is_inf = exp.simd_eq(inf_mask) & frac.simd_eq(i32x8::splat(0));
+        let is_neg = (i & sign_mask).simd_ne(i32x8::splat(0));
+
+        is_inf.select(
+            is_neg.select(i32x8::splat(-1), i32x8::splat(1)),
+            i32x8::splat(0),
+        )
     }
 }

@@ -4,9 +4,7 @@ use crate::{
     axis::{process_axes, Axis},
     err_handler::ErrHandler,
     shape::Shape,
-    shape_utils::{
-        get_broadcast_axes_from, is_reshape_possible, predict_broadcast_shape, try_pad_shape,
-    },
+    shape_utils::{is_reshape_possible, predict_broadcast_shape},
     strides::Strides,
     strides_utils::shape_to_strides,
 };
@@ -254,36 +252,6 @@ impl Layout {
 
     /// # Internal Function
     ///
-    /// swap the dimension of the layout
-    ///
-    /// # Arguments
-    ///
-    /// * `axis1` - the first dimension to be swapped
-    ///
-    /// * `axis2` - the second dimension to be swapped
-    ///
-    /// # Returns
-    ///
-    /// * `Result<Layout>` - the new layout after swapping
-    ///
-    /// # Panics
-    ///
-    /// if the `axis1` and `axis2` are the same
-    ///
-    /// if the `axis1` or `axis2` is out of range
-    pub fn swap_axis(&self, mut axis1: i64, mut axis2: i64) -> std::result::Result<Layout, ErrHandler> {
-        ErrHandler::check_same_axis(axis1, axis2)?;
-        ErrHandler::check_index_in_range_mut(self.ndim(), &mut axis1)?;
-        ErrHandler::check_index_in_range_mut(self.ndim(), &mut axis2)?;
-        let mut new_shape = self.shape().to_vec();
-        let mut new_strides = self.strides().to_vec();
-        new_shape.swap(axis1 as usize, axis2 as usize);
-        new_strides.swap(axis1 as usize, axis2 as usize);
-        Ok(Layout::new(new_shape, new_strides))
-    }
-
-    /// # Internal Function
-    ///
     /// broadcast the layout to another layout
     ///
     /// # Arguments
@@ -327,7 +295,11 @@ impl Layout {
     /// if the `axes` contains the same axis as the layout's ndim
     ///
     /// if the `axes` contains the axis out of range
-    pub fn reduce<A: Into<Axis>>(&self, axes: A, keep_dims: bool) -> std::result::Result<Layout, ErrHandler> {
+    pub fn reduce<A: Into<Axis>>(
+        &self,
+        axes: A,
+        keep_dims: bool,
+    ) -> std::result::Result<Layout, ErrHandler> {
         let axis = process_axes(axes, self.shape.len())?;
         let new_shape = if keep_dims {
             let mut vec = Vec::with_capacity(self.shape.len());
@@ -391,59 +363,6 @@ impl Layout {
             expected_stride *= dim_size;
         }
         true
-    }
-
-    /// # Internal Function
-    ///
-    /// convert the layout to a broadcast layout
-    ///
-    /// # Arguments
-    ///
-    /// * `shape` - the shape to be broadcasted
-    ///
-    /// # Returns
-    ///
-    /// * `Layout` - the new layout after broadcast
-    pub fn to_broadcast_layout(&self, res_shape: &Shape) -> anyhow::Result<Layout> {
-        let size = res_shape.size() as usize;
-        let self_size = self.size() as usize;
-        if size > (self_size as usize) {
-            let self_shape = try_pad_shape(self.shape(), res_shape.len());
-            let axes_to_broadcast =
-                get_broadcast_axes_from(&self_shape, &res_shape).expect("Cannot broadcast shapes");
-            let mut new_strides = vec![0; res_shape.len()];
-            new_strides
-                .iter_mut()
-                .rev()
-                .zip(self.strides().iter().rev())
-                .for_each(|(a, b)| {
-                    *a = *b;
-                });
-            for &axis in axes_to_broadcast.iter() {
-                assert_eq!(self_shape[axis], 1);
-                new_strides[axis] = 0;
-            }
-            Ok(Layout {
-                shape: res_shape.into(),
-                strides: new_strides.into(),
-            })
-        } else {
-            ErrHandler::check_size_match(self.shape().size(), res_shape.size())?;
-            if let Some(new_strides) = self.is_reshape_possible(&res_shape) {
-                Ok(Layout {
-                    shape: res_shape.into(),
-                    strides: new_strides.into(),
-                })
-            } else {
-                Err(ErrHandler::IterInplaceReshapeError(
-                    self.shape().clone(),
-                    res_shape.clone(),
-                    self.strides().clone(),
-                    Location::caller(),
-                )
-                .into())
-            }
-        }
     }
 }
 

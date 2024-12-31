@@ -235,7 +235,7 @@ fn template_function<T: CommonBounds>(
                             + v as i64 * T::Vec::SIZE as i64] as *const _
                             as *const T,
                     )
-                }; // prettier-ignore
+                };
             }
         }
         ret
@@ -302,7 +302,7 @@ fn template_function<T: CommonBounds>(
         for v in 0..OC_BLOCK {
             let out_vec = &mut out
                 [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
-                as *mut _ as *mut T::Vec; // prettier-ignore
+                as *mut _ as *mut T::Vec;
             unsafe {
                 out_vec.write_unaligned(activation(results[v as usize][kk as usize]));
             }
@@ -369,7 +369,7 @@ fn template_function<T: CommonBounds>(
                             + v as i64 * T::Vec::SIZE as i64] as *const _
                             as *const T,
                     )
-                }; // prettier-ignore
+                };
             }
         }
         ret
@@ -411,7 +411,7 @@ fn template_function<T: CommonBounds>(
         for v in 0..OC_BLOCK {
             let out_vec = &mut out
                 [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
-                as *mut _ as *mut T::Vec; // prettier-ignore
+                as *mut _ as *mut T::Vec;
             unsafe {
                 out_vec.write_unaligned(activation(results[v as usize][kk as usize]));
             }
@@ -447,7 +447,7 @@ fn template_function<T: CommonBounds>(
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
-    bias: &Pointer<T>,
+    bias: Option<Pointer<T>>,
     bn_mean: &Pointer<T>,
     bn_var: &Pointer<T>,
     bn_gamma: &Pointer<T>,
@@ -485,7 +485,7 @@ fn template_function<T: CommonBounds>(
                             + v as i64 * T::Vec::SIZE as i64] as *const _
                             as *const T,
                     )
-                }; // prettier-ignore
+                };
             }
         }
         ret
@@ -548,35 +548,82 @@ fn template_function<T: CommonBounds>(
             kernel.add(OC_BLOCK * T::Vec::SIZE * (kw as usize) * ((i_end - ii) as usize));
         }
     }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..OC_BLOCK {
-            let out_vec = &mut out
-                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
-                as *mut _ as *mut T::Vec; // prettier-ignore
-            let bias_vec = unsafe {
-                T::Vec::from_ptr(&bias[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
-            };
-            let mean_vec = unsafe {
-                T::Vec::from_ptr(&bn_mean[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
-            };
-            let var_vec = unsafe {
-                T::Vec::from_ptr(&bn_var[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
-            };
-            let gamma_vec = unsafe {
-                T::Vec::from_ptr(&bn_gamma[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
-            };
-            let beta_vec = unsafe {
-                T::Vec::from_ptr(&bn_beta[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
-            };
-            let epsilon_vec = T::Vec::splat(epsilon);
-            let res = results[v as usize][kk as usize]
-                ._add(bias_vec)
-                ._sub(mean_vec)
-                ._mul(gamma_vec)
-                ._div(var_vec._add(epsilon_vec)._sqrt())
-                ._add(beta_vec);
-            unsafe {
-                out_vec.write_unaligned(activation(res));
+    if let Some(bias) = bias {
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                let out_vec = &mut out
+                    [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                    as *mut _ as *mut T::Vec;
+                let bias_vec = unsafe {
+                    T::Vec::from_ptr(&bias[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
+                };
+                let mean_vec = unsafe {
+                    T::Vec::from_ptr(
+                        &bn_mean[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T,
+                    )
+                };
+                let var_vec = unsafe {
+                    T::Vec::from_ptr(
+                        &bn_var[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T,
+                    )
+                };
+                let gamma_vec = unsafe {
+                    T::Vec::from_ptr(
+                        &bn_gamma[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T,
+                    )
+                };
+                let beta_vec = unsafe {
+                    T::Vec::from_ptr(
+                        &bn_beta[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T,
+                    )
+                };
+                let epsilon_vec = T::Vec::splat(epsilon);
+                let res = results[v as usize][kk as usize]
+                    ._add(bias_vec)
+                    ._sub(mean_vec)
+                    ._mul(gamma_vec)
+                    ._div(var_vec._add(epsilon_vec)._sqrt())
+                    ._add(beta_vec);
+                unsafe {
+                    out_vec.write_unaligned(activation(res));
+                }
+            }
+        }
+    } else {
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                let out_vec = &mut out
+                    [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                    as *mut _ as *mut T::Vec;
+                let mean_vec = unsafe {
+                    T::Vec::from_ptr(
+                        &bn_mean[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T,
+                    )
+                };
+                let var_vec = unsafe {
+                    T::Vec::from_ptr(
+                        &bn_var[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T,
+                    )
+                };
+                let gamma_vec = unsafe {
+                    T::Vec::from_ptr(
+                        &bn_gamma[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T,
+                    )
+                };
+                let beta_vec = unsafe {
+                    T::Vec::from_ptr(
+                        &bn_beta[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T,
+                    )
+                };
+                let epsilon_vec = T::Vec::splat(epsilon);
+                let res = results[v as usize][kk as usize]
+                    ._sub(mean_vec)
+                    ._mul(gamma_vec)
+                    ._div(var_vec._add(epsilon_vec)._sqrt())
+                    ._add(beta_vec);
+                unsafe {
+                    out_vec.write_unaligned(activation(res));
+                }
             }
         }
     }
@@ -610,7 +657,7 @@ fn template_function<T: CommonBounds>(
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
-    bias: &Pointer<T>,
+    bias: Option<Pointer<T>>,
     bn_mean: &Pointer<T>,
     bn_var: &Pointer<T>,
     bn_gamma: &Pointer<T>,
@@ -648,7 +695,7 @@ fn template_function<T: CommonBounds>(
                             + v as i64 * T::Vec::SIZE as i64] as *const _
                             as *const T,
                     )
-                }; // prettier-ignore
+                };
             }
         }
         ret
@@ -685,36 +732,84 @@ fn template_function<T: CommonBounds>(
     } else {
         kernel.add(OC_BLOCK * T::Vec::SIZE * ((i_end - ii) as usize));
     }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..OC_BLOCK {
-            let out_vec = &mut out
-                [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
-                as *mut _ as *mut T::Vec; // prettier-ignore
-            let bias_vec = unsafe {
-                T::Vec::from_ptr(&bias[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
-            };
-            let mean_vec = unsafe {
-                T::Vec::from_ptr(&bn_mean[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
-            };
-            let var_vec = unsafe {
-                T::Vec::from_ptr(&bn_var[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
-            };
-            let gamma_vec = unsafe {
-                T::Vec::from_ptr(&bn_gamma[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
-            };
-            let beta_vec = unsafe {
-                T::Vec::from_ptr(&bn_beta[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
-            };
-            let epsilon_vec = T::Vec::splat(epsilon);
-            let res = results[v as usize][kk as usize]
-                ._add(bias_vec)
-                ._sub(mean_vec)
-                ._mul(gamma_vec)
-                ._div(var_vec._add(epsilon_vec)._sqrt())
-                ._add(beta_vec);
+    if let Some(bias) = bias {
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                let out_vec = &mut out
+                    [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                    as *mut _ as *mut T::Vec;
+                let bias_vec = unsafe {
+                    T::Vec::from_ptr(&bias[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
+                };
+                let mean_vec = unsafe {
+                    T::Vec::from_ptr(
+                        &bn_mean[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T,
+                    )
+                };
+                let var_vec = unsafe {
+                    T::Vec::from_ptr(
+                        &bn_var[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T,
+                    )
+                };
+                let gamma_vec = unsafe {
+                    T::Vec::from_ptr(
+                        &bn_gamma[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T,
+                    )
+                };
+                let beta_vec = unsafe {
+                    T::Vec::from_ptr(
+                        &bn_beta[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T,
+                    )
+                };
+                let epsilon_vec = T::Vec::splat(epsilon);
+                let res = results[v as usize][kk as usize]
+                    ._add(bias_vec)
+                    ._sub(mean_vec)
+                    ._mul(gamma_vec)
+                    ._div(var_vec._add(epsilon_vec)._sqrt())
+                    ._add(beta_vec);
 
-            unsafe {
-                out_vec.write_unaligned(activation(res));
+                unsafe {
+                    out_vec.write_unaligned(activation(res));
+                }
+            }
+        }
+    } else {
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..OC_BLOCK {
+                let out_vec = &mut out
+                    [b * osb + l * osh + (k + kk) * osw + j + (v * T::Vec::SIZE) as i64]
+                    as *mut _ as *mut T::Vec;
+                let mean_vec = unsafe {
+                    T::Vec::from_ptr(
+                        &bn_mean[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T,
+                    )
+                };
+                let var_vec = unsafe {
+                    T::Vec::from_ptr(
+                        &bn_var[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T,
+                    )
+                };
+                let gamma_vec = unsafe {
+                    T::Vec::from_ptr(
+                        &bn_gamma[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T,
+                    )
+                };
+                let beta_vec = unsafe {
+                    T::Vec::from_ptr(
+                        &bn_beta[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T,
+                    )
+                };
+                let epsilon_vec = T::Vec::splat(epsilon);
+                let res = results[v as usize][kk as usize]
+                    ._sub(mean_vec)
+                    ._mul(gamma_vec)
+                    ._div(var_vec._add(epsilon_vec)._sqrt())
+                    ._add(beta_vec);
+
+                unsafe {
+                    out_vec.write_unaligned(activation(res));
+                }
             }
         }
     }
@@ -925,7 +1020,7 @@ fn template_function<T: CommonBounds>(
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
-    bias: &Pointer<T>,
+    bias: Option<Pointer<T>>,
     bn_mean: &Pointer<T>,
     bn_var: &Pointer<T>,
     bn_gamma: &Pointer<T>,
@@ -1012,19 +1107,37 @@ fn template_function<T: CommonBounds>(
             kernel.add((oc_remain as usize) * (kw as usize) * ((i_end - ii) as usize));
         }
     }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_remain as usize {
-            let idx = j + (v as i64);
-            let res = results[0][kk as usize][v]._add(bias[idx]);
-            results[0][kk as usize][v] = res
-                ._sub(bn_mean[idx])
-                ._mul(bn_gamma[idx])
-                ._div(bn_var[idx]._add(epsilon)._sqrt())
-                ._add(bn_beta[idx]);
+    if let Some(bias) = bias {
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..oc_remain as usize {
+                let idx = j + (v as i64);
+                let res = results[0][kk as usize][v]._add(bias[idx]);
+                results[0][kk as usize][v] = res
+                    ._sub(bn_mean[idx])
+                    ._mul(bn_gamma[idx])
+                    ._div(bn_var[idx]._add(epsilon)._sqrt())
+                    ._add(bn_beta[idx]);
+            }
+            let res = activation(results[0][kk as usize]);
+            for v in 0..oc_remain as usize {
+                out[b * osb + l * osh + (k + kk) * osw + j + (v as i64)] = res[v];
+            }
         }
-        let res = activation(results[0][kk as usize]);
-        for v in 0..oc_remain as usize {
-            out[b * osb + l * osh + (k + kk) * osw + j + (v as i64)] = res[v];
+    } else {
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..oc_remain as usize {
+                let idx = j + (v as i64);
+                let res = results[0][kk as usize][v];
+                results[0][kk as usize][v] = res
+                    ._sub(bn_mean[idx])
+                    ._mul(bn_gamma[idx])
+                    ._div(bn_var[idx]._add(epsilon)._sqrt())
+                    ._add(bn_beta[idx]);
+            }
+            let res = activation(results[0][kk as usize]);
+            for v in 0..oc_remain as usize {
+                out[b * osb + l * osh + (k + kk) * osw + j + (v as i64)] = res[v];
+            }
         }
     }
 }
@@ -1043,7 +1156,7 @@ fn template_function<T: CommonBounds>(
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
-    bias: &Pointer<T>,
+    bias: Option<Pointer<T>>,
     bn_mean: &Pointer<T>,
     bn_var: &Pointer<T>,
     bn_gamma: &Pointer<T>,
@@ -1117,20 +1230,37 @@ fn template_function<T: CommonBounds>(
     } else {
         kernel.add((oc_remain as usize) * ((i_end - ii) as usize));
     }
-    for kk in 0..OW_BLOCK as i64 {
-        for v in 0..oc_remain as usize {
-            let idx = j + (v as i64);
-            let res = results[0][kk as usize][v]._add(bias[idx]);
-
-            results[0][kk as usize][v] = res
-                ._sub(bn_mean[idx])
-                ._mul(bn_gamma[idx])
-                ._div(bn_var[idx]._add(epsilon)._sqrt())
-                ._add(bn_beta[idx]);
+    if let Some(bias) = bias {
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..oc_remain as usize {
+                let idx = j + (v as i64);
+                let res = results[0][kk as usize][v]._add(bias[idx]);
+                results[0][kk as usize][v] = res
+                    ._sub(bn_mean[idx])
+                    ._mul(bn_gamma[idx])
+                    ._div(bn_var[idx]._add(epsilon)._sqrt())
+                    ._add(bn_beta[idx]);
+            }
+            let res = activation(results[0][kk as usize]);
+            for v in 0..oc_remain as usize {
+                out[b * osb + l * osh + (k + kk) * osw + j + (v as i64)] = res[v];
+            }
         }
-        let res = activation(results[0][kk as usize]);
-        for v in 0..oc_remain as usize {
-            out[b * osb + l * osh + (k + kk) * osw + j + (v as i64)] = res[v];
+    } else {
+        for kk in 0..OW_BLOCK as i64 {
+            for v in 0..oc_remain as usize {
+                let idx = j + (v as i64);
+                let res = results[0][kk as usize][v];
+                results[0][kk as usize][v] = res
+                    ._sub(bn_mean[idx])
+                    ._mul(bn_gamma[idx])
+                    ._div(bn_var[idx]._add(epsilon)._sqrt())
+                    ._add(bn_beta[idx]);
+            }
+            let res = activation(results[0][kk as usize]);
+            for v in 0..oc_remain as usize {
+                out[b * osb + l * osh + (k + kk) * osw + j + (v as i64)] = res[v];
+            }
         }
     }
 }
@@ -1139,12 +1269,11 @@ pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     [kh, kw]: [i64; 2],
     oc: &mut usize, // output channels block size
     kb: &mut usize, // outwidth block size
-) -> Option<ConvKernel<T>>
+) -> ConvKernel<T>
 where
     bool: IntoScalar<T>,
 {
-    let kernels: [[fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec);
-        5]; 4] = if kh == 1 && kw == 1 {
+    let kernels = if kh == 1 && kw == 1 {
         [
             [
                 pw_micro_kernel_1x1,
@@ -1221,49 +1350,32 @@ where
         *oc = 8;
     }
 
-    let kernel_fn = kernels.get(map_oc).map(|x| x.get(map_kb)).flatten();
-
-    // println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc, map_kb);
-
-    kernel_fn.cloned().map(|kernel| ConvKernel::new(kernel))
+    ConvKernel::new(kernels[map_oc][map_kb])
 }
 
 pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds>(
     [kh, kw]: [i64; 2],
     oc: &mut usize, // output channels block size
     kb: &mut usize, // outwidth block size
-) -> Option<
+) -> 
     fn(
         Params,
         &mut Pointer<T>,
         &mut Pointer<T>,
         &Pointer<T>,
-        &Pointer<T>,
+        Option<Pointer<T>>,
         &Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
         T,
         fn(T::Vec) -> T::Vec,
-    ),
->
+    )
 where
     bool: IntoScalar<T>,
     T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
 {
-    let kernels: [[fn(
-        Params,
-        &mut Pointer<T>,
-        &mut Pointer<T>,
-        &Pointer<T>,
-        &Pointer<T>,
-        &Pointer<T>,
-        &Pointer<T>,
-        &Pointer<T>,
-        &Pointer<T>,
-        T,
-        fn(T::Vec) -> T::Vec,
-    ); 5]; 4] = if kh == 1 && kw == 1 {
+    let kernels = if kh == 1 && kw == 1 {
         [
             [
                 pw_bn_micro_kernel_1x1,
@@ -1340,15 +1452,13 @@ where
         *oc = 8;
     }
 
-    let kernel_fn = kernels.get(map_oc).map(|x| x.get(map_kb)).flatten();
-
-    kernel_fn.cloned()
+    kernels[map_oc][map_kb]
 }
 
 pub(crate) fn remain_oc_kernel_dispatch<T: CommonBounds>(
     [kh, kw]: [i64; 2],
     kb: &mut usize, // outwidth block size
-) -> Option<ConvPartialKernel<T>>
+) -> ConvPartialKernel<T>
 where
     bool: IntoScalar<T>,
 {
@@ -1374,29 +1484,26 @@ where
     let map_kb = map_kb(*kb);
     *kb = map_kb + 1;
 
-    let kernel_fn = kernels.get(map_kb);
-
-    kernel_fn.cloned()
+    kernels[map_kb]
 }
 
 pub(crate) fn bn_remain_oc_kernel_dispatch<T: CommonBounds>(
     [kh, kw]: [i64; 2],
     kb: &mut usize, // outwidth block size
-) -> Option<
+) -> 
     fn(
         PartialParams,
         &mut Pointer<T>,
         &mut Pointer<T>,
         &Pointer<T>,
-        &Pointer<T>,
+        Option<Pointer<T>>,
         &Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
         T,
         fn(T::Vec) -> T::Vec,
-    ),
->
+    )
 where
     bool: IntoScalar<T>,
     T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
@@ -1406,7 +1513,7 @@ where
         &mut Pointer<T>,
         &mut Pointer<T>,
         &Pointer<T>,
-        &Pointer<T>,
+        Option<Pointer<T>>,
         &Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
@@ -1434,9 +1541,7 @@ where
     let map_kb = map_kb(*kb);
     *kb = map_kb + 1;
 
-    let kernel_fn = kernels.get(map_kb);
-
-    kernel_fn.cloned()
+    kernels[map_kb]
 }
 
 fn map_kb(kb: usize) -> usize {

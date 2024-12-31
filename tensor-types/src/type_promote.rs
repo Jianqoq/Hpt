@@ -61,7 +61,8 @@ pub trait FloatOutBinaryPromote<RHS = Self> {
     type Output;
 }
 
-pub(crate) trait FloatOutBinary2 {
+/// internal trait for float out binary
+pub trait FloatOutBinary2 {
     /// perform a / b
     fn __div(self, rhs: Self) -> Self;
     /// perform log<sub>b</sub>(x)
@@ -95,10 +96,11 @@ pub trait NormalOut<RHS = Self> {
     /// perform min(x, y)
     fn _min(self, rhs: RHS) -> Self::Output;
     /// restrict the value of x to the range [min, max]
-    fn _clip(self, min: RHS, max: RHS) -> Self::Output;
+    fn _clamp(self, min: RHS, max: RHS) -> Self::Output;
 }
 
-pub(crate) trait NormalOut2 {
+/// internal trait for normal out
+pub trait NormalOut2 {
     /// perform a + b
     fn __add(self, rhs: Self) -> Self;
     /// perform a - b
@@ -117,7 +119,7 @@ pub(crate) trait NormalOut2 {
     /// perform min(x, y)
     fn __min(self, rhs: Self) -> Self;
     /// restrict the value of x to the range [min, max]
-    fn __clip(self, min: Self, max: Self) -> Self;
+    fn __clamp(self, min: Self, max: Self) -> Self;
 }
 
 /// this trait is used to perform type promotion for normal out operations
@@ -133,6 +135,8 @@ impl_normal_out_simd!();
 impl_normal_out_simd_with_rhs_scalar!();
 
 impl_normal_out_simd_with_lhs_scalar!();
+
+//~^ NormalOutUnary is not implemented for {Self}
 /// this trait is used to perform normal unary operations that don't require type promotion
 pub trait NormalOutUnary {
     /// the base type,
@@ -150,7 +154,7 @@ pub trait NormalOutUnary {
     /// perform rounding
     fn _round(self) -> Self;
     /// get the sign of x
-    fn _sign(self) -> Self;
+    fn _signum(self) -> Self;
 
     /// Perform the leaky ReLU (Rectified Linear Unit) activation function.
     ///
@@ -168,7 +172,8 @@ pub trait NormalOutUnary {
     fn _relu6(self) -> Self;
 }
 
-pub(crate) trait NormalOutUnary2 {
+/// internal trait for normal out unary
+pub trait NormalOutUnary2 {
     /// perform x<sup>2</sup>
     fn __square(self) -> Self;
     /// perform |x|
@@ -182,7 +187,7 @@ pub(crate) trait NormalOutUnary2 {
     /// perform rounding
     fn __round(self) -> Self;
     /// get the sign of x
-    fn __sign(self) -> Self;
+    fn __signum(self) -> Self;
 
     /// Perform the leaky ReLU (Rectified Linear Unit) activation function.
     ///
@@ -222,7 +227,8 @@ pub trait BitWiseOut<RHS = Self> {
     fn _shr(self, rhs: RHS) -> Self::Output;
 }
 
-pub(crate) trait BitWiseOut2 {
+/// internal trait for bitwise out
+pub trait BitWiseOut2 {
     /// perform a & b
     fn __bitand(self, rhs: Self) -> Self;
     /// perform a | b
@@ -322,7 +328,9 @@ pub trait Eval {
     fn _is_inf(&self) -> Self::Output;
 }
 
-pub(crate) trait Eval2 {
+/// internal trait for eval
+pub trait Eval2 {
+    /// the output type
     type Output;
     /// check if the value is nan
     fn __is_nan(&self) -> Self::Output;
@@ -335,12 +343,11 @@ pub(crate) trait Eval2 {
 impl_eval!();
 simd_eval!();
 
+//~^ FloatOutUnary is not implemented for {Self}
 /// This trait is used to perform various unary floating-point operations.
 pub trait FloatOutUnary {
     /// The output type.
     type Output;
-    /// The base type, typically used for parameters like `alpha`.
-    type Base;
 
     /// Perform the natural exponential function: e<sup>x</sup>.
     fn _exp(self) -> Self::Output;
@@ -354,7 +361,7 @@ pub trait FloatOutUnary {
     /// Perform the CELU (Continuously Differentiable Exponential Linear Unit) activation function.
     ///
     /// Formula: f(x) = max(0, x) + min(0, alpha * (e<sup>(x / alpha)</sup> - 1))
-    fn _celu(self, alpha: Self::Base) -> Self::Output;
+    fn _celu(self, alpha: Self::Output) -> Self::Output;
 
     /// Perform the base-2 logarithm: log<sub>2</sub>(x).
     fn _log2(self) -> Self::Output;
@@ -413,7 +420,7 @@ pub trait FloatOutUnary {
     /// Perform the ELU (Exponential Linear Unit) activation function.
     ///
     /// Formula: f(x) = x if x > 0 else alpha * (e<sup>x</sup> - 1)
-    fn _elu(self, alpha: Self::Base) -> Self::Output;
+    fn _elu(self, alpha: Self::Output) -> Self::Output;
 
     /// Perform the GELU (Gaussian Error Linear Unit) activation function.
     fn _gelu(self) -> Self::Output;
@@ -421,7 +428,7 @@ pub trait FloatOutUnary {
     /// Perform the SELU (Scaled Exponential Linear Unit) activation function.
     ///
     /// Formula: f(x) = scale * (x if x > 0 else alpha * (e<sup>x</sup> - 1))
-    fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output;
+    fn _selu(self, alpha: Self::Output, scale: Self::Output) -> Self::Output;
 
     /// Perform the hard sigmoid activation function.
     ///
@@ -455,7 +462,8 @@ pub trait FloatOutUnary {
     fn _cbrt(self) -> Self::Output;
 }
 
-pub(crate) trait FloatOutUnary2 {
+/// internal trait for float out unary
+pub trait FloatOutUnary2 {
     /// Perform the natural exponential function: e<sup>x</sup>.
     fn __exp(self) -> Self;
 

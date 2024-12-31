@@ -3,7 +3,6 @@ use crate::THREAD_POOL;
 use rayon::iter::{ IntoParallelRefMutIterator, ParallelIterator };
 use std::borrow::{ Borrow, BorrowMut };
 use std::panic::Location;
-use std::sync::{ Arc, Barrier };
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::shape_utils::compare_and_pad_shapes;
 use tensor_common::shape_utils::mt_intervals;
@@ -199,7 +198,6 @@ pub(crate) fn matmul_with_out<A, B, O, Q>(
             let n = b_shape[b_shape.len() - 1] as usize;
             let k = b_shape[b_shape.len() - 2] as usize;
             THREAD_POOL.with_borrow_mut(|pool: &mut threadpool::ThreadPool| {
-                let barrier = Arc::new(Barrier::new(num_threads + 1));
                 for i in (0..num_threads).rev() {
                     let threads: usize = num_threads_each.pop().unwrap();
                     let current_size: usize = intervals[i].1 - intervals[i].0;
@@ -210,7 +208,6 @@ pub(crate) fn matmul_with_out<A, B, O, Q>(
                     let shape = iterate_shape.clone();
                     let __a_strides = a_strides.clone();
                     let __b_strides = b_strides.clone();
-                    let barrier_clone = Arc::clone(&barrier);
                     pool.execute(move || {
                         for _ in 0..current_size {
                             unsafe {
@@ -250,10 +247,9 @@ pub(crate) fn matmul_with_out<A, B, O, Q>(
                                 }
                             }
                         }
-                        barrier_clone.wait();
                     });
                 }
-                barrier.wait();
+                pool.join();
             });
             Ok(res)
         }

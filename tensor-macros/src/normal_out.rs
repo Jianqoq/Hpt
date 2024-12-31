@@ -40,8 +40,8 @@ pub(crate) fn __impl_normal_out_binary() -> TokenStream {
                             self.__pow(rhs)
                         }
                         #[inline(always)]
-                        fn _clip(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
-                            self.__clip(min, max)
+                        fn _clamp(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
+                            self.__clamp(min, max)
                         }
                         #[inline(always)]
                         fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
@@ -84,11 +84,11 @@ pub(crate) fn __impl_normal_out_binary() -> TokenStream {
                             lhs_scalar.__pow(rhs_scalar)
                         }
                         #[inline(always)]
-                        fn _clip(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
+                        fn _clamp(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
                             let lhs_scalar: Self::Output = self.into_scalar();
                             let min_scalar: Self::Output = min.into_scalar();
                             let max_scalar: Self::Output = max.into_scalar();
-                            lhs_scalar.__clip(min_scalar, max_scalar)
+                            lhs_scalar.__clamp(min_scalar, max_scalar)
                         }
                         #[inline(always)]
                         fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
@@ -143,6 +143,7 @@ pub(crate) fn __impl_normal_out_binary() -> TokenStream {
     ret.into()
 }
 
+#[cfg(feature = "cuda")]
 pub(crate) fn __impl_cuda_normal_out_binary() -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
 
@@ -181,8 +182,8 @@ pub(crate) fn __impl_cuda_normal_out_binary() -> TokenStream {
                             self.__pow(rhs)
                         }
                         #[inline(always)]
-                        fn _clip(self, min: Scalar<#rhs_dtype>, max: Scalar<#rhs_dtype>) -> Self::Output {
-                            self.__clip(min, max)
+                        fn _clamp(self, min: Scalar<#rhs_dtype>, max: Scalar<#rhs_dtype>) -> Self::Output {
+                            self.__clamp(min, max)
                         }
                         #[inline(always)]
                         fn _mul_add(self, a: Scalar<#rhs_dtype>, b: Scalar<#rhs_dtype>) -> Self::Output {
@@ -225,11 +226,11 @@ pub(crate) fn __impl_cuda_normal_out_binary() -> TokenStream {
                             lhs_scalar.__pow(rhs_scalar)
                         }
                         #[inline(always)]
-                        fn _clip(self, min: Scalar<#rhs_dtype>, max: Scalar<#rhs_dtype>) -> Self::Output {
+                        fn _clamp(self, min: Scalar<#rhs_dtype>, max: Scalar<#rhs_dtype>) -> Self::Output {
                             let lhs_scalar: Self::Output = self.into_scalar();
                             let min_scalar: Self::Output = min.into_scalar();
                             let max_scalar: Self::Output = max.into_scalar();
-                            lhs_scalar.__clip(min_scalar, max_scalar)
+                            lhs_scalar.__clamp(min_scalar, max_scalar)
                         }
                         #[inline(always)]
                         fn _mul_add(self, a: Scalar<#rhs_dtype>, b: Scalar<#rhs_dtype>) -> Self::Output {

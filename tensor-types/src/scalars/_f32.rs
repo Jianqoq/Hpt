@@ -55,7 +55,7 @@ impl NormalOut2 for f32 {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
+    fn __clamp(self, min: Self, max: Self) -> Self {
         self.clamp(min, max)
     }
 }
@@ -92,7 +92,7 @@ impl NormalOutUnary2 for f32 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
+    fn __signum(self) -> Self {
         self.signum()
     }
 
@@ -108,7 +108,7 @@ impl NormalOutUnary2 for f32 {
 
     #[inline(always)]
     fn __relu6(self) -> Self {
-        self.min(6.0).max(0.0)
+        self.max(0.0).min(6.0)
     }
 }
 

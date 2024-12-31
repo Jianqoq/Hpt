@@ -1,4 +1,4 @@
-use crate::{ convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait } };
+use crate::{ convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait }, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2} };
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -16,13 +16,16 @@ pub struct i64x2(
     #[cfg(target_arch = "aarch64")] pub(crate) int64x2_t,
 );
 
+#[allow(non_camel_case_types)]
+pub(crate) type i64_promote = i64x2;
+
 impl PartialEq for i64x2 {
     #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         #[cfg(target_arch = "x86_64")]
         unsafe {
             let cmp = _mm_cmpeq_epi64(self.0, other.0);
-            _mm_movemask_epi8(cmp) == -1
+            _mm_movemask_epi8(cmp) == 0xFFFF
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -90,6 +93,17 @@ impl VecTrait<i64> for i64x2 {
         #[cfg(target_arch = "aarch64")]
         unsafe { i64x2(vdupq_n_s64(val)) }
     }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const i64) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            i64x2(_mm_loadu_si128(ptr as *const __m128i))
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            i64x2(vld1q_s64(ptr))
+        }
+    }
 }
 
 impl i64x2 {
@@ -131,7 +145,7 @@ impl SimdCompare for i64x2 {
             let b: [i64; 2] = std::mem::transmute(other.0);
             let mut result = [0; 2];
             for i in 0..2 {
-                result[i] = if a[i] < b[i] { -1 } else { 0 };
+                result[i] = if a[i] < b[i] { -1i64 } else { 0 };
             }
             i64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
@@ -148,7 +162,7 @@ impl SimdCompare for i64x2 {
             let b: [i64; 2] = std::mem::transmute(other.0);
             let mut result = [0; 2];
             for i in 0..2 {
-                result[i] = if a[i] <= b[i] { -1 } else { 0 };
+                result[i] = if a[i] <= b[i] { -1i64 } else { 0i64 };
             }
             i64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
@@ -226,7 +240,7 @@ impl std::ops::Mul for i64x2 {
             let arr2: [i64; 2] = std::mem::transmute(rhs.0);
             let mut arr3: [i64; 2] = [0; 2];
             for i in 0..2 {
-                arr3[i] = arr[i] * arr2[i];
+                arr3[i] = arr[i].wrapping_mul(arr2[i]);
             }
             #[cfg(target_arch = "x86_64")]
             return i64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
@@ -244,6 +258,7 @@ impl std::ops::Div for i64x2 {
             let arr2: [i64; 2] = std::mem::transmute(rhs.0);
             let mut arr3: [i64; 2] = [0; 2];
             for i in 0..2 {
+                assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
             #[cfg(target_arch = "x86_64")]
@@ -406,31 +421,79 @@ impl SimdMath<i64> for i64x2 {
     }
     #[inline(always)]
     fn relu(self) -> Self {
-        unsafe {
-            let arr: [i64; 2] = std::mem::transmute(self.0);
-            let mut arr2: [i64; 2] = [0; 2];
-            for i in 0..2 {
-                arr2[i] = arr[i].max(0);
-            }
-            #[cfg(target_arch = "x86_64")]
-            return i64x2(_mm_loadu_si128(arr2.as_ptr() as *const __m128i));
-            #[cfg(target_arch = "aarch64")]
-            return i64x2(vld1q_s64(arr2.as_ptr()));
-        }
+        self.max(Self::splat(0))
     }
     #[inline(always)]
     fn relu6(self) -> Self {
+        self.min(Self::splat(6)).max(Self::splat(0))
+    }
+        #[inline(always)]
+    fn trunc(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn square(self) -> Self {
+        self * self
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
+        #[cfg(target_arch = "x86_64")]
         unsafe {
             let arr: [i64; 2] = std::mem::transmute(self.0);
-            let mut arr2: [i64; 2] = [0; 2];
+            let mut result = [0i64; 2];
             for i in 0..2 {
-                arr2[i] = arr[i].max(0).min(6);
+                result[i] = arr[i].abs();
+            }
+            i64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            i64x2(vabsq_s64(self.0))
+        }
+    }
+    #[inline(always)]
+    fn neg(self) -> Self {
+        -self
+    }
+    #[inline(always)]
+    fn signum(self) -> Self {
+        let zero = Self::splat(0);
+        let gt = self.simd_gt(zero);
+        let lt = self.simd_lt(zero);
+        let pos = gt & Self::splat(1);
+        let neg = lt & Self::splat(-1);
+        pos | neg
+    }
+    #[inline(always)]
+    fn pow(self, rhs: Self) -> Self {
+        unsafe {
+            let a: [i64; 2] = std::mem::transmute(self.0);
+            let b: [i64; 2] = std::mem::transmute(rhs.0);
+            let mut result = [0i64; 2];
+            for i in 0..2 {
+                result[i] = a[i].pow(b[i] as u32);
             }
             #[cfg(target_arch = "x86_64")]
-            return i64x2(_mm_loadu_si128(arr2.as_ptr() as *const __m128i));
+            return i64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
-            return i64x2(vld1q_s64(arr2.as_ptr()));
+            return i64x2(vld1q_s64(result.as_ptr()));
         }
+    }
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        self.max(i64x2::splat(0)) + alpha * self.min(i64x2::splat(0))
     }
 }
 
@@ -466,5 +529,148 @@ impl VecConvertor for i64x2 {
     #[inline(always)]
     fn to_usize(self) -> super::usizex2::usizex2 {
         unsafe { std::mem::transmute(self) }
+    }
+}
+
+impl FloatOutBinary2 for i64x2 {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
+
+    #[inline(always)]
+    fn __log(self, _: Self) -> Self {
+        panic!("Logarithm operation is not supported for i32")
+    }
+}
+
+impl NormalOut2 for i64x2 {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
+
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self.max(rhs)
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self.min(rhs)
+    }
+
+    #[inline(always)]
+    fn __clamp(self, min: Self, max: Self) -> Self {
+        self.max(min).min(max)
+    }
+}
+
+impl NormalOutUnary2 for i64x2 {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        self.abs()
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        self.neg()
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __signum(self) -> Self {
+        self.signum()
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, alpha: Self) -> Self {
+        self.max(i64x2::splat(0)) + alpha * self.min(i64x2::splat(0))
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self.relu()
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self.relu6()
+    }
+}
+
+impl Eval2 for i64x2 {
+    type Output = i64x2;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        i64x2::default()
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            let eq = _mm_cmpeq_epi64(self.0, _mm_setzero_si128());
+            let result = _mm_andnot_si128(eq, _mm_set1_epi64x(1));
+            Self(result)
+        }
+    
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            let neq = vmvnq_s64(vreinterpretq_s64_u64(vceqq_s64(
+                self.0,
+                vdupq_n_s64(0),
+            )));
+            i64x2(vandq_s64(neq, vdupq_n_s64(1)))
+        }
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        i64x2::default()
     }
 }

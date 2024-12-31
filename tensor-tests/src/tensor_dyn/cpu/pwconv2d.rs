@@ -1,7 +1,7 @@
 #![allow(unused)]
 use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
 use tch;
-use tensor_dyn::type_promote::NormalOutUnary;
+use tensor_types::type_promote::NormalOutUnary;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::{ set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo };

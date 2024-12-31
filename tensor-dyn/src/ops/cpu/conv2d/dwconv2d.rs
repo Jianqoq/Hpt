@@ -8,7 +8,6 @@ use crate::ops::cpu::kernels::dwconv::PartialParams;
 use crate::tensor_base::_Tensor;
 use crate::Tensor;
 use crate::REGNUM;
-use crate::SIMD_WIDTH;
 use rayon::prelude::*;
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::err_handler::ErrHandler::InvalidInputShape;
@@ -468,48 +467,6 @@ impl<T> _Tensor<T>
         });
         Ok(output)
     }
-}
-
-#[allow(unused)]
-fn out_used<T: CommonBounds>(
-    lb: usize,
-    jb: usize,
-    oc_nvec: usize,
-    owb: usize,
-    line_size: usize
-) -> usize {
-    let nv = line_size / (SIMD_WIDTH / 8 / core::mem::size_of::<T>());
-    lb * jb * oc_nvec.div_ceil(nv) * owb * line_size
-}
-#[allow(unused)]
-fn inp_used<T: CommonBounds>(
-    lb: usize,
-    owb: usize,
-    ic_nvec: usize,
-    kh: usize,
-    kw: usize,
-    step_height: usize,
-    step_width: usize,
-    line_size: usize
-) -> usize {
-    let nv = line_size / (SIMD_WIDTH / 8 / core::mem::size_of::<T>());
-    let in_range_num_w = (0..owb).take_while(|&idx| idx * step_width < kw).count();
-    let in_range_num_h = (0..lb).take_while(|&idx| idx * step_height < kh).count();
-    owb *
-        ic_nvec.div_ceil(nv) *
-        (kh + lb - in_range_num_h) *
-        (kw + owb - in_range_num_w) *
-        line_size
-}
-#[allow(unused)]
-fn kernel_used<T: CommonBounds>(
-    oc_nvec: usize,
-    ic_nvec: usize,
-    jb: usize,
-    kh: usize,
-    kw: usize
-) -> usize {
-    oc_nvec * ic_nvec * T::Vec::SIZE * kh * kw * jb
 }
 
 fn reorder_kernel<T: CommonBounds>(

@@ -2,7 +2,7 @@
 use crate::{
     arch_simd::_128bit::i64x2::i64x2,
     convertion::VecConvertor,
-    traits::{SimdCompare, SimdMath, VecTrait},
+    traits::{SimdCompare, SimdMath, VecTrait}, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
 
 use super::usizex2::usizex2;
@@ -15,6 +15,13 @@ use super::usizex2::usizex2;
 pub struct isizex2(pub(crate) i64x2);
 #[cfg(target_pointer_width = "32")]
 pub struct isizex4(pub(crate) i32x4);
+
+#[cfg(target_pointer_width = "64")]
+#[allow(non_camel_case_types)]
+pub(crate) type isize_promote = isizex2;
+#[cfg(target_pointer_width = "32")]
+#[allow(non_camel_case_types)]
+pub(crate) type isize_promote = isizex4;
 
 #[cfg(target_pointer_width = "32")]
 type ISizeVEC = isizex4;
@@ -61,6 +68,17 @@ impl VecTrait<isize> for ISizeVEC {
     #[inline(always)]
     fn splat(val: isize) -> ISizeVEC {
         Self(ISizeBase::splat(val as i64))
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const isize) -> Self {
+        #[cfg(target_pointer_width = "64")]
+        {
+            Self(unsafe { ISizeBase::from_ptr(ptr as *const i64) })
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            Self(unsafe { ISizeBase::from_ptr(ptr as *const i32) })
+        }
     }
 }
 
@@ -208,6 +226,46 @@ impl SimdMath<isize> for isizex2 {
     fn relu6(self) -> Self {
         Self(self.0.relu6())
     }
+    #[inline(always)]
+    fn trunc(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn square(self) -> Self {
+        self * self
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
+        Self(self.0.abs())
+    }
+    #[inline(always)]
+    fn neg(self) -> Self {
+        -self
+    }
+    #[inline(always)]
+    fn signum(self) -> Self {
+        Self(self.0.signum())
+    }
+    #[inline(always)]
+    fn pow(self, rhs: Self) -> Self {
+        Self(self.0.pow(rhs.0))
+    }
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        self.max(Self::splat(0)) + alpha * self.min(Self::splat(0))
+    }
 }
 
 impl VecConvertor for isizex2 {
@@ -243,5 +301,134 @@ impl VecConvertor for isizex2 {
     #[inline(always)]
     fn to_f64(self) -> super::f64x2::f64x2 {
         self.to_i64().to_f64()
+    }
+}
+
+impl FloatOutBinary2 for ISizeVEC {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
+
+    #[inline(always)]
+    fn __log(self, _: Self) -> Self {
+        panic!("Logarithm operation is not supported for i32")
+    }
+}
+
+impl NormalOut2 for ISizeVEC {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
+
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self.max(rhs)
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self.min(rhs)
+    }
+
+    #[inline(always)]
+    fn __clamp(self, min: Self, max: Self) -> Self {
+        self.max(min).min(max)
+    }
+}
+
+impl NormalOutUnary2 for ISizeVEC {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        self.abs()
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        -self
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __signum(self) -> Self {
+        self.signum()
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, alpha: Self) -> Self {
+        self.max(Self::splat(0)) + alpha * self.min(Self::splat(0))
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self.relu()
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self.relu6()
+    }
+}
+
+impl Eval2 for ISizeVEC {
+    type Output = ISizeVEC;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        ISizeVEC::default()
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        Self(self.0.__is_true())
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        ISizeVEC::default()
     }
 }

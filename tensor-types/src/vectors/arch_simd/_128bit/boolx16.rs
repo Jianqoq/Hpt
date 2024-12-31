@@ -1,7 +1,8 @@
 use crate::convertion::VecConvertor;
-use crate::traits::VecTrait;
-use crate::vectors::arch_simd::_128bit::u8x16::u8x16;
 use crate::traits::SimdCompare;
+use crate::traits::VecTrait;
+use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
+use crate::vectors::arch_simd::_128bit::u8x16::u8x16;
 
 use super::i8x16::i8x16;
 
@@ -10,6 +11,9 @@ use super::i8x16::i8x16;
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 #[repr(C, align(16))]
 pub struct boolx16(pub(crate) [bool; 16]);
+
+#[allow(non_camel_case_types)]
+pub(crate) type bool_promote = boolx16;
 
 impl VecTrait<bool> for boolx16 {
     const SIZE: usize = 16;
@@ -29,6 +33,14 @@ impl VecTrait<bool> for boolx16 {
     #[inline(always)]
     fn splat(val: bool) -> boolx16 {
         boolx16([val; 16])
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const bool) -> Self {
+        let mut result = [false; 16];
+        for i in 0..16 {
+            result[i] = unsafe { *ptr.add(i) };
+        }
+        boolx16(result)
     }
 }
 
@@ -178,5 +190,134 @@ impl VecConvertor for boolx16 {
     #[inline(always)]
     fn to_u8(self) -> u8x16 {
         unsafe { std::mem::transmute(self) }
+    }
+}
+
+impl FloatOutBinary2 for boolx16 {
+    #[inline(always)]
+    fn __div(self, _: Self) -> Self {
+        panic!("Division operation is not supported for boolean type")
+    }
+
+    #[inline(always)]
+    fn __log(self, _: Self) -> Self {
+        panic!("Logarithm operation is not supported for bool")
+    }
+}
+
+impl NormalOut2 for boolx16 {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, _: Self) -> Self {
+        panic!("Subtraction is not supported for boolean type")
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, _: Self) -> Self {
+        panic!("Power operation is not supported for boolean type")
+    }
+
+    #[inline(always)]
+    fn __rem(self, _: Self) -> Self {
+        panic!("Remainder operation is not supported for boolean type")
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self | rhs
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self & rhs
+    }
+
+    #[inline(always)]
+    fn __clamp(self, _: Self, _: Self) -> Self {
+        self
+    }
+}
+
+impl NormalOutUnary2 for boolx16 {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __signum(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, _: Self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self
+    }
+}
+
+impl Eval2 for boolx16 {
+    type Output = i8x16;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        unsafe { std::mem::transmute(boolx16::default()) }
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        self.simd_ne(boolx16::default())
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        unsafe { std::mem::transmute(boolx16::default()) }
     }
 }

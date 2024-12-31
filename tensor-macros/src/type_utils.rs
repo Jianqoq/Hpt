@@ -1,32 +1,6 @@
 use quote::quote;
 use quote::ToTokens;
 use std::fmt::Display;
-use syn::parse_quote;
-
-pub fn is_float(list: &str) -> bool {
-    matches!(list, "BF16" | "F16" | "F32" | "F64")
-}
-
-pub fn is_signed(list: &str) -> bool {
-    matches!(
-        list.to_lowercase().as_str(),
-        "i8" | "i16" | "i32" | "i64" | "bf16" | "f16" | "f32" | "f64"
-    )
-}
-
-pub fn type_level(list: &str) -> u8 {
-    match list.to_lowercase().as_str() {
-        "bool" => 1,
-        "i8" => 2,
-        "u8" => 3,
-        "i16" | "f16" | "bf16" => 4,
-        "u16" => 5,
-        "i32" | "f32" => 6,
-        "u32" => 7,
-        "i64" | "u64" | "f64" => 8,
-        _ => 0,
-    }
-}
 
 pub fn type_simd_lanes(list: &str) -> u8 {
     #[cfg(all(
@@ -235,70 +209,6 @@ pub fn type_simd_is_arr(list: &str) -> bool {
         #[cfg(target_pointer_width = "32")]
         "Complex64" => true,
         _ => 0,
-    }
-}
-
-pub fn level_to_float_expr(level: u8) -> syn::Expr {
-    match level {
-        1 => parse_quote! {
-            Dtype::F16
-        },
-        2 => parse_quote! {
-            Dtype::F16
-        },
-        3 => parse_quote! {
-            Dtype::F16
-        },
-        4 => parse_quote! {
-            Dtype::F16
-        },
-        5 => parse_quote! {
-            Dtype::F32
-        },
-        6 => parse_quote! {
-            Dtype::F32
-        },
-        7 => parse_quote! {
-            Dtype::F64
-        },
-        8 => parse_quote! {
-            Dtype::F64
-        },
-        _ => parse_quote! {
-            Dtype::F64
-        },
-    }
-}
-
-pub fn level_to_int_expr(level: u8) -> syn::Expr {
-    match level {
-        1 => parse_quote! {
-            Dtype::I8
-        },
-        2 => parse_quote! {
-            Dtype::I8
-        },
-        3 => parse_quote! {
-            Dtype::I16
-        },
-        4 => parse_quote! {
-            Dtype::I16
-        },
-        5 => parse_quote! {
-            Dtype::I32
-        },
-        6 => parse_quote! {
-            Dtype::I32
-        },
-        7 => parse_quote! {
-            Dtype::I64
-        },
-        8 => parse_quote! {
-            Dtype::I64
-        },
-        _ => parse_quote! {
-            Dtype::I64
-        },
     }
 }
 

@@ -82,6 +82,16 @@ fn test_softmax_axis_2() -> anyhow::Result<()> {
 }
 
 #[test]
+fn test_softmax_axis_3() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 2 * 5, [20])?;
+    let res = a.softmax(0)?;
+    let tch_res = tch_a.softmax(0, tch::Kind::Double);
+    assert_eq_f64(&res, &tch_res);
+    Ok(())
+}
+
+
+#[test]
 fn test_softmax_axis_0_step() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:5:2, 2:9:2])?;
@@ -115,6 +125,17 @@ fn test_softmax_axis_2_step() -> anyhow::Result<()> {
 }
 
 #[test]
+fn test_softmax_axis_3_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [100])?;
+    let a = slice!(a[1:5:2])?;
+    let tch_a = tch_a.slice(0, 1, 5, 2);
+    let res = a.softmax(0)?;
+    let tch_res = tch_a.softmax(0, tch::Kind::Double);
+    assert_eq_f64(&res, &tch_res);
+    Ok(())
+}
+
+#[test]
 fn test_logsoftmax_axis_0() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
     let res = a.log_softmax(0)?;
@@ -137,6 +158,15 @@ fn test_logsoftmax_axis_2() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 2 * 5, [2, 2, 5])?;
     let res = a.log_softmax(2)?;
     let tch_res = tch_a.log_softmax(2, tch::Kind::Double);
+    assert_eq_f64(&res, &tch_res);
+    Ok(())
+}
+
+#[test]
+fn test_logsoftmax_axis_3() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 2 * 5, [20])?;
+    let res = a.log_softmax(0)?;
+    let tch_res = tch_a.log_softmax(0, tch::Kind::Double);
     assert_eq_f64(&res, &tch_res);
     Ok(())
 }
@@ -170,6 +200,17 @@ fn test_logsoftmax_axis_2_step() -> anyhow::Result<()> {
     let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
     let res = a.log_softmax(2)?;
     let tch_res = tch_a.log_softmax(2, tch::Kind::Double);
+    assert_eq_f64(&res, &tch_res);
+    Ok(())
+}
+
+#[test]
+fn test_logsoftmax_axis_3_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [100])?;
+    let a = slice!(a[1:5:2])?;
+    let tch_a = tch_a.slice(0, 1, 5, 2);
+    let res = a.log_softmax(0)?;
+    let tch_res = tch_a.log_softmax(0, tch::Kind::Double);
     assert_eq_f64(&res, &tch_res);
     Ok(())
 }

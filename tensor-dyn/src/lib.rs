@@ -19,6 +19,8 @@ pub mod ops {
         pub mod conv2d {
             /// a module defines avgpool2d operation
             pub mod avg_pool;
+            /// a module defines batchnorm_conv2d operation
+            pub mod batchnorm_conv2d;
             /// a module defines conv2d operation
             pub mod conv2d;
             /// a module defines conv2d_group operation
@@ -27,8 +29,6 @@ pub mod ops {
             pub mod dwconv2d;
             /// a module defines maxpool2d operation
             pub mod max_pool;
-            /// a module defines batchnorm_conv2d operation
-            pub mod batchnorm_conv2d;
         }
         /// a module defines reduce kernels
         pub mod argreduce_kernels;
@@ -75,6 +75,8 @@ pub mod ops {
         pub mod unary;
         /// a module defines all the kernels
         pub mod kernels {
+            /// a module defines the batchnorm conv2d kernels
+            pub mod batch_norm_conv;
             /// a module defines the conv2d kernels
             pub mod conv;
             /// a module defines the dwconv2d kernels
@@ -89,8 +91,6 @@ pub mod ops {
             pub mod reduce;
             /// a module defines the softmax kernels
             pub mod softmax;
-            /// a module defines the batchnorm conv2d kernels
-            pub mod batch_norm_conv;
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_external {
@@ -234,10 +234,10 @@ pub mod ops {
 
     /// a module contains all the common ops
     pub mod common {
-        /// a module contains all the shape manipulation ops
-        pub mod shape_manipulate;
         /// a module contains all the functions to help create a tensor
         pub mod creation;
+        /// a module contains all the shape manipulation ops
+        pub mod shape_manipulate;
     }
 }
 
@@ -259,7 +259,9 @@ pub use crate::backend::*;
 pub use flate2;
 pub use rayon::prelude::*;
 pub use tensor::Tensor;
+#[cfg(feature = "codegen")]
 pub use tensor_codegen::compile;
+#[cfg(feature = "codegen")]
 pub use tensor_codegen::fuse_proc_macro;
 pub use tensor_common::slice::Slice;
 pub use tensor_dataloader::data_loader::*;
@@ -268,9 +270,11 @@ pub use tensor_macros::match_selection;
 pub use tensor_traits::*;
 pub use tensor_types::dtype::TypeCommon;
 pub use tensor_types::traits::VecTrait;
-pub use tensor_types::type_promote::*;
+pub use tensor_types::type_promote::{
+    BitWiseOut, Eval, FloatOutBinary, FloatOutBinaryPromote, FloatOutUnary, FloatOutUnaryPromote,
+    NormalOut, NormalOutPromote, NormalOutUnary
+};
 pub use tensor_types::vectors::*;
-pub use tensor_types::*;
 
 use std::{cell::RefCell, sync::atomic::AtomicUsize};
 thread_local! {

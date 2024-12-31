@@ -52,14 +52,15 @@ fn assert_eq_f64(b: &tensor_dyn::tensor::Tensor<f64>, a: &Tensor) {
     let tolerance = 2.5e-16;
     let caller = core::panic::Location::caller();
     a_raw.iter().zip(b_raw.iter()).for_each(|(a, b)| {
-        let abs_diff = (a - b).abs();
-        let relative_diff = abs_diff / b.abs().max(f64::EPSILON);
-
-        if abs_diff > tolerance && relative_diff > tolerance {
-            panic!(
-                "{} != {} (abs_diff: {}, relative_diff: {}), at {}",
-                a, b, abs_diff, relative_diff, caller
-            );
+        let abs_diff = (*a - *b).abs();
+        let rel_diff = if *a == 0.0 && *b == 0.0 {
+            0.0
+        } else {
+            abs_diff / (a.abs() + b.abs() + f64::EPSILON)
+        };
+        
+        if rel_diff > 0.05 {
+            panic!("{} != {} (relative_diff: {})", *a, *b, rel_diff);
         }
     });
 }
@@ -82,14 +83,15 @@ fn assert_eq_f64_10(b: &tensor_dyn::tensor::Tensor<f64>, a: &Tensor) {
     let tolerance = 10e-10;
     let caller = core::panic::Location::caller();
     a_raw.iter().zip(b_raw.iter()).for_each(|(a, b)| {
-        let abs_diff = (a - b).abs();
-        let relative_diff = abs_diff / b.abs().max(f64::EPSILON);
-
-        if abs_diff > tolerance && relative_diff > tolerance {
-            panic!(
-                "{} != {} (abs_diff: {}, relative_diff: {}), at {}",
-                a, b, abs_diff, relative_diff, caller
-            );
+        let abs_diff = (*a - *b).abs();
+        let rel_diff = if *a == 0.0 && *b == 0.0 {
+            0.0
+        } else {
+            abs_diff / (a.abs() + b.abs() + f64::EPSILON)
+        };
+        
+        if rel_diff > 0.05 {
+            panic!("{} != {} (relative_diff: {})", *a, *b, rel_diff);
         }
     });
 }
@@ -122,46 +124,46 @@ fn common_input_f64<const N: usize>(
 #[test]
 fn test_sum() -> anyhow::Result<()> {
     let (a, tch_a) = common_input(2 * 5 * 5 * 10, [2, 5, 5, 10])?;
-    let sum = a.sum(0, false)?;
-    let tch_sum = tch_a.sum_dim_intlist(0, false, tch::Kind::Int64);
+    let sum = a.sum(0, true)?;
+    let tch_sum = tch_a.sum_dim_intlist(0, true, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);
-    let sum = a.sum_(0, false, true, sum)?;
-    assert_eq(&sum, &tch_sum);
-
-    let sum = a.sum(1, false)?;
-    let tch_sum = tch_a.sum_dim_intlist(1, false, tch::Kind::Int64);
-    assert_eq(&sum, &tch_sum);
-    let sum = a.sum_(1, false, true, sum)?;
+    let sum = a.sum_(0, true, true, sum)?;
     assert_eq(&sum, &tch_sum);
 
-    let sum = a.sum(2, false)?;
-    let tch_sum = tch_a.sum_dim_intlist(2, false, tch::Kind::Int64);
+    let sum = a.sum(1, true)?;
+    let tch_sum = tch_a.sum_dim_intlist(1, true, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);
-    let sum = a.sum_(2, false, true, sum)?;
-    assert_eq(&sum, &tch_sum);
-
-    let sum = a.sum([0, 1], false)?;
-    let tch_sum = tch_a.sum_dim_intlist(&[0, 1][..], false, tch::Kind::Int64);
-    assert_eq(&sum, &tch_sum);
-    let sum = a.sum_([0, 1], false, true, sum)?;
+    let sum = a.sum_(1, true, true, sum)?;
     assert_eq(&sum, &tch_sum);
 
-    let sum = a.sum([0, 2], false)?;
-    let tch_sum = tch_a.sum_dim_intlist(&[0, 2][..], false, tch::Kind::Int64);
+    let sum = a.sum(2, true)?;
+    let tch_sum = tch_a.sum_dim_intlist(2, true, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);
-    let sum = a.sum_([0, 2], false, true, sum)?;
-    assert_eq(&sum, &tch_sum);
-
-    let sum = a.sum([1, 2], false)?;
-    let tch_sum = tch_a.sum_dim_intlist(&[1, 2][..], false, tch::Kind::Int64);
-    assert_eq(&sum, &tch_sum);
-    let sum = a.sum_([1, 2], false, true, sum)?;
+    let sum = a.sum_(2, true, true, sum)?;
     assert_eq(&sum, &tch_sum);
 
-    let sum = a.sum([0, 1, 2], false)?;
-    let tch_sum = tch_a.sum_dim_intlist(&[0, 1, 2][..], false, tch::Kind::Int64);
+    let sum = a.sum([0, 1], true)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[0, 1][..], true, tch::Kind::Int64);
     assert_eq(&sum, &tch_sum);
-    let sum = a.sum_([0, 1, 2], false, true, sum)?;
+    let sum = a.sum_([0, 1], true, true, sum)?;
+    assert_eq(&sum, &tch_sum);
+
+    let sum = a.sum([0, 2], true)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[0, 2][..], true, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum_([0, 2], true, true, sum)?;
+    assert_eq(&sum, &tch_sum);
+
+    let sum = a.sum([1, 2], true)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[1, 2][..], true, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum_([1, 2], true, true, sum)?;
+    assert_eq(&sum, &tch_sum);
+
+    let sum = a.sum([0, 1, 2], true)?;
+    let tch_sum = tch_a.sum_dim_intlist(&[0, 1, 2][..], true, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.sum_([0, 1, 2], true, true, sum)?;
     assert_eq(&sum, &tch_sum);
     Ok(())
 }

@@ -50,7 +50,17 @@ impl VecTrait<i8> for i8x32 {
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
-        unsafe { i8x32(_mm256_add_epi8(_mm256_mullo_epi16(self.0, a.0), b.0)) }
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            let mut res = [0i8; 32];
+            let x: [i8; 32] = std::mem::transmute(self.0);
+            let y: [i8; 32] = std::mem::transmute(a.0);
+            let z: [i8; 32] = std::mem::transmute(b.0);
+            for i in 0..32 {
+                res[i] = x[i].wrapping_mul(y[i]).wrapping_add(z[i]);
+            }
+            i8x32(_mm256_loadu_si256(res.as_ptr() as *const __m256i))
+        }
     }
     #[inline(always)]
     fn sum(&self) -> i8 {
@@ -146,7 +156,15 @@ impl std::ops::Mul for i8x32 {
     type Output = Self;
     #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
-        unsafe { i8x32(_mm256_mullo_epi16(self.0, rhs.0)) }
+        unsafe {
+            let a: [i8; 32] = std::mem::transmute(self.0);
+            let b: [i8; 32] = std::mem::transmute(rhs.0);
+            let mut result = [0; 32];
+            for i in 0..32 {
+                result[i] = a[i].wrapping_mul(b[i]);
+            }
+            i8x32(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+        }
     }
 }
 impl std::ops::Div for i8x32 {
@@ -158,9 +176,7 @@ impl std::ops::Div for i8x32 {
             let b: [i8; 32] = std::mem::transmute(rhs.0);
             let mut result = [0; 32];
             for i in 0..32 {
-                if b[i] == 0 {
-                    panic!("Division by zero for i8");
-                }
+                assert!(b[i] != 0, "division by zero");
                 result[i] = a[i] / b[i];
             }
             i8x32(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
@@ -259,11 +275,64 @@ impl SimdMath<i8> for i8x32 {
     }
     #[inline(always)]
     fn relu(self) -> Self {
-        unsafe { i8x32(_mm256_max_epi8(self.0, _mm256_setzero_si256())) }
+        self.max(Self::splat(0))
     }
     #[inline(always)]
     fn relu6(self) -> Self {
-        unsafe { i8x32(_mm256_min_epi8(self.relu().0, _mm256_set1_epi8(6))) }
+        self.min(Self::splat(6)).max(Self::splat(0))
+    }
+    #[inline(always)]
+    fn trunc(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn square(self) -> Self {
+        self * self
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
+        unsafe { i8x32(_mm256_abs_epi8(self.0)) }
+    }
+    #[inline(always)]
+    fn neg(self) -> Self {
+        -self
+    }
+    #[inline(always)]
+    fn signum(self) -> Self {
+        let zero = Self::splat(0);
+        let gt = self.simd_gt(zero);
+        let lt = self.simd_lt(zero);
+        let pos = gt & Self::splat(1);
+        let neg = lt & Self::splat(-1);
+        pos | neg
+    }
+    #[inline(always)]
+    fn pow(self, rhs: Self) -> Self {
+        unsafe {
+            let a: [i8; 32] = std::mem::transmute(self.0);
+            let b: [i8; 32] = std::mem::transmute(rhs.0);
+            let mut result = [0i8; 32];
+            for i in 0..32 {
+                result[i] = a[i].pow(b[i] as u32);
+            }
+            i8x32(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+        }
+    }
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        self.max(Self::splat(0)) + alpha * self.min(Self::splat(0))
     }
 }
 
@@ -336,7 +405,7 @@ impl NormalOut2 for i8x32 {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
+    fn __clamp(self, min: Self, max: Self) -> Self {
         self.max(min).min(max)
     }
 }
@@ -373,8 +442,8 @@ impl NormalOutUnary2 for i8x32 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
-        self.sign()
+    fn __signum(self) -> Self {
+        self.signum()
     }
 
     #[inline(always)]
@@ -404,7 +473,8 @@ impl Eval2 for i8x32 {
     fn __is_true(&self) -> Self::Output {
         unsafe {
             let eq = _mm256_cmpeq_epi8(self.0, _mm256_setzero_si256());
-            Self(_mm256_xor_si256(eq, _mm256_set1_epi8(-1)))
+            let result = _mm256_andnot_si256(eq, _mm256_set1_epi8(1));
+            Self(result)
         }
     }
 

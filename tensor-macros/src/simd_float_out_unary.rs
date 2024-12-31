@@ -28,12 +28,10 @@ pub fn impl_float_out_unary() -> TokenStream {
     for (lhs_ty, _, lhs) in types.iter() {
         let lhs_type = TypeInfo::new(&lhs_ty.to_lowercase());
         let lhs_simd: SimdType = (*lhs).into();
-        let lhs_dtype = lhs_type.dtype;
         if lhs_type.dtype.is_float() || lhs_type.dtype.is_cplx() {
             let res = quote! {
                 impl FloatOutUnary for #lhs_simd {
                     type Output = <#lhs_simd as FloatOutUnaryPromote>::Output;
-                    type Base = <#lhs_dtype as FloatOutUnaryPromote>::Output;
                     #[inline(always)]
                     fn _sin(self) -> Self::Output {
                         SimdMath::sin(self)
@@ -139,15 +137,15 @@ pub fn impl_float_out_unary() -> TokenStream {
                         SimdMath::mish(self)
                     }
                     #[inline(always)]
-                    fn _celu(self, alpha: Self::Base) -> Self::Output {
+                    fn _celu(self, alpha: Self::Output) -> Self::Output {
                         SimdMath::celu(self, alpha)
                     }
                     #[inline(always)]
-                    fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output {
+                    fn _selu(self, alpha: Self::Output, scale: Self::Output)-> Self::Output {
                         SimdMath::selu(self, alpha, scale)
                     }
                     #[inline(always)]
-                    fn _elu(self, alpha: Self::Base) -> Self::Output {
+                    fn _elu(self, alpha: Self::Output) -> Self::Output {
                         SimdMath::elu(self, alpha)
                     }
                     #[inline(always)]
@@ -169,7 +167,6 @@ pub fn impl_float_out_unary() -> TokenStream {
             let res = quote! {
                 impl FloatOutUnary for #lhs_simd {
                     type Output = <#lhs_simd as FloatOutUnaryPromote>::Output;
-                    type Base = <#lhs_dtype as FloatOutUnaryPromote>::Output;
                     #[inline(always)]
                     fn _sin(self) -> Self::Output {
                         SimdMath::sin(self.into_vec())
@@ -275,16 +272,16 @@ pub fn impl_float_out_unary() -> TokenStream {
                         SimdMath::mish(self.into_vec())
                     }
                     #[inline(always)]
-                    fn _celu(self, alpha: Self::Base) -> Self::Output {
-                        SimdMath::celu(self.into_vec(), alpha.into_scalar())
+                    fn _celu(self, alpha: Self::Output) -> Self::Output {
+                        SimdMath::celu(self.into_vec(), alpha.into_vec())
                     }
                     #[inline(always)]
-                    fn _selu(self, alpha: Self::Base, scale: Self::Base) -> Self::Output {
-                        SimdMath::selu(self.into_vec(), alpha.into_scalar(), scale.into_scalar())
+                    fn _selu(self, alpha: Self::Output, scale: Self::Output) -> Self::Output {
+                        SimdMath::selu(self.into_vec(), alpha.into_vec(), scale.into_vec())
                     }
                     #[inline(always)]
-                    fn _elu(self, alpha: Self::Base) -> Self::Output {
-                        SimdMath::elu(self.into_vec(), alpha.into_scalar())
+                    fn _elu(self, alpha: Self::Output) -> Self::Output {
+                        SimdMath::elu(self.into_vec(), alpha.into_vec())
                     }
                     #[inline(always)]
                     fn _hard_swish(self) -> Self::Output {

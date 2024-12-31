@@ -1,8 +1,12 @@
-use crate::{ convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait } };
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
+use crate::{
+    convertion::VecConvertor,
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+};
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::*;
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
 
 use super::u32x4::u32x4;
 
@@ -15,13 +19,16 @@ pub struct i32x4(
     #[cfg(target_arch = "aarch64")] pub(crate) int32x4_t,
 );
 
+#[allow(non_camel_case_types)]
+pub(crate) type i32_promote = i32x4;
+
 impl PartialEq for i32x4 {
     #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         #[cfg(target_arch = "x86_64")]
         unsafe {
             let cmp = _mm_cmpeq_epi32(self.0, other.0);
-            _mm_movemask_epi8(cmp) == -1
+            _mm_movemask_epi8(cmp) == 0xFFFF
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -52,7 +59,10 @@ impl VecTrait<i32> for i32x4 {
     fn copy_from_slice(&mut self, slice: &[i32]) {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            _mm_storeu_si128(&mut self.0, _mm_loadu_si128(slice.as_ptr() as *const __m128i))
+            _mm_storeu_si128(
+                &mut self.0,
+                _mm_loadu_si128(slice.as_ptr() as *const __m128i),
+            )
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -93,6 +103,17 @@ impl VecTrait<i32> for i32x4 {
         #[cfg(target_arch = "aarch64")]
         unsafe {
             i32x4(vdupq_n_s32(val))
+        }
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const i32) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            i32x4(_mm_loadu_si128(ptr as *const __m128i))
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            i32x4(vld1q_s32(ptr))
         }
     }
 }
@@ -253,6 +274,7 @@ impl std::ops::Div for i32x4 {
             let arr2: [i32; 4] = std::mem::transmute(rhs.0);
             let mut arr3: [i32; 4] = [0; 4];
             for i in 0..4 {
+                assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
             #[cfg(target_arch = "x86_64")]
@@ -412,25 +434,74 @@ impl SimdMath<i32> for i32x4 {
     }
     #[inline(always)]
     fn relu(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            i32x4(_mm_max_epi32(self.0, _mm_setzero_si128()))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            i32x4(vmaxq_s32(self.0, vdupq_n_s32(0)))
-        }
+        self.max(Self::splat(0))
     }
     #[inline(always)]
     fn relu6(self) -> Self {
+        self.min(Self::splat(6)).max(Self::splat(0))
+    }
+    #[inline(always)]
+    fn trunc(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn square(self) -> Self {
+        self * self
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            i32x4(_mm_min_epi32(self.relu().0, _mm_set1_epi32(6)))
+            i32x4(_mm_abs_epi32(self.0))
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i32x4(vminq_s32(self.relu().0, vdupq_n_s32(6)))
+            i32x4(vabsq_s32(self.0))
         }
+    }
+    #[inline(always)]
+    fn neg(self) -> Self {
+        -self
+    }
+    #[inline(always)]
+    fn signum(self) -> Self {
+        let zero = Self::splat(0);
+        let gt = self.simd_gt(zero);
+        let lt = self.simd_lt(zero);
+        let pos = gt & Self::splat(1);
+        let neg = lt & Self::splat(-1);
+        pos | neg
+    }
+    #[inline(always)]
+    fn pow(self, rhs: Self) -> Self {
+        unsafe {
+            let a: [i32; 4] = std::mem::transmute(self.0);
+            let b: [i32; 4] = std::mem::transmute(rhs.0);
+            let mut result = [0i32; 4];
+            for i in 0..4 {
+                result[i] = a[i].pow(b[i] as u32);
+            }
+            #[cfg(target_arch = "x86_64")]
+            return i32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            #[cfg(target_arch = "aarch64")]
+            return i32x4(vld1q_s32(result.as_ptr()));
+        }
+    }
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        self.max(i32x4::splat(0)) + alpha * self.min(i32x4::splat(0))
     }
 }
 
@@ -446,7 +517,9 @@ impl VecConvertor for i32x4 {
     #[inline(always)]
     fn to_f32(self) -> super::f32x4::f32x4 {
         #[cfg(target_arch = "x86_64")]
-        unsafe { super::f32x4::f32x4(_mm_cvtepi32_ps(self.0)) }
+        unsafe {
+            super::f32x4::f32x4(_mm_cvtepi32_ps(self.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             super::f32x4::f32x4(vcvtq_f32_s32(self.0))
@@ -461,5 +534,155 @@ impl VecConvertor for i32x4 {
     #[inline(always)]
     fn to_usize(self) -> super::usizex2::usizex2 {
         unsafe { std::mem::transmute(self) }
+    }
+}
+
+impl FloatOutBinary2 for i32x4 {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
+
+    #[inline(always)]
+    fn __log(self, _: Self) -> Self {
+        panic!("Logarithm operation is not supported for i32")
+    }
+}
+
+impl NormalOut2 for i32x4 {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
+
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self.max(rhs)
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self.min(rhs)
+    }
+
+    #[inline(always)]
+    fn __clamp(self, min: Self, max: Self) -> Self {
+        self.max(min).min(max)
+    }
+}
+
+impl NormalOutUnary2 for i32x4 {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            i32x4(_mm_abs_epi32(self.0))
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            i32x4(vabsq_s32(self.0))
+        }
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        -self
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __signum(self) -> Self {
+        self.signum()
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, alpha: Self) -> Self {
+        self.max(i32x4::splat(0)) + alpha * self.min(i32x4::splat(0))
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self.relu()
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self.relu6()
+    }
+}
+
+impl Eval2 for i32x4 {
+    type Output = i32x4;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        i32x4::default()
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            let eq = _mm_cmpeq_epi32(self.0, _mm_setzero_si128());
+            let result = _mm_andnot_si128(eq, _mm_set1_epi32(1));
+            Self(result)
+        }
+    
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            let neq = vmvnq_s32(vreinterpretq_s32_u32(vceqq_s32(
+                self.0,
+                vdupq_n_s32(0),
+            )));
+            i32x4(vandq_s32(neq, vdupq_n_s32(1)))
+        }
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        i32x4::default()
     }
 }

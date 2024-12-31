@@ -1,4 +1,8 @@
-use crate::{ convertion::VecConvertor, traits::{ SimdCompare, SimdMath, VecTrait } };
+use crate::{
+    convertion::VecConvertor,
+    traits::{SimdCompare, SimdMath, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -17,13 +21,16 @@ pub struct i8x16(
     #[cfg(target_arch = "aarch64")] pub(crate) int8x16_t,
 );
 
+#[allow(non_camel_case_types)]
+pub(crate) type i8_promote = i8x16;
+
 impl PartialEq for i8x16 {
     #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         #[cfg(target_arch = "x86_64")]
         unsafe {
             let cmp = _mm_cmpeq_epi8(self.0, other.0);
-            _mm_movemask_epi8(cmp) == -1
+            _mm_movemask_epi8(cmp) == 0xFFFF
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -54,7 +61,10 @@ impl VecTrait<i8> for i8x16 {
     fn copy_from_slice(&mut self, slice: &[i8]) {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            _mm_storeu_si128(&mut self.0, _mm_loadu_si128(slice.as_ptr() as *const __m128i));
+            _mm_storeu_si128(
+                &mut self.0,
+                _mm_loadu_si128(slice.as_ptr() as *const __m128i),
+            );
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -65,7 +75,14 @@ impl VecTrait<i8> for i8x16 {
     fn mul_add(self, a: Self, b: Self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            i8x16(_mm_add_epi8(_mm_mullo_epi16(self.0, a.0), b.0))
+            let mut res = [0i8; 16];
+            let x: [i8; 16] = std::mem::transmute(self.0);
+            let y: [i8; 16] = std::mem::transmute(a.0);
+            let z: [i8; 16] = std::mem::transmute(b.0);
+            for i in 0..16 {
+                res[i] = x[i].wrapping_mul(y[i]).wrapping_add(z[i]);
+            }
+            i8x16(_mm_loadu_si128(res.as_ptr() as *const __m128i))
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -93,6 +110,17 @@ impl VecTrait<i8> for i8x16 {
         #[cfg(target_arch = "aarch64")]
         unsafe {
             i8x16(vdupq_n_s8(val))
+        }
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const i8) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            i8x16(_mm_loadu_si128(ptr as *const __m128i))
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            i8x16(vld1q_s8(ptr))
         }
     }
 }
@@ -151,9 +179,10 @@ impl SimdCompare for i8x16 {
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i8x16(
-                vreinterpretq_s8_u8(vorrq_u8(vcltq_s8(self.0, other.0), vceqq_s8(self.0, other.0)))
-            )
+            i8x16(vreinterpretq_s8_u8(vorrq_u8(
+                vcltq_s8(self.0, other.0),
+                vceqq_s8(self.0, other.0),
+            )))
         }
     }
     #[inline(always)]
@@ -177,7 +206,10 @@ impl SimdCompare for i8x16 {
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i8x16(vreinterpretq_s8_u8(vorrq_u8(vcgtq_s8(self.0, other.0), vceqq_s8(self.0, other.0))))
+            i8x16(vreinterpretq_s8_u8(vorrq_u8(
+                vcgtq_s8(self.0, other.0),
+                vceqq_s8(self.0, other.0),
+            )))
         }
     }
 }
@@ -216,7 +248,13 @@ impl std::ops::Mul for i8x16 {
     fn mul(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            i8x16(_mm_mullo_epi16(self.0, rhs.0))
+            let a: [i8; 16] = std::mem::transmute(self.0);
+            let b: [i8; 16] = std::mem::transmute(rhs.0);
+            let mut result = [0i8; 16];
+            for i in 0..16 {
+                result[i] = a[i].wrapping_mul(b[i]);
+            }
+            i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -234,6 +272,7 @@ impl std::ops::Div for i8x16 {
             let b: [i8; 16] = std::mem::transmute(rhs.0);
             let mut result = [0; 16];
             for i in 0..16 {
+                assert!(b[i] != 0, "division by zero");
                 result[i] = a[i] / b[i];
             }
             i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i))
@@ -418,25 +457,74 @@ impl SimdMath<i8> for i8x16 {
     }
     #[inline(always)]
     fn relu(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            i8x16(_mm_max_epi8(self.0, _mm_setzero_si128()))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            i8x16(vmaxq_s8(self.0, vdupq_n_s8(0)))
-        }
+        self.max(Self::splat(0))
     }
     #[inline(always)]
     fn relu6(self) -> Self {
+        self.min(Self::splat(6)).max(Self::splat(0))
+    }
+    #[inline(always)]
+    fn trunc(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn square(self) -> Self {
+        self * self
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            i8x16(_mm_min_epi8(self.relu().0, _mm_set1_epi8(6)))
+            i8x16(_mm_abs_epi8(self.0))
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i8x16(vminq_s8(self.relu().0, vdupq_n_s8(6)))
+            i8x16(vabsq_s8(self.0))
         }
+    }
+    #[inline(always)]
+    fn neg(self) -> Self {
+        -self
+    }
+    #[inline(always)]
+    fn signum(self) -> Self {
+        let zero = Self::splat(0);
+        let gt = self.simd_gt(zero);
+        let lt = self.simd_lt(zero);
+        let pos = gt & Self::splat(1);
+        let neg = lt & Self::splat(-1);
+        pos | neg
+    }
+    #[inline(always)]
+    fn pow(self, rhs: Self) -> Self {
+        unsafe {
+            let a: [i8; 16] = std::mem::transmute(self.0);
+            let b: [i8; 16] = std::mem::transmute(rhs.0);
+            let mut result = [0i8; 16];
+            for i in 0..16 {
+                result[i] = a[i].pow(b[i] as u32);
+            }
+            #[cfg(target_arch = "x86_64")]
+            return i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            #[cfg(target_arch = "aarch64")]
+            return i8x16(vld1q_s8(result.as_ptr()));
+        }
+    }
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        self.max(i8x16::splat(0)) + alpha * self.min(i8x16::splat(0))
     }
 }
 
@@ -455,3 +543,142 @@ impl VecConvertor for i8x16 {
     }
 }
 
+impl FloatOutBinary2 for i8x16 {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
+
+    #[inline(always)]
+    fn __log(self, _: Self) -> Self {
+        panic!("Logarithm operation is not supported for i8")
+    }
+}
+
+impl NormalOut2 for i8x16 {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
+
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self.max(rhs)
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self.min(rhs)
+    }
+
+    #[inline(always)]
+    fn __clamp(self, min: Self, max: Self) -> Self {
+        self.max(min).min(max)
+    }
+}
+
+impl NormalOutUnary2 for i8x16 {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self.square()
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        self.abs()
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        -self
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __signum(self) -> Self {
+        self.signum()
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, alpha: Self) -> Self {
+        self.max(i8x16::splat(0)) + alpha * self.min(i8x16::splat(0))
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self.relu()
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self.relu6()
+    }
+}
+
+impl Eval2 for i8x16 {
+    type Output = i8x16;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        i8x16::default()
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            let eq = _mm_cmpeq_epi8(self.0, _mm_setzero_si128());
+            let result = _mm_andnot_si128(eq, _mm_set1_epi8(1));
+            Self(result)
+        }
+
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            let neq = vmvnq_s8(vreinterpretq_s8_u8(vceqq_s8(self.0, vdupq_n_s8(0))));
+            i8x16(vandq_s8(neq, vdupq_n_s8(1)))
+        }
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        i8x16::default()
+    }
+}

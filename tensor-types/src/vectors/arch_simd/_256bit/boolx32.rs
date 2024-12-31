@@ -297,7 +297,7 @@ impl NormalOut2 for boolx32 {
     }
 
     #[inline(always)]
-    fn __clip(self, _: Self, _: Self) -> Self {
+    fn __clamp(self, _: Self, _: Self) -> Self {
         self
     }
 }
@@ -334,7 +334,7 @@ impl NormalOutUnary2 for boolx32 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
+    fn __signum(self) -> Self {
         self
     }
 
@@ -358,12 +358,7 @@ impl Eval2 for boolx32 {
     type Output = i8x32;
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
-        unsafe {
-            std::mem::transmute([
-                0i8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0,
-            ])
-        }
+        unsafe { std::mem::transmute([0i8; 32]) }
     }
 
     #[inline(always)]

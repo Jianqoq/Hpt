@@ -99,8 +99,8 @@ impl<T> NormalUaryOps
     fn sign(&self) -> std::result::Result<Self::Output, ErrHandler> {
         uary_fn_with_out_simd(
             self,
-            |x| x._sign(),
-            |x| x._sign(),
+            |x| x._signum(),
+            |x| x._signum(),
             None::<Self::Output>
         )
     }
@@ -109,8 +109,8 @@ impl<T> NormalUaryOps
     {
         uary_fn_with_out_simd(
             self,
-            |x| x._sign(),
-            |x| x._sign(),
+            |x| x._signum(),
+            |x| x._signum(),
             Some(out)
         )
     }
@@ -123,8 +123,8 @@ impl<T> NormalUaryOps
         let max_vec = T::Vec::splat(max);
         uary_fn_with_out_simd(
             self,
-            |x| x._clip(min_vec, max_vec),
-            |x| <T as NormalOut<T>>::_clip(x, min, max),
+            |x| x._clamp(min_vec, max_vec),
+            |x| <T as NormalOut<T>>::_clamp(x, min, max),
             None::<Self::Output>
         )
     }
@@ -140,8 +140,8 @@ impl<T> NormalUaryOps
         let max_vec = T::Vec::splat(max);
         uary_fn_with_out_simd(
             self,
-            |x| x._clip(min_vec, max_vec),
-            |x| <T as NormalOut<T>>::_clip(x, min, max),
+            |x| x._clamp(min_vec, max_vec),
+            |x| <T as NormalOut<T>>::_clamp(x, min, max),
             Some(out)
         )
     }

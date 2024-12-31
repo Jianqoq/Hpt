@@ -13,12 +13,13 @@
 //! ```
 
 #![deny(missing_docs)]
+#[cfg(feature = "cuda")]
 use crate::binary_float_out::impl_cuda_float_out_binary;
 use binary_float_out::impl_float_out_binary;
-use float_unary::{impl_cuda_float_out_unary, impl_float_out_unary};
+use float_unary::impl_float_out_unary;
 use from_scalar::__impl_from_scalar;
 use kernel_gen_helper::{__gen_fast_reduce_simd_helper, __gen_reduce_dim_not_include_simd_helper};
-use normal_out::{__impl_cuda_normal_out_binary, __impl_normal_out_binary};
+use normal_out::__impl_normal_out_binary;
 use proc_macro::TokenStream;
 use scalar_convert::__impl_scalar_convert;
 use simd_bitwise::impl_simd_bitwise_out;
@@ -28,14 +29,13 @@ use simd_float_out_binary::{
     impl_simd_binary_out_float_rhs_scalar,
 };
 use simd_normal_out::{impl_simd_normal_out_with_lhs_scalar, impl_simd_normal_out_with_rhs_scalar};
-use syn::{parse, parse_macro_input, Expr, Ident, Token};
+use syn::{parse, parse_macro_input, Expr, Token};
 mod binary_float_out;
 mod conv2d;
 mod float_unary;
 mod from_scalar;
 mod into_vec;
 mod kernel_gen_helper;
-mod list_enum;
 mod normal_out;
 mod normal_out_unary;
 mod scalar_convert;
@@ -185,93 +185,13 @@ pub fn match_selection(input: TokenStream) -> TokenStream {
     quote!([#ret_stream]).into()
 }
 
-/// match (lhs, rhs), execute the corresponding function
-fn match_helper(
-    lhs: bool,
-    rhs: bool,
-    mut true_true: impl FnMut() -> Expr,
-    mut true_false: impl FnMut() -> Expr,
-    mut false_true: impl FnMut() -> Expr,
-    mut false_false: impl FnMut() -> Expr,
-) -> Expr {
-    match (lhs, rhs) {
-        (true, true) => true_true(),
-        (true, false) => true_false(),
-        (false, true) => false_true(),
-        (false, false) => false_false(),
-    }
-}
-
-struct InferEnumType {
-    lhs: Expr,
-    rhs: Ident,
-    mode: Ident,
-}
-
-impl parse::Parse for InferEnumType {
-    fn parse(input: parse::ParseStream) -> syn::Result<Self> {
-        let lhs = input.parse::<Expr>().expect("lhs is not found");
-        input.parse::<Token![,]>()?;
-        let rhs = input
-            .parse::<Ident>()
-            .expect("rhs is not found, use sapce when not needed");
-        input.parse::<Token![,]>()?;
-        let mode = input.parse::<Ident>()?;
-        Ok(Self { lhs, rhs, mode })
-    }
-}
-
-/// infer the type of the enum
-#[proc_macro]
-pub fn infer_enum_type(input: TokenStream) -> TokenStream {
-    let res: InferEnumType = parse_macro_input!(input as InferEnumType);
-    let enum_name = res.mode.to_string();
-    let mut ret = proc_macro2::TokenStream::new();
-    let lhs = res.lhs;
-    let rhs = res.rhs;
-
-    match enum_name.as_str() {
-        "normal" => {
-            let tk = list_enum::list_enums();
-            let tmp = quote!(
-                match (#lhs, #rhs) {
-                    #tk
-                    _ => todo!(),
-                }
-            );
-            ret.extend(tmp);
-        }
-        "binary_float" => {
-            let tk = list_enum::list_enums_out_float();
-            let tmp = quote!(
-                match (#lhs, #rhs) {
-                    #tk
-                    _ => todo!(),
-                }
-            );
-            ret.extend(tmp);
-        }
-        "uary_float" => {
-            let tk = list_enum::list_enums_out_float_uary();
-            let tmp = quote!(
-                match #lhs {
-                    #tk
-                    _ => todo!(),
-                }
-            );
-            ret.extend(tmp);
-        }
-        _ => {}
-    }
-    ret.into()
-}
-
 /// implement float out binary trait
 #[proc_macro]
 pub fn float_out_binary(_: TokenStream) -> TokenStream {
     impl_float_out_binary()
 }
 
+#[cfg(feature = "cuda")]
 /// implement float out binary trait for cuda
 #[proc_macro]
 pub fn float_out_binary_cuda(_: TokenStream) -> TokenStream {
@@ -302,10 +222,11 @@ pub fn float_out_unary(_: TokenStream) -> TokenStream {
     impl_float_out_unary()
 }
 
+#[cfg(feature = "cuda")]
 /// implement float out unary trait for cuda
 #[proc_macro]
 pub fn float_out_unary_cuda(_: TokenStream) -> TokenStream {
-    impl_cuda_float_out_unary()
+    crate::float_unary::impl_cuda_float_out_unary()
 }
 
 /// implement simd float out unary trait
@@ -332,10 +253,11 @@ pub fn impl_normal_out_binary(_: TokenStream) -> TokenStream {
     __impl_normal_out_binary()
 }
 
+#[cfg(feature = "cuda")]
 /// generate notmal out trait
 #[proc_macro]
 pub fn impl_cuda_normal_out_binary(_: TokenStream) -> TokenStream {
-    __impl_cuda_normal_out_binary()
+    crate::normal_out::__impl_cuda_normal_out_binary()
 }
 
 /// gemerate normal out unary trait
@@ -344,6 +266,7 @@ pub fn impl_normal_out_unary(_: TokenStream) -> TokenStream {
     normal_out_unary::__impl_normal_out_unary()
 }
 
+#[cfg(feature = "cuda")]
 /// gemerate normal out unary trait
 #[proc_macro]
 pub fn impl_normal_out_unary_cuda(_: TokenStream) -> TokenStream {
@@ -404,6 +327,7 @@ pub fn impl_into_vec(_: TokenStream) -> TokenStream {
     into_vec::into_vec()
 }
 
+#[cfg(feature = "cuda")]
 /// implment into cuda scalar trait
 #[proc_macro]
 pub fn impl_into_cuda_scalar(_: TokenStream) -> TokenStream {
@@ -633,7 +557,7 @@ pub fn impl_cmp(_: TokenStream) -> TokenStream {
                         fn _lt(self, rhs: #rhs_dtype) -> Self::Output {
                             self < rhs
                         }
-    
+
                         fn _le(self, rhs: #rhs_dtype) -> Self::Output {
                             self <= rhs
                         }
@@ -664,7 +588,7 @@ pub fn impl_cmp(_: TokenStream) -> TokenStream {
                             let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.into_scalar();
                             lhs < rhs
                         }
-    
+
                         fn _le(self, rhs: #rhs_dtype) -> Self::Output {
                             let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.into_scalar();
                             let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.into_scalar();
@@ -719,7 +643,7 @@ pub fn impl_cmp_cuda(_: TokenStream) -> TokenStream {
                         fn _lt(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
                             self.__lt(rhs)
                         }
-    
+
                         fn _le(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
                             self.__le(rhs)
                         }
@@ -750,7 +674,7 @@ pub fn impl_cmp_cuda(_: TokenStream) -> TokenStream {
                             let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.into_scalar();
                             lhs.__lt(rhs)
                         }
-    
+
                         fn _le(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
                             let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.into_scalar();
                             let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.into_scalar();
@@ -843,26 +767,8 @@ pub fn conv2d_microkernel_gen_inps(input: TokenStream) -> TokenStream {
 
 /// generate conv2d inps
 #[proc_macro]
-pub fn transpose_conv2d_microkernel_gen_inps(input: TokenStream) -> TokenStream {
-    conv2d::transpose_conv2d_microkernel_gen_inps(input)
-}
-
-/// generate conv2d inps
-#[proc_macro]
 pub fn conv2d_microkernel_gen_pad_inps(input: TokenStream) -> TokenStream {
     conv2d::conv2d_microkernel_gen_pad_inps(input)
-}
-
-/// generate transpose conv2d inps
-#[proc_macro]
-pub fn transpose_conv2d_microkernel_gen_masks(input: TokenStream) -> TokenStream {
-    conv2d::transpose_conv2d_microkernel_gen_masks(input)
-}
-
-/// generate transpose conv2d inps
-#[proc_macro]
-pub fn transpose_conv2d_microkernel_gen_outs(input: TokenStream) -> TokenStream {
-    conv2d::transpose_conv2d_microkernel_gen_outs(input)
 }
 
 /// generate pwconv2d inps
@@ -887,24 +793,6 @@ pub fn conv2d_microkernel_gen_kernels(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn conv2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
     conv2d::conv2d_microkernel_gen_results(input)
-}
-
-/// generate transpose conv2d repeat results
-#[proc_macro]
-pub fn transpose_conv2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
-    conv2d::transpose_conv2d_microkernel_gen_results(input)
-}
-
-/// generate transpose conv2d repeat results
-#[proc_macro]
-pub fn transpose_conv2d_microkernel_flush_results(input: TokenStream) -> TokenStream {
-    conv2d::transpose_conv2d_microkernel_flush_results(input)
-}
-
-/// generate transpose conv2d repeat results
-#[proc_macro]
-pub fn transpose_conv2d_microkernel_pad_flush_results(input: TokenStream) -> TokenStream {
-    conv2d::transpose_conv2d_microkernel_pad_flush_results(input)
 }
 
 /// generate conv2d repeat results

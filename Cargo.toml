@@ -22,7 +22,7 @@ members = [
 ]
 
 [dependencies]
-tensor-dyn = { path = "tensor-dyn", features = ["track_caller", "cuda"] }
+tensor-dyn = { path = "tensor-dyn", features = ["track_caller", "codegen"] }
 tensor-common = { path = "tensor-common" }
 anyhow = "1.0.40"
 half = "2.4.1"

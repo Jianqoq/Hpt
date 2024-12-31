@@ -1,7 +1,6 @@
 #![allow(unused)]
 use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
 use tch;
-use tensor_dyn::type_promote::NormalOutUnary;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::{ set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo };
@@ -9,6 +8,7 @@ use tensor_dyn::{ Tensor, TensorCreator };
 use tensor_types::convertion::{ Convertor, FromScalar };
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
+use tensor_types::type_promote::NormalOutUnary;
 
 fn common_input<T>([batch, out_channel, in_channel, kernel_height, kernel_width, height, width]: [
     i64;

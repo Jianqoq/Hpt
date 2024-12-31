@@ -1,11 +1,8 @@
 use crate::{
     arch_simd::_128bit::u64x2::u64x2,
     convertion::VecConvertor,
-    traits::{ SimdCompare, SimdMath, VecTrait },
+    traits::{ SimdCompare, SimdMath, VecTrait }, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
-
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
 
 use super::{ i64x2::i64x2, isizex2::isizex2 };
 
@@ -17,6 +14,13 @@ use super::{ i64x2::i64x2, isizex2::isizex2 };
 pub struct usizex2(pub(crate) u64x2);
 #[cfg(target_pointer_width = "32")]
 pub struct usizex4(pub(crate) u32x4);
+
+#[cfg(target_pointer_width = "32")]
+#[allow(non_camel_case_types)]
+pub(crate) type usize_promote = usizex4;
+#[cfg(target_pointer_width = "64")]
+#[allow(non_camel_case_types)]
+pub(crate) type usize_promote = usizex2;
 
 #[cfg(target_pointer_width = "32")]
 type USizeVEC = usizex4;
@@ -63,6 +67,17 @@ impl VecTrait<usize> for usizex2 {
     #[inline(always)]
     fn splat(val: usize) -> Self {
         Self(USizeBase::splat(val as u64))
+    }
+    #[inline(always)]
+    unsafe fn from_ptr(ptr: *const usize) -> Self {
+        #[cfg(target_pointer_width = "64")]
+        {
+            Self(unsafe { USizeBase::from_ptr(ptr as *const u64) })
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            Self(unsafe { USizeBase::from_ptr(ptr as *const u32) })
+        }
     }
 }
 
@@ -245,79 +260,51 @@ impl std::ops::Shr for usizex2 {
 impl SimdMath<usize> for usizex2 {
     #[inline(always)]
     fn max(self, other: Self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let lhs: u64x2 = std::mem::transmute(self.0);
-                let rhs: u64x2 = std::mem::transmute(other.0);
-                let ret = lhs.max(rhs);
-                usizex2(std::mem::transmute(ret.0))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let lhs: u32x4 = std::mem::transmute(self.0);
-                let rhs: u32x4 = std::mem::transmute(other.0);
-                let ret = lhs.max(rhs);
-                usizex2(std::mem::transmute(ret.0))
-            }
-        }
+        Self(self.0.max(other.0))
     }
     #[inline(always)]
     fn min(self, other: Self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let lhs: u64x2 = std::mem::transmute(self.0);
-                let rhs: u64x2 = std::mem::transmute(other.0);
-                let ret = lhs.min(rhs);
-                usizex2(std::mem::transmute(ret.0))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let lhs: u32x4 = std::mem::transmute(self.0);
-                let rhs: u32x4 = std::mem::transmute(other.0);
-                let ret = lhs.min(rhs);
-                usizex2(std::mem::transmute(ret.0))
-            }
-        }
+        Self(self.0.min(other.0))
     }
     #[inline(always)]
     fn relu(self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let lhs: u64x2 = std::mem::transmute(self.0);
-                usizex2(std::mem::transmute(lhs.relu()))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let lhs: u32x4 = std::mem::transmute(self.0);
-                usizex2(std::mem::transmute(lhs.relu()))
-            }
-        }
+        Self(self.0.relu())
     }
     #[inline(always)]
     fn relu6(self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let lhs: u64x2 = std::mem::transmute(self.0);
-                usizex2(std::mem::transmute(lhs.relu6()))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let lhs: u32x4 = std::mem::transmute(self.0);
-                usizex2(std::mem::transmute(lhs.relu6()))
-            }
-        }
+        Self(self.0.relu6())
+    }
+    #[inline(always)]
+    fn trunc(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn square(self) -> Self {
+        self * self
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn pow(self, rhs: Self) -> Self {
+        Self(self.0.pow(rhs.0))
+    }
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        Self(self.0.leaky_relu(alpha.0))
     }
 }
 
@@ -350,5 +337,158 @@ impl VecConvertor for usizex2 {
     #[cfg(target_pointer_width = "32")]
     fn to_i32(self) -> i32x4 {
         unsafe { std::mem::transmute(self) }
+    }
+}
+
+impl FloatOutBinary2 for USizeVEC {
+    #[inline(always)]
+    fn __div(self, rhs: Self) -> Self {
+        self / rhs
+    }
+
+    #[inline(always)]
+    fn __log(self, _: Self) -> Self {
+        panic!("Logarithm operation is not supported for i32")
+    }
+}
+
+impl NormalOut2 for USizeVEC {
+    #[inline(always)]
+    fn __add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn __sub(self, rhs: Self) -> Self {
+        self - rhs
+    }
+
+    #[inline(always)]
+    fn __mul_add(self, a: Self, b: Self) -> Self {
+        self.mul_add(a, b)
+    }
+
+    #[inline(always)]
+    fn __mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
+
+    #[inline(always)]
+    fn __rem(self, rhs: Self) -> Self {
+        self % rhs
+    }
+
+    #[inline(always)]
+    fn __max(self, rhs: Self) -> Self {
+        self.max(rhs)
+    }
+
+    #[inline(always)]
+    fn __min(self, rhs: Self) -> Self {
+        self.min(rhs)
+    }
+
+    #[inline(always)]
+    fn __clamp(self, min: Self, max: Self) -> Self {
+        self.max(min).min(max)
+    }
+}
+
+impl NormalOutUnary2 for USizeVEC {
+    #[inline(always)]
+    fn __square(self) -> Self {
+        self * self
+    }
+
+    #[inline(always)]
+    fn __abs(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __ceil(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __floor(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __neg(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __round(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __signum(self) -> Self {
+        self.signum()
+    }
+
+    #[inline(always)]
+    fn __leaky_relu(self, alpha: Self) -> Self {
+        self.max(Self::splat(0)) + alpha * self.min(Self::splat(0))
+    }
+
+    #[inline(always)]
+    fn __relu(self) -> Self {
+        self.relu()
+    }
+
+    #[inline(always)]
+    fn __relu6(self) -> Self {
+        self.relu6()
+    }
+}
+
+impl Eval2 for USizeVEC {
+    #[cfg(target_pointer_width = "64")]
+    type Output = isizex2;
+    #[cfg(target_pointer_width = "32")]
+    type Output = isizex4;
+    #[inline(always)]
+    fn __is_nan(&self) -> Self::Output {
+        #[cfg(target_pointer_width = "64")]
+        {
+            isizex2::default()
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            isizex4::default()
+        }
+    }
+
+    #[inline(always)]
+    fn __is_true(&self) -> Self::Output {
+        #[cfg(target_pointer_width = "64")]
+        {
+            isizex2(self.0.__is_true())
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            isizex4(self.0.__is_true())
+        }
+    }
+
+    #[inline(always)]
+    fn __is_inf(&self) -> Self::Output {
+        #[cfg(target_pointer_width = "64")]
+        {
+            isizex2::default()
+        }
+        #[cfg(target_pointer_width = "32")]
+        {
+            isizex4::default()
+        }
     }
 }

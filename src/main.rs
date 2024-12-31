@@ -1,15 +1,6 @@
-use std::io::BufRead;
-
-use tensor_common::slice;
 use tensor_dyn::*;
 
 fn main() -> anyhow::Result<()> {
-    let loader: Vec<Tensor<f32>> = TensorLoader::new("test.ftz".into())
-        .push("test", &[])
-        .load()?;
-
-    println!("{}", loader[0]);
-
     Ok(())
 }
 

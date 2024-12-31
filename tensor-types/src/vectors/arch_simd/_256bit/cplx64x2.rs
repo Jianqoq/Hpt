@@ -189,10 +189,10 @@ impl NormalOut2 for cplx64x2 {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
+    fn __clamp(self, min: Self, max: Self) -> Self {
         let res = [
-            self[0].__clip(min[0], max[0]),
-            self[1].__clip(min[1], max[1]),
+            self[0].__clamp(min[0], max[0]),
+            self[1].__clamp(min[1], max[1]),
         ];
         cplx64x2(unsafe { std::mem::transmute(res) })
     }
@@ -234,8 +234,8 @@ impl NormalOutUnary2 for cplx64x2 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
-        let res = [self[0].__sign(), self[1].__sign()];
+    fn __signum(self) -> Self {
+        let res = [self[0].__signum(), self[1].__signum()];
         cplx64x2(unsafe { std::mem::transmute(res) })
     }
 

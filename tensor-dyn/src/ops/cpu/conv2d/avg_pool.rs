@@ -178,7 +178,7 @@ where
             }
 
             for ii in in_channels - remain..in_channels {
-                let mut res = T::NEG_INF;
+                let mut res = T::ZERO;
                 for kh in 0..kernel_height {
                     if h * step_height + kh * dh < ph_start
                         || h * step_height + kh * dh - ph_start >= img_height
