@@ -1,4 +1,4 @@
-use crate::convertion::VecConvertor;
+use crate::convertion::{Convertor, VecConvertor};
 use crate::traits::{SimdMath, SimdSelect, VecTrait};
 use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
 use crate::vectors::arch_simd::_128bit::f32x4::f32x4;
@@ -104,6 +104,14 @@ impl f16x8 {
                 );
 
                 std::mem::transmute([res0, res1])
+            }
+            #[cfg(not(all(target_feature = "f16c", all(target_feature = "neon", target_arch = "aarch64"))))]
+            {
+                let mut result = [0f32; 8];
+                for i in 0..8 {
+                    result[i] = self.0[i].to_f32();
+                }
+                std::mem::transmute(result)
             }
         }
     }
@@ -257,6 +265,15 @@ pub(crate) fn from_2_f32vec(val: [f32x4; 2]) -> f16x8 {
         let f16_low = _mm_cvtps_ph(val[1].0, _MM_FROUND_TO_NEAREST_INT);
         let result = _mm_unpacklo_epi64(f16_high, f16_low);
         f16x8(std::mem::transmute(result))
+    }
+    #[cfg(not(all(target_feature = "f16c", all(target_feature = "neon", target_arch = "aarch64"))))]
+    {
+        let mut result = [half::f16::ZERO; 8];
+        for i in 0..4 {
+            result[i] = val[0][i].to_f16();
+            result[i + 4] = val[1][i].to_f16();
+        }
+        f16x8(result)
     }
 }
 
