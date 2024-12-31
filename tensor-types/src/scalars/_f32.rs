@@ -26,7 +26,12 @@ impl NormalOut2 for f32 {
 
     #[inline(always)]
     fn __mul_add(self, a: Self, b: Self) -> Self {
-        (self * a) + b
+        #[cfg(target_feature = "fma")]
+        unsafe {
+            std::intrinsics::fmaf32(self, a, b)
+        }
+        #[cfg(not(target_feature = "fma"))]
+        return std::hint::black_box((self * a) + b);
     }
 
     #[inline(always)]
