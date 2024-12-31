@@ -297,7 +297,7 @@ impl NormalOut2 for boolx32 {
     }
 
     #[inline(always)]
-    fn __clip(self, _: Self, _: Self) -> Self {
+    fn __clamp(self, _: Self, _: Self) -> Self {
         self
     }
 }
@@ -334,7 +334,7 @@ impl NormalOutUnary2 for boolx32 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
+    fn __signum(self) -> Self {
         self
     }
 

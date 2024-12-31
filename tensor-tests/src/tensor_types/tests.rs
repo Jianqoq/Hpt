@@ -127,7 +127,7 @@ pub(crate) fn f32_to_f16_test(range: core::ops::RangeInclusive<f32>, repeats: us
                 let mut low = F32Vec::default();
                 high.copy_from_slice(&x[0..F32Vec::SIZE]);
                 low.copy_from_slice(&x[F32Vec::SIZE..]);
-                let res = F16Vec::from_2_f32x4([high, low]);
+                let res = F16Vec::from_2_f32vec([high, low]);
                 unsafe { std::mem::transmute(res) }
             },
             msg,
@@ -148,7 +148,7 @@ pub(crate) fn f16_to_f32_test(
             |x| {
                 let mut val = F16Vec::default();
                 val.copy_from_slice(&x);
-                let res = val.to_2_f32x4();
+                let res = val.to_2_f32vec();
                 let mut result = [0.0; F16Vec::SIZE];
                 for i in 0..F16Vec::SIZE / 2 {
                     result[i] = res[0][i];
@@ -193,7 +193,7 @@ pub(crate) fn bf16_to_f32_test(
             |x| {
                 let mut val = Bf16Vec::default();
                 val.copy_from_slice(&x);
-                let res = val.to_2_f32x4();
+                let res = val.to_2_f32vec();
                 let mut result = [0.0; Bf16Vec::SIZE];
                 for i in 0..Bf16Vec::SIZE / 2 {
                     result[i] = res[0][i];
@@ -215,7 +215,7 @@ pub(crate) fn f32_to_f16_test_single(val: f32, msg: &str) {
             let mut low = F32Vec::default();
             high.copy_from_slice(&x[0..F32Vec::SIZE]);
             low.copy_from_slice(&x[F32Vec::SIZE..]);
-            let res = F16Vec::from_2_f32x4([high, low]);
+            let res = F16Vec::from_2_f32vec([high, low]);
             unsafe { std::mem::transmute(res) }
         },
         msg,
@@ -229,7 +229,7 @@ pub(crate) fn f16_to_f32_test_single(val: half::f16, msg: &str) {
         |x| {
             let mut val = F16Vec::default();
             val.copy_from_slice(&x);
-            let res = val.to_2_f32x4();
+            let res = val.to_2_f32vec();
             let mut result = [0.0; F16Vec::SIZE];
             for i in 0..F16Vec::SIZE / 2 {
                 result[i] = res[0][i];
@@ -264,7 +264,7 @@ pub(crate) fn bf16_to_f32_test_single(val: half::bf16, msg: &str) {
         |x| {
             let mut val = Bf16Vec::default();
             val.copy_from_slice(&x);
-            let res = val.to_2_f32x4();
+            let res = val.to_2_f32vec();
             let mut result = [0.0; Bf16Vec::SIZE];
             for i in 0..Bf16Vec::SIZE / 2 {
                 result[i] = res[0][i];

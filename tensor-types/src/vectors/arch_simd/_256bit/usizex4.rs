@@ -310,6 +310,38 @@ impl SimdMath<usize> for usizex4 {
     fn relu6(self) -> Self {
         Self(self.0.relu6())
     }
+    #[inline(always)]
+    fn trunc(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn square(self) -> Self {
+        self * self
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn pow(self, rhs: Self) -> Self {
+        Self(self.0.pow(rhs.0))
+    }
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        Self(self.0.leaky_relu(alpha.0))
+    }
 }
 
 impl VecConvertor for usizex4 {
@@ -398,7 +430,7 @@ impl NormalOut2 for USizeVEC {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
+    fn __clamp(self, min: Self, max: Self) -> Self {
         self.max(min).min(max)
     }
 }
@@ -435,8 +467,8 @@ impl NormalOutUnary2 for USizeVEC {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
-        self.sign()
+    fn __signum(self) -> Self {
+        self.signum()
     }
 
     #[inline(always)]

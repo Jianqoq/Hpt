@@ -1,4 +1,8 @@
-use crate::{convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait }, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2}};
+use crate::{
+    convertion::VecConvertor,
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -37,7 +41,12 @@ impl VecTrait<u64> for u64x4 {
     type Base = u64;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[u64]) {
-        unsafe { _mm256_storeu_si256(&mut self.0, _mm256_loadu_si256(slice.as_ptr() as *const __m256i)) }
+        unsafe {
+            _mm256_storeu_si256(
+                &mut self.0,
+                _mm256_loadu_si256(slice.as_ptr() as *const __m256i),
+            )
+        }
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
@@ -77,7 +86,6 @@ impl u64x4 {
         unsafe { std::mem::transmute(self.0) }
     }
 }
-
 
 impl SimdCompare for u64x4 {
     type SimdMask = i64x4;
@@ -182,6 +190,7 @@ impl std::ops::Div for u64x4 {
             let arr2: [u64; 4] = std::mem::transmute(rhs.0);
             let mut arr3: [u64; 4] = [0; 4];
             for i in 0..4 {
+                assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
             u64x4(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
@@ -288,25 +297,51 @@ impl SimdMath<u64> for u64x4 {
     }
     #[inline(always)]
     fn relu(self) -> Self {
-        unsafe {
-            let arr: [u64; 4] = std::mem::transmute(self.0);
-            let mut arr2: [u64; 4] = [0; 4];
-            for i in 0..4 {
-                arr2[i] = arr[i].max(0);
-            }
-            u64x4(_mm256_loadu_si256(arr2.as_ptr() as *const __m256i))
-        }
+        self.max(Self::splat(0))
     }
     #[inline(always)]
     fn relu6(self) -> Self {
+        self.min(Self::splat(6)).max(Self::splat(0))
+    }
+    #[inline(always)]
+    fn trunc(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn square(self) -> Self {
+        self * self
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn pow(self, rhs: Self) -> Self {
         unsafe {
-            let arr: [u64; 4] = std::mem::transmute(self.0);
-            let mut arr2: [u64; 4] = [0; 4];
+            let a: [u64; 4] = std::mem::transmute(self.0);
+            let b: [u64; 4] = std::mem::transmute(rhs.0);
+            let mut result = [0u64; 4];
             for i in 0..4 {
-                arr2[i] = arr[i].max(0).min(6);
+                result[i] = a[i].pow(b[i] as u32);
             }
-            u64x4(_mm256_loadu_si256(arr2.as_ptr() as *const __m256i))
+            u64x4(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
         }
+    }
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        self.max(Self::splat(0)) + alpha * self.min(Self::splat(0))
     }
 }
 
@@ -396,7 +431,7 @@ impl NormalOut2 for u64x4 {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
+    fn __clamp(self, min: Self, max: Self) -> Self {
         self.max(min).min(max)
     }
 }
@@ -433,8 +468,8 @@ impl NormalOutUnary2 for u64x4 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
-        self.sign()
+    fn __signum(self) -> Self {
+        self.signum()
     }
 
     #[inline(always)]
@@ -464,7 +499,8 @@ impl Eval2 for u64x4 {
     fn __is_true(&self) -> Self::Output {
         unsafe {
             let eq = _mm256_cmpeq_epi64(self.0, _mm256_setzero_si256());
-            i64x4(_mm256_xor_si256(eq, _mm256_set1_epi64x(-1)))
+            let result = _mm256_andnot_si256(eq, _mm256_set1_epi64x(1));
+            i64x4(result)
         }
     }
 

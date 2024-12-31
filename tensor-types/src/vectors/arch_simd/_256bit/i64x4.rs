@@ -105,7 +105,7 @@ impl SimdCompare for i64x4 {
             let b: [i64; 4] = std::mem::transmute(other.0);
             let mut result = [0; 4];
             for i in 0..4 {
-                result[i] = if a[i] < b[i] { -1 } else { 0 };
+                result[i] = if a[i] < b[i] { -1i64 } else { 0 };
             }
             i64x4(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
         }
@@ -117,7 +117,7 @@ impl SimdCompare for i64x4 {
             let b: [i64; 4] = std::mem::transmute(other.0);
             let mut result = [0; 4];
             for i in 0..4 {
-                result[i] = if a[i] <= b[i] { -1 } else { 0 };
+                result[i] = if a[i] <= b[i] { -1i64 } else { 0i64 };
             }
             i64x4(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
         }
@@ -181,9 +181,7 @@ impl std::ops::Div for i64x4 {
             let arr2: [i64; 4] = std::mem::transmute(rhs.0);
             let mut arr3: [i64; 4] = [0; 4];
             for i in 0..4 {
-                if arr2[i] == 0 {
-                    panic!("Division by zero for i64");
-                }
+                assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
             i64x4(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
@@ -300,25 +298,71 @@ impl SimdMath<i64> for i64x4 {
     }
     #[inline(always)]
     fn relu(self) -> Self {
-        unsafe {
-            let arr: [i64; 4] = std::mem::transmute(self.0);
-            let mut arr2: [i64; 4] = [0; 4];
-            for i in 0..4 {
-                arr2[i] = arr[i].max(0);
-            }
-            i64x4(_mm256_loadu_si256(arr2.as_ptr() as *const __m256i))
-        }
+        self.max(Self::splat(0))
     }
     #[inline(always)]
     fn relu6(self) -> Self {
+        self.min(Self::splat(6)).max(Self::splat(0))
+    }
+        #[inline(always)]
+    fn trunc(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn square(self) -> Self {
+        self * self
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
         unsafe {
             let arr: [i64; 4] = std::mem::transmute(self.0);
-            let mut arr2: [i64; 4] = [0; 4];
+            let mut result = [0i64; 4];
             for i in 0..4 {
-                arr2[i] = arr[i].max(0).min(6);
+                result[i] = arr[i].abs();
             }
-            i64x4(_mm256_loadu_si256(arr2.as_ptr() as *const __m256i))
+            i64x4(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
         }
+    }
+    #[inline(always)]
+    fn neg(self) -> Self {
+        -self
+    }
+    #[inline(always)]
+    fn signum(self) -> Self {
+        let zero = Self::splat(0);
+        let gt = self.simd_gt(zero);
+        let lt = self.simd_lt(zero);
+        let pos = gt & Self::splat(1);
+        let neg = lt & Self::splat(-1);
+        pos | neg
+    }
+    #[inline(always)]
+    fn pow(self, rhs: Self) -> Self {
+        unsafe {
+            let a: [i64; 4] = std::mem::transmute(self.0);
+            let b: [i64; 4] = std::mem::transmute(rhs.0);
+            let mut result = [0i64; 4];
+            for i in 0..4 {
+                result[i] = a[i].pow(b[i] as u32);
+            }
+            i64x4(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+        }
+    }
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        self.max(Self::splat(0)) + alpha * self.min(Self::splat(0))
     }
 }
 
@@ -408,7 +452,7 @@ impl NormalOut2 for i64x4 {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
+    fn __clamp(self, min: Self, max: Self) -> Self {
         self.max(min).min(max)
     }
 }
@@ -445,8 +489,8 @@ impl NormalOutUnary2 for i64x4 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
-        self.sign()
+    fn __signum(self) -> Self {
+        self.signum()
     }
 
     #[inline(always)]
@@ -474,9 +518,10 @@ impl Eval2 for i64x4 {
 
     #[inline(always)]
     fn __is_true(&self) -> Self::Output {
-        unsafe { 
+        unsafe {
             let eq = _mm256_cmpeq_epi64(self.0, _mm256_setzero_si256());
-            Self(_mm256_xor_si256(eq, _mm256_set1_epi64x(-1)))
+            let result = _mm256_andnot_si256(eq, _mm256_set1_epi64x(1));
+            Self(result)
         }
     }
 

@@ -260,79 +260,19 @@ impl std::ops::Shr for usizex2 {
 impl SimdMath<usize> for usizex2 {
     #[inline(always)]
     fn max(self, other: Self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let lhs: u64x2 = std::mem::transmute(self.0);
-                let rhs: u64x2 = std::mem::transmute(other.0);
-                let ret = lhs.max(rhs);
-                usizex2(std::mem::transmute(ret.0))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let lhs: u32x4 = std::mem::transmute(self.0);
-                let rhs: u32x4 = std::mem::transmute(other.0);
-                let ret = lhs.max(rhs);
-                usizex2(std::mem::transmute(ret.0))
-            }
-        }
+        Self(self.0.max(other.0))
     }
     #[inline(always)]
     fn min(self, other: Self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let lhs: u64x2 = std::mem::transmute(self.0);
-                let rhs: u64x2 = std::mem::transmute(other.0);
-                let ret = lhs.min(rhs);
-                usizex2(std::mem::transmute(ret.0))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let lhs: u32x4 = std::mem::transmute(self.0);
-                let rhs: u32x4 = std::mem::transmute(other.0);
-                let ret = lhs.min(rhs);
-                usizex2(std::mem::transmute(ret.0))
-            }
-        }
+        Self(self.0.min(other.0))
     }
     #[inline(always)]
     fn relu(self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let lhs: u64x2 = std::mem::transmute(self.0);
-                usizex2(std::mem::transmute(lhs.relu()))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let lhs: u32x4 = std::mem::transmute(self.0);
-                usizex2(std::mem::transmute(lhs.relu()))
-            }
-        }
+        Self(self.0.relu())
     }
     #[inline(always)]
     fn relu6(self) -> Self {
-        #[cfg(target_pointer_width = "64")]
-        {
-            unsafe {
-                let lhs: u64x2 = std::mem::transmute(self.0);
-                usizex2(std::mem::transmute(lhs.relu6()))
-            }
-        }
-        #[cfg(target_pointer_width = "32")]
-        {
-            unsafe {
-                let lhs: u32x4 = std::mem::transmute(self.0);
-                usizex2(std::mem::transmute(lhs.relu6()))
-            }
-        }
+        Self(self.0.relu6())
     }
     #[inline(always)]
     fn trunc(self) -> Self {

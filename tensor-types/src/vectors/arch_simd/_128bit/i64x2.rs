@@ -421,31 +421,11 @@ impl SimdMath<i64> for i64x2 {
     }
     #[inline(always)]
     fn relu(self) -> Self {
-        unsafe {
-            let arr: [i64; 2] = std::mem::transmute(self.0);
-            let mut arr2: [i64; 2] = [0; 2];
-            for i in 0..2 {
-                arr2[i] = arr[i].max(0);
-            }
-            #[cfg(target_arch = "x86_64")]
-            return i64x2(_mm_loadu_si128(arr2.as_ptr() as *const __m128i));
-            #[cfg(target_arch = "aarch64")]
-            return i64x2(vld1q_s64(arr2.as_ptr()));
-        }
+        self.max(Self::splat(0))
     }
     #[inline(always)]
     fn relu6(self) -> Self {
-        unsafe {
-            let arr: [i64; 2] = std::mem::transmute(self.0);
-            let mut arr2: [i64; 2] = [0; 2];
-            for i in 0..2 {
-                arr2[i] = arr[i].max(0).min(6);
-            }
-            #[cfg(target_arch = "x86_64")]
-            return i64x2(_mm_loadu_si128(arr2.as_ptr() as *const __m128i));
-            #[cfg(target_arch = "aarch64")]
-            return i64x2(vld1q_s64(arr2.as_ptr()));
-        }
+        self.min(Self::splat(6)).max(Self::splat(0))
     }
         #[inline(always)]
     fn trunc(self) -> Self {

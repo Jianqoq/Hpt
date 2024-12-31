@@ -445,25 +445,11 @@ impl SimdMath<i16> for i16x8 {
     }
     #[inline(always)]
     fn relu(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            i16x8(_mm_max_epi16(self.0, _mm_setzero_si128()))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            i16x8(vmaxq_s16(self.0, vdupq_n_s16(0)))
-        }
+        self.max(Self::splat(0))
     }
     #[inline(always)]
     fn relu6(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            i16x8(_mm_min_epi16(self.relu().0, _mm_set1_epi16(6)))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            i16x8(vminq_s16(self.relu().0, vdupq_n_s16(6)))
-        }
+        self.min(Self::splat(6)).max(Self::splat(0))
     }
     #[inline(always)]
     fn pow(self, rhs: Self) -> Self {

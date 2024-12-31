@@ -152,9 +152,7 @@ impl std::ops::Div for i32x8 {
             let arr2: [i32; 8] = std::mem::transmute(rhs.0);
             let mut arr3: [i32; 8] = [0; 8];
             for i in 0..8 {
-                if arr2[i] == 0 {
-                    panic!("Division by zero for i32");
-                }
+                assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
             i32x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
@@ -252,11 +250,64 @@ impl SimdMath<i32> for i32x8 {
     }
     #[inline(always)]
     fn relu(self) -> Self {
-        unsafe { i32x8(_mm256_max_epi32(self.0, _mm256_setzero_si256())) }
+        self.max(Self::splat(0))
     }
     #[inline(always)]
     fn relu6(self) -> Self {
-        unsafe { i32x8(_mm256_min_epi32(self.relu().0, _mm256_set1_epi32(6))) }
+        self.min(Self::splat(6)).max(Self::splat(0))
+    }
+    #[inline(always)]
+    fn trunc(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn square(self) -> Self {
+        self * self
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
+        unsafe { i32x8(_mm256_abs_epi32(self.0)) }
+    }
+    #[inline(always)]
+    fn neg(self) -> Self {
+        -self
+    }
+    #[inline(always)]
+    fn signum(self) -> Self {
+        let zero = Self::splat(0);
+        let gt = self.simd_gt(zero);
+        let lt = self.simd_lt(zero);
+        let pos = gt & Self::splat(1);
+        let neg = lt & Self::splat(-1);
+        pos | neg
+    }
+    #[inline(always)]
+    fn pow(self, rhs: Self) -> Self {
+        unsafe {
+            let a: [i32; 8] = std::mem::transmute(self.0);
+            let b: [i32; 8] = std::mem::transmute(rhs.0);
+            let mut result = [0i32; 8];
+            for i in 0..8 {
+                result[i] = a[i].pow(b[i] as u32);
+            }
+            i32x8(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+        }
+    }
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        self.max(Self::splat(0)) + alpha * self.min(Self::splat(0))
     }
 }
 
@@ -339,8 +390,8 @@ impl NormalOut2 for i32x8 {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
-        unsafe { i32x8(_mm256_min_epi32(_mm256_max_epi32(self.0, min.0), max.0)) }
+    fn __clamp(self, min: Self, max: Self) -> Self {
+        self.max(min).min(max)
     }
 }
 
@@ -376,8 +427,8 @@ impl NormalOutUnary2 for i32x8 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
-        self.sign()
+    fn __signum(self) -> Self {
+        self.signum()
     }
 
     #[inline(always)]
@@ -407,7 +458,8 @@ impl Eval2 for i32x8 {
     fn __is_true(&self) -> Self::Output {
         unsafe {
             let eq = _mm256_cmpeq_epi32(self.0, _mm256_setzero_si256());
-            Self(_mm256_xor_si256(eq, _mm256_set1_epi32(-1)))
+            let result = _mm256_andnot_si256(eq, _mm256_set1_epi32(1));
+            Self(result)
         }
     }
 

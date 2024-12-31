@@ -114,6 +114,7 @@ impl std::ops::Div for u16x16 {
             let arr2: [u16; 16] = std::mem::transmute(rhs.0);
             let mut arr3: [u16; 16] = [0; 16];
             for i in 0..16 {
+                assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
             u16x16(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
@@ -249,19 +250,59 @@ impl SimdCompare for u16x16 {
 impl SimdMath<u16> for u16x16 {
     #[inline(always)]
     fn max(self, other: Self) -> Self {
-        unsafe { u16x16(_mm256_max_epi16(self.0, other.0)) }
+        unsafe { u16x16(_mm256_max_epu16(self.0, other.0)) }
     }
     #[inline(always)]
     fn min(self, other: Self) -> Self {
-        unsafe { u16x16(_mm256_min_epi16(self.0, other.0)) }
+        unsafe { u16x16(_mm256_min_epu16(self.0, other.0)) }
     }
     #[inline(always)]
     fn relu(self) -> Self {
-        unsafe { u16x16(_mm256_max_epi16(self.0, _mm256_setzero_si256())) }
+        self.max(Self::splat(0))
     }
     #[inline(always)]
     fn relu6(self) -> Self {
-        unsafe { u16x16(_mm256_min_epi16(self.relu().0, _mm256_set1_epi16(6))) }
+        self.min(Self::splat(6)).max(Self::splat(0))
+    }
+    #[inline(always)]
+    fn trunc(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn ceil(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn round(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn square(self) -> Self {
+        self * self
+    }
+    #[inline(always)]
+    fn abs(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn pow(self, rhs: Self) -> Self {
+        unsafe {
+            let a: [u16; 16] = std::mem::transmute(self.0);
+            let b: [u16; 16] = std::mem::transmute(rhs.0);
+            let mut result = [0u16; 16];
+            for i in 0..16 {
+                result[i] = a[i].pow(b[i] as u32);
+            }
+            u16x16(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+        }
+    }
+    #[inline(always)]
+    fn leaky_relu(self, alpha: Self) -> Self {
+        self.max(Self::splat(0)) + alpha * self.min(Self::splat(0))
     }
 }
 
@@ -352,7 +393,7 @@ impl NormalOut2 for u16x16 {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
+    fn __clamp(self, min: Self, max: Self) -> Self {
         self.max(min).min(max)
     }
 }
@@ -389,8 +430,8 @@ impl NormalOutUnary2 for u16x16 {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
-        self.sign()
+    fn __signum(self) -> Self {
+        self.signum()
     }
 
     #[inline(always)]
@@ -420,7 +461,8 @@ impl Eval2 for u16x16 {
     fn __is_true(&self) -> Self::Output {
         unsafe {
             let eq = _mm256_cmpeq_epi16(self.0, _mm256_setzero_si256());
-            i16x16(_mm256_xor_si256(eq, _mm256_set1_epi16(-1)))
+            let result = _mm256_andnot_si256(eq, _mm256_set1_epi16(1));
+            i16x16(result)
         }
     }
 
