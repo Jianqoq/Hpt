@@ -25,6 +25,7 @@ rand = "0.8.5"
 num-traits = "0.2.19"
 num-complex = "0.4"
 libm = "0.2.11"
+duplicate = "2.0.0"
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 sleef = { version = "0.3.2" }
