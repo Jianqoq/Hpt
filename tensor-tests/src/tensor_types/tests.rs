@@ -976,7 +976,7 @@ fn test_convert_bf16_to_f32() {
             1000,
             -1e5..=1e5,
             "f32::mul_add",
-            mul_add,
+            __mul_add,
             __mul_add
         );
         test_computes_3operands_for_type!(
