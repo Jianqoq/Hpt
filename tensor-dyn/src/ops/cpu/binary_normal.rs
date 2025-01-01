@@ -44,17 +44,17 @@ use tensor_types::dtype::TypeCommon;
 /// If the vector sizes of the input tensors match and SIMD is enabled, the `f2` function is applied to
 /// perform vectorized operations for faster computation. If not, the scalar function `f` is applied to each element.
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn binary_fn_with_out_simd<A, B, O, K, F, F2>(
-    lhs: &_Tensor<A>,
-    rhs: &_Tensor<B>,
+pub(crate) fn binary_fn_with_out_simd<A, B, O, K, F, F2, const DEVICE: usize>(
+    lhs: &_Tensor<A, Cpu, DEVICE>,
+    rhs: &_Tensor<B, Cpu, DEVICE>,
     f: F,
     f2: F2,
     out: Option<O>,
-) -> std::result::Result<_Tensor<K>, ErrHandler>
+) -> std::result::Result<_Tensor<K, Cpu, DEVICE>, ErrHandler>
 where
     A: CommonBounds,
     B: CommonBounds,
-    O: Borrow<_Tensor<K>>,
+    O: Borrow<_Tensor<K, Cpu, DEVICE>>,
     K: CommonBounds,
     F: Fn(A, B) -> K + Sync + Send + Copy,
     F2: Fn(<A as TypeCommon>::Vec, <B as TypeCommon>::Vec) -> <K as TypeCommon>::Vec
@@ -79,7 +79,7 @@ where
                 out.borrow().static_cast::<K>()?
             }
         } else {
-            _Tensor::<K, Cpu>::empty(rhs.shape())?
+            _Tensor::<K, Cpu, DEVICE>::empty(rhs.shape())?
         };
         if rhs.is_contiguous() {
             if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
@@ -147,10 +147,10 @@ where
                 )
                 .into());
             } else {
-                _Tensor::<K, Cpu>::empty(lhs.shape())?
+                _Tensor::<K, Cpu, DEVICE>::empty(lhs.shape())?
             }
         } else {
-            _Tensor::<K, Cpu>::empty(lhs.shape())?
+            _Tensor::<K, Cpu, DEVICE>::empty(lhs.shape())?
         };
         if lhs.is_contiguous() {
             if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
@@ -220,7 +220,7 @@ where
                     out.borrow().static_cast::<K>()?
                 }
             } else {
-                _Tensor::<K, Cpu>::empty(rhs.shape())?
+                _Tensor::<K, Cpu, DEVICE>::empty(rhs.shape())?
             };
             if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
                 && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
@@ -292,7 +292,7 @@ where
                 .par_iter()
                 .zip(rhs.par_iter())
                 .strided_map(|(x, y)| f(x, y))
-                .collect::<_Tensor<K>>();
+                .collect::<_Tensor<K, Cpu, DEVICE>>();
             Ok(ret)
             // }
         }

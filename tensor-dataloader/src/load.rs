@@ -59,7 +59,6 @@ pub(crate) fn load_compressed_slice<
         let tensor: B = B::empty(&shape)?;
 
         if tensor.size() == 0 {
-            println!("tensor size is 0");
             ret.push(tensor);
             continue;
         }

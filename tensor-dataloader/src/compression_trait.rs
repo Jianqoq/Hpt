@@ -4,6 +4,7 @@ use num::traits::{FromBytes, ToBytes};
 use serde::{Deserialize, Serialize};
 use tensor_common::{shape::Shape, slice::Slice, strides::Strides};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
+use tensor_types::dtype::Dtype;
 
 use crate::{data_loader::Endian, load::load_compressed_slice, save::save};
 
@@ -45,7 +46,7 @@ pub trait DataLoaderTrait {
     fn fill_le_bytes_slice(&self, offset: isize, writer: &mut [u8]);
     fn offset(&mut self, offset: isize);
     fn size(&self) -> usize;
-    fn dtype(&self) -> String;
+    fn dtype(&self) -> Dtype;
     fn mem_size(&self) -> usize;
 }
 
@@ -104,8 +105,8 @@ where
         writer.copy_from_slice(&val.to_le_bytes());
     }
 
-    fn dtype(&self) -> String {
-        T::ID.to_string()
+    fn dtype(&self) -> Dtype {
+        T::ID
     }
 }
 
@@ -117,12 +118,12 @@ pub enum CompressionAlgo {
     NoCompression,
 }
 
-pub(crate) struct Meta {
-    pub(crate) name: String,
-    pub(crate) compression_algo: CompressionAlgo,
-    pub(crate) endian: Endian,
-    pub(crate) data_saver: Box<dyn DataLoaderTrait>,
-    pub(crate) compression_level: u32,
+pub struct Meta {
+    pub name: String,
+    pub compression_algo: CompressionAlgo,
+    pub endian: Endian,
+    pub data_saver: Box<dyn DataLoaderTrait>,
+    pub compression_level: u32,
 }
 
 pub struct TensorSaver {

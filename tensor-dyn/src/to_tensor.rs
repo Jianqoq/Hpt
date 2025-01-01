@@ -17,15 +17,15 @@ use tensor_traits::TensorLike;
 macro_rules! from_scalar {
     ($($t:ident),*) => {
         $(
-            impl Into<_Tensor<$t>> for $t {
-                fn into(self) -> _Tensor<$t> {
-                    let mut ret = _Tensor::<$t>::empty(vec![]).unwrap();
+            impl<const DEVICE: usize> Into<_Tensor<$t, Cpu, DEVICE>> for $t {
+                fn into(self) -> _Tensor<$t, Cpu, DEVICE> {
+                    let mut ret = _Tensor::<$t, Cpu, DEVICE>::empty(vec![]).unwrap();
                     ret.as_raw_mut()[0] = self;
                     return ret;
                 }
             }
-            impl Into<Tensor<$t>> for $t {
-                fn into(self) -> Tensor<$t> {
+            impl<const DEVICE: usize> Into<Tensor<$t, Cpu, DEVICE>> for $t {
+                fn into(self) -> Tensor<$t, Cpu, DEVICE> {
                     Tensor {
                         inner: Arc::new(self.into()),
                     }
@@ -48,7 +48,7 @@ macro_rules! impl_type_num {
 
     (vec, $($t:ident),*) => {
         $(
-            impl From<Vec<$t>> for _Tensor<$t> {
+            impl<const DEVICE: usize> From<Vec<$t>> for _Tensor<$t, Cpu, DEVICE> {
                 fn from(data: Vec<$t>) -> Self {
                     let mut ptr = data.as_ptr() as *mut $t;
                     let length = data.len();
@@ -78,7 +78,7 @@ macro_rules! impl_type_num {
                     };
                 }
             }
-            impl From<Vec<$t>> for Tensor<$t> {
+            impl<const DEVICE: usize> From<Vec<$t>> for Tensor<$t, Cpu, DEVICE> {
                 fn from(data: Vec<$t>) -> Self {
                     Tensor {
                         inner: Arc::new(data.into()),
@@ -88,7 +88,7 @@ macro_rules! impl_type_num {
         )*
     };
     (ndarray, $($generic:ident),*; $($vars:ident),*; $ct:ident, $($t:ident),*) => {
-            impl<$(const $generic: usize), *> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for _Tensor<$ct> {
+            impl<$(const $generic: usize), *, const DEVICE: usize> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for _Tensor<$ct, Cpu, DEVICE> {
                 fn from(data: repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
                     let mut vec: Vec<$ct> = Vec::with_capacity(repeate_generic!(operations, *, $($generic), *));
                     let shape = Shape::from(vec![$($generic as i64), *]);
@@ -122,7 +122,7 @@ macro_rules! impl_type_num {
                     };
                 }
             }
-            impl<$(const $generic: usize), *> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct> {
+            impl<$(const $generic: usize), *, const DEVICE: usize> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct, Cpu, DEVICE> {
                 fn from(data: repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
                     Tensor {
                         inner: Arc::new(data.into()),
@@ -132,7 +132,7 @@ macro_rules! impl_type_num {
             impl_type_num!(ndarray, $($generic), *; $($vars), *; $($t),*);
     };
     (ndarray, $($generic:ident),*; $($vars:ident),*; $ct:ident) => {
-        impl<$(const $generic: usize), *> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for _Tensor<$ct> {
+        impl<$(const $generic: usize), *, const DEVICE: usize> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for _Tensor<$ct, Cpu, DEVICE> {
             fn from(data: repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
                 let mut vec: Vec<$ct> = Vec::with_capacity(repeate_generic!(operations, *, $($generic), *));
                 let shape = Shape::from(vec![$($generic as i64), *]);
@@ -167,7 +167,7 @@ macro_rules! impl_type_num {
                 };
             }
         }
-        impl<$(const $generic: usize), *> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct> {
+        impl<$(const $generic: usize), *, const DEVICE: usize> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct, Cpu, DEVICE> {
             fn from(data: repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
                 Tensor {
                     inner: Arc::new(data.into()),
@@ -184,7 +184,7 @@ macro_rules! impl_type_num {
         $ct:ident,
         $($t:ident),*
     ) => {
-        impl<$(const $generic: usize), *> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for _Tensor<$ct> {
+        impl<$(const $generic: usize), *, const DEVICE: usize> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for _Tensor<$ct, Cpu, DEVICE> {
             fn from(data: repeate_generic!(nested_array_type, $($generic), *; $source)) -> Self {
                 let mut vec: Vec<$ct> = Vec::with_capacity(repeate_generic!(operations, *, $($generic), *));
                 let shape = vec![$($generic as i64), *];
@@ -218,7 +218,7 @@ macro_rules! impl_type_num {
                 };
             }
         }
-        impl<$(const $generic: usize), *> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for Tensor<$ct> {
+        impl<$(const $generic: usize), *, const DEVICE: usize> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for Tensor<$ct, Cpu, DEVICE> {
             fn from(data: repeate_generic!(nested_array_type, $($generic), *; $source)) -> Self {
                 Tensor {
                     inner: Arc::new(data.into()),
@@ -228,7 +228,7 @@ macro_rules! impl_type_num {
         impl_type_num!(ndarray_source_target, $source, $($generic), *; $($vars), *; $($t),*);
     };
     (ndarray_source_target, $source:ident, $($generic:ident),*; $($vars:ident),*; $ct:ident) => {
-    impl<$(const $generic: usize), *> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for _Tensor<$ct> {
+    impl<$(const $generic: usize), *, const DEVICE: usize> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for _Tensor<$ct, Cpu, DEVICE> {
         fn from(data: repeate_generic!(nested_array_type, $($generic), *; $source)) -> Self {
             let mut vec: Vec<$ct> = Vec::with_capacity(repeate_generic!(operations, *, $($generic), *));
             let shape = Shape::from(vec![$($generic as i64), *]);
@@ -263,7 +263,7 @@ macro_rules! impl_type_num {
             };
         }
     }
-    impl<$(const $generic: usize), *> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for Tensor<$ct> {
+    impl<$(const $generic: usize), *, const DEVICE: usize> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for Tensor<$ct, Cpu, DEVICE> {
         fn from(data: repeate_generic!(nested_array_type, $($generic), *; $source)) -> Self {
             Tensor {
                     inner: Arc::new(data.into()),
@@ -273,7 +273,7 @@ macro_rules! impl_type_num {
     };
 
     (ndarray_ref, $($generic:ident),*; $($vars:ident),*; $ct:ident, $($t:ident),*) => {
-        impl<$(const $generic: usize), *> From<&repeate_generic!(nested_array_type, $($generic), *; $ct)> for _Tensor<$ct> {
+        impl<$(const $generic: usize), *, const DEVICE: usize> From<&repeate_generic!(nested_array_type, $($generic), *; $ct)> for _Tensor<$ct, Cpu, DEVICE> {
             fn from(data: &repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
                 let mut vec: Vec<$ct> = Vec::with_capacity(repeate_generic!(operations, *, $($generic), *));
                 let shape = Shape::from(vec![$($generic as i64), *]);
@@ -308,7 +308,7 @@ macro_rules! impl_type_num {
                 };
             }
         }
-        impl<$(const $generic: usize), *> From<&repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct> {
+        impl<$(const $generic: usize), *, const DEVICE: usize> From<&repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct, Cpu, DEVICE> {
             fn from(data: &repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
                 Tensor {
                     inner: Arc::new(data.into()),
@@ -318,7 +318,7 @@ macro_rules! impl_type_num {
         impl_type_num!(ndarray_ref, $($generic), *; $($vars), *; $($t),*);
     };
     (ndarray_ref, $($generic:ident),*; $($vars:ident),*; $ct:ident) => {
-        impl<$(const $generic: usize), *> From<&repeate_generic!(nested_array_type, $($generic), *; $ct)> for _Tensor<$ct> {
+        impl<$(const $generic: usize), *, const DEVICE: usize> From<&repeate_generic!(nested_array_type, $($generic), *; $ct)> for _Tensor<$ct, Cpu, DEVICE> {
             fn from(data: &repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
                 let mut vec: Vec<$ct> = Vec::with_capacity(repeate_generic!(operations, *, $($generic), *));
                 let shape = Shape::from(vec![$($generic as i64), *]);
@@ -353,7 +353,7 @@ macro_rules! impl_type_num {
                 };
             }
         }
-        impl<$(const $generic: usize), *> From<&repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct> {
+        impl<$(const $generic: usize), *, const DEVICE: usize> From<&repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct, Cpu, DEVICE> {
             fn from(data: &repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
                 Tensor {
                     inner: Arc::new(data.into()),

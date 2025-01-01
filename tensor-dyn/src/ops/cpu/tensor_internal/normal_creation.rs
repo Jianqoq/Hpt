@@ -16,8 +16,8 @@ use tensor_types::{
     type_promote::NormalOut,
 };
 
-impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
-    type Output = _Tensor<T>;
+impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, DEVICE> {
+    type Output = _Tensor<T, Cpu, DEVICE>;
     fn empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
@@ -96,9 +96,9 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let size = end.to_i64() - start.to_i64();
         let start = start.into_scalar();
         if size <= 0 {
-            return _Tensor::<T, Cpu>::empty(Arc::new(vec![0]));
+            return _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![0]));
         }
-        let mut data: _Tensor<T> = _Tensor::<T, Cpu>::empty(Arc::new(vec![size]))?;
+        let mut data: _Tensor<T, Cpu, DEVICE> = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![size]))?;
 
         data.as_raw_mut()
             .into_par_iter()
@@ -117,7 +117,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let end_usize = end.to_i64();
         let start_usize = start.to_i64();
         let size = ((end_usize - start_usize) as usize) / (step_float.abs() as usize);
-        let mut data = _Tensor::<T, Cpu>::empty(Arc::new(vec![size as i64]))?;
+        let mut data = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![size as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
@@ -132,7 +132,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         u8: IntoScalar<T>,
     {
         let shape = vec![n as i64, m as i64];
-        let mut res = _Tensor::<T, Cpu>::empty(Arc::new(shape))?;
+        let mut res = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(shape))?;
         res.as_raw_mut()
             .into_par_iter()
             .enumerate()
@@ -171,7 +171,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let step_t: T = step.into_scalar();
         let start_t: T = start.into_scalar();
         let end_t: T = end.into_scalar();
-        let mut data = _Tensor::<T, Cpu>::empty(Arc::new(vec![n as i64]))?;
+        let mut data = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![n as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
@@ -204,7 +204,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             (_end - _start) / n
         };
         let step_t = T::_from(step);
-        let mut data = _Tensor::<T, Cpu>::empty(Arc::new(vec![n as i64]))?;
+        let mut data = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![n as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
@@ -231,7 +231,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             geomspace_preprocess_start_step(start_f64, end_f64, n, include_end)?;
         let start_t: T = new_start.into_scalar();
         let step_t: T = step.into_scalar();
-        let mut data = _Tensor::<T>::empty(Arc::new(vec![n as i64]))?;
+        let mut data = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![n as i64]))?;
         if both_negative {
             data.as_raw_mut()
                 .into_par_iter()
@@ -259,7 +259,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         u8: IntoScalar<T>,
     {
         let shape = vec![n as i64, m as i64];
-        let mut res = _Tensor::<T, Cpu>::empty(Arc::new(shape))?;
+        let mut res = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(shape))?;
         if low_triangle {
             res.as_raw_mut()
                 .into_par_iter()
@@ -301,13 +301,13 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                 ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into(),
             );
         }
-        let mask: _Tensor<bool> = _Tensor::<bool>::tri(
+        let mask: _Tensor<bool, Cpu, DEVICE> = _Tensor::<bool, Cpu, DEVICE>::tri(
             self.shape()[self.shape().len() - 2] as usize,
             self.shape()[self.shape().len() - 1] as usize,
             k,
             true,
         )?;
-        let res: _Tensor<T> = self.clone() * mask;
+        let res: _Tensor<T, Cpu, DEVICE> = self.clone() * mask;
         Ok(res)
     }
 
@@ -321,13 +321,13 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                 ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into(),
             );
         }
-        let mask: _Tensor<bool> = _Tensor::<bool>::tri(
+        let mask: _Tensor<bool, Cpu, DEVICE> = _Tensor::<bool, Cpu, DEVICE>::tri(
             self.shape()[self.shape().len() - 2] as usize,
             self.shape()[self.shape().len() - 1] as usize,
             k,
             false,
         )?;
-        let res = self.clone() * mask;
+        let res: _Tensor<T, Cpu, DEVICE> = self.clone() * mask;
         Ok(res)
     }
 
@@ -335,6 +335,6 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
     where
         u8: IntoScalar<T>,
     {
-        _Tensor::eye(n, n, 0)
+        _Tensor::<T, Cpu, DEVICE>::eye(n, n, 0)
     }
 }

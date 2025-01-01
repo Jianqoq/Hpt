@@ -1,13 +1,19 @@
+use std::marker::PhantomData;
 use std::{fmt::Display, sync::atomic::Ordering, sync::Arc};
 
+use crate::CompressionAlgo;
 use crate::Cpu;
 use crate::{tensor_base::_Tensor, Backend, Tensor, ALIGN, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION};
+use num::traits::ToBytes;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
 use tensor_allocator::CACHE;
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
+use tensor_dataloader::data_loader::TensorMeta;
+use tensor_dataloader::struct_save::save::{save, Save};
+use tensor_dataloader::{DataLoader, Endian, Meta};
 use tensor_display::display;
 use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
@@ -15,7 +21,7 @@ use tensor_traits::TensorCreator;
 use tensor_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
 use tensor_types::{convertion::Convertor, into_scalar::IntoScalar};
 
-impl<T> TensorLike<T> for _Tensor<T>
+impl<T, const DEVICE: usize> TensorLike<T> for _Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds,
 {
@@ -48,7 +54,7 @@ where
     }
 }
 
-impl<T> TensorInfo<T> for _Tensor<T>
+impl<T, const DEVICE: usize> TensorInfo<T> for _Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds,
 {
@@ -78,7 +84,7 @@ where
     }
 }
 
-impl<T> TensorInfo<T> for &_Tensor<T>
+impl<T, const DEVICE: usize> TensorInfo<T> for &_Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds,
 {
@@ -115,7 +121,7 @@ where
     }
 }
 
-impl<T: CommonBounds> TensorAlloc for _Tensor<T> {
+impl<T: CommonBounds, const DEVICE: usize> TensorAlloc for _Tensor<T, Cpu, DEVICE> {
     type Meta = T;
     fn _empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler>
     where
@@ -125,17 +131,18 @@ impl<T: CommonBounds> TensorAlloc for _Tensor<T> {
     }
 }
 
-impl<T: CommonBounds> TensorIterator<'_, T> for _Tensor<T> {}
+impl<T: CommonBounds, const DEVICE: usize> TensorIterator<'_, T> for _Tensor<T, Cpu, DEVICE> {}
 
-impl<T: CommonBounds> _Tensor<T> {
+impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     /// cast the tensor to the new type
-    pub fn astype<U>(&self) -> std::result::Result<_Tensor<U>, ErrHandler>
+    pub fn astype<U>(&self) -> std::result::Result<_Tensor<U, Cpu, DEVICE>, ErrHandler>
     where
         U: CommonBounds,
         T: IntoScalar<U>,
     {
         // Create an empty tensor of the new type with the same shape.
-        let mut ret: _Tensor<U> = _Tensor::<U>::empty(self.layout.shape().clone())?;
+        let mut ret: _Tensor<U, Cpu, DEVICE> =
+            _Tensor::<U, Cpu, DEVICE>::empty(self.layout.shape().clone())?;
 
         // Parallel iteration to convert and copy each element to the new tensor.
         ret.as_raw_mut()
@@ -148,7 +155,7 @@ impl<T: CommonBounds> _Tensor<T> {
     }
 
     /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
-    pub fn try_astype<U>(&self) -> std::result::Result<_Tensor<U>, ErrHandler>
+    pub fn try_astype<U>(&self) -> std::result::Result<_Tensor<U, Cpu, DEVICE>, ErrHandler>
     where
         U: CommonBounds,
         T: IntoScalar<U>,
@@ -161,7 +168,7 @@ impl<T: CommonBounds> _Tensor<T> {
     }
 
     /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
-    pub fn static_cast<Dst>(&self) -> std::result::Result<_Tensor<Dst>, ErrHandler>
+    pub fn static_cast<Dst>(&self) -> std::result::Result<_Tensor<Dst, Cpu, DEVICE>, ErrHandler>
     where
         Dst: CommonBounds,
     {
@@ -200,7 +207,7 @@ impl<T: CommonBounds> _Tensor<T> {
     }
 
     /// check if two tensors are close to each other
-    pub fn allclose<U: CommonBounds>(&self, other: &_Tensor<U>) -> bool
+    pub fn allclose<U: CommonBounds>(&self, other: &_Tensor<U, Cpu, DEVICE>) -> bool
     where
         T: Convertor,
         U: Convertor,
@@ -222,9 +229,9 @@ impl<T: CommonBounds> _Tensor<T> {
     }
 }
 
-impl<T: CommonBounds> Tensor<T> {
+impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     /// cast the tensor to the new type
-    pub fn astype<U>(&self) -> anyhow::Result<Tensor<U>>
+    pub fn astype<U>(&self) -> anyhow::Result<Tensor<U, Cpu, DEVICE>>
     where
         U: CommonBounds,
         T: IntoScalar<U>,
@@ -233,7 +240,7 @@ impl<T: CommonBounds> Tensor<T> {
     }
 
     /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
-    pub fn try_astype<U>(&self) -> anyhow::Result<Tensor<U>>
+    pub fn try_astype<U>(&self) -> anyhow::Result<Tensor<U, Cpu, DEVICE>>
     where
         U: CommonBounds,
         T: IntoScalar<U>,
@@ -242,7 +249,7 @@ impl<T: CommonBounds> Tensor<T> {
     }
 
     /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
-    pub fn static_cast<Dst>(&self) -> anyhow::Result<Tensor<Dst>>
+    pub fn static_cast<Dst>(&self) -> anyhow::Result<Tensor<Dst, Cpu, DEVICE>>
     where
         Dst: CommonBounds,
     {
@@ -250,7 +257,7 @@ impl<T: CommonBounds> Tensor<T> {
     }
 
     /// check if two tensors are close to each other
-    pub fn allclose<U: CommonBounds>(&self, other: &Tensor<U>) -> bool
+    pub fn allclose<U: CommonBounds>(&self, other: &Tensor<U, Cpu, DEVICE>) -> bool
     where
         T: Convertor,
         U: Convertor,
@@ -259,7 +266,43 @@ impl<T: CommonBounds> Tensor<T> {
     }
 }
 
-impl<T> Display for _Tensor<T>
+impl<const N: usize, T: CommonBounds + ToBytes<Bytes = [u8; N]>, const DEVICE: usize> Save
+    for Tensor<T, Cpu, DEVICE>
+{
+    type Meta = TensorMeta<T, Self>;
+    fn __save(
+        data: &Self,
+        file: &mut std::fs::File,
+        len_so_far: &mut usize,
+        global_cnt: &mut usize,
+        compression_algo: Option<CompressionAlgo>,
+        endian: Option<Endian>,
+    ) -> std::io::Result<Self::Meta> {
+        let data_loader: DataLoader<T> = data.clone().into();
+        let meta = Meta {
+            name: "".to_string(),
+            compression_algo: compression_algo.unwrap_or(CompressionAlgo::NoCompression),
+            endian: endian.unwrap_or(Endian::Native),
+            data_saver: Box::new(data_loader),
+            compression_level: 9,
+        };
+        let info = save(file, meta, len_so_far, *global_cnt)?;
+        *global_cnt += 1;
+        Ok(TensorMeta {
+            begin: info.0,
+            shape: info.2,
+            strides: info.3,
+            size: info.4,
+            dtype: info.5,
+            compression_algo: info.6,
+            endian: info.7,
+            indices: info.8,
+            phantom: PhantomData,
+        })
+    }
+}
+
+impl<T, const DEVICE: usize> Display for _Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds + Convertor,
 {
@@ -270,7 +313,7 @@ where
     }
 }
 
-impl<T> std::fmt::Debug for _Tensor<T>
+impl<T, const DEVICE: usize> std::fmt::Debug for _Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds + Convertor,
 {
@@ -281,17 +324,17 @@ where
     }
 }
 
-impl<T> Into<Tensor<T>> for _Tensor<T> {
-    fn into(self) -> Tensor<T> {
+impl<T, const DEVICE: usize> Into<Tensor<T, Cpu, DEVICE>> for _Tensor<T, Cpu, DEVICE> {
+    fn into(self) -> Tensor<T, Cpu, DEVICE> {
         Tensor { inner: self.into() }
     }
 }
 
-impl<T> Into<_Tensor<T>> for &_Tensor<T>
+impl<T, const DEVICE: usize> Into<_Tensor<T, Cpu, DEVICE>> for &_Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds,
 {
-    fn into(self) -> _Tensor<T> {
+    fn into(self) -> _Tensor<T, Cpu, DEVICE> {
         _Tensor {
             data: self.data.clone(),
             parent: self.parent.clone(),
@@ -302,16 +345,16 @@ where
     }
 }
 
-impl<T> Into<Tensor<T>> for &Tensor<T> {
-    fn into(self) -> Tensor<T> {
+impl<T, const DEVICE: usize> Into<Tensor<T, Cpu, DEVICE>> for &Tensor<T, Cpu, DEVICE> {
+    fn into(self) -> Tensor<T, Cpu, DEVICE> {
         Tensor {
             inner: self.inner.clone(),
         }
     }
 }
 
-impl<'a, T> Into<_Tensor<T>> for &'a [T] {
-    fn into(self) -> _Tensor<T> {
+impl<'a, T, const DEVICE: usize> Into<_Tensor<T, Cpu, DEVICE>> for &'a [T] {
+    fn into(self) -> _Tensor<T, Cpu, DEVICE> {
         let shape = vec![self.len() as i64];
         let strides = vec![1];
         let layout = Layout::new(shape, strides);

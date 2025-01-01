@@ -34,6 +34,8 @@ mod binary_float_out;
 mod conv2d;
 mod float_unary;
 mod from_scalar;
+mod into_cuda_scalar;
+mod into_scalar;
 mod into_vec;
 mod kernel_gen_helper;
 mod normal_out;
@@ -48,13 +50,11 @@ mod simd_float_out_unary;
 mod simd_normal_out;
 mod simd_normal_unary;
 mod type_utils;
-mod into_cuda_scalar;
-mod into_scalar;
 
 use crate::simd_cmp::impl_simd_cmp;
 use crate::simd_normal_out::impl_simd_normal_out;
 use proc_macro2::{TokenStream as TokenStream2, TokenTree};
-use quote::quote;
+use quote::{format_ident, quote};
 use type_utils::TypeInfo;
 
 /// number of registers available for the target architecture
@@ -806,4 +806,129 @@ pub fn dwconv2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn maxpool2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
     conv2d::maxpool2d_microkernel_gen_results(input)
+}
+
+/// generate save trait
+#[proc_macro_derive(Save)]
+pub fn impl_save(input: TokenStream) -> TokenStream {
+    let ast = syn::parse_macro_input!(input as syn::DeriveInput);
+    let name = &ast.ident;
+    let meta_name = format_ident!("{}Meta", name);
+
+    let fields = match &ast.data {
+        syn::Data::Struct(s) => &s.fields,
+        _ => panic!("Save can only be derived for structs"),
+    };
+
+    let meta_fields = fields.iter().map(|f| {
+        let name = &f.ident;
+        let ty = &f.ty;
+        quote! {
+            pub #name: <#ty as Save>::Meta
+        }
+    });
+
+    let call_save = fields.iter().enumerate().map(|(idx, f)| {
+        let name = &f.ident;
+        let ty = &f.ty;
+        let ident = format_ident!("field_{}", idx);
+        if let Some(name) = name {
+            quote! {
+                let #ident = <#ty as Save>::__save(&data.#name, file, len_so_far, global_cnt, compression_algo, endian)?;
+            }
+        } else {
+            quote! {
+                let #ident = <#ty as Save>::__save(&data.#idx, file, len_so_far, global_cnt, compression_algo, endian)?;
+            }
+        }
+    });
+
+    let construct_fields = fields.iter().enumerate().map(|(idx, f)| {
+        let name = &f.ident;
+        let ident = format_ident!("field_{}", idx);
+        quote! {
+            #name: #ident
+        }
+    });
+
+    let expanded = quote! {
+        #[derive(serde::Deserialize, serde::Serialize)]
+        struct #meta_name {
+            #(#meta_fields,)*
+        }
+        impl Save for #name {
+            type Meta = #meta_name;
+            fn __save(
+                data: &Self,
+                file: &mut std::fs::File,
+                len_so_far: &mut usize,
+                global_cnt: &mut usize,
+                compression_algo: Option<tensor_dyn::CompressionAlgo>,
+                endian: Option<tensor_dyn::Endian>,
+            ) -> std::io::Result<Self::Meta> {
+                #(#call_save)*
+                Ok(Self::Meta {
+                    #(#construct_fields),*
+                })
+            }
+        }
+    };
+
+    expanded.into()
+}
+
+/// generate save trait
+#[proc_macro_derive(Load)]
+pub fn impl_load(input: TokenStream) -> TokenStream {
+    let ast = syn::parse_macro_input!(input as syn::DeriveInput);
+    let name = &ast.ident;
+    let meta_name = format_ident!("{}Meta", name);
+
+    let fields = match &ast.data {
+        syn::Data::Struct(s) => &s.fields,
+        _ => panic!("Load can only be derived for structs"),
+    };
+
+    let call_load = fields.iter().enumerate().map(|(idx, f)| {
+        let name = &f.ident;
+        let ident = format_ident!("field_{}", idx);
+        if let Some(name) = name {
+            quote! {
+                let #ident = self.#name.load(file)?;
+            }
+        } else {
+            quote! {
+                let #ident = self.#idx.load(file)?;
+            }
+        }
+    });
+
+    let construct_fields = fields.iter().enumerate().map(|(idx, f)| {
+        let name = &f.ident;
+        let ident = format_ident!("field_{}", idx);
+        quote! {
+            #name: #ident
+        }
+    });
+
+    let expanded = quote! {
+        impl MetaLoad for #meta_name {
+            type Output = #name;
+            fn load(&self, file: &mut std::fs::File) -> std::io::Result<Self::Output> {
+                #(#call_load)*
+                Ok(#name {
+                    #(#construct_fields),*
+                })
+            }
+        }
+        impl Load for #name {
+            fn load(path: &str) -> std::io::Result<Self> {
+                let meta = parse_header_compressed::<Self>(path).expect(format!("failed to parse header for {}", stringify!(#name)).as_str());
+                let mut file = File::open(path)?;
+                meta.load(&mut file)
+            }
+        }
+    };
+
+    expanded.into()
 }

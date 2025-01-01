@@ -31,7 +31,7 @@ where
     pub(crate) inner: Arc<_Tensor<T, B, DEVICE_ID>>,
 }
 
-impl<T> TensorLike<T> for Tensor<T>
+impl<T, const DEVICE: usize> TensorLike<T> for Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds,
 {
@@ -52,7 +52,7 @@ where
 
 impl<T: CommonBounds> TensorIterator<'_, T> for Tensor<T> {}
 
-impl<T> TensorInfo<T> for Tensor<T>
+impl<T, const DEVICE: usize> TensorInfo<T> for Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds,
 {
@@ -89,7 +89,7 @@ where
     }
 }
 
-impl<T> TensorInfo<T> for &Tensor<T>
+impl<T, const DEVICE: usize> TensorInfo<T> for &Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds,
 {
@@ -126,7 +126,7 @@ where
     }
 }
 
-impl<T: CommonBounds> TensorAlloc for Tensor<T> {
+impl<T: CommonBounds, const DEVICE: usize> TensorAlloc for Tensor<T, Cpu, DEVICE> {
     type Meta = T;
     fn _empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler>
     where
@@ -136,7 +136,7 @@ impl<T: CommonBounds> TensorAlloc for Tensor<T> {
     }
 }
 
-impl<T> Display for Tensor<T>
+impl<T, const DEVICE: usize> Display for Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds + Convertor,
 {
@@ -147,7 +147,7 @@ where
     }
 }
 
-impl<T> Debug for Tensor<T>
+impl<T, const DEVICE: usize> Debug for Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds + Convertor,
 {

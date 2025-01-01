@@ -7,6 +7,14 @@ pub use flate2::write::{DeflateEncoder, GzEncoder, ZlibEncoder};
 pub use tensor_macros::*;
 pub use data_loader::Endian;
 pub use compression_trait::CompressionAlgo;
+pub use struct_save::gen_header;
+pub use compression_trait::Meta;
+pub use compression_trait::DataLoaderTrait;
+pub mod struct_save {
+    pub mod gen_header;
+    pub mod save;
+    pub mod load;
+}
 
 pub(crate) mod save;
 pub(crate) mod load;

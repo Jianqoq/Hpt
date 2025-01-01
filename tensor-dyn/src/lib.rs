@@ -254,6 +254,7 @@ pub mod to_tensor;
 use ctor::ctor;
 pub use tensor_iterator::iterator_traits::*;
 pub use tensor_iterator::TensorIterator;
+pub use tensor_types::dtype::Dtype;
 
 pub use crate::backend::*;
 pub use flate2;

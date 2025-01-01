@@ -8,8 +8,8 @@ use tensor_types::{
     type_promote::NormalOut,
 };
 
-impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
-    type Output = Tensor<T>;
+impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, DEVICE> {
+    type Output = Tensor<T, Cpu, DEVICE>;
     /// Creates a tensor with uninitialized elements of the specified shape.
     ///
     /// This function allocates memory for a tensor of the given shape, but the values are uninitialized, meaning they may contain random data.
@@ -32,7 +32,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// let a = Tensor::<f64>::empty([2, 3]);
     /// ```
     fn empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, ErrHandler> {
-        Ok(_Tensor::<T, Cpu>::empty(shape)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::empty(shape)?.into())
     }
 
     /// Creates a tensor filled with zeros of the specified shape.
@@ -57,7 +57,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// let a = Tensor::<f64>::zeros([2, 3]);
     /// ```
     fn zeros<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, ErrHandler> {
-        Ok(_Tensor::<T, Cpu>::zeros(shape)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::zeros(shape)?.into())
     }
 
     /// Creates a tensor filled with ones of the specified shape.
@@ -85,7 +85,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     where
         u8: IntoScalar<T>,
     {
-        Ok(_Tensor::<T, Cpu>::ones(shape)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::ones(shape)?.into())
     }
 
     /// Creates a tensor with uninitialized elements, having the same shape as the input tensor.
@@ -192,7 +192,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     /// let a = Tensor::<f64>::full(3.0, [2, 3]);
     /// ```
     fn full<S: Into<Shape>>(val: T, shape: S) -> std::result::Result<Self::Output, ErrHandler> {
-        Ok(_Tensor::<T, Cpu>::full(val, shape)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::full(val, shape)?.into())
     }
 
     /// Creates a tensor filled with a specified value, having the same shape as the input tensor.
@@ -249,7 +249,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
         usize: IntoScalar<T>,
         U: Convertor + IntoScalar<T> + Copy,
     {
-        Ok(_Tensor::<T, Cpu>::arange(start, end)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::arange(start, end)?.into())
     }
 
     /// Creates a tensor with values within a specified range with a given step size.
@@ -280,7 +280,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     where
         T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>,
     {
-        Ok(_Tensor::<T, Cpu>::arange_step(start, end, step)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::arange_step(start, end, step)?.into())
     }
 
     /// Creates a 2D identity matrix with ones on a diagonal and zeros elsewhere.
@@ -310,7 +310,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     where
         u8: IntoScalar<T>,
     {
-        Ok(_Tensor::<T, Cpu>::eye(n, m, k)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::eye(n, m, k)?.into())
     }
 
     /// Creates a tensor with evenly spaced values between `start` and `end`.
@@ -350,7 +350,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
         usize: IntoScalar<T>,
         f64: IntoScalar<T>,
     {
-        Ok(_Tensor::<T, Cpu>::linspace(start, end, num, include_end)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::linspace(start, end, num, include_end)?.into())
     }
 
     /// Creates a tensor with logarithmically spaced values between `start` and `end`.
@@ -389,7 +389,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     where
         T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64> + NormalOut<T, Output = T>,
     {
-        Ok(_Tensor::<T, Cpu>::logspace(start, end, num, include_end, base)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::logspace(start, end, num, include_end, base)?.into())
     }
 
     /// Creates a tensor with geometrically spaced values between `start` and `end`.
@@ -427,7 +427,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
         f64: IntoScalar<T>,
         usize: IntoScalar<T>,
     {
-        Ok(_Tensor::<T, Cpu>::geomspace(start, end, n, include_end)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::geomspace(start, end, n, include_end)?.into())
     }
 
     /// Creates a 2D triangular matrix of size `n` by `m`, with ones below or on the `k`th diagonal and zeros elsewhere.
@@ -463,7 +463,7 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     where
         u8: IntoScalar<T>,
     {
-        Ok(_Tensor::<T, Cpu>::tri(n, m, k, low_triangle)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::tri(n, m, k, low_triangle)?.into())
     }
 
     /// Returns the lower triangular part of the matrix, with all elements above the `k`th diagonal set to zero.
@@ -551,6 +551,6 @@ impl<T: CommonBounds> TensorCreator<T> for Tensor<T> {
     where
         u8: IntoScalar<T>,
     {
-        Ok(_Tensor::<T, Cpu>::identity(n)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::identity(n)?.into())
     }
 }

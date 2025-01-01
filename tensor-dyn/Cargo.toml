@@ -40,6 +40,7 @@ regex = { version = "1.11.1", optional = true }
 bindgen_cuda = { version = "0.1.5", optional = true }
 phf = { version = "0.11.1", optional = true }
 xxhash-rust = { version = "0.8.12", optional = true, features = ["xxh64"] }
+serde = "1.0.217"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 raw-cpuid = { version = "11.2.0", default-features = false }
