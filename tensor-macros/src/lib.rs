@@ -877,7 +877,7 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
     expanded.into()
 }
 
-/// generate save trait
+/// generate load trait
 #[proc_macro_derive(Load)]
 pub fn impl_load(input: TokenStream) -> TokenStream {
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
