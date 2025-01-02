@@ -267,7 +267,9 @@ pub use tensor_codegen::fuse_proc_macro;
 pub use tensor_common::slice::Slice;
 pub use tensor_dataloader::data_loader::parse_header_compressed;
 pub(crate) use tensor_dataloader::save;
-pub use tensor_dataloader::{CompressionAlgo, Endian, Load, MetaLoad, Save};
+pub use tensor_dataloader::{
+    CompressionAlgo, DataLoader, Endian, Load, MetaLoad, Save, TensorLoader, TensorSaver,
+};
 pub use tensor_macros::match_selection;
 pub use tensor_traits::*;
 pub use tensor_types::dtype::TypeCommon;

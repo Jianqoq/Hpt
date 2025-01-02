@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::{collections::HashMap, io::Write};
 
 use num::traits::{FromBytes, ToBytes};
 use serde::{Deserialize, Serialize};
@@ -6,7 +6,11 @@ use tensor_common::{shape::Shape, slice::Slice, strides::Strides};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 use tensor_types::dtype::Dtype;
 
-use crate::{data_loader::Endian, load::load_compressed_slice, save::save};
+use crate::{
+    data_loader::{Endian, HeaderInfo},
+    load::load_compressed_slice,
+    save::save,
+};
 
 pub trait CompressionTrait {
     fn write_all_data(&mut self, buf: &[u8]) -> std::io::Result<()>;
@@ -197,7 +201,7 @@ impl TensorLoader {
         self
     }
 
-    pub fn load<T, B, const N: usize>(self) -> std::io::Result<Vec<B>>
+    pub fn load<T, B, const N: usize>(self) -> std::io::Result<HashMap<String, B>>
     where
         T: CommonBounds + FromBytes<Bytes = [u8; N]>,
         B: TensorCreator<T, Output = B> + Clone + TensorInfo<T>,
@@ -205,6 +209,21 @@ impl TensorLoader {
         let res = load_compressed_slice::<T, B, N>(
             self.file_path.to_str().unwrap().into(),
             self.to_loads.expect("no tensors to load"),
+        )
+        .expect("failed to load tensor");
+        Ok(res)
+    }
+
+    pub fn load_all<T, B, const N: usize>(self) -> std::io::Result<HashMap<String, B>>
+    where
+        T: CommonBounds + FromBytes<Bytes = [u8; N]>,
+        B: TensorCreator<T, Output = B> + Clone + TensorInfo<T>,
+    {
+        let res = HeaderInfo::parse_header_compressed(self.file_path.to_str().unwrap().into())
+            .expect("failed to parse header");
+        let res = load_compressed_slice::<T, B, N>(
+            self.file_path.to_str().unwrap().into(),
+            res.into_values().map(|x| (x.name, vec![])).collect(),
         )
         .expect("failed to load tensor");
         Ok(res)

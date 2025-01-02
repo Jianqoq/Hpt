@@ -928,8 +928,6 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
         }
     };
 
-    println!("expanded: {:?}", expanded.to_string());
-
     expanded.into()
 }
 

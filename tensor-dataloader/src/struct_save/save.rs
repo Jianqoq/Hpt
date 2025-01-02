@@ -238,7 +238,7 @@ pub fn save(
     file.write_all(format!("FASTTENSOR{:20}", current_pos).as_bytes())?;
     file.seek(std::io::SeekFrom::Start(current_pos))?;
     let length = *len;
-    *len += attributes.last().unwrap().1 + attributes.last().unwrap().2;
+    *len = len_so_far;
     info.8 = attributes;
     info.0 = length;
 
