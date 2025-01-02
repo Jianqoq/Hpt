@@ -809,7 +809,7 @@ pub fn maxpool2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
 }
 
 /// generate save trait
-#[proc_macro_derive(Save)]
+#[proc_macro_derive(Save, attributes(compress))]
 pub fn impl_save(input: TokenStream) -> TokenStream {
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
     let name = &ast.ident;
@@ -820,25 +820,76 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
         _ => panic!("Save can only be derived for structs"),
     };
 
-    let meta_fields = fields.iter().map(|f| {
-        let name = &f.ident;
-        let ty = &f.ty;
-        quote! {
-            pub #name: <#ty as Save>::Meta
-        }
-    });
+    let mut compressions = vec![];
+    let mut endians = vec![];
+    let mut compress_levels = vec![];
+
+    let meta_fields = fields
+        .iter()
+        .map(|f| {
+            let mut compression_algo = None;
+            let mut endian = None;
+            let mut level = None;
+
+            for attr in &f.attrs {
+                if attr.path().is_ident("compress") {
+                    attr.parse_nested_meta(|meta| {
+                        if meta.path.is_ident("algo") {
+                            let value: syn::LitStr = meta.value()?.parse()?;
+                            let algo = match value.value().as_str().to_lowercase().as_str() {
+                                "gzip" => quote!(Gzip),
+                                "deflate" => quote!(Deflate),
+                                "zlib" => quote!(Zlib),
+                                "none" => quote!(NoCompression),
+                                _ => panic!("Unsupported compression algorithm, supported: gzip, deflate, zlib, none"),
+                            };
+                            compression_algo = Some(quote!(tensor_dyn::CompressionAlgo::#algo));
+                        } else if meta.path.is_ident("level") {
+                            let value: syn::LitStr = meta.value()?.parse()?;
+                            let tmp: u32 = value.value().parse().map_err(|e| {
+                                syn::Error::new(value.span(), format!("Invalid level: {}", e))
+                            })?;
+                            level = Some(quote!(#tmp));
+                        } else if meta.path.is_ident("endian") {
+                            let value: syn::LitStr = meta.value()?.parse()?;
+                            let tmp = match value.value().as_str() {
+                                "native" => quote!(Native),
+                                "little" => quote!(Little),
+                                "big" => quote!(Big),
+                                _ => panic!("Unsupported endianness, supported: native, little, big"),
+                            };
+                            endian = Some(quote!(tensor_dyn::Endian::#tmp));
+                        }
+                        Ok(())
+                    })
+                    .unwrap();
+                }
+            }
+            compressions.push(compression_algo);
+            endians.push(endian);
+            compress_levels.push(level);
+            let name = &f.ident;
+            let ty = &f.ty;
+            quote! {
+                pub #name: <#ty as Save>::Meta
+            }
+        })
+        .collect::<Vec<_>>();
 
     let call_save = fields.iter().enumerate().map(|(idx, f)| {
         let name = &f.ident;
         let ty = &f.ty;
         let ident = format_ident!("field_{}", idx);
+        let compression_algo = compressions[idx].clone().unwrap_or(quote!(compression_algo));
+        let endian = endians[idx].clone().unwrap_or(quote!(endian));
+        let level = compress_levels[idx].clone().unwrap_or(quote!(level));
         if let Some(name) = name {
             quote! {
-                let #ident = <#ty as Save>::__save(&data.#name, file, len_so_far, global_cnt, compression_algo, endian)?;
+                let #ident = <#ty as Save>::__save(&data.#name, file, len_so_far, global_cnt, #compression_algo, #endian, #level)?;
             }
         } else {
             quote! {
-                let #ident = <#ty as Save>::__save(&data.#idx, file, len_so_far, global_cnt, compression_algo, endian)?;
+                let #ident = <#ty as Save>::__save(&data.#idx, file, len_so_far, global_cnt, #compression_algo, #endian, #level)?;
             }
         }
     });
@@ -863,8 +914,9 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
                 file: &mut std::fs::File,
                 len_so_far: &mut usize,
                 global_cnt: &mut usize,
-                compression_algo: Option<tensor_dyn::CompressionAlgo>,
-                endian: Option<tensor_dyn::Endian>,
+                compression_algo: tensor_dyn::CompressionAlgo,
+                endian: tensor_dyn::Endian,
+                level: u32,
             ) -> std::io::Result<Self::Meta> {
                 #(#call_save)*
                 Ok(Self::Meta {

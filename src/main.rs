@@ -12,7 +12,9 @@ struct SubModel {
 
 #[derive(Save, Load)]
 struct Model {
+    #[compress(algo = "deflate", level = "9")]
     pub tensor: Tensor<f32>,
+    #[compress(algo = "gzip", level = "5", endian = "native")]
     pub sub_model: SubModel,
     pub eps: f32,
 }

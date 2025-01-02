@@ -14,12 +14,24 @@ pub trait Save {
         file: &mut std::fs::File,
         len_so_far: &mut usize,
         global_cnt: &mut usize,
-        compression_algo: Option<CompressionAlgo>,
-        endian: Option<Endian>,
+        compression_algo: CompressionAlgo,
+        endian: Endian,
+        level: u32,
     ) -> std::io::Result<Self::Meta>;
-    fn save(&self, path: &str) -> std::io::Result<()> where <Self as Save>::Meta: serde::Serialize {
+    fn save(&self, path: &str) -> std::io::Result<()>
+    where
+        <Self as Save>::Meta: serde::Serialize,
+    {
         let mut file = std::fs::File::create(path)?;
-        let meta = <Self as Save>::__save(&self, &mut file, &mut 0, &mut 0, None, None)?;
+        let meta = <Self as Save>::__save(
+            &self,
+            &mut file,
+            &mut 0,
+            &mut 0,
+            CompressionAlgo::NoCompression,
+            Endian::Native,
+            9,
+        )?;
         let serialized = serde_json::to_string(&meta)?;
         file.write_all(serialized.as_bytes())?;
         Ok(())
@@ -311,8 +323,9 @@ macro_rules! impl_save {
                 _: &mut std::fs::File,
                 _: &mut usize,
                 _: &mut usize,
-                _: Option<CompressionAlgo>,
-                _: Option<Endian>,
+                _: CompressionAlgo,
+                _: Endian,
+                _: u32,
             ) -> std::io::Result<Self> {
                 Ok(*data)
             }

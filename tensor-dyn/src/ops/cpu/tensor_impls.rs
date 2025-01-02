@@ -275,16 +275,17 @@ impl<const N: usize, T: CommonBounds + ToBytes<Bytes = [u8; N]>, const DEVICE: u
         file: &mut std::fs::File,
         len_so_far: &mut usize,
         global_cnt: &mut usize,
-        compression_algo: Option<CompressionAlgo>,
-        endian: Option<Endian>,
+        compression_algo: CompressionAlgo,
+        endian: Endian,
+        level: u32,
     ) -> std::io::Result<Self::Meta> {
         let data_loader: DataLoader<T> = data.clone().into();
         let meta = Meta {
             name: "".to_string(),
-            compression_algo: compression_algo.unwrap_or(CompressionAlgo::NoCompression),
-            endian: endian.unwrap_or(Endian::Native),
+            compression_algo,
+            endian,
             data_saver: Box::new(data_loader),
-            compression_level: 9,
+            compression_level: level,
         };
         let info = save(file, meta, len_so_far, *global_cnt)?;
         *global_cnt += 1;
