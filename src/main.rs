@@ -175,5 +175,6 @@ impl ResNet {
 }
 
 fn main() -> anyhow::Result<()> {
+    let resnet = ResNet::load("resnet.bin")?;
     Ok(())
 }
