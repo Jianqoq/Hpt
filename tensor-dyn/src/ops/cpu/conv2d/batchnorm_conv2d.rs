@@ -61,7 +61,7 @@ where
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         activation: Option<fn(T::Vec) -> T::Vec>,
-    ) -> anyhow::Result<_Tensor<T>> {
+    ) -> std::result::Result<_Tensor<T>, ErrHandler> {
         let img_shape = self.shape();
         if img_shape.len() != 4 {
             return Err(ErrHandler::Conv2dImgShapeInCorrect(
@@ -1410,7 +1410,7 @@ where
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         activation: Option<fn(T::Vec) -> T::Vec>,
-    ) -> anyhow::Result<Tensor<T>> {
+    ) -> std::result::Result<Tensor<T>, ErrHandler> {
         Ok(self
             .inner
             .batchnorm_conv2d(

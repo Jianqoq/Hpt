@@ -6,6 +6,7 @@ use crate::Endian;
 use crate::{compression_trait::CompressionTrait, CHUNK_BUFF};
 use flate2::write::{DeflateEncoder, GzEncoder};
 use indicatif::ProgressBar;
+use tensor_common::shape::Shape;
 use tensor_types::dtype::Dtype;
 
 pub trait Save {
@@ -328,7 +329,7 @@ macro_rules! impl_save {
                 _: Endian,
                 _: u32,
             ) -> std::io::Result<Self> {
-                Ok(*data)
+                Ok(data.clone())
             }
         }
     };
@@ -345,6 +346,10 @@ impl_save!(u32);
 impl_save!(u64);
 impl_save!(f32);
 impl_save!(f64);
+impl_save!(usize);
+impl_save!(isize);
+impl_save!(String);
+impl_save!(Shape);
 
 impl<T> Save for PhantomData<T> {
     type Meta = Self;
@@ -358,5 +363,58 @@ impl<T> Save for PhantomData<T> {
         _: u32,
     ) -> std::io::Result<Self> {
         Ok(*data)
+    }
+}
+
+impl<T: Save> Save for Option<T> {
+    type Meta = Option<T::Meta>;
+    fn __save(
+        data: &Self,
+        file: &mut std::fs::File,
+        len: &mut usize,
+        global_cnt: &mut usize,
+        compression_algo: CompressionAlgo,
+        endian: Endian,
+        level: u32,
+    ) -> std::io::Result<Self::Meta> {
+        match data {
+            Some(x) => Ok(Some(T::__save(
+                x,
+                file,
+                len,
+                global_cnt,
+                compression_algo,
+                endian,
+                level,
+            )?)),
+            None => Ok(None),
+        }
+    }
+}
+
+impl<T: Save> Save for Vec<T> {
+    type Meta = Vec<T::Meta>;
+    fn __save(
+        data: &Self,
+        file: &mut std::fs::File,
+        len: &mut usize,
+        global_cnt: &mut usize,
+        compression_algo: CompressionAlgo,
+        endian: Endian,
+        level: u32,
+    ) -> std::io::Result<Self::Meta> {
+        let mut res = Vec::with_capacity(data.len());
+        for i in 0..data.len() {
+            res.push(T::__save(
+                &data[i],
+                file,
+                len,
+                global_cnt,
+                compression_algo,
+                endian,
+                level,
+            )?);
+        }
+        Ok(res)
     }
 }

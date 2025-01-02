@@ -1,10 +1,12 @@
 use std::{
     fs::File,
     io::{Read, Seek},
+    marker::PhantomData,
 };
 
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
 use num::traits::FromBytes;
+use tensor_common::shape::Shape;
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 
 use crate::{
@@ -125,11 +127,11 @@ pub trait MetaLoad: Sized {
 }
 
 macro_rules! impl_load {
-    ($struct:ident) => {
-        impl MetaLoad for $struct {
+    ($struct:ty $(, $generics:tt)*) => {
+        impl<$($generics)*> MetaLoad for $struct {
             type Output = $struct;
             fn load(&self, _: &mut std::fs::File) -> std::io::Result<Self::Output> {
-                Ok(*self)
+                Ok(self.clone())
             }
         }
     };
@@ -146,9 +148,29 @@ impl_load!(u64);
 impl_load!(i64);
 impl_load!(f32);
 impl_load!(f64);
-impl<T> MetaLoad for std::marker::PhantomData<T> {
-    type Output = std::marker::PhantomData<T>;
-    fn load(&self, _: &mut std::fs::File) -> std::io::Result<Self::Output> {
-        Ok(std::marker::PhantomData)
+impl_load!(usize);
+impl_load!(isize);
+impl_load!(String);
+impl_load!(Shape);
+impl_load!(PhantomData<T>, T);
+
+impl<T: MetaLoad> MetaLoad for Option<T> {
+    type Output = Option<T::Output>;
+    fn load(&self, file: &mut std::fs::File) -> std::io::Result<Self::Output> {
+        match self {
+            Some(x) => Ok(Some(T::load(x, file)?)),
+            None => Ok(None),
+        }
+    }
+}
+
+impl<T: MetaLoad> MetaLoad for Vec<T> {
+    type Output = Vec<T::Output>;
+    fn load(&self, file: &mut std::fs::File) -> std::io::Result<Self::Output> {
+        let mut res = Vec::with_capacity(self.len());
+        for i in 0..self.len() {
+            res.push(T::load(&self[i], file)?);
+        }
+        Ok(res)
     }
 }

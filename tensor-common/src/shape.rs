@@ -1,12 +1,14 @@
 use std::{ fmt::Display, ops::{ Deref, DerefMut }, sync::Arc };
 
+use serde::{Deserialize, Serialize};
+
 use crate::{ strides::Strides, strides_utils::shape_to_strides };
 
 /// Represents the shape of a multi-dimensional structure, such as a tensor or an array.
 ///
 /// # Note
 /// User don't need to use it directly, the convertion happens right after the user passes the shape data to the functions.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Shape {
     /// inner data of the shape
     inner: Arc<Vec<i64>>,
