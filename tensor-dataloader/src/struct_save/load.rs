@@ -174,3 +174,18 @@ impl<T: MetaLoad> MetaLoad for Vec<T> {
         Ok(res)
     }
 }
+
+impl<T: MetaLoad, const N: usize> MetaLoad for [T; N] {
+    type Output = [T::Output; N];
+    fn load(&self, file: &mut std::fs::File) -> std::io::Result<Self::Output> {
+        let mut arr: [std::mem::MaybeUninit<T::Output>; N] =
+            unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+        for i in 0..N {
+            arr[i] = std::mem::MaybeUninit::new(T::load(&self[i], file)?);
+        }
+        Ok(unsafe {
+            let ptr = &arr as *const _ as *const [T::Output; N];
+            ptr.read()
+        })
+    }
+}

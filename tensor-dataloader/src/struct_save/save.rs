@@ -418,3 +418,39 @@ impl<T: Save> Save for Vec<T> {
         Ok(res)
     }
 }
+
+impl<T: Save, const N: usize> Save for [T; N]
+where
+    [T::Meta; N]: for<'a> serde::Deserialize<'a>,
+{
+    type Meta = [T::Meta; N];
+    fn __save(
+        data: &Self,
+        file: &mut std::fs::File,
+        len: &mut usize,
+        global_cnt: &mut usize,
+        compression_algo: CompressionAlgo,
+        endian: Endian,
+        level: u32,
+    ) -> std::io::Result<Self::Meta> {
+        let mut arr: [std::mem::MaybeUninit<T::Meta>; N] =
+            unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+
+        for i in 0..N {
+            arr[i] = std::mem::MaybeUninit::new(T::__save(
+                &data[i],
+                file,
+                len,
+                global_cnt,
+                compression_algo,
+                endian,
+                level,
+            )?);
+        }
+
+        Ok(unsafe { 
+            let ptr = &arr as *const _ as *const [T::Meta; N];
+            ptr.read()
+        })
+    }
+}

@@ -68,24 +68,13 @@ impl MaxPool2d {
 }
 
 #[derive(Save, Load)]
-pub struct AvgPool2d {
-    kernel_size: Shape,
-    stride: usize,
-    padding: usize,
-    dilation: usize,
+pub struct AdaptiveAvgPool2d {
+    kernel_size: [i64; 2],
 }
 
-impl AvgPool2d {
+impl AdaptiveAvgPool2d {
     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-        Ok(x.avgpool2d(
-            &self.kernel_size,
-            [self.stride as i64, self.stride as i64],
-            [
-                (self.padding as i64, self.padding as i64),
-                (self.padding as i64, self.padding as i64),
-            ],
-            [self.dilation as i64, self.dilation as i64],
-        )?)
+        Ok(x.adaptive_avgpool2d(self.kernel_size)?)
     }
 }
 
@@ -156,7 +145,7 @@ pub struct ResNet {
     layer2: Sequential,
     layer3: Sequential,
     layer4: Sequential,
-    avg_pool: AvgPool2d,
+    avg_pool: AdaptiveAvgPool2d,
     fc: Linear,
 }
 
@@ -667,11 +656,8 @@ fn create_resnet() -> ResNet {
         ],
     };
 
-    let avg_pool = AvgPool2d {
-        kernel_size: Shape::new([7, 7]),
-        stride: 1,
-        padding: 0,
-        dilation: 1,
+    let avg_pool = AdaptiveAvgPool2d {
+        kernel_size: [1, 1]
     };
 
     let fc = Linear {
