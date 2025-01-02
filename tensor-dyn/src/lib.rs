@@ -29,6 +29,8 @@ pub mod ops {
             pub mod dwconv2d;
             /// a module defines maxpool2d operation
             pub mod max_pool;
+            /// a module defines adaptive_avg_pool2d operation
+            pub mod adaptive_avg_pool;
         }
         /// a module defines reduce kernels
         pub mod argreduce_kernels;

@@ -137,29 +137,7 @@ fn test_case1() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_case2() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 20, 20])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    Ok(())
-}
-
-#[test]
 fn test_case3() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 20, 20])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    Ok(())
-}
-
-#[test]
-fn test_case4() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 20, 20])?;
     assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
     assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
@@ -172,28 +150,6 @@ fn test_case4() -> anyhow::Result<()> {
 #[test]
 fn test_case5() -> anyhow::Result<()> {
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 19, 19])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    Ok(())
-}
-
-#[test]
-fn test_case6() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 20, 20])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    Ok(())
-}
-
-#[test]
-fn test_case7() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 20, 20])?;
     assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
     assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
     let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 5, 5])?;
