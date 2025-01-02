@@ -678,8 +678,16 @@ fn create_resnet() -> ResNet {
 }
 
 fn main() -> anyhow::Result<()> {
-    let resnet = create_resnet();
-    resnet.save("resnet.model")?;
+    // let resnet = create_resnet();
+    // resnet.save("resnet.model")?;
     let data = ResNet::load("resnet.model")?;
+
+    let input = Tensor::<f32>::randn(&[2, 3, 224, 224])?;
+
+    let now = std::time::Instant::now();
+    let output = data.forward(&input)?;
+    println!("time: {:?}", now.elapsed());
+    println!("{}", output);
+
     Ok(())
 }
