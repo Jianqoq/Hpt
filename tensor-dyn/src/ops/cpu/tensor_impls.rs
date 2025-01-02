@@ -12,7 +12,7 @@ use tensor_allocator::CACHE;
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_dataloader::data_loader::TensorMeta;
-use tensor_dataloader::struct_save::save::{save, Save};
+use crate::{save, Save};
 use tensor_dataloader::{DataLoader, Endian, Meta};
 use tensor_display::display;
 use tensor_iterator::iterator_traits::ParStridedIteratorZip;

@@ -146,3 +146,9 @@ impl_load!(u64);
 impl_load!(i64);
 impl_load!(f32);
 impl_load!(f64);
+impl<T> MetaLoad for std::marker::PhantomData<T> {
+    type Output = std::marker::PhantomData<T>;
+    fn load(&self, _: &mut std::fs::File) -> std::io::Result<Self::Output> {
+        Ok(std::marker::PhantomData)
+    }
+}

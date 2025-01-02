@@ -815,6 +815,8 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
     let name = &ast.ident;
     let meta_name = format_ident!("{}Meta", name);
 
+    let visibility = &ast.vis;
+    let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
     let fields = match &ast.data {
         syn::Data::Struct(s) => &s.fields,
         _ => panic!("Save can only be derived for structs"),
@@ -904,11 +906,11 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         #[derive(serde::Deserialize, serde::Serialize)]
-        struct #meta_name {
+        #visibility struct #meta_name #ty_generics #where_clause  {
             #(#meta_fields,)*
         }
-        impl Save for #name {
-            type Meta = #meta_name;
+        impl #impl_generics Save for #name #ty_generics #where_clause {
+            type Meta = #meta_name #ty_generics;
             fn __save(
                 data: &Self,
                 file: &mut std::fs::File,
@@ -926,6 +928,8 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
         }
     };
 
+    println!("expanded: {:?}", expanded.to_string());
+
     expanded.into()
 }
 
@@ -935,6 +939,7 @@ pub fn impl_load(input: TokenStream) -> TokenStream {
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
     let name = &ast.ident;
     let meta_name = format_ident!("{}Meta", name);
+    let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
 
     let fields = match &ast.data {
         syn::Data::Struct(s) => &s.fields,
@@ -964,8 +969,8 @@ pub fn impl_load(input: TokenStream) -> TokenStream {
     });
 
     let expanded = quote! {
-        impl MetaLoad for #meta_name {
-            type Output = #name;
+        impl #impl_generics MetaLoad for #meta_name #ty_generics #where_clause {
+            type Output = #name #ty_generics;
             fn load(&self, file: &mut std::fs::File) -> std::io::Result<Self::Output> {
                 #(#call_load)*
                 Ok(#name {
@@ -973,7 +978,7 @@ pub fn impl_load(input: TokenStream) -> TokenStream {
                 })
             }
         }
-        impl Load for #name {
+        impl #impl_generics Load for #name #ty_generics #where_clause {
             fn load(path: &str) -> std::io::Result<Self> {
                 let meta = parse_header_compressed::<Self>(path).expect(format!("failed to parse header for {}", stringify!(#name)).as_str());
                 let mut file = File::open(path)?;

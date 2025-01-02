@@ -1,4 +1,5 @@
 use std::io::{Seek, Write};
+use std::marker::PhantomData;
 
 use crate::compression_trait::{CompressionAlgo, DataLoaderTrait, Meta};
 use crate::Endian;
@@ -317,7 +318,7 @@ fn get_unpack_closure(endian: Endian) -> impl Fn(&mut Box<dyn DataLoaderTrait>, 
 macro_rules! impl_save {
     ($struct:ident) => {
         impl Save for $struct {
-            type Meta = $struct;
+            type Meta = Self;
             fn __save(
                 data: &Self,
                 _: &mut std::fs::File,
@@ -344,3 +345,18 @@ impl_save!(u32);
 impl_save!(u64);
 impl_save!(f32);
 impl_save!(f64);
+
+impl<T> Save for PhantomData<T> {
+    type Meta = Self;
+    fn __save(
+        data: &Self,
+        _: &mut std::fs::File,
+        _: &mut usize,
+        _: &mut usize,
+        _: CompressionAlgo,
+        _: Endian,
+        _: u32,
+    ) -> std::io::Result<Self> {
+        Ok(*data)
+    }
+}

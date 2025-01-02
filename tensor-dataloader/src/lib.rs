@@ -10,14 +10,17 @@ pub use compression_trait::CompressionAlgo;
 pub use struct_save::gen_header;
 pub use compression_trait::Meta;
 pub use compression_trait::DataLoaderTrait;
-pub mod struct_save {
+pub use struct_save::save::Save;
+pub use struct_save::load::{Load, MetaLoad};
+pub use struct_save::save::save;
+mod struct_save {
     pub mod gen_header;
     pub mod save;
     pub mod load;
 }
 
-pub(crate) mod save;
-pub(crate) mod load;
-pub(crate) mod utils;
+pub mod save;
+pub mod load;
+pub mod utils;
 
 pub(crate) const CHUNK_BUFF: usize = 1024 * 1024;
