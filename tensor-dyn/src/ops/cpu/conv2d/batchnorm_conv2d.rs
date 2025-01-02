@@ -80,9 +80,11 @@ where
         let in_channels = kernel_shape[2];
         let out_channels = kernel_shape[3];
         if in_channels != img_channels {
-            panic!(
-                "The number of input channels in the image must be equal to the number of input channels in the kernel."
-            );
+            return Err(ErrHandler::Conv2dChannelNotMatch(
+                in_channels,
+                img_channels,
+                core::panic::Location::caller(),
+            ));
         }
         let (step_width, step_height) = (steps[0], steps[1]);
         let ((ph_start, ph_end), (pw_start, pw_end)) = (padding[0], padding[1]);

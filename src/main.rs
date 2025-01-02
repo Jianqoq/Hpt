@@ -21,6 +21,7 @@ pub struct Conv2dBatchNorm {
 }
 
 impl Conv2dBatchNorm {
+    #[track_caller]
     pub fn forward(
         &self,
         x: &Tensor<f32>,
@@ -113,14 +114,14 @@ pub struct BasicBlock {
 
 impl BasicBlock {
     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-        let x = if let Some(downsample) = &self.downsample {
+        let identity = if let Some(downsample) = &self.downsample {
             downsample.forward(&x)?
         } else {
             x.clone()
         };
         let out = self.bn_conv1.forward(&x, |x| x.relu())?;
         let out = self.bn_conv2.forward(&out, |x| x)?;
-        Ok((x + out).relu()?)
+        Ok((identity + out).relu()?)
     }
 }
 
@@ -169,7 +170,10 @@ fn create_resnet() -> ResNet {
     let data = loader
         .load_all::<f32, Tensor<f32>, 4>()
         .expect("failed to load data");
-    let conv1_weight = data["conv1_weight.txt"].clone();
+    let conv1_weight = data["conv1_weight.txt"]
+        .clone()
+        .permute([2, 3, 1, 0])
+        .expect("permute failed");
     let bn1_beta = data["bn1_bias.txt"].clone();
     let bn1_running_mean = data["bn1_running_mean.txt"].clone();
     let bn1_running_gamma = data["bn1_weight.txt"].clone();
@@ -215,7 +219,10 @@ fn create_resnet() -> ResNet {
     ) -> BasicBlock {
         BasicBlock {
             bn_conv1: Conv2dBatchNorm {
-                weight: data[weight].clone(),
+                weight: data[weight]
+                    .clone()
+                    .permute([2, 3, 1, 0])
+                    .expect("permute failed"),
                 bias: None,
                 running_mean: data[running_mean].clone(),
                 running_var: data[running_var].clone(),
@@ -227,7 +234,10 @@ fn create_resnet() -> ResNet {
                 dilation: conv1_dilation,
             },
             bn_conv2: Conv2dBatchNorm {
-                weight: data[conv2_weight].clone(),
+                weight: data[conv2_weight]
+                    .clone()
+                    .permute([2, 3, 1, 0])
+                    .expect("permute failed"),
                 bias: None,
                 running_mean: data[conv2_running_mean].clone(),
                 running_var: data[conv2_running_var].clone(),
@@ -272,7 +282,10 @@ fn create_resnet() -> ResNet {
     ) -> BasicBlock {
         BasicBlock {
             bn_conv1: Conv2dBatchNorm {
-                weight: data[weight].clone(),
+                weight: data[weight]
+                    .clone()
+                    .permute([2, 3, 1, 0])
+                    .expect("permute failed"),
                 bias: None,
                 running_mean: data[running_mean].clone(),
                 running_var: data[running_var].clone(),
@@ -284,7 +297,10 @@ fn create_resnet() -> ResNet {
                 dilation: conv1_dilation,
             },
             bn_conv2: Conv2dBatchNorm {
-                weight: data[conv2_weight].clone(),
+                weight: data[conv2_weight]
+                    .clone()
+                    .permute([2, 3, 1, 0])
+                    .expect("permute failed"),
                 bias: None,
                 running_mean: data[conv2_running_mean].clone(),
                 running_var: data[conv2_running_var].clone(),
@@ -297,7 +313,10 @@ fn create_resnet() -> ResNet {
             },
             downsample: Some(DownSample {
                 conv: Conv2dBatchNorm {
-                    weight: data[downsample_weight].clone(),
+                    weight: data[downsample_weight]
+                        .clone()
+                        .permute([2, 3, 1, 0])
+                        .expect("permute failed"),
                     bias: None,
                     running_mean: data[downsample_running_mean].clone(),
                     running_var: data[downsample_running_var].clone(),
@@ -657,7 +676,7 @@ fn create_resnet() -> ResNet {
     };
 
     let avg_pool = AdaptiveAvgPool2d {
-        kernel_size: [1, 1]
+        kernel_size: [1, 1],
     };
 
     let fc = Linear {
@@ -678,11 +697,11 @@ fn create_resnet() -> ResNet {
 }
 
 fn main() -> anyhow::Result<()> {
-    // let resnet = create_resnet();
-    // resnet.save("resnet.model")?;
+    let resnet = create_resnet();
+    resnet.save("resnet.model")?;
     let data = ResNet::load("resnet.model")?;
 
-    let input = Tensor::<f32>::randn(&[2, 3, 224, 224])?;
+    let input = Tensor::<f32>::randn(&[2, 224, 224, 3])?;
 
     let now = std::time::Instant::now();
     let output = data.forward(&input)?;

@@ -113,6 +113,10 @@ pub enum ErrHandler {
     #[error("invalid input shape, expect shape to be [batch, height, width, channel], but got ndim: {0}, at {1}")]
     Conv2dImgShapeInCorrect(usize, &'static Location<'static>),
 
+    /// used when the conv2d channel not correct
+    #[error("The number of input channels in the image must be equal to the number of input channels in the kernel. expected {0} but got {1}. at {2}")]
+    Conv2dChannelNotMatch(i64, i64, &'static Location<'static>),
+
     /// used when the out pass to the out method is not valid
     #[error("out size is invalid, expect out to be {0} bits but got {1} bits, at {2}")]
     InvalidOutSize(usize, usize, &'static Location<'static>),
