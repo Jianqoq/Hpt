@@ -5,7 +5,7 @@ use crate::{
     tensor::Tensor,
     tensor_base::_Tensor,
 };
-use tensor_common::err_handler::TensorError;
+use tensor_common::error::base::TensorError;
 use tensor_traits::{ CommonBounds, NormalUaryOps, TensorLike };
 use tensor_types::{ into_scalar::IntoScalar, type_promote::NormalOutUnary };
 

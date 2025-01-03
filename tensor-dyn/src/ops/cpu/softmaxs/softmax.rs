@@ -15,7 +15,7 @@ use rayon::iter::{
     IntoParallelRefMutIterator,
     ParallelIterator,
 };
-use tensor_common::{err_handler::TensorError, shape::Shape};
+use tensor_common::{error::base::TensorError, shape::Shape};
 use tensor_traits::{ CommonBounds, TensorInfo, TensorLike };
 use tensor_types::{
     convertion::Convertor,

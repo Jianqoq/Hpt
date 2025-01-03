@@ -1,6 +1,4 @@
-use core::panic::Location;
-
-use crate::err_handler::TensorError;
+use crate::error::{base::TensorError, shape::ShapeError};
 
 /// `Axis` struct to hold the axes for operations
 ///
@@ -45,23 +43,10 @@ pub fn process_axes<T: Into<Axis>>(
     for &axis in axes.iter() {
         if axis < 0 {
             let val = axis + ndim;
-            if val < 0 {
-                return Err(TensorError::IndexOutOfRangeCvt(
-                    ndim as usize,
-                    axis,
-                    val,
-                    Location::caller(),
-                ));
-            }
+            ShapeError::check_index_out_of_range(val, ndim)?;
             new_axes.push(val as usize);
         } else {
-            if axis >= ndim {
-                return Err(TensorError::IndexOutOfRange(
-                    ndim as usize,
-                    axis,
-                    Location::caller(),
-                ));
-            }
+            ShapeError::check_index_out_of_range(axis, ndim)?;
             new_axes.push(axis as usize);
         }
     }

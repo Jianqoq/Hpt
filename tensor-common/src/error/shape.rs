@@ -2,7 +2,7 @@ use std::panic::Location;
 
 use thiserror::Error;
 
-use crate::shape::Shape;
+use crate::{shape::Shape, strides::Strides};
 
 /// Errors related to tensor shapes and dimensions
 #[derive(Debug, Error)]
@@ -40,9 +40,9 @@ pub enum ShapeError {
     #[error("Matrix multiplication shape mismatch: lhs shape {lhs:?}, rhs shape {rhs:?}, expected rhs shape [{expected}, N] at {location}")]
     MatmulMismatch {
         /// Left-hand side shape
-        lhs: [i64; 2],
+        lhs: Shape,
         /// Right-hand side shape
-        rhs: [i64; 2],
+        rhs: Shape,
         /// Expected shape for the right-hand side
         expected: i64,
         /// Location where the error occurred
@@ -56,6 +56,17 @@ pub enum ShapeError {
         expected: usize,
         /// Actual dimension
         actual: usize,
+        /// Location where the error occurred
+        location: &'static Location<'static>,
+    },
+
+    /// Error that occurs when the dimension is out of range
+    #[error("Dimension out of range: expected in {expected:?}, got {actual} at {location}")]
+    DimOutOfRange {
+        /// Expected range
+        expected: std::ops::Range<i64>,
+        /// Actual dimension
+        actual: i64,
         /// Location where the error occurred
         location: &'static Location<'static>,
     },
@@ -81,17 +92,73 @@ pub enum ShapeError {
         /// Location where error occurred
         location: &'static Location<'static>,
     },
+
+    /// Error that occurs when the number of dimensions of a tensor is less than the expected value
+    #[error("Ndim not enough: expected greater than {expected}, got {actual} at {location}")]
+    NdimNotEnough {
+        /// Expected dimension
+        expected: usize,
+        /// Actual dimension
+        actual: usize,
+        /// Location where error occurred
+        location: &'static Location<'static>,
+    },
+
+    /// Error that occurs when the axis is not 1
+    #[error("Squeeze error: axis {axis} is not 1, shape {shape}, at {location}")]
+    SqueezeError {
+        /// Axis that is not 1
+        axis: usize,
+        /// Shape of the tensor
+        shape: Shape,
+        /// Location where error occurred
+        location: &'static Location<'static>,
+    },
+
+    /// Error that occurs when the tensor is not contiguous
+    #[error("Tensor is not contiguous, got shape {shape:?}, strides {strides:?}, at {location}")]
+    ContiguousError {
+        /// Shape of the tensor
+        shape: Shape,
+        /// Strides of the tensor
+        strides: Strides,
+        /// Location where error occurred
+        location: &'static Location<'static>,
+    },
+
+    /// Error that occurs when the input shape is invalid for conv2d
+    #[error("Conv error: {message} at {location}")]
+    ConvError {
+        /// Message describing the invalid input shape
+        message: String,
+        /// Location where error occurred
+        location: &'static Location<'static>,
+    },
+
+    /// Error that occurs when the topk operation is invalid
+    #[error("Topk error: {message} at {location}")]
+    TopkError {
+        /// Message describing the invalid topk operation
+        message: String,
+        /// Location where error occurred
+        location: &'static Location<'static>,
+    },
 }
 
 impl ShapeError {
     /// Check if the shapes of two tensors match for matrix multiplication
     pub fn check_matmul(lhs: &Shape, rhs: &Shape) -> Result<(), Self> {
-        unimplemented!()
-    }
-
-    /// Check if the shapes of two tensors match for broadcasting
-    pub fn check_broadcast(lhs: &Shape, rhs: &Shape) -> Result<(), Self> {
-        unimplemented!()
+        let lhs_last = *lhs.last().expect("lhs shape is empty");
+        let rhs_last_sec = rhs[rhs.len() - 2];
+        if lhs_last != rhs_last_sec {
+            return Err(Self::MatmulMismatch {
+                lhs: lhs.clone(),
+                rhs: rhs.clone(),
+                expected: rhs_last_sec,
+                location: Location::caller(),
+            });
+        }
+        Ok(())
     }
 
     /// Check if the dimensions of two tensors match
@@ -103,6 +170,65 @@ impl ShapeError {
                 location: Location::caller(),
             });
         }
+        Ok(())
+    }
+
+    /// Check if the number of dimensions of a tensor is greater than the expected value
+    pub fn check_ndim_enough(expected: usize, actual: usize) -> Result<(), Self> {
+        if expected > actual {
+            return Err(Self::NdimNotEnough {
+                expected,
+                actual,
+                location: Location::caller(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Check if the tensor is contiguous
+    pub fn check_contiguous(layout: &crate::layout::Layout) -> Result<(), Self> {
+        if !layout.is_contiguous() {
+            return Err(Self::ContiguousError {
+                shape: layout.shape().clone(),
+                strides: layout.strides().clone(),
+                location: Location::caller(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Check if the size of two tensors match
+    pub fn check_size_match(expected: i64, actual: i64) -> Result<(), Self> {
+        if expected != actual {
+            return Err(Self::SizeMismatch {
+                expected,
+                actual,
+                location: Location::caller(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Check if the output layout is valid for computation with inplace operation
+    pub fn check_inplace_out_layout_valid(
+        out_shape: &Shape,
+        inplace_layout: &crate::layout::Layout,
+    ) -> Result<(), Self> {
+        Self::check_size_match(out_shape.size(), inplace_layout.size())?;
+        Self::check_contiguous(inplace_layout)?;
+        Ok(())
+    }
+
+    /// Check if the index is out of range
+    pub fn check_index_out_of_range(index: i64, dim: i64) -> Result<(), Self> {
+        if index >= dim || index < 0 {
+            return Err(Self::DimOutOfRange {
+                expected: 0..dim,
+                actual: index,
+                location: Location::caller(),
+            });
+        }
+
         Ok(())
     }
 }

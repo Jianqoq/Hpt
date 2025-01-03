@@ -1,6 +1,6 @@
 use std::panic::Location;
 
-use tensor_common::err_handler::TensorError;
+use tensor_common::error::{base::TensorError, shape::ShapeError};
 use tensor_traits::CommonBounds;
 use tensor_types::{convertion::Convertor, into_scalar::IntoScalar};
 
@@ -22,22 +22,24 @@ where
         } else if start < 0.0 && end < 0.0 {
             (end.abs().log10() - start.abs().log10()) / (float_n - 1.0)
         } else {
-            return Err(TensorError::GeomSpaceStartEndError(
+            return Err(ShapeError::GeomSpaceError {
                 start,
                 end,
-                Location::caller(),
-            ));
+                location: Location::caller(),
+            }
+            .into());
         }
     } else if start >= 0.0 && end > 0.0 {
         (end.log10() - start.log10()) / float_n
     } else if start < 0.0 && end < 0.0 {
         (end.abs().log10() - start.abs().log10()) / float_n
     } else {
-        return Err(TensorError::GeomSpaceStartEndError(
+        return Err(ShapeError::GeomSpaceError {
             start,
             end,
-            Location::caller(),
-        ));
+            location: Location::caller(),
+        }
+        .into());
     };
     let start = if start > 0.0 {
         start.log10()

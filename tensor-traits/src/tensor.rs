@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use std::{borrow::Borrow, fmt::Display};
-use tensor_common::err_handler::TensorError;
+use tensor_common::error::base::TensorError;
 use tensor_common::{axis::Axis, layout::Layout, pointer::Pointer, shape::Shape, strides::Strides};
 #[cfg(feature = "archsimd")]
 use tensor_types::arch_simd as simd;

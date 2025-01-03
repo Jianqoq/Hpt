@@ -2,8 +2,8 @@ use crate::{
     ops::cpu::reduce_utils::{ reduce_prepare, uncontiguous_reduce_prepare },
     tensor_base::_Tensor,
 };
-use tensor_common::err_handler::TensorError;
-use tensor_traits::{ CommonBounds, ShapeManipulate, TensorInfo };
+use tensor_common::error::base::TensorError;
+use tensor_traits::{CommonBounds, ShapeManipulate, TensorInfo};
 use tensor_types::into_scalar::IntoScalar;
 
 /// Performs a reduction operation on a tensor using customizable functions.

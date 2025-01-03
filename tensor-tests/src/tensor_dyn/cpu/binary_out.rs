@@ -387,10 +387,10 @@ fn test_binary_out_invalid_empty() -> anyhow::Result<()> {
     let (_, (a, b)) = common_input([10, 10], [10, 10])?;
     let mut empty = Tensor::<f64>::empty(&[10])?;
     let err = a.add_(&b, &mut empty).unwrap_err();
-    assert!(err.to_string().contains("out size is invalid, expect out to be 800 bits but got 80 bits"));
+    assert!(err.to_string().contains("Size mismatch: expected 100, got 10"));
     let err = tensor_dyn::tensor::Tensor::new(1.0f64).add_(b, &mut empty).unwrap_err();
-    assert!(err.to_string().contains("out size is invalid, expect out to be 800 bits but got 80 bits"));
+    assert!(err.to_string().contains("Size mismatch: expected 100, got 10"));
     let err = a.add_(tensor_dyn::tensor::Tensor::new(1.0f64), &mut empty).unwrap_err();
-    assert!(err.to_string().contains("out size is invalid, expect out to be 800 bits but got 80 bits"));
+    assert!(err.to_string().contains("Size mismatch: expected 100, got 10"));
     Ok(())
 }

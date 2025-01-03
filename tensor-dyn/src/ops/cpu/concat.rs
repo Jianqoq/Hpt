@@ -1,7 +1,7 @@
 use std::panic::Location;
 
 use tensor_common::{
-    err_handler::TensorError, prg_update::next_sub1, shape_utils::mt_intervals, slice::Slice,
+    error::{base::TensorError, shape::ShapeError}, prg_update::next_sub1, shape_utils::mt_intervals, slice::Slice,
 };
 use tensor_traits::{
     shape_manipulate::ShapeManipulate,
@@ -42,17 +42,18 @@ where
     for i in tensors.iter() {
         for (idx, x) in tensors[0].shape().iter().enumerate() {
             if idx != axis && i.shape().len() == tensors[0].shape().len() && *x != i.shape()[idx] {
-                return Err(TensorError::ConcatError(
-                    axis,
-                    *x as usize,
-                    Location::caller(),
-                ));
+                return Err(ShapeError::ConcatDimMismatch {
+                    expected: *x as usize,
+                    actual: i.shape()[idx] as usize,
+                    location: Location::caller(),
+                }
+                .into());
             } else if i.shape().len() != tensors[0].shape().len() {
-                return Err(TensorError::NdimMismatched(
-                    tensors[0].ndim(),
-                    i.ndim(),
-                    Location::caller(),
-                )
+                return Err(ShapeError::NdimNotEnough {
+                    expected: tensors[0].ndim(),
+                    actual: i.ndim(),
+                    location: Location::caller(),
+                }
                 .into());
             }
         }

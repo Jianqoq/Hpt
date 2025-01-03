@@ -1,5 +1,5 @@
 use tensor_common::axis::{ process_axes, Axis };
-use tensor_common::err_handler::TensorError;
+use tensor_common::error::base::TensorError;
 use tensor_traits::{ CommonBounds, IndexReduce, TensorInfo };
 use tensor_types::type_promote::{ Cmp, NormalOut };
 

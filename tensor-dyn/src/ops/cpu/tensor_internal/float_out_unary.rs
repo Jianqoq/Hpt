@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 
-use tensor_common::err_handler::TensorError;
+use tensor_common::error::base::TensorError;
 use tensor_traits::{CommonBounds, FloatUaryOps};
 use tensor_types::traits::VecTrait;
 use tensor_types::{

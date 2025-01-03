@@ -1,6 +1,10 @@
 use std::panic::Location;
 
-use crate::{err_handler::TensorError, shape::Shape, strides::Strides};
+use crate::{
+    error::{base::TensorError, shape::ShapeError},
+    shape::Shape,
+    strides::Strides,
+};
 
 /// Inserts a dimension of size 1 before the specified index in a shape.
 ///
@@ -351,12 +355,13 @@ pub fn predict_broadcast_shape(
         } else if longer_dim == 1 {
             shorter_dim
         } else {
-            return Err(TensorError::BroadcastError(
-                a_shape.into(),
-                b_shape.into(),
-                i,
-                Location::caller(),
-            )
+            return Err(ShapeError::BroadcastError {
+                message: format!(
+                    "broadcast failed at index {}, lhs shape: {:?}, rhs shape: {:?}",
+                    i, a_shape, b_shape
+                ),
+                location: Location::caller(),
+            }
             .into());
         };
     }
@@ -461,12 +466,14 @@ pub fn get_broadcast_axes_from(
         if a_dim == 1 && res_dim != 1 && !padded_axes.contains(&i) {
             axes.push(i);
         } else if res_dim == 1 && a_dim != 1 {
-            return Err(TensorError::BroadcastError(
-                a_shape.into(),
-                res_shape.into(),
-                i,
-                Location::caller(),
-            ));
+            return Err(ShapeError::BroadcastError {
+                message: format!(
+                    "broadcast failed at index {}, lhs shape: {:?}, rhs shape: {:?}",
+                    i, a_shape, res_shape
+                ),
+                location: Location::caller(),
+            }
+            .into());
         }
     }
 

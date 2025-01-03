@@ -1,13 +1,11 @@
-use std::borrow::Borrow;
-use std::panic::Location;
-
 use crate::backend::Cpu;
-use crate::ops::cpu::unary::TensorError::InvalidOutSize;
 use crate::tensor_base::_Tensor;
 use crate::{Tensor, THREAD_POOL};
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::slice::{ParallelSlice, ParallelSliceMut};
-use tensor_common::err_handler::TensorError;
+use std::borrow::Borrow;
+use tensor_common::error::base::TensorError;
+use tensor_common::error::shape::ShapeError;
 use tensor_common::shape_utils::mt_intervals;
 use tensor_iterator::iterator_traits::ParStridedIteratorSimdZip;
 use tensor_iterator::TensorIterator;
@@ -32,16 +30,8 @@ where
     F2: Fn(A) -> K + Sync + Send,
 {
     let mut ret = if let Some(out) = out {
-        if out.borrow().size() * size_of::<K>() == inp.size() * size_of::<A>() {
-            out.borrow().static_cast()?
-        } else {
-            return Err(InvalidOutSize(
-                inp.size() * size_of::<A>(),
-                out.borrow().size() * size_of::<K>(),
-                Location::caller(),
-            )
-            .into());
-        }
+        ShapeError::check_inplace_out_layout_valid(inp.shape(), &out.borrow().layout())?;
+        out.borrow().static_cast()?
     } else {
         _Tensor::<K, Cpu>::empty(inp.shape())?
     };
@@ -133,7 +123,10 @@ where
     match axis.into() {
         Some(axis) => {
             let mut _axis = axis;
-            TensorError::check_index_in_range_mut(a.ndim(), &mut _axis)?;
+            if _axis < 0 {
+                _axis += a.ndim() as i64;
+            }
+            ShapeError::check_index_out_of_range(_axis, a.ndim() as i64)?;
             let stride = a.strides()[_axis as usize];
             let inner_loop = a.shape()[_axis as usize] as usize;
             let outer_loop = a.size() / inner_loop;

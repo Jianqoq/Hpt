@@ -1,7 +1,7 @@
 use std::borrow::BorrowMut;
 
 use rayon::iter::{ IntoParallelRefMutIterator, ParallelIterator };
-use tensor_common::{err_handler::TensorError, pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides };
+use tensor_common::{error::{base::TensorError, shape::ShapeError}, pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides };
 use tensor_traits::{ CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike };
 
 use crate::{ backend::Cpu, tensor_base::_Tensor };
@@ -48,7 +48,7 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds>(
     let res = if let Some(mut out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
-        TensorError::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
+        ShapeError::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
         if init_out {
             out.as_raw_mut()
                 .par_iter_mut()
@@ -92,7 +92,7 @@ pub(crate) fn uncontiguous_reduce_prepare<T: CommonBounds, O: CommonBounds>(
     let res = if let Some(mut out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
-        TensorError::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
+        ShapeError::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
         if init_out {
             out.as_raw_mut()
                 .par_iter_mut()

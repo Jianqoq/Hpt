@@ -1,11 +1,11 @@
 use std::{alloc::Layout, num::NonZeroUsize, panic::Location, sync::Mutex};
 
+use crate::{ptr::SafePtr, storage::cpu::CPU_STORAGE, storage::Storage, traits::Allocator};
 use hashbrown::{HashMap, HashSet};
 use lru::LruCache;
 use once_cell::sync::Lazy;
 use tensor_common::error::base::TensorError;
 use tensor_common::error::memory::MemoryError;
-use crate::{ptr::SafePtr, storage::Storage, storage::cpu::CPU_STORAGE, traits::Allocator};
 
 /// `lru` cache allocator
 pub static CACHE: Lazy<Mutex<CpuAllocator>> = Lazy::new(|| Mutex::new(CpuAllocator::new()));
@@ -28,11 +28,7 @@ pub struct CpuAllocator {
 }
 
 impl Allocator for CpuAllocator {
-    fn allocate(
-        &mut self,
-        layout: Layout,
-        device_id: usize,
-    ) -> Result<*mut u8, TensorError> {
+    fn allocate(&mut self, layout: Layout, device_id: usize) -> Result<*mut u8, TensorError> {
         if let Some(allocator) = self.allocator.get_mut(&device_id) {
             allocator.allocate(layout, device_id)
         } else {
@@ -98,7 +94,11 @@ impl _Allocator {
     /// # Safety
     ///
     /// This function checks `null` ptr internally, any memory allocated through this method, downstream don't need to check for `null` ptr
-    fn allocate(&mut self, layout: Layout, device_id: usize) -> std::result::Result<*mut u8, TensorError> {
+    fn allocate(
+        &mut self,
+        layout: Layout,
+        device_id: usize,
+    ) -> std::result::Result<*mut u8, TensorError> {
         let ptr = if let Some(ptr) = self.cache.get_mut(&layout)
         /*check if we previously allocated same layout of memory */
         {
@@ -108,14 +108,13 @@ impl _Allocator {
             } else {
                 let ptr = unsafe { std::alloc::alloc(layout) };
                 if ptr.is_null() {
-                    return Err(TensorError::Memory(
-                        MemoryError::AllocationFailed {
-                            device: "cpu".to_string(),
-                            id: device_id,
-                            size: layout.size() / 1024 / 1024,
-                            location: Location::caller(),
-                        })
-                    );
+                    return Err(TensorError::Memory(MemoryError::AllocationFailed {
+                        device: "cpu".to_string(),
+                        id: device_id,
+                        size: layout.size() / 1024 / 1024,
+                        source: None,
+                        location: Location::caller(),
+                    }));
                 }
                 self.allocated.insert(SafePtr { ptr });
                 ptr
@@ -123,14 +122,13 @@ impl _Allocator {
         } else {
             let ptr = unsafe { std::alloc::alloc(layout) };
             if ptr.is_null() {
-                return Err(TensorError::Memory(
-                    MemoryError::AllocationFailed {
-                        device: "cpu".to_string(),
-                        id: device_id,
-                        size: layout.size() / 1024 / 1024,
-                        location: Location::caller(),
-                    })
-                );
+                return Err(TensorError::Memory(MemoryError::AllocationFailed {
+                    device: "cpu".to_string(),
+                    id: device_id,
+                    size: layout.size() / 1024 / 1024,
+                    source: None,
+                    location: Location::caller(),
+                }));
             }
             self.allocated.insert(SafePtr { ptr });
             ptr

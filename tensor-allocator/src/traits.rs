@@ -1,6 +1,6 @@
 use std::alloc::Layout;
 
-use tensor_common::err_handler::TensorError;
+use tensor_common::error::base::TensorError;
 
 /// traits for the allocator
 pub trait Allocator {

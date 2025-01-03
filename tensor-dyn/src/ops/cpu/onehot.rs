@@ -1,31 +1,42 @@
-use tensor_common::err_handler::TensorError;
-use tensor_traits::{ CommonBounds, ShapeManipulate, TensorCreator, TensorInfo };
+use tensor_common::error::{base::TensorError, shape::ShapeError};
+use tensor_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo};
 
 use crate::{tensor_base::_Tensor, Tensor};
 
-impl<T> _Tensor<T> where T: CommonBounds {
+impl<T> _Tensor<T>
+where
+    T: CommonBounds,
+{
     pub fn onehot(
         &self,
         depth: usize,
         mut axis: i64,
         _true_val: T,
-        false_val: T
-    ) -> anyhow::Result<Self> {
+        false_val: T,
+    ) -> std::result::Result<Self, TensorError> {
         let mut new_shape = self.shape().inner().clone();
-        TensorError::check_index_in_range_mut(self.ndim(), &mut axis)?;
+        if axis < 0 {
+            axis += self.ndim() as i64;
+        }
+        ShapeError::check_index_out_of_range(axis, self.ndim() as i64)?;
         new_shape.insert(axis as usize, depth as i64);
         let res = _Tensor::<T>::full(false_val, new_shape)?;
         let mut permute_axes = (0..res.ndim()).collect::<Vec<usize>>();
         permute_axes.retain(|x| *x != (axis as usize));
         permute_axes.push(axis as usize);
         let permuted_res = res.permute(permute_axes)?;
-        assert_eq!(&permuted_res.shape()[..res.ndim() - 1], self.shape().inner().as_slice());
+        assert_eq!(
+            &permuted_res.shape()[..res.ndim() - 1],
+            self.shape().inner().as_slice()
+        );
         todo!()
     }
 }
 
-
-impl<T> Tensor<T> where T: CommonBounds {
+impl<T> Tensor<T>
+where
+    T: CommonBounds,
+{
     /// Converts the input tensor into a one-hot encoded tensor along a specified axis.
     ///
     /// This method transforms the input tensor into a one-hot encoded format, where the values
@@ -51,8 +62,8 @@ impl<T> Tensor<T> where T: CommonBounds {
         depth: usize,
         axis: i64,
         _true_val: T,
-        false_val: T
-    ) -> anyhow::Result<Tensor<T>> {
+        false_val: T,
+    ) -> std::result::Result<Tensor<T>, TensorError> {
         Ok(self.inner.onehot(depth, axis, _true_val, false_val)?.into())
     }
 }

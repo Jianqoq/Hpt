@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use tensor_common::err_handler::TensorError;
+use tensor_common::error::base::TensorError;
 use tensor_types::{ dtype::TypeCommon, type_promote::NormalOut };
 
 use crate::tensor::CommonBounds;

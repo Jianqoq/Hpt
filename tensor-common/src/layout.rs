@@ -1,8 +1,6 @@
-use std::panic::Location;
-
 use crate::{
     axis::{process_axes, Axis},
-    err_handler::TensorError,
+    error::{base::TensorError, shape::ShapeError},
     shape::Shape,
     shape_utils::{is_reshape_possible, predict_broadcast_shape},
     strides::Strides,
@@ -178,7 +176,7 @@ impl Layout {
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn permute<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Layout, TensorError> {
         let axes = process_axes(axes, self.shape.len())?;
-        TensorError::check_ndim_match(axes.len(), self.shape.len())?;
+        ShapeError::check_dim(axes.len(), self.shape.len())?;
         let mut new_shape = self.shape().to_vec();
         let mut new_strides = self.strides().to_vec();
         for i in axes.iter() {
@@ -204,7 +202,7 @@ impl Layout {
     /// * `Result<Layout>` - the new layout after inverse permutation
     pub fn permute_inv<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Layout, TensorError> {
         let axes = process_axes(axes, self.shape.len())?;
-        TensorError::check_ndim_match(axes.len(), self.shape.len())?;
+        ShapeError::check_dim(axes.len(), self.shape.len())?;
         let mut new_shape = self.shape().to_vec();
         let mut new_strides = self.strides().to_vec();
         for i in axes.iter() {
@@ -240,13 +238,7 @@ impl Layout {
                 strides: new_strides,
             })
         } else {
-            Err(TensorError::IterInplaceReshapeError(
-                shape.clone(),
-                self.shape.clone(),
-                self.strides.clone(),
-                Location::caller(),
-            )
-            .into())
+            panic!("iterator requires reshape is able to be performed without allocating memory");
         }
     }
 

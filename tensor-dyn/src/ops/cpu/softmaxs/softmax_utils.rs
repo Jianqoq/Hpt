@@ -1,6 +1,6 @@
 use std::borrow::BorrowMut;
 
-use tensor_common::{err_handler::TensorError, pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides};
+use tensor_common::{error::{base::TensorError, shape::ShapeError}, pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides};
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo};
 use tensor_types::into_scalar::IntoScalar;
 
@@ -241,7 +241,7 @@ pub(crate) fn softmax_prepare<T: CommonBounds, O: CommonBounds>(
     let res = if let Some(out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
-        TensorError::check_inplace_out_layout_valid(a.shape(), out.layout())?;
+        ShapeError::check_inplace_out_layout_valid(a.shape(), out.layout())?;
         Ok(out)
     } else {
         _Tensor::<O, Cpu>::empty(a.shape())

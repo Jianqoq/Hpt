@@ -1,6 +1,4 @@
-use std::panic::Location;
-
-use crate::err_handler::TensorError;
+use crate::error::{base::TensorError, shape::ShapeError};
 
 /// Slice enum to hold the slice information
 ///
@@ -82,13 +80,7 @@ pub fn slice_process(
         *x *= alpha;
     });
     let mut res_ptr = 0;
-    if index.len() > res_shape.len() {
-        return Err(TensorError::SliceIndexLengthNotMatch(
-            index.len() as i64,
-            res_shape.len() as i64,
-            Location::caller(),
-        ));
-    }
+    ShapeError::check_dim(res_shape.len(), index.len())?;
     for (idx, slice) in index.iter().enumerate() {
         match slice {
             Slice::From(mut __index) => {
@@ -99,15 +91,7 @@ pub fn slice_process(
                     index = __index + shape[idx];
                 }
                 index *= alpha;
-                if index >= shape[idx] {
-                    return Err(TensorError::SliceIndexOutOfRange(
-                        index,
-                        idx as i64,
-                        shape[idx],
-                        Location::caller(),
-                    )
-                    .into());
-                }
+                ShapeError::check_index_out_of_range(index, shape[idx])?;
                 res_shape[idx] = alpha;
                 res_ptr += res_strides[idx] * index;
             }

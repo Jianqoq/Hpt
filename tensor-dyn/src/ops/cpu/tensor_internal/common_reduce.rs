@@ -4,7 +4,7 @@ use crate::ops::cpu::reduce::{reduce, reduce2, reduce3};
 use crate::ops::cpu::tensor_internal::float_out_unary::FloatBinaryType;
 use crate::tensor_base::_Tensor;
 use tensor_common::axis::{process_axes, Axis};
-use tensor_common::err_handler::TensorError;
+use tensor_common::error::base::TensorError;
 use tensor_iterator::iterator_traits::ParStridedIteratorSimd;
 use tensor_iterator::TensorIterator;
 use tensor_traits::{CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce, TensorInfo};

@@ -9,8 +9,8 @@ use crate::tensor_base::_Tensor;
 use crate::Tensor;
 use crate::REGNUM;
 use rayon::prelude::*;
-use tensor_common::err_handler::TensorError;
-use tensor_common::err_handler::TensorError::InvalidInputShape;
+use tensor_common::error::base::TensorError;
+use tensor_common::error::shape::ShapeError;
 use tensor_common::pointer::Pointer;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
@@ -63,13 +63,7 @@ where
         activation: Option<fn(T::Vec) -> T::Vec>,
     ) -> std::result::Result<_Tensor<T>, TensorError> {
         let img_shape = self.shape();
-        if img_shape.len() != 4 {
-            return Err(TensorError::Conv2dImgShapeInCorrect(
-                img_shape.len(),
-                core::panic::Location::caller(),
-            )
-            .into());
-        }
+        ShapeError::check_dim(4, img_shape.len())?;
         let batch = img_shape[0];
         let img_height = img_shape[1];
         let img_width = img_shape[2];
@@ -80,11 +74,14 @@ where
         let in_channels = kernel_shape[2];
         let out_channels = kernel_shape[3];
         if in_channels != img_channels {
-            return Err(TensorError::Conv2dChannelNotMatch(
-                in_channels,
-                img_channels,
-                core::panic::Location::caller(),
-            ));
+            return Err(ShapeError::ConvError {
+                message: format!(
+                    "kernel in_channel {} not match input in_channel {}",
+                    in_channels, img_channels
+                ),
+                location: core::panic::Location::caller(),
+            }
+            .into());
         }
         let (step_width, step_height) = (steps[0], steps[1]);
         let ((ph_start, ph_end), (pw_start, pw_end)) = (padding[0], padding[1]);
@@ -94,11 +91,15 @@ where
         let out_width = (img_width + pw_start + pw_end - dw * (kw - 1) - 1) / step_width + 1;
         let img = self.clone();
         if out_height <= 0 || out_width <= 0 {
-            return if out_height <= 0 {
-                Err(InvalidInputShape(out_height, core::panic::Location::caller()).into())
-            } else {
-                Err(InvalidInputShape(out_width, core::panic::Location::caller()).into())
-            };
+            return Err(ShapeError::ConvError {
+                message: if out_height <= 0 {
+                    "output height <= 0".to_string()
+                } else {
+                    "output width <= 0".to_string()
+                },
+                location: core::panic::Location::caller(),
+            }
+            .into());
         }
         let activation = activation.unwrap_or(|x| x);
         let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;

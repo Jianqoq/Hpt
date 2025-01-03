@@ -1,4 +1,4 @@
-use tensor_common::{axis::Axis, err_handler::TensorError, shape::Shape};
+use tensor_common::{axis::Axis, error::base::TensorError, shape::Shape};
 
 /// A trait for manipulating the shape of a tensor.
 pub trait ShapeManipulate

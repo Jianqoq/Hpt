@@ -14,6 +14,9 @@ pub enum MemoryError {
         id: usize,
         /// Size of the memory that was attempted to be allocated
         size: usize,
+        /// Source of the error
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
         /// Location where the error occurred
         location: &'static Location<'static>,
     },

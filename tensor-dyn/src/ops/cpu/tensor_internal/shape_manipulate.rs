@@ -1,8 +1,10 @@
 use crate::tensor_base::_Tensor;
 use std::panic::Location;
+use tensor_common::error::param::ParamError;
+use tensor_common::error::shape::ShapeError;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
-use tensor_common::{axis::Axis, err_handler::TensorError, shape::Shape};
+use tensor_common::{axis::Axis, error::base::TensorError, shape::Shape};
 use tensor_macros::match_selection;
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorInfo, TensorLike};
 
@@ -79,11 +81,13 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
     where
         Self::Meta: PartialEq,
     {
-        if !(trim == "fb" || trim == "f" || trim == "b") {
-            return Err(TensorError::TrimError(trim.to_string(), Location::caller()));
-        }
+        ParamError::check_trim(trim)?;
         if self.ndim() > 1 {
-            return Err(TensorError::NdimExceed(1, self.ndim(), Location::caller()).into());
+            return Err(ShapeError::InvalidDimension {
+                message: "trim_zeros only support 1D tensor".to_string(),
+                location: Location::caller(),
+            }
+            .into());
         }
         let stride = self.strides()[0] as isize;
         let raw = self.as_raw();

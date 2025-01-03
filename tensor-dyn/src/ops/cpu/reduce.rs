@@ -9,7 +9,8 @@ use tensor_common::shape::Shape;
 use rayon::iter::ParallelIterator;
 use rayon::iter::{ IndexedParallelIterator, IntoParallelRefMutIterator };
 use rayon::iter::{ IntoParallelIterator, IntoParallelRefIterator };
-use tensor_common::err_handler::TensorError;
+use tensor_common::error::base::TensorError;
+use tensor_common::error::shape::ShapeError;
 use std::sync::Arc;
 use std::sync::Barrier;
 use tensor_common::shape_utils::{ mt_intervals, mt_intervals_simd };
@@ -101,7 +102,7 @@ macro_rules! body_one_axis {
         }
         let res_shape = Arc::new(res_shape);
         if let Some(out) = $c {
-            TensorError::check_inplace_out_layout_valid(&Shape::from(res_shape.clone()), &out.layout())?;
+            ShapeError::check_inplace_out_layout_valid(&Shape::from(res_shape.clone()), &out.layout())?;
             result = out;
             result_size = result.size();
         } else {

@@ -1,6 +1,6 @@
 use std::borrow::{ Borrow, BorrowMut };
 
-use tensor_common::err_handler::TensorError;
+use tensor_common::error::base::TensorError;
 use tensor_types::dtype::TypeCommon;
 
 use crate::tensor::CommonBounds;

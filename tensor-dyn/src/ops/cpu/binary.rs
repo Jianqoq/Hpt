@@ -4,7 +4,7 @@ use std::borrow::Borrow;
 use tensor_traits::{ops::binary::NormalBinOps, tensor::CommonBounds};
 use tensor_types::dtype::TypeCommon;
 use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOut};
-use tensor_common::err_handler::TensorError;
+use tensor_common::error::base::TensorError;
 
 /// a type alias for the output type of the binary operations of `A` and `B`
 pub(crate) type NormalType<A, B> = <A as NormalOut<B>>::Output;

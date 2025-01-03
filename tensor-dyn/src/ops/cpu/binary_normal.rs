@@ -3,10 +3,9 @@ use crate::tensor_base::_Tensor;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
-use tensor_common::err_handler::TensorError;
 use std::borrow::Borrow;
-use std::panic::Location;
-use tensor_common::err_handler::TensorError::InvalidOutSize;
+use tensor_common::error::base::TensorError;
+use tensor_common::error::shape::ShapeError;
 use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
 use tensor_traits::tensor::CommonBounds;
@@ -68,16 +67,9 @@ where
         let val = lhs.as_raw()[0];
         let val_vec = <A as TypeCommon>::Vec::splat(val);
         let mut res = if let Some(out) = out {
-            if out.borrow().size() * size_of::<K>() != rhs.size() * size_of::<B>() {
-                return Err(InvalidOutSize(
-                    rhs.size() * size_of::<B>(),
-                    out.borrow().size() * size_of::<K>(),
-                    Location::caller(),
-                )
-                .into());
-            } else {
-                out.borrow().static_cast::<K>()?
-            }
+            ShapeError::check_inplace_out_layout_valid(rhs.shape(), &out.borrow().layout())?;
+            let out: &_Tensor<K, Cpu, DEVICE> = out.borrow();
+            out.clone()
         } else {
             _Tensor::<K, Cpu, DEVICE>::empty(rhs.shape())?
         };
@@ -139,16 +131,9 @@ where
         let val = rhs.as_raw()[0];
         let val_vec = <B as TypeCommon>::Vec::splat(val);
         let mut res = if let Some(out) = out {
-            if out.borrow().size() * size_of::<K>() != lhs.size() * size_of::<B>() {
-                return Err(InvalidOutSize(
-                    lhs.size() * size_of::<B>(),
-                    out.borrow().size() * size_of::<K>(),
-                    Location::caller(),
-                )
-                .into());
-            } else {
-                _Tensor::<K, Cpu, DEVICE>::empty(lhs.shape())?
-            }
+            ShapeError::check_inplace_out_layout_valid(lhs.shape(), &out.borrow().layout())?;
+            let out: &_Tensor<K, Cpu, DEVICE> = out.borrow();
+            out.clone()
         } else {
             _Tensor::<K, Cpu, DEVICE>::empty(lhs.shape())?
         };
@@ -209,16 +194,9 @@ where
     } else {
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
             let mut ret = if let Some(out) = out {
-                if out.borrow().size() * size_of::<K>() != rhs.size() * size_of::<B>() {
-                    return Err(InvalidOutSize(
-                        rhs.size() * size_of::<B>(),
-                        out.borrow().size() * size_of::<K>(),
-                        Location::caller(),
-                    )
-                    .into());
-                } else {
-                    out.borrow().static_cast::<K>()?
-                }
+                ShapeError::check_inplace_out_layout_valid(rhs.shape(), &out.borrow().layout())?;
+                let out: &_Tensor<K, Cpu, DEVICE> = out.borrow();
+                out.clone()
             } else {
                 _Tensor::<K, Cpu, DEVICE>::empty(rhs.shape())?
             };

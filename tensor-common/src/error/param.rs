@@ -18,7 +18,14 @@ pub enum ParamError {
 impl ParamError {
     /// Check if the trim parameter is valid
     pub fn check_trim(value: &str) -> Result<(), Self> {
-        unimplemented!()
+        if !(value == "fb" || value == "f" || value == "b") {
+            return Err(ParamError::InvalidTrimParam{
+                value: value.to_string(),
+                location: Location::caller(),
+            }
+            .into());
+        }
+        Ok(())
     }
 }
 

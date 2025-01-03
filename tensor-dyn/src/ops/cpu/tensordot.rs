@@ -1,13 +1,12 @@
 use crate::tensor_base::_Tensor;
-use tensor_common::err_handler::TensorError;
+use tensor_common::error::base::TensorError;
+use tensor_common::error::shape::ShapeError;
 use tensor_common::tensordot_args::TensorDotArgs;
 use tensor_traits::ops::binary::Matmul;
 use tensor_traits::shape_manipulate::ShapeManipulate;
 use tensor_traits::tensor::CommonBounds;
 use tensor_traits::tensor::TensorInfo;
 use tensor_types::type_promote::NormalOut;
-
-use std::panic::Location;
 
 pub(crate) fn _tensordot<A, B, G, const N: usize>(
     a: &_Tensor<A>,
@@ -20,7 +19,8 @@ where
     <A as NormalOut<B>>::Output: CommonBounds,
     G: Into<TensorDotArgs<N>>,
     _Tensor<A>: Matmul<_Tensor<B>>,
-    <_Tensor<A> as Matmul<_Tensor<B>>>::Output: ShapeManipulate<Output = <_Tensor<A> as Matmul<_Tensor<B>>>::Output>,
+    <_Tensor<A> as Matmul<_Tensor<B>>>::Output:
+        ShapeManipulate<Output = <_Tensor<A> as Matmul<_Tensor<B>>>::Output>,
 {
     let mut axes: [Vec<i64>; 2] = axes.into().into();
     let a_axes_dim = axes[0].len();
@@ -29,43 +29,20 @@ where
     let b_shape = &b.shape();
     let a_ndim = a_shape.len();
     let b_ndim = b_shape.len();
-    if a_axes_dim != b_axes_dim {
-        return Err(TensorError::NdimMismatched(
-            a_axes_dim,
-            b_axes_dim,
-            Location::caller(),
-        ));
-    } else {
-        for i in (0..a_axes_dim).into_iter() {
-            if axes[0][i] < 0 {
-                axes[0][i] += a_ndim as i64;
-                if axes[0][i] < 0 {
-                    return Err(TensorError::TensorDotAxesOutOfBounds(
-                        0,
-                        axes[0][i] as usize,
-                        Location::caller(),
-                    ));
-                }
-            }
-            if axes[1][i] < 0 {
-                axes[1][i] += b_ndim as i64;
-                if axes[1][i] < 0 {
-                    return Err(TensorError::TensorDotAxesOutOfBounds(
-                        1,
-                        axes[1][i] as usize,
-                        Location::caller(),
-                    ));
-                }
-            }
-            if a_shape[axes[0][i] as usize] != b_shape[axes[1][i] as usize] {
-                return Err(TensorError::TensorDotDimMismatched(
-                    i,
-                    a_shape[axes[0][i] as usize] as usize,
-                    b_shape[axes[1][i] as usize] as usize,
-                    Location::caller(),
-                ));
-            }
+    ShapeError::check_dim(a_axes_dim, b_axes_dim)?;
+    for i in 0..a_axes_dim {
+        if axes[0][i] < 0 {
+            axes[0][i] += a_ndim as i64;
+            ShapeError::check_index_out_of_range(axes[0][i], a_ndim as i64)?;
         }
+        if axes[1][i] < 0 {
+            axes[1][i] += b_ndim as i64;
+            ShapeError::check_index_out_of_range(axes[1][i], b_ndim as i64)?;
+        }
+        ShapeError::check_dim(
+            a_shape[axes[0][i] as usize] as usize,
+            b_shape[axes[1][i] as usize] as usize,
+        )?;
     }
     let notin = (0..a_ndim as i64)
         .into_iter()

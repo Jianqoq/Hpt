@@ -2,8 +2,8 @@ use crate::tensor_base::_Tensor;
 use crate::Tensor;
 use crate::REGNUM;
 use rayon::prelude::*;
-use tensor_common::err_handler::TensorError;
-use tensor_common::err_handler::TensorError::InvalidInputShape;
+use tensor_common::error::base::TensorError;
+use tensor_common::error::shape::ShapeError;
 use tensor_common::shape::Shape;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
@@ -13,10 +13,10 @@ use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
 
 impl<T> _Tensor<T>
-    where
-        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
-        T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
-        bool: IntoScalar<T>
+where
+    T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+    T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
+    bool: IntoScalar<T>,
 {
     /// Performs a 2D max pooling operation on the input tensor.
     ///
@@ -43,17 +43,10 @@ impl<T> _Tensor<T>
         kernels_shape: &Shape,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
-        dilation: [i64; 2]
+        dilation: [i64; 2],
     ) -> std::result::Result<_Tensor<T>, TensorError> {
         let img_shape = self.shape();
-        if img_shape.len() != 4 {
-            return Err(
-                TensorError::Conv2dImgShapeInCorrect(
-                    img_shape.len(),
-                    core::panic::Location::caller()
-                ).into()
-            );
-        }
+        ShapeError::check_dim(4, img_shape.len())?;
         let batch = img_shape[0];
         let img_height = img_shape[1];
         let img_width = img_shape[2];
@@ -70,11 +63,15 @@ impl<T> _Tensor<T>
             (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
         let img = self.clone();
         if out_height <= 0 || out_width <= 0 {
-            return if out_height <= 0 {
-                Err(InvalidInputShape(out_height, core::panic::Location::caller()).into())
-            } else {
-                Err(InvalidInputShape(out_width, core::panic::Location::caller()).into())
-            };
+            return Err(ShapeError::ConvError {
+                message: if out_height <= 0 {
+                    "output height <= 0".to_string()
+                } else {
+                    "output width <= 0".to_string()
+                },
+                location: core::panic::Location::caller(),
+            }
+            .into());
         }
         let output = _Tensor::<T>::empty([batch, out_height, out_width, in_channels])?;
         let out = output.ptr();
@@ -102,27 +99,24 @@ impl<T> _Tensor<T>
             for ii in (0..in_channels - in_channel_remain).step_by(IC_BLOCK_SIZE * T::Vec::SIZE) {
                 let mut res_vecs = [T::Vec::splat(T::NEG_INF); IC_BLOCK_SIZE];
                 for kh in 0..kernel_height {
-                    if
-                        h * step_height + kh * dh < ph_start ||
-                        h * step_height + kh * dh - ph_start >= img_height
+                    if h * step_height + kh * dh < ph_start
+                        || h * step_height + kh * dh - ph_start >= img_height
                     {
                         continue;
                     }
                     for kw in 0..kernel_width {
-                        if
-                            w * step_width + kw * dw < pw_start ||
-                            w * step_width + kw * dw - pw_start >= img_width
+                        if w * step_width + kw * dw < pw_start
+                            || w * step_width + kw * dw - pw_start >= img_width
                         {
                             continue;
                         }
                         let mut inp_vecs = [T::Vec::splat(T::ZERO); IC_BLOCK_SIZE];
                         for (idx, vec) in inp_vecs.iter_mut().enumerate() {
                             let i = ii + ((idx * T::Vec::SIZE) as i64);
-                            let inp_idx =
-                                b * isb +
-                                (h * step_height + kh * dh - ph_start) * ish +
-                                (w * step_width + kw * dw - pw_start) * isw +
-                                i;
+                            let inp_idx = b * isb
+                                + (h * step_height + kh * dh - ph_start) * ish
+                                + (w * step_width + kw * dw - pw_start) * isw
+                                + i;
                             *vec = unsafe { T::Vec::from_ptr(&inp[inp_idx]) };
                         }
 
@@ -140,30 +134,26 @@ impl<T> _Tensor<T>
             }
 
             let remain = in_channel_remain % (T::Vec::SIZE as i64);
-            for ii in (in_channels - in_channel_remain..in_channels - remain).step_by(
-                T::Vec::SIZE
-            ) {
+            for ii in (in_channels - in_channel_remain..in_channels - remain).step_by(T::Vec::SIZE)
+            {
                 let mut res_vecs = T::Vec::splat(T::NEG_INF);
                 for kh in 0..kernel_height {
-                    if
-                        h * step_height + kh * dh < ph_start ||
-                        h * step_height + kh * dh - ph_start >= img_height
+                    if h * step_height + kh * dh < ph_start
+                        || h * step_height + kh * dh - ph_start >= img_height
                     {
                         continue;
                     }
                     for kw in 0..kernel_width {
-                        if
-                            w * step_width + kw * dw < pw_start ||
-                            w * step_width + kw * dw - pw_start >= img_width
+                        if w * step_width + kw * dw < pw_start
+                            || w * step_width + kw * dw - pw_start >= img_width
                         {
                             continue;
                         }
                         let i = ii;
-                        let inp_idx =
-                            b * isb +
-                            (h * step_height + kh * dh - ph_start) * ish +
-                            (w * step_width + kw * dw - pw_start) * isw +
-                            i;
+                        let inp_idx = b * isb
+                            + (h * step_height + kh * dh - ph_start) * ish
+                            + (w * step_width + kw * dw - pw_start) * isw
+                            + i;
                         let inp_vec = unsafe { T::Vec::from_ptr(&inp[inp_idx]) };
 
                         res_vecs = res_vecs._max(inp_vec);
@@ -180,25 +170,22 @@ impl<T> _Tensor<T>
             for ii in in_channels - remain..in_channels {
                 let mut res = T::NEG_INF;
                 for kh in 0..kernel_height {
-                    if
-                        h * step_height + kh * dh < ph_start ||
-                        h * step_height + kh * dh - ph_start >= img_height
+                    if h * step_height + kh * dh < ph_start
+                        || h * step_height + kh * dh - ph_start >= img_height
                     {
                         continue;
                     }
                     for kw in 0..kernel_width {
-                        if
-                            w * step_width + kw * dw < pw_start ||
-                            w * step_width + kw * dw - pw_start >= img_width
+                        if w * step_width + kw * dw < pw_start
+                            || w * step_width + kw * dw - pw_start >= img_width
                         {
                             continue;
                         }
                         let i = ii;
-                        let inp_idx =
-                            b * isb +
-                            (h * step_height + kh * dh - ph_start) * ish +
-                            (w * step_width + kw * dw - pw_start) * isw +
-                            i;
+                        let inp_idx = b * isb
+                            + (h * step_height + kh * dh - ph_start) * ish
+                            + (w * step_width + kw * dw - pw_start) * isw
+                            + i;
 
                         res = res._max(inp[inp_idx]);
                     }
@@ -218,7 +205,7 @@ impl<T> _Tensor<T>
 
 fn maxpool2d_kernel<T: CommonBounds, const IC_BLOCK_SIZE: usize>(
     inps: &[T::Vec; IC_BLOCK_SIZE],
-    outs: &mut [T::Vec; IC_BLOCK_SIZE]
+    outs: &mut [T::Vec; IC_BLOCK_SIZE],
 ) {
     for idx in 0..IC_BLOCK_SIZE {
         outs[idx] = outs[idx]._max(inps[idx]);
@@ -226,10 +213,10 @@ fn maxpool2d_kernel<T: CommonBounds, const IC_BLOCK_SIZE: usize>(
 }
 
 impl<T> Tensor<T>
-    where
-        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
-        T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
-        bool: IntoScalar<T>
+where
+    T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+    T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
+    bool: IntoScalar<T>,
 {
     /// Performs a 2D max pooling operation on the input tensor.
     ///
@@ -256,8 +243,11 @@ impl<T> Tensor<T>
         kernels_shape: &Shape,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
-        dilation: [i64; 2]
+        dilation: [i64; 2],
     ) -> std::result::Result<Tensor<T>, TensorError> {
-        Ok(self.inner.maxpool2d(&kernels_shape, steps, padding, dilation)?.into())
+        Ok(self
+            .inner
+            .maxpool2d(&kernels_shape, steps, padding, dilation)?
+            .into())
     }
 }
