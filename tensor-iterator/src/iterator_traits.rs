@@ -4,7 +4,7 @@ use rayon::iter::{plumbing::UnindexedProducer, ParallelIterator};
 use tensor_common::{
     axis::Axis,
     layout::Layout,
-    shape::Shape,
+    shape::shape::Shape,
     shape_utils::{mt_intervals, predict_broadcast_shape},
     strides::Strides,
 };

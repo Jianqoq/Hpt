@@ -8,7 +8,7 @@ use rayon::iter::{
     ParallelIterator,
 };
 use std::sync::Arc;
-use tensor_common::shape::Shape;
+use tensor_common::shape::shape::Shape;
 use tensor_traits::tensor::{CommonBounds, TensorInfo};
 
 /// A module for parallel mutable strided iterator.
@@ -22,7 +22,7 @@ pub mod par_strided_map_mut_simd {
         ParallelIterator,
     };
     use std::sync::Arc;
-    use tensor_common::{pointer::Pointer, shape::Shape, simd_ref::MutVec};
+    use tensor_common::{pointer::Pointer, shape::shape::Shape, simd_ref::MutVec};
     use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
     use tensor_types::traits::VecTrait;

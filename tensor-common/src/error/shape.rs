@@ -2,7 +2,7 @@ use std::panic::Location;
 
 use thiserror::Error;
 
-use crate::{shape::Shape, strides::Strides};
+use crate::{shape::shape::Shape, strides::Strides};
 
 /// Errors related to tensor shapes and dimensions
 #[derive(Debug, Error)]

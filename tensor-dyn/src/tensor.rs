@@ -9,7 +9,7 @@ use crate::{
     tensor_base::_Tensor,
     DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION,
 };
-use tensor_common::{error::base::TensorError, layout::Layout, pointer::Pointer, shape::Shape};
+use tensor_common::{error::base::TensorError, layout::Layout, pointer::Pointer, shape::shape::Shape};
 use tensor_dataloader::DataLoader;
 use tensor_display::display;
 use tensor_iterator::TensorIterator;

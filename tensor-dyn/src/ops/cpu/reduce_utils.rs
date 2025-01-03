@@ -1,7 +1,7 @@
 use std::borrow::BorrowMut;
 
 use rayon::iter::{ IntoParallelRefMutIterator, ParallelIterator };
-use tensor_common::{error::{base::TensorError, shape::ShapeError}, pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides };
+use tensor_common::{error::{base::TensorError, shape::ShapeError}, pointer::Pointer, shape::shape::Shape, shape_utils::mt_intervals, strides::Strides };
 use tensor_traits::{ CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike };
 
 use crate::{ backend::Cpu, tensor_base::_Tensor };

@@ -4,7 +4,7 @@ use rayon::iter::{
     plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
     ParallelIterator,
 };
-use tensor_common::{shape::Shape, strides::Strides};
+use tensor_common::{shape::shape::Shape, strides::Strides};
 use tensor_traits::tensor::{CommonBounds, TensorInfo};
 
 use crate::{
@@ -19,7 +19,7 @@ pub mod par_strided_map_mut_simd {
         plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
         ParallelIterator,
     };
-    use tensor_common::{shape::Shape, simd_ref::MutVec, strides::Strides};
+    use tensor_common::{shape::shape::Shape, simd_ref::MutVec, strides::Strides};
     use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
 

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rand_distr::uniform::SampleUniform;
-use tensor_common::shape::Shape;
+use tensor_common::shape::shape::Shape;
 use tensor_types::into_scalar::IntoScalar;
 
 /// A trait for generating random numbers.

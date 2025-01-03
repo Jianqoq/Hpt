@@ -1,5 +1,5 @@
 use crate::{backend::Cpu, tensor::Tensor, tensor_base::_Tensor, BoolVector};
-use tensor_common::{error::base::TensorError, shape::Shape};
+use tensor_common::{error::base::TensorError, shape::shape::Shape};
 use tensor_traits::{CommonBounds, TensorCreator};
 use tensor_types::{
     convertion::{Convertor, FromScalar},

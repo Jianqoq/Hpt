@@ -2,7 +2,7 @@ use std::panic::Location;
 
 use crate::{
     error::{base::TensorError, shape::ShapeError},
-    shape::Shape,
+    shape::shape::Shape,
     strides::Strides,
 };
 

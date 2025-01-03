@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tensor_common::{
     axis::{process_axes, Axis},
     error::shape::ShapeError,
-    shape::Shape,
+    shape::shape::Shape,
     shape_utils::{get_broadcast_axes_from, mt_intervals, try_pad_shape},
     strides::Strides,
 };

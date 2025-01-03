@@ -6,7 +6,7 @@ use crate::Endian;
 use crate::{compression_trait::CompressionTrait, CHUNK_BUFF};
 use flate2::write::{DeflateEncoder, GzEncoder};
 use indicatif::ProgressBar;
-use tensor_common::shape::Shape;
+use tensor_common::shape::shape::Shape;
 use tensor_types::dtype::Dtype;
 
 pub trait Save {

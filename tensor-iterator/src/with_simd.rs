@@ -4,7 +4,7 @@ use rayon::iter::{
     plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
     ParallelIterator,
 };
-use tensor_common::{shape::Shape, strides::Strides};
+use tensor_common::{shape::shape::Shape, strides::Strides};
 
 use crate::iterator_traits::IterGetSetSimd;
 

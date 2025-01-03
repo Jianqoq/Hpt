@@ -6,7 +6,7 @@ use std::{
 
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
 use num::traits::FromBytes;
-use tensor_common::shape::Shape;
+use tensor_common::shape::shape::Shape;
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 
 use crate::{

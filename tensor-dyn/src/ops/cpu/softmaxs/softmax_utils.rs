@@ -1,6 +1,6 @@
 use std::borrow::BorrowMut;
 
-use tensor_common::{error::{base::TensorError, shape::ShapeError}, pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides};
+use tensor_common::{error::{base::TensorError, shape::ShapeError}, pointer::Pointer, shape::shape::Shape, shape_utils::mt_intervals, strides::Strides};
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo};
 use tensor_types::into_scalar::IntoScalar;
 

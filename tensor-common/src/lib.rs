@@ -5,15 +5,16 @@
 /// A module defines n dimensional strides
 pub mod strides;
 /// A module defines n dimensional shape
-pub mod shape;
+pub mod shape {
+    /// shape struct definition
+    pub mod shape;
+}
 /// A module contains layout utilities
 pub mod layout;
 /// A module contains shape utilities
 pub mod shape_utils;
 /// A module contains strides utilities
 pub mod strides_utils;
-/// A module defines errors
-pub mod err_handler;
 /// A module defines pointer utilities
 pub mod pointer;
 /// A module defines axis utilities

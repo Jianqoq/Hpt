@@ -9,7 +9,7 @@ use std::mem::ManuallyDrop;
 use std::sync::Arc;
 use tensor_allocator::CACHE;
 use tensor_common::pointer::Pointer;
-use tensor_common::shape::Shape;
+use tensor_common::shape::shape::Shape;
 use tensor_common::strides_utils::shape_to_strides;
 use tensor_traits::tensor::TensorCreator;
 use tensor_traits::TensorLike;

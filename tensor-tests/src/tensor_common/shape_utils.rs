@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 
 use tensor_common::{
-    shape::Shape,
+    shape::shape::Shape,
     shape_utils::{
         compare_and_pad_shapes, get_broadcast_axes_from, mt_intervals_simd, yield_one_after,
         yield_one_before,

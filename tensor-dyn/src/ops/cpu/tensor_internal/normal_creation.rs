@@ -13,7 +13,7 @@ use tensor_common::{
     error::{base::TensorError, shape::ShapeError},
     layout::Layout,
     pointer::Pointer,
-    shape::Shape,
+    shape::shape::Shape,
 };
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo, TensorLike};
 use tensor_types::{

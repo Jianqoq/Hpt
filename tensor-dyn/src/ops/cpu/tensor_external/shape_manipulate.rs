@@ -1,7 +1,7 @@
 use crate::ops::cpu::concat::concat;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
 use tensor_common::error::base::TensorError;
-use tensor_common::{axis::Axis, shape::Shape};
+use tensor_common::{axis::Axis, shape::shape::Shape};
 use tensor_traits::{CommonBounds, ShapeManipulate};
 
 impl<T: CommonBounds> ShapeManipulate for Tensor<T> {

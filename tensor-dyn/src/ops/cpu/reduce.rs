@@ -5,7 +5,7 @@ use crate::{ argmax_kernel, argmin_kernel };
 
 use crate::ops::cpu::reduce_utils::{ ReductionPreprocessor, UCReductionPreprocessor };
 use crate::THREAD_POOL;
-use tensor_common::shape::Shape;
+use tensor_common::shape::shape::Shape;
 use rayon::iter::ParallelIterator;
 use rayon::iter::{ IndexedParallelIterator, IntoParallelRefMutIterator };
 use rayon::iter::{ IntoParallelIterator, IntoParallelRefIterator };

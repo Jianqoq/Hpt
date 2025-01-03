@@ -4,7 +4,7 @@ use crate::{
     strided_zip::StridedZip,
 };
 use std::sync::Arc;
-use tensor_common::{shape::Shape, shape_utils::predict_broadcast_shape};
+use tensor_common::{shape::shape::Shape, shape_utils::predict_broadcast_shape};
 use tensor_traits::tensor::{CommonBounds, TensorInfo};
 
 /// Module containing SIMD-optimized implementations for strided mutability.
@@ -14,7 +14,7 @@ pub mod simd_imports {
         strided::strided_simd::StridedSimd,
     };
     use std::sync::Arc;
-    use tensor_common::shape::Shape;
+    use tensor_common::shape::shape::Shape;
     use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
     use tensor_types::vectors::traits::VecTrait;

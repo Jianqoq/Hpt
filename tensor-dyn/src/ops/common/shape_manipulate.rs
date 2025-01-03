@@ -4,7 +4,7 @@ use tensor_common::{
     axis::{process_axes, Axis},
     error::{base::TensorError, shape::ShapeError},
     layout::Layout,
-    shape::Shape,
+    shape::shape::Shape,
     shape_utils::{try_pad_shape, yield_one_after, yield_one_before},
     slice::Slice,
 };

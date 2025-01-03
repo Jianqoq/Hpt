@@ -3,7 +3,7 @@ use std::panic::Location;
 use crate::{
     axis::{process_axes, Axis},
     error::{base::TensorError, shape::ShapeError},
-    shape::Shape,
+    shape::shape::Shape,
     shape_utils::{is_reshape_possible, predict_broadcast_shape},
     strides::Strides,
     strides_utils::shape_to_strides,

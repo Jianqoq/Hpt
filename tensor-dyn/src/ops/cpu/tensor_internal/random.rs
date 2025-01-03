@@ -13,7 +13,7 @@ use rand_distr::{
     Uniform,
 };
 use rayon::iter::{ IntoParallelIterator, ParallelIterator };
-use tensor_common::shape::Shape;
+use tensor_common::shape::shape::Shape;
 use tensor_traits::{
     random::Random,
     tensor::{ CommonBounds, TensorCreator, TensorInfo },

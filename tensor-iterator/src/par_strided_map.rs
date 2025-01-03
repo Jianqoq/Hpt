@@ -1,5 +1,5 @@
 use rayon::iter::{plumbing::UnindexedProducer, ParallelIterator};
-use tensor_common::shape::Shape;
+use tensor_common::shape::shape::Shape;
 use tensor_traits::tensor::{CommonBounds, TensorAlloc, TensorInfo};
 
 use crate::{
@@ -161,7 +161,7 @@ impl<
 }
 
 impl<'a, T: CommonBounds> ShapeManipulator for ParStridedMutSimd<'a, T> {
-    fn reshape<S: Into<tensor_common::shape::Shape>>(self, shape: S) -> Self {
+    fn reshape<S: Into<tensor_common::shape::shape::Shape>>(self, shape: S) -> Self {
         let shape: Shape = shape.into();
         let new_base = self.base.reshape(shape);
         ParStridedMutSimd {
@@ -179,7 +179,7 @@ impl<'a, T: CommonBounds> ShapeManipulator for ParStridedMutSimd<'a, T> {
         }
     }
 
-    fn expand<S: Into<tensor_common::shape::Shape>>(self, shape: S) -> Self {
+    fn expand<S: Into<tensor_common::shape::shape::Shape>>(self, shape: S) -> Self {
         let shape: Shape = shape.into();
         let new_base = self.base.expand(shape);
         ParStridedMutSimd {

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs::File, path::Path};
 
-use tensor_common::shape::Shape;
+use tensor_common::shape::shape::Shape;
 use tensor_dyn::*;
 use traits::SimdMath;
 

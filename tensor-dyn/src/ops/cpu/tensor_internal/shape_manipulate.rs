@@ -4,7 +4,7 @@ use tensor_common::error::param::ParamError;
 use tensor_common::error::shape::ShapeError;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
-use tensor_common::{axis::Axis, error::base::TensorError, shape::Shape};
+use tensor_common::{axis::Axis, error::base::TensorError, shape::shape::Shape};
 use tensor_macros::match_selection;
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorInfo, TensorLike};
 

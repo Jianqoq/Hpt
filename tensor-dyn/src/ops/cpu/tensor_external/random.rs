@@ -9,7 +9,7 @@ use rand_distr::{
     Standard,
     StandardNormal,
 };
-use tensor_common::shape::Shape;
+use tensor_common::shape::shape::Shape;
 use tensor_traits::{ CommonBounds, Random, RandomInt };
 use tensor_types::into_scalar::IntoScalar;
 

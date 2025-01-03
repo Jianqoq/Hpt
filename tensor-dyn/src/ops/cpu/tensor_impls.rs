@@ -10,7 +10,7 @@ use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
 use tensor_common::error::base::TensorError;
-use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
+use tensor_common::{layout::Layout, pointer::Pointer, shape::shape::Shape};
 use tensor_dataloader::data_loader::TensorMeta;
 use tensor_dataloader::{DataLoader, Endian, Meta};
 use tensor_display::display;

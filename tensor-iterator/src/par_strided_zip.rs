@@ -4,7 +4,7 @@ use rayon::iter::{
     ParallelIterator,
 };
 use std::sync::Arc;
-use tensor_common::{ shape::Shape, strides::Strides };
+use tensor_common::{ shape::shape::Shape, strides::Strides };
 use tensor_traits::tensor::CommonBounds;
 
 use crate::{
@@ -20,7 +20,7 @@ pub mod par_strided_zip_simd {
         plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
         ParallelIterator,
     };
-    use tensor_common::{ shape::Shape, simd_ref::MutVec, strides::Strides };
+    use tensor_common::{ shape::shape::Shape, simd_ref::MutVec, strides::Strides };
     use tensor_traits::CommonBounds;
 
     use crate::{
