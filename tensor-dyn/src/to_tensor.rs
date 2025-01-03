@@ -13,6 +13,7 @@ use tensor_common::shape::Shape;
 use tensor_common::strides_utils::shape_to_strides;
 use tensor_traits::tensor::TensorCreator;
 use tensor_traits::TensorLike;
+use tensor_allocator::traits::Allocator;
 
 macro_rules! from_scalar {
     ($($t:ident),*) => {
@@ -57,10 +58,10 @@ macro_rules! impl_type_num {
                     if (ptr as usize) % 8 == 0 {
                         let _ = ManuallyDrop::new(data);
                         layout = Layout::from_size_align(length * std::mem::size_of::<$t>(), 8).unwrap();
-                        CACHE.insert_ptr(ptr as *mut u8);
+                        CACHE.lock().expect("CACHE is poisoned").insert_ptr(ptr as *mut u8, DEVICE);
                     } else {
                         layout = Layout::from_size_align(length * std::mem::size_of::<$t>(), 8).unwrap();
-                        ptr = CACHE.allocate(layout).unwrap() as *mut $t;
+                        ptr = CACHE.lock().expect("CACHE is poisoned").allocate(layout, DEVICE).unwrap() as *mut $t;
                         unsafe {
                             std::ptr::copy_nonoverlapping(data.as_ptr(), ptr, length);
                         }
@@ -100,10 +101,10 @@ macro_rules! impl_type_num {
                     if (ptr as usize) % 8 == 0 {
                         let _ = ManuallyDrop::new(vec);
                         layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                        CACHE.insert_ptr(ptr as *mut u8) ;
+                        CACHE.lock().expect("CACHE is poisoned").insert_ptr(ptr as *mut u8, DEVICE);
                     } else {
                         layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                        ptr = CACHE.allocate(layout).unwrap() as *mut $ct;
+                        ptr = CACHE.lock().expect("CACHE is poisoned").allocate(layout, DEVICE).unwrap() as *mut $ct;
                         unsafe {
                             std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                         }
@@ -144,10 +145,10 @@ macro_rules! impl_type_num {
                 if (ptr as usize) % 8 == 0 {
                     let _ = ManuallyDrop::new(vec);
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                     CACHE.insert_ptr(ptr as *mut u8) ;
+                    CACHE.lock().expect("CACHE is poisoned").insert_ptr(ptr as *mut u8, DEVICE);
                 } else {
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    ptr = CACHE.allocate(layout).unwrap() as *mut $ct;
+                    ptr = CACHE.lock().expect("CACHE is poisoned").allocate(layout, DEVICE).unwrap() as *mut $ct;
                     unsafe {
                         std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                     }
@@ -196,10 +197,10 @@ macro_rules! impl_type_num {
                 if (ptr as usize) % 8 == 0 {
                     let _ = ManuallyDrop::new(vec);
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    unsafe { CACHE.insert_ptr(ptr as *mut u8) };
+                    unsafe { CACHE.lock().expect("CACHE is poisoned").insert_ptr(ptr as *mut u8) };
                 } else {
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    ptr = unsafe { CACHE.allocate(layout) } as *mut $ct;
+                    ptr = unsafe { CACHE.lock().expect("CACHE is poisoned").allocate(layout) } as *mut $ct;
                     unsafe {
                         std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                     }
@@ -240,10 +241,10 @@ macro_rules! impl_type_num {
             if (ptr as usize) % 8 == 0 {
                 let _ = ManuallyDrop::new(vec);
                 layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                CACHE.insert_ptr(ptr as *mut u8);
+                CACHE.lock().expect("CACHE is poisoned").insert_ptr(ptr as *mut u8, DEVICE);
             } else {
                 layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                ptr = CACHE.allocate(layout).unwrap() as *mut $ct;
+                ptr = CACHE.lock().expect("CACHE is poisoned").allocate(layout, DEVICE).unwrap() as *mut $ct;
                 unsafe {
                     std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                 }
@@ -285,10 +286,10 @@ macro_rules! impl_type_num {
                 if (ptr as usize) % 8 == 0 {
                     let _ = ManuallyDrop::new(vec);
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    CACHE.insert_ptr(ptr as *mut u8);
+                    CACHE.lock().expect("CACHE is poisoned").insert_ptr(ptr as *mut u8, DEVICE);
                 } else {
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    ptr = CACHE.allocate(layout).unwrap() as *mut $ct;
+                    ptr = CACHE.lock().expect("CACHE is poisoned").allocate(layout, DEVICE).unwrap() as *mut $ct;
                     unsafe {
                         std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                     }
@@ -330,10 +331,10 @@ macro_rules! impl_type_num {
                 if (ptr as usize) % 8 == 0 {
                     let _ = ManuallyDrop::new(vec);
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    CACHE.insert_ptr(ptr as *mut u8);
+                    CACHE.lock().expect("CACHE is poisoned").insert_ptr(ptr as *mut u8, DEVICE);
                 } else {
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    ptr = CACHE.allocate(layout).unwrap() as *mut $ct;
+                    ptr = CACHE.lock().expect("CACHE is poisoned").allocate(layout, DEVICE).unwrap() as *mut $ct;
                     unsafe {
                         std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                     }

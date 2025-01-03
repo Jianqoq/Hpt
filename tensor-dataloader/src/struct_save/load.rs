@@ -127,7 +127,7 @@ pub trait MetaLoad: Sized {
 }
 
 macro_rules! impl_load {
-    ($struct:ty $(, $generics:tt)*) => {
+    ($struct:ty, $default:expr $(, $generics:tt)*) => {
         impl<$($generics)*> MetaLoad for $struct {
             type Output = $struct;
             fn load(&self, _: &mut std::fs::File) -> std::io::Result<Self::Output> {
@@ -137,22 +137,22 @@ macro_rules! impl_load {
     };
 }
 
-impl_load!(bool);
-impl_load!(u8);
-impl_load!(i8);
-impl_load!(u16);
-impl_load!(i16);
-impl_load!(u32);
-impl_load!(i32);
-impl_load!(u64);
-impl_load!(i64);
-impl_load!(f32);
-impl_load!(f64);
-impl_load!(usize);
-impl_load!(isize);
-impl_load!(String);
-impl_load!(Shape);
-impl_load!(PhantomData<T>, T);
+impl_load!(bool, false);
+impl_load!(u8, 0);
+impl_load!(i8, 0);
+impl_load!(u16, 0);
+impl_load!(i16, 0);
+impl_load!(u32, 0);
+impl_load!(i32, 0);
+impl_load!(u64, 0);
+impl_load!(i64, 0);
+impl_load!(f32, 0.0);
+impl_load!(f64, 0.0);
+impl_load!(usize, 0);
+impl_load!(isize, 0);
+impl_load!(String, String::new());
+impl_load!(Shape, Shape::new([]));
+impl_load!(PhantomData<T>, Self, T);
 
 impl<T: MetaLoad> MetaLoad for Option<T> {
     type Output = Option<T::Output>;

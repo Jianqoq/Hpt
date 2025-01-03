@@ -121,7 +121,15 @@ impl BasicBlock {
         };
         let out = self.bn_conv1.forward(&x, |x| x.relu())?;
         let out = self.bn_conv2.forward(&out, |x| x)?;
-        Ok((identity + out).relu()?)
+        out.par_iter_mut_simd()
+            .zip(identity.par_iter_simd())
+            .for_each(
+                |(a, b)| *a = (*a + b)._relu(),
+                |(a, b)| {
+                    a.write_unaligned((a.read_unaligned() + b).relu());
+                },
+            );
+        Ok(out)
     }
 }
 
@@ -134,13 +142,13 @@ pub struct Linear {
 impl Linear {
     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
         let out = x.matmul(&self.weight.t()?)?;
-        Ok(out + &self.bias)
+        Ok(out.add_(&self.bias, &out)?)
     }
 }
 
 #[derive(Save, Load)]
 pub struct ResNet {
-    bn_conv1: Conv2dBatchNorm,
+    bn1: Conv2dBatchNorm,
     max_pool1: MaxPool2d,
     layer1: Sequential,
     layer2: Sequential,
@@ -152,7 +160,7 @@ pub struct ResNet {
 
 impl ResNet {
     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-        let x = self.bn_conv1.forward(&x, |x| x)?;
+        let x = self.bn1.forward(&x, |x| x.relu())?;
         let x = self.max_pool1.forward(&x)?;
         let x = self.layer1.forward(&x)?;
         let x = self.layer2.forward(&x)?;
@@ -685,7 +693,7 @@ fn create_resnet() -> ResNet {
     };
 
     ResNet {
-        bn_conv1,
+        bn1: bn_conv1,
         max_pool1,
         layer1,
         layer2,
@@ -697,16 +705,13 @@ fn create_resnet() -> ResNet {
 }
 
 fn main() -> anyhow::Result<()> {
-    let resnet = create_resnet();
-    resnet.save("resnet.model")?;
+    // let resnet = create_resnet();
+    // resnet.save("resnet.model")?;
     let data = ResNet::load("resnet.model")?;
-
-    let input = Tensor::<f32>::randn(&[2, 224, 224, 3])?;
-
-    let now = std::time::Instant::now();
-    let output = data.forward(&input)?;
-    println!("time: {:?}", now.elapsed());
-    println!("{}", output);
-
+    // let input = Tensor::<f32>::randn(&[10, 128, 128, 3])?;
+    // let now = std::time::Instant::now();
+    // let output = data.forward(&input)?;
+    // println!("time: {:?}", now.elapsed());
+    // println!("{}", output);
     Ok(())
 }

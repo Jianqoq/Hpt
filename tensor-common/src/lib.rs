@@ -27,3 +27,4 @@ pub mod simd_ref;
 /// A module defines loop progress update
 pub mod prg_update;
 
+pub mod error;

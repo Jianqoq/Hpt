@@ -7,7 +7,7 @@ use crate::{
     BoolVector, ALIGN,
 };
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
-use tensor_allocator::CACHE;
+use tensor_allocator::{traits::Allocator, CACHE};
 use tensor_common::{err_handler::ErrHandler, layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo, TensorLike};
 use tensor_types::{
@@ -31,7 +31,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
             ALIGN,
         )
         .map_err(|e| ErrHandler::StdMemLayoutError(ALIGN, size, Location::caller(), e))?;
-        let ptr = CACHE.allocate(layout)?;
+        let ptr = CACHE.lock().expect("CACHE is poisoned").allocate(layout, DEVICE)?;
         Ok(_Tensor {
             #[cfg(feature = "bound_check")]
             data: Pointer::new(ptr as *mut T, size as i64),

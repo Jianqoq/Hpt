@@ -147,6 +147,10 @@ pub enum ErrHandler {
     #[error("lock failed in {0}, at {1}")]
     LockFailed(&'static str, &'static Location<'static>),
 
+    /// used when the device is not found
+    #[error("device{0} not found for {1}, at {2}")]
+    DeviceNotFound(usize, &'static str, &'static Location<'static>),
+
     /// used when the std::alloc::Layout is not valid
     #[error(
         "std::alloc::Layout is not valid, align: {0}, size: {1}, at {2}. std::LayoutError: {3}"

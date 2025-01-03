@@ -1,18 +1,17 @@
 use std::marker::PhantomData;
-use std::{fmt::Display, sync::atomic::Ordering, sync::Arc};
+use std::{fmt::Display, sync::atomic::Ordering};
 
 use crate::CompressionAlgo;
 use crate::Cpu;
-use crate::{tensor_base::_Tensor, Backend, Tensor, ALIGN, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION};
+use crate::{save, Save};
+use crate::{tensor_base::_Tensor, Tensor, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION};
 use num::traits::ToBytes;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
-use tensor_allocator::CACHE;
 use tensor_common::err_handler::ErrHandler;
 use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_dataloader::data_loader::TensorMeta;
-use crate::{save, Save};
 use tensor_dataloader::{DataLoader, Endian, Meta};
 use tensor_display::display;
 use tensor_iterator::iterator_traits::ParStridedIteratorZip;
@@ -354,26 +353,12 @@ impl<T, const DEVICE: usize> Into<Tensor<T, Cpu, DEVICE>> for &Tensor<T, Cpu, DE
     }
 }
 
-impl<'a, T, const DEVICE: usize> Into<_Tensor<T, Cpu, DEVICE>> for &'a [T] {
+impl<'a, T: CommonBounds, const DEVICE: usize> Into<_Tensor<T, Cpu, DEVICE>> for &'a [T] {
     fn into(self) -> _Tensor<T, Cpu, DEVICE> {
-        let shape = vec![self.len() as i64];
-        let strides = vec![1];
-        let layout = Layout::new(shape, strides);
-        let mem_layout =
-            std::alloc::Layout::from_size_align(self.len() * size_of::<T>(), ALIGN).unwrap();
-        let ptr = CACHE.allocate(mem_layout.clone()).unwrap();
+        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(vec![self.len() as i64]).unwrap();
         unsafe {
-            std::ptr::copy_nonoverlapping(self.as_ptr(), ptr as *mut T, self.len());
+            std::ptr::copy_nonoverlapping(self.as_ptr(), ret.as_raw_mut().as_mut_ptr(), self.len());
         }
-        _Tensor {
-            #[cfg(feature = "bound_check")]
-            data: Pointer::new(ptr as *mut T, self.len() as i64),
-            #[cfg(not(feature = "bound_check"))]
-            data: Pointer::new(ptr as *mut T),
-            parent: None,
-            layout,
-            mem_layout: Arc::new(mem_layout),
-            _backend: Backend::<Cpu>::new(ptr as u64),
-        }
+        ret
     }
 }

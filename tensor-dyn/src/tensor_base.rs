@@ -1,10 +1,10 @@
+use crate::backend::{Backend, BackendTy, Buffer, Cpu};
 use std::sync::Arc;
+use tensor_allocator::traits::Allocator;
 use tensor_allocator::CACHE;
 #[cfg(feature = "cuda")]
 use tensor_allocator::CUDA_CACHE;
 use tensor_common::{layout::Layout, pointer::Pointer};
-
-use crate::backend::{Backend, BackendTy, Buffer, Cpu};
 
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
 ///
@@ -33,10 +33,17 @@ where
 {
     fn drop(&mut self) {
         match B::ID {
-            0 => CACHE.deallocate(
-                self._backend._backend.get_ptr() as *mut u8,
-                &self.mem_layout,
-            ),
+            0 => {
+                if let Ok(mut cpu_cache) = CACHE.lock() {
+                    cpu_cache.deallocate(
+                        self._backend._backend.get_ptr() as *mut u8,
+                        &self.mem_layout,
+                        DEVICE_ID,
+                    );
+                } else {
+                    panic!("CUDA_CACHE is poisoned");
+                }
+            }
             #[cfg(feature = "cuda")]
             1 => {
                 if let Ok(mut cuda_cache) = CUDA_CACHE.lock() {

@@ -6,6 +6,7 @@ use crate::arch_simd::sleef::libm::sleefsimdsp::{
     xtanhf, xtruncf,
 };
 use crate::convertion::VecConvertor;
+use crate::simd::sleef::libm::sleefsimdsp::{xceilf, xfloorf};
 use crate::traits::{SimdCompare, SimdMath, SimdSelect, VecTrait};
 use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
 use crate::vectors::arch_simd::_256bit::u32x8::u32x8;
@@ -88,11 +89,6 @@ impl f32x8 {
     #[inline(always)]
     pub fn as_array(&self) -> [f32; 8] {
         unsafe { std::mem::transmute(self.0) }
-    }
-    /// reciprocal of the vector
-    #[inline(always)]
-    pub fn recip(&self) -> f32x8 {
-        unsafe { f32x8(_mm256_rcp_ps(self.0)) }
     }
 }
 
@@ -251,11 +247,11 @@ impl SimdMath<f32> for f32x8 {
     }
     #[inline(always)]
     fn floor(self) -> Self {
-        f32x8(unsafe { _mm256_floor_ps(self.0) })
+        Self(unsafe {xfloorf(self.0)})
     }
     #[inline(always)]
     fn ceil(self) -> Self {
-        f32x8(unsafe { _mm256_ceil_ps(self.0) })
+        Self(unsafe {xceilf(self.0)})
     }
     #[inline(always)]
     fn neg(self) -> Self {

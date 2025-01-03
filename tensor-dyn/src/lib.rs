@@ -260,7 +260,6 @@ pub use tensor_types::dtype::Dtype;
 
 pub use crate::backend::*;
 pub use flate2;
-pub use rayon::prelude::*;
 pub use tensor::Tensor;
 #[cfg(feature = "codegen")]
 pub use tensor_codegen::compile;
@@ -270,7 +269,7 @@ pub use tensor_common::slice::Slice;
 pub use tensor_dataloader::data_loader::parse_header_compressed;
 pub(crate) use tensor_dataloader::save;
 pub use tensor_dataloader::{
-    CompressionAlgo, DataLoader, Endian, Load, MetaLoad, Save, TensorLoader, TensorSaver,
+    CompressionAlgo, DataLoader, Endian, Load, MetaLoad, Save, TensorLoader, TensorSaver
 };
 pub use tensor_macros::match_selection;
 pub use tensor_traits::*;

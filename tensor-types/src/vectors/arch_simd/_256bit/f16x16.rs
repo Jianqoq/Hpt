@@ -8,8 +8,6 @@ use crate::traits::SimdCompare;
 
 use super::i16x16::i16x16;
 
-use std::arch::x86_64::*;
-
 /// a vector of 16 f16 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -88,7 +86,7 @@ impl f16x16 {
                 target_feature = "avx2"
             ))]
             {
-                use std::arch::x86_64::_mm256_cvtph_ps;
+                use std::arch::x86_64::*;
                 let raw_f16: [u16; 16] = std::mem::transmute(self.0);
                 let f32x4_1 = _mm256_cvtph_ps(_mm_loadu_si128(raw_f16.as_ptr() as *const _));
                 let f32x4_2 = _mm256_cvtph_ps(_mm_loadu_si128(raw_f16.as_ptr().add(8) as *const _));
@@ -124,6 +122,22 @@ impl f16x16 {
 
                 std::mem::transmute([res0, res1])
             }
+            #[cfg(not(all(
+                all(
+                    target_feature = "f16c",
+                    target_arch = "x86_64",
+                    target_feature = "avx2"
+                ),
+                all(target_feature = "neon", target_arch = "aarch64")
+            )))]
+            {
+                let mut result = [[0f32; 8]; 2];
+                for i in 0..8 {
+                    result[0][i] = self.0[i].to_f32();
+                    result[1][i] = self.0[i + 8].to_f32();
+                }
+                std::mem::transmute(result)
+            }
         }
     }
 
@@ -133,6 +147,7 @@ impl f16x16 {
         unsafe {
             #[cfg(all(target_feature = "f16c", target_arch = "x86_64"))]
             {
+                use std::arch::x86_64::*;
                 let f16_low = _mm256_cvtps_ph(val[0].0, _MM_FROUND_TO_NEAREST_INT);
                 let f16_high = _mm256_cvtps_ph(val[1].0, _MM_FROUND_TO_NEAREST_INT);
                 let tmp_256 = _mm256_castsi128_si256(f16_low);
@@ -142,11 +157,11 @@ impl f16x16 {
             }
             #[cfg(not(all(target_feature = "f16c", target_arch = "x86_64")))]
             {
-                let arr: [[f32; 4]; 2] = std::mem::transmute(val);
-                let mut result = [0u16; 8];
-                for i in 0..4 {
+                let arr: [[f32; 8]; 2] = std::mem::transmute(val);
+                let mut result = [0u16; 16];
+                for i in 0..8 {
                     result[i] = half::f16::from_f32(arr[0][i]).to_bits();
-                    result[i + 4] = half::f16::from_f32(arr[1][i]).to_bits();
+                    result[i + 8] = half::f16::from_f32(arr[1][i]).to_bits();
                 }
                 std::mem::transmute(result)
             }
@@ -284,6 +299,7 @@ pub(crate) fn f32x8_to_f16x8(val: f32x8) -> [u16; 8] {
     unsafe {
         #[cfg(all(target_feature = "f16c", target_arch = "x86_64"))]
         {
+            use std::arch::x86_64::*;
             let f16_bits = _mm256_cvtps_ph(val.0, _MM_FROUND_TO_NEAREST_INT);
             std::mem::transmute(f16_bits)
         }
@@ -304,6 +320,7 @@ impl VecConvertor for f16x16 {
     fn to_i16(self) -> super::i16x16::i16x16 {
         #[cfg(all(target_feature = "avx2", target_feature = "f16c"))]
         {
+            use std::arch::x86_64::*;
             unsafe {
                 let [x0, x1]: [f32x8; 2] = std::mem::transmute(self.to_2_f32vec());
                 let i0 = _mm256_cvtps_epi32(x0.0);
@@ -321,9 +338,9 @@ impl VecConvertor for f16x16 {
             all(target_feature = "neon", target_arch = "aarch64")
         )))]
         {
-            let arr: [half::f16; 8] = unsafe { std::mem::transmute(self) };
-            let mut result = [0i16; 8];
-            for i in 0..8 {
+            let arr: [half::f16; 16] = unsafe { std::mem::transmute(self) };
+            let mut result = [0i16; 16];
+            for i in 0..16 {
                 result[i] = arr[i].to_f32() as i16;
             }
             return unsafe { std::mem::transmute(result) };
@@ -333,6 +350,7 @@ impl VecConvertor for f16x16 {
     fn to_u16(self) -> super::u16x16::u16x16 {
         #[cfg(all(target_feature = "avx2", target_feature = "f16c"))]
         {
+            use std::arch::x86_64::*;
             unsafe {
                 let [x0, x1]: [f32x8; 2] = std::mem::transmute(self.to_2_f32vec());
                 let i0 = _mm256_cvtps_epi32(x0.0);
@@ -350,9 +368,9 @@ impl VecConvertor for f16x16 {
             all(target_feature = "neon", target_arch = "aarch64")
         )))]
         {
-            let arr: [half::f16; 8] = unsafe { std::mem::transmute(self) };
-            let mut result = [0u16; 8];
-            for i in 0..8 {
+            let arr: [half::f16; 16] = unsafe { std::mem::transmute(self) };
+            let mut result = [0u16; 16];
+            for i in 0..16 {
                 result[i] = arr[i].to_f32() as u16;
             }
             unsafe { std::mem::transmute(result) }

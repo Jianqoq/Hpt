@@ -9,6 +9,10 @@ use crate::{
         },
     },
     convertion::VecConvertor,
+    simd::sleef::{
+        arch::helper_avx2::vmul_vd_vd_vd,
+        libm::sleefsimddp::{xceil, xfloor},
+    },
     traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
     type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
@@ -80,11 +84,6 @@ impl f64x4 {
     #[inline(always)]
     pub fn as_array(&self) -> [f64; 4] {
         unsafe { std::mem::transmute(self.0) }
-    }
-    /// reciprocal of the vector
-    #[inline(always)]
-    pub fn recip(&self) -> f64x4 {
-        unsafe { f64x4(_mm256_div_pd(_mm256_set1_pd(1.0), self.0)) }
     }
 }
 
@@ -212,7 +211,7 @@ impl SimdMath<f64> for f64x4 {
     }
     #[inline(always)]
     fn square(self) -> Self {
-        f64x4(unsafe { _mm256_mul_pd(self.0, self.0) })
+        f64x4(unsafe { vmul_vd_vd_vd(self.0, self.0) })
     }
     #[inline(always)]
     fn sqrt(self) -> Self {
@@ -224,11 +223,11 @@ impl SimdMath<f64> for f64x4 {
     }
     #[inline(always)]
     fn floor(self) -> Self {
-        f64x4(unsafe { _mm256_floor_pd(self.0) })
+        f64x4(unsafe { xfloor(self.0) })
     }
     #[inline(always)]
     fn ceil(self) -> Self {
-        f64x4(unsafe { _mm256_ceil_pd(self.0) })
+        f64x4(unsafe { xceil(self.0) })
     }
     #[inline(always)]
     fn neg(self) -> Self {
@@ -247,7 +246,10 @@ impl SimdMath<f64> for f64x4 {
             let neg_ones = _mm256_set1_pd(-1.0);
             let gt = _mm256_cmp_pd(self.0, zero, _CMP_GT_OQ);
             let lt = _mm256_cmp_pd(self.0, zero, _CMP_LT_OQ);
-            f64x4(_mm256_or_pd(_mm256_and_pd(gt, ones), _mm256_and_pd(lt, neg_ones)))
+            f64x4(_mm256_or_pd(
+                _mm256_and_pd(gt, ones),
+                _mm256_and_pd(lt, neg_ones),
+            ))
         }
     }
     #[inline(always)]
@@ -614,7 +616,11 @@ impl Eval2 for f64x4 {
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
         unsafe {
-            i64x4(std::mem::transmute(_mm256_cmp_pd(self.0, self.0, _CMP_UNORD_Q)))
+            i64x4(std::mem::transmute(_mm256_cmp_pd(
+                self.0,
+                self.0,
+                _CMP_UNORD_Q,
+            )))
         }
     }
 

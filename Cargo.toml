@@ -35,6 +35,9 @@ regex = "1.11.1"
 num = "0.4"
 serde = "1.0.217"
 serde_json = "1.0"
+safetensors = "0.5.0"
+memmap2 = "0.9.0"
+
 [[test]]
 name = "tensor-tests"
 path = "tensor-tests"
@@ -45,8 +48,8 @@ path = "src/main.rs"
 
 [profile.release]
 opt-level = 0
-incremental = true
-debug = true
+incremental = false
+debug = false
 # lto = "fat"
 # codegen-units = 1
 
