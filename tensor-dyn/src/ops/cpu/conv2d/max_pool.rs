@@ -2,8 +2,8 @@ use crate::tensor_base::_Tensor;
 use crate::Tensor;
 use crate::REGNUM;
 use rayon::prelude::*;
-use tensor_common::err_handler::ErrHandler;
-use tensor_common::err_handler::ErrHandler::InvalidInputShape;
+use tensor_common::err_handler::TensorError;
+use tensor_common::err_handler::TensorError::InvalidInputShape;
 use tensor_common::shape::Shape;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
@@ -44,11 +44,11 @@ impl<T> _Tensor<T>
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2]
-    ) -> std::result::Result<_Tensor<T>, ErrHandler> {
+    ) -> std::result::Result<_Tensor<T>, TensorError> {
         let img_shape = self.shape();
         if img_shape.len() != 4 {
             return Err(
-                ErrHandler::Conv2dImgShapeInCorrect(
+                TensorError::Conv2dImgShapeInCorrect(
                     img_shape.len(),
                     core::panic::Location::caller()
                 ).into()
@@ -257,7 +257,7 @@ impl<T> Tensor<T>
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2]
-    ) -> std::result::Result<Tensor<T>, ErrHandler> {
+    ) -> std::result::Result<Tensor<T>, TensorError> {
         Ok(self.inner.maxpool2d(&kernels_shape, steps, padding, dilation)?.into())
     }
 }

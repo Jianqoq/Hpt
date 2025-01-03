@@ -1,6 +1,6 @@
 use std::panic::Location;
 
-use crate::{err_handler::ErrHandler, shape::Shape, strides::Strides};
+use crate::{err_handler::TensorError, shape::Shape, strides::Strides};
 
 /// Inserts a dimension of size 1 before the specified index in a shape.
 ///
@@ -335,7 +335,7 @@ pub fn compare_and_pad_shapes(a_shape: &[i64], b_shape: &[i64]) -> (Vec<i64>, Ve
 pub fn predict_broadcast_shape(
     a_shape: &[i64],
     b_shape: &[i64],
-) -> std::result::Result<Shape, ErrHandler> {
+) -> std::result::Result<Shape, TensorError> {
     let (longer, shorter) = if a_shape.len() >= b_shape.len() {
         (a_shape, b_shape)
     } else {
@@ -351,7 +351,7 @@ pub fn predict_broadcast_shape(
         } else if longer_dim == 1 {
             shorter_dim
         } else {
-            return Err(ErrHandler::BroadcastError(
+            return Err(TensorError::BroadcastError(
                 a_shape.into(),
                 b_shape.into(),
                 i,
@@ -446,7 +446,7 @@ pub fn predict_broadcast_shape(
 pub fn get_broadcast_axes_from(
     a_shape: &[i64],
     res_shape: &[i64],
-) -> std::result::Result<Vec<usize>, ErrHandler> {
+) -> std::result::Result<Vec<usize>, TensorError> {
     assert!(a_shape.len() <= res_shape.len());
 
     let padded_a = try_pad_shape(a_shape, res_shape.len());
@@ -461,7 +461,7 @@ pub fn get_broadcast_axes_from(
         if a_dim == 1 && res_dim != 1 && !padded_axes.contains(&i) {
             axes.push(i);
         } else if res_dim == 1 && a_dim != 1 {
-            return Err(ErrHandler::BroadcastError(
+            return Err(TensorError::BroadcastError(
                 a_shape.into(),
                 res_shape.into(),
                 i,

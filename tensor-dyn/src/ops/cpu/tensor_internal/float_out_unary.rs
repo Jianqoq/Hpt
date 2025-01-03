@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_traits::{CommonBounds, FloatUaryOps};
 use tensor_types::traits::VecTrait;
 use tensor_types::{
@@ -27,7 +27,7 @@ where
 
     type OutputMeta = FloatUnaryType<T>;
 
-    fn sin(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sin(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._sin(),
@@ -36,7 +36,7 @@ where
         )
     }
 
-    fn cos(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn cos(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._cos(),
@@ -45,7 +45,7 @@ where
         )
     }
 
-    fn tan(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn tan(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._tan(),
@@ -54,7 +54,7 @@ where
         )
     }
 
-    fn asin(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn asin(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._asin(),
@@ -63,7 +63,7 @@ where
         )
     }
 
-    fn acos(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn acos(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._acos(),
@@ -72,7 +72,7 @@ where
         )
     }
 
-    fn atan(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn atan(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._atan(),
@@ -81,7 +81,7 @@ where
         )
     }
 
-    fn sinh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sinh(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._sinh(),
@@ -90,7 +90,7 @@ where
         )
     }
 
-    fn cosh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn cosh(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._cosh(),
@@ -99,7 +99,7 @@ where
         )
     }
 
-    fn tanh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn tanh(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._tanh(),
@@ -108,7 +108,7 @@ where
         )
     }
 
-    fn asinh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn asinh(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._asinh(),
@@ -117,7 +117,7 @@ where
         )
     }
 
-    fn acosh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn acosh(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._acosh(),
@@ -126,7 +126,7 @@ where
         )
     }
 
-    fn atanh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn atanh(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._atanh(),
@@ -135,91 +135,91 @@ where
         )
     }
 
-    fn sin_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn sin_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<_Tensor<FloatUnaryType<T>>>,
     {
         uary_fn_with_out_simd(self, |x| x._sin(), |x| x._sin(), Some(out))
     }
 
-    fn cos_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn cos_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._cos(), |x| x._cos(), Some(out))
     }
 
-    fn tan_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn tan_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._tan(), |x| x._tan(), Some(out))
     }
 
-    fn asin_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn asin_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._asin(), |x| x._asin(), Some(out))
     }
 
-    fn acos_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn acos_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._acos(), |x| x._acos(), Some(out))
     }
 
-    fn atan_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn atan_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._atan(), |x| x._atan(), Some(out))
     }
 
-    fn sinh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn sinh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._sinh(), |x| x._sinh(), Some(out))
     }
 
-    fn cosh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn cosh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._cosh(), |x| x._cosh(), Some(out))
     }
 
-    fn tanh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn tanh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._tanh(), |x| x._tanh(), Some(out))
     }
 
-    fn asinh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn asinh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._asinh(), |x| x._asinh(), Some(out))
     }
 
-    fn acosh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn acosh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._acosh(), |x| x._acosh(), Some(out))
     }
 
-    fn atanh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn atanh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._atanh(), |x| x._atanh(), Some(out))
     }
 
-    fn exp(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn exp(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._exp(),
@@ -228,14 +228,14 @@ where
         )
     }
 
-    fn exp_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn exp_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._exp(), |x| x._exp(), Some(out))
     }
 
-    fn exp2(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn exp2(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._exp2(),
@@ -244,14 +244,14 @@ where
         )
     }
 
-    fn exp2_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn exp2_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._exp2(), |x| x._exp2(), Some(out))
     }
 
-    fn sqrt(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sqrt(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._sqrt(),
@@ -260,14 +260,14 @@ where
         )
     }
 
-    fn sqrt_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn sqrt_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._sqrt(), |x| x._sqrt(), Some(out))
     }
 
-    fn recip(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn recip(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._recip(),
@@ -276,14 +276,14 @@ where
         )
     }
 
-    fn recip_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn recip_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._recip(), |x| x._recip(), Some(out))
     }
 
-    fn ln(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn ln(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._ln(),
@@ -292,14 +292,14 @@ where
         )
     }
 
-    fn ln_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn ln_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._ln(), |x| x._ln(), Some(out))
     }
 
-    fn log2(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn log2(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._log2(),
@@ -308,14 +308,14 @@ where
         )
     }
 
-    fn log2_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn log2_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._log2(), |x| x._log2(), Some(out))
     }
 
-    fn log10(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn log10(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._log10(),
@@ -324,14 +324,14 @@ where
         )
     }
 
-    fn log10_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn log10_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._log10(), |x| x._log10(), Some(out))
     }
 
-    fn celu(&self, alpha: FloatUnaryType<T>) -> std::result::Result<Self::Output, ErrHandler> {
+    fn celu(&self, alpha: FloatUnaryType<T>) -> std::result::Result<Self::Output, TensorError> {
         let alpha_vec = <FloatUnaryType<T> as TypeCommon>::Vec::splat(alpha);
         uary_fn_with_out_simd(
             self,
@@ -345,7 +345,7 @@ where
         &self,
         alpha: FloatUnaryType<T>,
         out: U,
-    ) -> std::result::Result<Self::Output, ErrHandler>
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -353,7 +353,7 @@ where
         uary_fn_with_out_simd(self, |x| x._celu(alpha_vec), |x| x._celu(alpha), Some(out))
     }
 
-    fn sigmoid(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sigmoid(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._sigmoid(),
@@ -362,14 +362,14 @@ where
         )
     }
 
-    fn sigmoid_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn sigmoid_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._sigmoid(), |x| x._sigmoid(), Some(out))
     }
 
-    fn elu(&self, alpha: FloatUnaryType<T>) -> std::result::Result<Self::Output, ErrHandler> {
+    fn elu(&self, alpha: FloatUnaryType<T>) -> std::result::Result<Self::Output, TensorError> {
         let alpha_vec = <FloatUnaryType<T> as TypeCommon>::Vec::splat(alpha);
         uary_fn_with_out_simd(
             self,
@@ -383,7 +383,7 @@ where
         &self,
         alpha: FloatUnaryType<T>,
         out: U,
-    ) -> std::result::Result<Self::Output, ErrHandler>
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -391,7 +391,7 @@ where
         uary_fn_with_out_simd(self, |x| x._elu(alpha_vec), |x| x._elu(alpha), Some(out))
     }
 
-    fn erf(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn erf(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._erf(),
@@ -400,7 +400,7 @@ where
         )
     }
 
-    fn fast_hard_sigmoid(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn fast_hard_sigmoid(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._fast_hard_sigmoid(),
@@ -409,7 +409,7 @@ where
         )
     }
 
-    fn gelu(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn gelu(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._gelu(),
@@ -418,14 +418,14 @@ where
         )
     }
 
-    fn gelu_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn gelu_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._gelu(), |x| x._gelu(), Some(out))
     }
 
-    fn selu<U>(&self, alpha: U, gamma: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn selu<U>(&self, alpha: U, gamma: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Into<Option<Self::OutputMeta>>,
     {
@@ -448,7 +448,7 @@ where
         alpha: Option<FloatUnaryType<T>>,
         gamma: Option<FloatUnaryType<T>>,
         out: U,
-    ) -> std::result::Result<Self::Output, ErrHandler>
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -464,7 +464,7 @@ where
         )
     }
 
-    fn hard_sigmoid(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn hard_sigmoid(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._hard_sigmoid(),
@@ -473,7 +473,7 @@ where
         )
     }
 
-    fn hard_sigmoid_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn hard_sigmoid_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -485,7 +485,7 @@ where
         )
     }
 
-    fn hard_swish(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn hard_swish(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._hard_swish(),
@@ -494,14 +494,14 @@ where
         )
     }
 
-    fn hard_swish_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn hard_swish_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._hard_swish(), |x| x._hard_swish(), Some(out))
     }
 
-    fn softplus(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn softplus(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._softplus(),
@@ -510,14 +510,14 @@ where
         )
     }
 
-    fn softplus_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn softplus_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._softplus(), |x| x._softplus(), Some(out))
     }
 
-    fn softsign(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn softsign(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._softsign(),
@@ -526,14 +526,14 @@ where
         )
     }
 
-    fn softsign_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn softsign_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._softsign(), |x| x._softsign(), Some(out))
     }
 
-    fn mish(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn mish(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._mish(),
@@ -542,18 +542,18 @@ where
         )
     }
 
-    fn mish_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn mish_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(self, |x| x._mish(), |x| x._mish(), Some(out))
     }
 
-    fn cbrt(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn cbrt(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(self, |x| x._cbrt(), |x| x._cbrt(), None::<Self::Output>)
     }
 
-    fn cbrt_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn cbrt_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {

@@ -3,10 +3,10 @@ use crate::tensor_base::_Tensor;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use std::borrow::Borrow;
 use std::panic::Location;
-use tensor_common::err_handler::ErrHandler::InvalidOutSize;
+use tensor_common::err_handler::TensorError::InvalidOutSize;
 use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
 use tensor_traits::tensor::CommonBounds;
@@ -50,7 +50,7 @@ pub(crate) fn binary_fn_with_out_simd<A, B, O, K, F, F2, const DEVICE: usize>(
     f: F,
     f2: F2,
     out: Option<O>,
-) -> std::result::Result<_Tensor<K, Cpu, DEVICE>, ErrHandler>
+) -> std::result::Result<_Tensor<K, Cpu, DEVICE>, TensorError>
 where
     A: CommonBounds,
     B: CommonBounds,

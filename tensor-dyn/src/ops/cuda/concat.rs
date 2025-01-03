@@ -3,7 +3,7 @@ use std::panic::Location;
 use crate::{tensor_base::_Tensor, Cuda};
 use cudarc::driver::LaunchAsync;
 use cudarc::{driver::DeviceRepr, types::CudaTypeName};
-use tensor_common::{err_handler::ErrHandler, slice::Slice};
+use tensor_common::{err_handler::TensorError, slice::Slice};
 use tensor_traits::{
     shape_manipulate::ShapeManipulate,
     tensor::{CommonBounds, TensorCreator, TensorInfo},
@@ -37,7 +37,7 @@ pub(crate) fn concat<T, const DEVICE: usize>(
     tensors: Vec<&_Tensor<T, Cuda, DEVICE>>,
     axis: usize,
     keepdims: bool,
-) -> std::result::Result<_Tensor<T, Cuda, DEVICE>, ErrHandler>
+) -> std::result::Result<_Tensor<T, Cuda, DEVICE>, TensorError>
 where
     T: CommonBounds + DeviceRepr + CudaTypeName,
 {
@@ -45,13 +45,13 @@ where
     for i in tensors.iter() {
         for (idx, x) in tensors[0].shape().iter().enumerate() {
             if idx != axis && i.shape().len() == tensors[0].shape().len() && *x != i.shape()[idx] {
-                return Err(ErrHandler::ConcatError(
+                return Err(TensorError::ConcatError(
                     axis,
                     *x as usize,
                     Location::caller(),
                 ));
             } else if i.shape().len() != tensors[0].shape().len() {
-                return Err(ErrHandler::NdimMismatched(
+                return Err(TensorError::NdimMismatched(
                     tensors[0].ndim(),
                     i.ndim(),
                     Location::caller(),
@@ -148,7 +148,7 @@ where
                     ),
                 )
                 .map_err(|e| {
-                    ErrHandler::CudaKernelLaunchingError(
+                    TensorError::CudaKernelLaunchingError(
                         module_name.clone(),
                         "assign".to_string(),
                         Location::caller(),

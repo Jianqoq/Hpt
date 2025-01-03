@@ -6,7 +6,7 @@ use std::panic::Location;
 use tensor_common::shape_utils::yield_one_after;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
-use tensor_common::{axis::Axis, err_handler::ErrHandler, layout::Layout, shape::Shape};
+use tensor_common::{axis::Axis, err_handler::TensorError, layout::Layout, shape::Shape};
 use tensor_macros::match_selection;
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorInfo, TensorLike};
 
@@ -15,33 +15,33 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeM
 {
     type Meta = T;
     type Output = Self;
-    fn squeeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self, ErrHandler> {
+    fn squeeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self, TensorError> {
         Ok(crate::ops::common::shape_manipulate::squeeze(
             self,
             axes,
             |a| a.contiguous(),
         )?)
     }
-    fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self, ErrHandler> {
+    fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self, TensorError> {
         Ok(crate::ops::common::shape_manipulate::unsqueeze(
             self,
             axes,
             |a| a.contiguous(),
         )?)
     }
-    fn reshape<S: Into<Shape>>(&self, shape: S) -> std::result::Result<Self, ErrHandler> {
+    fn reshape<S: Into<Shape>>(&self, shape: S) -> std::result::Result<Self, TensorError> {
         Ok(crate::ops::common::shape_manipulate::reshape(
             self,
             shape,
             |a| a.contiguous(),
         )?)
     }
-    fn transpose(&self, axis1: i64, axis2: i64) -> std::result::Result<Self, ErrHandler> {
+    fn transpose(&self, axis1: i64, axis2: i64) -> std::result::Result<Self, TensorError> {
         Ok(crate::ops::common::shape_manipulate::transpose(
             self, axis1, axis2,
         )?)
     }
-    fn permute<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self, ErrHandler> {
+    fn permute<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self, TensorError> {
         Ok(crate::ops::common::shape_manipulate::permute(
             self,
             axes,
@@ -49,47 +49,47 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeM
         )?)
     }
 
-    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self, ErrHandler> {
+    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self, TensorError> {
         Ok(crate::ops::common::shape_manipulate::permute(
             self,
             axes,
             |layout, axes| layout.permute_inv(axes),
         )?)
     }
-    fn expand<S: Into<Shape>>(&self, shape: S) -> std::result::Result<Self, ErrHandler> {
+    fn expand<S: Into<Shape>>(&self, shape: S) -> std::result::Result<Self, TensorError> {
         Ok(crate::ops::common::shape_manipulate::expand(self, shape)?)
     }
-    fn t(&self) -> std::result::Result<Self, ErrHandler> {
+    fn t(&self) -> std::result::Result<Self, TensorError> {
         Ok(crate::ops::common::shape_manipulate::t(self)?)
     }
-    fn mt(&self) -> std::result::Result<Self, ErrHandler> {
+    fn mt(&self) -> std::result::Result<Self, TensorError> {
         Ok(crate::ops::common::shape_manipulate::mt(self)?)
     }
-    fn flip<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self, ErrHandler> {
+    fn flip<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self, TensorError> {
         Ok(crate::ops::common::shape_manipulate::flip(self, axes)?)
     }
-    fn fliplr(&self) -> std::result::Result<Self, ErrHandler> {
+    fn fliplr(&self) -> std::result::Result<Self, TensorError> {
         Ok(crate::ops::common::shape_manipulate::fliplr(self)?)
     }
-    fn flipud(&self) -> std::result::Result<Self, ErrHandler> {
+    fn flipud(&self) -> std::result::Result<Self, TensorError> {
         Ok(crate::ops::common::shape_manipulate::flipud(self)?)
     }
-    fn tile<S: Into<Axis>>(&self, repeats: S) -> std::result::Result<Self, ErrHandler> {
+    fn tile<S: Into<Axis>>(&self, repeats: S) -> std::result::Result<Self, TensorError> {
         Ok(crate::ops::common::shape_manipulate::tile(
             self,
             repeats,
             |a| a.contiguous(),
         )?)
     }
-    fn trim_zeros(&self, trim: &str) -> std::result::Result<Self, ErrHandler>
+    fn trim_zeros(&self, trim: &str) -> std::result::Result<Self, TensorError>
     where
         Self::Meta: PartialEq,
     {
         if !(trim == "fb" || trim == "f" || trim == "b") {
-            return Err(ErrHandler::TrimError(trim.to_string(), Location::caller()).into());
+            return Err(TensorError::TrimError(trim.to_string(), Location::caller()).into());
         }
         if self.ndim() > 1 {
-            return Err(ErrHandler::NdimExceed(1, self.ndim(), Location::caller()).into());
+            return Err(TensorError::NdimExceed(1, self.ndim(), Location::caller()).into());
         }
         let stride = self.strides()[0] as isize;
         let raw = self.as_raw();
@@ -122,7 +122,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeM
         }
         slice!(self[left_len:right_len])
     }
-    fn repeat(&self, repeats: usize, axes: i16) -> std::result::Result<Self, ErrHandler> {
+    fn repeat(&self, repeats: usize, axes: i16) -> std::result::Result<Self, TensorError> {
         let mut val: usize = axes as usize;
         if axes < 0 {
             val = self.shape().len() + (axes as usize);
@@ -135,7 +135,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeM
         new_shape[val] *= repeats as i64;
         Ok(new_tensor.contiguous()?.reshape(new_shape)?)
     }
-    fn split(&self, indices_or_sections: &[i64], axis: i64) -> std::result::Result<Vec<Self>, ErrHandler> {
+    fn split(&self, indices_or_sections: &[i64], axis: i64) -> std::result::Result<Vec<Self>, TensorError> {
         let mut new_axis = axis;
         if axis < 0 {
             new_axis = (self.ndim() as i64) + axis;
@@ -158,33 +158,33 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeM
         reses.push(remain);
         Ok(reses)
     }
-    fn dsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self>, ErrHandler> {
+    fn dsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self>, TensorError> {
         if self.shape().len() < 3 {
             return Err(
-                ErrHandler::NdimNotEnough(3, self.shape().len(), Location::caller()).into(),
+                TensorError::NdimNotEnough(3, self.shape().len(), Location::caller()).into(),
             );
         }
         self.split(indices, 2)
     }
-    fn hsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self>, ErrHandler> {
+    fn hsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self>, TensorError> {
         if self.shape().len() < 2 {
             return Err(
-                ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into(),
+                TensorError::NdimNotEnough(2, self.shape().len(), Location::caller()).into(),
             );
         }
         self.split(indices, 1)
     }
-    fn vsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self>, ErrHandler> {
+    fn vsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self>, TensorError> {
         if self.shape().len() < 1 {
             return Err(
-                ErrHandler::NdimNotEnough(1, self.shape().len(), Location::caller()).into(),
+                TensorError::NdimNotEnough(1, self.shape().len(), Location::caller()).into(),
             );
         }
         self.split(indices, 0)
     }
-    fn swap_axes(&self, mut axis1: i64, mut axis2: i64) -> std::result::Result<Self, ErrHandler> {
-        ErrHandler::check_index_in_range_mut(self.ndim(), &mut axis1)?;
-        ErrHandler::check_index_in_range_mut(self.ndim(), &mut axis2)?;
+    fn swap_axes(&self, mut axis1: i64, mut axis2: i64) -> std::result::Result<Self, TensorError> {
+        TensorError::check_index_in_range_mut(self.ndim(), &mut axis1)?;
+        TensorError::check_index_in_range_mut(self.ndim(), &mut axis2)?;
         let mut new_shape = self.shape().to_vec();
         let mut new_strides = self.strides().to_vec();
         new_shape.swap(axis1 as usize, axis2 as usize);
@@ -198,15 +198,15 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeM
             _backend: self._backend.clone(),
         })
     }
-    fn flatten<A>(&self, start_dim: A, end_dim: A) -> std::result::Result<Self, ErrHandler>
+    fn flatten<A>(&self, start_dim: A, end_dim: A) -> std::result::Result<Self, TensorError>
     where
         A: Into<Option<usize>>,
     {
         let start = start_dim.into().unwrap_or(0);
         let end = end_dim.into().unwrap_or(self.ndim() - 1);
         let shape = self.shape();
-        ErrHandler::check_index_in_range(self.ndim(), start as i64)?;
-        ErrHandler::check_index_in_range(self.ndim(), end as i64)?;
+        TensorError::check_index_in_range(self.ndim(), start as i64)?;
+        TensorError::check_index_in_range(self.ndim(), end as i64)?;
         let flattened_dim = shape[start..=end].iter().product::<i64>();
         let mut new_shape = Vec::new();
         for (i, &dim) in shape.iter().enumerate() {
@@ -220,16 +220,16 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeM
         }
         self.reshape(new_shape)
     }
-    fn concat(tensors: Vec<&Self>, axis: usize, keepdims: bool) -> std::result::Result<Self, ErrHandler>
+    fn concat(tensors: Vec<&Self>, axis: usize, keepdims: bool) -> std::result::Result<Self, TensorError>
     where
         T: 'static,
     {
         crate::ops::cuda::concat::concat(tensors, axis, keepdims)
     }
-    fn vstack(tensors: Vec<&Self>) -> std::result::Result<Self, ErrHandler> {
+    fn vstack(tensors: Vec<&Self>) -> std::result::Result<Self, TensorError> {
         crate::ops::cuda::concat::concat(tensors, 0, false)
     }
-    fn hstack(mut tensors: Vec<&Self>) -> std::result::Result<Self, ErrHandler> {
+    fn hstack(mut tensors: Vec<&Self>) -> std::result::Result<Self, TensorError> {
         for tensor in tensors.iter_mut() {
             if tensor.shape().len() < 2 {
                 return if tensor.shape().len() == 1 {
@@ -250,7 +250,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeM
         }
         crate::ops::cuda::concat::concat(tensors, 1, false)
     }
-    fn dstack(mut tensors: Vec<&Self>) -> std::result::Result<Self, ErrHandler> {
+    fn dstack(mut tensors: Vec<&Self>) -> std::result::Result<Self, TensorError> {
         let mut new_tensors = Vec::with_capacity(tensors.len());
         for tensor in tensors.iter_mut() {
             if tensor.shape().len() < 3 {

@@ -1,6 +1,6 @@
 use std::panic::Location;
 
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_traits::CommonBounds;
 use tensor_types::{convertion::Convertor, into_scalar::IntoScalar};
 
@@ -9,7 +9,7 @@ pub(crate) fn geomspace_preprocess_start_step<T>(
     end: f64,
     n: usize,
     include_end: bool,
-) -> std::result::Result<(f64, f64), ErrHandler>
+) -> std::result::Result<(f64, f64), TensorError>
 where
     f64: IntoScalar<T>,
     usize: IntoScalar<T>,
@@ -22,7 +22,7 @@ where
         } else if start < 0.0 && end < 0.0 {
             (end.abs().log10() - start.abs().log10()) / (float_n - 1.0)
         } else {
-            return Err(ErrHandler::GeomSpaceStartEndError(
+            return Err(TensorError::GeomSpaceStartEndError(
                 start,
                 end,
                 Location::caller(),
@@ -33,7 +33,7 @@ where
     } else if start < 0.0 && end < 0.0 {
         (end.abs().log10() - start.abs().log10()) / float_n
     } else {
-        return Err(ErrHandler::GeomSpaceStartEndError(
+        return Err(TensorError::GeomSpaceStartEndError(
             start,
             end,
             Location::caller(),

@@ -1,7 +1,7 @@
 use std::panic::Location;
 
 use tensor_common::{
-    err_handler::ErrHandler, prg_update::next_sub1, shape_utils::mt_intervals, slice::Slice,
+    err_handler::TensorError, prg_update::next_sub1, shape_utils::mt_intervals, slice::Slice,
 };
 use tensor_traits::{
     shape_manipulate::ShapeManipulate,
@@ -34,7 +34,7 @@ pub(crate) fn concat<T>(
     tensors: Vec<&_Tensor<T>>,
     axis: usize,
     keepdims: bool,
-) -> std::result::Result<_Tensor<T>, ErrHandler>
+) -> std::result::Result<_Tensor<T>, TensorError>
 where
     T: CommonBounds,
 {
@@ -42,13 +42,13 @@ where
     for i in tensors.iter() {
         for (idx, x) in tensors[0].shape().iter().enumerate() {
             if idx != axis && i.shape().len() == tensors[0].shape().len() && *x != i.shape()[idx] {
-                return Err(ErrHandler::ConcatError(
+                return Err(TensorError::ConcatError(
                     axis,
                     *x as usize,
                     Location::caller(),
                 ));
             } else if i.shape().len() != tensors[0].shape().len() {
-                return Err(ErrHandler::NdimMismatched(
+                return Err(TensorError::NdimMismatched(
                     tensors[0].ndim(),
                     i.ndim(),
                     Location::caller(),

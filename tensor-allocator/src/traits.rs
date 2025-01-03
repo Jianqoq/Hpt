@@ -1,6 +1,6 @@
 use std::alloc::Layout;
 
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 
 /// traits for the allocator
 pub trait Allocator {
@@ -15,7 +15,7 @@ pub trait Allocator {
     /// 3. if the layout is not found in the cache, allocate new memory
     ///
     /// 4. eventually, if the cache is full, pop the least recently used memory and deallocate the memory
-    fn allocate(&mut self, layout: Layout, device_id: usize) -> Result<*mut u8, ErrHandler>;
+    fn allocate(&mut self, layout: Layout, device_id: usize) -> Result<*mut u8, TensorError>;
     /// deallocate memory by using lru cache strategy
     ///
     /// # Logic

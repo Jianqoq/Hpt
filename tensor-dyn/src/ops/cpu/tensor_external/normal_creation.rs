@@ -1,5 +1,5 @@
 use crate::{backend::Cpu, tensor::Tensor, tensor_base::_Tensor, BoolVector};
-use tensor_common::{err_handler::ErrHandler, shape::Shape};
+use tensor_common::{err_handler::TensorError, shape::Shape};
 use tensor_traits::{CommonBounds, TensorCreator};
 use tensor_types::{
     convertion::{Convertor, FromScalar},
@@ -31,7 +31,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     /// use tensor_dyn::TensorCreator;
     /// let a = Tensor::<f64>::empty([2, 3]);
     /// ```
-    fn empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, ErrHandler> {
+    fn empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu, DEVICE>::empty(shape)?.into())
     }
 
@@ -56,7 +56,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     /// use tensor_dyn::TensorCreator;
     /// let a = Tensor::<f64>::zeros([2, 3]);
     /// ```
-    fn zeros<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, ErrHandler> {
+    fn zeros<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu, DEVICE>::zeros(shape)?.into())
     }
 
@@ -81,7 +81,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     /// use tensor_dyn::TensorCreator;
     /// let a = Tensor::<f64>::ones([2, 3]);
     /// ```
-    fn ones<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, ErrHandler>
+    fn ones<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, TensorError>
     where
         u8: IntoScalar<T>,
     {
@@ -110,7 +110,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     /// let a = Tensor::<f64>::empty([2, 3]);
     /// let b = a.empty_like();
     /// ```
-    fn empty_like(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn empty_like(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::empty_like(self.inner.as_ref())?.into())
     }
 
@@ -136,7 +136,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     /// let a = Tensor::<f64>::empty([2, 3]);
     /// let b = a.zeros_like();
     /// ```
-    fn zeros_like(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn zeros_like(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::zeros_like(self.inner.as_ref())?.into())
     }
 
@@ -162,7 +162,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     /// let a = Tensor::<f64>::empty([2, 3]);
     /// let b = a.ones_like();
     /// ```
-    fn ones_like(&self) -> std::result::Result<Self::Output, ErrHandler>
+    fn ones_like(&self) -> std::result::Result<Self::Output, TensorError>
     where
         u8: IntoScalar<T>,
     {
@@ -191,7 +191,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     /// use tensor_dyn::TensorCreator;
     /// let a = Tensor::<f64>::full(3.0, [2, 3]);
     /// ```
-    fn full<S: Into<Shape>>(val: T, shape: S) -> std::result::Result<Self::Output, ErrHandler> {
+    fn full<S: Into<Shape>>(val: T, shape: S) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu, DEVICE>::full(val, shape)?.into())
     }
 
@@ -217,7 +217,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     /// let a = Tensor::<f64>::empty([2, 3]);
     /// let b = a.full_like(3.0);
     /// ```
-    fn full_like(&self, val: T) -> std::result::Result<Self::Output, ErrHandler> {
+    fn full_like(&self, val: T) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::full_like(self.inner.as_ref(), val)?.into())
     }
 
@@ -243,7 +243,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     /// use tensor_dyn::TensorCreator;
     /// let a = Tensor::<f64>::arange(0.0, 5.0).unwrap();
     /// ```
-    fn arange<U>(start: U, end: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn arange<U>(start: U, end: U) -> std::result::Result<Self::Output, TensorError>
     where
         T: FromScalar<U>,
         usize: IntoScalar<T>,
@@ -276,7 +276,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     /// use tensor_dyn::TensorCreator;
     /// let a = Tensor::<f64>::arange_step(0.0, 5.0, 1.0).unwrap();
     /// ```
-    fn arange_step(start: T, end: T, step: T) -> std::result::Result<Self::Output, ErrHandler>
+    fn arange_step(start: T, end: T, step: T) -> std::result::Result<Self::Output, TensorError>
     where
         T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>,
     {
@@ -306,7 +306,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     /// use tensor_dyn::TensorCreator;
     /// let a = Tensor::<f64>::eye(3, 3, 0).unwrap();
     /// ```
-    fn eye(n: usize, m: usize, k: usize) -> std::result::Result<Self::Output, ErrHandler>
+    fn eye(n: usize, m: usize, k: usize) -> std::result::Result<Self::Output, TensorError>
     where
         u8: IntoScalar<T>,
     {
@@ -343,7 +343,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         end: U,
         num: usize,
         include_end: bool,
-    ) -> std::result::Result<Self::Output, ErrHandler>
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         T: Convertor + NormalOut<T, Output = T>,
         U: Convertor + IntoScalar<T> + Copy,
@@ -385,7 +385,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         num: usize,
         include_end: bool,
         base: T,
-    ) -> std::result::Result<Self::Output, ErrHandler>
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64> + NormalOut<T, Output = T>,
     {
@@ -422,7 +422,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         end: T,
         n: usize,
         include_end: bool,
-    ) -> std::result::Result<Self::Output, ErrHandler>
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         f64: IntoScalar<T>,
         usize: IntoScalar<T>,
@@ -459,7 +459,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         m: usize,
         k: i64,
         low_triangle: bool,
-    ) -> std::result::Result<Self::Output, ErrHandler>
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         u8: IntoScalar<T>,
     {
@@ -488,7 +488,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     /// let a = Tensor::<f64>::eye(3, 3, 0).unwrap();
     /// let b = a.tril(1).unwrap();
     /// ```
-    fn tril(&self, k: i64) -> std::result::Result<Self::Output, ErrHandler>
+    fn tril(&self, k: i64) -> std::result::Result<Self::Output, TensorError>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
         T::Vec: NormalOut<BoolVector, Output = T::Vec>,
@@ -518,7 +518,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     /// let a = Tensor::<f64>::eye(3, 3, 0).unwrap();
     /// let b = a.triu(1).unwrap();
     /// ```
-    fn triu(&self, k: i64) -> std::result::Result<Self::Output, ErrHandler>
+    fn triu(&self, k: i64) -> std::result::Result<Self::Output, TensorError>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
         T::Vec: NormalOut<BoolVector, Output = T::Vec>,
@@ -547,7 +547,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     /// use tensor_dyn::TensorCreator;
     /// let a = Tensor::<f64>::identity(3).unwrap();
     /// ```
-    fn identity(n: usize) -> std::result::Result<Self::Output, ErrHandler>
+    fn identity(n: usize) -> std::result::Result<Self::Output, TensorError>
     where
         u8: IntoScalar<T>,
     {

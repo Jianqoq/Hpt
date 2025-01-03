@@ -1,5 +1,5 @@
 use crate::tensor_base::_Tensor;
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_common::tensordot_args::TensorDotArgs;
 use tensor_traits::ops::binary::Matmul;
 use tensor_traits::shape_manipulate::ShapeManipulate;
@@ -13,7 +13,7 @@ pub(crate) fn _tensordot<A, B, G, const N: usize>(
     a: &_Tensor<A>,
     b: &_Tensor<B>,
     axes: G,
-) -> std::result::Result<<_Tensor<A> as Matmul<_Tensor<B>>>::Output, ErrHandler>
+) -> std::result::Result<<_Tensor<A> as Matmul<_Tensor<B>>>::Output, TensorError>
 where
     A: CommonBounds + NormalOut<B>,
     B: CommonBounds,
@@ -30,7 +30,7 @@ where
     let a_ndim = a_shape.len();
     let b_ndim = b_shape.len();
     if a_axes_dim != b_axes_dim {
-        return Err(ErrHandler::NdimMismatched(
+        return Err(TensorError::NdimMismatched(
             a_axes_dim,
             b_axes_dim,
             Location::caller(),
@@ -40,7 +40,7 @@ where
             if axes[0][i] < 0 {
                 axes[0][i] += a_ndim as i64;
                 if axes[0][i] < 0 {
-                    return Err(ErrHandler::TensorDotAxesOutOfBounds(
+                    return Err(TensorError::TensorDotAxesOutOfBounds(
                         0,
                         axes[0][i] as usize,
                         Location::caller(),
@@ -50,7 +50,7 @@ where
             if axes[1][i] < 0 {
                 axes[1][i] += b_ndim as i64;
                 if axes[1][i] < 0 {
-                    return Err(ErrHandler::TensorDotAxesOutOfBounds(
+                    return Err(TensorError::TensorDotAxesOutOfBounds(
                         1,
                         axes[1][i] as usize,
                         Location::caller(),
@@ -58,7 +58,7 @@ where
                 }
             }
             if a_shape[axes[0][i] as usize] != b_shape[axes[1][i] as usize] {
-                return Err(ErrHandler::TensorDotDimMismatched(
+                return Err(TensorError::TensorDotDimMismatched(
                     i,
                     a_shape[axes[0][i] as usize] as usize,
                     b_shape[axes[1][i] as usize] as usize,

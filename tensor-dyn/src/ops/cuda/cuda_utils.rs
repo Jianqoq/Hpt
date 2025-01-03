@@ -5,7 +5,7 @@ use cudarc::{
     nvrtc::{compile_ptx_with_opts, CompileOptions},
 };
 use regex::Regex;
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_cudakernels::RegisterInfo;
 use tensor_types::dtype::TypeCommon;
 
@@ -17,7 +17,7 @@ pub(crate) fn compile_kernel(
     code: &str,
     device: Arc<CudaDevice>,
     kernels: &[&'static str],
-) -> std::result::Result<Arc<HashMap<String, RegisterInfo>>, ErrHandler> {
+) -> std::result::Result<Arc<HashMap<String, RegisterInfo>>, TensorError> {
     if let Ok(mut cache) = CUDA_COMPILED.lock() {
         if let Some(set) = cache.get_mut(&device.ordinal()) {
             if let Some(reg_info) = set.get(module) {
@@ -26,7 +26,7 @@ pub(crate) fn compile_kernel(
                 let cuda_path = if let Ok(cuda_path) = std::env::var("CUDA_PATH") {
                     cuda_path
                 } else {
-                    return Err(ErrHandler::EnvVarNotSet(
+                    return Err(TensorError::EnvVarNotSet(
                         "CUDA_PATH",
                         "compile_kernel",
                         Location::caller(),
@@ -35,7 +35,7 @@ pub(crate) fn compile_kernel(
                 let mut opts = CompileOptions::default();
                 opts.include_paths.push(format!("{}/include", cuda_path));
                 let ptx = compile_ptx_with_opts(code, opts).map_err(|_| {
-                    ErrHandler::CudaKernelCompileError(
+                    TensorError::CudaKernelCompileError(
                         module.to_string(),
                         code.to_string(),
                         Location::caller(),
@@ -43,7 +43,7 @@ pub(crate) fn compile_kernel(
                 })?;
                 let reg_counts = count_registers(&ptx.to_src());
                 device.load_ptx(ptx, module, kernels).map_err(|x| {
-                    ErrHandler::CudaLoadPTXFailed(
+                    TensorError::CudaLoadPTXFailed(
                         module.to_string(),
                         code.to_string(),
                         Location::caller(),
@@ -59,7 +59,7 @@ pub(crate) fn compile_kernel(
             let mut opts = CompileOptions::default();
             opts.include_paths.push(format!("{}/include", cuda_path));
             let ptx = compile_ptx_with_opts(code, opts).map_err(|_| {
-                ErrHandler::CudaKernelCompileError(
+                TensorError::CudaKernelCompileError(
                     module.to_string(),
                     code.to_string(),
                     Location::caller(),
@@ -67,7 +67,7 @@ pub(crate) fn compile_kernel(
             })?;
             let reg_counts = count_registers(&ptx.to_src());
             device.load_ptx(ptx, module, kernels).map_err(|x| {
-                ErrHandler::CudaLoadPTXFailed(
+                TensorError::CudaLoadPTXFailed(
                     module.to_string(),
                     code.to_string(),
                     Location::caller(),
@@ -80,7 +80,7 @@ pub(crate) fn compile_kernel(
             Ok(reg_counts)
         }
     } else {
-        Err(ErrHandler::LockFailed("compile_kernel", Location::caller()))
+        Err(TensorError::LockFailed("compile_kernel", Location::caller()))
     }
 }
 
@@ -97,20 +97,20 @@ pub(crate) fn load_ptx_and_get_data(
             &'static [&str],
         ),
     >,
-) -> std::result::Result<(CudaFunction, RegisterInfo), ErrHandler> {
+) -> std::result::Result<(CudaFunction, RegisterInfo), TensorError> {
     if let Some(func) = device.get_func(module, func_name) {
         if let Some(meta) = meta.get(&cap) {
             if let Some(reg_info) = meta.1.get(func_name) {
                 Ok((func, *reg_info))
             } else {
-                Err(ErrHandler::CudaKernelReginfoNotFound(
+                Err(TensorError::CudaKernelReginfoNotFound(
                     module.to_string(),
                     func_name.to_string(),
                     Location::caller(),
                 ))
             }
         } else {
-            Err(ErrHandler::CudaKernelMetaNotFound(
+            Err(TensorError::CudaKernelMetaNotFound(
                 cap,
                 module.to_string(),
                 func_name.to_string(),
@@ -122,7 +122,7 @@ pub(crate) fn load_ptx_and_get_data(
             device
                 .load_ptx(meta.0.into(), module, meta.2)
                 .map_err(|x| {
-                    ErrHandler::CudaLoadPTXFailed(
+                    TensorError::CudaLoadPTXFailed(
                         module.to_string(),
                         meta.0.to_string(),
                         Location::caller(),
@@ -132,14 +132,14 @@ pub(crate) fn load_ptx_and_get_data(
             if let Some(reg_info) = meta.1.get(func_name) {
                 Ok((device.get_func(module, func_name).unwrap(), *reg_info))
             } else {
-                Err(ErrHandler::CudaKernelReginfoNotFound(
+                Err(TensorError::CudaKernelReginfoNotFound(
                     module.to_string(),
                     func_name.to_string(),
                     Location::caller(),
                 ))
             }
         } else {
-            Err(ErrHandler::CudaKernelMetaNotFound(
+            Err(TensorError::CudaKernelMetaNotFound(
                 cap,
                 module.to_string(),
                 func_name.to_string(),

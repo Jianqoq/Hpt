@@ -1,6 +1,6 @@
 use std::panic::Location;
 
-use crate::err_handler::ErrHandler;
+use crate::err_handler::TensorError;
 
 /// Slice enum to hold the slice information
 ///
@@ -72,7 +72,7 @@ pub fn slice_process(
     strides: Vec<i64>,
     index: &[Slice],
     alpha: i64,
-) -> std::result::Result<(Vec<i64>, Vec<i64>, i64), ErrHandler> {
+) -> std::result::Result<(Vec<i64>, Vec<i64>, i64), TensorError> {
     let mut res_shape: Vec<i64> = shape.clone();
     let mut res_strides: Vec<i64> = strides.clone();
     res_shape.iter_mut().for_each(|x| {
@@ -83,7 +83,7 @@ pub fn slice_process(
     });
     let mut res_ptr = 0;
     if index.len() > res_shape.len() {
-        return Err(ErrHandler::SliceIndexLengthNotMatch(
+        return Err(TensorError::SliceIndexLengthNotMatch(
             index.len() as i64,
             res_shape.len() as i64,
             Location::caller(),
@@ -100,7 +100,7 @@ pub fn slice_process(
                 }
                 index *= alpha;
                 if index >= shape[idx] {
-                    return Err(ErrHandler::SliceIndexOutOfRange(
+                    return Err(TensorError::SliceIndexOutOfRange(
                         index,
                         idx as i64,
                         shape[idx],

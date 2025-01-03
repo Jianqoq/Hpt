@@ -1,6 +1,6 @@
 use std::borrow::BorrowMut;
 
-use tensor_common::{err_handler::ErrHandler, pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides};
+use tensor_common::{err_handler::TensorError, pointer::Pointer, shape::Shape, shape_utils::mt_intervals, strides::Strides};
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo};
 use tensor_types::into_scalar::IntoScalar;
 
@@ -226,7 +226,7 @@ pub(crate) fn softmax_prepare<T: CommonBounds, O: CommonBounds>(
     a: &_Tensor<T>,
     axis: usize,
     c: Option<_Tensor<O>>
-) -> std::result::Result<(bool, _Tensor<T>, _Tensor<O>), ErrHandler> {
+) -> std::result::Result<(bool, _Tensor<T>, _Tensor<O>), TensorError> {
     let mut keep_fast_dim = true;
     if a.strides()[axis] == 1 {
         keep_fast_dim = false;
@@ -241,7 +241,7 @@ pub(crate) fn softmax_prepare<T: CommonBounds, O: CommonBounds>(
     let res = if let Some(out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
-        ErrHandler::check_inplace_out_layout_valid(a.shape(), out.layout())?;
+        TensorError::check_inplace_out_layout_valid(a.shape(), out.layout())?;
         Ok(out)
     } else {
         _Tensor::<O, Cpu>::empty(a.shape())
@@ -311,7 +311,7 @@ pub(crate) fn uncontiguous_softmax_template<T, F1, F2, F3, O>(
     nkd: F2,
     kd: F3
 )
-    -> std::result::Result<_Tensor<O>, ErrHandler>
+    -> std::result::Result<_Tensor<O>, TensorError>
     where
         T: CommonBounds + IntoScalar<O>,
         O: CommonBounds,

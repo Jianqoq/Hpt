@@ -2,8 +2,8 @@ use crate::tensor_base::_Tensor;
 use crate::Tensor;
 use crate::REGNUM;
 use rayon::prelude::*;
-use tensor_common::err_handler::ErrHandler;
-use tensor_common::err_handler::ErrHandler::InvalidInputShape;
+use tensor_common::err_handler::TensorError;
+use tensor_common::err_handler::TensorError::InvalidInputShape;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
@@ -47,10 +47,10 @@ where
     pub fn adaptive_avgpool2d(
         &self,
         output_size: [i64; 2],
-    ) -> std::result::Result<_Tensor<T>, ErrHandler> {
+    ) -> std::result::Result<_Tensor<T>, TensorError> {
         let img_shape = self.shape();
         if img_shape.len() != 4 {
-            return Err(ErrHandler::Conv2dImgShapeInCorrect(
+            return Err(TensorError::Conv2dImgShapeInCorrect(
                 img_shape.len(),
                 core::panic::Location::caller(),
             )
@@ -210,7 +210,7 @@ where
     pub fn adaptive_avgpool2d(
         &self,
         output_size: [i64; 2],
-    ) -> std::result::Result<Tensor<T>, ErrHandler> {
+    ) -> std::result::Result<Tensor<T>, TensorError> {
         Ok(self.inner.adaptive_avgpool2d(output_size)?.into())
     }
 }

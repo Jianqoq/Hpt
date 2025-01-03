@@ -1,6 +1,6 @@
 use crate::ops::cpu::concat::concat;
 use crate::{ tensor::Tensor, tensor_base::_Tensor };
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_common::{ axis::Axis, shape::Shape };
 use tensor_traits::{ CommonBounds, ShapeManipulate };
 
@@ -36,7 +36,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// let squeezed_tensor = tensor.squeeze(0).unwrap();
     /// assert_eq!(squeezed_tensor.shape().inner(), &[3]);
     /// ```
-    fn squeeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, ErrHandler> {
+    fn squeeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::squeeze(self.inner.as_ref(), axes)?.into())
     }
 
@@ -68,7 +68,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// let unsqueezed_tensor = tensor.unsqueeze(0).unwrap();
     /// assert_eq!(unsqueezed_tensor.shape().inner(), &[1, 3]);
     /// ```
-    fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, ErrHandler> {
+    fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::unsqueeze(self.inner.as_ref(), axes)?.into())
     }
 
@@ -101,7 +101,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// let reshaped_tensor = tensor.reshape(&[1, 3]).unwrap();
     /// assert_eq!(reshaped_tensor.shape().inner(), &[1, 3]);
     /// ```
-    fn reshape<S: Into<Shape>>(&self, shape: S) -> std::result::Result<Self::Output, ErrHandler> {
+    fn reshape<S: Into<Shape>>(&self, shape: S) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::reshape(self.inner.as_ref(), shape)?.into())
     }
 
@@ -137,7 +137,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// # See Also
     /// - [`permute`]: Rearranges all axes of the tensor according to a given order.
     /// - [`swap_axes`]: Swaps two specified axes in the tensor (an alias for `transpose`).
-    fn transpose(&self, axis1: i64, axis2: i64) -> std::result::Result<Self::Output, ErrHandler> {
+    fn transpose(&self, axis1: i64, axis2: i64) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::transpose(self.inner.as_ref(), axis1, axis2)?.into())
     }
 
@@ -170,7 +170,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// let permuted_tensor = tensor.permute(&[1, 0]).unwrap();
     /// assert_eq!(permuted_tensor.shape().inner(), &[3, 1]);
     /// ```
-    fn permute<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, ErrHandler> {
+    fn permute<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::permute(self.inner.as_ref(), axes)?.into())
     }
 
@@ -203,7 +203,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// let restored_tensor = permuted_tensor.permute_inv(&[1, 0]).unwrap();
     /// assert_eq!(restored_tensor.shape().inner(), &[1, 3]);
     /// ```
-    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, ErrHandler> {
+    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::permute_inv(self.inner.as_ref(), axes)?.into())
     }
 
@@ -238,7 +238,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// let expanded_tensor = tensor.expand(&[2, 3]).unwrap();
     /// assert_eq!(expanded_tensor.shape().inner(), &[2, 3]);
     /// ```
-    fn expand<S: Into<Shape>>(&self, shape: S) -> std::result::Result<Self::Output, ErrHandler> {
+    fn expand<S: Into<Shape>>(&self, shape: S) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::expand(self.inner.as_ref(), shape)?.into())
     }
 
@@ -270,7 +270,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// let transposed_tensor = tensor.t().unwrap();
     /// assert_eq!(transposed_tensor.shape().inner(), &[2, 2]);
     /// ```
-    fn t(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn t(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::t(self.inner.as_ref())?.into())
     }
 
@@ -299,7 +299,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// let transposed_tensor = tensor.mt().unwrap();
     /// assert_eq!(transposed_tensor.shape().inner(), &[2, 2]);
     /// ```
-    fn mt(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn mt(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::mt(self.inner.as_ref())?.into())
     }
 
@@ -334,7 +334,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     ///         .unwrap()
     /// ));
     /// ```
-    fn flip<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, ErrHandler> {
+    fn flip<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::flip(self.inner.as_ref(), axes)?.into())
     }
 
@@ -371,7 +371,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     ///         .unwrap()
     /// ));
     /// ```
-    fn fliplr(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn fliplr(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::fliplr(self.inner.as_ref())?.into())
     }
 
@@ -406,7 +406,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     ///         .unwrap()
     /// ));
     /// ```
-    fn flipud(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn flipud(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::flipud(self.inner.as_ref())?.into())
     }
 
@@ -444,7 +444,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     ///      .unwrap()
     /// ));
     /// ```
-    fn tile<S: Into<Axis>>(&self, repeats: S) -> std::result::Result<Self::Output, ErrHandler> {
+    fn tile<S: Into<Axis>>(&self, repeats: S) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::tile(self.inner.as_ref(), repeats)?.into())
     }
 
@@ -483,7 +483,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// let trimmed_tensor = tensor.trim_zeros("fb").unwrap();
     /// assert!(trimmed_tensor.allclose(&Tensor::<f64>::new(vec![1.0, 2.0]).reshape(&[2]).unwrap()));
     /// ```
-    fn trim_zeros(&self, trim: &str) -> std::result::Result<Self::Output, ErrHandler> where Self::Meta: PartialEq {
+    fn trim_zeros(&self, trim: &str) -> std::result::Result<Self::Output, TensorError> where Self::Meta: PartialEq {
         Ok(_Tensor::trim_zeros(self.inner.as_ref(), trim)?.into())
     }
 
@@ -519,7 +519,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     ///         .unwrap()
     /// ));
     /// ```
-    fn repeat(&self, repeats: usize, axes: i16) -> std::result::Result<Self::Output, ErrHandler> {
+    fn repeat(&self, repeats: usize, axes: i16) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::repeat(self.inner.as_ref(), repeats, axes)?.into())
     }
 
@@ -565,7 +565,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     ///         .unwrap()
     /// ));
     /// ```
-    fn split(&self, indices_or_sections: &[i64], axis: i64) -> std::result::Result<Vec<Self>, ErrHandler> {
+    fn split(&self, indices_or_sections: &[i64], axis: i64) -> std::result::Result<Vec<Self>, TensorError> {
         Ok(
             _Tensor
                 ::split(self.inner.as_ref(), indices_or_sections, axis)?
@@ -611,7 +611,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     ///         .unwrap()
     /// ));
     /// ```
-    fn dsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self>, ErrHandler> {
+    fn dsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self>, TensorError> {
         Ok(
             _Tensor
                 ::dsplit(self.inner.as_ref(), indices)?
@@ -657,7 +657,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     ///         .unwrap()
     /// ));
     /// ```
-    fn hsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self>, ErrHandler> {
+    fn hsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self>, TensorError> {
         Ok(
             _Tensor
                 ::hsplit(self.inner.as_ref(), indices)?
@@ -703,7 +703,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     ///         .unwrap()
     /// ));
     /// ```
-    fn vsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self>, ErrHandler> {
+    fn vsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self>, TensorError> {
         Ok(
             _Tensor
                 ::vsplit(self.inner.as_ref(), indices)?
@@ -739,7 +739,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// let transposed_tensor = tensor.swap_axes(0, 1).unwrap();
     /// assert_eq!(transposed_tensor.shape().inner(), &[3, 1]);
     /// ```
-    fn swap_axes(&self, axis1: i64, axis2: i64) -> std::result::Result<Self::Output, ErrHandler> {
+    fn swap_axes(&self, axis1: i64, axis2: i64) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::swap_axes(self.inner.as_ref(), axis1, axis2)?.into())
     }
 
@@ -771,7 +771,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// let flattened_tensor = tensor.flatten(None, None).unwrap();
     /// assert_eq!(flattened_tensor.shape().inner(), &[4]);
     /// ```
-    fn flatten<A>(&self, start: A, end: A) -> std::result::Result<Self::Output, ErrHandler> where A: Into<Option<usize>> {
+    fn flatten<A>(&self, start: A, end: A) -> std::result::Result<Self::Output, TensorError> where A: Into<Option<usize>> {
         Ok(_Tensor::flatten(self.inner.as_ref(), start, end)?.into())
     }
 
@@ -811,7 +811,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     ///  .unwrap()
     /// ));
     /// ```
-    fn concat(tensors: Vec<&Self>, axis: usize, keepdims: bool) -> std::result::Result<Self::Output, ErrHandler> {
+    fn concat(tensors: Vec<&Self>, axis: usize, keepdims: bool) -> std::result::Result<Self::Output, TensorError> {
         Ok(
             concat(
                 tensors
@@ -856,7 +856,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     ///         .unwrap()
     /// ));
     /// ```
-    fn vstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, ErrHandler> {
+    fn vstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
         Ok(
             concat(
                 tensors
@@ -894,7 +894,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// let stacked_tensor = Tensor::hstack(vec![&tensor1, &tensor2]).unwrap();
     /// assert!(stacked_tensor.allclose(&Tensor::<f64>::new([[1.0, 3.0], [2.0, 4.0]])));
     /// ```
-    fn hstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, ErrHandler> {
+    fn hstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
         Ok(
             concat(
                 tensors
@@ -932,7 +932,7 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     /// let stacked_tensor = Tensor::dstack(vec![&tensor1, &tensor2]).unwrap();
     /// assert!(stacked_tensor.allclose(&Tensor::<f64>::new([[[1.0, 3.0]], [[2.0, 4.0]]])));
     /// ```
-    fn dstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, ErrHandler> {
+    fn dstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
         Ok(
             concat(
                 tensors

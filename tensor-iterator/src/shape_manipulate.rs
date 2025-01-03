@@ -2,7 +2,7 @@ use std::{panic::Location, sync::Arc};
 
 use tensor_common::{
     axis::{process_axes, Axis},
-    err_handler::ErrHandler,
+    err_handler::TensorError,
     shape::Shape,
     shape_utils::{get_broadcast_axes_from, mt_intervals, try_pad_shape},
     strides::Strides,
@@ -53,14 +53,14 @@ pub(crate) fn par_reshape<S: Into<Shape>, T: ParStridedHelper>(mut iterator: T, 
         iterator._set_last_strides(new_strides[new_strides.len() - 1]);
         iterator._set_strides(new_strides.into());
     } else {
-        ErrHandler::check_size_match(iterator._layout().shape().size(), res_shape.size()).unwrap();
+        TensorError::check_size_match(iterator._layout().shape().size(), res_shape.size()).unwrap();
         if let Some(new_strides) = iterator._layout().is_reshape_possible(&res_shape) {
             iterator._set_strides(new_strides);
             iterator._set_last_strides(
                 iterator._layout().strides()[iterator._layout().strides().len() - 1],
             );
         } else {
-            ErrHandler::IterInplaceReshapeError(
+            TensorError::IterInplaceReshapeError(
                 iterator._layout().shape().clone(),
                 res_shape.clone(),
                 iterator._layout().strides().clone(),
@@ -163,7 +163,7 @@ pub(crate) fn reshape<S: Into<Shape>, T: StridedHelper>(mut iterator: T, shape: 
         iterator._set_last_strides(new_strides[new_strides.len() - 1]);
         iterator._set_strides(new_strides.into());
     } else {
-        ErrHandler::check_size_match(
+        TensorError::check_size_match(
             iterator._layout().shape().inner().iter().product(),
             res_shape.size(),
         )
@@ -174,7 +174,7 @@ pub(crate) fn reshape<S: Into<Shape>, T: StridedHelper>(mut iterator: T, shape: 
                 iterator._layout().strides()[iterator._layout().strides().len() - 1],
             );
         } else {
-            let error = ErrHandler::IterInplaceReshapeError(
+            let error = TensorError::IterInplaceReshapeError(
                 iterator._layout().shape().clone(),
                 res_shape.clone(),
                 iterator._layout().strides().clone(),

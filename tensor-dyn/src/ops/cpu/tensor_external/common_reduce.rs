@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use crate::ops::cpu::tensor_internal::float_out_unary::FloatBinaryType;
 use crate::tensor::Tensor;
 use tensor_common::axis::Axis;
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_traits::{ CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce };
 use tensor_types::{
     convertion::Convertor,
@@ -16,7 +16,7 @@ use tensor_types::{
 impl<T: CommonBounds> NormalReduce<T> for Tensor<T> {
     type Output = Self;
 
-    fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.sum(axes, keep_dims)?.into())
     }
 
@@ -26,7 +26,7 @@ impl<T: CommonBounds> NormalReduce<T> for Tensor<T> {
         keep_dims: bool,
         init_out: bool,
         out: O
-    ) -> std::result::Result<Self::Output, ErrHandler>
+    ) -> std::result::Result<Self::Output, TensorError>
         where O: Borrow<Self::Output>
     {
         Ok(self.inner.sum_(axes, keep_dims, init_out, out.borrow())?.into())
@@ -41,7 +41,7 @@ impl<T: CommonBounds> NormalReduce<T> for Tensor<T> {
     //     Ok(self.inner.sum_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler> {
+    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.prod(axis, keep_dims)?.into())
     }
 
@@ -54,7 +54,7 @@ impl<T: CommonBounds> NormalReduce<T> for Tensor<T> {
     //     Ok(self.inner.prod_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self, ErrHandler> {
+    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self, TensorError> {
         Ok(self.inner.min(axis, keep_dims)?.into())
     }
 
@@ -67,7 +67,7 @@ impl<T: CommonBounds> NormalReduce<T> for Tensor<T> {
     //     Ok(self.inner.min_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self, ErrHandler> {
+    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self, TensorError> {
         Ok(self.inner.max(axis, keep_dims)?.into())
     }
 
@@ -80,22 +80,22 @@ impl<T: CommonBounds> NormalReduce<T> for Tensor<T> {
     //     Ok(self.inner.max_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler> {
+    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.reducel1(axis, keep_dims)?.into())
     }
 
-    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.sum_square(axis, keep_dims)?.into())
     }
 }
 
 impl<T> EvalReduce for Tensor<T> where T: CommonBounds + Eval<Output = bool> + IntoScalar<bool> {
     type BoolOutput = Tensor<bool>;
-    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::BoolOutput, ErrHandler> {
+    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::BoolOutput, TensorError> {
         Ok(self.inner.all(axis, keep_dims)?.into())
     }
 
-    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::BoolOutput, ErrHandler> {
+    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::BoolOutput, TensorError> {
         Ok(self.inner.any(axis, keep_dims)?.into())
     }
 }
@@ -109,7 +109,7 @@ impl<T> NormalEvalReduce<T>
 {
     type Output = Self;
 
-    fn nansum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler> {
+    fn nansum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.nansum(axes, keep_dims)?.into())
     }
 
@@ -122,7 +122,7 @@ impl<T> NormalEvalReduce<T>
     //     Ok(self.inner.nansum_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, ErrHandler> {
+    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.nanprod(axis, keep_dims)?.into())
     }
 

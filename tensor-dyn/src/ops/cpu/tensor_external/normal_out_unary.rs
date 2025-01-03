@@ -5,7 +5,7 @@ use crate::{
     tensor::Tensor,
     tensor_base::_Tensor,
 };
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_traits::{ CommonBounds, NormalUaryOps, TensorLike };
 use tensor_types::{ into_scalar::IntoScalar, type_promote::NormalOutUnary };
 
@@ -41,11 +41,11 @@ impl<T> NormalUaryOps
     /// let a = Tensor::<f64>::new([0.1, 1.5, 2.9, 3.0]);
     /// let b = a.floor().unwrap();
     /// ```
-    fn floor(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn floor(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::floor(self.inner.as_ref())?.into())
     }
 
-    fn floor_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
+    fn floor_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::floor_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
@@ -67,11 +67,11 @@ impl<T> NormalUaryOps
     /// let a = Tensor::<f64>::new([0.1, 1.5, 2.9, 3.0]);
     /// let b = a.square().unwrap();
     /// ```
-    fn square(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn square(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::square(self.inner.as_ref())?.into())
     }
 
-    fn square_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
+    fn square_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::square_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
@@ -99,11 +99,11 @@ impl<T> NormalUaryOps
     /// let a = Tensor::<f64>::new([-1.0, 1.5, -2.9, 3.0]);
     /// let b = a.abs().unwrap();
     /// ```
-    fn abs(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn abs(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::abs(self.inner.as_ref())?.into())
     }
 
-    fn abs_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
+    fn abs_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::abs_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
@@ -130,11 +130,11 @@ impl<T> NormalUaryOps
     /// let a = Tensor::<f64>::new([0.1, 1.5, 2.9, 3.0]);
     /// let b = a.ceil().unwrap();
     /// ```
-    fn ceil(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn ceil(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::ceil(self.inner.as_ref())?.into())
     }
 
-    fn ceil_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
+    fn ceil_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::ceil_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
@@ -164,11 +164,11 @@ impl<T> NormalUaryOps
     /// let a = Tensor::<f64>::new([-1.0, 1.5, -2.9, 3.0]);
     /// let b = a.sign().unwrap();
     /// ```
-    fn sign(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sign(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::sign(self.inner.as_ref())?.into())
     }
 
-    fn sign_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
+    fn sign_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::sign_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
@@ -195,11 +195,11 @@ impl<T> NormalUaryOps
     /// let a = Tensor::<f64>::new([-1.0, 1.5, -2.9, 3.0]);
     /// let b = a.clip(-1.0, 1.0).unwrap();
     /// ```
-    fn clamp(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> std::result::Result<Self::Output, ErrHandler> {
+    fn clamp(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::clamp(self.inner.as_ref(), min, max)?.into())
     }
 
-    fn clamp_<U>(&self, min: Self::OutputMeta, max: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn clamp_<U>(&self, min: Self::OutputMeta, max: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, TensorError>
         where U: Borrow<Self::InplaceOutput>
     {
         Ok(_Tensor::clamp_(self.inner.as_ref(), min, max, out.borrow().inner.as_ref())?.into())
@@ -228,45 +228,45 @@ impl<T> NormalUaryOps
     /// let a = Tensor::<f64>::new([0.1, 1.5, 2.9, 3.0]);
     /// let b = a.round().unwrap();
     /// ```
-    fn round(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn round(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::round(self.inner.as_ref())?.into())
     }
 
-    fn round_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
+    fn round_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::round_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn neg(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn neg(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::neg(self.inner.as_ref())?.into())
     }
 
-    fn neg_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
+    fn neg_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::neg_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn relu(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn relu(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::relu(self.inner.as_ref())?.into())
     }
 
-    fn relu_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
+    fn relu_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::relu_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn leaky_relu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, ErrHandler> {
+    fn leaky_relu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::leaky_relu(self.inner.as_ref(), alpha)?.into())
     }
 
-    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, TensorError>
         where U: Borrow<Self::InplaceOutput>
     {
         Ok(_Tensor::leaky_relu_(self.inner.as_ref(), alpha, out.borrow().inner.as_ref())?.into())
     }
 
-    fn relu6(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn relu6(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::relu6(self.inner.as_ref())?.into())
     }
 
-    fn relu6_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
+    fn relu6_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError> where U: Borrow<Self::InplaceOutput> {
         Ok(_Tensor::relu6_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 }

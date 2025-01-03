@@ -3,7 +3,7 @@ use crate::THREAD_POOL;
 use rayon::iter::{ IntoParallelRefMutIterator, ParallelIterator };
 use std::borrow::{ Borrow, BorrowMut };
 use std::panic::Location;
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_common::shape_utils::compare_and_pad_shapes;
 use tensor_common::shape_utils::mt_intervals;
 use tensor_common::shape_utils::predict_broadcast_shape;
@@ -22,7 +22,7 @@ pub(crate) fn matmul_with_out<A, B, O, Q>(
     rhs: &_Tensor<B>,
     out: Option<O>
 )
-    -> std::result::Result<_Tensor<<A as NormalOut<B>>::Output>, ErrHandler>
+    -> std::result::Result<_Tensor<<A as NormalOut<B>>::Output>, TensorError>
     where
         A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
         B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,
@@ -33,7 +33,7 @@ pub(crate) fn matmul_with_out<A, B, O, Q>(
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         if lhs.shape()[1] != rhs.shape()[0] {
             Err(
-                ErrHandler::MatmulShapeMismatched(
+                TensorError::MatmulShapeMismatched(
                     [lhs.shape()[0], lhs.shape()[1]],
                     [rhs.shape()[0], rhs.shape()[1]],
                     lhs.shape()[1],
@@ -105,7 +105,7 @@ pub(crate) fn matmul_with_out<A, B, O, Q>(
         }
         if a_shape[a_shape.len() - 1] != b_shape[b_shape.len() - 2] {
             Err(
-                ErrHandler::MatmulShapeMismatched(
+                TensorError::MatmulShapeMismatched(
                     [a_shape[a_shape.len() - 2], a_shape[a_shape.len() - 1]],
                     [b_shape[b_shape.len() - 2], b_shape[b_shape.len() - 1]],
                     a_shape[a_shape.len() - 1],

@@ -9,8 +9,8 @@ use crate::tensor_base::_Tensor;
 use crate::Tensor;
 use crate::REGNUM;
 use rayon::prelude::*;
-use tensor_common::err_handler::ErrHandler;
-use tensor_common::err_handler::ErrHandler::InvalidInputShape;
+use tensor_common::err_handler::TensorError;
+use tensor_common::err_handler::TensorError::InvalidInputShape;
 use tensor_common::pointer::Pointer;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
@@ -55,7 +55,7 @@ where
     ) -> anyhow::Result<_Tensor<T>> {
         let img_shape = self.shape();
         if img_shape.len() != 4 {
-            return Err(ErrHandler::Conv2dImgShapeInCorrect(
+            return Err(TensorError::Conv2dImgShapeInCorrect(
                 img_shape.len(),
                 core::panic::Location::caller(),
             )

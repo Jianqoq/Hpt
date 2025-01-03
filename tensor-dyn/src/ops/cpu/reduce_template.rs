@@ -2,7 +2,7 @@ use crate::{
     ops::cpu::reduce_utils::{ reduce_prepare, uncontiguous_reduce_prepare },
     tensor_base::_Tensor,
 };
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_traits::{ CommonBounds, ShapeManipulate, TensorInfo };
 use tensor_types::into_scalar::IntoScalar;
 
@@ -161,7 +161,7 @@ pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O>(
     kdo1: F3,
     kd: F4
 )
-    -> std::result::Result<_Tensor<O>, ErrHandler>
+    -> std::result::Result<_Tensor<O>, TensorError>
     where
         T: CommonBounds + IntoScalar<O>,
         O: CommonBounds,
@@ -425,7 +425,7 @@ pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O>(
     kdo1: F3,
     kd: F4
 )
-    -> std::result::Result<_Tensor<O>, ErrHandler>
+    -> std::result::Result<_Tensor<O>, TensorError>
     where
         T: CommonBounds + IntoScalar<O>,
         O: CommonBounds,

@@ -1,6 +1,6 @@
 use core::panic::Location;
 
-use crate::err_handler::ErrHandler;
+use crate::err_handler::TensorError;
 
 /// `Axis` struct to hold the axes for operations
 ///
@@ -38,7 +38,7 @@ impl std::fmt::Display for Axis {
 pub fn process_axes<T: Into<Axis>>(
     axes: T,
     ndim: usize,
-) -> std::result::Result<Vec<usize>, ErrHandler> {
+) -> std::result::Result<Vec<usize>, TensorError> {
     let ndim = ndim as i64;
     let axes = axes.into().axes;
     let mut new_axes = Vec::with_capacity(axes.len());
@@ -46,7 +46,7 @@ pub fn process_axes<T: Into<Axis>>(
         if axis < 0 {
             let val = axis + ndim;
             if val < 0 {
-                return Err(ErrHandler::IndexOutOfRangeCvt(
+                return Err(TensorError::IndexOutOfRangeCvt(
                     ndim as usize,
                     axis,
                     val,
@@ -56,7 +56,7 @@ pub fn process_axes<T: Into<Axis>>(
             new_axes.push(val as usize);
         } else {
             if axis >= ndim {
-                return Err(ErrHandler::IndexOutOfRange(
+                return Err(TensorError::IndexOutOfRange(
                     ndim as usize,
                     axis,
                     Location::caller(),

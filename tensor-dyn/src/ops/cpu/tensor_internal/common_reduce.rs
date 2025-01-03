@@ -4,7 +4,7 @@ use crate::ops::cpu::reduce::{reduce, reduce2, reduce3};
 use crate::ops::cpu::tensor_internal::float_out_unary::FloatBinaryType;
 use crate::tensor_base::_Tensor;
 use tensor_common::axis::{process_axes, Axis};
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_iterator::iterator_traits::ParStridedIteratorSimd;
 use tensor_iterator::TensorIterator;
 use tensor_traits::{CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce, TensorInfo};
@@ -25,7 +25,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         &self,
         axes: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::Output, ErrHandler> {
+    ) -> std::result::Result<Self::Output, TensorError> {
         let axes = process_axes(axes, self.ndim())?;
         reduce(
             self,
@@ -46,7 +46,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         keep_dims: bool,
         init_out: bool,
         out: O,
-    ) -> std::result::Result<Self::Output, ErrHandler>
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         O: Borrow<Self::Output>,
     {
@@ -88,7 +88,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::Output, ErrHandler> {
+    ) -> std::result::Result<Self::Output, TensorError> {
         let axes = process_axes(axis, self.ndim())?;
         reduce(
             self,
@@ -127,7 +127,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self, ErrHandler> {
+    ) -> std::result::Result<Self, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
@@ -166,7 +166,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self, ErrHandler> {
+    ) -> std::result::Result<Self, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
@@ -205,7 +205,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::Output, ErrHandler> {
+    ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
@@ -230,7 +230,7 @@ impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::Output, ErrHandler> {
+    ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce2(
             self,
@@ -257,7 +257,7 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::BoolOutput, ErrHandler> {
+    ) -> std::result::Result<Self::BoolOutput, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce2(
             self,
@@ -281,7 +281,7 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::BoolOutput, ErrHandler> {
+    ) -> std::result::Result<Self::BoolOutput, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce2(
             self,
@@ -314,7 +314,7 @@ where
         &self,
         axes: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::Output, ErrHandler> {
+    ) -> std::result::Result<Self::Output, TensorError> {
         let axes = process_axes(axes, self.ndim())?;
         reduce(
             self,
@@ -375,7 +375,7 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::Output, ErrHandler> {
+    ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
@@ -470,7 +470,7 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>>, ErrHandler>
+    ) -> std::result::Result<_Tensor<FloatBinaryType<T>>, TensorError>
     where
         f64: IntoScalar<<T as FloatOutBinary>::Output>,
         <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
@@ -524,7 +524,7 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>>, ErrHandler>
+    ) -> std::result::Result<_Tensor<FloatBinaryType<T>>, TensorError>
     where
         T: NormalOut,
         <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
@@ -574,7 +574,7 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>>, ErrHandler>
+    ) -> std::result::Result<_Tensor<FloatBinaryType<T>>, TensorError>
     where
         f64: IntoScalar<<T as FloatOutBinary>::Output>,
         <T as FloatOutBinary>::Output: TypeCommon,
@@ -654,7 +654,7 @@ where
         &self,
         _: S,
         _: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>>, ErrHandler>
+    ) -> std::result::Result<_Tensor<FloatBinaryType<T>>, TensorError>
     where
         T: CommonBounds,
     {

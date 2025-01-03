@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_traits::{ CommonBounds, NormalUaryOps, TensorLike };
 use tensor_types::{ traits::VecTrait, type_promote::{ NormalOut, NormalOutUnary } };
 
@@ -21,7 +21,7 @@ impl<T> NormalUaryOps
 
     type OutputMeta = NormalType<T>;
 
-    fn floor(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn floor(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._floor(),
@@ -30,7 +30,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn floor_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
+    fn floor_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError> where U: Borrow<Self::InplaceOutput> {
         uary_fn_with_out_simd(
             self,
             |x| x._floor(),
@@ -39,7 +39,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn square(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn square(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._square(),
@@ -48,7 +48,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn square_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn square_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -59,7 +59,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn abs(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn abs(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._abs(),
@@ -68,7 +68,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn abs_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
+    fn abs_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError> where U: Borrow<Self::InplaceOutput> {
         uary_fn_with_out_simd(
             self,
             |x| x._abs(),
@@ -77,7 +77,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn ceil(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn ceil(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._ceil(),
@@ -85,7 +85,7 @@ impl<T> NormalUaryOps
             None::<Self::Output>
         )
     }
-    fn ceil_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn ceil_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -96,7 +96,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn sign(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sign(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._signum(),
@@ -104,7 +104,7 @@ impl<T> NormalUaryOps
             None::<Self::Output>
         )
     }
-    fn sign_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn sign_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -118,7 +118,7 @@ impl<T> NormalUaryOps
         &self,
         min: NormalType<T>,
         max: NormalType<T>
-    ) -> std::result::Result<Self::Output, ErrHandler> {
+    ) -> std::result::Result<Self::Output, TensorError> {
         let min_vec = T::Vec::splat(min);
         let max_vec = T::Vec::splat(max);
         uary_fn_with_out_simd(
@@ -133,7 +133,7 @@ impl<T> NormalUaryOps
         min: NormalType<T>,
         max: NormalType<T>,
         out: U
-    ) -> std::result::Result<Self::Output, ErrHandler>
+    ) -> std::result::Result<Self::Output, TensorError>
         where U: Borrow<Self::InplaceOutput>
     {
         let min_vec = T::Vec::splat(min);
@@ -145,7 +145,7 @@ impl<T> NormalUaryOps
             Some(out)
         )
     }
-    fn round(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn round(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._round(),
@@ -153,7 +153,7 @@ impl<T> NormalUaryOps
             None::<Self::Output>
         )
     }
-    fn round_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn round_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -164,7 +164,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn neg(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn neg(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._neg(),
@@ -173,7 +173,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn neg_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn neg_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -184,7 +184,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn relu(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn relu(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._relu(),
@@ -193,7 +193,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn relu_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
+    fn relu_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError> where U: Borrow<Self::InplaceOutput> {
         uary_fn_with_out_simd(
             self,
             |x| x._relu(),
@@ -202,7 +202,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn leaky_relu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, ErrHandler> {
+    fn leaky_relu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._leaky_relu(alpha),
@@ -211,7 +211,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, TensorError>
         where U: Borrow<Self::InplaceOutput>
     {
         uary_fn_with_out_simd(
@@ -222,7 +222,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn relu6(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn relu6(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._relu6(),
@@ -231,7 +231,7 @@ impl<T> NormalUaryOps
         )
     }
 
-    fn relu6_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler> where U: Borrow<Self::InplaceOutput> {
+    fn relu6_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError> where U: Borrow<Self::InplaceOutput> {
         uary_fn_with_out_simd(
             self,
             |x| x._relu6(),

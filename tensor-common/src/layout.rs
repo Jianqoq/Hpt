@@ -2,7 +2,7 @@ use std::panic::Location;
 
 use crate::{
     axis::{process_axes, Axis},
-    err_handler::ErrHandler,
+    err_handler::TensorError,
     shape::Shape,
     shape_utils::{is_reshape_possible, predict_broadcast_shape},
     strides::Strides,
@@ -176,9 +176,9 @@ impl Layout {
     ///
     /// if the length of `axes` is not equal to the layout's ndim
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn permute<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Layout, ErrHandler> {
+    pub fn permute<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Layout, TensorError> {
         let axes = process_axes(axes, self.shape.len())?;
-        ErrHandler::check_ndim_match(axes.len(), self.shape.len())?;
+        TensorError::check_ndim_match(axes.len(), self.shape.len())?;
         let mut new_shape = self.shape().to_vec();
         let mut new_strides = self.strides().to_vec();
         for i in axes.iter() {
@@ -202,9 +202,9 @@ impl Layout {
     /// # Returns
     ///
     /// * `Result<Layout>` - the new layout after inverse permutation
-    pub fn permute_inv<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Layout, ErrHandler> {
+    pub fn permute_inv<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Layout, TensorError> {
         let axes = process_axes(axes, self.shape.len())?;
-        ErrHandler::check_ndim_match(axes.len(), self.shape.len())?;
+        TensorError::check_ndim_match(axes.len(), self.shape.len())?;
         let mut new_shape = self.shape().to_vec();
         let mut new_strides = self.strides().to_vec();
         for i in axes.iter() {
@@ -233,14 +233,14 @@ impl Layout {
     ///
     /// if the reshape is not possible
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn inplace_reshape(&self, shape: &Shape) -> std::result::Result<Layout, ErrHandler> {
+    pub fn inplace_reshape(&self, shape: &Shape) -> std::result::Result<Layout, TensorError> {
         if let Some(new_strides) = self.is_reshape_possible(shape) {
             Ok(Layout {
                 shape: shape.clone(),
                 strides: new_strides,
             })
         } else {
-            Err(ErrHandler::IterInplaceReshapeError(
+            Err(TensorError::IterInplaceReshapeError(
                 shape.clone(),
                 self.shape.clone(),
                 self.strides.clone(),
@@ -266,7 +266,7 @@ impl Layout {
     ///
     /// if the broadcast is not possible
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn broadcast(&self, other: &Layout) -> std::result::Result<Layout, ErrHandler> {
+    pub fn broadcast(&self, other: &Layout) -> std::result::Result<Layout, TensorError> {
         let shape = predict_broadcast_shape(&self.shape, &other.shape)?;
         let strides = shape_to_strides(&shape);
         Ok(Layout { shape, strides })
@@ -299,7 +299,7 @@ impl Layout {
         &self,
         axes: A,
         keep_dims: bool,
-    ) -> std::result::Result<Layout, ErrHandler> {
+    ) -> std::result::Result<Layout, TensorError> {
         let axis = process_axes(axes, self.shape.len())?;
         let new_shape = if keep_dims {
             let mut vec = Vec::with_capacity(self.shape.len());

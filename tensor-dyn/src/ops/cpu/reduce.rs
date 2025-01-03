@@ -9,7 +9,7 @@ use tensor_common::shape::Shape;
 use rayon::iter::ParallelIterator;
 use rayon::iter::{ IndexedParallelIterator, IntoParallelRefMutIterator };
 use rayon::iter::{ IntoParallelIterator, IntoParallelRefIterator };
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use std::sync::Arc;
 use std::sync::Barrier;
 use tensor_common::shape_utils::{ mt_intervals, mt_intervals_simd };
@@ -101,7 +101,7 @@ macro_rules! body_one_axis {
         }
         let res_shape = Arc::new(res_shape);
         if let Some(out) = $c {
-            ErrHandler::check_inplace_out_layout_valid(&Shape::from(res_shape.clone()), &out.layout())?;
+            TensorError::check_inplace_out_layout_valid(&Shape::from(res_shape.clone()), &out.layout())?;
             result = out;
             result_size = result.size();
         } else {
@@ -176,7 +176,7 @@ macro_rules! register_reduction_one_axis {
     ) => {
         #[cfg_attr(feature = "track_caller", track_caller)]
         pub(crate) fn $fn_name<$generic_a, $generic_b>(a: &_Tensor<$generic_a>, axes: Vec<usize>,
-             init_val: $generic_b, keepdims: bool, c: Option<_Tensor<$generic_b>>) -> std::result::Result<_Tensor<$generic_b>, ErrHandler> $($trait_bound)*
+             init_val: $generic_b, keepdims: bool, c: Option<_Tensor<$generic_b>>) -> std::result::Result<_Tensor<$generic_b>, TensorError> $($trait_bound)*
          {
             body_one_axis!(axes, a, init_val, keepdims, c, $kernel_name, $generic_a, $generic_b);
         }
@@ -189,7 +189,7 @@ macro_rules! register_reduction_one_axis {
     ) => {
         #[cfg_attr(feature = "track_caller", track_caller)]
         pub(crate) fn $fn_name<$generic_a>(a: &_Tensor<$generic_a>, axes: Vec<usize>,
-             init_val: $generic_a, keepdims: bool, c: Option<_Tensor<$generic_a>>) -> std::result::Result<_Tensor<$generic_a>, ErrHandler> $($trait_bound)*
+             init_val: $generic_a, keepdims: bool, c: Option<_Tensor<$generic_a>>) -> std::result::Result<_Tensor<$generic_a>, TensorError> $($trait_bound)*
          {
             body_one_axis!(axes, a, init_val, keepdims, c, $kernel_name, $generic_a, $generic_a);
         }
@@ -202,7 +202,7 @@ macro_rules! register_reduction_one_axis {
     ) => {
         #[cfg_attr(feature = "track_caller", track_caller)]
         pub(crate) fn $fn_name<$generic_a>(a: &_Tensor<$generic_a>, axes: Vec<usize>,
-             init_val: $($specific_type)*, keepdims: bool, c: Option<_Tensor<$($specific_type)*>>) -> std::result::Result<_Tensor<$($specific_type)*>, ErrHandler> $($trait_bound)*
+             init_val: $($specific_type)*, keepdims: bool, c: Option<_Tensor<$($specific_type)*>>) -> std::result::Result<_Tensor<$($specific_type)*>, TensorError> $($trait_bound)*
          {
             body_one_axis!(axes, a, init_val, keepdims, c, $kernel_name, $generic_a, $($specific_type)*);
         }
@@ -230,7 +230,7 @@ pub(crate) fn reduce<T, F, F2, F3>(
     init_out: bool,
     c: Option<_Tensor<T>>
 )
-    -> std::result::Result<_Tensor<T>, ErrHandler>
+    -> std::result::Result<_Tensor<T>, TensorError>
     where
         T: CommonBounds + IntoScalar<T> + Convertor,
         F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
@@ -285,7 +285,7 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O>(
     init_out: bool,
     c: Option<_Tensor<O>>
 )
-    -> std::result::Result<_Tensor<O>, ErrHandler>
+    -> std::result::Result<_Tensor<O>, TensorError>
     where
         T: CommonBounds + IntoScalar<O> + Convertor,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
@@ -346,7 +346,7 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O>(
     init_out: bool,
     c: Option<_Tensor<O>>
 )
-    -> std::result::Result<_Tensor<O>, ErrHandler>
+    -> std::result::Result<_Tensor<O>, TensorError>
     where
         T: CommonBounds + IntoScalar<O> + Convertor,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
@@ -422,7 +422,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O>(
     init_out: bool,
     c: Option<_Tensor<O>>
 )
-    -> std::result::Result<_Tensor<O>, ErrHandler>
+    -> std::result::Result<_Tensor<O>, TensorError>
     where
         T: CommonBounds + IntoScalar<O> + Convertor,
         O: CommonBounds,
@@ -668,7 +668,7 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O>(
     init_out: bool,
     c: Option<_Tensor<O>>
 )
-    -> std::result::Result<_Tensor<O>, ErrHandler>
+    -> std::result::Result<_Tensor<O>, TensorError>
     where
         T: CommonBounds + IntoScalar<O> + Convertor,
         O: CommonBounds,

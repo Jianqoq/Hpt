@@ -15,7 +15,7 @@ use cudarc::{
 };
 use tensor_common::{
     axis::{process_axes, Axis},
-    err_handler::ErrHandler,
+    err_handler::TensorError,
 };
 use tensor_cudakernels::{RegisterInfo, ARGMAX, ARGMIN};
 use tensor_traits::{CommonBounds, IndexReduce, ShapeManipulate, TensorInfo};
@@ -41,7 +41,7 @@ pub(crate) fn contiguous_reduce<T, const DEVICE_ID: usize>(
     >,
     module_name: &str,
     c: Option<_Tensor<i64, Cuda, DEVICE_ID>>,
-) -> std::result::Result<_Tensor<i64, Cuda, DEVICE_ID>, ErrHandler>
+) -> std::result::Result<_Tensor<i64, Cuda, DEVICE_ID>, TensorError>
 where
     T: CommonBounds + IntoScalar<i64> + Convertor + DeviceRepr + CudaTypeName,
 {
@@ -362,11 +362,11 @@ impl<
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::Output, ErrHandler> {
+    ) -> std::result::Result<Self::Output, TensorError> {
         let axis: Axis = axis.into();
         let axes: Vec<usize> = process_axes(axis.clone(), self.ndim())?;
         if axes.len() != 1 {
-            return Err(ErrHandler::ArgReduceErr(axis, Location::caller()));
+            return Err(TensorError::ArgReduceErr(axis, Location::caller()));
         }
         contiguous_reduce(self, &axes, keep_dims, false, &ARGMAX, "argmax", None)
     }
@@ -375,11 +375,11 @@ impl<
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::Output, ErrHandler> {
+    ) -> std::result::Result<Self::Output, TensorError> {
         let axis: Axis = axis.into();
         let axes: Vec<usize> = process_axes(axis.clone(), self.ndim())?;
         if axes.len() != 1 {
-            return Err(ErrHandler::ArgReduceErr(axis, Location::caller()));
+            return Err(TensorError::ArgReduceErr(axis, Location::caller()));
         }
         contiguous_reduce(self, &axes, keep_dims, false, &ARGMIN, "argmin", None)
     }

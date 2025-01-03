@@ -4,7 +4,7 @@ use cudarc::{
     cublas::{CudaBlas, Gemm},
     driver::DeviceRepr,
 };
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_cudakernels::MATMUL;
 use tensor_traits::{CommonBounds, Matmul};
 
@@ -28,7 +28,7 @@ where
 
     type InplaceOutput = Tensor<T, Cuda, CUDA_DEVICE>;
 
-    fn matmul(&self, rhs: Tensor<T, Cuda, CUDA_DEVICE>) -> std::result::Result<Self::Output, ErrHandler> {
+    fn matmul(&self, rhs: Tensor<T, Cuda, CUDA_DEVICE>) -> std::result::Result<Self::Output, TensorError> {
         Ok(matmul_with_out(
             self.inner.as_ref(),
             rhs.inner.as_ref(),
@@ -36,7 +36,7 @@ where
         )?
         .into())
     }
-    fn matmul_<U>(&self, rhs: Tensor<T, Cuda, CUDA_DEVICE>, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn matmul_<U>(&self, rhs: Tensor<T, Cuda, CUDA_DEVICE>, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
     {
@@ -236,7 +236,7 @@ where
 
     type InplaceOutput = Tensor<T, Cuda, CUDA_DEVICE>;
 
-    fn matmul(&self, rhs: &Tensor<T, Cuda, CUDA_DEVICE>) -> std::result::Result<Self::Output, ErrHandler> {
+    fn matmul(&self, rhs: &Tensor<T, Cuda, CUDA_DEVICE>) -> std::result::Result<Self::Output, TensorError> {
         Ok(matmul_with_out(
             self.inner.as_ref(),
             rhs.inner.as_ref(),
@@ -245,7 +245,7 @@ where
         .into())
     }
 
-    fn matmul_<U>(&self, rhs: &Tensor<T, Cuda, CUDA_DEVICE>, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn matmul_<U>(&self, rhs: &Tensor<T, Cuda, CUDA_DEVICE>, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
     {

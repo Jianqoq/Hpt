@@ -9,7 +9,7 @@ use crate::{
     tensor_base::_Tensor,
     DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION,
 };
-use tensor_common::{err_handler::ErrHandler, layout::Layout, pointer::Pointer, shape::Shape};
+use tensor_common::{err_handler::TensorError, layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_dataloader::DataLoader;
 use tensor_display::display;
 use tensor_iterator::TensorIterator;
@@ -45,7 +45,7 @@ where
         slice
     }
 
-    fn contiguous(&self) -> std::result::Result<Self, ErrHandler> {
+    fn contiguous(&self) -> std::result::Result<Self, TensorError> {
         Ok(_Tensor::contiguous(self.inner.as_ref())?.into())
     }
 }
@@ -128,7 +128,7 @@ where
 
 impl<T: CommonBounds, const DEVICE: usize> TensorAlloc for Tensor<T, Cpu, DEVICE> {
     type Meta = T;
-    fn _empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler>
+    fn _empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError>
     where
         Self: Sized,
     {

@@ -2,12 +2,12 @@ use std::borrow::Borrow;
 use std::panic::Location;
 
 use crate::backend::Cpu;
-use crate::ops::cpu::unary::ErrHandler::InvalidOutSize;
+use crate::ops::cpu::unary::TensorError::InvalidOutSize;
 use crate::tensor_base::_Tensor;
 use crate::{Tensor, THREAD_POOL};
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::slice::{ParallelSlice, ParallelSliceMut};
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_common::shape_utils::mt_intervals;
 use tensor_iterator::iterator_traits::ParStridedIteratorSimdZip;
 use tensor_iterator::TensorIterator;
@@ -23,7 +23,7 @@ pub(crate) fn uary_fn_with_out_simd<A, O, K, F, F2>(
     f: F,
     f2: F2,
     out: Option<O>,
-) -> std::result::Result<_Tensor<K, Cpu>, ErrHandler>
+) -> std::result::Result<_Tensor<K, Cpu>, TensorError>
 where
     A: CommonBounds,
     K: CommonBounds,
@@ -98,7 +98,7 @@ where
     <T as Eval>::Output: CommonBounds,
     T::Vec: Eval<Output = <<T as Eval>::Output as TypeCommon>::Vec>,
 {
-    pub fn is_inf(&self) -> std::result::Result<_Tensor<<T as Eval>::Output>, ErrHandler> {
+    pub fn is_inf(&self) -> std::result::Result<_Tensor<<T as Eval>::Output>, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._is_inf(),
@@ -107,7 +107,7 @@ where
         )
     }
 
-    pub fn is_nan(&self) -> std::result::Result<_Tensor<<T as Eval>::Output>, ErrHandler> {
+    pub fn is_nan(&self) -> std::result::Result<_Tensor<<T as Eval>::Output>, TensorError> {
         uary_fn_with_out_simd(
             self,
             |x| x._is_nan(),
@@ -126,14 +126,14 @@ fn cumulate<
     axis: A,
     init_val: T,
     op: F,
-) -> std::result::Result<_Tensor<T>, ErrHandler>
+) -> std::result::Result<_Tensor<T>, TensorError>
 where
     T: NormalOut<T, Output = T>,
 {
     match axis.into() {
         Some(axis) => {
             let mut _axis = axis;
-            ErrHandler::check_index_in_range_mut(a.ndim(), &mut _axis)?;
+            TensorError::check_index_in_range_mut(a.ndim(), &mut _axis)?;
             let stride = a.strides()[_axis as usize];
             let inner_loop = a.shape()[_axis as usize] as usize;
             let outer_loop = a.size() / inner_loop;
@@ -253,7 +253,7 @@ where
 {
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn cumsum<A: Into<Option<i64>>>(&self, axis: A) -> std::result::Result<Self, ErrHandler>
+    pub fn cumsum<A: Into<Option<i64>>>(&self, axis: A) -> std::result::Result<Self, TensorError>
     where
         T: NormalOut<T, Output = T>,
     {
@@ -262,7 +262,7 @@ where
 
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn cumprod(&self, axis: Option<i64>) -> std::result::Result<Self, ErrHandler>
+    pub fn cumprod(&self, axis: Option<i64>) -> std::result::Result<Self, TensorError>
     where
         T: NormalOut<T, Output = T>,
     {

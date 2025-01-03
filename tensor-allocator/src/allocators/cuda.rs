@@ -9,7 +9,7 @@ use cudarc::driver::DeviceRepr;
 use hashbrown::{HashMap, HashSet};
 use lru::LruCache;
 use once_cell::sync::Lazy;
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 
 use crate::CUDA_STORAGE;
 
@@ -57,7 +57,7 @@ impl CudaAllocator {
         &mut self,
         layout: Layout,
         device_id: usize,
-    ) -> std::result::Result<(*mut u8, Arc<cudarc::driver::CudaDevice>), ErrHandler> {
+    ) -> std::result::Result<(*mut u8, Arc<cudarc::driver::CudaDevice>), TensorError> {
         if let Some((device, allocator)) = self.allocator.get_mut(&device_id) {
             Ok((
                 allocator.allocate(layout, device_id, device.clone())?,
@@ -184,7 +184,7 @@ impl _Allocator {
         layout: Layout,
         device_id: usize,
         device: Arc<cudarc::driver::CudaDevice>,
-    ) -> std::result::Result<*mut u8, ErrHandler> {
+    ) -> std::result::Result<*mut u8, TensorError> {
         let ptr = if let Some(ptr) = self.cache.get_mut(&layout)
         /*check if we previously allocated same layout of memory */
         {
@@ -194,7 +194,7 @@ impl _Allocator {
             } else {
                 let res = unsafe {
                     device.alloc::<u8>(layout.size()).map_err(|e| {
-                        ErrHandler::CudaRcMemAllocFailed(
+                        TensorError::CudaRcMemAllocFailed(
                             layout.size() / 1024 / 1024,
                             Location::caller(),
                             e,
@@ -203,7 +203,7 @@ impl _Allocator {
                 };
                 let ptr = res.leak() as *mut u8;
                 if ptr.is_null() {
-                    return Err(ErrHandler::MemAllocFailed(
+                    return Err(TensorError::MemAllocFailed(
                         "cpu",
                         layout.size() / 1024 / 1024,
                         Location::caller(),
@@ -215,7 +215,7 @@ impl _Allocator {
         } else {
             let res = unsafe {
                 device.alloc::<u8>(layout.size()).map_err(|e| {
-                    ErrHandler::CudaRcMemAllocFailed(
+                    TensorError::CudaRcMemAllocFailed(
                         layout.size() / 1024 / 1024,
                         Location::caller(),
                         e,
@@ -224,7 +224,7 @@ impl _Allocator {
             };
             let ptr = res.leak() as *mut u8;
             if ptr.is_null() {
-                return Err(ErrHandler::MemAllocFailed(
+                return Err(TensorError::MemAllocFailed(
                     "cpu",
                     layout.size() / 1024 / 1024,
                     Location::caller(),
@@ -251,7 +251,7 @@ impl _Allocator {
                     *cnt = match cnt.checked_add(1) {
                         Some(cnt) => cnt,
                         None => {
-                            return Err(ErrHandler::ReferenceCountOverflow(
+                            return Err(TensorError::ReferenceCountOverflow(
                                 "cpu",
                                 Location::caller(),
                             ))

@@ -9,7 +9,7 @@ use num::traits::ToBytes;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_dataloader::data_loader::TensorMeta;
 use tensor_dataloader::{DataLoader, Endian, Meta};
@@ -48,7 +48,7 @@ where
         slice
     }
 
-    fn contiguous(&self) -> std::result::Result<Self, ErrHandler> {
+    fn contiguous(&self) -> std::result::Result<Self, TensorError> {
         Ok(self.par_iter().strided_map(|x| x).collect())
     }
 }
@@ -122,7 +122,7 @@ where
 
 impl<T: CommonBounds, const DEVICE: usize> TensorAlloc for _Tensor<T, Cpu, DEVICE> {
     type Meta = T;
-    fn _empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler>
+    fn _empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError>
     where
         Self: Sized,
     {
@@ -134,7 +134,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorIterator<'_, T> for _Tensor<T, 
 
 impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     /// cast the tensor to the new type
-    pub fn astype<U>(&self) -> std::result::Result<_Tensor<U, Cpu, DEVICE>, ErrHandler>
+    pub fn astype<U>(&self) -> std::result::Result<_Tensor<U, Cpu, DEVICE>, TensorError>
     where
         U: CommonBounds,
         T: IntoScalar<U>,
@@ -154,7 +154,7 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     }
 
     /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
-    pub fn try_astype<U>(&self) -> std::result::Result<_Tensor<U, Cpu, DEVICE>, ErrHandler>
+    pub fn try_astype<U>(&self) -> std::result::Result<_Tensor<U, Cpu, DEVICE>, TensorError>
     where
         U: CommonBounds,
         T: IntoScalar<U>,
@@ -167,7 +167,7 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     }
 
     /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
-    pub fn static_cast<Dst>(&self) -> std::result::Result<_Tensor<Dst, Cpu, DEVICE>, ErrHandler>
+    pub fn static_cast<Dst>(&self) -> std::result::Result<_Tensor<Dst, Cpu, DEVICE>, TensorError>
     where
         Dst: CommonBounds,
     {

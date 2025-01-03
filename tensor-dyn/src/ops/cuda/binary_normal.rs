@@ -7,7 +7,7 @@ use cudarc::driver::LaunchAsync;
 use tensor_types::cuda_types::scalar::Scalar;
 use std::borrow::Borrow;
 use std::panic::Location;
-use tensor_common::err_handler::ErrHandler::InvalidOutSize;
+use tensor_common::err_handler::TensorError::InvalidOutSize;
 use tensor_common::shape::Shape;
 use tensor_traits::tensor::CommonBounds;
 use tensor_traits::tensor::TensorCreator;

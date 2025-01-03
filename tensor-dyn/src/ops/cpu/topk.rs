@@ -8,7 +8,7 @@ use crate::tensor::Tensor;
 use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
 use rand::Rng;
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_common::pointer::Pointer;
 use tensor_common::shape_utils::mt_intervals;
 use tensor_traits::CommonBounds;
@@ -131,7 +131,7 @@ impl<T> _Tensor<T> where T: CommonBounds + PartialOrd {
             let inner_loop = *transposed.shape().last().unwrap() as isize;
             if inner_loop < (k as isize) {
                 anyhow::bail!(
-                    ErrHandler::KLargerThanInnerLoopSize(k as usize, inner_loop as usize, caller)
+                    TensorError::KLargerThanInnerLoopSize(k as usize, inner_loop as usize, caller)
                 );
             }
             for (
