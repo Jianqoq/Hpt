@@ -8,7 +8,7 @@ fn test_out_of_range() {
         Ok(_) => panic!("Should panic"),
         Err(e) => {
             if e.to_string()
-                .contains("tensor ndim is 2 but got index `10`")
+                .contains("Dimension out of range: expected in 0..2, got 10")
             {
                 panic!("Error message is correct");
             } else {
@@ -25,7 +25,7 @@ fn test_out_of_range_cvt() {
         Ok(_) => panic!("Should panic"),
         Err(e) => {
             if e.to_string()
-                .contains("tensor ndim is 2 but got converted index from `-3` to `-1`")
+                .contains("Dimension out of range: expected in 0..2, got -1")
             {
                 panic!("Error message is correct");
             } else {

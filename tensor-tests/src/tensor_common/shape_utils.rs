@@ -85,7 +85,7 @@ fn test_get_broadcast_axes_from() {
     match axes {
         Ok(_) => panic!("Should return Err"),
         Err(err) => {
-            assert!(err.to_string().contains("can't broacast lhs: shape([1, 2, 1, 3]) with rhs: shape([1, 1, 3, 2]), expect lhs_shape[1] to be 1"));
+            assert!(err.to_string().contains("Broadcasting error: broadcast failed at index 1, lhs shape: [1, 2, 1, 3], rhs shape: [1, 1, 3, 2]"));
         }
     }
 }

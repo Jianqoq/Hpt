@@ -143,6 +143,15 @@ pub enum ShapeError {
         /// Location where error occurred
         location: &'static Location<'static>,
     },
+
+    /// Error that occurs when the inplace reshape is invalid
+    #[error("Inplace reshape error: {message} at {location}")]
+    InplaceReshapeError {
+        /// Message describing the invalid inplace reshape
+        message: String,
+        /// Location where error occurred
+        location: &'static Location<'static>,
+    },
 }
 
 impl ShapeError {

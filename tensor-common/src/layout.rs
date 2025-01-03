@@ -1,3 +1,5 @@
+use std::panic::Location;
+
 use crate::{
     axis::{process_axes, Axis},
     error::{base::TensorError, shape::ShapeError},
@@ -238,7 +240,11 @@ impl Layout {
                 strides: new_strides,
             })
         } else {
-            panic!("iterator requires reshape is able to be performed without allocating memory");
+            Err(ShapeError::InplaceReshapeError {
+                message: "Inplace reshape is not possible".to_string(),
+                location: Location::caller(),
+            }
+            .into())
         }
     }
 
