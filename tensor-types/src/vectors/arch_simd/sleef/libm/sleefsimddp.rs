@@ -2546,6 +2546,7 @@ pub(crate) unsafe fn xceil(x: VDouble) -> VDouble {
     vceil2_vd_vd(x)
 }
 
+#[allow(dead_code)]
 #[must_use]
 #[inline(always)]
 pub(crate) unsafe fn xcopysign(x: VDouble, y: VDouble) -> VDouble {
