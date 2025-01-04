@@ -736,11 +736,13 @@ pub(crate) unsafe fn vtruncate_vd_vd(vd: VDouble) -> VDouble {
     vrndq_f64(vd)
 }
 
+#[allow(unused)]
 #[inline(always)]
 pub(crate) unsafe fn vcast_vf_vm(vm: VMask) -> VFloat {
     vreinterpretq_f32_u32(vm)
 }
 
+#[allow(unused)]
 #[inline(always)]
 pub(crate) unsafe fn vcast_vf_vo(vf: Vopmask) -> VFloat {
     vcast_vf_vm(vf)

@@ -1,9 +1,8 @@
 use crate::arch_simd::_128bit::u16x8::u16x8;
 use crate::convertion::VecConvertor;
-use crate::simd::_128bit::i32x4::i32x4;
-use crate::traits::{SimdCompare, SimdMath, SimdSelect};
-use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
-use crate::{traits::VecTrait, vectors::arch_simd::_128bit::f32x4::f32x4};
+use crate::traits::{ SimdCompare, SimdMath, SimdSelect };
+use crate::type_promote::{ Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2 };
+use crate::{ traits::VecTrait, vectors::arch_simd::_128bit::f32x4::f32x4 };
 
 use super::i16x8::i16x8;
 use super::u32x4::u32x4;
@@ -75,7 +74,7 @@ impl bf16x8 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
             let vec: u16x8 = std::mem::transmute(*self);
-            let mask = (vec & u16x8::splat(0x7FFFu16)).simd_gt(u16x8::splat(0x7F80u16));
+            let mask = (vec & u16x8::splat(0x7fffu16)).simd_gt(u16x8::splat(0x7f80u16));
             let mask_low = i32x4(_mm_unpacklo_epi16(mask.0, mask.0));
             let mask_high = i32x4(_mm_unpackhi_epi16(mask.0, mask.0));
             let vec_low = u32x4(_mm_unpacklo_epi16(vec.0, vec.0));
@@ -88,42 +87,60 @@ impl bf16x8 {
             let false_high = vec_high << sixteen;
             let res_low = mask_low.select(true_low, false_low);
             let res_high = mask_high.select(true_high, false_high);
-            [
-                f32x4(std::mem::transmute(res_low.0)),
-                f32x4(std::mem::transmute(res_high.0)),
-            ]
+            [f32x4(std::mem::transmute(res_low.0)), f32x4(std::mem::transmute(res_high.0))]
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            let mask = vdupq_n_u32(0x7FFFu32);
-            let threshold = vdupq_n_u32(0x7F80u32);
-            let add_bits = vdupq_n_u32(0x0040u32);
+            let vec: u16x8 = std::mem::transmute(*self);
 
-            // 转换 u16 到 u32 并左移 16 位
-            let i = vshll_n_u16(input, 16);
+            // Split into low and high parts
+            let (vec_low_16, vec_high_16) = (vget_low_u16(vec.0), vget_high_u16(vec.0));
 
-            // 检查条件 (i & 0x7FFF > 0x7F80)
-            let masked = vandq_u32(i, mask);
-            let cmp = vcgtq_u32(masked, threshold);
+            // Widen to 32-bit
+            let vec_low = vshll_n_u16(vec_low_16, 0);
+            let vec_high = vshll_n_u16(vec_high_16, 0);
 
-            // 根据条件选择是否添加额外位
-            let extra = vandq_u32(cmp, add_bits);
-            let result = vorrq_u32(i, extra);
+            // Create masks and compare
+            let mask = vdupq_n_u32(0x7fff);
+            let threshold = vdupq_n_u32(0x7f80);
+            let t = vdupq_n_u32(0x0040);
+            let sixteen = vreinterpretq_s32_u32(vdupq_n_u32(16));
 
-            // 重新解释为 float32x4_t
-            vreinterpretq_f32_u32(result)
+            // Compare and create masks
+            let mask_low = vcgtq_u32(vandq_u32(vec_low, mask), threshold);
+            let mask_high = vcgtq_u32(vandq_u32(vec_high, mask), threshold);
+
+            // Create true and false results
+            let true_low = vreinterpretq_u32_s32(
+                vshlq_s32(vreinterpretq_s32_u32(vorrq_u32(vec_low, t)), sixteen)
+            );
+            let true_high = vreinterpretq_u32_s32(
+                vshlq_s32(vreinterpretq_s32_u32(vorrq_u32(vec_high, t)), sixteen)
+            );
+            let false_low = vreinterpretq_u32_s32(
+                vshlq_s32(vreinterpretq_s32_u32(vec_low), sixteen)
+            );
+            let false_high = vreinterpretq_u32_s32(
+                vshlq_s32(vreinterpretq_s32_u32(vec_high), sixteen)
+            );
+
+            // Select based on mask
+            let res_low = vbslq_u32(mask_low, true_low, false_low);
+            let res_high = vbslq_u32(mask_high, true_high, false_high);
+
+            [f32x4(vreinterpretq_f32_u32(res_low)), f32x4(vreinterpretq_f32_u32(res_high))]
         }
     }
 
     /// convert from 2 f32x4
     #[inline(always)]
     pub fn from_2_f32vec(val: [f32x4; 2]) -> Self {
-        #[cfg(target_arch = "x86_64")]
         unsafe {
-            unsafe fn conv(vec: f32x4) -> __m128i {
+            let conv = |vec: f32x4| {
                 let x = u32x4(std::mem::transmute(vec.0));
-                let nan_mask =
-                    (x & u32x4::splat(0x7FFF_FFFFu32)).simd_gt(u32x4::splat(0x7F80_0000u32));
+                let nan_mask = (x & u32x4::splat(0x7fff_ffffu32)).simd_gt(
+                    u32x4::splat(0x7f80_0000u32)
+                );
                 let shifted = x >> u32x4::splat(16);
 
                 // NaN 处理
@@ -131,25 +148,32 @@ impl bf16x8 {
 
                 // 舍入检查
                 let round_bit = u32x4::splat(0x00008000u32);
-                let rs_mask = (x & round_bit).simd_ne(u32x4::splat(0))
-                    & (x & (u32x4::splat(3) * round_bit - u32x4::splat(1)))
-                        .simd_ne(u32x4::splat(0));
+                let rs_mask =
+                    (x & round_bit).simd_ne(u32x4::splat(0)) &
+                    (x & (u32x4::splat(3) * round_bit - u32x4::splat(1))).simd_ne(u32x4::splat(0));
 
                 // 舍入处理
                 let round_result = shifted + rs_mask.select(u32x4::splat(1), u32x4::splat(0));
 
                 // 最终选择
                 let final_result = nan_mask.select(nan_result, round_result);
-                _mm_packus_epi32(final_result.0, _mm_setzero_si128()) // 打包为 16 位
-            }
+                #[cfg(target_arch = "x86_64")]
+                return _mm_packus_epi32(final_result.0, _mm_setzero_si128()); // 打包为 16 位
+                #[cfg(target_arch = "aarch64")]
+                {
+                    vmovn_u32(final_result.0)
+                }
+            };
 
             let high = conv(val[0]);
             let low = conv(val[1]);
+            #[cfg(target_arch = "x86_64")]
             let result = _mm_unpacklo_epi64(high, low);
+            #[cfg(target_arch = "aarch64")]
+            let result = vcombine_u16(high, low);
             std::mem::transmute(result)
         }
     }
-
 }
 impl SimdCompare for bf16x8 {
     type SimdMask = i16x8;
@@ -593,10 +617,7 @@ impl SimdMath<half::bf16> for bf16x8 {
         let [high, low] = self.to_2_f32vec();
         let (high_sin, high_cos) = high.sincos();
         let (low_sin, low_cos) = low.sincos();
-        (
-            Self::from_2_f32vec([high_sin, low_sin]),
-            Self::from_2_f32vec([high_cos, low_cos]),
-        )
+        (Self::from_2_f32vec([high_sin, low_sin]), Self::from_2_f32vec([high_cos, low_cos]))
     }
     #[inline(always)]
     fn atan2(self, other: Self) -> Self {
@@ -809,72 +830,47 @@ impl NormalOutUnary2 for bf16x8 {
 
     #[inline(always)]
     fn __abs(self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let high_abs = high.__abs();
-        let low_abs = low.__abs();
-        bf16x8::from_2_f32vec([high_abs, low_abs])
+        self.abs()
     }
 
     #[inline(always)]
     fn __ceil(self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let high_ceil = high.__ceil();
-        let low_ceil = low.__ceil();
-        bf16x8::from_2_f32vec([high_ceil, low_ceil])
+        self.ceil()
     }
 
     #[inline(always)]
     fn __floor(self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let high_floor = high.__floor();
-        let low_floor = low.__floor();
-        bf16x8::from_2_f32vec([high_floor, low_floor])
+        self.floor()
     }
 
     #[inline(always)]
     fn __neg(self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let high_neg = high.__neg();
-        let low_neg = low.__neg();
-        bf16x8::from_2_f32vec([high_neg, low_neg])
+        self.neg()
     }
 
     #[inline(always)]
     fn __round(self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let high_round = high.__round();
-        let low_round = low.__round();
-        bf16x8::from_2_f32vec([high_round, low_round])
+        self.round()
     }
 
     #[inline(always)]
     fn __signum(self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let high_sign = high.__signum();
-        let low_sign = low.__signum();
-        bf16x8::from_2_f32vec([high_sign, low_sign])
+        self.signum()
     }
 
     #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
-        self.max(bf16x8::splat(half::bf16::from_f32_const(0.0)))
-            + alpha * self.min(bf16x8::splat(half::bf16::from_f32_const(0.0)))
+        self.leaky_relu(alpha)
     }
 
     #[inline(always)]
     fn __relu(self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let high_relu = high.__relu();
-        let low_relu = low.__relu();
-        bf16x8::from_2_f32vec([high_relu, low_relu])
+        self.relu()
     }
 
     #[inline(always)]
     fn __relu6(self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let high_relu6 = high.__relu6();
-        let low_relu6 = low.__relu6();
-        bf16x8::from_2_f32vec([high_relu6, low_relu6])
+        self.relu6()
     }
 }
 
@@ -906,7 +902,7 @@ impl Eval2 for bf16x8 {
 
         let result = is_inf.select(
             is_neg.select(i16x8::splat(-1), i16x8::splat(1)),
-            i16x8::splat(0),
+            i16x8::splat(0)
         );
 
         result

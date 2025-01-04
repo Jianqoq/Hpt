@@ -1,7 +1,7 @@
 use crate::{
     convertion::VecConvertor,
-    traits::{SimdCompare, SimdMath, VecTrait},
-    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    traits::{ SimdCompare, SimdMath, VecTrait },
+    type_promote::{ Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2 },
 };
 
 #[cfg(target_arch = "x86_64")]
@@ -30,7 +30,7 @@ impl PartialEq for i8x16 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
             let cmp = _mm_cmpeq_epi8(self.0, other.0);
-            _mm_movemask_epi8(cmp) == 0xFFFF
+            _mm_movemask_epi8(cmp) == 0xffff
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -61,10 +61,7 @@ impl VecTrait<i8> for i8x16 {
     fn copy_from_slice(&mut self, slice: &[i8]) {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            _mm_storeu_si128(
-                &mut self.0,
-                _mm_loadu_si128(slice.as_ptr() as *const __m128i),
-            );
+            _mm_storeu_si128(&mut self.0, _mm_loadu_si128(slice.as_ptr() as *const __m128i));
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -179,10 +176,9 @@ impl SimdCompare for i8x16 {
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i8x16(vreinterpretq_s8_u8(vorrq_u8(
-                vcltq_s8(self.0, other.0),
-                vceqq_s8(self.0, other.0),
-            )))
+            i8x16(
+                vreinterpretq_s8_u8(vorrq_u8(vcltq_s8(self.0, other.0), vceqq_s8(self.0, other.0)))
+            )
         }
     }
     #[inline(always)]
@@ -206,10 +202,9 @@ impl SimdCompare for i8x16 {
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i8x16(vreinterpretq_s8_u8(vorrq_u8(
-                vcgtq_s8(self.0, other.0),
-                vceqq_s8(self.0, other.0),
-            )))
+            i8x16(
+                vreinterpretq_s8_u8(vorrq_u8(vcgtq_s8(self.0, other.0), vceqq_s8(self.0, other.0)))
+            )
         }
     }
 }
@@ -266,7 +261,6 @@ impl std::ops::Div for i8x16 {
     type Output = Self;
     #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
-        #[cfg(target_arch = "x86_64")]
         unsafe {
             let a: [i8; 16] = std::mem::transmute(self.0);
             let b: [i8; 16] = std::mem::transmute(rhs.0);
@@ -275,17 +269,10 @@ impl std::ops::Div for i8x16 {
                 assert!(b[i] != 0, "division by zero");
                 result[i] = a[i] / b[i];
             }
-            i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            let a: [i8; 16] = std::mem::transmute(self.0);
-            let b: [i8; 16] = std::mem::transmute(rhs.0);
-            let mut result = [0i8; 16];
-            for i in 0..16 {
-                result[i] = a[i] / b[i];
-            }
-            i8x16(vld1q_s8(result.as_ptr()))
+            #[cfg(target_arch = "x86_64")]
+            return i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            #[cfg(target_arch = "aarch64")]
+            return i8x16(vld1q_s8(result.as_ptr()));
         }
     }
 }
@@ -293,7 +280,6 @@ impl std::ops::Rem for i8x16 {
     type Output = Self;
     #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
-        #[cfg(target_arch = "x86_64")]
         unsafe {
             let a: [i8; 16] = std::mem::transmute(self.0);
             let b: [i8; 16] = std::mem::transmute(rhs.0);
@@ -301,17 +287,10 @@ impl std::ops::Rem for i8x16 {
             for i in 0..16 {
                 result[i] = a[i] % b[i];
             }
-            i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            let a: [i8; 16] = std::mem::transmute(self.0);
-            let b: [i8; 16] = std::mem::transmute(rhs.0);
-            let mut result = [0i8; 16];
-            for i in 0..16 {
-                result[i] = a[i] % b[i];
-            }
-            i8x16(vld1q_s8(result.as_ptr()))
+            #[cfg(target_arch = "x86_64")]
+            return i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            #[cfg(target_arch = "aarch64")]
+            return i8x16(vld1q_s8(result.as_ptr()));
         }
     }
 }
@@ -421,13 +400,7 @@ impl std::ops::Shr for i8x16 {
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            let a: [i8; 16] = std::mem::transmute(self.0);
-            let b: [i8; 16] = std::mem::transmute(rhs.0);
-            let mut result = [0i8; 16];
-            for i in 0..16 {
-                result[i] = a[i].wrapping_shr(b[i] as u32);
-            }
-            i8x16(vld1q_s8(result.as_ptr()))
+            i8x16(vshlq_s8(self.0, vnegq_s8(rhs.0)))
         }
     }
 }

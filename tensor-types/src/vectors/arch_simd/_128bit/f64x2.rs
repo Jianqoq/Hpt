@@ -89,13 +89,21 @@ impl VecTrait<f64> for f64x2 {
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
-        #[cfg(target_arch = "x86_64")]
+        #[cfg(all(target_arch = "x86_64", not(target_feature = "fma")))]
+        unsafe {
+            f64x2(_mm_add_pd(_mm_mul_pd(self.0, a.0), b.0))
+        }
+        #[cfg(all(target_arch = "x86_64", target_feature = "fma"))]
         unsafe {
             f64x2(_mm_fmadd_pd(self.0, a.0, b.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(all(target_arch = "aarch64", not(target_feature = "fma")))]
         unsafe {
-            f64x2(vfmaq_f64(self.0, a.0, b.0))
+            f64x2(vmlaq_f64(b.0, self.0, a.0))
+        }
+        #[cfg(all(target_arch = "aarch64", target_feature = "fma"))]
+        unsafe {
+            f64x2(vfmaq_f64(b.0, self.0, a.0))
         }
     }
     #[inline(always)]

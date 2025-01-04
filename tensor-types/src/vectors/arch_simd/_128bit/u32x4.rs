@@ -160,7 +160,9 @@ impl SimdSelect<u32x4> for i32x4 {
         #[cfg(target_arch = "x86_64")]
         unsafe { u32x4(_mm_blendv_epi8(false_val.0, true_val.0, self.0)) }
         #[cfg(target_arch = "aarch64")]
-        unsafe { u32x4(vbslq_u32(self.0, true_val.0, false_val.0)) }
+        unsafe { 
+            u32x4(vbslq_u32(vreinterpretq_u32_s32(self.0), true_val.0, false_val.0)) 
+        }
     }
 }
 

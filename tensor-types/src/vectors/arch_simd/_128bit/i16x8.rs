@@ -261,7 +261,6 @@ impl std::ops::Div for i16x8 {
     type Output = Self;
     #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
-        #[cfg(target_arch = "x86_64")]
         unsafe {
             let arr: [i16; 8] = std::mem::transmute(self.0);
             let arr2: [i16; 8] = std::mem::transmute(rhs.0);
@@ -270,17 +269,10 @@ impl std::ops::Div for i16x8 {
                 assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
-            i16x8(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            let arr: [i16; 8] = std::mem::transmute(self.0);
-            let arr2: [i16; 8] = std::mem::transmute(rhs.0);
-            let mut arr3: [i16; 8] = [0; 8];
-            for i in 0..8 {
-                arr3[i] = arr[i] / arr2[i];
-            }
-            i16x8(vld1q_s16(arr3.as_ptr()))
+            #[cfg(target_arch = "x86_64")]
+            return i16x8(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            #[cfg(target_arch = "aarch64")]
+            return i16x8(vld1q_s16(arr3.as_ptr()));
         }
     }
 }
@@ -288,7 +280,6 @@ impl std::ops::Rem for i16x8 {
     type Output = Self;
     #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
-        #[cfg(target_arch = "x86_64")]
         unsafe {
             let arr: [i16; 8] = std::mem::transmute(self.0);
             let arr2: [i16; 8] = std::mem::transmute(rhs.0);
@@ -296,17 +287,10 @@ impl std::ops::Rem for i16x8 {
             for i in 0..8 {
                 arr3[i] = arr[i] % arr2[i];
             }
-            i16x8(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            let arr: [i16; 8] = std::mem::transmute(self.0);
-            let arr2: [i16; 8] = std::mem::transmute(rhs.0);
-            let mut arr3: [i16; 8] = [0; 8];
-            for i in 0..8 {
-                arr3[i] = arr[i] % arr2[i];
-            }
-            i16x8(vld1q_s16(arr3.as_ptr()))
+            #[cfg(target_arch = "x86_64")]
+            return i16x8(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            #[cfg(target_arch = "aarch64")]
+            return i16x8(vld1q_s16(arr3.as_ptr()));
         }
     }
 }
@@ -416,6 +400,10 @@ impl std::ops::Shr for i16x8 {
             return i16x8(_mm_loadu_si128(result.as_ptr() as *const __m128i));
             #[cfg(target_arch = "aarch64")]
             return i16x8(vld1q_s16(result.as_ptr()));
+        }
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            i16x8(vshlq_s16(self.0, vnegq_s16(rhs.0)))
         }
     }
 }
