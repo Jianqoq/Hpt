@@ -33,7 +33,7 @@ impl Allocator for CpuAllocator {
             allocator.allocate(layout, device_id)
         } else {
             let mut allocator = _Allocator {
-                cache: LruCache::new(NonZeroUsize::new(10).unwrap()),
+                cache: LruCache::new(NonZeroUsize::new(100).unwrap()),
                 allocated: HashSet::new(),
             };
             let ptr = allocator.allocate(layout, device_id)?;

@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fs::File, path::Path};
 
+use sysinfo::{MemoryRefreshKind, RefreshKind, System};
 use tensor_common::shape::shape::Shape;
 use tensor_dyn::*;
 use traits::SimdMath;
@@ -148,7 +149,7 @@ impl Linear {
 
 #[derive(Save, Load)]
 pub struct ResNet {
-    bn1: Conv2dBatchNorm,
+    conv1: Conv2dBatchNorm,
     max_pool1: MaxPool2d,
     layer1: Sequential,
     layer2: Sequential,
@@ -160,7 +161,7 @@ pub struct ResNet {
 
 impl ResNet {
     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-        let x = self.bn1.forward(&x, |x| x.relu())?;
+        let x = self.conv1.forward(&x, |x| x.relu())?;
         let x = self.max_pool1.forward(&x)?;
         let x = self.layer1.forward(&x)?;
         let x = self.layer2.forward(&x)?;
@@ -693,7 +694,7 @@ fn create_resnet() -> ResNet {
     };
 
     ResNet {
-        bn1: bn_conv1,
+        conv1: bn_conv1,
         max_pool1,
         layer1,
         layer2,
@@ -705,13 +706,27 @@ fn create_resnet() -> ResNet {
 }
 
 fn main() -> anyhow::Result<()> {
+    // let refresh_kind = RefreshKind::default().with_memory(MemoryRefreshKind::everything());
+    // let mut sys = System::new_with_specifics(refresh_kind);
+    // sys.refresh_all();
+    // let pid = sysinfo::get_current_pid().expect("Failed to get current PID");
+    // sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), false);
+    // if let Some(process) = sys.process(pid) {
+    //     println!("Before Inference - Memory usage: {} KB", process.memory());
+    // }
     // let resnet = create_resnet();
     // resnet.save("resnet.model")?;
     let data = ResNet::load("resnet.model")?;
-    // let input = Tensor::<f32>::randn(&[10, 128, 128, 3])?;
-    // let now = std::time::Instant::now();
-    // let output = data.forward(&input)?;
-    // println!("time: {:?}", now.elapsed());
-    // println!("{}", output);
+    let input = Tensor::<f32>::randn(&[5, 128, 128, 3])?;
+    let now = std::time::Instant::now();
+    // for _ in 0..10 {
+        let output = data.forward(&input)?;
+    // }
+    println!("time: {:?}", now.elapsed() / 10);
+    // sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), false);
+    // if let Some(process) = sys.process(pid) {
+    //     println!("After Inference - Memory usage: {} KB", process.memory());
+    // }
     Ok(())
 }
+

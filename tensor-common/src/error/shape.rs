@@ -156,6 +156,7 @@ pub enum ShapeError {
 
 impl ShapeError {
     /// Check if the shapes of two tensors match for matrix multiplication
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn check_matmul(lhs: &Shape, rhs: &Shape) -> Result<(), Self> {
         let lhs_last = *lhs.last().expect("lhs shape is empty");
         let rhs_last_sec = rhs[rhs.len() - 2];
@@ -171,6 +172,7 @@ impl ShapeError {
     }
 
     /// Check if the dimensions of two tensors match
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn check_dim(expected: usize, actual: usize) -> Result<(), Self> {
         if expected != actual {
             return Err(Self::DimMismatch {
@@ -183,6 +185,7 @@ impl ShapeError {
     }
 
     /// Check if the number of dimensions of a tensor is greater than the expected value
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn check_ndim_enough(expected: usize, actual: usize) -> Result<(), Self> {
         if expected > actual {
             return Err(Self::NdimNotEnough {
@@ -195,6 +198,7 @@ impl ShapeError {
     }
 
     /// Check if the tensor is contiguous
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn check_contiguous(layout: &crate::layout::layout::Layout) -> Result<(), Self> {
         if !layout.is_contiguous() {
             return Err(Self::ContiguousError {
@@ -207,6 +211,7 @@ impl ShapeError {
     }
 
     /// Check if the size of two tensors match
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn check_size_match(expected: i64, actual: i64) -> Result<(), Self> {
         if expected != actual {
             return Err(Self::SizeMismatch {
@@ -219,6 +224,7 @@ impl ShapeError {
     }
 
     /// Check if the output layout is valid for computation with inplace operation
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn check_inplace_out_layout_valid(
         out_shape: &Shape,
         inplace_layout: &crate::layout::layout::Layout,
@@ -229,6 +235,7 @@ impl ShapeError {
     }
 
     /// Check if the index is out of range
+    #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn check_index_out_of_range(index: i64, dim: i64) -> Result<(), Self> {
         if index >= dim || index < 0 {
             return Err(Self::DimOutOfRange {
