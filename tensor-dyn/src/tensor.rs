@@ -9,7 +9,7 @@ use crate::{
     tensor_base::_Tensor,
     DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION,
 };
-use tensor_common::{error::base::TensorError, layout::Layout, pointer::Pointer, shape::shape::Shape};
+use tensor_common::{error::base::TensorError, layout::layout::Layout, utils::pointer::Pointer, shape::shape::Shape};
 use tensor_dataloader::DataLoader;
 use tensor_display::display;
 use tensor_iterator::TensorIterator;
@@ -68,7 +68,7 @@ where
         self.inner.layout().shape()
     }
 
-    fn strides(&self) -> &tensor_common::strides::Strides {
+    fn strides(&self) -> &tensor_common::strides::strides::Strides {
         self.inner.layout().strides()
     }
 
@@ -105,7 +105,7 @@ where
         self.inner.layout().shape()
     }
 
-    fn strides(&self) -> &tensor_common::strides::Strides {
+    fn strides(&self) -> &tensor_common::strides::strides::Strides {
         self.inner.layout().strides()
     }
 

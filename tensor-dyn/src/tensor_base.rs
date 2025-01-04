@@ -4,7 +4,7 @@ use tensor_allocator::traits::Allocator;
 use tensor_allocator::CACHE;
 #[cfg(feature = "cuda")]
 use tensor_allocator::CUDA_CACHE;
-use tensor_common::{layout::Layout, pointer::Pointer};
+use tensor_common::{layout::layout::Layout, utils::pointer::Pointer};
 
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
 ///

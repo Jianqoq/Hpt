@@ -13,7 +13,7 @@ use tensor_common::error::base::TensorError;
 use tensor_common::error::shape::ShapeError;
 use std::sync::Arc;
 use std::sync::Barrier;
-use tensor_common::shape_utils::{ mt_intervals, mt_intervals_simd };
+use tensor_common::shape::shape_utils::{ mt_intervals, mt_intervals_simd };
 use tensor_common::slice::Slice;
 use tensor_iterator::iterator_traits::StridedIterator;
 use tensor_iterator::TensorIterator;

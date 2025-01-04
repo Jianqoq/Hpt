@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tensor_common::axis::Axis;
+use tensor_common::axis::axis::Axis;
 
 /// A trait for Fast Fourier Transform (FFT) operations.
 pub trait FFTOps

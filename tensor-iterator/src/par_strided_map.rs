@@ -11,7 +11,7 @@ use crate::{
 /// A module for parallel strided map iterator.
 pub mod par_strided_map_simd {
     use rayon::iter::{plumbing::UnindexedProducer, ParallelIterator};
-    use tensor_common::simd_ref::MutVec;
+    use tensor_common::utils::simd_ref::MutVec;
     use tensor_traits::{CommonBounds, TensorAlloc, TensorInfo};
     use tensor_types::dtype::TypeCommon;
 
@@ -170,7 +170,7 @@ impl<'a, T: CommonBounds> ShapeManipulator for ParStridedMutSimd<'a, T> {
         }
     }
 
-    fn transpose<AXIS: Into<tensor_common::axis::Axis>>(self, axes: AXIS) -> Self {
+    fn transpose<AXIS: Into<tensor_common::axis::axis::Axis>>(self, axes: AXIS) -> Self {
         let axes = axes.into();
         let new_base = self.base.transpose(axes);
         ParStridedMutSimd {

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::fmt::Formatter;
-use tensor_common::pointer::Pointer;
+use tensor_common::utils::pointer::Pointer;
 use tensor_traits::tensor::{CommonBounds, TensorInfo};
 use tensor_types::convertion::Convertor;
 

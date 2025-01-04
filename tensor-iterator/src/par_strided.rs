@@ -10,13 +10,13 @@ use rayon::iter::{
 };
 use std::sync::Arc;
 use tensor_common::{
-    axis::Axis,
-    layout::Layout,
-    pointer::Pointer,
+    axis::axis::Axis,
+    layout::layout::Layout,
+    utils::pointer::Pointer,
     shape::shape::Shape,
-    shape_utils::{ mt_intervals, try_pad_shape },
-    strides::Strides,
-    strides_utils::preprocess_strides,
+    shape::shape_utils::{ mt_intervals, try_pad_shape },
+    strides::strides::Strides,
+    strides::strides_utils::preprocess_strides,
 };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 
@@ -30,14 +30,14 @@ pub mod par_strided_simd {
         ParallelIterator,
     };
     use tensor_common::{
-        axis::Axis,
-        layout::Layout,
-        pointer::Pointer,
+        axis::axis::Axis,
+        layout::layout::Layout,
+        utils::pointer::Pointer,
         shape::shape::Shape,
-        shape_utils::{ mt_intervals, try_pad_shape },
-        simd_ref::MutVec,
-        strides::Strides,
-        strides_utils::preprocess_strides,
+        shape::shape_utils::{ mt_intervals, try_pad_shape },
+        utils::simd_ref::MutVec,
+        strides::strides::Strides,
+        strides::strides_utils::preprocess_strides,
     };
     use tensor_traits::{ CommonBounds, TensorInfo };
 

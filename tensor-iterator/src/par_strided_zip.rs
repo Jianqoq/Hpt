@@ -4,7 +4,7 @@ use rayon::iter::{
     ParallelIterator,
 };
 use std::sync::Arc;
-use tensor_common::{ shape::shape::Shape, strides::Strides };
+use tensor_common::{ shape::shape::Shape, strides::strides::Strides };
 use tensor_traits::tensor::CommonBounds;
 
 use crate::{
@@ -20,7 +20,7 @@ pub mod par_strided_zip_simd {
         plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
         ParallelIterator,
     };
-    use tensor_common::{ shape::shape::Shape, simd_ref::MutVec, strides::Strides };
+    use tensor_common::{ shape::shape::Shape, utils::simd_ref::MutVec, strides::strides::Strides };
     use tensor_traits::CommonBounds;
 
     use crate::{
@@ -91,7 +91,7 @@ pub mod par_strided_zip_simd {
             self.a.shape()
         }
 
-        fn layout(&self) -> &tensor_common::layout::Layout {
+        fn layout(&self) -> &tensor_common::layout::layout::Layout {
             self.a.layout()
         }
 
@@ -338,7 +338,7 @@ impl<'a, A, B> IterGetSet for ParStridedZip<'a, A, B> where A: IterGetSet, B: It
         self.a.shape()
     }
 
-    fn layout(&self) -> &tensor_common::layout::Layout {
+    fn layout(&self) -> &tensor_common::layout::layout::Layout {
         self.a.layout()
     }
 
@@ -502,8 +502,8 @@ impl<'a, A, B> ShapeManipulator
         ParStridedZip::new(a, b)
     }
 
-    fn transpose<AXIS: Into<tensor_common::axis::Axis>>(self, axes: AXIS) -> Self {
-        let axes: tensor_common::axis::Axis = axes.into();
+    fn transpose<AXIS: Into<tensor_common::axis::axis::Axis>>(self, axes: AXIS) -> Self {
+        let axes: tensor_common::axis::axis::Axis = axes.into();
         let a = self.a.transpose(axes.clone());
         let b = self.b.transpose(axes);
         ParStridedZip::new(a, b)
@@ -532,8 +532,8 @@ impl<'a, A, B> ShapeManipulator
         ParStridedZipSimd::new(a, b)
     }
 
-    fn transpose<AXIS: Into<tensor_common::axis::Axis>>(self, axes: AXIS) -> Self {
-        let axes: tensor_common::axis::Axis = axes.into();
+    fn transpose<AXIS: Into<tensor_common::axis::axis::Axis>>(self, axes: AXIS) -> Self {
+        let axes: tensor_common::axis::axis::Axis = axes.into();
         let a = self.a.transpose(axes.clone());
         let b = self.b.transpose(axes);
         ParStridedZipSimd::new(a, b)

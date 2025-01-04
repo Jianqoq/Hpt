@@ -11,8 +11,8 @@ use tensor_allocator::{traits::Allocator, CACHE};
 use tensor_common::error::memory::MemoryError;
 use tensor_common::{
     error::{base::TensorError, shape::ShapeError},
-    layout::Layout,
-    pointer::Pointer,
+    layout::layout::Layout,
+    utils::pointer::Pointer,
     shape::shape::Shape,
 };
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo, TensorLike};

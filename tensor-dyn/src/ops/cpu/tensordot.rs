@@ -1,7 +1,7 @@
 use crate::tensor_base::_Tensor;
 use tensor_common::error::base::TensorError;
 use tensor_common::error::shape::ShapeError;
-use tensor_common::tensordot_args::TensorDotArgs;
+use tensor_common::utils::tensordot_args::TensorDotArgs;
 use tensor_traits::ops::binary::Matmul;
 use tensor_traits::shape_manipulate::ShapeManipulate;
 use tensor_traits::tensor::CommonBounds;

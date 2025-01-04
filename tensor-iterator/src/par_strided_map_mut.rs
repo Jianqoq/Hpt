@@ -4,7 +4,7 @@ use rayon::iter::{
     plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
     ParallelIterator,
 };
-use tensor_common::{shape::shape::Shape, strides::Strides};
+use tensor_common::{shape::shape::Shape, strides::strides::Strides};
 use tensor_traits::tensor::{CommonBounds, TensorInfo};
 
 use crate::{
@@ -19,7 +19,7 @@ pub mod par_strided_map_mut_simd {
         plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
         ParallelIterator,
     };
-    use tensor_common::{shape::shape::Shape, simd_ref::MutVec, strides::Strides};
+    use tensor_common::{shape::shape::Shape, utils::simd_ref::MutVec, strides::strides::Strides};
     use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
 
@@ -186,7 +186,7 @@ pub mod par_strided_map_mut_simd {
             self.base.shape()
         }
 
-        fn layout(&self) -> &tensor_common::layout::Layout {
+        fn layout(&self) -> &tensor_common::layout::layout::Layout {
             self.base.layout()
         }
 
@@ -372,7 +372,7 @@ impl<'a, T: 'a + CommonBounds> IterGetSet for ParStridedMapMut<'a, T> {
     fn shape(&self) -> &Shape {
         self.base.shape()
     }
-    fn layout(&self) -> &tensor_common::layout::Layout {
+    fn layout(&self) -> &tensor_common::layout::layout::Layout {
         self.base.layout()
     }
     fn broadcast_set_strides(&mut self, shape: &Shape) {

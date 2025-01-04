@@ -2,7 +2,7 @@ use std::{collections::HashMap, io::Write};
 
 use num::traits::{FromBytes, ToBytes};
 use serde::{Deserialize, Serialize};
-use tensor_common::{shape::shape::Shape, slice::Slice, strides::Strides};
+use tensor_common::{shape::shape::Shape, slice::Slice, strides::strides::Strides};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 use tensor_types::dtype::Dtype;
 

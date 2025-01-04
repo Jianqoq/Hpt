@@ -1,4 +1,4 @@
-use tensor_common::pointer::Pointer;
+use tensor_common::utils::pointer::Pointer;
 use tensor_traits::CommonBounds;
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::{ FloatOutUnary, NormalOut, FloatOutBinary };
@@ -11,7 +11,7 @@ use tensor_types::into_vec::IntoVec;
 fn update_prg2<T>(
     prg: &mut [i64],
     shape_len: i64,
-    inp_ptr: &mut tensor_common::pointer::Pointer<T>,
+    inp_ptr: &mut tensor_common::utils::pointer::Pointer<T>,
     strides: &[i64],
     shape: &[i64]
 ) {
@@ -32,8 +32,8 @@ fn update_prg2<T>(
 fn update_prg2_softmax<T, O>(
     prg: &mut [i64],
     shape_len: i64,
-    inp_ptr: &mut tensor_common::pointer::Pointer<T>,
-    res_ptr: &mut tensor_common::pointer::Pointer<O>,
+    inp_ptr: &mut tensor_common::utils::pointer::Pointer<T>,
+    res_ptr: &mut tensor_common::utils::pointer::Pointer<O>,
     strides: &[i64],
     res_strides: &[i64],
     shape: &[i64]
@@ -83,8 +83,8 @@ pub(crate) fn logsoftmax_dim_not_include<T, O>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     intermediate_size: isize,
-    mut inp_ptr: tensor_common::pointer::Pointer<T>,
-    mut res_ptr: tensor_common::pointer::Pointer<O>,
+    mut inp_ptr: tensor_common::utils::pointer::Pointer<T>,
+    mut res_ptr: tensor_common::utils::pointer::Pointer<O>,
     inp_strides: &[i64],
     res_strides: &[i64],
     inp_shape: &[i64],
@@ -206,8 +206,8 @@ pub(crate) fn logsoftmax_dim_not_include<T, O>(
 pub(crate) fn contiguous_dim_include<T, O>(
     inner_loop_size: isize,
     outer_loop_size: isize,
-    mut inp_ptr: tensor_common::pointer::Pointer<T>,
-    mut res_ptr: tensor_common::pointer::Pointer<O>,
+    mut inp_ptr: tensor_common::utils::pointer::Pointer<T>,
+    mut res_ptr: tensor_common::utils::pointer::Pointer<O>,
     inp_strides: &[i64],
     res_strides: &[i64],
     inp_shape: &[i64],
@@ -322,8 +322,8 @@ pub(crate) fn contiguous_dim_include<T, O>(
 pub(crate) fn uncontiguous_logsoftmax_dim_include<T, O>(
     inner_loop_size: isize,
     outer_loop_size: isize,
-    mut inp_ptr: tensor_common::pointer::Pointer<T>,
-    mut res_ptr: tensor_common::pointer::Pointer<O>,
+    mut inp_ptr: tensor_common::utils::pointer::Pointer<T>,
+    mut res_ptr: tensor_common::utils::pointer::Pointer<O>,
     inp_strides: &[i64],
     inp_shape: &[i64],
     prg1: &mut [i64],
@@ -368,8 +368,8 @@ pub(crate) fn uncontiguous_logsoftmax_dim_not_include<T, O>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     intermediate_size: isize,
-    mut inp_ptr: tensor_common::pointer::Pointer<T>,
-    mut res_ptr: tensor_common::pointer::Pointer<O>,
+    mut inp_ptr: tensor_common::utils::pointer::Pointer<T>,
+    mut res_ptr: tensor_common::utils::pointer::Pointer<O>,
     inp_strides: &[i64],
     inp_shape: &[i64],
     prg1: &mut [i64],

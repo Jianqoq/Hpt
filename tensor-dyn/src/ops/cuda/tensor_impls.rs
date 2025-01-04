@@ -118,7 +118,7 @@ where
     fn shape(&self) -> &Shape {
         self.layout.shape()
     }
-    fn strides(&self) -> &tensor_common::strides::Strides {
+    fn strides(&self) -> &tensor_common::strides::strides::Strides {
         self.layout.strides()
     }
     fn layout(&self) -> &Layout {
@@ -151,7 +151,7 @@ where
         self.layout.shape()
     }
 
-    fn strides(&self) -> &tensor_common::strides::Strides {
+    fn strides(&self) -> &tensor_common::strides::strides::Strides {
         self.layout.strides()
     }
 

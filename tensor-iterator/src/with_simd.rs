@@ -4,7 +4,7 @@ use rayon::iter::{
     plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
     ParallelIterator,
 };
-use tensor_common::{shape::shape::Shape, strides::Strides};
+use tensor_common::{shape::shape::Shape, strides::strides::Strides};
 
 use crate::iterator_traits::IterGetSetSimd;
 
@@ -163,7 +163,7 @@ where
         self.base.shape()
     }
 
-    fn layout(&self) -> &tensor_common::layout::Layout {
+    fn layout(&self) -> &tensor_common::layout::layout::Layout {
         self.base.layout()
     }
 

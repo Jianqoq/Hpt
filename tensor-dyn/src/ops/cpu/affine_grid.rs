@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Barrier},
 };
 
-use tensor_common::{shape::shape::Shape, shape_utils::mt_intervals};
+use tensor_common::{shape::shape::Shape, shape::shape_utils::mt_intervals};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 use tensor_types::{dtype::FloatConst, into_scalar::IntoScalar};
 

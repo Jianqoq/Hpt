@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
-use crate::pointer::Pointer;
+use crate::utils::pointer::Pointer;
 
-/// A struct contains a mutable simd vector
+/// A struct contains a mutable simd vector, this struct force the user to use write unaligned and read unaligned when they use simd iterator
 #[derive(Debug)]
 pub struct MutVec<'a, T> {
     ptr: Pointer<T>,

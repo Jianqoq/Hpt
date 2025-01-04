@@ -1,7 +1,7 @@
 use std::panic::Location;
 
 use tensor_common::{
-    error::{base::TensorError, shape::ShapeError}, prg_update::next_sub1, shape_utils::mt_intervals, slice::Slice,
+    error::{base::TensorError, shape::ShapeError}, prg_update::next_sub1, shape::shape_utils::mt_intervals, slice::Slice,
 };
 use tensor_traits::{
     shape_manipulate::ShapeManipulate,

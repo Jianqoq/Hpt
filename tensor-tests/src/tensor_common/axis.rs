@@ -1,5 +1,5 @@
 #![allow(unused_imports)]
-use tensor_common::axis::{process_axes, Axis};
+use tensor_common::axis::axis::{process_axes, Axis};
 
 #[test]
 #[should_panic = "Error message is correct"]

@@ -1,6 +1,6 @@
 use std::sync::{ Arc, Barrier };
 
-use tensor_common::{ shape_utils::mt_intervals, slice::Slice };
+use tensor_common::{ shape::shape_utils::mt_intervals, slice::Slice };
 use tensor_iterator::{ iterator_traits::StridedIterator, TensorIterator };
 use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo, TensorLike };
 

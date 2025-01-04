@@ -2,7 +2,7 @@ use std::panic::Location;
 
 use thiserror::Error;
 
-use crate::{shape::shape::Shape, strides::Strides};
+use crate::{shape::shape::Shape, strides::strides::Strides};
 
 /// Errors related to tensor shapes and dimensions
 #[derive(Debug, Error)]
@@ -195,7 +195,7 @@ impl ShapeError {
     }
 
     /// Check if the tensor is contiguous
-    pub fn check_contiguous(layout: &crate::layout::Layout) -> Result<(), Self> {
+    pub fn check_contiguous(layout: &crate::layout::layout::Layout) -> Result<(), Self> {
         if !layout.is_contiguous() {
             return Err(Self::ContiguousError {
                 shape: layout.shape().clone(),
@@ -221,7 +221,7 @@ impl ShapeError {
     /// Check if the output layout is valid for computation with inplace operation
     pub fn check_inplace_out_layout_valid(
         out_shape: &Shape,
-        inplace_layout: &crate::layout::Layout,
+        inplace_layout: &crate::layout::layout::Layout,
     ) -> Result<(), Self> {
         Self::check_size_match(out_shape.size(), inplace_layout.size())?;
         Self::check_contiguous(inplace_layout)?;

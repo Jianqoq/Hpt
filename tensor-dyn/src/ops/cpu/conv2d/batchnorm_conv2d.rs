@@ -11,7 +11,7 @@ use crate::REGNUM;
 use rayon::prelude::*;
 use tensor_common::error::base::TensorError;
 use tensor_common::error::shape::ShapeError;
-use tensor_common::pointer::Pointer;
+use tensor_common::utils::pointer::Pointer;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;

@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 
-use tensor_common::{layout::Layout, shape::shape::Shape, strides::Strides};
+use tensor_common::{layout::layout::Layout, shape::shape::Shape, strides::strides::Strides};
 
 #[test]
 fn test_reshape() {

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use tensor_common::shape_utils::mt_intervals;
+use tensor_common::shape::shape_utils::mt_intervals;
 use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
 
 use crate::{ tensor_base::_Tensor, Tensor, THREAD_POOL };

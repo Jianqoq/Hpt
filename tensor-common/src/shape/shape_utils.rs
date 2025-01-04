@@ -3,7 +3,7 @@ use std::panic::Location;
 use crate::{
     error::{base::TensorError, shape::ShapeError},
     shape::shape::Shape,
-    strides::Strides,
+    strides::strides::Strides,
 };
 
 /// Inserts a dimension of size 1 before the specified index in a shape.

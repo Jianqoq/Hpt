@@ -6,7 +6,7 @@ use rayon::slice::{ParallelSlice, ParallelSliceMut};
 use std::borrow::Borrow;
 use tensor_common::error::base::TensorError;
 use tensor_common::error::shape::ShapeError;
-use tensor_common::shape_utils::mt_intervals;
+use tensor_common::shape::shape_utils::mt_intervals;
 use tensor_iterator::iterator_traits::ParStridedIteratorSimdZip;
 use tensor_iterator::TensorIterator;
 use tensor_traits::tensor::TensorCreator;

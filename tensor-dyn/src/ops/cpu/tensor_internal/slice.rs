@@ -4,8 +4,8 @@ use crate::BackendTy;
 use crate::{tensor_base::_Tensor, Buffer};
 use tensor_common::error::base::TensorError;
 use tensor_common::{
-    layout::Layout,
-    pointer::Pointer,
+    layout::layout::Layout,
+    utils::pointer::Pointer,
     slice::{slice_process, Slice},
 };
 use tensor_traits::tensor::CommonBounds;

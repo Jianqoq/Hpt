@@ -10,7 +10,7 @@ use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
 use tensor_common::error::base::TensorError;
-use tensor_common::{layout::Layout, pointer::Pointer, shape::shape::Shape};
+use tensor_common::{layout::layout::Layout, utils::pointer::Pointer, shape::shape::Shape};
 use tensor_dataloader::data_loader::TensorMeta;
 use tensor_dataloader::{DataLoader, Endian, Meta};
 use tensor_display::display;
@@ -66,7 +66,7 @@ where
     fn shape(&self) -> &Shape {
         self.layout.shape()
     }
-    fn strides(&self) -> &tensor_common::strides::Strides {
+    fn strides(&self) -> &tensor_common::strides::strides::Strides {
         self.layout.strides()
     }
     fn layout(&self) -> &Layout {
@@ -99,7 +99,7 @@ where
         self.layout.shape()
     }
 
-    fn strides(&self) -> &tensor_common::strides::Strides {
+    fn strides(&self) -> &tensor_common::strides::strides::Strides {
         self.layout.strides()
     }
 

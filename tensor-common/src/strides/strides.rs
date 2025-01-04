@@ -13,8 +13,8 @@ use std::{
 ///
 /// # Example
 /// ```
-/// use tensor_common::strides::Strides;
-/// let strides = Strides::from(&[1, 2, 3]);
+/// use tensor_common::strides::strides::Strides;
+/// let strides = strides::strides::from(&[1, 2, 3]);
 /// assert_eq!(strides.inner(), &[1, 2, 3]);
 /// ```
 #[derive(Clone, PartialEq, Eq, Hash)]

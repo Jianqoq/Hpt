@@ -1,4 +1,4 @@
-use tensor_common::shape_utils::mt_intervals;
+use tensor_common::shape::shape_utils::mt_intervals;
 use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo };
 
 use crate::{ backend::Cpu, tensor_base::_Tensor, Tensor, THREAD_POOL };

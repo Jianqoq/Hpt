@@ -1,11 +1,11 @@
 use std::sync::Arc;
-use tensor_common::{shape::shape::Shape, strides::Strides};
+use tensor_common::{shape::shape::Shape, strides::strides::Strides};
 
 use crate::iterator_traits::{IterGetSet, StridedIterator, StridedIteratorMap, StridedIteratorZip};
 
 /// A module for zipped strided simd iterator.
 pub mod strided_zip_simd {
-    use tensor_common::{shape::shape::Shape, strides::Strides};
+    use tensor_common::{shape::shape::Shape, strides::strides::Strides};
 
     use crate::iterator_traits::{IterGetSetSimd, StridedIteratorSimd, StridedSimdIteratorZip};
     use std::sync::Arc;
@@ -83,7 +83,7 @@ pub mod strided_zip_simd {
             self.a.shape()
         }
 
-        fn layout(&self) -> &tensor_common::layout::Layout {
+        fn layout(&self) -> &tensor_common::layout::layout::Layout {
             self.a.layout()
         }
 
@@ -228,7 +228,7 @@ where
         self.a.shape()
     }
 
-    fn layout(&self) -> &tensor_common::layout::Layout {
+    fn layout(&self) -> &tensor_common::layout::layout::Layout {
         self.a.layout()
     }
 

@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use crate::ops::cpu::tensor_internal::float_out_unary::FloatBinaryType;
 use crate::tensor::Tensor;
-use tensor_common::axis::Axis;
+use tensor_common::axis::axis::Axis;
 use tensor_common::error::base::TensorError;
 use tensor_traits::{ CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce };
 use tensor_types::{

@@ -2,7 +2,7 @@
 use std::{ fmt::Display, ops::BitAnd };
 
 use duplicate::duplicate_item;
-use tensor_common::pointer::Pointer;
+use tensor_common::utils::pointer::Pointer;
 use tensor_macros::{
     conv2d_microkernel_declare_const,
     conv2d_microkernel_gen_inps,

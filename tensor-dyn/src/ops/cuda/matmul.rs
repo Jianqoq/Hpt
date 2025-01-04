@@ -8,7 +8,7 @@ use cudarc::driver::DeviceRepr;
 use std::borrow::{Borrow, BorrowMut};
 use tensor_common::{
     err_handler::TensorError,
-    shape_utils::{compare_and_pad_shapes, predict_broadcast_shape},
+    shape::shape_utils::{compare_and_pad_shapes, predict_broadcast_shape},
 };
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;

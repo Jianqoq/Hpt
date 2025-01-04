@@ -1,6 +1,6 @@
 use tensor_types::{convertion::Convertor, dtype::TypeCommon, into_scalar::IntoScalar};
 
-use crate::strides::Strides;
+use crate::strides::strides::Strides;
 
 /// # Internal Function
 /// Preprocesses strides based on the given shape.

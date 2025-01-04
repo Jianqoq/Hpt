@@ -8,9 +8,9 @@ use std::alloc::Layout;
 use std::mem::ManuallyDrop;
 use std::sync::Arc;
 use tensor_allocator::CACHE;
-use tensor_common::pointer::Pointer;
+use tensor_common::utils::pointer::Pointer;
 use tensor_common::shape::shape::Shape;
-use tensor_common::strides_utils::shape_to_strides;
+use tensor_common::strides::strides_utils::shape_to_strides;
 use tensor_traits::tensor::TensorCreator;
 use tensor_traits::TensorLike;
 use tensor_allocator::traits::Allocator;
@@ -66,7 +66,7 @@ macro_rules! impl_type_num {
                             std::ptr::copy_nonoverlapping(data.as_ptr(), ptr, length);
                         }
                     }
-                    let ly = tensor_common::layout::Layout::new(res_shape, vec![1]);
+                    let ly = tensor_common::layout::layout::Layout::new(res_shape, vec![1]);
                     return _Tensor {
                         #[cfg(not(feature = "bound_check"))]
                         data: Pointer::new(ptr),
@@ -110,7 +110,7 @@ macro_rules! impl_type_num {
                         }
                     }
                     let strides = shape_to_strides(&shape);
-                    let ly = tensor_common::layout::Layout::new(shape, strides);
+                    let ly = tensor_common::layout::layout::Layout::new(shape, strides);
                     return _Tensor {
                         #[cfg(not(feature = "bound_check"))]
                         data: Pointer::new(ptr),
@@ -155,7 +155,7 @@ macro_rules! impl_type_num {
                 }
                 let strides = shape_to_strides(&shape);
 
-                let ly = tensor_common::layout::Layout::new(shape, strides);
+                let ly = tensor_common::layout::layout::Layout::new(shape, strides);
                 return _Tensor {
                     #[cfg(not(feature = "bound_check"))]
                     data: Pointer::new(ptr),
@@ -251,7 +251,7 @@ macro_rules! impl_type_num {
             }
             let strides = shape_to_strides(&shape);
 
-            let ly = tensor_common::layout::Layout::new(shape, strides);
+            let ly = tensor_common::layout::layout::Layout::new(shape, strides);
             return _Tensor {
                 #[cfg(not(feature = "bound_check"))]
                 data: Pointer::new(ptr),
@@ -296,7 +296,7 @@ macro_rules! impl_type_num {
                 }
                 let strides = shape_to_strides(&shape);
 
-                let ly = tensor_common::layout::Layout::new(shape, strides);
+                let ly = tensor_common::layout::layout::Layout::new(shape, strides);
                 return _Tensor {
                     #[cfg(not(feature = "bound_check"))]
                     data: Pointer::new(ptr),
@@ -341,7 +341,7 @@ macro_rules! impl_type_num {
                 }
                 let strides = shape_to_strides(&shape);
 
-                let ly = tensor_common::layout::Layout::new(shape, strides);
+                let ly = tensor_common::layout::layout::Layout::new(shape, strides);
                 return _Tensor {
                     #[cfg(not(feature = "bound_check"))]
                     data: Pointer::new(ptr),

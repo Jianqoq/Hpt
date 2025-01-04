@@ -3,7 +3,7 @@ use crate::Cuda;
 use cudarc::driver::DeviceRepr;
 use cudarc::types::CudaTypeName;
 use std::panic::Location;
-use tensor_common::shape_utils::yield_one_after;
+use tensor_common::shape::shape_utils::yield_one_after;
 use tensor_common::slice;
 use tensor_common::slice::Slice;
 use tensor_common::{axis::Axis, err_handler::TensorError, layout::Layout, shape::Shape};

@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use tensor_common::{
-    axis::{process_axes, Axis},
+    axis::axis::{process_axes, Axis},
     error::shape::ShapeError,
     shape::shape::Shape,
-    shape_utils::{get_broadcast_axes_from, mt_intervals, try_pad_shape},
-    strides::Strides,
+    shape::shape_utils::{get_broadcast_axes_from, mt_intervals, try_pad_shape},
+    strides::strides::Strides,
 };
 
 use crate::iterator_traits::{ParStridedHelper, StridedHelper};

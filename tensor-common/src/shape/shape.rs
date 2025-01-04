@@ -2,7 +2,7 @@ use std::{ fmt::Display, ops::{ Deref, DerefMut }, sync::Arc };
 
 use serde::{Deserialize, Serialize};
 
-use crate::{ strides::Strides, strides_utils::shape_to_strides };
+use crate::{ strides::strides::Strides, strides::strides_utils::shape_to_strides };
 
 /// Represents the shape of a multi-dimensional structure, such as a tensor or an array.
 ///
