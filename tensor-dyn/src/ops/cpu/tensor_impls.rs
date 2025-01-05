@@ -12,7 +12,7 @@ use rayon::iter::{
 use tensor_common::error::base::TensorError;
 use tensor_common::{layout::layout::Layout, utils::pointer::Pointer, shape::shape::Shape};
 use tensor_dataloader::data_loader::TensorMeta;
-use tensor_dataloader::{DataLoader, Endian, Meta};
+use tensor_dataloader::{DataLoader, Endian, FromSafeTensors, Meta};
 use tensor_display::display;
 use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
@@ -360,5 +360,11 @@ impl<'a, T: CommonBounds, const DEVICE: usize> Into<_Tensor<T, Cpu, DEVICE>> for
             std::ptr::copy_nonoverlapping(self.as_ptr(), ret.as_raw_mut().as_mut_ptr(), self.len());
         }
         ret
+    }
+}
+
+impl<T, const DEVICE: usize> FromSafeTensors for Tensor<T, Cpu, DEVICE> {
+    fn from_safe_tensors(data: &safetensors::SafeTensors, from: &str) -> Self {
+        todo!()
     }
 }

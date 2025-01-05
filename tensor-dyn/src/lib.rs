@@ -17,6 +17,8 @@ pub mod ops {
         pub mod concat;
         /// a module defines conv2d operation
         pub mod conv2d {
+            /// a module defines adaptive_avg_pool2d operation
+            pub mod adaptive_avg_pool;
             /// a module defines avgpool2d operation
             pub mod avg_pool;
             /// a module defines batchnorm_conv2d operation
@@ -29,8 +31,6 @@ pub mod ops {
             pub mod dwconv2d;
             /// a module defines maxpool2d operation
             pub mod max_pool;
-            /// a module defines adaptive_avg_pool2d operation
-            pub mod adaptive_avg_pool;
         }
         /// a module defines reduce kernels
         pub mod argreduce_kernels;
@@ -269,7 +269,8 @@ pub use tensor_common::slice::Slice;
 pub use tensor_dataloader::data_loader::parse_header_compressed;
 pub(crate) use tensor_dataloader::save;
 pub use tensor_dataloader::{
-    CompressionAlgo, DataLoader, Endian, Load, MetaLoad, Save, TensorLoader, TensorSaver
+    CompressionAlgo, DataLoader, Endian, FromSafeTensors, Load, MetaLoad, Save, TensorLoader,
+    TensorSaver,
 };
 pub use tensor_macros::match_selection;
 pub use tensor_traits::*;

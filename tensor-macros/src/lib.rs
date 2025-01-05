@@ -54,7 +54,7 @@ mod type_utils;
 use crate::simd_cmp::impl_simd_cmp;
 use crate::simd_normal_out::impl_simd_normal_out;
 use proc_macro2::{TokenStream as TokenStream2, TokenTree};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use type_utils::TypeInfo;
 
 /// number of registers available for the target architecture
@@ -985,5 +985,135 @@ pub fn impl_load(input: TokenStream) -> TokenStream {
         }
     };
 
+    expanded.into()
+}
+
+/// generate from safetensors trait
+#[proc_macro_derive(FromSafeTensors, attributes(map))]
+pub fn impl_from_safetensors(input: TokenStream) -> TokenStream {
+    let ast = syn::parse_macro_input!(input as syn::DeriveInput);
+    let name = &ast.ident;
+    let fields = match &ast.data {
+        syn::Data::Struct(s) => &s.fields,
+        _ => panic!("FromSafeTensors can only be derived for structs"),
+    };
+    let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
+    let mut construct_fields = vec![];
+    let mut codes = vec![];
+    for (idx, field) in fields.iter().enumerate() {
+        let ty = &field.ty;
+        let name = &field.ident;
+        let var_name = format_ident!("field_{}", idx);
+        for attr in &field.attrs {
+            if attr.path().is_ident("map") {
+                let mut from = None;
+                let mut current = None;
+                let mut vec_len = None;
+                let mut value = None;
+                attr.parse_nested_meta(|meta| {
+                    if meta.path.is_ident("from") {
+                        let value: syn::LitStr = meta.value()?.parse()?;
+                        from = Some(value.value());
+                    } else if meta.path.is_ident("current") {
+                        let value: syn::LitStr = meta.value()?.parse()?;
+                        current = Some(value.value());
+                    } else if meta.path.is_ident("vec_len") {
+                        let value: syn::LitInt = meta.value()?.parse()?;
+                        vec_len = Some(value.base10_parse::<usize>()?);
+                    } else if meta.path.is_ident("value") {
+                        let val: syn::Expr = meta.value()?.parse()?;
+                        value = Some(val);
+                    }
+                    Ok(())
+                })
+                .unwrap_or_else(|err| println!("Failed to parse attribute: {}", err));
+                let from = from.expect("from is required");
+                let code = if let Some(vec_len) = vec_len {
+                    let inner_ty = match ty {
+                        syn::Type::Path(type_path) => {
+                            let segment = type_path
+                                .path
+                                .segments
+                                .first()
+                                .expect("Expected type to have at least one segment");
+
+                            if segment.ident != "Vec" {
+                                panic!("Expected Vec type, found {}", segment.ident);
+                            }
+
+                            match &segment.arguments {
+                                syn::PathArguments::AngleBracketed(args) => {
+                                    match args.args.first() {
+                                        Some(syn::GenericArgument::Type(inner_ty)) => {
+                                            quote!(#inner_ty)
+                                        }
+                                        _ => panic!("Expected Vec to have a type parameter"),
+                                    }
+                                }
+                                _ => panic!("Expected angle bracketed type arguments for Vec"),
+                            }
+                        }
+                        _ => panic!("Expected Vec type"),
+                    };
+                    construct_fields.push(quote! {
+                        #name: #var_name
+                    });
+                    if from.is_empty() {
+                        quote! {
+                            let mut #var_name = Vec::<#inner_ty>::with_capacity(#vec_len);
+                            for i in 0..#vec_len {
+                                #var_name.push(<#inner_ty>::from_safe_tensors(data, &format!("{}", i)));
+                            }
+                        }
+                    } else {
+                        let from = syn::Ident::new(&from, proc_macro2::Span::call_site());
+                        quote! {
+                            let mut #var_name = Vec::<#inner_ty>::with_capacity(#vec_len);
+                            for i in 0..#vec_len {
+                                #var_name.push(<#inner_ty>::from_safe_tensors(data, &format!("{}.{}", stringify!(#from), i)));
+                            }
+                        }
+                    }
+                } else if let Some(value) = value {
+                    construct_fields.push(quote! {
+                        #name: #value
+                    });
+                    quote! {}
+                } else {
+                    let current = syn::Ident::new(
+                        &current.expect("current is required"),
+                        proc_macro2::Span::call_site(),
+                    );
+                    construct_fields.push(quote! {
+                        #name: #var_name
+                    });
+                    if from.to_string().is_empty() {
+                        quote! {
+                            let #var_name = <#ty>::from_safe_tensors(data, stringify!(#current));
+                        }
+                    } else {
+                        quote! {
+                            let #var_name = <#ty>::from_safe_tensors(data, &format!("{}.{}", stringify!(#from), stringify!(#current)));
+                        }
+                    }
+                };
+                codes.push(code);
+            }
+        }
+    }
+    if codes.len() < fields.len() {
+        panic!("not all fields are mapped");
+    }
+    let expanded = quote! {
+        impl #impl_generics FromSafeTensors for #name #ty_generics #where_clause {
+            fn from_safe_tensors(data: &SafeTensors, from: &str) -> Self {
+                #(#codes)*
+                Self {
+                    #(#construct_fields),*
+                }
+            }
+        }
+    };
+    println!("{}", expanded.to_string());
     expanded.into()
 }

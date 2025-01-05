@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fs::File, path::Path};
 
+use safetensors::SafeTensors;
 use sysinfo::{MemoryRefreshKind, RefreshKind, System};
 use tensor_common::shape::shape::Shape;
 use tensor_dyn::*;
@@ -7,17 +8,27 @@ use traits::SimdMath;
 
 type F32Simd = <f32 as TypeCommon>::Vec;
 
-#[derive(Save, Load)]
+#[derive(Save, Load, FromSafeTensors)]
 pub struct Conv2dBatchNorm {
+    #[map(from = "prev_layer", current = "weight")]
     weight: Tensor<f32>,
+    #[map(from = "prev_layer", current = "bias")]
     bias: Option<Tensor<f32>>,
+    #[map(from = "prev_layer", current = "running_mean")]
     running_mean: Tensor<f32>,
+    #[map(from = "prev_layer", current = "running_var")]
     running_var: Tensor<f32>,
+    #[map(from = "prev_layer", current = "running_gamma")]
     running_gamma: Tensor<f32>,
+    #[map(from = "prev_layer", current = "running_beta")]
     running_beta: Tensor<f32>,
+    #[map(from = "prev_layer", value = 10.0)]
     eps: f32,
+    #[map(from = "prev_layer", value = 10)]
     steps: usize,
+    #[map(from = "prev_layer", value = 10)]
     padding: usize,
+    #[map(from = "prev_layer", value = 10)]
     dilation: usize,
 }
 
@@ -47,11 +58,15 @@ impl Conv2dBatchNorm {
     }
 }
 
-#[derive(Save, Load)]
+#[derive(Save, Load, FromSafeTensors)]
 pub struct MaxPool2d {
+    #[map(from = "prev_layer", value = Shape::new([3, 3]))]
     kernel_size: Shape,
+    #[map(from = "prev_layer", value = 2)]
     stride: usize,
+    #[map(from = "prev_layer", value = 1)]
     padding: usize,
+    #[map(from = "prev_layer", value = 1)]
     dilation: usize,
 }
 
@@ -69,8 +84,9 @@ impl MaxPool2d {
     }
 }
 
-#[derive(Save, Load)]
+#[derive(Save, Load, FromSafeTensors)]
 pub struct AdaptiveAvgPool2d {
+    #[map(from = "prev_layer", value = [1, 1])]
     kernel_size: [i64; 2],
 }
 
@@ -80,8 +96,9 @@ impl AdaptiveAvgPool2d {
     }
 }
 
-#[derive(Save, Load)]
+#[derive(Save, Load, FromSafeTensors)]
 pub struct DownSample {
+    #[map(from = "prev_layer", current = "conv")]
     conv: Conv2dBatchNorm,
 }
 
@@ -91,8 +108,9 @@ impl DownSample {
     }
 }
 
-#[derive(Save, Load)]
+#[derive(Save, Load, FromSafeTensors)]
 pub struct Sequential {
+    #[map(from = "prev_layer", vec_len = 4)]
     layers: Vec<BasicBlock>,
 }
 
@@ -106,10 +124,15 @@ impl Sequential {
     }
 }
 
-#[derive(Save, Load)]
+#[derive(Save, Load, FromSafeTensors)]
 pub struct BasicBlock {
+    #[map(from = "prev_layer", current = "bn_conv1")]
     bn_conv1: Conv2dBatchNorm,
+    
+    #[map(from = "prev_layer", current = "bn_conv2")]
     bn_conv2: Conv2dBatchNorm,
+    
+    #[map(from = "prev_layer", current = "downsample")]
     downsample: Option<DownSample>,
 }
 
@@ -134,9 +157,11 @@ impl BasicBlock {
     }
 }
 
-#[derive(Save, Load)]
+#[derive(Save, Load, FromSafeTensors)]
 pub struct Linear {
+    #[map(from = "prev_layer", current = "weight")]
     weight: Tensor<f32>,
+    #[map(from = "prev_layer", current = "bias")]
     bias: Tensor<f32>,
 }
 
@@ -147,15 +172,30 @@ impl Linear {
     }
 }
 
-#[derive(Save, Load)]
+#[derive(Save, Load, FromSafeTensors)]
 pub struct ResNet {
+    #[map(from = "prev_layer", current = "conv1")]
     conv1: Conv2dBatchNorm,
+    
+    #[map(from = "prev_layer", current = "max_pool1")]
     max_pool1: MaxPool2d,
+    
+    #[map(from = "prev_layer", current = "layer1")]
     layer1: Sequential,
+    
+    #[map(from = "prev_layer", current = "layer2")]
     layer2: Sequential,
+    
+    #[map(from = "prev_layer", current = "layer3")]
     layer3: Sequential,
+    
+    #[map(from = "prev_layer", current = "layer4")]
     layer4: Sequential,
+    
+    #[map(from = "prev_layer", current = "avg_pool")]
     avg_pool: AdaptiveAvgPool2d,
+    
+    #[map(from = "prev_layer", current = "fc")]
     fc: Linear,
 }
 

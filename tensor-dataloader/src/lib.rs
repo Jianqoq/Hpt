@@ -13,10 +13,15 @@ pub use compression_trait::DataLoaderTrait;
 pub use struct_save::save::Save;
 pub use struct_save::load::{Load, MetaLoad};
 pub use struct_save::save::save;
+pub use from_safetensors::from_safetensors::FromSafeTensors;
 mod struct_save {
     pub mod gen_header;
     pub mod save;
     pub mod load;
+}
+
+pub mod from_safetensors {
+    pub mod from_safetensors;
 }
 
 pub mod save;
