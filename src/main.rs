@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 use std::{collections::HashMap, fs::File, path::Path};
 
 use safetensors::SafeTensors;
@@ -7,204 +9,197 @@ use traits::SimdMath;
 
 type F32Simd = <f32 as TypeCommon>::Vec;
 
+impl Conv2dBatchNorm {
+    #[track_caller]
+    pub fn forward(
+        &self,
+        x: &Tensor<f32>,
+        activation: fn(F32Simd) -> F32Simd,
+    ) -> anyhow::Result<Tensor<f32>> {
+        Ok(x.batchnorm_conv2d(
+            &self.weight,
+            &self.running_mean,
+            &self.running_var,
+            &self.running_gamma,
+            &self.running_beta,
+            self.bias.as_ref(),
+            self.eps,
+            [self.steps as i64, self.steps as i64],
+            [
+                (self.padding as i64, self.padding as i64),
+                (self.padding as i64, self.padding as i64),
+            ],
+            [self.dilation as i64, self.dilation as i64],
+            Some(activation),
+        )?)
+    }
+}
+
 #[derive(Save, Load, FromSafeTensors)]
-pub struct Conv2dBatchNorm {
-    #[map(path = "conv1", tensor_name = "weight")]
-    weight: Tensor<f32>,
-    #[map(path = "conv1", tensor_name = "weight")]
-    #[map(path = "conv2", tensor_name = "weight")]
-    bias: Option<Tensor<f32>>,
-    #[map(tensor_name = "running_mean")]
-    running_mean: Tensor<f32>,
-    #[map(tensor_name = "running_var")]
-    running_var: Tensor<f32>,
-    #[map(tensor_name = "running_gamma")]
-    running_gamma: Tensor<f32>,
-    #[map(path = "bn1", tensor_name = "weight")]
-    running_beta: Tensor<f32>,
-    #[map(path = "prev_layer", value = 10.0)]
-    eps: f32,
-    #[map(path = "prev_layer", value = 10)]
-    steps: usize,
-    #[map(path = "prev_layer", value = 10)]
+pub struct MaxPool2d {
+    #[map(value = Shape::new([3, 3]))]
+    kernel_size: Shape,
+    #[map(value = 2)]
+    stride: usize,
+    #[map(value = 1)]
     padding: usize,
-    #[map(path = "prev_layer", value = 10)]
+    #[map(value = 1)]
     dilation: usize,
 }
 
-// impl Conv2dBatchNorm {
-//     #[track_caller]
-//     pub fn forward(
-//         &self,
-//         x: &Tensor<f32>,
-//         activation: fn(F32Simd) -> F32Simd,
-//     ) -> anyhow::Result<Tensor<f32>> {
-//         Ok(x.batchnorm_conv2d(
-//             &self.weight,
-//             &self.running_mean,
-//             &self.running_var,
-//             &self.running_gamma,
-//             &self.running_beta,
-//             self.bias.as_ref(),
-//             self.eps,
-//             [self.steps as i64, self.steps as i64],
-//             [
-//                 (self.padding as i64, self.padding as i64),
-//                 (self.padding as i64, self.padding as i64),
-//             ],
-//             [self.dilation as i64, self.dilation as i64],
-//             Some(activation),
-//         )?)
-//     }
-// }
+impl MaxPool2d {
+    pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
+        Ok(x.maxpool2d(
+            &self.kernel_size,
+            [self.stride as i64, self.stride as i64],
+            [
+                (self.padding as i64, self.padding as i64),
+                (self.padding as i64, self.padding as i64),
+            ],
+            [self.dilation as i64, self.dilation as i64],
+        )?)
+    }
+}
 
-// #[derive(Save, Load, FromSafeTensors)]
-// pub struct MaxPool2d {
-//     #[map(value = Shape::new([3, 3]))]
-//     kernel_size: Shape,
-//     #[map(value = 2)]
-//     stride: usize,
-//     #[map(value = 1)]
-//     padding: usize,
-//     #[map(value = 1)]
-//     dilation: usize,
-// }
+#[derive(Save, Load, FromSafeTensors)]
+pub struct AdaptiveAvgPool2d {
+    #[map(value = [1, 1])]
+    kernel_size: [i64; 2],
+}
 
-// impl MaxPool2d {
-//     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-//         Ok(x.maxpool2d(
-//             &self.kernel_size,
-//             [self.stride as i64, self.stride as i64],
-//             [
-//                 (self.padding as i64, self.padding as i64),
-//                 (self.padding as i64, self.padding as i64),
-//             ],
-//             [self.dilation as i64, self.dilation as i64],
-//         )?)
-//     }
-// }
+impl AdaptiveAvgPool2d {
+    pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
+        Ok(x.adaptive_avgpool2d(self.kernel_size)?)
+    }
+}
 
-// #[derive(Save, Load, FromSafeTensors)]
-// pub struct AdaptiveAvgPool2d {
-//     #[map(value = [1, 1])]
-//     kernel_size: [i64; 2],
-// }
+#[derive(Save, Load, FromSafeTensors)]
+pub struct DownSample {
+    conv: Conv2dBatchNorm,
+}
 
-// impl AdaptiveAvgPool2d {
-//     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-//         Ok(x.adaptive_avgpool2d(self.kernel_size)?)
-//     }
-// }
+impl DownSample {
+    pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
+        Ok(self.conv.forward(x, |x| x)?)
+    }
+}
 
-// #[derive(Save, Load, FromSafeTensors)]
-// pub struct DownSample {
-//     #[map(from = "prev_layer", current = "conv")]
-//     conv: Conv2dBatchNorm,
-// }
+#[derive(Save, Load, FromSafeTensors)]
+pub struct Sequential {
+    #[map(vec_len = 4, inner_type = BasicBlock)]
+    layers: Vec<BasicBlock>,
+}
 
-// impl DownSample {
-//     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-//         Ok(self.conv.forward(x, |x| x)?)
-//     }
-// }
+impl Sequential {
+    pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
+        let mut x = x.clone();
+        for layer in &self.layers {
+            x = layer.forward(&x)?;
+        }
+        Ok(x)
+    }
+}
 
-// #[derive(Save, Load, FromSafeTensors)]
-// pub struct Sequential {
-//     #[map(from = "prev_layer", vec_len = 4)]
-//     layers: Vec<BasicBlock>,
-// }
+#[derive(Save, Load, FromSafeTensors)]
+pub struct BasicBlock {
+    bn_conv1: Conv2dBatchNorm,
+    bn_conv2: Conv2dBatchNorm,
+    downsample: Option<DownSample>,
+}
 
-// impl Sequential {
-//     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-//         let mut x = x.clone();
-//         for layer in &self.layers {
-//             x = layer.forward(&x)?;
-//         }
-//         Ok(x)
-//     }
-// }
+impl BasicBlock {
+    pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
+        let identity = if let Some(downsample) = &self.downsample {
+            downsample.forward(&x)?
+        } else {
+            x.clone()
+        };
+        let out = self.bn_conv1.forward(&x, |x| x.relu())?;
+        let out = self.bn_conv2.forward(&out, |x| x)?;
+        out.par_iter_mut_simd()
+            .zip(identity.par_iter_simd())
+            .for_each(
+                |(a, b)| *a = (*a + b)._relu(),
+                |(a, b)| {
+                    a.write_unaligned((a.read_unaligned() + b).relu());
+                },
+            );
+        Ok(out)
+    }
+}
 
-// #[derive(Save, Load, FromSafeTensors)]
-// pub struct BasicBlock {
-//     #[map(from = "prev_layer", current = "bn_conv1")]
-//     bn_conv1: Conv2dBatchNorm,
+impl Linear {
+    pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
+        let out = x.matmul(&self.weight.t()?)?;
+        Ok(out.add_(&self.bias, &out)?)
+    }
+}
 
-//     #[map(from = "prev_layer", current = "bn_conv2")]
-//     bn_conv2: Conv2dBatchNorm,
+#[derive(Save, Load, FromSafeTensors)]
+pub struct Conv2dBatchNorm {
+    #[map(path = ResNet.conv1, tensor_name = "conv1.weight")]
+    weight: Tensor<f32>,
+    #[map(value = None)]
+    bias: Option<Tensor<f32>>,
 
-//     #[map(from = "prev_layer", current = "downsample")]
-//     downsample: Option<DownSample>,
-// }
+    #[map(path = ResNet.conv1, tensor_name = "bn1.running_mean")]
+    running_mean: Tensor<f32>,
 
-// impl BasicBlock {
-//     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-//         let identity = if let Some(downsample) = &self.downsample {
-//             downsample.forward(&x)?
-//         } else {
-//             x.clone()
-//         };
-//         let out = self.bn_conv1.forward(&x, |x| x.relu())?;
-//         let out = self.bn_conv2.forward(&out, |x| x)?;
-//         out.par_iter_mut_simd()
-//             .zip(identity.par_iter_simd())
-//             .for_each(
-//                 |(a, b)| *a = (*a + b)._relu(),
-//                 |(a, b)| {
-//                     a.write_unaligned((a.read_unaligned() + b).relu());
-//                 },
-//             );
-//         Ok(out)
-//     }
-// }
+    #[map(path = ResNet.conv1, tensor_name = "bn1.running_var")]
+    running_var: Tensor<f32>,
 
-// #[derive(Save, Load, FromSafeTensors)]
-// pub struct Linear {
-//     #[map(current = "weight")]
-//     weight: Tensor<f32>,
-//     #[map(current = "bias")]
-//     bias: Tensor<f32>,
-// }
+    #[map(path = ResNet.conv1, tensor_name = "bn1.weight")]
+    running_gamma: Tensor<f32>,
 
-// impl Linear {
-//     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-//         let out = x.matmul(&self.weight.t()?)?;
-//         Ok(out.add_(&self.bias, &out)?)
-//     }
-// }
+    #[map(path = ResNet.conv1, tensor_name = "bn1.bias")]
+    running_beta: Tensor<f32>,
 
-// #[derive(Save, Load, FromSafeTensors)]
-// pub struct ResNet {
-//     #[map(current = "conv1")]
-//     conv1: Conv2dBatchNorm,
-//     #[map(current = "maxpool")]
-//     max_pool1: MaxPool2d,
-//     #[map(current = "layer1")]
-//     layer1: Sequential,
-//     #[map(current = "layer2")]
-//     layer2: Sequential,
-//     #[map(current = "layer3")]
-//     layer3: Sequential,
-//     #[map(current = "layer4")]
-//     layer4: Sequential,
-//     #[map(current = "avg_pool")]
-//     avg_pool: AdaptiveAvgPool2d,
-//     #[map(current = "fc")]
-//     fc: Linear,
-// }
+    #[map(value = 1e-5)]
+    eps: f32,
 
-// impl ResNet {
-//     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-//         let x = self.conv1.forward(&x, |x| x.relu())?;
-//         let x = self.max_pool1.forward(&x)?;
-//         let x = self.layer1.forward(&x)?;
-//         let x = self.layer2.forward(&x)?;
-//         let x = self.layer3.forward(&x)?;
-//         let x = self.layer4.forward(&x)?;
-//         let x = self.avg_pool.forward(&x)?;
-//         let x = self.fc.forward(&x)?;
-//         Ok(x)
-//     }
-// }
+    #[map(path = ResNet.conv1, value = 2)]
+    steps: usize,
+
+    #[map(path = ResNet.conv1, value = 3)]
+    padding: usize,
+
+    #[map(value = 1)]
+    dilation: usize,
+}
+
+#[derive(Save, Load, FromSafeTensors)]
+pub struct Linear {
+    #[map(path = ResNet.fc, tensor_name = "fc.weight")]
+    weight: Tensor<f32>,
+    #[map(path = ResNet.fc, tensor_name = "fc.bias")]
+    bias: Tensor<f32>,
+}
+
+#[derive(Save, Load, FromSafeTensors)]
+pub struct ResNet {
+    conv1: Conv2dBatchNorm,
+    max_pool1: MaxPool2d,
+    layer1: Sequential,
+    layer2: Sequential,
+    layer3: Sequential,
+    layer4: Sequential,
+    avg_pool: AdaptiveAvgPool2d,
+    fc: Linear,
+}
+
+impl ResNet {
+    pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
+        let x = self.conv1.forward(&x, |x| x.relu())?;
+        let x = self.max_pool1.forward(&x)?;
+        let x = self.layer1.forward(&x)?;
+        let x = self.layer2.forward(&x)?;
+        let x = self.layer3.forward(&x)?;
+        let x = self.layer4.forward(&x)?;
+        let x = self.avg_pool.forward(&x)?;
+        let x = self.fc.forward(&x)?;
+        Ok(x)
+    }
+}
 
 // fn create_resnet() -> ResNet {
 //     let path = Path::new("data.ftz");
@@ -738,6 +733,14 @@ pub struct Conv2dBatchNorm {
 //     }
 // }
 
+#[derive(Default)]
+struct ResNetFake {
+    conv: BnConv,
+    bn: BnConv,
+}
+#[derive(Default)]
+struct BnConv {}
+
 fn main() -> anyhow::Result<()> {
     // let refresh_kind = RefreshKind::default().with_memory(MemoryRefreshKind::everything());
     // let mut sys = System::new_with_specifics(refresh_kind);
@@ -760,5 +763,7 @@ fn main() -> anyhow::Result<()> {
     // if let Some(process) = sys.process(pid) {
     //     println!("After Inference - Memory usage: {} KB", process.memory());
     // }
+    let res = ResNetFake::default();
+
     Ok(())
 }

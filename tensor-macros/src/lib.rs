@@ -13,6 +13,8 @@
 //! ```
 
 #![deny(missing_docs)]
+use std::collections::VecDeque;
+
 #[cfg(feature = "cuda")]
 use crate::binary_float_out::impl_cuda_float_out_binary;
 use binary_float_out::impl_float_out_binary;
@@ -54,7 +56,7 @@ mod type_utils;
 use crate::simd_cmp::impl_simd_cmp;
 use crate::simd_normal_out::impl_simd_normal_out;
 use proc_macro2::{TokenStream as TokenStream2, TokenTree};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use type_utils::TypeInfo;
 
 /// number of registers available for the target architecture
@@ -1002,64 +1004,125 @@ pub fn impl_from_safetensors(input: TokenStream) -> TokenStream {
     for (idx, field) in fields.iter().enumerate() {
         let ty = &field.ty;
         let name = &field.ident;
-        let var_name = format_ident!("field_{}", idx);
         let mut value_construct = vec![];
         let mut from_construct = vec![];
         let mut params = vec![];
+        let mut vec_len = None;
         for attr in &field.attrs {
             if attr.path().is_ident("map") {
                 let mut path = None;
                 let mut value = None;
                 let mut tensor_name = None;
+                let mut inner_type = None;
+                let mut first = None;
                 attr.parse_nested_meta(|meta| {
-                    if meta.path.is_ident("path") {
-                        let value: syn::LitStr = meta.value()?.parse()?;
-                        path = Some(value.value());
-                    } else if meta.path.is_ident("value") {
+                    if meta.path.is_ident("value") {
                         let val: syn::Expr = meta.value()?.parse()?;
                         value = Some(val);
                     } else if meta.path.is_ident("tensor_name") {
                         let value: syn::LitStr = meta.value()?.parse()?;
                         tensor_name = Some(value.value());
+                    } else if meta.path.is_ident("vec_len") {
+                        let value: syn::LitInt = meta.value()?.parse()?;
+                        vec_len = Some(value.base10_parse::<usize>().unwrap());
+                    } else if meta.path.is_ident("inner_type") {
+                        let value: syn::Ident = meta.value()?.parse()?;
+                        inner_type = Some(value);
+                    } else if meta.path.is_ident("path") {
+                        let val: syn::Expr = meta.value()?.parse()?;
+                        path = Some(val);
+                        fn get_base_path(expr: &syn::Expr) -> Option<&syn::ExprPath> {
+                            match expr {
+                                syn::Expr::Field(field) => get_base_path(&field.base),
+                                syn::Expr::Path(path) => Some(path),
+                                _ => None,
+                            }
+                        }
+                        first = if let Some(syn::Expr::Field(syn::ExprField { base, .. })) = &path {
+                            if let Some(base_path) = get_base_path(&base) {
+                                Some(base_path.path.segments[0].ident.clone())
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
                     }
                     Ok(())
                 })
                 .unwrap_or_else(|err| println!("Failed to parse attribute: {}", err));
-                params.push((path, value, tensor_name));
+                params.push((path, value, tensor_name, vec_len, inner_type, first));
             }
         }
         let param_count = params.len();
-        for (path, value, tensor_name) in params {
-            match (path, value, tensor_name) {
-                (None, None, Some(tensor_name)) => {
+        for (path, value, tensor_name, vec_len, inner_type, first) in params {
+            if let Some(vec_len) = vec_len {
+                let inner_type = inner_type.expect("inner_type is required for vec");
+                if let Some(path) = path {
+                    from_construct.push(quote! {
+                        stringify!(#path) => {
+                            let mut vec = vec![];
+                            for i in 0..#vec_len {
+                                vec.push(<#inner_type as FromSafeTensors>::from_safe_tensors(data, &format!("{}.{}", path, i)));
+                            }
+                            vec
+                        }
+                    });
+                } else {
                     value_construct.push(quote! {
-                        <#ty as FromSafeTensors>::from_safe_tensors(data, #tensor_name)
+                        {
+                            let mut vec = vec![];
+                            for i in 0..#vec_len {
+                                vec.push(<#inner_type as FromSafeTensors>::from_safe_tensors(data, &format!("{}.{}", path, i)));
+                            }
+                            vec
+                        }
                     });
                 }
-                (None, Some(value), None) => {
-                    if param_count > 1 {
-                        panic!("value without path means generic assignment, there can only be one value without path");
+            } else {
+                match (path, value, tensor_name) {
+                    (None, None, Some(tensor_name)) => {
+                        value_construct.push(quote! {
+                            <#ty as FromSafeTensors>::from_safe_tensors(data, #tensor_name)
+                        });
                     }
-                    value_construct.push(quote! {
-                        #value
-                    });
-                }
-                (Some(path), None, Some(tensor_name)) => {
-                    from_construct.push(quote! {
-                        #path => <#ty as FromSafeTensors>::from_safe_tensors(data, #tensor_name),
-                    });
-                }
-                (Some(path), Some(value), None) => {
-                    from_construct.push(quote! {
-                        #path => #value,
-                    });
-                }
+                    (None, Some(value), None) => {
+                        if param_count > 1 {
+                            panic!("value without path means generic assignment, there can only be one value without path");
+                        }
+                        value_construct.push(quote! {
+                            #value
+                        });
+                    }
+                    (Some(path), None, Some(tensor_name)) => {
+                        from_construct.push(quote! {
+                            stringify!(#path) => {
+                                if false {
+                                    let #first: #first = unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+                                    #path;
+                                };
+                                <#ty as FromSafeTensors>::from_safe_tensors(data, #tensor_name)
+                            },
+                        });
+                    }
+                    (Some(path), Some(value), None) => {
+                        from_construct.push(quote! {
+                            stringify!(#path) => {
+                                if false {
+                                    let #first: #first = unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+                                    #path;
+                                };
+                                #value
+                            },
+                        });
+                    }
 
-                (None, Some(_), Some(_)) | (Some(_), Some(_), Some(_)) => {
-                    panic!("value and tensor_name cannot be used together");
-                }
-                (Some(_), None, None) | (None, None, None) => {
-                    panic!("path and value are not present");
+                    (None, Some(_), Some(_)) | (Some(_), Some(_), Some(_)) => {
+                        panic!("value and tensor_name cannot be used together");
+                    }
+                    (Some(_), None, None) | (None, None, None) => {
+                        panic!("path and value are not present");
+                    }
                 }
             }
         }
@@ -1076,7 +1139,7 @@ pub fn impl_from_safetensors(input: TokenStream) -> TokenStream {
             });
         } else {
             construct_fields.push(quote! {
-                #name: <#ty as FromSafeTensors>::from_safe_tensors(data, &format!("{}.{}", path, #name))
+                #name: <#ty as FromSafeTensors>::from_safe_tensors(data, &format!("{}.{}", path, stringify!(#name)))
             });
         }
     }
@@ -1089,11 +1152,11 @@ pub fn impl_from_safetensors(input: TokenStream) -> TokenStream {
             }
         }
     };
-    let syntax_tree = syn::parse2(expanded.clone()).expect(&format!(
-        "failed to parse expanded: {}",
-        expanded.to_string()
-    ));
-    let formatted = prettyplease::unparse(&syntax_tree);
-    println!("{}", formatted);
+    // let syntax_tree = syn::parse2(expanded.clone()).expect(&format!(
+    //     "failed to parse expanded: {}",
+    //     expanded.to_string()
+    // ));
+    // let formatted = prettyplease::unparse(&syntax_tree);
+    // println!("{}", formatted);
     expanded.into()
 }
