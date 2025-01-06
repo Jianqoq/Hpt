@@ -1033,7 +1033,7 @@ pub fn impl_from_safetensors(input: TokenStream) -> TokenStream {
             match (path, value, tensor_name) {
                 (None, None, Some(tensor_name)) => {
                     value_construct.push(quote! {
-                        <#ty as FromSafeTensors>::from_safe_tensors(data, #tensor_name, accumulated)
+                        <#ty as FromSafeTensors>::from_safe_tensors(data, #tensor_name)
                     });
                 }
                 (None, Some(value), None) => {
@@ -1046,7 +1046,7 @@ pub fn impl_from_safetensors(input: TokenStream) -> TokenStream {
                 }
                 (Some(path), None, Some(tensor_name)) => {
                     from_construct.push(quote! {
-                        #path => <#ty as FromSafeTensors>::from_safe_tensors(data, #tensor_name, accumulated),
+                        #path => <#ty as FromSafeTensors>::from_safe_tensors(data, #tensor_name),
                     });
                 }
                 (Some(path), Some(value), None) => {
@@ -1069,20 +1069,20 @@ pub fn impl_from_safetensors(input: TokenStream) -> TokenStream {
             });
         } else if !from_construct.is_empty() {
             construct_fields.push(quote! {
-                #name: match from {
+                #name: match path {
                     #(#from_construct)*
-                    _ => panic!("unknown field for field {} in struct {}: `from: {}, accumulated: {}`", stringify!(#name), stringify!(#struct_name), from, accumulated),
+                    _ => panic!("unknown field for field {} in struct {}: `path: {}`", stringify!(#name), stringify!(#struct_name), path),
                 }
             });
         } else {
             construct_fields.push(quote! {
-                #name: <#ty as FromSafeTensors>::from_safe_tensors(data, from, accumulated)
+                #name: <#ty as FromSafeTensors>::from_safe_tensors(data, &format!("{}.{}", path, #name))
             });
         }
     }
     let expanded = quote! {
         impl #impl_generics FromSafeTensors for #struct_name #ty_generics #where_clause {
-            fn from_safe_tensors(data: &SafeTensors, from: &str, accumulated: &str) -> Self {
+            fn from_safe_tensors(data: &SafeTensors, path: &str) -> Self {
                 Self {
                     #(#construct_fields),*
                 }

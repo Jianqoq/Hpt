@@ -364,8 +364,8 @@ impl<'a, T: CommonBounds, const DEVICE: usize> Into<_Tensor<T, Cpu, DEVICE>> for
 }
 
 impl<T: CommonBounds, const DEVICE: usize> FromSafeTensors for Tensor<T, Cpu, DEVICE> {
-    fn from_safe_tensors(data: &safetensors::SafeTensors, _: &str, accumulated: &str) -> Self {
-        let tensor = data.tensor(accumulated);
+    fn from_safe_tensors(data: &safetensors::SafeTensors, tensor_name: &str) -> Self {
+        let tensor = data.tensor(tensor_name);
         match tensor {
             Ok(view) => {
                 let shape = Shape::from(view.shape());
@@ -378,7 +378,7 @@ impl<T: CommonBounds, const DEVICE: usize> FromSafeTensors for Tensor<T, Cpu, DE
                 ret
             }
             Err(e) => {
-                panic!("tensor not found: {}, with accumulated: {}", e, accumulated);
+                panic!("tensor not found: {}", e);
             }
         }
     }
