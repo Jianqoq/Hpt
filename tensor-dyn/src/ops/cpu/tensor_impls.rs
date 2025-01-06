@@ -10,7 +10,7 @@ use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
 use tensor_common::error::base::TensorError;
-use tensor_common::{layout::layout::Layout, utils::pointer::Pointer, shape::shape::Shape};
+use tensor_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
 use tensor_dataloader::data_loader::TensorMeta;
 use tensor_dataloader::{DataLoader, Endian, FromSafeTensors, Meta};
 use tensor_display::display;
@@ -363,8 +363,23 @@ impl<'a, T: CommonBounds, const DEVICE: usize> Into<_Tensor<T, Cpu, DEVICE>> for
     }
 }
 
-impl<T, const DEVICE: usize> FromSafeTensors for Tensor<T, Cpu, DEVICE> {
-    fn from_safe_tensors(data: &safetensors::SafeTensors, from: &str) -> Self {
-        todo!()
+impl<T: CommonBounds, const DEVICE: usize> FromSafeTensors for Tensor<T, Cpu, DEVICE> {
+    fn from_safe_tensors(data: &safetensors::SafeTensors, _: &str, accumulated: &str) -> Self {
+        let tensor = data.tensor(accumulated);
+        match tensor {
+            Ok(view) => {
+                let shape = Shape::from(view.shape());
+                let mut ret = Self::empty(shape).expect("failed to create tensor");
+                let size = ret.size();
+                let slice = ret.as_raw_mut();
+                let view_slice =
+                    unsafe { std::slice::from_raw_parts(view.data().as_ptr() as *const T, size) };
+                slice.copy_from_slice(view_slice);
+                ret
+            }
+            Err(e) => {
+                panic!("tensor not found: {}, with accumulated: {}", e, accumulated);
+            }
+        }
     }
 }

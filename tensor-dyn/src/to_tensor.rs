@@ -20,7 +20,7 @@ macro_rules! from_scalar {
         $(
             impl<const DEVICE: usize> Into<_Tensor<$t, Cpu, DEVICE>> for $t {
                 fn into(self) -> _Tensor<$t, Cpu, DEVICE> {
-                    let mut ret = _Tensor::<$t, Cpu, DEVICE>::empty(vec![]).unwrap();
+                    let mut ret = _Tensor::<$t, Cpu, DEVICE>::empty(Vec::<i64>::new()).unwrap();
                     ret.as_raw_mut()[0] = self;
                     return ret;
                 }

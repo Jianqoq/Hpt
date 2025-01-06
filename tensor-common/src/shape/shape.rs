@@ -112,6 +112,24 @@ impl From<Vec<i64>> for Shape {
     }
 }
 
+impl From<Vec<i32>> for Shape {
+    fn from(v: Vec<i32>) -> Self {
+        Shape { inner: Arc::new(v.into_iter().map(|x| x as i64).collect()) }
+    }
+}
+
+impl From<Vec<usize>> for Shape {
+    fn from(v: Vec<usize>) -> Self {
+        Shape { inner: Arc::new(v.into_iter().map(|x| x as i64).collect()) }
+    }
+}
+
+impl From<&[usize]> for Shape {
+    fn from(v: &[usize]) -> Self {
+        Shape { inner: Arc::new(v.into_iter().map(|x| *x as i64).collect()) }
+    }
+}
+
 impl<const N: usize> From<[i64; N]> for Shape {
     fn from(v: [i64; N]) -> Self {
         Shape {

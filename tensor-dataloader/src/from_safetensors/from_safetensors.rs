@@ -4,11 +4,11 @@ use safetensors::SafeTensors;
     message = "Cannot perform operation on type `{Self}` because it doesn't implement required features",
 )]
 pub trait FromSafeTensors {
-    fn from_safe_tensors(data: &SafeTensors, from: &str) -> Self;
+    fn from_safe_tensors(data: &SafeTensors, from: &str, cumulated: &str) -> Self;
 }
 
 impl<T: FromSafeTensors> FromSafeTensors for Option<T> {
-    fn from_safe_tensors(data: &SafeTensors, from: &str) -> Self {
-        Some(T::from_safe_tensors(data, from))
+    fn from_safe_tensors(data: &SafeTensors, from: &str, cumulated: &str) -> Self {
+        Some(T::from_safe_tensors(data, from, cumulated))
     }
 }
