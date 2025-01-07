@@ -79,11 +79,9 @@ pub(crate) fn uncontiguous_reduce_prepare<T: CommonBounds, O: CommonBounds>(
     }
     // get permute order, we move to_reduce axes to the end
     let mut transposed_axis = rearrange_array(a.ndim(), axes);
-
     // sort the transposed axis based on the stride, ordering the axis can increase the cpu cache hitting rate when we do iteration
     transposed_axis[..a.ndim() - axes.len()].sort_by(|x, y| a.strides()[*y].cmp(&a.strides()[*x]));
     transposed_axis[a.ndim() - axes.len()..].sort_by(|x, y| a.strides()[*y].cmp(&a.strides()[*x]));
-
     let res_layout = a.layout.reduce(axes, false)?;
 
     let mut res_permute_axes = (0..res_layout.ndim()).collect::<Vec<usize>>();
@@ -361,11 +359,11 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
         let ndim = res_shape.len() as i64;
 
         // [0, 6, 12, 18, 24, 30] res0    thread 0
-        // [1, 7, 13, 19, 25, 31] res1    thread 1
-        // [2, 8, 14, 20, 26, 32] res0    thread 0
-        // [3, 9, 15, 21, 27, 33] res1    thread 1
-        // [4, 10, 16, 22, 28, 34] res0   thread 0
-        // [5, 11, 17, 23, 29, 35] res1   thread 1
+        // [1, 7, 13, 19, 25, 31] res1    thread 0
+        // [2, 8, 14, 20, 26, 32] res2    thread 1
+        // [3, 9, 15, 21, 27, 33] res3    thread 1
+        // [4, 10, 16, 22, 28, 34] res4   thread 2
+        // [5, 11, 17, 23, 29, 35] res5   thread 2
         for id in 0..num_threads {
             let mut a_data_ptr_cpy = ptrs.clone();
             let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();

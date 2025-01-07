@@ -21,6 +21,8 @@ pub(crate) fn assert_f64(
     Ok(())
 }
 
+#[allow(unused)]
+#[must_use]
 pub(crate) fn assert_f32(
     a: f32,
     b: f32,

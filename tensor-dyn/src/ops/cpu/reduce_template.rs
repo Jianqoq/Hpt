@@ -475,7 +475,8 @@ pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O>(
                     rayon::current_num_threads()
                 };
                 let mut p = (0..a.ndim()).collect::<Vec<usize>>();
-                let front = p.remove(0);
+                let front = transposed_tensor.shape().inner().iter().position(|x| *x == result.size() as i64).unwrap();
+                p.remove(front);
                 p.push(front);
                 let _a = transposed_tensor.permute(&p).unwrap();
                 kdo1(num_threads, inner_loop_size, _a, &result);
