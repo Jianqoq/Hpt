@@ -1,370 +1,266 @@
 #![allow(unused)]
-use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
+use rand::Rng;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use tch;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
-use tensor_dyn::{ set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo };
-use tensor_dyn::{ Tensor, TensorCreator };
-use tensor_types::convertion::{ Convertor, FromScalar };
+use tensor_dyn::TypeCommon;
+use tensor_dyn::{set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo};
+use tensor_dyn::{Tensor, TensorCreator};
+use tensor_types::convertion::{Convertor, FromScalar};
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
 
-fn common_input<T>([batch, out_channel, in_channel, kernel_height, kernel_width, height, width, groups]: [
-    i64;
-    8
-])
-    -> anyhow::Result<(Tensor<T>, Tensor<T>, tch::Tensor, tch::Tensor)>
-    where
-        T: Convertor + FromScalar<i64> + NormalOut<T, Output = T> + CommonBounds,
-        usize: IntoScalar<T>,
-        i64: IntoScalar<T>
-{
-    let kernel = Tensor::<T>
-        ::arange(0, in_channel / groups * out_channel * kernel_height * kernel_width)?
-        .reshape([out_channel, in_channel / groups, kernel_height, kernel_width])?
-        .permute([2, 3, 1, 0])?
-        .contiguous()?;
-    let a = Tensor::<T>
-        ::arange(0, batch * in_channel * height * width)?
-        .reshape([batch, in_channel, height, width])?
-        .permute([0, 2, 3, 1])?
-        .contiguous()?;
+use super::assert_utils::assert_f64;
+type Type = f64;
 
-    let tch_kernel = tch::Tensor
-        ::arange(in_channel / groups * out_channel * kernel_height * kernel_width, (
-            tch::Kind::Int64,
-            tch::Device::Cpu,
-        ))
-        .reshape(&[out_channel, in_channel / groups, kernel_height, kernel_width]);
-    let tch_a = tch::Tensor
-        ::arange(batch * in_channel * height * width, (tch::Kind::Int64, tch::Device::Cpu))
-        .reshape(&[batch, in_channel, height, width]);
-    Ok((kernel, a, tch_kernel, tch_a))
+fn common_input(
+    [batch, out_channel, in_channel, kernel_height, kernel_width, height, width, groups]: [i64; 8],
+) -> anyhow::Result<(Tensor<Type>, Tensor<Type>, tch::Tensor, tch::Tensor)> {
+    let tch_kernel = tch::Tensor::randn(
+        [
+            out_channel,
+            in_channel / groups,
+            kernel_height,
+            kernel_width,
+        ],
+        (tch::Kind::Double, tch::Device::Cpu),
+    );
+    let mut kernel = Tensor::<Type>::empty([
+        out_channel,
+        in_channel / groups,
+        kernel_height,
+        kernel_width,
+    ])?;
+    let size = kernel.size();
+    kernel.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_kernel.data_ptr() as *const Type, size)
+    });
+
+    let tch_a = tch::Tensor::randn(
+        [batch, in_channel, height, width],
+        (tch::Kind::Double, tch::Device::Cpu),
+    );
+    let mut a = Tensor::<Type>::empty([batch, in_channel, height, width])?;
+    let size = a.size();
+    a.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_a.data_ptr() as *const Type, size)
+    });
+
+    Ok((
+        kernel.permute([2, 3, 1, 0])?.contiguous()?,
+        a.permute([0, 2, 3, 1])?.contiguous()?,
+        tch_kernel,
+        tch_a,
+    ))
 }
 
 #[track_caller]
 fn assert_eq(
-    a: &Tensor<i64>,
-    a_kernel: &Tensor<i64>,
+    a: &Tensor<Type>,
+    a_kernel: &Tensor<Type>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor,
-    groups: i64
+    groups: i64,
 ) -> anyhow::Result<()> {
     let res = a
         .conv2d_group(
             &a_kernel,
             None,
             [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
+            [(0, 0), (0, 0)],
             [1, 1],
             groups,
-            None
+            None,
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
-    let res2 = b.conv2d(&b_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], groups);
-    // println!("{}", res);
-    // println!("{}", res2);
+    let tch_res = b.conv2d(
+        &b_kernel,
+        None::<tch::Tensor>,
+        &[1, 1],
+        &[0, 0],
+        &[1, 1],
+        groups,
+    );
     let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            if a != b {
-                assert_eq!(a, b);
-            }
-        });
+    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const Type, res.size()) };
+    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
+        assert_f64(*a, *b, 0.05, &res, &tch_res).expect("assert_f64 failed");
+    });
     Ok(())
 }
 
 #[track_caller]
 fn assert_eq_pad(
-    a: &Tensor<i64>,
-    a_kernel: &Tensor<i64>,
+    a: &Tensor<Type>,
+    a_kernel: &Tensor<Type>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor,
-    groups: i64
+    groups: i64,
 ) -> anyhow::Result<()> {
     let res = a
         .conv2d_group(
             &a_kernel,
             None,
             [1, 1],
-            [
-                (2, 2),
-                (2, 2),
-            ],
+            [(2, 2), (2, 2)],
             [1, 1],
             groups,
-            None
+            None,
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
-    let res2 = b.conv2d(&b_kernel, None::<tch::Tensor>, &[1, 1], &[2, 2], &[1, 1], groups);
+    let tch_res = b.conv2d(
+        &b_kernel,
+        None::<tch::Tensor>,
+        &[1, 1],
+        &[2, 2],
+        &[1, 1],
+        groups,
+    );
     let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            if a != b {
-                assert_eq!(a, b);
-            }
-        });
+    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const Type, res.size()) };
+    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
+        assert_f64(*a, *b, 0.05, &res, &tch_res).expect("assert_f64 failed");
+    });
     Ok(())
 }
 
 #[track_caller]
 fn assert_eq_bias(
-    a: &Tensor<i64>,
-    a_kernel: &Tensor<i64>,
+    a: &Tensor<Type>,
+    a_kernel: &Tensor<Type>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor,
-    groups: i64
+    groups: i64,
 ) -> anyhow::Result<()> {
-    let bias = Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
+    let tch_bias = tch::Tensor::randn(b_kernel.size()[0], (tch::Kind::Double, tch::Device::Cpu));
+    let mut bias = Tensor::<Type>::empty([*a_kernel.shape().last().unwrap()])?;
+    let size = bias.size();
+    bias.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_bias.data_ptr() as *const Type, size)
+    });
     let res = a
         .conv2d_group(
             &a_kernel,
             Some(&bias),
             [1, 1],
-            [
-                (0, 0),
-                (0, 0),
-            ],
+            [(0, 0), (0, 0)],
             [1, 1],
             groups,
-            None
+            None,
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
-    let tch_bias = tch::Tensor::arange(b_kernel.size()[0], (tch::Kind::Int64, tch::Device::Cpu));
-    let res2 = b.conv2d(&b_kernel, Some(tch_bias), &[1, 1], &[0, 0], &[1, 1], groups);
+    let tch_res = b.conv2d(&b_kernel, Some(tch_bias), &[1, 1], &[0, 0], &[1, 1], groups);
     let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            if a != b {
-                assert_eq!(a, b);
-            }
-        });
+    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const Type, res.size()) };
+    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
+        assert_f64(*a, *b, 0.05, &res, &tch_res).expect("assert_f64 failed");
+    });
     Ok(())
 }
 
 #[track_caller]
 fn assert_eq_bias_pad(
-    a: &Tensor<i64>,
-    a_kernel: &Tensor<i64>,
+    a: &Tensor<Type>,
+    a_kernel: &Tensor<Type>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor,
-    groups: i64
+    groups: i64,
 ) -> anyhow::Result<()> {
-    let bias = Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
+    let tch_bias = tch::Tensor::randn(b_kernel.size()[0], (tch::Kind::Double, tch::Device::Cpu));
+    let mut bias = Tensor::<Type>::empty([*a_kernel.shape().last().unwrap()])?;
+    let size = bias.size();
+    bias.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_bias.data_ptr() as *const Type, size)
+    });
     let res = a
         .conv2d_group(
             &a_kernel,
             Some(&bias),
             [1, 1],
-            [
-                (2, 2),
-                (2, 2),
-            ],
+            [(2, 2), (2, 2)],
             [1, 1],
             groups,
-            None
+            None,
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
-    let tch_bias = tch::Tensor::arange(b_kernel.size()[0], (tch::Kind::Int64, tch::Device::Cpu));
-    let res2 = b.conv2d(&b_kernel, Some(tch_bias), &[1, 1], &[2, 2], &[1, 1], groups);
+    let tch_res = b.conv2d(&b_kernel, Some(tch_bias), &[1, 1], &[2, 2], &[1, 1], groups);
     let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            if a != b {
-                assert_eq!(a, b);
-            }
-        });
+    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const Type, res.size()) };
+    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
+        assert_f64(*a, *b, 0.05, &res, &tch_res).expect("assert_f64 failed");
+    });
     Ok(())
 }
 
 #[track_caller]
 fn assert_eq_bias_pad_relu(
-    a: &Tensor<i64>,
-    a_kernel: &Tensor<i64>,
+    a: &Tensor<Type>,
+    a_kernel: &Tensor<Type>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor,
-    groups: i64
+    groups: i64,
 ) -> anyhow::Result<()> {
-    let bias = Tensor::<i64>::arange(0i64, *a_kernel.shape().last().unwrap())?;
+    let tch_bias = tch::Tensor::randn(b_kernel.size()[0], (tch::Kind::Double, tch::Device::Cpu));
+    let mut bias = Tensor::<Type>::empty([*a_kernel.shape().last().unwrap()])?;
+    let size = bias.size();
+    bias.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_bias.data_ptr() as *const Type, size)
+    });
     let res = a
         .conv2d_group(
             &a_kernel,
             Some(&bias),
             [1, 1],
-            [
-                (2, 2),
-                (2, 2),
-            ],
+            [(2, 2), (2, 2)],
             [1, 1],
             groups,
-            None
+            None,
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
-    let tch_bias = tch::Tensor::arange(b_kernel.size()[0], (tch::Kind::Int64, tch::Device::Cpu));
-    let res2 = b.conv2d(&b_kernel, Some(tch_bias), &[1, 1], &[2, 2], &[1, 1], groups);
+    let tch_res = b.conv2d(&b_kernel, Some(tch_bias), &[1, 1], &[2, 2], &[1, 1], groups);
     let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const i64, res.size()) };
-    res_slice
-        .iter()
-        .zip(res2.iter())
-        .for_each(|(a, b)| {
-            if a != b {
-                assert_eq!(a, b);
-            }
-        });
+    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const Type, res.size()) };
+    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
+        assert_f64(*a, *b, 0.05, &res, &tch_res).expect("assert_f64 failed");
+    });
     Ok(())
 }
 
 #[test]
 fn test_case0() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 6, 3, 3, 3, 4, 4, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
+    let mut rng = rand::thread_rng();
+    for i in 0..1000 {
+        let groups = rng.gen_range(1..=4);
 
-    // test when outwidth is less than regnum
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 33, 3, 3, 3, 5, 5, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    // assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 1)?;
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 15, 3, 3, 3, 5, 5, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
+        let in_channel = rng.gen_range(1..=16) * groups;
+        let out_channel = rng.gen_range(1..=16) * groups;
 
-    Ok(())
-}
+        let kernel_height = rng.gen_range(1..=5);
+        let kernel_width = rng.gen_range(1..=5);
+        let height = rng.gen_range(10..=64);
+        let width = rng.gen_range(10..=64);
+        let batch = rng.gen_range(1..=4);
 
-#[test]
-fn test_case1() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 33, 3, 3, 3, 20, 20, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 33, 3, 3, 3, 5, 5, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    Ok(())
-}
-
-#[test]
-fn test_case2() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 80, 8, 3, 3, 20, 20, 8])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 80, 8, 3, 3, 5, 5, 8])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    Ok(())
-}
-
-#[test]
-fn test_case3() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 80, 8, 3, 3, 20, 20, 8])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 80, 8, 3, 3, 5, 5, 8])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 8)?;
-    Ok(())
-}
-
-#[test]
-fn test_case4() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 33, 3, 3, 3, 20, 20, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 33, 3, 3, 3, 5, 5, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    Ok(())
-}
-
-#[test]
-fn test_case5() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 33, 3, 3, 3, 19, 19, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 33, 3, 3, 3, 5, 5, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    Ok(())
-}
-
-#[test]
-fn test_case6() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 30, 3, 3, 3, 20, 20, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 30, 3, 3, 3, 5, 5, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    Ok(())
-}
-
-#[test]
-fn test_case7() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 30, 3, 3, 3, 20, 20, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 30, 3, 3, 3, 5, 5, 3])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, 3)?;
-    assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, 3)?;
+        let (kernel, a, tch_kernel, tch_a) = common_input([
+            batch,
+            out_channel,
+            in_channel,
+            kernel_height,
+            kernel_width,
+            height,
+            width,
+            groups,
+        ])?;
+        assert_eq(&a, &kernel, &tch_a, &tch_kernel, groups)?;
+        assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel, groups)?;
+        assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel, groups)?;
+        assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel, groups)?;
+    }
     Ok(())
 }

@@ -20,6 +20,7 @@ pub mod tensor_dyn {
         pub mod unary;
         pub mod avg_pool;
         pub mod adaptive_avg_pool;
+        pub mod assert_utils;
     }
     #[cfg(feature = "cuda")]
     pub mod cuda {

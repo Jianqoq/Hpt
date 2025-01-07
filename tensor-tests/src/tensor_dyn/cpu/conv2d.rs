@@ -12,6 +12,8 @@ use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::type_promote::NormalOutUnary;
 
+use super::assert_utils::assert_f64;
+
 type Type = f64;
 
 fn common_input<T>(
@@ -63,13 +65,7 @@ fn assert_eq(
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const Type, res.size()) };
     res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        let rel_diff = ((a - b) / (a.abs() + b.abs() + Type::EPSILON)).abs();
-        if rel_diff > 0.05 {
-            panic!(
-                "{} != {} (relative_diff: {}).\n res: {}\n res2: {}",
-                a, b, rel_diff, res, tch_res
-            );
-        }
+        assert_f64(*a, *b, 0.05, &res, &tch_res).expect("assert_f64 failed");
     });
     Ok(())
 }
@@ -89,13 +85,7 @@ fn assert_eq_pad(
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const Type, res.size()) };
     res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        let rel_diff = ((a - b) / (a.abs() + b.abs() + Type::EPSILON)).abs();
-        if rel_diff > 0.05 {
-            panic!(
-                "{} != {} (relative_diff: {}).\n res: {}\n res2: {}",
-                a, b, rel_diff, res, tch_res
-            );
-        }
+        assert_f64(*a, *b, 0.05, &res, &tch_res).expect("assert_f64 failed");
     });
     Ok(())
 }
@@ -128,13 +118,7 @@ fn assert_eq_bias(
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const Type, res.size()) };
     res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        let rel_diff = ((a - b) / (a.abs() + b.abs() + Type::EPSILON)).abs();
-        if rel_diff > 0.05 {
-            panic!(
-                "{} != {} (relative_diff: {}).\n res: {}\n res2: {}",
-                a, b, rel_diff, res, tch_res
-            );
-        }
+        assert_f64(*a, *b, 0.05, &res, &tch_res).expect("assert_f64 failed");
     });
     Ok(())
 }
@@ -167,13 +151,7 @@ fn assert_eq_bias_pad(
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const Type, res.size()) };
     res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        let rel_diff = ((a - b) / (a.abs() + b.abs() + Type::EPSILON)).abs();
-        if rel_diff > 0.05 {
-            panic!(
-                "{} != {} (relative_diff: {}).\n res: {}\n res2: {}",
-                a, b, rel_diff, res, tch_res
-            );
-        }
+        assert_f64(*a, *b, 0.05, &res, &tch_res).expect("assert_f64 failed");
     });
     Ok(())
 }
@@ -208,13 +186,7 @@ fn assert_eq_bias_pad_relu6(
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const Type, res.size()) };
     res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        let rel_diff = ((a - b) / (a.abs() + b.abs() + Type::EPSILON)).abs();
-        if rel_diff > 0.05 {
-            panic!(
-                "{} != {} (relative_diff: {}).\n res: {}\n res2: {}",
-                a, b, rel_diff, res, tch_res
-            );
-        }
+        assert_f64(*a, *b, 0.05, &res, &tch_res).expect("assert_f64 failed");
     });
     Ok(())
 }
