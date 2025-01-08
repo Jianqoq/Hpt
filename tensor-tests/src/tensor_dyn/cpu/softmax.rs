@@ -1,4 +1,6 @@
 #![allow(unused)]
+use duplicate::duplicate_item;
+use rand::Rng;
 use tch::Tensor;
 use tensor_common::slice;
 use tensor_dyn::{ backend::Cpu, TensorCreator };
@@ -45,172 +47,47 @@ fn assert_eq_f64(b: &tensor_dyn::tensor::Tensor<f64>, a: &Tensor) {
         });
 }
 
-fn common_input<const N: usize>(
+fn common_input(
     end: i64,
-    shape: [i64; N]
-) -> anyhow::Result<(tensor_dyn::tensor::Tensor<f64, Cpu>, Tensor)> {
-    let a = tensor_dyn::tensor::Tensor::<f64, Cpu>::arange(0, end)?.reshape(&shape)?;
-    let tch_a = Tensor::arange(end, (tch::Kind::Int64, tch::Device::Cpu)).reshape(&shape);
+    shape: &[i64]
+) -> anyhow::Result<(tensor_dyn::tensor::Tensor<f64>, Tensor)> {
+    let a = tensor_dyn::tensor::Tensor::<f64>::arange(0, end)?.reshape(shape)?;
+    let tch_a = Tensor::arange(end, (tch::Kind::Int64, tch::Device::Cpu)).reshape(shape);
     Ok((a, tch_a))
 }
 
+#[duplicate_item(
+    func                    hpt_method      tch_method;
+    [test_softmax]          [softmax]       [softmax];
+    [test_logsoftmax]       [log_softmax]   [log_softmax];
+)]
 #[test]
-fn test_softmax_axis_0() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-    let res = a.softmax(0)?;
-    let tch_res = tch_a.softmax(0, tch::Kind::Double);
-    assert_eq_f64(&res, &tch_res);
+fn func() -> anyhow::Result<()> {
+    let mut rng = rand::thread_rng();
+    for _ in 0..1000 {
+        let len = rng.gen_range(1..5);
+        let mut shape = Vec::with_capacity(len);
+        for _ in 0..len {
+            shape.push(rng.gen_range(1..10));
+        }
+        let (a, tch_a) = common_input(shape.iter().product::<i64>(), &shape)?;
+
+        let dim = rng.gen_range(0..len) as i64;
+        println!("dim: {}", dim);
+        println!("shape: {:?}", shape);
+        let res = a.hpt_method(dim)?;
+        let tch_res = tch_a.tch_method(dim, tch::Kind::Double);
+        assert_eq_f64(&res, &tch_res);
+    }
     Ok(())
 }
 
 #[test]
-fn test_softmax_axis_1() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+fn func() -> anyhow::Result<()> {
+    let mut shape = vec![8, 2, 3, 1];
+    let (a, tch_a) = common_input(shape.iter().product::<i64>(), &shape)?;
     let res = a.softmax(1)?;
     let tch_res = tch_a.softmax(1, tch::Kind::Double);
-    assert_eq_f64(&res, &tch_res);
-    Ok(())
-}
-
-#[test]
-fn test_softmax_axis_2() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 2 * 5, [2, 2, 5])?;
-    let res = a.softmax(2)?;
-    let tch_res = tch_a.softmax(2, tch::Kind::Double);
-    assert_eq_f64(&res, &tch_res);
-    Ok(())
-}
-
-#[test]
-fn test_softmax_axis_3() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 2 * 5, [20])?;
-    let res = a.softmax(0)?;
-    let tch_res = tch_a.softmax(0, tch::Kind::Double);
-    assert_eq_f64(&res, &tch_res);
-    Ok(())
-}
-
-
-#[test]
-fn test_softmax_axis_0_step() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-    let a = slice!(a[:, 1:5:2, 2:9:2])?;
-    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
-    let res = a.softmax(0)?;
-    let tch_res = tch_a.softmax(0, tch::Kind::Double);
-    assert_eq_f64(&res, &tch_res);
-    Ok(())
-}
-
-#[test]
-fn test_softmax_axis_1_step() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-    let a = slice!(a[:, 1:5:2, 2:9:2])?;
-    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
-    let res = a.softmax(1)?;
-    let tch_res = tch_a.softmax(1, tch::Kind::Double);
-    assert_eq_f64(&res, &tch_res);
-    Ok(())
-}
-
-#[test]
-fn test_softmax_axis_2_step() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-    let a = slice!(a[:, 1:5:2, 2:9:2])?;
-    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
-    let res = a.softmax(2)?;
-    let tch_res = tch_a.softmax(2, tch::Kind::Double);
-    assert_eq_f64(&res, &tch_res);
-    Ok(())
-}
-
-#[test]
-fn test_softmax_axis_3_step() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [100])?;
-    let a = slice!(a[1:5:2])?;
-    let tch_a = tch_a.slice(0, 1, 5, 2);
-    let res = a.softmax(0)?;
-    let tch_res = tch_a.softmax(0, tch::Kind::Double);
-    assert_eq_f64(&res, &tch_res);
-    Ok(())
-}
-
-#[test]
-fn test_logsoftmax_axis_0() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-    let res = a.log_softmax(0)?;
-    let tch_res = tch_a.log_softmax(0, tch::Kind::Double);
-    assert_eq_f64(&res, &tch_res);
-    Ok(())
-}
-
-#[test]
-fn test_logsoftmax_axis_1() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-    let res = a.log_softmax(1)?;
-    let tch_res = tch_a.log_softmax(1, tch::Kind::Double);
-    assert_eq_f64(&res, &tch_res);
-    Ok(())
-}
-
-#[test]
-fn test_logsoftmax_axis_2() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 2 * 5, [2, 2, 5])?;
-    let res = a.log_softmax(2)?;
-    let tch_res = tch_a.log_softmax(2, tch::Kind::Double);
-    assert_eq_f64(&res, &tch_res);
-    Ok(())
-}
-
-#[test]
-fn test_logsoftmax_axis_3() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 2 * 5, [20])?;
-    let res = a.log_softmax(0)?;
-    let tch_res = tch_a.log_softmax(0, tch::Kind::Double);
-    assert_eq_f64(&res, &tch_res);
-    Ok(())
-}
-
-#[test]
-fn test_logsoftmax_axis_0_step() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-    let a = slice!(a[:, 1:5:2, 2:9:2])?;
-    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
-    let res = a.log_softmax(0)?;
-    let tch_res = tch_a.log_softmax(0, tch::Kind::Double);
-    assert_eq_f64(&res, &tch_res);
-    Ok(())
-}
-
-#[test]
-fn test_logsoftmax_axis_1_step() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-    let a = slice!(a[:, 1:5:2, 2:9:2])?;
-    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
-    let res = a.log_softmax(1)?;
-    let tch_res = tch_a.log_softmax(1, tch::Kind::Double);
-    assert_eq_f64(&res, &tch_res);
-    Ok(())
-}
-
-#[test]
-fn test_logsoftmax_axis_2_step() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-    let a = slice!(a[:, 1:5:2, 2:9:2])?;
-    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
-    let res = a.log_softmax(2)?;
-    let tch_res = tch_a.log_softmax(2, tch::Kind::Double);
-    assert_eq_f64(&res, &tch_res);
-    Ok(())
-}
-
-#[test]
-fn test_logsoftmax_axis_3_step() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [100])?;
-    let a = slice!(a[1:5:2])?;
-    let tch_a = tch_a.slice(0, 1, 5, 2);
-    let res = a.log_softmax(0)?;
-    let tch_res = tch_a.log_softmax(0, tch::Kind::Double);
     assert_eq_f64(&res, &tch_res);
     Ok(())
 }

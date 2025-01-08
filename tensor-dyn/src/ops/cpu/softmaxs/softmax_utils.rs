@@ -295,7 +295,6 @@ pub(crate) fn contiguous_softmax_template<T, F1, F2, F3, O>(
             } else {
                 rayon::current_num_threads()
             };
-            assert!(inner_loop_size > 1);
             kd(num_threads, inner_loop_size, inner_loop_size_2, &result, &transposed_tensor);
         }
     }
