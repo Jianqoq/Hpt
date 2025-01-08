@@ -1,7 +1,10 @@
 use std::fmt::Debug;
 use std::{borrow::Borrow, fmt::Display};
 use tensor_common::error::base::TensorError;
-use tensor_common::{axis::axis::Axis, layout::layout::Layout, utils::pointer::Pointer, shape::shape::Shape, strides::strides::Strides};
+use tensor_common::{
+    axis::axis::Axis, layout::layout::Layout, shape::shape::Shape, strides::strides::Strides,
+    utils::pointer::Pointer,
+};
 #[cfg(feature = "archsimd")]
 use tensor_types::arch_simd as simd;
 #[cfg(feature = "stdsimd")]
@@ -347,7 +350,12 @@ where
     ///
     /// * This function will panic if `num` is zero or if `num` is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn linspace<U>(start: U, end: U, num: usize, include_end: bool) ->  Result<Self::Output, TensorError>
+    fn linspace<U>(
+        start: U,
+        end: U,
+        num: usize,
+        include_end: bool,
+    ) -> Result<Self::Output, TensorError>
     where
         T: Convertor,
         U: Convertor + IntoScalar<T> + Copy,
@@ -375,7 +383,13 @@ where
     ///
     /// * This function will panic if `num` is zero or if `base` is less than or equal to zero.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> Result<Self::Output, TensorError>
+    fn logspace(
+        start: T,
+        end: T,
+        num: usize,
+        include_end: bool,
+        base: T,
+    ) -> Result<Self::Output, TensorError>
     where
         T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64> + NormalOut<T, Output = T>;
 
@@ -399,7 +413,12 @@ where
     ///
     /// * This function will panic if `n` is zero, if `start` or `end` is negative, or if the values result in undefined behavior.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self::Output, TensorError>
+    fn geomspace(
+        start: T,
+        end: T,
+        n: usize,
+        include_end: bool,
+    ) -> Result<Self::Output, TensorError>
     where
         f64: IntoScalar<T>,
         usize: IntoScalar<T>;
@@ -758,7 +777,11 @@ where
     ///
     /// - `anyhow::Result<Self::Output>`: A tensor with the L1 norm computed along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError>;
+    fn reducel1<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> Result<Self::Output, TensorError>;
 
     /// Computes the sum of the squares of the elements along the specified axis.
     ///
@@ -773,7 +796,11 @@ where
     ///
     /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of squares of elements along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError>;
+    fn sum_square<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> Result<Self::Output, TensorError>;
 }
 
 /// A trait for tensor reduction operations, the output must be a boolean tensor.
@@ -797,7 +824,8 @@ pub trait EvalReduce {
     ///
     /// - [`any`]: Returns `true` if any element along the specified axis evaluates to `true`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::BoolOutput, TensorError>;
+    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool)
+        -> Result<Self::BoolOutput, TensorError>;
 
     /// Returns `true` if any element along the specified axis evaluates to `true`.
     ///
@@ -816,7 +844,8 @@ pub trait EvalReduce {
     ///
     /// - [`all`]: Returns `true` if all elements along the specified axis evaluate to `true`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::BoolOutput, TensorError>;
+    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool)
+        -> Result<Self::BoolOutput, TensorError>;
 }
 
 /// A trait for tensor reduction operations, the output must remain the same tensor type.
@@ -838,6 +867,29 @@ pub trait NormalEvalReduce<T> {
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn nansum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError>;
 
+    /// Computes the sum of the elements along the specified axis, with an initial value, ignoring NaN values.
+    ///
+    /// The `nansum_with_init` function computes the sum of elements along the specified axes, starting from a given initial value and ignoring NaN values.
+    ///
+    /// # Parameters
+    ///
+    /// - `init_val`: The initial value to start the summation.
+    /// - `axes`: The axes along which to sum the elements.
+    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    ///
+    /// # Returns
+    ///
+    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements, ignoring NaN values.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn nansum_<S: Into<Axis>, O>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+        init_out: bool,
+        out: O,
+    ) -> Result<Self::Output, TensorError>
+    where
+        O: Borrow<Self::Output>;
     // /// Computes the sum of the elements along the specified axis, with an initial value, ignoring NaN values.
     // ///
     // /// The `nansum_with_init` function computes the sum of elements along the specified axes, starting from a given initial value and ignoring NaN values.
@@ -872,7 +924,8 @@ pub trait NormalEvalReduce<T> {
     ///
     /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements, ignoring NaN values.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError>;
+    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool)
+        -> Result<Self::Output, TensorError>;
 
     // /// Computes the product of the elements along the specified axis, with an initial value, ignoring NaN values.
     // ///

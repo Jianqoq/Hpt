@@ -344,6 +344,45 @@ where
         )
     }
 
+    fn nansum_<S: Into<Axis>, O>(
+        &self,
+        axes: S,
+        keep_dims: bool,
+        init_out: bool,
+        out: O,
+    ) -> std::result::Result<Self::Output, TensorError>
+    where
+        O: Borrow<Self::Output>,
+    {
+        let axes = process_axes(axes, self.ndim())?;
+        reduce(
+            self,
+            |a, b| {
+                if b._is_nan() {
+                    a
+                } else {
+                    b._add(a)
+                }
+            },
+            |a, b| {
+                if b._is_nan() {
+                    a
+                } else {
+                    b._add(a)
+                }
+            },
+            |a, b| {
+                let mask = b._is_nan();
+                mask.select(a, b._add(a))
+            },
+            &axes,
+            T::ZERO,
+            keep_dims,
+            init_out,
+            Some(out.borrow().clone()),
+        )
+    }
+
     // fn nansum_with_init<S: Into<Axis>>(
     //     &self,
     //     init_val: T,

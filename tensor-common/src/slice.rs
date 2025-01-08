@@ -156,24 +156,23 @@ pub fn slice_process(
                     *start + shape[idx]
                 };
                 let mut end = if *end >= 0 { *end } else { *end + shape[idx] };
+
                 if start >= shape[idx] {
                     start = shape[idx] - 1;
                 }
-                if end >= shape[idx] {
-                    end = shape[idx] - 1;
+                if end > shape[idx] {
+                    end = shape[idx];
                 }
-                let length;
-                if start <= end && *step > 0 {
-                    length = (end - 1 - start + step) / step;
-                } else if start >= end && *step < 0 {
-                    length = (end + 1 - start + step) / step;
+
+                let length = if *step > 0 {
+                    (end - start + step - 1) / step
+                } else if *step < 0 {
+                    (end - start + step + 1) / step
                 } else {
-                    length = 0;
-                }
-                if length == 1 {
-                    res_shape[idx] = alpha;
-                    res_ptr += res_strides[idx] * start;
-                } else if length >= 0 {
+                    0
+                };
+
+                if length > 0 {
                     res_shape[idx] = length * alpha;
                     res_ptr += start * res_strides[idx];
                     res_strides[idx] *= *step;

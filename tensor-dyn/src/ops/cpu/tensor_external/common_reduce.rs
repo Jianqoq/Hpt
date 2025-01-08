@@ -113,6 +113,18 @@ impl<T> NormalEvalReduce<T>
         Ok(self.inner.nansum(axes, keep_dims)?.into())
     }
 
+    fn nansum_<S: Into<Axis>, O>(
+        &self,
+        axes: S,
+        keep_dims: bool,
+        init_out: bool,
+        out: O
+    ) -> std::result::Result<Self::Output, TensorError>
+        where O: Borrow<Self::Output>
+    {
+        Ok(self.inner.nansum_(axes, keep_dims, init_out, out.borrow())?.into())
+    }
+
     // fn nansum_with_init<S: Into<Axis>>(
     //     &self,
     //     init_val: T,
