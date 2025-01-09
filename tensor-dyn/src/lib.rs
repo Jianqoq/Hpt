@@ -19,8 +19,6 @@ pub mod ops {
         pub mod conv2d {
             /// a module defines adaptive_avg_pool2d operation
             pub mod adaptive_avg_pool;
-            /// a module defines avgpool2d operation
-            pub mod avg_pool;
             /// a module defines batchnorm_conv2d operation
             pub mod batchnorm_conv2d;
             /// a module defines conv2d operation
@@ -29,8 +27,6 @@ pub mod ops {
             pub mod conv2d_group;
             /// a module defines dwconv2d operation
             pub mod dwconv2d;
-            /// a module defines maxpool2d operation
-            pub mod max_pool;
         }
         /// a module defines reduce kernels
         pub mod argreduce_kernels;
@@ -149,6 +145,16 @@ pub mod ops {
             pub mod windows;
         }
 
+        /// a module contains all the pooling operations
+        pub mod pooling {
+            /// a module contains all the common pooling operations
+            pub mod common;
+            /// a module contains all the max pooling operations
+            pub mod max_pool;
+            /// a module contains all the avg pooling operations
+            pub mod avg_pool;
+        }
+
         /// a module contains cpu L1, L2, L3 cache helper
         pub(crate) mod cache_utils {
             /// a module contains cache utils
@@ -222,7 +228,7 @@ pub mod ops {
         pub(crate) mod pad;
         /// a module contains cuda reduce impls
         pub(crate) mod reduce;
-        /// a module contains cuda reduce template impls    
+        /// a module contains cuda reduce template impls
         pub(crate) mod reduce_template;
         /// a module contains cuda reduce utils impls
         pub(crate) mod reduce_utils;
@@ -269,7 +275,14 @@ pub use tensor_common::slice::Slice;
 pub use tensor_dataloader::data_loader::parse_header_compressed;
 pub(crate) use tensor_dataloader::save;
 pub use tensor_dataloader::{
-    CompressionAlgo, DataLoader, Endian, FromSafeTensors, Load, MetaLoad, Save, TensorLoader,
+    CompressionAlgo,
+    DataLoader,
+    Endian,
+    FromSafeTensors,
+    Load,
+    MetaLoad,
+    Save,
+    TensorLoader,
     TensorSaver,
 };
 pub use tensor_macros::match_selection;
@@ -277,12 +290,19 @@ pub use tensor_traits::*;
 pub use tensor_types::dtype::TypeCommon;
 pub use tensor_types::traits::VecTrait;
 pub use tensor_types::type_promote::{
-    BitWiseOut, Eval, FloatOutBinary, FloatOutBinaryPromote, FloatOutUnary, FloatOutUnaryPromote,
-    NormalOut, NormalOutPromote, NormalOutUnary,
+    BitWiseOut,
+    Eval,
+    FloatOutBinary,
+    FloatOutBinaryPromote,
+    FloatOutUnary,
+    FloatOutUnaryPromote,
+    NormalOut,
+    NormalOutPromote,
+    NormalOutUnary,
 };
 pub use tensor_types::vectors::*;
 
-use std::{cell::RefCell, sync::atomic::AtomicUsize};
+use std::{ cell::RefCell, sync::atomic::AtomicUsize };
 thread_local! {
     static THREAD_POOL: RefCell<threadpool::ThreadPool> = RefCell::new(
         threadpool::ThreadPool::new(num_cpus::get_physical())
@@ -307,10 +327,12 @@ pub fn set_num_threads(num_threads: usize) {
     THREAD_POOL.with(|x| {
         x.borrow_mut().set_num_threads(num_threads);
     });
-    match rayon::ThreadPoolBuilder::new()
-        .num_threads(num_threads)
-        .stack_size(4 * 1024 * 1024)
-        .build_global()
+    match
+        rayon::ThreadPoolBuilder
+            ::new()
+            .num_threads(num_threads)
+            .stack_size(4 * 1024 * 1024)
+            .build_global()
     {
         Ok(_) => {}
         Err(_) => {}
@@ -327,16 +349,13 @@ static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
 
 #[cfg(feature = "cuda")]
 pub(crate) mod cuda_compiled {
-    use std::{
-        collections::HashMap,
-        sync::{Arc, Mutex},
-    };
+    use std::{ collections::HashMap, sync::{ Arc, Mutex } };
 
     use once_cell::sync::Lazy;
     use tensor_cudakernels::RegisterInfo;
 
     pub(crate) static CUDA_COMPILED: Lazy<
-        Mutex<HashMap<usize, HashMap<String, Arc<HashMap<String, RegisterInfo>>>>>,
+        Mutex<HashMap<usize, HashMap<String, Arc<HashMap<String, RegisterInfo>>>>>
     > = Lazy::new(|| Mutex::new(HashMap::new()));
 }
 
@@ -365,24 +384,28 @@ use tensor_types::std_simd as simd;
 type BoolVector = simd::_256bit::boolx32::boolx32;
 #[cfg(any(target_feature = "avx512f"))]
 type BoolVector = simd::_512bit::boolx64::boolx64;
-#[cfg(any(
-    all(not(target_feature = "avx2"), target_feature = "sse"),
-    target_arch = "arm",
-    target_arch = "aarch64",
-    target_feature = "neon"
-))]
+#[cfg(
+    any(
+        all(not(target_feature = "avx2"), target_feature = "sse"),
+        target_arch = "arm",
+        target_arch = "aarch64",
+        target_feature = "neon"
+    )
+)]
 type BoolVector = simd::_128bit::boolx16::boolx16;
 
 #[cfg(target_feature = "avx2")]
 const SIMD_WIDTH: usize = 256;
 #[cfg(any(target_feature = "avx512f"))]
 const SIMD_WIDTH: usize = 512;
-#[cfg(any(
-    all(not(target_feature = "avx2"), target_feature = "sse"),
-    target_arch = "arm",
-    target_arch = "aarch64",
-    target_feature = "neon"
-))]
+#[cfg(
+    any(
+        all(not(target_feature = "avx2"), target_feature = "sse"),
+        target_arch = "arm",
+        target_arch = "aarch64",
+        target_feature = "neon"
+    )
+)]
 const SIMD_WIDTH: usize = 128;
 
 #[cfg(feature = "cuda")]

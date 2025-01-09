@@ -1,4 +1,5 @@
 #![allow(unused)]
+use rand::Rng;
 use tch;
 use tensor_dyn::set_num_threads;
 use tensor_dyn::ShapeManipulate;
@@ -9,10 +10,9 @@ use tensor_types::convertion::{ Convertor, FromScalar };
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
 
-fn common_input<T>([batch, in_channel, kernel_height, kernel_width, height, width]: [
-    i64;
-    6
-])
+use super::assert_utils::assert_f64;
+
+fn common_input<T>([batch, in_channel, kernel_height, kernel_width, height, width]: [i64; 6])
     -> anyhow::Result<(Tensor<T>, Tensor<T>, tch::Tensor, tch::Tensor)>
     where
         T: Convertor + FromScalar<i64> + NormalOut<T, Output = T> + CommonBounds,
@@ -42,7 +42,7 @@ fn assert_eq(
     a: &Tensor<f64>,
     a_kernel: &Tensor<f64>,
     b: &tch::Tensor,
-    b_kernel: &tch::Tensor,
+    b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
     let res = a
         .avgpool2d(
@@ -56,23 +56,14 @@ fn assert_eq(
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
-    let res2 = b.avg_pool2d(&b_kernel.size(), &[1, 1], &[0, 0], false, true, None);
+    let tch_res = b.avg_pool2d(&b_kernel.size(), &[1, 1], &[0, 0], false, true, None);
     let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const f64, res.size()) };
+    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f64, res.size()) };
     res_slice
         .iter()
         .zip(res2.iter())
         .for_each(|(a, b)| {
-            let abs_diff = (*a - *b).abs();
-            let rel_diff = if *a == 0.0 && *b == 0.0 {
-                0.0
-            } else {
-                abs_diff / (a.abs() + b.abs() + f64::EPSILON)
-            };
-    
-            if rel_diff > 0.05 {
-                panic!("{} != {} (relative_diff: {})", *a, *b, rel_diff);
-            }
+            assert_f64(*a, *b, 0.05, &res, &tch_res);
         });
     Ok(())
 }
@@ -96,75 +87,68 @@ fn assert_eq_pad(
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
-    let res2 = b.avg_pool2d(&b_kernel.size(), &[1, 1], &[2, 2], false, true, None);
+    let tch_res = b.avg_pool2d(&b_kernel.size(), &[1, 1], &[2, 2], false, true, None);
     let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(res2.data_ptr() as *const f64, res.size()) };
+    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f64, res.size()) };
     res_slice
         .iter()
         .zip(res2.iter())
         .for_each(|(a, b)| {
-            let abs_diff = (*a - *b).abs();
-            let rel_diff = if *a == 0.0 && *b == 0.0 {
-                0.0
-            } else {
-                abs_diff / (a.abs() + b.abs() + f64::EPSILON)
-            };
-    
-            if rel_diff > 0.05 {
-                panic!("{} != {} (relative_diff: {})", *a, *b, rel_diff);
-            }
+            assert_f64(*a, *b, 0.05, &res, &tch_res);
         });
     Ok(())
 }
 
 #[test]
-fn test_case0() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 16, 16])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+fn test() -> anyhow::Result<()> {
+    let mut rng = rand::thread_rng();
+
+    for _ in 0..1000 {
+        let batch = rng.gen_range(1..=4);
+        let channel = rng.gen_range(1..=32);
+
+        let kernel_height = rng.gen_range(1..=5);
+        let kernel_width = rng.gen_range(1..=5);
+
+        let height = rng.gen_range(8..=64);
+        let width = rng.gen_range(8..=64);
+        let (kernel, a, tch_kernel, tch_a) = common_input([
+            batch,
+            channel,
+            kernel_height,
+            kernel_width,
+            height,
+            width,
+        ])?;
+        assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
+    }
 
     Ok(())
 }
 
 #[test]
-fn test_case1() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 20, 20])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    Ok(())
-}
+fn test_pad() -> anyhow::Result<()> {
+    let mut rng = rand::thread_rng();
 
-#[test]
-fn test_case3() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 20, 20])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    Ok(())
-}
+    for _ in 0..1000 {
+        let batch = rng.gen_range(1..=4);
+        let channel = rng.gen_range(1..=32);
 
-#[test]
-fn test_case5() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 19, 19])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 3, 4, 4, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    Ok(())
-}
+        let kernel_height = rng.gen_range(4..=7);
+        let kernel_width = rng.gen_range(4..=7);
 
-#[test]
-fn test_case8() -> anyhow::Result<()> {
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 300, 4, 4, 20, 20])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-    let (kernel, a, tch_kernel, tch_a) = common_input([1, 300, 4, 4, 5, 5])?;
-    assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-    assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+        let height = rng.gen_range(8..=64);
+        let width = rng.gen_range(8..=64);
+        let (kernel, a, tch_kernel, tch_a) = common_input([
+            batch,
+            channel,
+            kernel_height,
+            kernel_width,
+            height,
+            width,
+        ])?;
+        assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+    }
+
     Ok(())
 }
