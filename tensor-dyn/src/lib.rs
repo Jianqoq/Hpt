@@ -17,8 +17,6 @@ pub mod ops {
         pub mod concat;
         /// a module defines conv2d operation
         pub mod conv2d {
-            /// a module defines adaptive_avg_pool2d operation
-            pub mod adaptive_avg_pool;
             /// a module defines batchnorm_conv2d operation
             pub mod batchnorm_conv2d;
             /// a module defines conv2d operation

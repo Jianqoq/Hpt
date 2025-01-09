@@ -9,6 +9,8 @@ use tensor_types::type_promote::FloatOutBinary;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
 
+use super::common::adaptive_pooling_template;
+
 impl<T> _Tensor<T>
     where
         T: CommonBounds + IntoScalar<T> + NormalOut<Output = T> + FloatOutBinary<T, Output = T>,
@@ -61,6 +63,21 @@ impl<T> _Tensor<T>
             |a| a._div(kernel_size_vec)
         )
     }
+
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn adaptive_avgpool2d(
+        &self,
+        output_size: [i64; 2],
+    ) -> Result<_Tensor<T>, TensorError> {
+        adaptive_pooling_template(
+            self,
+            output_size,
+            |a, b| a._add(b),
+            |a, b| a._add(b),
+            |a, kernel_size| a._div(kernel_size),
+            |a, kernel_size_vec| a._div(kernel_size_vec)
+        )
+    }
 }
 
 impl<T> Tensor<T>
@@ -94,7 +111,6 @@ impl<T> Tensor<T>
     ///
     /// This function returns a `Result` containing the output tensor after applying the 2D avg pooling operation.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    #[inline(never)]
     pub fn avgpool2d(
         &self,
         kernels_shape: &Shape,
@@ -103,5 +119,20 @@ impl<T> Tensor<T>
         dilation: [i64; 2]
     ) -> Result<Tensor<T>, TensorError> {
         Ok(self.inner.avgpool2d(&kernels_shape, steps, padding, dilation)?.into())
+    }
+
+    /// Performs a adaptive avg pooling operation on the input tensor.
+    ///
+    /// This method applies a adaptive avg pooling operation on the tensor using the specified output size.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing the output tensor after applying the adaptive avg pooling operation.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn adaptive_avgpool2d(
+        &self,
+        output_size: [i64; 2],
+    ) -> Result<Tensor<T>, TensorError> {
+        Ok(self.inner.adaptive_avgpool2d(output_size)?.into())
     }
 }

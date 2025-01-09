@@ -8,6 +8,8 @@ use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
 
+use super::common::adaptive_pooling_template;
+
 impl<T> _Tensor<T>
     where
         T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
@@ -53,6 +55,21 @@ impl<T> _Tensor<T>
             |a| a
         )
     }
+
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn adaptive_maxpool2d(
+        &self,
+        output_size: [i64; 2],
+    ) -> std::result::Result<_Tensor<T>, TensorError> where i64: IntoScalar<T> {
+        adaptive_pooling_template(
+            self,
+            output_size,
+            |a, b| a._max(b),
+            |a, b| a._max(b),
+            |a, _| a,
+            |a, _| a
+        )
+    }
 }
 
 impl<T> Tensor<T>
@@ -89,5 +106,20 @@ impl<T> Tensor<T>
         dilation: [i64; 2]
     ) -> std::result::Result<Tensor<T>, TensorError> {
         Ok(self.inner.maxpool2d(&kernels_shape, steps, padding, dilation)?.into())
+    }
+
+    /// Performs a adaptive max pooling operation on the input tensor.
+    ///
+    /// This method applies a adaptive max pooling operation on the tensor using the specified output size.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing the output tensor after applying the adaptive max pooling operation.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn adaptive_maxpool2d(
+        &self,
+        output_size: [i64; 2],
+    ) -> std::result::Result<Tensor<T>, TensorError> where i64: IntoScalar<T> {
+        Ok(self.inner.adaptive_maxpool2d(output_size)?.into())
     }
 }
