@@ -273,12 +273,16 @@ pub(crate) fn contiguous_softmax_template<T, F1, F2, F3, O>(
     } else {
         transposed_tensor.strides()[a.ndim() - 1]
     };
+    let inner_loop_size = if keep_fast_dim {
+        transposed_tensor.shape()[a.ndim() - 2]
+    } else {
+        transposed_tensor.shape()[a.ndim() - 1]
+    } as usize;
     assert_eq!(a_last_stride, 1);
     let result_data = result.ptr();
     if a.ndim() == 1 {
         full_reduce(unsafe { result_data.get_ptr().as_mut().unwrap() });
     } else {
-        let inner_loop_size = *a.shape().last().unwrap() as usize;
         if !keep_fast_dim {
             let num_threads = if result.size() < rayon::current_num_threads() {
                 result.size()

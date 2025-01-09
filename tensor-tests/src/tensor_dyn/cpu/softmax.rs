@@ -4,7 +4,7 @@ use rand::Rng;
 use tch::Tensor;
 use tensor_common::slice;
 use tensor_dyn::{ backend::Cpu, TensorCreator };
-use tensor_dyn::ShapeManipulate;
+use tensor_dyn::{set_num_threads, ShapeManipulate};
 use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
 use tensor_macros::match_selection;
@@ -73,21 +73,9 @@ fn func() -> anyhow::Result<()> {
         let (a, tch_a) = common_input(shape.iter().product::<i64>(), &shape)?;
 
         let dim = rng.gen_range(0..len) as i64;
-        println!("dim: {}", dim);
-        println!("shape: {:?}", shape);
         let res = a.hpt_method(dim)?;
         let tch_res = tch_a.tch_method(dim, tch::Kind::Double);
         assert_eq_f64(&res, &tch_res);
     }
-    Ok(())
-}
-
-#[test]
-fn func() -> anyhow::Result<()> {
-    let mut shape = vec![8, 2, 3, 1];
-    let (a, tch_a) = common_input(shape.iter().product::<i64>(), &shape)?;
-    let res = a.softmax(1)?;
-    let tch_res = tch_a.softmax(1, tch::Kind::Double);
-    assert_eq_f64(&res, &tch_res);
     Ok(())
 }

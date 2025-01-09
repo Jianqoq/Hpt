@@ -485,6 +485,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O>(
                 transposed_tensor.shape().clone(),
                 result.shape().clone()
             );
+            println!("nkd");
             iterators.into_par_iter().for_each(|mut iterator| {
                 let result_ptr_c = iterator.res_ptrs.clone();
                 let a_data_ptr = iterator.ptrs.clone();
