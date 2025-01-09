@@ -999,7 +999,7 @@ pub fn impl_from_safetensors(input: TokenStream) -> TokenStream {
     };
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
     let mut construct_fields = vec![];
-    for (idx, field) in fields.iter().enumerate() {
+    for (_, field) in fields.iter().enumerate() {
         let ty = &field.ty;
         let name = &field.ident;
         let mut value_construct = vec![];
