@@ -241,10 +241,10 @@ fn insert_nested_key(
 }
 
 fn main() -> anyhow::Result<()> {
-    let buffer = std::fs::read("model.safetensors")?;
-    let safetensor = SafeTensors::deserialize(&buffer)?;
-    let json = convert_keys_to_json(&safetensor)?;
-    println!("{:#?}", json);
+    // let buffer = std::fs::read("model.safetensors")?;
+    // let safetensor = SafeTensors::deserialize(&buffer)?;
+    // let json = convert_keys_to_json(&safetensor)?;
+    // println!("{:#?}", json);
     // let resnet = create_resnet();
     // resnet.save("resnet.model")?;
     // let data = ResNet::load("resnet.model")?;
@@ -258,5 +258,9 @@ fn main() -> anyhow::Result<()> {
     // if let Some(process) = sys.process(pid) {
     //     println!("After Inference - Memory usage: {} KB", process.memory());
     // }
+    let input = tensor_dyn::Tensor::<i64>::randint(0, 5, &[2, 4])?;
+    println!("{:#?}", input);
+    let output = input.onehot(5, 1, 1, 0)?;
+    println!("{:#?}", output);
     Ok(())
 }
