@@ -10,8 +10,8 @@ use crate::THREAD_POOL;
 use rand::Rng;
 use tensor_common::error::base::TensorError;
 use tensor_common::error::shape::ShapeError;
-use tensor_common::utils::pointer::Pointer;
 use tensor_common::shape::shape_utils::mt_intervals;
+use tensor_common::utils::pointer::Pointer;
 use tensor_traits::CommonBounds;
 use tensor_traits::ShapeManipulate;
 use tensor_traits::TensorCreator;
@@ -84,8 +84,8 @@ where
         let res_indices = _Tensor::<i64>::empty(&res_shape)?;
         let transposed_res = res.permute(&axes)?;
         let transposed_res_indices = res_indices.permute(&axes)?;
-
-        let outer_loop_size = self.size() / (*self.shape().last().unwrap() as usize);
+        let inner_loop = *transposed.shape().last().unwrap() as isize;
+        let outer_loop_size = transposed.size() / inner_loop as usize;
 
         let res_ptr = transposed_res.ptr();
         let res_indices_ptr = transposed_res_indices.ptr();
@@ -132,13 +132,27 @@ where
                 res_indices_ptrs.push(res_indices_ptr_cpy);
                 res_prgs.push(res_shape_prg);
             }
-            let inner_loop = *transposed.shape().last().unwrap() as isize;
-            if inner_loop < (k as isize) {
-                return Err::<(), TensorError>(ShapeError::TopkError {
-                    message: format!("k {} larger than inner loop size {}", k, inner_loop),
-                    location: caller,
-                }
-                .into());
+            if k > inner_loop as i64 {
+                return Err::<(), TensorError>(
+                    ShapeError::TopkError {
+                        message: format!(
+                            "k ({}) cannot be larger than inner_loop size ({})",
+                            k, inner_loop
+                        ),
+                        location: caller,
+                    }
+                    .into(),
+                );
+            }
+
+            if k <= 0 {
+                return Err::<(), TensorError>(
+                    ShapeError::TopkError {
+                        message: format!("k ({}) must be positive", k),
+                        location: caller,
+                    }
+                    .into(),
+                );
             }
             for (
                 (((((start, end), mut prg), mut res_prg), mut ptr), mut res_ptr),
@@ -164,14 +178,26 @@ where
                     let mut data = &mut vec![(T::ZERO, 0); inner_loop as usize];
                     for _ in start..end {
                         let data = fill_buffer(data, ptr.clone(), inner_loop as i64, tls as i64);
-                        let (before, _, _) = if largest {
-                            data.select_nth_unstable_by(k as usize, |x, y| {
-                                y.0.partial_cmp(&x.0).unwrap()
-                            })
+                        let before = if largest {
+                            if k as usize == data.len() {
+                                data.sort_by(|x, y| y.0.partial_cmp(&x.0).unwrap());
+                                data
+                            } else {
+                                data.select_nth_unstable_by(k as usize, |x, y| {
+                                    y.0.partial_cmp(&x.0).unwrap()
+                                })
+                                .0
+                            }
                         } else {
-                            data.select_nth_unstable_by(k as usize, |x, y| {
-                                x.0.partial_cmp(&y.0).unwrap()
-                            })
+                            if k as usize == data.len() {
+                                data.sort_by(|x, y| x.0.partial_cmp(&y.0).unwrap());
+                                data
+                            } else {
+                                data.select_nth_unstable_by(k as usize, |x, y| {
+                                    x.0.partial_cmp(&y.0).unwrap()
+                                })
+                                .0
+                            }
                         };
                         if sorted {
                             if largest {

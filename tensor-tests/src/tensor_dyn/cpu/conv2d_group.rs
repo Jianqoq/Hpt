@@ -233,7 +233,7 @@ fn assert_eq_bias_pad_relu(
 }
 
 #[test]
-fn test_case0() -> anyhow::Result<()> {
+fn test() -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
     for i in 0..1000 {
         let groups = rng.gen_range(1..=4);

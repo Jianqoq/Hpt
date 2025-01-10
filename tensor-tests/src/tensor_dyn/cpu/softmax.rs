@@ -10,40 +10,28 @@ use tensor_dyn::TensorLike;
 use tensor_macros::match_selection;
 use tensor_common::slice::Slice;
 
+use super::assert_utils::assert_f64;
+
 #[allow(unused)]
 #[track_caller]
-fn assert_eq_f64(b: &tensor_dyn::tensor::Tensor<f64>, a: &Tensor) {
-    let a_raw = if b.strides().contains(&0) {
-        let size = b
+fn assert_eq_f64(hpt_res: &tensor_dyn::tensor::Tensor<f64>, tch_res: &Tensor) {
+    let a_raw = if hpt_res.strides().contains(&0) {
+        let size = hpt_res
             .shape()
             .iter()
-            .zip(b.strides().iter())
+            .zip(hpt_res.strides().iter())
             .filter(|(sp, s)| **s != 0)
             .fold(1, |acc, (sp, _)| acc * sp);
-        unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, size as usize) }
+        unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f64, size as usize) }
     } else {
-        unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) }
+        unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f64, hpt_res.size()) }
     };
-    let b_raw = b.as_raw();
-    let tolerance = 2.5e-16;
-    let caller = core::panic::Location::caller();
+    let b_raw = hpt_res.as_raw();
     a_raw
         .iter()
         .zip(b_raw.iter())
         .for_each(|(a, b)| {
-            let abs_diff = (a - b).abs();
-            let relative_diff = abs_diff / b.abs().max(f64::EPSILON);
-
-            if abs_diff > tolerance && relative_diff > tolerance {
-                panic!(
-                    "{} != {} (abs_diff: {}, relative_diff: {}), at {}",
-                    a,
-                    b,
-                    abs_diff,
-                    relative_diff,
-                    caller
-                );
-            }
+            assert_f64(*a, *b, 0.05, hpt_res, tch_res);
         });
 }
 

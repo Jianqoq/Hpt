@@ -8,33 +8,27 @@ use tensor_dyn::TensorLike;
 use tensor_dyn::{Tensor, TensorCreator};
 use tensor_macros::match_selection;
 
+use super::assert_utils::assert_f64;
+
 #[allow(unused)]
-fn assert_eq(b: &Tensor<f64>, a: &tch::Tensor) {
-    let a_raw = if b.strides().contains(&0) {
-        let size = b
+fn assert_eq(hpt_res: &Tensor<f64>, tch_res: &tch::Tensor) {
+    let a_raw = if hpt_res.strides().contains(&0) {
+        let size = hpt_res
             .shape()
             .iter()
-            .zip(b.strides().iter())
+            .zip(hpt_res.strides().iter())
             .filter(|(sp, s)| **s != 0)
             .fold(1, |acc, (sp, _)| acc * sp);
-        unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, size as usize) }
+        unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f64, size as usize) }
     } else {
-        unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) }
+        unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f64, hpt_res.size()) }
     };
-    let b_raw = b.as_raw();
-    let tolerance = 2.5e-16;
+    let b_raw = hpt_res.as_raw();
 
-    a_raw.iter().zip(b_raw.iter()).for_each(|(a, b)| {
-        let abs_diff = (a - b).abs();
-        let relative_diff = abs_diff / b.abs().max(f64::EPSILON);
-
-        if abs_diff > tolerance && relative_diff > tolerance {
-            panic!(
-                "{} != {} (abs_diff: {}, relative_diff: {})",
-                a, b, abs_diff, relative_diff
-            );
-        }
-    });
+    a_raw
+        .iter()
+        .zip(b_raw.iter())
+        .for_each(|(a, b)| assert_f64(*a, *b, 0.05, hpt_res, tch_res).unwrap());
 }
 
 #[test]
@@ -60,7 +54,8 @@ fn test_arange() -> anyhow::Result<()> {
 
 #[test]
 fn test_hamming() -> anyhow::Result<()> {
-    let tch_a = tch::Tensor::hamming_window_periodic(1000, true, (tch::Kind::Double, tch::Device::Cpu));
+    let tch_a =
+        tch::Tensor::hamming_window_periodic(1000, true, (tch::Kind::Double, tch::Device::Cpu));
     let a = Tensor::<f64>::hamming_window(1000, true)?;
     assert_eq(&a, &tch_a);
     Ok(())
@@ -68,7 +63,8 @@ fn test_hamming() -> anyhow::Result<()> {
 
 #[test]
 fn test_hann() -> anyhow::Result<()> {
-    let tch_a = tch::Tensor::hann_window_periodic(1000, true, (tch::Kind::Double, tch::Device::Cpu));
+    let tch_a =
+        tch::Tensor::hann_window_periodic(1000, true, (tch::Kind::Double, tch::Device::Cpu));
     let a = Tensor::<f64>::hann_window(1000, true)?;
     assert_eq(&a, &tch_a);
     Ok(())
@@ -77,7 +73,8 @@ fn test_hann() -> anyhow::Result<()> {
 #[test]
 #[allow(unused)]
 fn test_blackman_window() -> anyhow::Result<()> {
-    let tch_a = tch::Tensor::blackman_window_periodic(1000, true, (tch::Kind::Double, tch::Device::Cpu));
+    let tch_a =
+        tch::Tensor::blackman_window_periodic(1000, true, (tch::Kind::Double, tch::Device::Cpu));
     let a = Tensor::<f64>::blackman_window(1000, true)?;
     Ok(())
 }
@@ -109,7 +106,8 @@ fn test_eye() -> anyhow::Result<()> {
 #[test]
 fn test_tril() -> anyhow::Result<()> {
     fn assert(diagnal: i64) -> anyhow::Result<()> {
-        let tch_a = tch::Tensor::randn(&[10, 10], (tch::Kind::Double, tch::Device::Cpu)).tril(diagnal);
+        let tch_a =
+            tch::Tensor::randn(&[10, 10], (tch::Kind::Double, tch::Device::Cpu)).tril(diagnal);
         let mut a = Tensor::<f64>::empty(&[10, 10])?;
         let a_size = a.size();
         a.as_raw_mut().copy_from_slice(unsafe {

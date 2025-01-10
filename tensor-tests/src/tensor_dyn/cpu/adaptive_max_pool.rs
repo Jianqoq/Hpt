@@ -32,8 +32,8 @@ fn common_input<T>([batch, in_channel, height, width]: [i64; 4])
 
 #[track_caller]
 fn assert_eq(a: &Tensor<f64>, b: &tch::Tensor) -> anyhow::Result<()> {
-    let res = a.adaptive_avgpool2d([2, 2])?.permute([0, 3, 1, 2])?.contiguous()?;
-    let tch_res = b.adaptive_avg_pool2d([2, 2]);
+    let res = a.adaptive_maxpool2d([2, 2])?.permute([0, 3, 1, 2])?.contiguous()?;
+    let (tch_res, _) = b.adaptive_max_pool2d([2, 2]);
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f64, res.size()) };
     res_slice
