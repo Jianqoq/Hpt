@@ -1,73 +1,113 @@
-use std::sync::{ Arc, Barrier };
+use tensor_common::shape::shape_utils::mt_intervals;
+use tensor_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo};
 
-use tensor_common::{ shape::shape_utils::mt_intervals, slice::Slice };
-use tensor_iterator::{ iterator_traits::StridedIterator, TensorIterator };
-use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo, TensorLike };
+use crate::{backend::Cpu, tensor_base::_Tensor, Tensor, THREAD_POOL};
 
-use crate::{ backend::Cpu, tensor_base::_Tensor, Tensor, THREAD_POOL };
-
-impl<T> _Tensor<T, Cpu> where T: CommonBounds {
+impl<T> _Tensor<T, Cpu>
+where
+    T: CommonBounds,
+{
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn gather(&self, indices: &_Tensor<i64, Cpu>, axis: i64) -> anyhow::Result<Self> {
-        assert_eq!(indices.ndim(), 1);
-        let axis = (if axis < 0 { (self.ndim() as i64) + axis } else { axis }) as usize;
-        let res_shape = self
-            .shape()
-            .iter()
-            .enumerate()
-            .map(|(i, &x)| if i == axis { indices.size() as i64 } else { x })
-            .collect::<Vec<_>>();
-        let ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let axis = if axis < 0 {
+            self.ndim() as i64 + axis
+        } else {
+            axis
+        } as usize;
+
+        let mut permute_axes = (0..indices.ndim()).collect::<Vec<usize>>();
+        permute_axes.retain(|x| *x != (axis as usize));
+        permute_axes.push(axis as usize);
+        let permuted_indices = indices.permute(&permute_axes)?;
+
+        let inner_size = *permuted_indices.shape().last().unwrap();
+        let outer_size = permuted_indices.size() as i64 / inner_size;
+
+        let mut res_shape = self.shape().to_vec();
+        res_shape[axis] = *permuted_indices.shape().last().unwrap();
+        let res = Self::empty(res_shape)?;
+        let permuted_self = self.permute(&permute_axes)?;
+
+        if self.ndim() == 1 {
+            for i in 0..indices.size() {
+                let idx = indices.ptr()[i];
+                if idx < 0 || idx >= self.shape()[0] as i64 {
+                    return Err(anyhow::anyhow!("index out of bounds"));
+                }
+                res.ptr()[i] = self.ptr()[idx as usize];
+            }
+            return Ok(res);
+        }
 
         THREAD_POOL.with_borrow_mut(|pool| {
-            let num_threads = if indices.size() < pool.max_count() {
-                indices.size()
-            } else {
-                pool.max_count()
-            };
-            let intervals = mt_intervals(indices.size(), num_threads);
-            let mut sliced_res = Vec::with_capacity(num_threads);
-            let mut sliced_indices = Vec::with_capacity(num_threads);
-            for (start, end) in intervals.iter() {
-                let mut slices = vec![Slice::Full; ret.ndim()];
-                slices[axis] = Slice::Range((*start as i64, *end as i64));
-                let sliced = ret.slice(&slices).expect("slice failed");
-                sliced_res.push(sliced);
-                let sliced_indice = indices
-                    .slice(&[Slice::Range((*start as i64, *end as i64))])
-                    .expect("slice failed");
-                sliced_indices.push(sliced_indice);
-            }
-            let barrier = Arc::new(Barrier::new(num_threads + 1));
-            for (res, indices) in sliced_res.into_iter().zip(sliced_indices.into_iter()) {
-                let inp = self.clone();
-                let barrier_clone = barrier.clone();
+            let num_threads = (outer_size as usize).min(pool.max_count());
+            let intervals = mt_intervals(outer_size as usize, num_threads);
+
+            for (start, end) in intervals {
+                let self_ptr = permuted_self.ptr();
+                let indices_ptr = permuted_indices.ptr();
+                let mut res_ptr = res.ptr();
+
+                let gather_size = indices.shape()[axis];
+                let self_last_strides = *self.strides().last().unwrap();
+                let axis_self_last_stride = self.strides()[axis];
+                let self_inner_size = *permuted_self.shape().last().unwrap();
+
+                let res_shape = res.shape().clone();
+                let res_strides = res.strides().clone();
+
+                let permuted_self_shape = permuted_self.shape().clone();
+                let permuted_self_strides = permuted_self.strides().clone();
+
+                let indices_shape = indices.shape().clone();
+                let indices_strides = indices.strides().clone();
+
                 pool.execute(move || {
-                    let mut slices = vec![Slice::Full; inp.ndim()];
-                    let mut res_slices = vec![Slice::Full; res.ndim()];
-                    let raw = indices.as_raw();
-                    for (i, idx) in raw.into_iter().enumerate() {
-                        slices[axis] = Slice::Range((*idx, *idx + 1));
-                        let slice = inp.slice(&slices).expect("slice failed");
-                        res_slices[axis] = Slice::Range((i as i64, (i as i64) + 1));
-                        let res_slice = res.slice(&res_slices).expect("slice failed");
-                        res_slice
-                            .iter_mut()
-                            .zip(slice.iter())
-                            .for_each(|(a, b)| {
-                                *a = b;
-                            });
+                    for outer_idx in start as i64..end as i64 {
+                        let mut indices_amount = outer_idx * *indices_shape.last().unwrap();
+                        let mut indices_offset = 0;
+                        for j in (0..indices_shape.len()).rev() {
+                            indices_offset +=
+                                (indices_amount % indices_shape[j]) * indices_strides[j];
+                            indices_amount /= indices_shape[j];
+                        }
+
+                        let mut res_indices_amount = outer_idx * gather_size;
+                        let mut res_indices_offset = 0;
+                        for j in (0..res_shape.len()).rev() {
+                            res_indices_offset +=
+                                (res_indices_amount % res_shape[j]) * res_strides[j];
+                            res_indices_amount /= res_shape[j];
+                        }
+
+                        let mut inp_indices_amount = outer_idx * self_inner_size;
+                        let mut inp_indices_offset = 0;
+                        for j in (0..permuted_self_shape.len() - 1).rev() {
+                            inp_indices_offset += (inp_indices_amount % permuted_self_shape[j])
+                                * permuted_self_strides[j];
+                            inp_indices_amount /= permuted_self_shape[j];
+                        }
+                        for gather_idx in 0..gather_size {
+                            let index = indices_ptr[indices_offset + gather_idx];
+                            let val = self_ptr[(inp_indices_offset
+                                + gather_idx * self_last_strides)
+                                + index * axis_self_last_stride];
+                            res_ptr[res_indices_offset + gather_idx] = val;
+                        }
                     }
-                    barrier_clone.wait();
                 });
             }
-            barrier.wait();
+            pool.join();
         });
-        Ok(ret)
+
+        Ok(res)
     }
 }
 
-impl<T> Tensor<T, Cpu> where T: CommonBounds {
+impl<T> Tensor<T, Cpu>
+where
+    T: CommonBounds,
+{
     /// Gathers elements from the tensor along a specified axis using the provided indices.
     ///
     /// This method retrieves elements from the input tensor based on the positions specified in the `indices` tensor,

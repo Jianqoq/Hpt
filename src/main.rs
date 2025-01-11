@@ -240,7 +240,20 @@ fn insert_nested_key(
     Ok(())
 }
 
+struct MyStruct {
+    a: i32,
+    b: i32,
+    c: i32,
+    d: Vec<i32>,
+}
+
 fn main() -> anyhow::Result<()> {
+    let o = Some(7);
+
+    if let Some(i) = o {
+        println!("{}", i);
+    }
+
     // let buffer = std::fs::read("model.safetensors")?;
     // let safetensor = SafeTensors::deserialize(&buffer)?;
     // let json = convert_keys_to_json(&safetensor)?;
