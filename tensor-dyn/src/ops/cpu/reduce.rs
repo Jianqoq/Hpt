@@ -220,8 +220,8 @@ use super::kernels::reduce::{
 use super::reduce_template::uncontiguos_reduce_template;
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn reduce<T, F, F2, F3>(
-    a: &_Tensor<T>,
+pub(crate) fn reduce<T, F, F2, F3, const DEVICE: usize>(
+    a: &_Tensor<T, Cpu, DEVICE>,
     op: F,
     op_no_cast: F2,
     vec_op: F3,
@@ -229,18 +229,17 @@ pub(crate) fn reduce<T, F, F2, F3>(
     init_val: T,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<T>>
+    c: Option<_Tensor<T, Cpu, DEVICE>>
 )
-    -> std::result::Result<_Tensor<T>, TensorError>
+    -> std::result::Result<_Tensor<T, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds + IntoScalar<T> + Convertor,
         F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
         F2: Fn(T, T) -> T + Sync + Send + 'static + Copy,
         F3: Fn(T::Vec, T::Vec) -> T::Vec + Sync + Send + 'static + Copy,
-        T::Vec: Copy
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<_, _, _, _, fn(T) -> T, _, _, fn(T::Vec) -> T::Vec, T>(
+        contiguous_reduce::<_, _, _, _, fn(T) -> T, _, _, fn(T::Vec) -> T::Vec, T, DEVICE>(
             a,
             op,
             op_no_cast,
@@ -256,7 +255,7 @@ pub(crate) fn reduce<T, F, F2, F3>(
             c
         )
     } else {
-        uncontiguous_reduce::<_, _, _, fn(T) -> T, _, fn(T::Vec) -> T::Vec, T>(
+        uncontiguous_reduce::<_, _, _, fn(T) -> T, _, fn(T::Vec) -> T::Vec, T, DEVICE>(
             a,
             op,
             op,
@@ -273,8 +272,8 @@ pub(crate) fn reduce<T, F, F2, F3>(
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O>(
-    a: &_Tensor<T>,
+pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
+    a: &_Tensor<T, Cpu, DEVICE>,
     op: F,
     op_no_cast: F2,
     op2: F3,
@@ -284,9 +283,9 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O>>
+    c: Option<_Tensor<O, Cpu, DEVICE>>
 )
-    -> std::result::Result<_Tensor<O>, TensorError>
+    -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds + IntoScalar<O> + Convertor,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
@@ -299,7 +298,7 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O>(
         O::Vec: Copy
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, F, F2, F3, fn(O) -> O, _, _, fn(O::Vec) -> O::Vec, O>(
+        contiguous_reduce::<T, F, F2, F3, fn(O) -> O, _, _, fn(O::Vec) -> O::Vec, O, DEVICE>(
             a,
             op,
             op_no_cast,
@@ -315,7 +314,7 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O>(
             c
         )
     } else {
-        uncontiguous_reduce::<T, F, F3, fn(O) -> O, _, fn(O::Vec) -> O::Vec, O>(
+        uncontiguous_reduce::<T, F, F3, fn(O) -> O, _, fn(O::Vec) -> O::Vec, O, DEVICE>(
             a,
             op,
             op2,
@@ -332,8 +331,8 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O>(
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O>(
-    a: &_Tensor<T>,
+pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: usize>(
+    a: &_Tensor<T, Cpu, DEVICE>,
     op: F,
     op_no_cast: F2,
     op2: F3,
@@ -345,9 +344,9 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O>>
+    c: Option<_Tensor<O, Cpu, DEVICE>>
 )
-    -> std::result::Result<_Tensor<O>, TensorError>
+    -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds + IntoScalar<O> + Convertor,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
@@ -361,7 +360,7 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O>(
         O::Vec: Copy
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, F, F2, F3, F4, F5, F6, F7, O>(
+        contiguous_reduce::<T, F, F2, F3, F4, F5, F6, F7, O, DEVICE>(
             a,
             op,
             op_no_cast,
@@ -377,7 +376,7 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O>(
             c
         )
     } else {
-        uncontiguous_reduce::<T, F, F3, F4, F5, F7, O>(
+        uncontiguous_reduce::<T, F, F3, F4, F5, F7, O, DEVICE>(
             a,
             op,
             op2,
@@ -408,8 +407,8 @@ register_reduction_one_axis!(
 );
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O>(
-    a: &_Tensor<T>,
+pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: usize>(
+    a: &_Tensor<T, Cpu, DEVICE>,
     op: F,
     op_no_cast: F2,
     op2: F3,
@@ -421,9 +420,9 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O>>
+    c: Option<_Tensor<O, Cpu, DEVICE>>
 )
-    -> std::result::Result<_Tensor<O>, TensorError>
+    -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds + IntoScalar<O> + Convertor,
         O: CommonBounds,
@@ -656,8 +655,8 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O>(
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O>(
-    a: &_Tensor<T>,
+pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
+    a: &_Tensor<T, Cpu, DEVICE>,
     op: F,
     op2: F2,
     op3: Option<F3>,
@@ -667,9 +666,9 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O>>
+    c: Option<_Tensor<O, Cpu, DEVICE>>
 )
-    -> std::result::Result<_Tensor<O>, TensorError>
+    -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds + IntoScalar<O> + Convertor,
         O: CommonBounds,

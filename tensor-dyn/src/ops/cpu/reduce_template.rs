@@ -1,6 +1,6 @@
 use crate::{
     ops::cpu::reduce_utils::{ reduce_prepare, uncontiguous_reduce_prepare },
-    tensor_base::_Tensor,
+    tensor_base::_Tensor, Cpu,
 };
 use tensor_common::error::base::TensorError;
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorInfo};
@@ -149,26 +149,26 @@ use tensor_types::into_scalar::IntoScalar;
 ///
 /// This function provides a flexible template for reduction operations on tensors, allowing for optimized implementations of various reduction functions.
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O>(
-    a: &_Tensor<T>,
+pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: usize>(
+    a: &_Tensor<T, Cpu, DEVICE>,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O>>,
+    c: Option<_Tensor<O, Cpu, DEVICE>>,
     full_reduce: F1,
     nkd: F2,
     kdo1: F3,
     kd: F4
 )
-    -> std::result::Result<_Tensor<O>, TensorError>
+    -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds + IntoScalar<O>,
         O: CommonBounds,
         F1: Fn(&mut O),
-        F2: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>),
-        F3: Fn(usize, usize, &_Tensor<O>),
-        F4: Fn(usize, usize, usize, usize, &_Tensor<O>, &_Tensor<T>)
+        F2: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
+        F3: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE>),
+        F4: Fn(usize, usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>)
 {
     let mut keep_fast_dim = true;
     for axis in axes.iter() {
@@ -413,26 +413,26 @@ pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O>(
 /// This function provides a flexible template for reduction operations on non-contiguous tensors, enabling optimized implementations of various reduction functions in the context of complex memory layouts.
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O>(
-    a: &_Tensor<T>,
+pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: usize>(
+    a: &_Tensor<T, Cpu, DEVICE>,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O>>,
+    c: Option<_Tensor<O, Cpu, DEVICE>>,
     full_reduce: F1,
     nkd: F2,
     kdo1: F3,
     kd: F4
 )
-    -> std::result::Result<_Tensor<O>, TensorError>
+    -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds + IntoScalar<O>,
         O: CommonBounds,
         F1: Fn(&mut O),
-        F2: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>),
-        F3: Fn(usize, usize, _Tensor<T>, &_Tensor<O>),
-        F4: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>)
+        F2: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
+        F3: Fn(usize, usize, _Tensor<T, Cpu, DEVICE>, &_Tensor<O, Cpu, DEVICE>),
+        F4: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>)
 {
     let (keep_fast_dim, transposed_tensor, result, res_perm) = uncontiguous_reduce_prepare(
         a,

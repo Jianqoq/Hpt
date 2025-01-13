@@ -156,28 +156,26 @@ pub struct Linear {
 
 #[derive(Save, Load)]
 pub struct ResNet {
-    // bn_conv1: Conv2dBatchNorm,
-    // max_pool1: MaxPool2d,
-    // layer1: Sequential,
-    // layer2: Sequential,
+    bn_conv1: Conv2dBatchNorm,
+    max_pool1: MaxPool2d,
+    layer1: Sequential,
+    layer2: Sequential,
     layer3: Sequential,
-    // layer4: Sequential,
-    // avg_pool: AdaptiveAvgPool2d,
-    // fc: Linear,
+    layer4: Sequential,
+    avg_pool: AdaptiveAvgPool2d,
+    fc: Linear,
 }
 
 impl ResNet {
     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-        // let x = self.bn_conv1.forward(&x, |x| x.relu())?;
-        // let x = self.max_pool1.forward(&x)?;
-        // let x = self.layer1.forward(&x)?;
-        // let x = self.layer2.forward(&x)?;
-        // println!("x1: {}", x.permute_inv([0, 2, 3, 1]).expect("permute failed"));
+        let x = self.bn_conv1.forward(&x, |x| x.relu())?;
+        let x = self.max_pool1.forward(&x)?;
+        let x = self.layer1.forward(&x)?;
+        let x = self.layer2.forward(&x)?;
         let x = self.layer3.forward(&x)?;
-        // println!("x2: {}", x.permute_inv([0, 2, 3, 1]).expect("permute failed"));
-        // let x = self.layer4.forward(&x)?;
-        // let x = self.avg_pool.forward(&x)?;
-        // let x = self.fc.forward(&x)?;
+        let x = self.layer4.forward(&x)?;
+        let x = self.avg_pool.forward(&x)?;
+        let x = self.fc.forward(&x)?;
         Ok(x)
     }
 }
@@ -523,214 +521,213 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 0,    /*downsample_padding */
                 1,    /*downsample_dilation */
             ),
-            // create_basic_block(
-            //     &data,
-            //     "layer3.1.conv1.weight",
-            //     "layer3.1.bn1.running_mean",
-            //     "layer3.1.bn1.running_var",
-            //     "layer3.1.bn1.weight",
-            //     "layer3.1.bn1.bias",
-            //     "layer3.1.conv2.weight",
-            //     "layer3.1.bn2.running_mean",
-            //     "layer3.1.bn2.running_var",
-            //     "layer3.1.bn2.weight",
-            //     "layer3.1.bn2.bias",
-            //     1e-5, /*eps */
-            //     1,    /*conv1_steps */
-            //     1,    /*conv1_padding */
-            //     1,    /*conv1_dilation */
-            //     1,    /*conv2_steps */
-            //     1,    /*conv2_padding */
-            //     1,    /*conv2_dilation */
-            // ),
-            // create_basic_block(
-            //     &data,
-            //     "layer3.2.conv1.weight",
-            //     "layer3.2.bn1.running_mean",
-            //     "layer3.2.bn1.running_var",
-            //     "layer3.2.bn1.weight",
-            //     "layer3.2.bn1.bias",
-            //     "layer3.2.conv2.weight",
-            //     "layer3.2.bn2.running_mean",
-            //     "layer3.2.bn2.running_var",
-            //     "layer3.2.bn2.weight",
-            //     "layer3.2.bn2.bias",
-            //     1e-5, /*eps */
-            //     1,    /*conv1_steps */
-            //     1,    /*conv1_padding */
-            //     1,    /*conv1_dilation */
-            //     1,    /*conv2_steps */
-            //     1,    /*conv2_padding */
-            //     1,    /*conv2_dilation */
-            // ),
-            // create_basic_block(
-            //     &data,
-            //     "layer3.3.conv1.weight",
-            //     "layer3.3.bn1.running_mean",
-            //     "layer3.3.bn1.running_var",
-            //     "layer3.3.bn1.weight",
-            //     "layer3.3.bn1.bias",
-            //     "layer3.3.conv2.weight",
-            //     "layer3.3.bn2.running_mean",
-            //     "layer3.3.bn2.running_var",
-            //     "layer3.3.bn2.weight",
-            //     "layer3.3.bn2.bias",
-            //     1e-5, /*eps */
-            //     1,    /*conv1_steps */
-            //     1,    /*conv1_padding */
-            //     1,    /*conv1_dilation */
-            //     1,    /*conv2_steps */
-            //     1,    /*conv2_padding */
-            //     1,    /*conv2_dilation */
-            // ),
-            // create_basic_block(
-            //     &data,
-            //     "layer3.4.conv1.weight",
-            //     "layer3.4.bn1.running_mean",
-            //     "layer3.4.bn1.running_var",
-            //     "layer3.4.bn1.weight",
-            //     "layer3.4.bn1.bias",
-            //     "layer3.4.conv2.weight",
-            //     "layer3.4.bn2.running_mean",
-            //     "layer3.4.bn2.running_var",
-            //     "layer3.4.bn2.weight",
-            //     "layer3.4.bn2.bias",
-            //     1e-5, /*eps */
-            //     1,    /*conv1_steps */
-            //     1,    /*conv1_padding */
-            //     1,    /*conv1_dilation */
-            //     1,    /*conv2_steps */
-            //     1,    /*conv2_padding */
-            //     1,    /*conv2_dilation */
-            // ),
-            // create_basic_block(
-            //     &data,
-            //     "layer3.5.conv1.weight",
-            //     "layer3.5.bn1.running_mean",
-            //     "layer3.5.bn1.running_var",
-            //     "layer3.5.bn1.weight",
-            //     "layer3.5.bn1.bias",
-            //     "layer3.5.conv2.weight",
-            //     "layer3.5.bn2.running_mean",
-            //     "layer3.5.bn2.running_var",
-            //     "layer3.5.bn2.weight",
-            //     "layer3.5.bn2.bias",
-            //     1e-5, /*eps */
-            //     1,    /*conv1_steps */
-            //     1,    /*conv1_padding */
-            //     1,    /*conv1_dilation */
-            //     1,    /*conv2_steps */
-            //     1,    /*conv2_padding */
-            //     1,    /*conv2_dilation */
-            // ),
+            create_basic_block(
+                &data,
+                "layer3.1.conv1.weight",
+                "layer3.1.bn1.running_mean",
+                "layer3.1.bn1.running_var",
+                "layer3.1.bn1.weight",
+                "layer3.1.bn1.bias",
+                "layer3.1.conv2.weight",
+                "layer3.1.bn2.running_mean",
+                "layer3.1.bn2.running_var",
+                "layer3.1.bn2.weight",
+                "layer3.1.bn2.bias",
+                1e-5, /*eps */
+                1,    /*conv1_steps */
+                1,    /*conv1_padding */
+                1,    /*conv1_dilation */
+                1,    /*conv2_steps */
+                1,    /*conv2_padding */
+                1,    /*conv2_dilation */
+            ),
+            create_basic_block(
+                &data,
+                "layer3.2.conv1.weight",
+                "layer3.2.bn1.running_mean",
+                "layer3.2.bn1.running_var",
+                "layer3.2.bn1.weight",
+                "layer3.2.bn1.bias",
+                "layer3.2.conv2.weight",
+                "layer3.2.bn2.running_mean",
+                "layer3.2.bn2.running_var",
+                "layer3.2.bn2.weight",
+                "layer3.2.bn2.bias",
+                1e-5, /*eps */
+                1,    /*conv1_steps */
+                1,    /*conv1_padding */
+                1,    /*conv1_dilation */
+                1,    /*conv2_steps */
+                1,    /*conv2_padding */
+                1,    /*conv2_dilation */
+            ),
+            create_basic_block(
+                &data,
+                "layer3.3.conv1.weight",
+                "layer3.3.bn1.running_mean",
+                "layer3.3.bn1.running_var",
+                "layer3.3.bn1.weight",
+                "layer3.3.bn1.bias",
+                "layer3.3.conv2.weight",
+                "layer3.3.bn2.running_mean",
+                "layer3.3.bn2.running_var",
+                "layer3.3.bn2.weight",
+                "layer3.3.bn2.bias",
+                1e-5, /*eps */
+                1,    /*conv1_steps */
+                1,    /*conv1_padding */
+                1,    /*conv1_dilation */
+                1,    /*conv2_steps */
+                1,    /*conv2_padding */
+                1,    /*conv2_dilation */
+            ),
+            create_basic_block(
+                &data,
+                "layer3.4.conv1.weight",
+                "layer3.4.bn1.running_mean",
+                "layer3.4.bn1.running_var",
+                "layer3.4.bn1.weight",
+                "layer3.4.bn1.bias",
+                "layer3.4.conv2.weight",
+                "layer3.4.bn2.running_mean",
+                "layer3.4.bn2.running_var",
+                "layer3.4.bn2.weight",
+                "layer3.4.bn2.bias",
+                1e-5, /*eps */
+                1,    /*conv1_steps */
+                1,    /*conv1_padding */
+                1,    /*conv1_dilation */
+                1,    /*conv2_steps */
+                1,    /*conv2_padding */
+                1,    /*conv2_dilation */
+            ),
+            create_basic_block(
+                &data,
+                "layer3.5.conv1.weight",
+                "layer3.5.bn1.running_mean",
+                "layer3.5.bn1.running_var",
+                "layer3.5.bn1.weight",
+                "layer3.5.bn1.bias",
+                "layer3.5.conv2.weight",
+                "layer3.5.bn2.running_mean",
+                "layer3.5.bn2.running_var",
+                "layer3.5.bn2.weight",
+                "layer3.5.bn2.bias",
+                1e-5, /*eps */
+                1,    /*conv1_steps */
+                1,    /*conv1_padding */
+                1,    /*conv1_dilation */
+                1,    /*conv2_steps */
+                1,    /*conv2_padding */
+                1,    /*conv2_dilation */
+            ),
         ],
     };
 
-    // let layer4 = Sequential {
-    //     layers: vec![
-    //         create_basic_block_with_downsample(
-    //             &data,
-    //             "layer4.0.conv1.weight",
-    //             "layer4.0.bn1.running_mean",
-    //             "layer4.0.bn1.running_var",
-    //             "layer4.0.bn1.weight",
-    //             "layer4.0.bn1.bias",
-    //             "layer4.0.conv2.weight",
-    //             "layer4.0.bn2.running_mean",
-    //             "layer4.0.bn2.running_var",
-    //             "layer4.0.bn2.weight",
-    //             "layer4.0.bn2.bias",
-    //             "layer4.0.downsample.0.weight",
-    //             "layer4.0.downsample.1.running_mean",
-    //             "layer4.0.downsample.1.running_var",
-    //             "layer4.0.downsample.1.weight",
-    //             "layer4.0.downsample.1.bias",
-    //             1e-5, /*eps */
-    //             2,    /*conv1_steps */
-    //             1,    /*conv1_padding */
-    //             1,    /*conv1_dilation */
-    //             1,    /*conv2_steps */
-    //             1,    /*conv2_padding */
-    //             1,    /*conv2_dilation */
-    //             2,    /*downsample_steps */
-    //             0,    /*downsample_padding */
-    //             1,    /*downsample_dilation */
-    //         ),
-    //         create_basic_block(
-    //             &data,
-    //             "layer4.1.conv1.weight",
-    //             "layer4.1.bn1.running_mean",
-    //             "layer4.1.bn1.running_var",
-    //             "layer4.1.bn1.weight",
-    //             "layer4.1.bn1.bias",
-    //             "layer4.1.conv2.weight",
-    //             "layer4.1.bn2.running_mean",
-    //             "layer4.1.bn2.running_var",
-    //             "layer4.1.bn2.weight",
-    //             "layer4.1.bn2.bias",
-    //             1e-5, /*eps */
-    //             1,    /*conv1_steps */
-    //             1,    /*conv1_padding */
-    //             1,    /*conv1_dilation */
-    //             1,    /*conv2_steps */
-    //             1,    /*conv2_padding */
-    //             1,    /*conv2_dilation */
-    //         ),
-    //         create_basic_block(
-    //             &data,
-    //             "layer4.2.conv1.weight",
-    //             "layer4.2.bn1.running_mean",
-    //             "layer4.2.bn1.running_var",
-    //             "layer4.2.bn1.weight",
-    //             "layer4.2.bn1.bias",
-    //             "layer4.2.conv2.weight",
-    //             "layer4.2.bn2.running_mean",
-    //             "layer4.2.bn2.running_var",
-    //             "layer4.2.bn2.weight",
-    //             "layer4.2.bn2.bias",
-    //             1e-5, /*eps */
-    //             1,    /*conv1_steps */
-    //             1,    /*conv1_padding */
-    //             1,    /*conv1_dilation */
-    //             1,    /*conv2_steps */
-    //             1,    /*conv2_padding */
-    //             1,    /*conv2_dilation */
-    //         ),
-        // ],
-    // };
+    let layer4 = Sequential {
+        layers: vec![
+            create_basic_block_with_downsample(
+                &data,
+                "layer4.0.conv1.weight",
+                "layer4.0.bn1.running_mean",
+                "layer4.0.bn1.running_var",
+                "layer4.0.bn1.weight",
+                "layer4.0.bn1.bias",
+                "layer4.0.conv2.weight",
+                "layer4.0.bn2.running_mean",
+                "layer4.0.bn2.running_var",
+                "layer4.0.bn2.weight",
+                "layer4.0.bn2.bias",
+                "layer4.0.downsample.0.weight",
+                "layer4.0.downsample.1.running_mean",
+                "layer4.0.downsample.1.running_var",
+                "layer4.0.downsample.1.weight",
+                "layer4.0.downsample.1.bias",
+                1e-5, /*eps */
+                2,    /*conv1_steps */
+                1,    /*conv1_padding */
+                1,    /*conv1_dilation */
+                1,    /*conv2_steps */
+                1,    /*conv2_padding */
+                1,    /*conv2_dilation */
+                2,    /*downsample_steps */
+                0,    /*downsample_padding */
+                1,    /*downsample_dilation */
+            ),
+            create_basic_block(
+                &data,
+                "layer4.1.conv1.weight",
+                "layer4.1.bn1.running_mean",
+                "layer4.1.bn1.running_var",
+                "layer4.1.bn1.weight",
+                "layer4.1.bn1.bias",
+                "layer4.1.conv2.weight",
+                "layer4.1.bn2.running_mean",
+                "layer4.1.bn2.running_var",
+                "layer4.1.bn2.weight",
+                "layer4.1.bn2.bias",
+                1e-5, /*eps */
+                1,    /*conv1_steps */
+                1,    /*conv1_padding */
+                1,    /*conv1_dilation */
+                1,    /*conv2_steps */
+                1,    /*conv2_padding */
+                1,    /*conv2_dilation */
+            ),
+            create_basic_block(
+                &data,
+                "layer4.2.conv1.weight",
+                "layer4.2.bn1.running_mean",
+                "layer4.2.bn1.running_var",
+                "layer4.2.bn1.weight",
+                "layer4.2.bn1.bias",
+                "layer4.2.conv2.weight",
+                "layer4.2.bn2.running_mean",
+                "layer4.2.bn2.running_var",
+                "layer4.2.bn2.weight",
+                "layer4.2.bn2.bias",
+                1e-5, /*eps */
+                1,    /*conv1_steps */
+                1,    /*conv1_padding */
+                1,    /*conv1_dilation */
+                1,    /*conv2_steps */
+                1,    /*conv2_padding */
+                1,    /*conv2_dilation */
+            ),
+        ],
+    };
 
-    // let avg_pool = AdaptiveAvgPool2d {
-    //     kernel_size: [1, 1],
-    // };
+    let avg_pool = AdaptiveAvgPool2d {
+        kernel_size: [1, 1],
+    };
 
-    // let fc = Linear {
-    //     weight: Tensor::<f32>::from_safe_tensors(&data, "fc.weight"),
-    //     bias: Tensor::<f32>::from_safe_tensors(&data, "fc.bias"),
-    // };
-    println!("layer3.0.bn1.weight: {}", layer3.layers[0].bn_conv1.weight);
+    let fc = Linear {
+        weight: Tensor::<f32>::from_safe_tensors(&data, "fc.weight"),
+        bias: Tensor::<f32>::from_safe_tensors(&data, "fc.bias"),
+    };
     Ok(ResNet {
-        // bn_conv1: Conv2dBatchNorm {
-        //     weight_str: "conv1.weight".to_string(),
-        //     weight: Tensor::<f32>::from_safe_tensors(&data, "conv1.weight")
-        //         .permute(&[2, 3, 1, 0])?
-        //         .contiguous()?,
-        //     bias: None,
-        //     running_mean: Tensor::<f32>::from_safe_tensors(&data, "bn1.running_mean"),
-        //     running_var: Tensor::<f32>::from_safe_tensors(&data, "bn1.running_var"),
-        //     running_gamma: Tensor::<f32>::from_safe_tensors(&data, "bn1.weight"),
-        //     running_beta: Tensor::<f32>::from_safe_tensors(&data, "bn1.bias"),
-        //     eps: 1e-5,
-        //     steps: 2,
-        //     padding: 3,
-        //     dilation: 1,
-        // },
-        // max_pool1,
-        // layer1,
-        // layer2,
+        bn_conv1: Conv2dBatchNorm {
+            weight_str: "conv1.weight".to_string(),
+            weight: Tensor::<f32>::from_safe_tensors(&data, "conv1.weight")
+                .permute(&[2, 3, 1, 0])?
+                .contiguous()?,
+            bias: None,
+            running_mean: Tensor::<f32>::from_safe_tensors(&data, "bn1.running_mean"),
+            running_var: Tensor::<f32>::from_safe_tensors(&data, "bn1.running_var"),
+            running_gamma: Tensor::<f32>::from_safe_tensors(&data, "bn1.weight"),
+            running_beta: Tensor::<f32>::from_safe_tensors(&data, "bn1.bias"),
+            eps: 1e-5,
+            steps: 2,
+            padding: 3,
+            dilation: 1,
+        },
+        max_pool1,
+        layer1,
+        layer2,
         layer3,
-        // layer4,
-        // avg_pool,
-        // fc,
+        layer4,
+        avg_pool,
+        fc,
     })
 }
 fn main() -> anyhow::Result<()> {
@@ -747,19 +744,17 @@ fn main() -> anyhow::Result<()> {
         .permute(&[0, 2, 3, 1])?
         .contiguous()?;
     let data = ResNet::load("resnet.model")?;
-    println!("{}", data.layer3.layers[0].bn_conv1.weight);
-    // // let inp = Tensor::<f32>::randn(&[5, 128, 128, 3])?;
     // let now = std::time::Instant::now();
     // // for _ in 0..10 {
-    // let output = resnet.forward(&inp)?;
+    let output = data.forward(&inp)?;
     // // }
-    // println!(
-    //     "{}",
-    //     output
-    //         .permute(&[0, 3, 1, 2])?
-    //         .contiguous()?
-    //         .reshape(&[5, 1000])?
-    // );
+    println!(
+        "{}",
+        output
+            .permute(&[0, 3, 1, 2])?
+            .contiguous()?
+            .reshape(&[5, 1000])?
+    );
 
     // visit_dirs("txt_weights")?;
     Ok(())

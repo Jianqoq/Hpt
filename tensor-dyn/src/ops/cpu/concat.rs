@@ -8,7 +8,7 @@ use tensor_traits::{
     tensor::{CommonBounds, TensorCreator, TensorInfo},
 };
 
-use crate::{tensor_base::_Tensor, THREAD_POOL};
+use crate::{tensor_base::_Tensor, Cpu, THREAD_POOL};
 
 /// Concatenates multiple tensors along a specified axis.
 ///
@@ -30,11 +30,11 @@ use crate::{tensor_base::_Tensor, THREAD_POOL};
 /// This function returns a `Result` containing a new tensor that is the result of concatenating
 /// the input tensors along the specified axis.
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn concat<T>(
-    tensors: Vec<&_Tensor<T>>,
+pub(crate) fn concat<T, const DEVICE: usize>(
+    tensors: Vec<&_Tensor<T, Cpu, DEVICE>>,
     axis: usize,
     keepdims: bool,
-) -> std::result::Result<_Tensor<T>, TensorError>
+) -> std::result::Result<_Tensor<T, Cpu, DEVICE>, TensorError>
 where
     T: CommonBounds,
 {
@@ -67,7 +67,7 @@ where
             new_shape[i] = *x;
         }
     });
-    let new_tensor = _Tensor::<T>::empty(&new_shape)?;
+    let new_tensor = _Tensor::<T, Cpu, DEVICE>::empty(&new_shape)?;
     let mut begin = 0;
     let mut res_slices = Vec::with_capacity(length);
     for i in tensors.iter() {
@@ -80,7 +80,7 @@ where
     let tensors = tensors
         .iter()
         .map(|x| (*x).clone())
-        .collect::<Vec<_Tensor<T>>>();
+        .collect::<Vec<_Tensor<T, Cpu, DEVICE>>>();
     THREAD_POOL.with_borrow_mut(|pool| {
         let num_threads: usize;
         if length < pool.max_count() {

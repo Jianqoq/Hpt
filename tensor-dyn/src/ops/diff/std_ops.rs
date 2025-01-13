@@ -11,6 +11,7 @@ use std::ops::{
 };
 use std::ops::{AddAssign, Neg, Not};
 use std::rc::Rc;
+use tensor_common::shape::shape_utils::get_broadcast_axes_from;
 use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
 use tensor_traits::tensor::{CommonBounds, TensorInfo};
@@ -50,6 +51,10 @@ where
         *self.out_degree.borrow_mut() += 1;
         *rhs.out_degree.borrow_mut() += 1;
         let res = self.inner.clone().add(rhs.inner.clone());
+        let lhs_broadcast_axes =
+            get_broadcast_axes_from(self.inner.shape(), res.shape()).expect("broadcast failed");
+        let rhs_broadcast_axes =
+            get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect("broadcast failed");
         let mut lhs = self.clone();
         let mut rhs = rhs.clone();
         DiffTensor {
@@ -60,8 +65,8 @@ where
                 move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE>| {
                     let lhs_grad = grad.try_astype::<T>()?;
                     let rhs_grad = grad.try_astype::<U>()?;
-                    handle_grad(&mut lhs, lhs_grad)?;
-                    handle_grad(&mut rhs, rhs_grad)?;
+                    handle_grad(&mut lhs, lhs_grad, &lhs_broadcast_axes)?;
+                    handle_grad(&mut rhs, rhs_grad, &rhs_broadcast_axes)?;
                     Ok(())
                 },
             )),
@@ -93,6 +98,10 @@ where
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sub(self, rhs: rhs_type<U, Cpu, DEVICE>) -> Self::Output {
         let res = self.inner.clone().sub(rhs.inner.clone());
+        let lhs_broadcast_axes =
+            get_broadcast_axes_from(self.inner.shape(), res.shape()).expect("broadcast failed");
+        let rhs_broadcast_axes =
+            get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect("broadcast failed");
         let mut lhs = self.clone();
         let mut rhs = rhs.clone();
         DiffTensor {
@@ -103,8 +112,65 @@ where
                 move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE>| {
                     let lhs_grad = -grad.try_astype::<T>()?;
                     let rhs_grad = grad.try_astype::<U>()?;
-                    handle_grad(&mut lhs, lhs_grad)?;
-                    handle_grad(&mut rhs, rhs_grad)?;
+                    handle_grad(&mut lhs, lhs_grad, &lhs_broadcast_axes)?;
+                    handle_grad(&mut rhs, rhs_grad, &rhs_broadcast_axes)?;
+                    Ok(())
+                },
+            )),
+        }
+    }
+}
+
+#[duplicate::duplicate_item(
+    lhs_type        rhs_type       out_type        trait_name;
+    [DiffTensor]    [DiffTensor]   [DiffTensor]    [std::ops::Div];
+    [&DiffTensor]   [DiffTensor]   [DiffTensor]    [std::ops::Div];
+    [&DiffTensor]   [&DiffTensor]  [DiffTensor]    [std::ops::Div];
+    [DiffTensor]    [&DiffTensor]  [DiffTensor]    [std::ops::Div];
+)]
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + FloatOutBinary<U>,
+    U: CommonBounds,
+    <T as FloatOutBinary<U>>::Output: CommonBounds,
+    <T as FloatOutBinary<U>>::Output:
+        IntoScalar<<T as FloatOutBinary<U>>::Output> + FloatOutBinary<U>,
+    T::Vec: FloatOutBinary<
+        <U as TypeCommon>::Vec,
+        Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec,
+    >,
+    <<T as FloatOutBinary<U>>::Output as FloatOutBinary<U>>::Output: CommonBounds + IntoScalar<T>,
+    <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec: FloatOutBinary<
+        <U as TypeCommon>::Vec,
+        Output = <<<T as FloatOutBinary<U>>::Output as FloatOutBinary<U>>::Output as TypeCommon>::Vec,
+    >,
+{
+    type Output = out_type<<T as FloatOutBinary<U>>::Output, Cpu, DEVICE>;
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    fn div(self, rhs: rhs_type<U, Cpu, DEVICE>) -> Self::Output {
+        let res = self.inner.clone().div(rhs.inner.clone());
+        let lhs_broadcast_axes =
+            get_broadcast_axes_from(self.inner.shape(), res.shape()).expect("broadcast failed");
+        let rhs_broadcast_axes =
+            get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect("broadcast failed");
+        let mut lhs = self.clone();
+        let mut rhs = rhs.clone();
+        DiffTensor {
+            inner: res,
+            grad: None,
+            out_degree: Rc::new(RefCell::new(0)),
+            backward: Rc::new(RefCell::new(
+                move |grad: Tensor<<T as FloatOutBinary<U>>::Output, Cpu, DEVICE>| {
+                    let lhs_grad = binary_fn_with_out_simd(
+                        &grad.inner.as_ref(),
+                        rhs.inner.inner.as_ref(),
+                        |lhs, rhs| lhs._div(rhs),
+                        |lhs, rhs| lhs._div(rhs),
+                        None::<Tensor<<<T as FloatOutBinary<U>>::Output as FloatOutBinary<U>>::Output, Cpu, DEVICE>>,
+                    )?.try_astype::<T>()?;
+                    // let rhs_grad = grad.try_astype::<U>()?;
+                    // handle_grad(&mut lhs, lhs_grad, &lhs_broadcast_axes)?;
+                    // handle_grad(&mut rhs, rhs_grad, &rhs_broadcast_axes)?;
                     Ok(())
                 },
             )),

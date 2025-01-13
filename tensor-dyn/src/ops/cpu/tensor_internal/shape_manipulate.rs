@@ -1,4 +1,5 @@
 use crate::tensor_base::_Tensor;
+use crate::Cpu;
 use std::panic::Location;
 use tensor_common::error::param::ParamError;
 use tensor_common::error::shape::ShapeError;
@@ -8,9 +9,9 @@ use tensor_common::{axis::axis::Axis, error::base::TensorError, shape::shape::Sh
 use tensor_macros::match_selection;
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorInfo, TensorLike};
 
-impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
+impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for _Tensor<T, Cpu, DEVICE> {
     type Meta = T;
-    type Output = _Tensor<T>;
+    type Output = _Tensor<T, Cpu, DEVICE>;
     fn squeeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self, TensorError> {
         Ok(crate::ops::common::shape_manipulate::squeeze(
             self,
@@ -160,16 +161,16 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
             |a| a.contiguous(),
         )?)
     }
-    fn concat(tensors: Vec<&_Tensor<T>>, axis: usize, keepdims: bool) -> std::result::Result<Self, TensorError>
+    fn concat(tensors: Vec<&_Tensor<T, Cpu, DEVICE>>, axis: usize, keepdims: bool) -> std::result::Result<Self, TensorError>
     where
         T: 'static,
     {
         crate::ops::cpu::concat::concat(tensors, axis, keepdims)
     }
-    fn vstack(tensors: Vec<&_Tensor<T>>) -> std::result::Result<Self, TensorError> {
+    fn vstack(tensors: Vec<&_Tensor<T, Cpu, DEVICE>>) -> std::result::Result<Self, TensorError> {
         crate::ops::cpu::concat::concat(tensors, 0, false)
     }
-    fn hstack(mut tensors: Vec<&_Tensor<T>>) -> std::result::Result<Self, TensorError> {
+    fn hstack(mut tensors: Vec<&_Tensor<T, Cpu, DEVICE>>) -> std::result::Result<Self, TensorError> {
         for tensor in tensors.iter_mut() {
             if tensor.shape().len() < 2 {
                 return if tensor.shape().len() == 1 {
@@ -190,7 +191,7 @@ impl<T: CommonBounds> ShapeManipulate for _Tensor<T> {
         }
         crate::ops::cpu::concat::concat(tensors, 1, false)
     }
-    fn dstack(mut tensors: Vec<&_Tensor<T>>) -> std::result::Result<Self, TensorError> {
+    fn dstack(mut tensors: Vec<&_Tensor<T, Cpu, DEVICE>>) -> std::result::Result<Self, TensorError> {
         let mut new_tensors = Vec::with_capacity(tensors.len());
         for tensor in tensors.iter_mut() {
             if tensor.shape().len() < 3 {

@@ -3,6 +3,7 @@ use std::borrow::Borrow;
 use crate::ops::cpu::reduce::{reduce, reduce2, reduce3};
 use crate::ops::cpu::tensor_internal::float_out_unary::FloatBinaryType;
 use crate::tensor_base::_Tensor;
+use crate::Cpu;
 use tensor_common::axis::axis::{process_axes, Axis};
 use tensor_common::error::base::TensorError;
 use tensor_iterator::iterator_traits::ParStridedIteratorSimd;
@@ -18,7 +19,7 @@ use tensor_types::{
     vectors::traits::SimdSelect,
 };
 
-impl<T: CommonBounds> NormalReduce<T> for _Tensor<T> {
+impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for _Tensor<T, Cpu, DEVICE> {
     type Output = Self;
 
     fn sum<S: Into<Axis>>(
