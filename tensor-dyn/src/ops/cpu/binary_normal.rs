@@ -244,35 +244,106 @@ where
             }
             Ok(ret)
         } else {
-            // if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
-            //     && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
-            // {
-            //     let ret = lhs
-            //         .par_iter_simd()
-            //         .zip(rhs.par_iter_simd())
-            //         .strided_map_simd(
-            //             |(res, (x, y))| {
-            //                 *res = f(x, y);
-            //             },
-            //             |(res, (x, y))| {
-            //                 let x_ptr = x.as_ptr();
-            //                 let y_ptr = y.as_ptr();
-            //                 res.write_unaligned(f2(
-            //                     unsafe { <A as TypeCommon>::Vec::from_ptr(x_ptr) },
-            //                     unsafe { <B as TypeCommon>::Vec::from_ptr(y_ptr) },
-            //                 ));
-            //             },
-            //         )
-            //         .collect::<_Tensor<K>>();
-            //     Ok(ret)
-            // } else {
             let ret = lhs
                 .par_iter()
                 .zip(rhs.par_iter())
                 .strided_map(|(x, y)| f(x, y))
                 .collect::<_Tensor<K, Cpu, DEVICE>>();
             Ok(ret)
-            // }
         }
+    }
+}
+
+#[cfg_attr(feature = "track_caller", track_caller)]
+pub(crate) fn binary_fn_with_out_simd_3<A, B, C, O, K, F, F2, const DEVICE: usize>(
+    a: &_Tensor<A, Cpu, DEVICE>,
+    b: &_Tensor<B, Cpu, DEVICE>,
+    c: &_Tensor<C, Cpu, DEVICE>,
+    f: F,
+    f2: F2,
+    out: Option<O>,
+) -> std::result::Result<_Tensor<K, Cpu, DEVICE>, TensorError>
+where
+    A: CommonBounds,
+    B: CommonBounds,
+    C: CommonBounds,
+    O: Borrow<_Tensor<K, Cpu, DEVICE>>,
+    K: CommonBounds,
+    F: Fn(A, B, C) -> K + Sync + Send + Copy,
+    F2: Fn(
+            <A as TypeCommon>::Vec,
+            <B as TypeCommon>::Vec,
+            <C as TypeCommon>::Vec,
+        ) -> <K as TypeCommon>::Vec
+        + Sync
+        + Send
+        + Copy,
+{
+    use rayon::slice::{ParallelSlice, ParallelSliceMut};
+    use tensor_types::traits::*;
+    if b.is_contiguous() && a.is_contiguous() && b.shape() == a.shape() {
+        let mut ret = if let Some(out) = out {
+            ShapeError::check_inplace_out_layout_valid(b.shape(), &out.borrow().layout())?;
+            let out: &_Tensor<K, Cpu, DEVICE> = out.borrow();
+            out.clone()
+        } else {
+            _Tensor::<K, Cpu, DEVICE>::empty(b.shape())?
+        };
+        if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
+            && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
+            && <B as TypeCommon>::Vec::SIZE == <C as TypeCommon>::Vec::SIZE
+        {
+            let remain = ret.size() % <K as TypeCommon>::Vec::SIZE;
+            ret.as_raw_mut()
+                .par_chunks_exact_mut(<K as TypeCommon>::Vec::SIZE)
+                .zip(a.as_raw().par_chunks_exact(<K as TypeCommon>::Vec::SIZE))
+                .zip(b.as_raw().par_chunks_exact(<K as TypeCommon>::Vec::SIZE))
+                .zip(c.as_raw().par_chunks_exact(<K as TypeCommon>::Vec::SIZE))
+                .for_each(|(((ret, a), b), c)| {
+                    let a = unsafe { <A as TypeCommon>::Vec::from_ptr(a.as_ptr()) };
+                    let b = unsafe { <B as TypeCommon>::Vec::from_ptr(b.as_ptr()) };
+                    let c = unsafe { <C as TypeCommon>::Vec::from_ptr(c.as_ptr()) };
+                    let res = f2(a, b, c);
+                    unsafe {
+                        std::ptr::copy_nonoverlapping(
+                            res.as_ptr(),
+                            ret.as_mut_ptr(),
+                            <K as TypeCommon>::Vec::SIZE,
+                        );
+                    }
+                });
+            if remain > 0 {
+                let ret_size = ret.size();
+                ret.as_raw_mut()[ret_size - remain..]
+                    .iter_mut()
+                    .zip(a.as_raw()[ret_size - remain..].iter())
+                    .zip(b.as_raw()[ret_size - remain..].iter())
+                    .zip(c.as_raw()[ret_size - remain..].iter())
+                    .for_each(|(((a, &lhs), &rhs), &c)| {
+                        *a = f(lhs, rhs, c);
+                    });
+            }
+        } else {
+            let min_len: usize =
+                ret.size() / (((rayon::current_num_threads() as f64) * 1.3) as usize);
+            ret.as_raw_mut()
+                .par_iter_mut()
+                .with_min_len(min_len)
+                .zip(a.as_raw().par_iter().with_min_len(min_len))
+                .zip(b.as_raw().par_iter().with_min_len(min_len))
+                .zip(c.as_raw().par_iter().with_min_len(min_len))
+                .for_each(|(((ret, &lhs), &rhs), &c)| {
+                    *ret = f(lhs, rhs, c);
+                });
+        }
+        Ok(ret)
+    } else {
+        let ret = a
+            .par_iter()
+            .zip(b.par_iter())
+            .zip(c.par_iter())
+            .strided_map(|((x, y), z)| f(x, y, z))
+            .collect::<_Tensor<K, Cpu, DEVICE>>();
+        Ok(ret)
     }
 }
