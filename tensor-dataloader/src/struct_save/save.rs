@@ -143,12 +143,15 @@ pub fn save(
     // real header is at the end of the file.
     // For Example: FASTTENSOR210123456789{"a": {"begin": 0, "name": "a", "shape": [1, 2, 3], ...}, ...}
     // 21 is the location of the real header, 0123456789 is the data we store.
-    let mut len_so_far = "FASTTENSORFASTTENSORHPLACEHOLD".len();
-    if global_cnt == 0 {
-        file.write_all("FASTTENSORFASTTENSORHPLACEHOLD".as_bytes())?;
+    const MAGIC_HEADER: &str = "FASTTENSOR";
+    const PLACEHOLDER: &str = "FASTTENSORHPLACEHOLD";
+    const HEADER_LEN: usize = MAGIC_HEADER.len() + PLACEHOLDER.len();
+    let mut len_so_far = if global_cnt == 0 {
+        file.write_all((MAGIC_HEADER.to_owned() + PLACEHOLDER).as_bytes())?;
+        HEADER_LEN
     } else {
-        len_so_far = *len;
-    }
+        *len
+    };
     let last_stride: i64 = *meta.data_saver.strides().last().unwrap() as i64;
     let mut prg: Vec<i64> = vec![0; meta.data_saver.shape().len() - 1];
     let mut shape: Vec<i64> = meta.data_saver.shape().iter().map(|x| *x as i64).collect();
@@ -198,7 +201,7 @@ pub fn save(
         )?;
     }
     let remain_outer: usize = save_config.3;
-    let mut remain_chunk: Vec<u8> =
+    let mut remain_chunk =
         vec![0u8; remain_outer * inner_loop_size * meta.data_saver.mem_size()];
     for j in 0..remain_outer {
         for i in 0..inner_loop_size {
@@ -233,6 +236,7 @@ pub fn save(
         num_chunks,
         line_num,
     )?;
+    println!("attributes: {:?}, len: {}, remain_len: {}", attributes, len_so_far, remain_chunk.len());
     let current_pos = file.seek(std::io::SeekFrom::Current(0))?;
     file.seek(std::io::SeekFrom::Start(0))?;
     file.write_all(format!("FASTTENSOR{:20}", current_pos).as_bytes())?;

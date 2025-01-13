@@ -238,6 +238,14 @@ pub mod ops {
         pub(crate) mod unary;
     }
 
+    /// a module contains differentiable tensor operations
+    pub mod diff {
+        /// a module contains differentiable tensor std ops
+        pub mod std_ops;
+        /// a module contains differentiable tensor utils
+        pub mod utils;
+    }
+
     /// a module contains all the common ops
     pub mod common {
         /// a module contains all the functions to help create a tensor

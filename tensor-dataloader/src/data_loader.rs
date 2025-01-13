@@ -2,6 +2,7 @@ use anyhow::Ok;
 use anyhow::Result;
 use num::traits::FromBytes;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 use std::marker::PhantomData;
 use std::{
     collections::HashMap,
@@ -73,7 +74,7 @@ pub fn parse_header_compressed<M: Save>(file: &str) -> anyhow::Result<<M as Save
     Ok(ret)
 }
 
-impl<T: CommonBounds + FromBytes<Bytes = [u8; N]>, B: TensorCreator<T, Output = B> + Clone + TensorInfo<T>, const N: usize> MetaLoad
+impl<T: CommonBounds + FromBytes<Bytes = [u8; N]>, B: TensorCreator<T, Output = B> + Clone + TensorInfo<T> + Display, const N: usize> MetaLoad
     for TensorMeta<T, B>
 {
     type Output = B;

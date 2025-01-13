@@ -8,6 +8,11 @@ Cargo.lock
 *.xlsx
 *.7z
 *.safetensors
+*.txt
+*.model
+
+resnet
+resnet_inp
 
 /src/**/target
 /src/**/true

@@ -1,4 +1,5 @@
 use std::{
+    fmt::Display,
     fs::File,
     io::{Read, Seek},
     marker::PhantomData,
@@ -30,7 +31,7 @@ pub trait Load: Sized + Save {
 pub(crate) fn load<
     'a,
     T: CommonBounds + FromBytes<Bytes = [u8; N]>,
-    B: TensorCreator<T, Output = B> + Clone + TensorInfo<T>,
+    B: TensorCreator<T, Output = B> + Clone + TensorInfo<T> + Display,
     const N: usize,
 >(
     file: &mut File,
@@ -61,6 +62,7 @@ pub(crate) fn load<
 
     let pack = get_pack_closure::<T, N>(meta.endian);
 
+    let mut res_idx = 0;
     for (_, idx, compressed_len, current_block_mem_size) in meta.indices.iter() {
         let uncompressed_data = uncompress_data(
             file,
@@ -69,12 +71,11 @@ pub(crate) fn load<
             *current_block_mem_size,
             meta.compression_algo,
         )?;
-        for (i, idx) in (0..uncompressed_data.len())
-            .step_by(std::mem::size_of::<T>())
-            .enumerate()
-        {
+        for idx in (0..uncompressed_data.len()).step_by(std::mem::size_of::<T>()) {
             let val = &uncompressed_data[idx..idx + std::mem::size_of::<T>()];
-            res[i] = pack(val);
+            let data = pack(val);
+            res[res_idx] = data;
+            res_idx += 1;
         }
     }
     Ok(tensor)

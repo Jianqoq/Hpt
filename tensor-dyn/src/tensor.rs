@@ -1,7 +1,5 @@
 use std::{
-    borrow::{Borrow, BorrowMut},
-    fmt::{Debug, Display},
-    sync::{atomic::Ordering, Arc},
+    borrow::{Borrow, BorrowMut}, fmt::{Debug, Display}, rc::Rc, sync::{atomic::Ordering, Arc}
 };
 
 use crate::{
@@ -9,7 +7,9 @@ use crate::{
     tensor_base::_Tensor,
     DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION,
 };
-use tensor_common::{error::base::TensorError, layout::layout::Layout, utils::pointer::Pointer, shape::shape::Shape};
+use tensor_common::{
+    error::base::TensorError, layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer,
+};
 use tensor_dataloader::DataLoader;
 use tensor_display::display;
 use tensor_iterator::TensorIterator;
@@ -29,6 +29,18 @@ where
     B: BackendTy + Buffer,
 {
     pub(crate) inner: Arc<_Tensor<T, B, DEVICE_ID>>,
+}
+use std::cell::RefCell;
+/// `DiffTensor` is a tensor that has a gradient.
+#[derive(Clone)]
+pub struct DiffTensor<T, B = Cpu, const DEVICE_ID: usize = 0>
+where
+    B: BackendTy + Buffer,
+{
+    pub(crate) inner: Tensor<T, B, DEVICE_ID>,
+    pub(crate) grad: Option<Tensor<T, B, DEVICE_ID>>,
+    pub(crate) out_degree: Rc<RefCell<usize>>,
+    pub(crate) backward: Rc<RefCell<dyn FnMut(Tensor<T, B, DEVICE_ID>) -> Result<(), TensorError>>>,
 }
 
 impl<T, const DEVICE: usize> TensorLike<T> for Tensor<T, Cpu, DEVICE>

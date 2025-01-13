@@ -154,7 +154,7 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     }
 
     /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
-    pub fn try_astype<U>(&self) -> std::result::Result<_Tensor<U, Cpu, DEVICE>, TensorError>
+    pub fn try_astype<U>(&self) -> Result<_Tensor<U, Cpu, DEVICE>, TensorError>
     where
         U: CommonBounds,
         T: IntoScalar<U>,
@@ -239,7 +239,7 @@ impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     }
 
     /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
-    pub fn try_astype<U>(&self) -> anyhow::Result<Tensor<U, Cpu, DEVICE>>
+    pub fn try_astype<U>(&self) -> Result<Tensor<U, Cpu, DEVICE>, TensorError>
     where
         U: CommonBounds,
         T: IntoScalar<U>,
@@ -286,7 +286,9 @@ impl<const N: usize, T: CommonBounds + ToBytes<Bytes = [u8; N]>, const DEVICE: u
             data_saver: Box::new(data_loader),
             compression_level: level,
         };
+        let old = *len_so_far / N;
         let info = save(file, meta, len_so_far, *global_cnt)?;
+        println!("shape: {:?}, len: {}, product: {}, indices: {:?}", info.2, ((*len_so_far) / N) - old, info.2.iter().product::<i64>(), info.8.iter().map(|x| x.1).collect::<Vec<_>>());
         *global_cnt += 1;
         Ok(TensorMeta {
             begin: info.0,
