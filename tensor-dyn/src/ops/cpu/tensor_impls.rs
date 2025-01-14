@@ -286,9 +286,7 @@ impl<const N: usize, T: CommonBounds + ToBytes<Bytes = [u8; N]>, const DEVICE: u
             data_saver: Box::new(data_loader),
             compression_level: level,
         };
-        let old = *len_so_far / N;
         let info = save(file, meta, len_so_far, *global_cnt)?;
-        println!("shape: {:?}, len: {}, product: {}, indices: {:?}", info.2, ((*len_so_far) / N) - old, info.2.iter().product::<i64>(), info.8.iter().map(|x| x.1).collect::<Vec<_>>());
         *global_cnt += 1;
         Ok(TensorMeta {
             begin: info.0,
