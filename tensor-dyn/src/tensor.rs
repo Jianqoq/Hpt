@@ -38,9 +38,9 @@ where
     B: BackendTy + Buffer,
 {
     pub(crate) inner: Tensor<T, B, DEVICE_ID>,
-    pub(crate) grad: Option<Tensor<T, B, DEVICE_ID>>,
+    pub(crate) grad: Rc<RefCell<Option<Tensor<T, B, DEVICE_ID>>>>,
     pub(crate) out_degree: Rc<RefCell<usize>>,
-    pub(crate) backward: Rc<RefCell<dyn FnMut(Tensor<T, B, DEVICE_ID>) -> Result<(), TensorError>>>,
+    pub(crate) backward: Rc<RefCell<dyn FnMut(Tensor<T, B, DEVICE_ID>) -> Result<bool, TensorError>>>,
 }
 
 impl<T, const DEVICE: usize> TensorLike<T> for Tensor<T, Cpu, DEVICE>

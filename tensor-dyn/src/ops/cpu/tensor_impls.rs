@@ -140,7 +140,7 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
         T: IntoScalar<U>,
     {
         // Create an empty tensor of the new type with the same shape.
-        let mut ret: _Tensor<U, Cpu, DEVICE> =
+        let mut ret =
             _Tensor::<U, Cpu, DEVICE>::empty(self.layout.shape().clone())?;
 
         // Parallel iteration to convert and copy each element to the new tensor.

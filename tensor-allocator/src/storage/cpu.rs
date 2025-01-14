@@ -8,6 +8,7 @@ use super::{SafePtr, Storage};
 /// This is a global variable that stores the allocated ptrs and their reference count
 pub static CPU_STORAGE: Lazy<Mutex<CpuStorage>> = Lazy::new(|| Mutex::new(CpuStorage::new()));
 
+#[derive(Debug)]
 pub struct CpuStorage {
     storage: HashMap<SafePtr, usize>,
 }

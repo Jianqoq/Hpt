@@ -3,6 +3,7 @@ use std::{collections::HashMap, fs::File, io::BufRead, path::Path};
 use safetensors::SafeTensors;
 use serde::{Deserialize, Deserializer};
 use serde_json::{json, Value};
+use tensor::DiffTensor;
 use tensor_common::shape::shape::Shape;
 use tensor_dyn::*;
 use traits::SimdMath;
@@ -730,32 +731,12 @@ fn create_resnet() -> anyhow::Result<ResNet> {
         fc,
     })
 }
+
 fn main() -> anyhow::Result<()> {
-    let resnet = create_resnet()?;
-    resnet.save("resnet.model")?;
-
-    // let weights = std::fs::read("resnet")?;
-    // let weights = safetensors::SafeTensors::deserialize(&weights)?;
-    // println!("{:#?}", Tensor::<f32>::from_safe_tensors(&weights, "layer3.0.bn1.bias"));
-
-    let buffer = std::fs::read("resnet_inp")?;
-    let inp = safetensors::SafeTensors::deserialize(&buffer)?;
-    let inp = Tensor::<f32>::from_safe_tensors(&inp, "inp")
-        .permute(&[0, 2, 3, 1])?
-        .contiguous()?;
-    let data = ResNet::load("resnet.model")?;
-    // let now = std::time::Instant::now();
-    // // for _ in 0..10 {
-    let output = data.forward(&inp)?;
-    // // }
-    println!(
-        "{}",
-        output
-            .permute(&[0, 3, 1, 2])?
-            .contiguous()?
-            .reshape(&[5, 1000])?
-    );
-
-    // visit_dirs("txt_weights")?;
+    let a = DiffTensor::<f32>::new([10.0]);
+    let b = DiffTensor::<i64>::new([20]);
+    let mut c = a.clone() + a.clone();
+    c.backward(Tensor::<f32>::new([1.0]))?;
+    println!("{:?}", a.grad());
     Ok(())
 }

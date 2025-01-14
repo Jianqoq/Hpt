@@ -1,11 +1,13 @@
 use crate::backend::Backend;
-use crate::tensor::Tensor;
+use crate::tensor::{DiffTensor, Tensor};
 use crate::{backend::Cpu, tensor_base::_Tensor};
 use half::bf16;
 use half::f16;
 use num::complex::{Complex32, Complex64};
 use std::alloc::Layout;
+use std::cell::RefCell;
 use std::mem::ManuallyDrop;
+use std::rc::Rc;
 use std::sync::Arc;
 use tensor_allocator::CACHE;
 use tensor_common::utils::pointer::Pointer;
@@ -451,12 +453,28 @@ impl_type_num!(ndarray_source_target, f64, N, M, O, P, Q, R, S; i, j, k, l, m, n
 impl_type_num!(ndarray_source_target, f32, N, M, O, P, Q, R, S, T; i, j, k, l, m, n, o; Complex32);
 impl_type_num!(ndarray_source_target, f64, N, M, O, P, Q, R, S, T; i, j, k, l, m, n, o; Complex64);
 
-impl<T> Tensor<T, Cpu> {
+impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     /// Creates a new tensor from the provided data.
     pub fn new<A>(data: A) -> Self
     where
-        A: Into<Tensor<T>>,
+        A: Into<Tensor<T, Cpu, DEVICE>>,
     {
         data.into()
+    }
+}
+
+impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
+    /// Creates a new differentiable tensor from the provided data.
+    pub fn new<A>(data: A) -> Self
+    where
+        A: Into<Tensor<T, Cpu, DEVICE>>,
+    {
+        let ret = data.into();
+        DiffTensor {
+            inner: ret,
+            grad: Rc::new(RefCell::new(None)),
+            out_degree: Rc::new(RefCell::new(0)),
+            backward: Rc::new(RefCell::new(move |_| Ok(true))),
+        }
     }
 }

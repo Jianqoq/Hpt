@@ -50,6 +50,13 @@ impl Allocator for CpuAllocator {
     fn insert_ptr(&mut self, ptr: *mut u8, device_id: usize) {
         if let Some(allocator) = self.allocator.get_mut(&device_id) {
             allocator.insert_ptr(ptr);
+        } else {
+            let mut allocator = _Allocator {
+                cache: LruCache::new(NonZeroUsize::new(100).unwrap()),
+                allocated: HashSet::new(),
+            };
+            allocator.insert_ptr(ptr);
+            self.allocator.insert(device_id, allocator);
         }
     }
 

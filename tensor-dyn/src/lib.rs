@@ -244,6 +244,13 @@ pub mod ops {
         pub mod std_ops;
         /// a module contains differentiable tensor utils
         pub mod utils;
+        /// a module contains differentiable tensor external impls
+        pub mod tensor_external {
+            /// a module contains differentiable tensor normal creation impls
+            pub mod normal_creation;
+        }
+        /// a module contains differentiable tensor impls
+        pub mod tensor_impl;
     }
 
     /// a module contains all the common ops

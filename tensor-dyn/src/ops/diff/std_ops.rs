@@ -48,7 +48,7 @@ where
         let mut rhs = rhs.clone();
         DiffTensor {
             inner: res,
-            grad: None,
+            grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
             backward: Rc::new(RefCell::new(
                 move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE>| {
@@ -56,7 +56,7 @@ where
                     let rhs_grad = grad.try_astype::<U>()?;
                     handle_grad(&mut lhs, lhs_grad, &lhs_broadcast_axes)?;
                     handle_grad(&mut rhs, rhs_grad, &rhs_broadcast_axes)?;
-                    Ok(())
+                    Ok(false)
                 },
             )),
         }
@@ -95,7 +95,7 @@ where
         let mut rhs = rhs.clone();
         DiffTensor {
             inner: res,
-            grad: None,
+            grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
             backward: Rc::new(RefCell::new(
                 move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE>| {
@@ -103,7 +103,7 @@ where
                     let rhs_grad = grad.try_astype::<U>()?;
                     handle_grad(&mut lhs, lhs_grad, &lhs_broadcast_axes)?;
                     handle_grad(&mut rhs, rhs_grad, &rhs_broadcast_axes)?;
-                    Ok(())
+                    Ok(false)
                 },
             )),
         }
@@ -146,7 +146,7 @@ where
         let mut rhs = rhs.clone();
         DiffTensor {
             inner: res,
-            grad: None,
+            grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
             backward: Rc::new(RefCell::new(
                 move |grad: Tensor<<T as FloatOutBinary<U>>::Output, Cpu, DEVICE>| {
@@ -172,7 +172,7 @@ where
                     )?.try_astype::<U>()?;
                     handle_grad(&mut lhs, lhs_grad.into(), &lhs_broadcast_axes)?;
                     handle_grad(&mut rhs, rhs_grad.into(), &rhs_broadcast_axes)?;
-                    Ok(())
+                    Ok(false)
                 },
             )),
         }
@@ -222,7 +222,7 @@ where
         let mut rhs = rhs.clone();
         DiffTensor {
             inner: res,
-            grad: None,
+            grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
             backward: Rc::new(RefCell::new(
                 move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE>| {
@@ -230,7 +230,7 @@ where
                     let rhs_grad = (grad.clone() * lhs.inner.clone()).try_astype::<U>()?;
                     handle_grad(&mut lhs, lhs_grad, &lhs_broadcast_axes)?;
                     handle_grad(&mut rhs, rhs_grad, &rhs_broadcast_axes)?;
-                    Ok(())
+                    Ok(false)
                 },
             )),
         }
