@@ -240,21 +240,8 @@ pub mod ops {
 
     /// a module contains differentiable tensor operations
     pub mod diff {
-        /// a module contains differentiable tensor std ops
-        pub mod std_ops;
         /// a module contains differentiable tensor utils
         pub mod utils;
-        /// a module contains differentiable tensor external impls
-        pub mod tensor_external {
-            /// a module contains differentiable tensor normal creation impls
-            pub mod normal_creation;
-            /// a module contains differentiable tensor shape manipulation impls
-            pub mod shape_manipulate;
-            /// a module contains differentiable tensor random impls
-            pub mod random;
-            /// a module contains differentiable tensor common reduce impls
-            pub mod common_reduce;
-        }
         /// a module contains differentiable tensor impls
         pub mod tensor_impl;
     }
