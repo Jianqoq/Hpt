@@ -734,7 +734,6 @@ fn create_resnet() -> anyhow::Result<ResNet> {
 
 fn main() -> anyhow::Result<()> {
     let a = DiffTensor::<f32>::new([10.0]);
-    let b = DiffTensor::<f32>::new([20.0]);
     let mut c = &a + &a;
     c.backward(Tensor::<f32>::new([1.0]))?;
     println!("{:?}", a.grad());
