@@ -22,8 +22,8 @@ use tensor_traits::{
 };
 use tensor_types::into_scalar::IntoScalar;
 
-impl<T> Random
-    for _Tensor<T, Cpu>
+impl<T, const DEVICE: usize> Random
+    for _Tensor<T, Cpu, DEVICE>
     where
         T: CommonBounds + SampleUniform + num::Float + rand_distr::num_traits::FloatConst,
         <T as SampleUniform>::Sampler: Sync,
@@ -36,7 +36,7 @@ impl<T> Random
     type Meta = T;
     fn randn<S: Into<Shape>>(shape: S) -> Result<Self> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let mut ret = _Tensor::empty(res_shape)?;
         let normal = Normal::new(T::from(0.0).unwrap(), T::from(1.0).unwrap())?;
         ret.as_raw_mut()
             .into_par_iter()
@@ -56,7 +56,7 @@ impl<T> Random
 
     fn rand<S: Into<Shape>>(shape: S, low: Self::Meta, high: Self::Meta) -> Result<Self> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let mut ret = _Tensor::empty(res_shape)?;
         let normal = Uniform::new(low, high);
         ret.as_raw_mut()
             .into_par_iter()
@@ -76,7 +76,7 @@ impl<T> Random
 
     fn beta<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let mut ret = _Tensor::empty(res_shape)?;
         let normal = rand_distr::Beta::new(a, b)?;
         ret.as_raw_mut()
             .into_par_iter()
@@ -96,7 +96,7 @@ impl<T> Random
 
     fn chisquare<S: Into<Shape>>(df: Self::Meta, shape: S) -> Result<Self> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let mut ret = _Tensor::empty(res_shape)?;
         let normal = rand_distr::ChiSquared::new(df)?;
         ret.as_raw_mut()
             .into_par_iter()
@@ -116,7 +116,7 @@ impl<T> Random
 
     fn exponential<S: Into<Shape>>(lambda: Self::Meta, shape: S) -> Result<Self> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let mut ret = _Tensor::empty(res_shape)?;
         let normal = rand_distr::Exp::new(lambda)?;
         ret.as_raw_mut()
             .into_par_iter()
@@ -136,7 +136,7 @@ impl<T> Random
 
     fn gamma<S: Into<Shape>>(gamma_shape: Self::Meta, scale: Self::Meta, shape: S) -> Result<Self> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let mut ret = _Tensor::empty(res_shape)?;
         let normal = rand_distr::Gamma::new(gamma_shape, scale)?;
         ret.as_raw_mut()
             .into_par_iter()
@@ -156,7 +156,7 @@ impl<T> Random
 
     fn gumbel<S: Into<Shape>>(mu: Self::Meta, beta: Self::Meta, shape: S) -> Result<Self> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let mut ret = _Tensor::empty(res_shape)?;
         let normal = rand_distr::Gumbel::new(mu, beta)?;
         ret.as_raw_mut()
             .into_par_iter()
@@ -176,7 +176,7 @@ impl<T> Random
 
     fn lognormal<S: Into<Shape>>(mean: Self::Meta, std: Self::Meta, shape: S) -> Result<Self> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let mut ret = _Tensor::empty(res_shape)?;
         let normal = rand_distr::LogNormal::new(mean, std)?;
         ret.as_raw_mut()
             .into_par_iter()
@@ -200,7 +200,7 @@ impl<T> Random
         shape: S
     ) -> Result<Self> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let mut ret = _Tensor::empty(res_shape)?;
         let normal = NormalInverseGaussian::new(mean, std)?;
         ret.as_raw_mut()
             .into_par_iter()
@@ -219,7 +219,7 @@ impl<T> Random
 
     fn pareto<S: Into<Shape>>(pareto_shape: Self::Meta, a: Self::Meta, shape: S) -> Result<Self> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let mut ret = _Tensor::empty(res_shape)?;
         let pareto = rand_distr::Pareto::new(a, pareto_shape)?;
         ret.as_raw_mut()
             .into_par_iter()
@@ -238,7 +238,7 @@ impl<T> Random
 
     fn poisson<S: Into<Shape>>(lambda: Self::Meta, shape: S) -> Result<Self> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let mut ret = _Tensor::empty(res_shape)?;
         let poisson = rand_distr::Poisson::new(lambda)?;
         ret.as_raw_mut()
             .into_par_iter()
@@ -257,7 +257,7 @@ impl<T> Random
 
     fn weibull<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let mut ret = _Tensor::empty(res_shape)?;
         let weibull = rand_distr::Weibull::new(a, b)?;
         ret.as_raw_mut()
             .into_par_iter()
@@ -276,7 +276,7 @@ impl<T> Random
 
     fn zipf<S: Into<Shape>>(n: u64, a: Self::Meta, shape: S) -> Result<Self> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let mut ret = _Tensor::empty(res_shape)?;
         let zipf = rand_distr::Zipf::new(n, a)?;
         ret.as_raw_mut()
             .into_par_iter()
@@ -300,7 +300,7 @@ impl<T> Random
         shape: S
     ) -> Result<Self> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let mut ret = _Tensor::empty(res_shape)?;
         let triangular = rand_distr::Triangular::new(low, high, mode)?;
         ret.as_raw_mut()
             .into_par_iter()
@@ -321,7 +321,7 @@ impl<T> Random
         where T: IntoScalar<f64>, bool: IntoScalar<T>
     {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let mut ret = _Tensor::empty(res_shape)?;
         let bernoulli = rand_distr::Bernoulli::new(p.into_scalar())?;
         ret.as_raw_mut()
             .into_par_iter()
@@ -335,13 +335,13 @@ impl<T> Random
     }
 }
 
-impl<T> RandomInt for _Tensor<T, Cpu> where T: CommonBounds + SampleUniform {
+impl<T, const DEVICE: usize> RandomInt for _Tensor<T, Cpu, DEVICE> where T: CommonBounds + SampleUniform {
     type Meta = T;
     fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self>
         where <T as SampleUniform>::Sampler: Sync
     {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu>::empty(res_shape)?;
+        let mut ret = _Tensor::empty(res_shape)?;
         let normal = Uniform::new(low, high);
         ret.as_raw_mut()
             .into_par_iter()
@@ -358,6 +358,6 @@ impl<T> RandomInt for _Tensor<T, Cpu> where T: CommonBounds + SampleUniform {
     fn randint_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self>
         where <T as SampleUniform>::Sampler: Sync
     {
-        _Tensor::<T, Cpu>::randint(low, high, self.shape().clone())
+        _Tensor::randint(low, high, self.shape().clone())
     }
 }

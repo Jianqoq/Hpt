@@ -103,8 +103,7 @@ where
                     let mut prg = vec![0; input.ndim()];
                     for _ in 0..outer_loop_size {
                         for i in 0..inner_loop_size {
-                            let a_val = a_data[i * a_last_stride];
-                            res_ptr[i] = a_val;
+                            res_ptr[i] = a_data[i * a_last_stride];
                         }
                         next_sub1(
                             &mut prg,

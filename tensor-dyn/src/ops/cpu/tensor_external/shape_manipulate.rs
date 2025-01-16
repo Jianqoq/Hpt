@@ -1,12 +1,13 @@
 use crate::ops::cpu::concat::concat;
+use crate::Cpu;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
 use tensor_common::error::base::TensorError;
 use tensor_common::{axis::axis::Axis, shape::shape::Shape};
 use tensor_traits::{CommonBounds, ShapeManipulate};
 
-impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
+impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for Tensor<T, Cpu, DEVICE> {
     type Meta = T;
-    type Output = Tensor<T>;
+    type Output = Tensor<T, Cpu, DEVICE>;
 
     fn squeeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::squeeze(self.inner.as_ref(), axes)?.into())
@@ -133,14 +134,14 @@ impl<T: CommonBounds> ShapeManipulate for Tensor<T> {
     }
 
     fn vstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
-        Ok(concat(tensors.iter().map(|x| x.inner.as_ref()).collect(), 0, false)?.into())
+        Tensor::concat(tensors, 0, false)
     }
 
     fn hstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
-        Ok(concat(tensors.iter().map(|x| x.inner.as_ref()).collect(), 1, false)?.into())
+        Tensor::concat(tensors, 1, false)
     }
 
     fn dstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
-        Ok(concat(tensors.iter().map(|x| x.inner.as_ref()).collect(), 2, false)?.into())
+        Tensor::concat(tensors, 2, false)
     }
 }

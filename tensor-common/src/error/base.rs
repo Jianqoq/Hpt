@@ -1,6 +1,9 @@
 use thiserror::Error;
 
-use super::{device::DeviceError, kernel::KernelError, memory::MemoryError, param::ParamError, shape::ShapeError};
+use super::{
+    autograd::AutogradError, device::DeviceError, kernel::KernelError, memory::MemoryError,
+    param::ParamError, shape::ShapeError,
+};
 
 /// Base error type for all tensor operations
 #[derive(Debug, Error)]
@@ -24,4 +27,8 @@ pub enum TensorError {
     /// Parameter-related errors such as invalid function arguments
     #[error(transparent)]
     Param(#[from] ParamError),
+
+    /// Autograd-related errors such as inplace computation is not allowed
+    #[error(transparent)]
+    Autograd(#[from] AutogradError),
 }

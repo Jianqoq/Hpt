@@ -1,5 +1,8 @@
 use std::{
-    borrow::{Borrow, BorrowMut}, fmt::{Debug, Display}, rc::Rc, sync::{atomic::Ordering, Arc}
+    borrow::{Borrow, BorrowMut},
+    fmt::{Debug, Display},
+    rc::Rc,
+    sync::{atomic::Ordering, Arc},
 };
 
 use crate::{
@@ -40,7 +43,8 @@ where
     pub(crate) inner: Tensor<T, B, DEVICE_ID>,
     pub(crate) grad: Rc<RefCell<Option<Tensor<T, B, DEVICE_ID>>>>,
     pub(crate) out_degree: Rc<RefCell<usize>>,
-    pub(crate) backward: Rc<RefCell<dyn FnMut(Tensor<T, B, DEVICE_ID>) -> Result<bool, TensorError>>>,
+    pub(crate) backward:
+        Rc<RefCell<dyn FnMut(Tensor<T, B, DEVICE_ID>) -> Result<bool, TensorError>>>,
 }
 
 impl<T, const DEVICE: usize> TensorLike<T> for Tensor<T, Cpu, DEVICE>

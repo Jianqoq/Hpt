@@ -15,4 +15,5 @@ pub mod memory;
 pub mod shape;
 /// Parameter-related errors (function arguments, etc.)
 pub mod param;
-
+/// Autograd-related errors (gradient computation, etc.)
+pub mod autograd;
