@@ -249,11 +249,11 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for _Tensor<T, Cpu, D
     }
 }
 
-impl<T> EvalReduce for _Tensor<T>
+impl<T, const DEVICE: usize> EvalReduce for _Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
 {
-    type BoolOutput = _Tensor<bool>;
+    type BoolOutput = _Tensor<bool, Cpu, DEVICE>;
     fn all<S: Into<Axis>>(
         &self,
         axis: S,
@@ -303,7 +303,7 @@ where
     }
 }
 
-impl<T> NormalEvalReduce<T> for _Tensor<T>
+impl<T, const DEVICE: usize> NormalEvalReduce<T> for _Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
     T::Vec: Eval,
@@ -473,7 +473,7 @@ where
     // }
 }
 
-impl<T> _Tensor<T>
+impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
 where
     T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output> + Convertor,
     <T as FloatOutBinary>::Output:
@@ -510,7 +510,7 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>>, TensorError>
+    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
     where
         f64: IntoScalar<<T as FloatOutBinary>::Output>,
         <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
@@ -564,7 +564,7 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>>, TensorError>
+    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
     where
         T: NormalOut,
         <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
@@ -614,7 +614,7 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>>, TensorError>
+    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
     where
         f64: IntoScalar<<T as FloatOutBinary>::Output>,
         <T as FloatOutBinary>::Output: TypeCommon,
@@ -694,7 +694,7 @@ where
         &self,
         _: S,
         _: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>>, TensorError>
+    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds,
     {

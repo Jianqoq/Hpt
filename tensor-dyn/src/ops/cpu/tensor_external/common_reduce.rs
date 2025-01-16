@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 
-use crate::{ops::cpu::tensor_internal::float_out_unary::FloatBinaryType, Cpu};
+use crate::{ ops::cpu::tensor_internal::float_out_unary::FloatBinaryType, Cpu };
 use crate::tensor::Tensor;
 use tensor_common::axis::axis::Axis;
 use tensor_common::error::base::TensorError;
@@ -16,7 +16,11 @@ use tensor_types::{
 impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for Tensor<T, Cpu, DEVICE> {
     type Output = Self;
 
-    fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
+    fn sum<S: Into<Axis>>(
+        &self,
+        axes: S,
+        keep_dims: bool
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.sum(axes, keep_dims)?.into())
     }
 
@@ -41,7 +45,11 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for Tensor<T, Cpu, DE
     //     Ok(self.inner.sum_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
+    fn prod<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.prod(axis, keep_dims)?.into())
     }
 
@@ -54,7 +62,11 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for Tensor<T, Cpu, DE
     //     Ok(self.inner.prod_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self, TensorError> {
+    fn min<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool
+    ) -> std::result::Result<Self, TensorError> {
         Ok(self.inner.min(axis, keep_dims)?.into())
     }
 
@@ -67,7 +79,11 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for Tensor<T, Cpu, DE
     //     Ok(self.inner.min_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self, TensorError> {
+    fn max<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool
+    ) -> std::result::Result<Self, TensorError> {
         Ok(self.inner.max(axis, keep_dims)?.into())
     }
 
@@ -80,28 +96,47 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for Tensor<T, Cpu, DE
     //     Ok(self.inner.max_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
+    fn reducel1<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.reducel1(axis, keep_dims)?.into())
     }
 
-    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
+    fn sum_square<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.sum_square(axis, keep_dims)?.into())
     }
 }
 
-impl<T> EvalReduce for Tensor<T> where T: CommonBounds + Eval<Output = bool> + IntoScalar<bool> {
-    type BoolOutput = Tensor<bool>;
-    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::BoolOutput, TensorError> {
+impl<T, const DEVICE: usize> EvalReduce
+    for Tensor<T, Cpu, DEVICE>
+    where T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>
+{
+    type BoolOutput = Tensor<bool, Cpu, DEVICE>;
+    fn all<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool
+    ) -> std::result::Result<Self::BoolOutput, TensorError> {
         Ok(self.inner.all(axis, keep_dims)?.into())
     }
 
-    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::BoolOutput, TensorError> {
+    fn any<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool
+    ) -> std::result::Result<Self::BoolOutput, TensorError> {
         Ok(self.inner.any(axis, keep_dims)?.into())
     }
 }
 
-impl<T> NormalEvalReduce<T>
-    for Tensor<T>
+impl<T, const DEVICE: usize> NormalEvalReduce<T>
+    for Tensor<T, Cpu, DEVICE>
     where
         T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
         T::Vec: Eval,
@@ -109,7 +144,11 @@ impl<T> NormalEvalReduce<T>
 {
     type Output = Self;
 
-    fn nansum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
+    fn nansum<S: Into<Axis>>(
+        &self,
+        axes: S,
+        keep_dims: bool
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.nansum(axes, keep_dims)?.into())
     }
 
@@ -134,7 +173,11 @@ impl<T> NormalEvalReduce<T>
     //     Ok(self.inner.nansum_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
+    fn nanprod<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.nanprod(axis, keep_dims)?.into())
     }
 
@@ -148,7 +191,7 @@ impl<T> NormalEvalReduce<T>
     // }
 }
 
-impl<T> Tensor<T>
+impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE>
     where
         T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output> + Convertor,
         <T as FloatOutBinary>::Output: CommonBounds +
@@ -189,7 +232,7 @@ impl<T> Tensor<T>
         axis: S,
         keep_dims: bool
     )
-        -> anyhow::Result<Tensor<FloatBinaryType<T>>>
+        -> Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
         where
             f64: IntoScalar<<T as FloatOutBinary>::Output>,
             <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
@@ -223,7 +266,7 @@ impl<T> Tensor<T>
         axis: S,
         keep_dims: bool
     )
-        -> anyhow::Result<Tensor<FloatBinaryType<T>>>
+        -> Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
         where
             T: NormalOut,
             <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
@@ -259,7 +302,7 @@ impl<T> Tensor<T>
         axis: S,
         keep_dims: bool
     )
-        -> anyhow::Result<Tensor<FloatBinaryType<T>>>
+        -> Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
         where
             f64: IntoScalar<<T as FloatOutBinary>::Output>,
             <T as FloatOutBinary>::Output: TypeCommon,
@@ -297,7 +340,7 @@ impl<T> Tensor<T>
         &self,
         _: S,
         _: bool
-    ) -> anyhow::Result<Tensor<FloatBinaryType<T>>>
+    ) -> anyhow::Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>>
         where T: CommonBounds
     {
         todo!()
