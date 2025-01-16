@@ -160,6 +160,9 @@ pub mod ops {
         }
         /// a module contains cpu tensor impls
         pub(crate) mod tensor_impls;
+
+        /// a module contains differentiable tensor utils
+        pub(crate) mod diff_utils;
     }
 
     #[cfg(feature = "cuda")]
@@ -236,14 +239,6 @@ pub mod ops {
         pub(crate) mod std_ops;
         /// a module contains cuda normal out unary impls
         pub(crate) mod unary;
-    }
-
-    /// a module contains differentiable tensor operations
-    pub mod diff {
-        /// a module contains differentiable tensor utils
-        pub mod utils;
-        /// a module contains differentiable tensor impls
-        pub mod tensor_impl;
     }
 
     /// a module contains all the common ops

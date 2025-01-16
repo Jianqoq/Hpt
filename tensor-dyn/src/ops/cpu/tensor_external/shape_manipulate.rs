@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::ops::cpu::concat::concat;
-use crate::ops::diff::utils::handle_grad;
+use crate::ops::cpu::diff_utils::handle_grad;
 use crate::tensor::DiffTensor;
 use crate::Cpu;
 use crate::{tensor::Tensor, tensor_base::_Tensor};

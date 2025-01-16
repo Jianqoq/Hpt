@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::{fmt::Display, sync::atomic::Ordering};
 
+use crate::tensor::DiffTensor;
 use crate::CompressionAlgo;
 use crate::Cpu;
 use crate::{save, Save};
@@ -381,5 +382,20 @@ impl<T: CommonBounds, const DEVICE: usize> FromSafeTensors for Tensor<T, Cpu, DE
                 panic!("tensor not found: {}", e);
             }
         }
+    }
+}
+
+impl<T: Clone, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
+    /// Backward the gradient of the tensor
+    pub fn backward(&mut self, grad: Tensor<T, Cpu, DEVICE>) -> Result<(), TensorError> {
+        if let Ok(true) = self.backward.borrow_mut()(grad.clone()) {
+            self.grad.borrow_mut().replace(grad);
+        }
+        Ok(())
+    }
+
+    /// Get the gradient of the tensor
+    pub fn grad(&self) -> Option<Tensor<T, Cpu, DEVICE>> {
+        self.grad.borrow().as_ref().cloned()
     }
 }

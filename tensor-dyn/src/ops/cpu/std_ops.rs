@@ -27,7 +27,7 @@ use crate::tensor::DiffTensor;
 use tensor_common::shape::shape_utils::get_broadcast_axes_from;
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::ops::diff::utils::handle_grad;
+use crate::ops::cpu::diff_utils::handle_grad;
 
 #[duplicate::duplicate_item(
     lhs_type     rhs_type    out_type     trait_name;
