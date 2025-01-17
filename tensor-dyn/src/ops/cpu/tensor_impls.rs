@@ -54,10 +54,7 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> TensorInfo<T> for _Tensor<T, Cpu, DEVICE>
-where
-    T: CommonBounds,
-{
+impl<T: Clone, const DEVICE: usize> TensorInfo<T> for _Tensor<T, Cpu, DEVICE> {
     fn ptr(&self) -> Pointer<T> {
         self.data.clone()
     }
@@ -84,9 +81,7 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> TensorInfo<T> for &_Tensor<T, Cpu, DEVICE>
-where
-    T: CommonBounds,
+impl<T: Clone, const DEVICE: usize> TensorInfo<T> for &_Tensor<T, Cpu, DEVICE>
 {
     fn ptr(&self) -> Pointer<T> {
         self.data.clone()
@@ -141,8 +136,7 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
         T: IntoScalar<U>,
     {
         // Create an empty tensor of the new type with the same shape.
-        let mut ret =
-            _Tensor::<U, Cpu, DEVICE>::empty(self.layout.shape().clone())?;
+        let mut ret = _Tensor::<U, Cpu, DEVICE>::empty(self.layout.shape().clone())?;
 
         // Parallel iteration to convert and copy each element to the new tensor.
         ret.as_raw_mut()

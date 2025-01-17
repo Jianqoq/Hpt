@@ -1,5 +1,5 @@
 use crate::{
-    ops::cpu::reduce_utils::{ reduce_prepare, uncontiguous_reduce_prepare },
+    ops::cpu::utils::reduce::reduce_utils::{ reduce_prepare, uncontiguous_reduce_prepare },
     tensor_base::_Tensor, Cpu,
 };
 use tensor_common::error::base::TensorError;

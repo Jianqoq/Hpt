@@ -1,10 +1,18 @@
 use std::borrow::BorrowMut;
 
-use tensor_common::{error::{base::TensorError, shape::ShapeError}, utils::pointer::Pointer, shape::shape::Shape, shape::shape_utils::mt_intervals, strides::strides::Strides};
+use tensor_common::{
+    error::{base::TensorError, shape::ShapeError},
+    shape::shape::Shape,
+    shape::shape_utils::mt_intervals,
+    strides::strides::Strides,
+    utils::pointer::Pointer,
+};
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo};
 use tensor_types::into_scalar::IntoScalar;
 
-use crate::{backend::Cpu, ops::cpu::reduce_utils::rearrange_array, tensor_base::_Tensor};
+use crate::{
+    backend::Cpu, ops::cpu::utils::reduce::reduce_utils::rearrange_array, tensor_base::_Tensor,
+};
 
 #[derive(Debug, Clone)]
 pub(crate) struct SoftmaxPreprocessor<T, U> {
@@ -19,7 +27,11 @@ pub(crate) struct SoftmaxPreprocessor<T, U> {
     pub a_shape: Shape,
 }
 
-impl<T, U> SoftmaxPreprocessor<T, U> where T: Clone, U: Clone {
+impl<T, U> SoftmaxPreprocessor<T, U>
+where
+    T: Clone,
+    U: Clone,
+{
     pub fn new(
         num_threads: usize,
         loop_size: usize,
@@ -29,7 +41,7 @@ impl<T, U> SoftmaxPreprocessor<T, U> where T: Clone, U: Clone {
         res_strides: Strides,
         a_shape: Shape,
         transposed_shape: Shape,
-        reduce_shape: Shape
+        reduce_shape: Shape,
     ) -> Vec<SoftmaxPreprocessor<T, U>> {
         let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
         let mut task_amout = 0;
@@ -54,8 +66,7 @@ impl<T, U> SoftmaxPreprocessor<T, U> where T: Clone, U: Clone {
             // [40, 41, 42, 43, 44, 45, 46, 47, 48, 49]     thread 4
             // where the first axis is where we are splitting the tensor
             let mut tmp1 = task_amout as i64;
-            let mut prg =
-                vec![0; a_shape.len() - 1]; /* -1 because we want to escape the last axis */
+            let mut prg = vec![0; a_shape.len() - 1]; /* -1 because we want to escape the last axis */
 
             // since the axis we want to reduce include the most inner axis, we will skip the iteration of the last axis
             // so we use (0..=a_shape.len() - 2).rev()
@@ -95,7 +106,7 @@ impl<T, U> SoftmaxPreprocessor<T, U> where T: Clone, U: Clone {
         transposed_strides: Strides,
         res_transposed_strides: Strides,
         transposed_shape: Shape,
-        reduce_shape: Shape
+        reduce_shape: Shape,
     ) -> Vec<SoftmaxPreprocessor<T, U>> {
         let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
         let mut task_amout = 0;
@@ -116,12 +127,10 @@ impl<T, U> SoftmaxPreprocessor<T, U> where T: Clone, U: Clone {
             let res_ptr_cpy = res_ptr_cpy.borrow_mut();
 
             for i in (0..ndim - 1).rev() {
-                a_data_ptr_cpy.offset(
-                    progress_init_a_data[i as usize] * transposed_strides[i as usize]
-                );
-                res_ptr_cpy.offset(
-                    progress_init_a_data[i as usize] * res_transposed_strides[i as usize]
-                );
+                a_data_ptr_cpy
+                    .offset(progress_init_a_data[i as usize] * transposed_strides[i as usize]);
+                res_ptr_cpy
+                    .offset(progress_init_a_data[i as usize] * res_transposed_strides[i as usize]);
             }
 
             let progress_init_a_data_cpy = progress_init_a_data.clone();
@@ -165,7 +174,11 @@ pub(crate) struct UCSoftmaxPreprocessor<T, U> {
     pub a_shape: Shape,
 }
 
-impl<T, U> UCSoftmaxPreprocessor<T, U> where T: Clone, U: Clone {
+impl<T, U> UCSoftmaxPreprocessor<T, U>
+where
+    T: Clone,
+    U: Clone,
+{
     pub fn new2(
         num_threads: usize,
         loop_size: usize,
@@ -174,7 +187,7 @@ impl<T, U> UCSoftmaxPreprocessor<T, U> where T: Clone, U: Clone {
         transposed_strides: Strides,
         transposed_shape: Shape,
         reduce_shape: Shape,
-        res_strides: Strides
+        res_strides: Strides,
     ) -> Vec<UCSoftmaxPreprocessor<T, U>> {
         let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
         let mut task_amout = 0;
@@ -188,9 +201,8 @@ impl<T, U> UCSoftmaxPreprocessor<T, U> where T: Clone, U: Clone {
             let res_ptrs_cpy = res_ptrs_cpy.borrow_mut();
 
             for i in (0..ndim - 1).rev() {
-                a_data_ptr_cpy.offset(
-                    progress_init_a_data[i as usize] * transposed_strides[i as usize]
-                );
+                a_data_ptr_cpy
+                    .offset(progress_init_a_data[i as usize] * transposed_strides[i as usize]);
                 res_ptrs_cpy.offset(progress_init_a_data[i as usize] * res_strides[i as usize]);
             }
 
@@ -225,7 +237,7 @@ impl<T, U> UCSoftmaxPreprocessor<T, U> where T: Clone, U: Clone {
 pub(crate) fn softmax_prepare<T: CommonBounds, O: CommonBounds>(
     a: &_Tensor<T>,
     axis: usize,
-    c: Option<_Tensor<O>>
+    c: Option<_Tensor<O>>,
 ) -> std::result::Result<(bool, _Tensor<T>, _Tensor<O>), TensorError> {
     let mut keep_fast_dim = true;
     if a.strides()[axis] == 1 {
@@ -256,15 +268,14 @@ pub(crate) fn contiguous_softmax_template<T, F1, F2, F3, O>(
     c: Option<_Tensor<O>>,
     full_reduce: F1,
     nkd: F2,
-    kd: F3
-)
-    -> anyhow::Result<_Tensor<O>>
-    where
-        T: CommonBounds + IntoScalar<O>,
-        O: CommonBounds,
-        F1: Fn(&mut O),
-        F2: Fn(usize, usize, &_Tensor<O>, &_Tensor<T>),
-        F3: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>)
+    kd: F3,
+) -> anyhow::Result<_Tensor<O>>
+where
+    T: CommonBounds + IntoScalar<O>,
+    O: CommonBounds,
+    F1: Fn(&mut O),
+    F2: Fn(usize, usize, &_Tensor<O>, &_Tensor<T>),
+    F3: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>),
 {
     let (keep_fast_dim, transposed_tensor, result) = softmax_prepare(a, axis, c)?;
 
@@ -299,7 +310,13 @@ pub(crate) fn contiguous_softmax_template<T, F1, F2, F3, O>(
             } else {
                 rayon::current_num_threads()
             };
-            kd(num_threads, inner_loop_size, inner_loop_size_2, &result, &transposed_tensor);
+            kd(
+                num_threads,
+                inner_loop_size,
+                inner_loop_size_2,
+                &result,
+                &transposed_tensor,
+            );
         }
     }
     Ok(result)
@@ -312,15 +329,14 @@ pub(crate) fn uncontiguous_softmax_template<T, F1, F2, F3, O>(
     c: Option<_Tensor<O>>,
     full_reduce: F1,
     nkd: F2,
-    kd: F3
-)
-    -> std::result::Result<_Tensor<O>, TensorError>
-    where
-        T: CommonBounds + IntoScalar<O>,
-        O: CommonBounds,
-        F1: Fn(&mut O),
-        F2: Fn(usize, usize, &_Tensor<O>, &_Tensor<T>),
-        F3: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>)
+    kd: F3,
+) -> std::result::Result<_Tensor<O>, TensorError>
+where
+    T: CommonBounds + IntoScalar<O>,
+    O: CommonBounds,
+    F1: Fn(&mut O),
+    F2: Fn(usize, usize, &_Tensor<O>, &_Tensor<T>),
+    F3: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>),
 {
     let (keep_fast_dim, transposed_tensor, result) = softmax_prepare(a, axis, c)?;
 
@@ -350,7 +366,13 @@ pub(crate) fn uncontiguous_softmax_template<T, F1, F2, F3, O>(
                 rayon::current_num_threads()
             };
             assert!(inner_loop_size > 1);
-            kd(num_threads, inner_loop_size, inner_loop_size_2, &result, &transposed_tensor);
+            kd(
+                num_threads,
+                inner_loop_size,
+                inner_loop_size_2,
+                &result,
+                &transposed_tensor,
+            );
         }
     }
     Ok(result)

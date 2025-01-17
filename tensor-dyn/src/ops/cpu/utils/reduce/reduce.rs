@@ -1,9 +1,9 @@
 use crate::backend::Cpu;
-use crate::ops::cpu::reduce_template::contiguous_reduce_template;
+use crate::ops::cpu::utils::reduce::reduce_template::contiguous_reduce_template;
 use crate::tensor_base::_Tensor;
 use crate::{ argmax_kernel, argmin_kernel };
 
-use crate::ops::cpu::reduce_utils::{ ReductionPreprocessor, UCReductionPreprocessor };
+use crate::ops::cpu::utils::reduce::reduce_utils::{ ReductionPreprocessor, UCReductionPreprocessor };
 use crate::THREAD_POOL;
 use tensor_common::shape::shape::Shape;
 use rayon::iter::ParallelIterator;
@@ -212,7 +212,7 @@ macro_rules! register_reduction_one_axis {
 
 use tensor_types::vectors::traits::*;
 
-use super::kernels::reduce::{
+use crate::ops::cpu::kernels::reduce::{
     contiguous_reduce_dim_include,
     contiguous_reduce_dim_include_simd,
     uncontiguous_reduce_dim_include,

@@ -3,7 +3,7 @@ use tensor_common::error::base::TensorError;
 use tensor_traits::{ CommonBounds, IndexReduce, TensorInfo };
 use tensor_types::type_promote::{ Cmp, NormalOut };
 
-use crate::{ ops::cpu::reduce::{ argmax, argmin }, tensor_base::_Tensor };
+use crate::{ ops::cpu::utils::reduce::reduce::{ argmax, argmin }, tensor_base::_Tensor };
 
 impl<T: CommonBounds + NormalOut<Output = T> + Cmp<T, Output = bool>> IndexReduce for _Tensor<T> {
     type Output = _Tensor<i64>;

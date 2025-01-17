@@ -7,7 +7,7 @@ use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
 use tensor_dyn::{set_num_threads, Tensor, TensorCreator};
 use tensor_macros::match_selection;
-
+use tensor_dyn::AdvanceOps;
 #[allow(unused)]
 fn assert_eq(b: &Tensor<f32>, a: &tch::Tensor) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f32, b.size()) };
