@@ -1,4 +1,4 @@
-use crate::ops::cpu::binary_normal::binary_fn_with_out_simd;
+use crate::ops::cpu::utils::binary::binary_normal::binary_fn_with_out_simd;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
 use std::borrow::Borrow;
 use tensor_traits::{ops::binary::NormalBinOps, tensor::CommonBounds};

@@ -4,7 +4,7 @@ use tensor_common::error::base::TensorError;
 use tensor_traits::{ CommonBounds, Matmul };
 use tensor_types::{ into_scalar::IntoScalar, type_promote::NormalOut };
 
-use crate::{ ops::cpu::matmul::matmul_with_out, tensor::Tensor };
+use crate::{ ops::cpu::tensor_internal::matmul::matmul_with_out, tensor::Tensor };
 
 impl<A, B> Matmul<Tensor<B>>
     for Tensor<A>

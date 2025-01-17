@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::ops::cpu::diff_utils::handle_grad;
+use crate::ops::cpu::utils::diff::diff_utils::handle_grad;
 use crate::tensor_base::_Tensor;
 use crate::BoolVector;
 use crate::{ ops::cpu::tensor_internal::float_out_unary::FloatBinaryType, Cpu };

@@ -8,13 +8,6 @@ pub mod ops {
     pub mod cpu {
         /// a module defines affine_grid operation
         pub mod affine_grid;
-        /// a module defines all normal binary operation
-        pub mod binary;
-        /// a module defines binary normal iterations,
-        /// the `binary` module uses this module's function to perform computation
-        pub mod binary_normal;
-        /// a module defines concat operation
-        pub mod concat;
         /// a module defines conv2d operation
         pub mod conv2d {
             /// a module defines batchnorm_conv2d operation
@@ -26,25 +19,20 @@ pub mod ops {
             /// a module defines dwconv2d operation
             pub mod dwconv2d;
         }
-        /// a module defines reduce kernels
-        pub mod argreduce_kernels;
-        /// a module defines gather_elements operation
-        pub mod gather_elements;
-        /// a module defines matmul operation
-        pub mod matmul;
-        /// a module defines max_roi_pool operation
-        pub mod max_roi_pool;
-        /// a module defines shrink operation
-        pub mod shrinkage;
-
         pub(crate) mod utils {
             pub(crate) mod reduce {
-                /// a module defines internal reduce functions
-                pub mod reduce;
-                /// a module defines reduce template
-                pub mod reduce_template;
-                /// a module contains all the reduce computation utils
-                pub mod reduce_utils;
+                pub(crate) mod reduce;
+                pub(crate) mod reduce_template;
+                pub(crate) mod reduce_utils;
+            }
+            pub(crate) mod diff {
+                pub(crate) mod diff_utils;
+            }
+            pub(crate) mod binary {
+                pub(crate) mod binary_normal;
+            }
+            pub(crate) mod unary {
+                pub(crate) mod unary;
             }
         }
 
@@ -61,10 +49,10 @@ pub mod ops {
         pub mod std_ops;
         /// a module defines tensordot operation
         pub mod tensordot;
-        /// a module defines all the unary operations
-        pub mod unary;
         /// a module defines all the kernels
         pub mod kernels {
+            /// a module defines reduce kernels
+            pub mod argreduce_kernels;
             /// a module defines the batchnorm conv2d kernels
             pub mod batch_norm_conv;
             /// a module defines the conv2d kernels
@@ -88,6 +76,8 @@ pub mod ops {
             pub mod advance;
             /// a module that contains all the arg reduce functions
             pub mod arg_reduce;
+            /// a module defines all normal binary operation
+            pub mod binary;
             /// a module that contains all the tensor compare functions
             pub mod cmp;
             /// a module that contains all the common reduce functions
@@ -158,9 +148,6 @@ pub mod ops {
         }
         /// a module contains cpu tensor impls
         pub(crate) mod tensor_impls;
-
-        /// a module contains differentiable tensor utils
-        pub(crate) mod diff_utils;
     }
 
     #[cfg(feature = "cuda")]

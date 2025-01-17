@@ -50,6 +50,10 @@ where
     fn dropout(&self, rate: f64) -> Result<Self::Output, TensorError> {
         Ok(self.inner.dropout(rate)?.into())
     }
+    
+    fn gather_elements(&self, indices: &Self::IndexOutput, axis: i64) -> Result<Self::Output, TensorError> {
+        Ok(self.inner.gather_elements(indices.inner.as_ref(), axis)?.into())
+    }
 }
 
 impl<T: CommonBounds, const DEVICE: usize> Shrinkage<T> for Tensor<T, Cpu, DEVICE>

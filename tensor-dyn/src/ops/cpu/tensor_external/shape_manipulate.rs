@@ -1,8 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::ops::cpu::concat::concat;
-use crate::ops::cpu::diff_utils::handle_grad;
+use crate::ops::cpu::utils::diff::diff_utils::handle_grad;
 use crate::tensor::DiffTensor;
 use crate::Cpu;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
@@ -134,7 +133,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for Tensor<T, Cpu, DE
         axis: usize,
         keepdims: bool,
     ) -> std::result::Result<Self::Output, TensorError> {
-        Ok(concat(
+        Ok(_Tensor::concat(
             tensors.iter().map(|x| x.inner.as_ref()).collect(),
             axis,
             keepdims,
@@ -143,15 +142,15 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for Tensor<T, Cpu, DE
     }
 
     fn vstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
-        Tensor::concat(tensors, 0, false)
+        Ok(_Tensor::vstack(tensors.iter().map(|x| x.inner.as_ref()).collect())?.into())
     }
 
     fn hstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
-        Tensor::concat(tensors, 1, false)
+        Ok(_Tensor::hstack(tensors.iter().map(|x| x.inner.as_ref()).collect())?.into())
     }
 
     fn dstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
-        Tensor::concat(tensors, 2, false)
+        Ok(_Tensor::dstack(tensors.iter().map(|x| x.inner.as_ref()).collect())?.into())
     }
 }
 

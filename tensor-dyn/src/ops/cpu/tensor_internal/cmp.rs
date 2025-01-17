@@ -2,7 +2,7 @@
 
 use std::borrow::Borrow;
 
-use crate::ops::cpu::binary_normal::binary_fn_with_out_simd;
+use crate::ops::cpu::utils::binary::binary_normal::binary_fn_with_out_simd;
 use crate::Cpu;
 use crate::{tensor::Tensor, tensor_base::_Tensor, BoolVector};
 use tensor_common::error::base::TensorError;

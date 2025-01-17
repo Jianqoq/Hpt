@@ -1,33 +1,29 @@
-use crate::ops::cpu::binary_normal::*;
+use crate::ops::cpu::tensor_internal::normal_out_unary::NormalType;
+use crate::ops::cpu::utils::binary::binary_normal::*;
+use crate::ops::cpu::utils::diff::diff_utils::handle_grad;
+use crate::ops::cpu::utils::unary::unary::unary_fn_with_out_simd;
+use crate::tensor::DiffTensor;
 use crate::tensor_base::_Tensor;
+use crate::Cpu;
+use crate::Tensor;
+use num::complex::{Complex32, Complex64};
 use rayon::iter::ParallelIterator;
+use std::cell::RefCell;
+use std::ops::{Neg, Not};
+use std::rc::Rc;
+use std::sync::Arc;
+use tensor_common::shape::shape_utils::get_broadcast_axes_from;
 use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
-use std::ops::{ Neg, Not };
-use num::complex::{ Complex32, Complex64 };
-use std::sync::Arc;
-use tensor_traits::tensor::{ CommonBounds, TensorInfo };
+use tensor_traits::tensor::{CommonBounds, TensorInfo};
+use tensor_traits::NormalUaryOps;
+use tensor_traits::TensorLike;
 use tensor_types::convertion::Convertor;
 use tensor_types::dtype::TypeCommon;
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::{
-    BitWiseOut,
-    NormalOutUnary,
-    FloatOutUnary,
-    FloatOutBinary,
-    NormalOut,
+    BitWiseOut, FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary,
 };
-use crate::ops::cpu::unary::uary_fn_with_out_simd;
-use crate::ops::cpu::tensor_internal::normal_out_unary::NormalType;
-use tensor_traits::NormalUaryOps;
-use tensor_traits::TensorLike;
-use crate::Tensor;
-use crate::Cpu;
-use crate::tensor::DiffTensor;
-use tensor_common::shape::shape_utils::get_broadcast_axes_from;
-use std::cell::RefCell;
-use std::rc::Rc;
-use crate::ops::cpu::diff_utils::handle_grad;
 
 #[duplicate::duplicate_item(
     lhs_type     rhs_type    out_type     trait_name;
@@ -36,17 +32,16 @@ use crate::ops::cpu::diff_utils::handle_grad;
     [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Add];
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Add];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<U>,
-        U: CommonBounds,
-        <T as NormalOut<U>>::Output: CommonBounds,
-        <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
-        T::Vec: NormalOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<U>,
+    U: CommonBounds,
+    <T as NormalOut<U>>::Output: CommonBounds,
+    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    T::Vec: NormalOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -56,8 +51,9 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
             &rhs,
             |x, y| x._add(y),
             |x, y| x._add(y),
-            None::<Self::Output>
-        ).unwrap();
+            None::<Self::Output>,
+        )
+        .unwrap();
     }
 }
 
@@ -68,17 +64,16 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Add];
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::Add];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<U>,
-        U: CommonBounds,
-        <T as NormalOut<U>>::Output: CommonBounds,
-        <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
-        T::Vec: NormalOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<U>,
+    U: CommonBounds,
+    <T as NormalOut<U>>::Output: CommonBounds,
+    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    T::Vec: NormalOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -120,16 +115,15 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [Tensor]    [half::bf16][Tensor]    [std::ops::Add];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Add];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<rhs_type>,
-        <T as NormalOut<rhs_type>>::Output: CommonBounds,
-        <T as NormalOut<rhs_type>>::Output: IntoScalar<<T as NormalOut<rhs_type>>::Output>,
-        T::Vec: NormalOut<
-            <rhs_type as TypeCommon>::Vec,
-            Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<rhs_type>,
+    <T as NormalOut<rhs_type>>::Output: CommonBounds,
+    <T as NormalOut<rhs_type>>::Output: IntoScalar<<T as NormalOut<rhs_type>>::Output>,
+    T::Vec: NormalOut<
+        <rhs_type as TypeCommon>::Vec,
+        Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as NormalOut<rhs_type>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -172,17 +166,16 @@ impl<T, const DEVICE: usize> trait_name<rhs_type>
     [Tensor]    [half::bf16][Tensor]    [std::ops::Add];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Add];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
-    for lhs_type
-    where
-        T: CommonBounds,
-        lhs_type: NormalOut<T>,
-        <lhs_type as NormalOut<T>>::Output: CommonBounds,
-        <lhs_type as NormalOut<T>>::Output: IntoScalar<<T as NormalOut<T>>::Output>,
-        <lhs_type as TypeCommon>::Vec: NormalOut<
-            <T as TypeCommon>::Vec,
-            Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>> for lhs_type
+where
+    T: CommonBounds,
+    lhs_type: NormalOut<T>,
+    <lhs_type as NormalOut<T>>::Output: CommonBounds,
+    <lhs_type as NormalOut<T>>::Output: IntoScalar<<T as NormalOut<T>>::Output>,
+    <lhs_type as TypeCommon>::Vec: NormalOut<
+        <T as TypeCommon>::Vec,
+        Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<lhs_type as NormalOut<T>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -199,18 +192,17 @@ impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
     [&DiffTensor]   [&DiffTensor]  [DiffTensor]    [std::ops::Add];
     [DiffTensor]    [&DiffTensor]  [DiffTensor]    [std::ops::Add];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<U>,
-        U: CommonBounds,
-        <T as NormalOut<U>>::Output: CommonBounds,
-        <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
-        T::Vec: NormalOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
-        >,
-        <T as NormalOut<U>>::Output: IntoScalar<T> + IntoScalar<U>
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<U>,
+    U: CommonBounds,
+    <T as NormalOut<U>>::Output: CommonBounds,
+    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    T::Vec: NormalOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
+    >,
+    <T as NormalOut<U>>::Output: IntoScalar<T> + IntoScalar<U>,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -218,27 +210,25 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
         *self.out_degree.borrow_mut() += 1;
         *rhs.out_degree.borrow_mut() += 1;
         let res = self.inner.clone().add(rhs.inner.clone());
-        let lhs_broadcast_axes = get_broadcast_axes_from(self.inner.shape(), res.shape()).expect(
-            "broadcast failed"
-        );
-        let rhs_broadcast_axes = get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect(
-            "broadcast failed"
-        );
+        let lhs_broadcast_axes =
+            get_broadcast_axes_from(self.inner.shape(), res.shape()).expect("broadcast failed");
+        let rhs_broadcast_axes =
+            get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect("broadcast failed");
         let mut lhs = self.clone();
         let mut rhs = rhs.clone();
         DiffTensor {
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(
-                RefCell::new(move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(
+                move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE>| {
                     let lhs_grad = grad.try_astype::<T>()?;
                     let rhs_grad = grad.try_astype::<U>()?;
                     handle_grad(&mut lhs, lhs_grad, &lhs_broadcast_axes)?;
                     handle_grad(&mut rhs, rhs_grad, &rhs_broadcast_axes)?;
                     Ok(false)
-                })
-            ),
+                },
+            )),
         }
     }
 }
@@ -250,17 +240,16 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Sub];
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Sub];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<U>,
-        U: CommonBounds,
-        <T as NormalOut<U>>::Output: CommonBounds,
-        <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
-        T::Vec: NormalOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<U>,
+    U: CommonBounds,
+    <T as NormalOut<U>>::Output: CommonBounds,
+    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    T::Vec: NormalOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -270,8 +259,9 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
             &rhs,
             |x, y| x._sub(y),
             |x, y| x._sub(y),
-            None::<Self::Output>
-        ).unwrap();
+            None::<Self::Output>,
+        )
+        .unwrap();
     }
 }
 
@@ -282,17 +272,16 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Sub];
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::Sub];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<U>,
-        U: CommonBounds,
-        <T as NormalOut<U>>::Output: CommonBounds,
-        <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
-        T::Vec: NormalOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<U>,
+    U: CommonBounds,
+    <T as NormalOut<U>>::Output: CommonBounds,
+    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    T::Vec: NormalOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -334,16 +323,15 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [Tensor]    [half::bf16][Tensor]    [std::ops::Sub];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Sub];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<rhs_type>,
-        <T as NormalOut<rhs_type>>::Output: CommonBounds,
-        <T as NormalOut<rhs_type>>::Output: IntoScalar<<T as NormalOut<rhs_type>>::Output>,
-        T::Vec: NormalOut<
-            <rhs_type as TypeCommon>::Vec,
-            Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<rhs_type>,
+    <T as NormalOut<rhs_type>>::Output: CommonBounds,
+    <T as NormalOut<rhs_type>>::Output: IntoScalar<<T as NormalOut<rhs_type>>::Output>,
+    T::Vec: NormalOut<
+        <rhs_type as TypeCommon>::Vec,
+        Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as NormalOut<rhs_type>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -386,17 +374,16 @@ impl<T, const DEVICE: usize> trait_name<rhs_type>
     [Tensor]    [half::bf16][Tensor]    [std::ops::Sub];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Sub];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
-    for lhs_type
-    where
-        T: CommonBounds,
-        lhs_type: NormalOut<T>,
-        <lhs_type as NormalOut<T>>::Output: CommonBounds,
-        <lhs_type as NormalOut<T>>::Output: IntoScalar<<T as NormalOut<T>>::Output>,
-        <lhs_type as TypeCommon>::Vec: NormalOut<
-            <T as TypeCommon>::Vec,
-            Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>> for lhs_type
+where
+    T: CommonBounds,
+    lhs_type: NormalOut<T>,
+    <lhs_type as NormalOut<T>>::Output: CommonBounds,
+    <lhs_type as NormalOut<T>>::Output: IntoScalar<<T as NormalOut<T>>::Output>,
+    <lhs_type as TypeCommon>::Vec: NormalOut<
+        <T as TypeCommon>::Vec,
+        Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<lhs_type as NormalOut<T>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -413,45 +400,42 @@ impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
     [&DiffTensor]   [&DiffTensor]  [DiffTensor]    [std::ops::Sub];
     [DiffTensor]    [&DiffTensor]  [DiffTensor]    [std::ops::Sub];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<U>,
-        U: CommonBounds,
-        <T as NormalOut<U>>::Output: CommonBounds,
-        <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
-        T::Vec: NormalOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
-        >,
-        <T as NormalOut<U>>::Output: IntoScalar<T> + IntoScalar<U>,
-        Tensor<T, Cpu, DEVICE>: Neg<Output = Tensor<T, Cpu, DEVICE>>
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<U>,
+    U: CommonBounds,
+    <T as NormalOut<U>>::Output: CommonBounds,
+    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    T::Vec: NormalOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
+    >,
+    <T as NormalOut<U>>::Output: IntoScalar<T> + IntoScalar<U>,
+    Tensor<T, Cpu, DEVICE>: Neg<Output = Tensor<T, Cpu, DEVICE>>,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sub(self, rhs: rhs_type<U, Cpu, DEVICE>) -> Self::Output {
         let res = self.inner.clone().sub(rhs.inner.clone());
-        let lhs_broadcast_axes = get_broadcast_axes_from(self.inner.shape(), res.shape()).expect(
-            "broadcast failed"
-        );
-        let rhs_broadcast_axes = get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect(
-            "broadcast failed"
-        );
+        let lhs_broadcast_axes =
+            get_broadcast_axes_from(self.inner.shape(), res.shape()).expect("broadcast failed");
+        let rhs_broadcast_axes =
+            get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect("broadcast failed");
         let mut lhs = self.clone();
         let mut rhs = rhs.clone();
         DiffTensor {
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(
-                RefCell::new(move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(
+                move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE>| {
                     let lhs_grad = -grad.try_astype::<T>()?;
                     let rhs_grad = grad.try_astype::<U>()?;
                     handle_grad(&mut lhs, lhs_grad, &lhs_broadcast_axes)?;
                     handle_grad(&mut rhs, rhs_grad, &rhs_broadcast_axes)?;
                     Ok(false)
-                })
-            ),
+                },
+            )),
         }
     }
 }
@@ -463,17 +447,16 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Div];
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Div];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + FloatOutBinary<U>,
-        U: CommonBounds,
-        <T as FloatOutBinary<U>>::Output: CommonBounds,
-        <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
-        T::Vec: FloatOutBinary<
-            <U as TypeCommon>::Vec,
-            Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + FloatOutBinary<U>,
+    U: CommonBounds,
+    <T as FloatOutBinary<U>>::Output: CommonBounds,
+    <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+    T::Vec: FloatOutBinary<
+        <U as TypeCommon>::Vec,
+        Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as FloatOutBinary<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -483,8 +466,9 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
             &rhs,
             |x, y| x._div(y),
             |x, y| x._div(y),
-            None::<Self::Output>
-        ).unwrap();
+            None::<Self::Output>,
+        )
+        .unwrap();
     }
 }
 
@@ -495,17 +479,16 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Div];
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::Div];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + FloatOutBinary<U>,
-        U: CommonBounds,
-        <T as FloatOutBinary<U>>::Output: CommonBounds,
-        <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
-        T::Vec: FloatOutBinary<
-            <U as TypeCommon>::Vec,
-            Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + FloatOutBinary<U>,
+    U: CommonBounds,
+    <T as FloatOutBinary<U>>::Output: CommonBounds,
+    <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+    T::Vec: FloatOutBinary<
+        <U as TypeCommon>::Vec,
+        Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as FloatOutBinary<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -547,16 +530,15 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [Tensor]    [half::bf16][Tensor]    [std::ops::Div];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Div];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + FloatOutBinary<rhs_type>,
-        <T as FloatOutBinary<rhs_type>>::Output: CommonBounds,
-        <T as FloatOutBinary<rhs_type>>::Output: IntoScalar<<T as FloatOutBinary<rhs_type>>::Output>,
-        T::Vec: FloatOutBinary<
-            <rhs_type as TypeCommon>::Vec,
-            Output = <<T as FloatOutBinary<rhs_type>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + FloatOutBinary<rhs_type>,
+    <T as FloatOutBinary<rhs_type>>::Output: CommonBounds,
+    <T as FloatOutBinary<rhs_type>>::Output: IntoScalar<<T as FloatOutBinary<rhs_type>>::Output>,
+    T::Vec: FloatOutBinary<
+        <rhs_type as TypeCommon>::Vec,
+        Output = <<T as FloatOutBinary<rhs_type>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as FloatOutBinary<rhs_type>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -599,17 +581,16 @@ impl<T, const DEVICE: usize> trait_name<rhs_type>
     [Tensor]    [half::bf16][Tensor]    [std::ops::Div];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Div];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
-    for lhs_type
-    where
-        T: CommonBounds,
-        lhs_type: FloatOutBinary<T>,
-        <lhs_type as FloatOutBinary<T>>::Output: CommonBounds,
-        <lhs_type as FloatOutBinary<T>>::Output: IntoScalar<<T as FloatOutBinary<T>>::Output>,
-        <lhs_type as TypeCommon>::Vec: FloatOutBinary<
-            <T as TypeCommon>::Vec,
-            Output = <<lhs_type as FloatOutBinary<T>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>> for lhs_type
+where
+    T: CommonBounds,
+    lhs_type: FloatOutBinary<T>,
+    <lhs_type as FloatOutBinary<T>>::Output: CommonBounds,
+    <lhs_type as FloatOutBinary<T>>::Output: IntoScalar<<T as FloatOutBinary<T>>::Output>,
+    <lhs_type as TypeCommon>::Vec: FloatOutBinary<
+        <T as TypeCommon>::Vec,
+        Output = <<lhs_type as FloatOutBinary<T>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<lhs_type as FloatOutBinary<T>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -703,17 +684,16 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Mul];
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Mul];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<U>,
-        U: CommonBounds,
-        <T as NormalOut<U>>::Output: CommonBounds,
-        <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
-        T::Vec: NormalOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<U>,
+    U: CommonBounds,
+    <T as NormalOut<U>>::Output: CommonBounds,
+    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    T::Vec: NormalOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -723,8 +703,9 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
             &rhs,
             |x, y| x._mul(y),
             |x, y| x._mul(y),
-            None::<Self::Output>
-        ).unwrap();
+            None::<Self::Output>,
+        )
+        .unwrap();
     }
 }
 
@@ -735,17 +716,16 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Mul];
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::Mul];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<U>,
-        U: CommonBounds,
-        <T as NormalOut<U>>::Output: CommonBounds,
-        <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
-        T::Vec: NormalOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<U>,
+    U: CommonBounds,
+    <T as NormalOut<U>>::Output: CommonBounds,
+    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    T::Vec: NormalOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -787,16 +767,15 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [Tensor]    [half::bf16][Tensor]    [std::ops::Mul];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Mul];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<rhs_type>,
-        <T as NormalOut<rhs_type>>::Output: CommonBounds,
-        <T as NormalOut<rhs_type>>::Output: IntoScalar<<T as NormalOut<rhs_type>>::Output>,
-        T::Vec: NormalOut<
-            <rhs_type as TypeCommon>::Vec,
-            Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<rhs_type>,
+    <T as NormalOut<rhs_type>>::Output: CommonBounds,
+    <T as NormalOut<rhs_type>>::Output: IntoScalar<<T as NormalOut<rhs_type>>::Output>,
+    T::Vec: NormalOut<
+        <rhs_type as TypeCommon>::Vec,
+        Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as NormalOut<rhs_type>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -839,17 +818,16 @@ impl<T, const DEVICE: usize> trait_name<rhs_type>
     [Tensor]    [half::bf16][Tensor]    [std::ops::Mul];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Mul];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
-    for lhs_type
-    where
-        T: CommonBounds,
-        lhs_type: NormalOut<T>,
-        <lhs_type as NormalOut<T>>::Output: CommonBounds,
-        <lhs_type as NormalOut<T>>::Output: IntoScalar<<T as NormalOut<T>>::Output>,
-        <lhs_type as TypeCommon>::Vec: NormalOut<
-            <T as TypeCommon>::Vec,
-            Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>> for lhs_type
+where
+    T: CommonBounds,
+    lhs_type: NormalOut<T>,
+    <lhs_type as NormalOut<T>>::Output: CommonBounds,
+    <lhs_type as NormalOut<T>>::Output: IntoScalar<<T as NormalOut<T>>::Output>,
+    <lhs_type as TypeCommon>::Vec: NormalOut<
+        <T as TypeCommon>::Vec,
+        Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<lhs_type as NormalOut<T>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -866,28 +844,27 @@ impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
     [&DiffTensor]   [&DiffTensor]  [DiffTensor]    [std::ops::Mul];
     [DiffTensor]    [&DiffTensor]  [DiffTensor]    [std::ops::Mul];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<U>,
-        U: CommonBounds,
-        <T as NormalOut<U>>::Output: CommonBounds,
-        <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
-        T::Vec: NormalOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
-        >,
-        <T as NormalOut<U>>::Output: IntoScalar<T> + IntoScalar<U> + NormalOut<U> + NormalOut<T>,
-        <<T as NormalOut<U>>::Output as NormalOut<U>>::Output: CommonBounds + IntoScalar<T>,
-        <<T as NormalOut<U>>::Output as NormalOut<T>>::Output: CommonBounds + IntoScalar<U>,
-        <<T as NormalOut<U>>::Output as TypeCommon>::Vec: NormalOut<
-            <U as TypeCommon>::Vec,
-            Output = <<<T as NormalOut<U>>::Output as NormalOut<U>>::Output as TypeCommon>::Vec
-        >,
-        <<T as NormalOut<U>>::Output as TypeCommon>::Vec: NormalOut<
-            <T as TypeCommon>::Vec,
-            Output = <<<T as NormalOut<U>>::Output as NormalOut<T>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<U>,
+    U: CommonBounds,
+    <T as NormalOut<U>>::Output: CommonBounds,
+    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    T::Vec: NormalOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
+    >,
+    <T as NormalOut<U>>::Output: IntoScalar<T> + IntoScalar<U> + NormalOut<U> + NormalOut<T>,
+    <<T as NormalOut<U>>::Output as NormalOut<U>>::Output: CommonBounds + IntoScalar<T>,
+    <<T as NormalOut<U>>::Output as NormalOut<T>>::Output: CommonBounds + IntoScalar<U>,
+    <<T as NormalOut<U>>::Output as TypeCommon>::Vec: NormalOut<
+        <U as TypeCommon>::Vec,
+        Output = <<<T as NormalOut<U>>::Output as NormalOut<U>>::Output as TypeCommon>::Vec,
+    >,
+    <<T as NormalOut<U>>::Output as TypeCommon>::Vec: NormalOut<
+        <T as TypeCommon>::Vec,
+        Output = <<<T as NormalOut<U>>::Output as NormalOut<T>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -895,27 +872,25 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
         *self.out_degree.borrow_mut() += 1;
         *rhs.out_degree.borrow_mut() += 1;
         let res = self.inner.clone().mul(rhs.inner.clone());
-        let lhs_broadcast_axes = get_broadcast_axes_from(self.inner.shape(), res.shape()).expect(
-            "broadcast failed"
-        );
-        let rhs_broadcast_axes = get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect(
-            "broadcast failed"
-        );
+        let lhs_broadcast_axes =
+            get_broadcast_axes_from(self.inner.shape(), res.shape()).expect("broadcast failed");
+        let rhs_broadcast_axes =
+            get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect("broadcast failed");
         let mut lhs = self.clone();
         let mut rhs = rhs.clone();
         DiffTensor {
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(
-                RefCell::new(move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(
+                move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE>| {
                     let lhs_grad = (grad.clone() * rhs.inner.clone()).try_astype::<T>()?;
                     let rhs_grad = (grad.clone() * lhs.inner.clone()).try_astype::<U>()?;
                     handle_grad(&mut lhs, lhs_grad, &lhs_broadcast_axes)?;
                     handle_grad(&mut rhs, rhs_grad, &rhs_broadcast_axes)?;
                     Ok(false)
-                })
-            ),
+                },
+            )),
         }
     }
 }
@@ -927,17 +902,16 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Rem];
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Rem];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<U>,
-        U: CommonBounds,
-        <T as NormalOut<U>>::Output: CommonBounds,
-        <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
-        T::Vec: NormalOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<U>,
+    U: CommonBounds,
+    <T as NormalOut<U>>::Output: CommonBounds,
+    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    T::Vec: NormalOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -947,8 +921,9 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
             &rhs,
             |x, y| x._rem(y),
             |x, y| x._rem(y),
-            None::<Self::Output>
-        ).unwrap();
+            None::<Self::Output>,
+        )
+        .unwrap();
     }
 }
 
@@ -959,17 +934,16 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Rem];
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::Rem];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<U>,
-        U: CommonBounds,
-        <T as NormalOut<U>>::Output: CommonBounds,
-        <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
-        T::Vec: NormalOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<U>,
+    U: CommonBounds,
+    <T as NormalOut<U>>::Output: CommonBounds,
+    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    T::Vec: NormalOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1011,16 +985,15 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [Tensor]    [half::bf16][Tensor]    [std::ops::Rem];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Rem];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<rhs_type>,
-        <T as NormalOut<rhs_type>>::Output: CommonBounds,
-        <T as NormalOut<rhs_type>>::Output: IntoScalar<<T as NormalOut<rhs_type>>::Output>,
-        T::Vec: NormalOut<
-            <rhs_type as TypeCommon>::Vec,
-            Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<rhs_type>,
+    <T as NormalOut<rhs_type>>::Output: CommonBounds,
+    <T as NormalOut<rhs_type>>::Output: IntoScalar<<T as NormalOut<rhs_type>>::Output>,
+    T::Vec: NormalOut<
+        <rhs_type as TypeCommon>::Vec,
+        Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as NormalOut<rhs_type>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1063,17 +1036,16 @@ impl<T, const DEVICE: usize> trait_name<rhs_type>
     [Tensor]    [half::bf16][Tensor]    [std::ops::Rem];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Rem];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
-    for lhs_type
-    where
-        T: CommonBounds,
-        lhs_type: NormalOut<T>,
-        <lhs_type as NormalOut<T>>::Output: CommonBounds,
-        <lhs_type as NormalOut<T>>::Output: IntoScalar<<T as NormalOut<T>>::Output>,
-        <lhs_type as TypeCommon>::Vec: NormalOut<
-            <T as TypeCommon>::Vec,
-            Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>> for lhs_type
+where
+    T: CommonBounds,
+    lhs_type: NormalOut<T>,
+    <lhs_type as NormalOut<T>>::Output: CommonBounds,
+    <lhs_type as NormalOut<T>>::Output: IntoScalar<<T as NormalOut<T>>::Output>,
+    <lhs_type as TypeCommon>::Vec: NormalOut<
+        <T as TypeCommon>::Vec,
+        Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<lhs_type as NormalOut<T>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1090,22 +1062,22 @@ impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
     [&DiffTensor]   [&DiffTensor]  [DiffTensor]    [std::ops::Rem];
     [DiffTensor]    [&DiffTensor]  [DiffTensor]    [std::ops::Rem];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<U>,
-        U: CommonBounds,
-        <T as NormalOut<U>>::Output: CommonBounds + IntoScalar<T> + FloatOutBinary<U>,
-        <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
-        T::Vec: NormalOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
-        >,
-        <<T as NormalOut<U>>::Output as FloatOutBinary<U>>::Output: CommonBounds + NormalOutUnary,
-        <T as NormalOut<U>>::Output: NormalOut<<<T as NormalOut<U>>::Output as FloatOutBinary<U>>::Output>,
-        <<T as NormalOut<U>>::Output as NormalOut<<<T as NormalOut<U>>::Output as FloatOutBinary<U>>::Output>>::Output: FloatOutUnary +
-            CommonBounds +
-            IntoScalar<U>
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<U>,
+    U: CommonBounds,
+    <T as NormalOut<U>>::Output: CommonBounds + IntoScalar<T> + FloatOutBinary<U>,
+    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    T::Vec: NormalOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
+    >,
+    <<T as NormalOut<U>>::Output as FloatOutBinary<U>>::Output: CommonBounds + NormalOutUnary,
+    <T as NormalOut<U>>::Output:
+        NormalOut<<<T as NormalOut<U>>::Output as FloatOutBinary<U>>::Output>,
+    <<T as NormalOut<U>>::Output as NormalOut<
+        <<T as NormalOut<U>>::Output as FloatOutBinary<U>>::Output,
+    >>::Output: FloatOutUnary + CommonBounds + IntoScalar<U>,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1113,24 +1085,23 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
         *self.out_degree.borrow_mut() += 1;
         *rhs.out_degree.borrow_mut() += 1;
         let res = self.inner.clone().rem(rhs.inner.clone());
-        let lhs_broadcast_axes = get_broadcast_axes_from(self.inner.shape(), res.shape()).expect(
-            "broadcast failed"
-        );
-        let rhs_broadcast_axes = get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect(
-            "broadcast failed"
-        );
+        let lhs_broadcast_axes =
+            get_broadcast_axes_from(self.inner.shape(), res.shape()).expect("broadcast failed");
+        let rhs_broadcast_axes =
+            get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect("broadcast failed");
         let mut lhs = self.clone();
         let mut rhs = rhs.clone();
         DiffTensor {
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(
-                RefCell::new(move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(
+                move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE>| {
                     // 对 a 的梯度：grad
                     handle_grad(&mut lhs, grad.try_astype::<T>()?, &lhs_broadcast_axes)?;
 
-                    let rhs_grad: _Tensor<U, Cpu, DEVICE> = grad.inner
+                    let rhs_grad: _Tensor<U, Cpu, DEVICE> = grad
+                        .inner
                         .par_iter()
                         .zip(rhs.inner.inner.par_iter())
                         .strided_map(|(x, y)| {
@@ -1142,8 +1113,8 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
 
                     handle_grad(&mut rhs, rhs_grad.into(), &rhs_broadcast_axes)?;
                     Ok(false)
-                })
-            ),
+                },
+            )),
         }
     }
 }
@@ -1155,17 +1126,16 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::BitAnd];
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitAnd];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + BitWiseOut<U>,
-        U: CommonBounds,
-        <T as BitWiseOut<U>>::Output: CommonBounds,
-        <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
-        T::Vec: BitWiseOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + BitWiseOut<U>,
+    U: CommonBounds,
+    <T as BitWiseOut<U>>::Output: CommonBounds,
+    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    T::Vec: BitWiseOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1175,8 +1145,9 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
             &rhs,
             |x, y| x._bitand(y),
             |x, y| x._bitand(y),
-            None::<Self::Output>
-        ).unwrap();
+            None::<Self::Output>,
+        )
+        .unwrap();
     }
 }
 
@@ -1187,17 +1158,16 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [&Tensor]   [&Tensor]  [Tensor]    [std::ops::BitAnd];
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::BitAnd];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + BitWiseOut<U>,
-        U: CommonBounds,
-        <T as BitWiseOut<U>>::Output: CommonBounds,
-        <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
-        T::Vec: BitWiseOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + BitWiseOut<U>,
+    U: CommonBounds,
+    <T as BitWiseOut<U>>::Output: CommonBounds,
+    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    T::Vec: BitWiseOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1227,16 +1197,15 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [Tensor]    [u64]       [Tensor]    [std::ops::BitAnd];
     [&Tensor]   [u64]       [Tensor]    [std::ops::BitAnd];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + BitWiseOut<rhs_type>,
-        <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
-        <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
-        T::Vec: BitWiseOut<
-            <rhs_type as TypeCommon>::Vec,
-            Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + BitWiseOut<rhs_type>,
+    <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
+    <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
+    T::Vec: BitWiseOut<
+        <rhs_type as TypeCommon>::Vec,
+        Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1267,17 +1236,16 @@ impl<T, const DEVICE: usize> trait_name<rhs_type>
     [Tensor]    [u64]       [Tensor]    [std::ops::BitAnd];
     [&Tensor]   [u64]       [Tensor]    [std::ops::BitAnd];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
-    for lhs_type
-    where
-        T: CommonBounds,
-        lhs_type: BitWiseOut<T>,
-        <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
-        <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
-        <lhs_type as TypeCommon>::Vec: BitWiseOut<
-            <T as TypeCommon>::Vec,
-            Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>> for lhs_type
+where
+    T: CommonBounds,
+    lhs_type: BitWiseOut<T>,
+    <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
+    <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
+    <lhs_type as TypeCommon>::Vec: BitWiseOut<
+        <T as TypeCommon>::Vec,
+        Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1294,17 +1262,16 @@ impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
     [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::BitOr];
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitOr];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + BitWiseOut<U>,
-        U: CommonBounds,
-        <T as BitWiseOut<U>>::Output: CommonBounds,
-        <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
-        T::Vec: BitWiseOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + BitWiseOut<U>,
+    U: CommonBounds,
+    <T as BitWiseOut<U>>::Output: CommonBounds,
+    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    T::Vec: BitWiseOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1314,8 +1281,9 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
             &rhs,
             |x, y| x._bitor(y),
             |x, y| x._bitor(y),
-            None::<Self::Output>
-        ).unwrap();
+            None::<Self::Output>,
+        )
+        .unwrap();
     }
 }
 
@@ -1326,17 +1294,16 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [&Tensor]   [&Tensor]  [Tensor]    [std::ops::BitOr];
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::BitOr];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + BitWiseOut<U>,
-        U: CommonBounds,
-        <T as BitWiseOut<U>>::Output: CommonBounds,
-        <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
-        T::Vec: BitWiseOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + BitWiseOut<U>,
+    U: CommonBounds,
+    <T as BitWiseOut<U>>::Output: CommonBounds,
+    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    T::Vec: BitWiseOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1366,16 +1333,15 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [Tensor]    [u64]       [Tensor]    [std::ops::BitOr];
     [&Tensor]   [u64]       [Tensor]    [std::ops::BitOr];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + BitWiseOut<rhs_type>,
-        <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
-        <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
-        T::Vec: BitWiseOut<
-            <rhs_type as TypeCommon>::Vec,
-            Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + BitWiseOut<rhs_type>,
+    <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
+    <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
+    T::Vec: BitWiseOut<
+        <rhs_type as TypeCommon>::Vec,
+        Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1406,17 +1372,16 @@ impl<T, const DEVICE: usize> trait_name<rhs_type>
     [Tensor]    [u64]       [Tensor]    [std::ops::BitOr];
     [&Tensor]   [u64]       [Tensor]    [std::ops::BitOr];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
-    for lhs_type
-    where
-        T: CommonBounds,
-        lhs_type: BitWiseOut<T>,
-        <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
-        <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
-        <lhs_type as TypeCommon>::Vec: BitWiseOut<
-            <T as TypeCommon>::Vec,
-            Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>> for lhs_type
+where
+    T: CommonBounds,
+    lhs_type: BitWiseOut<T>,
+    <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
+    <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
+    <lhs_type as TypeCommon>::Vec: BitWiseOut<
+        <T as TypeCommon>::Vec,
+        Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1433,17 +1398,16 @@ impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
     [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::BitXor];
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitXor];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + BitWiseOut<U>,
-        U: CommonBounds,
-        <T as BitWiseOut<U>>::Output: CommonBounds,
-        <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
-        T::Vec: BitWiseOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + BitWiseOut<U>,
+    U: CommonBounds,
+    <T as BitWiseOut<U>>::Output: CommonBounds,
+    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    T::Vec: BitWiseOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1453,8 +1417,9 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
             &rhs,
             |x, y| x._bitxor(y),
             |x, y| x._bitxor(y),
-            None::<Self::Output>
-        ).unwrap();
+            None::<Self::Output>,
+        )
+        .unwrap();
     }
 }
 
@@ -1465,17 +1430,16 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [&Tensor]   [&Tensor]  [Tensor]    [std::ops::BitXor];
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::BitXor];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + BitWiseOut<U>,
-        U: CommonBounds,
-        <T as BitWiseOut<U>>::Output: CommonBounds,
-        <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
-        T::Vec: BitWiseOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + BitWiseOut<U>,
+    U: CommonBounds,
+    <T as BitWiseOut<U>>::Output: CommonBounds,
+    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    T::Vec: BitWiseOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1505,16 +1469,15 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [Tensor]    [u64]       [Tensor]    [std::ops::BitXor];
     [&Tensor]   [u64]       [Tensor]    [std::ops::BitXor];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + BitWiseOut<rhs_type>,
-        <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
-        <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
-        T::Vec: BitWiseOut<
-            <rhs_type as TypeCommon>::Vec,
-            Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + BitWiseOut<rhs_type>,
+    <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
+    <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
+    T::Vec: BitWiseOut<
+        <rhs_type as TypeCommon>::Vec,
+        Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1545,17 +1508,16 @@ impl<T, const DEVICE: usize> trait_name<rhs_type>
     [Tensor]    [u64]       [Tensor]    [std::ops::BitXor];
     [&Tensor]   [u64]       [Tensor]    [std::ops::BitXor];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
-    for lhs_type
-    where
-        T: CommonBounds,
-        lhs_type: BitWiseOut<T>,
-        <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
-        <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
-        <lhs_type as TypeCommon>::Vec: BitWiseOut<
-            <T as TypeCommon>::Vec,
-            Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>> for lhs_type
+where
+    T: CommonBounds,
+    lhs_type: BitWiseOut<T>,
+    <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
+    <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
+    <lhs_type as TypeCommon>::Vec: BitWiseOut<
+        <T as TypeCommon>::Vec,
+        Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1572,17 +1534,16 @@ impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
     [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Shl];
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Shl];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + BitWiseOut<U>,
-        U: CommonBounds,
-        <T as BitWiseOut<U>>::Output: CommonBounds,
-        <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
-        T::Vec: BitWiseOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + BitWiseOut<U>,
+    U: CommonBounds,
+    <T as BitWiseOut<U>>::Output: CommonBounds,
+    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    T::Vec: BitWiseOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1592,8 +1553,9 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
             &rhs,
             |x, y| x._shl(y),
             |x, y| x._shl(y),
-            None::<Self::Output>
-        ).unwrap();
+            None::<Self::Output>,
+        )
+        .unwrap();
     }
 }
 
@@ -1604,17 +1566,16 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Shl];
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::Shl];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + BitWiseOut<U>,
-        U: CommonBounds,
-        <T as BitWiseOut<U>>::Output: CommonBounds,
-        <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
-        T::Vec: BitWiseOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + BitWiseOut<U>,
+    U: CommonBounds,
+    <T as BitWiseOut<U>>::Output: CommonBounds,
+    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    T::Vec: BitWiseOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1644,16 +1605,15 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [Tensor]    [u64]       [Tensor]    [std::ops::Shl];
     [&Tensor]   [u64]       [Tensor]    [std::ops::Shl];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + BitWiseOut<rhs_type>,
-        <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
-        <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
-        T::Vec: BitWiseOut<
-            <rhs_type as TypeCommon>::Vec,
-            Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + BitWiseOut<rhs_type>,
+    <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
+    <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
+    T::Vec: BitWiseOut<
+        <rhs_type as TypeCommon>::Vec,
+        Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1684,17 +1644,16 @@ impl<T, const DEVICE: usize> trait_name<rhs_type>
     [Tensor]    [u64]       [Tensor]    [std::ops::Shl];
     [&Tensor]   [u64]       [Tensor]    [std::ops::Shl];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
-    for lhs_type
-    where
-        T: CommonBounds,
-        lhs_type: BitWiseOut<T>,
-        <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
-        <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
-        <lhs_type as TypeCommon>::Vec: BitWiseOut<
-            <T as TypeCommon>::Vec,
-            Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>> for lhs_type
+where
+    T: CommonBounds,
+    lhs_type: BitWiseOut<T>,
+    <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
+    <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
+    <lhs_type as TypeCommon>::Vec: BitWiseOut<
+        <T as TypeCommon>::Vec,
+        Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1711,17 +1670,16 @@ impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
     [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Shr];
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Shr];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + BitWiseOut<U>,
-        U: CommonBounds,
-        <T as BitWiseOut<U>>::Output: CommonBounds,
-        <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
-        T::Vec: BitWiseOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + BitWiseOut<U>,
+    U: CommonBounds,
+    <T as BitWiseOut<U>>::Output: CommonBounds,
+    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    T::Vec: BitWiseOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1731,8 +1689,9 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
             &rhs,
             |x, y| x._shr(y),
             |x, y| x._shr(y),
-            None::<Self::Output>
-        ).unwrap();
+            None::<Self::Output>,
+        )
+        .unwrap();
     }
 }
 
@@ -1743,17 +1702,16 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Shr];
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::Shr];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + BitWiseOut<U>,
-        U: CommonBounds,
-        <T as BitWiseOut<U>>::Output: CommonBounds,
-        <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
-        T::Vec: BitWiseOut<
-            <U as TypeCommon>::Vec,
-            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
-        >
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + BitWiseOut<U>,
+    U: CommonBounds,
+    <T as BitWiseOut<U>>::Output: CommonBounds,
+    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    T::Vec: BitWiseOut<
+        <U as TypeCommon>::Vec,
+        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1783,16 +1741,15 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [Tensor]    [u64]       [Tensor]    [std::ops::Shr];
     [&Tensor]   [u64]       [Tensor]    [std::ops::Shr];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + BitWiseOut<rhs_type>,
-        <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
-        <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
-        T::Vec: BitWiseOut<
-            <rhs_type as TypeCommon>::Vec,
-            Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + BitWiseOut<rhs_type>,
+    <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
+    <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
+    T::Vec: BitWiseOut<
+        <rhs_type as TypeCommon>::Vec,
+        Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1823,17 +1780,16 @@ impl<T, const DEVICE: usize> trait_name<rhs_type>
     [Tensor]    [u64]       [Tensor]    [std::ops::Shr];
     [&Tensor]   [u64]       [Tensor]    [std::ops::Shr];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
-    for lhs_type
-    where
-        T: CommonBounds,
-        lhs_type: BitWiseOut<T>,
-        <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
-        <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
-        <lhs_type as TypeCommon>::Vec: BitWiseOut<
-            <T as TypeCommon>::Vec,
-            Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec
-        >
+impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>> for lhs_type
+where
+    T: CommonBounds,
+    lhs_type: BitWiseOut<T>,
+    <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
+    <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
+    <lhs_type as TypeCommon>::Vec: BitWiseOut<
+        <T as TypeCommon>::Vec,
+        Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec,
+    >,
 {
     type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1854,21 +1810,18 @@ impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cpu, DEVICE>>
     [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::RemAssign]    [rem_assign]    [_rem];
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::RemAssign]    [rem_assign]    [_rem];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<U>,
-        U: CommonBounds,
-        <T as NormalOut<U>>::Output: CommonBounds + IntoScalar<T>,
-        <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<U>,
+    U: CommonBounds,
+    <T as NormalOut<U>>::Output: CommonBounds + IntoScalar<T>,
+    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn trait_method(&mut self, rhs: rhs_type<U, Cpu, DEVICE>) {
-        self.par_iter_mut()
-            .zip(rhs.par_iter())
-            .for_each(|(x, y)| {
-                *x = x.op(y).into_scalar();
-            });
+        self.par_iter_mut().zip(rhs.par_iter()).for_each(|(x, y)| {
+            *x = x.op(y).into_scalar();
+        });
     }
 }
 
@@ -1883,13 +1836,12 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     [Tensor]    [Tensor]        [std::ops::RemAssign]    [rem_assign];
     [Tensor]    [&Tensor]       [std::ops::RemAssign]    [rem_assign];
 )]
-impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
-    for lhs_type<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + NormalOut<U>,
-        U: CommonBounds,
-        <T as NormalOut<U>>::Output: CommonBounds + IntoScalar<T>,
-        <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>
+impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_type<T, Cpu, DEVICE>
+where
+    T: CommonBounds + NormalOut<U>,
+    U: CommonBounds,
+    <T as NormalOut<U>>::Output: CommonBounds + IntoScalar<T>,
+    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn trait_method(&mut self, rhs: rhs_type<U, Cpu, DEVICE>) {
@@ -1897,9 +1849,10 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     }
 }
 
-impl<T, U, const DEVICE: usize> PartialEq<_Tensor<U, Cpu, DEVICE>>
-    for _Tensor<T, Cpu, DEVICE>
-    where T: CommonBounds + Convertor, U: CommonBounds + Convertor
+impl<T, U, const DEVICE: usize> PartialEq<_Tensor<U, Cpu, DEVICE>> for _Tensor<T, Cpu, DEVICE>
+where
+    T: CommonBounds + Convertor,
+    U: CommonBounds + Convertor,
 {
     fn eq(&self, other: &_Tensor<U, Cpu, DEVICE>) -> bool {
         if self.size() != other.size() {
@@ -1912,53 +1865,52 @@ impl<T, U, const DEVICE: usize> PartialEq<_Tensor<U, Cpu, DEVICE>>
     }
 }
 
-impl<T> Not
-    for _Tensor<T>
-    where
-        T: BitWiseOut<T> + CommonBounds,
-        <T as BitWiseOut>::Output: CommonBounds,
-        T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>
+impl<T> Not for _Tensor<T>
+where
+    T: BitWiseOut<T> + CommonBounds,
+    <T as BitWiseOut>::Output: CommonBounds,
+    T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>,
 {
     type Output = _Tensor<<T as BitWiseOut<T>>::Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn not(self) -> Self::Output {
         let lhs: _Tensor<T> = self.into();
-        uary_fn_with_out_simd(
+        unary_fn_with_out_simd(
             &lhs,
             |x| x._not(),
             |x| x._not(),
-            None::<_Tensor<<T as BitWiseOut<T>>::Output>>
-        ).unwrap()
+            None::<_Tensor<<T as BitWiseOut<T>>::Output>>,
+        )
+        .unwrap()
     }
 }
 
-impl<T> Not
-    for &_Tensor<T>
-    where
-        T: BitWiseOut<T> + CommonBounds,
-        <T as BitWiseOut>::Output: CommonBounds,
-        T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>
+impl<T> Not for &_Tensor<T>
+where
+    T: BitWiseOut<T> + CommonBounds,
+    <T as BitWiseOut>::Output: CommonBounds,
+    T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>,
 {
     type Output = _Tensor<<T as BitWiseOut<T>>::Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn not(self) -> Self::Output {
         let lhs: _Tensor<T> = self.into();
-        uary_fn_with_out_simd(
+        unary_fn_with_out_simd(
             &lhs,
             |x| x._not(),
             |x| x._not(),
-            None::<_Tensor<<T as BitWiseOut<T>>::Output>>
-        ).unwrap()
+            None::<_Tensor<<T as BitWiseOut<T>>::Output>>,
+        )
+        .unwrap()
     }
 }
 
-impl<T> Neg
-    for _Tensor<T>
-    where
-        T: CommonBounds,
-        T::Vec: NormalOutUnary<Base = NormalType<T>>,
-        T: NormalOutUnary<Base = NormalType<T>>,
-        _Tensor<NormalType<T>>: TensorLike<NormalType<T>>
+impl<T> Neg for _Tensor<T>
+where
+    T: CommonBounds,
+    T::Vec: NormalOutUnary<Base = NormalType<T>>,
+    T: NormalOutUnary<Base = NormalType<T>>,
+    _Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 {
     type Output = _Tensor<NormalType<T>>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1967,13 +1919,12 @@ impl<T> Neg
     }
 }
 
-impl<T> Neg
-    for &_Tensor<T>
-    where
-        T: CommonBounds,
-        T::Vec: NormalOutUnary<Base = NormalType<T>>,
-        T: NormalOutUnary<Base = NormalType<T>>,
-        _Tensor<NormalType<T>>: TensorLike<NormalType<T>>
+impl<T> Neg for &_Tensor<T>
+where
+    T: CommonBounds,
+    T::Vec: NormalOutUnary<Base = NormalType<T>>,
+    T: NormalOutUnary<Base = NormalType<T>>,
+    _Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 {
     type Output = _Tensor<NormalType<T>>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1982,9 +1933,10 @@ impl<T> Neg
     }
 }
 
-impl<T, U> PartialEq<Tensor<U>>
-    for Tensor<T>
-    where T: CommonBounds + Convertor, U: CommonBounds + Convertor
+impl<T, U> PartialEq<Tensor<U>> for Tensor<T>
+where
+    T: CommonBounds + Convertor,
+    U: CommonBounds + Convertor,
 {
     fn eq(&self, other: &Tensor<U>) -> bool {
         if self.size() != other.size() {
@@ -1997,12 +1949,11 @@ impl<T, U> PartialEq<Tensor<U>>
     }
 }
 
-impl<T> Not
-    for Tensor<T>
-    where
-        T: BitWiseOut<T> + CommonBounds,
-        <T as BitWiseOut>::Output: CommonBounds,
-        T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>
+impl<T> Not for Tensor<T>
+where
+    T: BitWiseOut<T> + CommonBounds,
+    <T as BitWiseOut>::Output: CommonBounds,
+    T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>,
 {
     type Output = Tensor<<T as BitWiseOut<T>>::Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -2011,12 +1962,11 @@ impl<T> Not
     }
 }
 
-impl<T> Not
-    for &Tensor<T>
-    where
-        T: BitWiseOut<T> + CommonBounds,
-        <T as BitWiseOut>::Output: CommonBounds,
-        T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>
+impl<T> Not for &Tensor<T>
+where
+    T: BitWiseOut<T> + CommonBounds,
+    <T as BitWiseOut>::Output: CommonBounds,
+    T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>,
 {
     type Output = Tensor<<T as BitWiseOut<T>>::Output>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -2025,32 +1975,34 @@ impl<T> Not
     }
 }
 
-impl<T> Neg
-    for Tensor<T>
-    where
-        T: CommonBounds,
-        T::Vec: NormalOutUnary<Base = NormalType<T>>,
-        T: NormalOutUnary<Base = NormalType<T>>,
-        Tensor<NormalType<T>>: TensorLike<NormalType<T>>
+impl<T> Neg for Tensor<T>
+where
+    T: CommonBounds,
+    T::Vec: NormalOutUnary<Base = NormalType<T>>,
+    T: NormalOutUnary<Base = NormalType<T>>,
+    Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 {
     type Output = Tensor<NormalType<T>>;
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn neg(self) -> Self::Output {
-        <_Tensor<T> as NormalUaryOps>::neg(self.inner.as_ref()).unwrap().into()
+        <_Tensor<T> as NormalUaryOps>::neg(self.inner.as_ref())
+            .unwrap()
+            .into()
     }
 }
 
-impl<T> Neg
-    for &Tensor<T>
-    where
-        T: CommonBounds,
-        T::Vec: NormalOutUnary<Base = NormalType<T>>,
-        T: NormalOutUnary<Base = NormalType<T>>,
-        Tensor<NormalType<T>>: TensorLike<NormalType<T>>
+impl<T> Neg for &Tensor<T>
+where
+    T: CommonBounds,
+    T::Vec: NormalOutUnary<Base = NormalType<T>>,
+    T: NormalOutUnary<Base = NormalType<T>>,
+    Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 {
     type Output = Tensor<NormalType<T>>;
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn neg(self) -> Self::Output {
-        <_Tensor<T> as NormalUaryOps>::neg(self.inner.as_ref()).unwrap().into()
+        <_Tensor<T> as NormalUaryOps>::neg(self.inner.as_ref())
+            .unwrap()
+            .into()
     }
 }
