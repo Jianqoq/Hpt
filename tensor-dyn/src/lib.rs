@@ -47,8 +47,6 @@ pub mod ops {
         }
         /// a module defines all the std::ops operations
         pub mod std_ops;
-        /// a module defines tensordot operation
-        pub mod tensordot;
         /// a module defines all the kernels
         pub mod kernels {
             /// a module defines reduce kernels
@@ -100,6 +98,8 @@ pub mod ops {
             pub mod slice;
             /// a module that contains all the windows creation functions
             pub mod windows;
+            /// a module that contains all the tensordot functions
+            pub mod tensordot;
         }
         /// a module that contains all the functions only for the internal user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_internal {
@@ -129,6 +129,8 @@ pub mod ops {
             pub mod slice;
             /// a module that contains all the windows creation functions
             pub mod windows;
+            /// a module that contains all the tensordot functions
+            pub mod tensordot;
         }
 
         /// a module contains all the pooling operations

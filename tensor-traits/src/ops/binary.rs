@@ -1,4 +1,4 @@
-use std::borrow::{ Borrow, BorrowMut };
+use std::borrow::{Borrow, BorrowMut};
 
 use tensor_common::error::base::TensorError;
 use tensor_types::dtype::TypeCommon;
@@ -7,7 +7,8 @@ use crate::tensor::CommonBounds;
 
 /// A trait for binary operations on tensors.
 pub trait NormalBinOps<RHS = Self>
-    where <<Self as NormalBinOps<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync
+where
+    <<Self as NormalBinOps<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync,
 {
     /// The output tensor type.
     type Output;
@@ -22,7 +23,8 @@ pub trait NormalBinOps<RHS = Self>
     ///
     /// - [`add`]: Perform addition of `self` and `rhs` element-wise, with auto broadcasting.
     fn add_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
-        where U: Borrow<Self::InplaceOutput>;
+    where
+        U: Borrow<Self::InplaceOutput>;
 
     /// Inplace version of subtraction
     ///
@@ -30,7 +32,8 @@ pub trait NormalBinOps<RHS = Self>
     ///
     /// - [`sub`]: Perform subtraction of `self` and `rhs` element-wise, with auto broadcasting.
     fn sub_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
-        where U: Borrow<Self::InplaceOutput>;
+    where
+        U: Borrow<Self::InplaceOutput>;
 
     /// Inplace version of multiplication
     ///
@@ -38,7 +41,8 @@ pub trait NormalBinOps<RHS = Self>
     ///
     /// - [`mul`]: Perform multiplication of `self` and `rhs` element-wise, with auto broadcasting.
     fn mul_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
-        where U: Borrow<Self::InplaceOutput>;
+    where
+        U: Borrow<Self::InplaceOutput>;
 
     /// Inplace version of rem
     ///
@@ -46,12 +50,14 @@ pub trait NormalBinOps<RHS = Self>
     ///
     /// - [`div`]: Perform rem of `self` and `rhs` element-wise, with auto broadcasting.
     fn rem_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
-        where U: Borrow<Self::InplaceOutput>;
+    where
+        U: Borrow<Self::InplaceOutput>;
 }
 
 /// A trait for matrix multiplication operations on tensors.
 pub trait Matmul<RHS = Self>
-    where <<Self as Matmul<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync
+where
+    <<Self as Matmul<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync,
 {
     /// The output tensor type.
     type Output;
@@ -92,5 +98,15 @@ pub trait Matmul<RHS = Self>
     /// - [`matmul`]: Perform matrix multiplication of `self` and `rhs`.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn matmul_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
-        where U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;
+    where
+        U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;
+}
+
+/// A trait for tensor dot operations on tensors.
+pub trait TensorDot<RHS = Self> {
+    /// The output tensor type.
+    type Output;
+
+    /// Computes the tensor dot product of two tensors.
+    fn tensordot<const N: usize>(&self, rhs: &RHS, axes: ([i64; N], [i64; N])) -> std::result::Result<Self::Output, TensorError>;
 }
