@@ -33,7 +33,7 @@ macro_rules! init_arr {
         $macro_init_val:expr,
         $($specific_type:tt)*
     ) => {
-        $result = _Tensor::<$($specific_type)*, Cpu>::empty($shape.clone())?;
+        $result = _Tensor::<$($specific_type)*, Cpu, DEVICE>::empty($shape.clone())?;
         $result.as_raw_mut().par_iter_mut().for_each(|x| {
             *x = $macro_init_val;
         });
@@ -51,7 +51,7 @@ macro_rules! body_one_axis {
         $generic_a:ident,
         $($specific_type:tt)*
     ) => {
-        let a_: &_Tensor<$generic_a> = &$a;
+        let a_: &_Tensor<$generic_a, Cpu, DEVICE> = &$a;
         let a_shape = a_.shape();
         let a_shape_tmp = a_shape.clone();
         let mut a_shape_cpy = a_shape_tmp.to_vec();
@@ -176,8 +176,8 @@ macro_rules! register_reduction_one_axis {
         $($trait_bound:tt)*
     ) => {
         #[cfg_attr(feature = "track_caller", track_caller)]
-        pub(crate) fn $fn_name<$generic_a, $generic_b>(a: &_Tensor<$generic_a>, axes: Vec<usize>,
-             init_val: $generic_b, keepdims: bool, c: Option<_Tensor<$generic_b>>) -> std::result::Result<_Tensor<$generic_b>, TensorError> $($trait_bound)*
+        pub(crate) fn $fn_name<$generic_a, $generic_b, const DEVICE: usize>(a: &_Tensor<$generic_a, Cpu, DEVICE>, axes: Vec<usize>,
+             init_val: $generic_b, keepdims: bool, c: Option<_Tensor<$generic_b, Cpu, DEVICE>>) -> std::result::Result<_Tensor<$generic_b, Cpu, DEVICE>, TensorError> $($trait_bound)*
          {
             body_one_axis!(axes, a, init_val, keepdims, c, $kernel_name, $generic_a, $generic_b);
         }
@@ -189,8 +189,8 @@ macro_rules! register_reduction_one_axis {
         $($trait_bound:tt)*
     ) => {
         #[cfg_attr(feature = "track_caller", track_caller)]
-        pub(crate) fn $fn_name<$generic_a>(a: &_Tensor<$generic_a>, axes: Vec<usize>,
-             init_val: $generic_a, keepdims: bool, c: Option<_Tensor<$generic_a>>) -> std::result::Result<_Tensor<$generic_a>, TensorError> $($trait_bound)*
+        pub(crate) fn $fn_name<$generic_a, const DEVICE: usize>(a: &_Tensor<$generic_a, Cpu, DEVICE>, axes: Vec<usize>,
+             init_val: $generic_a, keepdims: bool, c: Option<_Tensor<$generic_a, Cpu, DEVICE>>) -> std::result::Result<_Tensor<$generic_a, Cpu, DEVICE>, TensorError> $($trait_bound)*
          {
             body_one_axis!(axes, a, init_val, keepdims, c, $kernel_name, $generic_a, $generic_a);
         }
@@ -202,8 +202,8 @@ macro_rules! register_reduction_one_axis {
         $($trait_bound:tt)*
     ) => {
         #[cfg_attr(feature = "track_caller", track_caller)]
-        pub(crate) fn $fn_name<$generic_a>(a: &_Tensor<$generic_a>, axes: Vec<usize>,
-             init_val: $($specific_type)*, keepdims: bool, c: Option<_Tensor<$($specific_type)*>>) -> std::result::Result<_Tensor<$($specific_type)*>, TensorError> $($trait_bound)*
+        pub(crate) fn $fn_name<$generic_a, const DEVICE: usize>(a: &_Tensor<$generic_a, Cpu, DEVICE>, axes: Vec<usize>,
+             init_val: $($specific_type)*, keepdims: bool, c: Option<_Tensor<$($specific_type)*, Cpu, DEVICE>>) -> std::result::Result<_Tensor<$($specific_type)*, Cpu, DEVICE>, TensorError> $($trait_bound)*
          {
             body_one_axis!(axes, a, init_val, keepdims, c, $kernel_name, $generic_a, $($specific_type)*);
         }

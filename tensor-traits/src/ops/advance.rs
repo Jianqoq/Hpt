@@ -36,6 +36,8 @@ pub trait AdvanceOps {
     fn dropout(&self, rate: f64) -> Result<Self::Output, TensorError>;
     /// Gather elements the tensor
     fn gather_elements(&self, indices: &Self::IndexOutput, axis: i64) -> Result<Self::Output, TensorError>;
+    /// Scatter elements the tensor
+    fn scatter(&self, indices: &Self::IndexOutput, axis: i64, src: &Self::Output) -> Result<Self::Output, TensorError>;
 }
 
 /// A trait for shrinkage

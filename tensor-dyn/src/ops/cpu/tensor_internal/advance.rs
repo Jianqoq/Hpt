@@ -28,11 +28,7 @@ where
 
     type IndexOutput = _Tensor<i64, Cpu, DEVICE>;
 
-    fn pad(
-        &self,
-        pads: &[(i64, i64)],
-        val: Self::Meta,
-    ) -> Result<Self::Output, TensorError> {
+    fn pad(&self, pads: &[(i64, i64)], val: Self::Meta) -> Result<Self::Output, TensorError> {
         let res_shape = self
             .shape()
             .iter()
@@ -511,9 +507,17 @@ where
             );
         Ok(ret)
     }
-    
-    fn gather_elements(&self, indices: &Self::IndexOutput, axis: i64) -> Result<Self::Output, TensorError> {
-        let axis = (if axis < 0 { (self.ndim() as i64) + axis } else { axis }) as usize;
+
+    fn gather_elements(
+        &self,
+        indices: &Self::IndexOutput,
+        axis: i64,
+    ) -> Result<Self::Output, TensorError> {
+        let axis = (if axis < 0 {
+            (self.ndim() as i64) + axis
+        } else {
+            axis
+        }) as usize;
         let ret = _Tensor::<T, Cpu, DEVICE>::empty(indices.shape())?;
         let inner_loop_size = indices.shape()[indices.ndim() - 1] as usize;
         let outer_loop_size = indices.size() / inner_loop_size;
@@ -555,7 +559,8 @@ where
                 .into_iter()
                 .zip(res_ptrs.into_iter())
                 .zip(idx_ptrs.into_iter())
-                .zip(prgs.into_iter()) {
+                .zip(prgs.into_iter())
+            {
                 let shape = ret.shape().clone();
                 let ret_strides = ret.strides().clone();
                 let indice_strides = indices.strides().clone();
@@ -567,10 +572,7 @@ where
                     if axis == (ndim as usize) - 1 {
                         let index_cal = |prg: &[i64]| {
                             let mut acc = 0;
-                            for (i, &x) in prg
-                                .iter()
-                                .enumerate()
-                                .take((ndim as usize) - 1) {
+                            for (i, &x) in prg.iter().enumerate().take((ndim as usize) - 1) {
                                 acc += x * inp_strides[i];
                             }
                             acc
@@ -599,10 +601,7 @@ where
                         let index_cal = |prg: &mut [i64]| {
                             let tmp = prg[axis];
                             let mut acc = 0;
-                            for (i, &x) in prg
-                                .iter()
-                                .enumerate()
-                                .take((ndim as usize) - 1) {
+                            for (i, &x) in prg.iter().enumerate().take((ndim as usize) - 1) {
                                 if i == axis {
                                     continue;
                                 }
@@ -615,9 +614,8 @@ where
                         for _ in start..end {
                             for i in 0..inner_loop_size as i64 {
                                 let idx = idx_ptr[i * idx_last_stride];
-                                res_ptr[i] = inp_ptr[
-                                    offset + idx * inp_idx_stride + i * inp_last_stride
-                                ];
+                                res_ptr[i] =
+                                    inp_ptr[offset + idx * inp_idx_stride + i * inp_last_stride];
                             }
                             for j in (0..ndim - 1).rev() {
                                 let j = j as usize;
@@ -645,6 +643,47 @@ where
             pool.join();
         });
         Ok(ret)
+    }
+
+    fn scatter(
+        &self,
+        indices: &Self::IndexOutput,
+        axis: i64,
+        src: &Self::Output,
+    ) -> Result<Self::Output, TensorError> {
+        let axis = if axis < 0 {
+            self.ndim() as i64 + axis
+        } else {
+            axis
+        } as usize;
+        let result = self.clone();
+
+        let ndim = self.ndim();
+        let shape = self.shape();
+
+        let mut position = vec![0; ndim];
+        for i in 0..indices.size() as i64 {
+            let mut tmp = i;
+            for d in (0..ndim).rev() {
+                position[d] = tmp % shape[d];
+                tmp /= shape[d];
+            }
+
+            let target_idx = indices.ptr()[i] as i64;
+            let src_val = src.ptr()[i];
+
+            let mut target_offset = 0i64;
+            for d in 0..ndim {
+                if d == axis {
+                    target_offset += target_idx * result.strides()[d];
+                } else {
+                    target_offset += position[d] * result.strides()[d];
+                }
+            }
+            result.ptr()[target_offset] = src_val;
+        }
+
+        Ok(result)
     }
 }
 

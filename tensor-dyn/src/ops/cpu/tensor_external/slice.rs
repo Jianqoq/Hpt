@@ -1,9 +1,8 @@
-use tensor_common::slice::Slice;
+use tensor_common::{error::base::TensorError, slice::Slice};
 use tensor_traits::CommonBounds;
-use anyhow::Result;
-use crate::tensor::Tensor;
+use crate::{tensor::Tensor, Cpu};
 
-impl<T> Tensor<T> where T: CommonBounds {
+impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> where T: CommonBounds {
     /// Extracts a slice of the tensor based on the provided indices.
     ///
     /// This method creates a new tensor that represents a slice of the original tensor.
@@ -19,7 +18,7 @@ impl<T> Tensor<T> where T: CommonBounds {
     ///
     /// Returns a `Result` containing the sliced tensor as a new tensor. If any slicing error occurs
     /// (e.g., out-of-bounds access), an error message is returned.
-    pub fn slice(&self, index: &[Slice]) -> Result<Tensor<T>> {
+    pub fn slice(&self, index: &[Slice]) -> Result<Tensor<T, Cpu, DEVICE>, TensorError> {
         Ok(self.inner.slice(index)?.into())
     }
 }

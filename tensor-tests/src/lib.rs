@@ -21,6 +21,7 @@ pub mod tensor_dyn {
         pub mod adaptive_avg_pool;
         pub mod adaptive_max_pool;
         pub mod onehot;
+        pub mod scatter;
         pub mod gather;
         pub mod assert_utils;
     }
