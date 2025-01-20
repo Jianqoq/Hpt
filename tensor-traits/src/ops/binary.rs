@@ -97,7 +97,7 @@ where
     ///
     /// - [`matmul`]: Perform matrix multiplication of `self` and `rhs`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn matmul_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
+    fn matmul_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;
 }

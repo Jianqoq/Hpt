@@ -96,7 +96,7 @@ where
 
     type OutputMeta = <A as NormalOut<B>>::Output;
 
-    type InplaceOutput = DiffTensor<<A as NormalOut<B>>::Output>;
+    type InplaceOutput = Tensor<<A as NormalOut<B>>::Output>;
 
     fn matmul(&self, rhs: DiffTensor<B>) -> std::result::Result<Self::Output, TensorError> {
         let res = self.inner.matmul(&rhs.inner)?;
@@ -121,10 +121,10 @@ where
         &self,
         rhs: DiffTensor<B>,
         out: U,
-    ) -> std::result::Result<Self::Output, TensorError>
+    ) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
     {
-        todo!()
+        self.inner.matmul_(&rhs.inner, out)
     }
 }
