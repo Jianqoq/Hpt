@@ -970,7 +970,7 @@ where
     ///
     /// - `anyhow::Result<Self::Output>`: A tensor containing the mean values along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+    fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError>;
 
     /// Reduces the tensor along the specified axis using the L2 norm (Euclidean norm).
     ///
@@ -985,7 +985,7 @@ where
     ///
     /// - `anyhow::Result<Self::Output>`: A tensor with the L2 norm computed along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn reducel2<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+    fn reducel2<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError>;
 
     /// Reduces the tensor along the specified axis using the L3 norm.
     ///
@@ -1000,7 +1000,7 @@ where
     ///
     /// - `anyhow::Result<Self::Output>`: A tensor with the L3 norm computed along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn reducel3<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+    fn reducel3<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError>;
 
     /// Computes the logarithm of the sum of exponentials of the elements along the specified axis.
     ///
@@ -1016,7 +1016,7 @@ where
     ///
     /// - `anyhow::Result<Self::Output>`: A tensor containing the log-sum-exp values along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn logsumexp<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> anyhow::Result<Self::Output>;
+    fn logsumexp<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError>;
 }
 
 /// Common bounds for primitive types

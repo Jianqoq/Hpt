@@ -78,7 +78,7 @@ where
                     if *lhs.out_degree.borrow() > 1 {
                         *lhs.out_degree.borrow_mut() -= 1;
                     } else {
-                        lhs.backward.borrow_mut()(grad.clone())?;
+                        lhs.backward.borrow_mut()(tmp)?;
                     }
                 } else {
                     panic!("Gradient is not set for slice");

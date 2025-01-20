@@ -8,7 +8,9 @@ use tensor_common::axis::axis::{process_axes, Axis};
 use tensor_common::error::base::TensorError;
 use tensor_iterator::iterator_traits::ParStridedIteratorSimd;
 use tensor_iterator::TensorIterator;
-use tensor_traits::{CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce, TensorInfo};
+use tensor_traits::{
+    CommonBounds, EvalReduce, FloatReduce, NormalEvalReduce, NormalReduce, TensorInfo,
+};
 use tensor_types::type_promote::NormalOutUnary;
 use tensor_types::vectors::traits::VecTrait;
 use tensor_types::{
@@ -473,7 +475,7 @@ where
     // }
 }
 
-impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize> FloatReduce<T> for _Tensor<T, Cpu, DEVICE>
 where
     T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output> + Convertor,
     <T as FloatOutBinary>::Output:
@@ -484,7 +486,14 @@ where
             <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
             Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
         >,
+    f64: IntoScalar<<T as FloatOutBinary>::Output>,
+    <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
+    T::Vec: NormalOut<
+        <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+        Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+    >,
 {
+    type Output = _Tensor<FloatBinaryType<T>, Cpu, DEVICE>;
     /// Computes the mean (average) of elements along a specified axis.
     ///
     /// This method calculates the mean (average) of the tensor's elements along a specified axis,
@@ -506,15 +515,11 @@ where
     /// This function returns a `Result` containing a tensor with the mean values along
     /// the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn mean<S: Into<Axis>>(
+    fn mean<S: Into<Axis>>(
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
-    where
-        f64: IntoScalar<<T as FloatOutBinary>::Output>,
-        <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
-    {
+    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         let reduce_size: FloatBinaryType<T> = (axes
             .iter()
@@ -560,15 +565,11 @@ where
     /// with the L2 norm values along the specified axis.
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn reducel2<S: Into<Axis>>(
+    fn reducel2<S: Into<Axis>>(
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
-    where
-        T: NormalOut,
-        <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
-    {
+    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce3(
             self,
@@ -576,8 +577,8 @@ where
             |a, b| a._add(b._square()),
             |a, b| a._add(b),
             move |a| a._sqrt(),
-            |a, b| a._add(b._mul(b)),
-            |a, b| a._add(b._mul(b)),
+            |a, b| a._add(b._square()),
+            |a, b| a._add(b._square()),
             |a| a._sqrt(),
             &axes,
             <T as FloatOutBinary>::Output::ZERO,
@@ -610,19 +611,11 @@ where
     /// with the L3 norm values along the specified axis.
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn reducel3<S: Into<Axis>>(
+    fn reducel3<S: Into<Axis>>(
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
-    where
-        f64: IntoScalar<<T as FloatOutBinary>::Output>,
-        <T as FloatOutBinary>::Output: TypeCommon,
-        T::Vec: NormalOut<
-            <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-        >,
-    {
+    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         let three: <T as FloatOutBinary>::Output = (3.0).into_scalar();
         let three_vec = <<T as FloatOutBinary>::Output as TypeCommon>::Vec::splat(three);
@@ -690,7 +683,7 @@ where
     /// with the LogSumExp values along the specified axis.
     #[allow(unused)]
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn logsumexp<S: Into<Axis>>(
+    fn logsumexp<S: Into<Axis>>(
         &self,
         _: S,
         _: bool,
