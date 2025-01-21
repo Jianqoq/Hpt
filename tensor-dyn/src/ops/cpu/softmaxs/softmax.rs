@@ -1,12 +1,15 @@
+use std::{ cell::RefCell, rc::Rc };
+
 use crate::{
-    ops::cpu::kernels::softmax::{
+    ops::cpu::{kernels::softmax::{
         contiguous_dim_include,
         softmax_dim_not_include,
         uncontiguous_softmax_dim_include,
         uncontiguous_softmax_dim_not_include,
-    },
-    tensor::Tensor,
+    }, utils::diff::diff_utils::handle_grad},
+    tensor::{ DiffTensor, Tensor },
     tensor_base::_Tensor,
+    Cpu,
 };
 use rayon::iter::{
     IndexedParallelIterator,
@@ -15,7 +18,8 @@ use rayon::iter::{
     IntoParallelRefMutIterator,
     ParallelIterator,
 };
-use tensor_common::{error::base::TensorError, shape::shape::Shape};
+use tensor_common::{ error::base::TensorError, shape::shape::Shape };
+use tensor_iterator::{iterator_traits::ParStridedIteratorZip, TensorIterator};
 use tensor_traits::{ CommonBounds, TensorInfo, TensorLike };
 use tensor_types::{
     convertion::Convertor,
@@ -31,28 +35,13 @@ use super::softmax_utils::{
     UCSoftmaxPreprocessor,
 };
 
-impl<T> _Tensor<T> {
-    /// Applies the softmax function along a specified axis.
-    ///
-    /// The softmax function normalizes the elements along the specified axis such that they sum to 1.
-    /// It is commonly used in machine learning models, particularly for multi-class classification tasks.
-    /// The softmax function transforms each element `x_i` in the input tensor into a probability by computing:
-    ///
-    /// ```text
-    /// softmax(x_i) = exp(x_i) / sum(exp(x_j)) for all j along the specified axis
-    /// ```
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - The axis along which to apply the softmax function. The elements along this axis
-    ///   will be transformed into probabilities that sum to 1.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor with the softmax values computed along
-    /// the specified axis.
+impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn softmax(&self, axis: i64) -> anyhow::Result<_Tensor<<T as FloatOutUnary>::Output>>
+    pub fn softmax(
+        &self,
+        axis: i64
+    )
+        -> Result<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
         where
             T: CommonBounds + IntoScalar<<T as FloatOutUnary>::Output> + Convertor + FloatOutUnary,
             <T as FloatOutUnary>::Output: CommonBounds +
@@ -62,15 +51,23 @@ impl<T> _Tensor<T> {
             <<T as FloatOutUnary>::Output as TypeCommon>::Vec: FloatOutBinary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>
     {
         let res = if self.is_contiguous() && self.parent().is_none() {
-            contiguous_softmax(self, axis, None::<_Tensor<<T as FloatOutUnary>::Output>>)?
+            contiguous_softmax(
+                self,
+                axis,
+                None::<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>>
+            )?
         } else {
-            uncontiguous_softmax(self, axis, None::<_Tensor<<T as FloatOutUnary>::Output>>)?
+            uncontiguous_softmax(
+                self,
+                axis,
+                None::<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>>
+            )?
         };
         Ok(res)
     }
 }
 
-impl<T> Tensor<T> {
+impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     /// Applies the softmax function along a specified axis.
     ///
     /// The softmax function normalizes the elements along the specified axis such that they sum to 1.
@@ -91,7 +88,11 @@ impl<T> Tensor<T> {
     /// This function returns a `Result` containing a tensor with the softmax values computed along
     /// the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn softmax(&self, axis: i64) -> anyhow::Result<Tensor<<T as FloatOutUnary>::Output>>
+    pub fn softmax(
+        &self,
+        axis: i64
+    )
+        -> Result<Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
         where
             T: CommonBounds + IntoScalar<<T as FloatOutUnary>::Output> + Convertor + FloatOutUnary,
             <T as FloatOutUnary>::Output: CommonBounds +
@@ -104,13 +105,71 @@ impl<T> Tensor<T> {
     }
 }
 
+impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
+    /// Applies the softmax function along a specified axis.
+    ///
+    /// The softmax function normalizes the elements along the specified axis such that they sum to 1.
+    /// It is commonly used in machine learning models, particularly for multi-class classification tasks.
+    /// The softmax function transforms each element `x_i` in the input tensor into a probability by computing:
+    ///
+    /// ```text
+    /// softmax(x_i) = exp(x_i) / sum(exp(x_j)) for all j along the specified axis
+    /// ```
+    ///
+    /// # Arguments
+    ///
+    /// * `axis` - The axis along which to apply the softmax function. The elements along this axis
+    ///   will be transformed into probabilities that sum to 1.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a tensor with the softmax values computed along
+    /// the specified axis.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn softmax(
+        &self,
+        axis: i64
+    )
+        -> Result<DiffTensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
+        where
+            T: CommonBounds + IntoScalar<<T as FloatOutUnary>::Output> + Convertor + FloatOutUnary,
+            <T as FloatOutUnary>::Output: CommonBounds +
+                NormalOut<T, Output = <T as FloatOutUnary>::Output> +
+                FloatOutUnary<Output = <T as FloatOutUnary>::Output> + IntoScalar<T>,
+            T::Vec: FloatOutUnary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
+            <<T as FloatOutUnary>::Output as TypeCommon>::Vec: FloatOutBinary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>
+    {
+        let res = self.inner.softmax(axis)?;
+        let res_clone = res.clone();
+        let mut inp = self.clone();
+        Ok(DiffTensor {
+            inner: res,
+            grad: Rc::new(RefCell::new(None)),
+            out_degree: Rc::new(RefCell::new(0)),
+            backward: Rc::new(
+                RefCell::new(move |grad: Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>| {
+                    let grad = grad.inner
+                        .par_iter_mut()
+                        .zip(res_clone.inner.par_iter())
+                        .strided_map(|(g, r)| {
+                            let res = g._mul(r._mul(<T as FloatOutUnary>::Output::ONE._sub(r)));
+                            res.into_scalar()
+                        }).collect();
+                    handle_grad(&mut inp, grad, &[])?;
+                    Ok(false)
+                })
+            ),
+        })
+    }
+}
+
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn contiguous_softmax<T, O>(
-    a: &_Tensor<T>,
+pub(crate) fn contiguous_softmax<T, O, const DEVICE: usize>(
+    a: &_Tensor<T, Cpu, DEVICE>,
     axis: i64,
-    c: Option<_Tensor<O>>
+    c: Option<_Tensor<O, Cpu, DEVICE>>
 )
-    -> anyhow::Result<_Tensor<O>>
+    -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds + IntoScalar<O> + Convertor + FloatOutUnary<Output = O>,
         O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
@@ -246,12 +305,12 @@ pub(crate) fn contiguous_softmax<T, O>(
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn uncontiguous_softmax<T, O>(
-    a: &_Tensor<T>,
+pub(crate) fn uncontiguous_softmax<T, O, const DEVICE: usize>(
+    a: &_Tensor<T, Cpu, DEVICE>,
     axis: i64,
-    c: Option<_Tensor<O>>
+    c: Option<_Tensor<O, Cpu, DEVICE>>
 )
-    -> std::result::Result<_Tensor<O>, TensorError>
+    -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds + IntoScalar<O> + Convertor + FloatOutUnary<Output = O>,
         O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,

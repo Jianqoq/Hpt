@@ -106,7 +106,7 @@ where
                     ranges.push(Slice::Range((*pad_before, grad.shape()[dim] - *pad_after)));
                 }
                 grad = grad.slice(&ranges)?;
-                handle_grad(&mut lhs, grad, &Vec::new())?;
+                handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
             })),
         })
@@ -130,7 +130,7 @@ where
                 backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
                     let full_grad = Tensor::<T, Cpu, DEVICE>::zeros(lhs.inner.shape())?;
                     full_grad.scatter(&indices, dim, &grad)?;
-                    handle_grad(&mut lhs, full_grad, &Vec::new())?;
+                    handle_grad(&mut lhs, full_grad, &[])?;
                     Ok(false)
                 })),
             },

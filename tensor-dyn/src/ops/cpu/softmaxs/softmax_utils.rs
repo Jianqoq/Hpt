@@ -234,11 +234,11 @@ where
     }
 }
 
-pub(crate) fn softmax_prepare<T: CommonBounds, O: CommonBounds>(
-    a: &_Tensor<T>,
+pub(crate) fn softmax_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: usize>(
+    a: &_Tensor<T, Cpu, DEVICE>,
     axis: usize,
-    c: Option<_Tensor<O>>,
-) -> std::result::Result<(bool, _Tensor<T>, _Tensor<O>), TensorError> {
+    c: Option<_Tensor<O, Cpu, DEVICE>>,
+) -> std::result::Result<(bool, _Tensor<T, Cpu, DEVICE>, _Tensor<O, Cpu, DEVICE>), TensorError> {
     let mut keep_fast_dim = true;
     if a.strides()[axis] == 1 {
         keep_fast_dim = false;
@@ -256,26 +256,26 @@ pub(crate) fn softmax_prepare<T: CommonBounds, O: CommonBounds>(
         ShapeError::check_inplace_out_layout_valid(a.shape(), out.layout())?;
         Ok(out)
     } else {
-        _Tensor::<O, Cpu>::empty(a.shape())
+        _Tensor::<O, Cpu, DEVICE>::empty(a.shape())
     };
     Ok((keep_fast_dim, a.permute(transposed_axis)?, res?))
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn contiguous_softmax_template<T, F1, F2, F3, O>(
-    a: &_Tensor<T>,
+pub(crate) fn contiguous_softmax_template<T, F1, F2, F3, O, const DEVICE: usize>(
+    a: &_Tensor<T, Cpu, DEVICE>,
     axis: usize,
-    c: Option<_Tensor<O>>,
+    c: Option<_Tensor<O, Cpu, DEVICE>>,
     full_reduce: F1,
     nkd: F2,
     kd: F3,
-) -> anyhow::Result<_Tensor<O>>
+) -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
 where
     T: CommonBounds + IntoScalar<O>,
     O: CommonBounds,
     F1: Fn(&mut O),
-    F2: Fn(usize, usize, &_Tensor<O>, &_Tensor<T>),
-    F3: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>),
+    F2: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
+    F3: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
 {
     let (keep_fast_dim, transposed_tensor, result) = softmax_prepare(a, axis, c)?;
 
@@ -323,20 +323,20 @@ where
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn uncontiguous_softmax_template<T, F1, F2, F3, O>(
-    a: &_Tensor<T>,
+pub(crate) fn uncontiguous_softmax_template<T, F1, F2, F3, O, const DEVICE: usize>(
+    a: &_Tensor<T, Cpu, DEVICE>,
     axis: usize,
-    c: Option<_Tensor<O>>,
+    c: Option<_Tensor<O, Cpu, DEVICE>>,
     full_reduce: F1,
     nkd: F2,
     kd: F3,
-) -> std::result::Result<_Tensor<O>, TensorError>
+) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
 where
     T: CommonBounds + IntoScalar<O>,
     O: CommonBounds,
     F1: Fn(&mut O),
-    F2: Fn(usize, usize, &_Tensor<O>, &_Tensor<T>),
-    F3: Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>),
+    F2: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
+    F3: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
 {
     let (keep_fast_dim, transposed_tensor, result) = softmax_prepare(a, axis, c)?;
 

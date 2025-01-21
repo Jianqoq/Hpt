@@ -110,8 +110,8 @@ where
                 move |grad: Tensor<<A as NormalOut<B>>::Output>| {
                     let grad_a = grad.matmul(rhs.inner.t()?)?.try_astype::<A>()?;
                     let grad_b = lhs.inner.t()?.matmul(grad)?.try_astype::<B>()?;
-                    handle_grad(&mut lhs, grad_a, &Vec::new())?;
-                    handle_grad(&mut rhs, grad_b, &Vec::new())?;
+                    handle_grad(&mut lhs, grad_a, &[])?;
+                    handle_grad(&mut rhs, grad_b, &[])?;
                     Ok(false)
                 },
             )),

@@ -330,7 +330,7 @@ where
                     }
                     grad.expand(&original_shape)?
                 };
-                handle_grad(&mut lhs, grad, &Vec::<usize>::new())?;
+                handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
             })),
         })
@@ -392,7 +392,7 @@ where
                     .zip(lhs.inner.inner.par_iter())
                     .strided_map(|((g, x), y)| g._mul(x)._div(y).into_scalar())
                     .collect::<_Tensor<T, Cpu, DEVICE>>();
-                handle_grad(&mut lhs, grad.into(), &Vec::<usize>::new())?;
+                handle_grad(&mut lhs, grad.into(), &[])?;
                 Ok(false)
             })),
         })
@@ -450,7 +450,7 @@ where
                         *g = g._div(c)._mul(m).into_scalar();
                     });
 
-                handle_grad(&mut lhs, grad, &Vec::<usize>::new())?;
+                handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
             })),
         })
@@ -508,7 +508,7 @@ where
                         *g = g._div(c)._mul(m).into_scalar();
                     });
 
-                handle_grad(&mut lhs, grad, &Vec::<usize>::new())?;
+                handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
             })),
         })
@@ -552,7 +552,7 @@ where
                         *g = g._mul(inp._signum());
                     });
 
-                handle_grad(&mut lhs, grad, &Vec::<usize>::new())?;
+                handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
             })),
         })
@@ -589,7 +589,7 @@ where
                         *g = g._mul(inp._mul(T::TWO));
                     });
 
-                handle_grad(&mut lhs, grad, &Vec::<usize>::new())?;
+                handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
             })),
         })
@@ -681,7 +681,7 @@ where
                             *g = T::ZERO;
                         }
                     });
-                handle_grad(&mut lhs, grad, &Vec::<usize>::new())?;
+                handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
             })),
         })
@@ -750,7 +750,7 @@ where
                         }
                     });
 
-                handle_grad(&mut lhs, grad, &Vec::<usize>::new())?;
+                handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
             })),
         })
@@ -826,7 +826,7 @@ where
                     grad.inner.par_iter_mut().for_each(|g| {
                         *g = g._div(numel).into_scalar();
                     });
-                    handle_grad(&mut lhs, grad.try_astype::<T>()?, &Vec::<usize>::new())?;
+                    handle_grad(&mut lhs, grad.try_astype::<T>()?, &[])?;
                     Ok(false)
                 },
             )),
@@ -868,7 +868,7 @@ where
                             *g = g._mul(x)._div(y).into_scalar();
                         });
 
-                    handle_grad(&mut lhs, grad.try_astype::<T>()?, &Vec::<usize>::new())?;
+                    handle_grad(&mut lhs, grad.try_astype::<T>()?, &[])?;
                     Ok(false)
                 },
             )),
@@ -910,7 +910,7 @@ where
                             *g = g._mul(sign)._mul(x._square())._div(y._square());
                         });
 
-                    handle_grad(&mut lhs, grad.try_astype::<T>()?, &Vec::<usize>::new())?;
+                    handle_grad(&mut lhs, grad.try_astype::<T>()?, &[])?;
                     Ok(false)
                 },
             )),
