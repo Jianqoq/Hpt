@@ -9,10 +9,12 @@ use tensor_common::error::base::TensorError;
 use tensor_common::error::shape::ShapeError;
 use tensor_common::shape::shape_utils::mt_intervals;
 use tensor_common::Pointer;
-use tensor_iterator::iterator_traits::ParStridedIteratorSimdZip;
+use tensor_iterator::iterator_traits::{ParStridedIteratorSimdZip, ParStridedIteratorZip};
 use tensor_iterator::TensorIterator;
 use tensor_traits::ops::advance::{AdvanceOps, HardMax, Shrinkage};
-use tensor_traits::{CommonBounds, NormalReduce, ShapeManipulate, TensorCreator, TensorInfo};
+use tensor_traits::{
+    CommonBounds, NormalReduce, ShapeManipulate, TensorCreator, TensorInfo, TensorWhere,
+};
 use tensor_types::dtype::TypeCommon;
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::into_vec::IntoVec;
@@ -755,5 +757,25 @@ where
             )?
         };
         Ok(ret)
+    }
+}
+
+impl<T, const DEVICE: usize> TensorWhere for _Tensor<T, Cpu, DEVICE>
+where
+    T: CommonBounds,
+{
+    type Output = _Tensor<T, Cpu, DEVICE>;
+    type Condition = _Tensor<bool, Cpu, DEVICE>;
+    fn tensor_where(
+        condition: &Self::Condition,
+        x: &Self::Output,
+        y: &Self::Output,
+    ) -> Result<Self::Output, TensorError> {
+        Ok(condition
+            .par_iter()
+            .zip(x.par_iter())
+            .zip(y.par_iter())
+            .strided_map(|((condition, x), y)| if condition { x } else { y })
+            .collect())
     }
 }

@@ -9,11 +9,7 @@ pub trait AdvanceOps {
     /// The type of the index tensor
     type IndexOutput;
     /// Pad the tensor
-    fn pad(
-        &self,
-        pads: &[(i64, i64)],
-        val: Self::Meta,
-    ) -> Result<Self::Output, TensorError>;
+    fn pad(&self, pads: &[(i64, i64)], val: Self::Meta) -> Result<Self::Output, TensorError>;
     /// Topk the tensor
     fn topk(
         &self,
@@ -35,9 +31,18 @@ pub trait AdvanceOps {
     /// Dropout the tensor
     fn dropout(&self, rate: f64) -> Result<Self::Output, TensorError>;
     /// Gather elements the tensor
-    fn gather_elements(&self, indices: &Self::IndexOutput, axis: i64) -> Result<Self::Output, TensorError>;
+    fn gather_elements(
+        &self,
+        indices: &Self::IndexOutput,
+        axis: i64,
+    ) -> Result<Self::Output, TensorError>;
     /// Scatter elements the tensor
-    fn scatter(&self, indices: &Self::IndexOutput, axis: i64, src: &Self::Output) -> Result<Self::Output, TensorError>;
+    fn scatter(
+        &self,
+        indices: &Self::IndexOutput,
+        axis: i64,
+        src: &Self::Output,
+    ) -> Result<Self::Output, TensorError>;
 }
 
 /// A trait for shrinkage
@@ -54,4 +59,18 @@ pub trait HardMax<T> {
     type Output;
     /// Hardmax the tensor
     fn hardmax(&self, axis: i64) -> Result<Self::Output, TensorError>;
+}
+
+/// A trait for tensor where
+pub trait TensorWhere {
+    /// The type of the output tensor
+    type Output;
+    /// The type of the condition tensor
+    type Condition;
+    /// Where the tensor
+    fn tensor_where(
+        condition: &Self::Condition,
+        x: &Self::Output,
+        y: &Self::Output,
+    ) -> Result<Self::Output, TensorError>;
 }
