@@ -1,12 +1,15 @@
 use std::{ cell::RefCell, rc::Rc };
 
 use crate::{
-    ops::cpu::{kernels::softmax::{
-        contiguous_dim_include,
-        softmax_dim_not_include,
-        uncontiguous_softmax_dim_include,
-        uncontiguous_softmax_dim_not_include,
-    }, utils::diff::diff_utils::handle_grad},
+    ops::cpu::{
+        kernels::softmax::{
+            contiguous_dim_include,
+            softmax_dim_not_include,
+            uncontiguous_softmax_dim_include,
+            uncontiguous_softmax_dim_not_include,
+        },
+        utils::diff::diff_utils::handle_grad,
+    },
     tensor::{ DiffTensor, Tensor },
     tensor_base::_Tensor,
     Cpu,
@@ -19,7 +22,7 @@ use rayon::iter::{
     ParallelIterator,
 };
 use tensor_common::{ error::base::TensorError, shape::shape::Shape };
-use tensor_iterator::{iterator_traits::ParStridedIteratorZip, TensorIterator};
+use tensor_iterator::{ iterator_traits::ParStridedIteratorZip, TensorIterator };
 use tensor_traits::{ CommonBounds, TensorInfo, TensorLike };
 use tensor_types::{
     convertion::Convertor,
@@ -135,7 +138,8 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
             T: CommonBounds + IntoScalar<<T as FloatOutUnary>::Output> + Convertor + FloatOutUnary,
             <T as FloatOutUnary>::Output: CommonBounds +
                 NormalOut<T, Output = <T as FloatOutUnary>::Output> +
-                FloatOutUnary<Output = <T as FloatOutUnary>::Output> + IntoScalar<T>,
+                FloatOutUnary<Output = <T as FloatOutUnary>::Output> +
+                IntoScalar<T>,
             T::Vec: FloatOutUnary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
             <<T as FloatOutUnary>::Output as TypeCommon>::Vec: FloatOutBinary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>
     {
@@ -148,13 +152,19 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
             out_degree: Rc::new(RefCell::new(0)),
             backward: Rc::new(
                 RefCell::new(move |grad: Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>| {
-                    let grad = grad.inner
+                    use tensor_traits::NormalReduce;
+                    let s_times_grad = grad.inner
                         .par_iter_mut()
                         .zip(res_clone.inner.par_iter())
-                        .strided_map(|(g, r)| {
-                            let res = g._mul(r._mul(<T as FloatOutUnary>::Output::ONE._sub(r)));
-                            res.into_scalar()
-                        }).collect();
+                        .strided_map(|(g, r)| { g._mul(r) })
+                        .collect::<Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>>();
+                    let sum = s_times_grad.sum(axis, true)?;
+                    let grad = res_clone.inner
+                        .par_iter()
+                        .zip(sum.inner.par_iter())
+                        .zip(grad.inner.par_iter())
+                        .strided_map(|((r, s), g)| { r._mul(g._sub(s)).into_scalar() })
+                        .collect::<Tensor<T, Cpu, DEVICE>>();
                     handle_grad(&mut inp, grad, &[])?;
                     Ok(false)
                 })
