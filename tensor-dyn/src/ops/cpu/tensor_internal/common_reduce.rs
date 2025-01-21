@@ -487,9 +487,14 @@ where
             Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
         >,
     f64: IntoScalar<<T as FloatOutBinary>::Output>,
-    <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
+    <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
+        + NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output>,
     T::Vec: NormalOut<
         <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+        Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+    >,
+    <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
+        <<T as TypeCommon>::Vec as FloatOutUnary>::Output,
         Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
     >,
 {
@@ -685,31 +690,36 @@ where
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn logsumexp<S: Into<Axis>>(
         &self,
-        _: S,
-        _: bool,
+        axis: S,
+        keep_dims: bool,
     ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds,
     {
-        todo!()
-        // let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        // let x_max = self.max(axes.as_ref(), true)?;
-        // let sub = self - &x_max;
-        // let exp = sub.exp()?;
-        // let sum_exp = reduce(
-        //     &exp,
-        //     |a, b| a._add(b),
-        //     &axes,
-        //     <T as FloatOut>::Output::ZERO,
-        //     true,
-        //     false,
-        //     None
-        // )?;
-        // let add = x_max + sum_exp.ln()?;
-        // if keep_dims {
-        //     Ok(add)
-        // } else {
-        //     Ok(add.squeeze(axes)?)
-        // }
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        reduce3(
+            self,
+            |acc, b| {
+                let exp = b._exp();
+                acc._add(exp)
+            },
+            |acc, b| {
+                let exp = b._exp();
+                acc._add(exp)
+            },
+            |acc, b| {
+                let exp = b._exp();
+                acc._add(exp)
+            },
+            move |a| a._ln(),
+            |a, b| a._add(b._exp()),
+            |a, b| a._add(b._exp()),
+            move |a| a._ln(),
+            &axes,
+            <T as FloatOutBinary>::Output::ZERO,
+            keep_dims,
+            false,
+            None,
+        )
     }
 }

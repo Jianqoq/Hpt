@@ -224,9 +224,14 @@ where
             Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
         >,
     f64: IntoScalar<<T as FloatOutBinary>::Output>,
-    <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
+    <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
+        + NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output>,
     T::Vec: NormalOut<
         <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+        Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+    >,
+    <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
+        <<T as TypeCommon>::Vec as FloatOutUnary>::Output,
         Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
     >,
 {
@@ -863,7 +868,7 @@ impl<T, const DEVICE: usize> FloatReduce<T> for DiffTensor<T, Cpu, DEVICE>
 where
     T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output> + Convertor,
     <T as FloatOutBinary>::Output:
-        CommonBounds + FloatOutUnary<Output = <T as FloatOutBinary>::Output> + IntoScalar<T>,
+        CommonBounds + FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
     <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<T::Vec, Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
         + FloatOutUnary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
         + NormalOut<
@@ -872,9 +877,15 @@ where
         >,
     f64: IntoScalar<<T as FloatOutBinary>::Output>,
     i64: IntoScalar<<T as FloatOutBinary>::Output>,
-    <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
+    <T as FloatOutBinary>::Output: IntoScalar<T>,
+    <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
+        + NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output>,
     T::Vec: NormalOut<
         <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+        Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+    >,
+    <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
+        <<T as TypeCommon>::Vec as FloatOutUnary>::Output,
         Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
     >,
 {
