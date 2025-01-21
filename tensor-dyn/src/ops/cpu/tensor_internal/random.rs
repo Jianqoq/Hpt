@@ -1,5 +1,4 @@
 use crate::{ backend::Cpu, tensor_base::_Tensor };
-use anyhow::Result;
 use rand_distr::{
     uniform::SampleUniform,
     Distribution,
@@ -13,7 +12,7 @@ use rand_distr::{
     Uniform,
 };
 use rayon::iter::{ IntoParallelIterator, ParallelIterator };
-use tensor_common::shape::shape::Shape;
+use tensor_common::{error::base::TensorError, shape::shape::Shape};
 use tensor_traits::{
     random::Random,
     tensor::{ CommonBounds, TensorCreator, TensorInfo },
@@ -34,7 +33,7 @@ impl<T, const DEVICE: usize> Random
         Standard: Distribution<T>
 {
     type Meta = T;
-    fn randn<S: Into<Shape>>(shape: S) -> Result<Self> {
+    fn randn<S: Into<Shape>>(shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
         let normal = Normal::new(T::from(0.0).unwrap(), T::from(1.0).unwrap())?;
@@ -50,11 +49,11 @@ impl<T, const DEVICE: usize> Random
         Ok(ret)
     }
 
-    fn randn_like(&self) -> Result<Self> {
+    fn randn_like(&self) -> Result<Self, TensorError> {
         _Tensor::randn(self.shape())
     }
 
-    fn rand<S: Into<Shape>>(shape: S, low: Self::Meta, high: Self::Meta) -> Result<Self> {
+    fn rand<S: Into<Shape>>(shape: S, low: Self::Meta, high: Self::Meta) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
         let normal = Uniform::new(low, high);
@@ -70,11 +69,11 @@ impl<T, const DEVICE: usize> Random
         Ok(ret)
     }
 
-    fn rand_like(&self) -> Result<Self> {
+    fn rand_like(&self) -> Result<Self, TensorError> {
         _Tensor::randn(self.shape().clone())
     }
 
-    fn beta<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self> {
+    fn beta<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
         let normal = rand_distr::Beta::new(a, b)?;
@@ -90,11 +89,11 @@ impl<T, const DEVICE: usize> Random
         Ok(ret)
     }
 
-    fn beta_like(&self, a: Self::Meta, b: Self::Meta) -> Result<Self> {
+    fn beta_like(&self, a: Self::Meta, b: Self::Meta) -> Result<Self, TensorError> {
         _Tensor::beta(a, b, self.shape().clone())
     }
 
-    fn chisquare<S: Into<Shape>>(df: Self::Meta, shape: S) -> Result<Self> {
+    fn chisquare<S: Into<Shape>>(df: Self::Meta, shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
         let normal = rand_distr::ChiSquared::new(df)?;
@@ -110,11 +109,11 @@ impl<T, const DEVICE: usize> Random
         Ok(ret)
     }
 
-    fn chisquare_like(&self, df: Self::Meta) -> Result<Self> {
+    fn chisquare_like(&self, df: Self::Meta) -> Result<Self, TensorError> {
         _Tensor::chisquare(df, self.shape().clone())
     }
 
-    fn exponential<S: Into<Shape>>(lambda: Self::Meta, shape: S) -> Result<Self> {
+    fn exponential<S: Into<Shape>>(lambda: Self::Meta, shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
         let normal = rand_distr::Exp::new(lambda)?;
@@ -130,11 +129,11 @@ impl<T, const DEVICE: usize> Random
         Ok(ret)
     }
 
-    fn exponential_like(&self, lambda: Self::Meta) -> Result<Self> {
+    fn exponential_like(&self, lambda: Self::Meta) -> Result<Self, TensorError> {
         _Tensor::exponential(lambda, self.shape().clone())
     }
 
-    fn gamma<S: Into<Shape>>(gamma_shape: Self::Meta, scale: Self::Meta, shape: S) -> Result<Self> {
+    fn gamma<S: Into<Shape>>(gamma_shape: Self::Meta, scale: Self::Meta, shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
         let normal = rand_distr::Gamma::new(gamma_shape, scale)?;
@@ -150,11 +149,11 @@ impl<T, const DEVICE: usize> Random
         Ok(ret)
     }
 
-    fn gamma_like(&self, gamma_shape: Self::Meta, scale: Self::Meta) -> Result<Self> {
+    fn gamma_like(&self, gamma_shape: Self::Meta, scale: Self::Meta) -> Result<Self, TensorError> {
         _Tensor::gamma(gamma_shape, scale, self.shape().clone())
     }
 
-    fn gumbel<S: Into<Shape>>(mu: Self::Meta, beta: Self::Meta, shape: S) -> Result<Self> {
+    fn gumbel<S: Into<Shape>>(mu: Self::Meta, beta: Self::Meta, shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
         let normal = rand_distr::Gumbel::new(mu, beta)?;
@@ -170,11 +169,11 @@ impl<T, const DEVICE: usize> Random
         Ok(ret)
     }
 
-    fn gumbel_like(&self, mu: Self::Meta, beta: Self::Meta) -> Result<Self> {
+    fn gumbel_like(&self, mu: Self::Meta, beta: Self::Meta) -> Result<Self, TensorError> {
         _Tensor::gumbel(mu, beta, self.shape().clone())
     }
 
-    fn lognormal<S: Into<Shape>>(mean: Self::Meta, std: Self::Meta, shape: S) -> Result<Self> {
+    fn lognormal<S: Into<Shape>>(mean: Self::Meta, std: Self::Meta, shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
         let normal = rand_distr::LogNormal::new(mean, std)?;
@@ -190,7 +189,7 @@ impl<T, const DEVICE: usize> Random
         Ok(ret)
     }
 
-    fn lognormal_like(&self, mean: Self::Meta, std: Self::Meta) -> Result<Self> {
+    fn lognormal_like(&self, mean: Self::Meta, std: Self::Meta) -> Result<Self, TensorError> {
         _Tensor::lognormal(mean, std, self.shape().clone())
     }
 
@@ -198,7 +197,7 @@ impl<T, const DEVICE: usize> Random
         mean: Self::Meta,
         std: Self::Meta,
         shape: S
-    ) -> Result<Self> {
+    ) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
         let normal = NormalInverseGaussian::new(mean, std)?;
@@ -213,11 +212,11 @@ impl<T, const DEVICE: usize> Random
         Ok(ret)
     }
 
-    fn normal_gaussian_like(&self, mean: Self::Meta, std: Self::Meta) -> Result<Self> {
+    fn normal_gaussian_like(&self, mean: Self::Meta, std: Self::Meta) -> Result<Self, TensorError> {
         _Tensor::normal_gaussian(mean, std, self.shape().clone())
     }
 
-    fn pareto<S: Into<Shape>>(pareto_shape: Self::Meta, a: Self::Meta, shape: S) -> Result<Self> {
+    fn pareto<S: Into<Shape>>(pareto_shape: Self::Meta, a: Self::Meta, shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
         let pareto = rand_distr::Pareto::new(a, pareto_shape)?;
@@ -232,11 +231,11 @@ impl<T, const DEVICE: usize> Random
         Ok(ret)
     }
 
-    fn pareto_like(&self, pareto_shape: Self::Meta, a: Self::Meta) -> Result<Self> {
+    fn pareto_like(&self, pareto_shape: Self::Meta, a: Self::Meta) -> Result<Self, TensorError> {
         _Tensor::pareto(pareto_shape, a, self.shape().clone())
     }
 
-    fn poisson<S: Into<Shape>>(lambda: Self::Meta, shape: S) -> Result<Self> {
+    fn poisson<S: Into<Shape>>(lambda: Self::Meta, shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
         let poisson = rand_distr::Poisson::new(lambda)?;
@@ -251,11 +250,11 @@ impl<T, const DEVICE: usize> Random
         Ok(ret)
     }
 
-    fn poisson_like(&self, lambda: Self::Meta) -> Result<Self> {
+    fn poisson_like(&self, lambda: Self::Meta) -> Result<Self, TensorError> {
         _Tensor::poisson(lambda, self.shape().clone())
     }
 
-    fn weibull<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self> {
+    fn weibull<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
         let weibull = rand_distr::Weibull::new(a, b)?;
@@ -270,11 +269,11 @@ impl<T, const DEVICE: usize> Random
         Ok(ret)
     }
 
-    fn weibull_like(&self, a: Self::Meta, b: Self::Meta) -> Result<Self> {
+    fn weibull_like(&self, a: Self::Meta, b: Self::Meta) -> Result<Self, TensorError> {
         _Tensor::weibull(a, b, self.shape().clone())
     }
 
-    fn zipf<S: Into<Shape>>(n: u64, a: Self::Meta, shape: S) -> Result<Self> {
+    fn zipf<S: Into<Shape>>(n: u64, a: Self::Meta, shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
         let zipf = rand_distr::Zipf::new(n, a)?;
@@ -289,7 +288,7 @@ impl<T, const DEVICE: usize> Random
         Ok(ret)
     }
 
-    fn zipf_like(&self, n: u64, a: Self::Meta) -> Result<Self> {
+    fn zipf_like(&self, n: u64, a: Self::Meta) -> Result<Self, TensorError> {
         _Tensor::zipf(n, a, self.shape().clone())
     }
 
@@ -298,7 +297,7 @@ impl<T, const DEVICE: usize> Random
         high: Self::Meta,
         mode: Self::Meta,
         shape: S
-    ) -> Result<Self> {
+    ) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
         let triangular = rand_distr::Triangular::new(low, high, mode)?;
@@ -313,11 +312,11 @@ impl<T, const DEVICE: usize> Random
         Ok(ret)
     }
 
-    fn triangular_like(&self, low: Self::Meta, high: Self::Meta, mode: Self::Meta) -> Result<Self> {
+    fn triangular_like(&self, low: Self::Meta, high: Self::Meta, mode: Self::Meta) -> Result<Self, TensorError> {
         _Tensor::triangular(low, high, mode, self.shape().clone())
     }
 
-    fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self>
+    fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self, TensorError>
         where T: IntoScalar<f64>, bool: IntoScalar<T>
     {
         let res_shape = Shape::from(shape.into());
@@ -337,7 +336,7 @@ impl<T, const DEVICE: usize> Random
 
 impl<T, const DEVICE: usize> RandomInt for _Tensor<T, Cpu, DEVICE> where T: CommonBounds + SampleUniform {
     type Meta = T;
-    fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self>
+    fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self, TensorError>
         where <T as SampleUniform>::Sampler: Sync
     {
         let res_shape = Shape::from(shape.into());
@@ -355,7 +354,7 @@ impl<T, const DEVICE: usize> RandomInt for _Tensor<T, Cpu, DEVICE> where T: Comm
         Ok(ret)
     }
 
-    fn randint_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self>
+    fn randint_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self, TensorError>
         where <T as SampleUniform>::Sampler: Sync
     {
         _Tensor::randint(low, high, self.shape().clone())

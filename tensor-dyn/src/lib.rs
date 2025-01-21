@@ -1,4 +1,4 @@
-//! This crate is dynamic graph based tensor libraryz
+//! This crate is dynamic graph based tensor library
 #![cfg_attr(feature = "stdsimd", feature(portable_simd))]
 #![deny(missing_docs)]
 
@@ -259,24 +259,44 @@ pub use tensor::Tensor;
 pub use tensor_codegen::compile;
 #[cfg(feature = "codegen")]
 pub use tensor_codegen::fuse_proc_macro;
-pub use tensor_common::slice::Slice;
+pub use tensor_common::{
+    slice::Slice,
+    error::base::TensorError,
+    shape::shape::Shape,
+    strides::strides::Strides,
+};
 pub use tensor_dataloader::data_loader::parse_header_compressed;
 pub(crate) use tensor_dataloader::save;
 pub use tensor_dataloader::{
-    CompressionAlgo, DataLoader, Endian, FromSafeTensors, Load, MetaLoad, Save, TensorLoader,
+    CompressionAlgo,
+    DataLoader,
+    Endian,
+    FromSafeTensors,
+    Load,
+    MetaLoad,
+    Save,
+    TensorLoader,
     TensorSaver,
 };
+pub use serde;
 pub use tensor_macros::match_selection;
 pub use tensor_traits::*;
 pub use tensor_types::dtype::TypeCommon;
 pub use tensor_types::traits::VecTrait;
 pub use tensor_types::type_promote::{
-    BitWiseOut, Eval, FloatOutBinary, FloatOutBinaryPromote, FloatOutUnary, FloatOutUnaryPromote,
-    NormalOut, NormalOutPromote, NormalOutUnary,
+    BitWiseOut,
+    Eval,
+    FloatOutBinary,
+    FloatOutBinaryPromote,
+    FloatOutUnary,
+    FloatOutUnaryPromote,
+    NormalOut,
+    NormalOutPromote,
+    NormalOutUnary,
 };
 pub use tensor_types::vectors::*;
 
-use std::{cell::RefCell, sync::atomic::AtomicUsize};
+use std::{ cell::RefCell, sync::atomic::AtomicUsize };
 thread_local! {
     static THREAD_POOL: RefCell<threadpool::ThreadPool> = RefCell::new(
         threadpool::ThreadPool::new(num_cpus::get_physical())
@@ -301,10 +321,12 @@ pub fn set_num_threads(num_threads: usize) {
     THREAD_POOL.with(|x| {
         x.borrow_mut().set_num_threads(num_threads);
     });
-    match rayon::ThreadPoolBuilder::new()
-        .num_threads(num_threads)
-        .stack_size(4 * 1024 * 1024)
-        .build_global()
+    match
+        rayon::ThreadPoolBuilder
+            ::new()
+            .num_threads(num_threads)
+            .stack_size(4 * 1024 * 1024)
+            .build_global()
     {
         Ok(_) => {}
         Err(_) => {}
@@ -321,16 +343,13 @@ static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
 
 #[cfg(feature = "cuda")]
 pub(crate) mod cuda_compiled {
-    use std::{
-        collections::HashMap,
-        sync::{Arc, Mutex},
-    };
+    use std::{ collections::HashMap, sync::{ Arc, Mutex } };
 
     use once_cell::sync::Lazy;
     use tensor_cudakernels::RegisterInfo;
 
     pub(crate) static CUDA_COMPILED: Lazy<
-        Mutex<HashMap<usize, HashMap<String, Arc<HashMap<String, RegisterInfo>>>>>,
+        Mutex<HashMap<usize, HashMap<String, Arc<HashMap<String, RegisterInfo>>>>>
     > = Lazy::new(|| Mutex::new(HashMap::new()));
 }
 
@@ -359,24 +378,28 @@ use tensor_types::std_simd as simd;
 type BoolVector = simd::_256bit::boolx32::boolx32;
 #[cfg(any(target_feature = "avx512f"))]
 type BoolVector = simd::_512bit::boolx64::boolx64;
-#[cfg(any(
-    all(not(target_feature = "avx2"), target_feature = "sse"),
-    target_arch = "arm",
-    target_arch = "aarch64",
-    target_feature = "neon"
-))]
+#[cfg(
+    any(
+        all(not(target_feature = "avx2"), target_feature = "sse"),
+        target_arch = "arm",
+        target_arch = "aarch64",
+        target_feature = "neon"
+    )
+)]
 type BoolVector = simd::_128bit::boolx16::boolx16;
 
 #[cfg(target_feature = "avx2")]
 const SIMD_WIDTH: usize = 256;
 #[cfg(any(target_feature = "avx512f"))]
 const SIMD_WIDTH: usize = 512;
-#[cfg(any(
-    all(not(target_feature = "avx2"), target_feature = "sse"),
-    target_arch = "arm",
-    target_arch = "aarch64",
-    target_feature = "neon"
-))]
+#[cfg(
+    any(
+        all(not(target_feature = "avx2"), target_feature = "sse"),
+        target_arch = "arm",
+        target_arch = "aarch64",
+        target_feature = "neon"
+    )
+)]
 const SIMD_WIDTH: usize = 128;
 
 #[cfg(feature = "cuda")]

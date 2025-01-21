@@ -31,4 +31,8 @@ pub enum TensorError {
     /// Autograd-related errors such as inplace computation is not allowed
     #[error(transparent)]
     Autograd(#[from] AutogradError),
+
+    /// Random distribution-related errors such as invalid distribution parameters
+    #[error(transparent)]
+    Random(#[from] rand_distr::BetaError),
 }

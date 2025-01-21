@@ -905,11 +905,11 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
     });
 
     let expanded = quote! {
-        #[derive(serde::Deserialize, serde::Serialize)]
+        #[derive(tensor_dyn::serde::Deserialize, tensor_dyn::serde::Serialize)]
         #visibility struct #meta_name #ty_generics #where_clause  {
             #(#meta_fields,)*
         }
-        impl #impl_generics Save for #name #ty_generics #where_clause {
+        impl #impl_generics tensor_dyn::Save for #name #ty_generics #where_clause {
             type Meta = #meta_name #ty_generics;
             fn __save(
                 data: &Self,
@@ -967,19 +967,21 @@ pub fn impl_load(input: TokenStream) -> TokenStream {
     });
 
     let expanded = quote! {
-        impl #impl_generics MetaLoad for #meta_name #ty_generics #where_clause {
+        impl #impl_generics tensor_dyn::MetaLoad for #meta_name #ty_generics #where_clause {
             type Output = #name #ty_generics;
             fn load(&self, file: &mut std::fs::File) -> std::io::Result<Self::Output> {
+                use tensor_dyn::MetaLoad;
                 #(#call_load)*
                 Ok(#name {
                     #(#construct_fields),*
                 })
             }
         }
-        impl #impl_generics Load for #name #ty_generics #where_clause {
+        impl #impl_generics tensor_dyn::Load for #name #ty_generics #where_clause {
             fn load(path: &str) -> std::io::Result<Self> {
-                let meta = parse_header_compressed::<Self>(path).expect(format!("failed to parse header for {}", stringify!(#name)).as_str());
-                let mut file = File::open(path)?;
+                use tensor_dyn::MetaLoad;
+                let meta = tensor_dyn::parse_header_compressed::<Self>(path).expect(format!("failed to parse header for {}", stringify!(#name)).as_str());
+                let mut file = std::fs::File::open(path)?;
                 meta.load(&mut file)
             }
         }

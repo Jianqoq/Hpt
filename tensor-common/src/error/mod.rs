@@ -17,3 +17,5 @@ pub mod shape;
 pub mod param;
 /// Autograd-related errors (gradient computation, etc.)
 pub mod autograd;
+/// Random distribution-related errors
+pub mod random;
