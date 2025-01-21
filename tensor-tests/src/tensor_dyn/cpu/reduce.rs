@@ -690,6 +690,219 @@ fn test_sub_tensor_mean_step() -> anyhow::Result<()> {
 }
 
 #[test]
+fn test_logsumexp() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let mean = a.logsumexp(0, false)?;
+    let tch_mean = tch_a
+        .logsumexp(0, false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp(1, false)?;
+    let tch_mean = tch_a
+        .logsumexp(1, false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp(2, false)?;
+    let tch_mean = tch_a
+        .logsumexp(2, false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([0, 1], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[0, 1][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([0, 2], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[0, 2][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([1, 2], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[1, 2][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([0, 1, 2], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[0, 1, 2][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    Ok(())
+}
+
+#[test]
+fn test_uncontiguous_logsumexp() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 0, 2])?;
+    let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let mean = a.logsumexp(0, false)?;
+    let tch_mean = tch_a
+        .logsumexp(0, false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp(1, false)?;
+    let tch_mean = tch_a
+        .logsumexp(1, false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp(2, false)?;
+    let tch_mean = tch_a
+        .logsumexp(2, false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([0, 1], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[0, 1][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([0, 2], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[0, 2][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([1, 2], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[1, 2][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([0, 1, 2], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[0, 1, 2][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    Ok(())
+}
+
+#[test]
+fn test_uncontiguous_logsumexp2() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 2, 0])?;
+    let tch_a = tch_a.permute(&[1, 2, 0][..]);
+    let mean = a.logsumexp(0, false)?;
+    let tch_mean = tch_a
+        .logsumexp(0, false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp(1, false)?;
+    let tch_mean = tch_a
+        .logsumexp(1, false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp(2, false)?;
+    let tch_mean = tch_a
+        .logsumexp(2, false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([0, 1], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[0, 1][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([0, 2], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[0, 2][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([1, 2], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[1, 2][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([0, 1, 2], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[0, 1, 2][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_logsumexp() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let mean = a.logsumexp(0, false)?;
+    let tch_mean = tch_a
+        .logsumexp(0, false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp(1, false)?;
+    let tch_mean = tch_a
+        .logsumexp(1, false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp(2, false)?;
+    let tch_mean = tch_a
+        .logsumexp(2, false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([0, 1], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[0, 1][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([0, 2], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[0, 2][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([1, 2], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[1, 2][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([0, 1, 2], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[0, 1, 2][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    Ok(())
+}
+
+#[test]
+fn test_sub_tensor_logsumexp_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    let mean = a.logsumexp(0, false)?;
+    let tch_mean = tch_a
+        .logsumexp(0, false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp(1, false)?;
+    let tch_mean = tch_a
+        .logsumexp(1, false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp(2, false)?;
+    let tch_mean = tch_a
+        .logsumexp(2, false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([0, 1], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[0, 1][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([0, 2], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[0, 2][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([1, 2], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[1, 2][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    let mean = a.logsumexp([0, 1, 2], false)?;
+    let tch_mean = tch_a
+        .logsumexp(&[0, 1, 2][..], false)
+        .to_dtype(tch::Kind::Double, false, true);
+    assert_eq_f64(&mean, &tch_mean);
+    Ok(())
+}
+
+#[test]
 fn test_max() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let max = a.max(0, false)?;
