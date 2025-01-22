@@ -18,7 +18,8 @@ members = [
     "tensor-tests",
     "tensor-dataloader",
     "tensor-codegen",
-    "tensor-cudakernels", "tensor-examples",
+    "tensor-cudakernels",
+    "tensor-examples",
 ]
 
 [dependencies]

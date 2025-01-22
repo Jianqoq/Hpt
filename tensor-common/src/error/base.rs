@@ -1,8 +1,7 @@
 use thiserror::Error;
 
 use super::{
-    autograd::AutogradError, device::DeviceError, kernel::KernelError, memory::MemoryError,
-    param::ParamError, shape::ShapeError,
+    autograd::AutogradError, device::DeviceError, kernel::KernelError, memory::MemoryError, param::ParamError, random::RandomError, shape::ShapeError
 };
 
 /// Base error type for all tensor operations
@@ -34,5 +33,5 @@ pub enum TensorError {
 
     /// Random distribution-related errors such as invalid distribution parameters
     #[error(transparent)]
-    Random(#[from] rand_distr::BetaError),
+    Random(#[from] RandomError),
 }

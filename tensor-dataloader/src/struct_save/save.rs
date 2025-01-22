@@ -236,7 +236,6 @@ pub fn save(
         num_chunks,
         line_num,
     )?;
-    println!("attributes: {:?}, len: {}, remain_len: {}", attributes, len_so_far, remain_chunk.len());
     let current_pos = file.seek(std::io::SeekFrom::Current(0))?;
     file.seek(std::io::SeekFrom::Start(0))?;
     file.write_all(format!("FASTTENSOR{:20}", current_pos).as_bytes())?;
