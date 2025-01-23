@@ -7,13 +7,13 @@ use crate::{
 };
 use cudarc::driver::DeviceRepr;
 use tensor_common::err_handler::TensorError;
-use tensor_traits::{CommonBounds, FloatUaryOps};
+use tensor_traits::{CommonBounds, FloatUnaryOps};
 use tensor_types::cuda_types::scalar::Scalar;
 use tensor_types::{dtype::TypeCommon, into_scalar::IntoScalar, type_promote::FloatOutUnary};
 
 pub(crate) type FloatUnaryType<T> = <T as FloatOutUnary>::Output;
 
-impl<T, const DEVICE_ID: usize> FloatUaryOps for _Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize> FloatUnaryOps for _Tensor<T, Cuda, DEVICE_ID>
 where
     T: FloatOutUnary<Base = FloatUnaryType<T>> + CommonBounds + DeviceRepr,
     FloatUnaryType<T>: CommonBounds + DeviceRepr,

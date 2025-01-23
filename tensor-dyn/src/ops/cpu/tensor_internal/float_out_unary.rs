@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 
 use tensor_common::error::base::TensorError;
-use tensor_traits::{CommonBounds, FloatUaryOps};
+use tensor_traits::{CommonBounds, FloatUnaryOps};
 use tensor_types::traits::VecTrait;
 use tensor_types::{
     dtype::TypeCommon,
@@ -14,7 +14,7 @@ use crate::{ops::cpu::utils::unary::unary::unary_fn_with_out_simd, tensor_base::
 pub(crate) type FloatUnaryType<T> = <T as FloatOutUnary>::Output;
 pub(crate) type FloatBinaryType<T> = <T as FloatOutBinary>::Output;
 
-impl<T> FloatUaryOps for _Tensor<T>
+impl<T> FloatUnaryOps for _Tensor<T>
 where
     T: FloatOutUnary + CommonBounds,
     FloatUnaryType<T>: CommonBounds,

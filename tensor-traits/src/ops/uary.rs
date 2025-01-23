@@ -5,7 +5,7 @@ use tensor_types::{ dtype::TypeCommon, type_promote::NormalOut };
 use crate::tensor::CommonBounds;
 
 /// A trait for tensor unary operations, the output must be a floating point tensor
-pub trait FloatUaryOps {
+pub trait FloatUnaryOps {
     /// output tensor type
     type Output;
     /// output tensor type for inplace operation

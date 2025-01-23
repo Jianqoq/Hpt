@@ -12,7 +12,7 @@ export default defineUserConfig({
     home: false,
     navbar: [
       {
-        text: 'home',
+        text: 'Home',
         link: '/',
       },
       {
