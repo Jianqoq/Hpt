@@ -1,1 +1,0 @@
-const a=JSON.parse('{"key":"v-441488ac","path":"/user_guide/unary/fast_hard_sigmoid.html","title":"","lang":"zh-CN","frontmatter":{},"headers":[],"git":{"updatedTime":1737633229000,"contributors":[{"name":"Jianqoq","email":"120760306+Jianqoq@users.noreply.github.com","commits":1}]},"filePathRelative":"user_guide/unary/fast_hard_sigmoid.md"}');export{a as data};
