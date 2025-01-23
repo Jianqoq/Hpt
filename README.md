@@ -1,2 +1,2 @@
 # HPT
-more details, visit [https://jianqoq.github.io/eTensor/]
+more details, visit https://jianqoq.github.io/eTensor/
