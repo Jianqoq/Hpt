@@ -20,3 +20,8 @@ resnet_inp
 /src/**/*.txt
 /src/tensor-graph/src-tauri/*.txt
 /.VSCodeCounter
+
+node_modules/
+docs/.vuepress/.cache/
+docs/.vuepress/.temp/
+docs/.vuepress/dist/
