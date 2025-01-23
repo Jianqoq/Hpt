@@ -1,14 +1,12 @@
 # sin
 ```rust
-Tensor::<T>::sin(x: &Tensor<T>) -> Tensor<T>
+Tensor::<T>::sin(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
 ```
 Trigonometric sine
 ## Parameters:
 `x`: Angle(radians)
 ## Returns:
 Tensor with type `T`
-## Constrain:
-1. `T` must be float type
 ## Examples:
 ```rust
 use tensor_dyn::{FloatUaryOps, Tensor, TensorError};
