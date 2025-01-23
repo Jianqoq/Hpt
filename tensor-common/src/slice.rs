@@ -1,6 +1,4 @@
-use std::panic::Location;
-
-use crate::err_handler::ErrHandler;
+use crate::error::{base::TensorError, shape::ShapeError};
 
 /// Slice enum to hold the slice information
 ///
@@ -72,7 +70,7 @@ pub fn slice_process(
     strides: Vec<i64>,
     index: &[Slice],
     alpha: i64,
-) -> std::result::Result<(Vec<i64>, Vec<i64>, i64), ErrHandler> {
+) -> std::result::Result<(Vec<i64>, Vec<i64>, i64), TensorError> {
     let mut res_shape: Vec<i64> = shape.clone();
     let mut res_strides: Vec<i64> = strides.clone();
     res_shape.iter_mut().for_each(|x| {
@@ -83,11 +81,7 @@ pub fn slice_process(
     });
     let mut res_ptr = 0;
     if index.len() > res_shape.len() {
-        return Err(ErrHandler::SliceIndexLengthNotMatch(
-            index.len() as i64,
-            res_shape.len() as i64,
-            Location::caller(),
-        ));
+        panic!("index length is greater than the shape length");
     }
     for (idx, slice) in index.iter().enumerate() {
         match slice {
@@ -99,15 +93,7 @@ pub fn slice_process(
                     index = __index + shape[idx];
                 }
                 index *= alpha;
-                if index >= shape[idx] {
-                    return Err(ErrHandler::SliceIndexOutOfRange(
-                        index,
-                        idx as i64,
-                        shape[idx],
-                        Location::caller(),
-                    )
-                    .into());
-                }
+                ShapeError::check_index_out_of_range(index, shape[idx])?;
                 res_shape[idx] = alpha;
                 res_ptr += res_strides[idx] * index;
             }
@@ -170,24 +156,23 @@ pub fn slice_process(
                     *start + shape[idx]
                 };
                 let mut end = if *end >= 0 { *end } else { *end + shape[idx] };
+
                 if start >= shape[idx] {
                     start = shape[idx] - 1;
                 }
-                if end >= shape[idx] {
-                    end = shape[idx] - 1;
+                if end > shape[idx] {
+                    end = shape[idx];
                 }
-                let length;
-                if start <= end && *step > 0 {
-                    length = (end - 1 - start + step) / step;
-                } else if start >= end && *step < 0 {
-                    length = (end + 1 - start + step) / step;
+
+                let length = if *step > 0 {
+                    (end - start + step - 1) / step
+                } else if *step < 0 {
+                    (end - start + step + 1) / step
                 } else {
-                    length = 0;
-                }
-                if length == 1 {
-                    res_shape[idx] = alpha;
-                    res_ptr += res_strides[idx] * start;
-                } else if length >= 0 {
+                    0
+                };
+
+                if length > 0 {
                     res_shape[idx] = length * alpha;
                     res_ptr += start * res_strides[idx];
                     res_strides[idx] *= *step;

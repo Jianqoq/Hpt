@@ -4,7 +4,7 @@ use crate::{
     strided_zip::StridedZip,
 };
 use std::sync::Arc;
-use tensor_common::{shape::Shape, shape_utils::predict_broadcast_shape};
+use tensor_common::{shape::shape::Shape, shape::shape_utils::predict_broadcast_shape};
 use tensor_traits::tensor::{CommonBounds, TensorInfo};
 
 /// Module containing SIMD-optimized implementations for strided mutability.
@@ -14,7 +14,7 @@ pub mod simd_imports {
         strided::strided_simd::StridedSimd,
     };
     use std::sync::Arc;
-    use tensor_common::shape::Shape;
+    use tensor_common::shape::shape::Shape;
     use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
     use tensor_types::vectors::traits::VecTrait;
@@ -74,7 +74,7 @@ pub mod simd_imports {
             self.base.set_intervals(intervals);
         }
 
-        fn set_strides(&mut self, strides: tensor_common::strides::Strides) {
+        fn set_strides(&mut self, strides: tensor_common::strides::strides::Strides) {
             self.base.set_strides(strides);
         }
 
@@ -90,7 +90,7 @@ pub mod simd_imports {
             self.base.intervals()
         }
 
-        fn strides(&self) -> &tensor_common::strides::Strides {
+        fn strides(&self) -> &tensor_common::strides::strides::Strides {
             self.base.strides()
         }
 
@@ -98,7 +98,7 @@ pub mod simd_imports {
             self.base.shape()
         }
 
-        fn layout(&self) -> &tensor_common::layout::Layout {
+        fn layout(&self) -> &tensor_common::layout::layout::Layout {
             self.base.layout()
         }
 
@@ -232,7 +232,7 @@ where
         self.base.set_intervals(intervals);
     }
 
-    fn set_strides(&mut self, strides: tensor_common::strides::Strides) {
+    fn set_strides(&mut self, strides: tensor_common::strides::strides::Strides) {
         self.base.set_strides(strides);
     }
 
@@ -248,7 +248,7 @@ where
         self.base.intervals()
     }
 
-    fn strides(&self) -> &tensor_common::strides::Strides {
+    fn strides(&self) -> &tensor_common::strides::strides::Strides {
         self.base.strides()
     }
 
@@ -256,7 +256,7 @@ where
         self.base.shape()
     }
 
-    fn layout(&self) -> &tensor_common::layout::Layout {
+    fn layout(&self) -> &tensor_common::layout::layout::Layout {
         self.base.layout()
     }
 

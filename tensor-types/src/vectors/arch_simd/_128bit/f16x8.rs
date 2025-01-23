@@ -77,35 +77,28 @@ impl f16x8 {
             }
             #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
             {
-                use std::arch::aarch64::{float32x4_t, uint16x4_t};
-                use std::arch::asm;
-                use std::mem::MaybeUninit;
-                let mut low_f32x4 = MaybeUninit::<uint16x4_t>::uninit();
-                let mut high_f32x4 = MaybeUninit::<uint16x4_t>::uninit();
-                std::ptr::copy_nonoverlapping(self.0.as_ptr(), low_f32x4.as_mut_ptr().cast(), 4);
-                std::ptr::copy_nonoverlapping(
-                    self.0.as_ptr().add(4),
-                    high_f32x4.as_mut_ptr().cast(),
-                    4,
-                );
-                let res0: float32x4_t;
-                let res1: float32x4_t;
-                asm!(
+                use std::arch::aarch64::{float32x4_t, vld1_s16};
+                
+                let low = vld1_s16(self.0.as_ptr() as *const _);
+                let high = vld1_s16(self.0.as_ptr().add(4) as *const _);
+                
+                let mut res0: float32x4_t;
+                let mut res1: float32x4_t;
+                
+                std::arch::asm!(
                     "fcvtl {0:v}.4s, {1:v}.4h",
                     out(vreg) res0,
-                    in(vreg) low_f32x4.assume_init(),
-                    options(pure, nomem, nostack)
+                    in(vreg) low,
                 );
-                asm!(
+                std::arch::asm!(
                     "fcvtl {0:v}.4s, {1:v}.4h",
                     out(vreg) res1,
-                    in(vreg) high_f32x4.assume_init(),
-                    options(pure, nomem, nostack)
+                    in(vreg) high,
                 );
-
+                
                 std::mem::transmute([res0, res1])
             }
-            #[cfg(not(all(target_feature = "f16c", all(target_feature = "neon", target_arch = "aarch64"))))]
+            #[cfg(all(not(target_feature = "f16c"), not(all(target_feature = "neon", target_arch = "aarch64"))))]
             {
                 let mut result = [0f32; 8];
                 for i in 0..8 {

@@ -9,9 +9,10 @@ use crate::{
 use core::f32;
 use half::{bf16, f16};
 use std::fmt::{Debug, Display};
+use serde::{Deserialize, Serialize};
 
 /// enum for data type
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Dtype {
     /// boolean
     Bool,

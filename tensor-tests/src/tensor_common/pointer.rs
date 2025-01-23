@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 
-use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
+use tensor_common::{layout::layout::Layout, utils::pointer::Pointer, shape::shape::Shape};
 
 
 #[test]

@@ -4,7 +4,7 @@ use crate::Cuda;
 use cudarc::driver::{DeviceRepr, LaunchAsync};
 use std::borrow::Borrow;
 use std::panic::Location;
-use tensor_common::err_handler::ErrHandler::{self, InvalidOutSize};
+use tensor_common::err_handler::TensorError::{self, InvalidOutSize};
 use tensor_traits::tensor::CommonBounds;
 use tensor_traits::{TensorCreator, TensorInfo};
 use tensor_types::cuda_types::scalar::Scalar;
@@ -14,7 +14,7 @@ pub(crate) fn uary_fn_with_out_simd<A, O, K, F, const DEVICE_ID: usize>(
     module_name: &str,
     f: F,
     out: Option<O>,
-) -> std::result::Result<_Tensor<K, Cuda, DEVICE_ID>, ErrHandler>
+) -> std::result::Result<_Tensor<K, Cuda, DEVICE_ID>, TensorError>
 where
     A: CommonBounds + DeviceRepr,
     K: CommonBounds + DeviceRepr,
@@ -104,7 +104,7 @@ where
     let reg_info = map.get("unary").expect("func_name not found");
     let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
     unsafe { kernel.launch(cfg, (inp_slice, out_slice, ret.size())) }.map_err(|e| {
-        ErrHandler::CudaKernelLaunchingError(
+        TensorError::CudaKernelLaunchingError(
             module_name.to_string(),
             "unary".to_string(),
             Location::caller(),

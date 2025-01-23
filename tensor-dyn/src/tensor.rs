@@ -1,6 +1,7 @@
 use std::{
     borrow::{Borrow, BorrowMut},
     fmt::{Debug, Display},
+    rc::Rc,
     sync::{atomic::Ordering, Arc},
 };
 
@@ -9,7 +10,9 @@ use crate::{
     tensor_base::_Tensor,
     DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION,
 };
-use tensor_common::{err_handler::ErrHandler, layout::Layout, pointer::Pointer, shape::Shape};
+use tensor_common::{
+    error::base::TensorError, layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer,
+};
 use tensor_dataloader::DataLoader;
 use tensor_display::display;
 use tensor_iterator::TensorIterator;
@@ -30,8 +33,21 @@ where
 {
     pub(crate) inner: Arc<_Tensor<T, B, DEVICE_ID>>,
 }
+use std::cell::RefCell;
+/// `DiffTensor` is a tensor that has a gradient.
+#[derive(Clone)]
+pub struct DiffTensor<T, B = Cpu, const DEVICE_ID: usize = 0>
+where
+    B: BackendTy + Buffer,
+{
+    pub(crate) inner: Tensor<T, B, DEVICE_ID>,
+    pub(crate) grad: Rc<RefCell<Option<Tensor<T, B, DEVICE_ID>>>>,
+    pub(crate) out_degree: Rc<RefCell<usize>>,
+    pub(crate) backward:
+        Rc<RefCell<dyn FnMut(Tensor<T, B, DEVICE_ID>) -> Result<bool, TensorError>>>,
+}
 
-impl<T> TensorLike<T> for Tensor<T>
+impl<T, const DEVICE: usize> TensorLike<T> for Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds,
 {
@@ -45,14 +61,14 @@ where
         slice
     }
 
-    fn contiguous(&self) -> std::result::Result<Self, ErrHandler> {
+    fn contiguous(&self) -> std::result::Result<Self, TensorError> {
         Ok(_Tensor::contiguous(self.inner.as_ref())?.into())
     }
 }
 
 impl<T: CommonBounds> TensorIterator<'_, T> for Tensor<T> {}
 
-impl<T> TensorInfo<T> for Tensor<T>
+impl<T, const DEVICE: usize> TensorInfo<T> for Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds,
 {
@@ -68,7 +84,7 @@ where
         self.inner.layout().shape()
     }
 
-    fn strides(&self) -> &tensor_common::strides::Strides {
+    fn strides(&self) -> &tensor_common::strides::strides::Strides {
         self.inner.layout().strides()
     }
 
@@ -89,7 +105,7 @@ where
     }
 }
 
-impl<T> TensorInfo<T> for &Tensor<T>
+impl<T, const DEVICE: usize> TensorInfo<T> for &Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds,
 {
@@ -105,7 +121,7 @@ where
         self.inner.layout().shape()
     }
 
-    fn strides(&self) -> &tensor_common::strides::Strides {
+    fn strides(&self) -> &tensor_common::strides::strides::Strides {
         self.inner.layout().strides()
     }
 
@@ -126,9 +142,9 @@ where
     }
 }
 
-impl<T: CommonBounds> TensorAlloc for Tensor<T> {
+impl<T: CommonBounds, const DEVICE: usize> TensorAlloc for Tensor<T, Cpu, DEVICE> {
     type Meta = T;
-    fn _empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler>
+    fn _empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError>
     where
         Self: Sized,
     {
@@ -136,7 +152,7 @@ impl<T: CommonBounds> TensorAlloc for Tensor<T> {
     }
 }
 
-impl<T> Display for Tensor<T>
+impl<T, const DEVICE: usize> Display for Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds + Convertor,
 {
@@ -147,7 +163,7 @@ where
     }
 }
 
-impl<T> Debug for Tensor<T>
+impl<T, const DEVICE: usize> Debug for Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds + Convertor,
 {

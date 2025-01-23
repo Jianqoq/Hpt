@@ -1,4 +1,4 @@
-use crate::pointer::Pointer;
+use crate::utils::pointer::Pointer;
 
 /// Update the loop progress
 #[inline]

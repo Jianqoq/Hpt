@@ -4,7 +4,7 @@ use crate::{
     Cuda,
 };
 use cudarc::driver::DeviceRepr;
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use std::borrow::Borrow;
 use tensor_traits::{CommonBounds, NormalUaryOps, TensorLike};
 use tensor_types::cuda_types::scalar::Scalar;
@@ -27,7 +27,7 @@ where
 
     type OutputMeta = NormalType<T>;
 
-    fn floor(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn floor(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("floor", self),
@@ -36,7 +36,7 @@ where
         )
     }
 
-    fn floor_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn floor_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -48,7 +48,7 @@ where
         )
     }
 
-    fn square(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn square(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("square", self),
@@ -57,7 +57,7 @@ where
         )
     }
 
-    fn square_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn square_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -69,7 +69,7 @@ where
         )
     }
 
-    fn abs(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn abs(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("abs", self),
@@ -78,7 +78,7 @@ where
         )
     }
 
-    fn abs_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn abs_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -90,7 +90,7 @@ where
         )
     }
 
-    fn ceil(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn ceil(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("ceil", self),
@@ -98,7 +98,7 @@ where
             None::<Self::Output>,
         )
     }
-    fn ceil_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn ceil_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -110,7 +110,7 @@ where
         )
     }
 
-    fn sign(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sign(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("sign", self),
@@ -118,7 +118,7 @@ where
             None::<Self::Output>,
         )
     }
-    fn sign_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn sign_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -129,7 +129,7 @@ where
             Some(out),
         )
     }
-    fn clamp(&self, min: NormalType<T>, max: NormalType<T>) -> std::result::Result<Self::Output, ErrHandler> {
+    fn clamp(&self, min: NormalType<T>, max: NormalType<T>) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("clamp", self),
@@ -141,7 +141,7 @@ where
             None::<Self::Output>,
         )
     }
-    fn clamp_<U>(&self, min: NormalType<T>, max: NormalType<T>, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn clamp_<U>(&self, min: NormalType<T>, max: NormalType<T>, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -156,7 +156,7 @@ where
             Some(out),
         )
     }
-    fn round(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn round(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("round", self),
@@ -164,7 +164,7 @@ where
             None::<Self::Output>,
         )
     }
-    fn round_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn round_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -176,7 +176,7 @@ where
         )
     }
 
-    fn neg(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn neg(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("neg", self),
@@ -185,7 +185,7 @@ where
         )
     }
 
-    fn neg_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn neg_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -197,7 +197,7 @@ where
         )
     }
 
-    fn relu(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn relu(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("relu", self),
@@ -206,7 +206,7 @@ where
         )
     }
 
-    fn relu_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn relu_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -218,7 +218,7 @@ where
         )
     }
 
-    fn leaky_relu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, ErrHandler> {
+    fn leaky_relu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("leaky_relu", self),
@@ -230,7 +230,7 @@ where
         )
     }
 
-    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -245,7 +245,7 @@ where
         )
     }
 
-    fn relu6(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn relu6(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("leaky_relu", self),
@@ -254,7 +254,7 @@ where
         )
     }
 
-    fn relu6_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn relu6_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {

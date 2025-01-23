@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 
-use anyhow::Result;
+use tensor_common::error::base::TensorError;
 
 use crate::CommonBounds;
 
@@ -21,7 +21,7 @@ pub trait TensorCmp<T: CommonBounds, C: CommonBounds> {
     /// # Returns
     /// bool tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn tensor_neq<D>(&self, rhs: D) -> Result<Self::Output>
+    fn tensor_neq<D>(&self, rhs: D) -> Result<Self::Output, TensorError>
     where
         D: Borrow<Self::RHS>;
 
@@ -33,7 +33,7 @@ pub trait TensorCmp<T: CommonBounds, C: CommonBounds> {
     /// # Returns
     /// bool tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn tensor_eq<D>(&self, rhs: D) -> Result<Self::Output>
+    fn tensor_eq<D>(&self, rhs: D) -> Result<Self::Output, TensorError>
     where
         D: Borrow<Self::RHS>;
 
@@ -45,7 +45,7 @@ pub trait TensorCmp<T: CommonBounds, C: CommonBounds> {
     /// # Returns
     /// bool tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn tensor_lt<D>(&self, rhs: D) -> Result<Self::Output>
+    fn tensor_lt<D>(&self, rhs: D) -> Result<Self::Output, TensorError>
     where
         D: Borrow<Self::RHS>;
 
@@ -57,7 +57,7 @@ pub trait TensorCmp<T: CommonBounds, C: CommonBounds> {
     /// # Returns
     /// bool tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn tensor_gt<D>(&self, rhs: D) -> Result<Self::Output>
+    fn tensor_gt<D>(&self, rhs: D) -> Result<Self::Output, TensorError>
     where
         D: Borrow<Self::RHS>;
 
@@ -69,7 +69,7 @@ pub trait TensorCmp<T: CommonBounds, C: CommonBounds> {
     /// # Returns
     /// bool tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn tensor_le<D>(&self, rhs: D) -> Result<Self::Output>
+    fn tensor_le<D>(&self, rhs: D) -> Result<Self::Output, TensorError>
     where
         D: Borrow<Self::RHS>;
 
@@ -81,7 +81,7 @@ pub trait TensorCmp<T: CommonBounds, C: CommonBounds> {
     /// # Returns
     /// bool tensor
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn tensor_ge<D>(&self, rhs: D) -> Result<Self::Output>
+    fn tensor_ge<D>(&self, rhs: D) -> Result<Self::Output, TensorError>
     where
         D: Borrow<Self::RHS>;
 }

@@ -1,11 +1,11 @@
 use std::panic::Location;
 
 use tensor_common::{
-    axis::{process_axes, Axis},
-    err_handler::ErrHandler,
-    layout::Layout,
-    shape::Shape,
-    shape_utils::{try_pad_shape, yield_one_after, yield_one_before},
+    axis::axis::{process_axes, Axis},
+    error::{base::TensorError, shape::ShapeError},
+    layout::layout::Layout,
+    shape::shape::Shape,
+    shape::shape_utils::{try_pad_shape, yield_one_after, yield_one_before},
     slice::Slice,
 };
 use tensor_traits::CommonBounds;
@@ -22,19 +22,10 @@ pub(crate) fn reshape<
     shape: S,
     contiguous: fn(
         &_Tensor<T, B, DEVICE_ID>,
-    ) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler>,
-) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler> {
+    ) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError>,
+) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
     let shape: Shape = shape.into();
-    if shape.size() != (a.layout.size() as i64) {
-        return Err(ErrHandler::ReshapeError(
-            a.layout.shape().clone(),
-            shape.clone(),
-            a.layout.size() as usize,
-            shape.size() as usize,
-            Location::caller(),
-        )
-        .into());
-    }
+    ShapeError::check_size_match(a.layout.size() as i64, shape.size())?;
     if let Ok(new_layout) = a.layout.inplace_reshape(&shape) {
         Ok(_Tensor {
             data: a.data.clone(),
@@ -58,16 +49,16 @@ pub(crate) fn squeeze<
     axes: A,
     contiguous: fn(
         &_Tensor<T, B, DEVICE_ID>,
-    ) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler>,
-) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler> {
+    ) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError>,
+) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
     let axes: Vec<usize> = process_axes(axes, a.layout.ndim())?;
     for i in 0..axes.len() {
         if a.layout.shape()[axes[i]] != 1 {
-            return Err(ErrHandler::SqueezeError(
-                axes[i],
-                a.layout.shape().clone(),
-                Location::caller(),
-            )
+            return Err(ShapeError::SqueezeError {
+                axis: axes[i],
+                shape: a.layout.shape().clone(),
+                location: Location::caller(),
+            }
             .into());
         }
     }
@@ -92,8 +83,8 @@ pub(crate) fn unsqueeze<
     axes: A,
     contiguous: fn(
         &_Tensor<T, B, DEVICE_ID>,
-    ) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler>,
-) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler> {
+    ) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError>,
+) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
     let mut res_shape: Vec<i64> = a.layout.shape().to_vec();
     let axes: Vec<usize> = process_axes(axes, a.layout.ndim())?;
     axes.iter().for_each(|&x| {
@@ -110,8 +101,8 @@ pub(crate) fn permute<
 >(
     a: &_Tensor<T, B, DEVICE_ID>,
     axes: A,
-    permute_method: fn(&Layout, A) -> std::result::Result<Layout, ErrHandler>,
-) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler> {
+    permute_method: fn(&Layout, A) -> std::result::Result<Layout, TensorError>,
+) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
     let permuted_layout = permute_method(&a.layout, axes)?;
     Ok(_Tensor {
         data: a.data.clone(),
@@ -130,7 +121,7 @@ pub(crate) fn expand<
 >(
     a: &_Tensor<T, B, DEVICE_ID>,
     shape: S,
-) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler> {
+) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
     let res_shape = Shape::from(shape.into());
     let res_strides = a.layout.expand_strides(&res_shape);
     Ok(_Tensor {
@@ -146,22 +137,14 @@ pub(crate) fn transpose<T: Clone, B: BackendTy + Buffer + Clone, const DEVICE_ID
     a: &_Tensor<T, B, DEVICE_ID>,
     axis1: i64,
     axis2: i64,
-) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler> {
-    if a.layout.ndim() < 2 {
-        Err(ErrHandler::TransposeError(
-            a.layout.shape().clone(),
-            a.layout.ndim(),
-            Location::caller(),
-        )
-        .into())
-    } else {
-        permute(a, vec![axis1, axis2], |layout, axes| layout.permute(axes))
-    }
+) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
+    ShapeError::check_ndim_enough(2, a.layout.ndim())?;
+    permute(a, vec![axis1, axis2], |layout, axes| layout.permute(axes))
 }
 
 pub(crate) fn t<T: Clone, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize>(
     a: &_Tensor<T, B, DEVICE_ID>,
-) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler> {
+) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
     if a.layout.ndim() > 2 {
         let mut axes = (0..a.layout.ndim() as i64).collect::<Vec<i64>>();
         axes.swap(a.layout.ndim() - 1, a.layout.ndim() - 2);
@@ -172,7 +155,7 @@ pub(crate) fn t<T: Clone, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize>
 
 pub(crate) fn mt<T: Clone, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize>(
     a: &_Tensor<T, B, DEVICE_ID>,
-) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler> {
+) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
     permute(
         a,
         (0..a.layout.ndim() as i64).rev().collect::<Vec<i64>>(),
@@ -188,7 +171,7 @@ pub(crate) fn flip<
 >(
     a: &_Tensor<T, B, DEVICE_ID>,
     axes: A,
-) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler> {
+) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
     let axes = process_axes(axes, a.layout.ndim())?;
     let mut new_strides = a.layout.strides().to_vec();
     let mut ptr = a.data.clone();
@@ -217,19 +200,15 @@ pub(crate) fn flip<
 
 pub(crate) fn fliplr<T: Clone, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize>(
     a: &_Tensor<T, B, DEVICE_ID>,
-) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler> {
-    if a.layout.ndim() < 2 {
-        return Err(ErrHandler::NdimNotEnough(2, a.layout.ndim(), Location::caller()).into());
-    }
+) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
+    ShapeError::check_ndim_enough(2, a.layout.ndim())?;
     flip(a, 1)
 }
 
 pub(crate) fn flipud<T: Clone, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize>(
     a: &_Tensor<T, B, DEVICE_ID>,
-) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler> {
-    if a.layout.ndim() < 1 {
-        return Err(ErrHandler::NdimNotEnough(1, a.layout.ndim(), Location::caller()).into());
-    }
+) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
+    ShapeError::check_ndim_enough(1, a.layout.ndim())?;
     flip(a, 0)
 }
 
@@ -243,10 +222,10 @@ pub(crate) fn tile<
     repeats: S,
     contiguous: fn(
         &_Tensor<T, B, DEVICE_ID>,
-    ) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler>,
-) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler> {
+    ) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError>,
+) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
     let repeats: Axis = repeats.into();
-    ErrHandler::check_index_in_range(a.layout.ndim(), (repeats.axes.len() - 1) as i64)?;
+    ShapeError::check_index_out_of_range((repeats.axes.len() - 1) as i64, a.layout.ndim() as i64)?;
     let repeats: Vec<i64> = repeats
         .axes
         .into_iter()
@@ -283,8 +262,8 @@ pub(crate) fn repeat<T: Clone, B: BackendTy + Buffer + Clone, const DEVICE_ID: u
     axes: i16,
     contiguous: fn(
         &_Tensor<T, B, DEVICE_ID>,
-    ) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler>,
-) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler> {
+    ) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError>,
+) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
     let mut val: usize = axes as usize;
     if axes < 0 {
         val = a.layout.ndim() + (axes as usize);
@@ -302,7 +281,7 @@ pub(crate) fn split<T: CommonBounds, B: BackendTy + Buffer + Clone, const DEVICE
     a: &_Tensor<T, B, DEVICE_ID>,
     indices_or_sections: &[i64],
     axis: i64,
-) -> std::result::Result<Vec<_Tensor<T, B, DEVICE_ID>>, ErrHandler> {
+) -> std::result::Result<Vec<_Tensor<T, B, DEVICE_ID>>, TensorError> {
     let mut new_axis = axis;
     if axis < 0 {
         new_axis = (a.layout.ndim() as i64) + axis;
@@ -329,30 +308,24 @@ pub(crate) fn split<T: CommonBounds, B: BackendTy + Buffer + Clone, const DEVICE
 pub(crate) fn dsplit<T: CommonBounds, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize>(
     a: &_Tensor<T, B, DEVICE_ID>,
     indices: &[i64],
-) -> std::result::Result<Vec<_Tensor<T, B, DEVICE_ID>>, ErrHandler> {
-    if a.layout.shape().len() < 3 {
-        return Err(ErrHandler::NdimNotEnough(3, a.layout.ndim(), Location::caller()).into());
-    }
+) -> std::result::Result<Vec<_Tensor<T, B, DEVICE_ID>>, TensorError> {
+    ShapeError::check_ndim_enough(3, a.layout.ndim())?;
     split(a, indices, 2)
 }
 
 pub(crate) fn hsplit<T: CommonBounds, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize>(
     a: &_Tensor<T, B, DEVICE_ID>,
     indices: &[i64],
-) -> std::result::Result<Vec<_Tensor<T, B, DEVICE_ID>>, ErrHandler> {
-    if a.layout.shape().len() < 2 {
-        return Err(ErrHandler::NdimNotEnough(2, a.layout.ndim(), Location::caller()).into());
-    }
+) -> std::result::Result<Vec<_Tensor<T, B, DEVICE_ID>>, TensorError> {
+    ShapeError::check_ndim_enough(2, a.layout.ndim())?;
     split(a, indices, 1)
 }
 
 pub(crate) fn vsplit<T: CommonBounds, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize>(
     a: &_Tensor<T, B, DEVICE_ID>,
     indices: &[i64],
-) -> std::result::Result<Vec<_Tensor<T, B, DEVICE_ID>>, ErrHandler> {
-    if a.layout.shape().len() < 1 {
-        return Err(ErrHandler::NdimNotEnough(1, a.layout.ndim(), Location::caller()).into());
-    }
+) -> std::result::Result<Vec<_Tensor<T, B, DEVICE_ID>>, TensorError> {
+    ShapeError::check_ndim_enough(1, a.layout.ndim())?;
     split(a, indices, 0)
 }
 
@@ -360,9 +333,15 @@ pub(crate) fn swap_axes<T: CommonBounds, B: BackendTy + Buffer + Clone, const DE
     a: &_Tensor<T, B, DEVICE_ID>,
     mut axis1: i64,
     mut axis2: i64,
-) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler> {
-    ErrHandler::check_index_in_range_mut(a.layout.ndim(), &mut axis1)?;
-    ErrHandler::check_index_in_range_mut(a.layout.ndim(), &mut axis2)?;
+) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
+    if axis1 < 0 {
+        axis1 += a.layout.ndim() as i64;
+    }
+    if axis2 < 0 {
+        axis2 += a.layout.ndim() as i64;
+    }
+    ShapeError::check_index_out_of_range(axis1, a.layout.ndim() as i64)?;
+    ShapeError::check_index_out_of_range(axis2, a.layout.ndim() as i64)?;
     let mut new_shape = a.layout.shape().to_vec();
     let mut new_strides = a.layout.strides().to_vec();
     new_shape.swap(axis1 as usize, axis2 as usize);
@@ -383,16 +362,16 @@ pub(crate) fn flatten<A, T: CommonBounds, B: BackendTy + Buffer + Clone, const D
     end_dim: A,
     contiguous: fn(
         &_Tensor<T, B, DEVICE_ID>,
-    ) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler>,
-) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, ErrHandler>
+    ) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError>,
+) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError>
 where
     A: Into<Option<usize>>,
 {
     let start = start_dim.into().unwrap_or(0);
     let end = end_dim.into().unwrap_or(a.layout.ndim() - 1);
     let shape = a.layout.shape();
-    ErrHandler::check_index_in_range(a.layout.ndim(), start as i64)?;
-    ErrHandler::check_index_in_range(a.layout.ndim(), end as i64)?;
+    ShapeError::check_index_out_of_range(start as i64, a.layout.ndim() as i64)?;
+    ShapeError::check_index_out_of_range(end as i64, a.layout.ndim() as i64)?;
     let flattened_dim = shape[start..=end].iter().product::<i64>();
     let mut new_shape = Vec::new();
     for (i, &dim) in shape.iter().enumerate() {

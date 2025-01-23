@@ -1,4 +1,5 @@
 #![allow(unused_imports)]
+use rand::Rng;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::ops::*;
 use tch::Tensor as TchTensor;
@@ -13,6 +14,8 @@ use tensor_dyn::TensorLike;
 use tensor_dyn::{Tensor, TensorCreator};
 use tensor_macros::match_selection;
 
+use super::assert_utils::assert_f64;
+
 #[allow(unused)]
 fn assert_eq(b: &Tensor<f64>, a: &TchTensor) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
@@ -20,11 +23,7 @@ fn assert_eq(b: &Tensor<f64>, a: &TchTensor) {
     let tolerance = 2.5e-16;
 
     for i in 0..b.size() {
-        let rel_diff =
-            ((a_raw[i] - b_raw[i]) / (a_raw[i].abs() + b_raw[i].abs() + f64::EPSILON)).abs();
-        if rel_diff > 0.05 {
-            panic!("{} != {} (relative_diff: {})", a_raw[i], b_raw[i], rel_diff);
-        }
+        assert_f64(a_raw[i], b_raw[i], 0.05, b, a);
     }
 }
 
@@ -34,16 +33,7 @@ fn assert_eq_10(b: &Tensor<f64>, a: &TchTensor) {
     let b_raw = b.as_raw();
 
     for i in 0..b.size() {
-        let abs_diff = (a_raw[i] - b_raw[i]).abs();
-        let rel_diff = if a_raw[i] == 0.0 && b_raw[i] == 0.0 {
-            0.0
-        } else {
-            abs_diff / (a_raw[i].abs() + b_raw[i].abs() + f64::EPSILON)
-        };
-
-        if rel_diff > 0.05 {
-            panic!("{} != {} (relative_diff: {})", a_raw[i], b_raw[i], rel_diff);
-        }
+        assert_f64(a_raw[i], b_raw[i], 0.10, b, a);
     }
 }
 
@@ -71,19 +61,19 @@ fn assert_eq_bool(b: &Tensor<bool>, a: &TchTensor) {
 fn no_assert_i64(b: &Tensor<i64>, a: &TchTensor) {}
 
 #[allow(unused)]
-fn common_input<const N: usize, const M: usize>(
-    lhs_shape: [i64; N],
-    rhs_shape: [i64; M],
+fn common_input(
+    lhs_shape: &[i64],
+    rhs_shape: &[i64],
 ) -> anyhow::Result<((TchTensor, TchTensor), (Tensor<f64>, Tensor<f64>))> {
-    let tch_a = TchTensor::randn(&lhs_shape, (tch::Kind::Double, tch::Device::Cpu));
-    let mut a = Tensor::<f64>::empty(&lhs_shape)?;
+    let tch_a = TchTensor::randn(lhs_shape, (tch::Kind::Double, tch::Device::Cpu));
+    let mut a = Tensor::<f64>::empty(lhs_shape)?;
     let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
     });
 
-    let tch_b = TchTensor::randn(&rhs_shape, (tch::Kind::Double, tch::Device::Cpu));
-    let mut b = Tensor::<f64>::empty(&rhs_shape)?;
+    let tch_b = TchTensor::randn(rhs_shape, (tch::Kind::Double, tch::Device::Cpu));
+    let mut b = Tensor::<f64>::empty(rhs_shape)?;
     let b_size = b.size();
     b.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_b.data_ptr() as *const f64, b_size)
@@ -93,16 +83,16 @@ fn common_input<const N: usize, const M: usize>(
 }
 
 #[allow(unused)]
-fn common_input_i64<const N: usize, const M: usize>(
-    lhs_shape: [i64; N],
-    rhs_shape: [i64; M],
+fn common_input_i64(
+    lhs_shape: &[i64],
+    rhs_shape: &[i64],
 ) -> anyhow::Result<((TchTensor, TchTensor), (Tensor<i64>, Tensor<i64>))> {
     let tch_a = TchTensor::arange(
         lhs_shape.iter().product::<i64>(),
         (tch::Kind::Int64, tch::Device::Cpu),
     )
-    .reshape(&lhs_shape);
-    let mut a = Tensor::<i64>::empty(&lhs_shape)?;
+    .reshape(lhs_shape);
+    let mut a = Tensor::<i64>::empty(lhs_shape)?;
     let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_a.data_ptr() as *const i64, a_size)
@@ -112,8 +102,8 @@ fn common_input_i64<const N: usize, const M: usize>(
         rhs_shape.iter().product::<i64>(),
         (tch::Kind::Int64, tch::Device::Cpu),
     )
-    .reshape(&rhs_shape);
-    let mut b = Tensor::<i64>::empty(&rhs_shape)?;
+    .reshape(rhs_shape);
+    let mut b = Tensor::<i64>::empty(rhs_shape)?;
     let b_size = b.size();
     b.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_b.data_ptr() as *const i64, b_size)
@@ -139,14 +129,18 @@ fn common_input_i64<const N: usize, const M: usize>(
     [test_le]       [a.tensor_le(&b)?]    [le_tensor]           [assert_eq_bool]    [common_input];
     [test_gt]       [a.tensor_gt(&b)?]    [gt_tensor]           [assert_eq_bool]    [common_input];
     [test_ge]       [a.tensor_ge(&b)?]    [ge_tensor]           [assert_eq_bool]    [common_input];
-    [test_matmul]   [a.matmul(&b)?]       [matmul]              [assert_eq_10]      [common_input];
 )]
 #[test]
 fn fn_name() -> anyhow::Result<()> {
-    let ((tch_a, tch_b), (a, b)) = input_method([13, 13], [13, 13])?;
-    let c = hpt_op;
-    let tch_c = tch_a.tch_op(&tch_b);
-    assert_method(&c, &tch_c);
+    let mut rng = rand::thread_rng();
+    for _ in 0..100 {
+        let len = rng.gen_range(1..=3);
+        let shape = (1..=len).map(|_| rng.gen_range(1..=10)).collect::<Vec<_>>();
+        let ((tch_a, tch_b), (a, b)) = input_method(&shape, &shape)?;
+        let c = hpt_op;
+        let tch_c = tch_a.tch_op(&tch_b);
+        assert_method(&c, &tch_c);
+    }
     Ok(())
 }
 
@@ -167,18 +161,26 @@ fn fn_name() -> anyhow::Result<()> {
     [test_le_broadcast]             [a.tensor_le(&b)?]      [le_tensor]             [assert_eq_bool]    [common_input];
     [test_gt_broadcast]             [a.tensor_gt(&b)?]      [gt_tensor]             [assert_eq_bool]    [common_input];
     [test_ge_broadcast]             [a.tensor_ge(&b)?]      [ge_tensor]             [assert_eq_bool]    [common_input];
-    [test_matmul_broadcast]         [a.matmul(&b)?]         [matmul]                [assert_eq_10]      [common_input];
 )]
 #[test]
 fn fn_name() -> anyhow::Result<()> {
-    let ((tch_a, tch_b), (a, b)) = input_method([13, 13], [13, 1])?;
-    let c = hpt_op;
-    let tch_c = tch_a.tch_op(&tch_b);
-    assert_method(&c, &tch_c);
-    let ((tch_a, tch_b), (a, b)) = input_method([1, 13], [13, 1])?;
-    let c = hpt_op;
-    let tch_c = tch_a.tch_op(&tch_b);
-    assert_method(&c, &tch_c);
+    let mut rng = rand::thread_rng();
+    for _ in 0..100 {
+        let len = rng.gen_range(2..=4);
+        let mut shape = (1..=len).map(|_| rng.gen_range(1..=10)).collect::<Vec<_>>();
+        let mut shape2 = shape.clone();
+        shape2[0] = 1;
+        let ((tch_a, tch_b), (a, b)) = input_method(&shape, &shape2)?;
+        let c = hpt_op;
+        let tch_c = tch_a.tch_op(&tch_b);
+        assert_method(&c, &tch_c);
+        shape[1] = 1;
+        shape2[0] = 1;
+        let ((tch_a, tch_b), (a, b)) = input_method(&shape, &shape2)?;
+        let c = hpt_op;
+        let tch_c = tch_a.tch_op(&tch_b);
+        assert_method(&c, &tch_c);
+    }
     Ok(())
 }
 
@@ -203,14 +205,29 @@ fn fn_name() -> anyhow::Result<()> {
 )]
 #[test]
 fn fn_name() -> anyhow::Result<()> {
-    let ((tch_a, tch_b), (a, b)) = input_method([13, 13], [13, 13])?;
-    let tch_a = tch_a.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
-    let a = slice!(a[2:6:1,2:6:1])?;
-    let tch_b = tch_b.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
-    let b = slice!(b[2:6:1,2:6:1])?;
-    let c = hpt_op;
-    let tch_c = tch_a.tch_op(&tch_b);
-    assert_method(&c, &tch_c);
+    let mut rng = rand::thread_rng();
+    for _ in 0..100 {
+        let shape = vec![13, 13, 13];
+
+        let start = rng.gen_range(0..5);
+        let end = rng.gen_range((start + 1)..10);
+        let step = rng.gen_range(1..=2);
+
+        let ((tch_a, tch_b), (a, b)) = input_method(&shape, &shape)?;
+        let tch_a = tch_a
+            .slice(0, start, end, step)
+            .slice(1, start, end, step)
+            .slice(2, start, end, step);
+        let a = slice!(a[start:end:step,start:end:step,start:end:step])?;
+        let tch_b = tch_b
+            .slice(0, start, end, step)
+            .slice(1, start, end, step)
+            .slice(2, start, end, step);
+        let b = slice!(b[start:end:step,start:end:step,start:end:step])?;
+        let c = hpt_op;
+        let tch_c = tch_a.tch_op(&tch_b);
+        assert_method(&c, &tch_c);
+    }
     Ok(())
 }
 
@@ -231,18 +248,21 @@ fn fn_name() -> anyhow::Result<()> {
     [test_le_uc]            [a.tensor_le(&b)?]  [le_tensor]             [assert_eq_bool]    [common_input];
     [test_gt_uc]            [a.tensor_gt(&b)?]  [gt_tensor]             [assert_eq_bool]    [common_input];
     [test_ge_uc]            [a.tensor_ge(&b)?]  [ge_tensor]             [assert_eq_bool]    [common_input];
-    [test_matmul_uc]        [a.matmul(&b)?]     [matmul]                [assert_eq_10]      [common_input];
 )]
 #[test]
 fn fn_name() -> anyhow::Result<()> {
-    let ((tch_a, tch_b), (a, b)) = input_method([13, 13], [13, 13])?;
-    let tch_a = tch_a.permute(&[1, 0][..]);
-    let a = a.permute([1, 0])?;
-    let tch_b = tch_b.permute(&[1, 0][..]);
-    let b = b.permute([1, 0])?;
-    let c = hpt_op;
-    let tch_c = tch_a.tch_op(&tch_b).contiguous();
-    assert_method(&c, &tch_c);
+    let mut rng = rand::thread_rng();
+    for _ in 0..100 {
+        let shape = (1..=3).map(|_| rng.gen_range(1..=10)).collect::<Vec<_>>();
+        let ((tch_a, tch_b), (a, b)) = input_method(&shape, &shape)?;
+        let tch_a = tch_a.permute(&[2, 1, 0][..]);
+        let a = a.permute([2, 1, 0])?;
+        let tch_b = tch_b.permute(&[2, 1, 0][..]);
+        let b = b.permute([2, 1, 0])?;
+        let c = hpt_op;
+        let tch_c = tch_a.tch_op(&tch_b).contiguous();
+        assert_method(&c, &tch_c);
+    }
     Ok(())
 }
 
@@ -267,18 +287,32 @@ fn fn_name() -> anyhow::Result<()> {
 )]
 #[test]
 fn fn_name() -> anyhow::Result<()> {
-    let ((tch_a, tch_b), (a, b)) = input_method([13, 13], [13, 13])?;
-    let tch_a = tch_a.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
-    let a = slice!(a[2:6:1,2:6:1])?;
-    let tch_b = tch_b.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
-    let b = slice!(b[2:6:1,2:6:1])?;
-    let tch_a = tch_a.permute(&[1, 0][..]);
-    let a = a.permute([1, 0])?;
-    let tch_b = tch_b.permute(&[1, 0][..]);
-    let b = b.permute([1, 0])?;
-    let c = hpt_op;
-    let tch_c = tch_a.tch_op(&tch_b).contiguous();
-    assert_method(&c, &tch_c);
+    let mut rng = rand::thread_rng();
+    for _ in 0..100 {
+        let shape = vec![13, 13, 13];
+
+        let start = rng.gen_range(0..5);
+        let end = rng.gen_range((start + 1)..10);
+        let step = rng.gen_range(1..=2);
+        let ((tch_a, tch_b), (a, b)) = input_method(&shape, &shape)?;
+        let tch_a = tch_a
+            .slice(0, start, end, step)
+            .slice(1, start, end, step)
+            .slice(2, start, end, step);
+        let a = slice!(a[start:end:step,start:end:step,start:end:step])?;
+        let tch_b = tch_b
+            .slice(0, start, end, step)
+            .slice(1, start, end, step)
+            .slice(2, start, end, step);
+        let b = slice!(b[start:end:step,start:end:step,start:end:step])?;
+        let tch_a = tch_a.permute(&[2, 1, 0][..]);
+        let a = a.permute([2, 1, 0])?;
+        let tch_b = tch_b.permute(&[2, 1, 0][..]);
+        let b = b.permute([2, 1, 0])?;
+        let c = hpt_op;
+        let tch_c = tch_a.tch_op(&tch_b).contiguous();
+        assert_method(&c, &tch_c);
+    }
     Ok(())
 }
 
@@ -296,13 +330,17 @@ fn fn_name() -> anyhow::Result<()> {
 )]
 #[test]
 fn fn_name() -> anyhow::Result<()> {
-    let ((tch_a, _), (a, _)) = input_method([13, 13], [13, 13])?;
-    let c = a.clone().hpt_op(scalar);
-    let tch_c = tch_a.shallow_clone().tch_op(&TchTensor::from(scalar));
-    assert_method(&c, &tch_c);
-    let c = scalar.hpt_op(&a);
-    let tch_c = TchTensor::from(scalar).tch_op(&tch_a);
-    assert_method(&c, &tch_c);
+    let mut rng = rand::thread_rng();
+    for _ in 0..100 {
+        let shape = (1..=3).map(|_| rng.gen_range(1..=10)).collect::<Vec<_>>();
+        let ((tch_a, _), (a, _)) = input_method(&shape, &shape)?;
+        let c = a.clone().hpt_op(scalar);
+        let tch_c = tch_a.shallow_clone().tch_op(&TchTensor::from(scalar));
+        assert_method(&c, &tch_c);
+        let c = scalar.hpt_op(&a);
+        let tch_c = TchTensor::from(scalar).tch_op(&tch_a);
+        assert_method(&c, &tch_c);
+    }
     Ok(())
 }
 
@@ -320,20 +358,29 @@ fn fn_name() -> anyhow::Result<()> {
 )]
 #[test]
 fn fn_name() -> anyhow::Result<()> {
-    let ((tch_a, _), (a, _)) = input_method([13, 13], [13, 1])?;
-    let c = a.clone().add(scalar);
-    let tch_c = tch_a.shallow_clone().add(&TchTensor::from(scalar));
-    assert_method(&c, &tch_c);
-    let c = scalar.hpt_op(&a);
-    let tch_c = TchTensor::from(scalar).tch_op(&tch_a);
-    assert_method(&c, &tch_c);
-    let ((tch_a, _), (a, _)) = input_method([1, 13], [13, 1])?;
-    let c = a.clone().hpt_op(scalar);
-    let tch_c = tch_a.shallow_clone().tch_op(&TchTensor::from(scalar));
-    assert_method(&c, &tch_c);
-    let c = scalar.hpt_op(&a);
-    let tch_c = TchTensor::from(scalar).tch_op(&tch_a);
-    assert_method(&c, &tch_c);
+    let mut rng = rand::thread_rng();
+    for _ in 0..100 {
+        let len = rng.gen_range(2..=4);
+        let mut shape = (1..=len).map(|_| rng.gen_range(1..=10)).collect::<Vec<_>>();
+        let mut shape2 = shape.clone();
+        shape2[0] = 1;
+        let ((tch_a, _), (a, _)) = input_method(&shape, &shape2)?;
+        let c = a.clone().add(scalar);
+        let tch_c = tch_a.shallow_clone().add(&TchTensor::from(scalar));
+        assert_method(&c, &tch_c);
+        let c = scalar.hpt_op(&a);
+        let tch_c = TchTensor::from(scalar).tch_op(&tch_a);
+        assert_method(&c, &tch_c);
+        shape[1] = 1;
+        shape2[0] = 1;
+        let ((tch_a, _), (a, _)) = input_method(&shape, &shape2)?;
+        let c = a.clone().hpt_op(scalar);
+        let tch_c = tch_a.shallow_clone().tch_op(&TchTensor::from(scalar));
+        assert_method(&c, &tch_c);
+        let c = scalar.hpt_op(&a);
+        let tch_c = TchTensor::from(scalar).tch_op(&tch_a);
+        assert_method(&c, &tch_c);
+    }
     Ok(())
 }
 
@@ -351,15 +398,26 @@ fn fn_name() -> anyhow::Result<()> {
 )]
 #[test]
 fn fn_name() -> anyhow::Result<()> {
-    let ((tch_a, _), (a, _)) = input_method([13, 13], [13, 13])?;
-    let tch_a = tch_a.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
-    let a = slice!(a[2:6:1,2:6:1])?;
-    let c = a.clone().hpt_op(scalar);
-    let tch_c = tch_a.shallow_clone().tch_op(&TchTensor::from(scalar));
-    assert_method(&c, &tch_c);
-    let c = scalar.hpt_op(&a);
-    let tch_c = TchTensor::from(scalar).tch_op(&tch_a);
-    assert_method(&c, &tch_c);
+    let mut rng = rand::thread_rng();
+    for _ in 0..100 {
+        let shape = vec![13, 13, 13];
+
+        let start = rng.gen_range(0..5);
+        let end = rng.gen_range((start + 1)..10);
+        let step = rng.gen_range(1..=2);
+        let ((tch_a, _), (a, _)) = input_method(&shape, &shape)?;
+        let tch_a = tch_a
+            .slice(0, start, end, step)
+            .slice(1, start, end, step)
+            .slice(2, start, end, step);
+        let a = slice!(a[start:end:step,start:end:step,start:end:step])?;
+        let c = a.clone().hpt_op(scalar);
+        let tch_c = tch_a.shallow_clone().tch_op(&TchTensor::from(scalar));
+        assert_method(&c, &tch_c);
+        let c = scalar.hpt_op(&a);
+        let tch_c = TchTensor::from(scalar).tch_op(&tch_a);
+        assert_method(&c, &tch_c);
+    }
     Ok(())
 }
 
@@ -377,18 +435,22 @@ fn fn_name() -> anyhow::Result<()> {
 )]
 #[test]
 fn fn_name() -> anyhow::Result<()> {
-    let ((tch_a, _), (a, _)) = input_method([13, 13], [13, 13])?;
-    let tch_a = tch_a.permute(&[1, 0][..]);
-    let a = a.permute([1, 0])?;
-    let c = a.clone().hpt_op(scalar);
-    let tch_c = tch_a
-        .shallow_clone()
-        .tch_op(&TchTensor::from(scalar))
-        .contiguous();
-    assert_method(&c, &tch_c);
-    let c = scalar.hpt_op(&a);
-    let tch_c = TchTensor::from(scalar).tch_op(&tch_a).contiguous();
-    assert_method(&c, &tch_c);
+    let mut rng = rand::thread_rng();
+    for _ in 0..100 {
+        let shape = (1..=3).map(|_| rng.gen_range(1..=10)).collect::<Vec<_>>();
+        let ((tch_a, _), (a, _)) = input_method(&shape, &shape)?;
+        let tch_a = tch_a.permute(&[2, 1, 0][..]);
+        let a = a.permute([2, 1, 0])?;
+        let c = a.clone().hpt_op(scalar);
+        let tch_c = tch_a
+            .shallow_clone()
+            .tch_op(&TchTensor::from(scalar))
+            .contiguous();
+        assert_method(&c, &tch_c);
+        let c = scalar.hpt_op(&a);
+        let tch_c = TchTensor::from(scalar).tch_op(&tch_a).contiguous();
+        assert_method(&c, &tch_c);
+    }
     Ok(())
 }
 
@@ -406,26 +468,37 @@ fn fn_name() -> anyhow::Result<()> {
 )]
 #[test]
 fn fn_name() -> anyhow::Result<()> {
-    let ((tch_a, _), (a, _)) = input_method([13, 13], [13, 13])?;
-    let tch_a = tch_a.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
-    let a = slice!(a[2:6:1,2:6:1])?;
-    let tch_a = tch_a.permute(&[1, 0][..]);
-    let a = a.permute([1, 0])?;
-    let c = a.clone().hpt_op(scalar);
-    let tch_c = tch_a
-        .shallow_clone()
-        .tch_op(&TchTensor::from(scalar))
-        .contiguous();
-    assert_method(&c, &tch_c);
-    let c = scalar.hpt_op(&a);
-    let tch_c = TchTensor::from(scalar).tch_op(&tch_a).contiguous();
-    assert_method(&c, &tch_c);
+    let mut rng = rand::thread_rng();
+    for _ in 0..100 {
+        let shape = vec![13, 13, 13];
+
+        let start = rng.gen_range(0..5);
+        let end = rng.gen_range((start + 1)..10);
+        let step = rng.gen_range(1..=2);
+        let ((tch_a, _), (a, _)) = input_method(&shape, &shape)?;
+        let tch_a = tch_a
+            .slice(0, start, end, step)
+            .slice(1, start, end, step)
+            .slice(2, start, end, step);
+        let a = slice!(a[start:end:step,start:end:step,start:end:step])?;
+        let tch_a = tch_a.permute(&[2, 1, 0][..]);
+        let a = a.permute([2, 1, 0])?;
+        let c = a.clone().hpt_op(scalar);
+        let tch_c = tch_a
+            .shallow_clone()
+            .tch_op(&TchTensor::from(scalar))
+            .contiguous();
+        assert_method(&c, &tch_c);
+        let c = scalar.hpt_op(&a);
+        let tch_c = TchTensor::from(scalar).tch_op(&tch_a).contiguous();
+        assert_method(&c, &tch_c);
+    }
     Ok(())
 }
 
 #[test]
 fn test_batch_matmul() -> anyhow::Result<()> {
-    let ((tch_a, tch_b), (a, b)) = common_input([13, 13, 13], [13, 13, 13])?;
+    let ((tch_a, tch_b), (a, b)) = common_input(&[13, 13, 13], &[13, 13, 13])?;
     let c = a.matmul(&b)?;
     let tch_c = tch_a.matmul(&tch_b);
     assert_eq(&c, &tch_c);

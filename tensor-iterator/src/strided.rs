@@ -11,13 +11,13 @@ use crate::{
 };
 use std::sync::Arc;
 use tensor_common::{
-    axis::Axis,
-    layout::Layout,
-    pointer::Pointer,
-    shape::Shape,
-    shape_utils::try_pad_shape,
-    strides::Strides,
-    strides_utils::preprocess_strides,
+    axis::axis::Axis,
+    layout::layout::Layout,
+    utils::pointer::Pointer,
+    shape::shape::Shape,
+    shape::shape_utils::try_pad_shape,
+    strides::strides::Strides,
+    strides::strides_utils::preprocess_strides,
 };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 
@@ -25,13 +25,13 @@ use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 pub mod strided_simd {
     use std::sync::Arc;
     use tensor_common::{
-        axis::Axis,
-        layout::Layout,
-        pointer::Pointer,
-        shape::Shape,
-        shape_utils::try_pad_shape,
-        strides::Strides,
-        strides_utils::preprocess_strides,
+        axis::axis::Axis,
+        layout::layout::Layout,
+        utils::pointer::Pointer,
+        shape::shape::Shape,
+        shape::shape_utils::try_pad_shape,
+        strides::strides::Strides,
+        strides::strides_utils::preprocess_strides,
     };
     use tensor_traits::{ CommonBounds, TensorInfo };
     use tensor_types::dtype::TypeCommon;

@@ -10,7 +10,7 @@ use crate::{
 use cudarc::driver::{DeviceRepr, LaunchAsync, LaunchConfig};
 use std::{panic::Location, sync::Arc};
 use tensor_allocator::CUDA_CACHE;
-use tensor_common::{err_handler::ErrHandler, layout::Layout, pointer::Pointer, shape::Shape};
+use tensor_common::{err_handler::TensorError, layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_cudakernels::CREATION;
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 use tensor_types::{
@@ -23,7 +23,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
     for _Tensor<T, Cuda, DEVICE_ID>
 {
     type Output = Self;
-    fn empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler> {
+    fn empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
         let size = res_shape
@@ -35,11 +35,11 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
                 .unwrap_or((isize::MAX as usize) - (ALIGN - 1)), // when overflow happened, we use max memory `from_size_align` accept
             ALIGN,
         )
-        .map_err(|e| ErrHandler::StdMemLayoutError(ALIGN, size, Location::caller(), e))?;
+        .map_err(|e| TensorError::StdMemLayoutError(ALIGN, size, Location::caller(), e))?;
         let (ptr, device) = if let Ok(mut cache) = CUDA_CACHE.lock() {
             cache.allocate(layout, DEVICE_ID)?
         } else {
-            return Err(ErrHandler::LockFailed("CUDA_CACHE", Location::caller()));
+            return Err(TensorError::LockFailed("CUDA_CACHE", Location::caller()));
         };
         Ok(_Tensor {
             #[cfg(feature = "bound_check")]
@@ -53,39 +53,39 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         })
     }
 
-    fn zeros<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler> {
+    fn zeros<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError> {
         let empty = Self::empty(shape)?;
         if let Ok(mut cache) = CUDA_CACHE.lock() {
             cache.memset_zeros(empty.ptr().ptr as *mut u8, &empty.mem_layout, DEVICE_ID)
         } else {
-            return Err(ErrHandler::LockFailed("CUDA_CACHE", Location::caller()));
+            return Err(TensorError::LockFailed("CUDA_CACHE", Location::caller()));
         };
         Ok(empty)
     }
 
-    fn ones<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler>
+    fn ones<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError>
     where
         u8: IntoScalar<T>,
     {
         Self::full(T::ONE, shape)
     }
 
-    fn empty_like(&self) -> std::result::Result<Self, ErrHandler> {
+    fn empty_like(&self) -> std::result::Result<Self, TensorError> {
         Self::empty(self.shape())
     }
 
-    fn zeros_like(&self) -> std::result::Result<Self, ErrHandler> {
+    fn zeros_like(&self) -> std::result::Result<Self, TensorError> {
         Self::zeros(self.shape())
     }
 
-    fn ones_like(&self) -> std::result::Result<Self, ErrHandler>
+    fn ones_like(&self) -> std::result::Result<Self, TensorError>
     where
         u8: IntoScalar<T>,
     {
         Self::ones(self.shape())
     }
 
-    fn full<S: Into<Shape>>(val: T, shape: S) -> std::result::Result<Self, ErrHandler> {
+    fn full<S: Into<Shape>>(val: T, shape: S) -> std::result::Result<Self, TensorError> {
         let ret = Self::empty(shape)?;
         let (fill_kernel, _) = load_ptx_and_get_data(
             "creation",
@@ -100,7 +100,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
                 .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
         };
         unsafe { fill_kernel.launch(cfg, (&mut slice, val, ret.size())) }.map_err(|e| {
-            ErrHandler::CudaKernelLaunchingError(
+            TensorError::CudaKernelLaunchingError(
                 "creation".to_string(),
                 format!("fill_{}", T::ID),
                 Location::caller(),
@@ -111,11 +111,11 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         Ok(ret)
     }
 
-    fn full_like(&self, val: T) -> std::result::Result<Self, ErrHandler> {
+    fn full_like(&self, val: T) -> std::result::Result<Self, TensorError> {
         Self::full(val, self.shape())
     }
 
-    fn arange<U>(start: U, end: U) -> std::result::Result<Self, ErrHandler>
+    fn arange<U>(start: U, end: U) -> std::result::Result<Self, TensorError>
     where
         T: Convertor + FromScalar<U>,
         usize: IntoScalar<T>,
@@ -137,7 +137,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         let cfg = LaunchConfig::for_num_elems(ret.size() as u32);
         let slice = ret.cuda_slice();
         unsafe { arange_kernel.launch(cfg, (slice, start, T::ONE, ret.size())) }.map_err(|e| {
-            ErrHandler::CudaKernelLaunchingError(
+            TensorError::CudaKernelLaunchingError(
                 "creation".to_string(),
                 format!("arange_{}", T::ID),
                 Location::caller(),
@@ -147,7 +147,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         Ok(ret)
     }
 
-    fn arange_step(start: T, end: T, step: T) -> std::result::Result<Self, ErrHandler>
+    fn arange_step(start: T, end: T, step: T) -> std::result::Result<Self, TensorError>
     where
         T: Convertor + FromScalar<usize>,
     {
@@ -175,7 +175,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         let cfg = compute_kernel_launch_config(ret.device(), &reg_info, ret.size());
         unsafe { arange_kernel.launch(cfg, (&mut slice, start, step, ret.size())) }.map_err(
             |e| {
-                ErrHandler::CudaKernelLaunchingError(
+                TensorError::CudaKernelLaunchingError(
                     "creation".to_string(),
                     format!("arange_{}", T::ID),
                     Location::caller(),
@@ -187,7 +187,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         Ok(ret)
     }
 
-    fn eye(n: usize, m: usize, k: usize) -> std::result::Result<Self, ErrHandler>
+    fn eye(n: usize, m: usize, k: usize) -> std::result::Result<Self, TensorError>
     where
         u8: IntoScalar<T>,
     {
@@ -202,7 +202,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         )?;
         let cfg = compute_kernel_launch_config(ret.device(), &reg_info, ret.size());
         unsafe { eye_kernel.launch(cfg, (ret.cuda_slice(), n, m, k)) }.map_err(|e| {
-            ErrHandler::CudaKernelLaunchingError(
+            TensorError::CudaKernelLaunchingError(
                 "creation".to_string(),
                 format!("eye_{}", T::ID),
                 Location::caller(),
@@ -217,7 +217,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         end: U,
         num: usize,
         include_end: bool,
-    ) -> std::result::Result<Self, ErrHandler>
+    ) -> std::result::Result<Self, TensorError>
     where
         T: Convertor,
         U: Convertor + IntoScalar<T> + Copy,
@@ -252,7 +252,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
             )
         }
         .map_err(|e| {
-            ErrHandler::CudaKernelLaunchingError(
+            TensorError::CudaKernelLaunchingError(
                 "creation".to_string(),
                 format!("linspace_{}", T::ID),
                 Location::caller(),
@@ -268,7 +268,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         num: usize,
         include_end: bool,
         base: T,
-    ) -> std::result::Result<Self, ErrHandler>
+    ) -> std::result::Result<Self, TensorError>
     where
         T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64>,
     {
@@ -293,7 +293,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         let cfg = compute_kernel_launch_config(ret.device(), &reg_info, ret.size());
         unsafe { logspace_kernel.launch(cfg, (ret.cuda_slice(), base, start, step_t, num)) }
             .map_err(|e| {
-                ErrHandler::CudaKernelLaunchingError(
+                TensorError::CudaKernelLaunchingError(
                     "creation".to_string(),
                     format!("logspace_{}", T::ID),
                     Location::caller(),
@@ -308,7 +308,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         end: T,
         n: usize,
         include_end: bool,
-    ) -> std::result::Result<Self, ErrHandler>
+    ) -> std::result::Result<Self, TensorError>
     where
         f64: IntoScalar<T>,
         usize: IntoScalar<T>,
@@ -333,7 +333,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
             geomspace_kernel.launch(cfg, (ret.cuda_slice(), start_t, step_t, both_negative, n))
         }
         .map_err(|e| {
-            ErrHandler::CudaKernelLaunchingError(
+            TensorError::CudaKernelLaunchingError(
                 "creation".to_string(),
                 format!("geomspace_{}", T::ID),
                 Location::caller(),
@@ -343,7 +343,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         Ok(ret)
     }
 
-    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> std::result::Result<Self, ErrHandler>
+    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> std::result::Result<Self, TensorError>
     where
         u8: IntoScalar<T>,
     {
@@ -359,7 +359,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         let cfg = compute_kernel_launch_config(ret.device(), &reg_info, ret.size());
         unsafe { tri_kernel.launch(cfg, (ret.cuda_slice(), n, m, k, low_triangle)) }.map_err(
             |e| {
-                ErrHandler::CudaKernelLaunchingError(
+                TensorError::CudaKernelLaunchingError(
                     "creation".to_string(),
                     format!("tri_{}", T::ID),
                     Location::caller(),
@@ -370,7 +370,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         Ok(ret)
     }
 
-    fn tril(&self, _: i64) -> std::result::Result<Self, ErrHandler>
+    fn tril(&self, _: i64) -> std::result::Result<Self, TensorError>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T>,
         T::Vec: NormalOut<BoolVector, Output = T::Vec>,
@@ -378,7 +378,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         unimplemented!()
     }
 
-    fn triu(&self, _: i64) -> std::result::Result<Self, ErrHandler>
+    fn triu(&self, _: i64) -> std::result::Result<Self, TensorError>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T>,
         T::Vec: NormalOut<BoolVector, Output = T::Vec>,
@@ -386,7 +386,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         unimplemented!()
     }
 
-    fn identity(n: usize) -> std::result::Result<Self, ErrHandler>
+    fn identity(n: usize) -> std::result::Result<Self, TensorError>
     where
         u8: IntoScalar<T>,
     {

@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::error::base::TensorError;
 use tensor_traits::{CommonBounds, FloatUaryOps};
 use tensor_types::{dtype::TypeCommon, into_scalar::IntoScalar, type_promote::FloatOutUnary};
 
@@ -22,216 +22,216 @@ where
 
     type OutputMeta = FloatUnaryType<T>;
 
-    fn sin(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sin(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::sin(self.inner.as_ref())?.into())
     }
 
-    fn cos(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn cos(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::cos(self.inner.as_ref())?.into())
     }
 
-    fn tan(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn tan(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::tan(self.inner.as_ref())?.into())
     }
 
-    fn asin(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn asin(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::asin(self.inner.as_ref())?.into())
     }
 
-    fn acos(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn acos(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::acos(self.inner.as_ref())?.into())
     }
 
-    fn atan(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn atan(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::atan(self.inner.as_ref())?.into())
     }
 
-    fn sinh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sinh(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::sinh(self.inner.as_ref())?.into())
     }
 
-    fn cosh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn cosh(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::cosh(self.inner.as_ref())?.into())
     }
 
-    fn tanh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn tanh(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::tanh(self.inner.as_ref())?.into())
     }
 
-    fn asinh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn asinh(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::asinh(self.inner.as_ref())?.into())
     }
 
-    fn acosh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn acosh(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::acosh(self.inner.as_ref())?.into())
     }
 
-    fn atanh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn atanh(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::atanh(self.inner.as_ref())?.into())
     }
 
-    fn sin_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn sin_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::sin_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn cos_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn cos_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::cos_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn tan_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn tan_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::tan_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn asin_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn asin_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::asin_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn acos_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn acos_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::acos_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn atan_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn atan_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::atan_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn sinh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn sinh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::sinh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn cosh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn cosh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::cosh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn tanh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn tanh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::tanh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn asinh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn asinh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::asinh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn acosh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn acosh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::acosh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn atanh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn atanh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::atanh_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn exp(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn exp(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::exp(self.inner.as_ref())?.into())
     }
 
-    fn exp_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn exp_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::exp_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn exp2(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn exp2(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::exp2(self.inner.as_ref())?.into())
     }
 
-    fn exp2_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn exp2_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::exp2_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn sqrt(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sqrt(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::sqrt(self.inner.as_ref())?.into())
     }
 
-    fn sqrt_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn sqrt_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::sqrt_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn recip(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn recip(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::recip(self.inner.as_ref())?.into())
     }
 
-    fn recip_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn recip_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::recip_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn ln(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn ln(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::ln(self.inner.as_ref())?.into())
     }
 
-    fn ln_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn ln_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::ln_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn log2(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn log2(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::log2(self.inner.as_ref())?.into())
     }
 
-    fn log2_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn log2_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::log2_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn log10(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn log10(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::log10(self.inner.as_ref())?.into())
     }
 
-    fn log10_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn log10_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::log10_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn celu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, ErrHandler> {
+    fn celu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::celu(self.inner.as_ref(), alpha)?.into())
     }
 
@@ -239,7 +239,7 @@ where
         &self,
         alpha: Self::OutputMeta,
         out: U,
-    ) -> std::result::Result<Self::Output, ErrHandler>
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -249,18 +249,18 @@ where
         )
     }
 
-    fn sigmoid(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sigmoid(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::sigmoid(self.inner.as_ref())?.into())
     }
 
-    fn sigmoid_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn sigmoid_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::sigmoid_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn elu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, ErrHandler> {
+    fn elu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::elu(self.inner.as_ref(), alpha)?.into())
     }
 
@@ -268,7 +268,7 @@ where
         &self,
         alpha: Self::OutputMeta,
         out: U,
-    ) -> std::result::Result<Self::Output, ErrHandler>
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -278,26 +278,26 @@ where
         )
     }
 
-    fn erf(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn erf(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::erf(self.inner.as_ref())?.into())
     }
 
-    fn fast_hard_sigmoid(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn fast_hard_sigmoid(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::fast_hard_sigmoid(self.inner.as_ref())?.into())
     }
 
-    fn gelu(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn gelu(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::gelu(self.inner.as_ref())?.into())
     }
 
-    fn gelu_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn gelu_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::gelu_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn selu<U>(&self, alpha: U, gamma: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn selu<U>(&self, alpha: U, gamma: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Into<Option<Self::OutputMeta>>,
     {
@@ -309,7 +309,7 @@ where
         alpha: Option<Self::OutputMeta>,
         gamma: Option<Self::OutputMeta>,
         out: U,
-    ) -> std::result::Result<Self::Output, ErrHandler>
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -322,11 +322,11 @@ where
         .into())
     }
 
-    fn hard_sigmoid(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn hard_sigmoid(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::hard_sigmoid(self.inner.as_ref())?.into())
     }
 
-    fn hard_sigmoid_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn hard_sigmoid_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -336,11 +336,11 @@ where
         )
     }
 
-    fn hard_swish(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn hard_swish(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::hard_swish(self.inner.as_ref())?.into())
     }
 
-    fn hard_swish_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn hard_swish_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -350,44 +350,44 @@ where
         )
     }
 
-    fn softplus(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn softplus(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::softplus(self.inner.as_ref())?.into())
     }
 
-    fn softplus_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn softplus_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::softplus_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn softsign(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn softsign(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::softsign(self.inner.as_ref())?.into())
     }
 
-    fn softsign_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn softsign_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::softsign_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn mish(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn mish(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::mish(self.inner.as_ref())?.into())
     }
 
-    fn mish_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn mish_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu>::mish_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn cbrt(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn cbrt(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::cbrt(self.inner.as_ref())?.into())
     }
 
-    fn cbrt_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn cbrt_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {

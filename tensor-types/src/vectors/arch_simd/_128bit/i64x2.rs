@@ -134,7 +134,8 @@ impl SimdCompare for i64x2 {
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i64x2(vreinterpretq_s64_u64(vceqq_s64(self.0, other.0)))
+            let eq = vceqq_s64(self.0, other.0);
+            i64x2(veorq_s64(vreinterpretq_s64_u64(eq), vdupq_n_s64(-1)))
         }
     }
     #[inline(always)]
@@ -661,11 +662,9 @@ impl Eval2 for i64x2 {
     
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            let neq = vmvnq_s64(vreinterpretq_s64_u64(vceqq_s64(
-                self.0,
-                vdupq_n_s64(0),
-            )));
-            i64x2(vandq_s64(neq, vdupq_n_s64(1)))
+            let eq = vceqq_s64(self.0, vdupq_n_s64(0));
+            let one = vdupq_n_s64(1);
+            i64x2(vbicq_s64(one, vreinterpretq_s64_u64(eq)))
         }
     }
 

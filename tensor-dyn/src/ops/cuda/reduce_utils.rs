@@ -5,7 +5,7 @@ use crate::{backend::Cuda, tensor_base::_Tensor};
 use cudarc::driver::LaunchAsync;
 use cudarc::{driver::DeviceRepr, types::CudaTypeName};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_cudakernels::SET_VAL;
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike};
 
@@ -44,7 +44,7 @@ pub(crate) fn reduce_prepare<
     init_val: O,
     init_out: bool,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
-) -> std::result::Result<(_Tensor<T, Cuda, DEVICE_ID>, _Tensor<O, Cuda, DEVICE_ID>), ErrHandler> {
+) -> std::result::Result<(_Tensor<T, Cuda, DEVICE_ID>, _Tensor<O, Cuda, DEVICE_ID>), TensorError> {
     // get permute order, we move to_reduce axes to the end
     let mut transposed_axis = rearrange_array(a.layout.ndim(), axes);
 
@@ -58,7 +58,7 @@ pub(crate) fn reduce_prepare<
     let res = if let Some(out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
-        ErrHandler::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
+        TensorError::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
         if init_out {
             let (kernel, reg_info) = load_ptx_and_get_data(
                 "set_val",
@@ -77,7 +77,7 @@ pub(crate) fn reduce_prepare<
                         (out.cuda_slice(), init_val, res_layout.size() as usize),
                     )
                     .map_err(|e| {
-                        ErrHandler::CudaKernelLaunchingError(
+                        TensorError::CudaKernelLaunchingError(
                             "set_val".to_string(),
                             format!("set_val_{}", O::ID),
                             Location::caller(),
@@ -111,7 +111,7 @@ pub(crate) fn uncontiguous_reduce_prepare<
         _Tensor<O, Cuda, DEVICE_ID>,
         Vec<usize>,
     ),
-    ErrHandler,
+    TensorError,
 > {
     let mut keep_fast_dim = true;
     for axis in axes.iter() {
@@ -137,7 +137,7 @@ pub(crate) fn uncontiguous_reduce_prepare<
     let res = if let Some(mut out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
-        ErrHandler::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
+        TensorError::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
         if init_out {
             out.as_raw_mut().par_iter_mut().for_each(|x| {
                 *x = init_val;

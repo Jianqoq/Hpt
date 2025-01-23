@@ -8,7 +8,6 @@ pub mod tensor_dyn {
         pub mod creation;
         pub mod cumulate;
         pub mod dwconv2d;
-        pub mod lp_pool2d;
         pub mod maxpool;
         pub mod pwconv2d;
         pub mod reduce;
@@ -19,6 +18,12 @@ pub mod tensor_dyn {
         pub mod topk;
         pub mod unary;
         pub mod avg_pool;
+        pub mod adaptive_avg_pool;
+        pub mod adaptive_max_pool;
+        pub mod onehot;
+        pub mod scatter;
+        pub mod gather;
+        pub mod assert_utils;
     }
     #[cfg(feature = "cuda")]
     pub mod cuda {

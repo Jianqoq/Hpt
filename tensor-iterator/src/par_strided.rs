@@ -10,13 +10,13 @@ use rayon::iter::{
 };
 use std::sync::Arc;
 use tensor_common::{
-    axis::Axis,
-    layout::Layout,
-    pointer::Pointer,
-    shape::Shape,
-    shape_utils::{ mt_intervals, try_pad_shape },
-    strides::Strides,
-    strides_utils::preprocess_strides,
+    axis::axis::Axis,
+    layout::layout::Layout,
+    utils::pointer::Pointer,
+    shape::shape::Shape,
+    shape::shape_utils::{ mt_intervals, try_pad_shape },
+    strides::strides::Strides,
+    strides::strides_utils::preprocess_strides,
 };
 use tensor_traits::tensor::{ CommonBounds, TensorInfo };
 
@@ -30,14 +30,14 @@ pub mod par_strided_simd {
         ParallelIterator,
     };
     use tensor_common::{
-        axis::Axis,
-        layout::Layout,
-        pointer::Pointer,
-        shape::Shape,
-        shape_utils::{ mt_intervals, try_pad_shape },
-        simd_ref::MutVec,
-        strides::Strides,
-        strides_utils::preprocess_strides,
+        axis::axis::Axis,
+        layout::layout::Layout,
+        utils::pointer::Pointer,
+        shape::shape::Shape,
+        shape::shape_utils::{ mt_intervals, try_pad_shape },
+        utils::simd_ref::MutVec,
+        strides::strides::Strides,
+        strides::strides_utils::preprocess_strides,
     };
     use tensor_traits::{ CommonBounds, TensorInfo };
 
@@ -443,7 +443,7 @@ impl<T: CommonBounds> ParStrided<T> {
     ///
     /// A `ParStridedMap` instance that applies the provided function during iteration.
     pub fn strided_map<'a, F, U>(self, f: F) -> ParStridedMap<'a, ParStrided<T>, T, F>
-        where F: Fn(T) -> U + Sync + Send + 'a, U: CommonBounds
+        where F: Fn((&mut U, T)) + Sync + Send + 'a, U: CommonBounds
     {
         ParStridedMap {
             iter: self,

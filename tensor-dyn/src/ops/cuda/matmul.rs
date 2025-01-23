@@ -7,8 +7,8 @@ use cudarc::cublas::{CudaBlas, Gemm, GemmConfig, StridedBatchedConfig};
 use cudarc::driver::DeviceRepr;
 use std::borrow::{Borrow, BorrowMut};
 use tensor_common::{
-    err_handler::ErrHandler,
-    shape_utils::{compare_and_pad_shapes, predict_broadcast_shape},
+    err_handler::TensorError,
+    shape::shape_utils::{compare_and_pad_shapes, predict_broadcast_shape},
 };
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
@@ -18,7 +18,7 @@ pub(crate) fn matmul_with_out<T, O, const CUDA_DEVICE: usize>(
     lhs: &_Tensor<T, Cuda, CUDA_DEVICE>,
     rhs: &_Tensor<T, Cuda, CUDA_DEVICE>,
     out: Option<O>,
-) -> std::result::Result<_Tensor<T, Cuda, CUDA_DEVICE>, ErrHandler>
+) -> std::result::Result<_Tensor<T, Cuda, CUDA_DEVICE>, TensorError>
 where
     T: CommonBounds + DeviceRepr,
     CudaBlas: Gemm<T>,
@@ -26,7 +26,7 @@ where
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         if lhs.shape()[1] != rhs.shape()[0] {
-            Err(ErrHandler::MatmulShapeMismatched(
+            Err(TensorError::MatmulShapeMismatched(
                 [lhs.shape()[0], lhs.shape()[1]],
                 [rhs.shape()[0], rhs.shape()[1]],
                 lhs.shape()[1],
@@ -45,7 +45,7 @@ where
                     };
                     out.device()
                         .htod_sync_copy_into(&vec![T::ZERO; out.size() as usize], &mut slice)
-                        .map_err(|e| ErrHandler::CudaHostToDeviceError(Location::caller(), e))?;
+                        .map_err(|e| TensorError::CudaHostToDeviceError(Location::caller(), e))?;
                     slice.leak();
                     out
                 } else {
@@ -55,7 +55,7 @@ where
                 _Tensor::<T, Cuda, CUDA_DEVICE>::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?
             };
             let cublas = cudarc::cublas::CudaBlas::new(res.device())
-                .map_err(|e| ErrHandler::CudaCreateCublasHandleError(Location::caller(), e))?;
+                .map_err(|e| TensorError::CudaCreateCublasHandleError(Location::caller(), e))?;
             let config = GemmConfig {
                 transa: cublasOperation_t::CUBLAS_OP_N,
                 transb: cublasOperation_t::CUBLAS_OP_N,
@@ -83,7 +83,7 @@ where
             unsafe {
                 cublas
                     .gemm(config, &a_slice, &b_slice, &mut slice)
-                    .map_err(|e| ErrHandler::CudaCublasExecuteError(Location::caller(), e))?
+                    .map_err(|e| TensorError::CudaCublasExecuteError(Location::caller(), e))?
             };
             slice.leak();
             a_slice.leak();
@@ -102,7 +102,7 @@ where
             b_shape = longer_shape;
         }
         if a_shape[a_shape.len() - 1] != b_shape[b_shape.len() - 2] {
-            Err(ErrHandler::MatmulShapeMismatched(
+            Err(TensorError::MatmulShapeMismatched(
                 [a_shape[a_shape.len() - 2], a_shape[a_shape.len() - 1]],
                 [b_shape[b_shape.len() - 2], b_shape[b_shape.len() - 1]],
                 a_shape[a_shape.len() - 1],
@@ -126,7 +126,7 @@ where
                     };
                     out.device()
                         .htod_sync_copy_into(&vec![T::ZERO; out.size() as usize], &mut slice)
-                        .map_err(|e| ErrHandler::CudaHostToDeviceError(Location::caller(), e))?;
+                        .map_err(|e| TensorError::CudaHostToDeviceError(Location::caller(), e))?;
                     slice.leak();
                     out
                 } else {
@@ -136,7 +136,7 @@ where
                 _Tensor::<T, Cuda, CUDA_DEVICE>::zeros(res_shape)?
             };
             let cublas = cudarc::cublas::CudaBlas::new(res.device())
-                .map_err(|e| ErrHandler::CudaCreateCublasHandleError(Location::caller(), e))?;
+                .map_err(|e| TensorError::CudaCreateCublasHandleError(Location::caller(), e))?;
             let config = GemmConfig {
                 transa: cublasOperation_t::CUBLAS_OP_N,
                 transb: cublasOperation_t::CUBLAS_OP_T,
@@ -171,7 +171,7 @@ where
             unsafe {
                 cublas
                     .gemm_strided_batched(config, &a_slice, &b_slice, &mut slice)
-                    .map_err(|e| ErrHandler::CudaCublasExecuteError(Location::caller(), e))?
+                    .map_err(|e| TensorError::CudaCublasExecuteError(Location::caller(), e))?
             };
             slice.leak();
             a_slice.leak();

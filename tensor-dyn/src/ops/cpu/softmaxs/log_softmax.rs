@@ -1,12 +1,18 @@
+use std::{ cell::RefCell, rc::Rc };
+
 use crate::{
-    ops::cpu::kernels::logsoftmax::{
-        contiguous_dim_include,
-        logsoftmax_dim_not_include,
-        uncontiguous_logsoftmax_dim_include,
-        uncontiguous_logsoftmax_dim_not_include,
+    ops::cpu::{
+        kernels::logsoftmax::{
+            contiguous_dim_include,
+            logsoftmax_dim_not_include,
+            uncontiguous_logsoftmax_dim_include,
+            uncontiguous_logsoftmax_dim_not_include,
+        },
+        utils::diff::diff_utils::handle_grad,
     },
-    tensor::Tensor,
+    tensor::{ DiffTensor, Tensor },
     tensor_base::_Tensor,
+    Cpu,
 };
 use rayon::iter::{
     IndexedParallelIterator,
@@ -15,7 +21,8 @@ use rayon::iter::{
     IntoParallelRefMutIterator,
     ParallelIterator,
 };
-use tensor_common::{err_handler::ErrHandler, shape::Shape};
+use tensor_common::{ error::base::TensorError, shape::shape::Shape };
+use tensor_iterator::{ iterator_traits::ParStridedIteratorZip, TensorIterator };
 use tensor_traits::{ CommonBounds, TensorInfo, TensorLike };
 use tensor_types::{
     convertion::Convertor,
@@ -32,28 +39,13 @@ use super::softmax_utils::{
     UCSoftmaxPreprocessor,
 };
 
-impl<T> _Tensor<T> {
-    /// Applies the logsoftmax function along a specified axis.
-    ///
-    /// The logsoftmax function normalizes the elements along the specified axis such that they sum to 1.
-    /// It is commonly used in machine learning models, particularly for multi-class classification tasks.
-    /// The logsoftmax function transforms each element `x_i` in the input tensor into a probability by computing:
-    ///
-    /// ```text
-    /// logsoftmax(x_i) = log(exp(x_i) / sum(exp(x_j))) for all j along the specified axis
-    /// ```
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - The axis along which to apply the softmax function. The elements along this axis
-    ///   will be transformed into probabilities that sum to 1.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor with the softmax values computed along
-    /// the specified axis.
+impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn log_softmax(&self, axis: i64) -> anyhow::Result<_Tensor<<T as FloatOutUnary>::Output>>
+    pub fn log_softmax(
+        &self,
+        axis: i64
+    )
+        -> Result<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
         where
             T: CommonBounds +
                 IntoScalar<<T as FloatOutUnary>::Output> +
@@ -69,15 +61,23 @@ impl<T> _Tensor<T> {
                 FloatOutUnary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>
     {
         let res = if self.is_contiguous() && self.parent().is_none() {
-            contiguous_log_softmax(self, axis, None::<_Tensor<<T as FloatOutUnary>::Output>>)?
+            contiguous_log_softmax(
+                self,
+                axis,
+                None::<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>>
+            )?
         } else {
-            uncontiguous_log_softmax(self, axis, None::<_Tensor<<T as FloatOutUnary>::Output>>)?
+            uncontiguous_log_softmax(
+                self,
+                axis,
+                None::<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>>
+            )?
         };
         Ok(res)
     }
 }
 
-impl<T> Tensor<T> {
+impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     /// Applies the logsoftmax function along a specified axis.
     ///
     /// The logsoftmax function normalizes the elements along the specified axis such that they sum to 1.
@@ -98,7 +98,11 @@ impl<T> Tensor<T> {
     /// This function returns a `Result` containing a tensor with the softmax values computed along
     /// the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn log_softmax(&self, axis: i64) -> anyhow::Result<Tensor<<T as FloatOutUnary>::Output>>
+    pub fn log_softmax(
+        &self,
+        axis: i64
+    )
+        -> Result<Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
         where
             T: CommonBounds +
                 IntoScalar<<T as FloatOutUnary>::Output> +
@@ -117,13 +121,83 @@ impl<T> Tensor<T> {
     }
 }
 
+impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
+    /// Applies the logsoftmax function along a specified axis.
+    ///
+    /// The logsoftmax function normalizes the elements along the specified axis such that they sum to 1.
+    /// It is commonly used in machine learning models, particularly for multi-class classification tasks.
+    /// The logsoftmax function transforms each element `x_i` in the input tensor into a probability by computing:
+    ///
+    /// ```text
+    /// logsoftmax(x_i) = log(exp(x_i) / sum(exp(x_j))) for all j along the specified axis
+    /// ```
+    ///
+    /// # Arguments
+    ///
+    /// * `axis` - The axis along which to apply the softmax function. The elements along this axis
+    ///   will be transformed into probabilities that sum to 1.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing a tensor with the softmax values computed along
+    /// the specified axis.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn log_softmax(
+        &self,
+        axis: i64
+    )
+        -> Result<DiffTensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
+        where
+            T: CommonBounds +
+                IntoScalar<<T as FloatOutUnary>::Output> +
+                Convertor +
+                FloatOutUnary +
+                IntoScalar<<T as FloatOutUnary>::Output>,
+            <T as FloatOutUnary>::Output: CommonBounds +
+                NormalOut<T, Output = <T as FloatOutUnary>::Output> +
+                FloatOutUnary<Output = <T as FloatOutUnary>::Output> +
+                IntoScalar<T>,
+            T::Vec: FloatOutUnary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec> +
+                IntoVec<<<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
+            <<T as FloatOutUnary>::Output as TypeCommon>::Vec: FloatOutBinary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec> +
+                FloatOutUnary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>
+    {
+        let res = self.inner.log_softmax(axis)?;
+        let res_clone = res.clone();
+        let mut inp = self.clone();
+        Ok(DiffTensor {
+            inner: res,
+            grad: Rc::new(RefCell::new(None)),
+            out_degree: Rc::new(RefCell::new(0)),
+            backward: Rc::new(
+                RefCell::new(move |grad: Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>| {
+                    use tensor_traits::NormalReduce;
+                    let grad_sum = grad.sum(axis, true)?;
+                    let grad = res_clone.inner
+                        .par_iter()
+                        .zip(grad_sum.inner.par_iter())
+                        .zip(grad.inner.par_iter())
+                        .strided_map(|(res, ((r, gs), g))| {
+                            let softmax = r._exp();
+                            let grad = g._sub(softmax._mul(gs));
+                            *res = grad.into_scalar();
+                        })
+                        .collect::<Tensor<T, Cpu, DEVICE>>();
+                    handle_grad(&mut inp, grad, &[])?;
+                    Ok(false)
+                })
+            ),
+        })
+    }
+}
+
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn contiguous_log_softmax<T, O>(
-    a: &_Tensor<T>,
+pub(crate) fn contiguous_log_softmax<T, O, const DEVICE: usize>(
+    a: &_Tensor<T, Cpu, DEVICE>,
     axis: i64,
-    c: Option<_Tensor<O>>
+    c: Option<_Tensor<O, Cpu, DEVICE>>
 )
-    -> anyhow::Result<_Tensor<O>>
+    -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds + IntoScalar<O> + Convertor + FloatOutUnary<Output = O> + IntoScalar<O>,
         O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
@@ -148,14 +222,14 @@ pub(crate) fn contiguous_log_softmax<T, O>(
                     || O::NEG_INF,
                     |a, b| a._max(b)
                 );
-            
+
             let res_raw = unsafe { std::slice::from_raw_parts_mut(res, a.size() as usize) };
-            
+
             let sum = raw
                 .par_iter()
                 .fold(
                     || O::ZERO,
-                    |acc, &x| acc._add((x._sub(max))._exp())
+                    |acc, &x| acc._add(x._sub(max)._exp())
                 )
                 .reduce(
                     || O::ZERO,
@@ -259,12 +333,12 @@ pub(crate) fn contiguous_log_softmax<T, O>(
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn uncontiguous_log_softmax<T, O>(
-    a: &_Tensor<T>,
+pub(crate) fn uncontiguous_log_softmax<T, O, const DEVICE: usize>(
+    a: &_Tensor<T, Cpu, DEVICE>,
     axis: i64,
-    c: Option<_Tensor<O>>
+    c: Option<_Tensor<O, Cpu, DEVICE>>
 )
-    -> std::result::Result<_Tensor<O>, ErrHandler>
+    -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds + IntoScalar<O> + Convertor + FloatOutUnary<Output = O>,
         O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
@@ -290,20 +364,20 @@ pub(crate) fn uncontiguous_log_softmax<T, O>(
                     || O::NEG_INF,
                     |a, b| a._max(b)
                 );
-            
+
             let res_raw = unsafe { std::slice::from_raw_parts_mut(res, a.size() as usize) };
-            
+
             let sum = raw
                 .par_iter()
                 .fold(
                     || O::ZERO,
-                    |acc, &x| acc._add((x._sub(max))._exp())
+                    |acc, &x| acc._add(x._sub(max)._exp())
                 )
                 .reduce(
                     || O::ZERO,
                     |a, b| a._add(b)
                 );
-            
+
             // 3. 计算 log_softmax = (x - max) - log(sum)
             let log_sum = sum._ln();
             res_raw

@@ -1,11 +1,11 @@
-use std::{panic::Location, sync::Arc};
+use std::sync::Arc;
 
 use tensor_common::{
-    axis::{process_axes, Axis},
-    err_handler::ErrHandler,
-    shape::Shape,
-    shape_utils::{get_broadcast_axes_from, mt_intervals, try_pad_shape},
-    strides::Strides,
+    axis::axis::{process_axes, Axis},
+    error::shape::ShapeError,
+    shape::shape::Shape,
+    shape::shape_utils::{get_broadcast_axes_from, mt_intervals, try_pad_shape},
+    strides::strides::Strides,
 };
 
 use crate::iterator_traits::{ParStridedHelper, StridedHelper};
@@ -53,19 +53,15 @@ pub(crate) fn par_reshape<S: Into<Shape>, T: ParStridedHelper>(mut iterator: T, 
         iterator._set_last_strides(new_strides[new_strides.len() - 1]);
         iterator._set_strides(new_strides.into());
     } else {
-        ErrHandler::check_size_match(iterator._layout().shape().size(), res_shape.size()).unwrap();
+        ShapeError::check_size_match(iterator._layout().shape().size(), res_shape.size())
+            .expect("Cannot reshape iterator");
         if let Some(new_strides) = iterator._layout().is_reshape_possible(&res_shape) {
             iterator._set_strides(new_strides);
             iterator._set_last_strides(
                 iterator._layout().strides()[iterator._layout().strides().len() - 1],
             );
         } else {
-            ErrHandler::IterInplaceReshapeError(
-                iterator._layout().shape().clone(),
-                res_shape.clone(),
-                iterator._layout().strides().clone(),
-                Location::caller(),
-            );
+            panic!("Cannot reshape iterator");
         }
     }
 
@@ -163,24 +159,18 @@ pub(crate) fn reshape<S: Into<Shape>, T: StridedHelper>(mut iterator: T, shape: 
         iterator._set_last_strides(new_strides[new_strides.len() - 1]);
         iterator._set_strides(new_strides.into());
     } else {
-        ErrHandler::check_size_match(
+        ShapeError::check_size_match(
             iterator._layout().shape().inner().iter().product(),
             res_shape.size(),
         )
-        .unwrap();
+        .expect("Cannot reshape iterator");
         if let Some(new_strides) = iterator._layout().is_reshape_possible(&res_shape) {
             iterator._set_strides(new_strides);
             iterator._set_last_strides(
                 iterator._layout().strides()[iterator._layout().strides().len() - 1],
             );
         } else {
-            let error = ErrHandler::IterInplaceReshapeError(
-                iterator._layout().shape().clone(),
-                res_shape.clone(),
-                iterator._layout().strides().clone(),
-                Location::caller(),
-            );
-            panic!("{}", error);
+            panic!("Cannot reshape iterator");
         }
     }
 

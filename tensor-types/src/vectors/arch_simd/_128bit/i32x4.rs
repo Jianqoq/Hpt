@@ -149,8 +149,8 @@ impl SimdCompare for i32x4 {
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            let cmp = vceqq_s32(self.0, other.0);
-            i32x4(vmvnq_s32(vreinterpretq_s32_u32(cmp)))
+            let eq = vceqq_s32(self.0, other.0);
+            i32x4(veorq_s32(std::mem::transmute(eq), vdupq_n_s32(-1)))
         }
     }
     #[inline(always)]

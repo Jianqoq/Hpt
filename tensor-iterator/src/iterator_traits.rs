@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use rayon::iter::{plumbing::UnindexedProducer, ParallelIterator};
 use tensor_common::{
-    axis::Axis,
-    layout::Layout,
-    shape::Shape,
-    shape_utils::{mt_intervals, predict_broadcast_shape},
-    strides::Strides,
+    axis::axis::Axis,
+    layout::layout::Layout,
+    shape::shape::Shape,
+    shape::shape_utils::{mt_intervals, predict_broadcast_shape},
+    strides::strides::Strides,
 };
 use tensor_traits::CommonBounds;
 

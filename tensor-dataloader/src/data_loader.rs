@@ -1,12 +1,22 @@
 use anyhow::Ok;
 use anyhow::Result;
+use num::traits::FromBytes;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
+use std::marker::PhantomData;
 use std::{
     collections::HashMap,
     fs::File,
     io::{Read, Seek},
 };
+use tensor_traits::CommonBounds;
+use tensor_traits::TensorCreator;
+use tensor_traits::TensorInfo;
+use tensor_types::dtype::Dtype;
 
+use crate::struct_save::load::load;
+use crate::struct_save::load::MetaLoad;
+use crate::struct_save::save::Save;
 use crate::CompressionAlgo;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -34,6 +44,45 @@ pub(crate) struct HeaderInfo {
     pub(crate) dtype: String,
     pub(crate) endian: Endian,
 }
+/// the meta data of the tensor
+#[derive(Serialize, Deserialize)]
+#[must_use]
+pub struct TensorMeta<T: CommonBounds, B: TensorCreator<T, Output = B> + Clone + TensorInfo<T>> {
+    pub begin: usize,
+    pub shape: Vec<i64>,
+    pub strides: Vec<i64>,
+    pub size: usize,
+    pub dtype: Dtype,
+    pub compression_algo: CompressionAlgo,
+    pub endian: Endian,
+    pub indices: Vec<(usize, usize, usize, usize)>,
+    pub phantom: PhantomData<(T, B)>,
+}
+
+pub fn parse_header_compressed<M: Save>(file: &str) -> anyhow::Result<<M as Save>::Meta> {
+    let mut file = File::open(file)?;
+    file.read_exact(&mut [0u8; "FASTTENSOR".len()])?;
+    let mut header_infos = [0u8; 20];
+    file.read_exact(&mut header_infos)?;
+    let header = std::str::from_utf8(&header_infos)?;
+    let header_int = header.trim().parse::<u64>()?;
+    file.seek(std::io::SeekFrom::Start(header_int))?; // offset for header
+    let mut buffer3 = vec![];
+    file.read_to_end(&mut buffer3)?;
+    let info = std::str::from_utf8(&buffer3)?;
+    let ret = serde_json::from_str::<M::Meta>(info)?;
+    Ok(ret)
+}
+
+impl<T: CommonBounds + FromBytes<Bytes = [u8; N]>, B: TensorCreator<T, Output = B> + Clone + TensorInfo<T> + Display, const N: usize> MetaLoad
+    for TensorMeta<T, B>
+{
+    type Output = B;
+    fn load(&self, file: &mut std::fs::File) -> std::io::Result<Self::Output> {
+        load::<T, B, N>(file, self)
+    }
+}
+
 impl HeaderInfo {
     pub(crate) fn parse_header_compressed(file: &str) -> Result<HashMap<String, HeaderInfo>> {
         let mut file = File::open(file)?;

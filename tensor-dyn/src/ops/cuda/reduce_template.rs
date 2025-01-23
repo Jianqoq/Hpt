@@ -4,7 +4,7 @@ use crate::{
     Cuda,
 };
 use cudarc::{driver::DeviceRepr, types::CudaTypeName};
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorInfo};
 use tensor_types::into_scalar::IntoScalar;
 
@@ -163,7 +163,7 @@ pub(crate) fn contiguous_reduce_template<T, F1, F2, F4, O, const DEVICE_ID: usiz
     full_reduce: F1,
     nkd: F2,
     kd: F4,
-) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, ErrHandler>
+) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
     T: CommonBounds + IntoScalar<O> + DeviceRepr + CudaTypeName,
     O: CommonBounds + DeviceRepr + CudaTypeName,
@@ -397,7 +397,7 @@ pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O, const DEVICE_ID:
     nkd: F2,
     kdo1: F3,
     kd: F4,
-) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, ErrHandler>
+) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
     T: CommonBounds + IntoScalar<O> + DeviceRepr + CudaTypeName,
     O: CommonBounds + DeviceRepr + CudaTypeName,

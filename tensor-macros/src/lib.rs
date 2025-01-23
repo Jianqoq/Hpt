@@ -34,6 +34,8 @@ mod binary_float_out;
 mod conv2d;
 mod float_unary;
 mod from_scalar;
+mod into_cuda_scalar;
+mod into_scalar;
 mod into_vec;
 mod kernel_gen_helper;
 mod normal_out;
@@ -48,13 +50,11 @@ mod simd_float_out_unary;
 mod simd_normal_out;
 mod simd_normal_unary;
 mod type_utils;
-mod into_cuda_scalar;
-mod into_scalar;
 
 use crate::simd_cmp::impl_simd_cmp;
 use crate::simd_normal_out::impl_simd_normal_out;
 use proc_macro2::{TokenStream as TokenStream2, TokenTree};
-use quote::quote;
+use quote::{format_ident, quote};
 use type_utils::TypeInfo;
 
 /// number of registers available for the target architecture
@@ -806,4 +806,328 @@ pub fn dwconv2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn maxpool2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
     conv2d::maxpool2d_microkernel_gen_results(input)
+}
+
+/// generate save trait
+#[proc_macro_derive(Save, attributes(compress))]
+pub fn impl_save(input: TokenStream) -> TokenStream {
+    let ast = syn::parse_macro_input!(input as syn::DeriveInput);
+    let name = &ast.ident;
+    let meta_name = format_ident!("{}Meta", name);
+
+    let visibility = &ast.vis;
+    let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
+    let fields = match &ast.data {
+        syn::Data::Struct(s) => &s.fields,
+        _ => panic!("Save can only be derived for structs"),
+    };
+
+    let mut compressions = vec![];
+    let mut endians = vec![];
+    let mut compress_levels = vec![];
+
+    let meta_fields = fields
+        .iter()
+        .map(|f| {
+            let mut compression_algo = None;
+            let mut endian = None;
+            let mut level = None;
+
+            for attr in &f.attrs {
+                if attr.path().is_ident("compress") {
+                    attr.parse_nested_meta(|meta| {
+                        if meta.path.is_ident("algo") {
+                            let value: syn::LitStr = meta.value()?.parse()?;
+                            let algo = match value.value().as_str().to_lowercase().as_str() {
+                                "gzip" => quote!(Gzip),
+                                "deflate" => quote!(Deflate),
+                                "zlib" => quote!(Zlib),
+                                "none" => quote!(NoCompression),
+                                _ => panic!("Unsupported compression algorithm, supported: gzip, deflate, zlib, none"),
+                            };
+                            compression_algo = Some(quote!(tensor_dyn::CompressionAlgo::#algo));
+                        } else if meta.path.is_ident("level") {
+                            let value: syn::LitStr = meta.value()?.parse()?;
+                            let tmp: u32 = value.value().parse().map_err(|e| {
+                                syn::Error::new(value.span(), format!("Invalid level: {}", e))
+                            })?;
+                            level = Some(quote!(#tmp));
+                        } else if meta.path.is_ident("endian") {
+                            let value: syn::LitStr = meta.value()?.parse()?;
+                            let tmp = match value.value().as_str() {
+                                "native" => quote!(Native),
+                                "little" => quote!(Little),
+                                "big" => quote!(Big),
+                                _ => panic!("Unsupported endianness, supported: native, little, big"),
+                            };
+                            endian = Some(quote!(tensor_dyn::Endian::#tmp));
+                        }
+                        Ok(())
+                    })
+                    .unwrap();
+                }
+            }
+            compressions.push(compression_algo);
+            endians.push(endian);
+            compress_levels.push(level);
+            let name = &f.ident;
+            let ty = &f.ty;
+            quote! {
+                pub #name: <#ty as Save>::Meta
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let call_save = fields.iter().enumerate().map(|(idx, f)| {
+        let name = &f.ident;
+        let ty = &f.ty;
+        let ident = format_ident!("field_{}", idx);
+        let compression_algo = compressions[idx].clone().unwrap_or(quote!(compression_algo));
+        let endian = endians[idx].clone().unwrap_or(quote!(endian));
+        let level = compress_levels[idx].clone().unwrap_or(quote!(level));
+        if let Some(name) = name {
+            quote! {
+                let #ident = <#ty as Save>::__save(&data.#name, file, len_so_far, global_cnt, #compression_algo, #endian, #level)?;
+            }
+        } else {
+            quote! {
+                let #ident = <#ty as Save>::__save(&data.#idx, file, len_so_far, global_cnt, #compression_algo, #endian, #level)?;
+            }
+        }
+    });
+
+    let construct_fields = fields.iter().enumerate().map(|(idx, f)| {
+        let name = &f.ident;
+        let ident = format_ident!("field_{}", idx);
+        quote! {
+            #name: #ident
+        }
+    });
+
+    let expanded = quote! {
+        #[derive(tensor_dyn::serde::Deserialize, tensor_dyn::serde::Serialize)]
+        #visibility struct #meta_name #ty_generics #where_clause  {
+            #(#meta_fields,)*
+        }
+        impl #impl_generics tensor_dyn::Save for #name #ty_generics #where_clause {
+            type Meta = #meta_name #ty_generics;
+            fn __save(
+                data: &Self,
+                file: &mut std::fs::File,
+                len_so_far: &mut usize,
+                global_cnt: &mut usize,
+                compression_algo: tensor_dyn::CompressionAlgo,
+                endian: tensor_dyn::Endian,
+                level: u32,
+            ) -> std::io::Result<Self::Meta> {
+                #(#call_save)*
+                Ok(Self::Meta {
+                    #(#construct_fields),*
+                })
+            }
+        }
+    };
+
+    expanded.into()
+}
+
+/// generate load trait
+#[proc_macro_derive(Load)]
+pub fn impl_load(input: TokenStream) -> TokenStream {
+    let ast = syn::parse_macro_input!(input as syn::DeriveInput);
+    let name = &ast.ident;
+    let meta_name = format_ident!("{}Meta", name);
+    let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
+
+    let fields = match &ast.data {
+        syn::Data::Struct(s) => &s.fields,
+        _ => panic!("Load can only be derived for structs"),
+    };
+
+    let call_load = fields.iter().enumerate().map(|(idx, f)| {
+        let name = &f.ident;
+        let ident = format_ident!("field_{}", idx);
+        if let Some(name) = name {
+            quote! {
+                let #ident = self.#name.load(file)?;
+            }
+        } else {
+            quote! {
+                let #ident = self.#idx.load(file)?;
+            }
+        }
+    });
+
+    let construct_fields = fields.iter().enumerate().map(|(idx, f)| {
+        let name = &f.ident;
+        let ident = format_ident!("field_{}", idx);
+        quote! {
+            #name: #ident
+        }
+    });
+
+    let expanded = quote! {
+        impl #impl_generics tensor_dyn::MetaLoad for #meta_name #ty_generics #where_clause {
+            type Output = #name #ty_generics;
+            fn load(&self, file: &mut std::fs::File) -> std::io::Result<Self::Output> {
+                use tensor_dyn::MetaLoad;
+                #(#call_load)*
+                Ok(#name {
+                    #(#construct_fields),*
+                })
+            }
+        }
+        impl #impl_generics tensor_dyn::Load for #name #ty_generics #where_clause {
+            fn load(path: &str) -> std::io::Result<Self> {
+                use tensor_dyn::MetaLoad;
+                let meta = tensor_dyn::parse_header_compressed::<Self>(path).expect(format!("failed to parse header for {}", stringify!(#name)).as_str());
+                let mut file = std::fs::File::open(path)?;
+                meta.load(&mut file)
+            }
+        }
+    };
+
+    expanded.into()
+}
+
+/// generate from safetensors trait
+#[proc_macro_derive(FromSafeTensors, attributes(map))]
+pub fn impl_from_safetensors(input: TokenStream) -> TokenStream {
+    let ast = syn::parse_macro_input!(input as syn::DeriveInput);
+    let struct_name = &ast.ident;
+    let fields = match &ast.data {
+        syn::Data::Struct(s) => &s.fields,
+        _ => panic!("FromSafeTensors can only be derived for structs"),
+    };
+    let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
+    let mut construct_fields = vec![];
+    for (_, field) in fields.iter().enumerate() {
+        let ty = &field.ty;
+        let name = &field.ident;
+        let mut value_construct = vec![];
+        let mut from_construct = vec![];
+        let mut params = vec![];
+        let mut vec_len = None;
+        for attr in &field.attrs {
+            if attr.path().is_ident("map") {
+                let mut path = None;
+                let mut value = None;
+                let mut tensor_name = None;
+                let mut inner_type = None;
+                attr.parse_nested_meta(|meta| {
+                    if meta.path.is_ident("path") {
+                        let value: syn::LitStr = meta.value()?.parse()?;
+                        path = Some(value.value());
+                    } else if meta.path.is_ident("value") {
+                        let val: syn::Expr = meta.value()?.parse()?;
+                        value = Some(val);
+                    } else if meta.path.is_ident("tensor_name") {
+                        let value: syn::LitStr = meta.value()?.parse()?;
+                        tensor_name = Some(value.value());
+                    } else if meta.path.is_ident("vec_len") {
+                        let value: syn::LitInt = meta.value()?.parse()?;
+                        vec_len = Some(value.base10_parse::<usize>().unwrap());
+                    } else if meta.path.is_ident("inner_type") {
+                        let value: syn::Ident = meta.value()?.parse()?;
+                        inner_type = Some(value);
+                    }
+                    Ok(())
+                })
+                .unwrap_or_else(|err| println!("Failed to parse attribute: {}", err));
+                params.push((path, value, tensor_name, vec_len, inner_type));
+            }
+        }
+        let param_count = params.len();
+        for (path, value, tensor_name, vec_len, inner_type) in params {
+            if let Some(vec_len) = vec_len {
+                let inner_type = inner_type.expect("inner_type is required for vec");
+                if let Some(path) = path {
+                    from_construct.push(quote! {
+                        #path => {
+                            let mut vec = vec![];
+                            for i in 0..#vec_len {
+                                vec.push(<#inner_type as FromSafeTensors>::from_safe_tensors(data, &format!("{}.{}", path, i)));
+                            }
+                            vec
+                        }
+                    });
+                } else {
+                    value_construct.push(quote! {
+                        {
+                            let mut vec = vec![];
+                            for i in 0..#vec_len {
+                                vec.push(<#inner_type as FromSafeTensors>::from_safe_tensors(data, &format!("{}.{}", path, i)));
+                            }
+                            vec
+                        }
+                    });
+                }
+            } else {
+                match (path, value, tensor_name) {
+                    (None, None, Some(tensor_name)) => {
+                        value_construct.push(quote! {
+                            <#ty as FromSafeTensors>::from_safe_tensors(data, #tensor_name)
+                        });
+                    }
+                    (None, Some(value), None) => {
+                        if param_count > 1 {
+                            panic!("value without path means generic assignment, there can only be one value without path");
+                        }
+                        value_construct.push(quote! {
+                            #value
+                        });
+                    }
+                    (Some(path), None, Some(tensor_name)) => {
+                        from_construct.push(quote! {
+                            #path => <#ty as FromSafeTensors>::from_safe_tensors(data, #tensor_name),
+                        });
+                    }
+                    (Some(path), Some(value), None) => {
+                        from_construct.push(quote! {
+                            #path => #value,
+                        });
+                    }
+
+                    (None, Some(_), Some(_)) | (Some(_), Some(_), Some(_)) => {
+                        panic!("value and tensor_name cannot be used together");
+                    }
+                    (Some(_), None, None) | (None, None, None) => {
+                        panic!("path and value are not present");
+                    }
+                }
+            }
+        }
+        if !value_construct.is_empty() {
+            construct_fields.push(quote! {
+                #name: #(#value_construct)*
+            });
+        } else if !from_construct.is_empty() {
+            construct_fields.push(quote! {
+                #name: match path {
+                    #(#from_construct)*
+                    _ => panic!("unknown field for field {} in struct {}: `path: {}`", stringify!(#name), stringify!(#struct_name), path),
+                }
+            });
+        } else {
+            construct_fields.push(quote! {
+                #name: <#ty as FromSafeTensors>::from_safe_tensors(data, &format!("{}.{}", path, stringify!(#name)))
+            });
+        }
+    }
+    let expanded = quote! {
+        impl #impl_generics FromSafeTensors for #struct_name #ty_generics #where_clause {
+            fn from_safe_tensors(data: &SafeTensors, path: &str) -> Self {
+                Self {
+                    #(#construct_fields),*
+                }
+            }
+        }
+    };
+    // let syntax_tree = syn::parse2(expanded.clone()).expect(&format!(
+    //     "failed to parse expanded: {}",
+    //     expanded.to_string()
+    // ));
+    // let formatted = prettyplease::unparse(&syntax_tree);
+    // println!("{}", formatted);
+    expanded.into()
 }

@@ -1,4 +1,4 @@
-use tensor_common::pointer::Pointer;
+use tensor_common::utils::pointer::Pointer;
 use tensor_traits::CommonBounds;
 
 use paste::paste;
@@ -29,7 +29,7 @@ fn update_prg<T>(prg: &mut [i64], inp_ptr: &mut Pointer<T>, strides: &[i64], sha
 fn update_prg2<T>(
     prg: &mut [i64],
     shape_len: i64,
-    inp_ptr: &mut tensor_common::pointer::Pointer<T>,
+    inp_ptr: &mut tensor_common::utils::pointer::Pointer<T>,
     strides: &[i64],
     shape: &[i64]
 ) {
@@ -154,8 +154,8 @@ macro_rules! gen_kernel {
 pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
     inner_loop_size: isize,
     outer_loop_size: isize,
-    mut inp_ptr: tensor_common::pointer::Pointer<T>,
-    mut res_ptr: tensor_common::pointer::Pointer<O>,
+    mut inp_ptr: tensor_common::utils::pointer::Pointer<T>,
+    mut res_ptr: tensor_common::utils::pointer::Pointer<O>,
     inp_strides: &[i64],
     inp_shape: &[i64],
     vec_size: isize,
@@ -256,8 +256,8 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
 pub(crate) fn fast_reduce_no_simd<T, O, F, F2>(
     inner_loop_size: isize,
     outer_loop_size: isize,
-    mut inp_ptr: tensor_common::pointer::Pointer<T>,
-    mut res_ptr: tensor_common::pointer::Pointer<O>,
+    mut inp_ptr: tensor_common::utils::pointer::Pointer<T>,
+    mut res_ptr: tensor_common::utils::pointer::Pointer<O>,
     inp_strides: &[i64],
     inp_shape: &[i64],
     op: F,
@@ -390,8 +390,8 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     intermediate_size: isize,
-    mut inp_ptr: tensor_common::pointer::Pointer<T>,
-    mut res_ptr: tensor_common::pointer::Pointer<O>,
+    mut inp_ptr: tensor_common::utils::pointer::Pointer<T>,
+    mut res_ptr: tensor_common::utils::pointer::Pointer<O>,
     inp_strides: &[i64],
     inp_shape: &[i64],
     prg1: &mut [i64],
@@ -543,8 +543,8 @@ pub(crate) fn reduce_dim_not_include<T, O, F, F2>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     intermediate_size: isize,
-    mut inp_ptr: tensor_common::pointer::Pointer<T>,
-    mut res_ptr: tensor_common::pointer::Pointer<O>,
+    mut inp_ptr: tensor_common::utils::pointer::Pointer<T>,
+    mut res_ptr: tensor_common::utils::pointer::Pointer<O>,
     inp_strides: &[i64],
     inp_shape: &[i64],
     prg1: &mut [i64],
@@ -585,8 +585,8 @@ pub(crate) fn contiguous_reduce_dim_include_simd<T, F, F2, F3, F4>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     intermediate_size: isize,
-    mut inp_ptr: tensor_common::pointer::Pointer<T>,
-    mut res_ptr: tensor_common::pointer::Pointer<T>,
+    mut inp_ptr: tensor_common::utils::pointer::Pointer<T>,
+    mut res_ptr: tensor_common::utils::pointer::Pointer<T>,
     inp_strides: &[i64],
     inp_shape: &[i64],
     prg1: &mut [i64],
@@ -628,8 +628,8 @@ pub(crate) fn contiguous_reduce_dim_include<T, O, F, F2>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     intermediate_size: isize,
-    mut inp_ptr: tensor_common::pointer::Pointer<T>,
-    mut res_ptr: tensor_common::pointer::Pointer<O>,
+    mut inp_ptr: tensor_common::utils::pointer::Pointer<T>,
+    mut res_ptr: tensor_common::utils::pointer::Pointer<O>,
     inp_strides: &[i64],
     inp_shape: &[i64],
     prg1: &mut [i64],
@@ -663,8 +663,8 @@ pub(crate) fn uncontiguous_reduce_dim_include<T, O, F, F2>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     intermediate_size: isize,
-    mut inp_ptr: tensor_common::pointer::Pointer<T>,
-    mut res_ptr: tensor_common::pointer::Pointer<O>,
+    mut inp_ptr: tensor_common::utils::pointer::Pointer<T>,
+    mut res_ptr: tensor_common::utils::pointer::Pointer<O>,
     inp_strides: &[i64],
     inp_shape: &[i64],
     prg1: &mut [i64],
@@ -700,8 +700,8 @@ pub(crate) fn uncontiguous_reduce_dim_not_include<T, O, F, F2>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     intermediate_size: isize,
-    mut inp_ptr: tensor_common::pointer::Pointer<T>,
-    mut res_ptr: tensor_common::pointer::Pointer<O>,
+    mut inp_ptr: tensor_common::utils::pointer::Pointer<T>,
+    mut res_ptr: tensor_common::utils::pointer::Pointer<O>,
     inp_strides: &[i64],
     inp_shape: &[i64],
     prg1: &mut [i64],

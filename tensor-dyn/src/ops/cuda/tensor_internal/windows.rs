@@ -1,7 +1,7 @@
 use crate::ops::cuda::{cuda_utils::get_module_name_1, unary::uary_fn_with_out_simd};
 use crate::{tensor_base::_Tensor, Cuda};
 use cudarc::driver::DeviceRepr;
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use std::ops::{Mul, Sub};
 use tensor_traits::{CommonBounds, TensorCreator};
 use tensor_types::cuda_types::scalar::Scalar;
@@ -37,7 +37,7 @@ where
     pub(crate) fn hamming_window(
         window_length: i64,
         periodic: bool,
-    ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, ErrHandler> {
+    ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, TensorError> {
         Self::__hamming_window(
             window_length,
             (0.54).into_scalar(),
@@ -50,7 +50,7 @@ where
     pub(crate) fn hann_window(
         window_length: i64,
         periodic: bool,
-    ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, ErrHandler> {
+    ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, TensorError> {
         Self::__hamming_window(
             window_length,
             (0.5).into_scalar(),
@@ -65,7 +65,7 @@ where
         alpha: FBO<T>,
         beta: FBO<T>,
         periodic: bool,
-    ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, ErrHandler> {
+    ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, TensorError> {
         let length_usize = (if periodic {
             window_length
         } else {
@@ -127,7 +127,7 @@ where
     pub fn blackman_window(
         window_length: i64,
         periodic: bool,
-    ) -> std::result::Result<_Tensor<<T as FloatOutBinary>::Output, Cuda, DEVICE_ID>, ErrHandler>
+    ) -> std::result::Result<_Tensor<<T as FloatOutBinary>::Output, Cuda, DEVICE_ID>, TensorError>
     where
         T: FloatConst,
         i64: IntoScalar<<T as FloatOutBinary>::Output>,

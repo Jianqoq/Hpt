@@ -19,9 +19,9 @@ pub(crate) fn load_compressed_slice<
 >(
     file_name: &str,
     queries: Vec<(String, Vec<Slice>)>,
-) -> anyhow::Result<Vec<B>> {
-    let res: HashMap<String, HeaderInfo> = HeaderInfo::parse_header_compressed(file_name)?;
-    let mut ret = Vec::with_capacity(res.len());
+) -> anyhow::Result<HashMap<String, B>> {
+    let res = HeaderInfo::parse_header_compressed(file_name)?;
+    let mut ret = HashMap::with_capacity(res.len());
     let mut file = File::open(file_name)?;
     for (name, slices) in queries {
         let info = res
@@ -59,8 +59,7 @@ pub(crate) fn load_compressed_slice<
         let tensor: B = B::empty(&shape)?;
 
         if tensor.size() == 0 {
-            println!("tensor size is 0");
-            ret.push(tensor);
+            ret.insert(name, tensor);
             continue;
         }
         let res = unsafe { std::slice::from_raw_parts_mut(tensor.ptr().ptr, tensor.size()) };
@@ -145,7 +144,7 @@ pub(crate) fn load_compressed_slice<
                 }
             }
         }
-        ret.push(tensor);
+        ret.insert(name, tensor);
     }
     Ok(ret)
 }

@@ -1,14 +1,14 @@
 use par_strided_zip_simd::ParStridedZipSimd;
 use rayon::iter::{
-    plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
+    plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
     ParallelIterator,
 };
 use std::sync::Arc;
-use tensor_common::{ shape::Shape, strides::Strides };
+use tensor_common::{shape::shape::Shape, strides::strides::Strides};
 use tensor_traits::tensor::CommonBounds;
 
 use crate::{
-    iterator_traits::{ IterGetSet, IterGetSetSimd, ParStridedIteratorZip, ShapeManipulator },
+    iterator_traits::{IterGetSet, IterGetSetSimd, ParStridedIteratorZip, ShapeManipulator},
     par_strided_map::ParStridedMap,
 };
 
@@ -17,18 +17,15 @@ pub mod par_strided_zip_simd {
     use std::sync::Arc;
 
     use rayon::iter::{
-        plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
+        plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
         ParallelIterator,
     };
-    use tensor_common::{ shape::Shape, simd_ref::MutVec, strides::Strides };
+    use tensor_common::{shape::shape::Shape, strides::strides::Strides, utils::simd_ref::MutVec};
     use tensor_traits::CommonBounds;
 
     use crate::{
         iterator_traits::{
-            IterGetSetSimd,
-            ParStridedIteratorSimd,
-            ParStridedIteratorSimdZip,
-            ShapeManipulator,
+            IterGetSetSimd, ParStridedIteratorSimd, ParStridedIteratorSimdZip, ShapeManipulator,
         },
         par_strided_map::par_strided_map_simd::ParStridedMapSimd,
     };
@@ -46,13 +43,17 @@ pub mod par_strided_zip_simd {
         pub(crate) phantom: std::marker::PhantomData<&'a ()>,
     }
 
-    impl<'a, A, B> IterGetSetSimd
-        for ParStridedZipSimd<'a, A, B>
-        where A: IterGetSetSimd, B: IterGetSetSimd
+    impl<'a, A, B> IterGetSetSimd for ParStridedZipSimd<'a, A, B>
+    where
+        A: IterGetSetSimd,
+        B: IterGetSetSimd,
     {
         type Item = (<A as IterGetSetSimd>::Item, <B as IterGetSetSimd>::Item);
 
-        type SimdItem = (<A as IterGetSetSimd>::SimdItem, <B as IterGetSetSimd>::SimdItem);
+        type SimdItem = (
+            <A as IterGetSetSimd>::SimdItem,
+            <B as IterGetSetSimd>::SimdItem,
+        );
 
         fn set_end_index(&mut self, end_index: usize) {
             self.a.set_end_index(end_index);
@@ -91,7 +92,7 @@ pub mod par_strided_zip_simd {
             self.a.shape()
         }
 
-        fn layout(&self) -> &tensor_common::layout::Layout {
+        fn layout(&self) -> &tensor_common::layout::layout::Layout {
             self.a.layout()
         }
 
@@ -123,7 +124,10 @@ pub mod par_strided_zip_simd {
         }
 
         fn inner_loop_next_simd(&mut self, index: usize) -> Self::SimdItem {
-            (self.a.inner_loop_next_simd(index), self.b.inner_loop_next_simd(index))
+            (
+                self.a.inner_loop_next_simd(index),
+                self.b.inner_loop_next_simd(index),
+            )
         }
 
         fn all_last_stride_one(&self) -> bool {
@@ -133,18 +137,22 @@ pub mod par_strided_zip_simd {
         fn lanes(&self) -> Option<usize> {
             match (self.a.lanes(), self.b.lanes()) {
                 (Some(a), Some(b)) => {
-                    if a == b { Some(a) } else { None }
+                    if a == b {
+                        Some(a)
+                    } else {
+                        None
+                    }
                 }
                 _ => None,
             }
         }
     }
     impl<'a, A, B> ParStridedZipSimd<'a, A, B>
-        where
-            A: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator,
-            B: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator,
-            <A as IterGetSetSimd>::Item: Send,
-            <B as IterGetSetSimd>::Item: Send
+    where
+        A: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator,
+        B: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator,
+        <A as IterGetSetSimd>::Item: Send,
+        <B as IterGetSetSimd>::Item: Send,
     {
         /// Creates a new `ParStridedZipSimd` instance by zipping two SIMD-optimized iterators.
         ///
@@ -179,18 +187,17 @@ pub mod par_strided_zip_simd {
         pub fn strided_map_simd<F, F2, T>(
             self,
             func: F,
-            func2: F2
-        )
-            -> ParStridedMapSimd<'a, Self, <Self as IterGetSetSimd>::Item, F, F2>
-            where
-                F: Fn((&mut T, <Self as IterGetSetSimd>::Item)) + Sync + Send + 'a,
-                F2: Fn((MutVec<'_, T::Vec>, <Self as IterGetSetSimd>::SimdItem)) + Sync + Send + 'a,
-                T: CommonBounds,
-                <A as IterGetSetSimd>::Item: Send,
-                <B as IterGetSetSimd>::Item: Send,
-                T::Vec: Send,
-                A: ShapeManipulator,
-                B: ShapeManipulator
+            func2: F2,
+        ) -> ParStridedMapSimd<'a, Self, <Self as IterGetSetSimd>::Item, F, F2>
+        where
+            F: Fn((&mut T, <Self as IterGetSetSimd>::Item)) + Sync + Send + 'a,
+            F2: Fn((MutVec<'_, T::Vec>, <Self as IterGetSetSimd>::SimdItem)) + Sync + Send + 'a,
+            T: CommonBounds,
+            <A as IterGetSetSimd>::Item: Send,
+            <B as IterGetSetSimd>::Item: Send,
+            T::Vec: Send,
+            A: ShapeManipulator,
+            B: ShapeManipulator,
         {
             ParStridedMapSimd {
                 iter: self,
@@ -201,24 +208,25 @@ pub mod par_strided_zip_simd {
         }
     }
 
-    impl<'a, A, B> ParStridedIteratorSimdZip
-        for ParStridedZipSimd<'a, A, B>
-        where
-            A: UnindexedProducer + ParallelIterator + IterGetSetSimd,
-            B: UnindexedProducer + ParallelIterator + IterGetSetSimd {}
-    impl<'a, A, B> ParStridedIteratorSimd
-        for ParStridedZipSimd<'a, A, B>
-        where
-            A: UnindexedProducer + ParallelIterator + IterGetSetSimd,
-            B: UnindexedProducer + ParallelIterator + IterGetSetSimd,
-            <A as IterGetSetSimd>::Item: Send,
-            <B as IterGetSetSimd>::Item: Send {}
+    impl<'a, A, B> ParStridedIteratorSimdZip for ParStridedZipSimd<'a, A, B>
+    where
+        A: UnindexedProducer + ParallelIterator + IterGetSetSimd,
+        B: UnindexedProducer + ParallelIterator + IterGetSetSimd,
+    {
+    }
+    impl<'a, A, B> ParStridedIteratorSimd for ParStridedZipSimd<'a, A, B>
+    where
+        A: UnindexedProducer + ParallelIterator + IterGetSetSimd,
+        B: UnindexedProducer + ParallelIterator + IterGetSetSimd,
+        <A as IterGetSetSimd>::Item: Send,
+        <B as IterGetSetSimd>::Item: Send,
+    {
+    }
 
-    impl<'a, A, B> UnindexedProducer
-        for ParStridedZipSimd<'a, A, B>
-        where
-            A: UnindexedProducer + ParallelIterator + IterGetSetSimd,
-            B: UnindexedProducer + ParallelIterator + IterGetSetSimd
+    impl<'a, A, B> UnindexedProducer for ParStridedZipSimd<'a, A, B>
+    where
+        A: UnindexedProducer + ParallelIterator + IterGetSetSimd,
+        B: UnindexedProducer + ParallelIterator + IterGetSetSimd,
     {
         type Item = <Self as IterGetSetSimd>::Item;
 
@@ -250,7 +258,10 @@ pub mod par_strided_zip_simd {
             }
         }
 
-        fn fold_with<F>(mut self, mut folder: F) -> F where F: Folder<Self::Item> {
+        fn fold_with<F>(mut self, mut folder: F) -> F
+        where
+            F: Folder<Self::Item>,
+        {
             let outer_loop_size = self.outer_loop_size();
             let inner_loop_size = self.inner_loop_size() + 1;
             for _ in 0..outer_loop_size {
@@ -263,17 +274,19 @@ pub mod par_strided_zip_simd {
         }
     }
 
-    impl<'a, A, B> ParallelIterator
-        for ParStridedZipSimd<'a, A, B>
-        where
-            A: UnindexedProducer + ParallelIterator + IterGetSetSimd,
-            B: UnindexedProducer + ParallelIterator + IterGetSetSimd,
-            <A as IterGetSetSimd>::Item: Send,
-            <B as IterGetSetSimd>::Item: Send
+    impl<'a, A, B> ParallelIterator for ParStridedZipSimd<'a, A, B>
+    where
+        A: UnindexedProducer + ParallelIterator + IterGetSetSimd,
+        B: UnindexedProducer + ParallelIterator + IterGetSetSimd,
+        <A as IterGetSetSimd>::Item: Send,
+        <B as IterGetSetSimd>::Item: Send,
     {
         type Item = (<A as IterGetSetSimd>::Item, <B as IterGetSetSimd>::Item);
 
-        fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item> {
+        fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where
+            C: UnindexedConsumer<Self::Item>,
+        {
             bridge_unindexed(self, consumer)
         }
     }
@@ -298,7 +311,11 @@ pub struct ParStridedZip<'a, A: 'a, B: 'a> {
     pub(crate) phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl<'a, A, B> IterGetSet for ParStridedZip<'a, A, B> where A: IterGetSet, B: IterGetSet {
+impl<'a, A, B> IterGetSet for ParStridedZip<'a, A, B>
+where
+    A: IterGetSet,
+    B: IterGetSet,
+{
     type Item = (<A as IterGetSet>::Item, <B as IterGetSet>::Item);
 
     fn set_end_index(&mut self, end_index: usize) {
@@ -338,7 +355,7 @@ impl<'a, A, B> IterGetSet for ParStridedZip<'a, A, B> where A: IterGetSet, B: It
         self.a.shape()
     }
 
-    fn layout(&self) -> &tensor_common::layout::Layout {
+    fn layout(&self) -> &tensor_common::layout::layout::Layout {
         self.a.layout()
     }
 
@@ -366,11 +383,11 @@ impl<'a, A, B> IterGetSet for ParStridedZip<'a, A, B> where A: IterGetSet, B: It
 }
 
 impl<'a, A, B> ParStridedZip<'a, A, B>
-    where
-        A: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
-        B: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
-        <A as IterGetSet>::Item: Send,
-        <B as IterGetSet>::Item: Send
+where
+    A: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
+    B: UnindexedProducer + 'a + IterGetSet + ParallelIterator,
+    <A as IterGetSet>::Item: Send,
+    <B as IterGetSet>::Item: Send,
 {
     /// Creates a new `ParStridedZip` instance by zipping two iterators.
     ///
@@ -400,12 +417,13 @@ impl<'a, A, B> ParStridedZip<'a, A, B>
     /// # Returns
     ///
     /// A `ParStridedMap` instance that applies the provided function during iteration.
-    pub fn strided_map<F, U>(
+    pub fn strided_map<F, T>(
         self,
-        func: F
-    )
-        -> ParStridedMap<'a, Self, <Self as IterGetSet>::Item, F>
-        where F: Fn(<Self as IterGetSet>::Item) -> U + Sync + Send + 'a, U: CommonBounds
+        func: F,
+    ) -> ParStridedMap<'a, Self, <Self as IterGetSet>::Item, F>
+    where
+        F: Fn((&mut T, <Self as IterGetSet>::Item)) + Sync + Send,
+        T: CommonBounds,
     {
         ParStridedMap {
             iter: self,
@@ -415,11 +433,10 @@ impl<'a, A, B> ParStridedZip<'a, A, B>
     }
 }
 
-impl<'a, A, B> UnindexedProducer
-    for ParStridedZip<'a, A, B>
-    where
-        A: UnindexedProducer + ParallelIterator + IterGetSet,
-        B: UnindexedProducer + ParallelIterator + IterGetSet
+impl<'a, A, B> UnindexedProducer for ParStridedZip<'a, A, B>
+where
+    A: UnindexedProducer + ParallelIterator + IterGetSet,
+    B: UnindexedProducer + ParallelIterator + IterGetSet,
 {
     type Item = <Self as IterGetSet>::Item;
 
@@ -451,7 +468,10 @@ impl<'a, A, B> UnindexedProducer
         }
     }
 
-    fn fold_with<F>(mut self, mut folder: F) -> F where F: Folder<Self::Item> {
+    fn fold_with<F>(mut self, mut folder: F) -> F
+    where
+        F: Folder<Self::Item>,
+    {
         let outer_loop_size = self.outer_loop_size();
         let inner_loop_size = self.inner_loop_size() + 1;
         for _ in 0..outer_loop_size {
@@ -464,36 +484,38 @@ impl<'a, A, B> UnindexedProducer
     }
 }
 
-impl<'a, A, B> ParallelIterator
-    for ParStridedZip<'a, A, B>
-    where
-        A: UnindexedProducer + ParallelIterator + IterGetSet,
-        B: UnindexedProducer + ParallelIterator + IterGetSet,
-        <A as IterGetSet>::Item: Send,
-        <B as IterGetSet>::Item: Send
+impl<'a, A, B> ParallelIterator for ParStridedZip<'a, A, B>
+where
+    A: UnindexedProducer + ParallelIterator + IterGetSet,
+    B: UnindexedProducer + ParallelIterator + IterGetSet,
+    <A as IterGetSet>::Item: Send,
+    <B as IterGetSet>::Item: Send,
 {
     type Item = (<A as IterGetSet>::Item, <B as IterGetSet>::Item);
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item> {
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: UnindexedConsumer<Self::Item>,
+    {
         bridge_unindexed(self, consumer)
     }
 }
 
-impl<'a, A, B> ParStridedIteratorZip
-    for ParStridedZip<'a, A, B>
-    where
-        A: UnindexedProducer + ParallelIterator + IterGetSet,
-        B: UnindexedProducer + ParallelIterator + IterGetSet,
-        <A as IterGetSet>::Item: Send,
-        <B as IterGetSet>::Item: Send {}
+impl<'a, A, B> ParStridedIteratorZip for ParStridedZip<'a, A, B>
+where
+    A: UnindexedProducer + ParallelIterator + IterGetSet,
+    B: UnindexedProducer + ParallelIterator + IterGetSet,
+    <A as IterGetSet>::Item: Send,
+    <B as IterGetSet>::Item: Send,
+{
+}
 
-impl<'a, A, B> ShapeManipulator
-    for ParStridedZip<'a, A, B>
-    where
-        A: UnindexedProducer + 'a + IterGetSet + ParallelIterator + ShapeManipulator,
-        B: UnindexedProducer + 'a + IterGetSet + ParallelIterator + ShapeManipulator,
-        <A as IterGetSet>::Item: Send,
-        <B as IterGetSet>::Item: Send
+impl<'a, A, B> ShapeManipulator for ParStridedZip<'a, A, B>
+where
+    A: UnindexedProducer + 'a + IterGetSet + ParallelIterator + ShapeManipulator,
+    B: UnindexedProducer + 'a + IterGetSet + ParallelIterator + ShapeManipulator,
+    <A as IterGetSet>::Item: Send,
+    <B as IterGetSet>::Item: Send,
 {
     fn reshape<S: Into<Shape>>(self, shape: S) -> Self {
         let tmp: Shape = shape.into();
@@ -502,8 +524,8 @@ impl<'a, A, B> ShapeManipulator
         ParStridedZip::new(a, b)
     }
 
-    fn transpose<AXIS: Into<tensor_common::axis::Axis>>(self, axes: AXIS) -> Self {
-        let axes: tensor_common::axis::Axis = axes.into();
+    fn transpose<AXIS: Into<tensor_common::axis::axis::Axis>>(self, axes: AXIS) -> Self {
+        let axes: tensor_common::axis::axis::Axis = axes.into();
         let a = self.a.transpose(axes.clone());
         let b = self.b.transpose(axes);
         ParStridedZip::new(a, b)
@@ -517,13 +539,12 @@ impl<'a, A, B> ShapeManipulator
     }
 }
 
-impl<'a, A, B> ShapeManipulator
-    for ParStridedZipSimd<'a, A, B>
-    where
-        A: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator + ShapeManipulator,
-        B: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator + ShapeManipulator,
-        <A as IterGetSetSimd>::Item: Send,
-        <B as IterGetSetSimd>::Item: Send
+impl<'a, A, B> ShapeManipulator for ParStridedZipSimd<'a, A, B>
+where
+    A: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator + ShapeManipulator,
+    B: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator + ShapeManipulator,
+    <A as IterGetSetSimd>::Item: Send,
+    <B as IterGetSetSimd>::Item: Send,
 {
     fn reshape<S: Into<Shape>>(self, shape: S) -> Self {
         let tmp: Shape = shape.into();
@@ -532,8 +553,8 @@ impl<'a, A, B> ShapeManipulator
         ParStridedZipSimd::new(a, b)
     }
 
-    fn transpose<AXIS: Into<tensor_common::axis::Axis>>(self, axes: AXIS) -> Self {
-        let axes: tensor_common::axis::Axis = axes.into();
+    fn transpose<AXIS: Into<tensor_common::axis::axis::Axis>>(self, axes: AXIS) -> Self {
+        let axes: tensor_common::axis::axis::Axis = axes.into();
         let a = self.a.transpose(axes.clone());
         let b = self.b.transpose(axes);
         ParStridedZipSimd::new(a, b)

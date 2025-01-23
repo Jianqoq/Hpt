@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 
-use tensor_common::{layout::Layout, shape::Shape, strides::Strides};
+use tensor_common::{layout::layout::Layout, shape::shape::Shape, strides::strides::Strides};
 
 #[test]
 fn test_reshape() {
@@ -12,12 +12,11 @@ fn test_reshape() {
 #[test]
 fn test_reshape_err() {
     let layout = Layout::new([2, 5, 10], &[50, 10, 1]);
-    assert!(
-        layout
-            .inplace_reshape(&Shape::from([5, 2, 11]))
-            .unwrap_err()
-            .to_string().contains("can't perform inplace reshape to from shape([5, 2, 11]) to shape([2, 5, 10]) with strides strides([50, 10, 1])")
-    );
+    assert!(layout
+        .inplace_reshape(&Shape::from([5, 2, 11]))
+        .unwrap_err()
+        .to_string()
+        .contains("Inplace reshape error: Inplace reshape is not possible"));
 }
 
 #[test]
@@ -32,9 +31,11 @@ fn test_broadcast() {
 fn test_broadcast_err() {
     let a = Layout::from(&Shape::from([5, 2, 10]));
     let b = Layout::from(&Shape::from([5, 1, 11]));
-    assert!(
-        a.broadcast(&b).unwrap_err().to_string().contains("can't broacast lhs: shape([5, 2, 10]) with rhs: shape([5, 1, 11]), expect lhs_shape[2] to be 1")
-    );
+    assert!(a
+        .broadcast(&b)
+        .unwrap_err()
+        .to_string()
+        .contains("Broadcasting error: broadcast failed at index 2, lhs shape: [5, 2, 10], rhs shape: [5, 1, 11]"));
 }
 
 #[test]

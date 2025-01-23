@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use tensor_common::strides::Strides;
+use tensor_common::strides::strides::Strides;
 
 #[test]
 fn test_inner() {

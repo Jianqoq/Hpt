@@ -9,9 +9,9 @@ use crate::tensor_base::_Tensor;
 use crate::Tensor;
 use crate::REGNUM;
 use rayon::prelude::*;
-use tensor_common::err_handler::ErrHandler;
-use tensor_common::err_handler::ErrHandler::InvalidInputShape;
-use tensor_common::pointer::Pointer;
+use tensor_common::error::base::TensorError;
+use tensor_common::error::shape::ShapeError;
+use tensor_common::utils::pointer::Pointer;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
@@ -35,16 +35,9 @@ impl<T> _Tensor<T>
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         activation: Option<fn(T::Vec) -> T::Vec>
-    ) -> anyhow::Result<_Tensor<T>> {
+    ) -> Result<_Tensor<T>, TensorError> {
         let img_shape = self.shape();
-        if img_shape.len() != 4 {
-            return Err(
-                ErrHandler::Conv2dImgShapeInCorrect(
-                    img_shape.len(),
-                    core::panic::Location::caller()
-                ).into()
-            );
-        }
+        ShapeError::check_dim(4, img_shape.len())?;
         let batch = img_shape[0];
         let img_height = img_shape[1];
         let img_width = img_shape[2];
@@ -58,7 +51,14 @@ impl<T> _Tensor<T>
             panic!("kernel in_channel must equal to 1, got {}", k_in_channels);
         }
         if out_channels != in_channels {
-            panic!("depth-wise conv2d requires kernel out_channel equal to input in_channel, got kernel: {}, inp: {}", out_channels, in_channels);
+            return Err(ShapeError::ConvError {
+                message: format!(
+                    "kernel out_channel {} not match input in_channel {}",
+                    out_channels, in_channels
+                ),
+                location: core::panic::Location::caller(),
+            }
+            .into());
         }
         let (step_width, step_height) = (steps[0], steps[1]);
         let ((ph_start, ph_end), (pw_start, pw_end)) = (padding[0], padding[1]);
@@ -70,11 +70,15 @@ impl<T> _Tensor<T>
             (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
         let img = self.clone();
         if out_height <= 0 || out_width <= 0 {
-            return if out_height <= 0 {
-                Err(InvalidInputShape(out_height, core::panic::Location::caller()).into())
-            } else {
-                Err(InvalidInputShape(out_width, core::panic::Location::caller()).into())
-            };
+            return Err(ShapeError::ConvError {
+                message: if out_height <= 0 {
+                    "output height <= 0".to_string()
+                } else {
+                    "output width <= 0".to_string()
+                },
+                location: core::panic::Location::caller(),
+            }
+            .into());
         }
         let activation = activation.unwrap_or(|x| x);
         let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;
@@ -605,7 +609,7 @@ impl<T> Tensor<T>
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         activation: Option<fn(T::Vec) -> T::Vec>
-    ) -> anyhow::Result<Tensor<T>> {
+    ) -> Result<Tensor<T>, TensorError> {
         Ok(self.inner.as_ref().dwconv2d(kernels.inner.as_ref(), bias.map(|b| b.inner.as_ref()), steps, padding, dilation, activation)?.into())
     }
 }

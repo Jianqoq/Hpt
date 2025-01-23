@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 use std::sync::Arc;
 
-use tensor_common::shape::Shape;
+use tensor_common::shape::shape::Shape;
 
 #[test]
 fn test_new() {

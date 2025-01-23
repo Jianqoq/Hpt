@@ -2,26 +2,32 @@
 
 #![deny(missing_docs)]
 
-mod allocator;
+mod allocators;
+mod storage;
+/// traits for the allocator
+pub mod traits;
+mod ptr;
+
 #[cfg(feature = "cuda")]
 mod cuda_allocator;
-mod strorage;
 extern crate lru;
 
-pub use allocator::clone_storage;
 #[cfg(feature = "cuda")]
 pub use cuda_allocator::clone_storage as cuda_clone_storage;
-pub use allocator::CACHE;
 #[cfg(feature = "cuda")]
 pub use cuda_allocator::CUDA_CACHE;
-pub use strorage::CPU_STORAGE;
+pub use storage::cpu::CPU_STORAGE;
 #[cfg(feature = "cuda")]
-pub use strorage::CUDA_STORAGE;
+pub use storage::cuda::CUDA_STORAGE;
+use traits::Allocator;
+pub use crate::allocators::cpu::CACHE;
+pub use crate::storage::cpu::clone_storage;
+
 /// program will free all the memory before exit
 #[allow(non_snake_case)]
 #[ctor::dtor]
 fn free_pools() {
-    CACHE.clear();
+    CACHE.lock().unwrap().clear();
     #[cfg(feature = "cuda")]
     CUDA_CACHE.lock().unwrap().clear();
 }

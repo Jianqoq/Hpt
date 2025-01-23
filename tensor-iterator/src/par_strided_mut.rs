@@ -8,7 +8,7 @@ use rayon::iter::{
     ParallelIterator,
 };
 use std::sync::Arc;
-use tensor_common::shape::Shape;
+use tensor_common::shape::shape::Shape;
 use tensor_traits::tensor::{CommonBounds, TensorInfo};
 
 /// A module for parallel mutable strided iterator.
@@ -22,7 +22,7 @@ pub mod par_strided_map_mut_simd {
         ParallelIterator,
     };
     use std::sync::Arc;
-    use tensor_common::{pointer::Pointer, shape::Shape, simd_ref::MutVec};
+    use tensor_common::{utils::pointer::Pointer, shape::shape::Shape, utils::simd_ref::MutVec};
     use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
     use tensor_types::traits::VecTrait;
@@ -127,7 +127,7 @@ pub mod par_strided_map_mut_simd {
             self.base.set_intervals(intervals);
         }
 
-        fn set_strides(&mut self, strides: tensor_common::strides::Strides) {
+        fn set_strides(&mut self, strides: tensor_common::strides::strides::Strides) {
             self.base.set_strides(strides);
         }
 
@@ -143,7 +143,7 @@ pub mod par_strided_map_mut_simd {
             self.base.intervals()
         }
 
-        fn strides(&self) -> &tensor_common::strides::Strides {
+        fn strides(&self) -> &tensor_common::strides::strides::Strides {
             self.base.strides()
         }
 
@@ -151,7 +151,7 @@ pub mod par_strided_map_mut_simd {
             self.base.shape()
         }
 
-        fn layout(&self) -> &tensor_common::layout::Layout {
+        fn layout(&self) -> &tensor_common::layout::layout::Layout {
             self.base.layout()
         }
 
@@ -224,7 +224,7 @@ impl<'a, T: CommonBounds> ParStridedHelper for ParStridedMut<'a, T> {
         self.base._set_last_strides(stride);
     }
 
-    fn _set_strides(&mut self, strides: tensor_common::strides::Strides) {
+    fn _set_strides(&mut self, strides: tensor_common::strides::strides::Strides) {
         self.base._set_strides(strides);
     }
 
@@ -232,7 +232,7 @@ impl<'a, T: CommonBounds> ParStridedHelper for ParStridedMut<'a, T> {
         self.base._set_shape(shape);
     }
 
-    fn _layout(&self) -> &tensor_common::layout::Layout {
+    fn _layout(&self) -> &tensor_common::layout::layout::Layout {
         self.base._layout()
     }
 
@@ -250,7 +250,7 @@ impl<'a, T: CommonBounds> ShapeManipulator for ParStridedMut<'a, T> {
         par_reshape(self, shape)
     }
 
-    fn transpose<AXIS: Into<tensor_common::axis::Axis>>(self, axes: AXIS) -> Self {
+    fn transpose<AXIS: Into<tensor_common::axis::axis::Axis>>(self, axes: AXIS) -> Self {
         par_transpose(self, axes)
     }
 
@@ -338,7 +338,7 @@ where
         self.base.set_intervals(intervals);
     }
 
-    fn set_strides(&mut self, strides: tensor_common::strides::Strides) {
+    fn set_strides(&mut self, strides: tensor_common::strides::strides::Strides) {
         self.base.set_strides(strides);
     }
 
@@ -354,7 +354,7 @@ where
         self.base.intervals()
     }
 
-    fn strides(&self) -> &tensor_common::strides::Strides {
+    fn strides(&self) -> &tensor_common::strides::strides::Strides {
         self.base.strides()
     }
 
@@ -362,7 +362,7 @@ where
         self.base.shape()
     }
 
-    fn layout(&self) -> &tensor_common::layout::Layout {
+    fn layout(&self) -> &tensor_common::layout::layout::Layout {
         self.base.layout()
     }
 

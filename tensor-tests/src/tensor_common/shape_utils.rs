@@ -1,8 +1,8 @@
 #![allow(unused_imports)]
 
 use tensor_common::{
-    shape::Shape,
-    shape_utils::{
+    shape::shape::Shape,
+    shape::shape_utils::{
         compare_and_pad_shapes, get_broadcast_axes_from, mt_intervals_simd, yield_one_after,
         yield_one_before,
     },
@@ -85,7 +85,7 @@ fn test_get_broadcast_axes_from() {
     match axes {
         Ok(_) => panic!("Should return Err"),
         Err(err) => {
-            assert!(err.to_string().contains("can't broacast lhs: shape([1, 2, 1, 3]) with rhs: shape([1, 1, 3, 2]), expect lhs_shape[1] to be 1"));
+            assert!(err.to_string().contains("Broadcasting error: broadcast failed at index 1, lhs shape: [1, 2, 1, 3], rhs shape: [1, 1, 3, 2]"));
         }
     }
 }

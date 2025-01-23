@@ -1,11 +1,16 @@
-use std::io::Write;
+use std::{collections::HashMap, io::Write};
 
 use num::traits::{FromBytes, ToBytes};
 use serde::{Deserialize, Serialize};
-use tensor_common::{shape::Shape, slice::Slice, strides::Strides};
+use tensor_common::{shape::shape::Shape, slice::Slice, strides::strides::Strides};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
+use tensor_types::dtype::Dtype;
 
-use crate::{data_loader::Endian, load::load_compressed_slice, save::save};
+use crate::{
+    data_loader::{Endian, HeaderInfo},
+    load::load_compressed_slice,
+    save::save,
+};
 
 pub trait CompressionTrait {
     fn write_all_data(&mut self, buf: &[u8]) -> std::io::Result<()>;
@@ -45,7 +50,7 @@ pub trait DataLoaderTrait {
     fn fill_le_bytes_slice(&self, offset: isize, writer: &mut [u8]);
     fn offset(&mut self, offset: isize);
     fn size(&self) -> usize;
-    fn dtype(&self) -> String;
+    fn dtype(&self) -> Dtype;
     fn mem_size(&self) -> usize;
 }
 
@@ -104,8 +109,8 @@ where
         writer.copy_from_slice(&val.to_le_bytes());
     }
 
-    fn dtype(&self) -> String {
-        T::ID.to_string()
+    fn dtype(&self) -> Dtype {
+        T::ID
     }
 }
 
@@ -117,12 +122,12 @@ pub enum CompressionAlgo {
     NoCompression,
 }
 
-pub(crate) struct Meta {
-    pub(crate) name: String,
-    pub(crate) compression_algo: CompressionAlgo,
-    pub(crate) endian: Endian,
-    pub(crate) data_saver: Box<dyn DataLoaderTrait>,
-    pub(crate) compression_level: u32,
+pub struct Meta {
+    pub name: String,
+    pub compression_algo: CompressionAlgo,
+    pub endian: Endian,
+    pub data_saver: Box<dyn DataLoaderTrait>,
+    pub compression_level: u32,
 }
 
 pub struct TensorSaver {
@@ -196,7 +201,7 @@ impl TensorLoader {
         self
     }
 
-    pub fn load<T, B, const N: usize>(self) -> std::io::Result<Vec<B>>
+    pub fn load<T, B, const N: usize>(self) -> std::io::Result<HashMap<String, B>>
     where
         T: CommonBounds + FromBytes<Bytes = [u8; N]>,
         B: TensorCreator<T, Output = B> + Clone + TensorInfo<T>,
@@ -204,6 +209,21 @@ impl TensorLoader {
         let res = load_compressed_slice::<T, B, N>(
             self.file_path.to_str().unwrap().into(),
             self.to_loads.expect("no tensors to load"),
+        )
+        .expect("failed to load tensor");
+        Ok(res)
+    }
+
+    pub fn load_all<T, B, const N: usize>(self) -> std::io::Result<HashMap<String, B>>
+    where
+        T: CommonBounds + FromBytes<Bytes = [u8; N]>,
+        B: TensorCreator<T, Output = B> + Clone + TensorInfo<T>,
+    {
+        let res = HeaderInfo::parse_header_compressed(self.file_path.to_str().unwrap().into())
+            .expect("failed to parse header");
+        let res = load_compressed_slice::<T, B, N>(
+            self.file_path.to_str().unwrap().into(),
+            res.into_values().map(|x| (x.name, vec![])).collect(),
         )
         .expect("failed to load tensor");
         Ok(res)

@@ -16,6 +16,7 @@
         "initializer_list": "cpp",
         "list": "cpp",
         "xhash": "cpp",
-        "limits": "cpp"
+        "limits": "cpp",
+        "EX.C": "cpp"
     },
 }

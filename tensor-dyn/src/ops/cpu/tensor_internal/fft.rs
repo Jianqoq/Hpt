@@ -7,7 +7,7 @@
 // use std::sync::Barrier;
 // use tensor_common::axis::process_axes;
 // use tensor_common::axis::Axis;
-// use tensor_common::shape_utils::mt_intervals;
+// use tensor_common::shape::shape_utils::mt_intervals;
 // use tensor_traits::ops::fft::FFTOps;
 // use tensor_traits::shape_manipulate::ShapeManipulate;
 // use tensor_traits::tensor::TensorCreator;

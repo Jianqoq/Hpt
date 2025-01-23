@@ -6,7 +6,7 @@ use crate::{
     Cuda,
 };
 use cudarc::driver::DeviceRepr;
-use tensor_common::err_handler::ErrHandler;
+use tensor_common::err_handler::TensorError;
 use tensor_traits::{CommonBounds, FloatUaryOps};
 use tensor_types::cuda_types::scalar::Scalar;
 use tensor_types::{dtype::TypeCommon, into_scalar::IntoScalar, type_promote::FloatOutUnary};
@@ -28,7 +28,7 @@ where
 
     type OutputMeta = FloatUnaryType<T>;
 
-    fn sin(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sin(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("sin", self),
@@ -37,7 +37,7 @@ where
         )
     }
 
-    fn cos(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn cos(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("cos", self),
@@ -46,7 +46,7 @@ where
         )
     }
 
-    fn tan(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn tan(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("tan", self),
@@ -55,7 +55,7 @@ where
         )
     }
 
-    fn asin(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn asin(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("asin", self),
@@ -64,7 +64,7 @@ where
         )
     }
 
-    fn acos(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn acos(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("acos", self),
@@ -73,7 +73,7 @@ where
         )
     }
 
-    fn atan(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn atan(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("atan", self),
@@ -82,7 +82,7 @@ where
         )
     }
 
-    fn sinh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sinh(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("sinh", self),
@@ -91,7 +91,7 @@ where
         )
     }
 
-    fn cosh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn cosh(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("cosh", self),
@@ -100,7 +100,7 @@ where
         )
     }
 
-    fn tanh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn tanh(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("tanh", self),
@@ -109,7 +109,7 @@ where
         )
     }
 
-    fn asinh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn asinh(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("asinh", self),
@@ -118,7 +118,7 @@ where
         )
     }
 
-    fn acosh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn acosh(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("acosh", self),
@@ -127,7 +127,7 @@ where
         )
     }
 
-    fn atanh(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn atanh(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("atanh", self),
@@ -136,7 +136,7 @@ where
         )
     }
 
-    fn sin_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn sin_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<_Tensor<FloatUnaryType<T>, Cuda, DEVICE_ID>>,
     {
@@ -148,7 +148,7 @@ where
         )
     }
 
-    fn cos_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn cos_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -160,7 +160,7 @@ where
         )
     }
 
-    fn tan_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn tan_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -172,7 +172,7 @@ where
         )
     }
 
-    fn asin_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn asin_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -184,7 +184,7 @@ where
         )
     }
 
-    fn acos_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn acos_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -196,7 +196,7 @@ where
         )
     }
 
-    fn atan_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn atan_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -208,7 +208,7 @@ where
         )
     }
 
-    fn sinh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn sinh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -220,7 +220,7 @@ where
         )
     }
 
-    fn cosh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn cosh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -232,7 +232,7 @@ where
         )
     }
 
-    fn tanh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn tanh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -244,7 +244,7 @@ where
         )
     }
 
-    fn asinh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn asinh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -256,7 +256,7 @@ where
         )
     }
 
-    fn acosh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn acosh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -268,7 +268,7 @@ where
         )
     }
 
-    fn atanh_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn atanh_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -280,7 +280,7 @@ where
         )
     }
 
-    fn exp(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn exp(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("exp", self),
@@ -289,7 +289,7 @@ where
         )
     }
 
-    fn exp_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn exp_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -301,7 +301,7 @@ where
         )
     }
 
-    fn exp2(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn exp2(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("exp2", self),
@@ -310,7 +310,7 @@ where
         )
     }
 
-    fn exp2_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn exp2_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -322,7 +322,7 @@ where
         )
     }
 
-    fn sqrt(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sqrt(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("sqrt", self),
@@ -331,7 +331,7 @@ where
         )
     }
 
-    fn sqrt_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn sqrt_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -343,7 +343,7 @@ where
         )
     }
 
-    fn recip(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn recip(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("recip", self),
@@ -352,7 +352,7 @@ where
         )
     }
 
-    fn recip_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn recip_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -364,7 +364,7 @@ where
         )
     }
 
-    fn ln(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn ln(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("ln", self),
@@ -373,7 +373,7 @@ where
         )
     }
 
-    fn ln_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn ln_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -385,7 +385,7 @@ where
         )
     }
 
-    fn log2(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn log2(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("log2", self),
@@ -394,7 +394,7 @@ where
         )
     }
 
-    fn log2_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn log2_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -406,7 +406,7 @@ where
         )
     }
 
-    fn log10(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn log10(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("log10", self),
@@ -415,7 +415,7 @@ where
         )
     }
 
-    fn log10_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn log10_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -427,7 +427,7 @@ where
         )
     }
 
-    fn celu(&self, alpha: FloatUnaryType<T>) -> std::result::Result<Self::Output, ErrHandler> {
+    fn celu(&self, alpha: FloatUnaryType<T>) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("celu", self),
@@ -439,7 +439,7 @@ where
         )
     }
 
-    fn celu_<U>(&self, alpha: FloatUnaryType<T>, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn celu_<U>(&self, alpha: FloatUnaryType<T>, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -454,7 +454,7 @@ where
         )
     }
 
-    fn sigmoid(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn sigmoid(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("sigmoid", self),
@@ -463,7 +463,7 @@ where
         )
     }
 
-    fn sigmoid_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn sigmoid_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -475,7 +475,7 @@ where
         )
     }
 
-    fn elu(&self, alpha: FloatUnaryType<T>) -> std::result::Result<Self::Output, ErrHandler> {
+    fn elu(&self, alpha: FloatUnaryType<T>) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("elu", self),
@@ -487,7 +487,7 @@ where
         )
     }
 
-    fn elu_<U>(&self, alpha: FloatUnaryType<T>, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn elu_<U>(&self, alpha: FloatUnaryType<T>, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -502,7 +502,7 @@ where
         )
     }
 
-    fn erf(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn erf(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("erf", self),
@@ -511,7 +511,7 @@ where
         )
     }
 
-    fn fast_hard_sigmoid(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn fast_hard_sigmoid(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("fast_hard_sigmoid", self),
@@ -520,7 +520,7 @@ where
         )
     }
 
-    fn gelu(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn gelu(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("gelu", self),
@@ -529,7 +529,7 @@ where
         )
     }
 
-    fn gelu_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn gelu_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -541,7 +541,7 @@ where
         )
     }
 
-    fn selu<U>(&self, alpha: U, gamma: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn selu<U>(&self, alpha: U, gamma: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Into<Option<Self::OutputMeta>>,
     {
@@ -568,7 +568,7 @@ where
         alpha: Option<FloatUnaryType<T>>,
         gamma: Option<FloatUnaryType<T>>,
         out: U,
-    ) -> std::result::Result<Self::Output, ErrHandler>
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -588,7 +588,7 @@ where
         )
     }
 
-    fn hard_sigmoid(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn hard_sigmoid(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("hard_sigmoid", self),
@@ -597,7 +597,7 @@ where
         )
     }
 
-    fn hard_sigmoid_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn hard_sigmoid_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -609,7 +609,7 @@ where
         )
     }
 
-    fn hard_swish(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn hard_swish(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("hard_swish", self),
@@ -618,7 +618,7 @@ where
         )
     }
 
-    fn hard_swish_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn hard_swish_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -630,7 +630,7 @@ where
         )
     }
 
-    fn softplus(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn softplus(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("softplus", self),
@@ -639,7 +639,7 @@ where
         )
     }
 
-    fn softplus_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn softplus_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -651,7 +651,7 @@ where
         )
     }
 
-    fn softsign(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn softsign(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("softsign", self),
@@ -660,7 +660,7 @@ where
         )
     }
 
-    fn softsign_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn softsign_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -672,7 +672,7 @@ where
         )
     }
 
-    fn mish(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn mish(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("mish", self),
@@ -681,7 +681,7 @@ where
         )
     }
 
-    fn mish_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn mish_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -693,7 +693,7 @@ where
         )
     }
     
-    fn cbrt(&self) -> std::result::Result<Self::Output, ErrHandler> {
+    fn cbrt(&self) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("cbrt", self),
@@ -702,7 +702,7 @@ where
         )
     }
     
-    fn cbrt_<U>(&self, out: U) -> std::result::Result<Self::Output, ErrHandler>
+    fn cbrt_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {

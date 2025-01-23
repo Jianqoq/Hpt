@@ -7,8 +7,14 @@ use crate::{
     BoolVector, ALIGN,
 };
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
-use tensor_allocator::CACHE;
-use tensor_common::{err_handler::ErrHandler, layout::Layout, pointer::Pointer, shape::Shape};
+use tensor_allocator::{traits::Allocator, CACHE};
+use tensor_common::error::memory::MemoryError;
+use tensor_common::{
+    error::{base::TensorError, shape::ShapeError},
+    layout::layout::Layout,
+    utils::pointer::Pointer,
+    shape::shape::Shape,
+};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo, TensorLike};
 use tensor_types::{
     convertion::{Convertor, FromScalar},
@@ -16,9 +22,9 @@ use tensor_types::{
     type_promote::NormalOut,
 };
 
-impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
-    type Output = _Tensor<T>;
-    fn empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler> {
+impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, DEVICE> {
+    type Output = _Tensor<T, Cpu, DEVICE>;
+    fn empty<S: Into<Shape>>(shape: S) -> Result<Self, TensorError> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
         let size = res_shape
@@ -30,8 +36,19 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
                 .unwrap_or((isize::MAX as usize) - (ALIGN - 1)), // when overflow happened, we use max memory `from_size_align` accept
             ALIGN,
         )
-        .map_err(|e| ErrHandler::StdMemLayoutError(ALIGN, size, Location::caller(), e))?;
-        let ptr = CACHE.allocate(layout)?;
+        .map_err(|e| {
+            TensorError::Memory(MemoryError::AllocationFailed {
+                device: "cpu".to_string(),
+                id: DEVICE,
+                size,
+                source: Some(Box::new(e)),
+                location: Location::caller(),
+            })
+        })?;
+        let ptr = CACHE
+            .lock()
+            .expect("CACHE is poisoned")
+            .allocate(layout, DEVICE)?;
         Ok(_Tensor {
             #[cfg(feature = "bound_check")]
             data: Pointer::new(ptr as *mut T, size as i64),
@@ -44,33 +61,33 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         })
     }
 
-    fn zeros<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler> {
+    fn zeros<S: Into<Shape>>(shape: S) -> Result<Self, TensorError> {
         Self::full(T::ZERO, shape)
     }
 
-    fn ones<S: Into<Shape>>(shape: S) -> std::result::Result<Self, ErrHandler>
+    fn ones<S: Into<Shape>>(shape: S) -> Result<Self, TensorError>
     where
         u8: IntoScalar<T>,
     {
         Self::full(T::ONE, shape)
     }
 
-    fn empty_like(&self) -> std::result::Result<Self, ErrHandler> {
+    fn empty_like(&self) -> Result<Self, TensorError> {
         Self::empty(self.shape())
     }
 
-    fn zeros_like(&self) -> std::result::Result<Self, ErrHandler> {
+    fn zeros_like(&self) -> Result<Self, TensorError> {
         Self::zeros(self.shape())
     }
 
-    fn ones_like(&self) -> std::result::Result<Self, ErrHandler>
+    fn ones_like(&self) -> Result<Self, TensorError>
     where
         u8: IntoScalar<T>,
     {
         Self::ones(self.shape())
     }
 
-    fn full<S: Into<Shape>>(val: T, shape: S) -> std::result::Result<Self, ErrHandler> {
+    fn full<S: Into<Shape>>(val: T, shape: S) -> Result<Self, TensorError> {
         let empty = Self::empty(shape)?;
         let ptr = empty.ptr().ptr;
         let size = empty.size();
@@ -83,11 +100,11 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(empty)
     }
 
-    fn full_like(&self, val: T) -> std::result::Result<Self, ErrHandler> {
+    fn full_like(&self, val: T) -> Result<Self, TensorError> {
         _Tensor::full(val, self.shape())
     }
 
-    fn arange<U>(start: U, end: U) -> std::result::Result<Self, ErrHandler>
+    fn arange<U>(start: U, end: U) -> Result<Self, TensorError>
     where
         T: Convertor + FromScalar<U>,
         usize: IntoScalar<T>,
@@ -96,9 +113,10 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let size = end.to_i64() - start.to_i64();
         let start = start.into_scalar();
         if size <= 0 {
-            return _Tensor::<T, Cpu>::empty(Arc::new(vec![0]));
+            return _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![0]));
         }
-        let mut data: _Tensor<T> = _Tensor::<T, Cpu>::empty(Arc::new(vec![size]))?;
+        let mut data: _Tensor<T, Cpu, DEVICE> =
+            _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![size]))?;
 
         data.as_raw_mut()
             .into_par_iter()
@@ -109,7 +127,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(data)
     }
 
-    fn arange_step(start: T, end: T, step: T) -> std::result::Result<Self, ErrHandler>
+    fn arange_step(start: T, end: T, step: T) -> Result<Self, TensorError>
     where
         T: Convertor + FromScalar<usize>,
     {
@@ -117,7 +135,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let end_usize = end.to_i64();
         let start_usize = start.to_i64();
         let size = ((end_usize - start_usize) as usize) / (step_float.abs() as usize);
-        let mut data = _Tensor::<T, Cpu>::empty(Arc::new(vec![size as i64]))?;
+        let mut data = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![size as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
@@ -127,12 +145,12 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(data)
     }
 
-    fn eye(n: usize, m: usize, k: usize) -> std::result::Result<Self, ErrHandler>
+    fn eye(n: usize, m: usize, k: usize) -> Result<Self, TensorError>
     where
         u8: IntoScalar<T>,
     {
         let shape = vec![n as i64, m as i64];
-        let mut res = _Tensor::<T, Cpu>::empty(Arc::new(shape))?;
+        let mut res = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(shape))?;
         res.as_raw_mut()
             .into_par_iter()
             .enumerate()
@@ -153,7 +171,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         end: U,
         num: usize,
         include_end: bool,
-    ) -> std::result::Result<Self, ErrHandler>
+    ) -> Result<Self, TensorError>
     where
         T: Convertor,
         U: Convertor + IntoScalar<T> + Copy,
@@ -171,7 +189,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         let step_t: T = step.into_scalar();
         let start_t: T = start.into_scalar();
         let end_t: T = end.into_scalar();
-        let mut data = _Tensor::<T, Cpu>::empty(Arc::new(vec![n as i64]))?;
+        let mut data = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![n as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
@@ -191,7 +209,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         num: usize,
         include_end: bool,
         base: T,
-    ) -> std::result::Result<Self, ErrHandler>
+    ) -> Result<Self, TensorError>
     where
         T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64>,
     {
@@ -204,7 +222,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             (_end - _start) / n
         };
         let step_t = T::_from(step);
-        let mut data = _Tensor::<T, Cpu>::empty(Arc::new(vec![n as i64]))?;
+        let mut data = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![n as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
@@ -219,7 +237,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         end: T,
         n: usize,
         include_end: bool,
-    ) -> std::result::Result<Self, ErrHandler>
+    ) -> Result<Self, TensorError>
     where
         f64: IntoScalar<T>,
         usize: IntoScalar<T>,
@@ -231,7 +249,7 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
             geomspace_preprocess_start_step(start_f64, end_f64, n, include_end)?;
         let start_t: T = new_start.into_scalar();
         let step_t: T = step.into_scalar();
-        let mut data = _Tensor::<T>::empty(Arc::new(vec![n as i64]))?;
+        let mut data = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![n as i64]))?;
         if both_negative {
             data.as_raw_mut()
                 .into_par_iter()
@@ -254,12 +272,12 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(data)
     }
 
-    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> std::result::Result<Self, ErrHandler>
+    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self, TensorError>
     where
         u8: IntoScalar<T>,
     {
         let shape = vec![n as i64, m as i64];
-        let mut res = _Tensor::<T, Cpu>::empty(Arc::new(shape))?;
+        let mut res = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(shape))?;
         if low_triangle {
             res.as_raw_mut()
                 .into_par_iter()
@@ -291,50 +309,42 @@ impl<T: CommonBounds> TensorCreator<T> for _Tensor<T> {
         Ok(res)
     }
 
-    fn tril(&self, k: i64) -> std::result::Result<Self, ErrHandler>
+    fn tril(&self, k: i64) -> Result<Self, TensorError>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T>,
         T::Vec: NormalOut<BoolVector, Output = T::Vec>,
     {
-        if self.shape().len() < 2 {
-            return Err(
-                ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into(),
-            );
-        }
-        let mask: _Tensor<bool> = _Tensor::<bool>::tri(
+        ShapeError::check_ndim_enough(2, self.shape().len())?;
+        let mask: _Tensor<bool, Cpu, DEVICE> = _Tensor::<bool, Cpu, DEVICE>::tri(
             self.shape()[self.shape().len() - 2] as usize,
             self.shape()[self.shape().len() - 1] as usize,
             k,
             true,
         )?;
-        let res: _Tensor<T> = self.clone() * mask;
+        let res: _Tensor<T, Cpu, DEVICE> = self.clone() * mask;
         Ok(res)
     }
 
-    fn triu(&self, k: i64) -> std::result::Result<Self, ErrHandler>
+    fn triu(&self, k: i64) -> Result<Self, TensorError>
     where
         T: NormalOut<bool, Output = T> + IntoScalar<T>,
         T::Vec: NormalOut<BoolVector, Output = T::Vec>,
     {
-        if self.shape().len() < 2 {
-            return Err(
-                ErrHandler::NdimNotEnough(2, self.shape().len(), Location::caller()).into(),
-            );
-        }
-        let mask: _Tensor<bool> = _Tensor::<bool>::tri(
+        ShapeError::check_ndim_enough(2, self.shape().len())?;
+        let mask: _Tensor<bool, Cpu, DEVICE> = _Tensor::<bool, Cpu, DEVICE>::tri(
             self.shape()[self.shape().len() - 2] as usize,
             self.shape()[self.shape().len() - 1] as usize,
             k,
             false,
         )?;
-        let res = self.clone() * mask;
+        let res: _Tensor<T, Cpu, DEVICE> = self.clone() * mask;
         Ok(res)
     }
 
-    fn identity(n: usize) -> std::result::Result<Self, ErrHandler>
+    fn identity(n: usize) -> Result<Self, TensorError>
     where
         u8: IntoScalar<T>,
     {
-        _Tensor::eye(n, n, 0)
+        _Tensor::<T, Cpu, DEVICE>::eye(n, n, 0)
     }
 }
