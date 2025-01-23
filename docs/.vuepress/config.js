@@ -1,7 +1,7 @@
 import { defineUserConfig } from '@vuepress/cli'
 import { defaultTheme } from '@vuepress/theme-default'
 import { viteBundler } from '@vuepress/bundler-vite'
-import { mdEnhancePlugin } from "vuepress-plugin-md-enhance"
+import { markdownMathPlugin } from '@vuepress/plugin-markdown-math'
 
 export default defineUserConfig({
   base: process.env.NODE_ENV === 'development'
@@ -10,10 +10,11 @@ export default defineUserConfig({
   lang: 'zh-CN',
   title: 'Hpt',
   plugins: [
-    mdEnhancePlugin({
-      katex: true,
+    markdownMathPlugin({
+      type: 'katex'
     }),
   ],
+
   bundler: viteBundler(),
   theme: defaultTheme({
     home: false,
