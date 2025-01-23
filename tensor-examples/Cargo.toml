@@ -5,4 +5,5 @@ edition = "2021"
 
 [dependencies]
 serde = "1.0.217"
+rayon = "1.8.0"
 tensor-dyn = { path = "../tensor-dyn", features = ["track_caller"] }
