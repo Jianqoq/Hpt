@@ -1,6 +1,9 @@
 # sin
 ```rust
-Tensor::<T>::sin_(x: &Tensor<T>, out: &Tensor<T> | Tensor<T>) -> Result<Tensor<T>, TensorError>
+Tensor::<T>::sin_(
+    x: &Tensor<T>, 
+    out: &Tensor<T> | Tensor<T>
+) -> Result<Tensor<T>, TensorError>
 ```
 Trigonometric sine with out
 ## Parameters:

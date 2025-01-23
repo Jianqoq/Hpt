@@ -1,6 +1,9 @@
-# cos
+# cos_
 ```rust
-Tensor::<T>::cos_(x: &Tensor<T>, out: &Tensor<T> | Tensor<T>) -> Result<Tensor<T>, TensorError>
+Tensor::<T>::cos_(
+    x: &Tensor<T>, 
+    out: &Tensor<T> | Tensor<T>
+) -> Result<Tensor<T>, TensorError>
 ```
 Trigonometric cosine with out
 ## Parameters:

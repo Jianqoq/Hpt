@@ -1,0 +1,23 @@
+# sinh_
+```rust
+Tensor::<T>::sinh_(
+    x: &Tensor<T>, 
+    out: &Tensor<T> | Tensor<T>
+) -> Result<Tensor<T>, TensorError>
+```
+Hyperbolic sine with out
+## Parameters:
+`x`: Angle(radians)
+## Returns:
+Tensor with type `T`
+## Examples:
+```rust
+use tensor_dyn::{FloatUaryOps, Tensor, TensorError};
+
+fn main() -> Result<(), TensorError> {
+    let a = Tensor::<f32>::new([10.0]);
+    let b = a.sinh_(&a)?;
+    println!("{}", b);
+    Ok(())
+}
+```

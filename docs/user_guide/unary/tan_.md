@@ -1,6 +1,9 @@
-# tan
+# tan_
 ```rust
-Tensor::<T>::tan_(x: &Tensor<T>, out: &Tensor<T> | Tensor<T>) -> Result<Tensor<T>, TensorError>
+Tensor::<T>::tan_(
+    x: &Tensor<T>, 
+    out: &Tensor<T> | Tensor<T>
+) -> Result<Tensor<T>, TensorError>
 ```
 Trigonometric tangent with out
 ## Parameters:
