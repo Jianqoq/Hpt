@@ -390,7 +390,7 @@ where
                     .par_iter()
                     .zip(prod.inner.par_iter())
                     .zip(lhs.inner.inner.par_iter())
-                    .strided_map(|((g, x), y)| g._mul(x)._div(y).into_scalar())
+                    .strided_map(|(res, ((g, x), y))| { *res = g._mul(x)._div(y).into_scalar() })
                     .collect::<_Tensor<T, Cpu, DEVICE>>();
                 handle_grad(&mut lhs, grad.into(), &[])?;
                 Ok(false)

@@ -1097,17 +1097,16 @@ where
             out_degree: Rc::new(RefCell::new(0)),
             backward: Rc::new(RefCell::new(
                 move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE>| {
-                    // 对 a 的梯度：grad
                     handle_grad(&mut lhs, grad.try_astype::<T>()?, &lhs_broadcast_axes)?;
 
                     let rhs_grad: _Tensor<U, Cpu, DEVICE> = grad
                         .inner
                         .par_iter()
                         .zip(rhs.inner.inner.par_iter())
-                        .strided_map(|(x, y)| {
+                        .strided_map(|(res, (x, y))| {
                             let div = x._div(y);
                             let floor_div = div._floor();
-                            x._neg()._mul(floor_div).into_scalar()
+                            *res = x._neg()._mul(floor_div).into_scalar();
                         })
                         .collect();
 

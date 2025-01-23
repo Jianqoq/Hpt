@@ -775,7 +775,9 @@ where
             .par_iter()
             .zip(x.par_iter())
             .zip(y.par_iter())
-            .strided_map(|((condition, x), y)| if condition { x } else { y })
+            .strided_map(|(res, ((condition, x), y))| {
+                *res = if condition { x } else { y };
+            })
             .collect())
     }
 }

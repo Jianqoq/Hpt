@@ -50,7 +50,7 @@ where
     }
 
     fn contiguous(&self) -> std::result::Result<Self, TensorError> {
-        Ok(self.par_iter().strided_map(|x| x).collect())
+        Ok(self.par_iter().strided_map(|(res, x)| { *res = x }).collect())
     }
 }
 

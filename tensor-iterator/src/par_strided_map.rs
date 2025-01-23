@@ -145,7 +145,7 @@ impl<
     /// A new tensor of type `U` containing the results of the map operation.
     pub fn collect<U>(self) -> U
     where
-        F: Fn(T) -> U::Meta + Sync + Send + 'a,
+        F: Fn((&mut U::Meta, T)) + Sync + Send,
         U: Clone + TensorInfo<U::Meta> + TensorAlloc,
         <I as IterGetSet>::Item: Send,
         <U as TensorAlloc>::Meta: CommonBounds,
@@ -154,7 +154,7 @@ impl<
         let strided_mut = ParStridedMapMut::new(res.clone());
         let zip = strided_mut.zip(self.iter);
         zip.for_each(|(x, y)| {
-            *x = (self.f)(y);
+            (self.f)((x, y));
         });
         res
     }

@@ -247,7 +247,7 @@ where
             let ret = lhs
                 .par_iter()
                 .zip(rhs.par_iter())
-                .strided_map(|(x, y)| f(x, y))
+                .strided_map(|(res, (x, y))| *res = f(x, y))
                 .collect::<_Tensor<K, Cpu, DEVICE>>();
             Ok(ret)
         }
@@ -342,7 +342,7 @@ where
             .par_iter()
             .zip(b.par_iter())
             .zip(c.par_iter())
-            .strided_map(|((x, y), z)| f(x, y, z))
+            .strided_map(|(res, ((x, y), z))| *res = f(x, y, z))
             .collect::<_Tensor<K, Cpu, DEVICE>>();
         Ok(ret)
     }

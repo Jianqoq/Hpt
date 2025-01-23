@@ -443,7 +443,7 @@ impl<T: CommonBounds> ParStrided<T> {
     ///
     /// A `ParStridedMap` instance that applies the provided function during iteration.
     pub fn strided_map<'a, F, U>(self, f: F) -> ParStridedMap<'a, ParStrided<T>, T, F>
-        where F: Fn(T) -> U + Sync + Send + 'a, U: CommonBounds
+        where F: Fn((&mut U, T)) + Sync + Send + 'a, U: CommonBounds
     {
         ParStridedMap {
             iter: self,

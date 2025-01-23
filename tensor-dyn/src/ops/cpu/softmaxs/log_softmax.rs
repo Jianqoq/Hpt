@@ -177,10 +177,10 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
                         .par_iter()
                         .zip(grad_sum.inner.par_iter())
                         .zip(grad.inner.par_iter())
-                        .strided_map(|((r, gs), g)| {
+                        .strided_map(|(res, ((r, gs), g))| {
                             let softmax = r._exp();
                             let grad = g._sub(softmax._mul(gs));
-                            grad.into_scalar()
+                            *res = grad.into_scalar();
                         })
                         .collect::<Tensor<T, Cpu, DEVICE>>();
                     handle_grad(&mut inp, grad, &[])?;

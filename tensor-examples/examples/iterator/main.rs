@@ -1,6 +1,7 @@
 use rayon::iter::ParallelIterator;
 use tensor_dyn::{
-    ParStridedIteratorZip, Random, Tensor, TensorCreator, TensorError, TensorIterator,
+    ParStridedIteratorSimdZip, ParStridedIteratorZip, Random, Tensor, TensorCreator, TensorError,
+    TensorIterator,
 };
 
 fn main() -> Result<(), TensorError> {
@@ -15,7 +16,17 @@ fn main() -> Result<(), TensorError> {
     let res = b
         .par_iter()
         .zip(a.par_iter())
-        .strided_map(|(b, a)| b + a)
+        .strided_map(|(res, (b, a))| *res = b + a)
+        .collect::<Tensor<f32>>();
+    println!("{}", res);
+
+    let res = b
+        .par_iter_simd()
+        .zip(a.par_iter_simd())
+        .strided_map_simd(
+            |(res, (b, a))| *res = b + a,
+            |(res, (b, a))| res.write_unaligned(b + a),
+        )
         .collect::<Tensor<f32>>();
     println!("{}", res);
 
