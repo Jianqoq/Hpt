@@ -291,10 +291,6 @@ pub trait SimdMath<T>: Copy {
     fn hard_sigmoid(self) -> Self {
         unreachable!()
     }
-    /// fast hard sigmoid
-    fn fast_hard_sigmoid(self) -> Self {
-        unreachable!()
-    }
     /// hard swish
     fn hard_swish(self) -> Self {
         unreachable!()

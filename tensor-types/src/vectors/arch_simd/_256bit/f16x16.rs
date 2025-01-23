@@ -679,20 +679,13 @@ impl SimdMath<half::f16> for f16x16 {
         let low_max = low.max(low_other);
         f16x16::from_2_f32vec([high_max, low_max])
     }
+
     #[inline(always)]
     fn hard_sigmoid(self) -> Self {
         let [high, low] = self.to_2_f32vec();
         let high_hard_sigmoid = high.hard_sigmoid();
         let low_hard_sigmoid = low.hard_sigmoid();
         f16x16::from_2_f32vec([high_hard_sigmoid, low_hard_sigmoid])
-    }
-
-    #[inline(always)]
-    fn fast_hard_sigmoid(self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let high_fast_hard_sigmoid = high.fast_hard_sigmoid();
-        let low_fast_hard_sigmoid = low.fast_hard_sigmoid();
-        f16x16::from_2_f32vec([high_fast_hard_sigmoid, low_fast_hard_sigmoid])
     }
 
     #[inline(always)]

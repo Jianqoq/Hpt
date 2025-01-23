@@ -270,10 +270,6 @@ impl FloatOutUnary2 for f32 {
     }
 
     fn __hard_sigmoid(self) -> Self {
-        (self * 0.2 + 0.5).clamp(0.0, 1.0)
-    }
-
-    fn __fast_hard_sigmoid(self) -> Self {
         let result = self * (1.0 / 6.0) + 0.5;
         result.min(1.0).max(0.0)
     }

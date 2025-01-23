@@ -8,6 +8,7 @@ Tensor::<T>::cos_(
 Trigonometric cosine with out
 ## Parameters:
 `x`: Angle(radians)
+`out`: Tensor to write to
 ## Returns:
 Tensor with type `T`
 ## Examples:

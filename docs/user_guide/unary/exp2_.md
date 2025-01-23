@@ -8,6 +8,7 @@ Tensor::<T>::exp2_(
 Compute $\large 2^x$ for all elements with out
 ## Parameters:
 `x`: Input values
+`out`: Tensor to write to
 ## Returns:
 Tensor with type `T`
 ## Examples:

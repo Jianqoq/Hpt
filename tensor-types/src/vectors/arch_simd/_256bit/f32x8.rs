@@ -393,18 +393,9 @@ impl SimdMath<f32> for f32x8 {
     fn max(self, other: Self) -> Self {
         f32x8(unsafe { xmaxf(self.0, other.0) })
     }
-    #[inline(always)]
-    fn hard_sigmoid(self) -> Self {
-        let point_two = Self::splat(0.2);
-        let half = Self::splat(0.5);
-        let one = Self::splat(1.0);
-        let zero = Self::splat(0.0);
-        let add = point_two * self + half;
-        add.min(one).max(zero)
-    }
 
     #[inline(always)]
-    fn fast_hard_sigmoid(self) -> Self {
+    fn hard_sigmoid(self) -> Self {
         let sixth = Self::splat(1.0 / 6.0);
         let half = Self::splat(0.5);
         let one = Self::splat(1.0);

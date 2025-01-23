@@ -8,6 +8,7 @@ Tensor::<T>::sin_(
 Trigonometric sine with out
 ## Parameters:
 `x`: Angle(radians)
+`out`: Tensor to write to
 ## Returns:
 Tensor with type `T`
 ## Examples:

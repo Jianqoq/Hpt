@@ -82,7 +82,6 @@ export default defineUserConfig({
                 { text: 'elu', link: '/user_guide/unary/elu.md' },
                 { text: 'elu_', link: '/user_guide/unary/elu_.md' },
                 { text: 'erf', link: '/user_guide/unary/erf.md' },
-                { text: 'fast_hard_sigmoid', link: '/user_guide/unary/fast_hard_sigmoid.md' },
                 { text: 'gelu', link: '/user_guide/unary/gelu.md' },
                 { text: 'gelu_', link: '/user_guide/unary/gelu_.md' },
                 { text: 'selu', link: '/user_guide/unary/selu.md' },

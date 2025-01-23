@@ -400,15 +400,6 @@ where
         )
     }
 
-    fn fast_hard_sigmoid(&self) -> std::result::Result<Self::Output, TensorError> {
-        unary_fn_with_out_simd(
-            self,
-            |x| x._fast_hard_sigmoid(),
-            |x| x._fast_hard_sigmoid(),
-            None::<_Tensor<FloatUnaryType<T>>>,
-        )
-    }
-
     fn gelu(&self) -> std::result::Result<Self::Output, TensorError> {
         unary_fn_with_out_simd(
             self,

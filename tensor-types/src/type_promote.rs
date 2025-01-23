@@ -435,9 +435,6 @@ pub trait FloatOutUnary {
     /// Formula: f(x) = min(1, max(0, 0.2 * x + 0.5))
     fn _hard_sigmoid(self) -> Self::Output;
 
-    /// Perform the fast approximation of the hard sigmoid activation function.
-    fn _fast_hard_sigmoid(self) -> Self::Output;
-
     /// Perform the hard swish activation function.
     ///
     /// Formula: f(x) = x * min(1, max(0, 0.2 * x + 0.5))
@@ -549,9 +546,6 @@ pub trait FloatOutUnary2 {
     ///
     /// Formula: f(x) = min(1, max(0, 0.2 * x + 0.5))
     fn __hard_sigmoid(self) -> Self;
-
-    /// Perform the fast approximation of the hard sigmoid activation function.
-    fn __fast_hard_sigmoid(self) -> Self;
 
     /// Perform the hard swish activation function.
     ///

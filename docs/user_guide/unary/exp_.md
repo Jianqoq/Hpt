@@ -8,6 +8,7 @@ Tensor::<T>::exp_(
 Compute exponential of `x` for all elements with out
 ## Parameters:
 `x`: Input values
+`out`: Tensor to write to
 ## Returns:
 Tensor with type `T`
 ## Examples:
