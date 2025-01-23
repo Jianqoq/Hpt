@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 
 use tensor_common::error::base::TensorError;
-use tensor_traits::{CommonBounds, FloatUaryOps};
+use tensor_traits::{CommonBounds, FloatUnaryOps};
 use tensor_types::{dtype::TypeCommon, into_scalar::IntoScalar, type_promote::FloatOutUnary};
 
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
     tensor_base::_Tensor,
 };
 
-impl<T> FloatUaryOps for Tensor<T>
+impl<T> FloatUnaryOps for Tensor<T>
 where
     T: FloatOutUnary + CommonBounds,
     FloatUnaryType<T>: CommonBounds,

@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use cudarc::driver::DeviceRepr;
 use tensor_common::err_handler::TensorError;
-use tensor_traits::{CommonBounds, FloatUaryOps};
+use tensor_traits::{CommonBounds, FloatUnaryOps};
 use tensor_types::{cuda_types::scalar::Scalar, dtype::TypeCommon, into_scalar::IntoScalar, type_promote::FloatOutUnary};
 
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
     tensor_base::_Tensor, Cuda,
 };
 
-impl<T, const DEVICE_ID: usize> FloatUaryOps for Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize> FloatUnaryOps for Tensor<T, Cuda, DEVICE_ID>
 where
     T: FloatOutUnary<Base = FloatUnaryType<T>> + CommonBounds + DeviceRepr,
     FloatUnaryType<T>: CommonBounds + DeviceRepr,
@@ -43,7 +43,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.sin().unwrap();
     /// ```
@@ -68,7 +68,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.cos().unwrap();
     /// ```
@@ -93,7 +93,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.tan().unwrap();
     /// ```
@@ -118,7 +118,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.asin().unwrap();
     /// ```
@@ -143,7 +143,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.acos().unwrap();
     /// ```
@@ -168,7 +168,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.atan().unwrap();
     /// ```
@@ -193,7 +193,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.sinh().unwrap();
     /// ```
@@ -218,7 +218,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.cosh().unwrap();
     /// ```
@@ -243,7 +243,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.tanh().unwrap();
     /// ```
@@ -268,7 +268,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.asinh().unwrap();
     /// ```
@@ -293,7 +293,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.acosh().unwrap();
     /// ```
@@ -318,7 +318,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.atanh().unwrap();
     /// ```
@@ -426,7 +426,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.exp().unwrap();
     /// ```
@@ -462,7 +462,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.exp2().unwrap();
     /// ```
@@ -498,7 +498,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.sqrt().unwrap();
     /// ```
@@ -533,7 +533,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0]);
     /// let b = a.recip().unwrap();
     /// ```
@@ -569,7 +569,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0]);
     /// let b = a.ln().unwrap();
     /// ```
@@ -605,7 +605,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0]);
     /// let b = a.log2().unwrap();
     /// ```
@@ -641,7 +641,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0]);
     /// let b = a.log10().unwrap();
     /// ```
@@ -676,7 +676,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.celu(1.0).unwrap();
     /// ```
@@ -711,7 +711,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.sigmoid().unwrap();
     /// ```
@@ -746,7 +746,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.elu(1.0).unwrap();
     /// ```
@@ -781,7 +781,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.erf().unwrap();
     /// ```
@@ -809,7 +809,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.fast_hard_sigmoid().unwrap();
     /// ```
@@ -837,7 +837,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.gelu().unwrap();
     /// ```
@@ -874,7 +874,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.selu(None, None).unwrap();
     /// ```
@@ -923,7 +923,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.hard_sigmoid().unwrap();
     /// ```
@@ -958,7 +958,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.hard_swish().unwrap();
     /// ```
@@ -993,7 +993,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.softplus().unwrap();
     /// ```
@@ -1028,7 +1028,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.softsign().unwrap();
     /// ```
@@ -1063,7 +1063,7 @@ where
     /// # Example
     /// ```
     /// use tensor_dyn::tensor::Tensor;
-    /// use tensor_dyn::FloatUaryOps;
+    /// use tensor_dyn::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.mish().unwrap();
     /// ```

@@ -12,7 +12,7 @@ export default defineUserConfig({
     home: false,
     navbar: [
       {
-        text: 'home',
+        text: 'Home',
         link: '/',
       },
       {
@@ -108,12 +108,179 @@ export default defineUserConfig({
                 { text: 'div_', link: '/user_guide/binary/div_.md' },
               ]
             },
+            {
+              text: 'reduce',
+              collapsible: true,
+              children: [
+                { text: 'logsumexp', link: '/user_guide/reduce/logsumexp.md' },
+                { text: 'argmin', link: '/user_guide/reduce/argmin.md' },
+                { text: 'argmax', link: '/user_guide/reduce/argmax.md' },
+                { text: 'max', link: '/user_guide/reduce/max.md' },
+                { text: 'min', link: '/user_guide/reduce/min.md' },
+                { text: 'mean', link: '/user_guide/reduce/mean.md' },
+                { text: 'sum', link: '/user_guide/reduce/sum.md' },
+                { text: 'sum_', link: '/user_guide/reduce/sum_.md' },
+                { text: 'nansum', link: '/user_guide/reduce/nansum.md' },
+                { text: 'nansum_', link: '/user_guide/reduce/nansum_.md' },
+                { text: 'prod', link: '/user_guide/reduce/prod.md' },
+                { text: 'nanprod', link: '/user_guide/reduce/nanprod.md' },
+                { text: 'sum_square', link: '/user_guide/reduce/sum_square.md' },
+                { text: 'reducel1', link: '/user_guide/reduce/reducel1.md' },
+                { text: 'reducel2', link: '/user_guide/reduce/reducel2.md' },
+                { text: 'reducel3', link: '/user_guide/reduce/reducel3.md' },
+                { text: 'all', link: '/user_guide/reduce/all.md' },
+                { text: 'any', link: '/user_guide/reduce/any.md' },
+              ]
+            },
+            {
+              text: 'compare',
+              collapsible: true,
+              children: [
+                { text: 'tensor_neq', link: '/user_guide/cmp/tensor_neq.md' },
+                { text: 'tensor_eq', link: '/user_guide/cmp/tensor_eq.md' },
+                { text: 'tensor_gt', link: '/user_guide/cmp/tensor_gt.md' },
+                { text: 'tensor_lt', link: '/user_guide/cmp/tensor_lt.md' },
+                { text: 'tensor_ge', link: '/user_guide/cmp/tensor_ge.md' },
+                { text: 'tensor_le', link: '/user_guide/cmp/tensor_le.md' },
+              ]
+            },
+            {
+              text: 'linalg',
+              collapsible: true,
+              children: [
+                { text: 'matmul', link: '/user_guide/linalg/matmul.md' },
+                { text: 'tensordot', link: '/user_guide/linalg/tensordot.md' },
+              ]
+            },
+            {
+              text: 'random',
+              collapsible: true,
+              children: [
+                { text: 'randn', link: '/user_guide/random/randn.md' },
+                { text: 'randn_like', link: '/user_guide/random/randn_like.md' },
+                { text: 'rand', link: '/user_guide/random/rand.md' },
+                { text: 'rand_like', link: '/user_guide/random/rand_like.md' },
+                { text: 'beta', link: '/user_guide/random/beta.md' },
+                { text: 'beta_like', link: '/user_guide/random/beta_like.md' },
+                { text: 'chisquare', link: '/user_guide/random/chisquare.md' },
+                { text: 'chisquare_like', link: '/user_guide/random/chisquare_like.md' },
+                { text: 'exponential', link: '/user_guide/random/exponential.md' },
+                { text: 'exponential_like', link: '/user_guide/random/exponential_like.md' },
+                { text: 'gamma', link: '/user_guide/random/gamma.md' },
+                { text: 'gamma_like', link: '/user_guide/random/gamma_like.md' },
+                { text: 'gumbel', link: '/user_guide/random/gumbel.md' },
+                { text: 'gumbel_like', link: '/user_guide/random/gumbel_like.md' },
+                { text: 'lognormal', link: '/user_guide/random/lognormal.md' },
+                { text: 'lognormal_like', link: '/user_guide/random/lognormal_like.md' },
+                { text: 'normal_gaussian', link: '/user_guide/random/normal_gaussian.md' },
+                { text: 'normal_gaussian_like', link: '/user_guide/random/normal_gaussian_like.md' },
+                { text: 'pareto', link: '/user_guide/random/pareto.md' },
+                { text: 'pareto_like', link: '/user_guide/random/pareto_like.md' },
+                { text: 'poisson', link: '/user_guide/random/poisson.md' },
+                { text: 'poisson_like', link: '/user_guide/random/poisson_like.md' },
+                { text: 'weibull', link: '/user_guide/random/weibull.md' },
+                { text: 'weibull_like', link: '/user_guide/random/weibull_like.md' },
+                { text: 'zipf', link: '/user_guide/random/zipf.md' },
+                { text: 'zipf_like', link: '/user_guide/random/zipf_like.md' },
+                { text: 'triangular', link: '/user_guide/random/triangular.md' },
+                { text: 'triangular_like', link: '/user_guide/random/triangular_like.md' },
+                { text: 'bernoulli', link: '/user_guide/random/bernoulli.md' },
+                { text: 'randint', link: '/user_guide/random/randint.md' },
+                { text: 'randint_like', link: '/user_guide/random/randint_like.md' },
+              ]
+            },
+            {
+              text: 'shape manipulate',
+              collapsible: true,
+              children: [
+                { text: 'squeeze', link: '/user_guide/shape_manipulate/squeeze.md' },
+                { text: 'unsqueeze', link: '/user_guide/shape_manipulate/unsqueeze.md' },
+                { text: 'reshape', link: '/user_guide/shape_manipulate/reshape.md' },
+                { text: 'transpose', link: '/user_guide/shape_manipulate/transpose.md' },
+                { text: 'permute', link: '/user_guide/shape_manipulate/permute.md' },
+                { text: 'permute_inv', link: '/user_guide/shape_manipulate/permute_inv.md' },
+                { text: 'expand', link: '/user_guide/shape_manipulate/expand.md' },
+                { text: 't', link: '/user_guide/shape_manipulate/t.md' },
+                { text: 'mt', link: '/user_guide/shape_manipulate/mt.md' },
+                { text: 'flip', link: '/user_guide/shape_manipulate/flip.md' },
+                { text: 'fliplr', link: '/user_guide/shape_manipulate/fliplr.md' },
+                { text: 'flipud', link: '/user_guide/shape_manipulate/flipud.md' },
+                { text: 'tile', link: '/user_guide/shape_manipulate/tile.md' },
+                { text: 'trim_zeros', link: '/user_guide/shape_manipulate/trim_zeros.md' },
+                { text: 'repeat', link: '/user_guide/shape_manipulate/repeat.md' },
+                { text: 'split', link: '/user_guide/shape_manipulate/split.md' },
+                { text: 'dsplit', link: '/user_guide/shape_manipulate/dsplit.md' },
+                { text: 'hsplit', link: '/user_guide/shape_manipulate/hsplit.md' },
+                { text: 'vsplit', link: '/user_guide/shape_manipulate/vsplit.md' },
+                { text: 'swap_axes', link: '/user_guide/shape_manipulate/swap_axes.md' },
+                { text: 'flatten', link: '/user_guide/shape_manipulate/flatten.md' },
+                { text: 'concat', link: '/user_guide/shape_manipulate/concat.md' },
+                { text: 'vstack', link: '/user_guide/shape_manipulate/vstack.md' },
+                { text: 'hstack', link: '/user_guide/shape_manipulate/hstack.md' },
+                { text: 'dstack', link: '/user_guide/shape_manipulate/dstack.md' },
+              ]
+            },
+            {
+              text: 'creation',
+              collapsible: true,
+              children: [
+                { text: 'empty', link: '/user_guide/creation/empty.md' },
+                { text: 'zeros', link: '/user_guide/creation/zeros.md' },
+                { text: 'ones', link: '/user_guide/creation/ones.md' },
+                { text: 'empty_like', link: '/user_guide/creation/empty_like.md' },
+                { text: 'zeros_like', link: '/user_guide/creation/zeros_like.md' },
+                { text: 'ones_like', link: '/user_guide/creation/ones_like.md' },
+                { text: 'full', link: '/user_guide/creation/full.md' },
+                { text: 'full_like', link: '/user_guide/creation/full_like.md' },
+                { text: 'arange', link: '/user_guide/creation/arange.md' },
+                { text: 'arange_step', link: '/user_guide/creation/arange_step.md' },
+                { text: 'eye', link: '/user_guide/creation/eye.md' },
+                { text: 'linspace', link: '/user_guide/creation/linspace.md' },
+                { text: 'logspace', link: '/user_guide/creation/logspace.md' },
+                { text: 'tril', link: '/user_guide/creation/tril.md' },
+                { text: 'triu', link: '/user_guide/creation/triu.md' },
+                { text: 'identity', link: '/user_guide/creation/identity.md' },
+              ]
+            },
+            {
+              text: 'windows',
+              collapsible: true,
+              children: [
+                { text: 'hamming_window', link: '/user_guide/windows/hamming_window.md' },
+                { text: 'hann_window', link: '/user_guide/windows/hann_window.md' },
+                { text: 'blackman_window', link: '/user_guide/windows/blackman_window.md' },
+              ]
+            },
+            {
+              text: 'iterator',
+              collapsible: true,
+              children: [
+                { text: 'par_iter', link: '/user_guide/iterator/par_iter.md' },
+                { text: 'par_iter_mut', link: '/user_guide/iterator/par_iter_mut.md' },
+                { text: 'par_iter_simd', link: '/user_guide/iterator/par_iter_simd.md' },
+                { text: 'par_iter_simd_mut', link: '/user_guide/iterator/par_iter_simd_mut.md' },
+                { text: 'strided_map', link: '/user_guide/iterator/strided_map.md' },
+                { text: 'strided_map_simd', link: '/user_guide/iterator/strided_map_simd.md' },
+                { text: 'for_each', link: '/user_guide/iterator/for_each.md' },
+                { text: 'collect', link: '/user_guide/iterator/collect.md' },
+              ]
+            },
+            {
+              text: 'custom type',
+              collapsible: true,
+              children: [
+              ]
+            },
+            {
+              text: 'slice',
+              link: '/user_guide/slice/slice.md'
+            }
           ]
         }
       ],
       '/dev_guide/': [
         {
-          text: '开发指南',
+          text: 'dev guide',
           children: [
             '/dev_guide/getting_started.md',
             '/dev_guide/contribution.md',

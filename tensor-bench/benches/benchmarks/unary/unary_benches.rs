@@ -5,7 +5,7 @@ use tch::{ Tensor as TchTensor, Kind, Device };
 use tensor_dyn::{ Tensor, Random };
 use tensor_dyn::TensorInfo;
 use crate::benchmarks::unary::float_cmp::assert_eq;
-use tensor_dyn::FloatUaryOps;
+use tensor_dyn::FloatUnaryOps;
 use tensor_dyn::NormalUaryOps;
 use tensor_dyn::TensorLike;
 

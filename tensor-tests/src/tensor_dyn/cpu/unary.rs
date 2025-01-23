@@ -2,7 +2,7 @@
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use tensor_common::slice;
 use tensor_common::slice::Slice;
-use tensor_dyn::FloatUaryOps;
+use tensor_dyn::FloatUnaryOps;
 use tensor_dyn::NormalUaryOps;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorInfo;

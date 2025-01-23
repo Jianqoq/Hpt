@@ -1,6 +1,9 @@
 # sin
 ```rust
-Tensor::<T>::sin_(x: &Tensor<T>, out: &Tensor<T> | Tensor<T>) -> Result<Tensor<T>, TensorError>
+Tensor::<T>::sin_(
+    x: &Tensor<T>, 
+    out: &Tensor<T> | Tensor<T>
+) -> Result<Tensor<T>, TensorError>
 ```
 Trigonometric sine with out
 ## Parameters:
@@ -9,7 +12,7 @@ Trigonometric sine with out
 Tensor with type `T`
 ## Examples:
 ```rust
-use tensor_dyn::{FloatUaryOps, Tensor, TensorError};
+use tensor_dyn::{FloatUnaryOps, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new([10.0]);
