@@ -1,0 +1,1 @@
+const e=JSON.parse('{"key":"v-88d42d36","path":"/user_guide/unary/acos.html","title":"","lang":"zh-CN","frontmatter":{},"headers":[],"git":{"updatedTime":1737633229000,"contributors":[{"name":"Jianqoq","email":"120760306+Jianqoq@users.noreply.github.com","commits":1}]},"filePathRelative":"user_guide/unary/acos.md"}');export{e as data};

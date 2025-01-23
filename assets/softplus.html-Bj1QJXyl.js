@@ -1,0 +1,1 @@
+const e=JSON.parse('{"key":"v-9e33f832","path":"/user_guide/unary/softplus.html","title":"","lang":"zh-CN","frontmatter":{},"headers":[],"git":{"updatedTime":1737633229000,"contributors":[{"name":"Jianqoq","email":"120760306+Jianqoq@users.noreply.github.com","commits":1}]},"filePathRelative":"user_guide/unary/softplus.md"}');export{e as data};
