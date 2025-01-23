@@ -10,11 +10,30 @@ export default defineUserConfig({
   description: '这是项目文档',
 
   theme: defaultTheme({
+    // 导航栏配置
     navbar: [
       {
         text: '首页',
         link: '/',
       },
+      {
+        text: '指南',
+        link: '/guide/',
+      },
+      {
+        text: 'GitHub',
+        link: 'https://github.com/Jianqoq/eTensor',
+      },
     ],
+    
+    // 侧边栏配置
+    sidebar: {
+      '/guide/': [
+        {
+          text: '指南',
+          children: ['/guide/README.md'],
+        },
+      ],
+    },
   }),
 })
