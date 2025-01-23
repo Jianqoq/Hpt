@@ -1,5 +1,7 @@
 import { defineUserConfig } from '@vuepress/cli'
 import { defaultTheme } from '@vuepress/theme-default'
+import { viteBundler } from '@vuepress/bundler-vite'
+import { markdownMathPlugin } from '@vuepress/plugin-markdown-math'
 
 export default defineUserConfig({
   base: process.env.NODE_ENV === 'development'
@@ -7,7 +9,13 @@ export default defineUserConfig({
     : '/eTensor/',
   lang: 'zh-CN',
   title: 'Hpt',
+  plugins: [
+    markdownMathPlugin({
+      type: 'katex'
+    }),
+  ],
 
+  bundler: viteBundler(),
   theme: defaultTheme({
     home: false,
     navbar: [
@@ -20,7 +28,6 @@ export default defineUserConfig({
         link: 'https://github.com/Jianqoq/eTensor',
       },
     ],
-
     sidebar: {
       '/user_guide/': [
         {

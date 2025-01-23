@@ -1,0 +1,23 @@
+# atanh_
+```rust
+Tensor::<T>::atanh_(
+    x: &Tensor<T>, 
+    out: &Tensor<T> | Tensor<T>
+) -> Result<Tensor<T>, TensorError>
+```
+Inverse hyperbolic tangent with out
+## Parameters:
+`x`: Angle(radians)
+## Returns:
+Tensor with type `T`
+## Examples:
+```rust
+use tensor_dyn::{FloatUnaryOps, Tensor, TensorError};
+
+fn main() -> Result<(), TensorError> {
+    let a = Tensor::<f32>::new([10.0]);
+    let b = a.atanh_(&a)?;
+    println!("{}", b);
+    Ok(())
+}
+```
