@@ -1,1 +1,0 @@
-const e=JSON.parse('{"key":"v-cde9b0a0","path":"/user_guide/reduce/max.html","title":"","lang":"zh-CN","frontmatter":{},"headers":[],"git":{"updatedTime":1737661992000,"contributors":[{"name":"Jianqoq","email":"120760306+Jianqoq@users.noreply.github.com","commits":1}]},"filePathRelative":"user_guide/reduce/max.md"}');export{e as data};

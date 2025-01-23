@@ -1,1 +1,0 @@
-const e=JSON.parse('{"key":"v-5da2ac4e","path":"/user_guide/reduce/mean.html","title":"","lang":"zh-CN","frontmatter":{},"headers":[],"git":{"updatedTime":1737661992000,"contributors":[{"name":"Jianqoq","email":"120760306+Jianqoq@users.noreply.github.com","commits":1}]},"filePathRelative":"user_guide/reduce/mean.md"}');export{e as data};
