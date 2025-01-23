@@ -1,1 +1,0 @@
-const e=JSON.parse('{"key":"v-f8feffec","path":"/user_guide/unary/cosh.html","title":"","lang":"zh-CN","frontmatter":{},"headers":[],"git":{"updatedTime":1737632067000,"contributors":[{"name":"Jianqoq","email":"120760306+Jianqoq@users.noreply.github.com","commits":1}]},"filePathRelative":"user_guide/unary/cosh.md"}');export{e as data};

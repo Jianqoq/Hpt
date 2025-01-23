@@ -1,0 +1,1 @@
+const e=JSON.parse('{"key":"v-52b2db6f","path":"/user_guide/unary/tanh_.html","title":"","lang":"zh-CN","frontmatter":{},"headers":[],"git":{"updatedTime":1737632589000,"contributors":[{"name":"Jianqoq","email":"120760306+Jianqoq@users.noreply.github.com","commits":1}]},"filePathRelative":"user_guide/unary/tanh_.md"}');export{e as data};
