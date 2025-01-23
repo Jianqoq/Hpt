@@ -25,15 +25,31 @@ export default defineUserConfig({
         link: 'https://github.com/Jianqoq/eTensor',
       },
     ],
-    
-    // 侧边栏配置
+
     sidebar: {
       '/guide/': [
         {
           text: '指南',
-          children: ['/guide/README.md'],
+          children: [
+            '/guide/README.md',
+          ],
         },
       ],
     },
+
+    // 启用编辑链接
+    editLink: true,
+    editLinkText: '在 GitHub 上编辑此页',
+    docsRepo: 'Jianqoq/eTensor',
+    docsBranch: 'main',
+    docsDir: 'docs',
+
+    // 显示最后更新时间
+    lastUpdated: true,
+    lastUpdatedText: '最后更新',
+
+    // 显示贡献者
+    contributors: true,
+    contributorsText: '贡献者',
   }),
 })
