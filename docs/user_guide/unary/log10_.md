@@ -1,6 +1,6 @@
 # log10_
 ```rust
-Tensor::<T>::log10_(x: &Tensor<T>, out: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+log10_(x: &Tensor<T>, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \log_{10}(x)$ for all elements with out
 
@@ -9,7 +9,7 @@ Compute $\large \log_{10}(x)$ for all elements with out
 `out`: Tensor to write to
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

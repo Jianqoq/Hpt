@@ -1,12 +1,12 @@
 # tan
 ```rust
-Tensor::<T>::tan(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+tan(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Trigonometric tangent
 ## Parameters:
 `x`: Angle(radians)
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 ## Examples:
 ```rust
 use tensor_dyn::{FloatUnaryOps, Tensor, TensorError};

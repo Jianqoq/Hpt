@@ -1,6 +1,6 @@
 # log10
 ```rust
-Tensor::<T>::log10(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+log10(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \log_{10}(x)$ for all elements
 
@@ -8,7 +8,7 @@ Compute $\large \log_{10}(x)$ for all elements
 `x`: Input values
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

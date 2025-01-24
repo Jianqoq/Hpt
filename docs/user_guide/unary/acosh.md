@@ -1,12 +1,12 @@
 # acosh
 ```rust
-Tensor::<T>::acosh(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+acosh(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Inverse hyperbolic cosine
 ## Parameters:
 `x`: Angle(radians)
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 ## Examples:
 ```rust
 use tensor_dyn::{FloatUnaryOps, Tensor, TensorError};

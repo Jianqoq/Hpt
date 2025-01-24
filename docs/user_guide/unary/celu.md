@@ -1,6 +1,6 @@
 # celu
 ```rust
-Tensor::<T>::celu(x: &Tensor<T>, alpha: T) -> Result<Tensor<T>, TensorError>
+celu(x: &Tensor<T>, alpha: C) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \text{max}(0, x) + \text{min}(0, \alpha \cdot (e^{x/\alpha} - 1))$ for all elements
 
@@ -10,7 +10,7 @@ Compute $\large \text{max}(0, x) + \text{min}(0, \alpha \cdot (e^{x/\alpha} - 1)
 `alpha`: Parameter controlling the saturation of negative values
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

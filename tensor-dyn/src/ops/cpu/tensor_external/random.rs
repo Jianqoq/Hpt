@@ -39,8 +39,8 @@ impl<T, const DEVICE: usize> Random
         Ok(_Tensor::rand(shape, low, high)?.into())
     }
 
-    fn rand_like(&self) -> Result<Self, TensorError> {
-        Ok(_Tensor::rand_like(self.inner.as_ref())?.into())
+    fn rand_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self, TensorError> {
+        Ok(_Tensor::rand_like(self.inner.as_ref(), low, high)?.into())
     }
 
     fn beta<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self, TensorError> {
@@ -210,9 +210,9 @@ where
         })
     }
 
-    fn rand_like(&self) -> Result<Self, TensorError> {
+    fn rand_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self, TensorError> {
         Ok(DiffTensor {
-            inner: self.inner.rand_like()?,
+            inner: self.inner.rand_like(low, high)?,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
             backward: Rc::new(RefCell::new(move |_| Ok(true))),

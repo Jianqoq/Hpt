@@ -1,6 +1,6 @@
 # sqrt
 ```rust
-Tensor::<T>::sqrt(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+sqrt(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\sqrt{x}$ for all elements
 
@@ -8,7 +8,7 @@ Compute $\sqrt{x}$ for all elements
 `x`: Input values
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

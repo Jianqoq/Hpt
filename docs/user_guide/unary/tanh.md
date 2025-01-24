@@ -1,12 +1,12 @@
 # tanh
 ```rust
-Tensor::<T>::tanh(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+tanh(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Hyperbolic tangent
 ## Parameters:
 `x`: Angle(radians)
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 ## Examples:
 ```rust
 use tensor_dyn::{FloatUnaryOps, Tensor, TensorError};

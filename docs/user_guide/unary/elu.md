@@ -1,6 +1,6 @@
 # elu
 ```rust
-Tensor::<T>::elu(x: &Tensor<T>, alpha: T) -> Result<Tensor<T>, TensorError>
+elu(x: &Tensor<T>, alpha: C) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large x$ for $x > 0$, $\large \alpha(e^x - 1)$ for $x \leq 0$ for all elements
 
@@ -9,7 +9,7 @@ Compute $\large x$ for $x > 0$, $\large \alpha(e^x - 1)$ for $x \leq 0$ for all 
 `alpha`: Parameter controlling the saturation of negative values
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

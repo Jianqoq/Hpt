@@ -1,12 +1,12 @@
 # exp
 ```rust
-Tensor::<T>::exp(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+exp(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Compute exponential of `x` for all elements
 ## Parameters:
 `x`: Input values
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 ## Examples:
 ```rust
 use tensor_dyn::{FloatUnaryOps, Tensor, TensorError};

@@ -1,6 +1,6 @@
 # erf_
 ```rust
-Tensor::<T>::erf_(x: &Tensor<T>, out: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+erf_(x: &Tensor<T>, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \text{erf}(x) = \frac{2}{\sqrt{\pi}} \int_0^x e^{-t^2} dt$ for all elements with out
 
@@ -9,7 +9,7 @@ Compute $\large \text{erf}(x) = \frac{2}{\sqrt{\pi}} \int_0^x e^{-t^2} dt$ for a
 `out`: Tensor to write to
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

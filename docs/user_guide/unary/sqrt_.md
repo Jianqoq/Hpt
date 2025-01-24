@@ -1,6 +1,6 @@
 # sqrt_
 ```rust
-Tensor::<T>::sqrt_(x: &Tensor<T>, out: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+sqrt_(x: &Tensor<T>, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \sqrt{x}$ for all elements with out
 
@@ -9,7 +9,7 @@ Compute $\large \sqrt{x}$ for all elements with out
 `out`: Tensor to write to
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

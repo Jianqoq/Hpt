@@ -1,12 +1,12 @@
 # acos
 ```rust
-Tensor::<T>::acos(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+acos(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Inverse cosine
 ## Parameters:
 `x`: Angle(radians)
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 ## Examples:
 ```rust
 use tensor_dyn::{FloatUnaryOps, Tensor, TensorError};

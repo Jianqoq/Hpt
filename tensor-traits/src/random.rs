@@ -26,7 +26,7 @@ pub trait Random where Self: Sized {
 
     /// Generates a random number array with a uniform distribution between [0, 1),
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn rand_like(&self) -> Result<Self, TensorError>;
+    fn rand_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self, TensorError>;
 
     /// Generates a random number array following the Beta distribution.
     ///

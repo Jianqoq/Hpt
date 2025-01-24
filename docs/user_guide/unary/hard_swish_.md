@@ -1,6 +1,6 @@
 # hard_swish_
 ```rust
-Tensor::<T>::hard_swish_(x: &Tensor<T>, out: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+hard_swish_(x: &Tensor<T>, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large x \cdot \text{min}(\text{max}(0, \frac{x}{6} + 0.5), 1)$ for all elements with out. A piece-wise linear approximation of the swish function.
 
@@ -9,7 +9,7 @@ Compute $\large x \cdot \text{min}(\text{max}(0, \frac{x}{6} + 0.5), 1)$ for all
 `out`: Tensor to write to
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

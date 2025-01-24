@@ -1,6 +1,6 @@
 # hard_sigmoid
 ```rust
-Tensor::<T>::hard_sigmoid(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+hard_sigmoid(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \text{max}(0, \text{min}(1, \frac{x}{6} + 0.5))$ for all elements. A piece-wise linear approximation of the sigmoid function.
 
@@ -8,7 +8,7 @@ Compute $\large \text{max}(0, \text{min}(1, \frac{x}{6} + 0.5))$ for all element
 `x`: Input values
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

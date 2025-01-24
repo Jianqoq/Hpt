@@ -1,6 +1,6 @@
 # erf
 ```rust
-Tensor::<T>::erf(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+erf(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \text{erf}(x) = \frac{2}{\sqrt{\pi}} \int_0^x e^{-t^2} dt$ for all elements
 
@@ -8,7 +8,7 @@ Compute $\large \text{erf}(x) = \frac{2}{\sqrt{\pi}} \int_0^x e^{-t^2} dt$ for a
 `x`: Input values
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

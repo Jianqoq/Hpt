@@ -1,6 +1,6 @@
 # gelu
 ```rust
-Tensor::<T>::gelu(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+gelu(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large x \cdot \Phi(x)$ where $\Phi(x)$ is the cumulative distribution function of the standard normal distribution for all elements
 
@@ -8,7 +8,7 @@ Compute $\large x \cdot \Phi(x)$ where $\Phi(x)$ is the cumulative distribution 
 `x`: Input values
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

@@ -1,12 +1,12 @@
 # sinh
 ```rust
-Tensor::<T>::sinh(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+sinh(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Hyperbolic sine
 ## Parameters:
 `x`: Angle(radians)
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 ## Examples:
 ```rust
 use tensor_dyn::{FloatUnaryOps, Tensor, TensorError};

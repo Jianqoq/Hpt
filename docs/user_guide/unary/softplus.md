@@ -1,6 +1,6 @@
 # softplus
 ```rust
-Tensor::<T>::softplus(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+softplus(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\ln(1 + e^x)$ for all elements
 
@@ -8,7 +8,7 @@ Compute $\ln(1 + e^x)$ for all elements
 `x`: Input values
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

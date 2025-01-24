@@ -1,12 +1,12 @@
 # asin
 ```rust
-Tensor::<T>::asin(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+asin(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Inverse sine
 ## Parameters:
 `x`: Angle(radians)
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 ## Examples:
 ```rust
 use tensor_dyn::{FloatUnaryOps, Tensor, TensorError};

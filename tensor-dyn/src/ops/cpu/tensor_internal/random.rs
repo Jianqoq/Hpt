@@ -69,8 +69,8 @@ impl<T, const DEVICE: usize> Random
         Ok(ret)
     }
 
-    fn rand_like(&self) -> Result<Self, TensorError> {
-        _Tensor::randn(self.shape().clone())
+    fn rand_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self, TensorError> {
+        _Tensor::rand(self.shape().clone(), low, high)
     }
 
     fn beta<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self, TensorError> {

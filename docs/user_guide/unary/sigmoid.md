@@ -1,6 +1,6 @@
 # sigmoid
 ```rust
-Tensor::<T>::sigmoid(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+sigmoid(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \frac{1}{1 + e^{-x}}$ for all elements
 
@@ -8,7 +8,7 @@ Compute $\large \frac{1}{1 + e^{-x}}$ for all elements
 `x`: Input values
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

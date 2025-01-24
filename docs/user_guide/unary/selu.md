@@ -1,10 +1,10 @@
 # selu
 ```rust
-Tensor::<T>::selu(
+selu(
     x: &Tensor<T>, 
-    alpha: T | None, 
-    gamma: T | None
-) -> Result<Tensor<T>, TensorError>
+    alpha: C | None, 
+    gamma: C | None
+) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \lambda * (\alpha * (e^x - 1))$ for $x < 0$, $\large \lambda * x$ for $x \geq 0$ for all elements
 
@@ -16,7 +16,7 @@ Compute $\large \lambda * (\alpha * (e^x - 1))$ for $x < 0$, $\large \lambda * x
 `gamma`: Scale for both positive and negative parts, default is `1.0507009873554804934193349852946`
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

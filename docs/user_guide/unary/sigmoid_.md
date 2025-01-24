@@ -1,6 +1,6 @@
 # sigmoid_
 ```rust
-Tensor::<T>::sigmoid_(x: &Tensor<T>, out: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+sigmoid_(x: &Tensor<T>, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \frac{1}{1 + e^{-x}}$ for all elements with out
 

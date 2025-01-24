@@ -1,6 +1,6 @@
 # mish
 ```rust
-Tensor::<T>::mish(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+mish(x: &Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large x * \tanh(\ln(1 + e^x))$ for all elements
 
@@ -8,7 +8,7 @@ Compute $\large x * \tanh(\ln(1 + e^x))$ for all elements
 `x`: Input values
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

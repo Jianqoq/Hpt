@@ -1,6 +1,6 @@
 # cbrt
 ```rust
-Tensor::<T>::cbrt(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+cbrt(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \sqrt[3]{x}$ for all elements
 
@@ -8,7 +8,7 @@ Compute $\large \sqrt[3]{x}$ for all elements
 `x`: Input values
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

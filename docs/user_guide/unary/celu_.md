@@ -1,6 +1,6 @@
 # celu_
 ```rust
-Tensor::<T>::celu_(x: &Tensor<T>, alpha: T, out: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+celu_(x: &Tensor<T>, alpha: C, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \text{max}(0, x) + \text{min}(0, \alpha \cdot (e^{x/\alpha} - 1))$ for all elements with out
 
@@ -10,7 +10,7 @@ Compute $\large \text{max}(0, x) + \text{min}(0, \alpha \cdot (e^{x/\alpha} - 1)
 `out`: Tensor to write to
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

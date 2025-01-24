@@ -1,6 +1,6 @@
 # softsign
 ```rust
-Tensor::<T>::softsign(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+softsign(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \frac{x}{1 + |x|}$ for all elements
 
@@ -8,7 +8,7 @@ Compute $\large \frac{x}{1 + |x|}$ for all elements
 `x`: Input values
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust

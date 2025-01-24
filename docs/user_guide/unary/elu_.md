@@ -1,6 +1,6 @@
 # elu_
 ```rust
-Tensor::<T>::elu_(x: &Tensor<T>, alpha: T, out: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+elu_(x: &Tensor<T>, alpha: C, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large x$ for $x > 0$, $\large \alpha(e^x - 1)$ for $x \leq 0$ for all elements with out
 
@@ -10,7 +10,7 @@ Compute $\large x$ for $x > 0$, $\large \alpha(e^x - 1)$ for $x \leq 0$ for all 
 `out`: Tensor to write to
 
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 
 ## Examples:
 ```rust
