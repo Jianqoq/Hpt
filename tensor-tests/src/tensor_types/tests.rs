@@ -2361,15 +2361,6 @@ fn test_complex_hard_sigmoid() {
     cplx64.__hard_sigmoid();
 }
 
-#[should_panic(expected = "fast hard sigmoid is not supported for complex numbers")]
-#[test]
-fn test_complex_fast_hard_sigmoid() {
-    let cplx32 = Complex32::new(1.0, 1.0);
-    let cplx64 = Complex64::new(1.0, 1.0);
-    cplx32.__fast_hard_sigmoid();
-    cplx64.__fast_hard_sigmoid();
-}
-
 #[should_panic(expected = "hard swish is not supported for complex numbers")]
 #[test]
 fn test_complex_hard_swish() {

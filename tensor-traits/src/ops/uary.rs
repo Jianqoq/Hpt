@@ -573,25 +573,6 @@ pub trait FloatUnaryOps {
     /// * This function should not panic under normal conditions.
     fn erf(&self) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Computes the element-wise fast hard sigmoid activation function.
-    ///
-    /// This function applies an approximation of the sigmoid function for efficiency, defined as:
-    ///
-    /// `fast_hard_sigmoid(x) = max(0, min(1, 0.2 * x + 0.5))`
-    ///
-    /// # Arguments
-    ///
-    /// This function takes no arguments.
-    ///
-    /// # Returns
-    ///
-    /// * A new tensor where the fast hard sigmoid function has been applied to each element.
-    ///
-    /// # Panics
-    ///
-    /// * This function should not panic under normal conditions.
-    fn fast_hard_sigmoid(&self) -> std::result::Result<Self::Output, TensorError>;
-
     /// Computes the element-wise Gaussian Error Linear Unit (GELU) activation function.
     ///
     /// The GELU activation is defined as:

@@ -1,15 +1,16 @@
 # acos
 ```rust
-Tensor::<T>::acos_(
+acos_(
     x: &Tensor<T>, 
-    out: &Tensor<T> | Tensor<T>
-) -> Result<Tensor<T>, TensorError>
+    out: &Tensor<C> | Tensor<C>
+) -> Result<Tensor<C>, TensorError>
 ```
 Inverse cosine with out
 ## Parameters:
 `x`: Angle(radians)
+`out`: Tensor to write to
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 ## Examples:
 ```rust
 use tensor_dyn::{FloatUnaryOps, Tensor, TensorError};

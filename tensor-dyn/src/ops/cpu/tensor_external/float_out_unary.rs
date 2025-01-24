@@ -282,10 +282,6 @@ where
         Ok(_Tensor::<T, Cpu>::erf(self.inner.as_ref())?.into())
     }
 
-    fn fast_hard_sigmoid(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu>::fast_hard_sigmoid(self.inner.as_ref())?.into())
-    }
-
     fn gelu(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu>::gelu(self.inner.as_ref())?.into())
     }

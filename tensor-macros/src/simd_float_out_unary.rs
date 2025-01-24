@@ -156,10 +156,6 @@ pub fn impl_float_out_unary() -> TokenStream {
                     fn _hard_sigmoid(self) -> Self::Output {
                         SimdMath::hard_sigmoid(self)
                     }
-                    #[inline(always)]
-                    fn _fast_hard_sigmoid(self) -> Self::Output {
-                        SimdMath::fast_hard_sigmoid(self)
-                    }
                 }
             };
             ret.extend(res);
@@ -290,10 +286,6 @@ pub fn impl_float_out_unary() -> TokenStream {
                     #[inline(always)]
                     fn _hard_sigmoid(self) -> Self::Output {
                         SimdMath::hard_sigmoid(self.into_vec())
-                    }
-                    #[inline(always)]
-                    fn _fast_hard_sigmoid(self) -> Self::Output {
-                        SimdMath::fast_hard_sigmoid(self.into_vec())
                     }
                 }
 

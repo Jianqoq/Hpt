@@ -294,8 +294,8 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
             let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
 
             /*traverse the whole result shape and increment the input data ptr based on current thread id*/
-            for i in (0..=res_shape.len() - 1).rev() {
-                a_data_ptr_cpy.offset(progress_init_a_data[i] * strides[i]);
+            for i in (0..=res_shape.len() as i64 - 1).rev() {
+                a_data_ptr_cpy.offset(progress_init_a_data[i as usize] * strides[i as usize]);
             }
             // calculate the total task amount so far based on current thread id,
             // we are splitting the whole tensor into two axes
@@ -311,9 +311,9 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
 
             // since the axis we want to reduce include the most inner axis, we will skip the iteration of the last axis
             // so we use (0..=a_shape.len() - 2).rev()
-            for i in (0..=a_shape.len() - 2).rev() {
-                prg[i] = tmp1 % transposed_shape[i];
-                tmp1 /= transposed_shape[i];
+            for i in (0..=a_shape.len() as i64 - 2).rev() {
+                prg[i as usize] = tmp1 % transposed_shape[i as usize];
+                tmp1 /= transposed_shape[i as usize];
             }
 
             // increment the res ptr based on the current thread task amount for next thread (next iteration)
@@ -322,9 +322,9 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
             res_ptrs.add(intervals[id].1 - intervals[id].0);
 
             let mut tmp2 = task_amout as i64;
-            for j in (0..=res_shape.len() - 1).rev() {
-                progress_init_a_data[j] = tmp2 % res_shape[j];
-                tmp2 /= res_shape[j];
+            for j in (0..=res_shape.len() as i64 - 1).rev() {
+                progress_init_a_data[j as usize] = tmp2 % res_shape[j as usize];
+                tmp2 /= res_shape[j as usize];
             }
             iterators.push(ReductionPreprocessor {
                 ptrs: a_data_ptr_cpy.clone(),

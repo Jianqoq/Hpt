@@ -272,10 +272,6 @@ impl FloatOutUnary2 for half::f16 {
         self.to_f32().__hard_sigmoid().to_f16()
     }
     #[inline(always)]
-    fn __fast_hard_sigmoid(self) -> Self {
-        self.to_f32().__fast_hard_sigmoid().to_f16()
-    }
-    #[inline(always)]
     fn __hard_swish(self) -> Self {
         self.to_f32().__hard_swish().to_f16()
     }

@@ -1,13 +1,14 @@
 # exp_
 ```rust
-Tensor::<T>::exp_(
+exp_(
     x: &Tensor<T>, 
-    out: &Tensor<T> | Tensor<T>
-) -> Result<Tensor<T>, TensorError>
+    out: &Tensor<C> | Tensor<C>
+) -> Result<Tensor<C>, TensorError>
 ```
 Compute exponential of `x` for all elements with out
 ## Parameters:
 `x`: Input values
+`out`: Tensor to write to
 ## Returns:
 Tensor with type `T`
 ## Examples:

@@ -111,9 +111,6 @@ pub fn impl_float_out_unary() -> TokenStream {
                     fn _hard_sigmoid(self) -> Self::Output {
                         self.__hard_sigmoid()
                     }
-                    fn _fast_hard_sigmoid(self) -> Self::Output {
-                        self.__fast_hard_sigmoid()
-                    }
                     fn _hard_swish(self) -> Self::Output {
                         self.__hard_swish()
                     }
@@ -242,10 +239,6 @@ pub fn impl_float_out_unary() -> TokenStream {
                     fn _hard_sigmoid(self) -> Self::Output {
                         let lhs: Self::Output = self.into_scalar();
                         lhs.__hard_sigmoid()
-                    }
-                    fn _fast_hard_sigmoid(self) -> Self::Output {
-                        let lhs: Self::Output = self.into_scalar();
-                        lhs.__fast_hard_sigmoid()
                     }
                     fn _hard_swish(self) -> Self::Output {
                         let lhs: Self::Output = self.into_scalar();

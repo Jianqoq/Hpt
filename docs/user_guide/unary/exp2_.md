@@ -1,15 +1,16 @@
 # exp2_
 ```rust
-Tensor::<T>::exp2_(
+exp2_(
     x: &Tensor<T>, 
-    out: &Tensor<T> | Tensor<T>
-) -> Result<Tensor<T>, TensorError>
+    out: &Tensor<C> | Tensor<C>
+) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large 2^x$ for all elements with out
 ## Parameters:
 `x`: Input values
+`out`: Tensor to write to
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 ## Examples:
 ```rust
 use tensor_dyn::{FloatUnaryOps, Tensor, TensorError};

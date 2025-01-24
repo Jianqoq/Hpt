@@ -1,12 +1,12 @@
 # cos
 ```rust
-Tensor::<T>::cos(x: &Tensor<T>) -> Result<Tensor<T>, TensorError>
+cos(x: &Tensor<T>) -> Result<Tensor<C>, TensorError>
 ```
 Trigonometric cosine
 ## Parameters:
 `x`: Angle(radians)
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 ## Examples:
 ```rust
 use tensor_dyn::{FloatUnaryOps, Tensor, TensorError};

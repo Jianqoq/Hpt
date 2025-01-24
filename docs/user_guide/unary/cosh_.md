@@ -1,15 +1,15 @@
 # cosh_
 ```rust
-Tensor::<T>::cosh_(
+cosh_(
     x: &Tensor<T>, 
-    out: &Tensor<T> | Tensor<T>
-) -> Result<Tensor<T>, TensorError>
+    out: &Tensor<C> | Tensor<C>
+) -> Result<Tensor<C>, TensorError>
 ```
 Hyperbolic cosine with out
 ## Parameters:
 `x`: Angle(radians)
 ## Returns:
-Tensor with type `T`
+Tensor with type `C`
 ## Examples:
 ```rust
 use tensor_dyn::{FloatUnaryOps, Tensor, TensorError};

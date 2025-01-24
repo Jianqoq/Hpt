@@ -174,11 +174,11 @@ test_unarys!(
     dropout(0.5)
 );
 test_unarys!(
-    fast_hard_sigmoid,
+    hard_sigmoid,
     [1000],
     assert_eq,
     hardsigmoid(),
-    fast_hard_sigmoid()
+    hard_sigmoid()
 );
 test_unarys!(hard_swish, [1000], assert_eq, hardswish(), hard_swish());
 test_unarys_out!(

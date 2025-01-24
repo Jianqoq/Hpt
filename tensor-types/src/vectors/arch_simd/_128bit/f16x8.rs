@@ -626,14 +626,6 @@ impl SimdMath<half::f16> for f16x8 {
     }
 
     #[inline(always)]
-    fn fast_hard_sigmoid(self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let high_fast_hard_sigmoid = high.fast_hard_sigmoid();
-        let low_fast_hard_sigmoid = low.fast_hard_sigmoid();
-        Self::from_2_f32vec([high_fast_hard_sigmoid, low_fast_hard_sigmoid])
-    }
-
-    #[inline(always)]
     fn elu(self, alpha: Self) -> Self {
         let [high, low] = self.to_2_f32vec();
         let [high_alpha, low_alpha] = alpha.to_2_f32vec();

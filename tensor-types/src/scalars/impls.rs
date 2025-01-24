@@ -502,10 +502,6 @@ macro_rules! impl_complex {
                 panic!("hard sigmoid is not supported for complex numbers")
             }
 
-            fn __fast_hard_sigmoid(self) -> Self {
-                panic!("fast hard sigmoid is not supported for complex numbers")
-            }
-
             fn __hard_swish(self) -> Self {
                 panic!("hard swish is not supported for complex numbers")
             }
