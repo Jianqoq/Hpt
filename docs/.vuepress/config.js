@@ -243,6 +243,8 @@ export default defineUserConfig({
                 { text: 'eye', link: '/user_guide/creation/eye.md' },
                 { text: 'linspace', link: '/user_guide/creation/linspace.md' },
                 { text: 'logspace', link: '/user_guide/creation/logspace.md' },
+                { text: 'geomspace', link: '/user_guide/creation/geomspace.md' },
+                { text: 'tri', link: '/user_guide/creation/tri.md' },
                 { text: 'tril', link: '/user_guide/creation/tril.md' },
                 { text: 'triu', link: '/user_guide/creation/triu.md' },
                 { text: 'identity', link: '/user_guide/creation/identity.md' },

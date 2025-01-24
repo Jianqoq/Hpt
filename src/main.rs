@@ -1,39 +1,19 @@
-use tensor_dyn::{ShapeManipulate, Tensor, TensorError};
+use tensor_dyn::{Tensor, TensorError, TensorCreator};
 fn main() -> Result<(), TensorError> {
-    // With 3D tensors
-    let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2, 1])?;
-    // [[[1], [2]],
-    //  [[3], [4]]]
-    let b = Tensor::<f32>::new(&[5.0, 6.0, 7.0, 8.0]).reshape(&[2, 2, 1])?;
-    // [[[5], [6]],
-    //  [[7], [8]]]
+    // Create 4 points from 1 to 1000
+    let a = Tensor::<f32>::geomspace(1.0, 1000.0, 4, true)?;
+    println!("{}", a);
+    // [1.0, 10.0, 100.0, 1000.0]
 
-    let c = Tensor::dstack(vec![&a, &b])?;
-    // [[[1, 5], [2, 6]],
-    //  [[3, 7], [4, 8]]]
+    // Create 3 points from 1 to 100 (exclusive)
+    let b = Tensor::<f32>::geomspace(1.0, 100.0, 3, false)?;
+    println!("{}", b);
+    // [1.0, 4.6416, 21.5443]
+
+    // Create 5 points between 1 and 32
+    let c = Tensor::<f32>::geomspace(1.0, 32.0, 5, true)?;
     println!("{}", c);
-
-    // With 2D tensors (automatically adds depth dimension)
-    let d = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2])?;
-    // [[1, 2],
-    //  [3, 4]]
-    let e = Tensor::dstack(vec![&d, &d])?;
-    // [[[1, 1], [2, 2]],
-    //  [[3, 3], [4, 4]]]
-    println!("{}", e);
-
-    // With 1D tensors (promoted to [1, n, 1])
-    let f = Tensor::<f32>::new(&[1.0, 2.0]);
-    let g = Tensor::<f32>::new(&[3.0, 4.0]);
-    let h = Tensor::dstack(vec![&f, &g])?;
-    // [[[1, 3], [2, 4]]]
-    println!("{}", h);
-
-    // With scalars (promoted to [1, 1, 1])
-    let i = Tensor::<f32>::new(&[1.0]);
-    let j = Tensor::dstack(vec![&i, &i])?;
-    // [[[1, 1]]]
-    println!("{}", j);
+    // [1.0, 2.3784, 5.6569, 13.4543, 32.0000]
 
     Ok(())
 }

@@ -146,8 +146,6 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
     }
 
     fn eye(n: usize, m: usize, k: usize) -> Result<Self, TensorError>
-    where
-        u8: IntoScalar<T>,
     {
         let shape = vec![n as i64, m as i64];
         let mut res = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(shape))?;
