@@ -1,16 +1,16 @@
-# fliplr
+# flipud
 ```rust
-fliplr(
+flipud(
     x: &Tensor<T>
 ) -> Result<Tensor<T>, TensorError>
 ```
-Reverses the order of elements along axis 1 (columns) of the tensor. The tensor must be at least 2-dimensional.
+Reverses the order of elements along axis 0 (rows) of the tensor. The tensor must be at least 1-dimensional.
 
 ## Parameters:
-`x`: Input tensor with ndim >= 2
+`x`: Input tensor with ndim >= 1
 
 ## Returns:
-A new tensor with elements reversed along axis 1 (left/right flip).
+A new tensor with elements reversed along axis 0 (up/down flip).
 
 ## Examples:
 ```rust
@@ -21,15 +21,17 @@ fn main() -> Result<(), TensorError> {
     // [[1, 2, 3],
     //  [4, 5, 6]]
 
-    // Flip left/right
-    let b = a.fliplr()?;
-    // [[3, 2, 1],
-    //  [6, 5, 4]]
+    // Flip up/down
+    let b = a.flipud()?;
+    // [[4, 5, 6],
+    //  [1, 2, 3]]
     println!("{}", b);
 
-    // Will raise an error for 1D tensor
+    // Works with 1D tensor too
     let c = Tensor::<f32>::new(&[1.0, 2.0, 3.0]).reshape(&[3])?;
-    assert!(c.fliplr().is_err());
+    let d = c.flipud()?;
+    // [3, 2, 1]
+    println!("{}", d);
 
     Ok(())
 }

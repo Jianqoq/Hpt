@@ -152,6 +152,15 @@ pub enum ShapeError {
         /// Location where error occurred
         location: &'static Location<'static>,
     },
+
+    /// Error that occurs when the dimention to expand is not 1
+    #[error("Expand error: dimention {old_dim} is not 1, at {location}")]
+    ExpandError {
+        /// Old dimention
+        old_dim: i64,
+        /// Location where error occurred
+        location: &'static Location<'static>,
+    },
 }
 
 impl ShapeError {
