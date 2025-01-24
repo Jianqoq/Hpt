@@ -123,7 +123,7 @@ pub(crate) fn expand<
     shape: S,
 ) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
     let res_shape = Shape::from(shape.into());
-    let res_strides = a.layout.expand_strides(&res_shape);
+    let res_strides = a.layout.expand_strides(&res_shape)?;
     Ok(_Tensor {
         data: a.data.clone(),
         parent: a.parent.clone(),
@@ -176,8 +176,8 @@ pub(crate) fn flip<
     let mut new_strides = a.layout.strides().to_vec();
     let mut ptr = a.data.clone();
     for &i in axes.iter() {
+        ptr.offset(new_strides[i] * (a.layout.shape()[i] - 1));
         new_strides[i] = -new_strides[i];
-        ptr.offset(a.layout.strides()[i]);
     }
     if a.parent.is_none() {
         Ok(_Tensor {

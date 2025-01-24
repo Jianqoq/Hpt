@@ -109,7 +109,7 @@ pub(crate) fn par_transpose<AXIS: Into<Axis>, T: ParStridedHelper>(
 pub(crate) fn par_expand<S: Into<Shape>, T: ParStridedHelper>(mut iterator: T, shape: S) -> T {
     let res_shape = shape.into();
 
-    let new_strides = iterator._layout().expand_strides(&res_shape);
+    let new_strides = iterator._layout().expand_strides(&res_shape).expect("Cannot expand iterator");
 
     let outer_loop_size =
         (res_shape.iter().product::<i64>() as usize) / (res_shape[res_shape.len() - 1] as usize);
@@ -181,7 +181,7 @@ pub(crate) fn reshape<S: Into<Shape>, T: StridedHelper>(mut iterator: T, shape: 
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn expand<T: StridedHelper, S: Into<Shape>>(mut iterator: T, shape: S) -> T {
     let res_shape: Shape = shape.into();
-    let new_strides = iterator._layout().expand_strides(&res_shape);
+    let new_strides = iterator._layout().expand_strides(&res_shape).expect("Cannot expand iterator");
     iterator._set_shape(res_shape.clone());
     iterator._set_strides(new_strides);
     iterator

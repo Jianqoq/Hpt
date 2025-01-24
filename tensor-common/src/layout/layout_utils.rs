@@ -1,6 +1,14 @@
 use std::panic::Location;
 
-use crate::{axis::axis::{process_axes, Axis}, error::{base::TensorError, shape::ShapeError}, shape::{shape::Shape, shape_utils::{is_reshape_possible, predict_broadcast_shape}}, strides::{strides::Strides, strides_utils::shape_to_strides}};
+use crate::{
+    axis::axis::{process_axes, Axis},
+    error::{base::TensorError, shape::ShapeError},
+    shape::{
+        shape::Shape,
+        shape_utils::{is_reshape_possible, predict_broadcast_shape},
+    },
+    strides::{strides::Strides, strides_utils::shape_to_strides},
+};
 
 use super::layout::Layout;
 
@@ -65,23 +73,29 @@ impl Layout {
     ///
     /// # Returns
     ///
-    /// * `Strides` - the new strides after expanding
-    pub fn expand_strides(&self, expand_shape: &[i64]) -> Strides {
+    /// * `Result<Strides>` - the new strides after expanding
+    pub fn expand_strides(&self, expand_shape: &[i64]) -> Result<Strides, TensorError> {
         let mut res_strides = vec![0; expand_shape.len()];
-        expand_shape
+        for (((idx, new_dim), old_dim), old_stride) in expand_shape
             .iter()
             .enumerate()
             .rev()
             .zip(self.shape.iter().rev())
             .zip(self.strides.iter().rev())
-            .for_each(|(((idx, new_dim), old_dim), old_stride)| {
-                if new_dim != old_dim && old_dim == &1 {
-                    res_strides[idx] = 0;
-                } else {
-                    res_strides[idx] = *old_stride;
+        {
+            if new_dim != old_dim && old_dim == &1 {
+                res_strides[idx] = 0;
+            } else if new_dim != old_dim && old_dim != &1 {
+                return Err(ShapeError::ExpandError {
+                    old_dim: *old_dim,
+                    location: Location::caller(),
                 }
-            });
-        res_strides.into()
+                .into());
+            } else {
+                res_strides[idx] = *old_stride;
+            }
+        }
+        Ok(res_strides.into())
     }
 
     /// # Internal Function

@@ -326,9 +326,7 @@ where
     ///
     /// * This function will panic if `n` or `m` is zero, or if memory constraints are exceeded.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn eye(n: usize, m: usize, k: usize) -> Result<Self::Output, TensorError>
-    where
-        u8: IntoScalar<T>;
+    fn eye(n: usize, m: usize, k: usize) -> Result<Self::Output, TensorError>;
 
     /// Creates a tensor with evenly spaced values between `start` and `end`.
     ///

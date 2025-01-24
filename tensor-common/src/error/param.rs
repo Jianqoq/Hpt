@@ -13,6 +13,14 @@ pub enum ParamError {
         /// Location where error occurred
         location: &'static Location<'static>,
     },
+    /// Error that occurs when the axis is duplicated
+    #[error("Axis {axis} is duplicated at {location}")]
+    AxisDuplicated {
+        /// Duplicated axis
+        axis: i64,
+        /// Location where error occurred
+        location: &'static Location<'static>,
+    },
 }
 
 impl ParamError {

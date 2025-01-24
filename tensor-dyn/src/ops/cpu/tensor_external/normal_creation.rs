@@ -60,7 +60,6 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     }
 
     fn eye(n: usize, m: usize, k: usize) -> std::result::Result<Self::Output, TensorError>
-        where u8: IntoScalar<T>
     {
         Ok(_Tensor::<T, Cpu, DEVICE>::eye(n, m, k)?.into())
     }
@@ -252,7 +251,6 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
     }
 
     fn eye(n: usize, m: usize, k: usize) -> std::result::Result<Self::Output, TensorError>
-        where u8: IntoScalar<T>
     {
         let ret = Tensor::eye(n, m, k)?;
         Ok(DiffTensor {

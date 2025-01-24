@@ -1,4 +1,6 @@
-use crate::error::{base::TensorError, shape::ShapeError};
+use std::collections::HashSet;
+
+use crate::error::{base::TensorError, param::ParamError, shape::ShapeError};
 
 /// `Axis` struct to hold the axes for operations
 ///
@@ -40,7 +42,15 @@ pub fn process_axes<T: Into<Axis>>(
     let ndim = ndim as i64;
     let axes = axes.into().axes;
     let mut new_axes = Vec::with_capacity(axes.len());
+    let mut visited = HashSet::new();
     for &axis in axes.iter() {
+        if visited.contains(&axis) {
+            return Err(TensorError::Param(ParamError::AxisDuplicated {
+                axis,
+                location: std::panic::Location::caller(),
+            }));
+        }
+        visited.insert(axis);
         if axis < 0 {
             let val = axis + ndim;
             ShapeError::check_index_out_of_range(val, ndim)?;

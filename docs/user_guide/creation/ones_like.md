@@ -1,16 +1,16 @@
-# zeros_like
+# ones_like
 ```rust
-zeros_like(
+ones_like(
     x: &Tensor<T>
 ) -> Result<Tensor<T>, TensorError>
 ```
-Creates a new tensor filled with zeros with the same shape as the input tensor.
+Creates a new tensor filled with ones with the same shape as the input tensor.
 
 ## Parameters:
 `x`: The input tensor whose shape will be used.
 
 ## Returns:
-A new tensor of zeros with the same shape as the input tensor.
+A new tensor of ones with the same shape as the input tensor.
 
 ## Examples:
 ```rust
@@ -22,11 +22,11 @@ fn main() -> Result<(), TensorError> {
     // [[1, 2],
     //  [3, 4]]
 
-    // Create a tensor of zeros with same shape
-    let b = a.zeros_like()?;
+    // Create a tensor of ones with same shape
+    let b = a.ones_like()?;
     println!("b: {}", b);
-    // [[0, 0],
-    //  [0, 0]]
+    // [[1, 1],
+    //  [1, 1]]
 
     Ok(())
 }

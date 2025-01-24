@@ -1,14 +1,19 @@
-use tensor_dyn::{ShapeManipulate, Tensor, TensorCreator, TensorError, TensorInfo};
+use tensor_dyn::{Tensor, TensorError, TensorCreator};
 fn main() -> Result<(), TensorError> {
-    // Create a tensor with shape [1, 3, 1, 4]
-    let a = Tensor::<f32>::zeros(&[1, 3, 1, 4])?;
+    // Create 4 points from 1 to 1000
+    let a = Tensor::<f32>::geomspace(1.0, 1000.0, 4, true)?;
+    println!("{}", a);
+    // [1.0, 10.0, 100.0, 1000.0]
 
-    // Remove single-dimensional entry at axis 0
-    let b = a.squeeze(0)?; // shape becomes [3, 1, 4]
-    println!("{}", b.shape());
-    // Remove single-dimensional entry at axis 2
-    let c = a.squeeze(2)?; // shape becomes [1, 3, 4]
-    println!("{}", c.shape());
+    // Create 3 points from 1 to 100 (exclusive)
+    let b = Tensor::<f32>::geomspace(1.0, 100.0, 3, false)?;
+    println!("{}", b);
+    // [1.0, 4.6416, 21.5443]
+
+    // Create 5 points between 1 and 32
+    let c = Tensor::<f32>::geomspace(1.0, 32.0, 5, true)?;
+    println!("{}", c);
+    // [1.0, 2.3784, 5.6569, 13.4543, 32.0000]
 
     Ok(())
 }
