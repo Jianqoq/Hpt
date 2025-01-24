@@ -6,7 +6,7 @@ import { markdownMathPlugin } from '@vuepress/plugin-markdown-math'
 export default defineUserConfig({
   base: process.env.NODE_ENV === 'development'
     ? '/'
-    : '/eTensor/',
+    : '/Hpt/',
   lang: 'zh-CN',
   title: 'Hpt',
   plugins: [
@@ -25,7 +25,7 @@ export default defineUserConfig({
       },
       {
         text: 'GitHub',
-        link: 'https://github.com/Jianqoq/eTensor',
+        link: 'https://github.com/Jianqoq/Hpt',
       },
     ],
     sidebar: {
