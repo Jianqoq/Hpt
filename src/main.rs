@@ -1,14 +1,19 @@
 use tensor_dyn::{ShapeManipulate, Tensor, TensorCreator, TensorError, TensorInfo};
 fn main() -> Result<(), TensorError> {
-    // Create a tensor with shape [1, 3, 1, 4]
-    let a = Tensor::<f32>::zeros(&[1, 3, 1, 4])?;
+    // Create a tensor with shape [2, 3, 4]
+    let a = Tensor::<f32>::zeros(&[2, 3, 4])?;
 
-    // Remove single-dimensional entry at axis 0
-    let b = a.squeeze(0)?; // shape becomes [3, 1, 4]
+    // Permute dimensions to [4, 2, 3]
+    let b = a.permute(&[2, 0, 1])?;
     println!("{}", b.shape());
-    // Remove single-dimensional entry at axis 2
-    let c = a.squeeze(2)?; // shape becomes [1, 3, 4]
+
+    // Permute dimensions to [3, 4, 2]
+    let c = a.permute(&[1, 2, 0])?;
     println!("{}", c.shape());
+
+    // This will return an error as [1, 1, 0] is not a valid permutation
+    let d = a.permute(&[1, 1, 0]);
+    assert!(d.is_err());
 
     Ok(())
 }
