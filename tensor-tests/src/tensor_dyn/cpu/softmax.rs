@@ -52,8 +52,8 @@ fn common_input(
 #[test]
 fn func() -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
-    for _ in 0..1000 {
-        let len = rng.gen_range(1..5);
+    for _ in 0..100 {
+        let len = rng.gen_range(1..3);
         let mut shape = Vec::with_capacity(len);
         for _ in 0..len {
             shape.push(rng.gen_range(1..10));

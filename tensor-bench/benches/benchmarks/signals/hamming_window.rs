@@ -4,6 +4,7 @@ use tch::{ Tensor as TchTensor, Kind, Device };
 use tensor_dyn::Tensor;
 use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
+use tensor_dyn::WindowOps;
 
 fn assert_eq(a: &TchTensor, b: &Tensor<f64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };

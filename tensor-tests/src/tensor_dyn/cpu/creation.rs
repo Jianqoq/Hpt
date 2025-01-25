@@ -5,6 +5,7 @@ use tensor_common::slice::Slice;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
+use tensor_dyn::WindowOps;
 use tensor_dyn::{Tensor, TensorCreator};
 use tensor_macros::match_selection;
 
