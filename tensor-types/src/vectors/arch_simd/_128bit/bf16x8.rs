@@ -73,6 +73,7 @@ impl bf16x8 {
     pub fn to_2_f32vec(&self) -> [f32x4; 2] {
         #[cfg(target_arch = "x86_64")]
         unsafe {
+            use crate::simd::_128bit::i32x4::i32x4;
             let vec: u16x8 = std::mem::transmute(*self);
             let mask = (vec & u16x8::splat(0x7fffu16)).simd_gt(u16x8::splat(0x7f80u16));
             let mask_low = i32x4(_mm_unpacklo_epi16(mask.0, mask.0));
