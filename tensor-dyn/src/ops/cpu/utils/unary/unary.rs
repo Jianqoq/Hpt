@@ -16,16 +16,16 @@ use tensor_types::type_promote::{Eval, NormalOut};
 use tensor_types::vectors::traits::*;
 use threadpool::ThreadPool;
 
-pub(crate) fn unary_fn_with_out_simd<A, O, K, F, F2>(
-    inp: &_Tensor<A, Cpu>,
+pub(crate) fn unary_fn_with_out_simd<A, O, K, F, F2, const DEVICE: usize>(
+    inp: &_Tensor<A, Cpu, DEVICE>,
     f: F,
     f2: F2,
     out: Option<O>,
-) -> std::result::Result<_Tensor<K, Cpu>, TensorError>
+) -> std::result::Result<_Tensor<K, Cpu, DEVICE>, TensorError>
 where
     A: CommonBounds,
     K: CommonBounds,
-    O: Borrow<_Tensor<K, Cpu>>,
+    O: Borrow<_Tensor<K, Cpu, DEVICE>>,
     F: Fn(A::Vec) -> K::Vec + Sync + Send,
     F2: Fn(A) -> K + Sync + Send,
 {
@@ -33,7 +33,7 @@ where
         ShapeError::check_inplace_out_layout_valid(inp.shape(), &out.borrow().layout())?;
         out.borrow().static_cast()?
     } else {
-        _Tensor::<K, Cpu>::empty(inp.shape())?
+        _Tensor::<K, Cpu, DEVICE>::empty(inp.shape())?
     };
     let ret_size = ret.size();
     if inp.parent().is_some() {
