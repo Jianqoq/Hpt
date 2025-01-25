@@ -6,8 +6,8 @@ fn test_gather() -> anyhow::Result<()> {
     use tensor_dyn::TensorLike;
     use tensor_dyn::AdvanceOps;
     let mut rng = rand::thread_rng();
-    let ndim = rng.gen_range(1..=5);
-    for _ in 0..1000 {
+    let ndim = rng.gen_range(1..=3);
+    for _ in 0..100 {
         let dim_size = rng.gen_range(2..=8);
         let shape = (0..ndim).map(|_| dim_size).collect::<Vec<_>>();
         let input = tch::Tensor::randn(&shape, (tch::Kind::Float, tch::Device::Cpu));

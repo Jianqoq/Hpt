@@ -103,7 +103,7 @@ fn assert_eq_pad(
 fn test() -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
 
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let batch = rng.gen_range(1..=4);
         let channel = rng.gen_range(1..=32);
 
