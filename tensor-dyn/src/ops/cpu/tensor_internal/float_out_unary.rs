@@ -9,21 +9,22 @@ use tensor_types::{
     type_promote::{FloatOutBinary, FloatOutUnary},
 };
 
+use crate::Cpu;
 use crate::{ops::cpu::utils::unary::unary::unary_fn_with_out_simd, tensor_base::_Tensor};
 
 pub(crate) type FloatUnaryType<T> = <T as FloatOutUnary>::Output;
 pub(crate) type FloatBinaryType<T> = <T as FloatOutBinary>::Output;
 
-impl<T> FloatUnaryOps for _Tensor<T>
+impl<T, const DEVICE: usize> FloatUnaryOps for _Tensor<T, Cpu, DEVICE>
 where
     T: FloatOutUnary + CommonBounds,
     FloatUnaryType<T>: CommonBounds,
     f64: IntoScalar<<T as FloatOutUnary>::Output>,
     T::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,
 {
-    type Output = _Tensor<FloatUnaryType<T>>;
+    type Output = _Tensor<FloatUnaryType<T>, Cpu, DEVICE>;
 
-    type InplaceOutput = _Tensor<FloatUnaryType<T>>;
+    type InplaceOutput = _Tensor<FloatUnaryType<T>, Cpu, DEVICE>;
 
     type OutputMeta = FloatUnaryType<T>;
 
@@ -32,7 +33,7 @@ where
             self,
             |x| x._sin(),
             |x| x._sin(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -41,7 +42,7 @@ where
             self,
             |x| x._cos(),
             |x| x._cos(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -50,7 +51,7 @@ where
             self,
             |x| x._tan(),
             |x| x._tan(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -59,7 +60,7 @@ where
             self,
             |x| x._asin(),
             |x| x._asin(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -68,7 +69,7 @@ where
             self,
             |x| x._acos(),
             |x| x._acos(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -77,7 +78,7 @@ where
             self,
             |x| x._atan(),
             |x| x._atan(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -86,7 +87,7 @@ where
             self,
             |x| x._sinh(),
             |x| x._sinh(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -95,7 +96,7 @@ where
             self,
             |x| x._cosh(),
             |x| x._cosh(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -104,7 +105,7 @@ where
             self,
             |x| x._tanh(),
             |x| x._tanh(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -113,7 +114,7 @@ where
             self,
             |x| x._asinh(),
             |x| x._asinh(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -122,7 +123,7 @@ where
             self,
             |x| x._acosh(),
             |x| x._acosh(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -131,13 +132,13 @@ where
             self,
             |x| x._atanh(),
             |x| x._atanh(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
     fn sin_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
-        U: Borrow<_Tensor<FloatUnaryType<T>>>,
+        U: Borrow<Self::InplaceOutput>,
     {
         unary_fn_with_out_simd(self, |x| x._sin(), |x| x._sin(), Some(out))
     }
@@ -224,7 +225,7 @@ where
             self,
             |x| x._exp(),
             |x| x._exp(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -240,7 +241,7 @@ where
             self,
             |x| x._exp2(),
             |x| x._exp2(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -256,7 +257,7 @@ where
             self,
             |x| x._sqrt(),
             |x| x._sqrt(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -272,7 +273,7 @@ where
             self,
             |x| x._recip(),
             |x| x._recip(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -288,7 +289,7 @@ where
             self,
             |x| x._ln(),
             |x| x._ln(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -304,7 +305,7 @@ where
             self,
             |x| x._log2(),
             |x| x._log2(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -320,7 +321,7 @@ where
             self,
             |x| x._log10(),
             |x| x._log10(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -337,7 +338,7 @@ where
             self,
             move |x| x._celu(alpha_vec),
             move |x| x._celu(alpha),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -358,7 +359,7 @@ where
             self,
             |x| x._sigmoid(),
             |x| x._sigmoid(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -375,7 +376,7 @@ where
             self,
             |x| x._elu(alpha_vec),
             |x| x._elu(alpha),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -396,7 +397,7 @@ where
             self,
             |x| x._erf(),
             |x| x._erf(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -405,7 +406,7 @@ where
             self,
             |x| x._gelu(),
             |x| x._gelu(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -430,7 +431,7 @@ where
             self,
             |x| x._selu(alpha_vec, gamma_vec),
             |x| x._selu(alpha, gamma),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -460,7 +461,7 @@ where
             self,
             |x| x._hard_sigmoid(),
             |x| x._hard_sigmoid(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -481,7 +482,7 @@ where
             self,
             |x| x._hard_swish(),
             |x| x._hard_swish(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -497,7 +498,7 @@ where
             self,
             |x| x._softplus(),
             |x| x._softplus(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -513,7 +514,7 @@ where
             self,
             |x| x._softsign(),
             |x| x._softsign(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
@@ -529,7 +530,7 @@ where
             self,
             |x| x._mish(),
             |x| x._mish(),
-            None::<_Tensor<FloatUnaryType<T>>>,
+            None::<Self::InplaceOutput>,
         )
     }
 
