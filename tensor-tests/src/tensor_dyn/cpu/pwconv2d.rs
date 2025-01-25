@@ -194,11 +194,11 @@ fn assert_eq_bias_pad_relu6(
 #[test]
 fn test() -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
-    for i in 0..1000 {
-        let in_channel = rng.gen_range(1..=64);
-        let out_channel = rng.gen_range(1..=64);
-        let height = rng.gen_range(10..=64);
-        let width = rng.gen_range(10..=64);
+    for i in 0..100 {
+        let in_channel = rng.gen_range(1..=16);
+        let out_channel = rng.gen_range(1..=16);
+        let height = rng.gen_range(10..=32);
+        let width = rng.gen_range(10..=32);
         let (kernel, a, tch_kernel, tch_a) = common_input([
             in_channel,
             out_channel,

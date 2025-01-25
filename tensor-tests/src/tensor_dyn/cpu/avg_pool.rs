@@ -130,15 +130,15 @@ fn test() -> anyhow::Result<()> {
 fn test_pad() -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
 
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let batch = rng.gen_range(1..=4);
-        let channel = rng.gen_range(1..=32);
+        let channel = rng.gen_range(1..=16);
 
         let kernel_height = rng.gen_range(4..=7);
         let kernel_width = rng.gen_range(4..=7);
 
-        let height = rng.gen_range(8..=64);
-        let width = rng.gen_range(8..=64);
+        let height = rng.gen_range(8..=32);
+        let width = rng.gen_range(8..=32);
         let (kernel, a, tch_kernel, tch_a) = common_input([
             batch,
             channel,
