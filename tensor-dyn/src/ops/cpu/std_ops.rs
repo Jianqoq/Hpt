@@ -416,6 +416,8 @@ where
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sub(self, rhs: rhs_type<U, Cpu, DEVICE>) -> Self::Output {
+        *self.out_degree.borrow_mut() += 1;
+        *rhs.out_degree.borrow_mut() += 1;
         let res = self.inner.clone().sub(rhs.inner.clone());
         let lhs_broadcast_axes =
             get_broadcast_axes_from(self.inner.shape(), res.shape()).expect("broadcast failed");
