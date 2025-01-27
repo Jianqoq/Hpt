@@ -544,6 +544,11 @@ impl NormalOutUnary2 for u64x2 {
     }
 
     #[inline(always)]
+    fn __trunc(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
         self.max(u64x2::splat(0)) + alpha * self.min(u64x2::splat(0))
     }

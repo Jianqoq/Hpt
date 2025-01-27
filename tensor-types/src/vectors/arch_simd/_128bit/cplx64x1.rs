@@ -1,5 +1,5 @@
 use crate::{
-    convertion::VecConvertor, traits::SimdMath, type_promote::{FloatOutBinary2, NormalOut2, NormalOutUnary2}, vectors::traits::VecTrait
+    convertion::VecConvertor, traits::SimdMath, type_promote::{FloatOutBinary2, NormalOut2, NormalOutUnary, NormalOutUnary2}, vectors::traits::VecTrait
 };
 use num_complex::Complex64;
 
@@ -224,6 +224,11 @@ impl NormalOutUnary2 for cplx64x1 {
     fn __signum(self) -> Self {
         let res = [self[0].__signum()];
         cplx64x1(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __trunc(self) -> Self {
+        Self([self[0]._trunc()])
     }
 
     #[inline(always)]

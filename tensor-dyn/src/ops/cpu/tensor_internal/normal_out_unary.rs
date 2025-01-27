@@ -11,8 +11,8 @@ impl<T> NormalUaryOps
     for _Tensor<T>
     where
         T: CommonBounds,
-        T::Vec: NormalOutUnary<Base = NormalType<T>>,
-        T: NormalOutUnary<Base = NormalType<T>>,
+        T::Vec: NormalOutUnary,
+        T: NormalOutUnary,
         _Tensor<NormalType<T>>: TensorLike<NormalType<T>>
 {
     type Output = _Tensor<NormalType<T>>;
@@ -203,9 +203,10 @@ impl<T> NormalUaryOps
     }
 
     fn leaky_relu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
+        let alpha_vec = T::Vec::splat(alpha);
         unary_fn_with_out_simd(
             self,
-            |x| x._leaky_relu(alpha),
+            |x| x._leaky_relu(alpha_vec),
             |x| x._leaky_relu(alpha),
             None::<Self::Output>
         )
@@ -214,9 +215,10 @@ impl<T> NormalUaryOps
     fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, TensorError>
         where U: Borrow<Self::InplaceOutput>
     {
+        let alpha_vec = T::Vec::splat(alpha);
         unary_fn_with_out_simd(
             self,
-            |x| x._leaky_relu(alpha),
+            |x| x._leaky_relu(alpha_vec),
             |x| x._leaky_relu(alpha),
             Some(out)
         )

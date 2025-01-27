@@ -139,8 +139,6 @@ impl_normal_out_simd_with_lhs_scalar!();
 //~^ NormalOutUnary is not implemented for {Self}
 /// this trait is used to perform normal unary operations that don't require type promotion
 pub trait NormalOutUnary {
-    /// the base type,
-    type Base;
     /// perform x<sup>2</sup>
     fn _square(self) -> Self;
     /// perform |x|
@@ -155,11 +153,13 @@ pub trait NormalOutUnary {
     fn _round(self) -> Self;
     /// get the sign of x
     fn _signum(self) -> Self;
+    /// perform truncation
+    fn _trunc(self) -> Self;
 
     /// Perform the leaky ReLU (Rectified Linear Unit) activation function.
     ///
     /// Formula: f(x) = x if x > 0 else alpha * x
-    fn _leaky_relu(self, alpha: Self::Base) -> Self;
+    fn _leaky_relu(self, alpha: Self) -> Self;
 
     /// Perform the ReLU (Rectified Linear Unit) activation function.
     ///
@@ -188,7 +188,8 @@ pub trait NormalOutUnary2 {
     fn __round(self) -> Self;
     /// get the sign of x
     fn __signum(self) -> Self;
-
+    /// perform truncation
+    fn __trunc(self) -> Self;
     /// Perform the leaky ReLU (Rectified Linear Unit) activation function.
     ///
     /// Formula: f(x) = x if x > 0 else alpha * x
@@ -352,11 +353,17 @@ pub trait FloatOutUnary {
     /// Perform the natural exponential function: e<sup>x</sup>.
     fn _exp(self) -> Self::Output;
 
+    /// Perform the natural exponential function: e<sup>x</sup> - 1.
+    fn _expm1(self) -> Self::Output;
+
     /// Perform the base-2 exponential function: 2<sup>x</sup>.
     fn _exp2(self) -> Self::Output;
 
     /// Perform the natural logarithm: ln(x).
     fn _ln(self) -> Self::Output;
+
+    /// Perform the natural logarithm: ln(x + 1).
+    fn _log1p(self) -> Self::Output;
 
     /// Perform the CELU (Continuously Differentiable Exponential Linear Unit) activation function.
     ///
@@ -464,11 +471,17 @@ pub trait FloatOutUnary2 {
     /// Perform the natural exponential function: e<sup>x</sup>.
     fn __exp(self) -> Self;
 
+    /// Perform the natural exponential function: e<sup>x</sup> - 1.
+    fn __expm1(self) -> Self;
+
     /// Perform the base-2 exponential function: 2<sup>x</sup>.
     fn __exp2(self) -> Self;
 
     /// Perform the natural logarithm: ln(x).
     fn __ln(self) -> Self;
+
+    /// Perform the natural logarithm: ln(x + 1).
+    fn __log1p(self) -> Self;
 
     /// Perform the CELU (Continuously Differentiable Exponential Linear Unit) activation function.
     ///

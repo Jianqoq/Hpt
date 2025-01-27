@@ -81,8 +81,7 @@ pub trait SimdCompare {
     fn simd_ge(self, other: Self) -> Self::SimdMask;
 }
 
-/// A trait for vector math operations
-pub trait SimdMath<T>: Copy {
+pub(crate) trait SimdMath<T>: Copy {
     /// compute the sine of the vector
     fn sin(self) -> Self {
         unreachable!()

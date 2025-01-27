@@ -640,6 +640,11 @@ impl NormalOutUnary2 for i32x4 {
     }
 
     #[inline(always)]
+    fn __trunc(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
         self.max(i32x4::splat(0)) + alpha * self.min(i32x4::splat(0))
     }

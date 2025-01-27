@@ -36,11 +36,17 @@ pub fn impl_float_out_unary() -> TokenStream {
                     fn _exp(self) -> Self::Output {
                         self.__exp()
                     }
+                    fn _expm1(self) -> Self::Output {
+                        self.__expm1()
+                    }
                     fn _exp2(self) -> Self::Output {
                         self.__exp2()
                     }
                     fn _ln(self) -> Self::Output {
                         self.__ln()
+                    }
+                    fn _log1p(self) -> Self::Output {
+                        self.__log1p()
                     }
                     fn _log2(self) -> Self::Output {
                         self.__log2()
@@ -136,6 +142,10 @@ pub fn impl_float_out_unary() -> TokenStream {
                         let lhs: Self::Output = self.into_scalar();
                         lhs.__exp()
                     }
+                    fn _expm1(self) -> Self::Output {
+                        let lhs: Self::Output = self.into_scalar();
+                        lhs.__expm1()
+                    }
                     fn _exp2(self) -> Self::Output {
                         let lhs: Self::Output = self.into_scalar();
                         lhs.__exp2()
@@ -143,6 +153,10 @@ pub fn impl_float_out_unary() -> TokenStream {
                     fn _ln(self) -> Self::Output {
                         let lhs: Self::Output = self.into_scalar();
                         lhs.__ln()
+                    }
+                    fn _log1p(self) -> Self::Output {
+                        let lhs: Self::Output = self.into_scalar();
+                        lhs.__log1p()
                     }
                     fn _log2(self) -> Self::Output {
                         let lhs: Self::Output = self.into_scalar();

@@ -1907,8 +1907,8 @@ where
 impl<T> Neg for _Tensor<T>
 where
     T: CommonBounds,
-    T::Vec: NormalOutUnary<Base = NormalType<T>>,
-    T: NormalOutUnary<Base = NormalType<T>>,
+    T::Vec: NormalOutUnary,
+    T: NormalOutUnary,
     _Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 {
     type Output = _Tensor<NormalType<T>>;
@@ -1921,8 +1921,8 @@ where
 impl<T> Neg for &_Tensor<T>
 where
     T: CommonBounds,
-    T::Vec: NormalOutUnary<Base = NormalType<T>>,
-    T: NormalOutUnary<Base = NormalType<T>>,
+    T::Vec: NormalOutUnary,
+    T: NormalOutUnary,
     _Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 {
     type Output = _Tensor<NormalType<T>>;
@@ -1977,8 +1977,8 @@ where
 impl<T> Neg for Tensor<T>
 where
     T: CommonBounds,
-    T::Vec: NormalOutUnary<Base = NormalType<T>>,
-    T: NormalOutUnary<Base = NormalType<T>>,
+    T::Vec: NormalOutUnary,
+    T: NormalOutUnary,
     Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 {
     type Output = Tensor<NormalType<T>>;
@@ -1993,8 +1993,8 @@ where
 impl<T> Neg for &Tensor<T>
 where
     T: CommonBounds,
-    T::Vec: NormalOutUnary<Base = NormalType<T>>,
-    T: NormalOutUnary<Base = NormalType<T>>,
+    T::Vec: NormalOutUnary,
+    T: NormalOutUnary,
     Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 {
     type Output = Tensor<NormalType<T>>;

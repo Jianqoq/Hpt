@@ -1,6 +1,11 @@
 use num_complex::Complex32;
 
-use crate::{convertion::VecConvertor, traits::SimdMath, type_promote::{FloatOutBinary2, NormalOut2, NormalOutUnary2}, vectors::traits::VecTrait};
+use crate::{
+    convertion::VecConvertor,
+    traits::SimdMath,
+    type_promote::{FloatOutBinary2, NormalOut2, NormalOutUnary, NormalOutUnary2},
+    vectors::traits::VecTrait,
+};
 
 /// a vector of 2 Complex32 values
 #[allow(non_camel_case_types)]
@@ -124,8 +129,7 @@ impl VecConvertor for cplx32x2 {
     }
 }
 
-impl SimdMath<Complex32> for cplx32x2 {
-}
+impl SimdMath<Complex32> for cplx32x2 {}
 
 impl FloatOutBinary2 for cplx32x2 {
     #[inline(always)]
@@ -135,10 +139,7 @@ impl FloatOutBinary2 for cplx32x2 {
 
     #[inline(always)]
     fn __log(self, base: Self) -> Self {
-        let res = [
-            self[0].__log(base[0]),
-            self[1].__log(base[1]),
-        ];
+        let res = [self[0].__log(base[0]), self[1].__log(base[1])];
         cplx32x2(unsafe { std::mem::transmute(res) })
     }
 }
@@ -166,10 +167,7 @@ impl NormalOut2 for cplx32x2 {
 
     #[inline(always)]
     fn __pow(self, rhs: Self) -> Self {
-        let res = [
-            self[0].__pow(rhs[0]),
-            self[1].__pow(rhs[1]),
-        ];
+        let res = [self[0].__pow(rhs[0]), self[1].__pow(rhs[1])];
         cplx32x2(unsafe { std::mem::transmute(res) })
     }
 
@@ -180,19 +178,13 @@ impl NormalOut2 for cplx32x2 {
 
     #[inline(always)]
     fn __max(self, rhs: Self) -> Self {
-        let res = [
-            self[0].__max(rhs[0]),
-            self[1].__max(rhs[1]),
-        ];
+        let res = [self[0].__max(rhs[0]), self[1].__max(rhs[1])];
         cplx32x2(unsafe { std::mem::transmute(res) })
     }
 
     #[inline(always)]
     fn __min(self, rhs: Self) -> Self {
-        let res = [
-            self[0].__min(rhs[0]),
-            self[1].__min(rhs[1]),
-        ];
+        let res = [self[0].__min(rhs[0]), self[1].__min(rhs[1])];
         cplx32x2(unsafe { std::mem::transmute(res) })
     }
 
@@ -245,6 +237,11 @@ impl NormalOutUnary2 for cplx32x2 {
     fn __signum(self) -> Self {
         let res = [self[0].__signum(), self[1].__signum()];
         cplx32x2(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __trunc(self) -> Self {
+        Self([self[0]._trunc(), self[1]._trunc()])
     }
 
     #[inline(always)]
