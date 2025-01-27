@@ -289,6 +289,11 @@ impl NormalOutUnary2 for boolx16 {
     }
 
     #[inline(always)]
+    fn __trunc(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
     fn __leaky_relu(self, _: Self) -> Self {
         self
     }

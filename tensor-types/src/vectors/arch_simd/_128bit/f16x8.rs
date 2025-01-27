@@ -843,6 +843,14 @@ impl NormalOutUnary2 for f16x8 {
     }
 
     #[inline(always)]
+    fn __trunc(self) -> Self {
+        let [high, low] = self.to_2_f32vec();
+        let high_trunc = high.__trunc();
+        let low_trunc = low.__trunc();
+        f16x8::from_2_f32vec([high_trunc, low_trunc])
+    }
+
+    #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
         self.max(f16x8::splat(half::f16::from_f32_const(0.0)))
             + alpha * self.min(f16x8::splat(half::f16::from_f32_const(0.0)))

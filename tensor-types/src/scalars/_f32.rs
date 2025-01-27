@@ -100,6 +100,11 @@ impl NormalOutUnary2 for f32 {
     }
 
     #[inline(always)]
+    fn __trunc(self) -> Self {
+        self.trunc()
+    }
+
+    #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
         self.max(0.0) + alpha * self.min(0.0)
     }
@@ -171,12 +176,20 @@ impl FloatOutUnary2 for f32 {
         self.exp()
     }
     #[inline(always)]
+    fn __expm1(self) -> Self {
+        self.exp_m1()
+    }
+    #[inline(always)]
     fn __exp2(self) -> Self {
         self.exp2()
     }
     #[inline(always)]
     fn __ln(self) -> Self {
         self.ln()
+    }
+    #[inline(always)]
+    fn __log1p(self) -> Self {
+        self.ln_1p()
     }
     #[inline(always)]
     fn __celu(self, scale: Self) -> Self {

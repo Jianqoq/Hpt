@@ -85,12 +85,20 @@ pub fn impl_float_out_unary() -> TokenStream {
                         SimdMath::exp(self)
                     }
                     #[inline(always)]
+                    fn _expm1(self) -> Self::Output {
+                        SimdMath::expm1(self)
+                    }
+                    #[inline(always)]
                     fn _log2(self) -> Self::Output {
                         SimdMath::log2(self)
                     }
                     #[inline(always)]
                     fn _log10(self) -> Self::Output {
                         SimdMath::log10(self)
+                    }
+                    #[inline(always)]
+                    fn _log1p(self) -> Self::Output {
+                        SimdMath::log1p(self)
                     }
                     #[inline(always)]
                     fn _sqrt(self) -> Self::Output {
@@ -214,6 +222,14 @@ pub fn impl_float_out_unary() -> TokenStream {
                     #[inline(always)]
                     fn _exp(self) -> Self::Output {
                         SimdMath::exp(self.into_vec())
+                    }
+                    #[inline(always)]
+                    fn _expm1(self) -> Self::Output {
+                        SimdMath::expm1(self.into_vec())
+                    }
+                    #[inline(always)]
+                    fn _log1p(self) -> Self::Output {
+                        SimdMath::log1p(self.into_vec())
                     }
                     #[inline(always)]
                     fn _log2(self) -> Self::Output {

@@ -8,7 +8,7 @@ actions:
     link: /user_guide/user_guide
     type: primary
   - text: Dev Guide
-    link: /user_guide/user_guide
+    link: /dev_guide/dev_guide
     type: primary 
 footer: Copyright © 2024
 ---

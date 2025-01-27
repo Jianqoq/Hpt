@@ -2,7 +2,6 @@
 use rand::Rng;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use tch;
-use tensor_dyn::traits::SimdMath;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::{set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo};
@@ -176,7 +175,7 @@ fn assert_eq_bias_pad_relu6(
             [1, 1],
             [(2, 2), (2, 2)],
             [1, 1],
-            Some(|x| x.relu6()),
+            Some(|x| x._relu6()),
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;

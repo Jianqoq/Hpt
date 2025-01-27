@@ -2,6 +2,7 @@ import { defineUserConfig } from '@vuepress/cli'
 import { defaultTheme } from '@vuepress/theme-default'
 import { viteBundler } from '@vuepress/bundler-vite'
 import { markdownMathPlugin } from '@vuepress/plugin-markdown-math'
+import { mdEnhancePlugin } from "vuepress-plugin-md-enhance";
 
 export default defineUserConfig({
   base: process.env.NODE_ENV === 'development'
@@ -12,6 +13,9 @@ export default defineUserConfig({
   plugins: [
     markdownMathPlugin({
       type: 'katex'
+    }),
+    mdEnhancePlugin({
+      mermaid: true,
     }),
   ],
 
@@ -288,10 +292,56 @@ export default defineUserConfig({
       ],
       '/dev_guide/': [
         {
-          text: 'dev guide',
+          text: 'Dev Guide',
           children: [
-            '/dev_guide/getting_started.md',
-            '/dev_guide/contribution.md',
+            {
+              text: 'allocation',
+              collapsible: true,
+              children: [
+                { text: 'allocator', link: '/dev_guide/allocation/allocator.md' },
+              ]
+            },
+            {
+              text: 'scalar',
+              collapsible: true,
+              children: [
+                { text: 'scalar', link: '/dev_guide/scalar/scalar.md' },
+              ]
+            },
+            {
+              text: 'type promote',
+              collapsible: true,
+              children: [
+                { text: 'type promote', link: '/dev_guide/type_promote/type_promote.md' },
+              ]
+            },
+            {
+              text: 'pointer',
+              collapsible: true,
+              children: [
+                { text: 'pointer', link: '/dev_guide/pointer/pointer.md' },
+              ]
+            },
+            {
+              text: 'test cases',
+              collapsible: true,
+              children: [
+                { text: 'rules', link: '/dev_guide/test_cases/rules.md' },
+              ]
+            },
+            {
+              text: 'iterator',
+              collapsible: true,
+              children: [
+                { text: 'iterator', link: '/dev_guide/iterator/iterator.md' },
+              ]
+            },{
+              text: 'adding new op',
+              collapsible: true,
+              children: [
+                { text: 'adding new op', link: '/dev_guide/adding_new_op.md' },
+              ]
+            }
           ]
         }
       ],

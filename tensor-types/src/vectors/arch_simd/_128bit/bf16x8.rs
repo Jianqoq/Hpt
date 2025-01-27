@@ -852,6 +852,11 @@ impl NormalOutUnary2 for bf16x8 {
     }
 
     #[inline(always)]
+    fn __trunc(self) -> Self {
+        self.trunc()
+    }
+
+    #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
         self.leaky_relu(alpha)
     }

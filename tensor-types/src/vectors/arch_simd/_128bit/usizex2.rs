@@ -436,6 +436,11 @@ impl NormalOutUnary2 for USizeVEC {
     }
 
     #[inline(always)]
+    fn __trunc(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
         self.max(Self::splat(0)) + alpha * self.min(Self::splat(0))
     }
