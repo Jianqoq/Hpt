@@ -1,12 +1,19 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, cell::RefCell, rc::Rc};
 
 use tensor_common::error::base::TensorError;
+use tensor_iterator::{iterator_traits::ParStridedIteratorZip, TensorIterator};
 use tensor_traits::{CommonBounds, FloatUnaryOps};
-use tensor_types::{dtype::TypeCommon, into_scalar::IntoScalar, type_promote::FloatOutUnary};
+use tensor_types::{
+    dtype::TypeCommon,
+    into_scalar::IntoScalar,
+    type_promote::{FloatOutUnary, NormalOut},
+};
 
 use crate::{
     backend::Cpu,
-    ops::cpu::tensor_internal::float_out_unary::FloatUnaryType,
+    ops::cpu::{
+        tensor_internal::float_out_unary::FloatUnaryType, utils::diff::diff_utils::handle_grad,
+    },
     tensor::{DiffTensor, Tensor},
     tensor_base::_Tensor,
 };
@@ -474,15 +481,42 @@ where
     }
 }
 
-impl<T: CommonBounds, const DEVICE: usize> FloatUnaryOps for DiffTensor<T, Cpu, DEVICE> {
-    type Output = DiffTensor<T, Cpu, DEVICE>;
+impl<T: CommonBounds, const DEVICE: usize> FloatUnaryOps for DiffTensor<T, Cpu, DEVICE>
+where
+    T: FloatOutUnary,
+    FloatUnaryType<T>: CommonBounds + IntoScalar<T>,
+    f64: IntoScalar<<T as FloatOutUnary>::Output>,
+    T::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,
+{
+    type Output = DiffTensor<FloatUnaryType<T>, Cpu, DEVICE>;
 
-    type InplaceOutput = Tensor<T, Cpu, DEVICE>;
+    type InplaceOutput = Tensor<FloatUnaryType<T>, Cpu, DEVICE>;
 
-    type OutputMeta = T;
+    type OutputMeta = FloatUnaryType<T>;
 
     fn sin(&self) -> std::result::Result<Self::Output, TensorError> {
-        todo!()
+        let res = self.inner.sin()?;
+        *self.out_degree.borrow_mut() += 1;
+        let mut operand = self.clone();
+        Ok(DiffTensor {
+            inner: res,
+            grad: Rc::new(RefCell::new(None)),
+            out_degree: Rc::new(RefCell::new(0)),
+            backward: Rc::new(RefCell::new(
+                move |grad: Tensor<FloatUnaryType<T>, Cpu, DEVICE>| {
+                    let new_grad = grad
+                        .inner
+                        .par_iter()
+                        .zip(operand.inner.inner.par_iter())
+                        .strided_map(|(res, (g, x))| {
+                            *res = g._mul(x._cos()).into_scalar();
+                        })
+                        .collect::<_Tensor<T, Cpu, DEVICE>>();
+                    handle_grad(&mut operand, new_grad.into(), &[])?;
+                    Ok(false)
+                },
+            )),
+        })
     }
 
     fn sin_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>

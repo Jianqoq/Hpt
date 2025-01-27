@@ -18,6 +18,8 @@ pub mod ops {
             pub mod conv2d_group;
             /// a module defines dwconv2d operation
             pub mod dwconv2d;
+            /// a module defines conv2d_transpose operation
+            pub mod conv2d_transpose;
         }
         pub(crate) mod utils {
             pub(crate) mod reduce {
@@ -67,6 +69,8 @@ pub mod ops {
             pub mod reduce;
             /// a module defines the softmax kernels
             pub mod softmax;
+            /// a module defines the conv transpose kernels
+            pub mod conv_transpose;
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_external {

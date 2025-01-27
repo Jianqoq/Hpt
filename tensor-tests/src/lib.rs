@@ -4,6 +4,7 @@ pub mod tensor_dyn {
         pub mod binary_out;
         pub mod bn_conv2d;
         pub mod conv2d;
+        pub mod conv2d_transpose;
         pub mod conv2d_group;
         pub mod creation;
         pub mod cumulate;
