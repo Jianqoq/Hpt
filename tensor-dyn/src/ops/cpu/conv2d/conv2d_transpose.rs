@@ -126,9 +126,15 @@ where
                                 for m in 0..kw {
                                     for o in 0..(T::Vec::SIZE * OC_NVEC) as i64 {
                                         let o = oo + o;
-                                        for j in 0..(T::Vec::SIZE * IC_NVEC) as i64 {
+                                        for j in
+                                            (0..(T::Vec::SIZE * IC_NVEC) as i64).step_by(IC_NVEC)
+                                        {
                                             let j = i + j;
-                                            let kr = kernel[n * ks0 + m * ks1 + o * ks2 + j];
+                                            let kr = unsafe {
+                                                T::Vec::from_ptr(
+                                                    &kernel[n * ks0 + m * ks1 + o * ks2 + j],
+                                                )
+                                            };
                                             for kk in 0..IW_BLOCK as i64 {
                                                 let h_out = l * step_height + n * dh - ph_start;
                                                 let w_out =
@@ -140,10 +146,15 @@ where
                                                 {
                                                     let out_idx =
                                                         b * isb + h_out * ish + w_out * isw + j;
+                                                    let mut out_vec =
+                                                        unsafe { T::Vec::from_ptr(&out[out_idx]) };
                                                     let inp_idx =
                                                         b * osb + l * osh + (k + kk) * osw + o;
-                                                    out[out_idx] =
-                                                        inp[inp_idx]._mul_add(kr, out[out_idx]);
+                                                    let inp_vec = T::Vec::splat(inp[inp_idx]);
+                                                    out_vec = inp_vec._mul_add(kr, out_vec);
+                                                    for i in 0..T::Vec::SIZE as i64 {
+                                                        out[out_idx + i] = out_vec[i as usize];
+                                                    }
                                                 }
                                             }
                                         }
