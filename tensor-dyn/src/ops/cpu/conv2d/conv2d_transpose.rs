@@ -130,8 +130,9 @@ where
                                             let j = i + j;
                                             let kr = kernel[n * ks0 + m * ks1 + o * ks2 + j];
                                             for kk in 0..IW_BLOCK as i64 {
-                                                let h_out = l * step_height + n - ph_start;
-                                                let w_out = (k + kk) * step_width + m - pw_start;
+                                                let h_out = l * step_height + n * dh - ph_start;
+                                                let w_out =
+                                                    (k + kk) * step_width + m * dw - pw_start;
                                                 if h_out >= 0
                                                     && h_out < out_height
                                                     && w_out >= 0
@@ -154,6 +155,110 @@ where
                 }
             }
         });
+        Ok(res)
+    }
+
+    pub fn conv2d_transpose_backward_kernel(
+        &self,
+        grad_output: &_Tensor<T>,
+        kernels: &_Tensor<T>,
+        steps: [i64; 2],
+        padding: [(i64, i64); 2],
+        output_padding: [i64; 2],
+        dilation: [i64; 2],
+    ) -> Result<_Tensor<T>, TensorError> {
+        let inp_shape = self.shape();
+        ShapeError::check_dim(4, inp_shape.len())?;
+        let batch = inp_shape[0];
+        let inp_height = inp_shape[1];
+        let inp_width = inp_shape[2];
+        let inp_channels = inp_shape[3];
+
+        let kernel_shape = kernels.shape();
+        let kh = kernel_shape[0];
+        let kw = kernel_shape[1];
+        let out_channel = kernel_shape[2];
+        let in_channel = kernel_shape[3];
+
+        // 梯度的形状与kernel相同
+        let res = _Tensor::<T>::zeros([kh, kw, out_channel, in_channel])?;
+        let grad_kernel = res.ptr();
+        let inp = self.ptr();
+        let grad_out = grad_output.ptr();
+
+        let (step_width, step_height) = (steps[0], steps[1]);
+        let ((ph_start, ph_end), (pw_start, pw_end)) = (padding[0], padding[1]);
+        let (dh, dw) = (dilation[0], dilation[1]);
+
+        const OC_NVEC: usize = 2;
+        const IC_NVEC: usize = 2;
+        const IW_BLOCK: usize = 1;
+        const IH_BLOCK: usize = 1;
+
+        let num_ih = (inp_height + IH_BLOCK as i64 - 1) / IH_BLOCK as i64;
+        let outer = batch * num_ih;
+
+        (0..outer).into_iter().for_each(|idx| {
+            let inp = inp.clone();
+            let grad_out = grad_out.clone();
+            let mut grad_kernel = grad_kernel.clone();
+
+            let b = idx / num_ih;
+            let ll = idx % num_ih;
+            let ll = ll * IH_BLOCK as i64;
+            let l_end = (ll + IH_BLOCK as i64).min(inp_height);
+
+            for l in ll..l_end {
+                for k in (0..inp_width).step_by(IW_BLOCK) {
+                    for n in 0..kh {
+                        for m in 0..kw {
+                            for oo in (0..out_channel).step_by(T::Vec::SIZE * OC_NVEC) {
+                                for o in 0..(T::Vec::SIZE * OC_NVEC) as i64 {
+                                    let o = oo + o;
+                                    for i in (0..in_channel).step_by(T::Vec::SIZE * IC_NVEC) {
+                                        for j in 0..(T::Vec::SIZE * IC_NVEC) as i64 {
+                                            let j = i + j;
+                                            for kk in 0..IW_BLOCK as i64 {
+                                                let h_out = l * step_height + (n * dh) - ph_start;
+                                                let w_out =
+                                                    (k + kk) * step_width + (m * dw) - pw_start;
+
+                                                if h_out >= 0
+                                                    && h_out < grad_output.shape()[1]
+                                                    && w_out >= 0
+                                                    && w_out < grad_output.shape()[2]
+                                                {
+                                                    let kernel_idx = n * res.strides()[0]
+                                                        + m * res.strides()[1]
+                                                        + o * res.strides()[2]
+                                                        + j;
+
+                                                    let inp_idx = b * self.strides()[0]
+                                                        + l * self.strides()[1]
+                                                        + (k + kk) * self.strides()[2]
+                                                        + o;
+
+                                                    let grad_idx = b * grad_output.strides()[0]
+                                                        + h_out * grad_output.strides()[1]
+                                                        + w_out * grad_output.strides()[2]
+                                                        + j;
+                                                    grad_kernel[kernel_idx] = inp[inp_idx]
+                                                        ._mul_add(
+                                                            grad_out[grad_idx],
+                                                            grad_kernel[kernel_idx],
+                                                        );
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
         Ok(res)
     }
 }
