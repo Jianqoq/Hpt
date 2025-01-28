@@ -108,6 +108,32 @@ where
         const IW_BLOCK: usize = 1;
         const IH_BLOCK: usize = 1;
 
+        let ro_kernel = kernels.empty_like()?;
+        let mut ro_ptr = ro_kernel.ptr();
+
+        for oo in (0..out_channel).step_by(T::Vec::SIZE * OC_NVEC) {
+            let o_end = (oo + ((T::Vec::SIZE * OC_NVEC) as i64)).min(out_channel);
+            for i in (0..in_channel).step_by(T::Vec::SIZE * IC_NVEC) {
+                for n in 0..kh {
+                    for m in 0..kw {
+                        for o in oo..o_end {
+                            for j in (0..(T::Vec::SIZE * IC_NVEC) as i64).step_by(IC_NVEC) {
+                                let j = i + j;
+                                let kr = unsafe {
+                                    T::Vec::from_ptr(
+                                        &kernels.ptr()[n * ks0 + m * ks1 + o * ks2 + j],
+                                    )
+                                };
+                                let ptr = ro_ptr.ptr as *mut _ as *mut T::Vec;
+                                unsafe { ptr.write_unaligned(kr) };
+                                ro_ptr += T::Vec::SIZE;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let num_ih = (inp_height + IH_BLOCK as i64 - 1) / IH_BLOCK as i64; // div ceil, i.e. ceiling of out_height / oh_block
         let outer = batch * num_ih;
         (0..outer).into_iter().for_each(|idx| {
@@ -119,41 +145,50 @@ where
             let ll = ll * IH_BLOCK as i64;
             let l_end = (ll + IH_BLOCK as i64).min(inp_height);
             for oo in (0..out_channel).step_by(T::Vec::SIZE * OC_NVEC) {
+                let o_end = (oo + ((T::Vec::SIZE * OC_NVEC) as i64)).min(out_channel);
                 for k in (0..inp_width).step_by(IW_BLOCK) {
-                    for i in (0..in_channel).step_by(T::Vec::SIZE * IC_NVEC) {
-                        for l in ll..l_end {
-                            for n in 0..kh {
-                                for m in 0..kw {
-                                    for o in 0..(T::Vec::SIZE * OC_NVEC) as i64 {
-                                        let o = oo + o;
-                                        for j in
-                                            (0..(T::Vec::SIZE * IC_NVEC) as i64).step_by(IC_NVEC)
-                                        {
-                                            let j = i + j;
-                                            let kr = unsafe {
-                                                T::Vec::from_ptr(
-                                                    &kernel[n * ks0 + m * ks1 + o * ks2 + j],
-                                                )
-                                            };
-                                            for kk in 0..IW_BLOCK as i64 {
-                                                let h_out = l * step_height + n * dh - ph_start;
-                                                let w_out =
-                                                    (k + kk) * step_width + m * dw - pw_start;
-                                                if h_out >= 0
-                                                    && h_out < out_height
-                                                    && w_out >= 0
-                                                    && w_out < out_width
+                    if k + (IW_BLOCK as i64) <= inp_width {
+                        for i in (0..in_channel).step_by(T::Vec::SIZE * IC_NVEC) {
+                            for l in ll..l_end {
+                                for n in 0..kh {
+                                    let h_out = l * step_height + n * dh - ph_start;
+                                    let h_in_range = h_out >= 0 && h_out < out_height;
+                                    if h_in_range {
+                                        for m in 0..kw {
+                                            for o in oo..o_end {
+                                                for j in (0..(T::Vec::SIZE * IC_NVEC) as i64)
+                                                    .step_by(IC_NVEC)
                                                 {
-                                                    let out_idx =
-                                                        b * isb + h_out * ish + w_out * isw + j;
-                                                    let mut out_vec =
-                                                        unsafe { T::Vec::from_ptr(&out[out_idx]) };
-                                                    let inp_idx =
-                                                        b * osb + l * osh + (k + kk) * osw + o;
-                                                    let inp_vec = T::Vec::splat(inp[inp_idx]);
-                                                    out_vec = inp_vec._mul_add(kr, out_vec);
-                                                    for i in 0..T::Vec::SIZE as i64 {
-                                                        out[out_idx + i] = out_vec[i as usize];
+                                                    let j = i + j;
+                                                    let kr = unsafe {
+                                                        T::Vec::from_ptr(
+                                                            &kernel
+                                                                [n * ks0 + m * ks1 + o * ks2 + j],
+                                                        )
+                                                    };
+                                                    for kk in 0..IW_BLOCK as i64 {
+                                                        let w_out = (k + kk) * step_width + m * dw
+                                                            - pw_start;
+                                                        if w_out >= 0 && w_out < out_width {
+                                                            let out_idx = b * isb
+                                                                + h_out * ish
+                                                                + w_out * isw
+                                                                + j;
+                                                            let mut out_vec = unsafe {
+                                                                T::Vec::from_ptr(&out[out_idx])
+                                                            };
+                                                            let inp_idx = b * osb
+                                                                + l * osh
+                                                                + (k + kk) * osw
+                                                                + o;
+                                                            let inp_vec =
+                                                                T::Vec::splat(inp[inp_idx]);
+                                                            out_vec = inp_vec._mul_add(kr, out_vec);
+                                                            for i in 0..T::Vec::SIZE as i64 {
+                                                                out[out_idx + i] =
+                                                                    out_vec[i as usize];
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }
@@ -162,6 +197,8 @@ where
                                 }
                             }
                         }
+                    } else {
+                        // copy the true branch only change the IW_BLOCK
                     }
                 }
             }
