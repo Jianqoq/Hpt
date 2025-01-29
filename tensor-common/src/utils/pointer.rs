@@ -239,6 +239,7 @@ impl<T> AddAssign<usize> for Pointer<T> {
         #[cfg(feature = "bound_check")]
         {
             self.len -= rhs as i64;
+            assert!(self.len >= 0);
         }
         unsafe {
             self.ptr = self.ptr.add(rhs);
@@ -277,6 +278,7 @@ impl<T> AddAssign<i64> for &mut Pointer<T> {
         #[cfg(feature = "bound_check")]
         {
             self.len -= rhs;
+            assert!(self.len >= 0);
         }
         unsafe {
             self.ptr = self.ptr.offset(rhs as isize);
@@ -303,6 +305,7 @@ impl<T> AddAssign<isize> for Pointer<T> {
         #[cfg(feature = "bound_check")]
         {
             self.len -= rhs as i64;
+            assert!(self.len >= 0);
         }
         unsafe {
             self.ptr = self.ptr.offset(rhs);
@@ -329,6 +332,7 @@ impl<T> AddAssign<i64> for Pointer<T> {
         #[cfg(feature = "bound_check")]
         {
             self.len -= rhs as i64;
+            assert!(self.len >= 0);
         }
         unsafe {
             self.ptr = self.ptr.offset(rhs as isize);
