@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::ops::cpu::cache_utils::cache::Cache;
 use crate::ops::cpu::kernels::conv::bias_remain_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::conv::conv2d_full_oc_bias_kernel_dispatch;
@@ -5,7 +8,9 @@ use crate::ops::cpu::kernels::conv::conv2d_full_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::conv::remain_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::conv::Params;
 use crate::ops::cpu::kernels::conv::PartialParams;
+use crate::tensor::DiffTensor;
 use crate::tensor_base::_Tensor;
+use crate::Cpu;
 use crate::Tensor;
 use crate::REGNUM;
 use rayon::prelude::*;
@@ -19,7 +24,7 @@ use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
 
-impl<T> _Tensor<T>
+impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
     T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
@@ -46,13 +51,13 @@ where
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn conv2d(
         &self,
-        kernels: &_Tensor<T>,
-        bias: Option<&_Tensor<T>>,
+        kernels: &_Tensor<T, Cpu, DEVICE>,
+        bias: Option<&_Tensor<T, Cpu, DEVICE>>,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         activation: Option<fn(T::Vec) -> T::Vec>,
-    ) -> Result<_Tensor<T>, TensorError> {
+    ) -> Result<_Tensor<T, Cpu, DEVICE>, TensorError> {
         let img_shape = self.shape();
         ShapeError::check_dim(4, img_shape.len())?;
         let batch = img_shape[0];
@@ -93,7 +98,8 @@ where
             .into());
         }
         let activation = activation.unwrap_or(|x| x);
-        let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;
+        let output =
+            _Tensor::<T, Cpu, DEVICE>::empty([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
 
@@ -1288,7 +1294,7 @@ fn handle_normal_remain<T: CommonBounds>(
     *kernel += kernel_height * kernel_width * (jj_end - jj_start) * (i_end - ii);
 }
 
-impl<T> Tensor<T>
+impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
     T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
@@ -1315,13 +1321,13 @@ where
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn conv2d(
         &self,
-        kernels: &Tensor<T>,
-        bias: Option<&Tensor<T>>,
+        kernels: &Tensor<T, Cpu, DEVICE>,
+        bias: Option<&Tensor<T, Cpu, DEVICE>>,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         activation: Option<fn(T::Vec) -> T::Vec>,
-    ) -> Result<Tensor<T>, TensorError> {
+    ) -> Result<Tensor<T, Cpu, DEVICE>, TensorError> {
         Ok(self
             .inner
             .conv2d(
@@ -1333,5 +1339,67 @@ where
                 activation,
             )?
             .into())
+    }
+}
+
+impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE>
+where
+    T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+    T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
+    bool: IntoScalar<T>,
+{
+    /// Performs a 2D convolution operation on the input tensor.
+    ///
+    /// This method applies a 2D convolution operation on the tensor using the specified kernel,
+    /// strides (steps), padding, and dilation factors.
+    ///
+    /// # Arguments
+    ///
+    /// * `kernels` - A reference to the tensor representing the convolution kernels (filters).
+    ///   The size of the kernel tensor determines the spatial dimensions of the convolution operation.
+    /// * `steps` - A 2-element array specifying the stride (step size) of the convolution along the height and width dimensions.
+    /// * `padding` - A 2-element array of tuples representing the padding for the height and width dimensions.
+    ///   Each tuple specifies the amount of padding added before and after the data along the respective axis.
+    /// * `dilation` - A 2-element array specifying the dilation factor for the convolution along the height and width dimensions.
+    ///   Dilation allows the kernel to be applied to inputs with gaps, increasing the receptive field of the kernel.
+    ///
+    /// # Returns
+    ///
+    /// This function returns a `Result` containing the output tensor after applying the 2D convolution operation.
+    #[cfg_attr(feature = "track_caller", track_caller)]
+    pub fn conv2d(
+        &self,
+        kernels: &DiffTensor<T, Cpu, DEVICE>,
+        bias: Option<&DiffTensor<T, Cpu, DEVICE>>,
+        steps: [i64; 2],
+        padding: [(i64, i64); 2],
+        dilation: [i64; 2],
+    ) -> Result<DiffTensor<T, Cpu, DEVICE>, TensorError> {
+        let res = self.inner.conv2d(
+            &kernels.inner,
+            bias.map(|b| &b.inner),
+            steps,
+            padding,
+            dilation,
+            None,
+        )?;
+        let kernel_inner = kernels.inner.clone();
+        Ok(DiffTensor {
+            inner: res,
+            grad: Rc::new(RefCell::new(None)),
+            out_degree: Rc::new(RefCell::new(0)),
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+                let input_grad = grad.conv2d_transpose(
+                    &kernel_inner,
+                    None,
+                    steps,
+                    padding,
+                    [0, 0], // output_padding = 0
+                    dilation,
+                    None,
+                )?;
+                Ok(false)
+            })),
+        })
     }
 }

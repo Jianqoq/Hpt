@@ -18,59 +18,6 @@ pub(crate) struct Params {
     pub(crate) arg9: [i64; 2],
 }
 
-pub(crate) fn template_function<T: CommonBounds>(
-    params: Params,
-    [ks0, ks1, ks2]: [i64; 3],
-    out: &mut Pointer<T>,
-    kernel: &mut Pointer<T>,
-    inp: &Pointer<T>,
-    activation: fn(T::Vec) -> T::Vec,
-) where
-    bool: IntoScalar<T>,
-{
-    let Params {
-        arg1: [oo, o_end],
-        arg2: [kh, kw],
-        arg3: [b, l, k, i],
-        arg4: [osb, osh, osw],
-        arg5: [step_height, step_width],
-        arg6: [isb, ish, isw],
-        pads: [ph_start, pw_start],
-        arg8: [dh, dw],
-        arg9: [out_height, out_width],
-    } = params;
-    const IC_NVEC: usize = 2;
-    const IW_BLOCK: usize = 1;
-    for n in 0..kh {
-        let h_out = l * step_height + n * dh - ph_start;
-        let h_in_range = h_out >= 0 && h_out < out_height;
-        if h_in_range {
-            for m in 0..kw {
-                for o in oo..o_end {
-                    for j in (0..(T::Vec::SIZE * IC_NVEC) as i64).step_by(IC_NVEC) {
-                        let j = i + j;
-                        let kr =
-                            unsafe { T::Vec::from_ptr(&kernel[n * ks0 + m * ks1 + o * ks2 + j]) };
-                        for kk in 0..IW_BLOCK as i64 {
-                            let w_out = (k + kk) * step_width + m * dw - pw_start;
-                            if w_out >= 0 && w_out < out_width {
-                                let out_idx = b * isb + h_out * ish + w_out * isw + j;
-                                let mut out_vec = unsafe { T::Vec::from_ptr(&out[out_idx]) };
-                                let inp_idx = b * osb + l * osh + (k + kk) * osw + o;
-                                let inp_vec = T::Vec::splat(inp[inp_idx]);
-                                out_vec = inp_vec._mul_add(kr, out_vec);
-                                for i in 0..T::Vec::SIZE as i64 {
-                                    out[out_idx + i] = out_vec[i as usize];
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 macro_rules! repeat_kernel {
     ($name:ident, [$($idx:expr),*]) => {
         paste::paste! {
