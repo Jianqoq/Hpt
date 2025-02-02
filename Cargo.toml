@@ -27,7 +27,7 @@ tensor-dyn = { path = "tensor-dyn", features = ["track_caller", "codegen"] }
 tensor-common = { path = "tensor-common" }
 anyhow = "1.0.40"
 half = "2.4.1"
-tch = { version = "0.17.0", features = ["download-libtorch"] }
+tch = { version = "0.15.0", features = ["download-libtorch"] }
 rayon = "1.8.0"
 cache-size = "0.7.0"
 rust_xlsxwriter = "=0.25.0"

@@ -15,7 +15,7 @@ tensor-dyn = { path = "../tensor-dyn", features = [
 tensor-codegen = { path = "../tensor-codegen" }
 tensor-types = { path = "../tensor-types" }
 serde_json = "1"
-tch = {version = "0.17.0", features = ["download-libtorch"]}
+tch = {version = "0.15.0", features = ["download-libtorch"]}
 anyhow = "1.0.75"
 rayon = { version = "1.10.0", default-features = false }
 paste = "1.0.15"
