@@ -16,6 +16,8 @@ pub mod ops {
             pub mod conv2d;
             /// a module defines conv2d_group operation
             pub mod conv2d_group;
+            /// a module defines conv2d_transpose operation
+            pub mod conv2d_transpose;
             /// a module defines dwconv2d operation
             pub mod dwconv2d;
         }
@@ -36,14 +38,16 @@ pub mod ops {
             }
         }
 
-        /// a module defines softmax operations
-        pub mod softmaxs {
+        /// a module defines normalization operations
+        pub mod normalization {
+            /// a module defines layernorm
+            pub mod layernorm;
             /// a module defines log_softmax
             pub mod log_softmax;
+            /// a module defines softmax utils
+            pub mod normalize_utils;
             /// a module defines softmax
             pub mod softmax;
-            /// a module defines softmax utils
-            pub mod softmax_utils;
         }
         /// a module defines all the std::ops operations
         pub mod std_ops;
@@ -57,6 +61,8 @@ pub mod ops {
             pub mod conv;
             /// a module defines the dwconv2d kernels
             pub mod conv_group;
+            /// a module defines the conv transpose kernels
+            pub mod conv_transpose;
             /// a module defines the dwconv2d kernels
             pub mod dwconv;
             /// a module defines the logsoftmax kernels
@@ -96,10 +102,10 @@ pub mod ops {
             pub mod shape_manipulate;
             /// a module that contains all the slice functions
             pub mod slice;
-            /// a module that contains all the windows creation functions
-            pub mod windows;
             /// a module that contains all the tensordot functions
             pub mod tensordot;
+            /// a module that contains all the windows creation functions
+            pub mod windows;
         }
         /// a module that contains all the functions only for the internal user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_internal {
@@ -127,10 +133,10 @@ pub mod ops {
             pub mod shape_manipulate;
             /// a module that contains all the slice functions
             pub mod slice;
-            /// a module that contains all the windows creation functions
-            pub mod windows;
             /// a module that contains all the tensordot functions
             pub mod tensordot;
+            /// a module that contains all the windows creation functions
+            pub mod windows;
         }
 
         /// a module contains all the pooling operations
@@ -247,6 +253,7 @@ pub mod tensor_base;
 /// # Note
 /// for this library's developer, not necessary need to know how they works
 pub mod to_tensor;
+pub use crate::ops::cpu::utils::binary::binary_normal::binary_with_out;
 use ctor::ctor;
 pub use tensor_iterator::iterator_traits::*;
 pub use tensor_iterator::TensorIterator;
@@ -254,49 +261,33 @@ pub use tensor_types::dtype::Dtype;
 
 pub use crate::backend::*;
 pub use flate2;
+pub use serde;
 pub use tensor::Tensor;
 #[cfg(feature = "codegen")]
 pub use tensor_codegen::compile;
 #[cfg(feature = "codegen")]
 pub use tensor_codegen::fuse_proc_macro;
 pub use tensor_common::{
-    slice::Slice,
-    error::base::TensorError,
-    shape::shape::Shape,
-    strides::strides::Strides,
+    error::base::TensorError, shape::shape::Shape, slice::Slice, strides::strides::Strides,
 };
 pub use tensor_dataloader::data_loader::parse_header_compressed;
 pub(crate) use tensor_dataloader::save;
 pub use tensor_dataloader::{
-    CompressionAlgo,
-    DataLoader,
-    Endian,
-    FromSafeTensors,
-    Load,
-    MetaLoad,
-    Save,
-    TensorLoader,
+    CompressionAlgo, DataLoader, Endian, FromSafeTensors, Load, MetaLoad, Save, TensorLoader,
     TensorSaver,
 };
-pub use serde;
 pub use tensor_macros::match_selection;
 pub use tensor_traits::*;
 pub use tensor_types::dtype::TypeCommon;
 pub use tensor_types::traits::VecTrait;
 pub use tensor_types::type_promote::{
-    BitWiseOut,
-    Eval,
-    FloatOutBinary,
-    FloatOutBinaryPromote,
-    FloatOutUnary,
-    FloatOutUnaryPromote,
-    NormalOut,
-    NormalOutPromote,
-    NormalOutUnary,
+    BitWiseOut, Eval, FloatOutBinary, FloatOutBinaryPromote, FloatOutUnary, FloatOutUnaryPromote,
+    NormalOut, NormalOutPromote, NormalOutUnary,
 };
 pub use tensor_types::vectors::*;
+pub use tensor_common::slice;
 
-use std::{ cell::RefCell, sync::atomic::AtomicUsize };
+use std::{cell::RefCell, sync::atomic::AtomicUsize};
 thread_local! {
     static THREAD_POOL: RefCell<threadpool::ThreadPool> = RefCell::new(
         threadpool::ThreadPool::new(num_cpus::get_physical())
@@ -321,12 +312,10 @@ pub fn set_num_threads(num_threads: usize) {
     THREAD_POOL.with(|x| {
         x.borrow_mut().set_num_threads(num_threads);
     });
-    match
-        rayon::ThreadPoolBuilder
-            ::new()
-            .num_threads(num_threads)
-            .stack_size(4 * 1024 * 1024)
-            .build_global()
+    match rayon::ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .stack_size(4 * 1024 * 1024)
+        .build_global()
     {
         Ok(_) => {}
         Err(_) => {}
@@ -343,13 +332,16 @@ static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
 
 #[cfg(feature = "cuda")]
 pub(crate) mod cuda_compiled {
-    use std::{ collections::HashMap, sync::{ Arc, Mutex } };
+    use std::{
+        collections::HashMap,
+        sync::{Arc, Mutex},
+    };
 
     use once_cell::sync::Lazy;
     use tensor_cudakernels::RegisterInfo;
 
     pub(crate) static CUDA_COMPILED: Lazy<
-        Mutex<HashMap<usize, HashMap<String, Arc<HashMap<String, RegisterInfo>>>>>
+        Mutex<HashMap<usize, HashMap<String, Arc<HashMap<String, RegisterInfo>>>>>,
     > = Lazy::new(|| Mutex::new(HashMap::new()));
 }
 
@@ -378,28 +370,24 @@ use tensor_types::std_simd as simd;
 type BoolVector = simd::_256bit::boolx32::boolx32;
 #[cfg(any(target_feature = "avx512f"))]
 type BoolVector = simd::_512bit::boolx64::boolx64;
-#[cfg(
-    any(
-        all(not(target_feature = "avx2"), target_feature = "sse"),
-        target_arch = "arm",
-        target_arch = "aarch64",
-        target_feature = "neon"
-    )
-)]
+#[cfg(any(
+    all(not(target_feature = "avx2"), target_feature = "sse"),
+    target_arch = "arm",
+    target_arch = "aarch64",
+    target_feature = "neon"
+))]
 type BoolVector = simd::_128bit::boolx16::boolx16;
 
 #[cfg(target_feature = "avx2")]
 const SIMD_WIDTH: usize = 256;
 #[cfg(any(target_feature = "avx512f"))]
 const SIMD_WIDTH: usize = 512;
-#[cfg(
-    any(
-        all(not(target_feature = "avx2"), target_feature = "sse"),
-        target_arch = "arm",
-        target_arch = "aarch64",
-        target_feature = "neon"
-    )
-)]
+#[cfg(any(
+    all(not(target_feature = "avx2"), target_feature = "sse"),
+    target_arch = "arm",
+    target_arch = "aarch64",
+    target_feature = "neon"
+))]
 const SIMD_WIDTH: usize = 128;
 
 #[cfg(feature = "cuda")]

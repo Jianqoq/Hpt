@@ -494,7 +494,7 @@ where
     }
 
     fn dropout(&self, rate: f64) -> Result<Self::Output, TensorError> {
-        let ret = _Tensor::<T, Cpu, DEVICE>::empty(self.shape())?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(self.shape())?;
         let bernoli = rand::distributions::Bernoulli::new(rate)
             .expect("Failed to create Bernoulli distribution for dropout");
         let scale: T = (1.0 / (1.0 - rate)).into_scalar();

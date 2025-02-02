@@ -16,6 +16,8 @@ pub mod ops {
     pub mod cmp;
     /// A module contains advance operations
     pub mod advance;
+    /// A module contains window operations
+    pub mod windows;
 }
 /// A module contains shape manipulation operations
 pub mod shape_manipulate;
@@ -27,6 +29,7 @@ pub use ops::binary::*;
 pub use ops::fft::*;
 pub use ops::cmp::*;
 pub use ops::advance::*;
+pub use ops::windows::*;
 pub use shape_manipulate::*;
 pub use random::*;
 pub use tensor::*;

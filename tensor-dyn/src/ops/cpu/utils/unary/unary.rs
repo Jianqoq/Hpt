@@ -16,7 +16,8 @@ use tensor_types::type_promote::{Eval, NormalOut};
 use tensor_types::vectors::traits::*;
 use threadpool::ThreadPool;
 
-pub(crate) fn unary_fn_with_out_simd<A, O, K, F, F2, const DEVICE: usize>(
+/// Perform unary operation with output tensor
+pub fn unary_fn_with_out<A, O, K, F, F2, const DEVICE: usize>(
     inp: &_Tensor<A, Cpu, DEVICE>,
     f: F,
     f2: F2,
@@ -89,7 +90,7 @@ where
     T::Vec: Eval<Output = <<T as Eval>::Output as TypeCommon>::Vec>,
 {
     pub fn is_inf(&self) -> std::result::Result<_Tensor<<T as Eval>::Output>, TensorError> {
-        unary_fn_with_out_simd(
+        unary_fn_with_out(
             self,
             |x| x._is_inf(),
             |x| x._is_inf(),
@@ -98,7 +99,7 @@ where
     }
 
     pub fn is_nan(&self) -> std::result::Result<_Tensor<<T as Eval>::Output>, TensorError> {
-        unary_fn_with_out_simd(
+        unary_fn_with_out(
             self,
             |x| x._is_nan(),
             |x| x._is_nan(),

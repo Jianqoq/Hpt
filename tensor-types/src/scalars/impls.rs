@@ -103,6 +103,11 @@ macro_rules! impl_int_traits {
             }
 
             #[inline(always)]
+            fn __trunc(self) -> Self {
+                self
+            }
+
+            #[inline(always)]
             fn __leaky_relu(self, alpha: Self) -> Self {
                 self.max(0) + alpha * self.min(0)
             }
@@ -301,6 +306,11 @@ macro_rules! impl_complex {
             }
 
             #[inline(always)]
+            fn __trunc(self) -> Self {
+                Complex::<$type>::new(self.re.trunc(), self.im.trunc())
+            }
+
+            #[inline(always)]
             fn __leaky_relu(self, alpha: Self) -> Self {
                 let norm = self.norm();
                 if norm > 0.0 {
@@ -401,12 +411,20 @@ macro_rules! impl_complex {
                 self.exp()
             }
             #[inline(always)]
+            fn __expm1(self) -> Self {
+                self.exp() - 1.0
+            }
+            #[inline(always)]
             fn __exp2(self) -> Self {
                 self.exp2()
             }
             #[inline(always)]
             fn __ln(self) -> Self {
                 self.ln()
+            }
+            #[inline(always)]
+            fn __log1p(self) -> Self {
+                self.ln() + 1.0
             }
             #[inline(always)]
             fn __celu(self, _: Self) -> Self {

@@ -52,6 +52,22 @@ where
     fn rem_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
+
+    /// Power of `self` and `rhs` element-wise, with auto broadcasting.
+    ///
+    /// # See Also
+    ///
+    /// - [`pow`]: Perform power of `self` and `rhs` element-wise, with auto broadcasting.
+    fn pow(&self, rhs: RHS) -> std::result::Result<Self::Output, TensorError>;
+
+    /// Inplace version of pow
+    ///
+    /// # See Also
+    ///
+    /// - [`pow`]: Perform power of `self` and `rhs` element-wise, with auto broadcasting.
+    fn pow_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
+    where
+        U: Borrow<Self::InplaceOutput>;
 }
 
 /// A trait for matrix multiplication operations on tensors.

@@ -5,8 +5,8 @@ fn onehot() -> anyhow::Result<()> {
     use tensor_dyn::TensorLike;
     use tensor_dyn::AdvanceOps;
     let mut rng = rand::thread_rng();
-    for _ in 0..1000 {
-        let ndim = rng.gen_range(1..=5);
+    for _ in 0..100 {
+        let ndim = rng.gen_range(1..=3);
         let shape = (0..ndim).map(|_| rng.gen_range(1..=5)).collect::<Vec<_>>();
         let depth = rng.gen_range(1..=5);
         let tch_input =

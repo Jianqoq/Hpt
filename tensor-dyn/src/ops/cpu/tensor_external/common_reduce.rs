@@ -390,7 +390,7 @@ where
                     .par_iter()
                     .zip(prod.inner.par_iter())
                     .zip(lhs.inner.inner.par_iter())
-                    .strided_map(|(res, ((g, x), y))| { *res = g._mul(x)._div(y).into_scalar() })
+                    .strided_map(|(res, ((g, x), y))| *res = g._mul(x)._div(y).into_scalar())
                     .collect::<_Tensor<T, Cpu, DEVICE>>();
                 handle_grad(&mut lhs, grad.into(), &[])?;
                 Ok(false)
@@ -442,10 +442,9 @@ where
                     .expect("Failed to convert tensor to i64");
 
                 let count = mask.sum(axes.clone(), true)?;
-                grad.inner
-                    .par_iter_mut()
-                    .zip(count.inner.par_iter())
-                    .zip(mask.inner.par_iter())
+                grad.par_iter_mut()
+                    .zip(count.par_iter())
+                    .zip(mask.par_iter())
                     .for_each(|((g, c), m)| {
                         *g = g._div(c)._mul(m).into_scalar();
                     });
@@ -500,10 +499,9 @@ where
                     .expect("Failed to convert tensor to i64");
 
                 let count = mask.sum(axes.clone(), true)?;
-                grad.inner
-                    .par_iter_mut()
-                    .zip(count.inner.par_iter())
-                    .zip(mask.inner.par_iter())
+                grad.par_iter_mut()
+                    .zip(count.par_iter())
+                    .zip(mask.par_iter())
                     .for_each(|((g, c), m)| {
                         *g = g._div(c)._mul(m).into_scalar();
                     });
@@ -537,7 +535,7 @@ where
             grad: self.grad.clone(),
             out_degree: self.out_degree.clone(),
             backward: Rc::new(RefCell::new(move |mut grad: Tensor<T, Cpu, DEVICE>| {
-                let grad = if keep_dims {
+                let mut grad = if keep_dims {
                     grad.expand(original_shape.clone())?
                 } else {
                     for &axis in axes.axes.iter().rev() {
@@ -545,9 +543,8 @@ where
                     }
                     grad.expand(&original_shape)?
                 };
-                grad.inner
-                    .par_iter_mut()
-                    .zip(lhs.inner.inner.par_iter())
+                grad.par_iter_mut()
+                    .zip(lhs.inner.par_iter())
                     .for_each(|(g, inp)| {
                         *g = g._mul(inp._signum());
                     });
@@ -582,8 +579,7 @@ where
                     g
                 };
                 grad = grad.expand(&original_shape)?;
-                grad.inner
-                    .par_iter_mut()
+                grad.par_iter_mut()
                     .zip(lhs.inner.inner.par_iter())
                     .for_each(|(g, inp)| {
                         *g = g._mul(inp._mul(T::TWO));
@@ -673,8 +669,7 @@ where
                     g
                 };
                 grad = grad.expand(&original_shape)?;
-                grad.inner
-                    .par_iter_mut()
+                grad.par_iter_mut()
                     .zip(lhs.inner.inner.par_iter())
                     .for_each(|(g, inp)| {
                         if inp._is_nan() {
@@ -728,7 +723,7 @@ where
             grad: self.grad.clone(),
             out_degree: self.out_degree.clone(),
             backward: Rc::new(RefCell::new(move |mut grad: Tensor<T, Cpu, DEVICE>| {
-                let (grad, prod) = if keep_dims {
+                let (mut grad, prod) = if keep_dims {
                     (grad.expand(original_shape.clone())?, prod.clone())
                 } else {
                     for &axis in axes.axes.iter().rev() {
@@ -738,8 +733,7 @@ where
                     (grad.expand(&original_shape)?, prod.expand(&original_shape)?)
                 };
 
-                grad.inner
-                    .par_iter_mut()
+                grad.par_iter_mut()
                     .zip(prod.inner.par_iter())
                     .zip(lhs.inner.inner.par_iter())
                     .for_each(|((g, p), x)| {
@@ -815,7 +809,7 @@ where
             out_degree: Rc::new(RefCell::new(0)),
             backward: Rc::new(RefCell::new(
                 move |mut grad: Tensor<FloatBinaryType<T>, Cpu, DEVICE>| {
-                    let grad = if keep_dims {
+                    let mut grad = if keep_dims {
                         grad.expand(original_shape.clone())?
                     } else {
                         for &axis in axes.axes.iter().rev() {
@@ -823,7 +817,7 @@ where
                         }
                         grad.expand(&original_shape)?
                     };
-                    grad.inner.par_iter_mut().for_each(|g| {
+                    grad.par_iter_mut().for_each(|g| {
                         *g = g._div(numel).into_scalar();
                     });
                     handle_grad(&mut lhs, grad.try_astype::<T>()?, &[])?;
@@ -851,7 +845,7 @@ where
             out_degree: Rc::new(RefCell::new(0)),
             backward: Rc::new(RefCell::new(
                 move |mut grad: Tensor<FloatBinaryType<T>, Cpu, DEVICE>| {
-                    let grad = if keep_dims {
+                    let mut grad = if keep_dims {
                         grad.expand(original_shape.clone())?
                     } else {
                         for &axis in axes.axes.iter().rev() {
@@ -860,10 +854,9 @@ where
                         grad.expand(&original_shape)?
                     };
 
-                    grad.inner
-                        .par_iter_mut()
-                        .zip(lhs.inner.inner.par_iter())
-                        .zip(ret.inner.par_iter())
+                    grad.par_iter_mut()
+                        .zip(lhs.inner.par_iter())
+                        .zip(ret.par_iter())
                         .for_each(|((g, x), y)| {
                             *g = g._mul(x)._div(y).into_scalar();
                         });
@@ -892,7 +885,7 @@ where
             out_degree: Rc::new(RefCell::new(0)),
             backward: Rc::new(RefCell::new(
                 move |mut grad: Tensor<FloatBinaryType<T>, Cpu, DEVICE>| {
-                    let grad = if keep_dims {
+                    let mut grad = if keep_dims {
                         grad.expand(original_shape.clone())?
                     } else {
                         for &axis in axes.axes.iter().rev() {
@@ -901,10 +894,9 @@ where
                         grad.expand(&original_shape)?
                     };
 
-                    grad.inner
-                        .par_iter_mut()
-                        .zip(lhs.inner.inner.par_iter())
-                        .zip(ret.inner.par_iter())
+                    grad.par_iter_mut()
+                        .zip(lhs.inner.par_iter())
+                        .zip(ret.par_iter())
                         .for_each(|((g, x), y)| {
                             let sign: <T as FloatOutBinary>::Output = x._signum().into_scalar();
                             *g = g._mul(sign)._mul(x._square())._div(y._square());

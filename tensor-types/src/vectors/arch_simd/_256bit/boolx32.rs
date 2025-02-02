@@ -352,6 +352,11 @@ impl NormalOutUnary2 for boolx32 {
     fn __relu6(self) -> Self {
         self
     }
+
+    #[inline(always)]
+    fn __trunc(self) -> Self {
+        self
+    }
 }
 
 impl Eval2 for boolx32 {

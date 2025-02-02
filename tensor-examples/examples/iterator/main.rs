@@ -6,7 +6,7 @@ use tensor_dyn::{
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::randn([2, 4, 6, 8])?;
-    let b = Tensor::<f32>::empty([2, 4, 6, 8])?;
+    let mut b = Tensor::<f32>::empty([2, 4, 6, 8])?;
 
     b.par_iter_mut().zip(a.par_iter()).for_each(|(b, a)| {
         *b = a;

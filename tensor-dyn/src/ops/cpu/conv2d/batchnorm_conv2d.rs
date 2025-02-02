@@ -6,6 +6,7 @@ use crate::ops::cpu::kernels::batch_norm_conv::remain_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::batch_norm_conv::Params;
 use crate::ops::cpu::kernels::batch_norm_conv::PartialParams;
 use crate::tensor_base::_Tensor;
+use crate::Cpu;
 use crate::Tensor;
 use crate::REGNUM;
 use rayon::prelude::*;
@@ -21,7 +22,7 @@ use tensor_types::type_promote::FloatOutUnary;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
 
-impl<T> _Tensor<T>
+impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
     T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
@@ -50,18 +51,18 @@ where
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn batchnorm_conv2d(
         &self,
-        kernels: &_Tensor<T>,
-        mean: &_Tensor<T>,
-        var: &_Tensor<T>,
-        gamma: &_Tensor<T>,
-        beta: &_Tensor<T>,
-        bias: Option<&_Tensor<T>>,
+        kernels: &_Tensor<T, Cpu, DEVICE>,
+        mean: &_Tensor<T, Cpu, DEVICE>,
+        var: &_Tensor<T, Cpu, DEVICE>,
+        gamma: &_Tensor<T, Cpu, DEVICE>,
+        beta: &_Tensor<T, Cpu, DEVICE>,
+        bias: Option<&_Tensor<T, Cpu, DEVICE>>,
         eps: T,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         activation: Option<fn(T::Vec) -> T::Vec>,
-    ) -> std::result::Result<_Tensor<T>, TensorError> {
+    ) -> std::result::Result<_Tensor<T, Cpu, DEVICE>, TensorError> {
         let img_shape = self.shape();
         ShapeError::check_dim(4, img_shape.len())?;
         let batch = img_shape[0];
@@ -102,7 +103,7 @@ where
             .into());
         }
         let activation = activation.unwrap_or(|x| x);
-        let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;
+        let output = _Tensor::<T, Cpu, DEVICE>::empty([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
 
@@ -1367,7 +1368,7 @@ fn handle_normal_remain<T: CommonBounds>(
     *kernel += kernel_height * kernel_width * (jj_end - jj_start) * (i_end - ii);
 }
 
-impl<T> Tensor<T>
+impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
     T::Vec: VecTrait<T>
@@ -1402,18 +1403,18 @@ where
     #[inline(never)]
     pub fn batchnorm_conv2d(
         &self,
-        kernels: &Tensor<T>,
-        mean: &Tensor<T>,
-        var: &Tensor<T>,
-        gamma: &Tensor<T>,
-        beta: &Tensor<T>,
-        bias: Option<&Tensor<T>>,
+        kernels: &Tensor<T, Cpu, DEVICE>,
+        mean: &Tensor<T, Cpu, DEVICE>,
+        var: &Tensor<T, Cpu, DEVICE>,
+        gamma: &Tensor<T, Cpu, DEVICE>,
+        beta: &Tensor<T, Cpu, DEVICE>,
+        bias: Option<&Tensor<T, Cpu, DEVICE>>,
         eps: T,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         activation: Option<fn(T::Vec) -> T::Vec>,
-    ) -> std::result::Result<Tensor<T>, TensorError> {
+    ) -> std::result::Result<Tensor<T, Cpu, DEVICE>, TensorError> {
         Ok(self
             .inner
             .batchnorm_conv2d(

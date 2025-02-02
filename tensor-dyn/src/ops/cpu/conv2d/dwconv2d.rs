@@ -6,6 +6,7 @@ use crate::ops::cpu::kernels::dwconv::remain_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::dwconv::Params;
 use crate::ops::cpu::kernels::dwconv::PartialParams;
 use crate::tensor_base::_Tensor;
+use crate::Cpu;
 use crate::Tensor;
 use crate::REGNUM;
 use rayon::prelude::*;
@@ -19,7 +20,7 @@ use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
 
-impl<T> _Tensor<T>
+impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
     where
         T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
         T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
@@ -29,13 +30,13 @@ impl<T> _Tensor<T>
     #[inline(never)]
     pub fn dwconv2d(
         &self,
-        kernels: &_Tensor<T>,
-        bias: Option<&_Tensor<T>>,
+        kernels: &_Tensor<T, Cpu, DEVICE>,
+        bias: Option<&_Tensor<T, Cpu, DEVICE>>,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         activation: Option<fn(T::Vec) -> T::Vec>
-    ) -> Result<_Tensor<T>, TensorError> {
+    ) -> Result<_Tensor<T, Cpu, DEVICE>, TensorError> {
         let img_shape = self.shape();
         ShapeError::check_dim(4, img_shape.len())?;
         let batch = img_shape[0];
@@ -81,7 +82,7 @@ impl<T> _Tensor<T>
             .into());
         }
         let activation = activation.unwrap_or(|x| x);
-        let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;
+        let output = _Tensor::<T, Cpu, DEVICE>::empty([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
 
@@ -575,7 +576,7 @@ fn ow_loop<F1, F2, T: CommonBounds>(
     }
 }
 
-impl<T> Tensor<T>
+impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE>
     where
         T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
         T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
@@ -603,13 +604,13 @@ impl<T> Tensor<T>
     #[inline(never)]
     pub fn dwconv2d(
         &self,
-        kernels: &Tensor<T>,
-        bias: Option<&Tensor<T>>,
+        kernels: &Tensor<T, Cpu, DEVICE>,
+        bias: Option<&Tensor<T, Cpu, DEVICE>>,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         activation: Option<fn(T::Vec) -> T::Vec>
-    ) -> Result<Tensor<T>, TensorError> {
+    ) -> Result<Tensor<T, Cpu, DEVICE>, TensorError> {
         Ok(self.inner.as_ref().dwconv2d(kernels.inner.as_ref(), bias.map(|b| b.inner.as_ref()), steps, padding, dilation, activation)?.into())
     }
 }

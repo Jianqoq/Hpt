@@ -6,6 +6,7 @@ use crate::ops::cpu::kernels::conv_group::remain_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::conv_group::Params;
 use crate::ops::cpu::kernels::conv_group::PartialParams;
 use crate::tensor_base::_Tensor;
+use crate::Cpu;
 use crate::Tensor;
 use crate::REGNUM;
 use crate::SIMD_WIDTH;
@@ -20,7 +21,7 @@ use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
 
-impl<T> _Tensor<T>
+impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
     where
         T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
         T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
@@ -30,14 +31,14 @@ impl<T> _Tensor<T>
     #[inline(never)]
     pub fn conv2d_group(
         &self,
-        kernels: &_Tensor<T>,
-        bias: Option<&_Tensor<T>>,
+        kernels: &_Tensor<T, Cpu, DEVICE>,
+        bias: Option<&_Tensor<T, Cpu, DEVICE>>,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         groups: i64,
         activation: Option<fn(T::Vec) -> T::Vec>
-    ) -> Result<_Tensor<T>, TensorError> {
+    ) -> Result<_Tensor<T, Cpu, DEVICE>, TensorError> {
         let img_shape = self.shape();
         ShapeError::check_dim(4, img_shape.len())?;
         let batch = img_shape[0];
@@ -85,7 +86,7 @@ impl<T> _Tensor<T>
             .into());
         }
         let activation = activation.unwrap_or(|x| x);
-        let output = _Tensor::<T>::empty([batch, out_height, out_width, out_channels])?;
+        let output = _Tensor::<T, Cpu, DEVICE>::empty([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
 

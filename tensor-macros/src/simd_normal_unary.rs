@@ -1,4 +1,4 @@
-use crate::type_utils::{SimdType, TypeInfo};
+use crate::type_utils::SimdType;
 use proc_macro::TokenStream;
 use quote::quote;
 
@@ -6,33 +6,30 @@ pub(crate) fn impl_simd_normal_out_unary() -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
 
     let types = [
-        ("bool", "bool"),
-        ("bf16", "bf16"),
-        ("f16", "f16"),
-        ("f32", "f32"),
-        ("f64", "f64"),
-        ("i8", "i8"),
-        ("i16", "i16"),
-        ("i32", "i32"),
-        ("i64", "i64"),
-        ("u8", "u8"),
-        ("u16", "u16"),
-        ("u32", "u32"),
-        ("u64", "u64"),
-        ("isize", "isize"),
-        ("usize", "usize"),
-        ("Complex32", "complex32"),
-        ("Complex64", "complex64"),
+        "bool",
+        "bf16",
+        "f16",
+        "f32",
+        "f64",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "u8",
+        "u16",
+        "u32",
+        "u64",
+        "isize",
+        "usize",
+        "complex32",
+        "complex64",
     ];
 
-    for (lhs_ty, lhs) in types.iter() {
-        let lhs_type = TypeInfo::new(&lhs_ty.to_lowercase());
-        let lhs_dtype = lhs_type.dtype;
+    for lhs in types.iter() {
         let lhs_simd: SimdType = (*lhs).into();
 
         let res = quote! {
             impl NormalOutUnary for #lhs_simd {
-                type Base = #lhs_dtype;
                 #[inline(always)]
                 fn _square(self) -> Self {
                     self._mul(self)
@@ -62,6 +59,10 @@ pub(crate) fn impl_simd_normal_out_unary() -> TokenStream {
                     self.__signum()
                 }
                 #[inline(always)]
+                fn _trunc(self) -> Self {
+                    self.__trunc()
+                }
+                #[inline(always)]
                 fn _relu(self) -> Self {
                     self.__relu()
                 }
@@ -70,8 +71,8 @@ pub(crate) fn impl_simd_normal_out_unary() -> TokenStream {
                     self.__relu6()
                 }
                 #[inline(always)]
-                fn _leaky_relu(self, alpha: Self::Base) -> Self {
-                    self.__leaky_relu(Self::splat(alpha))
+                fn _leaky_relu(self, alpha: Self) -> Self {
+                    self.__leaky_relu(alpha)
                 }
             }
         };

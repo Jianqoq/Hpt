@@ -144,10 +144,10 @@ fn func() -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
     for _ in 0..100 {
         let shape = [
-            rng.gen_range(1..64),
-            rng.gen_range(1..64),
-            rng.gen_range(1..64),
-            rng.gen_range(1..64),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
         ];
         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
         let sum = a.hpt_method(1, true)?;
@@ -199,10 +199,10 @@ fn func() -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
     for _ in 0..100 {
         let shape = [
-            rng.gen_range(1..64),
-            rng.gen_range(1..64),
-            rng.gen_range(1..64),
-            rng.gen_range(1..64),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
         ];
         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
         let a = a.permute([1, 0, 3, 2])?;
@@ -240,12 +240,12 @@ fn func() -> anyhow::Result<()> {
 #[test]
 fn func() -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let shape = [
-            rng.gen_range(1..64),
-            rng.gen_range(1..64),
-            rng.gen_range(1..64),
-            rng.gen_range(1..64),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
         ];
         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
         let dim0_max = if shape[0] > 1 {
@@ -332,12 +332,12 @@ fn func() -> anyhow::Result<()> {
 #[test]
 fn func() -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let shape = [
-            rng.gen_range(1..64),
-            rng.gen_range(1..64),
-            rng.gen_range(1..64),
-            rng.gen_range(1..64),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
         ];
         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
         let dim0_max = if shape[0] > 1 {

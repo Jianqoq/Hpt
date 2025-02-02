@@ -31,7 +31,6 @@ pub(crate) fn __impl_normal_out_unary() -> TokenStream {
 
         let res = quote! {
             impl NormalOutUnary for #lhs_dtype {
-                type Base = <Self as NormalOutPromote<Self>>::Output;
                 #[inline(always)]
                 fn _square(self) -> Self {
                     self._mul(self)
@@ -61,6 +60,10 @@ pub(crate) fn __impl_normal_out_unary() -> TokenStream {
                     self.__signum()
                 }
                 #[inline(always)]
+                fn _trunc(self) -> Self {
+                    self.__trunc()
+                }
+                #[inline(always)]
                 fn _relu(self) -> Self {
                     self.__relu()
                 }
@@ -69,7 +72,7 @@ pub(crate) fn __impl_normal_out_unary() -> TokenStream {
                     self.__relu6()
                 }
                 #[inline(always)]
-                fn _leaky_relu(self, alpha: Self::Base) -> Self {
+                fn _leaky_relu(self, alpha: Self) -> Self {
                     self.__leaky_relu(alpha)
                 }
             }

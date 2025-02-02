@@ -1,7 +1,7 @@
 use crate::ops::cpu::tensor_internal::normal_out_unary::NormalType;
 use crate::ops::cpu::utils::binary::binary_normal::*;
 use crate::ops::cpu::utils::diff::diff_utils::handle_grad;
-use crate::ops::cpu::utils::unary::unary::unary_fn_with_out_simd;
+use crate::ops::cpu::utils::unary::unary::unary_fn_with_out;
 use crate::tensor::DiffTensor;
 use crate::tensor_base::_Tensor;
 use crate::Cpu;
@@ -416,6 +416,8 @@ where
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn sub(self, rhs: rhs_type<U, Cpu, DEVICE>) -> Self::Output {
+        *self.out_degree.borrow_mut() += 1;
+        *rhs.out_degree.borrow_mut() += 1;
         let res = self.inner.clone().sub(rhs.inner.clone());
         let lhs_broadcast_axes =
             get_broadcast_axes_from(self.inner.shape(), res.shape()).expect("broadcast failed");
@@ -1874,7 +1876,7 @@ where
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn not(self) -> Self::Output {
         let lhs: _Tensor<T> = self.into();
-        unary_fn_with_out_simd(
+        unary_fn_with_out(
             &lhs,
             |x| x._not(),
             |x| x._not(),
@@ -1894,7 +1896,7 @@ where
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn not(self) -> Self::Output {
         let lhs: _Tensor<T> = self.into();
-        unary_fn_with_out_simd(
+        unary_fn_with_out(
             &lhs,
             |x| x._not(),
             |x| x._not(),
@@ -1907,8 +1909,8 @@ where
 impl<T> Neg for _Tensor<T>
 where
     T: CommonBounds,
-    T::Vec: NormalOutUnary<Base = NormalType<T>>,
-    T: NormalOutUnary<Base = NormalType<T>>,
+    T::Vec: NormalOutUnary,
+    T: NormalOutUnary,
     _Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 {
     type Output = _Tensor<NormalType<T>>;
@@ -1921,8 +1923,8 @@ where
 impl<T> Neg for &_Tensor<T>
 where
     T: CommonBounds,
-    T::Vec: NormalOutUnary<Base = NormalType<T>>,
-    T: NormalOutUnary<Base = NormalType<T>>,
+    T::Vec: NormalOutUnary,
+    T: NormalOutUnary,
     _Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 {
     type Output = _Tensor<NormalType<T>>;
@@ -1977,8 +1979,8 @@ where
 impl<T> Neg for Tensor<T>
 where
     T: CommonBounds,
-    T::Vec: NormalOutUnary<Base = NormalType<T>>,
-    T: NormalOutUnary<Base = NormalType<T>>,
+    T::Vec: NormalOutUnary,
+    T: NormalOutUnary,
     Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 {
     type Output = Tensor<NormalType<T>>;
@@ -1993,8 +1995,8 @@ where
 impl<T> Neg for &Tensor<T>
 where
     T: CommonBounds,
-    T::Vec: NormalOutUnary<Base = NormalType<T>>,
-    T: NormalOutUnary<Base = NormalType<T>>,
+    T::Vec: NormalOutUnary,
+    T: NormalOutUnary,
     Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 {
     type Output = Tensor<NormalType<T>>;

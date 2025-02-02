@@ -98,6 +98,11 @@ impl NormalOutUnary2 for half::f16 {
     }
 
     #[inline(always)]
+    fn __trunc(self) -> Self {
+        self.trunc()
+    }
+
+    #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
         self.max(half::f16::from_f32_const(0.0)) + alpha * self.min(half::f16::from_f32_const(0.0))
     }
@@ -170,12 +175,20 @@ impl FloatOutUnary2 for half::f16 {
         self.exp()
     }
     #[inline(always)]
+    fn __expm1(self) -> Self {
+        self.to_f32().__expm1().to_f16()
+    }
+    #[inline(always)]
     fn __exp2(self) -> Self {
         self.exp2()
     }
     #[inline(always)]
     fn __ln(self) -> Self {
         self.ln()
+    }
+    #[inline(always)]
+    fn __log1p(self) -> Self {
+        self.to_f32().__log1p().to_f16()
     }
     #[inline(always)]
     fn __celu(self, alpha: Self) -> Self {

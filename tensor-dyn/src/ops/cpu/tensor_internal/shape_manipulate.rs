@@ -163,7 +163,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for _Tensor<T, Cpu, D
             |a| a.contiguous(),
         )?)
     }
-    fn concat(tensors: Vec<&_Tensor<T, Cpu, DEVICE>>, axis: usize, keepdims: bool) -> std::result::Result<Self, TensorError>
+    fn concat(tensors: Vec<Self>, axis: usize, keepdims: bool) -> std::result::Result<Self, TensorError>
     where
         T: 'static,
     {
@@ -262,10 +262,10 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for _Tensor<T, Cpu, D
             Ok(new_tensor)
         }
     }
-    fn vstack(tensors: Vec<&_Tensor<T, Cpu, DEVICE>>) -> std::result::Result<Self, TensorError> {
+    fn vstack(tensors: Vec<Self>) -> std::result::Result<Self, TensorError> {
         Self::concat(tensors, 0, false)
     }
-    fn hstack(mut tensors: Vec<&_Tensor<T, Cpu, DEVICE>>) -> std::result::Result<Self, TensorError> {
+    fn hstack(mut tensors: Vec<Self>) -> std::result::Result<Self, TensorError> {
         for tensor in tensors.iter_mut() {
             if tensor.shape().len() < 2 {
                 return if tensor.shape().len() == 1 {
@@ -277,7 +277,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for _Tensor<T, Cpu, D
                     for tensor in tensors {
                         tensors_holder.push(tensor.reshape(vec![1])?);
                     }
-                    for tensor in tensors_holder.iter() {
+                    for tensor in tensors_holder.into_iter() {
                         tensors_ref.push(tensor);
                     }
                     Self::concat(tensors_ref, 0, false)
@@ -286,7 +286,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for _Tensor<T, Cpu, D
         }
         Self::concat(tensors, 1, false)
     }
-    fn dstack(mut tensors: Vec<&_Tensor<T, Cpu, DEVICE>>) -> std::result::Result<Self, TensorError> {
+    fn dstack(mut tensors: Vec<Self>) -> std::result::Result<Self, TensorError> {
         let mut new_tensors = Vec::with_capacity(tensors.len());
         for tensor in tensors.iter_mut() {
             if tensor.shape().len() < 3 {
@@ -306,7 +306,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for _Tensor<T, Cpu, D
             }
         }
         let mut tensors_ref = Vec::with_capacity(new_tensors.len());
-        for tensor in new_tensors.iter() {
+        for tensor in new_tensors.into_iter() {
             tensors_ref.push(tensor);
         }
         Self::concat(tensors_ref, 2, false)

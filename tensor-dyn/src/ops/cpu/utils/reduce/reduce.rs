@@ -762,7 +762,7 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
             sliced_tensors
                 .into_par_iter()
                 .zip(sliced_res.into_par_iter())
-                .for_each(move |(inp, res)| {
+                .for_each(move |(inp, mut res)| {
                     res.iter_mut()
                         .zip(inp.iter())
                         .for_each(|(x, y)| {
