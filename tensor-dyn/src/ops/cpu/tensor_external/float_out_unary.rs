@@ -1,5 +1,6 @@
 use std::{borrow::Borrow, cell::RefCell, rc::Rc};
 
+use anyhow::Ok;
 use tensor_common::error::base::TensorError;
 use tensor_iterator::{iterator_traits::ParStridedIteratorZip, TensorIterator};
 use tensor_traits::{CommonBounds, FloatUnaryOps};
@@ -32,51 +33,330 @@ where
     type OutputMeta = FloatUnaryType<T>;
 
     fn sin(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::sin(self.inner.as_ref())?.into())
+        let res = self.inner.sin()?;
+        *self.out_degree.borrow_mut() += 1;
+        let mut operand = self.inner.clone();
+       Ok(DiffTensor {
+            inner: res,
+            grad: Rc::new(RefCell::new(None)),
+            out_degree: Rc::new(RefCell::new(0)),
+            backward: Rc::new(RefCell::new(
+                move |grad: Tensor<FloatUnaryType<T>, Cpu, DEVICE>| {
+                    let new_grad = grad
+                        .inner
+                        .par_iter()
+                        .zip(self.inner.inner.par_iter())
+                        .strided_map(|(res, (g, x))| {
+                            *res = g._mul(x._cos()).into_scalar();
+                        })
+                        .collect::<_Tensor<T, Cpu, DEVICE>>();
+                    handle_grad(&mut operand, new_grad.into(), &[])?;
+                    Ok(false)
+                },
+            )),
+    
+    })
+
     }
 
     fn cos(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::cos(self.inner.as_ref())?.into())
+        let res = self.inner.cos()?;
+        *self.out_degree.borrow_mut() += 1;
+        operand = self.inner.clone();
+
+        Ok(
+            DiffTensor {
+                inner: res,
+                grad: Rc::new(RefCell::new(None)),
+                out_degree: Rc::new(RefCell::new(0)),
+                backward: Rc::new(RefCell::new(
+                    move |grad: Tensor<FloatUnaryType<T>, Cpu, DEVICE>| {
+                        let new_grad = grad
+                            .inner
+                            .par_iter()
+                            .zip(self.inner.inner.par_iter())
+                            .strided_map(|(res, (g, x))| {
+                                *res = g._mul(x._sin()).into_scalar();
+                            })
+                            .collect::<_Tensor<T, Cpu, DEVICE>>();
+                        handle_grad(&mut operand, new_grad.into(), &[])?;
+                        Ok(false)
+                    },
+                )),
+            },
+        )
     }
 
     fn tan(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::tan(self.inner.as_ref())?.into())
+        let res = self.inner.tan()?;
+        *self.out_degree.borrow_mut() += 1;
+        operand = self.inner.clone();
+
+        Ok(
+            DiffTensor {
+                inner: res,
+                grad: Rc::new(RefCell::new(None)),
+                out_degree: Rc::new(RefCell::new(0)),
+                backward: Rc::new(RefCell::new(
+                    move |grad: Tensor<FloatUnaryType<T>, Cpu, DEVICE>| {
+                        let new_grad = grad
+                            .inner
+                            .par_iter()
+                            .zip(self.inner.inner.par_iter())
+                            .strided_map(|(res, (g, x))| {
+                                *res = g._mul(x._cos()).into_scalar();
+                            })
+                            .collect::<_Tensor<T, Cpu, DEVICE>>();
+                        handle_grad(&mut operand, new_grad.into(), &[])?;
+                        Ok(false)
+                    },
+                )),
+            },
+        )
     }
 
     fn asin(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::asin(self.inner.as_ref())?.into())
+        let res = self.inner.asin()?;
+        *self.out_degree.borrow_mut() += 1;
+        operand = self.inner.clone();
+        Ok(
+            DiffTensor {
+                inner: res,
+                grad: Rc::new(RefCell::new(None)),
+                out_degree: Rc::new(RefCell::new(0)),
+                backward: Rc::new(RefCell::new(
+                    move |grad: Tensor<FloatUnaryType<T>, Cpu, DEVICE>| {
+                        let new_grad = grad
+                            .inner
+                            .par_iter()
+                            .zip(self.inner.inner.par_iter())
+                            .strided_map(|(res, (g, x))| {
+                                *res = g._mul(x._cos()).into_scalar();
+                            })
+                            .collect::<_Tensor<T, Cpu, DEVICE>>();
+                        handle_grad(&mut operand, new_grad.into(), &[])?;
+                        Ok(false)
+                    },
+                )),
+            },
+        )
     }
 
+
     fn acos(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::acos(self.inner.as_ref())?.into())
+        let res = self.inner.acos()?;
+        *self.out_degree.borrow_mut() += 1;
+        operand = self.inner.clone();
+        Ok(
+            DiffTensor {
+                inner: res,
+                grad: Rc::new(RefCell::new(None)),
+                out_degree: Rc::new(RefCell::new(0)),
+                backward: Rc::new(RefCell::new(
+                    move |grad: Tensor<FloatUnaryType<T>, Cpu, DEVICE>| {
+                        let new_grad = grad
+                            .inner
+                            .par_iter()
+                            .zip(self.inner.inner.par_iter())
+                            .strided_map(|(res, (g, x))| {
+                                *res = g._mul(x._cos()).into_scalar();
+                            })
+                            .collect::<_Tensor<T, Cpu, DEVICE>>();
+                        handle_grad(&mut operand, new_grad.into(), &[])?;
+                        Ok(false)
+                    },
+                )),
+            },
+        )
     }
 
     fn atan(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::atan(self.inner.as_ref())?.into())
+        let res = self.inner.atan()?;
+        *self.out_degree.borrow_mut() += 1;
+        operand = self.inner.clone();
+        Ok(
+            DiffTensor {
+                inner: res,
+                grad: Rc::new(RefCell::new(None)),
+                out_degree: Rc::new(RefCell::new(0)),
+                backward: Rc::new(RefCell::new(
+                    move |grad: Tensor<FloatUnaryType<T>, Cpu, DEVICE>| {
+                        let new_grad = grad
+                            .inner
+                            .par_iter()
+                            .zip(self.inner.inner.par_iter())
+                            .strided_map(|(res, (g, x))| {
+                                *res = g._mul(x._cos()).into_scalar();
+                            })
+                            .collect::<_Tensor<T, Cpu, DEVICE>>();
+                        handle_grad(&mut operand, new_grad.into(), &[])?;
+                        Ok(false)
+                    },
+                )),
+            },
+        )
     }
 
     fn sinh(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::sinh(self.inner.as_ref())?.into())
+        let res = self.inner.sinh()?;
+        *self.out_degree.borrow_mut() += 1;
+        operand = self.inner.clone();
+        Ok(
+            DiffTensor {
+                inner: res,
+                grad: Rc::new(RefCell::new(None)),
+                out_degree: Rc::new(RefCell::new(0)),
+                backward: Rc::new(RefCell::new(
+                    move |grad: Tensor<FloatUnaryType<T>, Cpu, DEVICE>| {
+                        let new_grad = grad
+                            .inner
+                            .par_iter()
+                            .zip(self.inner.inner.par_iter())
+                            .strided_map(|(res, (g, x))| {
+                                *res = g._mul(x._cos()).into_scalar();
+                            })
+                            .collect::<_Tensor<T, Cpu, DEVICE>>();
+                        handle_grad(&mut operand, new_grad.into(), &[])?;
+                        Ok(false)
+                    },
+                )),
+            },
+        )
     }
 
     fn cosh(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::cosh(self.inner.as_ref())?.into())
+        let res = self.inner.cosh()?;
+        *self.out_degree.borrow_mut() += 1;
+        operand = self.inner.clone();
+        Ok(
+            DiffTensor {
+                inner: res,
+                grad: Rc::new(RefCell::new(None)),
+                out_degree: Rc::new(RefCell::new(0)),
+                backward: Rc::new(RefCell::new(
+                    move |grad: Tensor<FloatUnaryType<T>, Cpu, DEVICE>| {
+                        let new_grad = grad
+                            .inner
+                            .par_iter()
+                            .zip(self.inner.inner.par_iter())
+                            .strided_map(|(res, (g, x))| {
+                                *res = g._mul(x._cos()).into_scalar();
+                            })
+                            .collect::<_Tensor<T, Cpu, DEVICE>>();
+                        handle_grad(&mut operand, new_grad.into(), &[])?;
+                        Ok(false)
+                    },
+                )),
+            },
+        )
     }
 
     fn tanh(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::tanh(self.inner.as_ref())?.into())
+        let res = self.inner.tanh()?;
+        *self.out_degree.borrow_mut() += 1;
+        operand = self.inner.clone();
+        Ok(
+            DiffTensor {
+                inner: res,
+                grad: Rc::new(RefCell::new(None)),
+                out_degree: Rc::new(RefCell::new(0)),
+                backward: Rc::new(RefCell::new(
+                    move |grad: Tensor<FloatUnaryType<T>, Cpu, DEVICE>| {
+                        let new_grad = grad
+                            .inner
+                            .par_iter()
+                            .zip(self.inner.inner.par_iter())
+                            .strided_map(|(res, (g, x))| {
+                                *res = g._mul(x._cos()).into_scalar();
+                            })
+                            .collect::<_Tensor<T, Cpu, DEVICE>>();
+                        handle_grad(&mut operand, new_grad.into(), &[])?;
+                        Ok(false)
+                    },
+                )),
+            },
+        )
     }
 
     fn asinh(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::asinh(self.inner.as_ref())?.into())
+        let res = self.inner.asinh()?;
+        *self.out_degree.borrow_mut() += 1;
+        operand = self.inner.clone();
+        Ok(
+            DiffTensor {
+                inner: res,
+                grad: Rc::new(RefCell::new(None)),
+                out_degree: Rc::new(RefCell::new(0)),
+                backward: Rc::new(RefCell::new(
+                    move |grad: Tensor<FloatUnaryType<T>, Cpu, DEVICE>| {
+                        let new_grad = grad
+                            .inner
+                            .par_iter()
+                            .zip(self.inner.inner.par_iter())
+                            .strided_map(|(res, (g, x))| {
+                                *res = g._mul(x._cos()).into_scalar();
+                            })
+                            .collect::<_Tensor<T, Cpu, DEVICE>>();
+                        handle_grad(&mut operand, new_grad.into(), &[])?;
+                        Ok(false)
+                    },
+                )),
+            },
+        )
     }
 
     fn acosh(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::acosh(self.inner.as_ref())?.into())
+        let res = self.inner.acosh()?;
+        *self.out_degree.borrow_mut() += 1;
+        operand = self.inner.clone();
+        Ok(
+            DiffTensor {
+                inner: res,
+                grad: Rc::new(RefCell::new(None)),
+                out_degree: Rc::new(RefCell::new(0)),
+                backward: Rc::new(RefCell::new(
+                    move |grad: Tensor<FloatUnaryType<T>, Cpu, DEVICE>| {
+                        let new_grad = grad
+                            .inner
+                            .par_iter()
+                            .zip(self.inner.inner.par_iter())
+                            .strided_map(|(res, (g, x))| {
+                                *res = g._mul(x._cos()).into_scalar();
+                            })
+                            .collect::<_Tensor<T, Cpu, DEVICE>>();
+                        handle_grad(&mut operand, new_grad.into(), &[])?;
+                        Ok(false)
+                    },
+                )),
+            },
+        )
     }
 
     fn atanh(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::atanh(self.inner.as_ref())?.into())
+        let res = self.inner.atanh()?;
+        *self.out_degree.borrow_mut() += 1;
+        operand = self.inner.clone();
+        Ok(
+            DiffTensor {
+                inner: res,
+                grad: Rc::new(RefCell::new(None)),
+                out_degree: Rc::new(RefCell::new(0)),
+                backward: Rc::new(RefCell::new(
+                    move |grad: Tensor<FloatUnaryType<T>, Cpu, DEVICE>| {
+                        let new_grad = grad
+                            .inner
+                            .par_iter()
+                            .zip(self.inner.inner.par_iter())
+                            .strided_map(|(res, (g, x))| {
+                                *res = g._mul(x._cos()).into_scalar();
+                            })
+                            .collect::<_Tensor<T, Cpu, DEVICE>>();
+                        handle_grad(&mut operand, new_grad.into(), &[])?;
+                        Ok(false)
+                    },
+                )),
+            },
+        )
     }
 
     fn sin_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
