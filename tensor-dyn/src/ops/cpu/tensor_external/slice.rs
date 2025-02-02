@@ -67,9 +67,8 @@ where
             backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
                 let taked = lhs.grad.take();
                 if let Some(tmp) = taked {
-                    let sliced = tmp.slice(&index)?;
+                    let mut sliced = tmp.slice(&index)?;
                     sliced
-                        .inner
                         .par_iter_mut()
                         .zip(grad.inner.par_iter())
                         .for_each(|(a, b)| {

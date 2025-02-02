@@ -54,67 +54,40 @@ where
     }
 }
 
-impl<T: Clone, const DEVICE: usize> TensorInfo<T> for _Tensor<T, Cpu, DEVICE> {
-    fn ptr(&self) -> Pointer<T> {
-        self.data.clone()
-    }
-    fn size(&self) -> usize {
-        self.layout.size() as usize
-    }
-    fn shape(&self) -> &Shape {
-        self.layout.shape()
-    }
-    fn strides(&self) -> &tensor_common::strides::strides::Strides {
-        self.layout.strides()
-    }
-    fn layout(&self) -> &Layout {
-        &self.layout
-    }
-    fn parent(&self) -> Option<Pointer<T>> {
-        self.parent.clone()
-    }
-    fn ndim(&self) -> usize {
-        self.layout.ndim()
-    }
-    fn is_contiguous(&self) -> bool {
-        self.layout.is_contiguous()
-    }
+macro_rules! impl_tensor_info {
+    ($tensor:ty) => {
+        impl<T, const DEVICE: usize> TensorInfo<T> for $tensor {
+            fn ptr(&self) -> Pointer<T> {
+                self.data.clone()
+            }
+            fn size(&self) -> usize {
+                self.layout.size() as usize
+            }
+            fn shape(&self) -> &Shape {
+                self.layout.shape()
+            }
+            fn strides(&self) -> &tensor_common::strides::strides::Strides {
+                self.layout.strides()
+            }
+            fn layout(&self) -> &Layout {
+                &self.layout
+            }
+            fn parent(&self) -> Option<Pointer<T>> {
+                self.parent.clone()
+            }
+            fn ndim(&self) -> usize {
+                self.layout.ndim()
+            }
+            fn is_contiguous(&self) -> bool {
+                self.layout.is_contiguous()
+            }
+        }
+    };
 }
 
-impl<T: Clone, const DEVICE: usize> TensorInfo<T> for &_Tensor<T, Cpu, DEVICE>
-{
-    fn ptr(&self) -> Pointer<T> {
-        self.data.clone()
-    }
-
-    fn size(&self) -> usize {
-        self.layout.size() as usize
-    }
-
-    fn shape(&self) -> &Shape {
-        self.layout.shape()
-    }
-
-    fn strides(&self) -> &tensor_common::strides::strides::Strides {
-        self.layout.strides()
-    }
-
-    fn layout(&self) -> &Layout {
-        &self.layout
-    }
-
-    fn parent(&self) -> Option<Pointer<T>> {
-        self.parent.clone()
-    }
-
-    fn ndim(&self) -> usize {
-        self.layout.ndim()
-    }
-
-    fn is_contiguous(&self) -> bool {
-        self.layout.is_contiguous()
-    }
-}
+impl_tensor_info!(_Tensor<T, Cpu, DEVICE>);
+impl_tensor_info!(&_Tensor<T, Cpu, DEVICE>);
+impl_tensor_info!(&mut _Tensor<T, Cpu, DEVICE>);
 
 impl<T: CommonBounds, const DEVICE: usize> TensorAlloc for _Tensor<T, Cpu, DEVICE> {
     type Meta = T;

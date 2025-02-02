@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub(crate) struct SoftmaxPreprocessor<T, U> {
+pub(crate) struct NormalizePreprocessor<T, U> {
     pub ptrs: Pointer<T>,
     pub res_ptrs: Pointer<U>,
     pub strides: Strides,
@@ -27,7 +27,7 @@ pub(crate) struct SoftmaxPreprocessor<T, U> {
     pub a_shape: Shape,
 }
 
-impl<T, U> SoftmaxPreprocessor<T, U>
+impl<T, U> NormalizePreprocessor<T, U>
 where
     T: Clone,
     U: Clone,
@@ -42,10 +42,10 @@ where
         a_shape: Shape,
         transposed_shape: Shape,
         reduce_shape: Shape,
-    ) -> Vec<SoftmaxPreprocessor<T, U>> {
+    ) -> Vec<NormalizePreprocessor<T, U>> {
         let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
         let mut task_amout = 0;
-        let mut iterators: Vec<SoftmaxPreprocessor<T, U>> = Vec::with_capacity(num_threads);
+        let mut iterators: Vec<NormalizePreprocessor<T, U>> = Vec::with_capacity(num_threads);
         let mut progress_init_a_data = vec![0; reduce_shape.len()];
         for id in 0..num_threads {
             let mut a_data_ptr_cpy = ptrs.clone();
@@ -83,7 +83,7 @@ where
                 progress_init_a_data[j] = tmp2 % reduce_shape[j];
                 tmp2 /= reduce_shape[j];
             }
-            iterators.push(SoftmaxPreprocessor {
+            iterators.push(NormalizePreprocessor {
                 ptrs: a_data_ptr_cpy.clone(),
                 res_ptrs: res_ptrs_cpy.clone(),
                 strides: strides.clone(),
@@ -107,7 +107,7 @@ where
         res_transposed_strides: Strides,
         transposed_shape: Shape,
         reduce_shape: Shape,
-    ) -> Vec<SoftmaxPreprocessor<T, U>> {
+    ) -> Vec<NormalizePreprocessor<T, U>> {
         let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
         let mut task_amout = 0;
         let mut iterators = Vec::with_capacity(num_threads);
@@ -145,7 +145,7 @@ where
                 tmp /= reduce_shape[j as usize];
             }
 
-            iterators.push(SoftmaxPreprocessor {
+            iterators.push(NormalizePreprocessor {
                 ptrs: a_data_ptr_cpy.clone(),
                 res_ptrs: res_ptr_cpy.clone(),
                 strides: transposed_strides.clone(),
@@ -162,7 +162,7 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct UCSoftmaxPreprocessor<T, U> {
+pub(crate) struct UCNormalizePreprocessor<T, U> {
     pub ptrs: Pointer<T>,
     pub res_ptrs: Pointer<U>,
     pub strides: Strides,
@@ -174,7 +174,7 @@ pub(crate) struct UCSoftmaxPreprocessor<T, U> {
     pub a_shape: Shape,
 }
 
-impl<T, U> UCSoftmaxPreprocessor<T, U>
+impl<T, U> UCNormalizePreprocessor<T, U>
 where
     T: Clone,
     U: Clone,
@@ -188,7 +188,7 @@ where
         transposed_shape: Shape,
         reduce_shape: Shape,
         res_strides: Strides,
-    ) -> Vec<UCSoftmaxPreprocessor<T, U>> {
+    ) -> Vec<UCNormalizePreprocessor<T, U>> {
         let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
         let mut task_amout = 0;
         let mut iterators = Vec::with_capacity(num_threads);
@@ -218,7 +218,7 @@ where
                 tmp /= reduce_shape[j as usize];
             }
 
-            iterators.push(UCSoftmaxPreprocessor {
+            iterators.push(UCNormalizePreprocessor {
                 ptrs: a_data_ptr_cpy.clone(),
                 res_ptrs: res_ptrs_cpy.clone(),
                 strides: transposed_strides.clone(),
@@ -234,7 +234,7 @@ where
     }
 }
 
-pub(crate) fn softmax_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: usize>(
+pub(crate) fn normalize_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: usize>(
     a: &_Tensor<T, Cpu, DEVICE>,
     axis: usize,
     c: Option<_Tensor<O, Cpu, DEVICE>>,
@@ -262,7 +262,7 @@ pub(crate) fn softmax_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: us
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn contiguous_softmax_template<T, F1, F2, F3, O, const DEVICE: usize>(
+pub(crate) fn contiguous_normalize_template<T, F1, F2, F3, O, const DEVICE: usize>(
     a: &_Tensor<T, Cpu, DEVICE>,
     axis: usize,
     c: Option<_Tensor<O, Cpu, DEVICE>>,
@@ -277,7 +277,7 @@ where
     F2: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
     F3: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
 {
-    let (keep_fast_dim, transposed_tensor, result) = softmax_prepare(a, axis, c)?;
+    let (keep_fast_dim, transposed_tensor, result) = normalize_prepare(a, axis, c)?;
 
     let a_last_stride = if keep_fast_dim {
         transposed_tensor.strides()[a.ndim() - 2]
@@ -323,7 +323,7 @@ where
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn uncontiguous_softmax_template<T, F1, F2, F3, O, const DEVICE: usize>(
+pub(crate) fn uncontiguous_normalize_template<T, F1, F2, F3, O, const DEVICE: usize>(
     a: &_Tensor<T, Cpu, DEVICE>,
     axis: usize,
     c: Option<_Tensor<O, Cpu, DEVICE>>,
@@ -338,7 +338,7 @@ where
     F2: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
     F3: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
 {
-    let (keep_fast_dim, transposed_tensor, result) = softmax_prepare(a, axis, c)?;
+    let (keep_fast_dim, transposed_tensor, result) = normalize_prepare(a, axis, c)?;
 
     let result_data = result.ptr();
     if a.ndim() == 1 {

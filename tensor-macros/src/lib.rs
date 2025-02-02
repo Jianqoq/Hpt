@@ -18,7 +18,7 @@ use crate::binary_float_out::impl_cuda_float_out_binary;
 use binary_float_out::impl_float_out_binary;
 use float_unary::impl_float_out_unary;
 use from_scalar::__impl_from_scalar;
-use kernel_gen_helper::{__gen_fast_reduce_simd_helper, __gen_reduce_dim_not_include_simd_helper};
+use kernel_gen_helper::{__gen_fast_layernorm_simd_helper, __gen_fast_reduce_simd_helper, __gen_reduce_dim_not_include_simd_helper};
 use normal_out::__impl_normal_out_binary;
 use proc_macro::TokenStream;
 use scalar_convert::__impl_scalar_convert;
@@ -741,6 +741,12 @@ pub fn impl_eval(_: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn gen_fast_reduce_simd_helper(input: TokenStream) -> TokenStream {
     __gen_fast_reduce_simd_helper(input)
+}
+
+/// generate fast layernorm simd helper
+#[proc_macro]
+pub fn gen_fast_layernorm_simd_helper(input: TokenStream) -> TokenStream {
+    __gen_fast_layernorm_simd_helper(input)
 }
 
 /// generate reduce dim not include simd helper

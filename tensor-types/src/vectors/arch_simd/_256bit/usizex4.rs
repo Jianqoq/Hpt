@@ -485,6 +485,11 @@ impl NormalOutUnary2 for USizeVEC {
     fn __relu6(self) -> Self {
         self.relu6()
     }
+
+    #[inline(always)]
+    fn __trunc(self) -> Self {
+        self
+    }
 }
 
 impl Eval2 for USizeVEC {

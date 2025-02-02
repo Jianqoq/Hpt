@@ -1,13 +1,13 @@
 use std::borrow::Borrow;
 
 use crate::{
-    ops::cpu::tensor_internal::normal_out_unary::NormalType, tensor::Tensor, tensor_base::_Tensor,
+    ops::cpu::tensor_internal::normal_out_unary::NormalType, tensor::Tensor, tensor_base::_Tensor, Cpu,
 };
 use tensor_common::error::base::TensorError;
 use tensor_traits::{CommonBounds, NormalUaryOps, TensorLike};
 use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOutUnary};
 
-impl<T> NormalUaryOps for Tensor<T>
+impl<T, const DEVICE: usize> NormalUaryOps for Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds + IntoScalar<T>,
     NormalType<T>: CommonBounds,
@@ -15,9 +15,9 @@ where
     T: NormalOutUnary,
     _Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 {
-    type Output = Tensor<NormalType<T>>;
+    type Output = Tensor<NormalType<T>, Cpu, DEVICE>;
 
-    type InplaceOutput = Tensor<NormalType<T>>;
+    type InplaceOutput = Tensor<NormalType<T>, Cpu, DEVICE>;
 
     type OutputMeta = NormalType<T>;
 
@@ -39,14 +39,14 @@ where
     /// let b = a.floor().unwrap();
     /// ```
     fn floor(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::floor(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::floor(self.inner.as_ref())?.into())
     }
 
     fn floor_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::floor_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::floor_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise square of the tensor.
@@ -68,14 +68,14 @@ where
     /// let b = a.square().unwrap();
     /// ```
     fn square(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::square(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::square(self.inner.as_ref())?.into())
     }
 
     fn square_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::square_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::square_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise absolute value of the tensor.
@@ -103,14 +103,14 @@ where
     /// let b = a.abs().unwrap();
     /// ```
     fn abs(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::abs(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::abs(self.inner.as_ref())?.into())
     }
 
     fn abs_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::abs_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::abs_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise ceiling of the tensor.
@@ -137,14 +137,14 @@ where
     /// let b = a.ceil().unwrap();
     /// ```
     fn ceil(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::ceil(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::ceil(self.inner.as_ref())?.into())
     }
 
     fn ceil_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::ceil_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::ceil_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise sign of the tensor.
@@ -174,14 +174,14 @@ where
     /// let b = a.sign().unwrap();
     /// ```
     fn sign(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::sign(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::sign(self.inner.as_ref())?.into())
     }
 
     fn sign_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::sign_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::sign_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     /// Clips (limits) the values of the tensor between the specified `min` and `max`.
@@ -212,7 +212,7 @@ where
         min: Self::OutputMeta,
         max: Self::OutputMeta,
     ) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::clamp(self.inner.as_ref(), min, max)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::clamp(self.inner.as_ref(), min, max)?.into())
     }
 
     fn clamp_<U>(
@@ -224,7 +224,7 @@ where
     where
         U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::clamp_(self.inner.as_ref(), min, max, out.borrow().inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::clamp_(self.inner.as_ref(), min, max, out.borrow().inner.as_ref())?.into())
     }
 
     /// Computes the element-wise rounding of the tensor.
@@ -251,43 +251,43 @@ where
     /// let b = a.round().unwrap();
     /// ```
     fn round(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::round(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::round(self.inner.as_ref())?.into())
     }
 
     fn round_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::round_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::round_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn neg(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::neg(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::neg(self.inner.as_ref())?.into())
     }
 
     fn neg_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::neg_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::neg_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn relu(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::relu(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::relu(self.inner.as_ref())?.into())
     }
 
     fn relu_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::relu_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::relu_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
     fn leaky_relu(
         &self,
         alpha: Self::OutputMeta,
     ) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::leaky_relu(self.inner.as_ref(), alpha)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::leaky_relu(self.inner.as_ref(), alpha)?.into())
     }
 
     fn leaky_relu_<U>(
@@ -298,17 +298,17 @@ where
     where
         U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::leaky_relu_(self.inner.as_ref(), alpha, out.borrow().inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::leaky_relu_(self.inner.as_ref(), alpha, out.borrow().inner.as_ref())?.into())
     }
 
     fn relu6(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::relu6(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::relu6(self.inner.as_ref())?.into())
     }
 
     fn relu6_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
-        Ok(_Tensor::relu6_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE>::relu6_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 }

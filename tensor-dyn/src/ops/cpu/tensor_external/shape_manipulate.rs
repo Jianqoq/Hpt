@@ -137,7 +137,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for Tensor<T, Cpu, DE
     }
 
     fn concat(
-        tensors: Vec<&Self>,
+        tensors: Vec<Self>,
         axis: usize,
         keepdims: bool
     ) -> std::result::Result<Self::Output, TensorError> {
@@ -145,8 +145,8 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for Tensor<T, Cpu, DE
             _Tensor
                 ::concat(
                     tensors
-                        .iter()
-                        .map(|x| x.inner.as_ref())
+                        .into_iter()
+                        .map(|x| x.inner.as_ref().clone())
                         .collect(),
                     axis,
                     keepdims
@@ -155,39 +155,39 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for Tensor<T, Cpu, DE
         )
     }
 
-    fn vstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
+    fn vstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError> {
         Ok(
             _Tensor
                 ::vstack(
                     tensors
-                        .iter()
-                        .map(|x| x.inner.as_ref())
+                        .into_iter()
+                        .map(|x| x.inner.as_ref().clone())
                         .collect()
                 )?
                 .into()
         )
     }
 
-    fn hstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
+    fn hstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError> {
         Ok(
             _Tensor
                 ::hstack(
                     tensors
-                        .iter()
-                        .map(|x| x.inner.as_ref())
+                        .into_iter()
+                        .map(|x| x.inner.as_ref().clone())
                         .collect()
                 )?
                 .into()
         )
     }
 
-    fn dstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
+    fn dstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError> {
         Ok(
             _Tensor
                 ::dstack(
                     tensors
-                        .iter()
-                        .map(|x| x.inner.as_ref())
+                        .into_iter()
+                        .map(|x| x.inner.as_ref().clone())
                         .collect()
                 )?
                 .into()
@@ -502,7 +502,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
                         RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
                             let taked = lhs.grad.borrow_mut().take();
                             if let Some(taked) = taked {
-                                let sliced = taked.inner.slice(&slice)?;
+                                let mut sliced = taked.inner.slice(&slice)?;
                                 sliced
                                     .par_iter_mut()
                                     .zip(grad.inner.par_iter())
@@ -524,7 +524,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
                         RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
                             let taked = lhs.grad.borrow_mut().take();
                             if let Some(taked) = taked {
-                                let sliced = taked.inner.slice(&slice)?;
+                                let mut sliced = taked.inner.slice(&slice)?;
                                 sliced
                                     .par_iter_mut()
                                     .zip(grad.inner.par_iter())
@@ -598,13 +598,13 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
     }
 
     fn concat(
-        tensors: Vec<&Self>,
+        tensors: Vec<Self>,
         axis: usize,
         keepdims: bool
     ) -> std::result::Result<Self::Output, TensorError> {
         let mut inners = Vec::with_capacity(tensors.len());
         for tensor in tensors.iter() {
-            inners.push(&tensor.inner);
+            inners.push(tensor.inner.clone());
         }
         let mut begin = 0;
         let mut split_sizes = Vec::with_capacity(tensors.len());
@@ -634,15 +634,15 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
         })
     }
 
-    fn vstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
+    fn vstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError> {
         DiffTensor::concat(tensors, 0, false)
     }
 
-    fn hstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
+    fn hstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError> {
         DiffTensor::concat(tensors, 1, false)
     }
 
-    fn dstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
+    fn dstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError> {
         DiffTensor::concat(tensors, 2, false)
     }
 }

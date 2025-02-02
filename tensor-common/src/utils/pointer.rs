@@ -1,19 +1,29 @@
 use std::{
-    fmt::{ Debug, Display, Formatter },
-    ops::{ Add, AddAssign, Deref, DerefMut, Index, IndexMut, SubAssign },
+    fmt::{Debug, Display, Formatter},
+    ops::{Add, AddAssign, Deref, DerefMut, Index, IndexMut, SubAssign},
 };
 
 /// Pointer wrapper struct for raw pointers
 /// This is for wrapping raw pointers to make them safe for multithreading
 ///
 /// This is for internal use only
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Pointer<T> {
     /// raw pointer
     pub ptr: *mut T,
     /// len of the pointer, it is used when the `bound_check` feature is enabled
     #[cfg(feature = "bound_check")]
     pub len: i64,
+}
+
+impl<T> Clone for Pointer<T> {
+    fn clone(&self) -> Self {
+        Self {
+            ptr: self.ptr.clone(),
+            #[cfg(feature = "bound_check")]
+            len: self.len.clone(),
+        }
+    }
 }
 
 impl<T> Pointer<T> {
@@ -252,11 +262,16 @@ impl<T> Add<usize> for Pointer<T> {
     fn add(self, rhs: usize) -> Self::Output {
         #[cfg(feature = "bound_check")]
         unsafe {
-            Self { ptr: self.ptr.add(rhs), len: self.len }
+            Self {
+                ptr: self.ptr.add(rhs),
+                len: self.len,
+            }
         }
         #[cfg(not(feature = "bound_check"))]
         unsafe {
-            Self { ptr: self.ptr.add(rhs) }
+            Self {
+                ptr: self.ptr.add(rhs),
+            }
         }
     }
 }
@@ -318,11 +333,16 @@ impl<T> Add<isize> for Pointer<T> {
     fn add(self, rhs: isize) -> Self::Output {
         #[cfg(feature = "bound_check")]
         unsafe {
-            Self { ptr: self.ptr.offset(rhs), len: self.len }
+            Self {
+                ptr: self.ptr.offset(rhs),
+                len: self.len,
+            }
         }
         #[cfg(not(feature = "bound_check"))]
         unsafe {
-            Self { ptr: self.ptr.offset(rhs) }
+            Self {
+                ptr: self.ptr.offset(rhs),
+            }
         }
     }
 }
@@ -345,11 +365,16 @@ impl<T> Add<i64> for Pointer<T> {
     fn add(self, rhs: i64) -> Self::Output {
         #[cfg(feature = "bound_check")]
         unsafe {
-            Self { ptr: self.ptr.offset(rhs as isize), len: self.len }
+            Self {
+                ptr: self.ptr.offset(rhs as isize),
+                len: self.len,
+            }
         }
         #[cfg(not(feature = "bound_check"))]
         unsafe {
-            Self { ptr: self.ptr.offset(rhs as isize) }
+            Self {
+                ptr: self.ptr.offset(rhs as isize),
+            }
         }
     }
 }
@@ -419,6 +444,11 @@ unsafe impl<T> Sync for Pointer<T> {}
 
 impl<T: Display> Display for Pointer<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Pointer( ptr: {}, val: {} )", self.ptr as usize, unsafe { self.ptr.read() })
+        write!(
+            f,
+            "Pointer( ptr: {}, val: {} )",
+            self.ptr as usize,
+            unsafe { self.ptr.read() }
+        )
     }
 }

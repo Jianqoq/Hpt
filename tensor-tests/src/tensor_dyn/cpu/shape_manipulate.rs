@@ -256,7 +256,7 @@ fn test_concat() -> anyhow::Result<()> {
     b.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_b.data_ptr() as *const f64, b_size)
     });
-    let c = Tensor::<f64>::concat(vec![&a, &b], 1, false)?;
+    let c = Tensor::<f64>::concat(vec![a, b], 1, false)?;
     let tch_c = tch::Tensor::cat(&[&tch_a, &tch_b], 1);
     assert_eq(&c, &tch_c);
     assert_eq!(&tch_c.size(), c.shape().inner());
@@ -281,7 +281,7 @@ fn test_uncontiguous_concat() -> anyhow::Result<()> {
     let tch_a = tch_a.permute(&[1, 0, 2][..]);
     let b = b.permute([1, 0, 2])?;
     let tch_b = tch_b.permute(&[1, 0, 2][..]);
-    let c = Tensor::<f64>::concat(vec![&a, &b], 1, false)?;
+    let c = Tensor::<f64>::concat(vec![a, b], 1, false)?;
     let tch_c = tch::Tensor::cat(&[&tch_a, &tch_b], 1);
     assert_eq(&c, &tch_c);
     assert_eq!(&tch_c.size(), c.shape().inner());

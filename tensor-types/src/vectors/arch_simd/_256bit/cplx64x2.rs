@@ -255,4 +255,10 @@ impl NormalOutUnary2 for cplx64x2 {
         let res = [self[0].__relu6(), self[1].__relu6()];
         cplx64x2(unsafe { std::mem::transmute(res) })
     }
+
+    #[inline(always)]
+    fn __trunc(self) -> Self {
+        let res = [self[0].__trunc(), self[1].__trunc()];
+        cplx64x2(unsafe { std::mem::transmute(res) })
+    }
 }

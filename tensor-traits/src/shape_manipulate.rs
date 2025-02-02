@@ -481,7 +481,7 @@ where
     /// * This function will panic if the tensors have incompatible shapes along the specified axis.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn concat(
-        tensors: Vec<&Self>,
+        tensors: Vec<Self>,
         axis: usize,
         keepdims: bool,
     ) -> std::result::Result<Self::Output, TensorError>;
@@ -502,7 +502,7 @@ where
     ///
     /// * This function will panic if the tensors have incompatible shapes along the first dimension.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn vstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError>;
+    fn vstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError>;
 
     /// Stacks multiple tensors horizontally (along the second axis).
     ///
@@ -520,7 +520,7 @@ where
     ///
     /// * This function will panic if the tensors have incompatible shapes along the second dimension.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn hstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError>;
+    fn hstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError>;
 
     /// Stacks multiple tensors along the depth axis (third dimension).
     ///
@@ -538,5 +538,5 @@ where
     ///
     /// * This function will panic if the tensors have incompatible shapes along the third dimension.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn dstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError>;
+    fn dstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError>;
 }

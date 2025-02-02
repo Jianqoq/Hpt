@@ -624,7 +624,7 @@ where
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         let three: <T as FloatOutBinary>::Output = (3.0).into_scalar();
         let three_vec = <<T as FloatOutBinary>::Output as TypeCommon>::Vec::splat(three);
-        let res = reduce3(
+        let mut res = reduce3(
             self,
             move |a, b| {
                 let pow = b._abs()._pow(three);
