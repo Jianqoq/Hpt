@@ -484,7 +484,7 @@ where
 impl<T: CommonBounds, const DEVICE: usize> FloatUnaryOps for DiffTensor<T, Cpu, DEVICE>
 where
     T: FloatOutUnary,
-    FloatUnaryType<T>: CommonBounds + IntoScalar<T>,
+    FloatUnaryType<T>: CommonBounds+FloatOutUnary<Output = <T as FloatOutUnary>::Output> + IntoScalar<T>,
     f64: IntoScalar<<T as FloatOutUnary>::Output>,
     T::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,
 {
@@ -511,7 +511,7 @@ where
                         .strided_map(|(res, (g, x))| {
                             *res = g._mul(x._cos()).into_scalar();
                         })
-                        .collect::<_Tensor<T, Cpu, DEVICE>>();
+                        .collect::<_Tensor<FloatUnaryType<T>, Cpu, DEVICE>>();
                     handle_grad(&mut operand, new_grad.into(), &[])?;
                     Ok(false)
                 },
@@ -855,7 +855,32 @@ where
     }
 
     fn cbrt(&self) -> std::result::Result<Self::Output, TensorError> {
-        todo!()
+        let res = self.inner.cbrt()?;
+        *self.out_degree.borrow_mut() += 1;
+        let mut operand = self.clone();
+        Ok(DiffTensor {
+            inner: res,
+            grad: Rc::new(RefCell::new(None)),
+            out_degree: Rc::new(RefCell::new(0)),
+            backward: Rc::new(RefCell::new(
+                move |grad: Tensor<FloatUnaryType<T>, Cpu, DEVICE>| {
+                    let new_grad = grad
+                        .inner
+                        .par_iter()
+                        .zip(operand.inner.inner.par_iter())
+                        .strided_map(|(res, (g, x))| {
+                            let a: <T as FloatOutUnary>::Output = x._cbrt();
+                            let mul: <T as FloatOutUnary>::Output = a._mul(3.0.into_scalar());
+                            let b: <T as FloatOutUnary>::Output = a._mul(mul);
+                            let c: <T as FloatOutUnary>::Output = b._recip();
+                            *res = g._mul(c).into_scalar();
+                        })
+                        .collect::<_Tensor<T, Cpu, DEVICE>>();
+                    handle_grad(&mut operand, new_grad.into(), &[])?;
+                    Ok(false)
+                },
+            )),
+        })
     }
 
     fn cbrt_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
