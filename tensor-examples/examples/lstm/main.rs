@@ -47,8 +47,17 @@ impl LSTM {
         h_t_1: &Tensor<f32>,
         c_t_1: &Tensor<f32>,
     ) -> Result<(Tensor<f32>, Tensor<f32>), TensorError> {
+        let now = std::time::Instant::now();
         let x_w_ii = x_t.matmul(self.w_ii.t()?)?;
+        println!("matmul1 Time taken: {:?}", now.elapsed());
+        let x_w_if = x_t.matmul(self.w_if.t()?)?;
+        let x_w_ig = x_t.matmul(self.w_ig.t()?)?;
+        let x_w_io = x_t.matmul(self.w_io.t()?)?;
         let h_t_w_hi = h_t_1.matmul(self.w_hi.t()?)?;
+        let h_t_w_hf = h_t_1.matmul(self.w_hf.t()?)?;
+        let h_t_w_hg = h_t_1.matmul(self.w_hg.t()?)?;
+        let h_t_w_ho = h_t_1.matmul(self.w_ho.t()?)?;
+        println!("matmul Time taken: {:?}", now.elapsed());
         let i_t = x_w_ii
             .par_iter_simd()
             .zip(h_t_w_hi.par_iter_simd())
@@ -63,8 +72,6 @@ impl LSTM {
             )
             .collect::<Tensor<f32>>();
 
-        let x_w_if = x_t.matmul(self.w_if.t()?)?;
-        let h_t_w_hf = h_t_1.matmul(self.w_hf.t()?)?;
         let f_t = x_w_if
             .par_iter_simd()
             .zip(h_t_w_hf.par_iter_simd())
@@ -79,8 +86,6 @@ impl LSTM {
             )
             .collect::<Tensor<f32>>();
 
-        let x_w_ig = x_t.matmul(self.w_ig.t()?)?;
-        let h_t_w_hg = h_t_1.matmul(self.w_hg.t()?)?;
         let g_t = x_w_ig
             .par_iter_simd()
             .zip(h_t_w_hg.par_iter_simd())
@@ -95,8 +100,6 @@ impl LSTM {
             )
             .collect::<Tensor<f32>>();
 
-        let x_w_io = x_t.matmul(self.w_io.t()?)?;
-        let h_t_w_ho = h_t_1.matmul(self.w_ho.t()?)?;
         let o_t = x_w_io
             .par_iter_simd()
             .zip(h_t_w_ho.par_iter_simd())
@@ -228,10 +231,10 @@ impl LSTMModel {
             let mut layer_input = x.slice(&match_selection![:, t:t+1, :])?.squeeze(1)?;
             for layer_idx in 0..self.num_layers {
                 let lstm = &self.lstm_cells[layer_idx];
-
+                let now = std::time::Instant::now();
                 let (h_t, c_t) =
                     lstm.forward(&layer_input, &states[layer_idx].0, &states[layer_idx].1)?;
-
+                println!("lstm Time taken: {:?}", now.elapsed());
                 states[layer_idx] = (h_t.clone(), c_t);
 
                 layer_input = h_t;
@@ -254,20 +257,19 @@ impl LSTMModel {
 
 fn main() -> anyhow::Result<()> {
     // 创建模型
-    let model = LSTMModel::new(10, 20, 2, Some(5))?;
+    let model = LSTMModel::new(1024, 1024, 4, Some(20))?;
 
     // 创建示例输入
-    let batch_size = 3;
-    let seq_length = 4;
-    let input = Tensor::randn(&[batch_size, seq_length, 10])?;
+    let batch_size = 4096;
+    let seq_length = 1;
+    let input = Tensor::randn(&[batch_size, seq_length, 1024])?;
 
     // 前向传播
-    let (output, states) = model.forward(&input, None)?;
-
-    // 打印输出形状
-    println!("Input shape: {:?}", input.shape());
-    println!("Output shape: {:?}", output.shape());
-    println!("Number of states: {}", states.len());
+    let start_time = std::time::Instant::now();
+    for _ in 0..1 {
+        let _ = model.forward(&input, None)?;
+    }
+    println!("Time taken: {:?}", start_time.elapsed() / 1);
 
     Ok(())
 }

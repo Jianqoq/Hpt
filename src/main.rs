@@ -1,386 +1,156 @@
-use std::collections::HashMap;
+use tensor_dyn::{FloatOutUnary, Matmul, ParStridedIteratorSimdZip, Random, ShapeManipulate, Tensor, TensorCreator, TensorError, TensorIterator};
+struct LSTM {
+    w_ii: Tensor<f32>,
+    w_hi: Tensor<f32>,
+    b_i: Tensor<f32>,
 
-use rayon::iter::ParallelIterator;
-use tensor_dyn::arch_simd::_256bit::f32x8::f32x8;
-use tensor_dyn::{
-    binary_with_out, Matmul, NormalBinOps, NormalOut, NormalUaryOps, ParStridedIteratorZip, Random,
-    RandomInt, ShapeManipulate, Slice, Tensor, TensorCreator, TensorError, TensorIterator,
-    VecTrait,
-};
-use tensor_dyn::{Eval, TensorInfo};
+    w_if: Tensor<f32>,
+    w_hf: Tensor<f32>,
+    b_f: Tensor<f32>,
 
-struct Encoder {
-    mha: MultiHeadAttention,
-    layernorm: LayerNorm,
-    feedforward: FeedForward,
-    layernorm2: LayerNorm,
+    w_ig: Tensor<f32>,
+    w_hg: Tensor<f32>,
+    b_g: Tensor<f32>,
+
+    w_io: Tensor<f32>,
+    w_ho: Tensor<f32>,
+    b_o: Tensor<f32>,
 }
 
-impl Encoder {
-    pub fn new(embedding_dim: i64, hidden_size: i64, num_head: i64) -> Result<Self, TensorError> {
-        Ok(Encoder {
-            mha: MultiHeadAttention::new(embedding_dim, num_head, 0.0)?,
-            layernorm: LayerNorm::new(&[embedding_dim], 1e-5)?,
-            feedforward: FeedForward::new(embedding_dim, embedding_dim, hidden_size)?,
-            layernorm2: LayerNorm::new(&[embedding_dim], 1e-5)?,
-        })
-    }
-    pub fn forward(&self, word_vec: &Tensor<f32>) -> Result<Tensor<f32>, TensorError> {
-        let x = self
-            .mha
-            .forward(&word_vec, &word_vec, &word_vec, None, None)?;
-        let o = self.layernorm.forward(x + word_vec)?;
-        let ff_res = self.feedforward.forward(&o)?;
-        self.layernorm2.forward(ff_res + o)
-    }
-}
-
-struct Decoder {
-    masked_mha: MultiHeadAttention,
-    layernorm: LayerNorm,
-    mha: MultiHeadAttention,
-    layernorm2: LayerNorm,
-    ff: FeedForward,
-    layernorm3: LayerNorm,
-    num_heads: i64,
-}
-
-impl Decoder {
-    pub fn new(embedding_dim: i64, hidden_size: i64, num_head: i64) -> Result<Self, TensorError> {
-        Ok(Decoder {
-            masked_mha: MultiHeadAttention::new(embedding_dim, num_head, 0.0)?,
-            layernorm: LayerNorm::new(&[embedding_dim], 1e-5)?,
-            mha: MultiHeadAttention::new(embedding_dim, num_head, 0.0)?,
-            layernorm2: LayerNorm::new(&[embedding_dim], 1e-5)?,
-            ff: FeedForward::new(embedding_dim, embedding_dim, hidden_size)?,
-            layernorm3: LayerNorm::new(&[embedding_dim], 1e-5)?,
-            num_heads: num_head,
-        })
-    }
-    pub fn forward(
-        &self,
-        seq_len: i64,
-        word_vec: &Tensor<f32>,
-        o2: &Tensor<f32>,
-    ) -> Result<Tensor<f32>, TensorError> {
-        let mask = Tensor::<f32>::tri(seq_len as usize, seq_len as usize, 0, false)?;
-        let masked = self
-            .masked_mha
-            .forward(&word_vec, &word_vec, &word_vec, Some(&mask), None)?;
-        let o = self.layernorm.forward(masked + word_vec)?;
-        let x = self.mha.forward(&o, &o2, &o2, None, None)?;
-        let o2 = self.layernorm2.forward(x + o)?;
-        let ff_res = self.ff.forward(&o2)?;
-        self.layernorm3.forward(ff_res + o2)
-    }
-}
-
-struct Embedding {
-    weight: Tensor<f32>,
-}
-
-impl Embedding {
-    fn new(num_embeddings: i64, embedding_dim: i64) -> Result<Self, TensorError> {
-        let weight = Tensor::<f32>::randn([num_embeddings, embedding_dim])?;
-        Ok(Self { weight })
-    }
-
-    fn forward(&self, input: &Tensor<i64>) -> Result<Tensor<f32>, TensorError> {
-        let ptr = input.ptr();
-        let mut outputs = Vec::new();
-        for i in 0..input.size() {
-            let index = ptr[i];
-            let embedding = self
-                .weight
-                .slice(&[Slice::Range((index, index + 1)), Slice::Full])?;
-            outputs.push(embedding);
-        }
-        Ok(Tensor::concat(outputs, 0, true)?)
-    }
-}
-
-struct PositionalEncoding;
-
-impl PositionalEncoding {
-    fn forward(&self, input: &Tensor<f32>) -> Result<Tensor<f32>, TensorError> {
-        let shape = input.shape();
-        let batch_size = shape[0];
-        let seq_len = shape[1];
-        let embedding_dim = shape[2];
-        let i_mat = binary_with_out(
-            &Tensor::<f32>::new([10000.0]),
-            &Tensor::<f32>::arange_step(0.0, embedding_dim as f32, 2.0)?,
-            |a, b| a._pow(b) / embedding_dim as f32,
-            |a, b| a._pow(b) / f32x8::splat(embedding_dim as f32),
-            None::<Tensor<f32>>,
-        )?;
-        let pos = Tensor::<f32>::arange(0.0, seq_len as f32)?.unsqueeze(1)?;
-
-        let pe = Tensor::<f32>::zeros([seq_len, embedding_dim])?;
-        let mut pe_sin = pe.slice(&[Slice::Full, Slice::StepByRangeFrom((0, 2))])?;
-        let mut pe_cos = pe.slice(&[Slice::Full, Slice::StepByRangeFrom((1, 2))])?;
-
-        pe_sin
-            .par_iter_mut()
-            .zip(pos.par_iter())
-            .zip(i_mat.par_iter())
-            .for_each(|((res, pos), i_mat)| {
-                *res = (pos / i_mat).sin();
-            });
-        pe_cos
-            .par_iter_mut()
-            .zip(pos.par_iter())
-            .zip(i_mat.par_iter())
-            .for_each(|((res, pos), i_mat)| {
-                *res = (pos / i_mat).cos();
-            });
-        Ok(pe
-            .expand([batch_size, seq_len, embedding_dim])?
-            .par_iter()
-            .zip(input.par_iter())
-            .strided_map(|(res, (pe, input))| {
-                *res = pe + input;
-            })
-            .collect::<Tensor<f32>>())
-    }
-}
-
-struct MultiHeadAttention {
-    embedding_dim: i64,
-    num_heads: i64,
-    dropout: f32,
-    head_dim: i64,
-    q_linear: Linear,
-    k_linear: Linear,
-    v_linear: Linear,
-    out_linear: Linear,
-    dropout_p: f32,
-}
-
-impl MultiHeadAttention {
-    fn new(embedding_dim: i64, num_heads: i64, dropout: f32) -> Result<Self, TensorError> {
-        let head_dim = embedding_dim / num_heads;
+impl LSTM {
+    fn new(input_size: usize, hidden_size: usize) -> Result<Self, TensorError> {
         Ok(Self {
-            embedding_dim,
-            num_heads,
-            dropout,
-            head_dim,
-            q_linear: Linear::new(embedding_dim, embedding_dim)?,
-            k_linear: Linear::new(embedding_dim, embedding_dim)?,
-            v_linear: Linear::new(embedding_dim, embedding_dim)?,
-            out_linear: Linear::new(embedding_dim, embedding_dim)?,
-            dropout_p: dropout,
+            w_ii: Tensor::randn(&[hidden_size, input_size])?,
+            w_hi: Tensor::randn(&[hidden_size, hidden_size])?,
+            b_i: Tensor::zeros(&[hidden_size])?,
+
+            w_if: Tensor::randn(&[hidden_size, input_size])?,
+            w_hf: Tensor::randn(&[hidden_size, hidden_size])?,
+            b_f: Tensor::zeros(&[hidden_size])?,
+
+            w_ig: Tensor::randn(&[hidden_size, input_size])?,
+            w_hg: Tensor::randn(&[hidden_size, hidden_size])?,
+            b_g: Tensor::zeros(&[hidden_size])?,
+
+            w_io: Tensor::randn(&[hidden_size, input_size])?,
+            w_ho: Tensor::randn(&[hidden_size, hidden_size])?,
+            b_o: Tensor::zeros(&[hidden_size])?,
         })
     }
     fn forward(
         &self,
-        query: &Tensor<f32>,
-        key: &Tensor<f32>,
-        value: &Tensor<f32>,
-        attn_mask: Option<&Tensor<f32>>,
-        key_padding_mask: Option<&Tensor<f32>>,
-    ) -> Result<Tensor<f32>, TensorError> {
-        let batch_size = query.shape()[0];
-        let seq_len = query.shape()[1];
-        let embedding_dim = query.shape()[2];
-        let seq_len_k = key.shape()[1];
-        let seq_len_v = value.shape()[1];
+        x_t: &Tensor<f32>,
+        h_t_1: &Tensor<f32>,
+        c_t_1: &Tensor<f32>,
+    ) -> Result<(Tensor<f32>, Tensor<f32>), TensorError> {
+        let x_w_ii = x_t.matmul(self.w_ii.t()?)?;
+        let x_w_if = x_t.matmul(self.w_if.t()?)?;
+        let x_w_ig = x_t.matmul(self.w_ig.t()?)?;
+        let x_w_io = x_t.matmul(self.w_io.t()?)?;
+        let h_t_w_hi = h_t_1.matmul(self.w_hi.t()?)?;
+        let h_t_w_hf = h_t_1.matmul(self.w_hf.t()?)?;
+        let h_t_w_hg = h_t_1.matmul(self.w_hg.t()?)?;
+        let h_t_w_ho = h_t_1.matmul(self.w_ho.t()?)?;
+        let i_t = x_w_ii
+            .par_iter_simd()
+            .zip(h_t_w_hi.par_iter_simd())
+            .zip(self.b_i.par_iter_simd())
+            .strided_map_simd(
+                |(res, ((x, y), z))| {
+                    *res = (x + y + z)._sigmoid();
+                },
+                |(res, ((x, y), z))| {
+                    res.write_unaligned((x + y + z)._sigmoid());
+                },
+            )
+            .collect::<Tensor<f32>>();
 
-        let scaling = Tensor::<f32>::new([(self.head_dim as f32).sqrt()]);
+        let f_t = x_w_if
+            .par_iter_simd()
+            .zip(h_t_w_hf.par_iter_simd())
+            .zip(self.b_f.par_iter_simd())
+            .strided_map_simd(
+                |(res, ((x, y), z))| {
+                    *res = (x + y + z)._sigmoid();
+                },
+                |(res, ((x, y), z))| {
+                    res.write_unaligned((x + y + z)._sigmoid());
+                },
+            )
+            .collect::<Tensor<f32>>();
 
-        let q = self.q_linear.forward(query)?;
-        let k = self.k_linear.forward(key)?;
-        let v = self.v_linear.forward(value)?;
+        let g_t = x_w_ig
+            .par_iter_simd()
+            .zip(h_t_w_hg.par_iter_simd())
+            .zip(self.b_g.par_iter_simd())
+            .strided_map_simd(
+                |(res, ((x, y), z))| {
+                    *res = (x + y + z)._tanh();
+                },
+                |(res, ((x, y), z))| {
+                    res.write_unaligned((x + y + z)._tanh());
+                },
+            )
+            .collect::<Tensor<f32>>();
 
-        let q = q.reshape([batch_size, seq_len, self.num_heads, self.head_dim])?;
-        let k = k.reshape([batch_size, seq_len_k, self.num_heads, self.head_dim])?;
-        let v = v.reshape([batch_size, seq_len_v, self.num_heads, self.head_dim])?;
+        let o_t = x_w_io
+            .par_iter_simd()
+            .zip(h_t_w_ho.par_iter_simd())
+            .zip(self.b_o.par_iter_simd())
+            .strided_map_simd(
+                |(res, ((x, y), z))| {
+                    *res = (x + y + z)._sigmoid();
+                },
+                |(res, ((x, y), z))| {
+                    res.write_unaligned((x + y + z)._sigmoid());
+                },
+            )
+            .collect::<Tensor<f32>>();
 
-        let r = q.matmul(k.t()?)?;
-        let mut scores = r.mul_(scaling, r.clone())?;
+        let c_t = f_t
+            .par_iter_simd()
+            .zip(c_t_1.par_iter_simd())
+            .zip(i_t.par_iter_simd())
+            .zip(g_t.par_iter_simd())
+            .strided_map_simd(
+                |(res, (((x, y), z), w))| {
+                    *res = x * y + z * w;
+                },
+                |(res, (((x, y), z), w))| {
+                    res.write_unaligned(x * y + z * w);
+                },
+            )
+            .collect::<Tensor<f32>>();
 
-        if let Some(attn_mask) = attn_mask {
-            scores
-                .par_iter_mut()
-                .zip(attn_mask.par_iter())
-                .for_each(|(res, mask)| {
-                    if mask._is_true() {
-                        *res = f32::NEG_INFINITY;
-                    }
-                });
-        }
+        let h_t = o_t
+            .par_iter_simd()
+            .zip(c_t.par_iter_simd())
+            .strided_map_simd(
+                |(res, (x, y))| {
+                    *res = x * y.tanh();
+                },
+                |(res, (x, y))| {
+                    res.write_unaligned(x * y._tanh());
+                },
+            )
+            .collect::<Tensor<f32>>();
 
-        let attn_weights = scores.softmax(-1)?;
-
-        let output = attn_weights.matmul(v)?;
-
-        let output = output
-            .swap_axes(1, 2)?
-            .reshape([batch_size, seq_len, embedding_dim])?;
-
-        let output = self.out_linear.forward(&output)?;
-
-        Ok(output)
+        Ok((h_t, c_t))
     }
 }
-
-pub struct Linear {
-    weight: Tensor<f32>,
-
-    bias: Tensor<f32>,
-}
-
-impl Linear {
-    pub fn new(in_features: i64, out_features: i64) -> Result<Self, TensorError> {
-        Ok(Self {
-            weight: Tensor::<f32>::randn([in_features, out_features])?,
-            bias: Tensor::<f32>::zeros([out_features])?,
-        })
-    }
-    pub fn forward(&self, x: &Tensor<f32>) -> Result<Tensor<f32>, TensorError> {
-        let out = x.matmul(&self.weight)?;
-        Ok(out)
-    }
-}
-
-pub struct LayerNorm {
-    gamma: Tensor<f32>,
-    beta: Tensor<f32>,
-    eps: f32,
-    normalized_shape: Vec<i64>,
-}
-
-impl LayerNorm {
-    pub fn new(normalized_shape: &[i64], eps: f32) -> Result<Self, TensorError> {
-        Ok(LayerNorm {
-            gamma: Tensor::empty(normalized_shape)?,
-            beta: Tensor::empty(normalized_shape)?,
-            eps,
-            normalized_shape: normalized_shape.to_vec(),
-        })
-    }
-
-    pub fn forward(&self, x: Tensor<f32>) -> Result<Tensor<f32>, TensorError> {
-        x.layernorm(
-            &self.normalized_shape,
-            Some(&self.gamma),
-            Some(&self.beta),
-            self.eps,
-        )
-    }
-}
-
-pub struct Relu;
-
-impl Relu {
-    pub fn forward(&self, x: &Tensor<f32>) -> Result<Tensor<f32>, TensorError> {
-        x.relu_(x)
-    }
-}
-
-pub struct FeedForward {
-    linear1: Linear,
-    linear2: Linear,
-    relu: Relu,
-}
-
-impl FeedForward {
-    pub fn new(
-        in_feature: i64,
-        out_feature: i64,
-        hidden_feature: i64,
-    ) -> Result<Self, TensorError> {
-        Ok(FeedForward {
-            linear1: Linear::new(in_feature, hidden_feature)?,
-            linear2: Linear::new(hidden_feature, out_feature)?,
-            relu: Relu,
-        })
-    }
-
-    pub fn forward(&self, x: &Tensor<f32>) -> Result<Tensor<f32>, TensorError> {
-        let x = self.linear1.forward(x)?;
-        let x = self.linear2.forward(&x)?;
-        self.relu.forward(&x)
-    }
-}
-
-struct Transformer {
-    word_embedding: Embedding,
-    encoders: Vec<Encoder>,
-    word_embedding2: Embedding,
-    decoder: Vec<Decoder>,
-    linear: Linear,
-}
-
-impl Transformer {
-    pub fn new(
-        corpus: i64,
-        embedding_dim: i64,
-        hidden_size: i64,
-        num_head: i64,
-        num_layers: usize,
-    ) -> Result<Self, TensorError> {
-        Ok(Transformer {
-            word_embedding: Embedding::new(corpus, embedding_dim)?,
-            encoders: {
-                let mut ret = Vec::with_capacity(num_layers);
-                for _ in 0..num_layers {
-                    ret.push(Encoder::new(embedding_dim, hidden_size, num_head)?);
-                }
-                ret
-            },
-            word_embedding2: Embedding::new(corpus, embedding_dim)?,
-            decoder: {
-                let mut ret = Vec::with_capacity(num_layers);
-                for _ in 0..num_layers {
-                    ret.push(Decoder::new(embedding_dim, hidden_size, num_head)?);
-                }
-                ret
-            },
-            linear: Linear::new(embedding_dim, corpus)?,
-        })
-    }
-    pub fn generate(
-        &self,
-        question: &Tensor<i64>,
-        word_id: &HashMap<String, i64>,
-    ) -> Result<(), TensorError> {
-        let word_vec = self.word_embedding.forward(&question)?;
-        let mut encoder_output = PositionalEncoding.forward(&word_vec)?;
-        for i in &self.encoders {
-            encoder_output = i.forward(&encoder_output)?;
-        }
-        let mut outputs = Vec::new();
-        let start_token = Tensor::<i64>::new([[*word_id.get("_").unwrap()]]);
-        for _ in 0..50 {
-            let x = if outputs.is_empty() {
-                start_token.clone()
-            } else {
-                let mut tensors = vec![start_token.clone()];
-                tensors.extend_from_slice(&outputs);
-                Tensor::<i64>::concat(tensors, 1, true)?
-            };
-            let word_vec = self.word_embedding2.forward(&x)?;
-            let pe = PositionalEncoding.forward(&word_vec)?;
-            let mut decoder_output = word_vec + pe;
-            for i in &self.decoder {
-                decoder_output = i.forward(*x.shape().last().unwrap(), &decoder_output, &encoder_output)?;
-            }
-            // let score = self.linear.forward(&decoder_output)?;
-        }
-        Ok(())
-    }
-}
-
 fn main() -> Result<(), TensorError> {
-    let mh = Transformer::new(14, 128, 516, 8, 2)?;
-    let dummy_questions = Tensor::<i64>::randint(0, 14, [1, 512])?;
-    let mut word_id = HashMap::new();
-    word_id.insert("_".to_string(), 5);
+    let batch_size = 4096;
+    let input_size = 1024;
+    let output_size = 1024;
+    let a = Tensor::<f32>::randn([batch_size, input_size])?;
+    let h = Tensor::<f32>::zeros([batch_size, input_size])?;
+    let c = Tensor::<f32>::zeros([batch_size, input_size])?;
+    let lstm = LSTM::new(input_size as usize, output_size as usize)?;
+
     let now = std::time::Instant::now();
-    for _ in 0..1 {
-        let _ = mh.generate(&dummy_questions, &word_id)?;
+    for _ in 0..100 {
+        let _ = lstm.forward(&a, &h, &c)?;
     }
-    println!("Time: {:?}", now.elapsed() / 100);
+    println!("{:?}", now.elapsed() / 100);
     Ok(())
 }
