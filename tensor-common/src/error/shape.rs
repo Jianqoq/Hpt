@@ -173,7 +173,7 @@ impl ShapeError {
             return Err(Self::MatmulMismatch {
                 lhs: lhs.clone(),
                 rhs: rhs.clone(),
-                expected: rhs_last_sec,
+                expected: lhs_last,
                 location: Location::caller(),
             });
         }

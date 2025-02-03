@@ -40,6 +40,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for _Tensor<T, Cpu, D
             self, axis1, axis2,
         )?)
     }
+    #[track_caller]
     fn permute<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self, TensorError> {
         Ok(crate::ops::common::shape_manipulate::permute(
             self,

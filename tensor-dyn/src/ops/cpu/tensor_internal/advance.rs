@@ -404,7 +404,6 @@ where
         permute_axes.retain(|x| *x != (axis as usize));
         permute_axes.push(axis as usize);
         let permuted_indices = indices.permute(&permute_axes)?;
-
         let inner_size = *permuted_indices.shape().last().unwrap();
         let outer_size = permuted_indices.size() as i64 / inner_size;
 

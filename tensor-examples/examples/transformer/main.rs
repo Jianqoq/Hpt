@@ -27,9 +27,11 @@ impl Encoder {
     }
     pub fn forward(&self, word_vec: &Tensor<f32>) -> Result<Tensor<f32>, TensorError> {
         let x = self.mha.forward(&word_vec, &word_vec, &word_vec, None)?;
-        let o = self.layernorm.forward(x + word_vec)?;
+        let x = x.add_(word_vec, x.clone())?;
+        let o = self.layernorm.forward(x)?;
         let ff_res = self.feedforward.forward(&o)?;
-        self.layernorm2.forward(ff_res + o)
+        let ff_res = ff_res.add_(o, ff_res.clone())?;
+        self.layernorm2.forward(ff_res)
     }
 }
 
@@ -62,7 +64,6 @@ impl Decoder {
         word_vec: &Tensor<f32>,
         o2: &Tensor<f32>,
     ) -> Result<Tensor<f32>, TensorError> {
-        // println!("{}, {}, {}", seq_len, word_vec.shape(), o2.shape());
         let mask = Tensor::<f32>::tri(seq_len as usize, seq_len as usize, 0, false)?;
         let masked = self
             .masked_mha
@@ -366,43 +367,45 @@ impl Transformer {
         &self,
         question: &Tensor<i64>,
         word_id: &HashMap<String, i64>,
-    ) -> Result<Tensor<i64>, TensorError> {
+    ) -> Result<Tensor<f32>, TensorError> {
         let word_vec = self.word_embedding.forward(&question)?;
         let mut encoder_output = PositionalEncoding.forward(&word_vec)?;
-        for i in &self.encoders {
-            encoder_output = i.forward(&encoder_output)?;
-        }
-        let mut outputs = Vec::new();
-        let start_token = Tensor::<i64>::new([[*word_id.get("_").unwrap()]]);
-        for _ in 0..1 {
-            let x = if outputs.is_empty() {
-                start_token.clone()
-            } else {
-                let mut tensors = vec![start_token.clone()];
-                tensors.extend_from_slice(&outputs);
-                Tensor::<i64>::concat(tensors, 1, false)?
-            };
-            let word_vec = self.word_embedding2.forward(&x)?;
-            let mut decoder_output = PositionalEncoding.forward(&word_vec)?;
-            let now = std::time::Instant::now();
-            for i in &self.decoder {
-                decoder_output =
-                    i.forward(*x.shape().last().unwrap(), &decoder_output, &encoder_output)?;
+        for _ in 0..10 {
+            for i in &self.encoders {
+                encoder_output = i.forward(&encoder_output)?;
             }
-            println!("elapsed: {:?}", now.elapsed());
-            // let score = self.linear.forward(&decoder_output)?;
-            // let sliced = score.slice(&match_selection!(:, -1:, :))?;
-            // let prob = sliced.softmax(-1)?;
-            // let next_token = prob.argmax(-1, false)?;
-            // outputs.push(next_token);
         }
+        // let mut outputs = Vec::new();
+        // let start_token = Tensor::<i64>::new([[*word_id.get("_").unwrap()]]);
+        // for _ in 0..10 {
+        //     let x = if outputs.is_empty() {
+        //         start_token.clone()
+        //     } else {
+        //         let mut tensors = vec![start_token.clone()];
+        //         tensors.extend_from_slice(&outputs);
+        //         Tensor::<i64>::concat(tensors, 1, false)?
+        //     };
+        //     let word_vec = self.word_embedding2.forward(&x)?;
+        //     let mut decoder_output = PositionalEncoding.forward(&word_vec)?;
+        //     let now = std::time::Instant::now();
+        //     for i in &self.decoder {
+        //         decoder_output =
+        //             i.forward(*x.shape().last().unwrap(), &decoder_output, &encoder_output)?;
+        //     }
+        //     println!("Time: {:?}", now.elapsed());
+        //     let score = self.linear.forward(&decoder_output)?;
+        //     let sliced = score.slice(&match_selection!(:, -1:, :))?;
+        //     let prob = sliced.softmax(-1)?;
+        //     let next_token = prob.argmax(-1, false)?;
+        //     outputs.push(next_token);
+        // }
         // Tensor::<i64>::concat(outputs, 1, false)
-        Ok(start_token)
+        Ok(encoder_output)
     }
 }
 
 fn main() -> anyhow::Result<()> {
-    let mh = Transformer::new(14, 1024, 516, 8, 2)?;
+    let mh = Transformer::new(14, 2048, 516, 8, 2)?;
     let dummy_questions = Tensor::<i64>::randint(0, 14, [1, 1024])?;
     let mut word_id = HashMap::new();
     word_id.insert("_".to_string(), 5);
