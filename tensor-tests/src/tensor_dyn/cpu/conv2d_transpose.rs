@@ -42,9 +42,7 @@ where
     a.as_raw_mut()
         .copy_from_slice(unsafe { std::slice::from_raw_parts(tch_a.data_ptr() as *const T, size) });
     Ok((
-        kernel
-            .permute([2, 3, 1, 0])?
-            .contiguous()?,
+        kernel.permute([2, 3, 1, 0])?.contiguous()?,
         a.permute([0, 2, 3, 1])?.contiguous()?,
         tch_kernel,
         tch_a,
@@ -59,15 +57,7 @@ fn assert_eq(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let res = a
-        .conv2d_transpose(
-            &a_kernel,
-            None,
-            [1, 1],
-            [(0, 0), (0, 0)],
-            [0, 0],
-            [1, 1],
-            None,
-        )?
+        .conv2d_transpose(&a_kernel, None, [1, 1], [(0, 0), (0, 0)], [0, 0], [1, 1])?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.conv_transpose2d(
@@ -95,15 +85,7 @@ fn assert_eq_pad(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let res = a
-        .conv2d_transpose(
-            &a_kernel,
-            None,
-            [1, 1],
-            [(2, 2), (2, 2)],
-            [0, 0],
-            [1, 1],
-            None,
-        )?
+        .conv2d_transpose(&a_kernel, None, [1, 1], [(2, 2), (2, 2)], [0, 0], [1, 1])?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.conv_transpose2d(

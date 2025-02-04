@@ -3,6 +3,7 @@ use crate::ops::cpu::kernels::conv_transpose::{
 };
 use crate::tensor_base::_Tensor;
 use crate::{Cpu, Tensor};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tensor_common::error::base::TensorError;
 use tensor_common::error::shape::ShapeError;
 use tensor_traits::CommonBounds;
@@ -45,7 +46,6 @@ where
         padding: [(i64, i64); 2],
         output_padding: [i64; 2],
         dilation: [i64; 2],
-        activation: Option<fn(T::Vec) -> T::Vec>,
     ) -> Result<_Tensor<T, Cpu, DEVICE>, TensorError> {
         let inp_shape = self.shape();
         ShapeError::check_dim(4, inp_shape.len())?;
@@ -299,7 +299,6 @@ where
         padding: [(i64, i64); 2],
         output_padding: [i64; 2],
         dilation: [i64; 2],
-        activation: Option<fn(T::Vec) -> T::Vec>,
     ) -> Result<Tensor<T, Cpu, DEVICE>, TensorError> {
         Ok(self
             .inner
@@ -310,7 +309,6 @@ where
                 padding,
                 output_padding,
                 dilation,
-                activation,
             )?
             .into())
     }
@@ -348,39 +346,40 @@ pub(crate) fn conv2d_backward_kernel<T: CommonBounds, const DEVICE: usize>(
     let gsh = grad_output.strides()[1];
     let gsw = grad_output.strides()[2];
 
-    let mut grad_kernel_ptr = grad_kernel.ptr();
     let gkbs = grad_kernel.strides()[0];
     let gksh = grad_kernel.strides()[1];
     let gksw = grad_kernel.strides()[2];
 
-    for b in 0..batch {
-        for h_out in 0..grad_shape[1] {
-            for w_out in 0..grad_shape[2] {
-                for kh in 0..kernel_shape[0] {
-                    for kw in 0..kernel_shape[1] {
-                        // 计算输入位置
-                        let h_in = h_out * sh + kh - ph_start;
-                        let w_in = w_out * sw + kw - pw_start;
+    let outer = batch * grad_shape[1] * grad_shape[2];
 
-                        if h_in >= 0 && h_in < inp_height && w_in >= 0 && w_in < inp_width {
-                            for ic in 0..in_channel {
-                                for oc in 0..out_channel {
-                                    let inp_val = input_ptr[b * ibs + h_in * ish + w_in * isw + ic];
+    let grad_kernel_ptr = grad_kernel.ptr();
+    (0..outer).into_par_iter().for_each(|idx| {
+        let mut grad_kernel_ptr = grad_kernel_ptr.clone();
+        let b = idx / (grad_shape[1] * grad_shape[2]);
+        let h_out = (idx % (grad_shape[1] * grad_shape[2])) / grad_shape[2];
+        let w_out = idx % grad_shape[2];
+        for kh in 0..kernel_shape[0] {
+            for kw in 0..kernel_shape[1] {
+                let h_in = h_out * sh + kh - ph_start;
+                let w_in = w_out * sw + kw - pw_start;
 
-                                    let grad_out_val =
-                                        grad_output_ptr[b * gbs + h_out * gsh + w_out * gsw + oc];
+                if h_in >= 0 && h_in < inp_height && w_in >= 0 && w_in < inp_width {
+                    for ic in 0..in_channel {
+                        for oc in 0..out_channel {
+                            let inp_val = input_ptr[b * ibs + h_in * ish + w_in * isw + ic];
 
-                                    let gk_idx = kh * gkbs + kw * gksh + ic * gksw + oc;
-                                    grad_kernel_ptr[gk_idx] =
-                                        inp_val._mul_add(grad_out_val, grad_kernel_ptr[gk_idx]);
-                                }
-                            }
+                            let grad_out_val =
+                                grad_output_ptr[b * gbs + h_out * gsh + w_out * gsw + oc];
+
+                            let gk_idx = kh * gkbs + kw * gksh + ic * gksw + oc;
+                            grad_kernel_ptr[gk_idx] =
+                                inp_val._mul_add(grad_out_val, grad_kernel_ptr[gk_idx]);
                         }
                     }
                 }
             }
         }
-    }
+    });
     Ok(grad_kernel)
 }
 

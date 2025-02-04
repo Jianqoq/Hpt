@@ -8,6 +8,7 @@ use crate::ops::cpu::kernels::conv::conv2d_full_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::conv::remain_oc_kernel_dispatch;
 use crate::ops::cpu::kernels::conv::Params;
 use crate::ops::cpu::kernels::conv::PartialParams;
+use crate::ops::cpu::utils::diff::diff_utils::handle_grad;
 use crate::tensor::DiffTensor;
 use crate::tensor_base::_Tensor;
 use crate::Cpu;
@@ -23,6 +24,9 @@ use tensor_traits::TensorInfo;
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
+
+use super::conv2d_transpose::conv2d_backward_bias;
+use super::conv2d_transpose::conv2d_backward_kernel;
 
 impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
 where
@@ -1383,21 +1387,35 @@ where
             dilation,
             None,
         )?;
-        let kernel_inner = kernels.inner.clone();
+        let mut kernel = kernels.clone();
+        let mut bias = bias.map(|b| b.clone());
+        let mut operand = self.clone();
         Ok(DiffTensor {
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
             backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
                 let input_grad = grad.conv2d_transpose(
-                    &kernel_inner,
+                    &kernel.inner,
                     None,
                     steps,
                     padding,
                     [0, 0], // output_padding = 0
                     dilation,
-                    None,
                 )?;
+                let kernel_grad = conv2d_backward_kernel(
+                    &operand.inner.inner,
+                    &grad.inner,
+                    &kernel.inner.shape()[2..],
+                    steps,
+                    padding,
+                )?;
+                if let Some(bias) = &mut bias {
+                    let bias_grad = conv2d_backward_bias(&grad.inner)?;
+                    handle_grad(bias, bias_grad.into(), &[])?;
+                }
+                handle_grad(&mut operand, kernel_grad.into(), &[])?;
+                handle_grad(&mut kernel, input_grad.into(), &[])?;
                 Ok(false)
             })),
         })
