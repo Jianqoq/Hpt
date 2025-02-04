@@ -6,20 +6,15 @@ use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::{ CommonBounds, TensorInfo };
 use tensor_dyn::{ Tensor, TensorCreator };
-use tensor_types::convertion::{ Convertor, FromScalar };
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
 
 use super::assert_utils::assert_f64;
 
-fn common_input<T>([batch, in_channel, height, width]: [i64; 4])
-    -> anyhow::Result<(Tensor<T>, tch::Tensor)>
-    where
-        T: Convertor + FromScalar<i64> + NormalOut<T, Output = T> + CommonBounds,
-        usize: IntoScalar<T>,
-        i64: IntoScalar<T>
-{
-    let a = Tensor::<T>
+fn common_input([batch, in_channel, height, width]: [i64; 4]) -> anyhow::Result<
+    (Tensor<f64>, tch::Tensor)
+> {
+    let a = Tensor::<f64>
         ::arange(0, batch * in_channel * height * width)?
         .reshape([batch, in_channel, height, width])?
         .permute([0, 2, 3, 1])?

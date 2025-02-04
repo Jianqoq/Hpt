@@ -27,7 +27,7 @@ use std::simd::num::SimdUint;
 /// Convertor trait
 ///
 /// This trait is used to convert a scalar to another type
-pub trait Convertor {
+pub(crate) trait Convertor {
     /// convert the value to bool
     fn to_bool(self) -> bool;
     /// convert the value to u8
@@ -68,7 +68,7 @@ pub trait Convertor {
 ///
 /// This trait is used to convert a simd vector to another type
 #[cfg(target_feature = "avx2")]
-pub trait VecConvertor: Sized {
+pub(crate) trait VecConvertor: Sized {
     /// convert the value to boolx32
     fn to_bool(self) -> boolx32::boolx32 {
         unreachable!()
@@ -146,7 +146,7 @@ pub trait VecConvertor: Sized {
 /// VecConvertor trait
 ///
 /// This trait is used to convert a simd vector to another type
-pub trait VecConvertor: Sized {
+pub(crate) trait VecConvertor: Sized {
     /// convert the value to boolx16
     fn to_bool(self) -> boolx16::boolx16 {
         unreachable!()
@@ -217,15 +217,7 @@ pub trait VecConvertor: Sized {
     }
 }
 
-/// A trait for converting a scalar value to another scalar value.
-pub trait FromScalar<T> {
-    /// Convert a scalar value to another scalar value.
-    fn _from(a: T) -> Self;
-}
-
 #[cfg(feature = "stdsimd")]
 impl_simd_convert!();
 
 impl_scalar_convert!();
-
-impl_from_scalar!();

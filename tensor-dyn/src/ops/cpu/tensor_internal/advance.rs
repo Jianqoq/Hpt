@@ -22,7 +22,7 @@ use tensor_types::traits::{SimdSelect, VecTrait};
 use tensor_types::type_promote::{Cmp, NormalOut, NormalOutUnary, SimdCmp};
 impl<T: CommonBounds + PartialOrd, const DEVICE: usize> AdvanceOps for _Tensor<T, Cpu, DEVICE>
 where
-    T: NormalOut<bool, Output = T>,
+    T: NormalOut<bool, Output = T> + IntoScalar<i64>,
     f64: IntoScalar<T>,
 {
     type Meta = T;
@@ -382,7 +382,7 @@ where
                                 * permuted_res_strides[j];
                             res_amount /= permuted_res_shape[j];
                         }
-                        let dp = inp_ptr[index].to_i64();
+                        let dp: i64 = inp_ptr[index].into_scalar();
                         res_ptr[res_index + dp * last_strides] = true_val;
                     }
                 });

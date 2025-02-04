@@ -3,64 +3,56 @@ use std::{ cell::RefCell, rc::Rc };
 use crate::{ backend::Cpu, tensor::{ DiffTensor, Tensor }, tensor_base::_Tensor, BoolVector };
 use tensor_common::{ error::base::TensorError, shape::shape::Shape };
 use tensor_traits::{ CommonBounds, TensorCreator };
-use tensor_types::{
-    convertion::{ Convertor, FromScalar },
-    dtype::TypeCommon,
-    into_scalar::IntoScalar,
-    type_promote::NormalOut,
-};
+use tensor_types::{ dtype::TypeCommon, into_scalar::IntoScalar, type_promote::NormalOut };
 
 impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, DEVICE> {
     type Output = Tensor<T, Cpu, DEVICE>;
 
-    fn empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, TensorError> {
+    fn empty<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu, DEVICE>::empty(shape)?.into())
     }
 
-    fn zeros<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, TensorError> {
+    fn zeros<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu, DEVICE>::zeros(shape)?.into())
     }
 
-    fn ones<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, TensorError>
-        where u8: IntoScalar<T>
-    {
+    fn ones<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> where u8: IntoScalar<T> {
         Ok(_Tensor::<T, Cpu, DEVICE>::ones(shape)?.into())
     }
 
-    fn empty_like(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn empty_like(&self) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::empty_like(self.inner.as_ref())?.into())
     }
 
-    fn zeros_like(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn zeros_like(&self) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::zeros_like(self.inner.as_ref())?.into())
     }
 
-    fn ones_like(&self) -> std::result::Result<Self::Output, TensorError> where u8: IntoScalar<T> {
+    fn ones_like(&self) -> Result<Self::Output, TensorError> where u8: IntoScalar<T> {
         Ok(_Tensor::ones_like(self.inner.as_ref())?.into())
     }
 
-    fn full<S: Into<Shape>>(val: T, shape: S) -> std::result::Result<Self::Output, TensorError> {
+    fn full<S: Into<Shape>>(val: T, shape: S) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu, DEVICE>::full(val, shape)?.into())
     }
 
-    fn full_like(&self, val: T) -> std::result::Result<Self::Output, TensorError> {
+    fn full_like(&self, val: T) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::full_like(self.inner.as_ref(), val)?.into())
     }
 
-    fn arange<U>(start: U, end: U) -> std::result::Result<Self::Output, TensorError>
-        where T: FromScalar<U>, usize: IntoScalar<T>, U: Convertor + IntoScalar<T> + Copy
+    fn arange<U>(start: U, end: U) -> Result<Self::Output, TensorError>
+        where usize: IntoScalar<T>, U: IntoScalar<i64> + IntoScalar<T> + Copy
     {
         Ok(_Tensor::<T, Cpu, DEVICE>::arange(start, end)?.into())
     }
 
-    fn arange_step(start: T, end: T, step: T) -> std::result::Result<Self::Output, TensorError>
-        where T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>
+    fn arange_step(start: T, end: T, step: T) -> Result<Self::Output, TensorError>
+        where T: IntoScalar<f64> + IntoScalar<usize>, usize: IntoScalar<T>
     {
         Ok(_Tensor::<T, Cpu, DEVICE>::arange_step(start, end, step)?.into())
     }
 
-    fn eye(n: usize, m: usize, k: usize) -> std::result::Result<Self::Output, TensorError>
-    {
+    fn eye(n: usize, m: usize, k: usize) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu, DEVICE>::eye(n, m, k)?.into())
     }
 
@@ -70,12 +62,8 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         num: usize,
         include_end: bool
     )
-        -> std::result::Result<Self::Output, TensorError>
-        where
-            T: Convertor + NormalOut<T, Output = T>,
-            U: Convertor + IntoScalar<T> + Copy,
-            usize: IntoScalar<T>,
-            f64: IntoScalar<T>
+        -> Result<Self::Output, TensorError>
+        where U: IntoScalar<f64> + IntoScalar<T> + Copy, usize: IntoScalar<T>, f64: IntoScalar<T>
     {
         Ok(_Tensor::<T, Cpu, DEVICE>::linspace(start, end, num, include_end)?.into())
     }
@@ -86,41 +74,29 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         num: usize,
         include_end: bool,
         base: T
-    ) -> std::result::Result<Self::Output, TensorError>
+    )
+        -> Result<Self::Output, TensorError>
         where
-            T: Convertor +
-                num::Float +
-                FromScalar<usize> +
-                FromScalar<f64> +
-                NormalOut<T, Output = T>
+            T: IntoScalar<f64> + num::Float + NormalOut<T, Output = T>,
+            usize: IntoScalar<T>,
+            f64: IntoScalar<T>
     {
         Ok(_Tensor::<T, Cpu, DEVICE>::logspace(start, end, num, include_end, base)?.into())
     }
 
-    fn geomspace(
-        start: T,
-        end: T,
-        n: usize,
-        include_end: bool
-    )
-        -> std::result::Result<Self::Output, TensorError>
-        where f64: IntoScalar<T>, usize: IntoScalar<T>
+    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self::Output, TensorError>
+        where f64: IntoScalar<T>, usize: IntoScalar<T>, T: IntoScalar<f64>
     {
         Ok(_Tensor::<T, Cpu, DEVICE>::geomspace(start, end, n, include_end)?.into())
     }
 
-    fn tri(
-        n: usize,
-        m: usize,
-        k: i64,
-        low_triangle: bool
-    ) -> std::result::Result<Self::Output, TensorError>
+    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self::Output, TensorError>
         where u8: IntoScalar<T>
     {
         Ok(_Tensor::<T, Cpu, DEVICE>::tri(n, m, k, low_triangle)?.into())
     }
 
-    fn tril(&self, k: i64) -> std::result::Result<Self::Output, TensorError>
+    fn tril(&self, k: i64) -> Result<Self::Output, TensorError>
         where
             T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
             T::Vec: NormalOut<BoolVector, Output = T::Vec>
@@ -128,7 +104,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         Ok(_Tensor::tril(self.inner.as_ref(), k)?.into())
     }
 
-    fn triu(&self, k: i64) -> std::result::Result<Self::Output, TensorError>
+    fn triu(&self, k: i64) -> Result<Self::Output, TensorError>
         where
             T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
             T::Vec: NormalOut<BoolVector, Output = T::Vec>
@@ -136,7 +112,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         Ok(_Tensor::triu(self.inner.as_ref(), k)?.into())
     }
 
-    fn identity(n: usize) -> std::result::Result<Self::Output, TensorError> where u8: IntoScalar<T> {
+    fn identity(n: usize) -> Result<Self::Output, TensorError> where u8: IntoScalar<T> {
         Ok(_Tensor::<T, Cpu, DEVICE>::identity(n)?.into())
     }
 }
@@ -144,7 +120,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
 impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cpu, DEVICE> {
     type Output = DiffTensor<T, Cpu, DEVICE>;
 
-    fn empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, TensorError> {
+    fn empty<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
         let ret = Tensor::empty(shape)?;
         Ok(DiffTensor {
             inner: ret,
@@ -154,7 +130,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn zeros<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, TensorError> {
+    fn zeros<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
         let ret = Tensor::zeros(shape)?;
         Ok(DiffTensor {
             inner: ret,
@@ -164,9 +140,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn ones<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, TensorError>
-        where u8: IntoScalar<T>
-    {
+    fn ones<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> where u8: IntoScalar<T> {
         let ret = Tensor::ones(shape)?;
         Ok(DiffTensor {
             inner: ret,
@@ -176,7 +150,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn empty_like(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn empty_like(&self) -> Result<Self::Output, TensorError> {
         let ret = self.inner.empty_like()?;
         Ok(DiffTensor {
             inner: ret,
@@ -186,7 +160,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn zeros_like(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn zeros_like(&self) -> Result<Self::Output, TensorError> {
         let ret = self.inner.zeros_like()?;
         Ok(DiffTensor {
             inner: ret,
@@ -196,7 +170,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn ones_like(&self) -> std::result::Result<Self::Output, TensorError> where u8: IntoScalar<T> {
+    fn ones_like(&self) -> Result<Self::Output, TensorError> where u8: IntoScalar<T> {
         let ret = self.inner.ones_like()?;
         Ok(DiffTensor {
             inner: ret,
@@ -206,7 +180,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn full<S: Into<Shape>>(val: T, shape: S) -> std::result::Result<Self::Output, TensorError> {
+    fn full<S: Into<Shape>>(val: T, shape: S) -> Result<Self::Output, TensorError> {
         let ret = Tensor::full(val, shape)?;
         Ok(DiffTensor {
             inner: ret,
@@ -216,7 +190,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn full_like(&self, val: T) -> std::result::Result<Self::Output, TensorError> {
+    fn full_like(&self, val: T) -> Result<Self::Output, TensorError> {
         let ret = self.inner.full_like(val)?;
         Ok(DiffTensor {
             inner: ret,
@@ -226,8 +200,8 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn arange<U>(start: U, end: U) -> std::result::Result<Self::Output, TensorError>
-        where T: FromScalar<U>, usize: IntoScalar<T>, U: Convertor + IntoScalar<T> + Copy
+    fn arange<U>(start: U, end: U) -> Result<Self::Output, TensorError>
+        where usize: IntoScalar<T>, U: IntoScalar<i64> + IntoScalar<T> + Copy
     {
         let ret = Tensor::arange(start, end)?;
         Ok(DiffTensor {
@@ -238,8 +212,8 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn arange_step(start: T, end: T, step: T) -> std::result::Result<Self::Output, TensorError>
-        where T: Convertor + FromScalar<usize> + NormalOut<T, Output = T>
+    fn arange_step(start: T, end: T, step: T) -> Result<Self::Output, TensorError>
+        where T: IntoScalar<f64> + IntoScalar<usize>, usize: IntoScalar<T>
     {
         let ret = Tensor::arange_step(start, end, step)?;
         Ok(DiffTensor {
@@ -250,8 +224,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn eye(n: usize, m: usize, k: usize) -> std::result::Result<Self::Output, TensorError>
-    {
+    fn eye(n: usize, m: usize, k: usize) -> Result<Self::Output, TensorError> {
         let ret = Tensor::eye(n, m, k)?;
         Ok(DiffTensor {
             inner: ret,
@@ -267,12 +240,8 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         num: usize,
         include_end: bool
     )
-        -> std::result::Result<Self::Output, TensorError>
-        where
-            T: Convertor + NormalOut<T, Output = T>,
-            U: Convertor + IntoScalar<T> + Copy,
-            usize: IntoScalar<T>,
-            f64: IntoScalar<T>
+        -> Result<Self::Output, TensorError>
+        where U: IntoScalar<f64> + IntoScalar<T> + Copy, usize: IntoScalar<T>, f64: IntoScalar<T>
     {
         let ret = Tensor::linspace(start, end, num, include_end)?;
         Ok(DiffTensor {
@@ -289,13 +258,12 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         num: usize,
         include_end: bool,
         base: T
-    ) -> std::result::Result<Self::Output, TensorError>
+    )
+        -> Result<Self::Output, TensorError>
         where
-            T: Convertor +
-                num::Float +
-                FromScalar<usize> +
-                FromScalar<f64> +
-                NormalOut<T, Output = T>
+            T: IntoScalar<f64> + num::Float + NormalOut<T, Output = T>,
+            usize: IntoScalar<T>,
+            f64: IntoScalar<T>
     {
         let ret = Tensor::logspace(start, end, num, include_end, base)?;
         Ok(DiffTensor {
@@ -306,14 +274,8 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn geomspace(
-        start: T,
-        end: T,
-        n: usize,
-        include_end: bool
-    )
-        -> std::result::Result<Self::Output, TensorError>
-        where f64: IntoScalar<T>, usize: IntoScalar<T>
+    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self::Output, TensorError>
+        where f64: IntoScalar<T>, usize: IntoScalar<T>, T: IntoScalar<f64>
     {
         let ret = Tensor::geomspace(start, end, n, include_end)?;
         Ok(DiffTensor {
@@ -324,12 +286,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn tri(
-        n: usize,
-        m: usize,
-        k: i64,
-        low_triangle: bool
-    ) -> std::result::Result<Self::Output, TensorError>
+    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self::Output, TensorError>
         where u8: IntoScalar<T>
     {
         let ret = Tensor::tri(n, m, k, low_triangle)?;
@@ -341,7 +298,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn tril(&self, k: i64) -> std::result::Result<Self::Output, TensorError>
+    fn tril(&self, k: i64) -> Result<Self::Output, TensorError>
         where
             T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
             T::Vec: NormalOut<BoolVector, Output = T::Vec>
@@ -355,7 +312,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn triu(&self, k: i64) -> std::result::Result<Self::Output, TensorError>
+    fn triu(&self, k: i64) -> Result<Self::Output, TensorError>
         where
             T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
             T::Vec: NormalOut<BoolVector, Output = T::Vec>
@@ -369,7 +326,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn identity(n: usize) -> std::result::Result<Self::Output, TensorError> where u8: IntoScalar<T> {
+    fn identity(n: usize) -> Result<Self::Output, TensorError> where u8: IntoScalar<T> {
         let ret = Tensor::identity(n)?;
         Ok(DiffTensor {
             inner: ret,

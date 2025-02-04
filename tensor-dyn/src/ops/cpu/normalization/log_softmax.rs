@@ -20,7 +20,6 @@ use tensor_common::{error::base::TensorError, shape::shape::Shape};
 use tensor_iterator::{iterator_traits::ParStridedIteratorZip, TensorIterator};
 use tensor_traits::{CommonBounds, TensorInfo, TensorLike};
 use tensor_types::{
-    convertion::Convertor,
     dtype::TypeCommon,
     into_scalar::IntoScalar,
     into_vec::IntoVec,
@@ -41,7 +40,6 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     where
         T: CommonBounds
             + IntoScalar<<T as FloatOutUnary>::Output>
-            + Convertor
             + FloatOutUnary
             + IntoScalar<<T as FloatOutUnary>::Output>,
         <T as FloatOutUnary>::Output: CommonBounds
@@ -97,7 +95,6 @@ impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     where
         T: CommonBounds
             + IntoScalar<<T as FloatOutUnary>::Output>
-            + Convertor
             + FloatOutUnary
             + IntoScalar<<T as FloatOutUnary>::Output>,
         <T as FloatOutUnary>::Output: CommonBounds
@@ -142,7 +139,6 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
     where
         T: CommonBounds
             + IntoScalar<<T as FloatOutUnary>::Output>
-            + Convertor
             + FloatOutUnary
             + IntoScalar<<T as FloatOutUnary>::Output>,
         <T as FloatOutUnary>::Output: CommonBounds
@@ -191,7 +187,7 @@ pub(crate) fn contiguous_log_softmax<T, O, const DEVICE: usize>(
     c: Option<_Tensor<O, Cpu, DEVICE>>,
 ) -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
 where
-    T: CommonBounds + IntoScalar<O> + Convertor + FloatOutUnary<Output = O> + IntoScalar<O>,
+    T: CommonBounds + IntoScalar<O> + FloatOutUnary<Output = O> + IntoScalar<O>,
     O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
     T::Vec: FloatOutUnary<Output = O::Vec> + IntoVec<O::Vec>,
     O::Vec: FloatOutBinary<Output = O::Vec> + FloatOutUnary<Output = O::Vec>,
@@ -321,7 +317,7 @@ pub(crate) fn uncontiguous_log_softmax<T, O, const DEVICE: usize>(
     c: Option<_Tensor<O, Cpu, DEVICE>>,
 ) -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
 where
-    T: CommonBounds + IntoScalar<O> + Convertor + FloatOutUnary<Output = O>,
+    T: CommonBounds + IntoScalar<O> + FloatOutUnary<Output = O>,
     O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
     T::Vec: FloatOutUnary<Output = O::Vec>,
     O::Vec: FloatOutBinary<Output = O::Vec>,

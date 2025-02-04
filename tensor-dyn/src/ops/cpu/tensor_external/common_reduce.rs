@@ -3,10 +3,10 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::ops::cpu::utils::diff::diff_utils::handle_grad;
-use crate::tensor::{DiffTensor, Tensor};
+use crate::tensor::{ DiffTensor, Tensor };
 use crate::tensor_base::_Tensor;
 use crate::BoolVector;
-use crate::{ops::cpu::tensor_internal::float_out_unary::FloatBinaryType, Cpu};
+use crate::{ ops::cpu::tensor_internal::float_out_unary::FloatBinaryType, Cpu };
 use rayon::iter::ParallelIterator;
 use tensor_common::axis::axis::Axis;
 use tensor_common::error::autograd::AutogradError;
@@ -14,16 +14,21 @@ use tensor_common::error::base::TensorError;
 use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
 use tensor_traits::{
-    CommonBounds, EvalReduce, FloatReduce, NormalEvalReduce, NormalReduce, ShapeManipulate,
-    TensorCmp, TensorInfo,
+    CommonBounds,
+    EvalReduce,
+    FloatReduce,
+    NormalEvalReduce,
+    NormalReduce,
+    ShapeManipulate,
+    TensorCmp,
+    TensorInfo,
 };
 use tensor_types::into_vec::IntoVec;
-use tensor_types::type_promote::{Cmp, NormalOutUnary, SimdCmp};
+use tensor_types::type_promote::{ Cmp, NormalOutUnary, SimdCmp };
 use tensor_types::{
-    convertion::Convertor,
     dtype::TypeCommon,
     into_scalar::IntoScalar,
-    type_promote::{Eval, FloatOutBinary, FloatOutUnary, NormalOut},
+    type_promote::{ Eval, FloatOutBinary, FloatOutUnary, NormalOut },
     vectors::traits::SimdSelect,
 };
 
@@ -33,7 +38,7 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for Tensor<T, Cpu, DE
     fn sum<S: Into<Axis>>(
         &self,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.sum(axes, keep_dims)?.into())
     }
@@ -43,15 +48,11 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for Tensor<T, Cpu, DE
         axes: S,
         keep_dims: bool,
         init_out: bool,
-        out: O,
+        out: O
     ) -> std::result::Result<Self::Output, TensorError>
-    where
-        O: Borrow<Self::Output>,
+        where O: Borrow<Self::Output>
     {
-        Ok(self
-            .inner
-            .sum_(axes, keep_dims, init_out, out.borrow())?
-            .into())
+        Ok(self.inner.sum_(axes, keep_dims, init_out, out.borrow())?.into())
     }
 
     // fn sum_with_init<S: Into<Axis>>(
@@ -66,7 +67,7 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for Tensor<T, Cpu, DE
     fn prod<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.prod(axis, keep_dims)?.into())
     }
@@ -83,7 +84,7 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for Tensor<T, Cpu, DE
     fn min<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self, TensorError> {
         Ok(self.inner.min(axis, keep_dims)?.into())
     }
@@ -100,7 +101,7 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for Tensor<T, Cpu, DE
     fn max<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self, TensorError> {
         Ok(self.inner.max(axis, keep_dims)?.into())
     }
@@ -117,7 +118,7 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for Tensor<T, Cpu, DE
     fn reducel1<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.reducel1(axis, keep_dims)?.into())
     }
@@ -125,21 +126,21 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for Tensor<T, Cpu, DE
     fn sum_square<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.sum_square(axis, keep_dims)?.into())
     }
 }
 
-impl<T, const DEVICE: usize> EvalReduce for Tensor<T, Cpu, DEVICE>
-where
-    T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
+impl<T, const DEVICE: usize> EvalReduce
+    for Tensor<T, Cpu, DEVICE>
+    where T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>, T::Vec: IntoVec<BoolVector>
 {
     type BoolOutput = Tensor<bool, Cpu, DEVICE>;
     fn all<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self::BoolOutput, TensorError> {
         Ok(self.inner.all(axis, keep_dims)?.into())
     }
@@ -147,24 +148,25 @@ where
     fn any<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self::BoolOutput, TensorError> {
         Ok(self.inner.any(axis, keep_dims)?.into())
     }
 }
 
-impl<T, const DEVICE: usize> NormalEvalReduce<T> for Tensor<T, Cpu, DEVICE>
-where
-    T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
-    T::Vec: Eval,
-    <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
+impl<T, const DEVICE: usize> NormalEvalReduce<T>
+    for Tensor<T, Cpu, DEVICE>
+    where
+        T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
+        T::Vec: Eval,
+        <T::Vec as Eval>::Output: SimdSelect<T::Vec>
 {
     type Output = Self;
 
     fn nansum<S: Into<Axis>>(
         &self,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.nansum(axes, keep_dims)?.into())
     }
@@ -174,15 +176,11 @@ where
         axes: S,
         keep_dims: bool,
         init_out: bool,
-        out: O,
+        out: O
     ) -> std::result::Result<Self::Output, TensorError>
-    where
-        O: Borrow<Self::Output>,
+        where O: Borrow<Self::Output>
     {
-        Ok(self
-            .inner
-            .nansum_(axes, keep_dims, init_out, out.borrow())?
-            .into())
+        Ok(self.inner.nansum_(axes, keep_dims, init_out, out.borrow())?.into())
     }
 
     // fn nansum_with_init<S: Into<Axis>>(
@@ -197,7 +195,7 @@ where
     fn nanprod<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.nanprod(axis, keep_dims)?.into())
     }
@@ -212,28 +210,32 @@ where
     // }
 }
 
-impl<T, const DEVICE: usize> FloatReduce<T> for Tensor<T, Cpu, DEVICE>
-where
-    T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output> + Convertor,
-    <T as FloatOutBinary>::Output:
-        CommonBounds + FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
-    <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<T::Vec, Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
-        + FloatOutUnary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
-        + NormalOut<
+impl<T, const DEVICE: usize> FloatReduce<T>
+    for Tensor<T, Cpu, DEVICE>
+    where
+        T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output>,
+        <T as FloatOutBinary>::Output: CommonBounds +
+            FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
+        <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
+            T::Vec,
+            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
+        > +
+            FloatOutUnary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec> +
+            NormalOut<
+                <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+                Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
+            >,
+        f64: IntoScalar<<T as FloatOutBinary>::Output>,
+        <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output> +
+            NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output>,
+        T::Vec: NormalOut<
             <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
         >,
-    f64: IntoScalar<<T as FloatOutBinary>::Output>,
-    <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
-        + NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output>,
-    T::Vec: NormalOut<
-        <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-        Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-    >,
-    <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
-        <<T as TypeCommon>::Vec as FloatOutUnary>::Output,
-        Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-    >,
+        <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
+            <<T as TypeCommon>::Vec as FloatOutUnary>::Output,
+            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
+        >
 {
     type Output = Tensor<FloatBinaryType<T>, Cpu, DEVICE>;
 
@@ -241,11 +243,12 @@ where
     fn mean<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool,
-    ) -> Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
-    where
-        f64: IntoScalar<<T as FloatOutBinary>::Output>,
-        <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
+        keep_dims: bool
+    )
+        -> Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
+        where
+            f64: IntoScalar<<T as FloatOutBinary>::Output>,
+            <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
     {
         Ok(self.inner.mean(axis, keep_dims)?.into())
     }
@@ -255,11 +258,12 @@ where
     fn reducel2<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool,
-    ) -> Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
-    where
-        T: NormalOut,
-        <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
+        keep_dims: bool
+    )
+        -> Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
+        where
+            T: NormalOut,
+            <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
     {
         Ok(self.inner.reducel2(axis, keep_dims)?.into())
     }
@@ -269,15 +273,16 @@ where
     fn reducel3<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool,
-    ) -> Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
-    where
-        f64: IntoScalar<<T as FloatOutBinary>::Output>,
-        <T as FloatOutBinary>::Output: TypeCommon,
-        T::Vec: NormalOut<
-            <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-        >,
+        keep_dims: bool
+    )
+        -> Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
+        where
+            f64: IntoScalar<<T as FloatOutBinary>::Output>,
+            <T as FloatOutBinary>::Output: TypeCommon,
+            T::Vec: NormalOut<
+                <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+                Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
+            >
     {
         Ok(self.inner.reducel3(axis, keep_dims)?.into())
     }
@@ -287,31 +292,32 @@ where
     fn logsumexp<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
-    where
-        T: CommonBounds,
+        where T: CommonBounds
     {
         Ok(self.inner.logsumexp(axis, keep_dims)?.into())
     }
 }
 
-impl<T, const DEVICE: usize> NormalReduce<T> for DiffTensor<T, Cpu, DEVICE>
-where
-    T: CommonBounds + FloatOutBinary + Cmp<T, Output = bool> + FloatOutBinary<i64>,
-    T::Vec: SimdCmp<T::Vec>,
-    <T as FloatOutBinary>::Output: CommonBounds + IntoScalar<T>,
-    <T as FloatOutBinary<i64>>::Output: CommonBounds + NormalOut<i64>,
-    <<T as FloatOutBinary<i64>>::Output as NormalOut<i64>>::Output:
-        CommonBounds + IntoScalar<i64> + IntoScalar<T>,
-    <T::Vec as SimdCmp<T::Vec>>::Output: IntoVec<BoolVector>,
+impl<T, const DEVICE: usize> NormalReduce<T>
+    for DiffTensor<T, Cpu, DEVICE>
+    where
+        T: CommonBounds + FloatOutBinary + Cmp<T, Output = bool> + FloatOutBinary<i64>,
+        T::Vec: SimdCmp<T::Vec>,
+        <T as FloatOutBinary>::Output: CommonBounds + IntoScalar<T>,
+        <T as FloatOutBinary<i64>>::Output: CommonBounds + NormalOut<i64>,
+        <<T as FloatOutBinary<i64>>::Output as NormalOut<i64>>::Output: CommonBounds +
+            IntoScalar<i64> +
+            IntoScalar<T>,
+        <T::Vec as SimdCmp<T::Vec>>::Output: IntoVec<BoolVector>
 {
     type Output = Self;
 
     fn sum<S: Into<Axis>>(
         &self,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Axis = axes.into();
         let ret = self.inner.sum(axes.clone(), keep_dims)?;
@@ -321,18 +327,20 @@ where
             inner: ret,
             grad: self.grad.clone(),
             out_degree: self.out_degree.clone(),
-            backward: Rc::new(RefCell::new(move |mut grad: Tensor<T, Cpu, DEVICE>| {
-                let grad = if keep_dims {
-                    grad.expand(original_shape.clone())?
-                } else {
-                    for &axis in axes.axes.iter().rev() {
-                        grad = grad.unsqueeze(axis)?;
-                    }
-                    grad.expand(&original_shape)?
-                };
-                handle_grad(&mut lhs, grad, &[])?;
-                Ok(false)
-            })),
+            backward: Rc::new(
+                RefCell::new(move |mut grad: Tensor<T, Cpu, DEVICE>| {
+                    let grad = if keep_dims {
+                        grad.expand(original_shape.clone())?
+                    } else {
+                        for &axis in axes.axes.iter().rev() {
+                            grad = grad.unsqueeze(axis)?;
+                        }
+                        grad.expand(&original_shape)?
+                    };
+                    handle_grad(&mut lhs, grad, &[])?;
+                    Ok(false)
+                })
+            ),
         })
     }
 
@@ -341,15 +349,16 @@ where
         _: S,
         _: bool,
         _: bool,
-        _: O,
+        _: O
     ) -> std::result::Result<Self::Output, TensorError>
-    where
-        O: Borrow<Self::Output>,
+        where O: Borrow<Self::Output>
     {
-        Err(TensorError::Autograd(AutogradError::InplaceCompError {
-            op: "sum_",
-            location: std::panic::Location::caller(),
-        }))
+        Err(
+            TensorError::Autograd(AutogradError::InplaceCompError {
+                op: "sum_",
+                location: std::panic::Location::caller(),
+            })
+        )
     }
 
     // fn sum_with_init<S: Into<Axis>>(
@@ -364,7 +373,7 @@ where
     fn prod<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Axis = axis.into();
         let ret = self.inner.prod(axes.clone(), keep_dims)?;
@@ -375,26 +384,29 @@ where
             inner: ret,
             grad: self.grad.clone(),
             out_degree: self.out_degree.clone(),
-            backward: Rc::new(RefCell::new(move |mut grad: Tensor<T, Cpu, DEVICE>| {
-                let (grad, prod) = if keep_dims {
-                    (grad.expand(original_shape.clone())?, prod.clone())
-                } else {
-                    for &axis in axes.axes.iter().rev() {
-                        grad = grad.unsqueeze(axis)?;
-                        prod = prod.unsqueeze(axis)?;
-                    }
-                    (grad.expand(&original_shape)?, prod.expand(&original_shape)?)
-                };
-                let grad = grad
-                    .inner
-                    .par_iter()
-                    .zip(prod.inner.par_iter())
-                    .zip(lhs.inner.inner.par_iter())
-                    .strided_map(|(res, ((g, x), y))| *res = g._mul(x)._div(y).into_scalar())
-                    .collect::<_Tensor<T, Cpu, DEVICE>>();
-                handle_grad(&mut lhs, grad.into(), &[])?;
-                Ok(false)
-            })),
+            backward: Rc::new(
+                RefCell::new(move |mut grad: Tensor<T, Cpu, DEVICE>| {
+                    let (grad, prod) = if keep_dims {
+                        (grad.expand(original_shape.clone())?, prod.clone())
+                    } else {
+                        for &axis in axes.axes.iter().rev() {
+                            grad = grad.unsqueeze(axis)?;
+                            prod = prod.unsqueeze(axis)?;
+                        }
+                        (grad.expand(&original_shape)?, prod.expand(&original_shape)?)
+                    };
+                    let grad = grad.inner
+                        .par_iter()
+                        .zip(prod.inner.par_iter())
+                        .zip(lhs.inner.inner.par_iter())
+                        .strided_map(|(res, ((g, x), y))| {
+                            *res = g._mul(x)._div(y).into_scalar();
+                        })
+                        .collect::<_Tensor<T, Cpu, DEVICE>>();
+                    handle_grad(&mut lhs, grad.into(), &[])?;
+                    Ok(false)
+                })
+            ),
         })
     }
 
@@ -410,7 +422,7 @@ where
     fn min<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self, TensorError> {
         let axes: Axis = axis.into();
         let ret = self.inner.min(axes.clone(), keep_dims)?;
@@ -421,37 +433,38 @@ where
             inner: ret.clone(),
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
-                let mut grad = if keep_dims {
-                    grad
-                } else {
-                    let mut g = grad;
-                    for &axis in axes.axes.iter().rev() {
-                        g = g.unsqueeze(axis)?;
-                    }
-                    g
-                };
+            backward: Rc::new(
+                RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+                    let mut grad = if keep_dims {
+                        grad
+                    } else {
+                        let mut g = grad;
+                        for &axis in axes.axes.iter().rev() {
+                            g = g.unsqueeze(axis)?;
+                        }
+                        g
+                    };
 
-                let min_broadcasted = ret.expand(&original_shape)?;
-                grad = grad.expand(&original_shape)?;
+                    let min_broadcasted = ret.expand(&original_shape)?;
+                    grad = grad.expand(&original_shape)?;
 
-                let mask = lhs
-                    .inner
-                    .tensor_eq(&min_broadcasted)?
-                    .astype::<i64>()
-                    .expect("Failed to convert tensor to i64");
+                    let mask = lhs.inner
+                        .tensor_eq(&min_broadcasted)?
+                        .astype::<i64>()
+                        .expect("Failed to convert tensor to i64");
 
-                let count = mask.sum(axes.clone(), true)?;
-                grad.par_iter_mut()
-                    .zip(count.par_iter())
-                    .zip(mask.par_iter())
-                    .for_each(|((g, c), m)| {
-                        *g = g._div(c)._mul(m).into_scalar();
-                    });
+                    let count = mask.sum(axes.clone(), true)?;
+                    grad.par_iter_mut()
+                        .zip(count.par_iter())
+                        .zip(mask.par_iter())
+                        .for_each(|((g, c), m)| {
+                            *g = g._div(c)._mul(m).into_scalar();
+                        });
 
-                handle_grad(&mut lhs, grad, &[])?;
-                Ok(false)
-            })),
+                    handle_grad(&mut lhs, grad, &[])?;
+                    Ok(false)
+                })
+            ),
         })
     }
 
@@ -467,7 +480,7 @@ where
     fn max<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self, TensorError> {
         let axes: Axis = axis.into();
         let ret = self.inner.max(axes.clone(), keep_dims)?;
@@ -478,37 +491,38 @@ where
             inner: ret.clone(),
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
-                let mut grad = if keep_dims {
-                    grad
-                } else {
-                    let mut g = grad;
-                    for &axis in axes.axes.iter().rev() {
-                        g = g.unsqueeze(axis)?;
-                    }
-                    g
-                };
+            backward: Rc::new(
+                RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+                    let mut grad = if keep_dims {
+                        grad
+                    } else {
+                        let mut g = grad;
+                        for &axis in axes.axes.iter().rev() {
+                            g = g.unsqueeze(axis)?;
+                        }
+                        g
+                    };
 
-                let max_broadcasted = ret.expand(&original_shape)?;
-                grad = grad.expand(&original_shape)?;
+                    let max_broadcasted = ret.expand(&original_shape)?;
+                    grad = grad.expand(&original_shape)?;
 
-                let mask = lhs
-                    .inner
-                    .tensor_eq(&max_broadcasted)?
-                    .astype::<i64>()
-                    .expect("Failed to convert tensor to i64");
+                    let mask = lhs.inner
+                        .tensor_eq(&max_broadcasted)?
+                        .astype::<i64>()
+                        .expect("Failed to convert tensor to i64");
 
-                let count = mask.sum(axes.clone(), true)?;
-                grad.par_iter_mut()
-                    .zip(count.par_iter())
-                    .zip(mask.par_iter())
-                    .for_each(|((g, c), m)| {
-                        *g = g._div(c)._mul(m).into_scalar();
-                    });
+                    let count = mask.sum(axes.clone(), true)?;
+                    grad.par_iter_mut()
+                        .zip(count.par_iter())
+                        .zip(mask.par_iter())
+                        .for_each(|((g, c), m)| {
+                            *g = g._div(c)._mul(m).into_scalar();
+                        });
 
-                handle_grad(&mut lhs, grad, &[])?;
-                Ok(false)
-            })),
+                    handle_grad(&mut lhs, grad, &[])?;
+                    Ok(false)
+                })
+            ),
         })
     }
 
@@ -524,7 +538,7 @@ where
     fn reducel1<S: Into<Axis>>(
         &self,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Axis = axes.into();
         let ret = self.inner.reducel1(axes.clone(), keep_dims)?;
@@ -534,31 +548,33 @@ where
             inner: ret,
             grad: self.grad.clone(),
             out_degree: self.out_degree.clone(),
-            backward: Rc::new(RefCell::new(move |mut grad: Tensor<T, Cpu, DEVICE>| {
-                let mut grad = if keep_dims {
-                    grad.expand(original_shape.clone())?
-                } else {
-                    for &axis in axes.axes.iter().rev() {
-                        grad = grad.unsqueeze(axis)?;
-                    }
-                    grad.expand(&original_shape)?
-                };
-                grad.par_iter_mut()
-                    .zip(lhs.inner.par_iter())
-                    .for_each(|(g, inp)| {
-                        *g = g._mul(inp._signum());
-                    });
+            backward: Rc::new(
+                RefCell::new(move |mut grad: Tensor<T, Cpu, DEVICE>| {
+                    let mut grad = if keep_dims {
+                        grad.expand(original_shape.clone())?
+                    } else {
+                        for &axis in axes.axes.iter().rev() {
+                            grad = grad.unsqueeze(axis)?;
+                        }
+                        grad.expand(&original_shape)?
+                    };
+                    grad.par_iter_mut()
+                        .zip(lhs.inner.par_iter())
+                        .for_each(|(g, inp)| {
+                            *g = g._mul(inp._signum());
+                        });
 
-                handle_grad(&mut lhs, grad, &[])?;
-                Ok(false)
-            })),
+                    handle_grad(&mut lhs, grad, &[])?;
+                    Ok(false)
+                })
+            ),
         })
     }
 
     fn sum_square<S: Into<Axis>>(
         &self,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Axis = axes.into();
         let ret = self.inner.sum_square(axes.clone(), keep_dims)?;
@@ -568,87 +584,98 @@ where
             inner: ret,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
-                let mut grad = if keep_dims {
-                    grad
-                } else {
-                    let mut g = grad;
-                    for &axis in axes.axes.iter().rev() {
-                        g = g.unsqueeze(axis)?;
-                    }
-                    g
-                };
-                grad = grad.expand(&original_shape)?;
-                grad.par_iter_mut()
-                    .zip(lhs.inner.inner.par_iter())
-                    .for_each(|(g, inp)| {
-                        *g = g._mul(inp._mul(T::TWO));
-                    });
+            backward: Rc::new(
+                RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+                    let mut grad = if keep_dims {
+                        grad
+                    } else {
+                        let mut g = grad;
+                        for &axis in axes.axes.iter().rev() {
+                            g = g.unsqueeze(axis)?;
+                        }
+                        g
+                    };
+                    grad = grad.expand(&original_shape)?;
+                    grad.par_iter_mut()
+                        .zip(lhs.inner.inner.par_iter())
+                        .for_each(|(g, inp)| {
+                            *g = g._mul(inp._mul(T::TWO));
+                        });
 
-                handle_grad(&mut lhs, grad, &[])?;
-                Ok(false)
-            })),
+                    handle_grad(&mut lhs, grad, &[])?;
+                    Ok(false)
+                })
+            ),
         })
     }
 }
 
-impl<T, const DEVICE: usize> EvalReduce for DiffTensor<T, Cpu, DEVICE>
-where
-    T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
+impl<T, const DEVICE: usize> EvalReduce
+    for DiffTensor<T, Cpu, DEVICE>
+    where T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>, T::Vec: IntoVec<BoolVector>
 {
     type BoolOutput = DiffTensor<bool, Cpu, DEVICE>;
     fn all<S: Into<Axis>>(
         &self,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self::BoolOutput, TensorError> {
         let ret = self.inner.all(axes, keep_dims)?;
         Ok(DiffTensor {
             inner: ret,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |_| {
-                Err(TensorError::Autograd(AutogradError::UnsupportOpError {
-                    op: "all",
-                    location: std::panic::Location::caller(),
-                }))
-            })),
+            backward: Rc::new(
+                RefCell::new(move |_| {
+                    Err(
+                        TensorError::Autograd(AutogradError::UnsupportOpError {
+                            op: "all",
+                            location: std::panic::Location::caller(),
+                        })
+                    )
+                })
+            ),
         })
     }
 
     fn any<S: Into<Axis>>(
         &self,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self::BoolOutput, TensorError> {
         let ret = self.inner.any(axes, keep_dims)?;
         Ok(DiffTensor {
             inner: ret,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |_| {
-                Err(TensorError::Autograd(AutogradError::UnsupportOpError {
-                    op: "any",
-                    location: std::panic::Location::caller(),
-                }))
-            })),
+            backward: Rc::new(
+                RefCell::new(move |_| {
+                    Err(
+                        TensorError::Autograd(AutogradError::UnsupportOpError {
+                            op: "any",
+                            location: std::panic::Location::caller(),
+                        })
+                    )
+                })
+            ),
         })
     }
 }
 
-impl<T, const DEVICE: usize> NormalEvalReduce<T> for DiffTensor<T, Cpu, DEVICE>
-where
-    T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
-    T::Vec: Eval,
-    <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
-    <T as FloatOutBinary>::Output: IntoScalar<T>,
+impl<T, const DEVICE: usize> NormalEvalReduce<T>
+    for DiffTensor<T, Cpu, DEVICE>
+    where
+        T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
+        T::Vec: Eval,
+        <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
+        <T as FloatOutBinary>::Output: IntoScalar<T>
 {
     type Output = Self;
 
     fn nansum<S: Into<Axis>>(
         &self,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Axis = axes.into();
         let ret = self.inner.nansum(axes.clone(), keep_dims)?;
@@ -658,27 +685,29 @@ where
             inner: ret,
             grad: self.grad.clone(),
             out_degree: self.out_degree.clone(),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
-                let mut grad = if keep_dims {
-                    grad
-                } else {
-                    let mut g = grad;
-                    for &axis in axes.axes.iter().rev() {
-                        g = g.unsqueeze(axis)?;
-                    }
-                    g
-                };
-                grad = grad.expand(&original_shape)?;
-                grad.par_iter_mut()
-                    .zip(lhs.inner.inner.par_iter())
-                    .for_each(|(g, inp)| {
-                        if inp._is_nan() {
-                            *g = T::ZERO;
+            backward: Rc::new(
+                RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+                    let mut grad = if keep_dims {
+                        grad
+                    } else {
+                        let mut g = grad;
+                        for &axis in axes.axes.iter().rev() {
+                            g = g.unsqueeze(axis)?;
                         }
-                    });
-                handle_grad(&mut lhs, grad, &[])?;
-                Ok(false)
-            })),
+                        g
+                    };
+                    grad = grad.expand(&original_shape)?;
+                    grad.par_iter_mut()
+                        .zip(lhs.inner.inner.par_iter())
+                        .for_each(|(g, inp)| {
+                            if inp._is_nan() {
+                                *g = T::ZERO;
+                            }
+                        });
+                    handle_grad(&mut lhs, grad, &[])?;
+                    Ok(false)
+                })
+            ),
         })
     }
 
@@ -687,15 +716,16 @@ where
         _: S,
         _: bool,
         _: bool,
-        _: O,
+        _: O
     ) -> std::result::Result<Self::Output, TensorError>
-    where
-        O: Borrow<Self::Output>,
+        where O: Borrow<Self::Output>
     {
-        Err(TensorError::Autograd(AutogradError::InplaceCompError {
-            op: "nansum_",
-            location: std::panic::Location::caller(),
-        }))
+        Err(
+            TensorError::Autograd(AutogradError::InplaceCompError {
+                op: "nansum_",
+                location: std::panic::Location::caller(),
+            })
+        )
     }
 
     // fn nansum_with_init<S: Into<Axis>>(
@@ -710,7 +740,7 @@ where
     fn nanprod<S: Into<Axis>>(
         &self,
         axis: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Axis = axis.into();
         let ret = self.inner.nanprod(axes.clone(), keep_dims)?;
@@ -722,31 +752,33 @@ where
             inner: ret,
             grad: self.grad.clone(),
             out_degree: self.out_degree.clone(),
-            backward: Rc::new(RefCell::new(move |mut grad: Tensor<T, Cpu, DEVICE>| {
-                let (mut grad, prod) = if keep_dims {
-                    (grad.expand(original_shape.clone())?, prod.clone())
-                } else {
-                    for &axis in axes.axes.iter().rev() {
-                        grad = grad.unsqueeze(axis)?;
-                        prod = prod.unsqueeze(axis)?;
-                    }
-                    (grad.expand(&original_shape)?, prod.expand(&original_shape)?)
-                };
-
-                grad.par_iter_mut()
-                    .zip(prod.inner.par_iter())
-                    .zip(lhs.inner.inner.par_iter())
-                    .for_each(|((g, p), x)| {
-                        if x._is_nan() {
-                            *g = T::ZERO;
-                        } else {
-                            *g = g._mul(p)._div(x).into_scalar();
+            backward: Rc::new(
+                RefCell::new(move |mut grad: Tensor<T, Cpu, DEVICE>| {
+                    let (mut grad, prod) = if keep_dims {
+                        (grad.expand(original_shape.clone())?, prod.clone())
+                    } else {
+                        for &axis in axes.axes.iter().rev() {
+                            grad = grad.unsqueeze(axis)?;
+                            prod = prod.unsqueeze(axis)?;
                         }
-                    });
+                        (grad.expand(&original_shape)?, prod.expand(&original_shape)?)
+                    };
 
-                handle_grad(&mut lhs, grad, &[])?;
-                Ok(false)
-            })),
+                    grad.par_iter_mut()
+                        .zip(prod.inner.par_iter())
+                        .zip(lhs.inner.inner.par_iter())
+                        .for_each(|((g, p), x)| {
+                            if x._is_nan() {
+                                *g = T::ZERO;
+                            } else {
+                                *g = g._mul(p)._div(x).into_scalar();
+                            }
+                        });
+
+                    handle_grad(&mut lhs, grad, &[])?;
+                    Ok(false)
+                })
+            ),
         })
     }
 
@@ -760,30 +792,34 @@ where
     // }
 }
 
-impl<T, const DEVICE: usize> FloatReduce<T> for DiffTensor<T, Cpu, DEVICE>
-where
-    T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output> + Convertor,
-    <T as FloatOutBinary>::Output:
-        CommonBounds + FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
-    <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<T::Vec, Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
-        + FloatOutUnary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
-        + NormalOut<
+impl<T, const DEVICE: usize> FloatReduce<T>
+    for DiffTensor<T, Cpu, DEVICE>
+    where
+        T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output>,
+        <T as FloatOutBinary>::Output: CommonBounds +
+            FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
+        <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
+            T::Vec,
+            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
+        > +
+            FloatOutUnary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec> +
+            NormalOut<
+                <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+                Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
+            >,
+        f64: IntoScalar<<T as FloatOutBinary>::Output>,
+        i64: IntoScalar<<T as FloatOutBinary>::Output>,
+        <T as FloatOutBinary>::Output: IntoScalar<T>,
+        <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output> +
+            NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output>,
+        T::Vec: NormalOut<
             <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
         >,
-    f64: IntoScalar<<T as FloatOutBinary>::Output>,
-    i64: IntoScalar<<T as FloatOutBinary>::Output>,
-    <T as FloatOutBinary>::Output: IntoScalar<T>,
-    <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
-        + NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output>,
-    T::Vec: NormalOut<
-        <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-        Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-    >,
-    <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
-        <<T as TypeCommon>::Vec as FloatOutUnary>::Output,
-        Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-    >,
+        <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
+            <<T as TypeCommon>::Vec as FloatOutUnary>::Output,
+            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
+        >
 {
     type Output = DiffTensor<FloatBinaryType<T>, Cpu, DEVICE>;
 
@@ -791,14 +827,13 @@ where
     fn mean<S: Into<Axis>>(
         &self,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> Result<DiffTensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError> {
         let axes: Axis = axes.into();
         let ret = self.inner.mean(axes.clone(), keep_dims)?;
         let original_shape = self.inner.shape().clone();
         let mut lhs = self.clone();
-        let numel: <T as FloatOutBinary>::Output = axes
-            .axes
+        let numel: <T as FloatOutBinary>::Output = axes.axes
             .iter()
             .map(|&ax| self.inner.shape()[ax as usize])
             .product::<i64>()
@@ -807,8 +842,8 @@ where
             inner: ret,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(
-                move |mut grad: Tensor<FloatBinaryType<T>, Cpu, DEVICE>| {
+            backward: Rc::new(
+                RefCell::new(move |mut grad: Tensor<FloatBinaryType<T>, Cpu, DEVICE>| {
                     let mut grad = if keep_dims {
                         grad.expand(original_shape.clone())?
                     } else {
@@ -822,8 +857,8 @@ where
                     });
                     handle_grad(&mut lhs, grad.try_astype::<T>()?, &[])?;
                     Ok(false)
-                },
-            )),
+                })
+            ),
         })
     }
 
@@ -832,7 +867,7 @@ where
     fn reducel2<S: Into<Axis>>(
         &self,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> Result<DiffTensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError> {
         let axes: Axis = axes.into();
         let ret = self.inner.reducel2(axes.clone(), keep_dims)?;
@@ -843,8 +878,8 @@ where
             inner: ret.clone(),
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(
-                move |mut grad: Tensor<FloatBinaryType<T>, Cpu, DEVICE>| {
+            backward: Rc::new(
+                RefCell::new(move |mut grad: Tensor<FloatBinaryType<T>, Cpu, DEVICE>| {
                     let mut grad = if keep_dims {
                         grad.expand(original_shape.clone())?
                     } else {
@@ -863,8 +898,8 @@ where
 
                     handle_grad(&mut lhs, grad.try_astype::<T>()?, &[])?;
                     Ok(false)
-                },
-            )),
+                })
+            ),
         })
     }
 
@@ -873,7 +908,7 @@ where
     fn reducel3<S: Into<Axis>>(
         &self,
         axes: S,
-        keep_dims: bool,
+        keep_dims: bool
     ) -> Result<DiffTensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError> {
         let axes: Axis = axes.into();
         let ret = self.inner.reducel3(axes.clone(), keep_dims)?;
@@ -883,8 +918,8 @@ where
             inner: ret.clone(),
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(
-                move |mut grad: Tensor<FloatBinaryType<T>, Cpu, DEVICE>| {
+            backward: Rc::new(
+                RefCell::new(move |mut grad: Tensor<FloatBinaryType<T>, Cpu, DEVICE>| {
                     let mut grad = if keep_dims {
                         grad.expand(original_shape.clone())?
                     } else {
@@ -904,8 +939,8 @@ where
 
                     handle_grad(&mut lhs, grad.try_astype::<T>()?, &[])?;
                     Ok(false)
-                },
-            )),
+                })
+            ),
         })
     }
 
@@ -914,7 +949,7 @@ where
     fn logsumexp<S: Into<Axis>>(
         &self,
         _: S,
-        _: bool,
+        _: bool
     ) -> Result<DiffTensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError> {
         todo!()
         // let axes: Vec<usize> = process_axes(axis, self.ndim())?;

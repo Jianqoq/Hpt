@@ -19,7 +19,7 @@ use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
 use tensor_traits::TensorCreator;
 use tensor_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
-use tensor_types::{convertion::Convertor, into_scalar::IntoScalar};
+use tensor_types::into_scalar::IntoScalar;
 
 impl<T, const DEVICE: usize> TensorLike<T> for _Tensor<T, Cpu, DEVICE>
 where
@@ -176,8 +176,8 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     /// check if two tensors are close to each other
     pub fn allclose<U: CommonBounds>(&self, other: &_Tensor<U, Cpu, DEVICE>) -> bool
     where
-        T: Convertor,
-        U: Convertor,
+        T: IntoScalar<f64>,
+        U: IntoScalar<f64>,
     {
         if self.shape() != other.shape() {
             return false;
@@ -185,8 +185,8 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
         let folder = self.par_iter().zip(other.par_iter()).fold(
             || true,
             |acc, (a, b)| {
-                let a_val: f64 = a.to_f64();
-                let b_val: f64 = b.to_f64();
+                let a_val: f64 = a.into_scalar();
+                let b_val: f64 = b.into_scalar();
                 let abs_diff: f64 = (a_val - b_val).abs();
                 let torlerance: f64 = 1.0e-8 + 1.0e-5 * b_val.abs();
                 acc && abs_diff <= torlerance
@@ -226,8 +226,8 @@ impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     /// check if two tensors are close to each other
     pub fn allclose<U: CommonBounds>(&self, other: &Tensor<U, Cpu, DEVICE>) -> bool
     where
-        T: Convertor,
-        U: Convertor,
+        T: IntoScalar<f64>,
+        U: IntoScalar<f64>,
     {
         self.inner.allclose(&other.inner)
     }
@@ -272,7 +272,7 @@ impl<const N: usize, T: CommonBounds + ToBytes<Bytes = [u8; N]>, const DEVICE: u
 
 impl<T, const DEVICE: usize> Display for _Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + Convertor,
+    T: CommonBounds + IntoScalar<f64>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
@@ -283,7 +283,7 @@ where
 
 impl<T, const DEVICE: usize> std::fmt::Debug for _Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + Convertor,
+    T: CommonBounds + IntoScalar<f64>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);

@@ -6,7 +6,6 @@ use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::{set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo};
 use tensor_dyn::{Tensor, TensorCreator};
-use tensor_types::convertion::{Convertor, FromScalar};
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::type_promote::NormalOutUnary;
@@ -15,13 +14,8 @@ use super::assert_utils::assert_f64;
 
 type Type = f64;
 
-fn common_input<T>(
-    [in_channel, out_channel, kernel_height, kernel_width, height, width]: [i64; 6],
-) -> anyhow::Result<(Tensor<T>, Tensor<T>, tch::Tensor, tch::Tensor)>
-where
-    T: Convertor + FromScalar<Type> + NormalOut<T, Output = T> + CommonBounds,
-    usize: IntoScalar<T>,
-    Type: IntoScalar<T>,
+fn common_input([in_channel, out_channel, kernel_height, kernel_width, height, width]: [i64; 6])
+    -> anyhow::Result<(Tensor<f64>, Tensor<f64>, tch::Tensor, tch::Tensor)>
 {
     let batch = 1;
     let tch_kernel = tch::Tensor::randn(
@@ -32,15 +26,15 @@ where
         [batch, out_channel, height, width],
         (tch::Kind::Double, tch::Device::Cpu),
     );
-    let mut kernel = Tensor::<T>::empty([out_channel, in_channel, kernel_height, kernel_width])?;
+    let mut kernel = Tensor::<f64>::empty([out_channel, in_channel, kernel_height, kernel_width])?;
     let size = kernel.size();
     kernel.as_raw_mut().copy_from_slice(unsafe {
-        std::slice::from_raw_parts(tch_kernel.data_ptr() as *const T, size)
+        std::slice::from_raw_parts(tch_kernel.data_ptr() as *const f64, size)
     });
-    let mut a = Tensor::<T>::empty([batch, out_channel, height, width])?;
+    let mut a = Tensor::<f64>::empty([batch, out_channel, height, width])?;
     let size = a.size();
     a.as_raw_mut()
-        .copy_from_slice(unsafe { std::slice::from_raw_parts(tch_a.data_ptr() as *const T, size) });
+        .copy_from_slice(unsafe { std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, size) });
     Ok((
         kernel.permute([2, 3, 1, 0])?.contiguous()?,
         a.permute([0, 2, 3, 1])?.contiguous()?,

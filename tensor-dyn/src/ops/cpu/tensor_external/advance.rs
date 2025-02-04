@@ -16,7 +16,7 @@ use tensor_types::type_promote::{Cmp, NormalOut, SimdCmp};
 
 impl<T: CommonBounds + PartialOrd, const DEVICE: usize> AdvanceOps for Tensor<T, Cpu, DEVICE>
 where
-    T: NormalOut<bool, Output = T>,
+    T: NormalOut<bool, Output = T> + IntoScalar<i64>,
     f64: IntoScalar<T>,
 {
     type Meta = T;
@@ -83,7 +83,7 @@ where
 
 impl<T: CommonBounds + PartialOrd, const DEVICE: usize> AdvanceOps for DiffTensor<T, Cpu, DEVICE>
 where
-    T: NormalOut<bool, Output = T>,
+    T: NormalOut<bool, Output = T> + IntoScalar<i64>,
     f64: IntoScalar<T>,
 {
     type Meta = T;

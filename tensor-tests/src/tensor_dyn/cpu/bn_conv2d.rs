@@ -1,11 +1,10 @@
 #![allow(unused)]
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
 use tch;
 use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
-use tensor_dyn::{set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo};
-use tensor_dyn::{Tensor, TensorCreator};
-use tensor_types::convertion::{Convertor, FromScalar};
+use tensor_dyn::{ set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo };
+use tensor_dyn::{ Tensor, TensorCreator };
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::type_promote::NormalOutUnary;
@@ -13,33 +12,30 @@ use tensor_types::type_promote::NormalOutUnary;
 use super::assert_utils::assert_f32;
 use super::assert_utils::assert_f64;
 
-fn common_input<T>(
-    [batch, out_channel, in_channel, kernel_height, kernel_width, height, width]: [i64; 7],
-) -> anyhow::Result<(Tensor<T>, Tensor<T>, tch::Tensor, tch::Tensor)>
-where
-    T: Convertor + FromScalar<i64> + NormalOut<T, Output = T> + CommonBounds,
-    usize: IntoScalar<T>,
-    i64: IntoScalar<T>,
-{
-    let kernel = Tensor::<T>::arange(0, in_channel * out_channel * kernel_height * kernel_width)?
+fn common_input([batch, out_channel, in_channel, kernel_height, kernel_width, height, width]: [
+    i64;
+    7
+]) -> anyhow::Result<(Tensor<f64>, Tensor<f64>, tch::Tensor, tch::Tensor)> {
+    let kernel = Tensor::<f64>
+        ::arange(0, in_channel * out_channel * kernel_height * kernel_width)?
         .reshape([out_channel, in_channel, kernel_height, kernel_width])?
         .permute([2, 3, 1, 0])?
         .contiguous()?;
-    let a = Tensor::<T>::arange(0, batch * in_channel * height * width)?
+    let a = Tensor::<f64>
+        ::arange(0, batch * in_channel * height * width)?
         .reshape([batch, in_channel, height, width])?
         .permute([0, 2, 3, 1])?
         .contiguous()?;
 
-    let tch_kernel = tch::Tensor::arange(
-        in_channel * out_channel * kernel_height * kernel_width,
-        (tch::Kind::Float, tch::Device::Cpu),
-    )
-    .reshape(&[out_channel, in_channel, kernel_height, kernel_width]);
-    let tch_a = tch::Tensor::arange(
-        batch * in_channel * height * width,
-        (tch::Kind::Float, tch::Device::Cpu),
-    )
-    .reshape(&[batch, in_channel, height, width]);
+    let tch_kernel = tch::Tensor
+        ::arange(in_channel * out_channel * kernel_height * kernel_width, (
+            tch::Kind::Float,
+            tch::Device::Cpu,
+        ))
+        .reshape(&[out_channel, in_channel, kernel_height, kernel_width]);
+    let tch_a = tch::Tensor
+        ::arange(batch * in_channel * height * width, (tch::Kind::Float, tch::Device::Cpu))
+        .reshape(&[batch, in_channel, height, width]);
     Ok((kernel, a, tch_kernel, tch_a))
 }
 
@@ -48,16 +44,19 @@ fn assert_eq(
     a: &Tensor<f32>,
     a_kernel: &Tensor<f32>,
     b: &tch::Tensor,
-    b_kernel: &tch::Tensor,
+    b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
     let oc = *a_kernel.shape().last().unwrap();
-    let mean =
-        tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let mean = tch::Tensor
+        ::arange(oc, (tch::Kind::Float, tch::Device::Cpu))
+        .reshape(&[1, oc, 1, 1]);
     let var = tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let gamma =
-        tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let beta =
-        tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let gamma = tch::Tensor
+        ::arange(oc, (tch::Kind::Float, tch::Device::Cpu))
+        .reshape(&[1, oc, 1, 1]);
+    let beta = tch::Tensor
+        ::arange(oc, (tch::Kind::Float, tch::Device::Cpu))
+        .reshape(&[1, oc, 1, 1]);
     let hpt_mean = Tensor::<f32>::arange(0, oc)?;
     let hpt_var = Tensor::<f32>::arange(0, oc)?;
     let hpt_gamma = Tensor::<f32>::arange(0, oc)?;
@@ -72,9 +71,12 @@ fn assert_eq(
             None,
             1e-5,
             [1, 1],
-            [(0, 0), (0, 0)],
+            [
+                (0, 0),
+                (0, 0),
+            ],
             [1, 1],
-            None,
+            None
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
@@ -82,9 +84,12 @@ fn assert_eq(
     let tch_res = gamma * ((res2 - mean) / (var + 1e-5).sqrt()) + beta;
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f32, res.size()) };
-    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        assert_f32(*a, *b, 0.05, &res, &tch_res).expect("assert_f32 failed");
-    });
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert_f32(*a, *b, 0.05, &res, &tch_res).expect("assert_f32 failed");
+        });
     Ok(())
 }
 
@@ -93,16 +98,19 @@ fn assert_eq_pad(
     a: &Tensor<f32>,
     a_kernel: &Tensor<f32>,
     b: &tch::Tensor,
-    b_kernel: &tch::Tensor,
+    b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
     let oc = *a_kernel.shape().last().unwrap();
-    let mean =
-        tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let mean = tch::Tensor
+        ::arange(oc, (tch::Kind::Float, tch::Device::Cpu))
+        .reshape(&[1, oc, 1, 1]);
     let var = tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let gamma =
-        tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let beta =
-        tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let gamma = tch::Tensor
+        ::arange(oc, (tch::Kind::Float, tch::Device::Cpu))
+        .reshape(&[1, oc, 1, 1]);
+    let beta = tch::Tensor
+        ::arange(oc, (tch::Kind::Float, tch::Device::Cpu))
+        .reshape(&[1, oc, 1, 1]);
     let hpt_mean = Tensor::<f32>::arange(0, oc)?;
     let hpt_var = Tensor::<f32>::arange(0, oc)?;
     let hpt_gamma = Tensor::<f32>::arange(0, oc)?;
@@ -117,9 +125,12 @@ fn assert_eq_pad(
             None,
             1e-5,
             [1, 1],
-            [(2, 2), (2, 2)],
+            [
+                (2, 2),
+                (2, 2),
+            ],
             [1, 1],
-            None,
+            None
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
@@ -127,9 +138,12 @@ fn assert_eq_pad(
     let tch_res = gamma * ((res2 - mean) / (var + 1e-5).sqrt()) + beta;
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f32, res.size()) };
-    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        assert_f32(*a, *b, 0.05, &res, &tch_res).expect("assert_f32 failed");
-    });
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert_f32(*a, *b, 0.05, &res, &tch_res).expect("assert_f32 failed");
+        });
     Ok(())
 }
 
@@ -138,16 +152,19 @@ fn assert_eq_bias(
     a: &Tensor<f32>,
     a_kernel: &Tensor<f32>,
     b: &tch::Tensor,
-    b_kernel: &tch::Tensor,
+    b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
     let oc = *a_kernel.shape().last().unwrap();
-    let mean =
-        tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let mean = tch::Tensor
+        ::arange(oc, (tch::Kind::Float, tch::Device::Cpu))
+        .reshape(&[1, oc, 1, 1]);
     let var = tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let gamma =
-        tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let beta =
-        tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let gamma = tch::Tensor
+        ::arange(oc, (tch::Kind::Float, tch::Device::Cpu))
+        .reshape(&[1, oc, 1, 1]);
+    let beta = tch::Tensor
+        ::arange(oc, (tch::Kind::Float, tch::Device::Cpu))
+        .reshape(&[1, oc, 1, 1]);
     let hpt_mean = Tensor::<f32>::arange(0, oc)?;
     let hpt_var = Tensor::<f32>::arange(0, oc)?;
     let hpt_gamma = Tensor::<f32>::arange(0, oc)?;
@@ -163,9 +180,12 @@ fn assert_eq_bias(
             Some(&bias),
             1e-5,
             [1, 1],
-            [(0, 0), (0, 0)],
+            [
+                (0, 0),
+                (0, 0),
+            ],
             [1, 1],
-            None,
+            None
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
@@ -174,9 +194,12 @@ fn assert_eq_bias(
     let tch_res = gamma * ((res2 - mean) / (var + 1e-5).sqrt()) + beta;
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f32, res.size()) };
-    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        assert_f32(*a, *b, 0.05, &res, &tch_res).expect("assert_f32 failed");
-    });
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert_f32(*a, *b, 0.05, &res, &tch_res).expect("assert_f32 failed");
+        });
     Ok(())
 }
 
@@ -185,16 +208,19 @@ fn assert_eq_bias_pad(
     a: &Tensor<f32>,
     a_kernel: &Tensor<f32>,
     b: &tch::Tensor,
-    b_kernel: &tch::Tensor,
+    b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
     let oc = *a_kernel.shape().last().unwrap();
-    let mean =
-        tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let mean = tch::Tensor
+        ::arange(oc, (tch::Kind::Float, tch::Device::Cpu))
+        .reshape(&[1, oc, 1, 1]);
     let var = tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let gamma =
-        tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let beta =
-        tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let gamma = tch::Tensor
+        ::arange(oc, (tch::Kind::Float, tch::Device::Cpu))
+        .reshape(&[1, oc, 1, 1]);
+    let beta = tch::Tensor
+        ::arange(oc, (tch::Kind::Float, tch::Device::Cpu))
+        .reshape(&[1, oc, 1, 1]);
     let hpt_mean = Tensor::<f32>::arange(0, oc)?;
     let hpt_var = Tensor::<f32>::arange(0, oc)?;
     let hpt_gamma = Tensor::<f32>::arange(0, oc)?;
@@ -210,9 +236,12 @@ fn assert_eq_bias_pad(
             Some(&bias),
             1e-5,
             [1, 1],
-            [(2, 2), (2, 2)],
+            [
+                (2, 2),
+                (2, 2),
+            ],
             [1, 1],
-            None,
+            None
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
@@ -221,9 +250,12 @@ fn assert_eq_bias_pad(
     let tch_res = gamma * ((res2 - mean) / (var + 1e-5).sqrt()) + beta;
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f32, res.size()) };
-    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        assert_f32(*a, *b, 0.05, &res, &tch_res).expect("assert_f32 failed");
-    });
+    res_slice
+        .iter()
+        .zip(res2.iter())
+        .for_each(|(a, b)| {
+            assert_f32(*a, *b, 0.05, &res, &tch_res).expect("assert_f32 failed");
+        });
     Ok(())
 }
 
@@ -232,16 +264,19 @@ fn assert_eq_bias_pad_relu6(
     a: &Tensor<f32>,
     a_kernel: &Tensor<f32>,
     b: &tch::Tensor,
-    b_kernel: &tch::Tensor,
+    b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
     let oc = *a_kernel.shape().last().unwrap();
-    let mean =
-        tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let mean = tch::Tensor
+        ::arange(oc, (tch::Kind::Float, tch::Device::Cpu))
+        .reshape(&[1, oc, 1, 1]);
     let var = tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let gamma =
-        tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let beta =
-        tch::Tensor::arange(oc, (tch::Kind::Float, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let gamma = tch::Tensor
+        ::arange(oc, (tch::Kind::Float, tch::Device::Cpu))
+        .reshape(&[1, oc, 1, 1]);
+    let beta = tch::Tensor
+        ::arange(oc, (tch::Kind::Float, tch::Device::Cpu))
+        .reshape(&[1, oc, 1, 1]);
     let hpt_mean = Tensor::<f32>::arange(0, oc)?;
     let hpt_var = Tensor::<f32>::arange(0, oc)?;
     let hpt_gamma = Tensor::<f32>::arange(0, oc)?;
@@ -257,9 +292,12 @@ fn assert_eq_bias_pad_relu6(
             Some(&bias),
             1e-5,
             [1, 1],
-            [(2, 2), (2, 2)],
+            [
+                (2, 2),
+                (2, 2),
+            ],
             [1, 1],
-            Some(|x| x._relu6()),
+            Some(|x| x._relu6())
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;

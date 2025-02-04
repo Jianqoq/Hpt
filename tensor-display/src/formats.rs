@@ -1,10 +1,10 @@
 use tensor_traits::CommonBounds;
-use tensor_types::convertion::Convertor;
+use tensor_types::into_scalar::IntoScalar;
 
-pub(crate) fn format_float<T: CommonBounds + Convertor>(val: T, precision: usize) -> String {
+pub(crate) fn format_float<T: CommonBounds + IntoScalar<f64>>(val: T, precision: usize) -> String {
     match T::ID {
         tensor_types::dtype::Dtype::BF16 => {
-            let f64_val = val.to_f64();
+            let f64_val: f64 = val.into_scalar();
             if f64_val - (f64_val as i64 as f64) != 0.0 {
                 format!("{:.prec$}", f64_val, prec = precision)
             } else {
@@ -12,7 +12,7 @@ pub(crate) fn format_float<T: CommonBounds + Convertor>(val: T, precision: usize
             }
         }
         tensor_types::dtype::Dtype::F16 => {
-            let f64_val = val.to_f64();
+            let f64_val: f64 = val.into_scalar();
             if f64_val - (f64_val as i64 as f64) != 0.0 {
                 format!("{:.prec$}", val, prec = precision)
             } else {
@@ -20,7 +20,7 @@ pub(crate) fn format_float<T: CommonBounds + Convertor>(val: T, precision: usize
             }
         }
         tensor_types::dtype::Dtype::F32 => {
-            let tmp_val = val.to_f64();
+            let tmp_val: f64 = val.into_scalar();
             if tmp_val - (tmp_val as i64 as f64) != 0.0 {
                 format!("{:.prec$}", val, prec = precision)
             } else {
@@ -28,7 +28,7 @@ pub(crate) fn format_float<T: CommonBounds + Convertor>(val: T, precision: usize
             }
         }
         tensor_types::dtype::Dtype::F64 => {
-            let tmp_val: f64 = val.to_f64();
+            let tmp_val: f64 = val.into_scalar();
             if tmp_val - (tmp_val as i64 as f64) != 0.0 {
                 format!("{:.prec$}", val, prec = precision)
             } else {
@@ -67,7 +67,7 @@ pub(crate) fn format_complex<T: CommonBounds>(val: T, precision: usize) -> Strin
     val
 }
 
-pub(crate) fn format_val<T: CommonBounds + Convertor>(val: T, precision: usize) -> String {
+pub(crate) fn format_val<T: CommonBounds + IntoScalar<f64>>(val: T, precision: usize) -> String {
     match T::ID {
         | tensor_types::dtype::Dtype::BF16
         | tensor_types::dtype::Dtype::F16

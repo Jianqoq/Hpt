@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use crate::ops::cpu::tensor_internal::float_out_unary::FloatBinaryType;
 use crate::ops::cpu::utils::reduce::reduce::{reduce, reduce2, reduce3};
 use crate::tensor_base::_Tensor;
-use crate::Cpu;
+use crate::{BoolVector, Cpu};
 use tensor_common::axis::axis::{process_axes, Axis};
 use tensor_common::error::base::TensorError;
 use tensor_iterator::iterator_traits::ParStridedIteratorSimd;
@@ -11,10 +11,10 @@ use tensor_iterator::TensorIterator;
 use tensor_traits::{
     CommonBounds, EvalReduce, FloatReduce, NormalEvalReduce, NormalReduce, TensorInfo,
 };
+use tensor_types::into_vec::IntoVec;
 use tensor_types::type_promote::NormalOutUnary;
 use tensor_types::vectors::traits::VecTrait;
 use tensor_types::{
-    convertion::{Convertor, VecConvertor},
     dtype::TypeCommon,
     into_scalar::IntoScalar,
     type_promote::{Eval, FloatOutBinary, FloatOutUnary, NormalOut},
@@ -254,6 +254,7 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for _Tensor<T, Cpu, D
 impl<T, const DEVICE: usize> EvalReduce for _Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
+    T::Vec: IntoVec<BoolVector>,
 {
     type BoolOutput = _Tensor<bool, Cpu, DEVICE>;
     fn all<S: Into<Axis>>(
@@ -268,7 +269,7 @@ where
             |a, b| b._is_true() & a,
             |a, b| b & a,
             |a, b| {
-                let mask = b.to_bool();
+                let mask: BoolVector = b.into_vec();
                 mask & a
             },
             |a, b| b & a,
@@ -292,7 +293,7 @@ where
             |a, b| b._is_true() | a,
             |a, b| b | a,
             |a, b| {
-                let mask = b.to_bool();
+                let mask: BoolVector = b.into_vec();
                 mask | a
             },
             |a, b| b | a,
@@ -477,7 +478,7 @@ where
 
 impl<T, const DEVICE: usize> FloatReduce<T> for _Tensor<T, Cpu, DEVICE>
 where
-    T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output> + Convertor,
+    T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output>,
     <T as FloatOutBinary>::Output:
         CommonBounds + FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
     <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<T::Vec, Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>

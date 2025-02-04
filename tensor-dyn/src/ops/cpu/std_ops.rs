@@ -18,7 +18,6 @@ use tensor_iterator::TensorIterator;
 use tensor_traits::tensor::{CommonBounds, TensorInfo};
 use tensor_traits::NormalUaryOps;
 use tensor_traits::TensorLike;
-use tensor_types::convertion::Convertor;
 use tensor_types::dtype::TypeCommon;
 use tensor_types::into_scalar::IntoScalar;
 use tensor_types::type_promote::{
@@ -1852,8 +1851,8 @@ where
 
 impl<T, U, const DEVICE: usize> PartialEq<_Tensor<U, Cpu, DEVICE>> for _Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + Convertor,
-    U: CommonBounds + Convertor,
+    T: CommonBounds + IntoScalar<f64>,
+    U: CommonBounds + IntoScalar<f64>,
 {
     fn eq(&self, other: &_Tensor<U, Cpu, DEVICE>) -> bool {
         if self.size() != other.size() {
@@ -1936,8 +1935,8 @@ where
 
 impl<T, U> PartialEq<Tensor<U>> for Tensor<T>
 where
-    T: CommonBounds + Convertor,
-    U: CommonBounds + Convertor,
+    T: CommonBounds + IntoScalar<f64>,
+    U: CommonBounds + IntoScalar<f64>,
 {
     fn eq(&self, other: &Tensor<U>) -> bool {
         if self.size() != other.size() {

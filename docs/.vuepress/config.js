@@ -335,11 +335,17 @@ export default defineUserConfig({
               children: [
                 { text: 'iterator', link: '/dev_guide/iterator/iterator.md' },
               ]
-            },{
+            }, {
               text: 'adding new op',
               collapsible: true,
               children: [
                 { text: 'adding new op', link: '/dev_guide/adding_new_op.md' },
+              ]
+            }, {
+              text: 'adding new arch support',
+              collapsible: true,
+              children: [
+                { text: 'adding new arch', link: '/dev_guide/adding_new_arch.md' },
               ]
             }
           ]
