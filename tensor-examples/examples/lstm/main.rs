@@ -1,7 +1,10 @@
 use tensor_dyn::{
-    match_selection, FloatOutUnary, Matmul, NormalBinOps, ParStridedIteratorSimdZip, Random,
-    ShapeManipulate, Slice, Tensor, TensorCreator, TensorError, TensorInfo, TensorIterator,
+    match_selection, set_num_threads, FloatOutUnary, Matmul, NormalBinOps, ParStridedIteratorSimdZip, Random, ShapeManipulate, Slice, Tensor, TensorCreator, TensorError, TensorInfo, TensorIterator
 };
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 struct LSTM {
     w_ii: Tensor<f32>,
@@ -47,9 +50,7 @@ impl LSTM {
         h_t_1: &Tensor<f32>,
         c_t_1: &Tensor<f32>,
     ) -> Result<(Tensor<f32>, Tensor<f32>), TensorError> {
-        let now = std::time::Instant::now();
         let x_w_ii = x_t.matmul(self.w_ii.t()?)?;
-        println!("matmul1 Time taken: {:?}", now.elapsed());
         let x_w_if = x_t.matmul(self.w_if.t()?)?;
         let x_w_ig = x_t.matmul(self.w_ig.t()?)?;
         let x_w_io = x_t.matmul(self.w_io.t()?)?;
@@ -57,7 +58,6 @@ impl LSTM {
         let h_t_w_hf = h_t_1.matmul(self.w_hf.t()?)?;
         let h_t_w_hg = h_t_1.matmul(self.w_hg.t()?)?;
         let h_t_w_ho = h_t_1.matmul(self.w_ho.t()?)?;
-        println!("matmul Time taken: {:?}", now.elapsed());
         let i_t = x_w_ii
             .par_iter_simd()
             .zip(h_t_w_hi.par_iter_simd())
@@ -239,6 +239,7 @@ impl LSTMModel {
 
                 layer_input = h_t;
             }
+            println!("next layer\n");
             let output_t = layer_input.unsqueeze(1)?;
             outputs.push(output_t);
         }
@@ -256,12 +257,13 @@ impl LSTMModel {
 }
 
 fn main() -> anyhow::Result<()> {
+    set_num_threads(10);
     // 创建模型
     let model = LSTMModel::new(1024, 1024, 4, Some(20))?;
 
     // 创建示例输入
     let batch_size = 4096;
-    let seq_length = 1;
+    let seq_length = 10;
     let input = Tensor::randn(&[batch_size, seq_length, 1024])?;
 
     // 前向传播
@@ -269,7 +271,7 @@ fn main() -> anyhow::Result<()> {
     for _ in 0..1 {
         let _ = model.forward(&input, None)?;
     }
-    println!("Time taken: {:?}", start_time.elapsed() / 1);
+    println!("Time taken: {:?}", start_time.elapsed() / 10);
 
     Ok(())
 }

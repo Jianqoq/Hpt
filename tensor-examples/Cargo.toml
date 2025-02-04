@@ -8,6 +8,7 @@ serde = "1.0.217"
 rayon = "1.8.0"
 tensor-dyn = { path = "../tensor-dyn", features = ["track_caller"] }
 anyhow = "1.0.40"
+mimalloc = "0.1.43"
 
 [profile.release]
 opt-level = 0

@@ -139,7 +139,7 @@ impl LSTM {
     }
 }
 fn main() -> Result<(), TensorError> {
-    let batch_size = 4096;
+    let batch_size = 16;
     let input_size = 1024;
     let output_size = 1024;
     let a = Tensor::<f32>::randn([batch_size, input_size])?;
