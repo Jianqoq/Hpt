@@ -1,4 +1,4 @@
-use tensor_types::{dtype::TypeCommon, into_scalar::IntoScalar};
+use tensor_types::{dtype::TypeCommon, cast::Cast};
 
 use crate::strides::strides::Strides;
 
@@ -16,7 +16,7 @@ pub fn preprocess_strides(
 
     for i in 0..stride.len() {
         if shape[start + i] != 1i64 {
-            strides[start + i] = stride[i].into_scalar();
+            strides[start + i] = stride[i].cast();
         }
     }
     strides

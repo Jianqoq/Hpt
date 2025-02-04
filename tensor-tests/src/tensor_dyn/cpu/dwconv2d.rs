@@ -6,11 +6,10 @@ use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::{ set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo };
 use tensor_dyn::{ Tensor, TensorCreator };
-use tensor_types::convertion::{ Convertor, FromScalar };
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 use tensor_types::type_promote::NormalOut;
 
-fn common_input<T>([
+fn common_input([
     batch,
     out_channel,
     in_channel,
@@ -20,18 +19,14 @@ fn common_input<T>([
     width,
     groups,
 ]: [i64; 8])
-    -> anyhow::Result<(Tensor<T>, Tensor<T>, tch::Tensor, tch::Tensor)>
-    where
-        T: Convertor + FromScalar<i64> + NormalOut<T, Output = T> + CommonBounds,
-        usize: IntoScalar<T>,
-        i64: IntoScalar<T>
+    -> anyhow::Result<(Tensor<i64>, Tensor<i64>, tch::Tensor, tch::Tensor)>
 {
-    let kernel = Tensor::<T>
+    let kernel = Tensor::<i64>
         ::arange(0, (in_channel / groups) * out_channel * kernel_height * kernel_width)?
         .reshape([out_channel, in_channel / groups, kernel_height, kernel_width])?
         .permute([2, 3, 1, 0])?
         .contiguous()?;
-    let a = Tensor::<T>
+    let a = Tensor::<i64>
         ::arange(0, batch * in_channel * height * width)?
         .reshape([batch, in_channel, height, width])?
         .permute([0, 2, 3, 1])?

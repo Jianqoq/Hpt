@@ -79,58 +79,58 @@ pub(crate) fn __impl_normal_out_binary() -> TokenStream {
                         type Output = <Self as NormalOutPromote<#rhs_dtype>>::Output;
                         #[inline(always)]
                         fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__pow(rhs_scalar)
                         }
                         #[inline(always)]
                         fn _clamp(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let min_scalar: Self::Output = min.into_scalar();
-                            let max_scalar: Self::Output = max.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let min_scalar: Self::Output = min.cast();
+                            let max_scalar: Self::Output = max.cast();
                             lhs_scalar.__clamp(min_scalar, max_scalar)
                         }
                         #[inline(always)]
                         fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let a_scalar: Self::Output = a.into_scalar();
-                            let b_scalar: Self::Output = b.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let a_scalar: Self::Output = a.cast();
+                            let b_scalar: Self::Output = b.cast();
                             lhs_scalar.__mul_add(a_scalar, b_scalar)
                         }
                         #[inline(always)]
                         fn _add(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__add(rhs_scalar)
                         }
                         #[inline(always)]
                         fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__sub(rhs_scalar)
                         }
                         #[inline(always)]
                         fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__mul(rhs_scalar)
                         }
                         #[inline(always)]
                         fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__rem(rhs_scalar)
                         }
                         #[inline(always)]
                         fn _max(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__max(rhs_scalar)
                         }
                         #[inline(always)]
                         fn _min(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__min(rhs_scalar)
                         }
                     }
@@ -221,58 +221,58 @@ pub(crate) fn __impl_cuda_normal_out_binary() -> TokenStream {
                         type Output = <Self as NormalOutPromote<Scalar<#rhs_dtype>>>::Output;
                         #[inline(always)]
                         fn _pow(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__pow(rhs_scalar)
                         }
                         #[inline(always)]
                         fn _clamp(self, min: Scalar<#rhs_dtype>, max: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let min_scalar: Self::Output = min.into_scalar();
-                            let max_scalar: Self::Output = max.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let min_scalar: Self::Output = min.cast();
+                            let max_scalar: Self::Output = max.cast();
                             lhs_scalar.__clamp(min_scalar, max_scalar)
                         }
                         #[inline(always)]
                         fn _mul_add(self, a: Scalar<#rhs_dtype>, b: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let a_scalar: Self::Output = a.into_scalar();
-                            let b_scalar: Self::Output = b.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let a_scalar: Self::Output = a.cast();
+                            let b_scalar: Self::Output = b.cast();
                             lhs_scalar.__mul_add(a_scalar, b_scalar)
                         }
                         #[inline(always)]
                         fn _add(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__add(rhs_scalar)
                         }
                         #[inline(always)]
                         fn _sub(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__sub(rhs_scalar)
                         }
                         #[inline(always)]
                         fn _mul(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__mul(rhs_scalar)
                         }
                         #[inline(always)]
                         fn _rem(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__rem(rhs_scalar)
                         }
                         #[inline(always)]
                         fn _max(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__max(rhs_scalar)
                         }
                         #[inline(always)]
                         fn _min(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__min(rhs_scalar)
                         }
                     }

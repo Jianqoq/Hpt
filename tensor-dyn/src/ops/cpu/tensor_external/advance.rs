@@ -9,15 +9,15 @@ use tensor_common::slice::Slice;
 use tensor_traits::ops::advance::{AdvanceOps, HardMax, Shrinkage};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 use tensor_types::dtype::TypeCommon;
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 use tensor_types::into_vec::IntoVec;
 use tensor_types::traits::SimdSelect;
 use tensor_types::type_promote::{Cmp, NormalOut, SimdCmp};
 
 impl<T: CommonBounds + PartialOrd, const DEVICE: usize> AdvanceOps for Tensor<T, Cpu, DEVICE>
 where
-    T: NormalOut<bool, Output = T> + IntoScalar<i64>,
-    f64: IntoScalar<T>,
+    T: NormalOut<bool, Output = T> + Cast<i64>,
+    f64: Cast<T>,
 {
     type Meta = T;
     type Output = Tensor<T, Cpu, DEVICE>;
@@ -83,8 +83,8 @@ where
 
 impl<T: CommonBounds + PartialOrd, const DEVICE: usize> AdvanceOps for DiffTensor<T, Cpu, DEVICE>
 where
-    T: NormalOut<bool, Output = T> + IntoScalar<i64>,
-    f64: IntoScalar<T>,
+    T: NormalOut<bool, Output = T> + Cast<i64>,
+    f64: Cast<T>,
 {
     type Meta = T;
     type Output = DiffTensor<T, Cpu, DEVICE>;
@@ -190,7 +190,7 @@ where
     T: CommonBounds + Cmp<Output = bool>,
     <T as TypeCommon>::Vec: SimdCmp,
     <T::Vec as SimdCmp>::Output: IntoVec<T::Vec>,
-    bool: NormalOut<T> + IntoScalar<T>,
+    bool: NormalOut<T> + Cast<T>,
 {
     type Output = Tensor<T, Cpu, DEVICE>;
     fn hardmax(&self, axis: i64) -> Result<Self::Output, TensorError> {

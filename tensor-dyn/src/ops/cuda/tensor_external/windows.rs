@@ -4,7 +4,7 @@ use std::ops::{Mul, Sub};
 use tensor_traits::CommonBounds;
 use tensor_types::{
     dtype::FloatConst,
-    into_scalar::IntoScalar,
+    cast::Cast,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 
@@ -12,7 +12,7 @@ type FBO<T> = <T as FloatOutBinary>::Output;
 
 impl<T, const DEVICE_ID: usize> Tensor<T, Cuda, DEVICE_ID>
 where
-    f64: IntoScalar<FBO<T>>,
+    f64: Cast<FBO<T>>,
     T: CommonBounds + FloatOutBinary + DeviceRepr,
     FBO<T>: CommonBounds
         + FloatOutUnary<Output = FBO<T>>
@@ -25,8 +25,8 @@ where
     Simd<T>: NormalOut<Simd<T>, Output = Simd<T>>
         + FloatOutBinary<Simd<T>, Output = Simd<T>>
         + FloatOutUnary<Output = Simd<T>>,
-    usize: IntoScalar<FBO<T>>,
-    i64: IntoScalar<T>,
+    usize: Cast<FBO<T>>,
+    i64: Cast<T>,
 {
     /// Generates a Hamming window of a specified length.
     ///
@@ -113,7 +113,7 @@ where
     ) -> anyhow::Result<Tensor<FBO<T>, Cuda, DEVICE_ID>>
     where
         T: FloatConst,
-        i64: IntoScalar<FBO<T>>,
+        i64: Cast<FBO<T>>,
     {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::blackman_window(window_length, periodic)?.into())
     }

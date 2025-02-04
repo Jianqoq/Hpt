@@ -4,7 +4,7 @@ use tensor_common::error::base::TensorError;
 use tensor_traits::{CommonBounds, WindowOps};
 use tensor_types::{
     dtype::FloatConst,
-    into_scalar::IntoScalar,
+    cast::Cast,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 
@@ -12,7 +12,7 @@ type FBO<T> = <T as FloatOutBinary>::Output;
 
 impl<T, const DEVICE: usize> WindowOps for Tensor<T, Cpu, DEVICE>
 where
-    f64: IntoScalar<FBO<T>>,
+    f64: Cast<FBO<T>>,
     T: CommonBounds + FloatOutBinary,
     FBO<T>: CommonBounds
         + FloatOutUnary<Output = FBO<T>>
@@ -24,8 +24,8 @@ where
     Simd<T>: NormalOut<Simd<T>, Output = Simd<T>>
         + FloatOutBinary<Simd<T>, Output = Simd<T>>
         + FloatOutUnary<Output = Simd<T>>,
-    usize: IntoScalar<FBO<T>>,
-    i64: IntoScalar<T>,
+    usize: Cast<FBO<T>>,
+    i64: Cast<T>,
 {
     type Output = Tensor<FBO<T>, Cpu, DEVICE>;
     type Meta = T;
@@ -45,7 +45,7 @@ where
     fn blackman_window(window_length: i64, periodic: bool) -> Result<Self::Output, TensorError>
     where
         T: FloatConst,
-        i64: IntoScalar<<T as FloatOutBinary>::Output>,
+        i64: Cast<<T as FloatOutBinary>::Output>,
     {
         Ok(_Tensor::<T, Cpu, DEVICE>::blackman_window(window_length, periodic)?.into())
     }

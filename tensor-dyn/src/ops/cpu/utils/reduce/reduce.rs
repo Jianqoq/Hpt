@@ -22,7 +22,7 @@ use tensor_traits::tensor::CommonBounds;
 use tensor_traits::tensor::TensorCreator;
 use tensor_traits::tensor::TensorInfo;
 use tensor_traits::TensorLike;
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 use tensor_types::type_promote::{ Cmp, NormalOut };
 
 macro_rules! init_arr {
@@ -232,7 +232,7 @@ pub(crate) fn reduce<T, F, F2, F3, const DEVICE: usize>(
 )
     -> std::result::Result<_Tensor<T, Cpu, DEVICE>, TensorError>
     where
-        T: CommonBounds + IntoScalar<T>,
+        T: CommonBounds + Cast<T>,
         F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
         F2: Fn(T, T) -> T + Sync + Send + 'static + Copy,
         F3: Fn(T::Vec, T::Vec) -> T::Vec + Sync + Send + 'static + Copy,
@@ -286,7 +286,7 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
 )
     -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
     where
-        T: CommonBounds + IntoScalar<O>,
+        T: CommonBounds + Cast<O>,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
         F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
         F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
@@ -347,7 +347,7 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: usize>(
 )
     -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
     where
-        T: CommonBounds + IntoScalar<O>,
+        T: CommonBounds + Cast<O>,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
         F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
         F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
@@ -423,7 +423,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: u
 )
     -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
     where
-        T: CommonBounds + IntoScalar<O>,
+        T: CommonBounds + Cast<O>,
         O: CommonBounds,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
         F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
@@ -669,7 +669,7 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
 )
     -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
     where
-        T: CommonBounds + IntoScalar<O>,
+        T: CommonBounds + Cast<O>,
         O: CommonBounds,
         F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
         F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,

@@ -12,7 +12,7 @@ use rand_distr::{
 };
 use tensor_common::{error::base::TensorError, shape::shape::Shape};
 use tensor_traits::{ CommonBounds, Random, RandomInt };
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 
 impl<T, const DEVICE: usize> Random
     for Tensor<T, Cpu, DEVICE>
@@ -149,7 +149,7 @@ impl<T, const DEVICE: usize> Random
     }
 
     fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self, TensorError>
-        where T: IntoScalar<f64>, bool: IntoScalar<T>
+        where T: Cast<f64>, bool: Cast<T>
     {
         Ok(_Tensor::bernoulli(shape, p)?.into())
     }
@@ -446,8 +446,8 @@ where
 
     fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self, TensorError>
     where
-        T: IntoScalar<f64>,
-        bool: IntoScalar<T>,
+        T: Cast<f64>,
+        bool: Cast<T>,
     {
         Ok(DiffTensor {
             inner: Tensor::bernoulli(shape, p)?,

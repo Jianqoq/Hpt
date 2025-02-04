@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 use std::fmt::Formatter;
 use tensor_common::utils::pointer::Pointer;
 use tensor_traits::tensor::{CommonBounds, TensorInfo};
@@ -22,7 +22,7 @@ fn main_loop_push_str<U, T>(
 ) -> Result<()>
 where
     U: TensorInfo<T>,
-    T: CommonBounds + IntoScalar<f64>,
+    T: CommonBounds + Cast<f64>,
 {
     let print = |string: &mut String, ptr: Pointer<T>, offset: &mut i64, col: usize| {
         let val = format_val(ptr[*offset], precision);
@@ -112,7 +112,7 @@ fn main_loop_get_width<U, T>(
 ) -> Result<()>
 where
     U: TensorInfo<T>,
-    T: CommonBounds + IntoScalar<f64>,
+    T: CommonBounds + Cast<f64>,
 {
     let mut outer_loop = 1;
     for i in tensor.shape().iter().take(tensor.ndim() - 1) {
@@ -186,7 +186,7 @@ pub fn display<U, T>(
 ) -> std::fmt::Result
 where
     U: TensorInfo<T>,
-    T: CommonBounds + IntoScalar<f64>,
+    T: CommonBounds + Cast<f64>,
 {
     let mut string: String = String::new();
     if tensor.size() == 0 {

@@ -2,7 +2,7 @@ use std::panic::Location;
 
 use tensor_common::error::{base::TensorError, shape::ShapeError};
 use tensor_traits::CommonBounds;
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 
 pub(crate) fn geomspace_preprocess_start_step<T>(
     start: f64,
@@ -11,9 +11,9 @@ pub(crate) fn geomspace_preprocess_start_step<T>(
     include_end: bool,
 ) -> std::result::Result<(f64, f64), TensorError>
 where
-    f64: IntoScalar<T>,
-    usize: IntoScalar<T>,
-    T: CommonBounds + IntoScalar<f64>,
+    f64: Cast<T>,
+    usize: Cast<T>,
+    T: CommonBounds + Cast<f64>,
 {
     let float_n = n as f64;
     let step = if include_end {

@@ -5,7 +5,7 @@ use crate::Tensor;
 use cudarc::driver::DeviceRepr;
 use tensor_traits::tensor::CommonBounds;
 use crate::cuda_types::scalar::Scalar;
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 use tensor_types::type_promote::BitWiseOut;
 use tensor_types::type_promote::FloatOutBinary;
 use tensor_types::type_promote::NormalOut;
@@ -36,7 +36,7 @@ where
     T: CommonBounds + NormalOut<U> + DeviceRepr,
     U: CommonBounds + DeviceRepr,
     <T as NormalOut<U>>::Output: CommonBounds + DeviceRepr,
-    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
     Scalar<T>: NormalOut<Scalar<U>, Output = Scalar<<T as NormalOut<U>>::Output>>,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE>;
@@ -79,7 +79,7 @@ where
     T: CommonBounds + NormalOut<U> + DeviceRepr,
     U: CommonBounds + DeviceRepr,
     <T as NormalOut<U>>::Output: CommonBounds + DeviceRepr,
-    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
     Scalar<T>: NormalOut<Scalar<U>, Output = Scalar<<T as NormalOut<U>>::Output>>,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE>;
@@ -200,7 +200,7 @@ impl<T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUD
 where
     T: CommonBounds + NormalOut<rhs_type> + DeviceRepr,
     <T as NormalOut<rhs_type>>::Output: CommonBounds + DeviceRepr,
-    <T as NormalOut<rhs_type>>::Output: IntoScalar<<T as NormalOut<rhs_type>>::Output>,
+    <T as NormalOut<rhs_type>>::Output: Cast<<T as NormalOut<rhs_type>>::Output>,
     Scalar<T>: NormalOut<Scalar<rhs_type>, Output = Scalar<<T as NormalOut<rhs_type>>::Output>>,
 {
     type Output = out_type<<T as NormalOut<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
@@ -322,7 +322,7 @@ impl<'a, T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda,
 where
     T: CommonBounds + NormalOut<rhs_type_ident> + DeviceRepr,
     <T as NormalOut<rhs_type_ident>>::Output: CommonBounds + DeviceRepr,
-    <T as NormalOut<rhs_type_ident>>::Output: IntoScalar<<T as NormalOut<rhs_type_ident>>::Output>,
+    <T as NormalOut<rhs_type_ident>>::Output: Cast<<T as NormalOut<rhs_type_ident>>::Output>,
     Scalar<T>: NormalOut<Scalar<rhs_type_ident>, Output = Scalar<<T as NormalOut<rhs_type_ident>>::Output>>,
 {
     type Output = out_type<<T as NormalOut<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
@@ -445,7 +445,7 @@ where
     T: CommonBounds + DeviceRepr,
     lhs_type: CommonBounds + NormalOut<T> + DeviceRepr,
     <lhs_type as NormalOut<T>>::Output: CommonBounds + DeviceRepr,
-    <lhs_type as NormalOut<T>>::Output: IntoScalar<<lhs_type as NormalOut<T>>::Output>,
+    <lhs_type as NormalOut<T>>::Output: Cast<<lhs_type as NormalOut<T>>::Output>,
     Scalar<lhs_type>: NormalOut<Scalar<T>, Output = Scalar<<lhs_type as NormalOut<T>>::Output>>,
 {
     type Output = out_type<<lhs_type as NormalOut<T>>::Output, Cuda, CUDA_DEVICE>;
@@ -568,7 +568,7 @@ where
     T: CommonBounds + DeviceRepr,
     lhs_type_ident: CommonBounds + NormalOut<T> + DeviceRepr,
     <lhs_type_ident as NormalOut<T>>::Output: CommonBounds + DeviceRepr,
-    <lhs_type_ident as NormalOut<T>>::Output: IntoScalar<<lhs_type_ident as NormalOut<T>>::Output>,
+    <lhs_type_ident as NormalOut<T>>::Output: Cast<<lhs_type_ident as NormalOut<T>>::Output>,
     Scalar<lhs_type_ident>: NormalOut<Scalar<T>, Output = Scalar<<lhs_type_ident as NormalOut<T>>::Output>>,
 {
     type Output = out_type<<lhs_type_ident as NormalOut<T>>::Output, Cuda, CUDA_DEVICE>;
@@ -601,7 +601,7 @@ where
     T: CommonBounds + BitWiseOut<U> + DeviceRepr,
     U: CommonBounds + DeviceRepr,
     <T as BitWiseOut<U>>::Output: CommonBounds + DeviceRepr,
-    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     Scalar<T>: BitWiseOut<Scalar<U>, Output = Scalar<<T as BitWiseOut<U>>::Output>>,
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>;
@@ -639,7 +639,7 @@ where
     T: CommonBounds + BitWiseOut<U> + DeviceRepr,
     U: CommonBounds + DeviceRepr,
     <T as BitWiseOut<U>>::Output: CommonBounds + DeviceRepr,
-    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     Scalar<T>: BitWiseOut<Scalar<U>, Output = Scalar<<T as BitWiseOut<U>>::Output>>,
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>;
@@ -734,7 +734,7 @@ impl<T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUD
 where
     T: CommonBounds + BitWiseOut<rhs_type> + DeviceRepr,
     <T as BitWiseOut<rhs_type>>::Output: CommonBounds + DeviceRepr,
-    <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
+    <T as BitWiseOut<rhs_type>>::Output: Cast<<T as BitWiseOut<rhs_type>>::Output>,
     Scalar<T>: BitWiseOut<Scalar<rhs_type>, Output = Scalar<<T as BitWiseOut<rhs_type>>::Output>>,
 {
     type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
@@ -831,7 +831,7 @@ where
     T: CommonBounds + BitWiseOut<rhs_type_ident> + DeviceRepr,
     <T as BitWiseOut<rhs_type_ident>>::Output: CommonBounds + DeviceRepr,
     <T as BitWiseOut<rhs_type_ident>>::Output:
-        IntoScalar<<T as BitWiseOut<rhs_type_ident>>::Output>,
+        Cast<<T as BitWiseOut<rhs_type_ident>>::Output>,
     Scalar<T>: BitWiseOut<Scalar<rhs_type_ident>, Output = Scalar<<T as BitWiseOut<rhs_type_ident>>::Output>>,
 {
     type Output = out_type<<T as BitWiseOut<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
@@ -928,7 +928,7 @@ where
     T: CommonBounds + DeviceRepr,
     lhs_type: CommonBounds + BitWiseOut<T> + DeviceRepr,
     <lhs_type as BitWiseOut<T>>::Output: CommonBounds + DeviceRepr,
-    <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
+    <lhs_type as BitWiseOut<T>>::Output: Cast<<lhs_type as BitWiseOut<T>>::Output>,
     Scalar<lhs_type>: BitWiseOut<Scalar<T>, Output = Scalar<<lhs_type as BitWiseOut<T>>::Output>>,
 {
     type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cuda, CUDA_DEVICE>;
@@ -1026,7 +1026,7 @@ where
     lhs_type_ident: CommonBounds + BitWiseOut<T> + DeviceRepr,
     <lhs_type_ident as BitWiseOut<T>>::Output: CommonBounds + DeviceRepr,
     <lhs_type_ident as BitWiseOut<T>>::Output:
-        IntoScalar<<lhs_type_ident as BitWiseOut<T>>::Output>,
+        Cast<<lhs_type_ident as BitWiseOut<T>>::Output>,
     Scalar<lhs_type_ident>: BitWiseOut<Scalar<T>, Output = Scalar<<lhs_type_ident as BitWiseOut<T>>::Output>>,
 {
     type Output = out_type<<lhs_type_ident as BitWiseOut<T>>::Output, Cuda, CUDA_DEVICE>;
@@ -1051,7 +1051,7 @@ where
     T: CommonBounds + FloatOutBinary<U> + DeviceRepr,
     U: CommonBounds + DeviceRepr,
     <T as FloatOutBinary<U>>::Output: CommonBounds + DeviceRepr,
-    <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+    <T as FloatOutBinary<U>>::Output: Cast<<T as FloatOutBinary<U>>::Output>,
     Scalar<T>: FloatOutBinary<Scalar<U>, Output = Scalar<<T as FloatOutBinary<U>>::Output>>,
 {
     type Output = out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE>;
@@ -1083,7 +1083,7 @@ where
     T: CommonBounds + FloatOutBinary<U> + DeviceRepr,
     U: CommonBounds + DeviceRepr,
     <T as FloatOutBinary<U>>::Output: CommonBounds + DeviceRepr,
-    <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+    <T as FloatOutBinary<U>>::Output: Cast<<T as FloatOutBinary<U>>::Output>,
     Scalar<T>: FloatOutBinary<Scalar<U>, Output = Scalar<<T as FloatOutBinary<U>>::Output>>,
 {
     type Output = out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE>;
@@ -1126,7 +1126,7 @@ impl<T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUD
 where
     T: CommonBounds + FloatOutBinary<rhs_type> + DeviceRepr,
     <T as FloatOutBinary<rhs_type>>::Output: CommonBounds + DeviceRepr,
-    <T as FloatOutBinary<rhs_type>>::Output: IntoScalar<<T as FloatOutBinary<rhs_type>>::Output>,
+    <T as FloatOutBinary<rhs_type>>::Output: Cast<<T as FloatOutBinary<rhs_type>>::Output>,
     Scalar<T>: FloatOutBinary<Scalar<rhs_type>, Output = Scalar<<T as FloatOutBinary<rhs_type>>::Output>>,
 {
     type Output = out_type<<T as FloatOutBinary<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
@@ -1171,7 +1171,7 @@ where
     T: CommonBounds + FloatOutBinary<rhs_type_ident> + DeviceRepr,
     <T as FloatOutBinary<rhs_type_ident>>::Output: CommonBounds + DeviceRepr,
     <T as FloatOutBinary<rhs_type_ident>>::Output:
-        IntoScalar<<T as FloatOutBinary<rhs_type_ident>>::Output>,
+        Cast<<T as FloatOutBinary<rhs_type_ident>>::Output>,
     Scalar<T>: FloatOutBinary<Scalar<rhs_type_ident>, Output = Scalar<<T as FloatOutBinary<rhs_type_ident>>::Output>>,
 {
     type Output = out_type<<T as FloatOutBinary<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
@@ -1216,7 +1216,7 @@ where
     T: CommonBounds + DeviceRepr,
     lhs_type: CommonBounds + FloatOutBinary<T> + DeviceRepr,
     <lhs_type as FloatOutBinary<T>>::Output: CommonBounds + DeviceRepr,
-    <lhs_type as FloatOutBinary<T>>::Output: IntoScalar<<lhs_type as FloatOutBinary<T>>::Output>,
+    <lhs_type as FloatOutBinary<T>>::Output: Cast<<lhs_type as FloatOutBinary<T>>::Output>,
     Scalar<lhs_type>: FloatOutBinary<Scalar<T>, Output = Scalar<<lhs_type as FloatOutBinary<T>>::Output>>,
 {
     type Output = out_type<<lhs_type as FloatOutBinary<T>>::Output, Cuda, CUDA_DEVICE>;
@@ -1262,7 +1262,7 @@ where
     lhs_type_ident: CommonBounds + FloatOutBinary<T> + DeviceRepr,
     <lhs_type_ident as FloatOutBinary<T>>::Output: CommonBounds + DeviceRepr,
     <lhs_type_ident as FloatOutBinary<T>>::Output:
-        IntoScalar<<lhs_type_ident as FloatOutBinary<T>>::Output>,
+        Cast<<lhs_type_ident as FloatOutBinary<T>>::Output>,
     Scalar<lhs_type_ident>: FloatOutBinary<Scalar<T>, Output = Scalar<<lhs_type_ident as FloatOutBinary<T>>::Output>>,
 {
     type Output = out_type<<lhs_type_ident as FloatOutBinary<T>>::Output, Cuda, CUDA_DEVICE>;
@@ -1370,7 +1370,7 @@ where
 //         $(impl<T, const CUDA_DEVICE: usize> BitAnd<$type> for $($tokens)*_Tensor<T, Cuda, CUDA_DEVICE>
 //          where T: BitWiseOut<$type> + CommonBounds,
 //          <T as BitWiseOut<$type>>::Output: CommonBounds,
-//          <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+//          <T as BitWiseOut<$type>>::Output: Cast<<T as BitWiseOut<$type>>::Output>,
 //          T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<T as BitWiseOut<$type>>::Output, Cuda, CUDA_DEVICE>;
@@ -1383,7 +1383,7 @@ where
 //         impl<T, const CUDA_DEVICE: usize> BitOr<$type> for $($tokens)*_Tensor<T, Cuda, CUDA_DEVICE>
 //         where T: BitWiseOut<$type> + CommonBounds,
 //         <T as BitWiseOut<$type>>::Output: CommonBounds,
-//         <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+//         <T as BitWiseOut<$type>>::Output: Cast<<T as BitWiseOut<$type>>::Output>,
 //         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<T as BitWiseOut<$type>>::Output, Cuda, CUDA_DEVICE>;
@@ -1396,7 +1396,7 @@ where
 //         impl<T, const CUDA_DEVICE: usize> BitXor<$type> for $($tokens)*_Tensor<T, Cuda, CUDA_DEVICE>
 //         where T: BitWiseOut<$type> + CommonBounds,
 //         <T as BitWiseOut<$type>>::Output: CommonBounds,
-//         <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+//         <T as BitWiseOut<$type>>::Output: Cast<<T as BitWiseOut<$type>>::Output>,
 //         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<T as BitWiseOut<$type>>::Output, Cuda, CUDA_DEVICE>;
@@ -1409,7 +1409,7 @@ where
 //         impl<T, const CUDA_DEVICE: usize> Shl<$type> for $($tokens)*_Tensor<T, Cuda, CUDA_DEVICE>
 //         where T: BitWiseOut<$type> + CommonBounds,
 //         <T as BitWiseOut<$type>>::Output: CommonBounds,
-//         <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+//         <T as BitWiseOut<$type>>::Output: Cast<<T as BitWiseOut<$type>>::Output>,
 //         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<T as BitWiseOut<$type>>::Output, Cuda, CUDA_DEVICE>;
@@ -1422,7 +1422,7 @@ where
 //         impl<T, const CUDA_DEVICE: usize> Shr<$type> for $($tokens)*_Tensor<T, Cuda, CUDA_DEVICE>
 //         where T: BitWiseOut<$type> + CommonBounds,
 //         <T as BitWiseOut<$type>>::Output: CommonBounds,
-//         <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+//         <T as BitWiseOut<$type>>::Output: Cast<<T as BitWiseOut<$type>>::Output>,
 //         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<T as BitWiseOut<$type>>::Output, Cuda, CUDA_DEVICE>;
@@ -1776,7 +1776,7 @@ where
 //             T: CommonBounds + NormalOut<U>,
 //             U: CommonBounds,
 //             <T as NormalOut<U>>::Output: CommonBounds,
-//             <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+//             <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
 //             T::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>,
 //         {
 //             type Output = Tensor<<T as NormalOut<U>>::Output>;
@@ -1798,7 +1798,7 @@ where
 //                 T: CommonBounds + NormalOut<U>,
 //                 U: CommonBounds,
 //                 <T as NormalOut<U>>::Output: CommonBounds,
-//                 <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+//                 <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
 //                 T::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as NormalOut<U>>::Output>;
@@ -1820,7 +1820,7 @@ where
 //                 T: CommonBounds + NormalOut<U>,
 //                 U: CommonBounds,
 //                 <T as NormalOut<U>>::Output: CommonBounds,
-//                 <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+//                 <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
 //                 T::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as NormalOut<U>>::Output>;
@@ -1841,7 +1841,7 @@ where
 //                 T: CommonBounds + NormalOut<U>,
 //                 U: CommonBounds,
 //                 <T as NormalOut<U>>::Output: CommonBounds,
-//                 <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+//                 <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
 //                 T::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as NormalOut<U>>::Output>;
@@ -1925,7 +1925,7 @@ where
 //                 T: CommonBounds + BitWiseOut<U>,
 //                 U: CommonBounds,
 //                 <T as BitWiseOut<U>>::Output: CommonBounds,
-//                 <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+//                 <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
 //                 T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as BitWiseOut<U>>::Output>;
@@ -1946,7 +1946,7 @@ where
 //                 T: CommonBounds + BitWiseOut<U>,
 //                 U: CommonBounds,
 //                 <T as BitWiseOut<U>>::Output: CommonBounds,
-//                 <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+//                 <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
 //                 T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as BitWiseOut<U>>::Output>;
@@ -1966,7 +1966,7 @@ where
 //                 T: CommonBounds + BitWiseOut<U>,
 //                 U: CommonBounds,
 //                 <T as BitWiseOut<U>>::Output: CommonBounds,
-//                 <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+//                 <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
 //                 T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as BitWiseOut<U>>::Output>;
@@ -1986,7 +1986,7 @@ where
 //                 T: CommonBounds + BitWiseOut<U>,
 //                 U: CommonBounds,
 //                 <T as BitWiseOut<U>>::Output: CommonBounds,
-//                 <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+//                 <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
 //                 T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as BitWiseOut<U>>::Output>;
@@ -2030,7 +2030,7 @@ where
 //                 T: CommonBounds + BitWiseOut<U>,
 //                 U: CommonBounds,
 //                 <T as BitWiseOut<U>>::Output: CommonBounds,
-//                 <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+//                 <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
 //                 T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as BitWiseOut<U>>::Output>;
@@ -2052,7 +2052,7 @@ where
 //                 T: CommonBounds + BitWiseOut<U>,
 //                 U: CommonBounds,
 //                 <T as BitWiseOut<U>>::Output: CommonBounds,
-//                 <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+//                 <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
 //                 T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as BitWiseOut<U>>::Output>;
@@ -2074,7 +2074,7 @@ where
 //                 T: CommonBounds + BitWiseOut<U>,
 //                 U: CommonBounds,
 //                 <T as BitWiseOut<U>>::Output: CommonBounds,
-//                 <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+//                 <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
 //                 T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as BitWiseOut<U>>::Output>;
@@ -2096,7 +2096,7 @@ where
 //                 T: CommonBounds + BitWiseOut<U>,
 //                 U: CommonBounds,
 //                 <T as BitWiseOut<U>>::Output: CommonBounds,
-//                 <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+//                 <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
 //                 T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as BitWiseOut<U>>::Output>;
@@ -2122,7 +2122,7 @@ where
 //                 T: CommonBounds + FloatOutBinary<U>,
 //                 U: CommonBounds,
 //                 <T as FloatOutBinary<U>>::Output: CommonBounds,
-//                 <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+//                 <T as FloatOutBinary<U>>::Output: Cast<<T as FloatOutBinary<U>>::Output>,
 //                 T::Vec: FloatOutBinary<U::Vec, Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as FloatOutBinary<U>>::Output>;
@@ -2143,7 +2143,7 @@ where
 //                 T: CommonBounds + FloatOutBinary<U>,
 //                 U: CommonBounds,
 //                 <T as FloatOutBinary<U>>::Output: CommonBounds,
-//                 <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+//                 <T as FloatOutBinary<U>>::Output: Cast<<T as FloatOutBinary<U>>::Output>,
 //                 T::Vec: FloatOutBinary<U::Vec, Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as FloatOutBinary<U>>::Output>;
@@ -2164,7 +2164,7 @@ where
 //                 T: CommonBounds + FloatOutBinary<U>,
 //                 U: CommonBounds,
 //                 <T as FloatOutBinary<U>>::Output: CommonBounds,
-//                 <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+//                 <T as FloatOutBinary<U>>::Output: Cast<<T as FloatOutBinary<U>>::Output>,
 //                 T::Vec: FloatOutBinary<U::Vec, Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as FloatOutBinary<U>>::Output>;
@@ -2184,7 +2184,7 @@ where
 //                 T: CommonBounds + FloatOutBinary<U>,
 //                 U: CommonBounds,
 //                 <T as FloatOutBinary<U>>::Output: CommonBounds,
-//                 <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+//                 <T as FloatOutBinary<U>>::Output: Cast<<T as FloatOutBinary<U>>::Output>,
 //                 T::Vec: FloatOutBinary<U::Vec, Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as FloatOutBinary<U>>::Output>;
@@ -2293,7 +2293,7 @@ where
 //         $(impl<T, const CUDA_DEVICE: usize> BitAnd<$type> for $($tokens)*Tensor<T, Cuda, CUDA_DEVICE>
 //          where T: BitWiseOut<$type> + CommonBounds,
 //          <T as BitWiseOut<$type>>::Output: CommonBounds,
-//          <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+//          <T as BitWiseOut<$type>>::Output: Cast<<T as BitWiseOut<$type>>::Output>,
 //          T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<T as BitWiseOut<$type>>::Output>;
@@ -2305,7 +2305,7 @@ where
 //         impl<T, const CUDA_DEVICE: usize> BitOr<$type> for $($tokens)*Tensor<T, Cuda, CUDA_DEVICE>
 //         where T: BitWiseOut<$type> + CommonBounds,
 //         <T as BitWiseOut<$type>>::Output: CommonBounds,
-//         <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+//         <T as BitWiseOut<$type>>::Output: Cast<<T as BitWiseOut<$type>>::Output>,
 //         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<T as BitWiseOut<$type>>::Output>;
@@ -2317,7 +2317,7 @@ where
 //         impl<T, const CUDA_DEVICE: usize> BitXor<$type> for $($tokens)*Tensor<T, Cuda, CUDA_DEVICE>
 //         where T: BitWiseOut<$type> + CommonBounds,
 //         <T as BitWiseOut<$type>>::Output: CommonBounds,
-//         <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+//         <T as BitWiseOut<$type>>::Output: Cast<<T as BitWiseOut<$type>>::Output>,
 //         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<T as BitWiseOut<$type>>::Output>;
@@ -2329,7 +2329,7 @@ where
 //         impl<T, const CUDA_DEVICE: usize> Shl<$type> for $($tokens)*Tensor<T, Cuda, CUDA_DEVICE>
 //         where T: BitWiseOut<$type> + CommonBounds,
 //         <T as BitWiseOut<$type>>::Output: CommonBounds,
-//         <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+//         <T as BitWiseOut<$type>>::Output: Cast<<T as BitWiseOut<$type>>::Output>,
 //         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<T as BitWiseOut<$type>>::Output>;
@@ -2341,7 +2341,7 @@ where
 //         impl<T, const CUDA_DEVICE: usize> Shr<$type> for $($tokens)*Tensor<T, Cuda, CUDA_DEVICE>
 //         where T: BitWiseOut<$type> + CommonBounds,
 //         <T as BitWiseOut<$type>>::Output: CommonBounds,
-//         <T as BitWiseOut<$type>>::Output: IntoScalar<<T as BitWiseOut<$type>>::Output>,
+//         <T as BitWiseOut<$type>>::Output: Cast<<T as BitWiseOut<$type>>::Output>,
 //         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<T as BitWiseOut<$type>>::Output>;

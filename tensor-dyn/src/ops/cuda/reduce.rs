@@ -20,7 +20,7 @@ use tensor_traits::tensor::TensorInfo;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorLike;
 use tensor_types::convertion::Convertor;
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn reduce<T, F, F2, F3, const DEVICE_ID: usize>(
@@ -44,7 +44,7 @@ pub(crate) fn reduce<T, F, F2, F3, const DEVICE_ID: usize>(
     c: Option<_Tensor<T, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<T, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + IntoScalar<T> + Convertor + DeviceRepr + CudaTypeName,
+    T: CommonBounds + Cast<T> + Convertor + DeviceRepr + CudaTypeName,
     F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
     F2: Fn(T, T) -> T + Sync + Send + 'static + Copy,
     F3: Fn(T::Vec, T::Vec) -> T::Vec + Sync + Send + 'static + Copy,
@@ -99,7 +99,7 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O, const DEVICE_ID: usize>(
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + IntoScalar<O> + Convertor + DeviceRepr + CudaTypeName,
+    T: CommonBounds + Cast<O> + Convertor + DeviceRepr + CudaTypeName,
     F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
     F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
     F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
@@ -160,7 +160,7 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE_ID: usize>(
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + IntoScalar<O> + Convertor + DeviceRepr + CudaTypeName,
+    T: CommonBounds + Cast<O> + Convertor + DeviceRepr + CudaTypeName,
     F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
     F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
     F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
@@ -232,7 +232,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE_ID
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + IntoScalar<O> + Convertor + DeviceRepr + CudaTypeName,
+    T: CommonBounds + Cast<O> + Convertor + DeviceRepr + CudaTypeName,
     O: CommonBounds + DeviceRepr + CudaTypeName,
     F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
     F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
@@ -522,7 +522,7 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE_ID: usiz
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + IntoScalar<O> + Convertor + DeviceRepr + CudaTypeName,
+    T: CommonBounds + Cast<O> + Convertor + DeviceRepr + CudaTypeName,
     O: CommonBounds + DeviceRepr + CudaTypeName,
     F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
     F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,

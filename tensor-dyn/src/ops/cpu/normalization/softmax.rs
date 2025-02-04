@@ -21,7 +21,7 @@ use tensor_iterator::{iterator_traits::ParStridedIteratorZip, TensorIterator};
 use tensor_traits::{CommonBounds, TensorInfo, TensorLike};
 use tensor_types::{
     dtype::TypeCommon,
-    into_scalar::IntoScalar,
+    cast::Cast,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 
@@ -37,7 +37,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
         axis: i64,
     ) -> Result<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
     where
-        T: CommonBounds + IntoScalar<<T as FloatOutUnary>::Output> + FloatOutUnary,
+        T: CommonBounds + Cast<<T as FloatOutUnary>::Output> + FloatOutUnary,
         <T as FloatOutUnary>::Output: CommonBounds
             + NormalOut<T, Output = <T as FloatOutUnary>::Output>
             + FloatOutUnary<Output = <T as FloatOutUnary>::Output>,
@@ -88,7 +88,7 @@ impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
         axis: i64,
     ) -> Result<Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
     where
-        T: CommonBounds + IntoScalar<<T as FloatOutUnary>::Output> + FloatOutUnary,
+        T: CommonBounds + Cast<<T as FloatOutUnary>::Output> + FloatOutUnary,
         <T as FloatOutUnary>::Output: CommonBounds
             + NormalOut<T, Output = <T as FloatOutUnary>::Output>
             + FloatOutUnary<Output = <T as FloatOutUnary>::Output>,
@@ -128,11 +128,11 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
         axis: i64,
     ) -> Result<DiffTensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
     where
-        T: CommonBounds + IntoScalar<<T as FloatOutUnary>::Output> + FloatOutUnary,
+        T: CommonBounds + Cast<<T as FloatOutUnary>::Output> + FloatOutUnary,
         <T as FloatOutUnary>::Output: CommonBounds
             + NormalOut<T, Output = <T as FloatOutUnary>::Output>
             + FloatOutUnary<Output = <T as FloatOutUnary>::Output>
-            + IntoScalar<T>,
+            + Cast<T>,
         T::Vec: FloatOutUnary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
         <<T as FloatOutUnary>::Output as TypeCommon>::Vec:
             FloatOutBinary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
@@ -159,7 +159,7 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
                         .zip(sum.inner.par_iter())
                         .zip(grad.inner.par_iter())
                         .strided_map(|(res, ((r, s), g))| {
-                            *res = r._mul(g._sub(s)).into_scalar();
+                            *res = r._mul(g._sub(s)).cast();
                         })
                         .collect::<Tensor<T, Cpu, DEVICE>>();
                     handle_grad(&mut inp, grad, &[])?;
@@ -177,7 +177,7 @@ pub(crate) fn contiguous_softmax<T, O, const DEVICE: usize>(
     c: Option<_Tensor<O, Cpu, DEVICE>>,
 ) -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
 where
-    T: CommonBounds + IntoScalar<O> + FloatOutUnary<Output = O>,
+    T: CommonBounds + Cast<O> + FloatOutUnary<Output = O>,
     O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
     T::Vec: FloatOutUnary<Output = O::Vec>,
     O::Vec: FloatOutBinary<Output = O::Vec>,
@@ -307,7 +307,7 @@ pub(crate) fn uncontiguous_softmax<T, O, const DEVICE: usize>(
     c: Option<_Tensor<O, Cpu, DEVICE>>,
 ) -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
 where
-    T: CommonBounds + IntoScalar<O> + FloatOutUnary<Output = O>,
+    T: CommonBounds + Cast<O> + FloatOutUnary<Output = O>,
     O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
     T::Vec: FloatOutUnary<Output = O::Vec>,
     O::Vec: FloatOutBinary<Output = O::Vec>,

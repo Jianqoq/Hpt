@@ -8,7 +8,7 @@ use tensor_common::shape::shape_utils::{compare_and_pad_shapes, mt_intervals};
 use tensor_common::strides::strides_utils::preprocess_strides;
 use tensor_traits::TensorLike;
 use tensor_traits::{CommonBounds, Matmul, TensorCreator, TensorInfo};
-use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOut};
+use tensor_types::{cast::Cast, type_promote::NormalOut};
 use tensor_types::dtype::TypeCommon;
 use tensor_common::shape::shape_utils::predict_broadcast_shape;
 
@@ -19,8 +19,8 @@ pub(crate) fn matmul_with_out<A, B, O, Q>(
     out: Option<O>,
 ) -> std::result::Result<_Tensor<<A as NormalOut<B>>::Output>, TensorError>
 where
-    A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
-    B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,
+    A: CommonBounds + NormalOut<B> + Cast<<A as NormalOut<B>>::Output>,
+    B: CommonBounds + Cast<<A as NormalOut<B>>::Output>,
     O: Borrow<_Tensor<Q>> + BorrowMut<_Tensor<Q>>,
     <A as NormalOut<B>>::Output: CommonBounds,
     Q: CommonBounds,
@@ -219,8 +219,8 @@ where
 
 impl<A, B> Matmul<_Tensor<B>> for _Tensor<A>
 where
-    A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
-    B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,
+    A: CommonBounds + NormalOut<B> + Cast<<A as NormalOut<B>>::Output>,
+    B: CommonBounds + Cast<<A as NormalOut<B>>::Output>,
     <A as NormalOut<B>>::Output: CommonBounds,
 {
     type Output = _Tensor<<A as NormalOut<B>>::Output>;
@@ -242,8 +242,8 @@ where
 
 impl<A, B> Matmul<&_Tensor<B>> for _Tensor<A>
 where
-    A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
-    B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,
+    A: CommonBounds + NormalOut<B> + Cast<<A as NormalOut<B>>::Output>,
+    B: CommonBounds + Cast<<A as NormalOut<B>>::Output>,
     <A as NormalOut<B>>::Output: CommonBounds,
 {
     type Output = _Tensor<<A as NormalOut<B>>::Output>;

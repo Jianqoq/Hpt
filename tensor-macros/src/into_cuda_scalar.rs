@@ -34,8 +34,8 @@ pub(crate) fn __impl_into_cuda_scalar() -> TokenStream {
             let into_method =
                 syn::Ident::new(&format!("to_{}", rhs), proc_macro2::Span::call_site());
             ret.extend(quote::quote! {
-                impl IntoScalar<Scalar<#rhs_dtype>> for Scalar<#lhs_dtype> {
-                    fn into_scalar(self) -> Scalar<#rhs_dtype> {
+                impl Cast<Scalar<#rhs_dtype>> for Scalar<#lhs_dtype> {
+                    fn cast(self) -> Scalar<#rhs_dtype> {
                         self.#into_method()
                     }
                 }

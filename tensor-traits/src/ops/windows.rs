@@ -1,5 +1,5 @@
 use tensor_common::error::base::TensorError;
-use tensor_types::{dtype::FloatConst, into_scalar::IntoScalar, type_promote::FloatOutBinary};
+use tensor_types::{dtype::FloatConst, cast::Cast, type_promote::FloatOutBinary};
 
 /// A trait contains window operations
 pub trait WindowOps {
@@ -72,5 +72,5 @@ pub trait WindowOps {
         periodic: bool
     )
         -> Result<Self::Output, TensorError>
-        where Self::Meta: FloatConst, i64: IntoScalar<<Self::Meta as FloatOutBinary>::Output>;
+        where Self::Meta: FloatConst, i64: Cast<<Self::Meta as FloatOutBinary>::Output>;
 }

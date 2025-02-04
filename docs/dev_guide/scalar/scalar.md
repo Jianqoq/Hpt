@@ -53,7 +53,7 @@ Complex64
 
 `pub trait FloatOutUnary2` See implementation at [FloatOutUnary2](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/type_promote.rs#L463)
 
-`pub trait IntoScalar<T>` See implementation at [IntoScalar](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/into_scalar.rs#L6)
+`pub trait Cast<T>` See implementation at [Cast](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/cast.rs#L6)
 
 ### Usage
 

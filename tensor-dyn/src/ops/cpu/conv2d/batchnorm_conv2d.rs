@@ -16,7 +16,7 @@ use tensor_common::utils::pointer::Pointer;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 use tensor_types::type_promote::FloatOutBinary;
 use tensor_types::type_promote::FloatOutUnary;
 use tensor_types::type_promote::NormalOut;
@@ -24,11 +24,11 @@ use tensor_types::vectors::traits::*;
 
 impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+    T: CommonBounds + Cast<T> + NormalOut<Output = T>,
     T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
     T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
     T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
-    bool: IntoScalar<T>,
+    bool: Cast<T>,
 {
     /// Performs a 2D convolution operation on the input tensor.
     ///
@@ -1370,7 +1370,7 @@ fn handle_normal_remain<T: CommonBounds>(
 
 impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+    T: CommonBounds + Cast<T> + NormalOut<Output = T>,
     T::Vec: VecTrait<T>
         + Copy
         + Send
@@ -1379,7 +1379,7 @@ where
         + FloatOutBinary<Output = T::Vec>
         + FloatOutUnary<Output = T::Vec>,
     T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
-    bool: IntoScalar<T>,
+    bool: Cast<T>,
 {
     /// Performs a 2D convolution operation on the input tensor.
     ///

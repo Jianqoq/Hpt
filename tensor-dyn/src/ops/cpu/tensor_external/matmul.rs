@@ -6,7 +6,7 @@ use std::{
 
 use tensor_common::error::base::TensorError;
 use tensor_traits::{CommonBounds, Matmul, ShapeManipulate};
-use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOut};
+use tensor_types::{cast::Cast, type_promote::NormalOut};
 
 use crate::{
     ops::cpu::{tensor_internal::matmul::matmul_with_out, utils::diff::diff_utils::handle_grad},
@@ -15,8 +15,8 @@ use crate::{
 
 impl<A, B> Matmul<Tensor<B>> for Tensor<A>
 where
-    A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
-    B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,
+    A: CommonBounds + NormalOut<B> + Cast<<A as NormalOut<B>>::Output>,
+    B: CommonBounds + Cast<<A as NormalOut<B>>::Output>,
     <A as NormalOut<B>>::Output: CommonBounds,
 {
     type Output = Tensor<<A as NormalOut<B>>::Output>;
@@ -44,8 +44,8 @@ where
 
 impl<A, B> Matmul<&Tensor<B>> for Tensor<A>
 where
-    A: CommonBounds + NormalOut<B> + IntoScalar<<A as NormalOut<B>>::Output>,
-    B: CommonBounds + IntoScalar<<A as NormalOut<B>>::Output>,
+    A: CommonBounds + NormalOut<B> + Cast<<A as NormalOut<B>>::Output>,
+    B: CommonBounds + Cast<<A as NormalOut<B>>::Output>,
     <A as NormalOut<B>>::Output: CommonBounds,
 {
     type Output = Tensor<<A as NormalOut<B>>::Output>;
@@ -76,21 +76,21 @@ impl<A, B> Matmul<DiffTensor<B>> for DiffTensor<A>
 where
     A: CommonBounds
         + NormalOut<B>
-        + IntoScalar<<A as NormalOut<B>>::Output>
+        + Cast<<A as NormalOut<B>>::Output>
         + NormalOut<<A as NormalOut<B>>::Output>
-        + IntoScalar<<A as NormalOut<<A as NormalOut<B>>::Output>>::Output>,
+        + Cast<<A as NormalOut<<A as NormalOut<B>>::Output>>::Output>,
     B: CommonBounds
-        + IntoScalar<<A as NormalOut<B>>::Output>
-        + IntoScalar<<<A as NormalOut<B>>::Output as NormalOut<B>>::Output>,
+        + Cast<<A as NormalOut<B>>::Output>
+        + Cast<<<A as NormalOut<B>>::Output as NormalOut<B>>::Output>,
     <A as NormalOut<B>>::Output: CommonBounds
         + NormalOut<A>
         + NormalOut<B>
-        + IntoScalar<<<A as NormalOut<B>>::Output as NormalOut<B>>::Output>
-        + IntoScalar<<A as NormalOut<<A as NormalOut<B>>::Output>>::Output>,
+        + Cast<<<A as NormalOut<B>>::Output as NormalOut<B>>::Output>
+        + Cast<<A as NormalOut<<A as NormalOut<B>>::Output>>::Output>,
     <<A as NormalOut<B>>::Output as NormalOut<B>>::Output: CommonBounds
-        + IntoScalar<<A as NormalOut<<A as NormalOut<B>>::Output>>::Output>
-        + IntoScalar<A>,
-    <A as NormalOut<<A as NormalOut<B>>::Output>>::Output: CommonBounds + IntoScalar<B>,
+        + Cast<<A as NormalOut<<A as NormalOut<B>>::Output>>::Output>
+        + Cast<A>,
+    <A as NormalOut<<A as NormalOut<B>>::Output>>::Output: CommonBounds + Cast<B>,
 {
     type Output = DiffTensor<<A as NormalOut<B>>::Output>;
 

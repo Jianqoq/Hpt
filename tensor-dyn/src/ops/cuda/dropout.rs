@@ -4,19 +4,19 @@ use crate::{tensor_base::_Tensor, Cuda, Tensor};
 use cudarc::driver::{DeviceRepr, LaunchAsync};
 use tensor_cudakernels::DROPOUT;
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
-use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOut};
+use tensor_types::{cast::Cast, type_promote::NormalOut};
 
 use super::cuda_utils::compute_kernel_launch_config;
 
 impl<T, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID>
 where
     T: CommonBounds + NormalOut<bool, Output = T> + NormalOut<T, Output = T> + DeviceRepr,
-    f64: IntoScalar<T>,
+    f64: Cast<T>,
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub fn dropout(&self, rate: f64) -> anyhow::Result<_Tensor<T, Cuda, DEVICE_ID>> {
         let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(self.shape())?;
-        let scale: T = (1.0 / (1.0 - rate)).into_scalar();
+        let scale: T = (1.0 / (1.0 - rate)).cast();
         if self.is_contiguous() {
             let (kernel, reg_info) = load_ptx_and_get_data(
                 "dropout",
@@ -76,7 +76,7 @@ where
 impl<T, const DEVICE_ID: usize> Tensor<T, Cuda, DEVICE_ID>
 where
     T: CommonBounds + NormalOut<bool, Output = T> + NormalOut<T, Output = T> + DeviceRepr,
-    f64: IntoScalar<T>,
+    f64: Cast<T>,
 {
     /// Applies dropout to the tensor during training.
     ///

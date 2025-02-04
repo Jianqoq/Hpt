@@ -19,7 +19,7 @@ use tensor_traits::tensor::{CommonBounds, TensorInfo};
 use tensor_traits::NormalUaryOps;
 use tensor_traits::TensorLike;
 use tensor_types::dtype::TypeCommon;
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 use tensor_types::type_promote::{
     BitWiseOut, FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary,
 };
@@ -36,7 +36,7 @@ where
     T: CommonBounds + NormalOut<U>,
     U: CommonBounds,
     <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
     T::Vec: NormalOut<
         <U as TypeCommon>::Vec,
         Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
@@ -68,7 +68,7 @@ where
     T: CommonBounds + NormalOut<U>,
     U: CommonBounds,
     <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
     T::Vec: NormalOut<
         <U as TypeCommon>::Vec,
         Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
@@ -118,7 +118,7 @@ impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
 where
     T: CommonBounds + NormalOut<rhs_type>,
     <T as NormalOut<rhs_type>>::Output: CommonBounds,
-    <T as NormalOut<rhs_type>>::Output: IntoScalar<<T as NormalOut<rhs_type>>::Output>,
+    <T as NormalOut<rhs_type>>::Output: Cast<<T as NormalOut<rhs_type>>::Output>,
     T::Vec: NormalOut<
         <rhs_type as TypeCommon>::Vec,
         Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec,
@@ -170,7 +170,7 @@ where
     T: CommonBounds,
     lhs_type: NormalOut<T>,
     <lhs_type as NormalOut<T>>::Output: CommonBounds,
-    <lhs_type as NormalOut<T>>::Output: IntoScalar<<T as NormalOut<T>>::Output>,
+    <lhs_type as NormalOut<T>>::Output: Cast<<T as NormalOut<T>>::Output>,
     <lhs_type as TypeCommon>::Vec: NormalOut<
         <T as TypeCommon>::Vec,
         Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec,
@@ -196,12 +196,12 @@ where
     T: CommonBounds + NormalOut<U>,
     U: CommonBounds,
     <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
     T::Vec: NormalOut<
         <U as TypeCommon>::Vec,
         Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
     >,
-    <T as NormalOut<U>>::Output: IntoScalar<T> + IntoScalar<U>,
+    <T as NormalOut<U>>::Output: Cast<T> + Cast<U>,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -244,7 +244,7 @@ where
     T: CommonBounds + NormalOut<U>,
     U: CommonBounds,
     <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
     T::Vec: NormalOut<
         <U as TypeCommon>::Vec,
         Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
@@ -276,7 +276,7 @@ where
     T: CommonBounds + NormalOut<U>,
     U: CommonBounds,
     <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
     T::Vec: NormalOut<
         <U as TypeCommon>::Vec,
         Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
@@ -326,7 +326,7 @@ impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
 where
     T: CommonBounds + NormalOut<rhs_type>,
     <T as NormalOut<rhs_type>>::Output: CommonBounds,
-    <T as NormalOut<rhs_type>>::Output: IntoScalar<<T as NormalOut<rhs_type>>::Output>,
+    <T as NormalOut<rhs_type>>::Output: Cast<<T as NormalOut<rhs_type>>::Output>,
     T::Vec: NormalOut<
         <rhs_type as TypeCommon>::Vec,
         Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec,
@@ -378,7 +378,7 @@ where
     T: CommonBounds,
     lhs_type: NormalOut<T>,
     <lhs_type as NormalOut<T>>::Output: CommonBounds,
-    <lhs_type as NormalOut<T>>::Output: IntoScalar<<T as NormalOut<T>>::Output>,
+    <lhs_type as NormalOut<T>>::Output: Cast<<T as NormalOut<T>>::Output>,
     <lhs_type as TypeCommon>::Vec: NormalOut<
         <T as TypeCommon>::Vec,
         Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec,
@@ -404,12 +404,12 @@ where
     T: CommonBounds + NormalOut<U>,
     U: CommonBounds,
     <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
     T::Vec: NormalOut<
         <U as TypeCommon>::Vec,
         Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
     >,
-    <T as NormalOut<U>>::Output: IntoScalar<T> + IntoScalar<U>,
+    <T as NormalOut<U>>::Output: Cast<T> + Cast<U>,
     Tensor<T, Cpu, DEVICE>: Neg<Output = Tensor<T, Cpu, DEVICE>>,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
@@ -453,7 +453,7 @@ where
     T: CommonBounds + FloatOutBinary<U>,
     U: CommonBounds,
     <T as FloatOutBinary<U>>::Output: CommonBounds,
-    <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+    <T as FloatOutBinary<U>>::Output: Cast<<T as FloatOutBinary<U>>::Output>,
     T::Vec: FloatOutBinary<
         <U as TypeCommon>::Vec,
         Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec,
@@ -485,7 +485,7 @@ where
     T: CommonBounds + FloatOutBinary<U>,
     U: CommonBounds,
     <T as FloatOutBinary<U>>::Output: CommonBounds,
-    <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output>,
+    <T as FloatOutBinary<U>>::Output: Cast<<T as FloatOutBinary<U>>::Output>,
     T::Vec: FloatOutBinary<
         <U as TypeCommon>::Vec,
         Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec,
@@ -535,7 +535,7 @@ impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
 where
     T: CommonBounds + FloatOutBinary<rhs_type>,
     <T as FloatOutBinary<rhs_type>>::Output: CommonBounds,
-    <T as FloatOutBinary<rhs_type>>::Output: IntoScalar<<T as FloatOutBinary<rhs_type>>::Output>,
+    <T as FloatOutBinary<rhs_type>>::Output: Cast<<T as FloatOutBinary<rhs_type>>::Output>,
     T::Vec: FloatOutBinary<
         <rhs_type as TypeCommon>::Vec,
         Output = <<T as FloatOutBinary<rhs_type>>::Output as TypeCommon>::Vec,
@@ -587,7 +587,7 @@ where
     T: CommonBounds,
     lhs_type: FloatOutBinary<T>,
     <lhs_type as FloatOutBinary<T>>::Output: CommonBounds,
-    <lhs_type as FloatOutBinary<T>>::Output: IntoScalar<<T as FloatOutBinary<T>>::Output>,
+    <lhs_type as FloatOutBinary<T>>::Output: Cast<<T as FloatOutBinary<T>>::Output>,
     <lhs_type as TypeCommon>::Vec: FloatOutBinary<
         <T as TypeCommon>::Vec,
         Output = <<lhs_type as FloatOutBinary<T>>::Output as TypeCommon>::Vec,
@@ -613,15 +613,15 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>>
     where
         T: CommonBounds + FloatOutBinary<U>,
         U: CommonBounds,
-        <T as FloatOutBinary<U>>::Output: CommonBounds + IntoScalar<U>,
-        <T as FloatOutBinary<U>>::Output: IntoScalar<<T as FloatOutBinary<U>>::Output> +
+        <T as FloatOutBinary<U>>::Output: CommonBounds + Cast<U>,
+        <T as FloatOutBinary<U>>::Output: Cast<<T as FloatOutBinary<U>>::Output> +
             FloatOutBinary<U>,
         T::Vec: FloatOutBinary<
             <U as TypeCommon>::Vec,
             Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec
         >,
         <<T as FloatOutBinary<U>>::Output as FloatOutBinary<U>>::Output: CommonBounds +
-            IntoScalar<T>,
+            Cast<T>,
         <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec: FloatOutBinary<
             <U as TypeCommon>::Vec,
             Output = <<<T as FloatOutBinary<U>>::Output as FloatOutBinary<U>>::Output as TypeCommon>::Vec
@@ -690,7 +690,7 @@ where
     T: CommonBounds + NormalOut<U>,
     U: CommonBounds,
     <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
     T::Vec: NormalOut<
         <U as TypeCommon>::Vec,
         Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
@@ -722,7 +722,7 @@ where
     T: CommonBounds + NormalOut<U>,
     U: CommonBounds,
     <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
     T::Vec: NormalOut<
         <U as TypeCommon>::Vec,
         Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
@@ -772,7 +772,7 @@ impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
 where
     T: CommonBounds + NormalOut<rhs_type>,
     <T as NormalOut<rhs_type>>::Output: CommonBounds,
-    <T as NormalOut<rhs_type>>::Output: IntoScalar<<T as NormalOut<rhs_type>>::Output>,
+    <T as NormalOut<rhs_type>>::Output: Cast<<T as NormalOut<rhs_type>>::Output>,
     T::Vec: NormalOut<
         <rhs_type as TypeCommon>::Vec,
         Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec,
@@ -824,7 +824,7 @@ where
     T: CommonBounds,
     lhs_type: NormalOut<T>,
     <lhs_type as NormalOut<T>>::Output: CommonBounds,
-    <lhs_type as NormalOut<T>>::Output: IntoScalar<<T as NormalOut<T>>::Output>,
+    <lhs_type as NormalOut<T>>::Output: Cast<<T as NormalOut<T>>::Output>,
     <lhs_type as TypeCommon>::Vec: NormalOut<
         <T as TypeCommon>::Vec,
         Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec,
@@ -850,14 +850,14 @@ where
     T: CommonBounds + NormalOut<U>,
     U: CommonBounds,
     <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
     T::Vec: NormalOut<
         <U as TypeCommon>::Vec,
         Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
     >,
-    <T as NormalOut<U>>::Output: IntoScalar<T> + IntoScalar<U> + NormalOut<U> + NormalOut<T>,
-    <<T as NormalOut<U>>::Output as NormalOut<U>>::Output: CommonBounds + IntoScalar<T>,
-    <<T as NormalOut<U>>::Output as NormalOut<T>>::Output: CommonBounds + IntoScalar<U>,
+    <T as NormalOut<U>>::Output: Cast<T> + Cast<U> + NormalOut<U> + NormalOut<T>,
+    <<T as NormalOut<U>>::Output as NormalOut<U>>::Output: CommonBounds + Cast<T>,
+    <<T as NormalOut<U>>::Output as NormalOut<T>>::Output: CommonBounds + Cast<U>,
     <<T as NormalOut<U>>::Output as TypeCommon>::Vec: NormalOut<
         <U as TypeCommon>::Vec,
         Output = <<<T as NormalOut<U>>::Output as NormalOut<U>>::Output as TypeCommon>::Vec,
@@ -908,7 +908,7 @@ where
     T: CommonBounds + NormalOut<U>,
     U: CommonBounds,
     <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
     T::Vec: NormalOut<
         <U as TypeCommon>::Vec,
         Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
@@ -940,7 +940,7 @@ where
     T: CommonBounds + NormalOut<U>,
     U: CommonBounds,
     <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
     T::Vec: NormalOut<
         <U as TypeCommon>::Vec,
         Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
@@ -990,7 +990,7 @@ impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
 where
     T: CommonBounds + NormalOut<rhs_type>,
     <T as NormalOut<rhs_type>>::Output: CommonBounds,
-    <T as NormalOut<rhs_type>>::Output: IntoScalar<<T as NormalOut<rhs_type>>::Output>,
+    <T as NormalOut<rhs_type>>::Output: Cast<<T as NormalOut<rhs_type>>::Output>,
     T::Vec: NormalOut<
         <rhs_type as TypeCommon>::Vec,
         Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec,
@@ -1042,7 +1042,7 @@ where
     T: CommonBounds,
     lhs_type: NormalOut<T>,
     <lhs_type as NormalOut<T>>::Output: CommonBounds,
-    <lhs_type as NormalOut<T>>::Output: IntoScalar<<T as NormalOut<T>>::Output>,
+    <lhs_type as NormalOut<T>>::Output: Cast<<T as NormalOut<T>>::Output>,
     <lhs_type as TypeCommon>::Vec: NormalOut<
         <T as TypeCommon>::Vec,
         Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec,
@@ -1067,8 +1067,8 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_typ
 where
     T: CommonBounds + NormalOut<U>,
     U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds + IntoScalar<T> + FloatOutBinary<U>,
-    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    <T as NormalOut<U>>::Output: CommonBounds + Cast<T> + FloatOutBinary<U>,
+    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
     T::Vec: NormalOut<
         <U as TypeCommon>::Vec,
         Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
@@ -1078,7 +1078,7 @@ where
         NormalOut<<<T as NormalOut<U>>::Output as FloatOutBinary<U>>::Output>,
     <<T as NormalOut<U>>::Output as NormalOut<
         <<T as NormalOut<U>>::Output as FloatOutBinary<U>>::Output,
-    >>::Output: FloatOutUnary + CommonBounds + IntoScalar<U>,
+    >>::Output: FloatOutUnary + CommonBounds + Cast<U>,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE>;
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -1107,7 +1107,7 @@ where
                         .strided_map(|(res, (x, y))| {
                             let div = x._div(y);
                             let floor_div = div._floor();
-                            *res = x._neg()._mul(floor_div).into_scalar();
+                            *res = x._neg()._mul(floor_div).cast();
                         })
                         .collect();
 
@@ -1131,7 +1131,7 @@ where
     T: CommonBounds + BitWiseOut<U>,
     U: CommonBounds,
     <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     T::Vec: BitWiseOut<
         <U as TypeCommon>::Vec,
         Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
@@ -1163,7 +1163,7 @@ where
     T: CommonBounds + BitWiseOut<U>,
     U: CommonBounds,
     <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     T::Vec: BitWiseOut<
         <U as TypeCommon>::Vec,
         Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
@@ -1201,7 +1201,7 @@ impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
 where
     T: CommonBounds + BitWiseOut<rhs_type>,
     <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
-    <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
+    <T as BitWiseOut<rhs_type>>::Output: Cast<<T as BitWiseOut<rhs_type>>::Output>,
     T::Vec: BitWiseOut<
         <rhs_type as TypeCommon>::Vec,
         Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec,
@@ -1241,7 +1241,7 @@ where
     T: CommonBounds,
     lhs_type: BitWiseOut<T>,
     <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
-    <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
+    <lhs_type as BitWiseOut<T>>::Output: Cast<<lhs_type as BitWiseOut<T>>::Output>,
     <lhs_type as TypeCommon>::Vec: BitWiseOut<
         <T as TypeCommon>::Vec,
         Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec,
@@ -1267,7 +1267,7 @@ where
     T: CommonBounds + BitWiseOut<U>,
     U: CommonBounds,
     <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     T::Vec: BitWiseOut<
         <U as TypeCommon>::Vec,
         Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
@@ -1299,7 +1299,7 @@ where
     T: CommonBounds + BitWiseOut<U>,
     U: CommonBounds,
     <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     T::Vec: BitWiseOut<
         <U as TypeCommon>::Vec,
         Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
@@ -1337,7 +1337,7 @@ impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
 where
     T: CommonBounds + BitWiseOut<rhs_type>,
     <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
-    <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
+    <T as BitWiseOut<rhs_type>>::Output: Cast<<T as BitWiseOut<rhs_type>>::Output>,
     T::Vec: BitWiseOut<
         <rhs_type as TypeCommon>::Vec,
         Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec,
@@ -1377,7 +1377,7 @@ where
     T: CommonBounds,
     lhs_type: BitWiseOut<T>,
     <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
-    <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
+    <lhs_type as BitWiseOut<T>>::Output: Cast<<lhs_type as BitWiseOut<T>>::Output>,
     <lhs_type as TypeCommon>::Vec: BitWiseOut<
         <T as TypeCommon>::Vec,
         Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec,
@@ -1403,7 +1403,7 @@ where
     T: CommonBounds + BitWiseOut<U>,
     U: CommonBounds,
     <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     T::Vec: BitWiseOut<
         <U as TypeCommon>::Vec,
         Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
@@ -1435,7 +1435,7 @@ where
     T: CommonBounds + BitWiseOut<U>,
     U: CommonBounds,
     <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     T::Vec: BitWiseOut<
         <U as TypeCommon>::Vec,
         Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
@@ -1473,7 +1473,7 @@ impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
 where
     T: CommonBounds + BitWiseOut<rhs_type>,
     <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
-    <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
+    <T as BitWiseOut<rhs_type>>::Output: Cast<<T as BitWiseOut<rhs_type>>::Output>,
     T::Vec: BitWiseOut<
         <rhs_type as TypeCommon>::Vec,
         Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec,
@@ -1513,7 +1513,7 @@ where
     T: CommonBounds,
     lhs_type: BitWiseOut<T>,
     <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
-    <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
+    <lhs_type as BitWiseOut<T>>::Output: Cast<<lhs_type as BitWiseOut<T>>::Output>,
     <lhs_type as TypeCommon>::Vec: BitWiseOut<
         <T as TypeCommon>::Vec,
         Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec,
@@ -1539,7 +1539,7 @@ where
     T: CommonBounds + BitWiseOut<U>,
     U: CommonBounds,
     <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     T::Vec: BitWiseOut<
         <U as TypeCommon>::Vec,
         Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
@@ -1571,7 +1571,7 @@ where
     T: CommonBounds + BitWiseOut<U>,
     U: CommonBounds,
     <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     T::Vec: BitWiseOut<
         <U as TypeCommon>::Vec,
         Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
@@ -1609,7 +1609,7 @@ impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
 where
     T: CommonBounds + BitWiseOut<rhs_type>,
     <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
-    <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
+    <T as BitWiseOut<rhs_type>>::Output: Cast<<T as BitWiseOut<rhs_type>>::Output>,
     T::Vec: BitWiseOut<
         <rhs_type as TypeCommon>::Vec,
         Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec,
@@ -1649,7 +1649,7 @@ where
     T: CommonBounds,
     lhs_type: BitWiseOut<T>,
     <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
-    <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
+    <lhs_type as BitWiseOut<T>>::Output: Cast<<lhs_type as BitWiseOut<T>>::Output>,
     <lhs_type as TypeCommon>::Vec: BitWiseOut<
         <T as TypeCommon>::Vec,
         Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec,
@@ -1675,7 +1675,7 @@ where
     T: CommonBounds + BitWiseOut<U>,
     U: CommonBounds,
     <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     T::Vec: BitWiseOut<
         <U as TypeCommon>::Vec,
         Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
@@ -1707,7 +1707,7 @@ where
     T: CommonBounds + BitWiseOut<U>,
     U: CommonBounds,
     <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: IntoScalar<<T as BitWiseOut<U>>::Output>,
+    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     T::Vec: BitWiseOut<
         <U as TypeCommon>::Vec,
         Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
@@ -1745,7 +1745,7 @@ impl<T, const DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE>
 where
     T: CommonBounds + BitWiseOut<rhs_type>,
     <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
-    <T as BitWiseOut<rhs_type>>::Output: IntoScalar<<T as BitWiseOut<rhs_type>>::Output>,
+    <T as BitWiseOut<rhs_type>>::Output: Cast<<T as BitWiseOut<rhs_type>>::Output>,
     T::Vec: BitWiseOut<
         <rhs_type as TypeCommon>::Vec,
         Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec,
@@ -1785,7 +1785,7 @@ where
     T: CommonBounds,
     lhs_type: BitWiseOut<T>,
     <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
-    <lhs_type as BitWiseOut<T>>::Output: IntoScalar<<lhs_type as BitWiseOut<T>>::Output>,
+    <lhs_type as BitWiseOut<T>>::Output: Cast<<lhs_type as BitWiseOut<T>>::Output>,
     <lhs_type as TypeCommon>::Vec: BitWiseOut<
         <T as TypeCommon>::Vec,
         Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec,
@@ -1814,13 +1814,13 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_typ
 where
     T: CommonBounds + NormalOut<U>,
     U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds + IntoScalar<T>,
-    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    <T as NormalOut<U>>::Output: CommonBounds + Cast<T>,
+    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn trait_method(&mut self, rhs: rhs_type<U, Cpu, DEVICE>) {
         self.par_iter_mut().zip(rhs.par_iter()).for_each(|(x, y)| {
-            *x = x.op(y).into_scalar();
+            *x = x.op(y).cast();
         });
     }
 }
@@ -1840,8 +1840,8 @@ impl<T, U, const DEVICE: usize> trait_name<rhs_type<U, Cpu, DEVICE>> for lhs_typ
 where
     T: CommonBounds + NormalOut<U>,
     U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds + IntoScalar<T>,
-    <T as NormalOut<U>>::Output: IntoScalar<<T as NormalOut<U>>::Output>,
+    <T as NormalOut<U>>::Output: CommonBounds + Cast<T>,
+    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn trait_method(&mut self, rhs: rhs_type<U, Cpu, DEVICE>) {
@@ -1851,8 +1851,8 @@ where
 
 impl<T, U, const DEVICE: usize> PartialEq<_Tensor<U, Cpu, DEVICE>> for _Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + IntoScalar<f64>,
-    U: CommonBounds + IntoScalar<f64>,
+    T: CommonBounds + Cast<f64>,
+    U: CommonBounds + Cast<f64>,
 {
     fn eq(&self, other: &_Tensor<U, Cpu, DEVICE>) -> bool {
         if self.size() != other.size() {
@@ -1935,8 +1935,8 @@ where
 
 impl<T, U> PartialEq<Tensor<U>> for Tensor<T>
 where
-    T: CommonBounds + IntoScalar<f64>,
-    U: CommonBounds + IntoScalar<f64>,
+    T: CommonBounds + Cast<f64>,
+    U: CommonBounds + Cast<f64>,
 {
     fn eq(&self, other: &Tensor<U>) -> bool {
         if self.size() != other.size() {

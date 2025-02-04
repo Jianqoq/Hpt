@@ -16,7 +16,7 @@ use tensor_types::type_promote::NormalOutUnary;
 use tensor_types::vectors::traits::VecTrait;
 use tensor_types::{
     dtype::TypeCommon,
-    into_scalar::IntoScalar,
+    cast::Cast,
     type_promote::{Eval, FloatOutBinary, FloatOutUnary, NormalOut},
     vectors::traits::SimdSelect,
 };
@@ -253,7 +253,7 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for _Tensor<T, Cpu, D
 
 impl<T, const DEVICE: usize> EvalReduce for _Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
+    T: CommonBounds + Eval<Output = bool> + Cast<bool>,
     T::Vec: IntoVec<BoolVector>,
 {
     type BoolOutput = _Tensor<bool, Cpu, DEVICE>;
@@ -308,7 +308,7 @@ where
 
 impl<T, const DEVICE: usize> NormalEvalReduce<T> for _Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
+    T: CommonBounds + Eval<Output = bool> + Cast<bool>,
     T::Vec: Eval,
     <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
 {
@@ -478,7 +478,7 @@ where
 
 impl<T, const DEVICE: usize> FloatReduce<T> for _Tensor<T, Cpu, DEVICE>
 where
-    T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output>,
+    T: FloatOutBinary + CommonBounds + Cast<<T as FloatOutBinary>::Output>,
     <T as FloatOutBinary>::Output:
         CommonBounds + FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
     <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<T::Vec, Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
@@ -487,7 +487,7 @@ where
             <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
             Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
         >,
-    f64: IntoScalar<<T as FloatOutBinary>::Output>,
+    f64: Cast<<T as FloatOutBinary>::Output>,
     <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
         + NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output>,
     T::Vec: NormalOut<
@@ -531,7 +531,7 @@ where
             .iter()
             .fold(1, |acc, &x| acc * (self.shape()[x] as usize))
             as f64)
-            .into_scalar();
+            .cast();
         let reduce_vec = <FloatBinaryType<T> as TypeCommon>::Vec::splat(reduce_size);
         reduce3(
             self,
@@ -623,7 +623,7 @@ where
         keep_dims: bool,
     ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        let three: <T as FloatOutBinary>::Output = (3.0).into_scalar();
+        let three: <T as FloatOutBinary>::Output = (3.0).cast();
         let three_vec = <<T as FloatOutBinary>::Output as TypeCommon>::Vec::splat(three);
         let mut res = reduce3(
             self,
@@ -654,7 +654,7 @@ where
             false,
             None,
         )?;
-        let one_third: <T as FloatOutBinary>::Output = (1.0f64 / 3.0f64).into_scalar();
+        let one_third: <T as FloatOutBinary>::Output = (1.0f64 / 3.0f64).cast();
         let one_third_vec = <<T as FloatOutBinary>::Output as TypeCommon>::Vec::splat(one_third);
         res.par_iter_mut_simd().for_each(
             |x| {

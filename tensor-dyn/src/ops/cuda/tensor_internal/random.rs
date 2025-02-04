@@ -14,7 +14,7 @@ use tensor_traits::{
     tensor::{CommonBounds, TensorCreator, TensorInfo},
     RandomInt, TensorLike,
 };
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 
 impl<T, const DEVICE_ID: usize> Random for _Tensor<T, Cuda, DEVICE_ID>
 where
@@ -200,8 +200,8 @@ where
 
     fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self>
     where
-        T: IntoScalar<f64>,
-        bool: IntoScalar<T>,
+        T: Cast<f64>,
+        bool: Cast<T>,
     {
         unimplemented!()
     }

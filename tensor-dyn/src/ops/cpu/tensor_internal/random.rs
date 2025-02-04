@@ -19,7 +19,7 @@ use tensor_traits::{
     RandomInt,
     TensorLike,
 };
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 
 impl<T, const DEVICE: usize> Random
     for _Tensor<T, Cpu, DEVICE>
@@ -317,17 +317,17 @@ impl<T, const DEVICE: usize> Random
     }
 
     fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self, TensorError>
-        where T: IntoScalar<f64>, bool: IntoScalar<T>
+        where T: Cast<f64>, bool: Cast<T>
     {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
-        let bernoulli = rand_distr::Bernoulli::new(p.into_scalar())?;
+        let bernoulli = rand_distr::Bernoulli::new(p.cast())?;
         ret.as_raw_mut()
             .into_par_iter()
             .for_each_init(
                 || rand::thread_rng(),
                 |rng, x| {
-                    *x = bernoulli.sample(rng).into_scalar();
+                    *x = bernoulli.sample(rng).cast();
                 }
             );
         Ok(ret)

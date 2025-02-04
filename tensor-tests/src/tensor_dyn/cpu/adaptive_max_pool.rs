@@ -6,7 +6,7 @@ use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::{ CommonBounds, TensorInfo };
 use tensor_dyn::{ Tensor, TensorCreator };
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 use tensor_types::type_promote::NormalOut;
 
 use super::assert_utils::assert_f64;

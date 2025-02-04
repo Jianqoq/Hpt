@@ -35,4 +35,4 @@ impl PartialEq for f32x4 {
 
 4. The file `convertion.rs` defines the type conversion traits and uses proc_macro defined from `tensor-macros` crate to auto implement the type conversion. If your CPU has special conversion instruction, you may want to go to the `tensor-macros` and modify the macro code.
 
-5. The file `into_scalar` 
+5. The file `cast` 

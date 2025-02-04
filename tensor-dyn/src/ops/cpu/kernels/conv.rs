@@ -8,7 +8,7 @@ use tensor_macros::{
     conv2d_microkernel_gen_results,
     pwconv2d_microkernel_gen_pad_inps,
 };
-use tensor_types::{ into_scalar::IntoScalar, type_promote::NormalOut };
+use tensor_types::{ cast::Cast, type_promote::NormalOut };
 use tensor_traits::CommonBounds;
 use tensor_types::traits::*;
 
@@ -117,7 +117,7 @@ macro_rules! repeat_pad_inp {
                     let mask =
                     ($k + $idx) * $step_width + $m * $dw >= $pw_start &&
                     ($k + $idx) * $step_width + $m * $dw < $img_width + $pw_start;
-                    let tmp_mask: T = mask.into_scalar();
+                    let tmp_mask: T = mask.cast();
                     let val = $name[($is3 + $idx * $step_width * $isw) * mask as i64];
                     T::Vec::splat(tmp_mask._mul(val))
                 },
@@ -144,7 +144,7 @@ macro_rules! repeat_pw_pad_inp {
                     let mask =
                     ($k + $idx) * $step_width >= $pw_start &&
                     ($k + $idx) * $step_width < $img_width + $pw_start;
-                    let tmp_mask: T = mask.into_scalar();
+                    let tmp_mask: T = mask.cast();
                     let val = $name[($is3 + $idx * $step_width * $isw) * mask as i64];
                     T::Vec::splat(tmp_mask._mul(val))
                 },
@@ -219,7 +219,7 @@ fn template_function<T: CommonBounds>(
     inp: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec
 )
-    where bool: IntoScalar<T>
+    where bool: Cast<T>
 {
     let Params {
         arg1: [ii, i_end],
@@ -359,7 +359,7 @@ fn template_function<T: CommonBounds>(
     inp: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec
 )
-    where bool: IntoScalar<T>
+    where bool: Cast<T>
 {
     let Params {
         arg1: [ii, i_end],
@@ -473,7 +473,7 @@ fn template_function<T: CommonBounds>(
     bias: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec
 )
-    where bool: IntoScalar<T>
+    where bool: Cast<T>
 {
     let Params {
         arg1: [ii, i_end],
@@ -619,7 +619,7 @@ fn template_function<T: CommonBounds>(
     bias: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec
 )
-    where bool: IntoScalar<T>
+    where bool: Cast<T>
 {
     let Params {
         arg1: [ii, i_end],
@@ -722,7 +722,7 @@ fn template_function<T: CommonBounds>(
     inp: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec
 )
-    where bool: IntoScalar<T>
+    where bool: Cast<T>
 {
     let PartialParams {
         arg1: [ii, i_end],
@@ -826,7 +826,7 @@ fn template_function<T: CommonBounds>(
     inp: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec
 )
-    where bool: IntoScalar<T>
+    where bool: Cast<T>
 {
     let PartialParams {
         arg1: [ii, i_end],
@@ -920,7 +920,7 @@ fn template_function<T: CommonBounds>(
     bias: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec
 )
-    where bool: IntoScalar<T>
+    where bool: Cast<T>
 {
     let PartialParams {
         arg1: [ii, i_end],
@@ -1028,7 +1028,7 @@ fn template_function<T: CommonBounds>(
     bias: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec
 )
-    where bool: IntoScalar<T>
+    where bool: Cast<T>
 {
     let PartialParams {
         arg1: [ii, i_end],
@@ -1113,7 +1113,7 @@ pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
     kb: &mut usize // outwidth block size
 ) -> ConvKernel<T>
-    where bool: IntoScalar<T>
+    where bool: Cast<T>
 {
     let kernels = if kh == 1 && kw == 1 {
         [
@@ -1202,7 +1202,7 @@ pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds>(
 ) -> Option<
         fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
     >
-    where bool: IntoScalar<T>
+    where bool: Cast<T>
 {
     let kernels: [
         [
@@ -1306,7 +1306,7 @@ pub(crate) fn remain_oc_kernel_dispatch<T: CommonBounds>(
     [kh, kw]: [i64; 2],
     kb: &mut usize // outwidth block size
 ) -> ConvPartialKernel<T>
-    where bool: IntoScalar<T>
+    where bool: Cast<T>
 {
     let kernels: [ConvPartialKernel<T>; 5] = if kh == 1 && kw == 1 {
         [
@@ -1345,7 +1345,7 @@ pub(crate) fn bias_remain_oc_kernel_dispatch<T: CommonBounds>(
             &Pointer<T>,
             fn(T::Vec) -> T::Vec
         )
-    where bool: IntoScalar<T>
+    where bool: Cast<T>
 {
     let kernels = if kh == 1 && kw == 1 {
         [

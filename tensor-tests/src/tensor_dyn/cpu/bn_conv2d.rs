@@ -5,7 +5,7 @@ use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::{ set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo };
 use tensor_dyn::{ Tensor, TensorCreator };
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::type_promote::NormalOutUnary;
 
@@ -15,13 +15,13 @@ use super::assert_utils::assert_f64;
 fn common_input([batch, out_channel, in_channel, kernel_height, kernel_width, height, width]: [
     i64;
     7
-]) -> anyhow::Result<(Tensor<f64>, Tensor<f64>, tch::Tensor, tch::Tensor)> {
-    let kernel = Tensor::<f64>
+]) -> anyhow::Result<(Tensor<f32>, Tensor<f32>, tch::Tensor, tch::Tensor)> {
+    let kernel = Tensor::<f32>
         ::arange(0, in_channel * out_channel * kernel_height * kernel_width)?
         .reshape([out_channel, in_channel, kernel_height, kernel_width])?
         .permute([2, 3, 1, 0])?
         .contiguous()?;
-    let a = Tensor::<f64>
+    let a = Tensor::<f32>
         ::arange(0, batch * in_channel * height * width)?
         .reshape([batch, in_channel, height, width])?
         .permute([0, 2, 3, 1])?

@@ -9,7 +9,7 @@ pub extern crate half;
 /// A module implement type conversion
 pub mod convertion;
 /// A module implement type conversion
-pub mod into_scalar;
+pub mod cast;
 /// A module implement simd vector conversion
 pub mod into_vec;
 /// A module defines a set of traits for tensor operations, and implement computation functions for scalar and vector types

@@ -27,7 +27,7 @@ use tensor_types::into_vec::IntoVec;
 use tensor_types::type_promote::{ Cmp, NormalOutUnary, SimdCmp };
 use tensor_types::{
     dtype::TypeCommon,
-    into_scalar::IntoScalar,
+    cast::Cast,
     type_promote::{ Eval, FloatOutBinary, FloatOutUnary, NormalOut },
     vectors::traits::SimdSelect,
 };
@@ -134,7 +134,7 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for Tensor<T, Cpu, DE
 
 impl<T, const DEVICE: usize> EvalReduce
     for Tensor<T, Cpu, DEVICE>
-    where T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>, T::Vec: IntoVec<BoolVector>
+    where T: CommonBounds + Eval<Output = bool> + Cast<bool>, T::Vec: IntoVec<BoolVector>
 {
     type BoolOutput = Tensor<bool, Cpu, DEVICE>;
     fn all<S: Into<Axis>>(
@@ -157,7 +157,7 @@ impl<T, const DEVICE: usize> EvalReduce
 impl<T, const DEVICE: usize> NormalEvalReduce<T>
     for Tensor<T, Cpu, DEVICE>
     where
-        T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
+        T: CommonBounds + Eval<Output = bool> + Cast<bool>,
         T::Vec: Eval,
         <T::Vec as Eval>::Output: SimdSelect<T::Vec>
 {
@@ -213,7 +213,7 @@ impl<T, const DEVICE: usize> NormalEvalReduce<T>
 impl<T, const DEVICE: usize> FloatReduce<T>
     for Tensor<T, Cpu, DEVICE>
     where
-        T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output>,
+        T: FloatOutBinary + CommonBounds + Cast<<T as FloatOutBinary>::Output>,
         <T as FloatOutBinary>::Output: CommonBounds +
             FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
         <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
@@ -225,7 +225,7 @@ impl<T, const DEVICE: usize> FloatReduce<T>
                 <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
                 Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
             >,
-        f64: IntoScalar<<T as FloatOutBinary>::Output>,
+        f64: Cast<<T as FloatOutBinary>::Output>,
         <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output> +
             NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output>,
         T::Vec: NormalOut<
@@ -247,7 +247,7 @@ impl<T, const DEVICE: usize> FloatReduce<T>
     )
         -> Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
         where
-            f64: IntoScalar<<T as FloatOutBinary>::Output>,
+            f64: Cast<<T as FloatOutBinary>::Output>,
             <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
     {
         Ok(self.inner.mean(axis, keep_dims)?.into())
@@ -277,7 +277,7 @@ impl<T, const DEVICE: usize> FloatReduce<T>
     )
         -> Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
         where
-            f64: IntoScalar<<T as FloatOutBinary>::Output>,
+            f64: Cast<<T as FloatOutBinary>::Output>,
             <T as FloatOutBinary>::Output: TypeCommon,
             T::Vec: NormalOut<
                 <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
@@ -305,11 +305,11 @@ impl<T, const DEVICE: usize> NormalReduce<T>
     where
         T: CommonBounds + FloatOutBinary + Cmp<T, Output = bool> + FloatOutBinary<i64>,
         T::Vec: SimdCmp<T::Vec>,
-        <T as FloatOutBinary>::Output: CommonBounds + IntoScalar<T>,
+        <T as FloatOutBinary>::Output: CommonBounds + Cast<T>,
         <T as FloatOutBinary<i64>>::Output: CommonBounds + NormalOut<i64>,
         <<T as FloatOutBinary<i64>>::Output as NormalOut<i64>>::Output: CommonBounds +
-            IntoScalar<i64> +
-            IntoScalar<T>,
+            Cast<i64> +
+            Cast<T>,
         <T::Vec as SimdCmp<T::Vec>>::Output: IntoVec<BoolVector>
 {
     type Output = Self;
@@ -400,7 +400,7 @@ impl<T, const DEVICE: usize> NormalReduce<T>
                         .zip(prod.inner.par_iter())
                         .zip(lhs.inner.inner.par_iter())
                         .strided_map(|(res, ((g, x), y))| {
-                            *res = g._mul(x)._div(y).into_scalar();
+                            *res = g._mul(x)._div(y).cast();
                         })
                         .collect::<_Tensor<T, Cpu, DEVICE>>();
                     handle_grad(&mut lhs, grad.into(), &[])?;
@@ -458,7 +458,7 @@ impl<T, const DEVICE: usize> NormalReduce<T>
                         .zip(count.par_iter())
                         .zip(mask.par_iter())
                         .for_each(|((g, c), m)| {
-                            *g = g._div(c)._mul(m).into_scalar();
+                            *g = g._div(c)._mul(m).cast();
                         });
 
                     handle_grad(&mut lhs, grad, &[])?;
@@ -516,7 +516,7 @@ impl<T, const DEVICE: usize> NormalReduce<T>
                         .zip(count.par_iter())
                         .zip(mask.par_iter())
                         .for_each(|((g, c), m)| {
-                            *g = g._div(c)._mul(m).into_scalar();
+                            *g = g._div(c)._mul(m).cast();
                         });
 
                     handle_grad(&mut lhs, grad, &[])?;
@@ -612,7 +612,7 @@ impl<T, const DEVICE: usize> NormalReduce<T>
 
 impl<T, const DEVICE: usize> EvalReduce
     for DiffTensor<T, Cpu, DEVICE>
-    where T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>, T::Vec: IntoVec<BoolVector>
+    where T: CommonBounds + Eval<Output = bool> + Cast<bool>, T::Vec: IntoVec<BoolVector>
 {
     type BoolOutput = DiffTensor<bool, Cpu, DEVICE>;
     fn all<S: Into<Axis>>(
@@ -665,10 +665,10 @@ impl<T, const DEVICE: usize> EvalReduce
 impl<T, const DEVICE: usize> NormalEvalReduce<T>
     for DiffTensor<T, Cpu, DEVICE>
     where
-        T: CommonBounds + Eval<Output = bool> + IntoScalar<bool>,
+        T: CommonBounds + Eval<Output = bool> + Cast<bool>,
         T::Vec: Eval,
         <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
-        <T as FloatOutBinary>::Output: IntoScalar<T>
+        <T as FloatOutBinary>::Output: Cast<T>
 {
     type Output = Self;
 
@@ -771,7 +771,7 @@ impl<T, const DEVICE: usize> NormalEvalReduce<T>
                             if x._is_nan() {
                                 *g = T::ZERO;
                             } else {
-                                *g = g._mul(p)._div(x).into_scalar();
+                                *g = g._mul(p)._div(x).cast();
                             }
                         });
 
@@ -795,7 +795,7 @@ impl<T, const DEVICE: usize> NormalEvalReduce<T>
 impl<T, const DEVICE: usize> FloatReduce<T>
     for DiffTensor<T, Cpu, DEVICE>
     where
-        T: FloatOutBinary + CommonBounds + IntoScalar<<T as FloatOutBinary>::Output>,
+        T: FloatOutBinary + CommonBounds + Cast<<T as FloatOutBinary>::Output>,
         <T as FloatOutBinary>::Output: CommonBounds +
             FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
         <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
@@ -807,9 +807,9 @@ impl<T, const DEVICE: usize> FloatReduce<T>
                 <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
                 Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec
             >,
-        f64: IntoScalar<<T as FloatOutBinary>::Output>,
-        i64: IntoScalar<<T as FloatOutBinary>::Output>,
-        <T as FloatOutBinary>::Output: IntoScalar<T>,
+        f64: Cast<<T as FloatOutBinary>::Output>,
+        i64: Cast<<T as FloatOutBinary>::Output>,
+        <T as FloatOutBinary>::Output: Cast<T>,
         <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output> +
             NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output>,
         T::Vec: NormalOut<
@@ -837,7 +837,7 @@ impl<T, const DEVICE: usize> FloatReduce<T>
             .iter()
             .map(|&ax| self.inner.shape()[ax as usize])
             .product::<i64>()
-            .into_scalar();
+            .cast();
         Ok(DiffTensor {
             inner: ret,
             grad: Rc::new(RefCell::new(None)),
@@ -853,7 +853,7 @@ impl<T, const DEVICE: usize> FloatReduce<T>
                         grad.expand(&original_shape)?
                     };
                     grad.par_iter_mut().for_each(|g| {
-                        *g = g._div(numel).into_scalar();
+                        *g = g._div(numel).cast();
                     });
                     handle_grad(&mut lhs, grad.try_astype::<T>()?, &[])?;
                     Ok(false)
@@ -893,7 +893,7 @@ impl<T, const DEVICE: usize> FloatReduce<T>
                         .zip(lhs.inner.par_iter())
                         .zip(ret.par_iter())
                         .for_each(|((g, x), y)| {
-                            *g = g._mul(x)._div(y).into_scalar();
+                            *g = g._mul(x)._div(y).cast();
                         });
 
                     handle_grad(&mut lhs, grad.try_astype::<T>()?, &[])?;
@@ -933,7 +933,7 @@ impl<T, const DEVICE: usize> FloatReduce<T>
                         .zip(lhs.inner.par_iter())
                         .zip(ret.par_iter())
                         .for_each(|((g, x), y)| {
-                            let sign: <T as FloatOutBinary>::Output = x._signum().into_scalar();
+                            let sign: <T as FloatOutBinary>::Output = x._signum().cast();
                             *g = g._mul(sign)._mul(x._square())._div(y._square());
                         });
 

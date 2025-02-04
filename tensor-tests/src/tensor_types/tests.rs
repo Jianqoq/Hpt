@@ -4,6 +4,7 @@ use num_complex::{Complex32, Complex64};
 use rand::distributions::uniform::SampleUniform;
 use tensor_dyn::{FloatOutUnary, NormalOut, NormalOutUnary};
 use tensor_types::half;
+use tensor_types::cast::Cast;
 use tensor_types::type_promote::BitWiseOut2;
 use tensor_types::{dtype::TypeCommon, traits::VecTrait};
 
@@ -738,7 +739,6 @@ fn f64_ulp_diff(a: f64, b: f64) -> i64 {
 }
 
 use tensor_types::{
-    convertion::Convertor,
     traits::SimdCompare,
     type_promote::{
         BitWiseOut, Eval2, FloatOutBinary2, FloatOutUnary2, NormalOut2, NormalOutUnary2,
@@ -1721,19 +1721,19 @@ fn test_div_float_nan() {
         test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, log2);
         test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, log10);
         test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, cbrt);
-        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, |x| libm::erff(x.to_f32()).to_bf16(), |x| x._erf());
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, |x| libm::erff(x.to_f32()).cast(), |x| x._erf());
         test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, trunc);
         test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, recip);
         test_float_simd_math!(bf16, Bf16Vec::SIZE, range7.clone(), 1000, 1, |x| x.ln_1p(), |x| x._log1p());
-        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, |x| (1.0 / (1.0 + (-x.to_f32()).exp())).to_bf16(), |x| x._sigmoid());
-        test_float_simd_math!(bf16, Bf16Vec::SIZE, hard_sigmoid_range.clone(), 10, 1, |x| (0.2 * x.to_f32() + 0.5).min(1.0).max(0.0).to_bf16(), |x| x._hard_sigmoid());
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, |x| (1.0 / (1.0 + (-x.to_f32()).exp())).cast(), |x| x._sigmoid());
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, hard_sigmoid_range.clone(), 10, 1, |x| (0.2 * x.to_f32() + 0.5).min(1.0).max(0.0).cast(), |x| x._hard_sigmoid());
         test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1,
-            |x| (0.5 * x.to_f32() * (libm::erff(x.to_f32() * std::f32::consts::FRAC_1_SQRT_2) + 1.0)).to_bf16(),
+            |x| (0.5 * x.to_f32() * (libm::erff(x.to_f32() * std::f32::consts::FRAC_1_SQRT_2) + 1.0)).cast(),
             |x| x._gelu());
-        test_float_simd_math!(bf16, Bf16Vec::SIZE, hard_swish_range.clone(), 1000, 1, |x| (x.to_f32() * (x.to_f32() + 3.0).__relu6() * (1.0 / 6.0)).to_bf16(), |x| x._hard_swish());
-        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, |x| (1.0 + x.to_f32().exp()).ln().to_bf16(), |x| x._softplus());
-        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, |x| (x.to_f32() / (1.0 + x.to_f32().abs())).to_bf16(), |x| x._softsign());
-        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, |x| (x.to_f32() * x.to_f32().__softplus().tanh()).to_bf16(), |x| x._mish());
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, hard_swish_range.clone(), 1000, 1, |x| (x.to_f32() * (x.to_f32() + 3.0).__relu6() * (1.0 / 6.0)).cast(), |x| x._hard_swish());
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, |x| (1.0 + x.to_f32().exp()).ln().cast(), |x| x._softplus());
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, |x| (x.to_f32() / (1.0 + x.to_f32().abs())).cast(), |x| x._softsign());
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, |x| (x.to_f32() * x.to_f32().__softplus().tanh()).cast(), |x| x._mish());
 
         use half::f16;
         let range1 = half::f16::from_f32(-1e4)..=half::f16::from_f32(1e4);
@@ -1781,19 +1781,19 @@ fn test_div_float_nan() {
         test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, log2);
         test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, log10);
         test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, cbrt);
-        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, |x| libm::erff(x.to_f32()).to_f16(), |x| x._erf());
+        test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, |x| libm::erff(x.to_f32()).cast(), |x| x._erf());
         test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, trunc);
         test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, recip);
         test_float_simd_math!(f16, F16Vec::SIZE, range7.clone(), 1000, 1, |x| x.ln_1p(), |x| x._log1p());
-        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| (1.0 / (1.0 + (-x.to_f32()).exp())).to_f16(), |x| x._sigmoid());
-        test_float_simd_math!(f16, F16Vec::SIZE, hard_sigmoid_range.clone(), 10, 1, |x| (0.2 * x.to_f32() + 0.5).min(1.0).max(0.0).to_f16(), |x| x._hard_sigmoid());
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| (1.0 / (1.0 + (-x.to_f32()).exp())).cast(), |x| x._sigmoid());
+        test_float_simd_math!(f16, F16Vec::SIZE, hard_sigmoid_range.clone(), 10, 1, |x| (0.2 * x.to_f32() + 0.5).min(1.0).max(0.0).cast(), |x| x._hard_sigmoid());
         test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1,
-            |x| (0.5 * x.to_f32() * (libm::erff(x.to_f32() * std::f32::consts::FRAC_1_SQRT_2) + 1.0)).to_f16(),
+            |x| (0.5 * x.to_f32() * (libm::erff(x.to_f32() * std::f32::consts::FRAC_1_SQRT_2) + 1.0)).cast(),
             |x| x._gelu());
-        test_float_simd_math!(f16, F16Vec::SIZE, hard_swish_range.clone(), 1000, 1, |x| (x.to_f32() * (x.to_f32() + 3.0).__relu6() * (1.0 / 6.0)).to_f16(), |x| x._hard_swish());
-        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| (1.0 + x.to_f32().exp()).ln().to_f16(), |x| x._softplus());
-        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| (x.to_f32() / (1.0 + x.to_f32().abs())).to_f16(), |x| x._softsign());
-        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| (x.to_f32() * x.to_f32().__softplus().tanh()).to_f16(), |x| x._mish());
+        test_float_simd_math!(f16, F16Vec::SIZE, hard_swish_range.clone(), 1000, 1, |x| (x.to_f32() * (x.to_f32() + 3.0).__relu6() * (1.0 / 6.0)).cast(), |x| x._hard_swish());
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| (1.0 + x.to_f32().exp()).ln().cast(), |x| x._softplus());
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| (x.to_f32() / (1.0 + x.to_f32().abs())).cast(), |x| x._softsign());
+        test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| (x.to_f32() * x.to_f32().__softplus().tanh()).cast(), |x| x._mish());
     }
 
 #[rustfmt::skip]

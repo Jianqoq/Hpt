@@ -19,7 +19,7 @@ use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
 use tensor_traits::TensorCreator;
 use tensor_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 
 impl<T, const DEVICE: usize> TensorLike<T> for _Tensor<T, Cpu, DEVICE>
 where
@@ -106,7 +106,7 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     pub fn astype<U>(&self) -> std::result::Result<_Tensor<U, Cpu, DEVICE>, TensorError>
     where
         U: CommonBounds,
-        T: IntoScalar<U>,
+        T: Cast<U>,
     {
         // Create an empty tensor of the new type with the same shape.
         let mut ret = _Tensor::<U, Cpu, DEVICE>::empty(self.layout.shape().clone())?;
@@ -116,7 +116,7 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
             .par_iter_mut()
             .zip(self.as_raw().par_iter())
             .for_each(|(a, &b)| {
-                *a = b.into_scalar();
+                *a = b.cast();
             });
         Ok(ret)
     }
@@ -125,7 +125,7 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     pub fn try_astype<U>(&self) -> Result<_Tensor<U, Cpu, DEVICE>, TensorError>
     where
         U: CommonBounds,
-        T: IntoScalar<U>,
+        T: Cast<U>,
     {
         if U::ID == T::ID {
             Ok(self.static_cast()?)
@@ -176,8 +176,8 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     /// check if two tensors are close to each other
     pub fn allclose<U: CommonBounds>(&self, other: &_Tensor<U, Cpu, DEVICE>) -> bool
     where
-        T: IntoScalar<f64>,
-        U: IntoScalar<f64>,
+        T: Cast<f64>,
+        U: Cast<f64>,
     {
         if self.shape() != other.shape() {
             return false;
@@ -185,8 +185,8 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
         let folder = self.par_iter().zip(other.par_iter()).fold(
             || true,
             |acc, (a, b)| {
-                let a_val: f64 = a.into_scalar();
-                let b_val: f64 = b.into_scalar();
+                let a_val: f64 = a.cast();
+                let b_val: f64 = b.cast();
                 let abs_diff: f64 = (a_val - b_val).abs();
                 let torlerance: f64 = 1.0e-8 + 1.0e-5 * b_val.abs();
                 acc && abs_diff <= torlerance
@@ -201,7 +201,7 @@ impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     pub fn astype<U>(&self) -> anyhow::Result<Tensor<U, Cpu, DEVICE>>
     where
         U: CommonBounds,
-        T: IntoScalar<U>,
+        T: Cast<U>,
     {
         Ok(self.inner.astype()?.into())
     }
@@ -210,7 +210,7 @@ impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     pub fn try_astype<U>(&self) -> Result<Tensor<U, Cpu, DEVICE>, TensorError>
     where
         U: CommonBounds,
-        T: IntoScalar<U>,
+        T: Cast<U>,
     {
         Ok(self.inner.try_astype()?.into())
     }
@@ -226,8 +226,8 @@ impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     /// check if two tensors are close to each other
     pub fn allclose<U: CommonBounds>(&self, other: &Tensor<U, Cpu, DEVICE>) -> bool
     where
-        T: IntoScalar<f64>,
-        U: IntoScalar<f64>,
+        T: Cast<f64>,
+        U: Cast<f64>,
     {
         self.inner.allclose(&other.inner)
     }
@@ -272,7 +272,7 @@ impl<const N: usize, T: CommonBounds + ToBytes<Bytes = [u8; N]>, const DEVICE: u
 
 impl<T, const DEVICE: usize> Display for _Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + IntoScalar<f64>,
+    T: CommonBounds + Cast<f64>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
@@ -283,7 +283,7 @@ where
 
 impl<T, const DEVICE: usize> std::fmt::Debug for _Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + IntoScalar<f64>,
+    T: CommonBounds + Cast<f64>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);

@@ -4,7 +4,7 @@ use tensor_common::{err_handler::TensorError, shape::Shape};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 use tensor_types::{
     convertion::{Convertor, FromScalar},
-    into_scalar::IntoScalar,
+    cast::Cast,
     type_promote::NormalOut,
 };
 
@@ -23,7 +23,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
 
     fn ones<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, TensorError>
     where
-        u8: IntoScalar<T>,
+        u8: Cast<T>,
     {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::ones(shape)?.into())
     }
@@ -38,7 +38,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
 
     fn ones_like(&self) -> std::result::Result<Self::Output, TensorError>
     where
-        u8: IntoScalar<T>,
+        u8: Cast<T>,
     {
         Ok(self.inner.as_ref().ones_like()?.into())
     }
@@ -54,8 +54,8 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
     fn arange<U>(start: U, end: U) -> std::result::Result<Self::Output, TensorError>
     where
         T: Convertor + FromScalar<U>,
-        usize: IntoScalar<T>,
-        U: Convertor + IntoScalar<T> + Copy,
+        usize: Cast<T>,
+        U: Convertor + Cast<T> + Copy,
     {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::arange(start, end)?.into())
     }
@@ -69,7 +69,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
 
     fn eye(n: usize, m: usize, k: usize) -> std::result::Result<Self::Output, TensorError>
     where
-        u8: IntoScalar<T>,
+        u8: Cast<T>,
     {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::eye(n, m, k)?.into())
     }
@@ -77,9 +77,9 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
     fn linspace<U>(start: U, end: U, num: usize, include_end: bool) -> std::result::Result<Self::Output, TensorError>
     where
         T: Convertor,
-        U: Convertor + IntoScalar<T> + Copy,
-        usize: IntoScalar<T>,
-        f64: IntoScalar<T>,
+        U: Convertor + Cast<T> + Copy,
+        usize: Cast<T>,
+        f64: Cast<T>,
     {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::linspace(start, end, num, include_end)?.into())
     }
@@ -93,22 +93,22 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
 
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> std::result::Result<Self::Output, TensorError>
     where
-        f64: IntoScalar<T>,
-        usize: IntoScalar<T>,
+        f64: Cast<T>,
+        usize: Cast<T>,
     {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::geomspace(start, end, n, include_end)?.into())
     }
 
     fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> std::result::Result<Self::Output, TensorError>
     where
-        u8: IntoScalar<T>,
+        u8: Cast<T>,
     {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::tri(n, m, k, low_triangle)?.into())
     }
 
     fn tril(&self, k: i64) -> std::result::Result<Self::Output, TensorError>
     where
-        T: NormalOut<bool, Output = T> + IntoScalar<T>,
+        T: NormalOut<bool, Output = T> + Cast<T>,
         T::Vec: NormalOut<BoolVector, Output = T::Vec>,
     {
         Ok(self.inner.as_ref().tril(k)?.into())
@@ -116,7 +116,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
 
     fn triu(&self, k: i64) -> std::result::Result<Self::Output, TensorError>
     where
-        T: NormalOut<bool, Output = T> + IntoScalar<T>,
+        T: NormalOut<bool, Output = T> + Cast<T>,
         T::Vec: NormalOut<BoolVector, Output = T::Vec>,
     {
         Ok(self.inner.as_ref().triu(k)?.into())
@@ -124,7 +124,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
 
     fn identity(n: usize) -> std::result::Result<Self::Output, TensorError>
     where
-        u8: IntoScalar<T>,
+        u8: Cast<T>,
     {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::eye(n, n, 0)?.into())
     }

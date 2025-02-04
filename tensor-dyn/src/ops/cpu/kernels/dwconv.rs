@@ -6,7 +6,7 @@ use tensor_macros::{
 };
 use tensor_traits::CommonBounds;
 use tensor_types::traits::*;
-use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOut};
+use tensor_types::{cast::Cast, type_promote::NormalOut};
 
 pub(crate) struct Params {
     pub(crate) arg1: i64,
@@ -155,7 +155,7 @@ fn template_function<T: CommonBounds>(
     inp: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec,
 ) where
-    bool: IntoScalar<T>,
+    bool: Cast<T>,
 {
     let Params {
         arg1: ii,
@@ -262,7 +262,7 @@ fn template_function<T: CommonBounds>(
     bias: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec,
 ) where
-    bool: IntoScalar<T>,
+    bool: Cast<T>,
 {
     let Params {
         arg1: ii,
@@ -357,7 +357,7 @@ fn template_function<T: CommonBounds>(
     inp: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec,
 ) where
-    bool: IntoScalar<T>,
+    bool: Cast<T>,
 {
     let PartialParams {
         arg1: ii,
@@ -452,7 +452,7 @@ fn template_function<T: CommonBounds>(
     bias: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec,
 ) where
-    bool: IntoScalar<T>,
+    bool: Cast<T>,
 {
     let PartialParams {
         arg1: ii,
@@ -538,7 +538,7 @@ pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     kb: &mut usize, // outwidth block size
 ) -> Option<ConvKernel<T>>
 where
-    bool: IntoScalar<T>,
+    bool: Cast<T>,
 {
     let kernels: [[fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec);
         5]; 4] = [
@@ -599,7 +599,7 @@ pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds>(
     fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
 >
 where
-    bool: IntoScalar<T>,
+    bool: Cast<T>,
 {
     let kernels: [[fn(
         Params,
@@ -661,7 +661,7 @@ pub(crate) fn remain_oc_kernel_dispatch<T: CommonBounds>(
     kb: &mut usize, // outwidth block size
 ) -> Option<ConvPartialKernel<T>>
 where
-    bool: IntoScalar<T>,
+    bool: Cast<T>,
 {
     let kernels: [ConvPartialKernel<T>; 5] = [
         ConvPartialKernel::new(micro_kernel_1_1, 1),
@@ -693,7 +693,7 @@ pub(crate) fn bias_remain_oc_kernel_dispatch<T: CommonBounds>(
     ),
 >
 where
-    bool: IntoScalar<T>,
+    bool: Cast<T>,
 {
     let kernels: [fn(
         PartialParams,

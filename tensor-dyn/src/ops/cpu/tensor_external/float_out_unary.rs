@@ -5,7 +5,7 @@ use tensor_iterator::{iterator_traits::ParStridedIteratorZip, TensorIterator};
 use tensor_traits::{CommonBounds, FloatUnaryOps};
 use tensor_types::{
     dtype::TypeCommon,
-    into_scalar::IntoScalar,
+    cast::Cast,
     type_promote::{FloatOutUnary, NormalOut},
 };
 
@@ -22,7 +22,7 @@ impl<T, const DEVICE: usize> FloatUnaryOps for Tensor<T, Cpu, DEVICE>
 where
     T: FloatOutUnary + CommonBounds,
     FloatUnaryType<T>: CommonBounds,
-    f64: IntoScalar<<T as FloatOutUnary>::Output>,
+    f64: Cast<<T as FloatOutUnary>::Output>,
     T::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,
 {
     type Output = Tensor<FloatUnaryType<T>, Cpu, DEVICE>;
@@ -484,8 +484,8 @@ where
 impl<T: CommonBounds, const DEVICE: usize> FloatUnaryOps for DiffTensor<T, Cpu, DEVICE>
 where
     T: FloatOutUnary,
-    FloatUnaryType<T>: CommonBounds + IntoScalar<T>,
-    f64: IntoScalar<<T as FloatOutUnary>::Output>,
+    FloatUnaryType<T>: CommonBounds + Cast<T>,
+    f64: Cast<<T as FloatOutUnary>::Output>,
     T::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,
 {
     type Output = DiffTensor<FloatUnaryType<T>, Cpu, DEVICE>;
@@ -509,7 +509,7 @@ where
                         .par_iter()
                         .zip(operand.inner.inner.par_iter())
                         .strided_map(|(res, (g, x))| {
-                            *res = g._mul(x._cos()).into_scalar();
+                            *res = g._mul(x._cos()).cast();
                         })
                         .collect::<_Tensor<T, Cpu, DEVICE>>();
                     handle_grad(&mut operand, new_grad.into(), &[])?;

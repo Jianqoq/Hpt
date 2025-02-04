@@ -391,37 +391,37 @@ pub fn impl_bitwise_out(_: TokenStream) -> TokenStream {
                         type Output = <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output;
                         #[inline(always)]
                         fn _bitand(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs: Self::Output = self.into_scalar();
-                            let rhs: Self::Output = rhs.into_scalar();
+                            let lhs: Self::Output = self.cast();
+                            let rhs: Self::Output = rhs.cast();
                             lhs.__bitand(rhs)
                         }
                         #[inline(always)]
                         fn _bitor(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs: Self::Output = self.into_scalar();
-                            let rhs: Self::Output = rhs.into_scalar();
+                            let lhs: Self::Output = self.cast();
+                            let rhs: Self::Output = rhs.cast();
                             lhs.__bitor(rhs)
                         }
                         #[inline(always)]
                         fn _bitxor(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs: Self::Output = self.into_scalar();
-                            let rhs: Self::Output = rhs.into_scalar();
+                            let lhs: Self::Output = self.cast();
+                            let rhs: Self::Output = rhs.cast();
                             lhs.__bitxor(rhs)
                         }
                         #[inline(always)]
                         fn _not(self) -> Self::Output {
-                            let lhs: Self::Output = self.into_scalar();
+                            let lhs: Self::Output = self.cast();
                             lhs.__not()
                         }
                         #[inline(always)]
                         fn _shl(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs: Self::Output = self.into_scalar();
-                            let rhs: Self::Output = rhs.into_scalar();
+                            let lhs: Self::Output = self.cast();
+                            let rhs: Self::Output = rhs.cast();
                             lhs.__shl(rhs)
                         }
                         #[inline(always)]
                         fn _shr(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs: Self::Output = self.into_scalar();
-                            let rhs: Self::Output = rhs.into_scalar();
+                            let lhs: Self::Output = self.cast();
+                            let rhs: Self::Output = rhs.cast();
                             lhs.__shr(rhs)
                         }
                     }
@@ -485,37 +485,37 @@ pub fn impl_cuda_bitwise_out(_: TokenStream) -> TokenStream {
                         type Output = <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output;
                         #[inline(always)]
                         fn _bitand(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs: Self::Output = self.into_scalar();
-                            let rhs: Self::Output = rhs.into_scalar();
+                            let lhs: Self::Output = self.cast();
+                            let rhs: Self::Output = rhs.cast();
                             lhs.__bitand(rhs)
                         }
                         #[inline(always)]
                         fn _bitor(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs: Self::Output = self.into_scalar();
-                            let rhs: Self::Output = rhs.into_scalar();
+                            let lhs: Self::Output = self.cast();
+                            let rhs: Self::Output = rhs.cast();
                             lhs.__bitor(rhs)
                         }
                         #[inline(always)]
                         fn _bitxor(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs: Self::Output = self.into_scalar();
-                            let rhs: Self::Output = rhs.into_scalar();
+                            let lhs: Self::Output = self.cast();
+                            let rhs: Self::Output = rhs.cast();
                             lhs.__bitxor(rhs)
                         }
                         #[inline(always)]
                         fn _not(self) -> Self::Output {
-                            let lhs: Self::Output = self.into_scalar();
+                            let lhs: Self::Output = self.cast();
                             lhs.__not()
                         }
                         #[inline(always)]
                         fn _shl(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs: Self::Output = self.into_scalar();
-                            let rhs: Self::Output = rhs.into_scalar();
+                            let lhs: Self::Output = self.cast();
+                            let rhs: Self::Output = rhs.cast();
                             lhs.__shl(rhs)
                         }
                         #[inline(always)]
                         fn _shr(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs: Self::Output = self.into_scalar();
-                            let rhs: Self::Output = rhs.into_scalar();
+                            let lhs: Self::Output = self.cast();
+                            let rhs: Self::Output = rhs.cast();
                             lhs.__shr(rhs)
                         }
                     }
@@ -574,34 +574,34 @@ pub fn impl_cmp(_: TokenStream) -> TokenStream {
                     impl Cmp<#rhs_dtype> for #lhs_dtype {
                         type Output = bool;
                         fn _eq(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.into_scalar();
-                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.into_scalar();
+                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.cast();
+                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.cast();
                             lhs == rhs
                         }
                         fn _ne(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.into_scalar();
-                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.into_scalar();
+                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.cast();
+                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.cast();
                             lhs != rhs
                         }
                         fn _lt(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.into_scalar();
-                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.into_scalar();
+                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.cast();
+                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.cast();
                             lhs < rhs
                         }
 
                         fn _le(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.into_scalar();
-                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.into_scalar();
+                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.cast();
+                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.cast();
                             lhs <= rhs
                         }
                         fn _gt(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.into_scalar();
-                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.into_scalar();
+                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.cast();
+                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.cast();
                             lhs > rhs
                         }
                         fn _ge(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.into_scalar();
-                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.into_scalar();
+                            let lhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = self.cast();
+                            let rhs: <#lhs_dtype as NormalOutPromote<#rhs_dtype>>::Output = rhs.cast();
                             lhs >= rhs
                         }
                     }
@@ -660,34 +660,34 @@ pub fn impl_cmp_cuda(_: TokenStream) -> TokenStream {
                     impl Cmp<Scalar<#rhs_dtype>> for Scalar<#lhs_dtype> {
                         type Output = Scalar<bool>;
                         fn _eq(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.into_scalar();
-                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.into_scalar();
+                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.cast();
+                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.cast();
                             lhs.__eq(rhs)
                         }
                         fn _ne(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.into_scalar();
-                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.into_scalar();
+                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.cast();
+                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.cast();
                             lhs.__ne(rhs)
                         }
                         fn _lt(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.into_scalar();
-                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.into_scalar();
+                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.cast();
+                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.cast();
                             lhs.__lt(rhs)
                         }
 
                         fn _le(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.into_scalar();
-                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.into_scalar();
+                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.cast();
+                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.cast();
                             lhs.__le(rhs)
                         }
                         fn _gt(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.into_scalar();
-                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.into_scalar();
+                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.cast();
+                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.cast();
                             lhs.__gt(rhs)
                         }
                         fn _ge(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.into_scalar();
-                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.into_scalar();
+                            let lhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = self.cast();
+                            let rhs: <Scalar<#lhs_dtype> as NormalOutPromote<Scalar<#rhs_dtype>>>::Output = rhs.cast();
                             lhs.__ge(rhs)
                         }
                     }

@@ -4,7 +4,7 @@ use crate::{
 };
 use tensor_common::error::base::TensorError;
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorInfo};
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 
 /// Performs a reduction operation on a tensor using customizable functions.
 ///
@@ -38,7 +38,7 @@ use tensor_types::into_scalar::IntoScalar;
 ///
 /// # Constraints
 ///
-/// - `T`: Must implement `CommonBounds` and `IntoScalar<O>`.
+/// - `T`: Must implement `CommonBounds` and `Cast<O>`.
 /// - `O`: Must implement `CommonBounds`.
 /// - `F1`: Must be a function or closure that takes a mutable reference to `O` and performs the full reduction.
 /// - `F2`: Must be a function or closure with the signature `Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>)`.
@@ -137,7 +137,7 @@ use tensor_types::into_scalar::IntoScalar;
 /// - The function depends on several traits and types:
 ///     - `_Tensor<T>`: A tensor type parameterized by the data type `T`.
 ///     - `CommonBounds`: A trait that must be implemented by `T` and `O`.
-///     - `IntoScalar<O>`: A trait implemented by `T` to allow conversion into the output scalar type `O`.
+///     - `Cast<O>`: A trait implemented by `T` to allow conversion into the output scalar type `O`.
 ///     - `rayon`: Used for multithreading support.
 ///
 /// # See Also
@@ -163,7 +163,7 @@ pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: usi
 )
     -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
     where
-        T: CommonBounds + IntoScalar<O>,
+        T: CommonBounds + Cast<O>,
         O: CommonBounds,
         F1: Fn(&mut O),
         F2: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
@@ -299,7 +299,7 @@ pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: usi
 ///
 /// # Constraints
 ///
-/// - `T`: Must implement `CommonBounds` and `IntoScalar<O>`.
+/// - `T`: Must implement `CommonBounds` and `Cast<O>`.
 /// - `O`: Must implement `CommonBounds`.
 /// - `F1`: Must be a function or closure that takes a mutable reference to `O` and performs the full reduction.
 /// - `F2`: Must be a function or closure with the signature `Fn(usize, usize, usize, &_Tensor<O>, &_Tensor<T>)`.
@@ -400,7 +400,7 @@ pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: usi
 /// - Requires the following traits and types:
 ///     - `_Tensor<T>`: A tensor type parameterized by the data type `T`.
 ///     - `CommonBounds`: A trait that must be implemented by `T` and `O`.
-///     - `IntoScalar<O>`: A trait implemented by `T` to allow conversion into the output scalar type `O`.
+///     - `Cast<O>`: A trait implemented by `T` to allow conversion into the output scalar type `O`.
 ///     - `rayon`: Used for multithreading support.
 ///
 /// # See Also
@@ -427,7 +427,7 @@ pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: us
 )
     -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
     where
-        T: CommonBounds + IntoScalar<O>,
+        T: CommonBounds + Cast<O>,
         O: CommonBounds,
         F1: Fn(&mut O),
         F2: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),

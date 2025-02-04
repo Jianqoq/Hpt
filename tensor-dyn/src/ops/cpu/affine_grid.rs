@@ -5,7 +5,7 @@ use std::{
 
 use tensor_common::{shape::shape::Shape, shape::shape_utils::mt_intervals};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
-use tensor_types::{dtype::FloatConst, into_scalar::IntoScalar};
+use tensor_types::{dtype::FloatConst, cast::Cast};
 
 use crate::{tensor_base::_Tensor, Tensor, THREAD_POOL};
 
@@ -18,7 +18,7 @@ where
         + Add<Output = T>
         + Neg<Output = T>
         + FloatConst,
-    i64: IntoScalar<T>,
+    i64: Cast<T>,
 {
     /// Generates an affine grid for the given shape.
     ///
@@ -82,8 +82,8 @@ where
                     ptr.offset(index);
                     ptrs.push(ptr);
                 }
-                let w: T = w.into_scalar();
-                let h: T = h.into_scalar();
+                let w: T = w.cast();
+                let h: T = h.cast();
                 let barrier = Arc::new(Barrier::new(num_threads + 1));
                 for _ in 0..num_threads {
                     let ts0 = theta_strides[0];
@@ -99,8 +99,8 @@ where
                         x.execute(move || {
                             for _ in start..end {
                                 let ni = prg[0];
-                                let hi: T = prg[1].into_scalar();
-                                let wi: T = prg[2].into_scalar();
+                                let hi: T = prg[1].cast();
+                                let wi: T = prg[2].cast();
                                 let x = (T::TWO * wi) / (w - T::ONE) - T::ONE;
                                 let y = (T::TWO * hi) / (h - T::ONE) - T::ONE;
                                 let tx = theta_ptr[ni * ts0 + 0 * ts1 + 0 * ts2] * x
@@ -130,8 +130,8 @@ where
                         x.execute(move || {
                             for _ in start..end {
                                 let ni = prg[0];
-                                let hi: T = prg[1].into_scalar();
-                                let wi: T = prg[2].into_scalar();
+                                let hi: T = prg[1].cast();
+                                let wi: T = prg[2].cast();
                                 let x = -T::ONE + (T::TWO * (wi + T::HALF)) / w;
                                 let y = -T::ONE + (T::TWO * (hi + T::HALF)) / h;
                                 let tx = theta_ptr[ni * ts0] * x
@@ -176,7 +176,7 @@ where
         + Add<Output = T>
         + Neg<Output = T>
         + FloatConst,
-    i64: IntoScalar<T>,
+    i64: Cast<T>,
 {
     /// Generates an affine grid for the given shape.
     ///

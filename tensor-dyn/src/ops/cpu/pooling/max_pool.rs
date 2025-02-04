@@ -4,7 +4,7 @@ use crate::Tensor;
 use tensor_common::error::base::TensorError;
 use tensor_common::shape::shape::Shape;
 use tensor_traits::CommonBounds;
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
 
@@ -12,9 +12,9 @@ use super::common::adaptive_pooling_template;
 
 impl<T> _Tensor<T>
     where
-        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+        T: CommonBounds + Cast<T> + NormalOut<Output = T>,
         T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
-        bool: IntoScalar<T>
+        bool: Cast<T>
 {
     /// Performs a 2D max pooling operation on the input tensor.
     ///
@@ -60,7 +60,7 @@ impl<T> _Tensor<T>
     pub fn adaptive_maxpool2d(
         &self,
         output_size: [i64; 2],
-    ) -> std::result::Result<_Tensor<T>, TensorError> where i64: IntoScalar<T> {
+    ) -> std::result::Result<_Tensor<T>, TensorError> where i64: Cast<T> {
         adaptive_pooling_template(
             self,
             output_size,
@@ -74,9 +74,9 @@ impl<T> _Tensor<T>
 
 impl<T> Tensor<T>
     where
-        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+        T: CommonBounds + Cast<T> + NormalOut<Output = T>,
         T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
-        bool: IntoScalar<T>
+        bool: Cast<T>
 {
     /// Performs a 2D max pooling operation on the input tensor.
     ///
@@ -119,7 +119,7 @@ impl<T> Tensor<T>
     pub fn adaptive_maxpool2d(
         &self,
         output_size: [i64; 2],
-    ) -> std::result::Result<Tensor<T>, TensorError> where i64: IntoScalar<T> {
+    ) -> std::result::Result<Tensor<T>, TensorError> where i64: Cast<T> {
         Ok(self.inner.adaptive_maxpool2d(output_size)?.into())
     }
 }

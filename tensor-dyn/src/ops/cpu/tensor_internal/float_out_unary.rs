@@ -5,7 +5,7 @@ use tensor_traits::{CommonBounds, FloatUnaryOps};
 use tensor_types::traits::VecTrait;
 use tensor_types::{
     dtype::TypeCommon,
-    into_scalar::IntoScalar,
+    cast::Cast,
     type_promote::{FloatOutBinary, FloatOutUnary},
 };
 
@@ -19,7 +19,7 @@ impl<T, const DEVICE: usize> FloatUnaryOps for _Tensor<T, Cpu, DEVICE>
 where
     T: FloatOutUnary + CommonBounds,
     FloatUnaryType<T>: CommonBounds,
-    f64: IntoScalar<<T as FloatOutUnary>::Output>,
+    f64: Cast<<T as FloatOutUnary>::Output>,
     T::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,
 {
     type Output = _Tensor<FloatUnaryType<T>, Cpu, DEVICE>;
@@ -423,8 +423,8 @@ where
     {
         let alpha = alpha.into();
         let gamma = gamma.into();
-        let alpha = alpha.unwrap_or((1.6732632423543772848170429916717).into_scalar());
-        let gamma = gamma.unwrap_or((1.0507009873554804934193349852946).into_scalar());
+        let alpha = alpha.unwrap_or((1.6732632423543772848170429916717).cast());
+        let gamma = gamma.unwrap_or((1.0507009873554804934193349852946).cast());
         let alpha_vec = <FloatUnaryType<T> as TypeCommon>::Vec::splat(alpha);
         let gamma_vec = <FloatUnaryType<T> as TypeCommon>::Vec::splat(gamma);
         unary_fn_with_out(
@@ -444,8 +444,8 @@ where
     where
         U: Borrow<Self::InplaceOutput>,
     {
-        let alpha = alpha.unwrap_or((1.6732632423543772848170429916717).into_scalar());
-        let gamma = gamma.unwrap_or((1.0507009873554804934193349852946).into_scalar());
+        let alpha = alpha.unwrap_or((1.6732632423543772848170429916717).cast());
+        let gamma = gamma.unwrap_or((1.0507009873554804934193349852946).cast());
         let alpha_vec = <FloatUnaryType<T> as TypeCommon>::Vec::splat(alpha);
         let gamma_vec = <FloatUnaryType<T> as TypeCommon>::Vec::splat(gamma);
         unary_fn_with_out(

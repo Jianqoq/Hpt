@@ -21,7 +21,7 @@ use tensor_cudakernels::{RegisterInfo, ARGMAX, ARGMIN};
 use tensor_traits::{CommonBounds, IndexReduce, ShapeManipulate, TensorInfo};
 use tensor_types::{
     convertion::Convertor,
-    into_scalar::IntoScalar,
+    cast::Cast,
     type_promote::{Cmp, NormalOut},
 };
 
@@ -43,7 +43,7 @@ pub(crate) fn contiguous_reduce<T, const DEVICE_ID: usize>(
     c: Option<_Tensor<i64, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<i64, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + IntoScalar<i64> + Convertor + DeviceRepr + CudaTypeName,
+    T: CommonBounds + Cast<i64> + Convertor + DeviceRepr + CudaTypeName,
 {
     let max_axis = *axes.iter().max().unwrap();
     let (a, fused_dims) = if max_axis == a.ndim() - 1 {
@@ -352,7 +352,7 @@ where
 }
 
 impl<
-        T: CommonBounds + NormalOut<Output = T> + Cmp + DeviceRepr + CudaTypeName + IntoScalar<i64>,
+        T: CommonBounds + NormalOut<Output = T> + Cmp + DeviceRepr + CudaTypeName + Cast<i64>,
         const DEVICE_ID: usize,
     > IndexReduce for _Tensor<T, Cuda, DEVICE_ID>
 {

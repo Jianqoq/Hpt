@@ -3,9 +3,9 @@ use num_complex::{Complex32, Complex64};
 use tensor_macros::impl_into_scalar;
 use crate::convertion::Convertor;
 /// A trait for converting a scalar into another scalar type.
-pub trait IntoScalar<T> {
+pub trait Cast<T> {
     /// Convert the scalar into another scalar type.
-    fn into_scalar(self) -> T;
+    fn cast(self) -> T;
 }
 
 impl_into_scalar!();

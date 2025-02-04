@@ -16,15 +16,15 @@ use tensor_common::utils::pointer::Pointer;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
 
 impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
     where
-        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+        T: CommonBounds + Cast<T> + NormalOut<Output = T>,
         T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
-        bool: IntoScalar<T>
+        bool: Cast<T>
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
     #[inline(never)]
@@ -578,9 +578,9 @@ fn ow_loop<F1, F2, T: CommonBounds>(
 
 impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE>
     where
-        T: CommonBounds + IntoScalar<T> + NormalOut<Output = T>,
+        T: CommonBounds + Cast<T> + NormalOut<Output = T>,
         T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
-        bool: IntoScalar<T>
+        bool: Cast<T>
 {
     /// Performs a Depth-wise 2D convolution operation on the input tensor.
     ///

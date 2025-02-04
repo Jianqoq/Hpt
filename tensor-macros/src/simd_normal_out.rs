@@ -295,48 +295,48 @@ pub fn impl_simd_normal_out_with_rhs_scalar() -> TokenStream {
                         type Output = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output;
                         fn _add(self, rhs: #rhs_dtype) -> Self::Output {
                             let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
-                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.into_scalar());
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.cast());
                             lhs.__add(rhs)
                         }
                         fn _sub(self, rhs: #rhs_dtype) -> Self::Output {
                             let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
-                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.into_scalar());
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.cast());
                             lhs.__sub(rhs)
                         }
                         fn _mul(self, rhs: #rhs_dtype) -> Self::Output {
                             let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
-                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.into_scalar());
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.cast());
                             lhs.__mul(rhs)
                         }
                         fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
                             let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
-                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.into_scalar());
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.cast());
                             lhs.__pow(rhs)
                         }
                         fn _max(self, rhs: #rhs_dtype) -> Self::Output {
                             let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
-                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.into_scalar());
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.cast());
                             lhs.__max(rhs)
                         }
                         fn _min(self, rhs: #rhs_dtype) -> Self::Output {
                             let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
-                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.into_scalar());
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.cast());
                             lhs.__min(rhs)
                         }
                         fn _rem(self, rhs: #rhs_dtype) -> Self::Output {
                             let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
-                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.into_scalar());
+                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.cast());
                             lhs.__rem(rhs)
                         }
                         fn _clamp(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
-                            let min = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(min.into_scalar());
-                            let max = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(max.into_scalar());
+                            let min = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(min.cast());
+                            let max = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(max.cast());
                             let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
                             lhs.__clamp(min, max)
                         }
                         fn _mul_add(self, a: #rhs_dtype, b: #rhs_dtype) -> Self::Output {
-                            let a = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(a.into_scalar());
-                            let b = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(b.into_scalar());
+                            let a = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(a.cast());
+                            let b = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(b.cast());
                             let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
                             lhs.__mul_add(a, b)
                         }
@@ -434,39 +434,39 @@ pub fn impl_simd_normal_out_with_lhs_scalar() -> TokenStream {
                     impl NormalOut<#rhs_simd> for #lhs_dtype {
                         type Output = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output;
                         fn _add(self, rhs: #rhs_simd) -> Self::Output {
-                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.cast());
                             lhs.__add(rhs.into_vec())
                         }
                         fn _sub(self, rhs: #rhs_simd) -> Self::Output {
-                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.cast());
                             lhs.__sub(rhs.into_vec())
                         }
                         fn _mul(self, rhs: #rhs_simd) -> Self::Output {
-                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.cast());
                             lhs.__mul(rhs.into_vec())
                         }
                         fn _pow(self, rhs: #rhs_simd) -> Self::Output {
-                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.cast());
                             lhs.__pow(rhs.into_vec())
                         }
                         fn _max(self, rhs: #rhs_simd) -> Self::Output {
-                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.cast());
                             lhs.__max(rhs.into_vec())
                         }
                         fn _min(self, rhs: #rhs_simd) -> Self::Output {
-                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.cast());
                             lhs.__min(rhs.into_vec())
                         }
                         fn _rem(self, rhs: #rhs_simd) -> Self::Output {
-                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.cast());
                             lhs.__rem(rhs.into_vec())
                         }
                         fn _clamp(self, min: #rhs_simd, max: #rhs_simd) -> Self::Output {
-                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.cast());
                             lhs.__clamp(min.into_vec(), max.into_vec())
                         }
                         fn _mul_add(self, a: #rhs_simd, b: #rhs_simd) -> Self::Output {
-                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.into_scalar());
+                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.cast());
                             lhs.__mul_add(a.into_vec(), b.into_vec())
                         }
                     }

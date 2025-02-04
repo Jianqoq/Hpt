@@ -53,13 +53,13 @@ pub fn impl_float_out_binary() -> TokenStream {
                         type Output = <#lhs_dtype as FloatOutBinaryPromote<#rhs_dtype>>::Output;
 
                         fn _div(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar / rhs_scalar
                         }
                         fn _log(self, base: #rhs_dtype) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let base_scalar: Self::Output = base.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let base_scalar: Self::Output = base.cast();
                             lhs_scalar.__log(base_scalar)
                         }
                     }
@@ -124,13 +124,13 @@ pub fn impl_cuda_float_out_binary() -> TokenStream {
                         type Output = <Scalar<#lhs_dtype> as FloatOutBinaryPromote<Scalar<#rhs_dtype>>>::Output;
 
                         fn _div(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let rhs_scalar: Self::Output = rhs.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__div(rhs_scalar)
                         }
                         fn _log(self, base: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.into_scalar();
-                            let base_scalar: Self::Output = base.into_scalar();
+                            let lhs_scalar: Self::Output = self.cast();
+                            let base_scalar: Self::Output = base.cast();
                             lhs_scalar.__log(base_scalar)
                         }
                     }

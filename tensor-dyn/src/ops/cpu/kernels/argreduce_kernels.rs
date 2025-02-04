@@ -30,7 +30,7 @@ macro_rules! argmax_kernel {
                 $a_ptr.offset(-$iterator.strides[j as usize] * $iterator.a_shape[j as usize]);
             }
         }
-        unsafe { $result_ptr.ptr.write(max_index.into_scalar()) };
+        unsafe { $result_ptr.ptr.write(max_index.cast()) };
         $result_ptr.add(1);
     };
 }
@@ -67,7 +67,7 @@ macro_rules! argmin_kernel {
                 $a_ptr.offset(-$iterator.strides[j as usize] * $iterator.a_shape[j as usize]);
             }
         }
-        unsafe { $result_ptr.ptr.write(max_index.into_scalar()) };
+        unsafe { $result_ptr.ptr.write(max_index.cast()) };
         $result_ptr.add(1);
     };
 }

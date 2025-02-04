@@ -1,6 +1,6 @@
 use rand_distr::uniform::SampleUniform;
 use tensor_common::{error::base::TensorError, shape::shape::Shape};
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 
 /// A trait for generating random numbers.
 pub trait Random where Self: Sized {
@@ -254,7 +254,7 @@ pub trait Random where Self: Sized {
     /// A random boolean array with values `true` or `false` following the Bernoulli distribution.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self, TensorError>
-        where Self::Meta: IntoScalar<f64>, bool: IntoScalar<Self::Meta>;
+        where Self::Meta: Cast<f64>, bool: Cast<Self::Meta>;
 }
 
 /// A trait for generating random integers.

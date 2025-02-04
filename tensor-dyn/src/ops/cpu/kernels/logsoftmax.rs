@@ -1,6 +1,6 @@
 use tensor_common::utils::pointer::Pointer;
 use tensor_traits::CommonBounds;
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 use tensor_types::type_promote::{ FloatOutUnary, NormalOut, FloatOutBinary };
 use tensor_types::utils::{ array_vec_reduce, vec_sum };
 use tensor_types::vectors::traits::*;
@@ -93,7 +93,7 @@ pub(crate) fn logsoftmax_dim_not_include<T, O>(
     shape_len: i64
 )
     where
-        T: CommonBounds + FloatOutUnary<Output = O> + IntoScalar<O>,
+        T: CommonBounds + FloatOutUnary<Output = O> + Cast<O>,
         O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>
 {
     let buffer = unsafe {
@@ -140,7 +140,7 @@ pub(crate) fn logsoftmax_dim_not_include<T, O>(
             for i in 0..inner_loop_size as i64 {
                 let max = unsafe { max_buffer.offset(i as isize).read() };
                 let val = inp_ptr[i]._sub(max);
-                res_ptr[i] = val.into_scalar();
+                res_ptr[i] = val.cast();
                 unsafe {
                     let buffer_val = sum_buffer.offset(i as isize).read();
                     sum_buffer.offset(i as isize).write(val._exp()._add(buffer_val));
@@ -215,7 +215,7 @@ pub(crate) fn contiguous_dim_include<T, O>(
     shape_len: i64
 )
     where
-        T: CommonBounds + FloatOutUnary<Output = O> + IntoScalar<O>,
+        T: CommonBounds + FloatOutUnary<Output = O> + Cast<O>,
         O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
         T::Vec: FloatOutUnary<Output = O::Vec> + IntoVec<O::Vec>,
         O::Vec: FloatOutBinary<Output = O::Vec> + FloatOutUnary<Output = O::Vec>
@@ -246,7 +246,7 @@ pub(crate) fn contiguous_dim_include<T, O>(
             let mut sum = O::ZERO;
             for i in (inner_loop_size as usize) - remain..inner_loop_size as usize {
                 let val = inp_ptr[i]._sub(max);
-                res_ptr[i] = val.into_scalar();
+                res_ptr[i] = val.cast();
                 sum = sum._add(val._exp());
             }
             sum = sum._add(vec_sum::<O>(sum_vec));
@@ -289,7 +289,7 @@ pub(crate) fn contiguous_dim_include<T, O>(
             let mut sum = O::ZERO;
             for i in 0..inner_loop_size {
                 let val = inp_ptr[i]._sub(max);
-                res_ptr[i] = val.into_scalar();
+                res_ptr[i] = val.cast();
                 sum = sum._add(val._exp());
             }
             let log_sum = sum._ln();
@@ -332,7 +332,7 @@ pub(crate) fn uncontiguous_logsoftmax_dim_include<T, O>(
     inp_last_stride: isize
 )
     where
-        T: CommonBounds + FloatOutUnary<Output = O> + IntoScalar<O>,
+        T: CommonBounds + FloatOutUnary<Output = O> + Cast<O>,
         O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>
 {
     for _ in 0..outer_loop_size {
@@ -344,7 +344,7 @@ pub(crate) fn uncontiguous_logsoftmax_dim_include<T, O>(
         let mut sum = O::ZERO;
         for i in 0..inner_loop_size {
             let val = inp_ptr[i * inp_last_stride]._sub(max);
-            res_ptr[i] = val.into_scalar();
+            res_ptr[i] = val.cast();
             sum = sum._add(val._exp());
         }
         let log_sum = sum._ln();
@@ -380,7 +380,7 @@ pub(crate) fn uncontiguous_logsoftmax_dim_not_include<T, O>(
     res_last_strides: isize
 )
     where
-        T: CommonBounds + FloatOutUnary<Output = O> + IntoScalar<O>,
+        T: CommonBounds + FloatOutUnary<Output = O> + Cast<O>,
         O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>
 {
     let buffer = unsafe {
@@ -429,7 +429,7 @@ pub(crate) fn uncontiguous_logsoftmax_dim_not_include<T, O>(
             for i in 0..inner_loop_size as i64 {
                 let max = unsafe { max_buffer.offset(i as isize).read() };
                 let val = inp_ptr[i * (inp_last_stride as i64)]._sub(max);
-                res_ptr[i * (res_last_strides as i64)] = val.into_scalar();
+                res_ptr[i * (res_last_strides as i64)] = val.cast();
                 unsafe {
                     let buffer_val = sum_buffer.offset(i as isize).read();
                     sum_buffer.offset(i as isize).write(val._exp()._add(buffer_val));

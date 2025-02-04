@@ -16,14 +16,14 @@ use tensor_traits::{
     CommonBounds, NormalReduce, ShapeManipulate, TensorCreator, TensorInfo, TensorWhere,
 };
 use tensor_types::dtype::TypeCommon;
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 use tensor_types::into_vec::IntoVec;
 use tensor_types::traits::{SimdSelect, VecTrait};
 use tensor_types::type_promote::{Cmp, NormalOut, NormalOutUnary, SimdCmp};
 impl<T: CommonBounds + PartialOrd, const DEVICE: usize> AdvanceOps for _Tensor<T, Cpu, DEVICE>
 where
-    T: NormalOut<bool, Output = T> + IntoScalar<i64>,
-    f64: IntoScalar<T>,
+    T: NormalOut<bool, Output = T> + Cast<i64>,
+    f64: Cast<T>,
 {
     type Meta = T;
     type Output = _Tensor<T, Cpu, DEVICE>;
@@ -382,7 +382,7 @@ where
                                 * permuted_res_strides[j];
                             res_amount /= permuted_res_shape[j];
                         }
-                        let dp: i64 = inp_ptr[index].into_scalar();
+                        let dp: i64 = inp_ptr[index].cast();
                         res_ptr[res_index + dp * last_strides] = true_val;
                     }
                 });
@@ -496,7 +496,7 @@ where
         let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(self.shape())?;
         let bernoli = rand::distributions::Bernoulli::new(rate)
             .expect("Failed to create Bernoulli distribution for dropout");
-        let scale: T = (1.0 / (1.0 - rate)).into_scalar();
+        let scale: T = (1.0 / (1.0 - rate)).cast();
         ret.par_iter_mut_simd()
             .zip(self.par_iter_simd())
             .for_each_init(
@@ -732,7 +732,7 @@ where
     T: CommonBounds + Cmp<Output = bool>,
     <T as TypeCommon>::Vec: SimdCmp,
     <T::Vec as SimdCmp>::Output: IntoVec<T::Vec>,
-    bool: NormalOut<T> + IntoScalar<T>,
+    bool: NormalOut<T> + Cast<T>,
 {
     type Output = _Tensor<T, Cpu, DEVICE>;
     fn hardmax(&self, axis: i64) -> Result<Self::Output, TensorError> {
@@ -747,7 +747,7 @@ where
             binary_fn_with_out_simd(
                 self,
                 &max,
-                |a, max| a._eq(max).into_scalar()._mul(T::ONE),
+                |a, max| a._eq(max).cast()._mul(T::ONE),
                 |a, max| {
                     let one = T::Vec::splat(T::ONE);
                     a._eq(max).into_vec()._mul(one)

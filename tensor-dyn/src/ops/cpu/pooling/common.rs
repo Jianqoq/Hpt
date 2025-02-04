@@ -3,7 +3,7 @@ use tensor_common::{error::{base::TensorError, shape::ShapeError}, shape::shape:
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 
 use crate::{tensor_base::_Tensor, REGNUM};
-use tensor_types::{into_scalar::IntoScalar, traits::VecTrait};
+use tensor_types::{cast::Cast, traits::VecTrait};
 
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn pooling_template<T: CommonBounds>(
@@ -190,7 +190,7 @@ pub(crate) fn adaptive_pooling_template<T: CommonBounds>(
     vec_op: impl Fn(T::Vec, T::Vec) -> T::Vec + Send + Sync,
     post_scalar_op: impl Fn(T, T) -> T + Send + Sync,
     post_vec_op: impl Fn(T::Vec, T::Vec) -> T::Vec + Send + Sync,
-) -> std::result::Result<_Tensor<T>, TensorError> where i64: IntoScalar<T> {
+) -> std::result::Result<_Tensor<T>, TensorError> where i64: Cast<T> {
     let img_shape = img.shape();
     ShapeError::check_dim(4, img_shape.len())?;
     let batch = img_shape[0];
@@ -237,7 +237,7 @@ pub(crate) fn adaptive_pooling_template<T: CommonBounds>(
         let end_h = ((h + 1) * img_height + out_height - 1) / out_height as i64;
         let start_w = (w * img_width / out_width) as i64;
         let end_w = ((w + 1) * img_width + out_width - 1) / out_width as i64;
-        let kernel_size: T = ((end_h - start_h) * (end_w - start_w)).into_scalar();
+        let kernel_size: T = ((end_h - start_h) * (end_w - start_w)).cast();
         let kernel_size_vec = T::Vec::splat(kernel_size);
         for ii in (0..in_channels - in_channel_remain).step_by(IC_BLOCK_SIZE * T::Vec::SIZE) {
             let mut res_vecs = [T::Vec::splat(T::ZERO); IC_BLOCK_SIZE];

@@ -139,10 +139,10 @@ pub fn impl_simd_binary_out_float_lhs_scalar() -> TokenStream {
                     impl FloatOutBinary<#rhs_simd> for #lhs_dtype {
                         type Output = <#lhs_simd as FloatOutBinaryPromote<#rhs_simd>>::Output;
                         fn _div(self, rhs: #rhs_simd) -> Self::Output {
-                            Self::Output::splat(self.into_scalar()) / rhs
+                            Self::Output::splat(self.cast()) / rhs
                         }
                         fn _log(self, base: #rhs_simd) -> Self::Output {
-                            Self::Output::splat(self.into_scalar()).__log(base)
+                            Self::Output::splat(self.cast()).__log(base)
                         }
                     }
                 }
@@ -151,12 +151,12 @@ pub fn impl_simd_binary_out_float_lhs_scalar() -> TokenStream {
                     impl FloatOutBinary<#rhs_simd> for #lhs_dtype {
                         type Output = <#lhs_simd as FloatOutBinaryPromote<#rhs_simd>>::Output;
                         fn _div(self, rhs: #rhs_simd) -> Self::Output {
-                            let lhs: Self::Output = Self::Output::splat(self.into_scalar());
+                            let lhs: Self::Output = Self::Output::splat(self.cast());
                             let rhs: Self::Output = rhs.into_vec();
                             lhs / rhs
                         }
                         fn _log(self, base: #rhs_simd) -> Self::Output {
-                            let lhs: Self::Output = Self::Output::splat(self.into_scalar());
+                            let lhs: Self::Output = Self::Output::splat(self.cast());
                             let base: Self::Output = base.into_vec();
                             lhs.__log(base)
                         }
@@ -236,10 +236,10 @@ pub fn impl_simd_binary_out_float_rhs_scalar() -> TokenStream {
                     impl FloatOutBinary<#rhs_dtype> for #lhs_simd {
                         type Output = <#lhs_simd as FloatOutBinaryPromote<#rhs_simd>>::Output;
                         fn _div(self, rhs: #rhs_dtype) -> Self::Output {
-                            self / Self::Output::splat(rhs.into_scalar())
+                            self / Self::Output::splat(rhs.cast())
                         }
                         fn _log(self, base: #rhs_dtype) -> Self::Output {
-                            self.__log(Self::Output::splat(base.into_scalar()))
+                            self.__log(Self::Output::splat(base.cast()))
                         }
                     }
                 }
@@ -249,12 +249,12 @@ pub fn impl_simd_binary_out_float_rhs_scalar() -> TokenStream {
                         type Output = <#lhs_simd as FloatOutBinaryPromote<#rhs_simd>>::Output;
                         fn _div(self, rhs: #rhs_dtype) -> Self::Output {
                             let lhs: Self::Output = self.into_vec();
-                            let rhs: Self::Output = Self::Output::splat(rhs.into_scalar());
+                            let rhs: Self::Output = Self::Output::splat(rhs.cast());
                             lhs / rhs
                         }
                         fn _log(self, base: #rhs_dtype) -> Self::Output {
                             let lhs: Self::Output = self.into_vec();
-                            let base: Self::Output = Self::Output::splat(base.into_scalar());
+                            let base: Self::Output = Self::Output::splat(base.cast());
                             lhs.__log(base)
                         }
                     }

@@ -8,7 +8,7 @@ use tensor_types::cuda_types::scalar::Scalar;
 use tensor_types::dtype::Dtype::*;
 use tensor_types::{
     dtype::{FloatConst, TypeCommon},
-    into_scalar::IntoScalar,
+    cast::Cast,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 
@@ -17,7 +17,7 @@ type FBO<T> = <T as FloatOutBinary>::Output;
 
 impl<T, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID>
 where
-    f64: IntoScalar<FBO<T>>,
+    f64: Cast<FBO<T>>,
     T: CommonBounds + FloatOutBinary + DeviceRepr,
     FBO<T>: CommonBounds
         + FloatOutUnary<Output = FBO<T>>
@@ -30,8 +30,8 @@ where
     Simd<T>: NormalOut<Simd<T>, Output = Simd<T>>
         + FloatOutBinary<Simd<T>, Output = Simd<T>>
         + FloatOutUnary<Output = Simd<T>>,
-    usize: IntoScalar<FBO<T>>,
-    i64: IntoScalar<T>,
+    usize: Cast<FBO<T>>,
+    i64: Cast<T>,
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
     pub(crate) fn hamming_window(
@@ -40,8 +40,8 @@ where
     ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, TensorError> {
         Self::__hamming_window(
             window_length,
-            (0.54).into_scalar(),
-            (0.46).into_scalar(),
+            (0.54).cast(),
+            (0.46).cast(),
             periodic,
         )
     }
@@ -53,8 +53,8 @@ where
     ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, TensorError> {
         Self::__hamming_window(
             window_length,
-            (0.5).into_scalar(),
-            (0.5).into_scalar(),
+            (0.5).cast(),
+            (0.5).cast(),
             periodic,
         )
     }
@@ -71,7 +71,7 @@ where
         } else {
             window_length - 1
         }) as usize;
-        let length: FBO<T> = length_usize.into_scalar();
+        let length: FBO<T> = length_usize.cast();
         let ret = _Tensor::<FBO<T>, Cuda, DEVICE_ID>::empty(&[length_usize as i64])?;
         uary_fn_with_out_simd(
             &ret,
@@ -130,14 +130,14 @@ where
     ) -> std::result::Result<_Tensor<<T as FloatOutBinary>::Output, Cuda, DEVICE_ID>, TensorError>
     where
         T: FloatConst,
-        i64: IntoScalar<<T as FloatOutBinary>::Output>,
+        i64: Cast<<T as FloatOutBinary>::Output>,
     {
         let length_usize = if periodic {
             window_length
         } else {
             window_length - 1
         };
-        let length: <T as FloatOutBinary>::Output = length_usize.into_scalar();
+        let length: <T as FloatOutBinary>::Output = length_usize.cast();
         let ret =
             _Tensor::<<T as FloatOutBinary>::Output, Cuda, DEVICE_ID>::empty(&[length_usize])?;
         uary_fn_with_out_simd(

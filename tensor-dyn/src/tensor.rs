@@ -17,7 +17,7 @@ use tensor_dataloader::DataLoader;
 use tensor_display::display;
 use tensor_iterator::TensorIterator;
 use tensor_traits::tensor::{CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike};
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 
 /// `Tensor` is alias of N-dimensional array.
 ///
@@ -125,7 +125,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorAlloc for Tensor<T, Cpu, DEVICE
 
 impl<T, const DEVICE: usize> Display for Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + IntoScalar<f64>,
+    T: CommonBounds + Cast<f64>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
@@ -136,7 +136,7 @@ where
 
 impl<T, const DEVICE: usize> Debug for Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + IntoScalar<f64>,
+    T: CommonBounds + Cast<f64>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);

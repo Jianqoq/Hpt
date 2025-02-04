@@ -15,7 +15,7 @@ use tensor_cudakernels::CREATION;
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 use tensor_types::{
     convertion::{Convertor, FromScalar},
-    into_scalar::IntoScalar,
+    cast::Cast,
     type_promote::NormalOut,
 };
 
@@ -65,7 +65,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
 
     fn ones<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError>
     where
-        u8: IntoScalar<T>,
+        u8: Cast<T>,
     {
         Self::full(T::ONE, shape)
     }
@@ -80,7 +80,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
 
     fn ones_like(&self) -> std::result::Result<Self, TensorError>
     where
-        u8: IntoScalar<T>,
+        u8: Cast<T>,
     {
         Self::ones(self.shape())
     }
@@ -118,14 +118,14 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
     fn arange<U>(start: U, end: U) -> std::result::Result<Self, TensorError>
     where
         T: Convertor + FromScalar<U>,
-        usize: IntoScalar<T>,
-        U: Convertor + IntoScalar<T> + Copy,
+        usize: Cast<T>,
+        U: Convertor + Cast<T> + Copy,
     {
         let size = end.to_i64() - start.to_i64();
         if size <= 0 {
             return _Tensor::<T, Cuda, DEVICE_ID>::empty(Arc::new(vec![0]));
         }
-        let start: T = start.into_scalar();
+        let start: T = start.cast();
         let ret = Self::empty(Arc::new(vec![size]))?;
         let (arange_kernel, _) = load_ptx_and_get_data(
             "creation",
@@ -154,8 +154,8 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         let step_float = step.to_f64();
         let end_usize = end.to_i64();
         let start_usize = start.to_i64();
-        let start: T = start.into_scalar();
-        let step: T = step.into_scalar();
+        let start: T = start.cast();
+        let step: T = step.cast();
         let size = ((end_usize - start_usize) as usize) / (step_float.abs() as usize);
         if size <= 0 {
             return Self::empty(Arc::new(vec![0]));
@@ -189,7 +189,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
 
     fn eye(n: usize, m: usize, k: usize) -> std::result::Result<Self, TensorError>
     where
-        u8: IntoScalar<T>,
+        u8: Cast<T>,
     {
         let shape = vec![n as i64, m as i64];
         let ret = Self::empty(Arc::new(shape))?;
@@ -220,9 +220,9 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
     ) -> std::result::Result<Self, TensorError>
     where
         T: Convertor,
-        U: Convertor + IntoScalar<T> + Copy,
-        usize: IntoScalar<T>,
-        f64: IntoScalar<T>,
+        U: Convertor + Cast<T> + Copy,
+        usize: Cast<T>,
+        f64: Cast<T>,
     {
         let _start = start.to_f64();
         let _end = end.to_f64();
@@ -232,9 +232,9 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         } else {
             (_end - _start) / n
         };
-        let step_t: T = step.into_scalar();
-        let start_t: T = start.into_scalar();
-        let end_t: T = end.into_scalar();
+        let step_t: T = step.cast();
+        let start_t: T = start.cast();
+        let end_t: T = end.cast();
         let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(Arc::new(vec![num as i64]))?;
 
         let (linspace_kernel, reg_info) = load_ptx_and_get_data(
@@ -310,16 +310,16 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         include_end: bool,
     ) -> std::result::Result<Self, TensorError>
     where
-        f64: IntoScalar<T>,
-        usize: IntoScalar<T>,
+        f64: Cast<T>,
+        usize: Cast<T>,
     {
         let start_f64 = start.to_f64();
         let end_f64 = end.to_f64();
         let both_negative = start_f64 < 0.0 && end_f64 < 0.0;
         let (new_start, step) =
             geomspace_preprocess_start_step(start_f64, end_f64, n, include_end)?;
-        let start_t: T = new_start.into_scalar();
-        let step_t: T = step.into_scalar();
+        let start_t: T = new_start.cast();
+        let step_t: T = step.cast();
         let ret = Self::empty(Arc::new(vec![n as i64]))?;
         let (geomspace_kernel, reg_info) = load_ptx_and_get_data(
             "creation",
@@ -345,7 +345,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
 
     fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> std::result::Result<Self, TensorError>
     where
-        u8: IntoScalar<T>,
+        u8: Cast<T>,
     {
         let shape = vec![n as i64, m as i64];
         let ret = Self::empty(Arc::new(shape))?;
@@ -372,7 +372,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
 
     fn tril(&self, _: i64) -> std::result::Result<Self, TensorError>
     where
-        T: NormalOut<bool, Output = T> + IntoScalar<T>,
+        T: NormalOut<bool, Output = T> + Cast<T>,
         T::Vec: NormalOut<BoolVector, Output = T::Vec>,
     {
         unimplemented!()
@@ -380,7 +380,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
 
     fn triu(&self, _: i64) -> std::result::Result<Self, TensorError>
     where
-        T: NormalOut<bool, Output = T> + IntoScalar<T>,
+        T: NormalOut<bool, Output = T> + Cast<T>,
         T::Vec: NormalOut<BoolVector, Output = T::Vec>,
     {
         unimplemented!()
@@ -388,7 +388,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
 
     fn identity(n: usize) -> std::result::Result<Self, TensorError>
     where
-        u8: IntoScalar<T>,
+        u8: Cast<T>,
     {
         Self::eye(n, n, 0)
     }

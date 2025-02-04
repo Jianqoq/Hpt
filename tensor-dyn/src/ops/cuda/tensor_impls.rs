@@ -13,7 +13,7 @@ use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_traits::TensorCreator;
 use tensor_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
 use tensor_types::convertion::Convertor;
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 
 use super::cuda_utils::compute_kernel_launch_config;
 use super::unary::uary_fn_with_out_simd;
@@ -200,7 +200,7 @@ impl<T: CommonBounds, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
     pub fn astype<U>(&self) -> std::result::Result<_Tensor<U, Cuda, DEVICE_ID>, TensorError>
     where
         U: CommonBounds + DeviceRepr,
-        T: IntoScalar<U>,
+        T: Cast<U>,
     {
         let ret: _Tensor<U, Cuda, DEVICE_ID> =
             _Tensor::<U, Cuda, DEVICE_ID>::empty(self.layout.shape().clone())?;
@@ -216,7 +216,7 @@ impl<T: CommonBounds, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
     // pub fn try_astype<U>(&self) -> anyhow::Result<_Tensor<U, Cuda>>
     // where
     //     U: CommonBounds,
-    //     T: IntoScalar<U>,
+    //     T: Cast<U>,
     // {
     //     if U::ID == T::ID {
     //         Ok(self.static_cast()?)
@@ -346,7 +346,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> Tensor<T, Cuda, DEVIC
     pub fn astype<U>(&self) -> anyhow::Result<Tensor<U, Cuda, DEVICE_ID>>
     where
         U: CommonBounds + DeviceRepr,
-        T: IntoScalar<U>,
+        T: Cast<U>,
     {
         Ok(self.inner.astype()?.into())
     }
@@ -355,7 +355,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> Tensor<T, Cuda, DEVIC
     // pub fn try_astype<U>(&self) -> anyhow::Result<Tensor<U, Cuda>>
     // where
     //     U: CommonBounds,
-    //     T: IntoScalar<U>,
+    //     T: Cast<U>,
     // {
     //     Ok(self.inner.try_astype()?.into())
     // }

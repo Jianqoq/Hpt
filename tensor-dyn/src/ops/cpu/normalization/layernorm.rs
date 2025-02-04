@@ -14,7 +14,7 @@ use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 use tensor_types::dtype::TypeCommon;
 use tensor_types::type_promote::NormalOutUnary;
 use tensor_types::{
-    into_scalar::IntoScalar,
+    cast::Cast,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 
@@ -29,7 +29,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     ) -> std::result::Result<_Tensor<<T as FloatOutBinary>::Output, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds
-            + IntoScalar<<T as FloatOutBinary>::Output>
+            + Cast<<T as FloatOutBinary>::Output>
             + NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
         <T as FloatOutBinary>::Output: CommonBounds
             + NormalOut<T, Output = <T as FloatOutBinary>::Output>
@@ -38,7 +38,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
         <<T as FloatOutBinary>::Output as TypeCommon>::Vec:
             NormalOut<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>,
         S: Into<Shape>,
-        usize: IntoScalar<<T as FloatOutBinary>::Output>,
+        usize: Cast<<T as FloatOutBinary>::Output>,
     {
         let normalized_shape: Shape = normalized_shape.into();
         let mut axes = Vec::new();
@@ -126,7 +126,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
                         );
                     }
                     inp_ptr = inp_ptr_origin.clone();
-                    let mean = sum._div((inner_loop_size * inner_loop_size_2).into_scalar());
+                    let mean = sum._div((inner_loop_size * inner_loop_size_2).cast());
                     prg.copy_from_slice(&prg_cpy);
                     let mut var = <T as FloatOutBinary>::Output::ZERO;
                     for _ in 0..inner_loop_size_2 {
@@ -145,7 +145,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
                     }
                     inp_ptr = inp_ptr_origin.clone();
                     prg.copy_from_slice(&prg_cpy);
-                    var = var._div((inner_loop_size * inner_loop_size_2).into_scalar());
+                    var = var._div((inner_loop_size * inner_loop_size_2).cast());
                     for _ in 0..inner_loop_size_2 {
                         for i in 0..inner_loop_size as i64 {
                             let a_val = inp_ptr[i * inp_last_stride];
@@ -244,7 +244,7 @@ impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     ) -> Result<Tensor<<T as FloatOutBinary>::Output, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds
-            + IntoScalar<<T as FloatOutBinary>::Output>
+            + Cast<<T as FloatOutBinary>::Output>
             + NormalOut<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
         <T as FloatOutBinary>::Output: CommonBounds
             + NormalOut<T, Output = <T as FloatOutBinary>::Output>
@@ -253,7 +253,7 @@ impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
         <<T as FloatOutBinary>::Output as TypeCommon>::Vec:
             NormalOut<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>,
         S: Into<Shape>,
-        usize: IntoScalar<<T as FloatOutBinary>::Output>,
+        usize: Cast<<T as FloatOutBinary>::Output>,
     {
         Ok(self
             .inner

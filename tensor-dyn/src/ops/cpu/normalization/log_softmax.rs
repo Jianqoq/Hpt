@@ -21,7 +21,7 @@ use tensor_iterator::{iterator_traits::ParStridedIteratorZip, TensorIterator};
 use tensor_traits::{CommonBounds, TensorInfo, TensorLike};
 use tensor_types::{
     dtype::TypeCommon,
-    into_scalar::IntoScalar,
+    cast::Cast,
     into_vec::IntoVec,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
@@ -39,9 +39,9 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     ) -> Result<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds
-            + IntoScalar<<T as FloatOutUnary>::Output>
+            + Cast<<T as FloatOutUnary>::Output>
             + FloatOutUnary
-            + IntoScalar<<T as FloatOutUnary>::Output>,
+            + Cast<<T as FloatOutUnary>::Output>,
         <T as FloatOutUnary>::Output: CommonBounds
             + NormalOut<T, Output = <T as FloatOutUnary>::Output>
             + FloatOutUnary<Output = <T as FloatOutUnary>::Output>,
@@ -94,9 +94,9 @@ impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     ) -> Result<Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds
-            + IntoScalar<<T as FloatOutUnary>::Output>
+            + Cast<<T as FloatOutUnary>::Output>
             + FloatOutUnary
-            + IntoScalar<<T as FloatOutUnary>::Output>,
+            + Cast<<T as FloatOutUnary>::Output>,
         <T as FloatOutUnary>::Output: CommonBounds
             + NormalOut<T, Output = <T as FloatOutUnary>::Output>
             + FloatOutUnary<Output = <T as FloatOutUnary>::Output>,
@@ -138,13 +138,13 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
     ) -> Result<DiffTensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
     where
         T: CommonBounds
-            + IntoScalar<<T as FloatOutUnary>::Output>
+            + Cast<<T as FloatOutUnary>::Output>
             + FloatOutUnary
-            + IntoScalar<<T as FloatOutUnary>::Output>,
+            + Cast<<T as FloatOutUnary>::Output>,
         <T as FloatOutUnary>::Output: CommonBounds
             + NormalOut<T, Output = <T as FloatOutUnary>::Output>
             + FloatOutUnary<Output = <T as FloatOutUnary>::Output>
-            + IntoScalar<T>,
+            + Cast<T>,
         T::Vec: FloatOutUnary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>
             + IntoVec<<<T as FloatOutUnary>::Output as TypeCommon>::Vec>,
         <<T as FloatOutUnary>::Output as TypeCommon>::Vec: FloatOutBinary<Output = <<T as FloatOutUnary>::Output as TypeCommon>::Vec>
@@ -169,7 +169,7 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
                         .strided_map(|(res, ((r, gs), g))| {
                             let softmax = r._exp();
                             let grad = g._sub(softmax._mul(gs));
-                            *res = grad.into_scalar();
+                            *res = grad.cast();
                         })
                         .collect::<Tensor<T, Cpu, DEVICE>>();
                     handle_grad(&mut inp, grad, &[])?;
@@ -187,7 +187,7 @@ pub(crate) fn contiguous_log_softmax<T, O, const DEVICE: usize>(
     c: Option<_Tensor<O, Cpu, DEVICE>>,
 ) -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
 where
-    T: CommonBounds + IntoScalar<O> + FloatOutUnary<Output = O> + IntoScalar<O>,
+    T: CommonBounds + Cast<O> + FloatOutUnary<Output = O> + Cast<O>,
     O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
     T::Vec: FloatOutUnary<Output = O::Vec> + IntoVec<O::Vec>,
     O::Vec: FloatOutBinary<Output = O::Vec> + FloatOutUnary<Output = O::Vec>,
@@ -317,7 +317,7 @@ pub(crate) fn uncontiguous_log_softmax<T, O, const DEVICE: usize>(
     c: Option<_Tensor<O, Cpu, DEVICE>>,
 ) -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
 where
-    T: CommonBounds + IntoScalar<O> + FloatOutUnary<Output = O>,
+    T: CommonBounds + Cast<O> + FloatOutUnary<Output = O>,
     O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
     T::Vec: FloatOutUnary<Output = O::Vec>,
     O::Vec: FloatOutBinary<Output = O::Vec>,

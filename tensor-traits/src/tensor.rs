@@ -14,7 +14,7 @@ use tensor_types::arch_simd as simd;
 use tensor_types::std_simd as simd;
 use tensor_types::{
     dtype::TypeCommon,
-    into_scalar::IntoScalar,
+    cast::Cast,
     type_promote::{ FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary },
 };
 
@@ -166,7 +166,7 @@ pub trait TensorCreator<T> where Self: Sized {
     ///
     /// * This function may panic if the requested shape is invalid or too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn ones<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> where u8: IntoScalar<T>;
+    fn ones<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> where u8: Cast<T>;
 
     /// Creates a tensor with uninitialized elements, having the same shape as the input tensor.
     ///
@@ -220,7 +220,7 @@ pub trait TensorCreator<T> where Self: Sized {
     ///
     /// * This function may panic if the shape is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn ones_like(&self) -> Result<Self::Output, TensorError> where u8: IntoScalar<T>;
+    fn ones_like(&self) -> Result<Self::Output, TensorError> where u8: Cast<T>;
 
     /// Creates a tensor filled with a specified value, with the specified shape.
     ///
@@ -277,7 +277,7 @@ pub trait TensorCreator<T> where Self: Sized {
     /// * This function will panic if `start` is greater than or equal to `end`, or if the range is too large for available memory.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn arange<U>(start: U, end: U) -> Result<Self::Output, TensorError>
-        where usize: IntoScalar<T>, U: IntoScalar<i64> + IntoScalar<T> + Copy;
+        where usize: Cast<T>, U: Cast<i64> + Cast<T> + Copy;
 
     /// Creates a tensor with values within a specified range with a given step size.
     ///
@@ -299,7 +299,7 @@ pub trait TensorCreator<T> where Self: Sized {
     /// * This function will panic if `step` is zero or if the range and step values are incompatible.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn arange_step(start: T, end: T, step: T) -> Result<Self::Output, TensorError>
-        where T: IntoScalar<f64> + IntoScalar<usize>, usize: IntoScalar<T>;
+        where T: Cast<f64> + Cast<usize>, usize: Cast<T>;
 
     /// Creates a 2D identity matrix with ones on a diagonal and zeros elsewhere.
     ///
@@ -348,7 +348,7 @@ pub trait TensorCreator<T> where Self: Sized {
         include_end: bool
     )
         -> Result<Self::Output, TensorError>
-        where U: IntoScalar<f64> + IntoScalar<T> + Copy, usize: IntoScalar<T>, f64: IntoScalar<T>;
+        where U: Cast<f64> + Cast<T> + Copy, usize: Cast<T>, f64: Cast<T>;
 
     /// Creates a tensor with logarithmically spaced values between `start` and `end`.
     ///
@@ -380,9 +380,9 @@ pub trait TensorCreator<T> where Self: Sized {
     )
         -> Result<Self::Output, TensorError>
         where
-            T: IntoScalar<f64> + num::Float + NormalOut<T, Output = T>,
-            usize: IntoScalar<T>,
-            f64: IntoScalar<T>;
+            T: Cast<f64> + num::Float + NormalOut<T, Output = T>,
+            usize: Cast<T>,
+            f64: Cast<T>;
 
     /// Creates a tensor with geometrically spaced values between `start` and `end`.
     ///
@@ -405,7 +405,7 @@ pub trait TensorCreator<T> where Self: Sized {
     /// * This function will panic if `n` is zero, if `start` or `end` is negative, or if the values result in undefined behavior.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self::Output, TensorError>
-        where f64: IntoScalar<T>, usize: IntoScalar<T>, T: IntoScalar<f64>;
+        where f64: Cast<T>, usize: Cast<T>, T: Cast<f64>;
 
     /// Creates a 2D triangular matrix of size `n` by `m`, with ones below or on the `k`th diagonal and zeros elsewhere.
     ///
@@ -427,7 +427,7 @@ pub trait TensorCreator<T> where Self: Sized {
     /// * This function will panic if `n` or `m` is zero.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self::Output, TensorError>
-        where u8: IntoScalar<T>;
+        where u8: Cast<T>;
 
     /// Returns the lower triangular part of the matrix, with all elements above the `k`th diagonal set to zero.
     ///
@@ -447,7 +447,7 @@ pub trait TensorCreator<T> where Self: Sized {
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn tril(&self, k: i64) -> Result<Self::Output, TensorError>
         where
-            T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
+            T: NormalOut<bool, Output = T> + Cast<T> + TypeCommon,
             <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>;
 
     /// Returns the upper triangular part of the matrix, with all elements below the `k`th diagonal set to zero.
@@ -468,7 +468,7 @@ pub trait TensorCreator<T> where Self: Sized {
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn triu(&self, k: i64) -> Result<Self::Output, TensorError>
         where
-            T: NormalOut<bool, Output = T> + IntoScalar<T> + TypeCommon,
+            T: NormalOut<bool, Output = T> + Cast<T> + TypeCommon,
             <T as TypeCommon>::Vec: NormalOut<BoolVector, Output = <T as TypeCommon>::Vec>;
 
     /// Creates a 2D identity matrix of size `n` by `n`.
@@ -487,7 +487,7 @@ pub trait TensorCreator<T> where Self: Sized {
     ///
     /// * This function will panic if `n` is zero.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn identity(n: usize) -> Result<Self::Output, TensorError> where u8: IntoScalar<T>;
+    fn identity(n: usize) -> Result<Self::Output, TensorError> where u8: Cast<T>;
 }
 
 /// A trait for tensor memory allocation, this trait only used when we work with generic type
@@ -1008,7 +1008,7 @@ pub trait CommonBounds
             'static +
             Display +
             Debug +
-            IntoScalar<Self> +
+            Cast<Self> +
             NormalOut<Self, Output = Self> +
             FloatOutUnary +
             NormalOut<<Self as FloatOutUnary>::Output, Output = <Self as FloatOutUnary>::Output> +
@@ -1034,7 +1034,7 @@ impl<T> CommonBounds
             'static +
             Display +
             Debug +
-            IntoScalar<Self> +
+            Cast<Self> +
             NormalOut<Self, Output = Self> +
             FloatOutUnary +
             NormalOut<<Self as FloatOutUnary>::Output, Output = <Self as FloatOutUnary>::Output> +

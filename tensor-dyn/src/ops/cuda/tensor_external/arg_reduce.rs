@@ -4,11 +4,11 @@ use tensor_common::axis::Axis;
 use tensor_common::err_handler::TensorError;
 use tensor_traits::{CommonBounds, IndexReduce};
 use tensor_types::{
-    into_scalar::IntoScalar,
+    cast::Cast,
     type_promote::{Cmp, NormalOut},
 };
 impl<
-        T: CommonBounds + NormalOut<Output = T> + Cmp + DeviceRepr + CudaTypeName + IntoScalar<i64>,
+        T: CommonBounds + NormalOut<Output = T> + Cmp + DeviceRepr + CudaTypeName + Cast<i64>,
         const DEVICE_ID: usize,
     > IndexReduce for Tensor<T, Cuda, DEVICE_ID>
 {

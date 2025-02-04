@@ -17,7 +17,7 @@ use tensor_common::{
     shape::shape::Shape,
 };
 use tensor_traits::{ CommonBounds, TensorCreator, TensorInfo, TensorLike };
-use tensor_types::{ into_scalar::IntoScalar, type_promote::NormalOut };
+use tensor_types::{ cast::Cast, type_promote::NormalOut };
 
 impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, DEVICE> {
     type Output = _Tensor<T, Cpu, DEVICE>;
@@ -59,7 +59,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
         Self::full(T::ZERO, shape)
     }
 
-    fn ones<S: Into<Shape>>(shape: S) -> Result<Self, TensorError> where u8: IntoScalar<T> {
+    fn ones<S: Into<Shape>>(shape: S) -> Result<Self, TensorError> where u8: Cast<T> {
         Self::full(T::ONE, shape)
     }
 
@@ -71,7 +71,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
         Self::zeros(self.shape())
     }
 
-    fn ones_like(&self) -> Result<Self, TensorError> where u8: IntoScalar<T> {
+    fn ones_like(&self) -> Result<Self, TensorError> where u8: Cast<T> {
         Self::ones(self.shape())
     }
 
@@ -93,12 +93,12 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
     }
 
     fn arange<U>(start: U, end: U) -> Result<Self, TensorError>
-        where usize: IntoScalar<T>, U: IntoScalar<i64> + IntoScalar<T> + Copy
+        where usize: Cast<T>, U: Cast<i64> + Cast<T> + Copy
     {
-        let end_i64: i64 = end.into_scalar();
-        let start_i64: i64 = start.into_scalar();
+        let end_i64: i64 = end.cast();
+        let start_i64: i64 = start.cast();
         let size: i64 = end_i64 - start_i64;
-        let start: T = start.into_scalar();
+        let start: T = start.cast();
         if size <= 0 {
             return _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![0]));
         }
@@ -110,24 +110,24 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
             .into_par_iter()
             .enumerate()
             .for_each(|(i, x)| {
-                *x = start._add(i.into_scalar());
+                *x = start._add(i.cast());
             });
         Ok(data)
     }
 
     fn arange_step(start: T, end: T, step: T) -> Result<Self, TensorError>
-        where T: IntoScalar<f64> + IntoScalar<usize>, usize: IntoScalar<T>
+        where T: Cast<f64> + Cast<usize>, usize: Cast<T>
     {
-        let step_float: f64 = step.into_scalar();
-        let end_usize: usize = end.into_scalar();
-        let start_usize: usize = start.into_scalar();
+        let step_float: f64 = step.cast();
+        let end_usize: usize = end.cast();
+        let start_usize: usize = start.cast();
         let size = ((end_usize - start_usize) as usize) / (step_float.abs() as usize);
         let mut data = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![size as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
             .for_each(|(i, x)| {
-                *x = start._add(i.into_scalar()._mul(step));
+                *x = start._add(i.cast()._mul(step));
             });
         Ok(data)
     }
@@ -151,15 +151,15 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
     }
 
     fn linspace<U>(start: U, end: U, num: usize, include_end: bool) -> Result<Self, TensorError>
-        where U: IntoScalar<f64> + IntoScalar<T> + Copy, usize: IntoScalar<T>, f64: IntoScalar<T>
+        where U: Cast<f64> + Cast<T> + Copy, usize: Cast<T>, f64: Cast<T>
     {
-        let _start: f64 = start.into_scalar();
-        let _end: f64 = end.into_scalar();
+        let _start: f64 = start.cast();
+        let _end: f64 = end.cast();
         let n: f64 = num as f64;
         let step: f64 = if include_end { (_end - _start) / (n - 1.0) } else { (_end - _start) / n };
-        let step_t: T = step.into_scalar();
-        let start_t: T = start.into_scalar();
-        let end_t: T = end.into_scalar();
+        let step_t: T = step.cast();
+        let start_t: T = start.cast();
+        let end_t: T = end.cast();
         let mut data = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![n as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
@@ -168,7 +168,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
                 if include_end && i == num - 1 {
                     *x = end_t;
                 } else {
-                    *x = start_t._add(i.into_scalar()._mul(step_t));
+                    *x = start_t._add(i.cast()._mul(step_t));
                 }
             });
         Ok(data)
@@ -183,30 +183,30 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
     )
         -> Result<Self, TensorError>
         where
-            T: IntoScalar<f64> + num::Float + NormalOut<T, Output = T>,
-            usize: IntoScalar<T>,
-            f64: IntoScalar<T>
+            T: Cast<f64> + num::Float + NormalOut<T, Output = T>,
+            usize: Cast<T>,
+            f64: Cast<T>
     {
-        let _start: f64 = start.into_scalar();
-        let _end: f64 = end.into_scalar();
+        let _start: f64 = start.cast();
+        let _end: f64 = end.cast();
         let n: f64 = num as f64;
         let step: f64 = if include_end { (_end - _start) / (n - 1.0) } else { (_end - _start) / n };
-        let step_t: T = step.into_scalar();
+        let step_t: T = step.cast();
         let mut data = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![n as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
             .for_each(|(i, x)| {
-                *x = base._pow(start._add(i.into_scalar()._mul(step_t)));
+                *x = base._pow(start._add(i.cast()._mul(step_t)));
             });
         Ok(data)
     }
 
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self, TensorError>
-        where f64: IntoScalar<T>, usize: IntoScalar<T>, T: IntoScalar<f64>
+        where f64: Cast<T>, usize: Cast<T>, T: Cast<f64>
     {
-        let start_f64: f64 = start.into_scalar();
-        let end_f64: f64 = end.into_scalar();
+        let start_f64: f64 = start.cast();
+        let end_f64: f64 = end.cast();
         let both_negative = start_f64 < 0.0 && end_f64 < 0.0;
         let (new_start, step) = geomspace_preprocess_start_step(
             start_f64,
@@ -214,15 +214,15 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
             n,
             include_end
         )?;
-        let start_t: T = new_start.into_scalar();
-        let step_t: T = step.into_scalar();
+        let start_t: T = new_start.cast();
+        let step_t: T = step.cast();
         let mut data = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![n as i64]))?;
         if both_negative {
             data.as_raw_mut()
                 .into_par_iter()
                 .enumerate()
                 .for_each(|(i, x)| {
-                    let i: T = i.into_scalar();
+                    let i: T = i.cast();
                     let val: T = T::TEN._pow(start_t._add(i._mul(step_t)));
                     *x = val._neg();
                 });
@@ -231,7 +231,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
                 .into_par_iter()
                 .enumerate()
                 .for_each(|(i, x)| {
-                    let i: T = i.into_scalar();
+                    let i: T = i.cast();
                     let val: T = T::TEN._pow(start_t._add(i._mul(step_t)));
                     *x = val;
                 });
@@ -240,7 +240,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
     }
 
     fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self, TensorError>
-        where u8: IntoScalar<T>
+        where u8: Cast<T>
     {
         let shape = vec![n as i64, m as i64];
         let mut res = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(shape))?;
@@ -277,7 +277,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
 
     fn tril(&self, k: i64) -> Result<Self, TensorError>
         where
-            T: NormalOut<bool, Output = T> + IntoScalar<T>,
+            T: NormalOut<bool, Output = T> + Cast<T>,
             T::Vec: NormalOut<BoolVector, Output = T::Vec>
     {
         ShapeError::check_ndim_enough(2, self.shape().len())?;
@@ -293,7 +293,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
 
     fn triu(&self, k: i64) -> Result<Self, TensorError>
         where
-            T: NormalOut<bool, Output = T> + IntoScalar<T>,
+            T: NormalOut<bool, Output = T> + Cast<T>,
             T::Vec: NormalOut<BoolVector, Output = T::Vec>
     {
         ShapeError::check_ndim_enough(2, self.shape().len())?;
@@ -307,7 +307,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
         Ok(res)
     }
 
-    fn identity(n: usize) -> Result<Self, TensorError> where u8: IntoScalar<T> {
+    fn identity(n: usize) -> Result<Self, TensorError> where u8: Cast<T> {
         _Tensor::<T, Cpu, DEVICE>::eye(n, n, 0)
     }
 }

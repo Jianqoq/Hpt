@@ -1,4 +1,4 @@
-use crate::into_scalar::IntoScalar;
+use crate::cast::Cast;
 use crate::into_vec::IntoVec;
 #[cfg(any(
     all(not(target_feature = "avx2"), target_feature = "sse"),

@@ -6,7 +6,7 @@ use cudarc::{driver::DeviceRepr, types::CudaTypeName};
 use tensor_common::axis::Axis;
 use tensor_common::err_handler::TensorError;
 use tensor_traits::{CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce};
-use tensor_types::{into_scalar::IntoScalar, traits::SimdSelect, type_promote::Eval};
+use tensor_types::{cast::Cast, traits::SimdSelect, type_promote::Eval};
 
 impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> NormalReduce<T>
     for Tensor<T, Cuda, DEVICE_ID>
@@ -92,7 +92,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
 
 impl<T, const DEVICE_ID: usize> EvalReduce for Tensor<T, Cuda, DEVICE_ID>
 where
-    T: CommonBounds + Eval<Output = bool> + IntoScalar<bool> + DeviceRepr + CudaTypeName,
+    T: CommonBounds + Eval<Output = bool> + Cast<bool> + DeviceRepr + CudaTypeName,
 {
     type BoolOutput = Tensor<bool, Cuda, DEVICE_ID>;
     fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::BoolOutput, TensorError> {
@@ -106,7 +106,7 @@ where
 
 impl<T, const DEVICE_ID: usize> NormalEvalReduce<T> for Tensor<T, Cuda, DEVICE_ID>
 where
-    T: CommonBounds + Eval<Output = bool> + IntoScalar<bool> + DeviceRepr + CudaTypeName,
+    T: CommonBounds + Eval<Output = bool> + Cast<bool> + DeviceRepr + CudaTypeName,
     T::Vec: Eval,
     <T::Vec as Eval>::Output: SimdSelect<T::Vec> + Copy,
     <T::Vec as Eval>::Output: BitAnd<Output = <T::Vec as Eval>::Output>,

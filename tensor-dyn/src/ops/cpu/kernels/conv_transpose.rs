@@ -2,7 +2,7 @@ use crate::CommonBounds;
 use duplicate::duplicate_item;
 use tensor_common::Pointer;
 use tensor_macros::conv2d_microkernel_declare_const;
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 use tensor_types::traits::VecTrait;
 use tensor_types::type_promote::NormalOut;
 
@@ -98,7 +98,7 @@ pub(crate) fn template_function<T: CommonBounds>(
     inp: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec,
 ) where
-    bool: IntoScalar<T>,
+    bool: Cast<T>,
 {
     let Params {
         arg1: [oo, o_end],
@@ -169,7 +169,7 @@ pub(crate) fn template_function<T: CommonBounds>(
     inp: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec,
 ) where
-    bool: IntoScalar<T>,
+    bool: Cast<T>,
 {
     let PartialParams {
         arg1: [oo, o_end],
@@ -218,7 +218,7 @@ pub(crate) fn full_oc_kernel_dispatch<T: CommonBounds>(
     kb: &mut usize, // outwidth block size
 ) -> fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
 where
-    bool: IntoScalar<T>,
+    bool: Cast<T>,
 {
     let kernels = [
         [
@@ -271,7 +271,7 @@ pub(crate) fn remain_ic_kernel_dispatch<T: CommonBounds>(
     kb: &mut usize, // outwidth block size
 ) -> fn(PartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
 where
-    bool: IntoScalar<T>,
+    bool: Cast<T>,
 {
     let kernels = [
         micro_kernel_1_1,

@@ -7,7 +7,7 @@ use tensor_common::error::base::TensorError;
 use tensor_traits::{CommonBounds, TensorCreator, TensorLike, WindowOps};
 use tensor_types::{
     dtype::{FloatConst, TypeCommon},
-    into_scalar::IntoScalar,
+    cast::Cast,
     traits::VecTrait,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
@@ -19,7 +19,7 @@ type FBO<T> = <T as FloatOutBinary>::Output;
 
 impl<T, const DEVICE: usize> WindowOps for _Tensor<T, Cpu, DEVICE>
 where
-    f64: IntoScalar<FBO<T>>,
+    f64: Cast<FBO<T>>,
     T: CommonBounds + FloatOutBinary,
     FBO<T>: CommonBounds
         + FloatOutUnary<Output = FBO<T>>
@@ -31,8 +31,8 @@ where
     Simd<T>: NormalOut<Simd<T>, Output = Simd<T>>
         + FloatOutBinary<Simd<T>, Output = Simd<T>>
         + FloatOutUnary<Output = Simd<T>>,
-    usize: IntoScalar<FBO<T>>,
-    i64: IntoScalar<T>,
+    usize: Cast<FBO<T>>,
+    i64: Cast<T>,
 {
     type Output = _Tensor<FBO<T>, Cpu, DEVICE>;
     type Meta = T;
@@ -41,8 +41,8 @@ where
     fn hamming_window(window_length: i64, periodic: bool) -> Result<Self::Output, TensorError> {
         __hamming_window(
             window_length,
-            (0.54).into_scalar(),
-            (0.46).into_scalar(),
+            (0.54).cast(),
+            (0.46).cast(),
             periodic,
         )
     }
@@ -51,8 +51,8 @@ where
     fn hann_window(window_length: i64, periodic: bool) -> Result<Self::Output, TensorError> {
         __hamming_window(
             window_length,
-            (0.5).into_scalar(),
-            (0.5).into_scalar(),
+            (0.5).cast(),
+            (0.5).cast(),
             periodic,
         )
     }
@@ -61,24 +61,24 @@ where
     fn blackman_window(window_length: i64, periodic: bool) -> Result<Self::Output, TensorError>
     where
         Self::Meta: FloatConst,
-        i64: IntoScalar<<Self::Meta as FloatOutBinary>::Output>,
+        i64: Cast<<Self::Meta as FloatOutBinary>::Output>,
     {
-        let a0: <T as FloatOutBinary>::Output = (0.42).into_scalar();
-        let a1: <T as FloatOutBinary>::Output = (0.5).into_scalar();
-        let a2: <T as FloatOutBinary>::Output = (0.08).into_scalar();
+        let a0: <T as FloatOutBinary>::Output = (0.42).cast();
+        let a1: <T as FloatOutBinary>::Output = (0.5).cast();
+        let a2: <T as FloatOutBinary>::Output = (0.08).cast();
         let length_usize = if periodic {
             window_length
         } else {
             window_length - 1
         };
-        let length: <T as FloatOutBinary>::Output = length_usize.into_scalar();
+        let length: <T as FloatOutBinary>::Output = length_usize.cast();
         let mut ret =
             _Tensor::<<T as FloatOutBinary>::Output, Cpu, DEVICE>::empty(&[length_usize])?;
         ret.as_raw_mut()
             .par_iter_mut()
             .enumerate()
             .for_each(|(idx, x)| {
-                let idx: <T as FloatOutBinary>::Output = idx.into_scalar();
+                let idx: <T as FloatOutBinary>::Output = idx.cast();
                 let a = a1._mul(T::TWOPI._mul(idx)._div(length)._cos());
                 let b = a2._mul(T::FOURPI._mul(idx)._div(length)._cos());
                 *x = a0._sub(a)._add(b);
@@ -95,7 +95,7 @@ fn __hamming_window<T, const DEVICE: usize>(
     periodic: bool,
 ) -> Result<_Tensor<FBO<T>, Cpu, DEVICE>, TensorError>
 where
-    f64: IntoScalar<FBO<T>>,
+    f64: Cast<FBO<T>>,
     T: CommonBounds + FloatOutBinary,
     FBO<T>: CommonBounds
         + FloatOutUnary<Output = FBO<T>>
@@ -107,15 +107,15 @@ where
     Simd<T>: NormalOut<Simd<T>, Output = Simd<T>>
         + FloatOutBinary<Simd<T>, Output = Simd<T>>
         + FloatOutUnary<Output = Simd<T>>,
-    usize: IntoScalar<FBO<T>>,
-    i64: IntoScalar<T>,
+    usize: Cast<FBO<T>>,
+    i64: Cast<T>,
 {
     let length_usize = (if periodic {
         window_length
     } else {
         window_length - 1
     }) as usize;
-    let length: FBO<T> = length_usize.into_scalar();
+    let length: FBO<T> = length_usize.cast();
     let mut ret = _Tensor::<FBO<T>, Cpu, DEVICE>::empty(&[length_usize as i64])?;
     let mut chunk_exact = ret.as_raw_mut().par_chunks_exact_mut(Simd::<T>::SIZE);
     let two_pi = Simd::<T>::splat(FBO::<T>::TWOPI);
@@ -124,7 +124,7 @@ where
     let beta_vec = Simd::<T>::splat(-beta);
     let remainder = chunk_exact.remainder();
     remainder.iter_mut().enumerate().for_each(|(idx, x)| {
-        let idx: FBO<T> = idx.into_scalar();
+        let idx: FBO<T> = idx.cast();
         *x = idx
             ._mul(FBO::<T>::TWOPI._div(length))
             ._cos()
@@ -134,7 +134,7 @@ where
         let idx = x * Simd::<T>::SIZE;
         let mut idxes = Simd::<T>::splat(FBO::<T>::ZERO);
         for i in 0..Simd::<T>::SIZE {
-            idxes[i] = (idx + i).into_scalar();
+            idxes[i] = (idx + i).cast();
         }
         let ptr = vec as *mut _ as *mut Simd<T>;
 

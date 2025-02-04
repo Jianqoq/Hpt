@@ -6,23 +6,18 @@ use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::{ CommonBounds, TensorInfo };
 use tensor_dyn::{ Tensor, TensorCreator };
-use tensor_types::convertion::{ Convertor, FromScalar };
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 use tensor_types::type_promote::NormalOut;
 
 use super::assert_utils::assert_f64;
 
-fn common_input<T>([batch, in_channel, kernel_height, kernel_width, height, width]: [i64; 6])
-    -> anyhow::Result<(Tensor<T>, Tensor<T>, tch::Tensor, tch::Tensor)>
-    where
-        T: Convertor + FromScalar<i64> + NormalOut<T, Output = T> + CommonBounds,
-        usize: IntoScalar<T>,
-        i64: IntoScalar<T>
+fn common_input([batch, in_channel, kernel_height, kernel_width, height, width]: [i64; 6])
+    -> anyhow::Result<(Tensor<i64>, Tensor<i64>, tch::Tensor, tch::Tensor)>
 {
-    let kernel = Tensor::<T>
+    let kernel = Tensor::<i64>
         ::arange(0, kernel_height * kernel_width)?
         .reshape([kernel_height, kernel_width])?;
-    let a = Tensor::<T>
+    let a = Tensor::<i64>
         ::arange(0, batch * in_channel * height * width)?
         .reshape([batch, in_channel, height, width])?
         .permute([0, 2, 3, 1])?
@@ -39,8 +34,8 @@ fn common_input<T>([batch, in_channel, kernel_height, kernel_width, height, widt
 
 #[track_caller]
 fn assert_eq(
-    a: &Tensor<f64>,
-    a_kernel: &Tensor<f64>,
+    a: &Tensor<i64>,
+    a_kernel: &Tensor<i64>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
@@ -58,20 +53,20 @@ fn assert_eq(
         .contiguous()?;
     let tch_res = b.max_pool2d(&b_kernel.size(), &[1, 1], &[0, 0], [1, 1], false);
     let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f64, res.size()) };
+    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const i64, res.size()) };
     res_slice
         .iter()
         .zip(res2.iter())
         .for_each(|(a, b)| {
-            assert_f64(*a, *b, 0.05, &res, &tch_res);
+            assert_eq!(*a, *b);
         });
     Ok(())
 }
 
 #[track_caller]
 fn assert_eq_pad(
-    a: &Tensor<f64>,
-    a_kernel: &Tensor<f64>,
+    a: &Tensor<i64>,
+    a_kernel: &Tensor<i64>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
@@ -89,12 +84,12 @@ fn assert_eq_pad(
         .contiguous()?;
     let tch_res = b.max_pool2d(&b_kernel.size(), &[1, 1], &[2, 2], [1, 1], false);
     let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f64, res.size()) };
+    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const i64, res.size()) };
     res_slice
         .iter()
         .zip(res2.iter())
         .for_each(|(a, b)| {
-            assert_f64(*a, *b, 0.05, &res, &tch_res);
+            assert_eq!(*a, *b);
         });
     Ok(())
 }

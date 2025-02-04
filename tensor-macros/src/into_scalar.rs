@@ -34,8 +34,8 @@ pub(crate) fn __impl_into_scalar() -> TokenStream {
             let into_method =
                 syn::Ident::new(&format!("to_{}", rhs), proc_macro2::Span::call_site());
             ret.extend(quote::quote! {
-                impl IntoScalar<#rhs_dtype> for #lhs_dtype {
-                    fn into_scalar(self) -> #rhs_dtype {
+                impl Cast<#rhs_dtype> for #lhs_dtype {
+                    fn cast(self) -> #rhs_dtype {
                         self.#into_method()
                     }
                 }

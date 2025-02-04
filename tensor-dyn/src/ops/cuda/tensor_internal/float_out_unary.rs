@@ -9,7 +9,7 @@ use cudarc::driver::DeviceRepr;
 use tensor_common::err_handler::TensorError;
 use tensor_traits::{CommonBounds, FloatUnaryOps};
 use tensor_types::cuda_types::scalar::Scalar;
-use tensor_types::{dtype::TypeCommon, into_scalar::IntoScalar, type_promote::FloatOutUnary};
+use tensor_types::{dtype::TypeCommon, cast::Cast, type_promote::FloatOutUnary};
 
 pub(crate) type FloatUnaryType<T> = <T as FloatOutUnary>::Output;
 
@@ -17,7 +17,7 @@ impl<T, const DEVICE_ID: usize> FloatUnaryOps for _Tensor<T, Cuda, DEVICE_ID>
 where
     T: FloatOutUnary<Base = FloatUnaryType<T>> + CommonBounds + DeviceRepr,
     FloatUnaryType<T>: CommonBounds + DeviceRepr,
-    f64: IntoScalar<<T as FloatOutUnary>::Output>,
+    f64: Cast<<T as FloatOutUnary>::Output>,
     T::Vec:
         FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec, Base = FloatUnaryType<T>>,
     Scalar<T>: FloatOutUnary<Output = Scalar<FloatUnaryType<T>>, Base = Scalar<FloatUnaryType<T>>>,
@@ -549,11 +549,11 @@ where
         let gamma = gamma.into();
         let alpha = Scalar::new(format!(
             "{}",
-            alpha.unwrap_or((1.6732632423543772848170429916717).into_scalar())
+            alpha.unwrap_or((1.6732632423543772848170429916717).cast())
         ));
         let gamma = Scalar::new(format!(
             "{}",
-            gamma.unwrap_or((1.0507009873554804934193349852946).into_scalar())
+            gamma.unwrap_or((1.0507009873554804934193349852946).cast())
         ));
         uary_fn_with_out_simd(
             self,
@@ -574,11 +574,11 @@ where
     {
         let alpha = Scalar::new(format!(
             "{}",
-            alpha.unwrap_or((1.6732632423543772848170429916717).into_scalar())
+            alpha.unwrap_or((1.6732632423543772848170429916717).cast())
         ));
         let gamma = Scalar::new(format!(
             "{}",
-            gamma.unwrap_or((1.0507009873554804934193349852946).into_scalar())
+            gamma.unwrap_or((1.0507009873554804934193349852946).cast())
         ));
         uary_fn_with_out_simd(
             self,

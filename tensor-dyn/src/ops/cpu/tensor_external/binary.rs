@@ -4,7 +4,7 @@ use crate::{tensor::Tensor, tensor_base::_Tensor};
 use std::borrow::Borrow;
 use tensor_traits::{ops::binary::NormalBinOps, tensor::CommonBounds};
 use tensor_types::dtype::TypeCommon;
-use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOut};
+use tensor_types::{cast::Cast, type_promote::NormalOut};
 use tensor_common::error::base::TensorError;
 
 /// a type alias for the output type of the binary operations of `A` and `B`
@@ -22,7 +22,7 @@ macro_rules! impl_bin_ops {
         A: CommonBounds + NormalOut<B>,
         B: CommonBounds,
         <A as NormalOut<B>>::Output: CommonBounds,
-        <A as NormalOut<B>>::Output: IntoScalar<<A as NormalOut<B>>::Output>,
+        <A as NormalOut<B>>::Output: Cast<<A as NormalOut<B>>::Output>,
         A::Vec: NormalOut<B::Vec, Output = <<A as NormalOut<B>>::Output as TypeCommon>::Vec>,
     {
         type Output = $output<NormalType<A, B>, Cpu, DEVICE>;
@@ -90,7 +90,7 @@ macro_rules! impl_bin_ops_basic {
         A: CommonBounds + NormalOut<B>,
         B: CommonBounds,
         <A as NormalOut<B>>::Output: CommonBounds,
-        <A as NormalOut<B>>::Output: IntoScalar<<A as NormalOut<B>>::Output>,
+        <A as NormalOut<B>>::Output: Cast<<A as NormalOut<B>>::Output>,
         A::Vec: NormalOut<B::Vec, Output = <<A as NormalOut<B>>::Output as TypeCommon>::Vec>,
     {
         type Output = Tensor<NormalType<A, B>, Cpu, DEVICE>;

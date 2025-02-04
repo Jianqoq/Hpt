@@ -8,7 +8,7 @@ use tensor_common::{
     utils::pointer::Pointer,
 };
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo};
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 
 use crate::{
     backend::Cpu, ops::cpu::utils::reduce::reduce_utils::rearrange_array, tensor_base::_Tensor,
@@ -271,7 +271,7 @@ pub(crate) fn contiguous_normalize_template<T, F1, F2, F3, O, const DEVICE: usiz
     kd: F3,
 ) -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
 where
-    T: CommonBounds + IntoScalar<O>,
+    T: CommonBounds + Cast<O>,
     O: CommonBounds,
     F1: Fn(&mut O),
     F2: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
@@ -332,7 +332,7 @@ pub(crate) fn uncontiguous_normalize_template<T, F1, F2, F3, O, const DEVICE: us
     kd: F3,
 ) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
 where
-    T: CommonBounds + IntoScalar<O>,
+    T: CommonBounds + Cast<O>,
     O: CommonBounds,
     F1: Fn(&mut O),
     F2: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),

@@ -1,6 +1,6 @@
 use tensor_common::error::base::TensorError;
 use tensor_traits::{CommonBounds, NormalReduce};
-use tensor_types::into_scalar::IntoScalar;
+use tensor_types::cast::Cast;
 
 use crate::{tensor::DiffTensor, Cpu, Tensor};
 
@@ -10,7 +10,7 @@ pub(crate) fn handle_grad<T, const DEVICE: usize>(
     broadcast_axes: &[usize],
 ) -> Result<(), TensorError>
 where
-    T: CommonBounds + IntoScalar<T>,
+    T: CommonBounds + Cast<T>,
 {
     if !broadcast_axes.is_empty() {
         grad = grad.sum(broadcast_axes, false)?;

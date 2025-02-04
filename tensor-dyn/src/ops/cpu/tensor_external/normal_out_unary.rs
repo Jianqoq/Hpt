@@ -5,11 +5,11 @@ use crate::{
 };
 use tensor_common::error::base::TensorError;
 use tensor_traits::{CommonBounds, NormalUaryOps, TensorLike};
-use tensor_types::{into_scalar::IntoScalar, type_promote::NormalOutUnary};
+use tensor_types::{cast::Cast, type_promote::NormalOutUnary};
 
 impl<T, const DEVICE: usize> NormalUaryOps for Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + IntoScalar<T>,
+    T: CommonBounds + Cast<T>,
     NormalType<T>: CommonBounds,
     T::Vec: NormalOutUnary,
     T: NormalOutUnary,
