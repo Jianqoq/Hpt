@@ -41,10 +41,6 @@ memmap2 = "0.9.0"
 sysinfo = "0.33.1"
 base64 = "0.22.1"
 
-[[test]]
-name = "tensor-tests"
-path = "tensor-tests"
-
 [[bin]]
 name = "etensor"
 path = "src/main.rs"
