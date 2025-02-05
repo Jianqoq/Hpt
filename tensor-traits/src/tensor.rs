@@ -14,7 +14,7 @@ use tensor_types::arch_simd as simd;
 use tensor_types::std_simd as simd;
 use tensor_types::{
     dtype::TypeCommon,
-    cast::Cast,
+    into_scalar::Cast,
     type_promote::{ FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary },
 };
 

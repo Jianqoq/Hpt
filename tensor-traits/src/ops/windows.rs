@@ -1,5 +1,5 @@
 use tensor_common::error::base::TensorError;
-use tensor_types::{dtype::FloatConst, cast::Cast, type_promote::FloatOutBinary};
+use tensor_types::{dtype::FloatConst, into_scalar::Cast, type_promote::FloatOutBinary};
 
 /// A trait contains window operations
 pub trait WindowOps {
@@ -67,10 +67,8 @@ pub trait WindowOps {
     /// # Returns
     ///
     /// This function returns a `Result` containing a tensor of type `<T as FloatOutBinary>::Output`
-    fn blackman_window(
-        window_length: i64,
-        periodic: bool
-    )
-        -> Result<Self::Output, TensorError>
-        where Self::Meta: FloatConst, i64: Cast<<Self::Meta as FloatOutBinary>::Output>;
+    fn blackman_window(window_length: i64, periodic: bool) -> Result<Self::Output, TensorError>
+    where
+        Self::Meta: FloatConst,
+        i64: Cast<<Self::Meta as FloatOutBinary>::Output>;
 }

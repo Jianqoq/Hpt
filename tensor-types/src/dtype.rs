@@ -1,15 +1,14 @@
 #[cfg(target_feature = "avx512f")]
 use crate::vectors::_512bit::*;
 use crate::{
-    convertion::VecConvertor,
     into_vec::IntoVec,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary},
     vectors::traits::VecTrait,
 };
 use core::f32;
 use half::{bf16, f16};
-use std::fmt::{Debug, Display};
 use serde::{Deserialize, Serialize};
+use std::fmt::{Debug, Display};
 
 /// enum for data type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -123,7 +122,7 @@ where
         + FloatOutBinary<
             <Self::Vec as FloatOutUnary>::Output,
             Output = <Self::Vec as FloatOutUnary>::Output,
-        > + VecConvertor;
+        >;
 }
 
 macro_rules! impl_type_common {

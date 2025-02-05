@@ -1,6 +1,6 @@
 use rand_distr::uniform::SampleUniform;
 use tensor_common::{error::base::TensorError, shape::shape::Shape};
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 
 /// A trait for generating random numbers.
 pub trait Random where Self: Sized {

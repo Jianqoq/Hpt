@@ -42,6 +42,7 @@ mod normal_out;
 mod normal_out_unary;
 mod scalar_convert;
 mod simd_bitwise;
+
 mod simd_cmp;
 mod simd_convert;
 mod simd_eval;

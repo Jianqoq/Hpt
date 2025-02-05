@@ -1,7 +1,6 @@
 use half::bf16;
 use half::f16;
 use num_complex::{Complex32, Complex64};
-use tensor_macros::impl_from_scalar;
 use tensor_macros::impl_scalar_convert;
 #[cfg(feature = "stdsimd")]
 use tensor_macros::impl_simd_convert;
