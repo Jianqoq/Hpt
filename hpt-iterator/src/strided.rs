@@ -5,17 +5,16 @@ use crate::{
     },
     shape_manipulate::{expand, reshape, transpose},
 };
-use std::sync::Arc;
 use hpt_common::{
     axis::axis::Axis, layout::layout::Layout, shape::shape::Shape,
     shape::shape_utils::try_pad_shape, strides::strides::Strides,
     strides::strides_utils::preprocess_strides, utils::pointer::Pointer,
 };
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
+use std::sync::Arc;
 
 /// A module for single-threaded strided simd iterator.
 pub mod strided_simd {
-    use std::sync::Arc;
     use hpt_common::{
         axis::axis::Axis, layout::layout::Layout, shape::shape::Shape,
         shape::shape_utils::try_pad_shape, strides::strides::Strides,
@@ -24,6 +23,7 @@ pub mod strided_simd {
     use hpt_traits::{CommonBounds, TensorInfo};
     use hpt_types::dtype::TypeCommon;
     use hpt_types::vectors::traits::VecTrait;
+    use std::sync::Arc;
 
     use crate::iterator_traits::{
         IterGetSetSimd, ShapeManipulator, StridedIteratorMap, StridedIteratorSimd,

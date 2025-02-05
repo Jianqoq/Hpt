@@ -1,13 +1,13 @@
 use crate::benchmarks::unary::float_cmp::assert_eq;
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
-use std::time::Duration;
-use tch::{Device, Kind, Tensor as TchTensor};
 use hpt_core::FloatUnaryOps;
 use hpt_core::NormalUaryOps;
 use hpt_core::TensorCreator;
 use hpt_core::TensorInfo;
 use hpt_core::TensorLike;
 use hpt_core::{Random, Tensor};
+use std::time::Duration;
+use tch::{Device, Kind, Tensor as TchTensor};
 
 macro_rules! unary_bench_mark {
     (

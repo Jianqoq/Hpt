@@ -1,10 +1,10 @@
-use std::borrow::Borrow;
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, NormalUaryOps, TensorLike};
 use hpt_types::{
     traits::VecTrait,
     type_promote::{NormalOut, NormalOutUnary},
 };
+use std::borrow::Borrow;
 
 use crate::{ops::cpu::utils::unary::unary::unary_fn_with_out, tensor_base::_Tensor, Cpu};
 

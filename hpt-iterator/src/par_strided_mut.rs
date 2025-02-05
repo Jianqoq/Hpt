@@ -3,13 +3,13 @@ use crate::{
     par_strided::ParStrided,
     shape_manipulate::{par_expand, par_reshape, par_transpose},
 };
+use hpt_common::shape::shape::Shape;
+use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use rayon::iter::{
     plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
     ParallelIterator,
 };
 use std::sync::Arc;
-use hpt_common::shape::shape::Shape;
-use hpt_traits::tensor::{CommonBounds, TensorInfo};
 
 /// A module for parallel mutable strided iterator.
 pub mod par_strided_map_mut_simd {
@@ -17,15 +17,15 @@ pub mod par_strided_map_mut_simd {
         iterator_traits::{IterGetSetSimd, ParStridedIteratorSimd, ParStridedIteratorSimdZip},
         par_strided::par_strided_simd::ParStridedSimd,
     };
+    use hpt_common::{shape::shape::Shape, utils::pointer::Pointer, utils::simd_ref::MutVec};
+    use hpt_traits::{CommonBounds, TensorInfo};
+    use hpt_types::dtype::TypeCommon;
+    use hpt_types::traits::VecTrait;
     use rayon::iter::{
         plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
         ParallelIterator,
     };
     use std::sync::Arc;
-    use hpt_common::{shape::shape::Shape, utils::pointer::Pointer, utils::simd_ref::MutVec};
-    use hpt_traits::{CommonBounds, TensorInfo};
-    use hpt_types::dtype::TypeCommon;
-    use hpt_types::traits::VecTrait;
     /// A parallel mutable SIMD-optimized strided iterator over tensor elements.
     ///
     /// This struct provides mutable access to tensor elements with strided access patterns optimized

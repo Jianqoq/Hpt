@@ -4,10 +4,10 @@ use cudarc::{
     driver::{CudaDevice, CudaFunction, LaunchConfig},
     nvrtc::{compile_ptx_with_opts, CompileOptions},
 };
-use regex::Regex;
 use hpt_common::err_handler::TensorError;
 use hpt_cudakernels::RegisterInfo;
 use hpt_types::dtype::TypeCommon;
+use regex::Regex;
 
 use crate::{cuda_compiled::CUDA_COMPILED, tensor_base::_Tensor, Cuda};
 

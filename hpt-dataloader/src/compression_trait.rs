@@ -1,10 +1,10 @@
 use std::{collections::HashMap, io::Write};
 
-use num::traits::{FromBytes, ToBytes};
-use serde::{Deserialize, Serialize};
 use hpt_common::{shape::shape::Shape, slice::Slice, strides::strides::Strides};
 use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
 use hpt_types::dtype::Dtype;
+use num::traits::{FromBytes, ToBytes};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     data_loader::{Endian, HeaderInfo},

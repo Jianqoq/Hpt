@@ -1,5 +1,4 @@
 #![allow(unused_imports)]
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use hpt_common::slice;
 use hpt_common::slice::Slice;
 use hpt_core::Cuda;
@@ -8,6 +7,7 @@ use hpt_core::TensorInfo;
 use hpt_core::TensorLike;
 use hpt_core::{Tensor, TensorCreator};
 use hpt_macros::match_selection;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 #[allow(unused)]
 fn assert_eq(b: &Tensor<f64>, a: &tch::Tensor) {

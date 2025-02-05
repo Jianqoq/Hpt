@@ -1,11 +1,11 @@
+use hpt_common::{shape::shape::Shape, strides::strides::Strides};
+use hpt_traits::tensor::CommonBounds;
 use par_strided_zip_simd::ParStridedZipSimd;
 use rayon::iter::{
     plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
     ParallelIterator,
 };
 use std::sync::Arc;
-use hpt_common::{shape::shape::Shape, strides::strides::Strides};
-use hpt_traits::tensor::CommonBounds;
 
 use crate::{
     iterator_traits::{IterGetSet, IterGetSetSimd, ParStridedIteratorZip, ShapeManipulator},
@@ -16,12 +16,12 @@ use crate::{
 pub mod par_strided_zip_simd {
     use std::sync::Arc;
 
+    use hpt_common::{shape::shape::Shape, strides::strides::Strides, utils::simd_ref::MutVec};
+    use hpt_traits::CommonBounds;
     use rayon::iter::{
         plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
         ParallelIterator,
     };
-    use hpt_common::{shape::shape::Shape, strides::strides::Strides, utils::simd_ref::MutVec};
-    use hpt_traits::CommonBounds;
 
     use crate::{
         iterator_traits::{

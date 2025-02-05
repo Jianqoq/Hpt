@@ -4,11 +4,11 @@ use crate::{
     tensor::{DiffTensor, Tensor},
     Cpu,
 };
-use num::Integer;
-use rayon::iter::ParallelIterator;
 use hpt_common::{error::base::TensorError, slice::Slice};
 use hpt_iterator::{iterator_traits::ParStridedIteratorZip, TensorIterator};
 use hpt_traits::{CommonBounds, TensorCreator};
+use num::Integer;
+use rayon::iter::ParallelIterator;
 impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds,

@@ -3,14 +3,14 @@ use core::f64;
 
 use backend::Cpu;
 use duplicate::duplicate_item;
+use hpt_common::slice;
+use hpt_common::slice::Slice;
+use hpt_core::*;
 use rand::Rng;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
 use tch::Tensor;
-use hpt_common::slice;
-use hpt_common::slice::Slice;
-use hpt_core::*;
 
 #[track_caller]
 fn assert_eq(a: &hpt_core::tensor::Tensor<i64>, b: &Tensor) {

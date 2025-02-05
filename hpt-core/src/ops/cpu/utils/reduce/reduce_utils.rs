@@ -1,6 +1,5 @@
 use std::borrow::BorrowMut;
 
-use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use hpt_common::{
     error::{base::TensorError, shape::ShapeError},
     shape::shape::Shape,
@@ -9,6 +8,7 @@ use hpt_common::{
     utils::pointer::Pointer,
 };
 use hpt_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike};
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::{backend::Cpu, tensor_base::_Tensor};
 

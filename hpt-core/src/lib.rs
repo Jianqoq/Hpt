@@ -261,8 +261,6 @@ pub use hpt_types::dtype::Dtype;
 
 pub use crate::backend::*;
 pub use flate2;
-pub use serde;
-pub use tensor::Tensor;
 #[cfg(feature = "codegen")]
 pub use hpt_codegen::compile;
 #[cfg(feature = "codegen")]
@@ -286,6 +284,8 @@ pub use hpt_types::type_promote::{
     NormalOut, NormalOutPromote, NormalOutUnary,
 };
 pub use hpt_types::vectors::*;
+pub use serde;
+pub use tensor::Tensor;
 
 use std::{cell::RefCell, sync::atomic::AtomicUsize};
 thread_local! {
@@ -337,8 +337,8 @@ pub(crate) mod cuda_compiled {
         sync::{Arc, Mutex},
     };
 
-    use once_cell::sync::Lazy;
     use hpt_cudakernels::RegisterInfo;
+    use once_cell::sync::Lazy;
 
     pub(crate) static CUDA_COMPILED: Lazy<
         Mutex<HashMap<usize, HashMap<String, Arc<HashMap<String, RegisterInfo>>>>>,

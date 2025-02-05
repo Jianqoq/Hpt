@@ -1,5 +1,9 @@
 use anyhow::Ok;
 use anyhow::Result;
+use hpt_traits::CommonBounds;
+use hpt_traits::TensorCreator;
+use hpt_traits::TensorInfo;
+use hpt_types::dtype::Dtype;
 use num::traits::FromBytes;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -9,10 +13,6 @@ use std::{
     fs::File,
     io::{Read, Seek},
 };
-use hpt_traits::CommonBounds;
-use hpt_traits::TensorCreator;
-use hpt_traits::TensorInfo;
-use hpt_types::dtype::Dtype;
 
 use crate::struct_save::load::load;
 use crate::struct_save::load::MetaLoad;

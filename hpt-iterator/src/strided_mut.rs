@@ -3,9 +3,9 @@ use crate::{
     strided::Strided,
     strided_zip::StridedZip,
 };
-use std::sync::Arc;
 use hpt_common::{shape::shape::Shape, shape::shape_utils::predict_broadcast_shape};
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
+use std::sync::Arc;
 
 /// Module containing SIMD-optimized implementations for strided mutability.
 pub mod simd_imports {
@@ -13,11 +13,11 @@ pub mod simd_imports {
         iterator_traits::{IterGetSetSimd, StridedIteratorSimd, StridedSimdIteratorZip},
         strided::strided_simd::StridedSimd,
     };
-    use std::sync::Arc;
     use hpt_common::shape::shape::Shape;
     use hpt_traits::{CommonBounds, TensorInfo};
     use hpt_types::dtype::TypeCommon;
     use hpt_types::vectors::traits::VecTrait;
+    use std::sync::Arc;
 
     /// A SIMD-optimized mutable strided iterator over tensor elements.
     ///

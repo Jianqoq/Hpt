@@ -10,7 +10,6 @@ use crate::Cpu;
 use crate::Tensor;
 use crate::REGNUM;
 use crate::SIMD_WIDTH;
-use rayon::prelude::*;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::utils::pointer::Pointer;
@@ -20,6 +19,7 @@ use hpt_traits::TensorInfo;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
 use hpt_types::vectors::traits::*;
+use rayon::prelude::*;
 
 impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
 where

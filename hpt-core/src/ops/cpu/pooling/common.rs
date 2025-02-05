@@ -1,9 +1,9 @@
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use hpt_common::{
     error::{base::TensorError, shape::ShapeError},
     shape::shape::Shape,
 };
 use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{tensor_base::_Tensor, REGNUM};
 use hpt_types::{into_scalar::Cast, traits::VecTrait};

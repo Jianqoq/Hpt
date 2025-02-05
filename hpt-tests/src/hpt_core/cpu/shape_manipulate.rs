@@ -1,9 +1,9 @@
 #![allow(unused_imports)]
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use hpt_core::ShapeManipulate;
 use hpt_core::TensorInfo;
 use hpt_core::TensorLike;
 use hpt_core::{Tensor, TensorCreator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 #[allow(unused)]
 fn assert_eq(b: &Tensor<f64>, a: &tch::Tensor) {

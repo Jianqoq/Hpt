@@ -3,7 +3,6 @@
 use std::i64;
 
 use duplicate::duplicate_item;
-use rand::Rng;
 use hpt_common::slice;
 use hpt_common::slice::Slice;
 use hpt_core::ShapeManipulate;
@@ -11,6 +10,7 @@ use hpt_core::TensorInfo;
 use hpt_core::TensorLike;
 use hpt_core::{RandomInt, Tensor, TensorCreator};
 use hpt_macros::match_selection;
+use rand::Rng;
 
 #[allow(unused)]
 fn assert_eq(b: &Tensor<i64>, a: &tch::Tensor) {

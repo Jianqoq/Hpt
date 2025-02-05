@@ -2,10 +2,10 @@ use std::{alloc::Layout, num::NonZeroUsize, panic::Location, sync::Mutex};
 
 use crate::{ptr::SafePtr, storage::cpu::CPU_STORAGE, storage::Storage, traits::Allocator};
 use hashbrown::{HashMap, HashSet};
-use lru::LruCache;
-use once_cell::sync::Lazy;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::memory::MemoryError;
+use lru::LruCache;
+use once_cell::sync::Lazy;
 
 /// `lru` cache allocator
 pub static CACHE: Lazy<Mutex<CpuAllocator>> = Lazy::new(|| Mutex::new(CpuAllocator::new()));

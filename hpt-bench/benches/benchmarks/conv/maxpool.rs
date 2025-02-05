@@ -1,12 +1,12 @@
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use std::time::Duration;
-use tch::{Device, Kind, Tensor as TchTensor};
 use hpt_core::ShapeManipulate;
 use hpt_core::TensorCreator;
 use hpt_core::TensorInfo;
 use hpt_core::TensorLike;
 use hpt_core::{Random, Tensor};
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use std::time::Duration;
+use tch::{Device, Kind, Tensor as TchTensor};
 
 #[allow(unused)]
 fn assert_eq_i64(a: &TchTensor, b: &Tensor<i64>) {

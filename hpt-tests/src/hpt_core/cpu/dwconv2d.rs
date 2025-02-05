@@ -1,6 +1,4 @@
 #![allow(unused)]
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use tch;
 use hpt_core::NormalOutUnary;
 use hpt_core::ShapeManipulate;
 use hpt_core::TensorLike;
@@ -8,6 +6,8 @@ use hpt_core::{set_global_display_lr_elements, set_num_threads, CommonBounds, Te
 use hpt_core::{Tensor, TensorCreator};
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use tch;
 
 fn common_input(
     [batch, out_channel, in_channel, kernel_height, kernel_width, height, width, groups]: [i64; 8],

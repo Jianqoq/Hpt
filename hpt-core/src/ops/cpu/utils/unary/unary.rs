@@ -1,9 +1,6 @@
 use crate::backend::Cpu;
 use crate::tensor_base::_Tensor;
 use crate::{Tensor, THREAD_POOL};
-use rayon::iter::{IndexedParallelIterator, ParallelIterator};
-use rayon::slice::{ParallelSlice, ParallelSliceMut};
-use std::borrow::Borrow;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape_utils::mt_intervals;
@@ -14,6 +11,9 @@ use hpt_traits::tensor::{CommonBounds, TensorInfo, TensorLike};
 use hpt_types::dtype::TypeCommon;
 use hpt_types::type_promote::{Eval, NormalOut};
 use hpt_types::vectors::traits::*;
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+use rayon::slice::{ParallelSlice, ParallelSliceMut};
+use std::borrow::Borrow;
 use threadpool::ThreadPool;
 
 /// Perform unary operation with output tensor

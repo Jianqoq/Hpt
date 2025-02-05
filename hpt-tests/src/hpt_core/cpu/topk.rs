@@ -1,5 +1,4 @@
 #![allow(unused_imports)]
-use rand::Rng;
 use hpt_common::slice;
 use hpt_common::slice::Slice;
 use hpt_core::AdvanceOps;
@@ -8,6 +7,7 @@ use hpt_core::TensorInfo;
 use hpt_core::TensorLike;
 use hpt_core::{set_num_threads, Tensor, TensorCreator};
 use hpt_macros::match_selection;
+use rand::Rng;
 #[allow(unused)]
 fn assert_eq(b: &Tensor<f32>, a: &tch::Tensor) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f32, b.size()) };

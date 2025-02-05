@@ -1,12 +1,12 @@
 use crate::{ops::cpu::tensor_internal::windows::Simd, tensor::Tensor, tensor_base::_Tensor, Cuda};
 use cudarc::driver::DeviceRepr;
-use std::ops::{Mul, Sub};
 use hpt_traits::CommonBounds;
 use hpt_types::{
     cast::Cast,
     dtype::FloatConst,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
+use std::ops::{Mul, Sub};
 
 type FBO<T> = <T as FloatOutBinary>::Output;
 

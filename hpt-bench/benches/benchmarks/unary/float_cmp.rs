@@ -1,7 +1,7 @@
-use tch::Tensor as TchTensor;
 use hpt_core::Tensor;
 use hpt_core::TensorInfo;
 use hpt_core::TensorLike;
+use tch::Tensor as TchTensor;
 
 #[allow(unused)]
 pub(crate) fn assert_eq(a: &TchTensor, b: &Tensor<f64>) {

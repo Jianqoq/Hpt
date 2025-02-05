@@ -6,10 +6,6 @@ use crate::CompressionAlgo;
 use crate::Cpu;
 use crate::{save, Save};
 use crate::{tensor_base::_Tensor, Tensor, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION};
-use num::traits::ToBytes;
-use rayon::iter::{
-    IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
-};
 use hpt_common::error::base::TensorError;
 use hpt_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
 use hpt_dataloader::data_loader::TensorMeta;
@@ -20,6 +16,10 @@ use hpt_iterator::TensorIterator;
 use hpt_traits::TensorCreator;
 use hpt_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
 use hpt_types::into_scalar::Cast;
+use num::traits::ToBytes;
+use rayon::iter::{
+    IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
+};
 
 impl<T, const DEVICE: usize> TensorLike<T> for _Tensor<T, Cpu, DEVICE>
 where

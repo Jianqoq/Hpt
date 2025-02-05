@@ -1,10 +1,6 @@
 use crate::backend::Cpu;
 use crate::tensor_base::_Tensor;
 use crate::Tensor;
-use rayon::iter::{
-    IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
-};
-use std::borrow::Borrow;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_iterator::iterator_traits::ParStridedIteratorZip;
@@ -14,6 +10,10 @@ use hpt_traits::tensor::TensorCreator;
 use hpt_traits::tensor::TensorInfo;
 use hpt_traits::TensorLike;
 use hpt_types::dtype::TypeCommon;
+use rayon::iter::{
+    IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
+};
+use std::borrow::Borrow;
 
 /// Performs a binary operation on two tensors with optional SIMD optimization and an output tensor.
 ///
@@ -62,8 +62,8 @@ where
         + Send
         + Copy,
 {
-    use rayon::slice::{ParallelSlice, ParallelSliceMut};
     use hpt_types::traits::*;
+    use rayon::slice::{ParallelSlice, ParallelSliceMut};
     if lhs.size() == 1 {
         let val = lhs.as_raw()[0];
         let val_vec = <A as TypeCommon>::Vec::splat(val);
@@ -304,8 +304,8 @@ where
         + Send
         + Copy,
 {
-    use rayon::slice::{ParallelSlice, ParallelSliceMut};
     use hpt_types::traits::*;
+    use rayon::slice::{ParallelSlice, ParallelSliceMut};
     if b.is_contiguous() && a.is_contiguous() && b.shape() == a.shape() {
         let mut ret = if let Some(out) = out {
             ShapeError::check_inplace_out_layout_valid(b.shape(), &out.borrow().layout())?;

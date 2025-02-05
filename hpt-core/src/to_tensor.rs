@@ -3,12 +3,6 @@ use crate::tensor::{DiffTensor, Tensor};
 use crate::{backend::Cpu, tensor_base::_Tensor};
 use half::bf16;
 use half::f16;
-use num::complex::{Complex32, Complex64};
-use std::alloc::Layout;
-use std::cell::RefCell;
-use std::mem::ManuallyDrop;
-use std::rc::Rc;
-use std::sync::Arc;
 use hpt_allocator::traits::Allocator;
 use hpt_allocator::CACHE;
 use hpt_common::shape::shape::Shape;
@@ -16,6 +10,12 @@ use hpt_common::strides::strides_utils::shape_to_strides;
 use hpt_common::utils::pointer::Pointer;
 use hpt_traits::tensor::TensorCreator;
 use hpt_traits::TensorLike;
+use num::complex::{Complex32, Complex64};
+use std::alloc::Layout;
+use std::cell::RefCell;
+use std::mem::ManuallyDrop;
+use std::rc::Rc;
+use std::sync::Arc;
 
 macro_rules! from_scalar {
     ($($t:ident),*) => {

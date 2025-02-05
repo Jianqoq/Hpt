@@ -1,8 +1,4 @@
 #![allow(unused_imports)]
-use rand::Rng;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use std::ops::*;
-use tch::Tensor as TchTensor;
 use hpt_common::slice;
 use hpt_common::slice::Slice;
 use hpt_core::Matmul;
@@ -13,6 +9,10 @@ use hpt_core::TensorInfo;
 use hpt_core::TensorLike;
 use hpt_core::{Tensor, TensorCreator};
 use hpt_macros::match_selection;
+use rand::Rng;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use std::ops::*;
+use tch::Tensor as TchTensor;
 
 use super::assert_utils::assert_f64;
 

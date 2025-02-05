@@ -1,7 +1,6 @@
 use crate::ops::cuda::{cuda_utils::get_module_name_1, unary::uary_fn_with_out_simd};
 use crate::{tensor_base::_Tensor, Cuda};
 use cudarc::driver::DeviceRepr;
-use std::ops::{Mul, Sub};
 use hpt_common::err_handler::TensorError;
 use hpt_traits::{CommonBounds, TensorCreator};
 use hpt_types::cuda_types::scalar::Scalar;
@@ -11,6 +10,7 @@ use hpt_types::{
     dtype::{FloatConst, TypeCommon},
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
+use std::ops::{Mul, Sub};
 
 pub(crate) type Simd<T> = <<T as FloatOutBinary>::Output as TypeCommon>::Vec;
 type FBO<T> = <T as FloatOutBinary>::Output;

@@ -1,11 +1,11 @@
 use hpt_common::utils::pointer::Pointer;
 use hpt_traits::CommonBounds;
 
-use paste::paste;
 use hpt_macros::{gen_fast_reduce_simd_helper, gen_reduce_dim_not_include_simd_helper};
 use hpt_types::dtype::TypeCommon;
 use hpt_types::utils::array_vec_reduce;
 use hpt_types::vectors::traits::*;
+use paste::paste;
 
 #[inline]
 fn update_prg<T>(prg: &mut [i64], inp_ptr: &mut Pointer<T>, strides: &[i64], shape: &[i64]) {
@@ -654,9 +654,7 @@ pub(crate) fn contiguous_reduce_dim_include<T, O, F, F2>(
             update_prg3(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
         }
         if let Some(op_post) = &op_post {
-            let tmp = res_ptr[0isize];
-            let tmp = op_post(tmp);
-            res_ptr[0isize] = tmp;
+            res_ptr[0isize] = op_post(tmp);
         } else {
             res_ptr[0isize] = tmp;
         }
@@ -697,7 +695,7 @@ pub(crate) fn uncontiguous_reduce_dim_include<T, O, F, F2>(
             update_prg3(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
         }
         if let Some(op_post) = &op_post {
-            res_ptr[0isize] = op_post(res_ptr[0isize]);
+            res_ptr[0isize] = op_post(tmp);
         } else {
             res_ptr[0isize] = tmp;
         }

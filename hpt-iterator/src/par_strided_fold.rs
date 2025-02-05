@@ -1,10 +1,10 @@
 use std::fmt::Display;
 
+use hpt_traits::CommonBounds;
 use rayon::iter::{
     plumbing::{bridge_unindexed, UnindexedConsumer, UnindexedProducer},
     ParallelIterator,
 };
-use hpt_traits::CommonBounds;
 
 use crate::iterator_traits::IterGetSet;
 

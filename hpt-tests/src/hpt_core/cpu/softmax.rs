@@ -1,7 +1,5 @@
 #![allow(unused)]
 use duplicate::duplicate_item;
-use rand::Rng;
-use tch::Tensor;
 use hpt_common::slice;
 use hpt_common::slice::Slice;
 use hpt_core::set_global_display_lr_elements;
@@ -10,6 +8,8 @@ use hpt_core::TensorLike;
 use hpt_core::{backend::Cpu, TensorCreator};
 use hpt_core::{set_num_threads, ShapeManipulate};
 use hpt_macros::match_selection;
+use rand::Rng;
+use tch::Tensor;
 
 use super::assert_utils::assert_f64;
 

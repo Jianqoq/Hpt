@@ -5,9 +5,9 @@ use crate::compression_trait::{CompressionAlgo, DataLoaderTrait, Meta};
 use crate::Endian;
 use crate::{compression_trait::CompressionTrait, CHUNK_BUFF};
 use flate2::write::{DeflateEncoder, GzEncoder};
-use indicatif::ProgressBar;
 use hpt_common::shape::shape::Shape;
 use hpt_types::dtype::Dtype;
+use indicatif::ProgressBar;
 
 pub trait Save {
     type Meta: for<'a> serde::Deserialize<'a>;

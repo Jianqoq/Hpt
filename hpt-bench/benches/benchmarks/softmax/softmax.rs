@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use hpt_core::{Random, Tensor};
 use std::time::Duration;
 use tch::{Device, Kind, Tensor as TchTensor};
-use hpt_core::{Random, Tensor};
 
 pub fn softmax_benchmark(c: &mut Criterion) {
     hpt_core::set_num_threads(num_cpus::get_physical());

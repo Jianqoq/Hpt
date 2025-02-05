@@ -1,10 +1,10 @@
 use crate::backend::{Backend, BackendTy, Buffer, Cpu};
-use std::sync::Arc;
 use hpt_allocator::traits::Allocator;
 use hpt_allocator::CACHE;
 #[cfg(feature = "cuda")]
 use hpt_allocator::CUDA_CACHE;
 use hpt_common::{layout::layout::Layout, utils::pointer::Pointer};
+use std::sync::Arc;
 
 /// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
 ///

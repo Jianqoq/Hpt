@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use hpt_common::{shape::shape::Shape, strides::strides::Strides};
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::dtype::TypeCommon;
+use std::sync::Arc;
 
 use crate::{
     iterator_traits::{IterGetSet, StridedIterator},

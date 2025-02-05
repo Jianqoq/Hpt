@@ -1,7 +1,5 @@
 #![allow(unused_imports)]
-use hpt_core::{
-    get_num_threads, set_global_display_lr_elements, set_num_threads, ShapeManipulate,
-};
+use hpt_core::{get_num_threads, set_global_display_lr_elements, set_num_threads, ShapeManipulate};
 use hpt_core::{set_global_display_precision, tensor::Tensor, TensorCreator};
 
 #[test]

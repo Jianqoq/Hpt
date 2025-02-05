@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use rayon::iter::ParallelIterator;
 use hpt_core::arch_simd::_256bit::f32x8::f32x8;
 use hpt_core::{
     binary_with_out, match_selection, IndexReduce, Matmul, NormalBinOps, NormalOut, NormalUaryOps,
@@ -8,6 +7,7 @@ use hpt_core::{
     TensorError, TensorIterator, VecTrait,
 };
 use hpt_core::{Eval, TensorInfo};
+use rayon::iter::ParallelIterator;
 
 struct Encoder {
     mha: MultiHeadAttention,
