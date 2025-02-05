@@ -20,7 +20,7 @@ A new tensor with the specified single-dimensional entries removed.
 
 ## Examples:
 ```rust
-use tensor_dyn::{ShapeManipulate, Tensor, TensorCreator, TensorError, TensorInfo};
+use hpt_core::{ShapeManipulate, Tensor, TensorCreator, TensorError, TensorInfo};
 fn main() -> Result<(), TensorError> {
     // Create a tensor with shape [1, 3, 1, 4]
     let a = Tensor::<f32>::zeros(&[1, 3, 1, 4])?;

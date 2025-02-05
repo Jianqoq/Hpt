@@ -1,0 +1,11 @@
+[package]
+name = "hpt-display"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hpt-traits = { path = "../hpt-traits" }
+hpt-common = { path = "../hpt-common" }
+hpt-types = { path = "../hpt-types" }
+anyhow = "1.0.75"
+num-complex = "0.4"

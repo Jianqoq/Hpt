@@ -20,7 +20,7 @@ Tensor with type `T` containing random values from the Pareto distribution.
 
 ## Examples:
 ```rust
-use tensor_dyn::{Random, Tensor, TensorError};
+use hpt_core::{Random, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     // Create a 10x10 tensor with Pareto distribution (scale=1.0, shape=3.0)

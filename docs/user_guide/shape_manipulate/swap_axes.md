@@ -22,7 +22,7 @@ A new tensor with the specified axes swapped.
 
 ## Examples:
 ```rust
-use tensor_dyn::{ShapeManipulate, Tensor, TensorError, TensorInfo};
+use hpt_core::{ShapeManipulate, Tensor, TensorError, TensorInfo};
 fn main() -> Result<(), TensorError> {
     // Create a 2D tensor with shape [2, 3]
     let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0,

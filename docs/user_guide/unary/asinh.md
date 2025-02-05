@@ -9,7 +9,7 @@ Inverse hyperbolic sine
 Tensor with type `C`
 ## Examples:
 ```rust
-use tensor_dyn::{FloatUnaryOps, Tensor, TensorError};
+use hpt_core::{FloatUnaryOps, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new([10.0]);

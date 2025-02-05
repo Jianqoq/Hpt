@@ -27,16 +27,16 @@
             "type": "cppdbg",
             "request": "launch",
             "MIMode": "gdb",
-            "name": "Debug unit tests in library 'tensor_allocator'",
+            "name": "Debug unit tests in library 'hpt_allocator'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=tensor-allocator"
+                    "--package=hpt-allocator"
                 ],
                 "filter": {
-                    "name": "tensor_allocator",
+                    "name": "hpt_allocator",
                     "kind": "lib"
                 }
             },
@@ -47,16 +47,16 @@
             "type": "cppdbg",
             "request": "launch",
             "MIMode": "gdb",
-            "name": "Debug unit tests in library 'tensor_common'",
+            "name": "Debug unit tests in library 'hpt_common'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=tensor-common"
+                    "--package=hpt-common"
                 ],
                 "filter": {
-                    "name": "tensor_common",
+                    "name": "hpt_common",
                     "kind": "lib"
                 }
             },
@@ -67,16 +67,16 @@
             "type": "cppdbg",
             "request": "launch",
             "MIMode": "gdb",
-            "name": "Debug unit tests in library 'tensor_types'",
+            "name": "Debug unit tests in library 'hpt_types'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=tensor-types"
+                    "--package=hpt-types"
                 ],
                 "filter": {
-                    "name": "tensor_types",
+                    "name": "hpt_types",
                     "kind": "lib"
                 }
             },
@@ -87,16 +87,16 @@
             "type": "cppdbg",
             "request": "launch",
             "MIMode": "gdb",
-            "name": "Debug unit tests in library 'tensor_dyn'",
+            "name": "Debug unit tests in library 'hpt_core'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=tensor-dyn"
+                    "--package=hpt-core"
                 ],
                 "filter": {
-                    "name": "tensor_dyn",
+                    "name": "hpt_core",
                     "kind": "lib"
                 }
             },
@@ -107,16 +107,16 @@
             "type": "cppdbg",
             "request": "launch",
             "MIMode": "gdb",
-            "name": "Debug unit tests in library 'tensor_display'",
+            "name": "Debug unit tests in library 'hpt_display'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=tensor-display"
+                    "--package=hpt-display"
                 ],
                 "filter": {
-                    "name": "tensor_display",
+                    "name": "hpt_display",
                     "kind": "lib"
                 }
             },
@@ -127,16 +127,16 @@
             "type": "cppdbg",
             "request": "launch",
             "MIMode": "gdb",
-            "name": "Debug unit tests in library 'tensor_traits'",
+            "name": "Debug unit tests in library 'hpt_traits'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=tensor-traits"
+                    "--package=hpt-traits"
                 ],
                 "filter": {
-                    "name": "tensor_traits",
+                    "name": "hpt_traits",
                     "kind": "lib"
                 }
             },
@@ -147,16 +147,16 @@
             "type": "cppdbg",
             "request": "launch",
             "MIMode": "gdb",
-            "name": "Debug unit tests in library 'tensor_iterator'",
+            "name": "Debug unit tests in library 'hpt_iterator'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=tensor-iterator"
+                    "--package=hpt-iterator"
                 ],
                 "filter": {
-                    "name": "tensor_iterator",
+                    "name": "hpt_iterator",
                     "kind": "lib"
                 }
             },

@@ -42,5 +42,5 @@ jobs:
       run: cargo install cargo-expand
     - name: Run tests
       run: |
-        cd tensor-tests
+        cd hpt-tests
         cargo test --verbose -- --nocapture

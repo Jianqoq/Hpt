@@ -94,7 +94,7 @@ let (ptr, device) = allocator.allocate(layout, device_id)?;
 
 ### Global Cache
 
-The allocator uses a global cache to manage memory lifetime. See implementation [here](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-allocator/src/allocators/cpu.rs#L11).
+The allocator uses a global cache to manage memory lifetime. See implementation [here](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-allocator/src/allocators/cpu.rs#L11).
 
 ### Memory Pool
 

@@ -1,0 +1,20 @@
+[package]
+name = "hpt-cudakernels"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+phf = { version = "0.11.1", default-features = false }
+
+[build-dependencies]
+phf = { version = "0.11.1", default-features = false }
+phf_codegen = "0.11.1"
+regex = "1.11.1"
+
+[lib]
+path = "src/lib.rs"
+required-features = ["cuda"]
+
+[features]
+default = []
+cuda = []

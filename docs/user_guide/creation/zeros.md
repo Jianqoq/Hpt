@@ -21,7 +21,7 @@ A new tensor of the specified shape, filled with zeros.
 
 ## Examples:
 ```rust
-use tensor_dyn::{Tensor, TensorCreator, TensorError};
+use hpt_core::{Tensor, TensorCreator, TensorError};
 fn main() -> Result<(), TensorError> {
     // Create a 2D tensor of zeros
     let a = Tensor::<f32>::zeros(&[2, 3])?;

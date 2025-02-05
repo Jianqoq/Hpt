@@ -26,7 +26,7 @@ Tensor with type `C`
 
 ## Examples:
 ```rust
-use tensor_dyn::{FloatReduce, Tensor, TensorError};
+use hpt_core::{FloatReduce, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     // L2 norm over dimension 0

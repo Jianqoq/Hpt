@@ -17,7 +17,7 @@ A vector of sub-tensors created by splitting the input tensor horizontally.
 
 ## Examples:
 ```rust
-use tensor_dyn::{ShapeManipulate, Tensor, TensorError};
+use hpt_core::{ShapeManipulate, Tensor, TensorError};
 fn main() -> Result<(), TensorError> {
     // Create a 2D tensor with shape [2, 4]
     let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0,

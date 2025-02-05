@@ -17,7 +17,7 @@ Tensor with type `C`
 
 ## Examples:
 ```rust
-use tensor_dyn::{Tensor, TensorError};
+use hpt_core::{Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new([10.0]);

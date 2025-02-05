@@ -16,7 +16,7 @@ A 1-D tensor containing the window.
 
 ## Examples:
 ```rust
-use tensor_dyn::{Tensor, TensorError, WindowOps};
+use hpt_core::{Tensor, TensorError, WindowOps};
 fn main() -> Result<(), TensorError> {
     // Create a periodic Blackman window of length 5
     let a = Tensor::<f32>::blackman_window(5, true)?;

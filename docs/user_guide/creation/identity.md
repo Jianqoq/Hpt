@@ -14,7 +14,7 @@ A square 2-D tensor of shape [n, n] with ones on the main diagonal.
 
 ## Examples:
 ```rust
-use tensor_dyn::{Tensor, TensorError, TensorCreator};
+use hpt_core::{Tensor, TensorError, TensorCreator};
 fn main() -> Result<(), TensorError> {
     // Create a 3x3 identity matrix
     let a = Tensor::<f32>::identity(3)?;

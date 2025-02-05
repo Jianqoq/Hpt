@@ -14,7 +14,7 @@ A new tensor with input tensors stacked along the third axis.
 
 ## Examples:
 ```rust
-use tensor_dyn::{ShapeManipulate, Tensor, TensorError};
+use hpt_core::{ShapeManipulate, Tensor, TensorError};
 fn main() -> Result<(), TensorError> {
     // With 3D tensors
     let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2, 1])?;
