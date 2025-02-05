@@ -2,7 +2,6 @@ use std::borrow::{Borrow, BorrowMut};
 
 use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
-use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use hpt_common::error::{base::TensorError, shape::ShapeError};
 use hpt_common::shape::shape_utils::predict_broadcast_shape;
 use hpt_common::shape::shape_utils::{compare_and_pad_shapes, mt_intervals};
@@ -11,6 +10,7 @@ use hpt_traits::TensorLike;
 use hpt_traits::{CommonBounds, Matmul, TensorCreator, TensorInfo};
 use hpt_types::dtype::TypeCommon;
 use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn matmul_with_out<A, B, O, Q>(

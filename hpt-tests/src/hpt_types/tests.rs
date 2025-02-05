@@ -1,12 +1,12 @@
 #![allow(unused)]
 
-use num_complex::{Complex32, Complex64};
-use rand::distributions::uniform::SampleUniform;
 use hpt_core::{FloatOutUnary, NormalOut, NormalOutUnary};
 use hpt_types::half;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::BitWiseOut2;
 use hpt_types::{dtype::TypeCommon, traits::VecTrait};
+use num_complex::{Complex32, Complex64};
+use rand::distributions::uniform::SampleUniform;
 
 type F32Vec = <f32 as TypeCommon>::Vec;
 type F16Vec = <half::f16 as TypeCommon>::Vec;
@@ -1612,7 +1612,7 @@ fn test_div_float_nan() {
         test_float_simd_math!(f32, F32Vec::SIZE, -1e37..=1e37, 1000, 1, recip);
         test_float_simd_math!(f32, F32Vec::SIZE, -0.9999999..=1e37, 1000, 1, |x| x.ln_1p(), |x| x._log1p());
         test_float_simd_math!(f32, F32Vec::SIZE, -88.0..=88.0, 1000, 1, |x| 1.0 / (1.0 + (-x).exp()), |x| x._sigmoid());
-        test_float_simd_math!(f32, F32Vec::SIZE, -10.0..=10.0, 1000, 1, |x| (0.2 * x + 0.5).min(1.0).max(0.0), |x| x._hard_sigmoid());
+        test_float_simd_math!(f32, F32Vec::SIZE, -10.0..=10.0, 1000, 1, |x| ((1.0 / 6.0) * x + 0.5).min(1.0).max(0.0), |x| x._hard_sigmoid());
         test_float_simd_math!(f32, F32Vec::SIZE, -88.0..=88.0, 1000, 1, 
             |x| 0.5 * x * (libm::erff(x * std::f32::consts::FRAC_1_SQRT_2) + 1.0),
             |x| x._gelu());
@@ -1665,7 +1665,7 @@ fn test_div_float_nan() {
         test_float_simd_math!(f64, F64Vec::SIZE, -1e306..=1e306, 1000, 1, recip);
         test_float_simd_math!(f64, F64Vec::SIZE, -0.9999999999999999..=1e306, 1000, 1, |x| x.ln_1p(), |x| x._log1p());
         test_float_simd_math!(f64, F64Vec::SIZE, -88.0..=88.0, 1000, 1, |x| 1.0 / (1.0 + (-x).exp()), |x| x._sigmoid());
-        test_float_simd_math!(f64, F64Vec::SIZE, -10.0..=10.0, 1000, 1, |x| (0.2 * x + 0.5).min(1.0).max(0.0), |x| x._hard_sigmoid());
+        test_float_simd_math!(f64, F64Vec::SIZE, -10.0..=10.0, 1000, 1, |x| ((1.0 / 6.0) * x + 0.5).min(1.0).max(0.0), |x| x._hard_sigmoid());
         test_float_simd_math!(f64, F64Vec::SIZE, -88.0..=88.0, 1000, 1, 
             |x| 0.5 * x * (libm::erf(x * std::f64::consts::FRAC_1_SQRT_2) + 1.0),
             |x| x._gelu());
@@ -1726,7 +1726,7 @@ fn test_div_float_nan() {
         test_float_simd_math!(bf16, Bf16Vec::SIZE, range1.clone(), 1000, 1, recip);
         test_float_simd_math!(bf16, Bf16Vec::SIZE, range7.clone(), 1000, 1, |x| x.ln_1p(), |x| x._log1p());
         test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1, |x| (1.0 / (1.0 + (-x.to_f32()).exp())).cast(), |x| x._sigmoid());
-        test_float_simd_math!(bf16, Bf16Vec::SIZE, hard_sigmoid_range.clone(), 10, 1, |x| (0.2 * x.to_f32() + 0.5).min(1.0).max(0.0).cast(), |x| x._hard_sigmoid());
+        test_float_simd_math!(bf16, Bf16Vec::SIZE, hard_sigmoid_range.clone(), 10, 1, |x| ((1.0 / 6.0) * x.to_f32() + 0.5).min(1.0).max(0.0).cast(), |x| x._hard_sigmoid());
         test_float_simd_math!(bf16, Bf16Vec::SIZE, range2.clone(), 1000, 1,
             |x| (0.5 * x.to_f32() * (libm::erff(x.to_f32() * std::f32::consts::FRAC_1_SQRT_2) + 1.0)).cast(),
             |x| x._gelu());
@@ -1786,7 +1786,7 @@ fn test_div_float_nan() {
         test_float_simd_math!(f16, F16Vec::SIZE, range1.clone(), 1000, 1, recip);
         test_float_simd_math!(f16, F16Vec::SIZE, range7.clone(), 1000, 1, |x| x.ln_1p(), |x| x._log1p());
         test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1, |x| (1.0 / (1.0 + (-x.to_f32()).exp())).cast(), |x| x._sigmoid());
-        test_float_simd_math!(f16, F16Vec::SIZE, hard_sigmoid_range.clone(), 10, 1, |x| (0.2 * x.to_f32() + 0.5).min(1.0).max(0.0).cast(), |x| x._hard_sigmoid());
+        test_float_simd_math!(f16, F16Vec::SIZE, hard_sigmoid_range.clone(), 10, 1, |x| ((1.0 / 6.0) * x.to_f32() + 0.5).min(1.0).max(0.0).cast(), |x| x._hard_sigmoid());
         test_float_simd_math!(f16, F16Vec::SIZE, range2.clone(), 1000, 1,
             |x| (0.5 * x.to_f32() * (libm::erff(x.to_f32() * std::f32::consts::FRAC_1_SQRT_2) + 1.0)).cast(),
             |x| x._gelu());

@@ -14,7 +14,6 @@ use crate::tensor_base::_Tensor;
 use crate::Cpu;
 use crate::Tensor;
 use crate::REGNUM;
-use rayon::prelude::*;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::utils::pointer::Pointer;
@@ -24,6 +23,7 @@ use hpt_traits::TensorInfo;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
 use hpt_types::vectors::traits::*;
+use rayon::prelude::*;
 
 use super::conv2d_transpose::conv2d_backward_bias;
 use super::conv2d_transpose::conv2d_backward_kernel;

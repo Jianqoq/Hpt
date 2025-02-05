@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
+use hpt_common::{shape::shape::Shape, strides::strides::Strides};
 use rayon::iter::{
     plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
     ParallelIterator,
 };
-use hpt_common::{shape::shape::Shape, strides::strides::Strides};
 
 use crate::iterator_traits::IterGetSetSimd;
 

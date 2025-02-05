@@ -5,9 +5,9 @@ use std::{
 };
 
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
-use num::traits::FromBytes;
 use hpt_common::slice::{slice_process, Slice};
 use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
+use num::traits::FromBytes;
 
 use crate::{data_loader::HeaderInfo, CompressionAlgo, Endian};
 

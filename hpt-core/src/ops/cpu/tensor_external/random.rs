@@ -5,12 +5,12 @@ use crate::{
     tensor_base::_Tensor,
     Cpu,
 };
-use rand_distr::{
-    uniform::SampleUniform, Distribution, Exp1, Open01, OpenClosed01, Standard, StandardNormal,
-};
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_traits::{CommonBounds, Random, RandomInt};
 use hpt_types::into_scalar::Cast;
+use rand_distr::{
+    uniform::SampleUniform, Distribution, Exp1, Open01, OpenClosed01, Standard, StandardNormal,
+};
 
 impl<T, const DEVICE: usize> Random for Tensor<T, Cpu, DEVICE>
 where

@@ -7,7 +7,6 @@ use crate::tensor::{DiffTensor, Tensor};
 use crate::tensor_base::_Tensor;
 use crate::BoolVector;
 use crate::{ops::cpu::tensor_internal::float_out_unary::FloatBinaryType, Cpu};
-use rayon::iter::ParallelIterator;
 use hpt_common::axis::axis::Axis;
 use hpt_common::error::autograd::AutogradError;
 use hpt_common::error::base::TensorError;
@@ -25,6 +24,7 @@ use hpt_types::{
     type_promote::{Eval, FloatOutBinary, FloatOutUnary, NormalOut},
     vectors::traits::SimdSelect,
 };
+use rayon::iter::ParallelIterator;
 
 impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for Tensor<T, Cpu, DEVICE> {
     type Output = Self;

@@ -6,12 +6,6 @@ use crate::tensor::DiffTensor;
 use crate::tensor_base::_Tensor;
 use crate::Cpu;
 use crate::Tensor;
-use num::complex::{Complex32, Complex64};
-use rayon::iter::ParallelIterator;
-use std::cell::RefCell;
-use std::ops::{Neg, Not};
-use std::rc::Rc;
-use std::sync::Arc;
 use hpt_common::shape::shape_utils::get_broadcast_axes_from;
 use hpt_iterator::iterator_traits::ParStridedIteratorZip;
 use hpt_iterator::TensorIterator;
@@ -23,6 +17,12 @@ use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::{
     BitWiseOut, FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary,
 };
+use num::complex::{Complex32, Complex64};
+use rayon::iter::ParallelIterator;
+use std::cell::RefCell;
+use std::ops::{Neg, Not};
+use std::rc::Rc;
+use std::sync::Arc;
 
 #[duplicate::duplicate_item(
     lhs_type     rhs_type    out_type     trait_name;

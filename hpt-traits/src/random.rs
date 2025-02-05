@@ -1,6 +1,6 @@
-use rand_distr::uniform::SampleUniform;
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_types::into_scalar::Cast;
+use rand_distr::uniform::SampleUniform;
 
 /// A trait for generating random numbers.
 pub trait Random

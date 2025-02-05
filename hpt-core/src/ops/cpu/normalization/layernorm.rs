@@ -1,7 +1,6 @@
 use std::borrow::BorrowMut;
 
 use crate::{tensor_base::_Tensor, Cpu, Tensor};
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use hpt_common::{
     error::base::TensorError,
     shape::{shape::Shape, shape_utils::mt_intervals},
@@ -16,6 +15,7 @@ use hpt_types::{
     into_scalar::Cast,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     #[cfg_attr(feature = "track_caller", track_caller)]

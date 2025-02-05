@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use rayon::iter::{plumbing::UnindexedProducer, ParallelIterator};
 use hpt_common::{
     axis::axis::Axis,
     layout::layout::Layout,
@@ -9,6 +8,7 @@ use hpt_common::{
     strides::strides::Strides,
 };
 use hpt_traits::CommonBounds;
+use rayon::iter::{plumbing::UnindexedProducer, ParallelIterator};
 
 use crate::{
     par_strided_zip::{par_strided_zip_simd::ParStridedZipSimd, ParStridedZip},

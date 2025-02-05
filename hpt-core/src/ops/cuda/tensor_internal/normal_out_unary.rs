@@ -4,11 +4,11 @@ use crate::{
     Cuda,
 };
 use cudarc::driver::DeviceRepr;
-use std::borrow::Borrow;
 use hpt_common::err_handler::TensorError;
 use hpt_traits::{CommonBounds, NormalUaryOps, TensorLike};
 use hpt_types::cuda_types::scalar::Scalar;
 use hpt_types::type_promote::{NormalOut, NormalOutUnary};
+use std::borrow::Borrow;
 
 pub(crate) type NormalType<T> = <T as NormalOut>::Output;
 

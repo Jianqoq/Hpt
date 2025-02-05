@@ -6,9 +6,9 @@ use std::{
 };
 
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
-use num::traits::FromBytes;
 use hpt_common::shape::shape::Shape;
 use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
+use num::traits::FromBytes;
 
 use crate::{
     data_loader::{parse_header_compressed, TensorMeta},

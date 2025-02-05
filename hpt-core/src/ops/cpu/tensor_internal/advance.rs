@@ -3,8 +3,6 @@ use std::sync::Arc;
 use crate::ops::cpu::utils::binary::binary_normal::binary_fn_with_out_simd;
 use crate::tensor_base::_Tensor;
 use crate::{Cpu, THREAD_POOL};
-use rand_distr::Distribution;
-use rayon::iter::ParallelIterator;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape_utils::mt_intervals;
@@ -20,6 +18,8 @@ use hpt_types::into_scalar::Cast;
 use hpt_types::into_vec::IntoVec;
 use hpt_types::traits::{SimdSelect, VecTrait};
 use hpt_types::type_promote::{Cmp, NormalOut, NormalOutUnary, SimdCmp};
+use rand_distr::Distribution;
+use rayon::iter::ParallelIterator;
 impl<T: CommonBounds + PartialOrd, const DEVICE: usize> AdvanceOps for _Tensor<T, Cpu, DEVICE>
 where
     T: NormalOut<bool, Output = T> + Cast<i64>,

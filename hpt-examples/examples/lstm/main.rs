@@ -1,9 +1,9 @@
-use mimalloc::MiMalloc;
 use hpt_core::{
     match_selection, set_num_threads, FloatOutUnary, Matmul, NormalBinOps,
     ParStridedIteratorSimdZip, Random, ShapeManipulate, Slice, Tensor, TensorCreator, TensorError,
     TensorInfo, TensorIterator,
 };
+use mimalloc::MiMalloc;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;

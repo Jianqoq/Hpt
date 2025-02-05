@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-use std::{borrow::Borrow, fmt::Display};
 use hpt_common::error::base::TensorError;
 use hpt_common::{
     axis::axis::Axis, layout::layout::Layout, shape::shape::Shape, strides::strides::Strides,
@@ -14,6 +12,8 @@ use hpt_types::{
     into_scalar::Cast,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary},
 };
+use std::fmt::Debug;
+use std::{borrow::Borrow, fmt::Display};
 
 #[cfg(target_feature = "avx2")]
 type BoolVector = simd::_256bit::boolx32::boolx32;

@@ -1,8 +1,3 @@
-use rayon::{
-    iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator},
-    slice::ParallelSliceMut,
-};
-use std::ops::{Mul, Sub};
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, TensorCreator, TensorLike, WindowOps};
 use hpt_types::{
@@ -11,6 +6,11 @@ use hpt_types::{
     traits::VecTrait,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
+use rayon::{
+    iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator},
+    slice::ParallelSliceMut,
+};
+use std::ops::{Mul, Sub};
 
 use crate::{tensor_base::_Tensor, Cpu};
 

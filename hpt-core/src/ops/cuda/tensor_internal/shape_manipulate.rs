@@ -2,13 +2,13 @@ use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use cudarc::driver::DeviceRepr;
 use cudarc::types::CudaTypeName;
-use std::panic::Location;
 use hpt_common::shape::shape_utils::yield_one_after;
 use hpt_common::slice;
 use hpt_common::slice::Slice;
 use hpt_common::{axis::Axis, err_handler::TensorError, layout::Layout, shape::Shape};
 use hpt_macros::match_selection;
 use hpt_traits::{CommonBounds, ShapeManipulate, TensorInfo, TensorLike};
+use std::panic::Location;
 
 impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeManipulate
     for _Tensor<T, Cuda, DEVICE_ID>

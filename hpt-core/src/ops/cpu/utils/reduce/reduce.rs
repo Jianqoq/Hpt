@@ -7,11 +7,6 @@ use crate::ops::cpu::utils::reduce::reduce_utils::{
     ReductionPreprocessor, UCReductionPreprocessor,
 };
 use crate::THREAD_POOL;
-use rayon::iter::ParallelIterator;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator};
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator};
-use std::sync::Arc;
-use std::sync::Barrier;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape::Shape;
@@ -26,6 +21,11 @@ use hpt_traits::tensor::TensorInfo;
 use hpt_traits::TensorLike;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::{Cmp, NormalOut};
+use rayon::iter::ParallelIterator;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator};
+use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator};
+use std::sync::Arc;
+use std::sync::Barrier;
 
 macro_rules! init_arr {
     (

@@ -1,8 +1,8 @@
-use rayon::iter::ParallelIterator;
 use hpt_core::{
     ParStridedIteratorSimdZip, ParStridedIteratorZip, Random, Tensor, TensorCreator, TensorError,
     TensorIterator,
 };
+use rayon::iter::ParallelIterator;
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::randn([2, 4, 6, 8])?;

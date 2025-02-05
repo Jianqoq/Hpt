@@ -1,8 +1,8 @@
 use anyhow::Result;
-use std::fmt::Formatter;
 use hpt_common::utils::pointer::Pointer;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::into_scalar::Cast;
+use std::fmt::Formatter;
 
 use crate::formats::format_val;
 

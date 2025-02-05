@@ -2,11 +2,11 @@
 
 #![deny(missing_docs)]
 
+use hpt_traits::{CommonBounds, TensorInfo};
 use par_strided::{par_strided_simd::ParStridedSimd, ParStrided};
 use par_strided_mut::{par_strided_map_mut_simd::ParStridedMutSimd, ParStridedMut};
 use strided::{strided_simd::StridedSimd, Strided};
 use strided_mut::{simd_imports::StridedMutSimd, StridedMut};
-use hpt_traits::{CommonBounds, TensorInfo};
 
 /// A module contains all the iterator traits
 pub mod iterator_traits;

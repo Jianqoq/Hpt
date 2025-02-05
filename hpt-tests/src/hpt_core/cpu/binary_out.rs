@@ -1,7 +1,4 @@
 #![allow(unused_imports)]
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use std::ops::*;
-use tch::Tensor as TchTensor;
 use hpt_common::slice;
 use hpt_common::slice::Slice;
 use hpt_core::Matmul;
@@ -13,6 +10,9 @@ use hpt_core::TensorInfo;
 use hpt_core::TensorLike;
 use hpt_core::{Tensor, TensorCreator};
 use hpt_macros::match_selection;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use std::ops::*;
+use tch::Tensor as TchTensor;
 
 #[allow(unused)]
 fn assert_eq(b: &Tensor<f64>, a: &TchTensor) {
@@ -81,10 +81,7 @@ fn common_input<const N: usize, const M: usize>(
     rhs_shape: [i64; M],
 ) -> anyhow::Result<(
     (TchTensor, TchTensor),
-    (
-        hpt_core::tensor::Tensor<f64>,
-        hpt_core::tensor::Tensor<f64>,
-    ),
+    (hpt_core::tensor::Tensor<f64>, hpt_core::tensor::Tensor<f64>),
 )> {
     let tch_a = TchTensor::randn(&lhs_shape, (tch::Kind::Double, tch::Device::Cpu));
     let mut a = hpt_core::tensor::Tensor::<f64>::empty(&lhs_shape)?;
@@ -109,10 +106,7 @@ fn common_input_i64<const N: usize, const M: usize>(
     rhs_shape: [i64; M],
 ) -> anyhow::Result<(
     (TchTensor, TchTensor),
-    (
-        hpt_core::tensor::Tensor<i64>,
-        hpt_core::tensor::Tensor<i64>,
-    ),
+    (hpt_core::tensor::Tensor<i64>, hpt_core::tensor::Tensor<i64>),
 )> {
     let tch_a = TchTensor::arange(
         lhs_shape.iter().product::<i64>(),

@@ -5,13 +5,13 @@ use crate::{tensor_base::_Tensor, Cuda};
 use cudarc::cublas::sys::cublasOperation_t;
 use cudarc::cublas::{CudaBlas, Gemm, GemmConfig, StridedBatchedConfig};
 use cudarc::driver::DeviceRepr;
-use std::borrow::{Borrow, BorrowMut};
 use hpt_common::{
     err_handler::TensorError,
     shape::shape_utils::{compare_and_pad_shapes, predict_broadcast_shape},
 };
 use hpt_traits::TensorCreator;
 use hpt_traits::TensorInfo;
+use std::borrow::{Borrow, BorrowMut};
 
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn matmul_with_out<T, O, const CUDA_DEVICE: usize>(

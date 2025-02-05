@@ -4,11 +4,6 @@ use crate::{
     par_strided_map::ParStridedMap,
     shape_manipulate::{par_expand, par_reshape, par_transpose},
 };
-use rayon::iter::{
-    plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
-    ParallelIterator,
-};
-use std::sync::Arc;
 use hpt_common::{
     axis::axis::Axis,
     layout::layout::Layout,
@@ -19,16 +14,17 @@ use hpt_common::{
     utils::pointer::Pointer,
 };
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
+use rayon::iter::{
+    plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
+    ParallelIterator,
+};
+use std::sync::Arc;
 
 /// A module for parallel strided iterators.
 pub mod par_strided_simd {
-    use std::sync::Arc;
     use hpt_types::vectors::traits::VecTrait;
+    use std::sync::Arc;
 
-    use rayon::iter::{
-        plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
-        ParallelIterator,
-    };
     use hpt_common::{
         axis::axis::Axis,
         layout::layout::Layout,
@@ -40,6 +36,10 @@ pub mod par_strided_simd {
         utils::simd_ref::MutVec,
     };
     use hpt_traits::{CommonBounds, TensorInfo};
+    use rayon::iter::{
+        plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
+        ParallelIterator,
+    };
 
     use crate::{
         iterator_traits::{

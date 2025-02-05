@@ -1,6 +1,4 @@
 #![allow(unused)]
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use tch;
 use hpt_core::ShapeManipulate;
 use hpt_core::TensorLike;
 use hpt_core::{set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo};
@@ -8,6 +6,8 @@ use hpt_core::{Tensor, TensorCreator};
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
 use hpt_types::type_promote::NormalOutUnary;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use tch;
 
 use super::assert_utils::assert_f32;
 use super::assert_utils::assert_f64;

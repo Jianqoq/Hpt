@@ -16,10 +16,6 @@ use crate::vectors::traits::SimdCompare;
 use crate::vectors::traits::VecTrait;
 use half::bf16;
 use half::f16;
-use num_complex::{Complex32, Complex64};
-use num_traits::float::Float;
-#[cfg(feature = "stdsimd")]
-use sleef::Sleef;
 use hpt_macros::{
     float_out_binary, float_out_binary_simd_with_lhs_scalar, float_out_binary_simd_with_rhs_scalar,
     float_out_unary, impl_bitwise_out, impl_cmp, impl_eval, impl_normal_out_binary,
@@ -27,6 +23,10 @@ use hpt_macros::{
     impl_normal_out_simd_with_rhs_scalar, impl_normal_out_unary, impl_normal_out_unary_simd,
     simd_cmp, simd_eval, simd_float_out_unary,
 };
+use num_complex::{Complex32, Complex64};
+use num_traits::float::Float;
+#[cfg(feature = "stdsimd")]
+use sleef::Sleef;
 #[cfg(feature = "cuda")]
 mod cuda_imports {
     use super::*;

@@ -3,7 +3,6 @@ use crate::ops::cpu::kernels::conv_transpose::{
 };
 use crate::tensor_base::_Tensor;
 use crate::{Cpu, Tensor};
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_traits::CommonBounds;
@@ -12,6 +11,7 @@ use hpt_traits::TensorInfo;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
 use hpt_types::vectors::traits::*;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
 where

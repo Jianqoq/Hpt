@@ -1,6 +1,4 @@
 #![allow(unused)]
-use rand::Rng;
-use tch;
 use hpt_core::set_num_threads;
 use hpt_core::ShapeManipulate;
 use hpt_core::TensorLike;
@@ -8,6 +6,8 @@ use hpt_core::{CommonBounds, TensorInfo};
 use hpt_core::{Tensor, TensorCreator};
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
+use rand::Rng;
+use tch;
 
 use super::assert_utils::assert_f64;
 
@@ -29,10 +29,10 @@ fn common_input(
 #[track_caller]
 fn assert_eq(a: &Tensor<f64>, b: &tch::Tensor) -> anyhow::Result<()> {
     let res = a
-        .adaptive_avgpool2d([2, 2])?
+        .adaptive_maxpool2d([2, 2])?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
-    let tch_res = b.adaptive_avg_pool2d([2, 2]);
+    let (tch_res, _) = b.adaptive_max_pool2d([2, 2]);
     let res_slice = res.as_raw();
     let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f64, res.size()) };
     res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {

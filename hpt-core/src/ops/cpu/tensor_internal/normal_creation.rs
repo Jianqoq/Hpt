@@ -6,7 +6,6 @@ use crate::{
     tensor_base::_Tensor,
     BoolVector, ALIGN,
 };
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use hpt_allocator::{traits::Allocator, CACHE};
 use hpt_common::error::memory::MemoryError;
 use hpt_common::{
@@ -17,6 +16,7 @@ use hpt_common::{
 };
 use hpt_traits::{CommonBounds, TensorCreator, TensorInfo, TensorLike};
 use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, DEVICE> {
     type Output = _Tensor<T, Cpu, DEVICE>;

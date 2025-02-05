@@ -8,7 +8,6 @@ use crate::{
     BoolVector, Cuda, ALIGN,
 };
 use cudarc::driver::{DeviceRepr, LaunchAsync, LaunchConfig};
-use std::{panic::Location, sync::Arc};
 use hpt_allocator::CUDA_CACHE;
 use hpt_common::{err_handler::TensorError, layout::Layout, pointer::Pointer, shape::Shape};
 use hpt_cudakernels::CREATION;
@@ -18,6 +17,7 @@ use hpt_types::{
     convertion::{Convertor, FromScalar},
     type_promote::NormalOut,
 };
+use std::{panic::Location, sync::Arc};
 
 impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
     for _Tensor<T, Cuda, DEVICE_ID>

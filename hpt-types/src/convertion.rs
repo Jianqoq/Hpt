@@ -1,9 +1,9 @@
 use half::bf16;
 use half::f16;
-use num_complex::{Complex32, Complex64};
 use hpt_macros::impl_scalar_convert;
 #[cfg(feature = "stdsimd")]
 use hpt_macros::impl_simd_convert;
+use num_complex::{Complex32, Complex64};
 
 use crate::dtype::TypeCommon;
 #[cfg(all(

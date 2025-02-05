@@ -4,8 +4,6 @@ use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use cudarc::driver::DeviceRepr;
 use cudarc::driver::LaunchAsync;
-use std::borrow::Borrow;
-use std::panic::Location;
 use hpt_common::err_handler::TensorError::InvalidOutSize;
 use hpt_common::shape::Shape;
 use hpt_traits::tensor::CommonBounds;
@@ -13,6 +11,8 @@ use hpt_traits::tensor::TensorCreator;
 use hpt_traits::tensor::TensorInfo;
 use hpt_traits::TensorLike;
 use hpt_types::cuda_types::scalar::Scalar;
+use std::borrow::Borrow;
+use std::panic::Location;
 
 use super::cuda_utils::get_array_str;
 

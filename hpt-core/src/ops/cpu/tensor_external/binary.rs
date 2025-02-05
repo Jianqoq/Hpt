@@ -1,11 +1,11 @@
 use crate::ops::cpu::utils::binary::binary_normal::binary_fn_with_out_simd;
 use crate::Cpu;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
-use std::borrow::Borrow;
 use hpt_common::error::base::TensorError;
 use hpt_traits::{ops::binary::NormalBinOps, tensor::CommonBounds};
 use hpt_types::dtype::TypeCommon;
 use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
+use std::borrow::Borrow;
 
 /// a type alias for the output type of the binary operations of `A` and `B`
 pub(crate) type NormalType<A, B> = <A as NormalOut<B>>::Output;

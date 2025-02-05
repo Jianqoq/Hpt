@@ -1,6 +1,6 @@
-use std::borrow::Borrow;
 use hpt_common::error::base::TensorError;
 use hpt_types::{dtype::TypeCommon, type_promote::NormalOut};
+use std::borrow::Borrow;
 
 use crate::tensor::CommonBounds;
 

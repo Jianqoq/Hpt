@@ -1,12 +1,12 @@
 use crate::{tensor::Tensor, tensor_base::_Tensor, Cuda};
 use anyhow::Result;
 use cudarc::{driver::DeviceRepr, types::CudaTypeName};
-use rand_distr::{
-    uniform::SampleUniform, Distribution, Exp1, Open01, OpenClosed01, Standard, StandardNormal,
-};
 use hpt_common::shape::Shape;
 use hpt_traits::{CommonBounds, Random, RandomInt};
 use hpt_types::into_scalar::Cast;
+use rand_distr::{
+    uniform::SampleUniform, Distribution, Exp1, Open01, OpenClosed01, Standard, StandardNormal,
+};
 
 impl<T, const DEVICE_ID: usize> Random for Tensor<T, Cuda, DEVICE_ID>
 where

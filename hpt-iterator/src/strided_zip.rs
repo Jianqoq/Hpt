@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use hpt_common::{shape::shape::Shape, strides::strides::Strides};
+use std::sync::Arc;
 
 use crate::iterator_traits::{IterGetSet, StridedIterator, StridedIteratorMap, StridedIteratorZip};
 

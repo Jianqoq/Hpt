@@ -1,9 +1,4 @@
 use crate::{backend::Cpu, tensor_base::_Tensor};
-use rand_distr::{
-    uniform::SampleUniform, Distribution, Exp1, Normal, NormalInverseGaussian, Open01,
-    OpenClosed01, Standard, StandardNormal, Uniform,
-};
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_traits::{
     random::Random,
@@ -11,6 +6,11 @@ use hpt_traits::{
     RandomInt, TensorLike,
 };
 use hpt_types::into_scalar::Cast;
+use rand_distr::{
+    uniform::SampleUniform, Distribution, Exp1, Normal, NormalInverseGaussian, Open01,
+    OpenClosed01, Standard, StandardNormal, Uniform,
+};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 impl<T, const DEVICE: usize> Random for _Tensor<T, Cpu, DEVICE>
 where

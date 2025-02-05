@@ -1,10 +1,10 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::time::Duration;
-use tch::{Device, Kind, Tensor as TchTensor};
 use hpt_core::Tensor;
 use hpt_core::TensorInfo;
 use hpt_core::TensorLike;
 use hpt_core::WindowOps;
+use std::time::Duration;
+use tch::{Device, Kind, Tensor as TchTensor};
 
 fn assert_eq(a: &TchTensor, b: &Tensor<f64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };

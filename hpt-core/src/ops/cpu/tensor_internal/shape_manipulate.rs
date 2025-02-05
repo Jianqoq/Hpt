@@ -1,6 +1,5 @@
 use crate::tensor_base::_Tensor;
 use crate::{Cpu, THREAD_POOL};
-use std::panic::Location;
 use hpt_common::error::param::ParamError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::prg_update::next_sub1;
@@ -10,6 +9,7 @@ use hpt_common::slice::Slice;
 use hpt_common::{axis::axis::Axis, error::base::TensorError, shape::shape::Shape};
 use hpt_macros::match_selection;
 use hpt_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike};
+use std::panic::Location;
 
 impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for _Tensor<T, Cpu, DEVICE> {
     type Meta = T;

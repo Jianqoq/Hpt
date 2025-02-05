@@ -12,10 +12,6 @@ use crate::{
     tensor_base::_Tensor,
     Cpu,
 };
-use rayon::iter::{
-    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator,
-    IntoParallelRefMutIterator, ParallelIterator,
-};
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_iterator::{iterator_traits::ParStridedIteratorZip, TensorIterator};
 use hpt_traits::{CommonBounds, TensorInfo, TensorLike};
@@ -24,6 +20,10 @@ use hpt_types::{
     into_scalar::Cast,
     into_vec::IntoVec,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
+};
+use rayon::iter::{
+    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator,
+    IntoParallelRefMutIterator, ParallelIterator,
 };
 
 use super::normalize_utils::{

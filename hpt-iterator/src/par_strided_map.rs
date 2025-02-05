@@ -1,6 +1,6 @@
-use rayon::iter::{plumbing::UnindexedProducer, ParallelIterator};
 use hpt_common::shape::shape::Shape;
 use hpt_traits::tensor::{CommonBounds, TensorAlloc, TensorInfo};
+use rayon::iter::{plumbing::UnindexedProducer, ParallelIterator};
 
 use crate::{
     iterator_traits::{IterGetSet, ShapeManipulator},
@@ -10,10 +10,10 @@ use crate::{
 
 /// A module for parallel strided map iterator.
 pub mod par_strided_map_simd {
-    use rayon::iter::{plumbing::UnindexedProducer, ParallelIterator};
     use hpt_common::utils::simd_ref::MutVec;
     use hpt_traits::{CommonBounds, TensorAlloc, TensorInfo};
     use hpt_types::dtype::TypeCommon;
+    use rayon::iter::{plumbing::UnindexedProducer, ParallelIterator};
 
     use crate::{
         iterator_traits::{IterGetSetSimd, ParStridedIteratorSimdZip, ShapeManipulator},

@@ -2,12 +2,12 @@ use crate::ops::cuda::cuda_utils::{compile_kernel, compute_kernel_launch_config,
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use cudarc::driver::{DeviceRepr, LaunchAsync};
-use std::borrow::Borrow;
-use std::panic::Location;
 use hpt_common::err_handler::TensorError::{self, InvalidOutSize};
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::{TensorCreator, TensorInfo};
 use hpt_types::cuda_types::scalar::Scalar;
+use std::borrow::Borrow;
+use std::panic::Location;
 
 pub(crate) fn uary_fn_with_out_simd<A, O, K, F, const DEVICE_ID: usize>(
     inp: &_Tensor<A, Cuda, DEVICE_ID>,
