@@ -1,8 +1,8 @@
 use anyhow::Result;
-use tensor_types::cast::Cast;
 use std::fmt::Formatter;
 use tensor_common::utils::pointer::Pointer;
 use tensor_traits::tensor::{CommonBounds, TensorInfo};
+use tensor_types::into_scalar::Cast;
 
 use crate::formats::format_val;
 

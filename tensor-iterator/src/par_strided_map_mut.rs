@@ -19,7 +19,7 @@ pub mod par_strided_map_mut_simd {
         plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
         ParallelIterator,
     };
-    use tensor_common::{shape::shape::Shape, utils::simd_ref::MutVec, strides::strides::Strides};
+    use tensor_common::{shape::shape::Shape, strides::strides::Strides, utils::simd_ref::MutVec};
     use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
 

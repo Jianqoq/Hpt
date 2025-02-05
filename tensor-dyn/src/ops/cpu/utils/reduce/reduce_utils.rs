@@ -1,10 +1,16 @@
 use std::borrow::BorrowMut;
 
-use rayon::iter::{ IntoParallelRefMutIterator, ParallelIterator };
-use tensor_common::{error::{base::TensorError, shape::ShapeError}, utils::pointer::Pointer, shape::shape::Shape, shape::shape_utils::mt_intervals, strides::strides::Strides };
-use tensor_traits::{ CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike };
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
+use tensor_common::{
+    error::{base::TensorError, shape::ShapeError},
+    shape::shape::Shape,
+    shape::shape_utils::mt_intervals,
+    strides::strides::Strides,
+    utils::pointer::Pointer,
+};
+use tensor_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike};
 
-use crate::{ backend::Cpu, tensor_base::_Tensor };
+use crate::{backend::Cpu, tensor_base::_Tensor};
 
 pub(crate) fn rearrange_array(ndim: usize, to_reduce: &[usize]) -> Vec<usize> {
     let mut origin_order = (0..ndim).collect::<Vec<usize>>();
@@ -34,7 +40,7 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: usi
     axes: &[usize],
     init_val: O,
     init_out: bool,
-    c: Option<_Tensor<O, Cpu, DEVICE>>
+    c: Option<_Tensor<O, Cpu, DEVICE>>,
 ) -> std::result::Result<(_Tensor<T, Cpu, DEVICE>, _Tensor<O, Cpu, DEVICE>), TensorError> {
     // get permute order, we move to_reduce axes to the end
     let mut transposed_axis = rearrange_array(a.ndim(), axes);
@@ -50,11 +56,9 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: usi
         // we need to get the real size and compare the real size with the res_shape
         ShapeError::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
         if init_out {
-            out.as_raw_mut()
-                .par_iter_mut()
-                .for_each(|x| {
-                    *x = init_val;
-                });
+            out.as_raw_mut().par_iter_mut().for_each(|x| {
+                *x = init_val;
+            });
         }
         Ok(out.reshape(res_layout.shape())?)
     } else {
@@ -68,8 +72,16 @@ pub(crate) fn uncontiguous_reduce_prepare<T: CommonBounds, O: CommonBounds, cons
     axes: &[usize],
     init_val: O,
     init_out: bool,
-    c: Option<_Tensor<O, Cpu, DEVICE>>
-) -> std::result::Result<(bool, _Tensor<T, Cpu, DEVICE>, _Tensor<O, Cpu, DEVICE>, Vec<usize>), TensorError> {
+    c: Option<_Tensor<O, Cpu, DEVICE>>,
+) -> std::result::Result<
+    (
+        bool,
+        _Tensor<T, Cpu, DEVICE>,
+        _Tensor<O, Cpu, DEVICE>,
+        Vec<usize>,
+    ),
+    TensorError,
+> {
     let mut keep_fast_dim = true;
     for axis in axes.iter() {
         if a.strides()[*axis] == 1 {
@@ -92,17 +104,20 @@ pub(crate) fn uncontiguous_reduce_prepare<T: CommonBounds, O: CommonBounds, cons
         // we need to get the real size and compare the real size with the res_shape
         ShapeError::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
         if init_out {
-            out.as_raw_mut()
-                .par_iter_mut()
-                .for_each(|x| {
-                    *x = init_val;
-                });
+            out.as_raw_mut().par_iter_mut().for_each(|x| {
+                *x = init_val;
+            });
         }
         Ok(out)
     } else {
         _Tensor::<O, Cpu, DEVICE>::full(init_val, res_layout.shape())?.permute(&res_permute_axes)
     };
-    Ok((keep_fast_dim, a.permute(transposed_axis)?, res?, res_permute_axes))
+    Ok((
+        keep_fast_dim,
+        a.permute(transposed_axis)?,
+        res?,
+        res_permute_axes,
+    ))
 }
 
 #[derive(Debug, Clone)]
@@ -119,7 +134,11 @@ pub(crate) struct UCReductionPreprocessor<T, U> {
     pub res_prg: Vec<i64>,
 }
 
-impl<T, U> UCReductionPreprocessor<T, U> where T: Clone, U: Clone {
+impl<T, U> UCReductionPreprocessor<T, U>
+where
+    T: Clone,
+    U: Clone,
+{
     pub fn new(
         num_threads: usize,
         loop_size: usize,
@@ -130,7 +149,7 @@ impl<T, U> UCReductionPreprocessor<T, U> where T: Clone, U: Clone {
         a_shape: Shape,
         transposed_shape: Shape,
         res_shape: Shape,
-        res_strides: &[i64]
+        res_strides: &[i64],
     ) -> Vec<UCReductionPreprocessor<T, U>> {
         let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
         let mut task_amout = 0;
@@ -155,8 +174,7 @@ impl<T, U> UCReductionPreprocessor<T, U> where T: Clone, U: Clone {
             // [40, 41, 42, 43, 44, 45, 46, 47, 48, 49]     thread 4
             // where the first axis is where we are splitting the tensor
             let mut tmp1 = (task_amout * inner_loop_size) as i64;
-            let mut prg =
-                vec![0; a_shape.len() - 1]; /* -1 because we want to escape the last axis */
+            let mut prg = vec![0; a_shape.len() - 1]; /* -1 because we want to escape the last axis */
 
             // since the axis we want to reduce include the most inner axis, we will skip the iteration of the last axis
             // so we use (0..=a_shape.len() - 2).rev()
@@ -204,7 +222,7 @@ impl<T, U> UCReductionPreprocessor<T, U> where T: Clone, U: Clone {
         transposed_strides: Strides,
         transposed_shape: Shape,
         res_shape: Shape,
-        res_strides: &[i64]
+        res_strides: &[i64],
     ) -> Vec<UCReductionPreprocessor<T, U>> {
         let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
         let mut task_amout = 0;
@@ -217,9 +235,8 @@ impl<T, U> UCReductionPreprocessor<T, U> where T: Clone, U: Clone {
             let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
 
             for i in (0..ndim - 1).rev() {
-                a_data_ptr_cpy.offset(
-                    progress_init_a_data[i as usize] * transposed_strides[i as usize]
-                );
+                a_data_ptr_cpy
+                    .offset(progress_init_a_data[i as usize] * transposed_strides[i as usize]);
             }
 
             let progress_init_a_data_cpy = progress_init_a_data.clone();
@@ -272,7 +289,11 @@ pub(crate) struct ReductionPreprocessor<T, U> {
     pub a_shape: Shape,
 }
 
-impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
+impl<T, U> ReductionPreprocessor<T, U>
+where
+    T: Clone,
+    U: Clone,
+{
     pub fn new(
         num_threads: usize,
         loop_size: usize,
@@ -282,7 +303,7 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
         strides: Strides,
         a_shape: Shape,
         transposed_shape: Shape,
-        res_shape: Shape
+        res_shape: Shape,
     ) -> Vec<ReductionPreprocessor<T, U>> {
         let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
         let mut task_amout = 0;
@@ -306,8 +327,7 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
             // [40, 41, 42, 43, 44, 45, 46, 47, 48, 49]     thread 4
             // where the first axis is where we are splitting the tensor
             let mut tmp1 = (task_amout * inner_loop_size) as i64;
-            let mut prg =
-                vec![0; a_shape.len() - 1]; /* -1 because we want to escape the last axis */
+            let mut prg = vec![0; a_shape.len() - 1]; /* -1 because we want to escape the last axis */
 
             // since the axis we want to reduce include the most inner axis, we will skip the iteration of the last axis
             // so we use (0..=a_shape.len() - 2).rev()
@@ -349,7 +369,7 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
         mut res_ptrs: Pointer<U>,
         transposed_strides: Strides,
         transposed_shape: Shape,
-        res_shape: Shape
+        res_shape: Shape,
     ) -> Vec<ReductionPreprocessor<T, U>> {
         let intervals: Vec<(usize, usize)> = mt_intervals(loop_size, num_threads);
         let mut task_amout = 0;
@@ -369,9 +389,8 @@ impl<T, U> ReductionPreprocessor<T, U> where T: Clone, U: Clone {
             let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
 
             for i in (0..ndim - 1).rev() {
-                a_data_ptr_cpy.offset(
-                    progress_init_a_data[i as usize] * transposed_strides[i as usize]
-                );
+                a_data_ptr_cpy
+                    .offset(progress_init_a_data[i as usize] * transposed_strides[i as usize]);
             }
 
             let progress_init_a_data_cpy = progress_init_a_data.clone();

@@ -94,12 +94,17 @@ pub(crate) unsafe fn vcast_vo64_vo32(m: Vopmask) -> Vopmask {
 
 #[inline(always)]
 pub(crate) unsafe fn vcast_vm_i_i(i0: i32, i1: i32) -> VMask {
-    std::mem::transmute(vreinterpretq_u32_u64(vdupq_n_u64((0xffffffff & i1 as u64) | ((i0 as u64) << 32))))
+    std::mem::transmute(vreinterpretq_u32_u64(vdupq_n_u64(
+        (0xffffffff & i1 as u64) | ((i0 as u64) << 32),
+    )))
 }
 
 #[inline(always)]
 pub(crate) unsafe fn veq64_vo_vm_vm(x: VMask, y: VMask) -> Vopmask {
-    vreinterpretq_u32_u64(vceqq_s64(vreinterpretq_s64_u32(x), vreinterpretq_s64_u32(y)))
+    vreinterpretq_u32_u64(vceqq_s64(
+        vreinterpretq_s64_u32(x),
+        vreinterpretq_s64_u32(y),
+    ))
 }
 
 #[inline(always)]
@@ -315,7 +320,7 @@ pub(crate) mod fma_ops {
 
 pub(crate) use fma_ops::*;
 
-use crate::sleef_types::{ VDouble, VFloat, VInt, VInt2, VMask, Vopmask };
+use crate::sleef_types::{VDouble, VFloat, VInt, VInt2, VMask, Vopmask};
 
 // Float comparisons and operations
 #[inline(always)]
@@ -581,7 +586,10 @@ pub(crate) unsafe fn vgt_vo_vd_vd(x: VDouble, y: VDouble) -> Vopmask {
 
 #[inline(always)]
 pub(crate) unsafe fn visinf_vo_vd(d: VDouble) -> Vopmask {
-    let cmp = vorrq_u64(vceqq_f64(d, vdupq_n_f64(f64::INFINITY)), vceqq_f64(d, vdupq_n_f64(f64::NEG_INFINITY)));
+    let cmp = vorrq_u64(
+        vceqq_f64(d, vdupq_n_f64(f64::INFINITY)),
+        vceqq_f64(d, vdupq_n_f64(f64::NEG_INFINITY)),
+    );
     vreinterpretq_u32_u64(cmp)
 }
 
@@ -722,7 +730,10 @@ pub(crate) unsafe fn vsrl64_vm_vm_i<const C: i32>(x: VMask) -> VMask {
 
 #[inline(always)]
 pub(crate) unsafe fn vsub64_vm_vm_vm(x: VMask, y: VMask) -> VMask {
-    vreinterpretq_u32_u64(vsubq_u64(vreinterpretq_u64_u32(x), vreinterpretq_u64_u32(y)))
+    vreinterpretq_u32_u64(vsubq_u64(
+        vreinterpretq_u64_u32(x),
+        vreinterpretq_u64_u32(y),
+    ))
 }
 
 #[inline(always)]

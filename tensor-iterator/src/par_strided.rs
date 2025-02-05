@@ -1,56 +1,53 @@
 use crate::{
-    iterator_traits::{ IterGetSet, ParStridedHelper, ParStridedIteratorZip, ShapeManipulator },
+    iterator_traits::{IterGetSet, ParStridedHelper, ParStridedIteratorZip, ShapeManipulator},
     par_strided_fold::ParStridedFold,
     par_strided_map::ParStridedMap,
-    shape_manipulate::{ par_expand, par_reshape, par_transpose },
+    shape_manipulate::{par_expand, par_reshape, par_transpose},
 };
 use rayon::iter::{
-    plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
+    plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
     ParallelIterator,
 };
 use std::sync::Arc;
 use tensor_common::{
     axis::axis::Axis,
     layout::layout::Layout,
-    utils::pointer::Pointer,
     shape::shape::Shape,
-    shape::shape_utils::{ mt_intervals, try_pad_shape },
+    shape::shape_utils::{mt_intervals, try_pad_shape},
     strides::strides::Strides,
     strides::strides_utils::preprocess_strides,
+    utils::pointer::Pointer,
 };
-use tensor_traits::tensor::{ CommonBounds, TensorInfo };
+use tensor_traits::tensor::{CommonBounds, TensorInfo};
 
 /// A module for parallel strided iterators.
 pub mod par_strided_simd {
-    use tensor_types::vectors::traits::VecTrait;
     use std::sync::Arc;
+    use tensor_types::vectors::traits::VecTrait;
 
     use rayon::iter::{
-        plumbing::{ bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer },
+        plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
         ParallelIterator,
     };
     use tensor_common::{
         axis::axis::Axis,
         layout::layout::Layout,
-        utils::pointer::Pointer,
         shape::shape::Shape,
-        shape::shape_utils::{ mt_intervals, try_pad_shape },
-        utils::simd_ref::MutVec,
+        shape::shape_utils::{mt_intervals, try_pad_shape},
         strides::strides::Strides,
         strides::strides_utils::preprocess_strides,
+        utils::pointer::Pointer,
+        utils::simd_ref::MutVec,
     };
-    use tensor_traits::{ CommonBounds, TensorInfo };
+    use tensor_traits::{CommonBounds, TensorInfo};
 
     use crate::{
         iterator_traits::{
-            IterGetSetSimd,
-            ParStridedHelper,
-            ParStridedIteratorSimd,
-            ParStridedIteratorSimdZip,
+            IterGetSetSimd, ParStridedHelper, ParStridedIteratorSimd, ParStridedIteratorSimdZip,
             ShapeManipulator,
         },
         par_strided_map::par_strided_map_simd::ParStridedMapSimd,
-        shape_manipulate::{ par_expand, par_reshape, par_transpose },
+        shape_manipulate::{par_expand, par_reshape, par_transpose},
     };
 
     /// Parallel strided iterator for SIMD operations.
@@ -111,16 +108,12 @@ pub mod par_strided_simd {
         pub fn strided_map_simd<'a, F, F2>(
             self,
             f: F,
-            vec_op: F2
-        )
-            -> ParStridedMapSimd<'a, ParStridedSimd<T>, T, F, F2>
-            where
-                F: Fn((&mut T, <Self as IterGetSetSimd>::Item)) + Sync + Send + 'a,
-                <Self as IterGetSetSimd>::Item: Send,
-                F2: Send +
-                    Sync +
-                    Copy +
-                    Fn((MutVec<'_, T::Vec>, <Self as IterGetSetSimd>::SimdItem))
+            vec_op: F2,
+        ) -> ParStridedMapSimd<'a, ParStridedSimd<T>, T, F, F2>
+        where
+            F: Fn((&mut T, <Self as IterGetSetSimd>::Item)) + Sync + Send + 'a,
+            <Self as IterGetSetSimd>::Item: Send,
+            F2: Send + Sync + Copy + Fn((MutVec<'_, T::Vec>, <Self as IterGetSetSimd>::SimdItem)),
         {
             {
                 ParStridedMapSimd {
@@ -136,7 +129,10 @@ pub mod par_strided_simd {
     impl<T: CommonBounds> ParStridedIteratorSimdZip for ParStridedSimd<T> {}
     impl<T: CommonBounds> ParStridedIteratorSimd for ParStridedSimd<T> {}
 
-    impl<T: CommonBounds> IterGetSetSimd for ParStridedSimd<T> where T::Vec: Send {
+    impl<T: CommonBounds> IterGetSetSimd for ParStridedSimd<T>
+    where
+        T::Vec: Send,
+    {
         type Item = T;
 
         type SimdItem = T::Vec;
@@ -225,15 +221,26 @@ pub mod par_strided_simd {
         }
     }
 
-    impl<T> ParallelIterator for ParStridedSimd<T> where T: CommonBounds, T::Vec: Send {
+    impl<T> ParallelIterator for ParStridedSimd<T>
+    where
+        T: CommonBounds,
+        T::Vec: Send,
+    {
         type Item = T;
 
-        fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item> {
+        fn drive_unindexed<C>(self, consumer: C) -> C::Result
+        where
+            C: UnindexedConsumer<Self::Item>,
+        {
             bridge_unindexed(self, consumer)
         }
     }
 
-    impl<T> UnindexedProducer for ParStridedSimd<T> where T: CommonBounds, T::Vec: Send {
+    impl<T> UnindexedProducer for ParStridedSimd<T>
+    where
+        T: CommonBounds,
+        T::Vec: Send,
+    {
         type Item = T;
 
         fn split(mut self) -> (Self, Option<Self>) {
@@ -280,7 +287,10 @@ pub mod par_strided_simd {
             )
         }
 
-        fn fold_with<F>(self, folder: F) -> F where F: Folder<Self::Item> {
+        fn fold_with<F>(self, folder: F) -> F
+        where
+            F: Folder<Self::Item>,
+        {
             folder
         }
     }
@@ -311,7 +321,10 @@ pub mod par_strided_simd {
         }
     }
 
-    impl<T: CommonBounds> ShapeManipulator for ParStridedSimd<T> where T::Vec: Send {
+    impl<T: CommonBounds> ShapeManipulator for ParStridedSimd<T>
+    where
+        T::Vec: Send,
+    {
         fn reshape<S: Into<Shape>>(self, shape: S) -> Self {
             par_reshape(self, shape)
         }
@@ -417,7 +430,9 @@ impl<T: CommonBounds> ParStrided<T> {
     ///
     /// A `ParStridedFold` instance that represents the fold operation.
     pub fn par_strided_fold<ID, F>(self, identity: ID, fold_op: F) -> ParStridedFold<Self, ID, F>
-        where F: Fn(ID, T) -> ID + Sync + Send + Copy, ID: Sync + Send + Copy
+    where
+        F: Fn(ID, T) -> ID + Sync + Send + Copy,
+        ID: Sync + Send + Copy,
     {
         ParStridedFold {
             iter: self,
@@ -443,7 +458,9 @@ impl<T: CommonBounds> ParStrided<T> {
     ///
     /// A `ParStridedMap` instance that applies the provided function during iteration.
     pub fn strided_map<'a, F, U>(self, f: F) -> ParStridedMap<'a, ParStrided<T>, T, F>
-        where F: Fn((&mut U, T)) + Sync + Send + 'a, U: CommonBounds
+    where
+        F: Fn((&mut U, T)) + Sync + Send + 'a,
+        U: CommonBounds,
     {
         ParStridedMap {
             iter: self,
@@ -527,15 +544,26 @@ impl<T: CommonBounds> IterGetSet for ParStrided<T> {
     }
 }
 
-impl<T> ParallelIterator for ParStrided<T> where T: CommonBounds, T::Vec: Send {
+impl<T> ParallelIterator for ParStrided<T>
+where
+    T: CommonBounds,
+    T::Vec: Send,
+{
     type Item = T;
 
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result where C: UnindexedConsumer<Self::Item> {
+    fn drive_unindexed<C>(self, consumer: C) -> C::Result
+    where
+        C: UnindexedConsumer<Self::Item>,
+    {
         bridge_unindexed(self, consumer)
     }
 }
 
-impl<T> UnindexedProducer for ParStrided<T> where T: CommonBounds, T::Vec: Send {
+impl<T> UnindexedProducer for ParStrided<T>
+where
+    T: CommonBounds,
+    T::Vec: Send,
+{
     type Item = T;
 
     fn split(mut self) -> (Self, Option<Self>) {
@@ -584,7 +612,10 @@ impl<T> UnindexedProducer for ParStrided<T> where T: CommonBounds, T::Vec: Send 
         )
     }
 
-    fn fold_with<F>(self, folder: F) -> F where F: Folder<Self::Item> {
+    fn fold_with<F>(self, folder: F) -> F
+    where
+        F: Folder<Self::Item>,
+    {
         folder
     }
 }

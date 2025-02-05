@@ -132,7 +132,11 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for _Tensor<T, Cpu, D
             |a| a.contiguous(),
         )?)
     }
-    fn split(&self, indices_or_sections: &[i64], axis: i64) -> std::result::Result<Vec<Self>, TensorError> {
+    fn split(
+        &self,
+        indices_or_sections: &[i64],
+        axis: i64,
+    ) -> std::result::Result<Vec<Self>, TensorError> {
         Ok(crate::ops::common::shape_manipulate::split(
             self,
             indices_or_sections,
@@ -164,14 +168,21 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for _Tensor<T, Cpu, D
             |a| a.contiguous(),
         )?)
     }
-    fn concat(tensors: Vec<Self>, axis: usize, keepdims: bool) -> std::result::Result<Self, TensorError>
+    fn concat(
+        tensors: Vec<Self>,
+        axis: usize,
+        keepdims: bool,
+    ) -> std::result::Result<Self, TensorError>
     where
         T: 'static,
     {
         let length = tensors.len();
         for i in tensors.iter() {
             for (idx, x) in tensors[0].shape().iter().enumerate() {
-                if idx != axis && i.shape().len() == tensors[0].shape().len() && *x != i.shape()[idx] {
+                if idx != axis
+                    && i.shape().len() == tensors[0].shape().len()
+                    && *x != i.shape()[idx]
+                {
                     return Err(ShapeError::ConcatDimMismatch {
                         expected: *x as usize,
                         actual: i.shape()[idx] as usize,

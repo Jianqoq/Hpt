@@ -1,14 +1,14 @@
 use crate::ops::cuda::{cuda_utils::get_module_name_1, unary::uary_fn_with_out_simd};
 use crate::{tensor_base::_Tensor, Cuda};
 use cudarc::driver::DeviceRepr;
-use tensor_common::err_handler::TensorError;
 use std::ops::{Mul, Sub};
+use tensor_common::err_handler::TensorError;
 use tensor_traits::{CommonBounds, TensorCreator};
 use tensor_types::cuda_types::scalar::Scalar;
 use tensor_types::dtype::Dtype::*;
 use tensor_types::{
-    dtype::{FloatConst, TypeCommon},
     cast::Cast,
+    dtype::{FloatConst, TypeCommon},
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 
@@ -38,12 +38,7 @@ where
         window_length: i64,
         periodic: bool,
     ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, TensorError> {
-        Self::__hamming_window(
-            window_length,
-            (0.54).cast(),
-            (0.46).cast(),
-            periodic,
-        )
+        Self::__hamming_window(window_length, (0.54).cast(), (0.46).cast(), periodic)
     }
 
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -51,12 +46,7 @@ where
         window_length: i64,
         periodic: bool,
     ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, TensorError> {
-        Self::__hamming_window(
-            window_length,
-            (0.5).cast(),
-            (0.5).cast(),
-            periodic,
-        )
+        Self::__hamming_window(window_length, (0.5).cast(), (0.5).cast(), periodic)
     }
 
     #[cfg_attr(feature = "track_caller", track_caller)]

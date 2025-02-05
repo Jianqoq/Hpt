@@ -1,6 +1,6 @@
+use crate::type_utils::type_simd_lanes;
 use proc_macro::TokenStream;
 use quote::quote;
-use crate::type_utils::type_simd_lanes;
 
 pub fn into_vec() -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
@@ -21,8 +21,14 @@ pub fn into_vec() -> TokenStream {
         (format!("u64x{}", type_simd_lanes("u64")), "u64"),
         (format!("isizex{}", type_simd_lanes("isize")), "isize"),
         (format!("usizex{}", type_simd_lanes("usize")), "usize"),
-        (format!("cplx32x{}", type_simd_lanes("complex32")), "complex32"),
-        (format!("cplx64x{}", type_simd_lanes("complex64")), "complex64"),
+        (
+            format!("cplx32x{}", type_simd_lanes("complex32")),
+            "complex32",
+        ),
+        (
+            format!("cplx64x{}", type_simd_lanes("complex64")),
+            "complex64",
+        ),
     ];
 
     for (lhs_simd_ty, lhs) in types.iter() {
@@ -40,7 +46,8 @@ pub fn into_vec() -> TokenStream {
                     }
                 }
             } else {
-                let into_method = syn::Ident::new(&format!("to_{}", rhs), proc_macro2::Span::call_site());
+                let into_method =
+                    syn::Ident::new(&format!("to_{}", rhs), proc_macro2::Span::call_site());
                 quote! {
                     impl IntoVec<#rhs_simd_ty::#rhs_simd_ty> for #lhs_simd_ty::#lhs_simd_ty {
                         fn into_vec(self) -> #rhs_simd_ty::#rhs_simd_ty {

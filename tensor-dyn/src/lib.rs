@@ -267,6 +267,7 @@ pub use tensor::Tensor;
 pub use tensor_codegen::compile;
 #[cfg(feature = "codegen")]
 pub use tensor_codegen::fuse_proc_macro;
+pub use tensor_common::slice;
 pub use tensor_common::{
     error::base::TensorError, shape::shape::Shape, slice::Slice, strides::strides::Strides,
 };
@@ -285,7 +286,6 @@ pub use tensor_types::type_promote::{
     NormalOut, NormalOutPromote, NormalOutUnary,
 };
 pub use tensor_types::vectors::*;
-pub use tensor_common::slice;
 
 use std::{cell::RefCell, sync::atomic::AtomicUsize};
 thread_local! {

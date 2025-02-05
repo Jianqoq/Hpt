@@ -135,7 +135,11 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeM
         new_shape[val] *= repeats as i64;
         Ok(new_tensor.contiguous()?.reshape(new_shape)?)
     }
-    fn split(&self, indices_or_sections: &[i64], axis: i64) -> std::result::Result<Vec<Self>, TensorError> {
+    fn split(
+        &self,
+        indices_or_sections: &[i64],
+        axis: i64,
+    ) -> std::result::Result<Vec<Self>, TensorError> {
         let mut new_axis = axis;
         if axis < 0 {
             new_axis = (self.ndim() as i64) + axis;
@@ -220,7 +224,11 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeM
         }
         self.reshape(new_shape)
     }
-    fn concat(tensors: Vec<&Self>, axis: usize, keepdims: bool) -> std::result::Result<Self, TensorError>
+    fn concat(
+        tensors: Vec<&Self>,
+        axis: usize,
+        keepdims: bool,
+    ) -> std::result::Result<Self, TensorError>
     where
         T: 'static,
     {

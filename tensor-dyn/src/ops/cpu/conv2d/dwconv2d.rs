@@ -16,15 +16,15 @@ use tensor_common::utils::pointer::Pointer;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
 
 impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + Cast<T> + NormalOut<Output = T>,
-        T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
-        bool: Cast<T>
+where
+    T: CommonBounds + Cast<T> + NormalOut<Output = T>,
+    T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
+    bool: Cast<T>,
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
     #[inline(never)]
@@ -35,7 +35,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        activation: Option<fn(T::Vec) -> T::Vec>
+        activation: Option<fn(T::Vec) -> T::Vec>,
     ) -> Result<_Tensor<T, Cpu, DEVICE>, TensorError> {
         let img_shape = self.shape();
         ShapeError::check_dim(4, img_shape.len())?;
@@ -82,7 +82,8 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
             .into());
         }
         let activation = activation.unwrap_or(|x| x);
-        let output = _Tensor::<T, Cpu, DEVICE>::empty([batch, out_height, out_width, out_channels])?;
+        let output =
+            _Tensor::<T, Cpu, DEVICE>::empty([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
 
@@ -106,13 +107,15 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
 
         // retrieve micro kernels start
 
-        let full_oc_kernel = conv2d_full_oc_kernel_dispatch(&mut ic_nvec, &mut ow_block).expect(
-            &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, ic_nvec)
-        );
+        let full_oc_kernel =
+            conv2d_full_oc_kernel_dispatch(&mut ic_nvec, &mut ow_block).expect(&format!(
+                "unable to find iconv2d_microkernel_{}x{}",
+                ow_block, ic_nvec
+            ));
         let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
         let full_oc_kernel_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
             &mut ic_nvec,
-            &mut ((out_width as usize) % ow_block)
+            &mut ((out_width as usize) % ow_block),
         );
         if full_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
@@ -121,17 +124,14 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
         if let Some(partial_oc_kernel) = partial_oc_kernel {
             assert_eq!(ow_block, partial_oc_kernel.ow_block);
         }
-        let partial_oc_kernel_ow_remain = remain_oc_kernel_dispatch::<T>(
-            &mut ((out_width as usize) % ow_block)
-        );
+        let partial_oc_kernel_ow_remain =
+            remain_oc_kernel_dispatch::<T>(&mut ((out_width as usize) % ow_block));
         if partial_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
         let full_oc_kernel_fn_1_oc = conv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ow_block);
-        let full_oc_kernel_fn_1_oc_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
-            &mut 1,
-            &mut ((out_width as usize) % ow_block)
-        );
+        let full_oc_kernel_fn_1_oc_ow_remain =
+            conv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ((out_width as usize) % ow_block));
         let has_bias = bias.is_some();
         let bias_full_oc_kernel = if has_bias {
             Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut ic_nvec, &mut ow_block).unwrap())
@@ -152,8 +152,9 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
             Some(
                 conv2d_full_oc_bias_kernel_dispatch::<T>(
                     &mut ic_nvec,
-                    &mut ((out_width as usize) % ow_block)
-                ).unwrap()
+                    &mut ((out_width as usize) % ow_block),
+                )
+                .unwrap(),
             )
         } else {
             None
@@ -162,15 +163,17 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
             Some(
                 conv2d_full_oc_bias_kernel_dispatch::<T>(
                     &mut 1,
-                    &mut ((out_width as usize) % ow_block)
-                ).unwrap()
+                    &mut ((out_width as usize) % ow_block),
+                )
+                .unwrap(),
             )
         } else {
             None
         };
         let bias_partial_oc_ow_remain = if has_bias {
             Some(
-                bias_remain_oc_kernel_dispatch::<T>(&mut ((out_width as usize) % ow_block)).unwrap()
+                bias_remain_oc_kernel_dispatch::<T>(&mut ((out_width as usize) % ow_block))
+                    .unwrap(),
             )
         } else {
             None
@@ -192,9 +195,9 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
             ro_ptr.clone(),
             [in_channels as usize, ic_nvec],
             [ks0 as usize, ks1 as usize],
-            [kernel_height as usize, kernel_width as usize]
+            [kernel_height as usize, kernel_width as usize],
         );
-        
+
         let ic_block_size = ic_nvec * T::Vec::SIZE; // in channel block size
         (0..outer).into_par_iter().for_each(|idx| {
             let mut out = out.clone();
@@ -238,7 +241,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                 kernel,
                                 &inp,
                                 &bias,
-                                activation
+                                activation,
                             );
                         },
                         |k, l, out, kernel| {
@@ -252,9 +255,9 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                 kernel,
                                 &inp,
                                 &bias,
-                                activation
+                                activation,
                             );
-                        }
+                        },
                     );
                 }
                 let remain = in_channels % (ic_block_size as i64);
@@ -278,7 +281,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                 kernel,
                                 &inp,
                                 &bias,
-                                activation
+                                activation,
                             );
                         },
                         |k, l, out, kernel| {
@@ -292,9 +295,9 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                 kernel,
                                 &inp,
                                 &bias,
-                                activation
+                                activation,
                             );
-                        }
+                        },
                     );
                 }
                 for ii in (in_channels - remain..in_channels).step_by(T::Vec::SIZE) {
@@ -327,7 +330,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                 kernel,
                                 &inp,
                                 &bias,
-                                activation
+                                activation,
                             );
                         },
                         |k, l, out, kernel| {
@@ -340,9 +343,9 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                 kernel,
                                 &inp,
                                 &bias,
-                                activation
+                                activation,
                             );
-                        }
+                        },
                     );
                     kernel += kernel_height * kernel_width * remain;
                 }
@@ -365,7 +368,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                 out,
                                 kernel,
                                 &inp,
-                                activation
+                                activation,
                             );
                         },
                         |k, l, out, kernel| {
@@ -378,9 +381,9 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                 out,
                                 kernel,
                                 &inp,
-                                activation
+                                activation,
                             );
-                        }
+                        },
                     );
                 }
                 let remain = in_channels % (ic_block_size as i64);
@@ -403,7 +406,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                 out,
                                 kernel,
                                 &inp,
-                                activation
+                                activation,
                             );
                         },
                         |k, l, out, kernel| {
@@ -416,9 +419,9 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                 out,
                                 kernel,
                                 &inp,
-                                activation
+                                activation,
                             );
-                        }
+                        },
                     );
                 }
                 for ii in (in_channels - remain..in_channels).step_by(T::Vec::SIZE) {
@@ -450,7 +453,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                 out,
                                 kernel,
                                 &inp,
-                                activation
+                                activation,
                             );
                         },
                         |k, l, out, kernel| {
@@ -462,9 +465,9 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                 out,
                                 kernel,
                                 &inp,
-                                activation
+                                activation,
                             );
-                        }
+                        },
                     );
                     kernel += kernel_height * kernel_width * remain;
                 }
@@ -479,7 +482,7 @@ fn reorder_kernel<T: CommonBounds>(
     reordered: Pointer<T>,
     [in_channel, ic_nvec]: [usize; 2],
     [ks0, ks1]: [usize; 2],
-    [kh, kw]: [usize; 2]
+    [kh, kw]: [usize; 2],
 ) {
     let ic_block_size = ic_nvec * T::Vec::SIZE;
     let full_ic_block_size_end = in_channel - (in_channel % ic_block_size);
@@ -552,11 +555,10 @@ fn ow_loop<F1, F2, T: CommonBounds>(
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     full_oc_kernel: F1,
-    full_oc_kernel_ow_remain: F2
-)
-    where
-        F1: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>),
-        F2: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>)
+    full_oc_kernel_ow_remain: F2,
+) where
+    F1: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>),
+    F2: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>),
 {
     for k in (0..out_width_full_end).step_by(ow_block) {
         let original = kernel.clone();
@@ -577,10 +579,10 @@ fn ow_loop<F1, F2, T: CommonBounds>(
 }
 
 impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + Cast<T> + NormalOut<Output = T>,
-        T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
-        bool: Cast<T>
+where
+    T: CommonBounds + Cast<T> + NormalOut<Output = T>,
+    T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
+    bool: Cast<T>,
 {
     /// Performs a Depth-wise 2D convolution operation on the input tensor.
     ///
@@ -609,8 +611,19 @@ impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE>
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        activation: Option<fn(T::Vec) -> T::Vec>
+        activation: Option<fn(T::Vec) -> T::Vec>,
     ) -> Result<Tensor<T, Cpu, DEVICE>, TensorError> {
-        Ok(self.inner.as_ref().dwconv2d(kernels.inner.as_ref(), bias.map(|b| b.inner.as_ref()), steps, padding, dilation, activation)?.into())
+        Ok(self
+            .inner
+            .as_ref()
+            .dwconv2d(
+                kernels.inner.as_ref(),
+                bias.map(|b| b.inner.as_ref()),
+                steps,
+                padding,
+                dilation,
+                activation,
+            )?
+            .into())
     }
 }

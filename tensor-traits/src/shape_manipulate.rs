@@ -140,7 +140,8 @@ where
     /// * This function will panic if the length of `axes` does not match the number of dimensions in the tensor,
     /// or if any of the axes are out of bounds.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError>;
+    fn permute_inv<A: Into<Axis>>(&self, axes: A)
+        -> std::result::Result<Self::Output, TensorError>;
 
     /// Expands the tensor to a larger shape without copying data, using broadcasting.
     ///

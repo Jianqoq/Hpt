@@ -1,8 +1,8 @@
-use std::ops::{ Deref, DerefMut };
+use std::ops::{Deref, DerefMut};
 
 use crate::into_vec::IntoVec;
 
-use crate::vectors::traits::{ Init, VecCommon, VecTrait };
+use crate::vectors::traits::{Init, VecCommon, VecTrait};
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -53,7 +53,7 @@ impl VecTrait<i32> for i32x16 {
 }
 impl VecCommon for i32x16 {
     const SIZE: usize = 16;
-    
+
     type Base = i32;
 }
 impl Init<i32> for i32x16 {
@@ -61,31 +61,31 @@ impl Init<i32> for i32x16 {
         i32x16(std::simd::i32x16::splat(val))
     }
 }
-impl std::ops::Add  for i32x16 {
+impl std::ops::Add for i32x16 {
     type Output = i32x16;
     fn add(self, rhs: Self) -> Self::Output {
         i32x16(self.0 + rhs.0)
     }
 }
-impl std::ops::Sub  for i32x16 {
+impl std::ops::Sub for i32x16 {
     type Output = i32x16;
     fn sub(self, rhs: Self) -> Self::Output {
         i32x16(self.0 - rhs.0)
     }
 }
-impl std::ops::Mul  for i32x16 {
+impl std::ops::Mul for i32x16 {
     type Output = i32x16;
     fn mul(self, rhs: Self) -> Self::Output {
         i32x16(self.0 * rhs.0)
     }
 }
-impl std::ops::Div  for i32x16 {
+impl std::ops::Div for i32x16 {
     type Output = i32x16;
     fn div(self, rhs: Self) -> Self::Output {
         i32x16(self.0 / rhs.0)
     }
 }
-impl std::ops::Rem  for i32x16 {
+impl std::ops::Rem for i32x16 {
     type Output = i32x16;
     fn rem(self, rhs: Self) -> Self::Output {
         i32x16(self.0 % rhs.0)

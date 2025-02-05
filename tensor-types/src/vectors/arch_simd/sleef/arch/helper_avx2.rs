@@ -1,8 +1,8 @@
 #![allow(unused)]
 
-use std::mem::transmute;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+use std::mem::transmute;
 
 use crate::sleef_types::*;
 
@@ -26,12 +26,18 @@ pub(crate) unsafe fn vprefetch_v_p(ptr: *const std::ffi::c_void) {
 
 #[inline(always)]
 pub(crate) unsafe fn vtestallones_i_vo32(g: Vopmask) -> i32 {
-    _mm_test_all_ones(_mm_and_si128(_mm256_extractf128_si256(g, 0), _mm256_extractf128_si256(g, 1)))
+    _mm_test_all_ones(_mm_and_si128(
+        _mm256_extractf128_si256(g, 0),
+        _mm256_extractf128_si256(g, 1),
+    ))
 }
 
 #[inline(always)]
 pub(crate) unsafe fn vtestallones_i_vo64(g: Vopmask) -> i32 {
-    _mm_test_all_ones(_mm_and_si128(_mm256_extractf128_si256(g, 0), _mm256_extractf128_si256(g, 1)))
+    _mm_test_all_ones(_mm_and_si128(
+        _mm256_extractf128_si256(g, 0),
+        _mm256_extractf128_si256(g, 1),
+    ))
 }
 
 #[inline(always)]
@@ -64,7 +70,6 @@ pub(crate) unsafe fn vstoreu_v_p_vi(p: *mut i32, v: __m128i) {
     _mm_storeu_si128(p as *mut __m128i, v)
 }
 
-
 #[inline(always)]
 pub(crate) unsafe fn vand_vm_vm_vm(x: VMask, y: VMask) -> VMask {
     vreinterpret_vm_vd(_mm256_and_pd(vreinterpret_vd_vm(x), vreinterpret_vd_vm(y)))
@@ -72,7 +77,10 @@ pub(crate) unsafe fn vand_vm_vm_vm(x: VMask, y: VMask) -> VMask {
 
 #[inline(always)]
 pub(crate) unsafe fn vandnot_vm_vm_vm(x: VMask, y: VMask) -> VMask {
-    vreinterpret_vm_vd(_mm256_andnot_pd(vreinterpret_vd_vm(x), vreinterpret_vd_vm(y)))
+    vreinterpret_vm_vd(_mm256_andnot_pd(
+        vreinterpret_vd_vm(x),
+        vreinterpret_vd_vm(y),
+    ))
 }
 
 #[inline(always)]
@@ -92,7 +100,10 @@ pub(crate) unsafe fn vand_vo_vo_vo(x: Vopmask, y: Vopmask) -> Vopmask {
 
 #[inline(always)]
 pub(crate) unsafe fn vandnot_vo_vo_vo(x: Vopmask, y: Vopmask) -> Vopmask {
-    vreinterpret_vm_vd(_mm256_andnot_pd(vreinterpret_vd_vm(x), vreinterpret_vd_vm(y)))
+    vreinterpret_vm_vd(_mm256_andnot_pd(
+        vreinterpret_vd_vm(x),
+        vreinterpret_vd_vm(y),
+    ))
 }
 
 #[inline(always)]
@@ -112,7 +123,10 @@ pub(crate) unsafe fn vand_vm_vo64_vm(x: Vopmask, y: VMask) -> VMask {
 
 #[inline(always)]
 pub(crate) unsafe fn vandnot_vm_vo64_vm(x: Vopmask, y: VMask) -> VMask {
-    vreinterpret_vm_vd(_mm256_andnot_pd(vreinterpret_vd_vm(x), vreinterpret_vd_vm(y)))
+    vreinterpret_vm_vd(_mm256_andnot_pd(
+        vreinterpret_vd_vm(x),
+        vreinterpret_vd_vm(y),
+    ))
 }
 
 #[inline(always)]
@@ -132,7 +146,10 @@ pub(crate) unsafe fn vand_vm_vo32_vm(x: Vopmask, y: VMask) -> VMask {
 
 #[inline(always)]
 pub(crate) unsafe fn vandnot_vm_vo32_vm(x: Vopmask, y: VMask) -> VMask {
-    vreinterpret_vm_vd(_mm256_andnot_pd(vreinterpret_vd_vm(x), vreinterpret_vd_vm(y)))
+    vreinterpret_vm_vd(_mm256_andnot_pd(
+        vreinterpret_vd_vm(x),
+        vreinterpret_vd_vm(y),
+    ))
 }
 
 #[inline(always)]
@@ -159,7 +176,6 @@ pub(crate) unsafe fn vcast_vo64_vo32(o: Vopmask) -> Vopmask {
 pub(crate) unsafe fn vcast_vo_i(i: i32) -> Vopmask {
     _mm256_set1_epi64x(if i != 0 { -1 } else { 0 })
 }
-
 
 #[inline(always)]
 pub(crate) unsafe fn vrint_vi_vd(vd: VDouble) -> VInt {
@@ -209,16 +225,16 @@ pub(crate) unsafe fn vcastu_vm_vi(vi: VInt) -> VMask {
 #[inline(always)]
 pub(crate) unsafe fn vcastu_vi_vm(vi: VMask) -> VInt {
     _mm_or_si128(
-        _mm_castps_si128(
-            _mm_shuffle_ps(_mm_castsi128_ps(_mm256_castsi256_si128(vi)), _mm_set1_ps(0.0), 0x0d)
-        ),
-        _mm_castps_si128(
-            _mm_shuffle_ps(
-                _mm_set1_ps(0.0),
-                _mm_castsi128_ps(_mm256_extractf128_si256(vi, 1)),
-                0xd0
-            )
-        )
+        _mm_castps_si128(_mm_shuffle_ps(
+            _mm_castsi128_ps(_mm256_castsi256_si128(vi)),
+            _mm_set1_ps(0.0),
+            0x0d,
+        )),
+        _mm_castps_si128(_mm_shuffle_ps(
+            _mm_set1_ps(0.0),
+            _mm_castsi128_ps(_mm256_extractf128_si256(vi, 1)),
+            0xd0,
+        )),
     )
 }
 
@@ -246,7 +262,6 @@ pub(crate) unsafe fn veq64_vo_vm_vm(x: VMask, y: VMask) -> Vopmask {
 pub(crate) unsafe fn vadd64_vm_vm_vm(x: VMask, y: VMask) -> VMask {
     _mm256_add_epi64(x, y)
 }
-
 
 #[inline(always)]
 pub(crate) unsafe fn vadd_vd_vd_vd(x: VDouble, y: VDouble) -> VDouble {
@@ -388,7 +403,6 @@ pub(crate) unsafe fn vge_vo_vd_vd(x: VDouble, y: VDouble) -> Vopmask {
     vreinterpret_vm_vd(_mm256_cmp_pd(x, y, _CMP_GE_OQ))
 }
 
-
 #[inline(always)]
 pub(crate) unsafe fn vadd_vi_vi_vi(x: VInt, y: VInt) -> VInt {
     _mm_add_epi32(x, y)
@@ -492,27 +506,26 @@ pub(crate) unsafe fn vsel_vd_vo_vo_vo_d_d_d_d(
     d0: f64,
     d1: f64,
     d2: f64,
-    d3: f64
+    d3: f64,
 ) -> VDouble {
-    let v = _mm256_castpd_si256(
+    let v = _mm256_castpd_si256(vsel_vd_vo_vd_vd(
+        o0,
+        _mm256_castsi256_pd(_mm256_set_epi32(1, 0, 1, 0, 1, 0, 1, 0)),
         vsel_vd_vo_vd_vd(
-            o0,
-            _mm256_castsi256_pd(_mm256_set_epi32(1, 0, 1, 0, 1, 0, 1, 0)),
+            o1,
+            _mm256_castsi256_pd(_mm256_set_epi32(3, 2, 3, 2, 3, 2, 3, 2)),
             vsel_vd_vo_vd_vd(
-                o1,
-                _mm256_castsi256_pd(_mm256_set_epi32(3, 2, 3, 2, 3, 2, 3, 2)),
-                vsel_vd_vo_vd_vd(
-                    o2,
-                    _mm256_castsi256_pd(_mm256_set_epi32(5, 4, 5, 4, 5, 4, 5, 4)),
-                    _mm256_castsi256_pd(_mm256_set_epi32(7, 6, 7, 6, 7, 6, 7, 6))
-                )
-            )
-        )
-    );
+                o2,
+                _mm256_castsi256_pd(_mm256_set_epi32(5, 4, 5, 4, 5, 4, 5, 4)),
+                _mm256_castsi256_pd(_mm256_set_epi32(7, 6, 7, 6, 7, 6, 7, 6)),
+            ),
+        ),
+    ));
 
-    _mm256_castsi256_pd(
-        _mm256_permutevar8x32_epi32(_mm256_castpd_si256(_mm256_set_pd(d3, d2, d1, d0)), v)
-    )
+    _mm256_castsi256_pd(_mm256_permutevar8x32_epi32(
+        _mm256_castpd_si256(_mm256_set_pd(d3, d2, d1, d0)),
+        v,
+    ))
 }
 
 #[inline(always)]
@@ -521,14 +534,18 @@ pub(crate) unsafe fn vsel_vd_vo_vo_d_d_d(
     o1: Vopmask,
     d0: f64,
     d1: f64,
-    d2: f64
+    d2: f64,
 ) -> VDouble {
     vsel_vd_vo_vo_vo_d_d_d_d(o0, o1, o1, d0, d1, d2, d2)
 }
 
 #[inline(always)]
 pub(crate) unsafe fn visinf_vo_vd(d: VDouble) -> Vopmask {
-    vreinterpret_vm_vd(_mm256_cmp_pd(vabs_vd_vd(d), _mm256_set1_pd(f64::INFINITY), _CMP_EQ_OQ))
+    vreinterpret_vm_vd(_mm256_cmp_pd(
+        vabs_vd_vd(d),
+        _mm256_set1_pd(f64::INFINITY),
+        _CMP_EQ_OQ,
+    ))
 }
 
 #[inline(always)]
@@ -538,7 +555,11 @@ pub(crate) unsafe fn vispinf_vo_vd(d: VDouble) -> Vopmask {
 
 #[inline(always)]
 pub(crate) unsafe fn visminf_vo_vd(d: VDouble) -> Vopmask {
-    vreinterpret_vm_vd(_mm256_cmp_pd(d, _mm256_set1_pd(f64::NEG_INFINITY), _CMP_EQ_OQ))
+    vreinterpret_vm_vd(_mm256_cmp_pd(
+        d,
+        _mm256_set1_pd(f64::NEG_INFINITY),
+        _CMP_EQ_OQ,
+    ))
 }
 
 #[inline(always)]
@@ -665,14 +686,18 @@ pub(crate) unsafe fn vsqrt_vf_vf(x: VFloat) -> VFloat {
 
 #[inline(always)]
 pub(crate) unsafe fn vabs_vf_vf(f: VFloat) -> VFloat {
-    vreinterpret_vf_vm(
-        vandnot_vm_vm_vm(vreinterpret_vm_vf(vcast_vf_f(-0.0)), vreinterpret_vm_vf(f))
-    )
+    vreinterpret_vf_vm(vandnot_vm_vm_vm(
+        vreinterpret_vm_vf(vcast_vf_f(-0.0)),
+        vreinterpret_vm_vf(f),
+    ))
 }
 
 #[inline(always)]
 pub(crate) unsafe fn vneg_vf_vf(d: VFloat) -> VFloat {
-    vreinterpret_vf_vm(vxor_vm_vm_vm(vreinterpret_vm_vf(vcast_vf_f(-0.0)), vreinterpret_vm_vf(d)))
+    vreinterpret_vf_vm(vxor_vm_vm_vm(
+        vreinterpret_vm_vf(vcast_vf_f(-0.0)),
+        vreinterpret_vm_vf(d),
+    ))
 }
 
 #[cfg(target_feature = "fma")]
@@ -876,7 +901,7 @@ pub(crate) unsafe fn vsel_vf_vo_vo_f_f_f(
     o1: Vopmask,
     d0: f32,
     d1: f32,
-    d2: f32
+    d2: f32,
 ) -> VFloat {
     vsel_vf_vo_vf_vf(o0, vcast_vf_f(d0), vsel_vf_vo_f_f(o1, d1, d2))
 }
@@ -889,12 +914,12 @@ pub(crate) unsafe fn vsel_vf_vo_vo_vo_f_f_f_f(
     d0: f32,
     d1: f32,
     d2: f32,
-    d3: f32
+    d3: f32,
 ) -> VFloat {
     vsel_vf_vo_vf_vf(
         o0,
         vcast_vf_f(d0),
-        vsel_vf_vo_vf_vf(o1, vcast_vf_f(d1), vsel_vf_vo_f_f(o2, d2, d3))
+        vsel_vf_vo_vf_vf(o1, vcast_vf_f(d1), vsel_vf_vo_f_f(o2, d2, d3)),
     )
 }
 
@@ -953,30 +978,46 @@ pub(crate) unsafe fn vgather_vf_p_vi2(ptr: *const f32, vi2: VInt2) -> VFloat {
 const PNMASK: __m256d = unsafe { std::mem::transmute([0.0f64, -0.0f64, 0.0f64, -0.0f64]) };
 const NPMASK: __m256d = unsafe { std::mem::transmute([-0.0f64, 0.0f64, -0.0f64, 0.0f64]) };
 const PNMASKF: __m256 = unsafe {
-    std::mem::transmute([0.0f32, -0.0f32, 0.0f32, -0.0f32, 0.0f32, -0.0f32, 0.0f32, -0.0f32])
+    std::mem::transmute([
+        0.0f32, -0.0f32, 0.0f32, -0.0f32, 0.0f32, -0.0f32, 0.0f32, -0.0f32,
+    ])
 };
 const NPMASKF: __m256 = unsafe {
-    std::mem::transmute([-0.0f32, 0.0f32, -0.0f32, 0.0f32, -0.0f32, 0.0f32, -0.0f32, 0.0f32])
+    std::mem::transmute([
+        -0.0f32, 0.0f32, -0.0f32, 0.0f32, -0.0f32, 0.0f32, -0.0f32, 0.0f32,
+    ])
 };
 
 #[inline(always)]
 pub(crate) unsafe fn vposneg_vd_vd(d: VDouble) -> VDouble {
-    vreinterpret_vd_vm(vxor_vm_vm_vm(vreinterpret_vm_vd(d), vreinterpret_vm_vd(PNMASK)))
+    vreinterpret_vd_vm(vxor_vm_vm_vm(
+        vreinterpret_vm_vd(d),
+        vreinterpret_vm_vd(PNMASK),
+    ))
 }
 
 #[inline(always)]
 pub(crate) unsafe fn vnegpos_vd_vd(d: VDouble) -> VDouble {
-    vreinterpret_vd_vm(vxor_vm_vm_vm(vreinterpret_vm_vd(d), vreinterpret_vm_vd(NPMASK)))
+    vreinterpret_vd_vm(vxor_vm_vm_vm(
+        vreinterpret_vm_vd(d),
+        vreinterpret_vm_vd(NPMASK),
+    ))
 }
 
 #[inline(always)]
 pub(crate) unsafe fn vposneg_vf_vf(d: VFloat) -> VFloat {
-    vreinterpret_vf_vm(vxor_vm_vm_vm(vreinterpret_vm_vf(d), vreinterpret_vm_vf(PNMASKF)))
+    vreinterpret_vf_vm(vxor_vm_vm_vm(
+        vreinterpret_vm_vf(d),
+        vreinterpret_vm_vf(PNMASKF),
+    ))
 }
 
 #[inline(always)]
 pub(crate) unsafe fn vnegpos_vf_vf(d: VFloat) -> VFloat {
-    vreinterpret_vf_vm(vxor_vm_vm_vm(vreinterpret_vm_vf(d), vreinterpret_vm_vf(NPMASKF)))
+    vreinterpret_vf_vm(vxor_vm_vm_vm(
+        vreinterpret_vm_vf(d),
+        vreinterpret_vm_vf(NPMASKF),
+    ))
 }
 
 #[inline(always)]
@@ -1017,14 +1058,26 @@ pub(crate) unsafe fn vstream_v_p_vd(ptr: *mut f64, v: VDouble) {
 
 #[inline(always)]
 pub(crate) unsafe fn vscatter2_v_p_i_i_vd(ptr: *mut f64, offset: i32, step: i32, v: VDouble) {
-    _mm_store_pd(ptr.add(((offset + step * 0) as usize) * 2).cast(), _mm256_extractf128_pd(v, 0));
-    _mm_store_pd(ptr.add(((offset + step * 1) as usize) * 2).cast(), _mm256_extractf128_pd(v, 1));
+    _mm_store_pd(
+        ptr.add(((offset + step * 0) as usize) * 2).cast(),
+        _mm256_extractf128_pd(v, 0),
+    );
+    _mm_store_pd(
+        ptr.add(((offset + step * 1) as usize) * 2).cast(),
+        _mm256_extractf128_pd(v, 1),
+    );
 }
 
 #[inline(always)]
 pub(crate) unsafe fn vsscatter2_v_p_i_i_vd(ptr: *mut f64, offset: i32, step: i32, v: VDouble) {
-    _mm_stream_pd(ptr.add(((offset + step * 0) as usize) * 2).cast(), _mm256_extractf128_pd(v, 0));
-    _mm_stream_pd(ptr.add(((offset + step * 1) as usize) * 2).cast(), _mm256_extractf128_pd(v, 1));
+    _mm_stream_pd(
+        ptr.add(((offset + step * 0) as usize) * 2).cast(),
+        _mm256_extractf128_pd(v, 0),
+    );
+    _mm_stream_pd(
+        ptr.add(((offset + step * 1) as usize) * 2).cast(),
+        _mm256_extractf128_pd(v, 1),
+    );
 }
 
 #[inline(always)]
@@ -1047,19 +1100,19 @@ pub(crate) unsafe fn vstream_v_p_vf(ptr: *mut f32, v: VFloat) {
 pub(crate) unsafe fn vscatter2_v_p_i_i_vf(ptr: *mut f32, offset: i32, step: i32, v: VFloat) {
     _mm_storel_pd(
         ptr.add(((offset + step * 0) as usize) * 2).cast(),
-        _mm_castsi128_pd(_mm_castps_si128(_mm256_extractf128_ps(v, 0)))
+        _mm_castsi128_pd(_mm_castps_si128(_mm256_extractf128_ps(v, 0))),
     );
     _mm_storeh_pd(
         ptr.add(((offset + step * 1) as usize) * 2).cast(),
-        _mm_castsi128_pd(_mm_castps_si128(_mm256_extractf128_ps(v, 0)))
+        _mm_castsi128_pd(_mm_castps_si128(_mm256_extractf128_ps(v, 0))),
     );
     _mm_storel_pd(
         ptr.add(((offset + step * 2) as usize) * 2).cast(),
-        _mm_castsi128_pd(_mm_castps_si128(_mm256_extractf128_ps(v, 1)))
+        _mm_castsi128_pd(_mm_castps_si128(_mm256_extractf128_ps(v, 1))),
     );
     _mm_storeh_pd(
         ptr.add(((offset + step * 3) as usize) * 2).cast(),
-        _mm_castsi128_pd(_mm_castps_si128(_mm256_extractf128_ps(v, 1)))
+        _mm_castsi128_pd(_mm_castps_si128(_mm256_extractf128_ps(v, 1))),
     );
 }
 
@@ -1091,9 +1144,10 @@ pub(crate) unsafe fn cast_aq_vq(vq: Vquad) -> Vargquad {
 
 #[inline(always)]
 pub(crate) unsafe fn vtestallzeros_i_vo64(g: Vopmask) -> i32 {
-    (_mm_movemask_epi8(
-        _mm_or_si128(_mm256_extractf128_si256::<0>(g), _mm256_extractf128_si256::<1>(g))
-    ) == 0) as i32
+    (_mm_movemask_epi8(_mm_or_si128(
+        _mm256_extractf128_si256::<0>(g),
+        _mm256_extractf128_si256::<1>(g),
+    )) == 0) as i32
 }
 
 #[inline(always)]
@@ -1134,16 +1188,16 @@ pub(crate) unsafe fn vcast_vm_vi(vi: VInt) -> VMask {
 #[inline(always)]
 pub(crate) unsafe fn vcast_vi_vm(vm: VMask) -> VInt {
     _mm_or_si128(
-        _mm_castps_si128(
-            _mm_shuffle_ps(_mm_castsi128_ps(_mm256_castsi256_si128(vm)), _mm_set1_ps(0.0), 0x08)
-        ),
-        _mm_castps_si128(
-            _mm_shuffle_ps(
-                _mm_set1_ps(0.0),
-                _mm_castsi128_ps(_mm256_extractf128_si256(vm, 1)),
-                0x80
-            )
-        )
+        _mm_castps_si128(_mm_shuffle_ps(
+            _mm_castsi128_ps(_mm256_castsi256_si128(vm)),
+            _mm_set1_ps(0.0),
+            0x08,
+        )),
+        _mm_castps_si128(_mm_shuffle_ps(
+            _mm_set1_ps(0.0),
+            _mm_castsi128_ps(_mm256_extractf128_si256(vm, 1)),
+            0x80,
+        )),
     )
 }
 

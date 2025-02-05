@@ -3,7 +3,10 @@ use tensor_common::{error::base::TensorError, shape::shape::Shape};
 use tensor_types::into_scalar::Cast;
 
 /// A trait for generating random numbers.
-pub trait Random where Self: Sized {
+pub trait Random
+where
+    Self: Sized,
+{
     /// Associated type for meta-information or parameters relevant to distributions.
     type Meta;
 
@@ -22,7 +25,11 @@ pub trait Random where Self: Sized {
     /// - `low`: The lower bound of the uniform distribution.
     /// - `shape`: The shape of the output array, which can be converted from `S` into `Shape`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn rand<S: Into<Shape>>(shape: S, low: Self::Meta, high: Self::Meta) -> Result<Self, TensorError>;
+    fn rand<S: Into<Shape>>(
+        shape: S,
+        low: Self::Meta,
+        high: Self::Meta,
+    ) -> Result<Self, TensorError>;
 
     /// Generates a random number array with a uniform distribution between [0, 1),
     #[cfg_attr(feature = "track_caller", track_caller)]
@@ -85,7 +92,11 @@ pub trait Random where Self: Sized {
     /// - `scale`: A value of type `Self::Meta` representing the scale parameter of the Gamma distribution.
     /// - `shape`: The shape of the output array, which can be converted from `S` into `Shape`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn gamma<S: Into<Shape>>(shape: Self::Meta, scale: Self::Meta, shape: S) -> Result<Self, TensorError>;
+    fn gamma<S: Into<Shape>>(
+        shape: Self::Meta,
+        scale: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError>;
 
     /// Generates a random number array following the Gamma distribution,
     /// with the same shape as the calling instance.
@@ -103,7 +114,11 @@ pub trait Random where Self: Sized {
     /// - `beta`: A value of type `Self::Meta` representing the scale parameter of the Gumbel distribution.
     /// - `shape`: The shape of the output array, which can be converted from `S` into `Shape`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn gumbel<S: Into<Shape>>(mu: Self::Meta, beta: Self::Meta, shape: S) -> Result<Self, TensorError>;
+    fn gumbel<S: Into<Shape>>(
+        mu: Self::Meta,
+        beta: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError>;
 
     /// Generates a random number array following the Gumbel distribution,
     /// with the same shape as the calling instance.
@@ -121,7 +136,11 @@ pub trait Random where Self: Sized {
     /// - `std`: A value of type `Self::Meta` representing the standard deviation of the underlying normal distribution.
     /// - `shape`: The shape of the output array, which can be converted from `S` into `Shape`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn lognormal<S: Into<Shape>>(mean: Self::Meta, std: Self::Meta, shape: S) -> Result<Self, TensorError>;
+    fn lognormal<S: Into<Shape>>(
+        mean: Self::Meta,
+        std: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError>;
 
     /// Generates a random number array following the Log-Normal distribution,
     /// with the same shape as the calling instance.
@@ -139,7 +158,11 @@ pub trait Random where Self: Sized {
     /// - `std`: A value of type `Self::Meta` representing the standard deviation of the Normal distribution.
     /// - `shape`: The shape of the output array, which can be converted from `S` into `Shape`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn normal_gaussian<S: Into<Shape>>(mean: Self::Meta, std: Self::Meta, shape: S) -> Result<Self, TensorError>;
+    fn normal_gaussian<S: Into<Shape>>(
+        mean: Self::Meta,
+        std: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError>;
 
     /// Generates a random number array following the Normal (Gaussian) distribution,
     /// with the same shape as the calling instance.
@@ -157,7 +180,11 @@ pub trait Random where Self: Sized {
     /// - `a`: A value of type `Self::Meta` representing the scale parameter 'a' of the Pareto distribution.
     /// - `shape`: The shape of the output array, which can be converted from `S` into `Shape`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn pareto<S: Into<Shape>>(pareto_shape: Self::Meta, a: Self::Meta, shape: S) -> Result<Self, TensorError>;
+    fn pareto<S: Into<Shape>>(
+        pareto_shape: Self::Meta,
+        a: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError>;
 
     /// Generates a random number array following the Pareto distribution,
     /// with the same shape as the calling instance.
@@ -191,7 +218,8 @@ pub trait Random where Self: Sized {
     /// - `b`: A value of type `Self::Meta` representing the scale parameter of the Weibull distribution.
     /// - `shape`: The shape of the output array, which can be converted from `S` into `Shape`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn weibull<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self, TensorError>;
+    fn weibull<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S)
+        -> Result<Self, TensorError>;
 
     /// Generates a random number array following the Weibull distribution,
     /// with the same shape as the calling instance.
@@ -232,7 +260,7 @@ pub trait Random where Self: Sized {
         low: Self::Meta,
         high: Self::Meta,
         mode: Self::Meta,
-        shape: S
+        shape: S,
     ) -> Result<Self, TensorError>;
 
     /// Generates a random number array following the Triangular distribution,
@@ -243,7 +271,12 @@ pub trait Random where Self: Sized {
     /// - `high`: A value of type `Self::Meta` representing the upper limit of the distribution.
     /// - `mode`: A value of type `Self::Meta` representing the mode (peak) of the distribution.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn triangular_like(&self, low: Self::Meta, high: Self::Meta, mode: Self::Meta) -> Result<Self, TensorError>;
+    fn triangular_like(
+        &self,
+        low: Self::Meta,
+        high: Self::Meta,
+        mode: Self::Meta,
+    ) -> Result<Self, TensorError>;
 
     /// Generates a bernoulli array with values `true` or `false` following the Bernoulli distribution.
     ///
@@ -254,11 +287,16 @@ pub trait Random where Self: Sized {
     /// A random boolean array with values `true` or `false` following the Bernoulli distribution.
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self, TensorError>
-        where Self::Meta: Cast<f64>, bool: Cast<Self::Meta>;
+    where
+        Self::Meta: Cast<f64>,
+        bool: Cast<Self::Meta>;
 }
 
 /// A trait for generating random integers.
-pub trait RandomInt where Self: Sized {
+pub trait RandomInt
+where
+    Self: Sized,
+{
     /// Associated type for meta-information or parameters relevant to distributions.
     type Meta;
 
@@ -269,8 +307,14 @@ pub trait RandomInt where Self: Sized {
     /// - `high`: A value of type `Self::Meta` representing the upper bound of the range (exclusive).
     /// - `shape`: The shape of the output array, which can be converted from `S` into `Shape`.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self, TensorError>
-        where Self::Meta: SampleUniform, <Self::Meta as SampleUniform>::Sampler: Sync;
+    fn randint<S: Into<Shape>>(
+        low: Self::Meta,
+        high: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError>
+    where
+        Self::Meta: SampleUniform,
+        <Self::Meta as SampleUniform>::Sampler: Sync;
 
     /// Generates a random integer array with values in the specified range,
     /// with the same shape as the calling instance.
@@ -280,5 +324,7 @@ pub trait RandomInt where Self: Sized {
     /// - `high`: A value of type `Self::Meta` representing the upper bound of the range (exclusive).
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn randint_like(&self, low: Self::Meta, high: Self::Meta) -> Result<Self, TensorError>
-        where Self::Meta: SampleUniform, <Self::Meta as SampleUniform>::Sampler: Sync;
+    where
+        Self::Meta: SampleUniform,
+        <Self::Meta as SampleUniform>::Sampler: Sync;
 }

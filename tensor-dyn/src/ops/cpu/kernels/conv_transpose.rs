@@ -2,7 +2,7 @@ use crate::CommonBounds;
 use duplicate::duplicate_item;
 use tensor_common::Pointer;
 use tensor_macros::conv2d_microkernel_declare_const;
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 use tensor_types::traits::VecTrait;
 use tensor_types::type_promote::NormalOut;
 

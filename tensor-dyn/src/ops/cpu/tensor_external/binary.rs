@@ -2,10 +2,10 @@ use crate::ops::cpu::utils::binary::binary_normal::binary_fn_with_out_simd;
 use crate::Cpu;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
 use std::borrow::Borrow;
+use tensor_common::error::base::TensorError;
 use tensor_traits::{ops::binary::NormalBinOps, tensor::CommonBounds};
 use tensor_types::dtype::TypeCommon;
-use tensor_types::{cast::Cast, type_promote::NormalOut};
-use tensor_common::error::base::TensorError;
+use tensor_types::{into_scalar::Cast, type_promote::NormalOut};
 
 /// a type alias for the output type of the binary operations of `A` and `B`
 pub(crate) type NormalType<A, B> = <A as NormalOut<B>>::Output;
@@ -73,10 +73,26 @@ macro_rules! impl_bin_ops {
     };
 }
 
-impl_bin_ops!([_Tensor<A, Cpu, DEVICE>], [&_Tensor<B, Cpu, DEVICE>], _Tensor);
-impl_bin_ops!([_Tensor<A, Cpu, DEVICE>], [_Tensor<B, Cpu, DEVICE>], _Tensor);
-impl_bin_ops!([&_Tensor<A, Cpu, DEVICE>], [&_Tensor<B, Cpu, DEVICE>], _Tensor);
-impl_bin_ops!([&_Tensor<A, Cpu, DEVICE>], [_Tensor<B, Cpu, DEVICE>], _Tensor);
+impl_bin_ops!(
+    [_Tensor<A, Cpu, DEVICE>],
+    [&_Tensor<B, Cpu, DEVICE>],
+    _Tensor
+);
+impl_bin_ops!(
+    [_Tensor<A, Cpu, DEVICE>],
+    [_Tensor<B, Cpu, DEVICE>],
+    _Tensor
+);
+impl_bin_ops!(
+    [&_Tensor<A, Cpu, DEVICE>],
+    [&_Tensor<B, Cpu, DEVICE>],
+    _Tensor
+);
+impl_bin_ops!(
+    [&_Tensor<A, Cpu, DEVICE>],
+    [_Tensor<B, Cpu, DEVICE>],
+    _Tensor
+);
 
 macro_rules! impl_bin_ops_basic {
     (

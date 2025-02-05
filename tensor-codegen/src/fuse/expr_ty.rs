@@ -135,7 +135,6 @@ pub(crate) enum ExprType {
 
     /// A yield expression: `yield expr`.
     Yield,
-
     // For testing exhaustiveness in downstream code, use the following idiom:
     //
     //     match expr {

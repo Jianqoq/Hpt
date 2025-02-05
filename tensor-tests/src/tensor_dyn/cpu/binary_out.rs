@@ -26,7 +26,7 @@ fn assert_eq(b: &Tensor<f64>, a: &TchTensor) {
         } else {
             abs_diff / (a_raw[i].abs() + b_raw[i].abs() + f64::EPSILON)
         };
-        
+
         if rel_diff > 0.05 {
             panic!("{} != {} (relative_diff: {})", a_raw[i], b_raw[i], rel_diff);
         }
@@ -45,7 +45,7 @@ fn assert_eq_10(b: &Tensor<f64>, a: &TchTensor) {
         } else {
             abs_diff / (a_raw[i].abs() + b_raw[i].abs() + f64::EPSILON)
         };
-        
+
         if rel_diff > 0.05 {
             panic!("{} != {} (relative_diff: {})", a_raw[i], b_raw[i], rel_diff);
         }
@@ -387,10 +387,20 @@ fn test_binary_out_invalid_empty() -> anyhow::Result<()> {
     let (_, (a, b)) = common_input([10, 10], [10, 10])?;
     let mut empty = Tensor::<f64>::empty(&[10])?;
     let err = a.add_(&b, &mut empty).unwrap_err();
-    assert!(err.to_string().contains("Size mismatch: expected 100, got 10"));
-    let err = tensor_dyn::tensor::Tensor::new(1.0f64).add_(b, &mut empty).unwrap_err();
-    assert!(err.to_string().contains("Size mismatch: expected 100, got 10"));
-    let err = a.add_(tensor_dyn::tensor::Tensor::new(1.0f64), &mut empty).unwrap_err();
-    assert!(err.to_string().contains("Size mismatch: expected 100, got 10"));
+    assert!(err
+        .to_string()
+        .contains("Size mismatch: expected 100, got 10"));
+    let err = tensor_dyn::tensor::Tensor::new(1.0f64)
+        .add_(b, &mut empty)
+        .unwrap_err();
+    assert!(err
+        .to_string()
+        .contains("Size mismatch: expected 100, got 10"));
+    let err = a
+        .add_(tensor_dyn::tensor::Tensor::new(1.0f64), &mut empty)
+        .unwrap_err();
+    assert!(err
+        .to_string()
+        .contains("Size mismatch: expected 100, got 10"));
     Ok(())
 }

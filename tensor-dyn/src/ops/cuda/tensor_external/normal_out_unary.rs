@@ -7,7 +7,11 @@ use crate::{
 use cudarc::driver::DeviceRepr;
 use tensor_common::err_handler::TensorError;
 use tensor_traits::{CommonBounds, NormalUaryOps, TensorLike};
-use tensor_types::{cuda_types::scalar::Scalar, cast::Cast, type_promote::{NormalOut, NormalOutUnary}};
+use tensor_types::{
+    cast::Cast,
+    cuda_types::scalar::Scalar,
+    type_promote::{NormalOut, NormalOutUnary},
+};
 impl<T, const DEVICE_ID: usize> NormalUaryOps for Tensor<T, Cuda, DEVICE_ID>
 where
     T: CommonBounds + Cast<T> + DeviceRepr,
@@ -210,7 +214,11 @@ where
     /// let a = Tensor::<f64>::new([-1.0, 1.5, -2.9, 3.0]);
     /// let b = a.clip(-1.0, 1.0).unwrap();
     /// ```
-    fn clamp(&self, min: Self::OutputMeta, max: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
+    fn clamp(
+        &self,
+        min: Self::OutputMeta,
+        max: Self::OutputMeta,
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::clamp(self.inner.as_ref(), min, max)?.into())
     }
 
@@ -282,11 +290,18 @@ where
         Ok(_Tensor::relu_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
 
-    fn leaky_relu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
+    fn leaky_relu(
+        &self,
+        alpha: Self::OutputMeta,
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::leaky_relu(self.inner.as_ref(), alpha)?.into())
     }
 
-    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, TensorError>
+    fn leaky_relu_<U>(
+        &self,
+        alpha: Self::OutputMeta,
+        out: U,
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {

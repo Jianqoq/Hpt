@@ -1,19 +1,21 @@
 use crate::backend::Cpu;
 use crate::ops::cpu::utils::reduce::reduce_template::contiguous_reduce_template;
 use crate::tensor_base::_Tensor;
-use crate::{ argmax_kernel, argmin_kernel };
+use crate::{argmax_kernel, argmin_kernel};
 
-use crate::ops::cpu::utils::reduce::reduce_utils::{ ReductionPreprocessor, UCReductionPreprocessor };
+use crate::ops::cpu::utils::reduce::reduce_utils::{
+    ReductionPreprocessor, UCReductionPreprocessor,
+};
 use crate::THREAD_POOL;
-use tensor_common::shape::shape::Shape;
 use rayon::iter::ParallelIterator;
-use rayon::iter::{ IndexedParallelIterator, IntoParallelRefMutIterator };
-use rayon::iter::{ IntoParallelIterator, IntoParallelRefIterator };
-use tensor_common::error::base::TensorError;
-use tensor_common::error::shape::ShapeError;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator};
+use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator};
 use std::sync::Arc;
 use std::sync::Barrier;
-use tensor_common::shape::shape_utils::{ mt_intervals, mt_intervals_simd };
+use tensor_common::error::base::TensorError;
+use tensor_common::error::shape::ShapeError;
+use tensor_common::shape::shape::Shape;
+use tensor_common::shape::shape_utils::{mt_intervals, mt_intervals_simd};
 use tensor_common::slice::Slice;
 use tensor_iterator::iterator_traits::StridedIterator;
 use tensor_iterator::TensorIterator;
@@ -22,8 +24,8 @@ use tensor_traits::tensor::CommonBounds;
 use tensor_traits::tensor::TensorCreator;
 use tensor_traits::tensor::TensorInfo;
 use tensor_traits::TensorLike;
-use tensor_types::cast::Cast;
-use tensor_types::type_promote::{ Cmp, NormalOut };
+use tensor_types::into_scalar::Cast;
+use tensor_types::type_promote::{Cmp, NormalOut};
 
 macro_rules! init_arr {
     (
@@ -211,12 +213,11 @@ macro_rules! register_reduction_one_axis {
 
 use tensor_types::vectors::traits::*;
 
+use super::reduce_template::uncontiguos_reduce_template;
 use crate::ops::cpu::kernels::reduce::{
-    contiguous_reduce_dim_include,
-    contiguous_reduce_dim_include_simd,
+    contiguous_reduce_dim_include, contiguous_reduce_dim_include_simd,
     uncontiguous_reduce_dim_include,
 };
-use super::reduce_template::uncontiguos_reduce_template;
 
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn reduce<T, F, F2, F3, const DEVICE: usize>(
@@ -228,44 +229,22 @@ pub(crate) fn reduce<T, F, F2, F3, const DEVICE: usize>(
     init_val: T,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<T, Cpu, DEVICE>>
-)
-    -> std::result::Result<_Tensor<T, Cpu, DEVICE>, TensorError>
-    where
-        T: CommonBounds + Cast<T>,
-        F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
-        F2: Fn(T, T) -> T + Sync + Send + 'static + Copy,
-        F3: Fn(T::Vec, T::Vec) -> T::Vec + Sync + Send + 'static + Copy,
+    c: Option<_Tensor<T, Cpu, DEVICE>>,
+) -> std::result::Result<_Tensor<T, Cpu, DEVICE>, TensorError>
+where
+    T: CommonBounds + Cast<T>,
+    F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
+    F2: Fn(T, T) -> T + Sync + Send + 'static + Copy,
+    F3: Fn(T::Vec, T::Vec) -> T::Vec + Sync + Send + 'static + Copy,
 {
     if a.is_contiguous() && a.parent().is_none() {
         contiguous_reduce::<_, _, _, _, fn(T) -> T, _, _, fn(T::Vec) -> T::Vec, T, DEVICE>(
-            a,
-            op,
-            op_no_cast,
-            op,
-            None,
-            vec_op,
-            vec_op,
-            None,
-            &axes,
-            init_val,
-            keepdims,
-            init_out,
-            c
+            a, op, op_no_cast, op, None, vec_op, vec_op, None, &axes, init_val, keepdims, init_out,
+            c,
         )
     } else {
         uncontiguous_reduce::<_, _, _, fn(T) -> T, _, fn(T::Vec) -> T::Vec, T, DEVICE>(
-            a,
-            op,
-            op,
-            None,
-            vec_op,
-            None,
-            &axes,
-            init_val,
-            keepdims,
-            init_out,
-            c
+            a, op, op, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
         )
     }
 }
@@ -282,49 +261,27 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O, Cpu, DEVICE>>
-)
-    -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
-    where
-        T: CommonBounds + Cast<O>,
-        F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
-        F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-        F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-        F4: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-        F5: Fn(O::Vec, O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-        O: CommonBounds,
-        T::Vec: Copy,
-        O::Vec: Copy
+    c: Option<_Tensor<O, Cpu, DEVICE>>,
+) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+where
+    T: CommonBounds + Cast<O>,
+    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
+    F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+    F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+    F4: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    F5: Fn(O::Vec, O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    O: CommonBounds,
+    T::Vec: Copy,
+    O::Vec: Copy,
 {
     if a.is_contiguous() && a.parent().is_none() {
         contiguous_reduce::<T, F, F2, F3, fn(O) -> O, _, _, fn(O::Vec) -> O::Vec, O, DEVICE>(
-            a,
-            op,
-            op_no_cast,
-            op2,
-            None,
-            vec_op,
-            vec_op2,
-            None,
-            &axes,
-            init_val,
-            keepdims,
-            init_out,
-            c
+            a, op, op_no_cast, op2, None, vec_op, vec_op2, None, &axes, init_val, keepdims,
+            init_out, c,
         )
     } else {
         uncontiguous_reduce::<T, F, F3, fn(O) -> O, _, fn(O::Vec) -> O::Vec, O, DEVICE>(
-            a,
-            op,
-            op2,
-            None,
-            vec_op,
-            None,
-            &axes,
-            init_val,
-            keepdims,
-            init_out,
-            c
+            a, op, op2, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
         )
     }
 }
@@ -343,20 +300,19 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: usize>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O, Cpu, DEVICE>>
-)
-    -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
-    where
-        T: CommonBounds + Cast<O>,
-        F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
-        F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-        F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-        F4: Fn(O) -> O + Sync + Send + 'static + Copy,
-        F5: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-        F6: Fn(O::Vec, O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-        F7: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-        O: CommonBounds,
-        O::Vec: Copy
+    c: Option<_Tensor<O, Cpu, DEVICE>>,
+) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+where
+    T: CommonBounds + Cast<O>,
+    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
+    F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+    F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+    F4: Fn(O) -> O + Sync + Send + 'static + Copy,
+    F5: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    F6: Fn(O::Vec, O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    F7: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    O: CommonBounds,
+    O::Vec: Copy,
 {
     if a.is_contiguous() && a.parent().is_none() {
         contiguous_reduce::<T, F, F2, F3, F4, F5, F6, F7, O, DEVICE>(
@@ -372,7 +328,7 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: usize>(
             init_val,
             keepdims,
             init_out,
-            c
+            c,
         )
     } else {
         uncontiguous_reduce::<T, F, F3, F4, F5, F7, O, DEVICE>(
@@ -386,7 +342,7 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: usize>(
             init_val,
             keepdims,
             init_out,
-            c
+            c,
         )
     }
 }
@@ -419,21 +375,20 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: u
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O, Cpu, DEVICE>>
-)
-    -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
-    where
-        T: CommonBounds + Cast<O>,
-        O: CommonBounds,
-        F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
-        F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-        F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-        F4: Fn(O) -> O + Sync + Send + 'static + Copy,
-        F5: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
-        F6: Fn(O::Vec, O::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
-        F7: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-        T::Vec: Copy,
-        O::Vec: Copy
+    c: Option<_Tensor<O, Cpu, DEVICE>>,
+) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+where
+    T: CommonBounds + Cast<O>,
+    O: CommonBounds,
+    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
+    F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+    F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+    F4: Fn(O) -> O + Sync + Send + 'static + Copy,
+    F5: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
+    F6: Fn(O::Vec, O::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
+    F7: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    T::Vec: Copy,
+    O::Vec: Copy,
 {
     let max_axis = *axes.iter().max().unwrap();
     let (a, fused_dims) = if max_axis == a.ndim() - 1 {
@@ -457,14 +412,8 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: u
             let raw = unsafe { std::slice::from_raw_parts_mut(ptr.ptr, a.size() as usize) };
             let val = raw
                 .par_iter()
-                .fold(
-                    || init_val,
-                    |acc, &x| op(acc, x)
-                )
-                .reduce(
-                    || init_val,
-                    |a, b| op2(a, b)
-                );
+                .fold(|| init_val, |acc, &x| op(acc, x))
+                .reduce(|| init_val, |a, b| op2(a, b));
             if let Some(op3) = op3 {
                 *res = op3(op2(val, *res));
             } else {
@@ -481,7 +430,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: u
                 transposed_tensor.strides().clone(),
                 transposed_tensor.shape().sub_one(),
                 transposed_tensor.shape().clone(),
-                result.shape().clone()
+                result.shape().clone(),
             );
             iterators.into_par_iter().for_each(|mut iterator| {
                 let result_ptr_c = iterator.res_ptrs.clone();
@@ -503,7 +452,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: u
                         op_no_cast,
                         op2,
                         vec_op2,
-                        op3
+                        op3,
                     );
                 } else {
                     contiguous_reduce_dim_include(
@@ -517,7 +466,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: u
                         &mut iterator.prg,
                         shape_len,
                         op,
-                        op3
+                        op3,
                     );
                 }
             });
@@ -561,7 +510,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: u
                             op,
                             vec_op,
                             op3,
-                            vec_post
+                            vec_post,
                         );
                     } else {
                         fast_reduce_no_simd(
@@ -572,19 +521,17 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: u
                             inp.strides().inner(),
                             inp.shape().inner(),
                             op,
-                            op3
+                            op3,
                         );
                     }
                 });
         },
-        |
-            num_threads,
-            outer_loop_size,
-            inner_loop_size,
-            inner_loop_size_2,
-            result,
-            transposed_tensor
-        | {
+        |num_threads,
+         outer_loop_size,
+         inner_loop_size,
+         inner_loop_size_2,
+         result,
+         transposed_tensor| {
             let iterators = ReductionPreprocessor::new2(
                 num_threads,
                 outer_loop_size,
@@ -593,7 +540,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: u
                 result.ptr(),
                 transposed_tensor.strides().clone(),
                 transposed_tensor.shape().sub_one(),
-                result.shape().clone()
+                result.shape().clone(),
             );
             iterators.into_par_iter().for_each(|iterator| {
                 let result_ptr_c = iterator.res_ptrs.clone();
@@ -621,7 +568,7 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: u
                         op,
                         op3,
                         vec_op,
-                        vec_post
+                        vec_post,
                     );
                 } else {
                     reduce_dim_not_include(
@@ -636,11 +583,11 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: u
                         &mut prg2,
                         shape_len,
                         op,
-                        op3
+                        op3,
                     );
                 }
             });
-        }
+        },
     )?;
     if !fused_dims.is_empty() {
         let res_shape = res.shape().clone();
@@ -665,19 +612,18 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O, Cpu, DEVICE>>
-)
-    -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
-    where
-        T: CommonBounds + Cast<O>,
-        O: CommonBounds,
-        F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
-        F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-        F3: Fn(O) -> O + Sync + Send + 'static + Copy,
-        F4: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
-        F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-        T::Vec: Copy,
-        O::Vec: Copy
+    c: Option<_Tensor<O, Cpu, DEVICE>>,
+) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+where
+    T: CommonBounds + Cast<O>,
+    O: CommonBounds,
+    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
+    F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+    F3: Fn(O) -> O + Sync + Send + 'static + Copy,
+    F4: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
+    F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    T::Vec: Copy,
+    O::Vec: Copy,
 {
     uncontiguos_reduce_template(
         a,
@@ -690,10 +636,7 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
             let val = a
                 .par_iter()
                 .par_strided_fold(init_val, |acc, x| op(acc, x))
-                .reduce(
-                    || init_val,
-                    |a, b| op2(a, b)
-                );
+                .reduce(|| init_val, |a, b| op2(a, b));
             if let Some(op3) = op3 {
                 *res = op3(op2(val, *res));
             } else {
@@ -712,7 +655,7 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
                 transposed_tensor.shape().sub_one(),
                 transposed_tensor.shape().clone(),
                 result.shape().clone(),
-                result.strides().inner()
+                result.strides().inner(),
             );
             let res_shape = result.shape().clone();
             iterators.into_par_iter().for_each(|mut iterator| {
@@ -738,7 +681,7 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
                     shape_len,
                     a_last_stride as isize,
                     op,
-                    op3
+                    op3,
                 );
             });
         },
@@ -762,11 +705,9 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
                 .into_par_iter()
                 .zip(sliced_res.into_par_iter())
                 .for_each(move |(inp, mut res)| {
-                    res.iter_mut()
-                        .zip(inp.iter())
-                        .for_each(|(x, y)| {
-                            *x = op(*x, y);
-                        });
+                    res.iter_mut().zip(inp.iter()).for_each(|(x, y)| {
+                        *x = op(*x, y);
+                    });
                     if let Some(op3) = op3 {
                         res.iter_mut().for_each(|x| {
                             *x = op3(*x);
@@ -785,7 +726,7 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
                 transposed_tensor.strides().clone(),
                 transposed_tensor.shape().sub_one(),
                 result.shape().clone(),
-                result.strides().inner()
+                result.strides().inner(),
             );
             let res_shape = result.shape().clone();
             iterators.into_par_iter().for_each(|mut iterator| {
@@ -815,9 +756,9 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
                     a_last_stride as isize,
                     res_last_strides as isize,
                     op,
-                    op3
+                    op3,
                 );
             });
-        }
+        },
     )
 }

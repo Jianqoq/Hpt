@@ -10,7 +10,10 @@ pub(crate) struct VarCoalescer<'ast> {
 impl<'ast> VarCoalescer<'ast> {
     pub(crate) fn new(cfg: &'ast mut CFG) -> Self {
         let entry = cfg.entry;
-        Self { cfg, current_block: entry }
+        Self {
+            cfg,
+            current_block: entry,
+        }
     }
 
     pub(crate) fn run(&mut self) {
@@ -31,7 +34,9 @@ impl<'ast> VarCoalescer<'ast> {
                                             if ident == &lhs {
                                                 *expr_try.expr = rhs.clone();
                                                 to_remove.push(idx - 1);
-                                                block.defined_vars.remove(&block.origin_var_map[&lhs]);
+                                                block
+                                                    .defined_vars
+                                                    .remove(&block.origin_var_map[&lhs]);
                                                 block.used_vars.remove(&block.origin_var_map[&lhs]);
                                                 block.origin_var_map.remove(&lhs);
                                             }
@@ -55,7 +60,9 @@ impl<'ast> VarCoalescer<'ast> {
                                             if ident == &lhs {
                                                 *reference.expr = rhs.clone();
                                                 to_remove.push(idx - 1);
-                                                block.defined_vars.remove(&block.origin_var_map[&lhs]);
+                                                block
+                                                    .defined_vars
+                                                    .remove(&block.origin_var_map[&lhs]);
                                                 block.used_vars.remove(&block.origin_var_map[&lhs]);
                                                 block.origin_var_map.remove(&lhs);
                                             }

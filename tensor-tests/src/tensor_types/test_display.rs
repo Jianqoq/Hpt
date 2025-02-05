@@ -1,20 +1,20 @@
 #![allow(unused)]
 
-use tensor_dyn::TypeCommon;
-use tensor_types::half;
+use half::bf16;
+use half::f16;
 use num_complex::Complex32 as c32;
 use num_complex::Complex64 as c64;
-use half::f16;
-use half::bf16;
+use tensor_dyn::TypeCommon;
+use tensor_types::half;
 
 macro_rules! test_display {
     ($type:ty) => {
         paste::paste! {
-        #[test]
-        fn [<test_ $type _display>]() {
-            assert_eq!(format!("{}", <$type as TypeCommon>::ID), stringify!($type));
+            #[test]
+            fn [<test_ $type _display>]() {
+                assert_eq!(format!("{}", <$type as TypeCommon>::ID), stringify!($type));
+            }
         }
-    }
     };
 }
 
@@ -35,4 +35,3 @@ test_display!(f16);
 test_display!(bf16);
 test_display!(c32);
 test_display!(c64);
-

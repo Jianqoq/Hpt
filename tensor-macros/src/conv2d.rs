@@ -538,4 +538,3 @@ pub(crate) fn maxpool2d_microkernel_gen_results(inputs: TokenStream) -> TokenStr
         }
     }
 }
-

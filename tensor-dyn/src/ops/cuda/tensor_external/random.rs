@@ -6,7 +6,7 @@ use rand_distr::{
 };
 use tensor_common::shape::Shape;
 use tensor_traits::{CommonBounds, Random, RandomInt};
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 
 impl<T, const DEVICE_ID: usize> Random for Tensor<T, Cuda, DEVICE_ID>
 where
@@ -101,7 +101,10 @@ where
     }
 
     fn normal_gaussian_like(&self, mean: Self::Meta, std: Self::Meta) -> Result<Self> {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::normal_gaussian_like(self.inner.as_ref(), mean, std)?.into())
+        Ok(
+            _Tensor::<T, Cuda, DEVICE_ID>::normal_gaussian_like(self.inner.as_ref(), mean, std)?
+                .into(),
+        )
     }
 
     fn pareto<S: Into<Shape>>(pareto_shape: Self::Meta, a: Self::Meta, shape: S) -> Result<Self> {
@@ -109,7 +112,10 @@ where
     }
 
     fn pareto_like(&self, pareto_shape: Self::Meta, a: Self::Meta) -> Result<Self> {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::pareto_like(self.inner.as_ref(), pareto_shape, a)?.into())
+        Ok(
+            _Tensor::<T, Cuda, DEVICE_ID>::pareto_like(self.inner.as_ref(), pareto_shape, a)?
+                .into(),
+        )
     }
 
     fn poisson<S: Into<Shape>>(lambda: Self::Meta, shape: S) -> Result<Self> {
@@ -146,7 +152,10 @@ where
     }
 
     fn triangular_like(&self, low: Self::Meta, high: Self::Meta, mode: Self::Meta) -> Result<Self> {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::triangular_like(self.inner.as_ref(), low, high, mode)?.into())
+        Ok(
+            _Tensor::<T, Cuda, DEVICE_ID>::triangular_like(self.inner.as_ref(), low, high, mode)?
+                .into(),
+        )
     }
 
     fn bernoulli<S: Into<Shape>>(shape: S, p: Self::Meta) -> Result<Self>

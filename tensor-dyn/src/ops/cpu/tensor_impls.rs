@@ -19,7 +19,7 @@ use tensor_iterator::iterator_traits::ParStridedIteratorZip;
 use tensor_iterator::TensorIterator;
 use tensor_traits::TensorCreator;
 use tensor_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 
 impl<T, const DEVICE: usize> TensorLike<T> for _Tensor<T, Cpu, DEVICE>
 where
@@ -50,7 +50,7 @@ where
     }
 
     fn contiguous(&self) -> std::result::Result<Self, TensorError> {
-        Ok(self.par_iter().strided_map(|(res, x)| { *res = x }).collect())
+        Ok(self.par_iter().strided_map(|(res, x)| *res = x).collect())
     }
 }
 

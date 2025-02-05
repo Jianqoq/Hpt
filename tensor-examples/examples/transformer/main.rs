@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use rayon::iter::ParallelIterator;
-use tensor_dyn::arch_simd::_128bit::f32x4::f32x4;
+use tensor_dyn::arch_simd::_256bit::f32x8::f32x8;
 use tensor_dyn::{
     binary_with_out, match_selection, IndexReduce, Matmul, NormalBinOps, NormalOut, NormalUaryOps,
     ParStridedIteratorZip, Random, RandomInt, ShapeManipulate, Slice, Tensor, TensorCreator,
@@ -127,7 +127,7 @@ impl PositionalEncoding {
             &Tensor::<f32>::new([10000.0]),
             &Tensor::<f32>::arange_step(0.0, embedding_dim as f32, 2.0)?,
             |a, b| a._pow(b) / embedding_dim as f32,
-            |a, b| a._pow(b) / f32x4::splat(embedding_dim as f32),
+            |a, b| a._pow(b) / f32x8::splat(embedding_dim as f32),
             None::<Tensor<f32>>,
         )?;
         let pos = Tensor::<f32>::arange(0.0, seq_len as f32)?.unsqueeze(1)?;

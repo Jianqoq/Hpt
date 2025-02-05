@@ -9,7 +9,7 @@ use tensor_common::slice::Slice;
 use tensor_traits::ops::advance::{AdvanceOps, HardMax, Shrinkage};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 use tensor_types::dtype::TypeCommon;
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 use tensor_types::into_vec::IntoVec;
 use tensor_types::traits::SimdSelect;
 use tensor_types::type_promote::{Cmp, NormalOut, SimdCmp};
@@ -155,11 +155,7 @@ where
         unimplemented!()
     }
 
-    fn gather_elements(
-        &self,
-        _: &Self::IndexOutput,
-        _: i64,
-    ) -> Result<Self::Output, TensorError> {
+    fn gather_elements(&self, _: &Self::IndexOutput, _: i64) -> Result<Self::Output, TensorError> {
         unimplemented!()
     }
 

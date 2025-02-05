@@ -20,7 +20,7 @@ use tensor_traits::tensor::TensorInfo;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorLike;
 use tensor_types::convertion::Convertor;
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn reduce<T, F, F2, F3, const DEVICE_ID: usize>(

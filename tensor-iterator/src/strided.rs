@@ -1,51 +1,36 @@
 use crate::{
     iterator_traits::{
-        IterGetSet,
-        ShapeManipulator,
-        StridedHelper,
-        StridedIterator,
-        StridedIteratorMap,
+        IterGetSet, ShapeManipulator, StridedHelper, StridedIterator, StridedIteratorMap,
         StridedIteratorZip,
     },
-    shape_manipulate::{ expand, reshape, transpose },
+    shape_manipulate::{expand, reshape, transpose},
 };
 use std::sync::Arc;
 use tensor_common::{
-    axis::axis::Axis,
-    layout::layout::Layout,
-    utils::pointer::Pointer,
-    shape::shape::Shape,
-    shape::shape_utils::try_pad_shape,
-    strides::strides::Strides,
-    strides::strides_utils::preprocess_strides,
+    axis::axis::Axis, layout::layout::Layout, shape::shape::Shape,
+    shape::shape_utils::try_pad_shape, strides::strides::Strides,
+    strides::strides_utils::preprocess_strides, utils::pointer::Pointer,
 };
-use tensor_traits::tensor::{ CommonBounds, TensorInfo };
+use tensor_traits::tensor::{CommonBounds, TensorInfo};
 
 /// A module for single-threaded strided simd iterator.
 pub mod strided_simd {
     use std::sync::Arc;
     use tensor_common::{
-        axis::axis::Axis,
-        layout::layout::Layout,
-        utils::pointer::Pointer,
-        shape::shape::Shape,
-        shape::shape_utils::try_pad_shape,
-        strides::strides::Strides,
-        strides::strides_utils::preprocess_strides,
+        axis::axis::Axis, layout::layout::Layout, shape::shape::Shape,
+        shape::shape_utils::try_pad_shape, strides::strides::Strides,
+        strides::strides_utils::preprocess_strides, utils::pointer::Pointer,
     };
-    use tensor_traits::{ CommonBounds, TensorInfo };
+    use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
     use tensor_types::vectors::traits::VecTrait;
 
     use crate::iterator_traits::{
-        IterGetSetSimd,
-        ShapeManipulator,
-        StridedIteratorMap,
-        StridedIteratorSimd,
+        IterGetSetSimd, ShapeManipulator, StridedIteratorMap, StridedIteratorSimd,
         StridedSimdIteratorZip,
     };
 
-    use super::{ expand, reshape, transpose, StridedHelper };
+    use super::{expand, reshape, transpose, StridedHelper};
 
     /// A single thread SIMD-optimized strided iterator
     #[derive(Clone)]
@@ -167,7 +152,12 @@ pub mod strided_simd {
         }
         #[inline(always)]
         fn inner_loop_next(&mut self, index: usize) -> Self::Item {
-            unsafe { *self.ptr.ptr.offset((index as isize) * (self.last_stride as isize)) }
+            unsafe {
+                *self
+                    .ptr
+                    .ptr
+                    .offset((index as isize) * (self.last_stride as isize))
+            }
         }
         fn inner_loop_next_simd(&mut self, index: usize) -> Self::SimdItem {
             unsafe { Self::SimdItem::from_ptr(self.ptr.get_ptr().add(index * T::Vec::SIZE)) }

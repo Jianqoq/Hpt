@@ -5,8 +5,8 @@ use crate::{tensor_base::_Tensor, Buffer};
 use tensor_common::error::base::TensorError;
 use tensor_common::{
     layout::layout::Layout,
-    utils::pointer::Pointer,
     slice::{slice_process, Slice},
+    utils::pointer::Pointer,
 };
 use tensor_traits::tensor::CommonBounds;
 
@@ -29,7 +29,10 @@ where
     ///
     /// Returns a `Result` containing the sliced tensor as a new tensor. If any slicing error occurs
     /// (e.g., out-of-bounds access), an error message is returned.
-    pub fn slice(&self, index: &[Slice]) -> std::result::Result<_Tensor<T, B, DEVICE>, TensorError> {
+    pub fn slice(
+        &self,
+        index: &[Slice],
+    ) -> std::result::Result<_Tensor<T, B, DEVICE>, TensorError> {
         let (res_shape, res_strides, offset) = slice_process(
             self.layout.shape().to_vec(),
             self.layout.strides().to_vec(),

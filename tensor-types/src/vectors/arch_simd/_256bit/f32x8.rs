@@ -247,11 +247,11 @@ impl SimdMath<f32> for f32x8 {
     }
     #[inline(always)]
     fn floor(self) -> Self {
-        Self(unsafe {xfloorf(self.0)})
+        Self(unsafe { xfloorf(self.0) })
     }
     #[inline(always)]
     fn ceil(self) -> Self {
-        Self(unsafe {xceilf(self.0)})
+        Self(unsafe { xceilf(self.0) })
     }
     #[inline(always)]
     fn neg(self) -> Self {
@@ -269,7 +269,10 @@ impl SimdMath<f32> for f32x8 {
             let neg_ones = _mm256_set1_ps(-1.0);
             let gt = _mm256_cmp_ps(self.0, zero, _CMP_GT_OQ);
             let lt = _mm256_cmp_ps(self.0, zero, _CMP_LT_OQ);
-            f32x8(_mm256_or_ps(_mm256_and_ps(gt, ones), _mm256_and_ps(lt, neg_ones)))
+            f32x8(_mm256_or_ps(
+                _mm256_and_ps(gt, ones),
+                _mm256_and_ps(lt, neg_ones),
+            ))
         }
     }
     #[inline(always)]
@@ -627,7 +630,11 @@ impl Eval2 for f32x8 {
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
         unsafe {
-            i32x8(std::mem::transmute(_mm256_cmp_ps(self.0, self.0, _CMP_UNORD_Q)))
+            i32x8(std::mem::transmute(_mm256_cmp_ps(
+                self.0,
+                self.0,
+                _CMP_UNORD_Q,
+            )))
         }
     }
 

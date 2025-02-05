@@ -20,8 +20,8 @@ use tensor_common::{
 use tensor_cudakernels::{RegisterInfo, ARGMAX, ARGMIN};
 use tensor_traits::{CommonBounds, IndexReduce, ShapeManipulate, TensorInfo};
 use tensor_types::{
-    convertion::Convertor,
     cast::Cast,
+    convertion::Convertor,
     type_promote::{Cmp, NormalOut},
 };
 

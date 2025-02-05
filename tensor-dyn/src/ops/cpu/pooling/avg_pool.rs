@@ -4,7 +4,7 @@ use crate::Tensor;
 use tensor_common::error::base::TensorError;
 use tensor_common::shape::shape::Shape;
 use tensor_traits::CommonBounds;
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 use tensor_types::type_promote::FloatOutBinary;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
@@ -12,16 +12,16 @@ use tensor_types::vectors::traits::*;
 use super::common::adaptive_pooling_template;
 
 impl<T> _Tensor<T>
-    where
-        T: CommonBounds + Cast<T> + NormalOut<Output = T> + FloatOutBinary<T, Output = T>,
-        T::Vec: VecTrait<T> +
-            Copy +
-            Send +
-            Sync +
-            NormalOut<Output = T::Vec> +
-            FloatOutBinary<T::Vec, Output = T::Vec>,
-        bool: Cast<T>,
-        i64: Cast<T>
+where
+    T: CommonBounds + Cast<T> + NormalOut<Output = T> + FloatOutBinary<T, Output = T>,
+    T::Vec: VecTrait<T>
+        + Copy
+        + Send
+        + Sync
+        + NormalOut<Output = T::Vec>
+        + FloatOutBinary<T::Vec, Output = T::Vec>,
+    bool: Cast<T>,
+    i64: Cast<T>,
 {
     /// Performs a 2D avg pooling operation on the input tensor.
     ///
@@ -47,7 +47,7 @@ impl<T> _Tensor<T>
         kernels_shape: &Shape,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
-        dilation: [i64; 2]
+        dilation: [i64; 2],
     ) -> Result<_Tensor<T>, TensorError> {
         let kernel_size: T = kernels_shape.size().cast();
         let kernel_size_vec = T::Vec::splat(kernel_size);
@@ -60,37 +60,34 @@ impl<T> _Tensor<T>
             |a, b| a._add(b),
             |a, b| a._add(b),
             |a| a._div(kernel_size),
-            |a| a._div(kernel_size_vec)
+            |a| a._div(kernel_size_vec),
         )
     }
 
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn adaptive_avgpool2d(
-        &self,
-        output_size: [i64; 2],
-    ) -> Result<_Tensor<T>, TensorError> {
+    pub fn adaptive_avgpool2d(&self, output_size: [i64; 2]) -> Result<_Tensor<T>, TensorError> {
         adaptive_pooling_template(
             self,
             output_size,
             |a, b| a._add(b),
             |a, b| a._add(b),
             |a, kernel_size| a._div(kernel_size),
-            |a, kernel_size_vec| a._div(kernel_size_vec)
+            |a, kernel_size_vec| a._div(kernel_size_vec),
         )
     }
 }
 
 impl<T> Tensor<T>
-    where
-        T: CommonBounds + Cast<T> + NormalOut<Output = T> + FloatOutBinary<T, Output = T>,
-        T::Vec: VecTrait<T> +
-            Copy +
-            Send +
-            Sync +
-            NormalOut<Output = T::Vec> +
-            FloatOutBinary<T::Vec, Output = T::Vec>,
-        bool: Cast<T>,
-        i64: Cast<T>
+where
+    T: CommonBounds + Cast<T> + NormalOut<Output = T> + FloatOutBinary<T, Output = T>,
+    T::Vec: VecTrait<T>
+        + Copy
+        + Send
+        + Sync
+        + NormalOut<Output = T::Vec>
+        + FloatOutBinary<T::Vec, Output = T::Vec>,
+    bool: Cast<T>,
+    i64: Cast<T>,
 {
     /// Performs a 2D avg pooling operation on the input tensor.
     ///
@@ -116,9 +113,12 @@ impl<T> Tensor<T>
         kernels_shape: &Shape,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
-        dilation: [i64; 2]
+        dilation: [i64; 2],
     ) -> Result<Tensor<T>, TensorError> {
-        Ok(self.inner.avgpool2d(&kernels_shape, steps, padding, dilation)?.into())
+        Ok(self
+            .inner
+            .avgpool2d(&kernels_shape, steps, padding, dilation)?
+            .into())
     }
 
     /// Performs a adaptive avg pooling operation on the input tensor.
@@ -129,10 +129,7 @@ impl<T> Tensor<T>
     ///
     /// This function returns a `Result` containing the output tensor after applying the adaptive avg pooling operation.
     #[cfg_attr(feature = "track_caller", track_caller)]
-    pub fn adaptive_avgpool2d(
-        &self,
-        output_size: [i64; 2],
-    ) -> Result<Tensor<T>, TensorError> {
+    pub fn adaptive_avgpool2d(&self, output_size: [i64; 2]) -> Result<Tensor<T>, TensorError> {
         Ok(self.inner.adaptive_avgpool2d(output_size)?.into())
     }
 }

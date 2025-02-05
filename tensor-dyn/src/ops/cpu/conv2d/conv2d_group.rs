@@ -17,15 +17,15 @@ use tensor_common::utils::pointer::Pointer;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::vectors::traits::*;
 
 impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
-    where
-        T: CommonBounds + Cast<T> + NormalOut<Output = T>,
-        T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
-        bool: Cast<T>
+where
+    T: CommonBounds + Cast<T> + NormalOut<Output = T>,
+    T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
+    bool: Cast<T>,
 {
     #[cfg_attr(feature = "track_caller", track_caller)]
     #[inline(never)]
@@ -37,7 +37,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         groups: i64,
-        activation: Option<fn(T::Vec) -> T::Vec>
+        activation: Option<fn(T::Vec) -> T::Vec>,
     ) -> Result<_Tensor<T, Cpu, DEVICE>, TensorError> {
         let img_shape = self.shape();
         ShapeError::check_dim(4, img_shape.len())?;
@@ -86,7 +86,8 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
             .into());
         }
         let activation = activation.unwrap_or(|x| x);
-        let output = _Tensor::<T, Cpu, DEVICE>::empty([batch, out_height, out_width, out_channels])?;
+        let output =
+            _Tensor::<T, Cpu, DEVICE>::empty([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
 
@@ -116,19 +117,21 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
             oc_nvec,
             oh_block as usize,
             [kernel_height as usize, kernel_width as usize],
-            cache
+            cache,
         );
         let (ic_nvec, jb) = params;
 
         // retrieve micro kernels start
 
-        let full_oc_kernel = conv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(
-            &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, oc_nvec)
-        );
+        let full_oc_kernel =
+            conv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(&format!(
+                "unable to find iconv2d_microkernel_{}x{}",
+                ow_block, oc_nvec
+            ));
         let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
         let full_oc_kernel_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
             &mut oc_nvec,
-            &mut ((out_width as usize) % ow_block)
+            &mut ((out_width as usize) % ow_block),
         );
         if full_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
@@ -137,17 +140,14 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
         if let Some(partial_oc_kernel) = partial_oc_kernel {
             assert_eq!(ow_block, partial_oc_kernel.ow_block);
         }
-        let partial_oc_kernel_ow_remain = remain_oc_kernel_dispatch::<T>(
-            &mut ((out_width as usize) % ow_block)
-        );
+        let partial_oc_kernel_ow_remain =
+            remain_oc_kernel_dispatch::<T>(&mut ((out_width as usize) % ow_block));
         if partial_oc_kernel_ow_remain.is_none() {
             assert_eq!((out_width as usize) % ow_block, 0);
         }
         let full_oc_kernel_fn_1_oc = conv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ow_block);
-        let full_oc_kernel_fn_1_oc_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
-            &mut 1,
-            &mut ((out_width as usize) % ow_block)
-        );
+        let full_oc_kernel_fn_1_oc_ow_remain =
+            conv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ((out_width as usize) % ow_block));
         let has_bias = bias.is_some();
         let bias_full_oc_kernel = if has_bias {
             Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut oc_nvec, &mut ow_block).unwrap())
@@ -168,8 +168,9 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
             Some(
                 conv2d_full_oc_bias_kernel_dispatch::<T>(
                     &mut oc_nvec,
-                    &mut ((out_width as usize) % ow_block)
-                ).unwrap()
+                    &mut ((out_width as usize) % ow_block),
+                )
+                .unwrap(),
             )
         } else {
             None
@@ -178,15 +179,17 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
             Some(
                 conv2d_full_oc_bias_kernel_dispatch::<T>(
                     &mut 1,
-                    &mut ((out_width as usize) % ow_block)
-                ).unwrap()
+                    &mut ((out_width as usize) % ow_block),
+                )
+                .unwrap(),
             )
         } else {
             None
         };
         let bias_partial_oc_ow_remain = if has_bias {
             Some(
-                bias_remain_oc_kernel_dispatch::<T>(&mut ((out_width as usize) % ow_block)).unwrap()
+                bias_remain_oc_kernel_dispatch::<T>(&mut ((out_width as usize) % ow_block))
+                    .unwrap(),
             )
         } else {
             None
@@ -211,7 +214,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
             [in_channels_per_group as usize, ic_nvec],
             [out_channels_per_group as usize, oc_nvec],
             [ks0 as usize, ks1 as usize, ks2 as usize],
-            [kernel_height as usize, kernel_width as usize]
+            [kernel_height as usize, kernel_width as usize],
         );
 
         let ic_block_size = ic_nvec * T::Vec::SIZE; // in channel block size
@@ -236,7 +239,11 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                 per_group: [in_channels_per_group, out_channels_per_group],
                 group_idx: 0,
             };
-            match (partial_oc_kernel, full_oc_kernel_ow_remain, partial_oc_kernel_ow_remain) {
+            match (
+                partial_oc_kernel,
+                full_oc_kernel_ow_remain,
+                partial_oc_kernel_ow_remain,
+            ) {
                 (None, None, None) => {
                     for g in 0..groups {
                         for ii in (0..in_channels_per_group).step_by(ic_block_size) {
@@ -273,9 +280,9 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                                 kernel,
                                                 &inp,
                                                 &bias,
-                                                activation
+                                                activation,
                                             );
-                                        }
+                                        },
                                     );
                                 } else {
                                     conv_perfect(
@@ -299,9 +306,9 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                                 out,
                                                 kernel,
                                                 &inp,
-                                                activation
+                                                activation,
                                             );
-                                        }
+                                        },
                                     );
                                 }
                             } else {
@@ -326,9 +333,9 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                             out,
                                             kernel,
                                             &inp,
-                                            |x| x
+                                            |x| x,
                                         );
-                                    }
+                                    },
                                 );
                             }
                         }
@@ -344,13 +351,12 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                 // out channel has two levels of blocking:
                                 // 1. it first blocks by oc_block_size * jb
                                 // 2. it then blocks by oc_block_size (cache line size)
-                                for jj in (0..out_channels_per_group).step_by(
-                                    oc_block_size * (jb as usize)
-                                ) {
+                                for jj in (0..out_channels_per_group)
+                                    .step_by(oc_block_size * (jb as usize))
+                                {
                                     // make sure jj_end is in the range of out_channels
-                                    let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(
-                                        out_channels_per_group
-                                    );
+                                    let jj_end = (jj + (oc_block_size as i64) * (jb as i64))
+                                        .min(out_channels_per_group);
                                     let jj = g * out_channels_per_group + jj;
                                     let jj_end = g * out_channels_per_group + jj_end;
 
@@ -384,7 +390,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                             bias_one_oc_kernel.unwrap(),
                                             bias_full_oc_ow_remain,
                                             bias_partial_oc_ow_remain,
-                                            bias_one_oc_ow_remain
+                                            bias_one_oc_ow_remain,
                                         );
                                     } else {
                                         handle_bias_normal(
@@ -409,7 +415,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                             &bias,
                                             activation,
                                             bias_full_oc_kernel,
-                                            bias_full_oc_ow_remain
+                                            bias_full_oc_ow_remain,
                                         );
                                     }
                                 }
@@ -417,13 +423,12 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                 // out channel has two levels of blocking:
                                 // 1. it first blocks by oc_block_size * jb
                                 // 2. it then blocks by oc_block_size (cache line size)
-                                for jj in (0..out_channels_per_group).step_by(
-                                    oc_block_size * (jb as usize)
-                                ) {
+                                for jj in (0..out_channels_per_group)
+                                    .step_by(oc_block_size * (jb as usize))
+                                {
                                     // make sure jj_end is in the range of out_channels
-                                    let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(
-                                        out_channels_per_group
-                                    );
+                                    let jj_end = (jj + (oc_block_size as i64) * (jb as i64))
+                                        .min(out_channels_per_group);
                                     let jj = g * out_channels_per_group + jj;
                                     let jj_end = g * out_channels_per_group + jj_end;
                                     // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
@@ -455,7 +460,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                             full_oc_kernel_fn_1_oc.unwrap().kernel,
                                             full_oc_kernel_ow_remain.map(|x| x.kernel),
                                             partial_oc_kernel_ow_remain.map(|x| x.kernel),
-                                            full_oc_kernel_fn_1_oc_ow_remain.map(|x| x.kernel)
+                                            full_oc_kernel_fn_1_oc_ow_remain.map(|x| x.kernel),
                                         );
                                     } else {
                                         handle_normal(
@@ -479,7 +484,7 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
                                             &inp,
                                             |x| x,
                                             full_oc_kernel_fn,
-                                            full_oc_kernel_ow_remain.map(|x| x.kernel)
+                                            full_oc_kernel_ow_remain.map(|x| x.kernel),
                                         );
                                     }
                                 }
@@ -499,7 +504,7 @@ fn out_used<T: CommonBounds>(
     jb: usize,
     oc_nvec: usize,
     owb: usize,
-    line_size: usize
+    line_size: usize,
 ) -> usize {
     let nv = line_size / (SIMD_WIDTH / 8 / core::mem::size_of::<T>());
     lb * jb * oc_nvec.div_ceil(nv) * owb * line_size
@@ -513,16 +518,15 @@ fn inp_used<T: CommonBounds>(
     kw: usize,
     step_height: usize,
     step_width: usize,
-    line_size: usize
+    line_size: usize,
 ) -> usize {
     let nv = line_size / (SIMD_WIDTH / 8 / core::mem::size_of::<T>());
     let in_range_num_w = (0..owb).take_while(|&idx| idx * step_width < kw).count();
     let in_range_num_h = (0..lb).take_while(|&idx| idx * step_height < kh).count();
-    owb *
-        ic_nvec.div_ceil(nv) *
-        (kh + lb - in_range_num_h) *
-        (kw + owb - in_range_num_w) *
-        line_size
+    owb * ic_nvec.div_ceil(nv)
+        * (kh + lb - in_range_num_h)
+        * (kw + owb - in_range_num_w)
+        * line_size
 }
 #[allow(unused)]
 fn kernel_used<T: CommonBounds>(
@@ -530,7 +534,7 @@ fn kernel_used<T: CommonBounds>(
     ic_nvec: usize,
     jb: usize,
     kh: usize,
-    kw: usize
+    kw: usize,
 ) -> usize {
     oc_nvec * ic_nvec * T::Vec::SIZE * kh * kw * jb
 }
@@ -543,16 +547,15 @@ fn reorder_kernel<T: CommonBounds>(
     [in_channels_per_group, ic_nvec]: [usize; 2],
     [out_channels_per_group, oc_nvec]: [usize; 2],
     [ks0, ks1, ks2]: [usize; 3],
-    [kh, kw]: [usize; 2]
+    [kh, kw]: [usize; 2],
 ) {
     for g in 0..groups {
         for ii in (0..in_channels_per_group).step_by(T::Vec::SIZE * ic_nvec) {
             let i_end = (ii + T::Vec::SIZE * ic_nvec).min(in_channels_per_group);
             for jj in (0..out_channels_per_group).step_by(T::Vec::SIZE * oc_nvec * jb) {
                 let jj_start = g * out_channels_per_group + jj;
-                let jj_end =
-                    g * out_channels_per_group +
-                    (jj + T::Vec::SIZE * oc_nvec * jb).min(out_channels_per_group);
+                let jj_end = g * out_channels_per_group
+                    + (jj + T::Vec::SIZE * oc_nvec * jb).min(out_channels_per_group);
                 let remain = (jj_end - jj_start) % (T::Vec::SIZE * oc_nvec);
                 let oc_remain = remain % T::Vec::SIZE;
                 for j in (jj_start..jj_end - remain).step_by(T::Vec::SIZE * oc_nvec) {
@@ -577,28 +580,27 @@ fn reorder_kernel<T: CommonBounds>(
                     }
                 }
                 if remain > 0 {
-                    for j in (out_channels_per_group - remain..out_channels_per_group -
-                        oc_remain).step_by(T::Vec::SIZE) {
+                    for j in (out_channels_per_group - remain..out_channels_per_group - oc_remain)
+                        .step_by(T::Vec::SIZE)
+                    {
                         let j = g * out_channels_per_group + j;
                         for n in 0..kh {
                             for m in 0..kw {
                                 for i in ii..i_end {
                                     let ptr = reordered.ptr as *mut _ as *mut T::Vec;
                                     unsafe {
-                                        ptr.write_unaligned(
-                                            T::Vec::from_ptr(
-                                                &kernel[n * ks0 + m * ks1 + i * ks2 + j]
-                                            )
-                                        );
+                                        ptr.write_unaligned(T::Vec::from_ptr(
+                                            &kernel[n * ks0 + m * ks1 + i * ks2 + j],
+                                        ));
                                     }
                                     reordered += T::Vec::SIZE;
                                 }
                             }
                         }
                     }
-                    for j in (out_channels_per_group - oc_remain..out_channels_per_group).step_by(
-                        T::Vec::SIZE
-                    ) {
+                    for j in (out_channels_per_group - oc_remain..out_channels_per_group)
+                        .step_by(T::Vec::SIZE)
+                    {
                         let j = g * out_channels_per_group + j;
                         for n in 0..kh {
                             for m in 0..kw {
@@ -608,7 +610,7 @@ fn reorder_kernel<T: CommonBounds>(
                                         std::ptr::copy_nonoverlapping(
                                             &kernel[n * ks0 + m * ks1 + i * ks2 + j] as *const T,
                                             ptr,
-                                            oc_remain
+                                            oc_remain,
                                         );
                                     }
                                     reordered += oc_remain;
@@ -635,7 +637,7 @@ fn kernel_params<T: CommonBounds>(
     oc_nvec: usize,
     oh_block: usize,
     [kh, kw]: [usize; 2],
-    cache: Cache<T>
+    cache: Cache<T>,
 ) -> (usize, usize) {
     let l1 = cache.l1;
     let l2 = cache.l2;
@@ -645,12 +647,7 @@ fn kernel_params<T: CommonBounds>(
 
     let best_params = ic_range
         .into_par_iter()
-        .flat_map(|ic|
-            jb_range
-                .clone()
-                .into_par_iter()
-                .map(move |jb| (ic, jb))
-        )
+        .flat_map(|ic| jb_range.clone().into_par_iter().map(move |jb| (ic, jb)))
         .filter_map(|(ic, jb)| {
             let gemm_kernel_used = oc_nvec * T::Vec::SIZE * ic * T::Vec::SIZE;
             let gemm_inp_used = ow_block * ic * T::Vec::SIZE;
@@ -685,7 +682,7 @@ fn kernel_params<T: CommonBounds>(
                 } else {
                     (best_ic, best_jb, best_balance, best_util)
                 }
-            }
+            },
         );
 
     (best_params.0, best_params.1)
@@ -704,12 +701,11 @@ fn handle_remain<T: CommonBounds, F, F2, F3>(
     kernel: &mut Pointer<T>,
     full_oc: F,
     one_oc: F2,
-    partial_oc: F3
-)
-    where
-        F: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>),
-        F2: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>),
-        F3: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>)
+    partial_oc: F3,
+) where
+    F: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>),
+    F2: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>),
+    F3: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>),
 {
     for j in (jj_start..jj_end - remain).step_by(oc_block_size as usize) {
         let original = kernel.clone();
@@ -721,9 +717,9 @@ fn handle_remain<T: CommonBounds, F, F2, F3>(
     }
     let oc_remain = remain % (T::Vec::SIZE as i64);
     // loop over the remain part that are multiple of T::Vec::SIZE
-    for j in (out_channels_per_group - remain..out_channels_per_group - oc_remain).step_by(
-        T::Vec::SIZE
-    ) {
+    for j in
+        (out_channels_per_group - remain..out_channels_per_group - oc_remain).step_by(T::Vec::SIZE)
+    {
         let j = j + group_idx * out_channels_per_group;
         let original = kernel.clone();
         for l in ll..l_end {
@@ -752,9 +748,9 @@ fn _handle_normal<T: CommonBounds, F>(
     oc_block_size: usize,
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
-    full_oc: F
-)
-    where F: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>)
+    full_oc: F,
+) where
+    F: Fn(i64, i64, &mut Pointer<T>, &mut Pointer<T>),
 {
     for j in (jj_start..jj_end).step_by(oc_block_size) {
         let original = kernel.clone();
@@ -787,9 +783,9 @@ fn handle_normal<T: CommonBounds, F>(
     inp: &Pointer<T>,
     activation: fn(T::Vec) -> T::Vec,
     full_oc_kernel_fn: F,
-    full_oc_kernel_ow_remain: Option<F>
-)
-    where F: Fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+    full_oc_kernel_ow_remain: Option<F>,
+) where
+    F: Fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
 {
     let params = Params {
         arg1: [ii, i_end],
@@ -825,9 +821,9 @@ fn handle_normal<T: CommonBounds, F>(
                     out,
                     kernel,
                     &inp,
-                    activation
+                    activation,
                 )
-            }
+            },
         );
         *kernel = kernel_k.clone();
     }
@@ -851,9 +847,9 @@ fn handle_normal<T: CommonBounds, F>(
                         out,
                         kernel,
                         &inp,
-                        activation
+                        activation,
                     )
-                }
+                },
             );
             *kernel = kernel_k.clone();
         }
@@ -873,9 +869,9 @@ fn conv_perfect<T: CommonBounds, F>(
     jb: usize,
     kernel: &mut Pointer<T>,
     out: &mut Pointer<T>,
-    mut kernel_func: F
-)
-    where F: FnMut(i64, i64, i64, &mut Pointer<T>, &mut Pointer<T>)
+    mut kernel_func: F,
+) where
+    F: FnMut(i64, i64, i64, &mut Pointer<T>, &mut Pointer<T>),
 {
     // out channel has two levels of blocking:
     // 1. it first blocks by oc_block_size * jb
@@ -935,7 +931,7 @@ fn with_bias_remain<T: CommonBounds>(
         &mut Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T::Vec) -> T::Vec,
     ),
     one_oc: fn(
         Params,
@@ -943,7 +939,7 @@ fn with_bias_remain<T: CommonBounds>(
         &mut Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T::Vec) -> T::Vec,
     ),
     partial_oc: fn(
         PartialParams,
@@ -951,8 +947,8 @@ fn with_bias_remain<T: CommonBounds>(
         &mut Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
-    )
+        fn(T::Vec) -> T::Vec,
+    ),
 ) {
     let params = Params {
         arg1: [ii, i_end],
@@ -1004,7 +1000,7 @@ fn with_bias_remain<T: CommonBounds>(
                     kernel,
                     &inp,
                     &bias,
-                    activation
+                    activation,
                 )
             },
             |j, l, out, kernel| {
@@ -1017,7 +1013,7 @@ fn with_bias_remain<T: CommonBounds>(
                     kernel,
                     &inp,
                     &bias,
-                    activation
+                    activation,
                 )
             },
             |j, l, out, kernel| {
@@ -1030,9 +1026,9 @@ fn with_bias_remain<T: CommonBounds>(
                     kernel,
                     &inp,
                     &bias,
-                    activation
+                    activation,
                 );
-            }
+            },
         );
         *kernel = kernel_k.clone();
     }
@@ -1065,8 +1061,8 @@ fn with_bias_normal<T: CommonBounds>(
         &mut Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
-    )
+        fn(T::Vec) -> T::Vec,
+    ),
 ) {
     let params = Params {
         arg1: [ii, i_end],
@@ -1101,9 +1097,9 @@ fn with_bias_normal<T: CommonBounds>(
                     kernel,
                     &inp,
                     &bias,
-                    activation
+                    activation,
                 )
-            }
+            },
         );
         *kernel = kernel_k.clone();
     }
@@ -1137,7 +1133,7 @@ fn handle_bias_remain<T: CommonBounds>(
         &mut Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T::Vec) -> T::Vec,
     ),
     partial_oc: fn(
         PartialParams,
@@ -1145,7 +1141,7 @@ fn handle_bias_remain<T: CommonBounds>(
         &mut Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T::Vec) -> T::Vec,
     ),
     bias_one_oc: fn(
         Params,
@@ -1153,10 +1149,17 @@ fn handle_bias_remain<T: CommonBounds>(
         &mut Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T::Vec) -> T::Vec,
     ),
     bias_full_oc_ow_remain: Option<
-        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+        fn(
+            Params,
+            &mut Pointer<T>,
+            &mut Pointer<T>,
+            &Pointer<T>,
+            &Pointer<T>,
+            fn(T::Vec) -> T::Vec,
+        ),
     >,
     bias_partial_oc_ow_remain: Option<
         fn(
@@ -1165,12 +1168,19 @@ fn handle_bias_remain<T: CommonBounds>(
             &mut Pointer<T>,
             &Pointer<T>,
             &Pointer<T>,
-            fn(T::Vec) -> T::Vec
-        )
+            fn(T::Vec) -> T::Vec,
+        ),
     >,
     bias_one_oc_ow_remain: Option<
-        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
-    >
+        fn(
+            Params,
+            &mut Pointer<T>,
+            &mut Pointer<T>,
+            &Pointer<T>,
+            &Pointer<T>,
+            fn(T::Vec) -> T::Vec,
+        ),
+    >,
 ) {
     let out_width_full_end = out_width - (out_width % (ow_block as i64));
     with_bias_remain(
@@ -1197,16 +1207,16 @@ fn handle_bias_remain<T: CommonBounds>(
         activation,
         bias_full_oc,
         bias_one_oc,
-        partial_oc
+        partial_oc,
     );
     // handle the out width remain part
     if let Some(full_oc_kernel_ow_remain) = &bias_full_oc_ow_remain {
-        let one_oc_ow_remain = bias_one_oc_ow_remain.expect(
-            &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, 1)
-        );
-        let partial_oc_ow_remain = bias_partial_oc_ow_remain.expect(
-            &format!("unable to find oconv2d_microkernel_{}", ow_block)
-        );
+        let one_oc_ow_remain = bias_one_oc_ow_remain.expect(&format!(
+            "unable to find iconv2d_microkernel_{}x{}",
+            ow_block, 1
+        ));
+        let partial_oc_ow_remain = bias_partial_oc_ow_remain
+            .expect(&format!("unable to find oconv2d_microkernel_{}", ow_block));
         with_bias_remain(
             [jj_start, jj_end],
             [out_width_full_end, out_width, ow_block as i64],
@@ -1231,7 +1241,7 @@ fn handle_bias_remain<T: CommonBounds>(
             activation,
             *full_oc_kernel_ow_remain,
             one_oc_ow_remain,
-            partial_oc_ow_remain
+            partial_oc_ow_remain,
         );
     }
 
@@ -1265,11 +1275,18 @@ fn handle_bias_normal<T: CommonBounds>(
         &mut Pointer<T>,
         &Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T::Vec) -> T::Vec,
     ),
     bias_full_oc_ow_remain: Option<
-        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
-    >
+        fn(
+            Params,
+            &mut Pointer<T>,
+            &mut Pointer<T>,
+            &Pointer<T>,
+            &Pointer<T>,
+            fn(T::Vec) -> T::Vec,
+        ),
+    >,
 ) {
     let out_width_full_end = out_width - (out_width % (ow_block as i64));
     with_bias_normal(
@@ -1293,7 +1310,7 @@ fn handle_bias_normal<T: CommonBounds>(
         &inp,
         &bias,
         activation,
-        bias_full_oc
+        bias_full_oc,
     );
     // handle the out width remain part
     if let Some(full_oc_kernel_ow_remain) = &bias_full_oc_ow_remain {
@@ -1318,7 +1335,7 @@ fn handle_bias_normal<T: CommonBounds>(
             &inp,
             &bias,
             activation,
-            *full_oc_kernel_ow_remain
+            *full_oc_kernel_ow_remain,
         );
     }
 
@@ -1351,7 +1368,7 @@ fn with_normal_remain<T: CommonBounds>(
         &mut Pointer<T>,
         &mut Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T::Vec) -> T::Vec,
     ),
     one_oc: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
     partial_oc: fn(
@@ -1359,8 +1376,8 @@ fn with_normal_remain<T: CommonBounds>(
         &mut Pointer<T>,
         &mut Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
-    )
+        fn(T::Vec) -> T::Vec,
+    ),
 ) {
     let params = Params {
         arg1: [ii, i_end],
@@ -1411,7 +1428,7 @@ fn with_normal_remain<T: CommonBounds>(
                     out,
                     kernel,
                     &inp,
-                    activation
+                    activation,
                 )
             },
             |j, l, out, kernel| {
@@ -1423,7 +1440,7 @@ fn with_normal_remain<T: CommonBounds>(
                     out,
                     kernel,
                     &inp,
-                    activation
+                    activation,
                 )
             },
             |j, l, out, kernel| {
@@ -1435,9 +1452,9 @@ fn with_normal_remain<T: CommonBounds>(
                     out,
                     kernel,
                     &inp,
-                    activation
+                    activation,
                 );
-            }
+            },
         );
         *kernel = kernel_k.clone();
     }
@@ -1470,18 +1487,18 @@ fn handle_normal_remain<T: CommonBounds>(
         &mut Pointer<T>,
         &mut Pointer<T>,
         &Pointer<T>,
-        fn(T::Vec) -> T::Vec
+        fn(T::Vec) -> T::Vec,
     ),
     one_oc: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
     full_oc_ow_remain: Option<
-        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
     >,
     partial_oc_ow_remain: Option<
-        fn(PartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+        fn(PartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
     >,
     one_oc_ow_remain: Option<
-        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
-    >
+        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
+    >,
 ) {
     let out_width_full_end = out_width - (out_width % (ow_block as i64));
     with_normal_remain(
@@ -1507,16 +1524,16 @@ fn handle_normal_remain<T: CommonBounds>(
         activation,
         full_oc,
         one_oc,
-        partial_oc
+        partial_oc,
     );
     // handle the out width remain part
     if let Some(full_oc_kernel_ow_remain) = &full_oc_ow_remain {
-        let one_oc_ow_remain = one_oc_ow_remain.expect(
-            &format!("unable to find iconv2d_microkernel_{}x{}", ow_block, 1)
-        );
-        let partial_oc_ow_remain = partial_oc_ow_remain.expect(
-            &format!("unable to find oconv2d_microkernel_{}", ow_block)
-        );
+        let one_oc_ow_remain = one_oc_ow_remain.expect(&format!(
+            "unable to find iconv2d_microkernel_{}x{}",
+            ow_block, 1
+        ));
+        let partial_oc_ow_remain = partial_oc_ow_remain
+            .expect(&format!("unable to find oconv2d_microkernel_{}", ow_block));
         with_normal_remain(
             [jj_start, jj_end],
             [out_width_full_end, out_width, ow_block as i64],
@@ -1540,17 +1557,17 @@ fn handle_normal_remain<T: CommonBounds>(
             activation,
             *full_oc_kernel_ow_remain,
             one_oc_ow_remain,
-            partial_oc_ow_remain
+            partial_oc_ow_remain,
         );
     }
     *kernel += kernel_height * kernel_width * (jj_end - jj_start) * (i_end - ii);
 }
 
 impl<T> Tensor<T>
-    where
-        T: CommonBounds + Cast<T> + NormalOut<Output = T>,
-        T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
-        bool: Cast<T>
+where
+    T: CommonBounds + Cast<T> + NormalOut<Output = T>,
+    T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
+    bool: Cast<T>,
 {
     /// Performs a 2D convolution operation on the input tensor.
     ///
@@ -1581,21 +1598,20 @@ impl<T> Tensor<T>
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         groups: i64,
-        activation: Option<fn(T::Vec) -> T::Vec>
+        activation: Option<fn(T::Vec) -> T::Vec>,
     ) -> anyhow::Result<Tensor<T>> {
-        Ok(
-            self.inner
-                .as_ref()
-                .conv2d_group(
-                    kernels.inner.as_ref(),
-                    bias.map(|b| b.inner.as_ref()),
-                    steps,
-                    padding,
-                    dilation,
-                    groups,
-                    activation
-                )?
-                .into()
-        )
+        Ok(self
+            .inner
+            .as_ref()
+            .conv2d_group(
+                kernels.inner.as_ref(),
+                bias.map(|b| b.inner.as_ref()),
+                steps,
+                padding,
+                dilation,
+                groups,
+                activation,
+            )?
+            .into())
     }
 }

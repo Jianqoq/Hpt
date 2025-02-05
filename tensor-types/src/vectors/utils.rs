@@ -1,5 +1,5 @@
-use crate::{ dtype::TypeCommon, type_promote::NormalOut };
 use super::traits::VecTrait;
+use crate::{dtype::TypeCommon, type_promote::NormalOut};
 
 /// impl bit logic for simd vector
 #[macro_export]
@@ -56,12 +56,13 @@ pub fn vec_sum<T: TypeCommon + NormalOut<T, Output = T>>(vec: T::Vec) -> T {
 
 /// sum an array to a scalar with simd
 #[inline(always)]
-pub fn array_vec_sum<T: TypeCommon + NormalOut<T, Output = T> + Copy>(
-    array: &[T]
-) -> T {
+pub fn array_vec_sum<T: TypeCommon + NormalOut<T, Output = T> + Copy>(array: &[T]) -> T {
     let remain = array.len() % T::Vec::SIZE;
     let vecs = unsafe {
-        std::slice::from_raw_parts(array as *const _ as *const T::Vec, array.len() / T::Vec::SIZE)
+        std::slice::from_raw_parts(
+            array as *const _ as *const T::Vec,
+            array.len() / T::Vec::SIZE,
+        )
     };
     let mut sum_vec = T::Vec::splat(T::ZERO);
     for vec in vecs.iter() {
@@ -84,7 +85,7 @@ pub fn array_vec_reduce<T: TypeCommon + NormalOut<T, Output = T> + Copy>(
     init: T,
     vec_op: impl Fn(T::Vec, T::Vec) -> T::Vec,
     scalar_op: impl Fn(T, T) -> T,
-    vec_reduce_op: impl Fn(T, T) -> T
+    vec_reduce_op: impl Fn(T, T) -> T,
 ) -> T {
     let remain = array.len() % T::Vec::SIZE;
     let vecs = array as *const _ as *const T::Vec;

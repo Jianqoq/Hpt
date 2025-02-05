@@ -16,7 +16,7 @@ use tensor_traits::{
     CommonBounds, NormalReduce, ShapeManipulate, TensorCreator, TensorInfo, TensorWhere,
 };
 use tensor_types::dtype::TypeCommon;
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 use tensor_types::into_vec::IntoVec;
 use tensor_types::traits::{SimdSelect, VecTrait};
 use tensor_types::type_promote::{Cmp, NormalOut, NormalOutUnary, SimdCmp};

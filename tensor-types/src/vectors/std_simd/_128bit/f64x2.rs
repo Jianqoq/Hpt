@@ -1,6 +1,10 @@
 use std::{
     ops::{Deref, DerefMut},
-    simd::{cmp::{SimdPartialEq, SimdPartialOrd}, num::{SimdFloat, SimdInt}, StdFloat},
+    simd::{
+        cmp::{SimdPartialEq, SimdPartialOrd},
+        num::{SimdFloat, SimdInt},
+        StdFloat,
+    },
 };
 
 use crate::traits::{SimdCompare, SimdMath, SimdSelect, VecTrait};

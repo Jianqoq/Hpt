@@ -1,12 +1,23 @@
-use std::{ops::{ Deref, DerefMut }, simd::{cmp::{SimdPartialEq, SimdPartialOrd}, num::SimdUint, Simd}};
+use std::{
+    ops::{Deref, DerefMut},
+    simd::{
+        cmp::{SimdPartialEq, SimdPartialOrd},
+        num::SimdUint,
+        Simd,
+    },
+};
 
-use crate::{impl_std_simd_bit_logic, traits::{SimdCompare, SimdMath}, vectors::traits::VecTrait};
+use crate::{
+    impl_std_simd_bit_logic,
+    traits::{SimdCompare, SimdMath},
+    vectors::traits::VecTrait,
+};
 
 use super::i32x8::i32x8;
 
 /// a vector of 8 u32 values
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq, Debug)]   
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 #[repr(C, align(32))]
 pub struct u32x8(pub(crate) std::simd::u32x8);
 
@@ -76,7 +87,6 @@ impl SimdCompare for u32x8 {
         i32x8(lhs.simd_ge(rhs).to_int())
     }
 }
-
 
 impl std::ops::Add for u32x8 {
     type Output = Self;

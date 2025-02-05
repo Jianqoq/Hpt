@@ -1,6 +1,16 @@
-use std::{ops::{ Deref, DerefMut }, simd::{cmp::{SimdPartialEq, SimdPartialOrd}, num::SimdUint, Simd}};
+use std::{
+    ops::{Deref, DerefMut},
+    simd::{
+        cmp::{SimdPartialEq, SimdPartialOrd},
+        num::SimdUint,
+        Simd,
+    },
+};
 
-use crate::{impl_std_simd_bit_logic, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait }};
+use crate::{
+    impl_std_simd_bit_logic,
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+};
 
 use super::i32x4::i32x4;
 

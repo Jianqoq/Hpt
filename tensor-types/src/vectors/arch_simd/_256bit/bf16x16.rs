@@ -103,39 +103,39 @@ impl bf16x16 {
         }
     }
 
-/// convert from 2 f32x4
-#[inline(always)]
-pub fn from_2_f32vec(val: [f32x8; 2]) -> Self {
-    #[cfg(target_arch = "x86_64")]
-    unsafe {
-        unsafe fn conv(vec: f32x8) -> __m256i {
-            let x = u32x8(std::mem::transmute(vec.0));
-            let nan_mask =
-                (x & u32x8::splat(0x7FFF_FFFFu32)).simd_gt(u32x8::splat(0x7F80_0000u32));
-            let shifted = x >> u32x8::splat(16);
+    /// convert from 2 f32x4
+    #[inline(always)]
+    pub fn from_2_f32vec(val: [f32x8; 2]) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            unsafe fn conv(vec: f32x8) -> __m256i {
+                let x = u32x8(std::mem::transmute(vec.0));
+                let nan_mask =
+                    (x & u32x8::splat(0x7FFF_FFFFu32)).simd_gt(u32x8::splat(0x7F80_0000u32));
+                let shifted = x >> u32x8::splat(16);
 
-            // NaN 处理
-            let nan_result = shifted | u32x8::splat(0x0040u32);
+                // NaN 处理
+                let nan_result = shifted | u32x8::splat(0x0040u32);
 
-            // 舍入检查
-            let round_bit = u32x8::splat(0x00008000u32);
-            let rs_mask = (x & round_bit).simd_ne(u32x8::splat(0))
-                & (x & (u32x8::splat(3) * round_bit - u32x8::splat(1)))
-                    .simd_ne(u32x8::splat(0));
+                // 舍入检查
+                let round_bit = u32x8::splat(0x00008000u32);
+                let rs_mask = (x & round_bit).simd_ne(u32x8::splat(0))
+                    & (x & (u32x8::splat(3) * round_bit - u32x8::splat(1)))
+                        .simd_ne(u32x8::splat(0));
 
-            // 舍入处理
-            let round_result = shifted + rs_mask.select(u32x8::splat(1), u32x8::splat(0));
+                // 舍入处理
+                let round_result = shifted + rs_mask.select(u32x8::splat(1), u32x8::splat(0));
 
-            // 最终选择
-            let final_result = nan_mask.select(nan_result, round_result);
-            _mm256_packus_epi32(final_result.0, _mm256_setzero_si256()) // 打包为 16 位
+                // 最终选择
+                let final_result = nan_mask.select(nan_result, round_result);
+                _mm256_packus_epi32(final_result.0, _mm256_setzero_si256()) // 打包为 16 位
+            }
+            let high = conv(val[0]);
+            let low = conv(val[1]);
+            let result = _mm256_unpacklo_epi64(high, low);
+            std::mem::transmute(result)
         }
-        let high = conv(val[0]);
-        let low = conv(val[1]);
-        let result = _mm256_unpacklo_epi64(high, low);
-        std::mem::transmute(result)
     }
-}
 
     /// check if the value is NaN and return a mask
     #[inline(always)]

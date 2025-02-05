@@ -80,7 +80,10 @@ pub(crate) fn compile_kernel(
             Ok(reg_counts)
         }
     } else {
-        Err(TensorError::LockFailed("compile_kernel", Location::caller()))
+        Err(TensorError::LockFailed(
+            "compile_kernel",
+            Location::caller(),
+        ))
     }
 }
 

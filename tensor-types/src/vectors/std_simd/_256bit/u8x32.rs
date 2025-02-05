@@ -1,6 +1,17 @@
-use std::{ops::{ Deref, DerefMut }, simd::{cmp::{SimdPartialEq, SimdPartialOrd}, num::SimdUint, Simd}};
+use std::{
+    ops::{Deref, DerefMut},
+    simd::{
+        cmp::{SimdPartialEq, SimdPartialOrd},
+        num::SimdUint,
+        Simd,
+    },
+};
 
-use crate::{impl_std_simd_bit_logic, traits::{SimdCompare, SimdMath}, vectors::traits::VecTrait};
+use crate::{
+    impl_std_simd_bit_logic,
+    traits::{SimdCompare, SimdMath},
+    vectors::traits::VecTrait,
+};
 
 use super::i8x32::i8x32;
 

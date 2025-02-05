@@ -1,9 +1,14 @@
-use std::{ cell::RefCell, rc::Rc };
+use std::{cell::RefCell, rc::Rc};
 
-use crate::{ backend::Cpu, tensor::{ DiffTensor, Tensor }, tensor_base::_Tensor, BoolVector };
-use tensor_common::{ error::base::TensorError, shape::shape::Shape };
-use tensor_traits::{ CommonBounds, TensorCreator };
-use tensor_types::{ dtype::TypeCommon, cast::Cast, type_promote::NormalOut };
+use crate::{
+    backend::Cpu,
+    tensor::{DiffTensor, Tensor},
+    tensor_base::_Tensor,
+    BoolVector,
+};
+use tensor_common::{error::base::TensorError, shape::shape::Shape};
+use tensor_traits::{CommonBounds, TensorCreator};
+use tensor_types::{dtype::TypeCommon, into_scalar::Cast, type_promote::NormalOut};
 
 impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, DEVICE> {
     type Output = Tensor<T, Cpu, DEVICE>;
@@ -16,7 +21,10 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         Ok(_Tensor::<T, Cpu, DEVICE>::zeros(shape)?.into())
     }
 
-    fn ones<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> where u8: Cast<T> {
+    fn ones<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError>
+    where
+        u8: Cast<T>,
+    {
         Ok(_Tensor::<T, Cpu, DEVICE>::ones(shape)?.into())
     }
 
@@ -28,7 +36,10 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         Ok(_Tensor::zeros_like(self.inner.as_ref())?.into())
     }
 
-    fn ones_like(&self) -> Result<Self::Output, TensorError> where u8: Cast<T> {
+    fn ones_like(&self) -> Result<Self::Output, TensorError>
+    where
+        u8: Cast<T>,
+    {
         Ok(_Tensor::ones_like(self.inner.as_ref())?.into())
     }
 
@@ -41,13 +52,17 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     }
 
     fn arange<U>(start: U, end: U) -> Result<Self::Output, TensorError>
-        where usize: Cast<T>, U: Cast<i64> + Cast<T> + Copy
+    where
+        usize: Cast<T>,
+        U: Cast<i64> + Cast<T> + Copy,
     {
         Ok(_Tensor::<T, Cpu, DEVICE>::arange(start, end)?.into())
     }
 
     fn arange_step(start: T, end: T, step: T) -> Result<Self::Output, TensorError>
-        where T: Cast<f64> + Cast<usize>, usize: Cast<T>
+    where
+        T: Cast<f64> + Cast<usize>,
+        usize: Cast<T>,
     {
         Ok(_Tensor::<T, Cpu, DEVICE>::arange_step(start, end, step)?.into())
     }
@@ -60,10 +75,12 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         start: U,
         end: U,
         num: usize,
-        include_end: bool
-    )
-        -> Result<Self::Output, TensorError>
-        where U: Cast<f64> + Cast<T> + Copy, usize: Cast<T>, f64: Cast<T>
+        include_end: bool,
+    ) -> Result<Self::Output, TensorError>
+    where
+        U: Cast<f64> + Cast<T> + Copy,
+        usize: Cast<T>,
+        f64: Cast<T>,
     {
         Ok(_Tensor::<T, Cpu, DEVICE>::linspace(start, end, num, include_end)?.into())
     }
@@ -73,46 +90,52 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         end: T,
         num: usize,
         include_end: bool,
-        base: T
-    )
-        -> Result<Self::Output, TensorError>
-        where
-            T: Cast<f64> + num::Float + NormalOut<T, Output = T>,
-            usize: Cast<T>,
-            f64: Cast<T>
+        base: T,
+    ) -> Result<Self::Output, TensorError>
+    where
+        T: Cast<f64> + num::Float + NormalOut<T, Output = T>,
+        usize: Cast<T>,
+        f64: Cast<T>,
     {
         Ok(_Tensor::<T, Cpu, DEVICE>::logspace(start, end, num, include_end, base)?.into())
     }
 
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self::Output, TensorError>
-        where f64: Cast<T>, usize: Cast<T>, T: Cast<f64>
+    where
+        f64: Cast<T>,
+        usize: Cast<T>,
+        T: Cast<f64>,
     {
         Ok(_Tensor::<T, Cpu, DEVICE>::geomspace(start, end, n, include_end)?.into())
     }
 
     fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self::Output, TensorError>
-        where u8: Cast<T>
+    where
+        u8: Cast<T>,
     {
         Ok(_Tensor::<T, Cpu, DEVICE>::tri(n, m, k, low_triangle)?.into())
     }
 
     fn tril(&self, k: i64) -> Result<Self::Output, TensorError>
-        where
-            T: NormalOut<bool, Output = T> + Cast<T> + TypeCommon,
-            T::Vec: NormalOut<BoolVector, Output = T::Vec>
+    where
+        T: NormalOut<bool, Output = T> + Cast<T> + TypeCommon,
+        T::Vec: NormalOut<BoolVector, Output = T::Vec>,
     {
         Ok(_Tensor::tril(self.inner.as_ref(), k)?.into())
     }
 
     fn triu(&self, k: i64) -> Result<Self::Output, TensorError>
-        where
-            T: NormalOut<bool, Output = T> + Cast<T> + TypeCommon,
-            T::Vec: NormalOut<BoolVector, Output = T::Vec>
+    where
+        T: NormalOut<bool, Output = T> + Cast<T> + TypeCommon,
+        T::Vec: NormalOut<BoolVector, Output = T::Vec>,
     {
         Ok(_Tensor::triu(self.inner.as_ref(), k)?.into())
     }
 
-    fn identity(n: usize) -> Result<Self::Output, TensorError> where u8: Cast<T> {
+    fn identity(n: usize) -> Result<Self::Output, TensorError>
+    where
+        u8: Cast<T>,
+    {
         Ok(_Tensor::<T, Cpu, DEVICE>::identity(n)?.into())
     }
 }
@@ -140,7 +163,10 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn ones<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> where u8: Cast<T> {
+    fn ones<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError>
+    where
+        u8: Cast<T>,
+    {
         let ret = Tensor::ones(shape)?;
         Ok(DiffTensor {
             inner: ret,
@@ -170,7 +196,10 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn ones_like(&self) -> Result<Self::Output, TensorError> where u8: Cast<T> {
+    fn ones_like(&self) -> Result<Self::Output, TensorError>
+    where
+        u8: Cast<T>,
+    {
         let ret = self.inner.ones_like()?;
         Ok(DiffTensor {
             inner: ret,
@@ -201,7 +230,9 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
     }
 
     fn arange<U>(start: U, end: U) -> Result<Self::Output, TensorError>
-        where usize: Cast<T>, U: Cast<i64> + Cast<T> + Copy
+    where
+        usize: Cast<T>,
+        U: Cast<i64> + Cast<T> + Copy,
     {
         let ret = Tensor::arange(start, end)?;
         Ok(DiffTensor {
@@ -213,7 +244,9 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
     }
 
     fn arange_step(start: T, end: T, step: T) -> Result<Self::Output, TensorError>
-        where T: Cast<f64> + Cast<usize>, usize: Cast<T>
+    where
+        T: Cast<f64> + Cast<usize>,
+        usize: Cast<T>,
     {
         let ret = Tensor::arange_step(start, end, step)?;
         Ok(DiffTensor {
@@ -238,10 +271,12 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         start: U,
         end: U,
         num: usize,
-        include_end: bool
-    )
-        -> Result<Self::Output, TensorError>
-        where U: Cast<f64> + Cast<T> + Copy, usize: Cast<T>, f64: Cast<T>
+        include_end: bool,
+    ) -> Result<Self::Output, TensorError>
+    where
+        U: Cast<f64> + Cast<T> + Copy,
+        usize: Cast<T>,
+        f64: Cast<T>,
     {
         let ret = Tensor::linspace(start, end, num, include_end)?;
         Ok(DiffTensor {
@@ -257,13 +292,12 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         end: T,
         num: usize,
         include_end: bool,
-        base: T
-    )
-        -> Result<Self::Output, TensorError>
-        where
-            T: Cast<f64> + num::Float + NormalOut<T, Output = T>,
-            usize: Cast<T>,
-            f64: Cast<T>
+        base: T,
+    ) -> Result<Self::Output, TensorError>
+    where
+        T: Cast<f64> + num::Float + NormalOut<T, Output = T>,
+        usize: Cast<T>,
+        f64: Cast<T>,
     {
         let ret = Tensor::logspace(start, end, num, include_end, base)?;
         Ok(DiffTensor {
@@ -275,7 +309,10 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
     }
 
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self::Output, TensorError>
-        where f64: Cast<T>, usize: Cast<T>, T: Cast<f64>
+    where
+        f64: Cast<T>,
+        usize: Cast<T>,
+        T: Cast<f64>,
     {
         let ret = Tensor::geomspace(start, end, n, include_end)?;
         Ok(DiffTensor {
@@ -287,7 +324,8 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
     }
 
     fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self::Output, TensorError>
-        where u8: Cast<T>
+    where
+        u8: Cast<T>,
     {
         let ret = Tensor::tri(n, m, k, low_triangle)?;
         Ok(DiffTensor {
@@ -299,9 +337,9 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
     }
 
     fn tril(&self, k: i64) -> Result<Self::Output, TensorError>
-        where
-            T: NormalOut<bool, Output = T> + Cast<T> + TypeCommon,
-            T::Vec: NormalOut<BoolVector, Output = T::Vec>
+    where
+        T: NormalOut<bool, Output = T> + Cast<T> + TypeCommon,
+        T::Vec: NormalOut<BoolVector, Output = T::Vec>,
     {
         let ret = self.inner.tril(k)?;
         Ok(DiffTensor {
@@ -313,9 +351,9 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
     }
 
     fn triu(&self, k: i64) -> Result<Self::Output, TensorError>
-        where
-            T: NormalOut<bool, Output = T> + Cast<T> + TypeCommon,
-            T::Vec: NormalOut<BoolVector, Output = T::Vec>
+    where
+        T: NormalOut<bool, Output = T> + Cast<T> + TypeCommon,
+        T::Vec: NormalOut<BoolVector, Output = T::Vec>,
     {
         let ret = self.inner.triu(k)?;
         Ok(DiffTensor {
@@ -326,7 +364,10 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         })
     }
 
-    fn identity(n: usize) -> Result<Self::Output, TensorError> where u8: Cast<T> {
+    fn identity(n: usize) -> Result<Self::Output, TensorError>
+    where
+        u8: Cast<T>,
+    {
         let ret = Tensor::identity(n)?;
         Ok(DiffTensor {
             inner: ret,

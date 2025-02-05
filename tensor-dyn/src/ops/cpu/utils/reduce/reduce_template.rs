@@ -1,10 +1,11 @@
 use crate::{
-    ops::cpu::utils::reduce::reduce_utils::{ reduce_prepare, uncontiguous_reduce_prepare },
-    tensor_base::_Tensor, Cpu,
+    ops::cpu::utils::reduce::reduce_utils::{reduce_prepare, uncontiguous_reduce_prepare},
+    tensor_base::_Tensor,
+    Cpu,
 };
 use tensor_common::error::base::TensorError;
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorInfo};
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 
 /// Performs a reduction operation on a tensor using customizable functions.
 ///
@@ -159,16 +160,15 @@ pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: usi
     full_reduce: F1,
     nkd: F2,
     kdo1: F3,
-    kd: F4
-)
-    -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
-    where
-        T: CommonBounds + Cast<O>,
-        O: CommonBounds,
-        F1: Fn(&mut O),
-        F2: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
-        F3: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE>),
-        F4: Fn(usize, usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>)
+    kd: F4,
+) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+where
+    T: CommonBounds + Cast<O>,
+    O: CommonBounds,
+    F1: Fn(&mut O),
+    F2: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
+    F3: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE>),
+    F4: Fn(usize, usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
 {
     let mut keep_fast_dim = true;
     for axis in axes.iter() {
@@ -188,12 +188,7 @@ pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: usi
                 break;
             } else {
                 consec_axes.push(max);
-                let removed = new_axes.remove(
-                    new_axes
-                        .iter()
-                        .position(|&x| x == max)
-                        .unwrap()
-                );
+                let removed = new_axes.remove(new_axes.iter().position(|&x| x == max).unwrap());
                 last_removed = removed;
             }
             max -= 1;
@@ -233,7 +228,13 @@ pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: usi
             } else {
                 rayon::current_num_threads()
             };
-            nkd(num_threads, inner_loop_size, inner_loop_size_2, &result, &transposed_tensor);
+            nkd(
+                num_threads,
+                inner_loop_size,
+                inner_loop_size_2,
+                &result,
+                &transposed_tensor,
+            );
         } else {
             let outer_loop_size = result.size() / inner_loop_size;
             let inner_loop_size_2 = a.size() / result.size();
@@ -256,7 +257,7 @@ pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: usi
                     inner_loop_size,
                     inner_loop_size_2,
                     &result,
-                    &transposed_tensor
+                    &transposed_tensor,
                 );
             }
         }
@@ -423,24 +424,18 @@ pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: us
     full_reduce: F1,
     nkd: F2,
     kdo1: F3,
-    kd: F4
-)
-    -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
-    where
-        T: CommonBounds + Cast<O>,
-        O: CommonBounds,
-        F1: Fn(&mut O),
-        F2: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
-        F3: Fn(usize, usize, _Tensor<T, Cpu, DEVICE>, &_Tensor<O, Cpu, DEVICE>),
-        F4: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>)
+    kd: F4,
+) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+where
+    T: CommonBounds + Cast<O>,
+    O: CommonBounds,
+    F1: Fn(&mut O),
+    F2: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
+    F3: Fn(usize, usize, _Tensor<T, Cpu, DEVICE>, &_Tensor<O, Cpu, DEVICE>),
+    F4: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
 {
-    let (keep_fast_dim, transposed_tensor, result, res_perm) = uncontiguous_reduce_prepare(
-        a,
-        axes,
-        init_val,
-        init_out,
-        c
-    )?;
+    let (keep_fast_dim, transposed_tensor, result, res_perm) =
+        uncontiguous_reduce_prepare(a, axes, init_val, init_out, c)?;
     let mut transposed_shape_sub_1 = transposed_tensor.shape().inner().clone();
     transposed_shape_sub_1.iter_mut().for_each(|x| {
         *x -= 1;
@@ -464,7 +459,13 @@ pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: us
             } else {
                 rayon::current_num_threads()
             };
-            nkd(num_threads, inner_loop_size, inner_loop_size_2, &result, &transposed_tensor);
+            nkd(
+                num_threads,
+                inner_loop_size,
+                inner_loop_size_2,
+                &result,
+                &transposed_tensor,
+            );
         } else {
             let outer_loop_size = result.size() / inner_loop_size;
             let inner_loop_size_2 = a.size() / result.size();
@@ -475,7 +476,12 @@ pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: us
                     rayon::current_num_threads()
                 };
                 let mut p = (0..a.ndim()).collect::<Vec<usize>>();
-                let front = transposed_tensor.shape().inner().iter().position(|x| *x == result.size() as i64).unwrap();
+                let front = transposed_tensor
+                    .shape()
+                    .inner()
+                    .iter()
+                    .position(|x| *x == result.size() as i64)
+                    .unwrap();
                 p.remove(front);
                 p.push(front);
                 let _a = transposed_tensor.permute(&p).unwrap();
@@ -486,9 +492,17 @@ pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: us
                 } else {
                     rayon::current_num_threads()
                 };
-                kd(num_threads, inner_loop_size, inner_loop_size_2, &result, &transposed_tensor);
+                kd(
+                    num_threads,
+                    inner_loop_size,
+                    inner_loop_size_2,
+                    &result,
+                    &transposed_tensor,
+                );
             }
         }
     }
-    result.permute_inv(res_perm)?.reshape(a.layout.reduce(axes, keepdims)?.shape())
+    result
+        .permute_inv(res_perm)?
+        .reshape(a.layout.reduce(axes, keepdims)?.shape())
 }

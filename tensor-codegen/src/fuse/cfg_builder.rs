@@ -1,10 +1,13 @@
-use std::collections::{ HashMap, HashSet };
+use std::collections::{HashMap, HashSet};
 
 use petgraph::graph::NodeIndex;
 use quote::ToTokens;
-use syn::{ spanned::Spanned, visit::Visit };
+use syn::{spanned::Spanned, visit::Visit};
 
-use super::{ cfg::{ BasicBlock, BlockId, BlockType, CustomStmt, CFG }, errors::Error };
+use super::{
+    cfg::{BasicBlock, BlockId, BlockType, CustomStmt, CFG},
+    errors::Error,
+};
 
 pub(crate) struct CFGBuilder<'a> {
     pub(crate) cfg: &'a mut CFG,
@@ -25,7 +28,10 @@ impl<'a> CFGBuilder<'a> {
         CFGBuilder {
             cfg,
             current_block: entry,
-            block_ids: BlockId { children: vec![], id: entry },
+            block_ids: BlockId {
+                children: vec![],
+                id: entry,
+            },
             current_expr: None,
             global_block_cnt: 0,
             is_last_stmt: false,
@@ -79,7 +85,7 @@ impl<'a> CFGBuilder<'a> {
         self.set_current_block(assign_block);
         let assign_ident = syn::Ident::new(
             &format!("__if_assign_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         self.cfg.graph[assign_block].statements.push(CustomStmt {
             stmt: syn::parse2(quote::quote! { let #assign_ident; }).expect("assign stmt is none"),
@@ -149,13 +155,11 @@ impl<'a> CFGBuilder<'a> {
         if let Ok(expr) = syn::parse2(quote::quote! { #assign_ident }) {
             self.current_expr = Some(expr);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    expr_if.span(),
-                    "CFG builder",
-                    format!("{}", assign_ident.to_string())
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                expr_if.span(),
+                "CFG builder",
+                format!("{}", assign_ident.to_string()),
+            ));
         }
     }
 
@@ -175,20 +179,18 @@ impl<'a> CFGBuilder<'a> {
         self.set_current_block(assign_block);
         let assign_ident = syn::Ident::new(
             &format!("__loop_assign_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #assign_ident; }) {
-            self.cfg.graph[assign_block].statements.push(CustomStmt {
-                stmt,
-            });
+            self.cfg.graph[assign_block]
+                .statements
+                .push(CustomStmt { stmt });
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    expr_loop.span(),
-                    "CFG builder",
-                    format!("let {};", assign_ident.to_string())
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                expr_loop.span(),
+                "CFG builder",
+                format!("let {};", assign_ident.to_string()),
+            ));
             return;
         }
 
@@ -202,13 +204,11 @@ impl<'a> CFGBuilder<'a> {
         if let Ok(expr) = syn::parse2(quote::quote! { #assign_ident }) {
             self.current_expr = Some(expr);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    expr_loop.span(),
-                    "CFG builder",
-                    format!("{}", assign_ident.to_string())
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                expr_loop.span(),
+                "CFG builder",
+                format!("{}", assign_ident.to_string()),
+            ));
         }
         let loop_block_id = core::mem::take(&mut self.block_ids);
 
@@ -235,20 +235,18 @@ impl<'a> CFGBuilder<'a> {
         self.set_current_block(assign_block);
         let assign_ident = syn::Ident::new(
             &format!("__match_assign_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #assign_ident; }) {
-            self.cfg.graph[assign_block].statements.push(CustomStmt {
-                stmt,
-            });
+            self.cfg.graph[assign_block]
+                .statements
+                .push(CustomStmt { stmt });
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    expr_match.span(),
-                    "CFG builder",
-                    format!("let {};", assign_ident.to_string())
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                expr_match.span(),
+                "CFG builder",
+                format!("let {};", assign_ident.to_string()),
+            ));
             return;
         }
 
@@ -273,13 +271,11 @@ impl<'a> CFGBuilder<'a> {
             if let Ok(stmt) = syn::parse2(quote::quote! { let #pat; }) {
                 self.push_stmt(stmt);
             } else {
-                self.errors.push(
-                    Error::SynParseError(
-                        arm.pat.span(),
-                        "CFG builder",
-                        format!("{}", arm.pat.to_token_stream().to_string())
-                    )
-                );
+                self.errors.push(Error::SynParseError(
+                    arm.pat.span(),
+                    "CFG builder",
+                    format!("{}", arm.pat.to_token_stream().to_string()),
+                ));
                 return;
             }
             let body_block = self.new_block(BlockType::MatchArm);
@@ -299,13 +295,11 @@ impl<'a> CFGBuilder<'a> {
         if let Ok(expr) = syn::parse2(quote::quote! { #assign_ident }) {
             self.current_expr = Some(expr);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    expr_match.span(),
-                    "CFG builder",
-                    format!("{}", assign_ident.to_string())
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                expr_match.span(),
+                "CFG builder",
+                format!("{}", assign_ident.to_string()),
+            ));
         }
         current_block_id.children.push(assign_block_id);
         current_block_id.children.push(cond_block_id);
@@ -329,20 +323,18 @@ impl<'a> CFGBuilder<'a> {
         self.set_current_block(assign_block);
         let block_ident = syn::Ident::new(
             &format!("__block_out_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #block_ident; }) {
-            self.cfg.graph[assign_block].statements.push(CustomStmt {
-                stmt,
-            });
+            self.cfg.graph[assign_block]
+                .statements
+                .push(CustomStmt { stmt });
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    block.span(),
-                    "CFG builder",
-                    format!("let {};", block_ident.to_string())
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                block.span(),
+                "CFG builder",
+                format!("let {};", block_ident.to_string()),
+            ));
             return;
         }
         self.connect_to(new_block);
@@ -352,13 +344,11 @@ impl<'a> CFGBuilder<'a> {
         if let Ok(expr) = syn::parse2(quote::quote! { #block_ident }) {
             self.current_expr = Some(expr);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    block.span(),
-                    "CFG builder",
-                    format!("{}", block_ident.to_string())
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                block.span(),
+                "CFG builder",
+                format!("{}", block_ident.to_string()),
+            ));
         }
         let new_block_id = core::mem::take(&mut self.block_ids);
         current_block_id.children.push(assign_block_id);
@@ -387,20 +377,18 @@ impl<'a> CFGBuilder<'a> {
         self.set_current_block(assign_block);
         let block_ident = syn::Ident::new(
             &format!("__while_out_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #block_ident; }) {
-            self.cfg.graph[assign_block].statements.push(CustomStmt {
-                stmt,
-            });
+            self.cfg.graph[assign_block]
+                .statements
+                .push(CustomStmt { stmt });
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    expr_while.span(),
-                    "CFG builder",
-                    format!("let {};", block_ident.to_string())
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                expr_while.span(),
+                "CFG builder",
+                format!("let {};", block_ident.to_string()),
+            ));
             return;
         }
 
@@ -422,13 +410,11 @@ impl<'a> CFGBuilder<'a> {
         if let Ok(expr) = syn::parse2(quote::quote! { #block_ident }) {
             self.current_expr = Some(expr);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    expr_while.span(),
-                    "CFG builder",
-                    format!("{}", block_ident.to_string())
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                expr_while.span(),
+                "CFG builder",
+                format!("{}", block_ident.to_string()),
+            ));
         }
         let loop_block_id = core::mem::take(&mut self.block_ids);
 
@@ -467,20 +453,18 @@ impl<'a> CFGBuilder<'a> {
         self.set_current_block(assign_block);
         let block_ident = syn::Ident::new(
             &format!("__for_out_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #block_ident; }) {
-            self.cfg.graph[assign_block].statements.push(CustomStmt {
-                stmt,
-            });
+            self.cfg.graph[assign_block]
+                .statements
+                .push(CustomStmt { stmt });
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    expr_for.span(),
-                    "CFG builder",
-                    format!("let {};", block_ident.to_string())
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                expr_for.span(),
+                "CFG builder",
+                format!("let {};", block_ident.to_string()),
+            ));
             return;
         }
 
@@ -498,13 +482,11 @@ impl<'a> CFGBuilder<'a> {
         if let Ok(stmt) = syn::parse2(local) {
             self.push_stmt(stmt);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    expr_for.span(),
-                    "CFG builder",
-                    format!("let {};", pat.to_token_stream().to_string())
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                expr_for.span(),
+                "CFG builder",
+                format!("let {};", pat.to_token_stream().to_string()),
+            ));
             return;
         }
         // connect init block to condition check block
@@ -524,13 +506,11 @@ impl<'a> CFGBuilder<'a> {
         if let Ok(expr) = syn::parse2(quote::quote! { #block_ident }) {
             self.current_expr = Some(expr);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    expr_for.span(),
-                    "CFG builder",
-                    format!("{}", block_ident.to_string())
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                expr_for.span(),
+                "CFG builder",
+                format!("{}", block_ident.to_string()),
+            ));
             return;
         }
         let loop_block_id = core::mem::take(&mut self.block_ids);
@@ -550,7 +530,9 @@ impl<'a> CFGBuilder<'a> {
     }
 
     fn push_stmt(&mut self, stmt: syn::Stmt) {
-        self.cfg.graph[self.current_block].statements.push(CustomStmt { stmt });
+        self.cfg.graph[self.current_block]
+            .statements
+            .push(CustomStmt { stmt });
     }
 }
 
@@ -560,9 +542,15 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         let visibility_block = self.new_block(BlockType::FnVisibility(i.vis.clone()));
         let visibility_block_id = BlockId::new(visibility_block);
         let fn_type_block = if let Some(_) = i.sig.asyncness {
-            self.new_block(BlockType::FnType(Some(syn::Ident::new("async", proc_macro2::Span::call_site()))))
+            self.new_block(BlockType::FnType(Some(syn::Ident::new(
+                "async",
+                proc_macro2::Span::call_site(),
+            ))))
         } else if let Some(_) = i.sig.constness {
-            self.new_block(BlockType::FnType(Some(syn::Ident::new("const", proc_macro2::Span::call_site()))))
+            self.new_block(BlockType::FnType(Some(syn::Ident::new(
+                "const",
+                proc_macro2::Span::call_site(),
+            ))))
         } else {
             self.new_block(BlockType::FnType(None))
         };
@@ -577,8 +565,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         let ret_block_id = BlockId::new(ret_block);
         let body_block = self.new_block(BlockType::FnBody);
         let body_block_id = BlockId::new(body_block);
-        let (where_block, where_block_id) = if
-            let Some(where_clause) = &i.sig.generics.where_clause
+        let (where_block, where_block_id) = if let Some(where_clause) = &i.sig.generics.where_clause
         {
             let where_block = self.new_block(BlockType::Where(where_clause.clone()));
             let where_block_id = BlockId::new(where_block);
@@ -598,31 +585,26 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         if let Ok(stmt) = syn::parse2(quote::quote! { let #name; }) {
             self.push_stmt(stmt);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    i.sig.ident.span(),
-                    "CFG builder",
-                    format!("let {};", name.to_string())
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                i.sig.ident.span(),
+                "CFG builder",
+                format!("let {};", name.to_string()),
+            ));
         }
         self.connect_to(args_block);
         self.set_current_block(args_block);
         for arg in &i.sig.inputs {
             match arg {
                 syn::FnArg::Receiver(_) => {
-                    self.errors.push(
-                        Error::Unsupported(
-                            arg.span(),
-                            "CFG builder",
-                            "function receiver".to_string()
-                        )
-                    );
+                    self.errors.push(Error::Unsupported(
+                        arg.span(),
+                        "CFG builder",
+                        "function receiver".to_string(),
+                    ));
                     return;
                 }
                 syn::FnArg::Typed(pat_type) => {
-                    let arg_stmt = syn
-                        ::parse2(quote::quote! { let #pat_type; })
+                    let arg_stmt = syn::parse2(quote::quote! { let #pat_type; })
                         .expect("arg stmt is none::365");
                     self.push_stmt(arg_stmt);
                 }
@@ -658,9 +640,11 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
     fn visit_fn_arg(&mut self, arg: &'ast syn::FnArg) {
         match arg {
             syn::FnArg::Receiver(_) => {
-                self.errors.push(
-                    Error::Unsupported(arg.span(), "CFG builder", "function receiver".to_string())
-                );
+                self.errors.push(Error::Unsupported(
+                    arg.span(),
+                    "CFG builder",
+                    "function receiver".to_string(),
+                ));
             }
             syn::FnArg::Typed(pat_type) => {
                 self.visit_pat_type(pat_type);
@@ -682,18 +666,24 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         if let Some(pat) = core::mem::take(&mut self.current_pat) {
             new_pat.pat = Box::new(pat);
         } else {
-            self.errors.push(
-                Error::ExprAccumulateError(i.pat.span(), "CFG builder", "pat type".to_string())
-            );
+            self.errors.push(Error::ExprAccumulateError(
+                i.pat.span(),
+                "CFG builder",
+                "pat type".to_string(),
+            ));
             return;
         }
         self.visit_type(&i.ty);
-        handle_accumulation(&mut self.errors, i.ty.span(), "pat type", &mut self.current_type).map(
-            |ty| {
-                new_pat.ty = Box::new(ty);
-                self.current_pat = Some(syn::Pat::Type(new_pat));
-            }
-        );
+        handle_accumulation(
+            &mut self.errors,
+            i.ty.span(),
+            "pat type",
+            &mut self.current_type,
+        )
+        .map(|ty| {
+            new_pat.ty = Box::new(ty);
+            self.current_pat = Some(syn::Pat::Type(new_pat));
+        });
     }
 
     fn visit_expr_range(&mut self, i: &'ast syn::ExprRange) {
@@ -706,8 +696,9 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     &mut self.errors,
                     i.end.span(),
                     "range",
-                    &mut self.current_expr
-                ).map(|right| {
+                    &mut self.current_expr,
+                )
+                .map(|right| {
                     new_expr.end = Some(Box::new(right));
                 });
             }
@@ -717,8 +708,9 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     &mut self.errors,
                     i.start.span(),
                     "range",
-                    &mut self.current_expr
-                ).map(|start| {
+                    &mut self.current_expr,
+                )
+                .map(|start| {
                     new_expr.start = Some(Box::new(start));
                 });
             }
@@ -728,8 +720,9 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     &mut self.errors,
                     i.start.span(),
                     "range",
-                    &mut self.current_expr
-                ).map(|start| {
+                    &mut self.current_expr,
+                )
+                .map(|start| {
                     new_expr.start = Some(Box::new(start));
                 });
                 self.visit_expr(right);
@@ -737,8 +730,9 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     &mut self.errors,
                     i.end.span(),
                     "range",
-                    &mut self.current_expr
-                ).map(|right| {
+                    &mut self.current_expr,
+                )
+                .map(|right| {
                     new_expr.end = Some(Box::new(right));
                 });
             }
@@ -747,7 +741,11 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_expr; }) {
             self.push_stmt(stmt);
         } else {
-            self.errors.push(Error::SynParseError(i.span(), "CFG builder", "range".to_string()));
+            self.errors.push(Error::SynParseError(
+                i.span(),
+                "CFG builder",
+                "range".to_string(),
+            ));
             return;
         }
         self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
@@ -797,8 +795,9 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             &mut self.errors,
             i.expr.span(),
             "reference",
-            &mut self.current_expr
-        ).map(|expr| {
+            &mut self.current_expr,
+        )
+        .map(|expr| {
             new_expr.expr = Box::new(expr);
             let new_expr = syn::Expr::Reference(new_expr);
             self.current_expr = Some(new_expr);
@@ -825,7 +824,11 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_expr; }) {
             self.push_stmt(stmt);
         } else {
-            self.errors.push(Error::SynParseError(i.span(), "CFG builder", "cast".to_string()));
+            self.errors.push(Error::SynParseError(
+                i.span(),
+                "CFG builder",
+                "cast".to_string(),
+            ));
             return;
         }
         self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
@@ -840,7 +843,11 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_expr; }) {
             self.push_stmt(stmt);
         } else {
-            self.errors.push(Error::SynParseError(i.span(), "CFG builder", "field".to_string()));
+            self.errors.push(Error::SynParseError(
+                i.span(),
+                "CFG builder",
+                "field".to_string(),
+            ));
             return;
         }
         self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
@@ -855,7 +862,11 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_expr; }) {
             self.push_stmt(stmt);
         } else {
-            self.errors.push(Error::SynParseError(i.span(), "CFG builder", "await".to_string()));
+            self.errors.push(Error::SynParseError(
+                i.span(),
+                "CFG builder",
+                "await".to_string(),
+            ));
             return;
         }
         self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
@@ -869,18 +880,18 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         self.set_current_block(assign_block);
         let async_ident = syn::Ident::new(
             &format!("__async_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #async_ident; }) {
-            self.cfg.graph[assign_block].statements.push(CustomStmt { stmt });
+            self.cfg.graph[assign_block]
+                .statements
+                .push(CustomStmt { stmt });
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    expr_async.span(),
-                    "CFG builder",
-                    "expr_async::assign_stmt".to_string()
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                expr_async.span(),
+                "CFG builder",
+                "expr_async::assign_stmt".to_string(),
+            ));
             return;
         }
 
@@ -903,13 +914,11 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         if let Ok(expr) = syn::parse2(quote::quote! { #async_ident }) {
             self.current_expr = Some(expr);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    expr_async.span(),
-                    "CFG builder",
-                    format!("{}", async_ident.to_string())
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                expr_async.span(),
+                "CFG builder",
+                format!("{}", async_ident.to_string()),
+            ));
         }
     }
 
@@ -921,18 +930,18 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         self.set_current_block(assign_block);
         let const_ident = syn::Ident::new(
             &format!("__const_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #const_ident; }) {
-            self.cfg.graph[assign_block].statements.push(CustomStmt { stmt });
+            self.cfg.graph[assign_block]
+                .statements
+                .push(CustomStmt { stmt });
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    expr_const.span(),
-                    "CFG builder",
-                    "expr_constant::assign_stmt".to_string()
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                expr_const.span(),
+                "CFG builder",
+                "expr_constant::assign_stmt".to_string(),
+            ));
             return;
         }
 
@@ -955,13 +964,11 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         if let Ok(expr) = syn::parse2(quote::quote! { #const_ident }) {
             self.current_expr = Some(expr);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    expr_const.span(),
-                    "CFG builder",
-                    format!("{}", const_ident.to_string())
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                expr_const.span(),
+                "CFG builder",
+                format!("{}", const_ident.to_string()),
+            ));
         }
     }
 
@@ -973,18 +980,18 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         self.set_current_block(assign_block);
         let unsafe_ident = syn::Ident::new(
             &format!("__unsafe_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #unsafe_ident; }) {
-            self.cfg.graph[assign_block].statements.push(CustomStmt { stmt });
+            self.cfg.graph[assign_block]
+                .statements
+                .push(CustomStmt { stmt });
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    expr_unsafe.span(),
-                    "CFG builder",
-                    "expr_unsafe::assign_stmt".to_string()
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                expr_unsafe.span(),
+                "CFG builder",
+                "expr_unsafe::assign_stmt".to_string(),
+            ));
             return;
         }
 
@@ -1007,13 +1014,11 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         if let Ok(expr) = syn::parse2(quote::quote! { #unsafe_ident }) {
             self.current_expr = Some(expr);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    expr_unsafe.span(),
-                    "CFG builder",
-                    format!("{}", unsafe_ident.to_string())
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                expr_unsafe.span(),
+                "CFG builder",
+                format!("{}", unsafe_ident.to_string()),
+            ));
         }
     }
 
@@ -1027,19 +1032,19 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     &mut self.errors,
                     left.span(),
                     "binary",
-                    &mut self.current_expr
+                    &mut self.current_expr,
                 );
                 let left_stmt = if let Some(left) = left {
-                    if
-                        let Ok(stmt) = syn::parse2::<syn::Stmt>(
-                            quote::quote! { let __out_1 = #left; }
-                        )
+                    if let Ok(stmt) =
+                        syn::parse2::<syn::Stmt>(quote::quote! { let __out_1 = #left; })
                     {
                         stmt
                     } else {
-                        self.errors.push(
-                            Error::SynParseError(left.span(), "CFG builder", "binary".to_string())
-                        );
+                        self.errors.push(Error::SynParseError(
+                            left.span(),
+                            "CFG builder",
+                            "binary".to_string(),
+                        ));
                         return;
                     }
                 } else {
@@ -1050,19 +1055,18 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     &mut self.errors,
                     right.span(),
                     "binary",
-                    &mut self.current_expr
+                    &mut self.current_expr,
                 );
                 let right_stmt = if let Some(right) = right {
-                    if
-                        let Ok(stmt) = syn::parse2::<syn::Stmt>(
-                            quote::quote!(let __out_2 = #right;)
-                        )
+                    if let Ok(stmt) = syn::parse2::<syn::Stmt>(quote::quote!(let __out_2 = #right;))
                     {
                         stmt
                     } else {
-                        self.errors.push(
-                            Error::SynParseError(right.span(), "CFG builder", "binary".to_string())
-                        );
+                        self.errors.push(Error::SynParseError(
+                            right.span(),
+                            "CFG builder",
+                            "binary".to_string(),
+                        ));
                         return;
                     }
                 } else {
@@ -1072,13 +1076,11 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 if let Ok(expr) = syn::parse2::<syn::Expr>(quote::quote!(__out_1 #op __out_2)) {
                     self.current_expr = Some(expr);
                 } else {
-                    self.errors.push(
-                        Error::SynParseError(
-                            binary.span(),
-                            "CFG builder",
-                            format!("__out_1 {} __out_2", op.to_token_stream().to_string())
-                        )
-                    );
+                    self.errors.push(Error::SynParseError(
+                        binary.span(),
+                        "CFG builder",
+                        format!("__out_1 {} __out_2", op.to_token_stream().to_string()),
+                    ));
                     return;
                 }
                 self.push_stmt(left_stmt);
@@ -1090,19 +1092,19 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     &mut self.errors,
                     left.span(),
                     "binary",
-                    &mut self.current_expr
+                    &mut self.current_expr,
                 );
                 let left_stmt = if let Some(left) = left {
-                    if
-                        let Ok(stmt) = syn::parse2::<syn::Stmt>(
-                            quote::quote! { let __out_1 = #left; }
-                        )
+                    if let Ok(stmt) =
+                        syn::parse2::<syn::Stmt>(quote::quote! { let __out_1 = #left; })
                     {
                         stmt
                     } else {
-                        self.errors.push(
-                            Error::SynParseError(left.span(), "CFG builder", "binary".to_string())
-                        );
+                        self.errors.push(Error::SynParseError(
+                            left.span(),
+                            "CFG builder",
+                            "binary".to_string(),
+                        ));
                         return;
                     }
                 } else {
@@ -1113,7 +1115,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     &mut self.errors,
                     binary.right.span(),
                     "binary",
-                    &mut self.current_expr
+                    &mut self.current_expr,
                 );
                 let right = if let Some(right) = right {
                     right
@@ -1124,17 +1126,15 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 if let Ok(expr) = syn::parse2::<syn::Expr>(quote::quote!(__out_1 #op #right)) {
                     self.current_expr = Some(expr);
                 } else {
-                    self.errors.push(
-                        Error::SynParseError(
-                            binary.span(),
-                            "CFG builder",
-                            format!(
-                                "__out_1 {} {}",
-                                op.to_token_stream().to_string(),
-                                right.to_token_stream().to_string()
-                            )
-                        )
-                    );
+                    self.errors.push(Error::SynParseError(
+                        binary.span(),
+                        "CFG builder",
+                        format!(
+                            "__out_1 {} {}",
+                            op.to_token_stream().to_string(),
+                            right.to_token_stream().to_string()
+                        ),
+                    ));
                     return;
                 }
                 self.push_stmt(left_stmt);
@@ -1145,7 +1145,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     &mut self.errors,
                     binary.left.span(),
                     "binary",
-                    &mut self.current_expr
+                    &mut self.current_expr,
                 );
                 let left = if let Some(left) = left {
                     left
@@ -1157,19 +1157,18 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     &mut self.errors,
                     binary.right.span(),
                     "binary",
-                    &mut self.current_expr
+                    &mut self.current_expr,
                 );
                 let right_stmt = if let Some(right) = right {
-                    if
-                        let Ok(stmt) = syn::parse2::<syn::Stmt>(
-                            quote::quote!(let __out_2 = #right;)
-                        )
+                    if let Ok(stmt) = syn::parse2::<syn::Stmt>(quote::quote!(let __out_2 = #right;))
                     {
                         stmt
                     } else {
-                        self.errors.push(
-                            Error::SynParseError(right.span(), "CFG builder", "binary".to_string())
-                        );
+                        self.errors.push(Error::SynParseError(
+                            right.span(),
+                            "CFG builder",
+                            "binary".to_string(),
+                        ));
                         return;
                     }
                 } else {
@@ -1179,17 +1178,15 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 if let Ok(expr) = syn::parse2::<syn::Expr>(quote::quote!(#left #op __out_2)) {
                     self.current_expr = Some(expr);
                 } else {
-                    self.errors.push(
-                        Error::SynParseError(
-                            binary.span(),
-                            "CFG builder",
-                            format!(
-                                "{} {} __out_2",
-                                left.to_token_stream().to_string(),
-                                op.to_token_stream().to_string()
-                            )
-                        )
-                    );
+                    self.errors.push(Error::SynParseError(
+                        binary.span(),
+                        "CFG builder",
+                        format!(
+                            "{} {} __out_2",
+                            left.to_token_stream().to_string(),
+                            op.to_token_stream().to_string()
+                        ),
+                    ));
                     return;
                 }
                 self.push_stmt(right_stmt);
@@ -1200,7 +1197,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     &mut self.errors,
                     binary.left.span(),
                     "binary",
-                    &mut self.current_expr
+                    &mut self.current_expr,
                 );
                 let left = if let Some(left) = left {
                     left
@@ -1212,7 +1209,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     &mut self.errors,
                     binary.right.span(),
                     "binary",
-                    &mut self.current_expr
+                    &mut self.current_expr,
                 );
                 let right = if let Some(right) = right {
                     right
@@ -1223,18 +1220,16 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 if let Ok(expr) = syn::parse2::<syn::Expr>(quote::quote!(#left #op #right)) {
                     self.current_expr = Some(expr);
                 } else {
-                    self.errors.push(
-                        Error::SynParseError(
-                            binary.span(),
-                            "CFG builder",
-                            format!(
-                                "{} {} {}",
-                                left.to_token_stream().to_string(),
-                                op.to_token_stream().to_string(),
-                                right.to_token_stream().to_string()
-                            )
-                        )
-                    );
+                    self.errors.push(Error::SynParseError(
+                        binary.span(),
+                        "CFG builder",
+                        format!(
+                            "{} {} {}",
+                            left.to_token_stream().to_string(),
+                            op.to_token_stream().to_string(),
+                            right.to_token_stream().to_string()
+                        ),
+                    ));
                 }
             }
         }
@@ -1254,7 +1249,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 &mut self.errors,
                 arg.span(),
                 "expr_call",
-                &mut self.current_expr
+                &mut self.current_expr,
             );
             let new_arg = if let Some(new_arg) = new_arg {
                 new_arg
@@ -1266,7 +1261,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         new_call.func = Box::new(func);
         let ident = syn::Ident::new(
             &format!("__call_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_call; }) {
             self.push_stmt(stmt);
@@ -1280,7 +1275,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             &mut self.errors,
             method_call.receiver.span(),
             "expr_method_call",
-            &mut self.current_expr
+            &mut self.current_expr,
         );
         let receiver = if let Some(receiver) = receiver {
             receiver
@@ -1292,25 +1287,21 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 if let Ok(stmt) = syn::parse2(quote::quote!(let __expr_receiver = #receiver;)) {
                     self.push_stmt(stmt);
                 } else {
-                    self.errors.push(
-                        Error::SynParseError(
-                            receiver.span(),
-                            "CFG builder",
-                            "expr_method_call::stmt".to_string()
-                        )
-                    );
+                    self.errors.push(Error::SynParseError(
+                        receiver.span(),
+                        "CFG builder",
+                        "expr_method_call::stmt".to_string(),
+                    ));
                     return;
                 }
                 if let Ok(expr) = syn::parse2(quote::quote! { __expr_receiver }) {
                     self.current_expr = Some(expr);
                 } else {
-                    self.errors.push(
-                        Error::SynParseError(
-                            receiver.span(),
-                            "CFG builder",
-                            "expr_method_call::expr".to_string()
-                        )
-                    );
+                    self.errors.push(Error::SynParseError(
+                        receiver.span(),
+                        "CFG builder",
+                        "expr_method_call::expr".to_string(),
+                    ));
                     return;
                 }
             }
@@ -1324,7 +1315,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 &mut self.errors,
                 arg.span(),
                 "expr_method_call",
-                &mut self.current_expr
+                &mut self.current_expr,
             );
             let new_arg = if let Some(new_arg) = new_arg {
                 new_arg
@@ -1336,18 +1327,16 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
 
         let ident = syn::Ident::new(
             &format!("__method_call_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_method_call; }) {
             self.push_stmt(stmt);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    new_method_call.span(),
-                    "CFG builder",
-                    "expr_method_call::stmt".to_string()
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                new_method_call.span(),
+                "CFG builder",
+                "expr_method_call::stmt".to_string(),
+            ));
             return;
         }
         self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
@@ -1361,7 +1350,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 &mut self.errors,
                 expr.span(),
                 "expr_return",
-                &mut self.current_expr
+                &mut self.current_expr,
             );
             if let Some(expr) = expr {
                 new_return.expr = Some(Box::new(expr));
@@ -1380,7 +1369,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 &mut self.errors,
                 field.expr.span(),
                 "expr_struct",
-                &mut self.current_expr
+                &mut self.current_expr,
             );
             if let Some(expr) = expr {
                 field.expr = expr;
@@ -1390,18 +1379,16 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         }
         let ident = syn::Ident::new(
             &format!("__expr_struct_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_struct; }) {
             self.push_stmt(stmt);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    new_struct.span(),
-                    "CFG builder",
-                    "expr_struct::stmt".to_string()
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                new_struct.span(),
+                "CFG builder",
+                "expr_struct::stmt".to_string(),
+            ));
             return;
         }
         self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
@@ -1415,7 +1402,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 &mut self.errors,
                 elem.span(),
                 "expr_array",
-                &mut self.current_expr
+                &mut self.current_expr,
             );
             let new_elem = if let Some(new_elem) = new_elem {
                 new_elem
@@ -1426,18 +1413,16 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         }
         let ident = syn::Ident::new(
             &format!("__expr_array_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_array; }) {
             self.push_stmt(stmt);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    new_array.span(),
-                    "CFG builder",
-                    "expr_array::stmt".to_string()
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                new_array.span(),
+                "CFG builder",
+                "expr_array::stmt".to_string(),
+            ));
             return;
         }
         self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
@@ -1451,7 +1436,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 &mut self.errors,
                 i.expr.span(),
                 "expr_yield",
-                &mut self.current_expr
+                &mut self.current_expr,
             );
             if let Some(expr) = expr {
                 new_yield.expr = Some(Box::new(expr));
@@ -1460,18 +1445,16 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             }
             let ident = syn::Ident::new(
                 &format!("__yield_{}", self.global_block_cnt()),
-                proc_macro2::Span::call_site()
+                proc_macro2::Span::call_site(),
             );
             if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_yield; }) {
                 self.push_stmt(stmt);
             } else {
-                self.errors.push(
-                    Error::SynParseError(
-                        new_yield.span(),
-                        "CFG builder",
-                        "expr_yield::stmt".to_string()
-                    )
-                );
+                self.errors.push(Error::SynParseError(
+                    new_yield.span(),
+                    "CFG builder",
+                    "expr_yield::stmt".to_string(),
+                ));
                 return;
             }
             self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
@@ -1486,7 +1469,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             &mut self.errors,
             unary.expr.span(),
             "expr_unary",
-            &mut self.current_expr
+            &mut self.current_expr,
         );
         if let Some(expr) = expr {
             new_unary.expr = Box::new(expr);
@@ -1495,18 +1478,16 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         }
         let ident = syn::Ident::new(
             &format!("__unary_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_unary; }) {
             self.push_stmt(stmt);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    new_unary.span(),
-                    "CFG builder",
-                    "expr_unary::stmt".to_string()
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                new_unary.span(),
+                "CFG builder",
+                "expr_unary::stmt".to_string(),
+            ));
             return;
         }
         self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
@@ -1520,7 +1501,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 &mut self.errors,
                 elem.span(),
                 "expr_tuple",
-                &mut self.current_expr
+                &mut self.current_expr,
             );
             let new_elem = if let Some(new_elem) = new_elem {
                 new_elem
@@ -1531,30 +1512,26 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         }
         let ident = syn::Ident::new(
             &format!("__expr_tuple_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_tuple; }) {
             self.push_stmt(stmt);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    new_tuple.span(),
-                    "CFG builder",
-                    "expr_tuple::stmt".to_string()
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                new_tuple.span(),
+                "CFG builder",
+                "expr_tuple::stmt".to_string(),
+            ));
             return;
         }
         if let Ok(expr) = syn::parse2(quote::quote! { #ident }) {
             self.current_expr = Some(expr);
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    new_tuple.span(),
-                    "CFG builder",
-                    "expr_tuple::expr".to_string()
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                new_tuple.span(),
+                "CFG builder",
+                "expr_tuple::expr".to_string(),
+            ));
         }
     }
 
@@ -1565,7 +1542,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             &mut self.errors,
             i.expr.span(),
             "expr_try",
-            &mut self.current_expr
+            &mut self.current_expr,
         );
         let expr = if let Some(expr) = expr {
             expr
@@ -1575,15 +1552,17 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         new_try.expr = Box::new(expr);
         let ident = syn::Ident::new(
             &format!("__try_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_try; }) {
             self.push_stmt(stmt);
             self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
         } else {
-            self.errors.push(
-                Error::SynParseError(new_try.span(), "CFG builder", "expr_try::stmt".to_string())
-            );
+            self.errors.push(Error::SynParseError(
+                new_try.span(),
+                "CFG builder",
+                "expr_try::stmt".to_string(),
+            ));
         }
     }
 
@@ -1594,7 +1573,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             &mut self.errors,
             i.right.span(),
             "expr_assign",
-            &mut self.current_expr
+            &mut self.current_expr,
         );
         let right = if let Some(right) = right {
             right
@@ -1618,18 +1597,18 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         self.set_current_block(assign_block);
         let assign_ident = syn::Ident::new(
             &format!("__closure_assign_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #assign_ident; }) {
-            self.cfg.graph[assign_block].statements.push(CustomStmt { stmt });
+            self.cfg.graph[assign_block]
+                .statements
+                .push(CustomStmt { stmt });
         } else {
-            self.errors.push(
-                Error::SynParseError(
-                    closure.span(),
-                    "CFG builder",
-                    "expr_closure::assign_stmt".to_string()
-                )
-            );
+            self.errors.push(Error::SynParseError(
+                closure.span(),
+                "CFG builder",
+                "expr_closure::assign_stmt".to_string(),
+            ));
             return;
         }
 
@@ -1643,7 +1622,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 &mut self.errors,
                 arg.span(),
                 "expr_closure_arg",
-                &mut self.current_pat
+                &mut self.current_pat,
             );
             let pat = if let Some(pat) = pat {
                 pat
@@ -1664,7 +1643,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             &mut self.errors,
             closure.body.span(),
             "expr_closure",
-            &mut self.current_expr
+            &mut self.current_expr,
         );
         let body = if let Some(body) = body {
             body
@@ -1684,9 +1663,8 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         self.set_current_block_id(current_block_id);
         self.set_current_block(after_block);
 
-        self.current_expr = Some(
-            syn::parse2(quote::quote! { #assign_ident }).expect("expr is none")
-        );
+        self.current_expr =
+            Some(syn::parse2(quote::quote! { #assign_ident }).expect("expr is none"));
     }
 
     fn visit_item_const(&mut self, i: &'ast syn::ItemConst) {
@@ -1696,14 +1674,16 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
     fn visit_expr_macro(&mut self, i: &'ast syn::ExprMacro) {
         let ident = syn::Ident::new(
             &format!("__macro_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #i; }) {
             self.push_stmt(stmt);
         } else {
-            self.errors.push(
-                Error::SynParseError(i.span(), "CFG builder", "expr_macro::stmt".to_string())
-            );
+            self.errors.push(Error::SynParseError(
+                i.span(),
+                "CFG builder",
+                "expr_macro::stmt".to_string(),
+            ));
         }
         self.current_expr = Some(syn::parse2(quote::quote! { #ident }).expect("expr is none"));
     }
@@ -1719,7 +1699,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             &mut self.errors,
             index.expr.span(),
             "expr_index",
-            &mut self.current_expr
+            &mut self.current_expr,
         );
         let expr = if let Some(expr) = expr {
             expr
@@ -1731,7 +1711,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             &mut self.errors,
             index.span(),
             "expr_index",
-            &mut self.current_expr
+            &mut self.current_expr,
         );
         let index = if let Some(index) = index {
             index
@@ -1742,7 +1722,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
         new_index.expr = Box::new(expr);
         let ident = syn::Ident::new(
             &format!("__index_{}", self.global_block_cnt()),
-            proc_macro2::Span::call_site()
+            proc_macro2::Span::call_site(),
         );
         if let Ok(stmt) = syn::parse2(quote::quote! { let #ident = #new_index; }) {
             self.push_stmt(stmt);
@@ -1775,8 +1755,9 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
             syn::Expr::Loop(expr_loop) => self.visit_expr_loop(expr_loop),
             syn::Expr::Macro(expr_macro) => self.visit_expr_macro(expr_macro),
             syn::Expr::Match(expr_match) => self.visit_expr_match(expr_match),
-            syn::Expr::MethodCall(expr_method_call) =>
-                self.visit_expr_method_call(expr_method_call),
+            syn::Expr::MethodCall(expr_method_call) => {
+                self.visit_expr_method_call(expr_method_call)
+            }
             syn::Expr::Paren(expr_paren) => self.visit_expr_paren(expr_paren),
             syn::Expr::Path(expr_path) => self.visit_expr_path(expr_path),
             syn::Expr::Range(expr_range) => self.visit_expr_range(expr_range),
@@ -1814,7 +1795,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                         &mut self.errors,
                         init.expr.span(),
                         "stmt_local",
-                        &mut self.current_expr
+                        &mut self.current_expr,
                     );
                     let expr = if let Some(expr) = expr {
                         expr
@@ -1828,13 +1809,11 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     if let Ok(stmt) = syn::parse2(quote::quote! { #local }) {
                         self.push_stmt(stmt);
                     } else {
-                        self.errors.push(
-                            Error::SynParseError(
-                                local.span(),
-                                "CFG builder",
-                                "stmt_local::stmt".to_string()
-                            )
-                        );
+                        self.errors.push(Error::SynParseError(
+                            local.span(),
+                            "CFG builder",
+                            "stmt_local::stmt".to_string(),
+                        ));
                     }
                 }
             }
@@ -1847,31 +1826,25 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                 match item {
                     syn::Item::ExternCrate(_) => todo!(),
                     syn::Item::Fn(_) => {
-                        self.errors.push(
-                            Error::Unsupported(
-                                item.span(),
-                                "stmt_item",
-                                "syn::Item::Fn".to_string()
-                            )
-                        );
+                        self.errors.push(Error::Unsupported(
+                            item.span(),
+                            "stmt_item",
+                            "syn::Item::Fn".to_string(),
+                        ));
                     }
                     syn::Item::Enum(_) => {
-                        self.errors.push(
-                            Error::Unsupported(
-                                item.span(),
-                                "stmt_item",
-                                "syn::Item::Enum".to_string()
-                            )
-                        );
+                        self.errors.push(Error::Unsupported(
+                            item.span(),
+                            "stmt_item",
+                            "syn::Item::Enum".to_string(),
+                        ));
                     }
                     syn::Item::Trait(_) => {
-                        self.errors.push(
-                            Error::Unsupported(
-                                item.span(),
-                                "stmt_item",
-                                "syn::Item::Trait".to_string()
-                            )
-                        );
+                        self.errors.push(Error::Unsupported(
+                            item.span(),
+                            "stmt_item",
+                            "syn::Item::Trait".to_string(),
+                        ));
                     }
                     syn::Item::Struct(_) => {
                         self.push_stmt(syn::Stmt::Item(item.clone()));
@@ -1891,7 +1864,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                             &mut self.errors,
                             item.span(),
                             "stmt_item",
-                            &mut self.current_item
+                            &mut self.current_item,
                         );
                         let item = if let Some(item) = item {
                             item
@@ -1909,7 +1882,7 @@ impl<'ast, 'a> syn::visit::Visit<'ast> for CFGBuilder<'a> {
                     &mut self.errors,
                     expr.span(),
                     "stmt_expr",
-                    &mut self.current_expr
+                    &mut self.current_expr,
                 );
                 let new_expr = if let Some(new_expr) = new_expr {
                     new_expr
@@ -1938,12 +1911,16 @@ fn handle_accumulation<T>(
     errors: &mut Vec<Error>,
     span: proc_macro2::Span,
     msg: &str,
-    current_expr: &mut Option<T>
+    current_expr: &mut Option<T>,
 ) -> Option<T> {
     if let Some(left) = core::mem::take(current_expr) {
         Some(left)
     } else {
-        errors.push(Error::ExprAccumulateError(span, "CFG builder", msg.to_string()));
+        errors.push(Error::ExprAccumulateError(
+            span,
+            "CFG builder",
+            msg.to_string(),
+        ));
         None
     }
 }

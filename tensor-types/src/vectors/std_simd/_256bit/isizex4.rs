@@ -1,6 +1,14 @@
-use std::{ops::{ Deref, DerefMut }, simd::cmp::{SimdPartialEq, SimdPartialOrd}};
+use std::{
+    ops::{Deref, DerefMut},
+    simd::cmp::{SimdPartialEq, SimdPartialOrd},
+};
 
-use crate::{impl_std_simd_bit_logic, std_simd::_256bit::i64x4::i64x4, traits::{SimdCompare, SimdMath}, vectors::traits::VecTrait};
+use crate::{
+    impl_std_simd_bit_logic,
+    std_simd::_256bit::i64x4::i64x4,
+    traits::{SimdCompare, SimdMath},
+    vectors::traits::VecTrait,
+};
 
 /// a vector of 4 isize values
 #[allow(non_camel_case_types)]
@@ -31,7 +39,8 @@ impl VecTrait<isize> for isizex4 {
     }
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[isize]) {
-        self.as_mut_array().copy_from_slice(unsafe { std::mem::transmute(slice) });
+        self.as_mut_array()
+            .copy_from_slice(unsafe { std::mem::transmute(slice) });
     }
     #[inline(always)]
     fn sum(&self) -> isize {

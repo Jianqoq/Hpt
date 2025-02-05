@@ -5,7 +5,7 @@ use std::{
 
 use tensor_common::{shape::shape::Shape, shape::shape_utils::mt_intervals};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
-use tensor_types::{dtype::FloatConst, cast::Cast};
+use tensor_types::{dtype::FloatConst, into_scalar::Cast};
 
 use crate::{tensor_base::_Tensor, Tensor, THREAD_POOL};
 

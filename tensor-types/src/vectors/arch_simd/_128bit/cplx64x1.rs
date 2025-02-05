@@ -1,5 +1,8 @@
 use crate::{
-    convertion::VecConvertor, traits::SimdMath, type_promote::{FloatOutBinary2, NormalOut2, NormalOutUnary, NormalOutUnary2}, vectors::traits::VecTrait
+    convertion::VecConvertor,
+    traits::SimdMath,
+    type_promote::{FloatOutBinary2, NormalOut2, NormalOutUnary, NormalOutUnary2},
+    vectors::traits::VecTrait,
 };
 use num_complex::Complex64;
 

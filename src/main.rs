@@ -1,4 +1,7 @@
-use tensor_dyn::{FloatOutUnary, Matmul, ParStridedIteratorSimdZip, Random, ShapeManipulate, Tensor, TensorCreator, TensorError, TensorIterator};
+use tensor_dyn::{
+    FloatOutUnary, Matmul, ParStridedIteratorSimdZip, Random, ShapeManipulate, Tensor,
+    TensorCreator, TensorError, TensorIterator,
+};
 struct LSTM {
     w_ii: Tensor<f32>,
     w_hi: Tensor<f32>,

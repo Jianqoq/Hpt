@@ -4,7 +4,6 @@ use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use cudarc::driver::DeviceRepr;
 use cudarc::driver::LaunchAsync;
-use tensor_types::cuda_types::scalar::Scalar;
 use std::borrow::Borrow;
 use std::panic::Location;
 use tensor_common::err_handler::TensorError::InvalidOutSize;
@@ -13,6 +12,7 @@ use tensor_traits::tensor::CommonBounds;
 use tensor_traits::tensor::TensorCreator;
 use tensor_traits::tensor::TensorInfo;
 use tensor_traits::TensorLike;
+use tensor_types::cuda_types::scalar::Scalar;
 
 use super::cuda_utils::get_array_str;
 
@@ -67,16 +67,18 @@ where
         rhs.layout.shape(),
         rhs.layout.strides()
     );
-    let half_include = if K::CUDA_TYPE == "half" || A::CUDA_TYPE == "half" || B::CUDA_TYPE == "half" {
+    let half_include = if K::CUDA_TYPE == "half" || A::CUDA_TYPE == "half" || B::CUDA_TYPE == "half"
+    {
         "#include <cuda_fp16.h>"
     } else {
         ""
     };
-    let bfloat16_include = if K::CUDA_TYPE == "bfloat16" || A::CUDA_TYPE == "bfloat16" || B::CUDA_TYPE == "bfloat16" {
-        "#include <cuda_bf16.h>"
-    } else {
-        ""
-    };
+    let bfloat16_include =
+        if K::CUDA_TYPE == "bfloat16" || A::CUDA_TYPE == "bfloat16" || B::CUDA_TYPE == "bfloat16" {
+            "#include <cuda_bf16.h>"
+        } else {
+            ""
+        };
     if lhs.size() == 1 {
         let val = lhs.to_cpu()?.as_raw()[0];
         let res = extract_out::<B, K, O, CUDA_DEVICE>(rhs.size(), rhs.shape(), out)?;

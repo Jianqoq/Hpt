@@ -1,13 +1,13 @@
-use std::collections::{ HashMap, HashSet };
-use syn::spanned::Spanned;
 use petgraph::graph::NodeIndex;
 use quote::ToTokens;
+use std::collections::{HashMap, HashSet};
+use syn::spanned::Spanned;
 use syn::visit::Visit;
 
 use super::{
     cfg::CFG,
     expr_ty,
-    operator_lists::{ BINARY_OPERATORS, OPAQUE_BINARY_OPERATORS, UNARY_OPERATORS },
+    operator_lists::{BINARY_OPERATORS, OPAQUE_BINARY_OPERATORS, UNARY_OPERATORS},
 };
 
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -28,10 +28,11 @@ impl std::fmt::Debug for TyInfer {
         f.debug_struct("TyInfer")
             .field(
                 "table",
-                &self.table
+                &self
+                    .table
                     .iter()
                     .map(|(k, v)| (k.to_string(), v))
-                    .collect::<HashMap<_, _>>()
+                    .collect::<HashMap<_, _>>(),
             )
             .finish()
     }
@@ -39,7 +40,10 @@ impl std::fmt::Debug for TyInfer {
 
 impl TyInfer {
     pub(crate) fn new() -> Self {
-        Self { table: HashMap::new(), visited: HashSet::new() }
+        Self {
+            table: HashMap::new(),
+            visited: HashSet::new(),
+        }
     }
 
     pub(crate) fn type_of(&self, expr: &syn::Expr) -> Type {
@@ -59,7 +63,7 @@ impl TyInfer {
                     (Type::Unknown, Type::Unknown) => Type::Unknown,
                 }
             }
-            syn::Expr::Reference(reference) => { self.type_of(&reference.expr) }
+            syn::Expr::Reference(reference) => self.type_of(&reference.expr),
             syn::Expr::Path(path) => {
                 if let Some(ident) = path.path.get_ident() {
                     *self.table.get(&ident).unwrap_or(&Type::Unknown)
@@ -69,15 +73,14 @@ impl TyInfer {
             }
             syn::Expr::Lit(_) => Type::Scalar,
             syn::Expr::Try(try_expr) => self.type_of(&try_expr.expr),
-            syn::Expr::Call(_) => { Type::Unknown }
+            syn::Expr::Call(_) => Type::Unknown,
             syn::Expr::MethodCall(method_call) => {
                 let receiver_type = self.type_of(&method_call.receiver);
                 if receiver_type == Type::Tensor {
                     let func_name = method_call.method.to_token_stream().to_string();
-                    if
-                        UNARY_OPERATORS.contains(&func_name.as_str()) ||
-                        BINARY_OPERATORS.contains(&func_name.as_str()) ||
-                        OPAQUE_BINARY_OPERATORS.contains(&func_name.as_str())
+                    if UNARY_OPERATORS.contains(&func_name.as_str())
+                        || BINARY_OPERATORS.contains(&func_name.as_str())
+                        || OPAQUE_BINARY_OPERATORS.contains(&func_name.as_str())
                     {
                         return Type::Tensor;
                     }
@@ -115,27 +118,30 @@ impl TyInfer {
         if let Some(block) = cfg.graph.node_weight(node) {
             for phi_function in &block.phi_functions {
                 let first_arg = &phi_function.args[0];
-                self.table.insert(phi_function.name.clone(), match self.table.get(first_arg) {
-                    Some(ty) => ty.clone(),
-                    None => {
-                        return Err(
-                            syn::Error
-                                ::new(
-                                    first_arg.span(),
-                                    &format!(
-                                        "Internal: can't find type for variable {}",
-                                        first_arg.to_string()
-                                    )
-                                )
-                                .into()
-                        );
-                    }
-                });
+                self.table.insert(
+                    phi_function.name.clone(),
+                    match self.table.get(first_arg) {
+                        Some(ty) => ty.clone(),
+                        None => {
+                            return Err(syn::Error::new(
+                                first_arg.span(),
+                                &format!(
+                                    "Internal: can't find type for variable {}",
+                                    first_arg.to_string()
+                                ),
+                            )
+                            .into());
+                        }
+                    },
+                );
             }
             for stmt in &block.statements {
                 self.visit_stmt(&stmt.stmt);
             }
-            for succ in cfg.graph.neighbors_directed(node, petgraph::Direction::Outgoing) {
+            for succ in cfg
+                .graph
+                .neighbors_directed(node, petgraph::Direction::Outgoing)
+            {
                 if self.visited.contains(&succ) {
                     continue;
                 }
@@ -150,10 +156,13 @@ impl TyInfer {
 fn handle_pat_ty(lhs: &syn::Pat, rhs: &syn::Type, table: &mut HashMap<syn::Ident, Type>) {
     match (lhs, rhs) {
         (syn::Pat::Ident(pat_ident), syn::Type::Path(type_path)) => {
-            let path = type_path.path.segments
+            let path = type_path
+                .path
+                .segments
                 .last()
                 .expect("handle_pat_ty::path::no_segment::last_segment::110")
-                .ident.to_string();
+                .ident
+                .to_string();
             if path.contains("Tensor") || path.contains("_Tensor") {
                 table.insert(pat_ident.ident.clone(), Type::Tensor);
             } else {
@@ -164,25 +173,34 @@ fn handle_pat_ty(lhs: &syn::Pat, rhs: &syn::Type, table: &mut HashMap<syn::Ident
             table.insert(pat_ident.ident.clone(), Type::Unknown);
         }
         (syn::Pat::Path(expr_path), syn::Type::Path(type_path)) => {
-            let path = type_path.path.segments
+            let path = type_path
+                .path
+                .segments
                 .last()
                 .expect("handle_pat_ty::path::no_segment::last_segment::120")
-                .ident.to_string();
+                .ident
+                .to_string();
             if path.contains("Tensor") || path.contains("_Tensor") {
                 table.insert(
-                    expr_path.path.segments
+                    expr_path
+                        .path
+                        .segments
                         .last()
                         .expect("handle_pat_ty::path::no_segment::last_segment::123")
-                        .ident.clone(),
-                    Type::Tensor
+                        .ident
+                        .clone(),
+                    Type::Tensor,
                 );
             } else {
                 table.insert(
-                    expr_path.path.segments
+                    expr_path
+                        .path
+                        .segments
                         .last()
                         .expect("handle_pat_ty::path::no_segment::last_segment::125")
-                        .ident.clone(),
-                    Type::Unknown
+                        .ident
+                        .clone(),
+                    Type::Unknown,
                 );
             }
         }
@@ -204,12 +222,11 @@ fn handle_pat_ty(lhs: &syn::Pat, rhs: &syn::Type, table: &mut HashMap<syn::Ident
         (syn::Pat::Wild(_), _) => {
             table.insert(syn::Ident::new("_", lhs.span()), Type::Unknown);
         }
-        _ =>
-            unreachable!(
-                "handle_pat_ty::{:#?}: {:#?}",
-                lhs.to_token_stream(),
-                rhs.to_token_stream()
-            ),
+        _ => unreachable!(
+            "handle_pat_ty::{:#?}: {:#?}",
+            lhs.to_token_stream(),
+            rhs.to_token_stream()
+        ),
     }
 }
 
@@ -232,7 +249,7 @@ fn handle_pat(lhs: &syn::Pat, table: &mut HashMap<syn::Ident, Type>) {
         }
         syn::Pat::Range(_) => unimplemented!("handle_pat::Range"),
         syn::Pat::Reference(reference) => handle_pat(reference.pat.as_ref(), table),
-        syn::Pat::Rest(_) => {},
+        syn::Pat::Rest(_) => {}
         syn::Pat::Slice(slice) => {
             for elem in slice.elems.iter() {
                 handle_pat(elem, table);
@@ -252,8 +269,7 @@ fn handle_pat(lhs: &syn::Pat, table: &mut HashMap<syn::Ident, Type>) {
             for field in tuple_struct.elems.iter() {
                 handle_pat(field, table);
             }
-
-        },
+        }
         syn::Pat::Type(ty) => handle_pat_ty(lhs, ty.ty.as_ref(), table),
         syn::Pat::Verbatim(_) => unimplemented!("handle_pat::Verbatim"),
         syn::Pat::Wild(_) => {
@@ -270,26 +286,15 @@ impl<'ast> Visit<'ast> for TyInfer {
                 let pat = pat_type.pat.as_ref();
                 let ty = pat_type.ty.to_token_stream().to_string();
                 let tys = [
-                    "bool",
-                    "i8",
-                    "i16",
-                    "i32",
-                    "i64",
-                    "u8",
-                    "u16",
-                    "u32",
-                    "u64",
-                    "f32",
-                    "f64",
+                    "bool", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64",
                 ];
                 match pat {
                     syn::Pat::Ident(pat_ident) => {
                         let ident = pat_ident.ident.clone();
                         if tys.iter().any(|t| ty == *t) {
                             self.table.insert(ident, Type::Scalar);
-                        } else if
-                            ident.to_string().contains("Tensor") ||
-                            ident.to_string().contains("_Tensor")
+                        } else if ident.to_string().contains("Tensor")
+                            || ident.to_string().contains("_Tensor")
                         {
                             self.table.insert(ident, Type::Tensor);
                         } else {
@@ -302,22 +307,23 @@ impl<'ast> Visit<'ast> for TyInfer {
                     syn::Pat::Paren(_) => unimplemented!("ty_infer::visit_signature::Paren"),
                     syn::Pat::Path(_) => unimplemented!("ty_infer::visit_signature::Path"),
                     syn::Pat::Range(_) => unimplemented!("ty_infer::visit_signature::Range"),
-                    syn::Pat::Reference(_) =>
-                        unimplemented!("ty_infer::visit_signature::Reference"),
+                    syn::Pat::Reference(_) => {
+                        unimplemented!("ty_infer::visit_signature::Reference")
+                    }
                     syn::Pat::Rest(_) => unimplemented!("ty_infer::visit_signature::Rest"),
                     syn::Pat::Slice(_) => unimplemented!("ty_infer::visit_signature::Slice"),
                     syn::Pat::Struct(_) => unimplemented!("ty_infer::visit_signature::Struct"),
                     syn::Pat::Tuple(_) => unimplemented!("ty_infer::visit_signature::Tuple"),
-                    syn::Pat::TupleStruct(_) =>
-                        unimplemented!("ty_infer::visit_signature::TupleStruct"),
+                    syn::Pat::TupleStruct(_) => {
+                        unimplemented!("ty_infer::visit_signature::TupleStruct")
+                    }
                     syn::Pat::Type(_) => unimplemented!("ty_infer::visit_signature::Type"),
                     syn::Pat::Verbatim(_) => unimplemented!("ty_infer::visit_signature::Verbatim"),
                     syn::Pat::Wild(_) => unimplemented!("ty_infer::visit_signature::Wild"),
-                    _ =>
-                        unimplemented!(
-                            "ty_infer::visit_signature::{}",
-                            pat.to_token_stream().to_string()
-                        ),
+                    _ => unimplemented!(
+                        "ty_infer::visit_signature::{}",
+                        pat.to_token_stream().to_string()
+                    ),
                 }
             }
         }
@@ -370,10 +376,13 @@ impl<'ast> Visit<'ast> for TyInfer {
             syn::Pat::Wild(wild) => {
                 self.table.insert(
                     syn::Ident::new("_", wild.underscore_token.span()),
-                    Type::Unknown
+                    Type::Unknown,
                 );
             }
-            _ => unimplemented!("ty_infer::visit_local::{}", i.pat.to_token_stream().to_string()),
+            _ => unimplemented!(
+                "ty_infer::visit_local::{}",
+                i.pat.to_token_stream().to_string()
+            ),
         }
     }
 

@@ -30,7 +30,10 @@ impl NormalOut2 for Scalar<Complex64> {
 
     #[inline(always)]
     fn __mul_add(self, a: Self, b: Self) -> Self {
-        Scalar::new(format!("cuCadd(cuCmul({}, {}), {})", self.val, a.val, b.val))
+        Scalar::new(format!(
+            "cuCadd(cuCmul({}, {}), {})",
+            self.val, a.val, b.val
+        ))
     }
 
     #[inline(always)]

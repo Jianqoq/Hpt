@@ -40,7 +40,11 @@ where
     ///
     /// This function returns a `Result` containing a new tensor with the shrinkage operation applied.
     #[allow(unused)]
-    pub fn shrinkage(&self, bias: T, lambda: T) -> std::result::Result<_Tensor<T, Cuda, DEVICE_ID>, TensorError> {
+    pub fn shrinkage(
+        &self,
+        bias: T,
+        lambda: T,
+    ) -> std::result::Result<_Tensor<T, Cuda, DEVICE_ID>, TensorError> {
         uary_fn_with_out_simd(
             self,
             "shrinkage",
@@ -86,7 +90,11 @@ where
     /// # Returns
     ///
     /// This function returns a `Result` containing a new tensor with the shrinkage operation applied.
-    pub fn shrinkage(&self, bias: T, lambda: T) -> std::result::Result<Tensor<T, Cuda, DEVICE_ID>, TensorError> {
+    pub fn shrinkage(
+        &self,
+        bias: T,
+        lambda: T,
+    ) -> std::result::Result<Tensor<T, Cuda, DEVICE_ID>, TensorError> {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::shrinkage(self.inner.as_ref(), bias, lambda)?.into())
     }
 }

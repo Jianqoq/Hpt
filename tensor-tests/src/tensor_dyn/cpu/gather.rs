@@ -1,10 +1,9 @@
-
 #[test]
 fn test_gather() -> anyhow::Result<()> {
     use rand::Rng;
+    use tensor_dyn::AdvanceOps;
     use tensor_dyn::TensorCreator;
     use tensor_dyn::TensorLike;
-    use tensor_dyn::AdvanceOps;
     let mut rng = rand::thread_rng();
     let ndim = rng.gen_range(1..=3);
     for _ in 0..100 {

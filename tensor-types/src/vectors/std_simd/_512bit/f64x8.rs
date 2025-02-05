@@ -1,8 +1,11 @@
-use std::{ ops::{ Deref, DerefMut }, simd::StdFloat };
+use std::{
+    ops::{Deref, DerefMut},
+    simd::StdFloat,
+};
 
 use crate::into_vec::IntoVec;
 
-use crate::vectors::traits::{ Init, VecCommon, VecTrait };
+use crate::vectors::traits::{Init, VecCommon, VecTrait};
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]

@@ -89,10 +89,12 @@ fn main() {
         if let Ok(mut file) = std::fs::File::open(&generated_constants) {
             let mut content = String::new();
             file.read_to_string(&mut content).unwrap();
-            let mut file = std::fs::File::create(&generated_constants).expect("create generated.rs");
+            let mut file =
+                std::fs::File::create(&generated_constants).expect("create generated.rs");
             file.write_all(buffer.as_bytes()).unwrap();
         } else {
-            let mut file = std::fs::File::create(&generated_constants).expect("create generated.rs");
+            let mut file =
+                std::fs::File::create(&generated_constants).expect("create generated.rs");
             file.write_all(buffer.as_bytes()).unwrap();
         }
     }

@@ -1,12 +1,17 @@
-use std::collections::HashSet;
+use super::{
+    build_graph::CmpNode,
+    errors::Error,
+    fuse::{FusionGroup, Input},
+    node::Operand,
+};
 use petgraph::graph::NodeIndex;
 use proc_macro2::TokenStream as TokenStream2;
-use super::{ build_graph::CmpNode, errors::Error, fuse::{ FusionGroup, Input }, node::Operand };
+use std::collections::HashSet;
 
 pub(crate) fn cmp_gen_fuse(
     cfg: &mut crate::fuse::cfg::CFG,
     graph: &petgraph::stable_graph::StableGraph<CmpNode, ()>,
-    groups: &FusionGroup
+    groups: &FusionGroup,
 ) -> Vec<(TokenStream2, TokenStream2)> {
     _cmp_gen_fuse(cfg, &graph, &groups)
 }
@@ -15,21 +20,23 @@ fn cmp_gen_body(
     sorted: Vec<NodeIndex>,
     inputs: &HashSet<Input>,
     graph: &petgraph::stable_graph::StableGraph<CmpNode, ()>,
-    cfg: &crate::fuse::cfg::CFG
+    cfg: &crate::fuse::cfg::CFG,
 ) -> proc_macro2::TokenStream {
     let mut comp_tokens = proc_macro2::TokenStream::new();
     for idx in sorted {
         let mut node = graph[idx].clone();
         if !inputs.iter().any(|input| input.comp_graph_idx == idx) {
             if let Operand::Variable(ident) = &node.ident {
-                let origin_ident = cfg.graph[NodeIndex::new(node.block_idx)].origin_var_map
+                let origin_ident = cfg.graph[NodeIndex::new(node.block_idx)]
+                    .origin_var_map
                     .get(ident)
                     .expect("gen_fuse::out");
                 node.ident = Operand::Variable(origin_ident.clone());
             }
             for (idx, out) in node.outputs_ident.clone().into_iter().enumerate() {
                 if let Operand::Variable(out) = &out {
-                    let origin_out = cfg.graph[NodeIndex::new(node.block_idx)].origin_var_map
+                    let origin_out = cfg.graph[NodeIndex::new(node.block_idx)]
+                        .origin_var_map
                         .get(out)
                         .expect("gen_fuse::out");
                     node.outputs_ident[idx] = Operand::Variable(origin_out.clone());
@@ -37,7 +44,8 @@ fn cmp_gen_body(
             }
             for (idx, inp) in node.args_ident.clone().into_iter().enumerate() {
                 if let Operand::Variable(inp) = &inp {
-                    let origin_inp = cfg.graph[NodeIndex::new(node.block_idx)].origin_var_map
+                    let origin_inp = cfg.graph[NodeIndex::new(node.block_idx)]
+                        .origin_var_map
                         .get(inp)
                         .expect("gen_fuse::out");
                     node.args_ident[idx] = Operand::Variable(origin_inp.clone());
@@ -55,23 +63,25 @@ fn cmp_gen_body(
 pub(crate) fn _cmp_gen_fuse(
     cfg: &mut crate::fuse::cfg::CFG,
     graph: &petgraph::stable_graph::StableGraph<CmpNode, ()>,
-    groups: &FusionGroup
+    groups: &FusionGroup,
 ) -> Vec<(TokenStream2, TokenStream2)> {
     // println!("graph: {:#?}", graph);
     let sorteds = petgraph::algo::toposort(graph, None).expect("gen_fuse::topological_sort");
     // println!("sorteds: {:#?}", sorteds);
     let mut tuple_vec = vec![];
-    let inputs = groups.inputs
+    let inputs = groups
+        .inputs
         .iter()
         .map(|inputs| {
             let mut v = vec![];
             for input in inputs {
                 if let Operand::Variable(ident) = &input.var {
                     v.push(
-                        cfg.graph[NodeIndex::new(input.block_idx)].origin_var_map
+                        cfg.graph[NodeIndex::new(input.block_idx)]
+                            .origin_var_map
                             .get(ident)
                             .expect("gen_fuse::origin_ident")
-                            .clone()
+                            .clone(),
                     );
                 }
             }
@@ -100,7 +110,8 @@ pub(crate) fn _cmp_gen_fuse(
     for (i, (sorted, (inputs, outputs))) in sorted_groups
         .into_iter()
         .zip(inputs.iter().zip(groups.outputs.iter()))
-        .enumerate() {
+        .enumerate()
+    {
         if outputs.len() != 1 {
             panic!("gen_fuse::output_len: {:?}", outputs.len());
         }
@@ -108,11 +119,13 @@ pub(crate) fn _cmp_gen_fuse(
         let mut vec_comp = TokenStream2::new();
         let output = &outputs.iter().next().expect("gen_fuse::output");
         let origin_output = if let Operand::Variable(ident) = &output.var {
-            cfg.graph[NodeIndex::new(output.block_idx)].origin_var_map
+            cfg.graph[NodeIndex::new(output.block_idx)]
+                .origin_var_map
                 .get(ident)
                 .expect("gen_fuse::origin_output")
         } else {
-            cfg.errors.push(Error::ExpectedIdentifier(output.var.span(), "gen_fuse"));
+            cfg.errors
+                .push(Error::ExpectedIdentifier(output.var.span(), "gen_fuse"));
             return vec![];
         };
         // println!("sorted: {:#?}", sorted);
@@ -131,17 +144,16 @@ pub(crate) fn _cmp_gen_fuse(
             let ident = quote::format_ident!("{}", input);
             quote::quote!(&#ident)
         });
-        let fused =
-            quote::quote!(
-                #func_name(#(#func_args,)*|#(#inputs),*| {
-                    #scalar_comp
-                },|#(#inputs),*| {
-                    #vec_comp
-                })?
-            );
+        let fused = quote::quote!(
+            #func_name(#(#func_args,)*|#(#inputs),*| {
+                #scalar_comp
+            },|#(#inputs),*| {
+                #vec_comp
+            })?
+        );
         let input_generics = inputs
             .iter()
-            .map(|input| { quote::format_ident!("{}", input.to_string().to_uppercase()) });
+            .map(|input| quote::format_ident!("{}", input.to_string().to_uppercase()));
         let closure_bounds = input_generics.clone();
         let closure_simd_bounds = inputs.iter().map(|input| {
             let generic_ident = quote::format_ident!("{}", input.to_string().to_uppercase());
@@ -189,50 +201,38 @@ pub(crate) fn _cmp_gen_fuse(
                     quote::quote! { .zip(#ident.as_raw().par_chunks_exact(<#generic_ident as TypeCommon>::Vec::SIZE)) }
                 }
             });
-        let zip_remain_scalars = inputs
-            .iter()
-            .enumerate()
-            .map(|(idx, input)| {
-                let ident = quote::format_ident!("{}_arg", input);
-                if idx == 0 {
-                    quote::quote! { #ident.as_raw()[ret_size - remain..].iter() }
-                } else {
-                    quote::quote! { .zip(#ident.as_raw()[ret_size - remain..].iter()) }
-                }
-            });
-        let zip_min_len = inputs
-            .iter()
-            .enumerate()
-            .map(|(idx, input)| {
-                let ident = quote::format_ident!("{}_arg", input);
-                if idx == 0 {
-                    quote::quote! { #ident.as_raw().par_iter().with_min_len(min_len) }
-                } else {
-                    quote::quote! { .zip(#ident.as_raw().par_iter().with_min_len(min_len)) }
-                }
-            });
-        let zip_scalar_par = inputs
-            .iter()
-            .enumerate()
-            .map(|(idx, input)| {
-                let ident = quote::format_ident!("{}_arg", input);
-                if idx == 0 {
-                    quote::quote! { #ident.par_iter() }
-                } else {
-                    quote::quote! { .zip(#ident.par_iter()) }
-                }
-            });
-        let layout_broadcast = inputs
-            .iter()
-            .enumerate()
-            .map(|(idx, input)| {
-                let ident = quote::format_ident!("{}_arg", input);
-                if idx == 0 {
-                    quote::quote! { let mut layout = #ident.layout().clone(); }
-                } else {
-                    quote::quote! { layout = layout.broadcast(#ident.layout())?; }
-                }
-            });
+        let zip_remain_scalars = inputs.iter().enumerate().map(|(idx, input)| {
+            let ident = quote::format_ident!("{}_arg", input);
+            if idx == 0 {
+                quote::quote! { #ident.as_raw()[ret_size - remain..].iter() }
+            } else {
+                quote::quote! { .zip(#ident.as_raw()[ret_size - remain..].iter()) }
+            }
+        });
+        let zip_min_len = inputs.iter().enumerate().map(|(idx, input)| {
+            let ident = quote::format_ident!("{}_arg", input);
+            if idx == 0 {
+                quote::quote! { #ident.as_raw().par_iter().with_min_len(min_len) }
+            } else {
+                quote::quote! { .zip(#ident.as_raw().par_iter().with_min_len(min_len)) }
+            }
+        });
+        let zip_scalar_par = inputs.iter().enumerate().map(|(idx, input)| {
+            let ident = quote::format_ident!("{}_arg", input);
+            if idx == 0 {
+                quote::quote! { #ident.par_iter() }
+            } else {
+                quote::quote! { .zip(#ident.par_iter()) }
+            }
+        });
+        let layout_broadcast = inputs.iter().enumerate().map(|(idx, input)| {
+            let ident = quote::format_ident!("{}_arg", input);
+            if idx == 0 {
+                quote::quote! { let mut layout = #ident.layout().clone(); }
+            } else {
+                quote::quote! { layout = layout.broadcast(#ident.layout())?; }
+            }
+        });
         let from_ptr = inputs.iter().map(|input| {
             let ident = quote::format_ident!("{}", input);
             let generic_ident = quote::format_ident!("{}", input.to_string().to_uppercase());
@@ -240,11 +240,10 @@ pub(crate) fn _cmp_gen_fuse(
         });
         let f2_args = inputs
             .iter()
-            .map(|input| { quote::format_ident!("{}", input) })
+            .map(|input| quote::format_ident!("{}", input))
             .collect::<Vec<_>>();
         let first = quote::format_ident!("{}_arg", inputs[0]);
-        let func =
-            quote::quote!(
+        let func = quote::quote!(
             fn #func_name<#(#input_generics),*, __HPTRES, F, F2>(
                 #(#input_args),*,
                 f: F,
@@ -308,7 +307,7 @@ pub(crate) fn _cmp_gen_fuse(
                         });
                     Ok(ret)
                 }
-            }            
+            }
         );
         fused_vec.push((fused, func));
     }

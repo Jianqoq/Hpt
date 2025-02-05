@@ -1,5 +1,5 @@
 use tensor_traits::CommonBounds;
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 
 pub(crate) fn format_float<T: CommonBounds + Cast<f64>>(val: T, precision: usize) -> String {
     match T::ID {
@@ -69,7 +69,7 @@ pub(crate) fn format_complex<T: CommonBounds>(val: T, precision: usize) -> Strin
 
 pub(crate) fn format_val<T: CommonBounds + Cast<f64>>(val: T, precision: usize) -> String {
     match T::ID {
-        | tensor_types::dtype::Dtype::BF16
+        tensor_types::dtype::Dtype::BF16
         | tensor_types::dtype::Dtype::F16
         | tensor_types::dtype::Dtype::F32
         | tensor_types::dtype::Dtype::F64 => format_float(val, precision),

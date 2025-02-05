@@ -1,9 +1,9 @@
-use std::collections::{ HashMap, HashSet };
 use proc_macro2::TokenTree;
 use quote::ToTokens;
+use std::collections::{HashMap, HashSet};
 use syn::visit::Visit;
 
-use super::{ expr_ty, ty_infer::Type, use_define_visitor::UseDefineVisitor };
+use super::{expr_ty, ty_infer::Type, use_define_visitor::UseDefineVisitor};
 
 pub(crate) struct ExprCallUseVisitor<'ast> {
     table: &'ast HashMap<syn::Ident, Type>,
@@ -35,7 +35,7 @@ impl<'ast> ExprCallUseVisitor<'ast> {
                     (Type::Unknown, Type::Unknown) => Type::Unknown,
                 }
             }
-            syn::Expr::Reference(reference) => { self.type_of(&reference.expr) }
+            syn::Expr::Reference(reference) => self.type_of(&reference.expr),
             syn::Expr::Path(path) => {
                 if let Some(ident) = path.path.get_ident() {
                     *self.table.get(&ident).unwrap_or(&Type::Unknown)
@@ -45,7 +45,7 @@ impl<'ast> ExprCallUseVisitor<'ast> {
             }
             syn::Expr::Lit(_) => Type::Scalar,
             syn::Expr::Try(try_expr) => self.type_of(&try_expr.expr),
-            syn::Expr::Call(_) => { Type::Unknown }
+            syn::Expr::Call(_) => Type::Unknown,
             syn::Expr::MethodCall(method_call) => {
                 let receiver_type = self.type_of(&method_call.receiver);
                 if receiver_type == Type::Tensor {
@@ -59,8 +59,10 @@ impl<'ast> ExprCallUseVisitor<'ast> {
                 }
             }
             syn::Expr::Paren(paren) => self.type_of(&paren.expr),
-            _ =>
-                unimplemented!("ExprCallUseVisitor::type_of::{:#?}", expr_ty::ExprType::from(expr)),
+            _ => unimplemented!(
+                "ExprCallUseVisitor::type_of::{:#?}",
+                expr_ty::ExprType::from(expr)
+            ),
         }
     }
 }
@@ -73,24 +75,11 @@ impl<'ast> Visit<'ast> for ExprCallUseVisitor<'ast> {
     }
     fn visit_expr_method_call(&mut self, method_call: &'ast syn::ExprMethodCall) {
         let methods = [
-            "sin",
-            "cos",
-            "tan",
-            "asin",
-            "acos",
-            "atan",
-            "sinh",
-            "cosh",
-            "tanh",
-            "asinh",
-            "acosh",
-            "atanh",
-            "relu",
-            "selu",
+            "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh", "asinh", "acosh",
+            "atanh", "relu", "selu",
         ];
-        if
-            self.type_of(&method_call.receiver) == Type::Tensor &&
-            methods.contains(&method_call.method.to_string().as_str())
+        if self.type_of(&method_call.receiver) == Type::Tensor
+            && methods.contains(&method_call.method.to_string().as_str())
         {
             return;
         }

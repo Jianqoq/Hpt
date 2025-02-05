@@ -30,7 +30,10 @@ impl NormalOut2 for Scalar<Complex32> {
 
     #[inline(always)]
     fn __mul_add(self, a: Self, b: Self) -> Self {
-        Scalar::new(format!("cuCaddf(cuCmulf({}, {}), {})", self.val, a.val, b.val))
+        Scalar::new(format!(
+            "cuCaddf(cuCmulf({}, {}), {})",
+            self.val, a.val, b.val
+        ))
     }
 
     #[inline(always)]
@@ -87,7 +90,10 @@ impl NormalOutUnary2 for Scalar<Complex32> {
 
     #[inline(always)]
     fn __neg(self) -> Self {
-        Scalar::new(format!("cuCmulf({}, make_cuComplex(-1.0f, 0.0f))", self.val))
+        Scalar::new(format!(
+            "cuCmulf({}, make_cuComplex(-1.0f, 0.0f))",
+            self.val
+        ))
     }
 
     #[inline(always)]

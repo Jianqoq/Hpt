@@ -16,7 +16,7 @@ use tensor_types::type_promote::NormalOutUnary;
 use tensor_types::vectors::traits::VecTrait;
 use tensor_types::{
     dtype::TypeCommon,
-    cast::Cast,
+    into_scalar::Cast,
     type_promote::{Eval, FloatOutBinary, FloatOutUnary, NormalOut},
     vectors::traits::SimdSelect,
 };

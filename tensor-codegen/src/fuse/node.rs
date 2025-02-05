@@ -71,18 +71,14 @@ impl ToTokens for Unary {
         let operand = &self.operand;
         let output = &self.output;
         if self.args.is_empty() {
-            tokens.extend(
-                quote::quote!(
+            tokens.extend(quote::quote!(
                 let #output = #operand.#method();
-            )
-            );
+            ));
         } else {
             let args = self.args.iter();
-            tokens.extend(
-                quote::quote!(
+            tokens.extend(quote::quote!(
                 let #output = #operand.#method(#(#args),*);
-            )
-            );
+            ));
         }
     }
 }
@@ -101,9 +97,7 @@ impl std::fmt::Debug for Binary {
         write!(
             f,
             "{} = {}({}, {})",
-            {
-                self.output.to_token_stream().to_string()
-            },
+            { self.output.to_token_stream().to_string() },
             self.method.to_token_stream().to_string(),
             self.left,
             self.right

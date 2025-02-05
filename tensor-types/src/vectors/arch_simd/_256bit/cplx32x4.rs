@@ -1,7 +1,10 @@
 use num_complex::Complex32;
 
 use crate::{
-    convertion::VecConvertor, traits::SimdMath, type_promote::{FloatOutBinary2, NormalOut2, NormalOutUnary2}, vectors::traits::VecTrait
+    convertion::VecConvertor,
+    traits::SimdMath,
+    type_promote::{FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    vectors::traits::VecTrait,
 };
 
 /// a vector of 4 cplx32 values
@@ -133,8 +136,7 @@ impl VecConvertor for cplx32x4 {
     }
 }
 
-impl SimdMath<Complex32> for cplx32x4 {
-}
+impl SimdMath<Complex32> for cplx32x4 {}
 
 impl FloatOutBinary2 for cplx32x4 {
     #[inline(always)]

@@ -201,8 +201,7 @@ pub fn save(
         )?;
     }
     let remain_outer: usize = save_config.3;
-    let mut remain_chunk =
-        vec![0u8; remain_outer * inner_loop_size * meta.data_saver.mem_size()];
+    let mut remain_chunk = vec![0u8; remain_outer * inner_loop_size * meta.data_saver.mem_size()];
     for j in 0..remain_outer {
         for i in 0..inner_loop_size {
             let start = (j * inner_loop_size + i) * meta.data_saver.mem_size();
@@ -451,7 +450,7 @@ where
             )?);
         }
 
-        Ok(unsafe { 
+        Ok(unsafe {
             let ptr = &arr as *const _ as *const [T::Meta; N];
             ptr.read()
         })

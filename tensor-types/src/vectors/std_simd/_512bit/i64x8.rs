@@ -1,6 +1,6 @@
-use std::ops::{ Deref, DerefMut };
+use std::ops::{Deref, DerefMut};
 
-use crate::vectors::traits::{ Init, VecCommon, VecTrait };
+use crate::vectors::traits::{Init, VecCommon, VecTrait};
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -42,14 +42,14 @@ impl VecTrait<i64> for i64x8 {
     fn sum(&self) -> i64 {
         self.as_array().iter().sum()
     }
-    
+
     fn extract(self, idx: usize) -> i64 {
         self.as_array()[idx]
     }
 }
 impl VecCommon for i64x8 {
     const SIZE: usize = 8;
-    
+
     type Base = i64;
 }
 impl Init<i64> for i64x8 {

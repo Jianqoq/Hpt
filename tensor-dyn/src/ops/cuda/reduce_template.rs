@@ -6,7 +6,7 @@ use crate::{
 use cudarc::{driver::DeviceRepr, types::CudaTypeName};
 use tensor_common::err_handler::TensorError;
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorInfo};
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 
 use super::cuda_slice::CudaSlice;
 

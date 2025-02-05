@@ -1,8 +1,8 @@
 #![allow(unused)]
 use tensor_common::slice;
 use tensor_common::slice::Slice;
-use tensor_dyn::Tensor;
 use tensor_dyn::ShapeManipulate;
+use tensor_dyn::Tensor;
 use tensor_dyn::TensorLike;
 use tensor_dyn::{TensorCreator, TensorInfo};
 use tensor_macros::match_selection;

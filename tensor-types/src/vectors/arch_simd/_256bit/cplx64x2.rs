@@ -1,7 +1,10 @@
 use num_complex::Complex64;
 
 use crate::{
-    convertion::VecConvertor, traits::SimdMath, type_promote::{FloatOutBinary2, NormalOut2, NormalOutUnary2}, vectors::traits::VecTrait
+    convertion::VecConvertor,
+    traits::SimdMath,
+    type_promote::{FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    vectors::traits::VecTrait,
 };
 
 /// a vector of 2 cplx64 values
@@ -128,8 +131,7 @@ impl VecConvertor for cplx64x2 {
     }
 }
 
-impl SimdMath<Complex64> for cplx64x2 {
-}
+impl SimdMath<Complex64> for cplx64x2 {}
 
 impl FloatOutBinary2 for cplx64x2 {
     #[inline(always)]

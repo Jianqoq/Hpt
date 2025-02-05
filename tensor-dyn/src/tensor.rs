@@ -17,7 +17,7 @@ use tensor_dataloader::DataLoader;
 use tensor_display::display;
 use tensor_iterator::TensorIterator;
 use tensor_traits::tensor::{CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike};
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 
 /// `Tensor` is alias of N-dimensional array.
 ///
@@ -77,31 +77,31 @@ macro_rules! impl_tensor_info {
             fn ptr(&self) -> Pointer<T> {
                 self.inner.ptr().clone()
             }
-        
+
             fn size(&self) -> usize {
                 self.inner.layout().size() as usize
             }
-        
+
             fn shape(&self) -> &Shape {
                 self.inner.layout().shape()
             }
-        
+
             fn strides(&self) -> &tensor_common::strides::strides::Strides {
                 self.inner.layout().strides()
             }
-        
+
             fn layout(&self) -> &Layout {
                 self.inner.layout()
             }
-        
+
             fn parent(&self) -> Option<Pointer<T>> {
                 self.inner.parent().clone()
             }
-        
+
             fn ndim(&self) -> usize {
                 self.inner.layout().ndim()
             }
-        
+
             fn is_contiguous(&self) -> bool {
                 self.inner.layout().is_contiguous()
             }

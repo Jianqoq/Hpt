@@ -4,7 +4,7 @@ use tensor_common::error::base::TensorError;
 use tensor_traits::{CommonBounds, WindowOps};
 use tensor_types::{
     dtype::FloatConst,
-    cast::Cast,
+    into_scalar::Cast,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 

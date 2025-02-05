@@ -2,7 +2,7 @@ use num_complex::Complex64;
 
 use crate::into_vec::IntoVec;
 
-use crate::vectors::traits::{ Init, VecCommon, VecTrait };
+use crate::vectors::traits::{Init, VecCommon, VecTrait};
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -33,14 +33,14 @@ impl VecTrait<Complex64> for cplx64x4 {
     fn sum(&self) -> Complex64 {
         self.0.iter().sum()
     }
-    
+
     fn extract(self, idx: usize) -> Complex64 {
         self.0[idx]
     }
 }
 impl VecCommon for cplx64x4 {
     const SIZE: usize = 4;
-    
+
     type Base = Complex64;
 }
 impl Init<Complex64> for cplx64x4 {

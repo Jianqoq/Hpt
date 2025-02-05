@@ -675,13 +675,10 @@ impl Eval2 for i32x4 {
             let result = _mm_andnot_si128(eq, _mm_set1_epi32(1));
             Self(result)
         }
-    
+
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            let neq = vmvnq_s32(vreinterpretq_s32_u32(vceqq_s32(
-                self.0,
-                vdupq_n_s32(0),
-            )));
+            let neq = vmvnq_s32(vreinterpretq_s32_u32(vceqq_s32(self.0, vdupq_n_s32(0))));
             i32x4(vandq_s32(neq, vdupq_n_s32(1)))
         }
     }

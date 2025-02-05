@@ -7,7 +7,7 @@ use tensor_common::error::base::TensorError;
 use tensor_traits::{CommonBounds, TensorCreator, TensorLike, WindowOps};
 use tensor_types::{
     dtype::{FloatConst, TypeCommon},
-    cast::Cast,
+    into_scalar::Cast,
     traits::VecTrait,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
@@ -39,22 +39,12 @@ where
 
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn hamming_window(window_length: i64, periodic: bool) -> Result<Self::Output, TensorError> {
-        __hamming_window(
-            window_length,
-            (0.54).cast(),
-            (0.46).cast(),
-            periodic,
-        )
+        __hamming_window(window_length, (0.54).cast(), (0.46).cast(), periodic)
     }
 
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn hann_window(window_length: i64, periodic: bool) -> Result<Self::Output, TensorError> {
-        __hamming_window(
-            window_length,
-            (0.5).cast(),
-            (0.5).cast(),
-            periodic,
-        )
+        __hamming_window(window_length, (0.5).cast(), (0.5).cast(), periodic)
     }
 
     #[cfg_attr(feature = "track_caller", track_caller)]

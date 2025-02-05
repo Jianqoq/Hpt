@@ -6,9 +6,9 @@ use std::{
 /// Represents the strides of a multi-dimensional structure, such as a tensor or an array.
 ///
 /// Strides are used to calculate the memory offset of an element in a multi-dimensional structure.
-/// 
-/// for a strides of `[1, 2, 3]`, we can access the 1st dimension element by adding 1 memory offset, 
-/// 
+///
+/// for a strides of `[1, 2, 3]`, we can access the 1st dimension element by adding 1 memory offset,
+///
 /// the 2nd dimension element by adding 2 memory offset, and the 3rd dimension element by adding 3 memory offset.
 ///
 /// # Example
@@ -25,17 +25,17 @@ pub struct Strides {
 
 impl Strides {
     /// Returns inner reference of the inner vector
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// `&Vec<i64>`
     pub fn inner(&self) -> &Vec<i64> {
         &self.inner
     }
     /// Returns inner reference of the inner vector
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// `&Arc<Vec<i64>>`
     pub fn inner_(&self) -> &Arc<Vec<i64>> {
         &self.inner

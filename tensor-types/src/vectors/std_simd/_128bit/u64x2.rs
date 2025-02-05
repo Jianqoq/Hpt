@@ -1,6 +1,16 @@
-use std::{ops::{ Deref, DerefMut }, simd::{cmp::{SimdPartialEq, SimdPartialOrd}, num::SimdUint, Simd}};
+use std::{
+    ops::{Deref, DerefMut},
+    simd::{
+        cmp::{SimdPartialEq, SimdPartialOrd},
+        num::SimdUint,
+        Simd,
+    },
+};
 
-use crate::{impl_std_simd_bit_logic, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait}};
+use crate::{
+    impl_std_simd_bit_logic,
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+};
 
 use super::i64x2::i64x2;
 
@@ -24,7 +34,7 @@ impl DerefMut for u64x2 {
 impl VecTrait<u64> for u64x2 {
     const SIZE: usize = 2;
     type Base = u64;
-    
+
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[u64]) {
         self.as_mut_array().copy_from_slice(slice);

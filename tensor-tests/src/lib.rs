@@ -1,30 +1,30 @@
 pub mod tensor_dyn {
     pub mod cpu {
+        pub mod adaptive_avg_pool;
+        pub mod adaptive_max_pool;
+        pub mod assert_utils;
+        pub mod avg_pool;
         pub mod binary;
         pub mod binary_out;
         pub mod bn_conv2d;
         pub mod conv2d;
-        pub mod conv2d_transpose;
         pub mod conv2d_group;
+        pub mod conv2d_transpose;
         pub mod creation;
         pub mod cumulate;
         pub mod dwconv2d;
+        pub mod gather;
         pub mod maxpool;
+        pub mod onehot;
         pub mod pwconv2d;
         pub mod reduce;
+        pub mod scatter;
         pub mod shape_manipulate;
         pub mod slice;
         pub mod softmax;
         pub mod test_lib;
         pub mod topk;
         pub mod unary;
-        pub mod avg_pool;
-        pub mod adaptive_avg_pool;
-        pub mod adaptive_max_pool;
-        pub mod onehot;
-        pub mod scatter;
-        pub mod gather;
-        pub mod assert_utils;
     }
     #[cfg(feature = "cuda")]
     pub mod cuda {

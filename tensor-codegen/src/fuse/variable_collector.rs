@@ -8,7 +8,9 @@ pub(crate) struct VariableCollector {
 
 impl VariableCollector {
     pub(crate) fn new() -> Self {
-        Self { vars: HashSet::new() }
+        Self {
+            vars: HashSet::new(),
+        }
     }
 }
 

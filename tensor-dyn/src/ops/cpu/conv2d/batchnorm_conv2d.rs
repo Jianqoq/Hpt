@@ -16,7 +16,7 @@ use tensor_common::utils::pointer::Pointer;
 use tensor_traits::CommonBounds;
 use tensor_traits::TensorCreator;
 use tensor_traits::TensorInfo;
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 use tensor_types::type_promote::FloatOutBinary;
 use tensor_types::type_promote::FloatOutUnary;
 use tensor_types::type_promote::NormalOut;
@@ -103,7 +103,8 @@ where
             .into());
         }
         let activation = activation.unwrap_or(|x| x);
-        let output = _Tensor::<T, Cpu, DEVICE>::empty([batch, out_height, out_width, out_channels])?;
+        let output =
+            _Tensor::<T, Cpu, DEVICE>::empty([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
 

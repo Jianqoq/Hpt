@@ -1,7 +1,8 @@
 use thiserror::Error;
 
 use super::{
-    autograd::AutogradError, device::DeviceError, kernel::KernelError, memory::MemoryError, param::ParamError, random::RandomError, shape::ShapeError
+    autograd::AutogradError, device::DeviceError, kernel::KernelError, memory::MemoryError,
+    param::ParamError, random::RandomError, shape::ShapeError,
 };
 
 /// Base error type for all tensor operations

@@ -14,7 +14,7 @@ use tensor_traits::{
     tensor::{CommonBounds, TensorCreator, TensorInfo},
     RandomInt, TensorLike,
 };
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 
 impl<T, const DEVICE_ID: usize> Random for _Tensor<T, Cuda, DEVICE_ID>
 where
@@ -32,7 +32,7 @@ where
     Standard: Distribution<T>,
     cudarc::curand::sys::curandGenerator_t: cudarc::curand::result::NormalFill<T>,
     cudarc::curand::sys::curandGenerator_t: cudarc::curand::result::UniformFill<T>,
-    cudarc::curand::sys::curandGenerator_t: cudarc::curand::result::LogNormalFill<T>
+    cudarc::curand::sys::curandGenerator_t: cudarc::curand::result::LogNormalFill<T>,
 {
     type Meta = T;
     fn randn<S: Into<Shape>>(shape: S) -> Result<Self> {

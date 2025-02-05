@@ -1,12 +1,12 @@
+use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
 use std::time::Duration;
-use tensor_dyn::TensorCreator;
-use criterion::{ black_box, criterion_group, BenchmarkId, Criterion };
-use tch::{ Tensor as TchTensor, Kind, Device };
-use tensor_dyn::{ Tensor, Random };
+use tch::{Device, Kind, Tensor as TchTensor};
+use tensor_dyn::NormalReduce;
 use tensor_dyn::ShapeManipulate;
+use tensor_dyn::TensorCreator;
 use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
-use tensor_dyn::NormalReduce;
+use tensor_dyn::{Random, Tensor};
 
 #[allow(unused)]
 fn assert_eq_i64(a: &TchTensor, b: &Tensor<i64>) {
@@ -14,7 +14,6 @@ fn assert_eq_i64(a: &TchTensor, b: &Tensor<i64>) {
     let b_raw = b.as_raw();
     assert_eq!(a_raw, b_raw);
 }
-
 
 macro_rules! reduction_bench_mark {
     (
@@ -32,7 +31,7 @@ macro_rules! reduction_bench_mark {
                 tch::set_num_threads(num_cpus::get_physical() as i32);
                 let shapes = $shapes;
                 let axes = $axes;
-            
+
                 let mut group = c.benchmark_group(concat!($name, " Benchmarks"));
                 group.warm_up_time(Duration::new(1, 0)).measurement_time(Duration::new(3, 0)).sample_size(10);
                 for idx in 0..shapes.len() {
@@ -72,7 +71,7 @@ macro_rules! reduction_bench_mark {
                         $assert_method(&a, &a2);
                     }
                 }
-            
+
                 group.finish();
             }
             #[cfg(any(feature = $name, feature = "reduction"))]
@@ -89,7 +88,15 @@ reduction_bench_mark!(
         [4096, 2048, 8],
         [8192, 2048, 8],
     ],
-    [vec![0], vec![1], vec![2], vec![0, 1], vec![0, 2], vec![1, 2], vec![0, 1, 2]],
+    [
+        vec![0],
+        vec![1],
+        vec![2],
+        vec![0, 1],
+        vec![0, 2],
+        vec![1, 2],
+        vec![0, 1, 2]
+    ],
     assert_eq_i64,
     sum_dim_intlist(false, Kind::Float),
     sum(false)

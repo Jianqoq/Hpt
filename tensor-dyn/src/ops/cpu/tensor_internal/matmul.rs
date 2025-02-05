@@ -4,13 +4,13 @@ use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use tensor_common::error::{base::TensorError, shape::ShapeError};
+use tensor_common::shape::shape_utils::predict_broadcast_shape;
 use tensor_common::shape::shape_utils::{compare_and_pad_shapes, mt_intervals};
 use tensor_common::strides::strides_utils::preprocess_strides;
 use tensor_traits::TensorLike;
 use tensor_traits::{CommonBounds, Matmul, TensorCreator, TensorInfo};
-use tensor_types::{cast::Cast, type_promote::NormalOut};
 use tensor_types::dtype::TypeCommon;
-use tensor_common::shape::shape_utils::predict_broadcast_shape;
+use tensor_types::{into_scalar::Cast, type_promote::NormalOut};
 
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn matmul_with_out<A, B, O, Q>(

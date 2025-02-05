@@ -1,11 +1,11 @@
+use crate::ALIGN;
 use tensor_common::utils::pointer::Pointer;
 use tensor_traits::CommonBounds;
-use tensor_types::cast::Cast;
-use tensor_types::type_promote::{ FloatOutUnary, NormalOut, FloatOutBinary };
-use tensor_types::utils::{ array_vec_reduce, vec_sum };
-use tensor_types::vectors::traits::*;
-use crate::ALIGN;
+use tensor_types::into_scalar::Cast;
 use tensor_types::into_vec::IntoVec;
+use tensor_types::type_promote::{FloatOutBinary, FloatOutUnary, NormalOut};
+use tensor_types::utils::{array_vec_reduce, vec_sum};
+use tensor_types::vectors::traits::*;
 /// used for updating prg and inp_ptr for case2, first next
 #[inline]
 fn update_prg2<T>(
@@ -13,7 +13,7 @@ fn update_prg2<T>(
     shape_len: i64,
     inp_ptr: &mut tensor_common::utils::pointer::Pointer<T>,
     strides: &[i64],
-    shape: &[i64]
+    shape: &[i64],
 ) {
     for j in (shape_len..shape.len() as i64).rev() {
         let j = j as usize;
@@ -36,7 +36,7 @@ fn update_prg2_softmax<T, O>(
     res_ptr: &mut tensor_common::utils::pointer::Pointer<O>,
     strides: &[i64],
     res_strides: &[i64],
-    shape: &[i64]
+    shape: &[i64],
 ) {
     for j in (shape_len..shape.len() as i64).rev() {
         let j = j as usize;
@@ -61,7 +61,7 @@ fn update_prg3_softmax<T, O>(
     res_ptr: &mut Pointer<O>,
     strides: &[i64],
     res_strides: &[i64],
-    shape: &[i64]
+    shape: &[i64],
 ) {
     for j in (0..shape_len - 1).rev() {
         let j = j as usize;
@@ -90,25 +90,22 @@ pub(crate) fn logsoftmax_dim_not_include<T, O>(
     inp_shape: &[i64],
     prg1: &mut [i64],
     prg2: &mut [i64],
-    shape_len: i64
-)
-    where
-        T: CommonBounds + FloatOutUnary<Output = O> + Cast<O>,
-        O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>
+    shape_len: i64,
+) where
+    T: CommonBounds + FloatOutUnary<Output = O> + Cast<O>,
+    O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
 {
     let buffer = unsafe {
         std::alloc::alloc(
-            std::alloc::Layout
-                ::from_size_align((inner_loop_size as usize) * T::BIT_SIZE, ALIGN)
-                .unwrap()
+            std::alloc::Layout::from_size_align((inner_loop_size as usize) * T::BIT_SIZE, ALIGN)
+                .unwrap(),
         )
     };
     let max_buffer = buffer as *mut T;
     let buffer2 = unsafe {
         std::alloc::alloc_zeroed(
-            std::alloc::Layout
-                ::from_size_align((inner_loop_size as usize) * O::BIT_SIZE, ALIGN)
-                .unwrap()
+            std::alloc::Layout::from_size_align((inner_loop_size as usize) * O::BIT_SIZE, ALIGN)
+                .unwrap(),
         )
     };
     let sum_buffer = buffer2 as *mut O;
@@ -120,12 +117,14 @@ pub(crate) fn logsoftmax_dim_not_include<T, O>(
             }
         }
         let inp_ptr_origin = inp_ptr.clone(); // save original inp_ptr'
-        // first loop to get max value
+                                              // first loop to get max value
         for _ in 0..intermediate_size {
             for i in 0..inner_loop_size as i64 {
                 let buffer_val = unsafe { max_buffer.offset(i as isize).read() };
                 unsafe {
-                    max_buffer.offset(i as isize).write(inp_ptr[i]._max(buffer_val));
+                    max_buffer
+                        .offset(i as isize)
+                        .write(inp_ptr[i]._max(buffer_val));
                 }
             }
             update_prg2(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
@@ -135,7 +134,7 @@ pub(crate) fn logsoftmax_dim_not_include<T, O>(
         });
         inp_ptr = inp_ptr_origin.clone(); // reset inp_ptr
         let res_ptr_origin = res_ptr.clone(); // save original res_ptr
-        // second loop to get exp value
+                                              // second loop to get exp value
         for _ in 0..intermediate_size {
             for i in 0..inner_loop_size as i64 {
                 let max = unsafe { max_buffer.offset(i as isize).read() };
@@ -143,7 +142,9 @@ pub(crate) fn logsoftmax_dim_not_include<T, O>(
                 res_ptr[i] = val.cast();
                 unsafe {
                     let buffer_val = sum_buffer.offset(i as isize).read();
-                    sum_buffer.offset(i as isize).write(val._exp()._add(buffer_val));
+                    sum_buffer
+                        .offset(i as isize)
+                        .write(val._exp()._add(buffer_val));
                 }
             }
             update_prg2_softmax(
@@ -153,7 +154,7 @@ pub(crate) fn logsoftmax_dim_not_include<T, O>(
                 &mut res_ptr,
                 inp_strides,
                 res_strides,
-                inp_shape
+                inp_shape,
             );
         }
         prg1.iter_mut().for_each(|x| {
@@ -162,12 +163,9 @@ pub(crate) fn logsoftmax_dim_not_include<T, O>(
 
         for i in 0..inner_loop_size as i64 {
             unsafe {
-                sum_buffer.offset(i as isize).write(
-                    sum_buffer
-                        .offset(i as isize)
-                        .read()
-                        ._ln()
-                );
+                sum_buffer
+                    .offset(i as isize)
+                    .write(sum_buffer.offset(i as isize).read()._ln());
             }
         }
 
@@ -188,7 +186,7 @@ pub(crate) fn logsoftmax_dim_not_include<T, O>(
             &mut res_ptr,
             inp_strides,
             res_strides,
-            inp_shape
+            inp_shape,
         );
         prg1.iter_mut().for_each(|x| {
             *x = 0;
@@ -197,7 +195,7 @@ pub(crate) fn logsoftmax_dim_not_include<T, O>(
     unsafe {
         std::alloc::dealloc(
             buffer as *mut _,
-            std::alloc::Layout::from_size_align(inner_loop_size as usize, ALIGN).unwrap()
+            std::alloc::Layout::from_size_align(inner_loop_size as usize, ALIGN).unwrap(),
         )
     }
 }
@@ -212,13 +210,12 @@ pub(crate) fn contiguous_dim_include<T, O>(
     res_strides: &[i64],
     inp_shape: &[i64],
     prg1: &mut [i64],
-    shape_len: i64
-)
-    where
-        T: CommonBounds + FloatOutUnary<Output = O> + Cast<O>,
-        O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
-        T::Vec: FloatOutUnary<Output = O::Vec> + IntoVec<O::Vec>,
-        O::Vec: FloatOutBinary<Output = O::Vec> + FloatOutUnary<Output = O::Vec>
+    shape_len: i64,
+) where
+    T: CommonBounds + FloatOutUnary<Output = O> + Cast<O>,
+    O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
+    T::Vec: FloatOutUnary<Output = O::Vec> + IntoVec<O::Vec>,
+    O::Vec: FloatOutBinary<Output = O::Vec> + FloatOutUnary<Output = O::Vec>,
 {
     let remain = (inner_loop_size as usize) % T::Vec::SIZE;
     if T::Vec::SIZE == O::Vec::SIZE {
@@ -233,13 +230,17 @@ pub(crate) fn contiguous_dim_include<T, O>(
                 T::NEG_INF,
                 |x, y| x._max(y),
                 |x, y| x._max(y),
-                |x, y| x._max(y)
+                |x, y| x._max(y),
             );
             let max_vec = T::Vec::splat(max);
             let mut sum_vec = O::Vec::splat(O::ZERO);
             for i in 0..(inner_loop_size as usize) / T::Vec::SIZE {
                 let inp_vec = unsafe { inp_vecs.offset(i as isize).read_unaligned()._sub(max_vec) };
-                unsafe { res_vecs.offset(i as isize).write_unaligned(inp_vec.into_vec()) };
+                unsafe {
+                    res_vecs
+                        .offset(i as isize)
+                        .write_unaligned(inp_vec.into_vec())
+                };
                 sum_vec = sum_vec._add(inp_vec._exp());
             }
 
@@ -255,7 +256,7 @@ pub(crate) fn contiguous_dim_include<T, O>(
             for i in 0..(inner_loop_size as usize) / T::Vec::SIZE {
                 unsafe {
                     res_vecs.offset(i as isize).write_unaligned(
-                        res_vecs.offset(i as isize).read_unaligned()._sub(sum_vec)
+                        res_vecs.offset(i as isize).read_unaligned()._sub(sum_vec),
                     );
                 }
             }
@@ -269,7 +270,7 @@ pub(crate) fn contiguous_dim_include<T, O>(
                 &mut res_ptr,
                 inp_strides,
                 res_strides,
-                inp_shape
+                inp_shape,
             );
         }
     } else {
@@ -283,7 +284,7 @@ pub(crate) fn contiguous_dim_include<T, O>(
                 T::NEG_INF,
                 |x, y| x._max(y),
                 |x, y| x._max(y),
-                |x, y| x._max(y)
+                |x, y| x._max(y),
             );
 
             let mut sum = O::ZERO;
@@ -298,7 +299,7 @@ pub(crate) fn contiguous_dim_include<T, O>(
             for i in 0..(inner_loop_size as usize) / T::Vec::SIZE {
                 unsafe {
                     res_vecs.offset(i as isize).write_unaligned(
-                        res_vecs.offset(i as isize).read_unaligned()._sub(sum_vec)
+                        res_vecs.offset(i as isize).read_unaligned()._sub(sum_vec),
                     );
                 }
             }
@@ -312,7 +313,7 @@ pub(crate) fn contiguous_dim_include<T, O>(
                 &mut res_ptr,
                 inp_strides,
                 res_strides,
-                inp_shape
+                inp_shape,
             );
         }
     }
@@ -329,11 +330,10 @@ pub(crate) fn uncontiguous_logsoftmax_dim_include<T, O>(
     prg1: &mut [i64],
     res_strides: &[i64],
     shape_len: i64,
-    inp_last_stride: isize
-)
-    where
-        T: CommonBounds + FloatOutUnary<Output = O> + Cast<O>,
-        O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>
+    inp_last_stride: isize,
+) where
+    T: CommonBounds + FloatOutUnary<Output = O> + Cast<O>,
+    O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
 {
     for _ in 0..outer_loop_size {
         let mut max = T::NEG_INF;
@@ -358,7 +358,7 @@ pub(crate) fn uncontiguous_logsoftmax_dim_include<T, O>(
             &mut res_ptr,
             inp_strides,
             res_strides,
-            inp_shape
+            inp_shape,
         );
     }
 }
@@ -377,25 +377,22 @@ pub(crate) fn uncontiguous_logsoftmax_dim_not_include<T, O>(
     res_strides: &[i64],
     shape_len: i64,
     inp_last_stride: isize,
-    res_last_strides: isize
-)
-    where
-        T: CommonBounds + FloatOutUnary<Output = O> + Cast<O>,
-        O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>
+    res_last_strides: isize,
+) where
+    T: CommonBounds + FloatOutUnary<Output = O> + Cast<O>,
+    O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
 {
     let buffer = unsafe {
         std::alloc::alloc(
-            std::alloc::Layout
-                ::from_size_align((inner_loop_size as usize) * T::BIT_SIZE, ALIGN)
-                .unwrap()
+            std::alloc::Layout::from_size_align((inner_loop_size as usize) * T::BIT_SIZE, ALIGN)
+                .unwrap(),
         )
     };
     let max_buffer = buffer as *mut T;
     let buffer2 = unsafe {
         std::alloc::alloc_zeroed(
-            std::alloc::Layout
-                ::from_size_align((inner_loop_size as usize) * O::BIT_SIZE, ALIGN)
-                .unwrap()
+            std::alloc::Layout::from_size_align((inner_loop_size as usize) * O::BIT_SIZE, ALIGN)
+                .unwrap(),
         )
     };
     let sum_buffer = buffer2 as *mut O;
@@ -407,7 +404,7 @@ pub(crate) fn uncontiguous_logsoftmax_dim_not_include<T, O>(
             }
         }
         let inp_ptr_origin = inp_ptr.clone(); // save original inp_ptr'
-        // first loop to get max value
+                                              // first loop to get max value
         for _ in 0..intermediate_size {
             for i in 0..inner_loop_size as i64 {
                 let buffer_val = unsafe { max_buffer.offset(i as isize).read() };
@@ -424,7 +421,7 @@ pub(crate) fn uncontiguous_logsoftmax_dim_not_include<T, O>(
         });
         inp_ptr = inp_ptr_origin.clone(); // reset inp_ptr
         let res_ptr_origin = res_ptr.clone(); // save original res_ptr
-        // second loop to get exp value
+                                              // second loop to get exp value
         for _ in 0..intermediate_size {
             for i in 0..inner_loop_size as i64 {
                 let max = unsafe { max_buffer.offset(i as isize).read() };
@@ -432,7 +429,9 @@ pub(crate) fn uncontiguous_logsoftmax_dim_not_include<T, O>(
                 res_ptr[i * (res_last_strides as i64)] = val.cast();
                 unsafe {
                     let buffer_val = sum_buffer.offset(i as isize).read();
-                    sum_buffer.offset(i as isize).write(val._exp()._add(buffer_val));
+                    sum_buffer
+                        .offset(i as isize)
+                        .write(val._exp()._add(buffer_val));
                 }
             }
             update_prg2_softmax(
@@ -442,7 +441,7 @@ pub(crate) fn uncontiguous_logsoftmax_dim_not_include<T, O>(
                 &mut res_ptr,
                 inp_strides,
                 res_strides,
-                inp_shape
+                inp_shape,
             );
         }
         prg1.iter_mut().for_each(|x| {
@@ -450,12 +449,9 @@ pub(crate) fn uncontiguous_logsoftmax_dim_not_include<T, O>(
         });
         for i in 0..inner_loop_size as i64 {
             unsafe {
-                sum_buffer.offset(i as isize).write(
-                    sum_buffer
-                        .offset(i as isize)
-                        .read()
-                        ._ln()
-                );
+                sum_buffer
+                    .offset(i as isize)
+                    .write(sum_buffer.offset(i as isize).read()._ln());
             }
         }
 
@@ -477,7 +473,7 @@ pub(crate) fn uncontiguous_logsoftmax_dim_not_include<T, O>(
             &mut res_ptr,
             inp_strides,
             res_strides,
-            inp_shape
+            inp_shape,
         );
         prg1.iter_mut().for_each(|x| {
             *x = 0;
@@ -486,7 +482,7 @@ pub(crate) fn uncontiguous_logsoftmax_dim_not_include<T, O>(
     unsafe {
         std::alloc::dealloc(
             buffer as *mut _,
-            std::alloc::Layout::from_size_align(inner_loop_size as usize, ALIGN).unwrap()
+            std::alloc::Layout::from_size_align(inner_loop_size as usize, ALIGN).unwrap(),
         )
     }
 }

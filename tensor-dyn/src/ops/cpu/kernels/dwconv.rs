@@ -6,7 +6,7 @@ use tensor_macros::{
 };
 use tensor_traits::CommonBounds;
 use tensor_types::traits::*;
-use tensor_types::{cast::Cast, type_promote::NormalOut};
+use tensor_types::{into_scalar::Cast, type_promote::NormalOut};
 
 pub(crate) struct Params {
     pub(crate) arg1: i64,

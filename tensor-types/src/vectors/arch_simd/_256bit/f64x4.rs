@@ -373,7 +373,7 @@ impl SimdMath<f64> for f64x4 {
     fn max(self, other: Self) -> Self {
         f64x4(unsafe { xfmax(self.0, other.0) })
     }
-    
+
     #[inline(always)]
     fn hard_sigmoid(self) -> Self {
         let sixth = f64x4::splat(1.0 / 6.0);

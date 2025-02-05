@@ -1,7 +1,7 @@
+use crate::type_utils::{type_simd_is_arr, type_simd_lanes, SimdType, TypeInfo};
 use proc_macro::TokenStream;
-use crate::type_utils::{ type_simd_is_arr, type_simd_lanes, SimdType, TypeInfo };
-use quote::quote;
 use proc_macro2::Ident;
+use quote::quote;
 
 pub fn __impl_simd_convert() -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
@@ -22,8 +22,14 @@ pub fn __impl_simd_convert() -> TokenStream {
         (format!("u64x{}", type_simd_lanes("u64")), "u64"),
         (format!("isizex{}", type_simd_lanes("isize")), "isize"),
         (format!("usizex{}", type_simd_lanes("usize")), "usize"),
-        (format!("cplx32x{}", type_simd_lanes("Complex32")), "Complex32"),
-        (format!("cplx64x{}", type_simd_lanes("Complex64")), "Complex64"),
+        (
+            format!("cplx32x{}", type_simd_lanes("Complex32")),
+            "Complex32",
+        ),
+        (
+            format!("cplx64x{}", type_simd_lanes("Complex64")),
+            "Complex64",
+        ),
     ];
 
     for (_, lhs) in types.iter() {
@@ -44,38 +50,36 @@ pub fn __impl_simd_convert() -> TokenStream {
                         }
                     }
                 } else {
-                    if
-                        (lhs_dtype.dtype.is_f32() || lhs_dtype.dtype.is_f64()) &&
-                        !type_simd_is_arr(rhs) &&
-                        !type_simd_is_arr(lhs)
+                    if (lhs_dtype.dtype.is_f32() || lhs_dtype.dtype.is_f64())
+                        && !type_simd_is_arr(rhs)
+                        && !type_simd_is_arr(lhs)
                     {
                         quote! {
-                        fn #function_name(self) -> #res_simd::#res_simd {
-                            #res_simd::#res_simd(self.cast().into())
+                            fn #function_name(self) -> #res_simd::#res_simd {
+                                #res_simd::#res_simd(self.cast().into())
+                            }
                         }
-                    }
                     } else if type_simd_is_arr(rhs) || type_simd_is_arr(lhs) {
-                        
                         let unroll = (0..lhs_lanes as usize).map(|i| {
                             quote! {
-                            arr[#i] = self_arr[#i].#function_name();
-                        }
+                                arr[#i] = self_arr[#i].#function_name();
+                            }
                         });
                         let rhs_ty: Ident = Ident::new(rhs, proc_macro2::Span::call_site());
                         quote! {
-                        fn #function_name(self) -> #res_simd::#res_simd {
-                            let mut arr = [#rhs_ty::ZERO; #rhs_lanes as usize];
-                            let self_arr = self.0;
-                            #(#unroll)*
-                            unsafe { std::mem::transmute(arr) }
+                            fn #function_name(self) -> #res_simd::#res_simd {
+                                let mut arr = [#rhs_ty::ZERO; #rhs_lanes as usize];
+                                let self_arr = self.0;
+                                #(#unroll)*
+                                unsafe { std::mem::transmute(arr) }
+                            }
                         }
-                    }
                     } else {
                         quote! {
-                        fn #function_name(self) -> #res_simd::#res_simd {
-                            #res_simd::#res_simd(self.cast().into())
+                            fn #function_name(self) -> #res_simd::#res_simd {
+                                #res_simd::#res_simd(self.cast().into())
+                            }
                         }
-                    }
                     }
                 }
             } else {
@@ -88,13 +92,11 @@ pub fn __impl_simd_convert() -> TokenStream {
             funcs.extend(func_gen);
         }
         let lhs_simd: SimdType = (*lhs).into();
-        ret.extend(
-            quote! {
+        ret.extend(quote! {
             impl VecConvertor for #lhs_simd {
                 #funcs
             }
-        }
-        );
+        });
     }
 
     ret.into()

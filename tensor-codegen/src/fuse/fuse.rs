@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use petgraph::graph::NodeIndex;
 
-use super::{ build_graph::CmpNode, kernel_type::KernelType, node::Operand };
+use super::{build_graph::CmpNode, kernel_type::KernelType, node::Operand};
 #[derive(Eq, Hash, PartialEq)]
 pub(crate) struct Input {
     pub(crate) var: Operand,
@@ -61,7 +61,7 @@ impl std::fmt::Debug for FusionGroup {
 
 pub(crate) fn cmp_fuse<'ast>(
     cfg: &crate::fuse::cfg::CFG,
-    candidates: &'ast petgraph::stable_graph::StableGraph<CmpNode, ()>
+    candidates: &'ast petgraph::stable_graph::StableGraph<CmpNode, ()>,
 ) -> FusionGroup {
     let mut unfused = candidates.clone();
     let edges = candidates.edge_indices();
@@ -79,7 +79,8 @@ pub(crate) fn cmp_fuse<'ast>(
         let mut block = HashSet::new();
 
         let node = &candidates[idx];
-        let basic_block = cfg.graph
+        let basic_block = cfg
+            .graph
             .node_weight(NodeIndex::new(node.block_idx))
             .expect("node weight not found");
         block.insert(idx);
@@ -93,7 +94,7 @@ pub(crate) fn cmp_fuse<'ast>(
                             node.kernel_type,
                             &mut block,
                             &unfused,
-                            basic_block
+                            basic_block,
                         );
                     }
                 }
@@ -115,21 +116,18 @@ pub(crate) fn cmp_fuse<'ast>(
 }
 
 pub(crate) fn cmp_yield_candidate<'a>(
-    unfused_candidates: &mut petgraph::stable_graph::StableGraph<CmpNode, ()>
+    unfused_candidates: &mut petgraph::stable_graph::StableGraph<CmpNode, ()>,
 ) -> Option<NodeIndex> {
     let unary = unfused_candidates
         .node_indices()
-        .find(|x| { unfused_candidates[*x].kernel_type == KernelType::Unary });
+        .find(|x| unfused_candidates[*x].kernel_type == KernelType::Unary);
     match unary {
-        None =>
-            unfused_candidates
-                .node_indices()
-                .find(|x| {
-                    match unfused_candidates.node_weight(*x) {
-                        _ => true,
-                    }
-                })
-                .map(|x| x),
+        None => unfused_candidates
+            .node_indices()
+            .find(|x| match unfused_candidates.node_weight(*x) {
+                _ => true,
+            })
+            .map(|x| x),
         Some(node) => Some(node),
     }
 }
@@ -139,7 +137,7 @@ pub fn cmp_fuse_parents(
     next_kernel_type: KernelType,
     block: &mut HashSet<NodeIndex>,
     unfused: &petgraph::stable_graph::StableGraph<CmpNode, ()>,
-    basic_block: &crate::fuse::cfg::BasicBlock
+    basic_block: &crate::fuse::cfg::BasicBlock,
 ) {
     let node = &unfused
         .node_weight(pred)
@@ -147,7 +145,11 @@ pub fn cmp_fuse_parents(
     let fused_kernel_type = cmp_pred_kernel_fusable(next_kernel_type, node.kernel_type);
     if let Some(kernel_type) = fused_kernel_type {
         block.insert(pred);
-        if !unfused.neighbors_directed(pred, petgraph::Direction::Incoming).count() == 0 {
+        if !unfused
+            .neighbors_directed(pred, petgraph::Direction::Incoming)
+            .count()
+            == 0
+        {
             for inp in unfused.neighbors_directed(pred, petgraph::Direction::Incoming) {
                 cmp_fuse_parents(inp, kernel_type, block, unfused, basic_block);
             }
@@ -160,14 +162,17 @@ pub fn cmp_fuse_children(
     prev_kernel_type: KernelType,
     block: &mut HashSet<NodeIndex>,
     unfused: &petgraph::stable_graph::StableGraph<CmpNode, ()>,
-    basic_block: &crate::fuse::cfg::BasicBlock
+    basic_block: &crate::fuse::cfg::BasicBlock,
 ) {
     let node = &unfused
         .node_weight(succ)
         .expect(format!("node weight not found {:?}, ", succ).as_str());
     let fused_kernel_type = cmp_suc_kernel_fusable(
         prev_kernel_type,
-        unfused.node_weight(succ).expect("node weight not found").kernel_type
+        unfused
+            .node_weight(succ)
+            .expect("node weight not found")
+            .kernel_type,
     );
     if let Some(kernel_type) = fused_kernel_type {
         block.insert(succ);
@@ -186,14 +191,14 @@ pub fn cmp_fuse_children(
 
 pub fn cmp_pred_kernel_fusable(
     next_kernel_type: KernelType,
-    pred: KernelType
+    pred: KernelType,
 ) -> Option<KernelType> {
     pred.infer_pred_kernel(&next_kernel_type)
 }
 
 pub fn cmp_suc_kernel_fusable(
     kernel_type: KernelType,
-    next_kernel_type: KernelType
+    next_kernel_type: KernelType,
 ) -> Option<KernelType> {
     kernel_type.infer_suc_kernel(&next_kernel_type)
 }

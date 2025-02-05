@@ -3,7 +3,9 @@ use std::borrow::Borrow;
 use cudarc::driver::DeviceRepr;
 use tensor_common::err_handler::TensorError;
 use tensor_traits::{CommonBounds, FloatUnaryOps};
-use tensor_types::{cuda_types::scalar::Scalar, dtype::TypeCommon, cast::Cast, type_promote::FloatOutUnary};
+use tensor_types::{
+    cast::Cast, cuda_types::scalar::Scalar, dtype::TypeCommon, type_promote::FloatOutUnary,
+};
 
 use crate::{
     ops::cpu::tensor_internal::float_out_unary::FloatUnaryType, tensor::Tensor,
@@ -684,7 +686,11 @@ where
         Ok(_Tensor::celu(self.inner.as_ref(), alpha)?.into())
     }
 
-    fn celu_<U>(&self, alpha: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, TensorError>
+    fn celu_<U>(
+        &self,
+        alpha: Self::OutputMeta,
+        out: U,
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -754,7 +760,11 @@ where
         Ok(_Tensor::elu(self.inner.as_ref(), alpha)?.into())
     }
 
-    fn elu_<U>(&self, alpha: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, TensorError>
+    fn elu_<U>(
+        &self,
+        alpha: Self::OutputMeta,
+        out: U,
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -1077,11 +1087,11 @@ where
     {
         Ok(_Tensor::mish_(self.inner.as_ref(), out.borrow().inner.as_ref())?.into())
     }
-    
+
     fn cbrt(&self) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::cbrt(self.inner.as_ref())?.into())
     }
-    
+
     fn cbrt_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,

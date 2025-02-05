@@ -74,8 +74,11 @@ pub fn parse_header_compressed<M: Save>(file: &str) -> anyhow::Result<<M as Save
     Ok(ret)
 }
 
-impl<T: CommonBounds + FromBytes<Bytes = [u8; N]>, B: TensorCreator<T, Output = B> + Clone + TensorInfo<T> + Display, const N: usize> MetaLoad
-    for TensorMeta<T, B>
+impl<
+        T: CommonBounds + FromBytes<Bytes = [u8; N]>,
+        B: TensorCreator<T, Output = B> + Clone + TensorInfo<T> + Display,
+        const N: usize,
+    > MetaLoad for TensorMeta<T, B>
 {
     type Output = B;
     fn load(&self, file: &mut std::fs::File) -> std::io::Result<Self::Output> {

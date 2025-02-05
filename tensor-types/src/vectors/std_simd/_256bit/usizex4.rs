@@ -1,6 +1,18 @@
-use std::{ops::{ Deref, DerefMut }, simd::{cmp::{SimdPartialEq, SimdPartialOrd}, num::SimdUint, Simd}};
+use std::{
+    ops::{Deref, DerefMut},
+    simd::{
+        cmp::{SimdPartialEq, SimdPartialOrd},
+        num::SimdUint,
+        Simd,
+    },
+};
 
-use crate::{impl_std_simd_bit_logic, std_simd::_256bit::u64x4::u64x4, traits::{SimdCompare, SimdMath}, vectors::traits::VecTrait};
+use crate::{
+    impl_std_simd_bit_logic,
+    std_simd::_256bit::u64x4::u64x4,
+    traits::{SimdCompare, SimdMath},
+    vectors::traits::VecTrait,
+};
 
 use super::isizex4::isizex4;
 
@@ -33,7 +45,8 @@ impl VecTrait<usize> for usizex4 {
     }
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[usize]) {
-        self.as_mut_array().copy_from_slice(unsafe { std::mem::transmute(slice) });
+        self.as_mut_array()
+            .copy_from_slice(unsafe { std::mem::transmute(slice) });
     }
     #[inline(always)]
     fn sum(&self) -> usize {

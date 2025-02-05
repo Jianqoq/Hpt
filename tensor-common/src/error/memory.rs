@@ -41,5 +41,4 @@ pub enum MemoryError {
     },
 }
 
-impl MemoryError {
-}
+impl MemoryError {}

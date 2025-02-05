@@ -1,6 +1,6 @@
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::time::Duration;
-use criterion::{ black_box, criterion_group, criterion_main, BenchmarkId, Criterion };
-use tch::{ Tensor as TchTensor, Kind, Device };
+use tch::{Device, Kind, Tensor as TchTensor};
 use tensor_dyn::Tensor;
 use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
@@ -24,16 +24,33 @@ fn hamming_window_benchmark(c: &mut Criterion) {
     ];
 
     let mut group = c.benchmark_group("hamming_window Benchmarks");
-    group.warm_up_time(Duration::new(1, 0)).measurement_time(Duration::new(3, 0)).sample_size(10);
+    group
+        .warm_up_time(Duration::new(1, 0))
+        .measurement_time(Duration::new(3, 0))
+        .sample_size(10);
     for idx in 0..lens.len() {
         let lens = lens[idx];
-        group.bench_with_input(BenchmarkId::new("torch", format!("tch {}", idx)), &lens, |b, _| {
-            b.iter(|| { TchTensor::hamming_window_periodic(lens, false, (Kind::Float, Device::Cpu)) });
-        });
-        group.bench_with_input(BenchmarkId::new("hpt", format!("hpt {}", idx)), &lens, |b, _| {
-            b.iter(|| { tensor_dyn::tensor::Tensor::<f32>::hamming_window(lens, false).unwrap() });
-        });
-        let a = black_box(TchTensor::hamming_window_periodic(lens, false, (Kind::Double, Device::Cpu)));
+        group.bench_with_input(
+            BenchmarkId::new("torch", format!("tch {}", idx)),
+            &lens,
+            |b, _| {
+                b.iter(|| {
+                    TchTensor::hamming_window_periodic(lens, false, (Kind::Float, Device::Cpu))
+                });
+            },
+        );
+        group.bench_with_input(
+            BenchmarkId::new("hpt", format!("hpt {}", idx)),
+            &lens,
+            |b, _| {
+                b.iter(|| tensor_dyn::tensor::Tensor::<f32>::hamming_window(lens, false).unwrap());
+            },
+        );
+        let a = black_box(TchTensor::hamming_window_periodic(
+            lens,
+            false,
+            (Kind::Double, Device::Cpu),
+        ));
         let a2 = black_box(tensor_dyn::tensor::Tensor::<f64>::hamming_window(lens, false).unwrap());
         assert_eq(&a, &a2);
     }

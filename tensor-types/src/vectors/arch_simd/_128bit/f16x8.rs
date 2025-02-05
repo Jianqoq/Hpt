@@ -78,13 +78,13 @@ impl f16x8 {
             #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
             {
                 use std::arch::aarch64::{float32x4_t, vld1_s16};
-                
+
                 let low = vld1_s16(self.0.as_ptr() as *const _);
                 let high = vld1_s16(self.0.as_ptr().add(4) as *const _);
-                
+
                 let mut res0: float32x4_t;
                 let mut res1: float32x4_t;
-                
+
                 std::arch::asm!(
                     "fcvtl {0:v}.4s, {1:v}.4h",
                     out(vreg) res0,
@@ -95,10 +95,13 @@ impl f16x8 {
                     out(vreg) res1,
                     in(vreg) high,
                 );
-                
+
                 std::mem::transmute([res0, res1])
             }
-            #[cfg(all(not(target_feature = "f16c"), not(all(target_feature = "neon", target_arch = "aarch64"))))]
+            #[cfg(all(
+                not(target_feature = "f16c"),
+                not(all(target_feature = "neon", target_arch = "aarch64"))
+            ))]
             {
                 let mut result = [0f32; 8];
                 for i in 0..8 {
@@ -259,7 +262,10 @@ pub(crate) fn from_2_f32vec(val: [f32x4; 2]) -> f16x8 {
         let result = _mm_unpacklo_epi64(f16_high, f16_low);
         f16x8(std::mem::transmute(result))
     }
-    #[cfg(not(all(target_feature = "f16c", all(target_feature = "neon", target_arch = "aarch64"))))]
+    #[cfg(not(all(
+        target_feature = "f16c",
+        all(target_feature = "neon", target_arch = "aarch64")
+    )))]
     {
         let mut result = [half::f16::ZERO; 8];
         for i in 0..4 {

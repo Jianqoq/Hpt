@@ -1,10 +1,9 @@
-use proc_macro::TokenStream;
-use crate::TypeInfo;
-use quote::quote;
 use crate::type_utils::type_simd_lanes;
-use proc_macro2::Ident;
 use crate::TokenStream2;
-
+use crate::TypeInfo;
+use proc_macro::TokenStream;
+use proc_macro2::Ident;
+use quote::quote;
 
 pub fn impl_simd_bitwise_out() -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
@@ -31,12 +30,7 @@ pub fn impl_simd_bitwise_out() -> TokenStream {
             let lhs_lanes = type_simd_lanes(lhs);
             let rhs_lanes = type_simd_lanes(rhs);
             if lhs_lanes != rhs_lanes {
-                ret.extend(
-                    impl_unreachable(
-                        lhs_simd_ty,
-                        rhs_simd_ty
-                    )
-                );
+                ret.extend(impl_unreachable(lhs_simd_ty, rhs_simd_ty));
                 continue;
             }
             let res = if lhs_type.dtype == rhs_type.dtype {

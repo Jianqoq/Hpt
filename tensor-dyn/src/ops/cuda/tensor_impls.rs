@@ -13,7 +13,7 @@ use tensor_common::{layout::Layout, pointer::Pointer, shape::Shape};
 use tensor_traits::TensorCreator;
 use tensor_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
 use tensor_types::convertion::Convertor;
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 
 use super::cuda_utils::compute_kernel_launch_config;
 use super::unary::uary_fn_with_out_simd;
@@ -226,7 +226,9 @@ impl<T: CommonBounds, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
     // }
 
     /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
-    pub fn static_cast<Dst>(&self) -> std::result::Result<_Tensor<Dst, Cuda, DEVICE_ID>, TensorError>
+    pub fn static_cast<Dst>(
+        &self,
+    ) -> std::result::Result<_Tensor<Dst, Cuda, DEVICE_ID>, TensorError>
     where
         Dst: CommonBounds,
     {

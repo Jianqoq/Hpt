@@ -1,6 +1,13 @@
-use std::{ops::{ Deref, DerefMut }, simd::cmp::{SimdPartialEq, SimdPartialOrd}};
+use std::{
+    ops::{Deref, DerefMut},
+    simd::cmp::{SimdPartialEq, SimdPartialOrd},
+};
 
-use crate::{impl_std_simd_bit_logic, traits::{SimdCompare, SimdMath}, vectors::traits::VecTrait};
+use crate::{
+    impl_std_simd_bit_logic,
+    traits::{SimdCompare, SimdMath},
+    vectors::traits::VecTrait,
+};
 
 /// a vector of 8 i32 values
 #[allow(non_camel_case_types)]
@@ -61,31 +68,31 @@ impl SimdCompare for i32x8 {
     }
 }
 
-impl std::ops::Add  for i32x8 {
+impl std::ops::Add for i32x8 {
     type Output = i32x8;
     fn add(self, rhs: Self) -> Self::Output {
         i32x8(self.0 + rhs.0)
     }
 }
-impl std::ops::Sub  for i32x8 {
+impl std::ops::Sub for i32x8 {
     type Output = i32x8;
     fn sub(self, rhs: Self) -> Self::Output {
         i32x8(self.0 - rhs.0)
     }
 }
-impl std::ops::Mul  for i32x8 {
+impl std::ops::Mul for i32x8 {
     type Output = i32x8;
     fn mul(self, rhs: Self) -> Self::Output {
         i32x8(self.0 * rhs.0)
     }
 }
-impl std::ops::Div  for i32x8 {
+impl std::ops::Div for i32x8 {
     type Output = i32x8;
     fn div(self, rhs: Self) -> Self::Output {
         i32x8(self.0 / rhs.0)
     }
 }
-impl std::ops::Rem  for i32x8 {
+impl std::ops::Rem for i32x8 {
     type Output = i32x8;
     fn rem(self, rhs: Self) -> Self::Output {
         i32x8(self.0 % rhs.0)

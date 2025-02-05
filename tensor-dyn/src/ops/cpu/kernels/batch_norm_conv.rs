@@ -9,7 +9,7 @@ use tensor_traits::CommonBounds;
 use tensor_types::traits::*;
 use tensor_types::type_promote::FloatOutBinary;
 use tensor_types::type_promote::FloatOutUnary;
-use tensor_types::{cast::Cast, type_promote::NormalOut};
+use tensor_types::{into_scalar::Cast, type_promote::NormalOut};
 
 pub(crate) struct Params {
     pub(crate) arg1: [i64; 2],
@@ -1357,20 +1357,19 @@ pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds>(
     [kh, kw]: [i64; 2],
     oc: &mut usize, // output channels block size
     kb: &mut usize, // outwidth block size
-) -> 
-    fn(
-        Params,
-        &mut Pointer<T>,
-        &mut Pointer<T>,
-        &Pointer<T>,
-        Option<Pointer<T>>,
-        &Pointer<T>,
-        &Pointer<T>,
-        &Pointer<T>,
-        &Pointer<T>,
-        T,
-        fn(T::Vec) -> T::Vec,
-    )
+) -> fn(
+    Params,
+    &mut Pointer<T>,
+    &mut Pointer<T>,
+    &Pointer<T>,
+    Option<Pointer<T>>,
+    &Pointer<T>,
+    &Pointer<T>,
+    &Pointer<T>,
+    &Pointer<T>,
+    T,
+    fn(T::Vec) -> T::Vec,
+)
 where
     bool: Cast<T>,
     T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
@@ -1490,20 +1489,19 @@ where
 pub(crate) fn bn_remain_oc_kernel_dispatch<T: CommonBounds>(
     [kh, kw]: [i64; 2],
     kb: &mut usize, // outwidth block size
-) -> 
-    fn(
-        PartialParams,
-        &mut Pointer<T>,
-        &mut Pointer<T>,
-        &Pointer<T>,
-        Option<Pointer<T>>,
-        &Pointer<T>,
-        &Pointer<T>,
-        &Pointer<T>,
-        &Pointer<T>,
-        T,
-        fn(T::Vec) -> T::Vec,
-    )
+) -> fn(
+    PartialParams,
+    &mut Pointer<T>,
+    &mut Pointer<T>,
+    &Pointer<T>,
+    Option<Pointer<T>>,
+    &Pointer<T>,
+    &Pointer<T>,
+    &Pointer<T>,
+    &Pointer<T>,
+    T,
+    fn(T::Vec) -> T::Vec,
+)
 where
     bool: Cast<T>,
     T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,

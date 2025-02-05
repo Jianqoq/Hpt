@@ -1,6 +1,6 @@
-use std::ops::{ Deref, DerefMut };
+use std::ops::{Deref, DerefMut};
 
-use crate::vectors::traits::{ Init, VecCommon, VecTrait };
+use crate::vectors::traits::{Init, VecCommon, VecTrait};
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -49,7 +49,7 @@ impl VecTrait<u32> for u32x16 {
 }
 impl VecCommon for u32x16 {
     const SIZE: usize = 8;
-    
+
     type Base = u32;
 }
 impl Init<u32> for u32x16 {

@@ -1,7 +1,6 @@
-
 pub(crate) const M_1_PI: f64 = 0.318309886183790671537767526745028724;
 // Floating point limits
-pub(crate) const SLEEF_FLT_MIN: f32 = 1.0e-126_f32; 
+pub(crate) const SLEEF_FLT_MIN: f32 = 1.0e-126_f32;
 pub(crate) const LOG10_2: f64 = 3.3219280948873623478703194294893901758648313930;
 
 // Single precision base-10 logarithm constants
@@ -51,7 +50,8 @@ pub(crate) const L2_UF: f32 = 0.693145751953125;
 pub(crate) const L2_LF: f32 = 1.428606765330187045e-06;
 
 // Reciprocal of natural logarithm (single precision)
-pub(crate) const R_LN2_F: f32 = 1.442695040888963407359924681001892137426645954152985934135449406931;
+pub(crate) const R_LN2_F: f32 =
+    1.442695040888963407359924681001892137426645954152985934135449406931;
 
 /// log1p(f)(x) approximation holds up to these values
-pub(crate) const LOG1PF_BOUND: f32 = 1.0e+38;  
+pub(crate) const LOG1PF_BOUND: f32 = 1.0e+38;

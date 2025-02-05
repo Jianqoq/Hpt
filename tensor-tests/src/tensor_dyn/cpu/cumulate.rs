@@ -5,12 +5,12 @@ use std::i64;
 use duplicate::duplicate_item;
 use rand::Rng;
 use tensor_common::slice;
-use tensor_dyn::{ RandomInt, Tensor, TensorCreator };
-use tensor_dyn::ShapeManipulate;
-use tensor_dyn::TensorLike;
-use tensor_dyn::TensorInfo;
-use tensor_macros::match_selection;
 use tensor_common::slice::Slice;
+use tensor_dyn::ShapeManipulate;
+use tensor_dyn::TensorInfo;
+use tensor_dyn::TensorLike;
+use tensor_dyn::{RandomInt, Tensor, TensorCreator};
+use tensor_macros::match_selection;
 
 #[allow(unused)]
 fn assert_eq(b: &Tensor<i64>, a: &tch::Tensor) {
@@ -45,10 +45,12 @@ fn func() -> anyhow::Result<()> {
         for _ in 0..len {
             shape.push(rng.gen_range(1..10));
         }
-        let tch_a = tch::Tensor::randint_low(i64::MIN, i64::MAX, &shape, (
-            tch::Kind::Int64,
-            tch::Device::Cpu,
-        ));
+        let tch_a = tch::Tensor::randint_low(
+            i64::MIN,
+            i64::MAX,
+            &shape,
+            (tch::Kind::Int64, tch::Device::Cpu),
+        );
         let mut a = Tensor::<i64>::empty(shape)?;
         a.as_raw_mut().copy_from_slice(unsafe {
             std::slice::from_raw_parts(tch_a.data_ptr() as *mut i64, tch_a.numel())

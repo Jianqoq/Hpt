@@ -19,7 +19,7 @@ use tensor_traits::tensor::{CommonBounds, TensorInfo};
 use tensor_traits::NormalUaryOps;
 use tensor_traits::TensorLike;
 use tensor_types::dtype::TypeCommon;
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 use tensor_types::type_promote::{
     BitWiseOut, FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary,
 };

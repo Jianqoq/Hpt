@@ -1,6 +1,7 @@
 use crate::{
     convertion::VecConvertor,
-    traits::{SimdCompare, SimdMath, VecTrait}, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    traits::{SimdCompare, SimdMath, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -262,15 +263,11 @@ impl std::ops::Shr for u8x32 {
 impl SimdMath<u8> for u8x32 {
     #[inline(always)]
     fn max(self, other: Self) -> Self {
-        unsafe {
-            u8x32(_mm256_max_epu8(self.0, other.0))
-        }
+        unsafe { u8x32(_mm256_max_epu8(self.0, other.0)) }
     }
     #[inline(always)]
     fn min(self, other: Self) -> Self {
-        unsafe {
-            u8x32(_mm256_min_epu8(self.0, other.0))
-        }
+        unsafe { u8x32(_mm256_min_epu8(self.0, other.0)) }
     }
     #[inline(always)]
     fn relu(self) -> Self {

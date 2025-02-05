@@ -6,7 +6,7 @@ use std::{
 
 use tensor_common::error::base::TensorError;
 use tensor_traits::{CommonBounds, Matmul, ShapeManipulate};
-use tensor_types::{cast::Cast, type_promote::NormalOut};
+use tensor_types::{into_scalar::Cast, type_promote::NormalOut};
 
 use crate::{
     ops::cpu::{tensor_internal::matmul::matmul_with_out, utils::diff::diff_utils::handle_grad},
@@ -87,9 +87,8 @@ where
         + NormalOut<B>
         + Cast<<<A as NormalOut<B>>::Output as NormalOut<B>>::Output>
         + Cast<<A as NormalOut<<A as NormalOut<B>>::Output>>::Output>,
-    <<A as NormalOut<B>>::Output as NormalOut<B>>::Output: CommonBounds
-        + Cast<<A as NormalOut<<A as NormalOut<B>>::Output>>::Output>
-        + Cast<A>,
+    <<A as NormalOut<B>>::Output as NormalOut<B>>::Output:
+        CommonBounds + Cast<<A as NormalOut<<A as NormalOut<B>>::Output>>::Output> + Cast<A>,
     <A as NormalOut<<A as NormalOut<B>>::Output>>::Output: CommonBounds + Cast<B>,
 {
     type Output = DiffTensor<<A as NormalOut<B>>::Output>;

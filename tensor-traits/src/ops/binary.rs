@@ -124,5 +124,9 @@ pub trait TensorDot<RHS = Self> {
     type Output;
 
     /// Computes the tensor dot product of two tensors.
-    fn tensordot<const N: usize>(&self, rhs: &RHS, axes: ([i64; N], [i64; N])) -> std::result::Result<Self::Output, TensorError>;
+    fn tensordot<const N: usize>(
+        &self,
+        rhs: &RHS,
+        axes: ([i64; N], [i64; N]),
+    ) -> std::result::Result<Self::Output, TensorError>;
 }

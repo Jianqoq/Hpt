@@ -6,7 +6,7 @@ use tensor_dyn::ShapeManipulate;
 use tensor_dyn::TensorLike;
 use tensor_dyn::{set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo};
 use tensor_dyn::{Tensor, TensorCreator};
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 use tensor_types::type_promote::NormalOut;
 use tensor_types::type_promote::NormalOutUnary;
 
@@ -16,8 +16,7 @@ type Type = f64;
 
 fn common_input(
     [in_channel, out_channel, kernel_height, kernel_width, height, width]: [i64; 6],
-) -> anyhow::Result<(Tensor<Type>, Tensor<Type>, tch::Tensor, tch::Tensor)>
-{
+) -> anyhow::Result<(Tensor<Type>, Tensor<Type>, tch::Tensor, tch::Tensor)> {
     let batch = 1;
     let tch_kernel = tch::Tensor::randn(
         [out_channel, in_channel, kernel_height, kernel_width],
@@ -34,8 +33,9 @@ fn common_input(
     });
     let mut a = Tensor::<Type>::empty([batch, in_channel, height, width])?;
     let size = a.size();
-    a.as_raw_mut()
-        .copy_from_slice(unsafe { std::slice::from_raw_parts(tch_a.data_ptr() as *const Type, size) });
+    a.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_a.data_ptr() as *const Type, size)
+    });
     Ok((
         kernel.permute([2, 3, 1, 0])?.contiguous()?,
         a.permute([0, 2, 3, 1])?.contiguous()?,
@@ -193,14 +193,8 @@ fn test() -> anyhow::Result<()> {
         let out_channel = rng.gen_range(1..=16);
         let height = rng.gen_range(10..=32);
         let width = rng.gen_range(10..=32);
-        let (kernel, a, tch_kernel, tch_a) = common_input([
-            in_channel,
-            out_channel,
-            1,
-            1,
-            height,
-            width,
-        ])?;
+        let (kernel, a, tch_kernel, tch_a) =
+            common_input([in_channel, out_channel, 1, 1, height, width])?;
         assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
         assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
         assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;

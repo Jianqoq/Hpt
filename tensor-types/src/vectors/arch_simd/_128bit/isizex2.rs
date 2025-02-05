@@ -1,8 +1,8 @@
-
 use crate::{
     arch_simd::_128bit::i64x2::i64x2,
     convertion::VecConvertor,
-    traits::{SimdCompare, SimdMath, VecTrait}, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    traits::{SimdCompare, SimdMath, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
 
 use super::usizex2::usizex2;

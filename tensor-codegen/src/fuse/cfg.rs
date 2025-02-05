@@ -768,7 +768,7 @@ impl CFG {
                 } else {
                     body.extend(quote::quote!(fn));
                 }
-            },
+            }
         }
         body
     }

@@ -44,7 +44,7 @@ impl<const N: usize> From<TensorDotArgs<N>> for [Vec<i64>; 2] {
                 let b: Vec<i64> = (0..i).collect();
                 [a, b]
             }
-            TensorDotArgs::<N>::TupleScalar((i, j)) => { [vec![i], vec![j]] }
+            TensorDotArgs::<N>::TupleScalar((i, j)) => [vec![i], vec![j]],
             TensorDotArgs::<N>::TupleArray((i, j)) => [i.to_vec(), j.to_vec()],
             TensorDotArgs::<N>::ArrayArray(i) => [i[0].to_vec(), i[1].to_vec()],
         }

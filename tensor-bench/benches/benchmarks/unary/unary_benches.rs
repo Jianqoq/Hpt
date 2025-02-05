@@ -1,13 +1,13 @@
-use std::time::Duration;
-use tensor_dyn::TensorCreator;
-use criterion::{ black_box, criterion_group, BenchmarkId, Criterion };
-use tch::{ Tensor as TchTensor, Kind, Device };
-use tensor_dyn::{ Tensor, Random };
-use tensor_dyn::TensorInfo;
 use crate::benchmarks::unary::float_cmp::assert_eq;
+use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
+use std::time::Duration;
+use tch::{Device, Kind, Tensor as TchTensor};
 use tensor_dyn::FloatUnaryOps;
 use tensor_dyn::NormalUaryOps;
+use tensor_dyn::TensorCreator;
+use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
+use tensor_dyn::{Random, Tensor};
 
 macro_rules! unary_bench_mark {
     (
@@ -22,7 +22,7 @@ macro_rules! unary_bench_mark {
                 tensor_dyn::set_num_threads(num_cpus::get_physical());
                 tch::set_num_threads(num_cpus::get_physical() as i32);
                 let shapes = $shapes;
-            
+
                 let mut group = c.benchmark_group(concat!($name, " Benchmarks"));
                 group.warm_up_time(Duration::new(1, 0)).measurement_time(Duration::new(3, 0)).sample_size(10);
                 for idx in 0..shapes.len() {
@@ -52,7 +52,7 @@ macro_rules! unary_bench_mark {
                     let a2_sin = a2.$hpt_method($($hpt_args),*).unwrap();
                     assert_eq(&a_sin, &a2_sin);
                 }
-            
+
                 group.finish();
             }
             #[cfg(any(feature = $name, feature = "unary"))]

@@ -82,7 +82,11 @@ impl f64x8 {
     pub fn is_infinite(&self) -> f64x8 {
         unsafe {
             let abs = _mm256_andnot_pd(_mm256_set1_pd(-0.0), self.0);
-            f64x8(_mm256_cmp_pd(abs, _mm256_set1_pd(f64::INFINITY), _CMP_EQ_OQ))
+            f64x8(_mm256_cmp_pd(
+                abs,
+                _mm256_set1_pd(f64::INFINITY),
+                _CMP_EQ_OQ,
+            ))
         }
     }
     /// reciprocal of the vector
@@ -417,29 +421,29 @@ impl VecConvertor for f64x8 {
 //         if (c2 == 0. || c2.is_subnormal()) && (d == 0. || d.is_subnormal()) {
 //             return 0.;
 //         }
-    
+
 //         if (c2 == 0.) && (d != 0.) {
 //             return 10000.;
 //         }
-    
+
 //         if c2.is_infinite() && d.is_infinite() {
 //             return 0.;
 //         }
-    
+
 //         let prec = c.prec();
-    
+
 //         let mut fry = Float::with_val(prec, d);
-    
+
 //         let mut frw = Float::new(prec);
-    
+
 //         let (_, e) = c.to_f64_exp();
-    
+
 //         frw.assign(Float::u_exp(1, e - 53_i32));
-    
+
 //         fry -= c;
 //         fry /= &frw;
 //         let u = sleef::Sleef::abs(fry.to_f64());
-    
+
 //         u
 //     }
 //     fn f32_gen_input(

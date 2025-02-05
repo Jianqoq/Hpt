@@ -21,5 +21,5 @@ pub enum KernelError {
         message: String,
         /// Location where the error occurred
         location: &'static Location<'static>,
-    }
+    },
 }

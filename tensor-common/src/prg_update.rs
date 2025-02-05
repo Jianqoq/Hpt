@@ -7,7 +7,7 @@ pub fn next<const N: usize, T>(
     main_shape: &[i64],
     mut ptrs: [&mut Pointer<T>; N],
     shapes: [&[i64]; N],
-    strides: [&[i64]; N]
+    strides: [&[i64]; N],
 ) {
     let dim = shapes[0].len();
     for j in (0..dim - 1).rev() {
@@ -34,7 +34,7 @@ pub fn next_sub1<const N: usize, T>(
     main_shape: &[i64],
     mut ptrs: [&mut Pointer<T>; N],
     shapes: [&[i64]; N],
-    strides: [&[i64]; N]
+    strides: [&[i64]; N],
 ) {
     let dim = shapes[0].len();
     for j in (0..dim - 1).rev() {

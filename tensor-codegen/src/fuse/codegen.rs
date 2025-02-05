@@ -133,4 +133,3 @@ pub(crate) fn stmt(node: &crate::fuse::cfg::BasicBlock) -> TokenStream2 {
     }
     body
 }
-

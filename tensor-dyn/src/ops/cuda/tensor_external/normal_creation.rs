@@ -3,8 +3,8 @@ use cudarc::driver::DeviceRepr;
 use tensor_common::{err_handler::TensorError, shape::Shape};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 use tensor_types::{
-    convertion::{Convertor, FromScalar},
     cast::Cast,
+    convertion::{Convertor, FromScalar},
     type_promote::NormalOut,
 };
 
@@ -74,7 +74,12 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::eye(n, m, k)?.into())
     }
 
-    fn linspace<U>(start: U, end: U, num: usize, include_end: bool) -> std::result::Result<Self::Output, TensorError>
+    fn linspace<U>(
+        start: U,
+        end: U,
+        num: usize,
+        include_end: bool,
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         T: Convertor,
         U: Convertor + Cast<T> + Copy,
@@ -84,14 +89,25 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::linspace(start, end, num, include_end)?.into())
     }
 
-    fn logspace(start: T, end: T, num: usize, include_end: bool, base: T) -> std::result::Result<Self::Output, TensorError>
+    fn logspace(
+        start: T,
+        end: T,
+        num: usize,
+        include_end: bool,
+        base: T,
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64>,
     {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::logspace(start, end, num, include_end, base)?.into())
     }
 
-    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> std::result::Result<Self::Output, TensorError>
+    fn geomspace(
+        start: T,
+        end: T,
+        n: usize,
+        include_end: bool,
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         f64: Cast<T>,
         usize: Cast<T>,
@@ -99,7 +115,12 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::geomspace(start, end, n, include_end)?.into())
     }
 
-    fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> std::result::Result<Self::Output, TensorError>
+    fn tri(
+        n: usize,
+        m: usize,
+        k: i64,
+        low_triangle: bool,
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         u8: Cast<T>,
     {

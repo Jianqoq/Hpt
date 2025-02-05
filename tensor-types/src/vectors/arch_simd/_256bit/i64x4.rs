@@ -1,6 +1,7 @@
 use crate::{
     convertion::VecConvertor,
-    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait}, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
 
 #[cfg(target_arch = "x86_64")]
@@ -93,7 +94,7 @@ impl SimdCompare for i64x4 {
     }
     #[inline(always)]
     fn simd_ne(self, other: Self) -> i64x4 {
-        unsafe { 
+        unsafe {
             let eq = _mm256_cmpeq_epi64(self.0, other.0);
             i64x4(_mm256_xor_si256(eq, _mm256_set1_epi64x(-1)))
         }
@@ -128,7 +129,7 @@ impl SimdCompare for i64x4 {
     }
     #[inline(always)]
     fn simd_ge(self, other: Self) -> i64x4 {
-        unsafe { 
+        unsafe {
             let gt = _mm256_cmpgt_epi64(self.0, other.0);
             let eq = _mm256_cmpeq_epi64(self.0, other.0);
             i64x4(_mm256_or_si256(gt, eq))
@@ -207,9 +208,7 @@ impl std::ops::Neg for i64x4 {
     type Output = i64x4;
     #[inline(always)]
     fn neg(self) -> Self::Output {
-        unsafe {
-            i64x4(_mm256_sub_epi64(_mm256_setzero_si256(), self.0))
-        }
+        unsafe { i64x4(_mm256_sub_epi64(_mm256_setzero_si256(), self.0)) }
     }
 }
 
@@ -304,7 +303,7 @@ impl SimdMath<i64> for i64x4 {
     fn relu6(self) -> Self {
         self.min(Self::splat(6)).max(Self::splat(0))
     }
-        #[inline(always)]
+    #[inline(always)]
     fn trunc(self) -> Self {
         self
     }

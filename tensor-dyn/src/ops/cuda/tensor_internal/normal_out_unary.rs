@@ -4,8 +4,8 @@ use crate::{
     Cuda,
 };
 use cudarc::driver::DeviceRepr;
-use tensor_common::err_handler::TensorError;
 use std::borrow::Borrow;
+use tensor_common::err_handler::TensorError;
 use tensor_traits::{CommonBounds, NormalUaryOps, TensorLike};
 use tensor_types::cuda_types::scalar::Scalar;
 use tensor_types::type_promote::{NormalOut, NormalOutUnary};
@@ -129,7 +129,11 @@ where
             Some(out),
         )
     }
-    fn clamp(&self, min: NormalType<T>, max: NormalType<T>) -> std::result::Result<Self::Output, TensorError> {
+    fn clamp(
+        &self,
+        min: NormalType<T>,
+        max: NormalType<T>,
+    ) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("clamp", self),
@@ -141,7 +145,12 @@ where
             None::<Self::Output>,
         )
     }
-    fn clamp_<U>(&self, min: NormalType<T>, max: NormalType<T>, out: U) -> std::result::Result<Self::Output, TensorError>
+    fn clamp_<U>(
+        &self,
+        min: NormalType<T>,
+        max: NormalType<T>,
+        out: U,
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {
@@ -218,7 +227,10 @@ where
         )
     }
 
-    fn leaky_relu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
+    fn leaky_relu(
+        &self,
+        alpha: Self::OutputMeta,
+    ) -> std::result::Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("leaky_relu", self),
@@ -230,7 +242,11 @@ where
         )
     }
 
-    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> std::result::Result<Self::Output, TensorError>
+    fn leaky_relu_<U>(
+        &self,
+        alpha: Self::OutputMeta,
+        out: U,
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>,
     {

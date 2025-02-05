@@ -11,7 +11,12 @@ pub(crate) struct PhiFunction {
 impl PhiFunction {
     pub(crate) fn new(name: syn::Ident, args: Vec<syn::Ident>, preds: Vec<NodeIndex>) -> Self {
         let origin_var = name.clone();
-        Self { name, args, origin_var, preds }
+        Self {
+            name,
+            args,
+            origin_var,
+            preds,
+        }
     }
 }
 

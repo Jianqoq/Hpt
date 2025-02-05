@@ -1,9 +1,12 @@
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use tensor_common::{error::{base::TensorError, shape::ShapeError}, shape::shape::Shape};
+use tensor_common::{
+    error::{base::TensorError, shape::ShapeError},
+    shape::shape::Shape,
+};
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 
 use crate::{tensor_base::_Tensor, REGNUM};
-use tensor_types::{cast::Cast, traits::VecTrait};
+use tensor_types::{into_scalar::Cast, traits::VecTrait};
 
 #[cfg_attr(feature = "track_caller", track_caller)]
 pub(crate) fn pooling_template<T: CommonBounds>(
@@ -34,16 +37,15 @@ pub(crate) fn pooling_template<T: CommonBounds>(
     let out_width = (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
     let img = img.clone();
     if out_height <= 0 || out_width <= 0 {
-        return Err(
-            (ShapeError::ConvError {
-                message: if out_height <= 0 {
-                    "output height <= 0".to_string()
-                } else {
-                    "output width <= 0".to_string()
-                },
-                location: core::panic::Location::caller(),
-            }).into()
-        );
+        return Err((ShapeError::ConvError {
+            message: if out_height <= 0 {
+                "output height <= 0".to_string()
+            } else {
+                "output width <= 0".to_string()
+            },
+            location: core::panic::Location::caller(),
+        })
+        .into());
     }
     let output = _Tensor::<T>::empty([batch, out_height, out_width, in_channels])?;
     let out = output.ptr();
@@ -70,27 +72,24 @@ pub(crate) fn pooling_template<T: CommonBounds>(
         for ii in (0..in_channels - in_channel_remain).step_by(IC_BLOCK_SIZE * T::Vec::SIZE) {
             let mut res_vecs = [T::Vec::splat(T::ZERO); IC_BLOCK_SIZE];
             for kh in 0..kernel_height {
-                if
-                    h * step_height + kh * dh < ph_start ||
-                    h * step_height + kh * dh - ph_start >= img_height
+                if h * step_height + kh * dh < ph_start
+                    || h * step_height + kh * dh - ph_start >= img_height
                 {
                     continue;
                 }
                 for kw in 0..kernel_width {
-                    if
-                        w * step_width + kw * dw < pw_start ||
-                        w * step_width + kw * dw - pw_start >= img_width
+                    if w * step_width + kw * dw < pw_start
+                        || w * step_width + kw * dw - pw_start >= img_width
                     {
                         continue;
                     }
                     let mut inp_vecs = [T::Vec::splat(T::ZERO); IC_BLOCK_SIZE];
                     for (idx, vec) in inp_vecs.iter_mut().enumerate() {
                         let i = ii + ((idx * T::Vec::SIZE) as i64);
-                        let inp_idx =
-                            b * isb +
-                            (h * step_height + kh * dh - ph_start) * ish +
-                            (w * step_width + kw * dw - pw_start) * isw +
-                            i;
+                        let inp_idx = b * isb
+                            + (h * step_height + kh * dh - ph_start) * ish
+                            + (w * step_width + kw * dw - pw_start) * isw
+                            + i;
                         *vec = unsafe { T::Vec::from_ptr(&inp[inp_idx]) };
                     }
                     for idx in 0..IC_BLOCK_SIZE {
@@ -112,25 +111,22 @@ pub(crate) fn pooling_template<T: CommonBounds>(
         for ii in (in_channels - in_channel_remain..in_channels - remain).step_by(T::Vec::SIZE) {
             let mut res_vecs = T::Vec::splat(T::ZERO);
             for kh in 0..kernel_height {
-                if
-                    h * step_height + kh * dh < ph_start ||
-                    h * step_height + kh * dh - ph_start >= img_height
+                if h * step_height + kh * dh < ph_start
+                    || h * step_height + kh * dh - ph_start >= img_height
                 {
                     continue;
                 }
                 for kw in 0..kernel_width {
-                    if
-                        w * step_width + kw * dw < pw_start ||
-                        w * step_width + kw * dw - pw_start >= img_width
+                    if w * step_width + kw * dw < pw_start
+                        || w * step_width + kw * dw - pw_start >= img_width
                     {
                         continue;
                     }
                     let i = ii;
-                    let inp_idx =
-                        b * isb +
-                        (h * step_height + kh * dh - ph_start) * ish +
-                        (w * step_width + kw * dw - pw_start) * isw +
-                        i;
+                    let inp_idx = b * isb
+                        + (h * step_height + kh * dh - ph_start) * ish
+                        + (w * step_width + kw * dw - pw_start) * isw
+                        + i;
                     let inp_vec = unsafe { T::Vec::from_ptr(&inp[inp_idx]) };
 
                     res_vecs = vec_op(res_vecs, inp_vec);
@@ -147,25 +143,22 @@ pub(crate) fn pooling_template<T: CommonBounds>(
         for ii in in_channels - remain..in_channels {
             let mut res = T::ZERO;
             for kh in 0..kernel_height {
-                if
-                    h * step_height + kh * dh < ph_start ||
-                    h * step_height + kh * dh - ph_start >= img_height
+                if h * step_height + kh * dh < ph_start
+                    || h * step_height + kh * dh - ph_start >= img_height
                 {
                     continue;
                 }
                 for kw in 0..kernel_width {
-                    if
-                        w * step_width + kw * dw < pw_start ||
-                        w * step_width + kw * dw - pw_start >= img_width
+                    if w * step_width + kw * dw < pw_start
+                        || w * step_width + kw * dw - pw_start >= img_width
                     {
                         continue;
                     }
                     let i = ii;
-                    let inp_idx =
-                        b * isb +
-                        (h * step_height + kh * dh - ph_start) * ish +
-                        (w * step_width + kw * dw - pw_start) * isw +
-                        i;
+                    let inp_idx = b * isb
+                        + (h * step_height + kh * dh - ph_start) * ish
+                        + (w * step_width + kw * dw - pw_start) * isw
+                        + i;
 
                     res = scalar_op(res, inp[inp_idx]);
                 }
@@ -190,7 +183,10 @@ pub(crate) fn adaptive_pooling_template<T: CommonBounds>(
     vec_op: impl Fn(T::Vec, T::Vec) -> T::Vec + Send + Sync,
     post_scalar_op: impl Fn(T, T) -> T + Send + Sync,
     post_vec_op: impl Fn(T::Vec, T::Vec) -> T::Vec + Send + Sync,
-) -> std::result::Result<_Tensor<T>, TensorError> where i64: Cast<T> {
+) -> std::result::Result<_Tensor<T>, TensorError>
+where
+    i64: Cast<T>,
+{
     let img_shape = img.shape();
     ShapeError::check_dim(4, img_shape.len())?;
     let batch = img_shape[0];
@@ -265,8 +261,7 @@ pub(crate) fn adaptive_pooling_template<T: CommonBounds>(
         }
 
         let remain = in_channel_remain % (T::Vec::SIZE as i64);
-        for ii in (in_channels - in_channel_remain..in_channels - remain).step_by(T::Vec::SIZE)
-        {
+        for ii in (in_channels - in_channel_remain..in_channels - remain).step_by(T::Vec::SIZE) {
             let mut res_vecs = T::Vec::splat(T::ZERO);
             for kh in start_h..end_h {
                 for kw in start_w..end_w {

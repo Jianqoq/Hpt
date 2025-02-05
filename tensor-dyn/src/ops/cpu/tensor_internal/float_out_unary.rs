@@ -5,7 +5,7 @@ use tensor_traits::{CommonBounds, FloatUnaryOps};
 use tensor_types::traits::VecTrait;
 use tensor_types::{
     dtype::TypeCommon,
-    cast::Cast,
+    into_scalar::Cast,
     type_promote::{FloatOutBinary, FloatOutUnary},
 };
 
@@ -285,12 +285,7 @@ where
     }
 
     fn ln(&self) -> std::result::Result<Self::Output, TensorError> {
-        unary_fn_with_out(
-            self,
-            |x| x._ln(),
-            |x| x._ln(),
-            None::<Self::InplaceOutput>,
-        )
+        unary_fn_with_out(self, |x| x._ln(), |x| x._ln(), None::<Self::InplaceOutput>)
     }
 
     fn ln_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>

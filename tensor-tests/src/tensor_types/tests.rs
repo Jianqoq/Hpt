@@ -4,7 +4,7 @@ use num_complex::{Complex32, Complex64};
 use rand::distributions::uniform::SampleUniform;
 use tensor_dyn::{FloatOutUnary, NormalOut, NormalOutUnary};
 use tensor_types::half;
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 use tensor_types::type_promote::BitWiseOut2;
 use tensor_types::{dtype::TypeCommon, traits::VecTrait};
 

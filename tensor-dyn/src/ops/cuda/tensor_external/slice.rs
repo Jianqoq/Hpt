@@ -1,9 +1,12 @@
+use crate::{tensor::Tensor, Cuda};
+use anyhow::Result;
 use tensor_common::slice::Slice;
 use tensor_traits::CommonBounds;
-use anyhow::Result;
-use crate::{tensor::Tensor, Cuda};
 
-impl<T, const DEVICE_ID: usize> Tensor<T, Cuda, DEVICE_ID> where T: CommonBounds {
+impl<T, const DEVICE_ID: usize> Tensor<T, Cuda, DEVICE_ID>
+where
+    T: CommonBounds,
+{
     /// Extracts a slice of the tensor based on the provided indices.
     ///
     /// This method creates a new tensor that represents a slice of the original tensor.

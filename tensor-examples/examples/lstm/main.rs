@@ -1,7 +1,9 @@
-use tensor_dyn::{
-    match_selection, set_num_threads, FloatOutUnary, Matmul, NormalBinOps, ParStridedIteratorSimdZip, Random, ShapeManipulate, Slice, Tensor, TensorCreator, TensorError, TensorInfo, TensorIterator
-};
 use mimalloc::MiMalloc;
+use tensor_dyn::{
+    match_selection, set_num_threads, FloatOutUnary, Matmul, NormalBinOps,
+    ParStridedIteratorSimdZip, Random, ShapeManipulate, Slice, Tensor, TensorCreator, TensorError,
+    TensorInfo, TensorIterator,
+};
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;

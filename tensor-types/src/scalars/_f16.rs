@@ -1,6 +1,11 @@
 use num_traits::real::Real;
 
-use crate::{convertion::Convertor, type_promote::{BitWiseOut2, Eval2, FloatOutBinary2, FloatOutUnary2, NormalOut2, NormalOutUnary2}};
+use crate::{
+    convertion::Convertor,
+    type_promote::{
+        BitWiseOut2, Eval2, FloatOutBinary2, FloatOutUnary2, NormalOut2, NormalOutUnary2,
+    },
+};
 
 impl FloatOutBinary2 for half::f16 {
     #[inline(always)]

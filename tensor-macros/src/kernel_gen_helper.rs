@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
-use syn::parse_macro_input;
 use quote::quote;
+use syn::parse_macro_input;
 use syn::Ident;
 
 use crate::NUM_REG;
@@ -10,7 +10,10 @@ pub fn __gen_fast_reduce_simd_helper(stream: TokenStream) -> TokenStream {
 
     #[cfg(target_feature = "avx2")]
     let num_registers = 16;
-    #[cfg(all(any(target_feature = "sse", target_arch = "arm"), not(target_feature = "avx2")))]
+    #[cfg(all(
+        any(target_feature = "sse", target_arch = "arm"),
+        not(target_feature = "avx2")
+    ))]
     let num_registers = 8;
     #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
     let num_registers = 32;
@@ -46,7 +49,10 @@ pub fn __gen_fast_layernorm_simd_helper(stream: TokenStream) -> TokenStream {
 
     #[cfg(target_feature = "avx2")]
     let num_registers = 16;
-    #[cfg(all(any(target_feature = "sse", target_arch = "arm"), not(target_feature = "avx2")))]
+    #[cfg(all(
+        any(target_feature = "sse", target_arch = "arm"),
+        not(target_feature = "avx2")
+    ))]
     let num_registers = 8;
     #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
     let num_registers = 32;
@@ -88,8 +94,7 @@ pub fn __gen_reduce_dim_not_include_simd_helper(stream: TokenStream) -> TokenStr
             [ #(#elements),* ]
         };
         let i_u32 = i as u32;
-        body.extend(
-            quote! {
+        body.extend(quote! {
             #i_u32 => {
                 gen_kernel3!(
                     1,
@@ -110,8 +115,7 @@ pub fn __gen_reduce_dim_not_include_simd_helper(stream: TokenStream) -> TokenStr
                     #arr
                 );
             }
-        }
-        );
+        });
     }
     let ret = quote! {
         match #input {

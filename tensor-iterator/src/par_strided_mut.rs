@@ -22,7 +22,7 @@ pub mod par_strided_map_mut_simd {
         ParallelIterator,
     };
     use std::sync::Arc;
-    use tensor_common::{utils::pointer::Pointer, shape::shape::Shape, utils::simd_ref::MutVec};
+    use tensor_common::{shape::shape::Shape, utils::pointer::Pointer, utils::simd_ref::MutVec};
     use tensor_traits::{CommonBounds, TensorInfo};
     use tensor_types::dtype::TypeCommon;
     use tensor_types::traits::VecTrait;

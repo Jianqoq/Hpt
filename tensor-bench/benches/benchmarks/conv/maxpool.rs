@@ -1,23 +1,20 @@
-use criterion::{ black_box, criterion_group, BenchmarkId, Criterion };
-use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
-use tensor_dyn::TensorCreator;
+use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::time::Duration;
-use tch::{ Device, Kind, Tensor as TchTensor};
+use tch::{Device, Kind, Tensor as TchTensor};
+use tensor_dyn::ShapeManipulate;
+use tensor_dyn::TensorCreator;
 use tensor_dyn::TensorInfo;
 use tensor_dyn::TensorLike;
-use tensor_dyn::{ Tensor, Random };
-use tensor_dyn::ShapeManipulate;
+use tensor_dyn::{Random, Tensor};
 
 #[allow(unused)]
 fn assert_eq_i64(a: &TchTensor, b: &Tensor<i64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
     let b_raw = b.as_raw();
-    a_raw
-        .par_iter()
-        .zip(b_raw.par_iter())
-        .for_each(|(a, b)| {
-            assert_eq!(a, b);
-        });
+    a_raw.par_iter().zip(b_raw.par_iter()).for_each(|(a, b)| {
+        assert_eq!(a, b);
+    });
 }
 
 fn maxpool_benchmark(c: &mut Criterion) {
@@ -28,7 +25,10 @@ fn maxpool_benchmark(c: &mut Criterion) {
     let h_sets = [1024];
     let w_sets = [1024];
     let mut group = c.benchmark_group(concat!("maxpool", " Benchmarks"));
-    group.warm_up_time(Duration::new(1, 0)).measurement_time(Duration::new(3, 0)).sample_size(10);
+    group
+        .warm_up_time(Duration::new(1, 0))
+        .measurement_time(Duration::new(3, 0))
+        .sample_size(10);
     let mut idx = 0;
     for ic in ic_sets {
         for kh in kh_sets {
@@ -36,72 +36,51 @@ fn maxpool_benchmark(c: &mut Criterion) {
                 for h in h_sets {
                     for w in w_sets {
                         let a = black_box(
-                            TchTensor::randn([1, ic, h, w], (Kind::Float, Device::Cpu)).to_mkldnn()
+                            TchTensor::randn([1, ic, h, w], (Kind::Float, Device::Cpu)).to_mkldnn(),
                         );
                         let a2 = black_box(
-                            Tensor::<f32>
-                                ::randn([1, ic, h, w])
+                            Tensor::<f32>::randn([1, ic, h, w])
                                 .unwrap()
                                 .permute([0, 2, 3, 1])
                                 .unwrap()
                                 .contiguous()
-                                .unwrap()
+                                .unwrap(),
                         );
                         group.bench_with_input(
                             BenchmarkId::new("torch", format!("tch {}", idx)),
                             &[ic, kh, kw, h, w],
                             |b, _| {
-                                b.iter(||
+                                b.iter(|| {
                                     a.mkldnn_max_pool2d(&[kh, kw], [1, 1], [0, 0], [1, 1], false)
-                                );
-                            }
+                                });
+                            },
                         );
                         group.bench_with_input(
                             BenchmarkId::new("hpt", format!("hpt {}", idx)),
                             &[ic, kh, kw, h, w],
                             |b, _| {
-                                b.iter(||
-                                    a2.maxpool2d(
-                                        &[kh, kw].into(),
-                                        [1, 1],
-                                        [
-                                            (0, 0),
-                                            (0, 0),
-                                        ],
-                                        [1, 1],
-                                    )
-                                );
-                            }
+                                b.iter(|| {
+                                    a2.maxpool2d(&[kh, kw].into(), [1, 1], [(0, 0), (0, 0)], [1, 1])
+                                });
+                            },
                         );
                         let a = black_box(
-                            TchTensor::arange(1 * ic * h * w, (Kind::Int64, Device::Cpu)).reshape([
-                                ic,
-                                h,
-                                w,
-                            ])
+                            TchTensor::arange(1 * ic * h * w, (Kind::Int64, Device::Cpu))
+                                .reshape([ic, h, w]),
                         );
                         let a2 = black_box(
-                            Tensor::<i64>
-                                ::arange(0, 1 * ic * h * w)
+                            Tensor::<i64>::arange(0, 1 * ic * h * w)
                                 .unwrap()
                                 .reshape([1, ic, h, w])
                                 .unwrap()
                                 .permute([0, 2, 3, 1])
                                 .unwrap()
                                 .contiguous()
-                                .unwrap()
+                                .unwrap(),
                         );
                         let a_res = a.max_pool2d(&[kh, kw], [1, 1], [0, 0], [1, 1], false);
                         let a2_res = a2
-                            .maxpool2d(
-                                &[kh, kw].into(),
-                                [1, 1],
-                                [
-                                    (0, 0),
-                                    (0, 0),
-                                ],
-                                [1, 1],
-                            )
+                            .maxpool2d(&[kh, kw].into(), [1, 1], [(0, 0), (0, 0)], [1, 1])
                             .unwrap()
                             .permute([0, 3, 1, 2])
                             .unwrap()

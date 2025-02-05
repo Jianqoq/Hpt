@@ -1,18 +1,15 @@
 #![allow(unused)]
-use std::{ fmt::Display, ops::BitAnd };
+use std::{fmt::Display, ops::BitAnd};
 
 use duplicate::duplicate_item;
 use tensor_common::utils::pointer::Pointer;
 use tensor_macros::{
-    conv2d_microkernel_declare_const,
-    conv2d_microkernel_gen_inps,
-    conv2d_microkernel_gen_kernels,
-    conv2d_microkernel_gen_pad_inps,
-    conv2d_microkernel_gen_results,
+    conv2d_microkernel_declare_const, conv2d_microkernel_gen_inps, conv2d_microkernel_gen_kernels,
+    conv2d_microkernel_gen_pad_inps, conv2d_microkernel_gen_results,
 };
-use tensor_types::{ cast::Cast, type_promote::NormalOut };
 use tensor_traits::CommonBounds;
 use tensor_types::traits::*;
+use tensor_types::{into_scalar::Cast, type_promote::NormalOut};
 
 pub(crate) struct Params {
     pub(crate) arg1: [i64; 2],
@@ -46,26 +43,16 @@ pub(crate) struct PartialParams {
 /// This struct carries the micro kernel function and the corresponding info
 #[derive(Clone, Copy)]
 pub struct ConvPartialKernel<T: CommonBounds> {
-    pub(crate) kernel: fn(
-        PartialParams,
-        &mut Pointer<T>,
-        &mut Pointer<T>,
-        &Pointer<T>,
-        fn(T::Vec) -> T::Vec
-    ),
+    pub(crate) kernel:
+        fn(PartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
     pub(crate) ow_block: usize,
 }
 
 /// This struct carries the micro kernel function and the corresponding info
 #[derive(Clone, Copy)]
 pub struct ConvKernel<T: CommonBounds> {
-    pub(crate) kernel: fn(
-        Params,
-        &mut Pointer<T>,
-        &mut Pointer<T>,
-        &Pointer<T>,
-        fn(T::Vec) -> T::Vec
-    ),
+    pub(crate) kernel:
+        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
     pub(crate) oc_block: usize,
     pub(crate) ow_block: usize,
 }
@@ -74,7 +61,7 @@ impl<T: CommonBounds> ConvKernel<T> {
     pub(crate) fn new(
         kernel: fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
         oc_block: usize,
-        ow_block: usize
+        ow_block: usize,
     ) -> Self {
         Self {
             kernel,
@@ -97,9 +84,9 @@ impl<T: CommonBounds> ConvPartialKernel<T> {
             &mut Pointer<T>,
             &mut Pointer<T>,
             &Pointer<T>,
-            fn(T::Vec) -> T::Vec
+            fn(T::Vec) -> T::Vec,
         ),
-        ow_block: usize
+        ow_block: usize,
     ) -> Self {
         Self { kernel, ow_block }
     }
@@ -208,9 +195,9 @@ fn template_function<T: CommonBounds>(
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
-    activation: fn(T::Vec) -> T::Vec
-)
-    where bool: Cast<T>
+    activation: fn(T::Vec) -> T::Vec,
+) where
+    bool: Cast<T>,
 {
     let Params {
         arg1: [ii, i_end],
@@ -247,19 +234,13 @@ fn template_function<T: CommonBounds>(
         ret
     };
     let is0 =
-        b * isb +
-        l * step_height * ish +
-        k * step_width * isw -
-        pw_start * isw -
-        ph_start * ish +
-        group_idx * ic_pg;
-    let m_must_in_range =
-        k * step_width >= pw_start &&
-        (k + (OW_BLOCK as i64)) * step_width + (kw - 1) * dw < img_width + pw_start;
+        b * isb + l * step_height * ish + k * step_width * isw - pw_start * isw - ph_start * ish
+            + group_idx * ic_pg;
+    let m_must_in_range = k * step_width >= pw_start
+        && (k + (OW_BLOCK as i64)) * step_width + (kw - 1) * dw < img_width + pw_start;
     for n in 0..kh {
-        let l_in_range =
-            l * step_height + n * dh >= ph_start &&
-            l * step_height + n * dh < img_height + ph_start;
+        let l_in_range = l * step_height + n * dh >= ph_start
+            && l * step_height + n * dh < img_height + ph_start;
         let is1 = is0 + n * dh * ish;
         if l_in_range {
             if m_must_in_range {
@@ -273,10 +254,8 @@ fn template_function<T: CommonBounds>(
                             step_width * isw,
                             template_function
                         );
-                        let kernel_vecs = conv2d_microkernel_gen_kernels!(
-                            kernel,
-                            template_function
-                        );
+                        let kernel_vecs =
+                            conv2d_microkernel_gen_kernels!(kernel, template_function);
                         conv2d_microkernel_gen_results!(
                             results,
                             inp,
@@ -297,10 +276,8 @@ fn template_function<T: CommonBounds>(
                             step_width * isw,
                             template_function
                         );
-                        let kernel_vecs = conv2d_microkernel_gen_kernels!(
-                            kernel,
-                            template_function
-                        );
+                        let kernel_vecs =
+                            conv2d_microkernel_gen_kernels!(kernel, template_function);
                         conv2d_microkernel_gen_results!(
                             results,
                             inp,
@@ -356,9 +333,9 @@ fn template_function<T: CommonBounds>(
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
     bias: &Pointer<T>,
-    activation: fn(T::Vec) -> T::Vec
-)
-    where bool: Cast<T>
+    activation: fn(T::Vec) -> T::Vec,
+) where
+    bool: Cast<T>,
 {
     let Params {
         arg1: [ii, i_end],
@@ -395,19 +372,13 @@ fn template_function<T: CommonBounds>(
         ret
     };
     let is0 =
-        b * isb +
-        l * step_height * ish +
-        k * step_width * isw -
-        pw_start * isw -
-        ph_start * ish +
-        group_idx * ic_pg;
-    let m_must_in_range =
-        k * step_width >= pw_start &&
-        (k + (OW_BLOCK as i64)) * step_width + (kw - 1) * dw < img_width + pw_start;
+        b * isb + l * step_height * ish + k * step_width * isw - pw_start * isw - ph_start * ish
+            + group_idx * ic_pg;
+    let m_must_in_range = k * step_width >= pw_start
+        && (k + (OW_BLOCK as i64)) * step_width + (kw - 1) * dw < img_width + pw_start;
     for n in 0..kh {
-        let l_in_range =
-            l * step_height + n * dh >= ph_start &&
-            l * step_height + n * dh < img_height + ph_start;
+        let l_in_range = l * step_height + n * dh >= ph_start
+            && l * step_height + n * dh < img_height + ph_start;
         let is1 = is0 + n * dh * ish;
         if l_in_range {
             if m_must_in_range {
@@ -421,10 +392,8 @@ fn template_function<T: CommonBounds>(
                             step_width * isw,
                             template_function
                         );
-                        let kernel_vecs = conv2d_microkernel_gen_kernels!(
-                            kernel,
-                            template_function
-                        );
+                        let kernel_vecs =
+                            conv2d_microkernel_gen_kernels!(kernel, template_function);
                         conv2d_microkernel_gen_results!(
                             results,
                             inp,
@@ -445,10 +414,8 @@ fn template_function<T: CommonBounds>(
                             step_width * isw,
                             template_function
                         );
-                        let kernel_vecs = conv2d_microkernel_gen_kernels!(
-                            kernel,
-                            template_function
-                        );
+                        let kernel_vecs =
+                            conv2d_microkernel_gen_kernels!(kernel, template_function);
                         conv2d_microkernel_gen_results!(
                             results,
                             inp,
@@ -472,9 +439,8 @@ fn template_function<T: CommonBounds>(
                 T::Vec::from_ptr(&bias[j + ((v * T::Vec::SIZE) as i64)] as *const _ as *const T)
             };
             unsafe {
-                out_vec.write_unaligned(
-                    activation(results[v as usize][kk as usize]._add(bias_vec))
-                );
+                out_vec
+                    .write_unaligned(activation(results[v as usize][kk as usize]._add(bias_vec)));
             }
         }
     }
@@ -494,9 +460,9 @@ fn template_function<T: CommonBounds>(
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
-    activation: fn(T::Vec) -> T::Vec
-)
-    where bool: Cast<T>
+    activation: fn(T::Vec) -> T::Vec,
+) where
+    bool: Cast<T>,
 {
     let PartialParams {
         arg1: [ii, i_end],
@@ -525,19 +491,13 @@ fn template_function<T: CommonBounds>(
         ret
     };
     let is0 =
-        b * isb +
-        l * step_height * ish +
-        k * step_width * isw -
-        pw_start * isw -
-        ph_start * ish +
-        group_idx * ic_pg;
-    let m_must_in_range =
-        k * step_width >= pw_start &&
-        (k + (OW_BLOCK as i64)) * step_width + (kw - 1) * dw < img_width + pw_start;
+        b * isb + l * step_height * ish + k * step_width * isw - pw_start * isw - ph_start * ish
+            + group_idx * ic_pg;
+    let m_must_in_range = k * step_width >= pw_start
+        && (k + (OW_BLOCK as i64)) * step_width + (kw - 1) * dw < img_width + pw_start;
     for n in 0..kh {
-        let l_in_range =
-            l * step_height + n * dh >= ph_start &&
-            l * step_height + n * dh < img_height + ph_start;
+        let l_in_range = l * step_height + n * dh >= ph_start
+            && l * step_height + n * dh < img_height + ph_start;
         let is1 = is0 + n * dh * ish;
         if l_in_range {
             if m_must_in_range {
@@ -606,9 +566,9 @@ fn template_function<T: CommonBounds>(
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
     bias: &Pointer<T>,
-    activation: fn(T::Vec) -> T::Vec
-)
-    where bool: Cast<T>
+    activation: fn(T::Vec) -> T::Vec,
+) where
+    bool: Cast<T>,
 {
     let PartialParams {
         arg1: [ii, i_end],
@@ -637,20 +597,14 @@ fn template_function<T: CommonBounds>(
         ret
     };
     let is0 =
-        b * isb +
-        l * step_height * ish +
-        k * step_width * isw -
-        pw_start * isw -
-        ph_start * ish +
-        group_idx * ic_pg;
-    let m_must_in_range =
-        k * step_width >= pw_start &&
-        (k + (OW_BLOCK as i64)) * step_width + (kw - 1) * dw < img_width + pw_start;
+        b * isb + l * step_height * ish + k * step_width * isw - pw_start * isw - ph_start * ish
+            + group_idx * ic_pg;
+    let m_must_in_range = k * step_width >= pw_start
+        && (k + (OW_BLOCK as i64)) * step_width + (kw - 1) * dw < img_width + pw_start;
     for n in 0..kh {
         let is1 = is0 + n * dh * ish;
-        let l_in_range =
-            l * step_height + n * dh >= ph_start &&
-            l * step_height + n * dh < img_height + ph_start;
+        let l_in_range = l * step_height + n * dh >= ph_start
+            && l * step_height + n * dh < img_height + ph_start;
         if l_in_range {
             if m_must_in_range {
                 for m in 0..kw {
@@ -708,18 +662,41 @@ fn template_function<T: CommonBounds>(
 
 pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
-    kb: &mut usize // outwidth block size
+    kb: &mut usize, // outwidth block size
 ) -> Option<ConvKernel<T>>
-    where bool: Cast<T>
+where
+    bool: Cast<T>,
 {
-    let kernels: [
-        [fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec); 5];
-        4
-    ] = [
-        [micro_kernel_1x1, micro_kernel_2x1, micro_kernel_3x1, micro_kernel_4x1, micro_kernel_5x1],
-        [micro_kernel_1x2, micro_kernel_2x2, micro_kernel_3x2, micro_kernel_4x2, micro_kernel_5x2],
-        [micro_kernel_1x4, micro_kernel_2x4, micro_kernel_3x4, micro_kernel_4x4, micro_kernel_5x4],
-        [micro_kernel_1x8, micro_kernel_2x8, micro_kernel_3x8, micro_kernel_4x8, micro_kernel_5x8],
+    let kernels: [[fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec);
+        5]; 4] = [
+        [
+            micro_kernel_1x1,
+            micro_kernel_2x1,
+            micro_kernel_3x1,
+            micro_kernel_4x1,
+            micro_kernel_5x1,
+        ],
+        [
+            micro_kernel_1x2,
+            micro_kernel_2x2,
+            micro_kernel_3x2,
+            micro_kernel_4x2,
+            micro_kernel_5x2,
+        ],
+        [
+            micro_kernel_1x4,
+            micro_kernel_2x4,
+            micro_kernel_3x4,
+            micro_kernel_4x4,
+            micro_kernel_5x4,
+        ],
+        [
+            micro_kernel_1x8,
+            micro_kernel_2x8,
+            micro_kernel_3x8,
+            micro_kernel_4x8,
+            micro_kernel_5x8,
+        ],
     ];
 
     let map_kb = map_kb(*kb);
@@ -735,38 +712,32 @@ pub(crate) fn conv2d_full_oc_kernel_dispatch<T: CommonBounds>(
         *oc = 8;
     }
 
-    let kernel_fn = kernels
-        .get(map_oc)
-        .map(|x| x.get(map_kb))
-        .flatten();
+    let kernel_fn = kernels.get(map_oc).map(|x| x.get(map_kb)).flatten();
 
     // println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc, map_kb);
 
-    kernel_fn.cloned().map(|kernel| ConvKernel::new(kernel, *oc, *kb))
+    kernel_fn
+        .cloned()
+        .map(|kernel| ConvKernel::new(kernel, *oc, *kb))
 }
 
 pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
-    kb: &mut usize // outwidth block size
+    kb: &mut usize, // outwidth block size
 ) -> Option<
-        fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
-    >
-    where bool: Cast<T>
+    fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec),
+>
+where
+    bool: Cast<T>,
 {
-    let kernels: [
-        [
-            fn(
-                Params,
-                &mut Pointer<T>,
-                &mut Pointer<T>,
-                &Pointer<T>,
-                &Pointer<T>,
-                fn(T::Vec) -> T::Vec
-            );
-            5
-        ];
-        4
-    ] = [
+    let kernels: [[fn(
+        Params,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec,
+    ); 5]; 4] = [
         [
             bias_micro_kernel_1x1,
             bias_micro_kernel_2x1,
@@ -810,18 +781,16 @@ pub(crate) fn conv2d_full_oc_bias_kernel_dispatch<T: CommonBounds>(
         *oc = 8;
     }
 
-    let kernel_fn = kernels
-        .get(map_oc)
-        .map(|x| x.get(map_kb))
-        .flatten();
+    let kernel_fn = kernels.get(map_oc).map(|x| x.get(map_kb)).flatten();
 
     kernel_fn.cloned()
 }
 
 pub(crate) fn remain_oc_kernel_dispatch<T: CommonBounds>(
-    kb: &mut usize // outwidth block size
+    kb: &mut usize, // outwidth block size
 ) -> Option<ConvPartialKernel<T>>
-    where bool: Cast<T>
+where
+    bool: Cast<T>,
 {
     let kernels: [ConvPartialKernel<T>; 5] = [
         ConvPartialKernel::new(micro_kernel_1_1, 1),
@@ -841,30 +810,28 @@ pub(crate) fn remain_oc_kernel_dispatch<T: CommonBounds>(
 }
 
 pub(crate) fn bias_remain_oc_kernel_dispatch<T: CommonBounds>(
-    kb: &mut usize // outwidth block size
+    kb: &mut usize, // outwidth block size
 ) -> Option<
-        fn(
-            PartialParams,
-            &mut Pointer<T>,
-            &mut Pointer<T>,
-            &Pointer<T>,
-            &Pointer<T>,
-            fn(T::Vec) -> T::Vec
-        )
-    >
-    where bool: Cast<T>
+    fn(
+        PartialParams,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec,
+    ),
+>
+where
+    bool: Cast<T>,
 {
-    let kernels: [
-        fn(
-            PartialParams,
-            &mut Pointer<T>,
-            &mut Pointer<T>,
-            &Pointer<T>,
-            &Pointer<T>,
-            fn(T::Vec) -> T::Vec
-        );
-        5
-    ] = [
+    let kernels: [fn(
+        PartialParams,
+        &mut Pointer<T>,
+        &mut Pointer<T>,
+        &Pointer<T>,
+        &Pointer<T>,
+        fn(T::Vec) -> T::Vec,
+    ); 5] = [
         bias_micro_kernel_1_1,
         bias_micro_kernel_2_1,
         bias_micro_kernel_3_1,
@@ -882,9 +849,27 @@ pub(crate) fn bias_remain_oc_kernel_dispatch<T: CommonBounds>(
 }
 
 fn map_kb(kb: usize) -> usize {
-    if kb <= 1 { 0 } else if kb <= 2 { 1 } else if kb <= 3 { 2 } else if kb <= 4 { 3 } else { 4 }
+    if kb <= 1 {
+        0
+    } else if kb <= 2 {
+        1
+    } else if kb <= 3 {
+        2
+    } else if kb <= 4 {
+        3
+    } else {
+        4
+    }
 }
 
 fn map_oc(oc: usize) -> usize {
-    if oc <= 1 { 0 } else if oc <= 2 { 1 } else if oc <= 4 { 2 } else { 3 }
+    if oc <= 1 {
+        0
+    } else if oc <= 2 {
+        1
+    } else if oc <= 4 {
+        2
+    } else {
+        3
+    }
 }

@@ -1,15 +1,17 @@
 #![allow(unused)]
 
-use tensor_dyn::TypeCommon;
-use tensor_dyn::VecTrait;
-use tensor_types::half;
 use half::bf16;
 use half::f16;
 use num_complex::Complex32 as c32;
 use num_complex::Complex64 as c64;
+use tensor_dyn::TypeCommon;
+use tensor_dyn::VecTrait;
+use tensor_types::half;
 
 fn test_index<T: TypeCommon>() {
-    let vec = unsafe { <T as TypeCommon>::Vec::from_ptr(vec![T::ZERO; <T as TypeCommon>::Vec::SIZE].as_ptr()) };
+    let vec = unsafe {
+        <T as TypeCommon>::Vec::from_ptr(vec![T::ZERO; <T as TypeCommon>::Vec::SIZE].as_ptr())
+    };
     vec[64];
 }
 

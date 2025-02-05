@@ -2,7 +2,7 @@ use std::panic::Location;
 
 use tensor_common::error::{base::TensorError, shape::ShapeError};
 use tensor_traits::CommonBounds;
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 
 pub(crate) fn geomspace_preprocess_start_step<T>(
     start: f64,

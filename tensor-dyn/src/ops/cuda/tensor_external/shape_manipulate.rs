@@ -33,7 +33,10 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeM
         Ok(_Tensor::permute(self.inner.as_ref(), axes)?.into())
     }
 
-    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError> {
+    fn permute_inv<A: Into<Axis>>(
+        &self,
+        axes: A,
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::permute_inv(self.inner.as_ref(), axes)?.into())
     }
 

@@ -1,5 +1,5 @@
 use std::simd::cmp::SimdPartialOrd;
-use std::simd::{ cmp::SimdPartialEq, Simd };
+use std::simd::{cmp::SimdPartialEq, Simd};
 
 use crate::traits::SimdCompare;
 use crate::vectors::traits::VecTrait;
@@ -25,10 +25,7 @@ impl VecTrait<bool> for boolx32 {
     }
     #[inline(always)]
     fn sum(&self) -> bool {
-        self.0
-            .iter()
-            .map(|&x| x as u8)
-            .sum::<u8>() > 0
+        self.0.iter().map(|&x| x as u8).sum::<u8>() > 0
     }
     fn splat(val: bool) -> boolx32 {
         boolx32([val; 32])
@@ -46,7 +43,7 @@ impl SimdCompare for boolx32 {
         let lhs: Simd<u8, 32> = unsafe { std::mem::transmute(self) };
         let rhs: Simd<u8, 32> = unsafe { std::mem::transmute(rhs) };
         i8x32(lhs.simd_ne(rhs).to_int())
-    }   
+    }
     fn simd_lt(self, rhs: Self) -> i8x32 {
         let lhs: Simd<u8, 32> = unsafe { std::mem::transmute(self) };
         let rhs: Simd<u8, 32> = unsafe { std::mem::transmute(rhs) };

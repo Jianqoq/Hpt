@@ -2,48 +2,25 @@
 use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
 #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
 use crate::arch_simd::sleef::arch::helper_avx2 as helper;
-#[cfg(all(target_arch = "x86_64", target_feature = "sse", not(target_feature = "avx2")))]
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "sse",
+    not(target_feature = "avx2")
+))]
 use crate::arch_simd::sleef::arch::helper_sse as helper;
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::simd::sleef::arch::helper_aarch64::{ visnan_vo_vf, vneg_vf_vf };
-use crate::simd::sleef::libm::sleefsimdsp::{ xceilf, xcopysignf, xfloorf };
-use crate::type_promote::{ Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2 };
+use crate::simd::sleef::arch::helper_aarch64::{visnan_vo_vf, vneg_vf_vf};
+use crate::simd::sleef::libm::sleefsimdsp::{xceilf, xcopysignf, xfloorf};
+use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
 
 use crate::arch_simd::sleef::libm::sleefsimdsp::{
-    xacosf_u1,
-    xacoshf,
-    xasinf_u1,
-    xasinhf,
-    xatan2f_u1,
-    xatanf_u1,
-    xatanhf,
-    xcbrtf_u1,
-    xcosf_u1,
-    xcoshf,
-    xerff_u1,
-    xexp10f,
-    xexp2f,
-    xexpf,
-    xexpm1f,
-    xhypotf_u05,
-    xlog10f,
-    xlog1pf,
-    xlog2f,
-    xlogf_u1,
-    xmaxf,
-    xminf,
-    xpowf,
-    xroundf,
-    xsincosf_u1,
-    xsinf_u1,
-    xsinhf,
-    xsqrtf_u05,
-    xtanf_u1,
-    xtanhf,
-    xtruncf,
+    xacosf_u1, xacoshf, xasinf_u1, xasinhf, xatan2f_u1, xatanf_u1, xatanhf, xcbrtf_u1, xcosf_u1,
+    xcoshf, xerff_u1, xexp10f, xexp2f, xexpf, xexpm1f, xhypotf_u05, xlog10f, xlog1pf, xlog2f,
+    xlogf_u1, xmaxf, xminf, xpowf, xroundf, xsincosf_u1, xsinf_u1, xsinhf, xsqrtf_u05, xtanf_u1,
+    xtanhf, xtruncf,
 };
 use crate::convertion::VecConvertor;
-use crate::traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait };
+use crate::traits::{SimdCompare, SimdMath, SimdSelect, VecTrait};
 use crate::vectors::arch_simd::_128bit::u32x4::u32x4;
 use helper::vabs_vf_vf;
 
@@ -86,13 +63,9 @@ impl Default for f32x4 {
     #[inline(always)]
     fn default() -> Self {
         #[cfg(target_arch = "x86_64")]
-        return unsafe {
-            f32x4(_mm_setzero_ps())
-        };
+        return unsafe { f32x4(_mm_setzero_ps()) };
         #[cfg(target_arch = "aarch64")]
-        return unsafe {
-            f32x4(vdupq_n_f32(0.0))
-        };
+        return unsafe { f32x4(vdupq_n_f32(0.0)) };
     }
 }
 
@@ -104,7 +77,10 @@ impl VecTrait<f32> for f32x4 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
             assert_eq!(slice.len(), 4);
-            _mm_storeu_ps(&mut self.0 as *mut _ as *mut f32, _mm_loadu_ps(slice.as_ptr()));
+            _mm_storeu_ps(
+                &mut self.0 as *mut _ as *mut f32,
+                _mm_loadu_ps(slice.as_ptr()),
+            );
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
@@ -249,11 +225,19 @@ impl SimdSelect<f32x4> for i32x4 {
     fn select(&self, true_val: f32x4, false_val: f32x4) -> f32x4 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            f32x4(_mm_blendv_ps(false_val.0, true_val.0, std::mem::transmute(self.0)))
+            f32x4(_mm_blendv_ps(
+                false_val.0,
+                true_val.0,
+                std::mem::transmute(self.0),
+            ))
         }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            f32x4(vbslq_f32(vreinterpretq_u32_s32(self.0), true_val.0, false_val.0))
+            f32x4(vbslq_f32(
+                vreinterpretq_u32_s32(self.0),
+                true_val.0,
+                false_val.0,
+            ))
         }
     }
 }
@@ -434,17 +418,14 @@ impl SimdMath<f32> for f32x4 {
             let neg_one = vdupq_n_f32(-1.0);
             let is_positive = vcgtq_f32(self.0, zero);
             let is_negative = vcltq_f32(self.0, zero);
-            let pos_result = vreinterpretq_f32_u32(
-                vandq_u32(vreinterpretq_u32_f32(one), is_positive)
-            );
-            let neg_result = vreinterpretq_f32_u32(
-                vandq_u32(vreinterpretq_u32_f32(neg_one), is_negative)
-            );
-            f32x4(
-                vreinterpretq_f32_u32(
-                    vorrq_u32(vreinterpretq_u32_f32(pos_result), vreinterpretq_u32_f32(neg_result))
-                )
-            )
+            let pos_result =
+                vreinterpretq_f32_u32(vandq_u32(vreinterpretq_u32_f32(one), is_positive));
+            let neg_result =
+                vreinterpretq_f32_u32(vandq_u32(vreinterpretq_u32_f32(neg_one), is_negative));
+            f32x4(vreinterpretq_f32_u32(vorrq_u32(
+                vreinterpretq_u32_f32(pos_result),
+                vreinterpretq_u32_f32(neg_result),
+            )))
         }
     }
 
@@ -863,6 +844,9 @@ impl Eval2 for f32x4 {
         let is_inf = exp.simd_eq(inf_mask) & frac.simd_eq(i32x4::splat(0));
         let is_neg = (i & sign_mask).simd_ne(i32x4::splat(0));
 
-        is_inf.select(is_neg.select(i32x4::splat(-1), i32x4::splat(1)), i32x4::splat(0))
+        is_inf.select(
+            is_neg.select(i32x4::splat(-1), i32x4::splat(1)),
+            i32x4::splat(0),
+        )
     }
 }

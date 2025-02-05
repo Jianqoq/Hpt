@@ -1,9 +1,13 @@
-use crate::{ convertion::VecConvertor, traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait }, type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2} };
+use crate::{
+    convertion::VecConvertor,
+    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+};
 
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::*;
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
 
 use super::u64x2::u64x2;
 
@@ -30,8 +34,8 @@ impl PartialEq for i64x2 {
         #[cfg(target_arch = "aarch64")]
         unsafe {
             let cmp = vceqq_s64(self.0, other.0);
-            vgetq_lane_u64(cmp, 0) == 0xffffffffffffffff &&
-                vgetq_lane_u64(cmp, 1) == 0xffffffffffffffff
+            vgetq_lane_u64(cmp, 0) == 0xffffffffffffffff
+                && vgetq_lane_u64(cmp, 1) == 0xffffffffffffffff
         }
     }
 }
@@ -40,9 +44,13 @@ impl Default for i64x2 {
     #[inline(always)]
     fn default() -> Self {
         #[cfg(target_arch = "x86_64")]
-        unsafe { i64x2(_mm_setzero_si128()) }
+        unsafe {
+            i64x2(_mm_setzero_si128())
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { i64x2(vdupq_n_s64(0)) }
+        unsafe {
+            i64x2(vdupq_n_s64(0))
+        }
     }
 }
 
@@ -52,7 +60,12 @@ impl VecTrait<i64> for i64x2 {
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[i64]) {
         #[cfg(target_arch = "x86_64")]
-        unsafe { _mm_storeu_si128(&mut self.0, _mm_loadu_si128(slice.as_ptr() as *const __m128i)) }
+        unsafe {
+            _mm_storeu_si128(
+                &mut self.0,
+                _mm_loadu_si128(slice.as_ptr() as *const __m128i),
+            )
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             self.0 = vld1q_s64(slice.as_ptr());
@@ -89,9 +102,13 @@ impl VecTrait<i64> for i64x2 {
     #[inline(always)]
     fn splat(val: i64) -> i64x2 {
         #[cfg(target_arch = "x86_64")]
-        unsafe { i64x2(_mm_set1_epi64x(val)) }
+        unsafe {
+            i64x2(_mm_set1_epi64x(val))
+        }
         #[cfg(target_arch = "aarch64")]
-        unsafe { i64x2(vdupq_n_s64(val)) }
+        unsafe {
+            i64x2(vdupq_n_s64(val))
+        }
     }
     #[inline(always)]
     unsafe fn from_ptr(ptr: *const i64) -> Self {
@@ -119,7 +136,9 @@ impl SimdCompare for i64x2 {
     #[inline(always)]
     fn simd_eq(self, other: Self) -> i64x2 {
         #[cfg(target_arch = "x86_64")]
-        unsafe { i64x2(_mm_cmpeq_epi64(self.0, other.0)) }
+        unsafe {
+            i64x2(_mm_cmpeq_epi64(self.0, other.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             i64x2(vreinterpretq_s64_u64(vceqq_s64(self.0, other.0)))
@@ -175,7 +194,9 @@ impl SimdCompare for i64x2 {
     #[inline(always)]
     fn simd_gt(self, other: Self) -> i64x2 {
         #[cfg(target_arch = "x86_64")]
-        unsafe { i64x2(_mm_cmpgt_epi64(self.0, other.0)) }
+        unsafe {
+            i64x2(_mm_cmpgt_epi64(self.0, other.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             i64x2(vreinterpretq_s64_u64(vcgtq_s64(self.0, other.0)))
@@ -200,10 +221,16 @@ impl SimdSelect<i64x2> for crate::vectors::arch_simd::_128bit::i64x2::i64x2 {
     #[inline(always)]
     fn select(&self, true_val: i64x2, false_val: i64x2) -> i64x2 {
         #[cfg(target_arch = "x86_64")]
-        unsafe { i64x2(_mm_blendv_epi8(false_val.0, true_val.0, self.0)) }
+        unsafe {
+            i64x2(_mm_blendv_epi8(false_val.0, true_val.0, self.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            i64x2(vbslq_s64(vreinterpretq_u64_s64(self.0), true_val.0, false_val.0))
+            i64x2(vbslq_s64(
+                vreinterpretq_u64_s64(self.0),
+                true_val.0,
+                false_val.0,
+            ))
         }
     }
 }
@@ -213,7 +240,9 @@ impl std::ops::Add for i64x2 {
     #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
-        unsafe { i64x2(_mm_add_epi64(self.0, rhs.0)) }
+        unsafe {
+            i64x2(_mm_add_epi64(self.0, rhs.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             i64x2(vaddq_s64(self.0, rhs.0))
@@ -225,7 +254,9 @@ impl std::ops::Sub for i64x2 {
     #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
-        unsafe { i64x2(_mm_sub_epi64(self.0, rhs.0)) }
+        unsafe {
+            i64x2(_mm_sub_epi64(self.0, rhs.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             i64x2(vsubq_s64(self.0, rhs.0))
@@ -308,7 +339,9 @@ impl std::ops::BitAnd for i64x2 {
     #[inline(always)]
     fn bitand(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
-        unsafe { i64x2(_mm_and_si128(self.0, rhs.0)) }
+        unsafe {
+            i64x2(_mm_and_si128(self.0, rhs.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             i64x2(vandq_s64(self.0, rhs.0))
@@ -320,7 +353,9 @@ impl std::ops::BitOr for i64x2 {
     #[inline(always)]
     fn bitor(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
-        unsafe { i64x2(_mm_or_si128(self.0, rhs.0)) }
+        unsafe {
+            i64x2(_mm_or_si128(self.0, rhs.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             i64x2(vorrq_s64(self.0, rhs.0))
@@ -332,7 +367,9 @@ impl std::ops::BitXor for i64x2 {
     #[inline(always)]
     fn bitxor(self, rhs: Self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
-        unsafe { i64x2(_mm_xor_si128(self.0, rhs.0)) }
+        unsafe {
+            i64x2(_mm_xor_si128(self.0, rhs.0))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             i64x2(veorq_s64(self.0, rhs.0))
@@ -344,7 +381,9 @@ impl std::ops::Not for i64x2 {
     #[inline(always)]
     fn not(self) -> Self::Output {
         #[cfg(target_arch = "x86_64")]
-        unsafe { i64x2(_mm_xor_si128(self.0, _mm_set1_epi64x(-1))) }
+        unsafe {
+            i64x2(_mm_xor_si128(self.0, _mm_set1_epi64x(-1)))
+        }
         #[cfg(target_arch = "aarch64")]
         unsafe {
             i64x2(veorq_s64(self.0, vdupq_n_s64(-1)))
@@ -428,7 +467,7 @@ impl SimdMath<i64> for i64x2 {
     fn relu6(self) -> Self {
         self.min(Self::splat(6)).max(Self::splat(0))
     }
-        #[inline(always)]
+    #[inline(always)]
     fn trunc(self) -> Self {
         self
     }
@@ -664,7 +703,7 @@ impl Eval2 for i64x2 {
             let result = _mm_andnot_si128(eq, _mm_set1_epi64x(1));
             Self(result)
         }
-    
+
         #[cfg(target_arch = "aarch64")]
         unsafe {
             let eq = vceqq_s64(self.0, vdupq_n_s64(0));

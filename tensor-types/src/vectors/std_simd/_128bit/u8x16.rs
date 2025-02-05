@@ -1,6 +1,16 @@
-use std::{ops::{ Deref, DerefMut }, simd::{cmp::{SimdPartialEq, SimdPartialOrd}, num::SimdUint, Simd}};
+use std::{
+    ops::{Deref, DerefMut},
+    simd::{
+        cmp::{SimdPartialEq, SimdPartialOrd},
+        num::SimdUint,
+        Simd,
+    },
+};
 
-use crate::{impl_std_simd_bit_logic, traits::{SimdCompare, SimdMath, VecTrait}};
+use crate::{
+    impl_std_simd_bit_logic,
+    traits::{SimdCompare, SimdMath, VecTrait},
+};
 
 use super::i8x16::i8x16;
 
@@ -106,7 +116,6 @@ impl std::ops::Rem for u8x16 {
     }
 }
 impl_std_simd_bit_logic!(u8x16);
-
 
 impl SimdMath<u8> for u8x16 {
     fn max(self, other: Self) -> Self {

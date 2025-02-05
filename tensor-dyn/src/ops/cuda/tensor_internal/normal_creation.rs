@@ -14,8 +14,8 @@ use tensor_common::{err_handler::TensorError, layout::Layout, pointer::Pointer, 
 use tensor_cudakernels::CREATION;
 use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 use tensor_types::{
-    convertion::{Convertor, FromScalar},
     cast::Cast,
+    convertion::{Convertor, FromScalar},
     type_promote::NormalOut,
 };
 

@@ -3,8 +3,8 @@ use cudarc::driver::DeviceRepr;
 use std::ops::{Mul, Sub};
 use tensor_traits::CommonBounds;
 use tensor_types::{
-    dtype::FloatConst,
     cast::Cast,
+    dtype::FloatConst,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 

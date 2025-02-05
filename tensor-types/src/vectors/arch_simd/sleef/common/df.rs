@@ -1,4 +1,6 @@
 #![allow(unused)]
+#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
 #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
 use crate::arch_simd::sleef::arch::helper_avx2 as helper;
 #[cfg(all(
@@ -7,8 +9,6 @@ use crate::arch_simd::sleef::arch::helper_avx2 as helper;
     not(target_feature = "avx2")
 ))]
 use crate::arch_simd::sleef::arch::helper_sse as helper;
-#[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
 
 use helper::{
     vabs_vf_vf, vadd_vf_vf_vf, vand_vi2_vi2_vi2, vand_vm_vm_vm, vcast_vf_f, vcast_vi2_i,
@@ -42,7 +42,6 @@ pub(crate) fn vf2sety_vf2_vf2_vf(mut v: VFloat2, y: VFloat) -> VFloat2 {
     v.y = y;
     v
 }
-
 
 #[inline(always)]
 pub(crate) unsafe fn vupper_vf_vf(d: VFloat) -> VFloat {
@@ -316,7 +315,7 @@ pub(crate) unsafe fn dfadd_vf2_vf_vf2(x: VFloat, y: VFloat2) -> VFloat2 {
 
 #[inline(always)]
 pub(crate) unsafe fn dfadd_vf2_vf2_vf2(x: VFloat2, y: VFloat2) -> VFloat2 {
-        let s = vadd_vf_vf_vf(vf2getx_vf_vf2(x), vf2getx_vf_vf2(y));
+    let s = vadd_vf_vf_vf(vf2getx_vf_vf2(x), vf2getx_vf_vf2(y));
     vf2setxy_vf2_vf_vf(
         s,
         vadd_vf_4vf(
@@ -344,13 +343,13 @@ pub(crate) unsafe fn dfadd2_vf2_vf2_vf2(x: VFloat2, y: VFloat2) -> VFloat2 {
 
 #[inline(always)]
 pub(crate) unsafe fn dfsub_vf2_vf_vf(x: VFloat, y: VFloat) -> VFloat2 {
-        let s = vsub_vf_vf_vf(x, y);
+    let s = vsub_vf_vf_vf(x, y);
     vf2setxy_vf2_vf_vf(s, vsub_vf_vf_vf(vsub_vf_vf_vf(x, s), y))
 }
 
 #[inline(always)]
 pub(crate) unsafe fn dfsub_vf2_vf2_vf2(x: VFloat2, y: VFloat2) -> VFloat2 {
-        let s = vsub_vf_vf_vf(vf2getx_vf_vf2(x), vf2getx_vf_vf2(y));
+    let s = vsub_vf_vf_vf(vf2getx_vf_vf2(x), vf2getx_vf_vf2(y));
     let mut t = vsub_vf_vf_vf(vf2getx_vf_vf2(x), s);
     t = vsub_vf_vf_vf(t, vf2getx_vf_vf2(y));
     t = vadd_vf_vf_vf(t, vf2gety_vf_vf2(x));

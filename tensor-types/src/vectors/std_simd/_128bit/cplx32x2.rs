@@ -1,6 +1,6 @@
 use num_complex::Complex32;
 
-use crate::vectors::traits:: VecTrait;
+use crate::vectors::traits::VecTrait;
 
 /// a vector of 2 Complex32 values
 #[allow(non_camel_case_types)]

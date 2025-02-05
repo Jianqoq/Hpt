@@ -86,16 +86,7 @@ pub(crate) const UNARY_OPERATORS: [&str; 84] = [
 ];
 
 pub(crate) const BINARY_OPERATORS: [&str; 10] = [
-    "add",
-    "add_",
-    "sub",
-    "sub_",
-    "mul",
-    "mul_",
-    "div",
-    "div_",
-    "rem",
-    "rem_",
+    "add", "add_", "sub", "sub_", "mul", "mul_", "div", "div_", "rem", "rem_",
 ];
 
 pub(crate) const OPAQUE_BINARY_OPERATORS: [&str; 2] = ["matmul", "matmul_"];

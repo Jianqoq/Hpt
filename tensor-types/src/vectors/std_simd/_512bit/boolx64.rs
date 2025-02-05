@@ -1,8 +1,8 @@
-use std::simd::{ cmp::SimdPartialEq, Simd };
-use std::simd::cmp::SimdPartialOrd;
 use crate::into_vec::IntoVec;
+use std::simd::cmp::SimdPartialOrd;
+use std::simd::{cmp::SimdPartialEq, Simd};
 
-use crate::vectors::traits::{ Init, VecCommon, VecTrait };
+use crate::vectors::traits::{Init, VecCommon, VecTrait};
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -31,10 +31,7 @@ impl VecTrait<bool> for boolx64 {
     }
     #[inline(always)]
     fn sum(&self) -> bool {
-        self.0
-            .iter()
-            .map(|&x| x as u8)
-            .sum::<u8>() > 0
+        self.0.iter().map(|&x| x as u8).sum::<u8>() > 0
     }
 
     fn extract(self, idx: usize) -> bool {
@@ -43,7 +40,7 @@ impl VecTrait<bool> for boolx64 {
 }
 impl VecCommon for boolx64 {
     const SIZE: usize = 64;
-    
+
     type Base = bool;
 }
 impl Init<bool> for boolx64 {

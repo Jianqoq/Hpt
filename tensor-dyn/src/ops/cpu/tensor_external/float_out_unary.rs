@@ -5,7 +5,7 @@ use tensor_iterator::{iterator_traits::ParStridedIteratorZip, TensorIterator};
 use tensor_traits::{CommonBounds, FloatUnaryOps};
 use tensor_types::{
     dtype::TypeCommon,
-    cast::Cast,
+    into_scalar::Cast,
     type_promote::{FloatOutUnary, NormalOut},
 };
 

@@ -1,9 +1,9 @@
 #[test]
 fn onehot() -> anyhow::Result<()> {
     use rand::Rng;
+    use tensor_dyn::AdvanceOps;
     use tensor_dyn::TensorCreator;
     use tensor_dyn::TensorLike;
-    use tensor_dyn::AdvanceOps;
     let mut rng = rand::thread_rng();
     for _ in 0..100 {
         let ndim = rng.gen_range(1..=3);

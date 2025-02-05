@@ -1,7 +1,7 @@
-use proc_macro::TokenStream;
 use crate::type_utils::TypeInfo;
-use quote::quote;
+use proc_macro::TokenStream;
 use proc_macro2::Ident;
+use quote::quote;
 
 pub fn __impl_from_scalar() -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();

@@ -1,8 +1,12 @@
-use std::{ fmt::Display, ops::{ Deref, DerefMut }, sync::Arc };
+use std::{
+    fmt::Display,
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{ strides::strides::Strides, strides::strides_utils::shape_to_strides };
+use crate::{strides::strides::Strides, strides::strides_utils::shape_to_strides};
 
 /// Represents the shape of a multi-dimensional structure, such as a tensor or an array.
 ///
@@ -44,10 +48,7 @@ impl Shape {
 
     /// Returns a new Shape with all elements decreased by 1
     pub fn sub_one(&self) -> Shape {
-        self.iter()
-            .map(|x| *x - 1)
-            .collect::<Vec<i64>>()
-            .into()
+        self.iter().map(|x| *x - 1).collect::<Vec<i64>>().into()
     }
 
     /// Returns a pointer to the inner data
@@ -114,19 +115,25 @@ impl From<Vec<i64>> for Shape {
 
 impl From<Vec<i32>> for Shape {
     fn from(v: Vec<i32>) -> Self {
-        Shape { inner: Arc::new(v.into_iter().map(|x| x as i64).collect()) }
+        Shape {
+            inner: Arc::new(v.into_iter().map(|x| x as i64).collect()),
+        }
     }
 }
 
 impl From<Vec<usize>> for Shape {
     fn from(v: Vec<usize>) -> Self {
-        Shape { inner: Arc::new(v.into_iter().map(|x| x as i64).collect()) }
+        Shape {
+            inner: Arc::new(v.into_iter().map(|x| x as i64).collect()),
+        }
     }
 }
 
 impl From<&[usize]> for Shape {
     fn from(v: &[usize]) -> Self {
-        Shape { inner: Arc::new(v.into_iter().map(|x| *x as i64).collect()) }
+        Shape {
+            inner: Arc::new(v.into_iter().map(|x| *x as i64).collect()),
+        }
     }
 }
 
@@ -149,12 +156,7 @@ impl<'a, const N: usize> From<&'a [i64; N]> for Shape {
 impl<'a, const N: usize> From<&'a [usize; N]> for Shape {
     fn from(v: &'a [usize; N]) -> Self {
         Shape {
-            inner: Arc::new(
-                v
-                    .into_iter()
-                    .map(|x| *x as i64)
-                    .collect()
-            ),
+            inner: Arc::new(v.into_iter().map(|x| *x as i64).collect()),
         }
     }
 }
@@ -162,12 +164,7 @@ impl<'a, const N: usize> From<&'a [usize; N]> for Shape {
 impl<'a, const N: usize> From<&'a [i32; N]> for Shape {
     fn from(v: &'a [i32; N]) -> Self {
         Shape {
-            inner: Arc::new(
-                v
-                    .into_iter()
-                    .map(|x| *x as i64)
-                    .collect()
-            ),
+            inner: Arc::new(v.into_iter().map(|x| *x as i64).collect()),
         }
     }
 }

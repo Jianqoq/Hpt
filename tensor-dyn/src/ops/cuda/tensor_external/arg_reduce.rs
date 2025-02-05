@@ -14,11 +14,19 @@ impl<
 {
     type Output = Tensor<i64, Cuda, DEVICE_ID>;
 
-    fn argmax<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
+    fn argmax<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.argmax(axis, keep_dims)?.into())
     }
 
-    fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
+    fn argmin<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.argmin(axis, keep_dims)?.into())
     }
 }

@@ -14,7 +14,7 @@ use tensor_traits::{CommonBounds, TensorCreator, TensorInfo};
 use tensor_types::dtype::TypeCommon;
 use tensor_types::type_promote::NormalOutUnary;
 use tensor_types::{
-    cast::Cast,
+    into_scalar::Cast,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 

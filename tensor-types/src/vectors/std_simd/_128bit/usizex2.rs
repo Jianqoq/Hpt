@@ -1,6 +1,17 @@
-use std::{ops::{Deref, DerefMut}, simd::{cmp::{SimdPartialEq, SimdPartialOrd}, num::SimdUint, Simd}};
+use std::{
+    ops::{Deref, DerefMut},
+    simd::{
+        cmp::{SimdPartialEq, SimdPartialOrd},
+        num::SimdUint,
+        Simd,
+    },
+};
 
-use crate::{impl_std_simd_bit_logic, std_simd::_128bit::u64x2::u64x2, traits::{SimdCompare, SimdMath, VecTrait}};
+use crate::{
+    impl_std_simd_bit_logic,
+    std_simd::_128bit::u64x2::u64x2,
+    traits::{SimdCompare, SimdMath, VecTrait},
+};
 
 use super::isizex2::isizex2;
 
@@ -116,7 +127,6 @@ impl std::ops::Rem for usizex2 {
     }
 }
 impl_std_simd_bit_logic!(usizex2);
-
 
 impl SimdMath<usize> for usizex2 {
     fn max(self, other: Self) -> Self {

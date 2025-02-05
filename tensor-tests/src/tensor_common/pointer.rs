@@ -1,7 +1,6 @@
 #![allow(unused_imports)]
 
-use tensor_common::{layout::layout::Layout, utils::pointer::Pointer, shape::shape::Shape};
-
+use tensor_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
 
 #[test]
 fn test_index() {
@@ -27,5 +26,8 @@ fn test_index() {
     assert_eq!(*ptr, 20);
 
     let string = format!("{}", ptr);
-    assert_eq!(string, format!("Pointer( ptr: {}, val: {} )", ptr.ptr as usize, ptr[0usize]));
+    assert_eq!(
+        string,
+        format!("Pointer( ptr: {}, val: {} )", ptr.ptr as usize, ptr[0usize])
+    );
 }

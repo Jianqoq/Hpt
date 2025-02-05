@@ -1,6 +1,13 @@
-use std::{ops::{ Deref, DerefMut }, simd::cmp::{SimdPartialEq, SimdPartialOrd}};
+use std::{
+    ops::{Deref, DerefMut},
+    simd::cmp::{SimdPartialEq, SimdPartialOrd},
+};
 
-use crate::{impl_std_simd_bit_logic, traits::{SimdCompare, SimdMath, SimdSelect}, vectors::traits::VecTrait};
+use crate::{
+    impl_std_simd_bit_logic,
+    traits::{SimdCompare, SimdMath, SimdSelect},
+    vectors::traits::VecTrait,
+};
 
 /// a vector of 4 i64 values
 #[allow(non_camel_case_types)]

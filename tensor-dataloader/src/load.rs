@@ -44,7 +44,7 @@ pub(crate) fn load_compressed_slice<
             &slices,
             std::mem::size_of::<T>() as i64,
         )?;
-        
+
         let mut strides = res_strides.clone();
         strides.iter_mut().for_each(|x| {
             *x /= std::mem::size_of::<T>() as i64;

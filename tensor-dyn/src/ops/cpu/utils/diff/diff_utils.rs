@@ -1,6 +1,6 @@
 use tensor_common::error::base::TensorError;
 use tensor_traits::{CommonBounds, NormalReduce};
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 
 use crate::{tensor::DiffTensor, Cpu, Tensor};
 
@@ -16,7 +16,7 @@ where
         grad = grad.sum(broadcast_axes, false)?;
     }
     if *tensor.out_degree.borrow() > 1 {
-        let taked = tensor.grad.borrow_mut().take();    
+        let taked = tensor.grad.borrow_mut().take();
         if let Some(mut stored_grad) = taked {
             stored_grad += grad;
             tensor.grad.borrow_mut().replace(stored_grad);

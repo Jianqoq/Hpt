@@ -13,7 +13,11 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
 {
     type Output = Self;
 
-    fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
+    fn sum<S: Into<Axis>>(
+        &self,
+        axes: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.sum(axes, keep_dims)?.into())
     }
 
@@ -42,7 +46,11 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
     //     Ok(self.inner.sum_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
+    fn prod<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.prod(axis, keep_dims)?.into())
     }
 
@@ -55,7 +63,11 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
     //     Ok(self.inner.prod_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
+    fn min<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.min(axis, keep_dims)?.into())
     }
 
@@ -68,7 +80,11 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
     //     Ok(self.inner.min_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
+    fn max<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.max(axis, keep_dims)?.into())
     }
 
@@ -81,11 +97,19 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
     //     Ok(self.inner.max_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn reducel1<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
+    fn reducel1<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.reducel1(axis, keep_dims)?.into())
     }
 
-    fn sum_square<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
+    fn sum_square<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.sum_square(axis, keep_dims)?.into())
     }
 }
@@ -95,11 +119,19 @@ where
     T: CommonBounds + Eval<Output = bool> + Cast<bool> + DeviceRepr + CudaTypeName,
 {
     type BoolOutput = Tensor<bool, Cuda, DEVICE_ID>;
-    fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::BoolOutput, TensorError> {
+    fn all<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::BoolOutput, TensorError> {
         Ok(self.inner.all(axis, keep_dims)?.into())
     }
 
-    fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::BoolOutput, TensorError> {
+    fn any<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::BoolOutput, TensorError> {
         Ok(self.inner.any(axis, keep_dims)?.into())
     }
 }
@@ -113,11 +145,19 @@ where
 {
     type Output = Self;
 
-    fn nansum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
+    fn nansum<S: Into<Axis>>(
+        &self,
+        axes: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.nansum(axes, keep_dims)?.into())
     }
 
-    fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> std::result::Result<Self::Output, TensorError> {
+    fn nanprod<S: Into<Axis>>(
+        &self,
+        axis: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.nanprod(axis, keep_dims)?.into())
     }
 }

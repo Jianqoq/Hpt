@@ -66,4 +66,3 @@ macro_rules! impl_float_out_unary_promote {
         }
     };
 }
-

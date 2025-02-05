@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
-use tensor_dyn::{get_num_threads, set_global_display_lr_elements, set_num_threads, ShapeManipulate};
+use tensor_dyn::{
+    get_num_threads, set_global_display_lr_elements, set_num_threads, ShapeManipulate,
+};
 use tensor_dyn::{set_global_display_precision, tensor::Tensor, TensorCreator};
 
 #[test]
@@ -14,21 +16,27 @@ fn test_set_global_display_precision() -> anyhow::Result<()> {
 #[test]
 fn test_set_global_lr_precision() -> anyhow::Result<()> {
     let a = Tensor::<f32>::arange(0, 100)?.reshape(&[10, 10])?;
-    assert_eq!(a.to_string(), "Tensor([[ 0.  1.  2. ...  7.  8.  9. ]
+    assert_eq!(
+        a.to_string(),
+        "Tensor([[ 0.  1.  2. ...  7.  8.  9. ]
         [10. 11. 12. ... 17. 18. 19. ]
         [20. 21. 22. ... 27. 28. 29. ]
         ...
 
         [70. 71. 72. ... 77. 78. 79. ]
         [80. 81. 82. ... 87. 88. 89. ]
-        [90. 91. 92. ... 97. 98. 99. ]], shape=(10, 10), strides=(10, 1), dtype=f32)\n");
+        [90. 91. 92. ... 97. 98. 99. ]], shape=(10, 10), strides=(10, 1), dtype=f32)\n"
+    );
     set_global_display_lr_elements(2);
-    assert_eq!(a.to_string(), "Tensor([[ 0.  1. ...  8.  9. ]
+    assert_eq!(
+        a.to_string(),
+        "Tensor([[ 0.  1. ...  8.  9. ]
         [10. 11. ... 18. 19. ]
         ...
 
         [80. 81. ... 88. 89. ]
-        [90. 91. ... 98. 99. ]], shape=(10, 10), strides=(10, 1), dtype=f32)\n");
+        [90. 91. ... 98. 99. ]], shape=(10, 10), strides=(10, 1), dtype=f32)\n"
+    );
     Ok(())
 }
 
@@ -36,7 +44,7 @@ fn test_set_global_lr_precision() -> anyhow::Result<()> {
 fn test_set_num_threads() -> anyhow::Result<()> {
     // we have two thread pools, one from rayon and one from ThreadPool
     set_num_threads(10);
-    assert_eq!(get_num_threads(), 10);  // we get the number of threads from ThreadPool
+    assert_eq!(get_num_threads(), 10); // we get the number of threads from ThreadPool
     set_num_threads(16);
     assert_eq!(get_num_threads(), 16); // we get the number of threads from ThreadPool
     Ok(())

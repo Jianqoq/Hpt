@@ -8,7 +8,7 @@ use tensor_common::{
     utils::pointer::Pointer,
 };
 use tensor_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo};
-use tensor_types::cast::Cast;
+use tensor_types::into_scalar::Cast;
 
 use crate::{
     backend::Cpu, ops::cpu::utils::reduce::reduce_utils::rearrange_array, tensor_base::_Tensor,

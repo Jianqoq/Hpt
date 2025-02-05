@@ -1,8 +1,8 @@
-use std::ops::{ Deref, DerefMut };
+use std::ops::{Deref, DerefMut};
 
 use crate::into_vec::IntoVec;
 
-use crate::vectors::traits::{ Init, VecCommon, VecTrait };
+use crate::vectors::traits::{Init, VecCommon, VecTrait};
 
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -25,7 +25,8 @@ impl DerefMut for usizex8 {
 impl VecTrait<usize> for usizex8 {
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[usize]) {
-        self.as_mut_array().copy_from_slice(unsafe { std::mem::transmute(slice) });
+        self.as_mut_array()
+            .copy_from_slice(unsafe { std::mem::transmute(slice) });
     }
     #[inline(always)]
     fn as_ptr(&self) -> *const usize {
