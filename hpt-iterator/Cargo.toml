@@ -1,0 +1,14 @@
+[package]
+name = "hpt-iterator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hpt-common = { path = "../hpt-common" }
+hpt-traits = { path = "../hpt-traits", default-features = false }
+hpt-types = { path = "../hpt-types" }
+rayon = "1.8.0"
+
+[features]
+track_caller = []
+bound_check = []

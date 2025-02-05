@@ -20,7 +20,7 @@ Tensor with type `T` containing random values from the Weibull distribution.
 
 ## Examples:
 ```rust
-use tensor_dyn::{Random, Tensor, TensorError};
+use hpt_core::{Random, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     // Create an initial tensor

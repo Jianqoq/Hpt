@@ -26,7 +26,7 @@ Tensor with type `i64` containing the indices of minimum values
 
 ## Examples:
 ```rust
-use tensor_dyn::{IndexReduce, Tensor, TensorError};
+use hpt_core::{IndexReduce, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     // Max over dimension 0

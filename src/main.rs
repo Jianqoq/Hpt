@@ -1,4 +1,4 @@
-use tensor_dyn::{
+use hpt_core::{
     FloatOutUnary, Matmul, ParStridedIteratorSimdZip, Random, ShapeManipulate, Tensor,
     TensorCreator, TensorError, TensorIterator,
 };

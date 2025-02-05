@@ -6,25 +6,25 @@ edition = "2021"
 
 [workspace]
 members = [
-    "tensor-allocator",
-    "tensor-common",
-    "tensor-dyn",
-    "tensor-traits",
-    "tensor-types",
-    "tensor-macros",
-    "tensor-iterator",
-    "tensor-display",
-    "tensor-bench",
-    "tensor-tests",
-    "tensor-dataloader",
-    "tensor-codegen",
-    "tensor-cudakernels",
-    "tensor-examples",
+    "hpt-allocator",
+    "hpt-common",
+    "hpt-core",
+    "hpt-traits",
+    "hpt-types",
+    "hpt-macros",
+    "hpt-iterator",
+    "hpt-display",
+    "hpt-bench",
+    "hpt-tests",
+    "hpt-dataloader",
+    "hpt-codegen",
+    "hpt-cudakernels",
+    "hpt-examples",
 ]
 
 [dependencies]
-tensor-dyn = { path = "tensor-dyn", features = ["track_caller", "codegen"] }
-tensor-common = { path = "tensor-common" }
+hpt-core = { path = "hpt-core", features = ["track_caller", "codegen"] }
+hpt-common = { path = "hpt-common" }
 anyhow = "1.0.40"
 half = "2.4.1"
 tch = { version = "0.17.0", features = ["download-libtorch"] }

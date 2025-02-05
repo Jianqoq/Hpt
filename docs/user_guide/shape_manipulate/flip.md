@@ -23,7 +23,7 @@ A new tensor with elements reversed along the specified axes.
 
 ## Examples:
 ```rust
-use tensor_dyn::{ShapeManipulate, Tensor, TensorError};
+use hpt_core::{ShapeManipulate, Tensor, TensorError};
 fn main() -> Result<(), TensorError> {
     // Create a 2D tensor
     let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).reshape(&[2, 3])?;

@@ -1,0 +1,128 @@
+[package]
+name = "hpt-bench"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tch = "0.17.0"
+hpt-core = { path = "../hpt-core" }
+criterion = { version = "0.5.1", features = ["html_reports"] }
+half = "2.4.1"
+gnuplot = "0.0.43"
+num_cpus = "1.13.0"
+paste = "1.0.15"
+rayon = "1.8.0"
+syn =  {version = "2.0.82", default-features = false, features = ["derive", "full", "visit", "visit-mut"] }
+
+[features]
+maxpool = []
+softmax = []
+hamming = []
+unary = []
+matmul = []
+conv = []
+reduction = []
+prod = []
+random = []
+binary = []
+broadcast = []
+selu = []
+sin = []
+cos = []
+tan = []
+asin = []
+acos = []
+atan = []
+sinh = []
+cosh = []
+tanh = []
+asinh = []
+acosh = []
+atanh = []
+sigmoid = []
+exp = []
+cat = []
+log = []
+relu = []
+leaky_relu = []
+elu = []
+softplus = []
+softsign = []
+hard_sigmoid = []
+swish = []
+mish = []
+sum = []
+relu6 = []
+gelu = []
+celu = []
+log10 = []
+log2 = []
+exp2 = []
+sqrt = []
+neg = []
+square = []
+abs = []
+ceil = []
+sign = []
+clip = []
+recip = []
+conv2d = []
+f32 = []
+default = [
+    "hamming",
+    "f32",
+    "conv2d",
+    "recip",
+    "clip",
+    "sign",
+    "ceil",
+    "abs",
+    "square",
+    "neg",
+    "sqrt",
+    "exp2",
+    "log2",
+    "log10",
+    "celu",
+    "gelu",
+    "unary",
+    "matmul",
+    "conv",
+    "reduction",
+    "random",
+    "binary",
+    "broadcast",
+    "selu",
+    "sin",
+    "cos",
+    "tan",
+    "asin",
+    "acos",
+    "atan",
+    "sinh",
+    "cosh",
+    "tanh",
+    "asinh",
+    "acosh",
+    "atanh",
+    "sigmoid",
+    "exp",
+    "log",
+    "relu",
+    "leaky_relu",
+    "elu",
+    "softplus",
+    "softsign",
+    "hard_sigmoid",
+    "swish",
+    "mish",
+    "cat",
+    "sum",
+    "prod",
+    "softmax",
+]
+
+[[bench]]
+name = "main"
+path = "benches/benchmarks_main.rs"
+harness = false

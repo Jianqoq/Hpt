@@ -25,39 +25,39 @@ Complex64
 ```
 
 ### Common Traits
-`pub trait FloatOutBinary<RHS = Self>` See implementation at [FloatOutBinary](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/type_promote.rs#L49)
+`pub trait FloatOutBinary<RHS = Self>` See implementation at [FloatOutBinary](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L49)
 
-`pub trait FloatOutBinary2` See implementation at [FloatOutBinary2](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/type_promote.rs#L65)
+`pub trait FloatOutBinary2` See implementation at [FloatOutBinary2](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L65)
 
-`pub trait NormalOut<RHS = Self>` See implementation at [NormalOut](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/type_promote.rs#L78)
+`pub trait NormalOut<RHS = Self>` See implementation at [NormalOut](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L78)
 
-`pub trait NormalOut2` See implementation at [NormalOut2](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/type_promote.rs#L103)
+`pub trait NormalOut2` See implementation at [NormalOut2](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L103)
 
-`pub trait NormalOutUnary` See implementation at [NormalOutUnary](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/type_promote.rs#L141)
+`pub trait NormalOutUnary` See implementation at [NormalOutUnary](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L141)
 
-`pub trait NormalOutUnary2` See implementation at [NormalOutUnary2](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/type_promote.rs#L176)
+`pub trait NormalOutUnary2` See implementation at [NormalOutUnary2](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L176)
 
-`pub trait BitWiseOut<RHS = Self>` See implementation at [BitWiseOut](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/type_promote.rs#L213)
+`pub trait BitWiseOut<RHS = Self>` See implementation at [BitWiseOut](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L213)
 
-`pub trait BitWiseOut2` See implementation at [BitWiseOut2](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/type_promote.rs#L231)
+`pub trait BitWiseOut2` See implementation at [BitWiseOut2](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L231)
 
-`pub trait Cmp<RHS = Self>` See implementation at [Cmp](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/type_promote.rs#L251)
+`pub trait Cmp<RHS = Self>` See implementation at [Cmp](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L251)
 
-`pub trait SimdCmp<RHS = Self>` See implementation at [SimdCmp](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/type_promote.rs#L270)
+`pub trait SimdCmp<RHS = Self>` See implementation at [SimdCmp](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L270)
 
-`pub trait Eval` See implementation at [Eval](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/type_promote.rs#L320)
+`pub trait Eval` See implementation at [Eval](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L320)
 
-`pub trait Eval2` See implementation at [Eval2](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/type_promote.rs#L332)
+`pub trait Eval2` See implementation at [Eval2](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L332)
 
-`pub trait FloatOutUnary` See implementation at [FloatOutUnary](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/type_promote.rs#L348)
+`pub trait FloatOutUnary` See implementation at [FloatOutUnary](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L348)
 
-`pub trait FloatOutUnary2` See implementation at [FloatOutUnary2](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/type_promote.rs#L463)
+`pub trait FloatOutUnary2` See implementation at [FloatOutUnary2](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L463)
 
-`pub trait Cast<T>` See implementation at [Cast](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/tensor-types/src/cast.rs#L6)
+`pub trait Cast<T>` See implementation at [Cast](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/cast.rs#L6)
 
 ### Usage
 
-In tensor-core, all the computation will be done by using these methods. If you are a developer want to implement a new method for Tensor, you will need to use these traits bounds. If you found that implement your new method for Tensor requires to write tons of trait bounds, you probabaly want to implement the method for scalar directly, then use this scalar method in Tensor impl by simply added one trait bound.
+In hpt-core, all the computation will be done by using these methods. If you are a developer want to implement a new method for Tensor, you will need to use these traits bounds. If you found that implement your new method for Tensor requires to write tons of trait bounds, you probabaly want to implement the method for scalar directly, then use this scalar method in Tensor impl by simply added one trait bound.
 
 ### Simd
 

@@ -17,7 +17,7 @@ A 1-D tensor with values from `start` to `end-1`.
 
 ## Examples:
 ```rust
-use tensor_dyn::{Tensor, TensorError, TensorCreator};
+use hpt_core::{Tensor, TensorError, TensorCreator};
 fn main() -> Result<(), TensorError> {
     // Create sequence from 0 to 5
     let a = Tensor::<f32>::arange(0, 5)?;
