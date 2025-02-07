@@ -261,7 +261,7 @@ pub(crate) fn normalize_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: 
     Ok((keep_fast_dim, a.permute(transposed_axis)?, res?))
 }
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn contiguous_normalize_template<T, F1, F2, F3, O, const DEVICE: usize>(
     a: &_Tensor<T, Cpu, DEVICE>,
     axis: usize,
@@ -322,7 +322,7 @@ where
     Ok(result)
 }
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn uncontiguous_normalize_template<T, F1, F2, F3, O, const DEVICE: usize>(
     a: &_Tensor<T, Cpu, DEVICE>,
     axis: usize,

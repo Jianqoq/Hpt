@@ -18,7 +18,9 @@ export default defineUserConfig({
       mermaid: true,
     }),
   ],
-
+  markdown: {
+    anchor: false,
+  },
   bundler: viteBundler(),
   theme: defaultTheme({
     home: false,
@@ -296,57 +298,33 @@ export default defineUserConfig({
           children: [
             {
               text: 'allocation',
-              collapsible: true,
-              children: [
-                { text: 'allocator', link: '/dev_guide/allocation/allocator.md' },
-              ]
+              link: '/dev_guide/allocation/allocator.md'
             },
             {
-              text: 'scalar',
-              collapsible: true,
-              children: [
-                { text: 'scalar', link: '/dev_guide/scalar/scalar.md' },
-              ]
+              text: 'New Type',
+              link: '/dev_guide/new_type.md'
             },
             {
               text: 'type promote',
-              collapsible: true,
-              children: [
-                { text: 'type promote', link: '/dev_guide/type_promote/type_promote.md' },
-              ]
+              link: '/dev_guide/type_promote.md'
             },
             {
               text: 'pointer',
-              collapsible: true,
-              children: [
-                { text: 'pointer', link: '/dev_guide/pointer/pointer.md' },
-              ]
+              link: '/dev_guide/pointer/pointer.md'
             },
             {
               text: 'test cases',
-              collapsible: true,
-              children: [
-                { text: 'rules', link: '/dev_guide/test_cases/rules.md' },
-              ]
+              link: '/dev_guide/test_rules.md'
             },
             {
               text: 'iterator',
-              collapsible: true,
-              children: [
-                { text: 'iterator', link: '/dev_guide/iterator/iterator.md' },
-              ]
+              link: '/dev_guide/iterator/iterator.md'
             }, {
-              text: 'adding new op',
-              collapsible: true,
-              children: [
-                { text: 'adding new op', link: '/dev_guide/adding_new_op.md' },
-              ]
+              text: 'New op',
+              link: '/dev_guide/adding_new_op.md'
             }, {
-              text: 'adding new arch support',
-              collapsible: true,
-              children: [
-                { text: 'adding new arch', link: '/dev_guide/adding_new_arch.md' },
-              ]
+              text: 'New arch support',
+              link: '/dev_guide/adding_new_arch.md'
             }
           ]
         }

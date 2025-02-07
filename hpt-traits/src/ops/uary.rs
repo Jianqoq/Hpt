@@ -26,7 +26,7 @@ pub trait FloatUnaryOps {
     /// * A new tensor where each element is the sine of the corresponding element in the original tensor.
     /// # Panics
     /// * This function may panic if the tensor contains invalid values for the sine function, such as `NaN` values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn sin(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes the element-wise cos of the tensor.
@@ -43,7 +43,7 @@ pub trait FloatUnaryOps {
     /// * A new tensor where each element is the cos of the corresponding element in the original tensor.
     /// # Panics
     /// * This function may panic if the tensor contains invalid values for the cos function, such as `NaN` values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn cos(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes the element-wise tan of the tensor.
@@ -60,7 +60,7 @@ pub trait FloatUnaryOps {
     /// * A new tensor where each element is the tan of the corresponding element in the original tensor.
     /// # Panics
     /// * This function may panic if the tensor contains invalid values for the tan function, such as `NaN` values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn tan(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes the element-wise asin of the tensor.
@@ -77,7 +77,7 @@ pub trait FloatUnaryOps {
     /// * A new tensor where each element is the asin of the corresponding element in the original tensor.
     /// # Panics
     /// * This function may panic if the tensor contains invalid values for the asin function, such as `NaN` values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn asin(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes the element-wise acos of the tensor.
@@ -94,7 +94,7 @@ pub trait FloatUnaryOps {
     /// * A new tensor where each element is the acos of the corresponding element in the original tensor.
     /// # Panics
     /// * This function may panic if the tensor contains invalid values for the acos function, such as `NaN` values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn acos(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes the element-wise atan of the tensor.
@@ -111,7 +111,7 @@ pub trait FloatUnaryOps {
     /// * A new tensor where each element is the atan of the corresponding element in the original tensor.
     /// # Panics
     /// * This function may panic if the tensor contains invalid values for the atan function, such as `NaN` values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn atan(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes the element-wise sinh of the tensor.
@@ -128,7 +128,7 @@ pub trait FloatUnaryOps {
     /// * A new tensor where each element is the sinh of the corresponding element in the original tensor.
     /// # Panics
     /// * This function may panic if the tensor contains invalid values for the sinh function, such as `NaN` values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn sinh(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes the element-wise cosh of the tensor.
@@ -145,7 +145,7 @@ pub trait FloatUnaryOps {
     /// * A new tensor where each element is the cosh of the corresponding element in the original tensor.
     /// # Panics
     /// * This function may panic if the tensor contains invalid values for the cosh function, such as `NaN` values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn cosh(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes the element-wise tanh of the tensor.
@@ -162,7 +162,7 @@ pub trait FloatUnaryOps {
     /// * A new tensor where each element is the tanh of the corresponding element in the original tensor.
     /// # Panics
     /// * This function may panic if the tensor contains invalid values for the tanh function, such as `NaN` values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn tanh(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes the element-wise asinh of the tensor.
@@ -179,7 +179,7 @@ pub trait FloatUnaryOps {
     /// * A new tensor where each element is the asinh of the corresponding element in the original tensor.
     /// # Panics
     /// * This function may panic if the tensor contains invalid values for the asinh function, such as `NaN` values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn asinh(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes the element-wise acosh of the tensor.
@@ -196,7 +196,7 @@ pub trait FloatUnaryOps {
     /// * A new tensor where each element is the acosh of the corresponding element in the original tensor.
     /// # Panics
     /// * This function may panic if the tensor contains invalid values for the acosh function, such as `NaN` values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn acosh(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes the element-wise atanh of the tensor.
@@ -213,13 +213,13 @@ pub trait FloatUnaryOps {
     /// * A new tensor where each element is the atanh of the corresponding element in the original tensor.
     /// # Panics
     /// * This function may panic if the tensor contains invalid values for the atanh function, such as `NaN` values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn atanh(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// sin method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`sin`]: Computes the element-wise sine of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn sin_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -227,7 +227,7 @@ pub trait FloatUnaryOps {
     /// cos method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`cos`]: Computes the element-wise cosine of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn cos_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -235,7 +235,7 @@ pub trait FloatUnaryOps {
     /// tan method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`tan`]: Computes the element-wise tangent of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn tan_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -243,7 +243,7 @@ pub trait FloatUnaryOps {
     /// asin method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`asin`]: Computes the element-wise asin of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn asin_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -251,7 +251,7 @@ pub trait FloatUnaryOps {
     /// acos method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`acos`]: Computes the element-wise acos of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn acos_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -259,7 +259,7 @@ pub trait FloatUnaryOps {
     /// atan method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`atan`]: Computes the element-wise atan of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn atan_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -267,7 +267,7 @@ pub trait FloatUnaryOps {
     /// sinh method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`sinh`]: Computes the element-wise sinh of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn sinh_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -275,7 +275,7 @@ pub trait FloatUnaryOps {
     /// cosh method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`cosh`]: Computes the element-wise cosh of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn cosh_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -283,7 +283,7 @@ pub trait FloatUnaryOps {
     /// tanh method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`tanh`]: Computes the element-wise tanh of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn tanh_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -291,7 +291,7 @@ pub trait FloatUnaryOps {
     /// asinh method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`asinh`]: Computes the element-wise asinh of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn asinh_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -299,7 +299,7 @@ pub trait FloatUnaryOps {
     /// acosh method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`acosh`]: Computes the element-wise acosh of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn acosh_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -309,7 +309,7 @@ pub trait FloatUnaryOps {
     /// # See Also
     ///
     /// - [`atanh`]: Computes the element-wise atanh of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn atanh_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -327,13 +327,13 @@ pub trait FloatUnaryOps {
     /// * A new tensor where each element is the exponential of the corresponding element in the original tensor.
     /// # Panics
     /// * This function may panic if the tensor contains values that would result in an overflow when calculating the exponential.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn exp(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// exp method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`exp`]: Computes the element-wise exponential of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn exp_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -356,13 +356,13 @@ pub trait FloatUnaryOps {
     /// # Panics
     ///
     /// * This function may panic if the tensor contains values that would result in an overflow when calculating the base-2 exponential.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn exp2(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// exp2 method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`exp2`]: Computes the element-wise base-2 exponential of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn exp2_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -385,13 +385,13 @@ pub trait FloatUnaryOps {
     /// # Panics
     ///
     /// * This function will panic if the tensor contains negative values, as the square root is not defined for negative numbers in real numbers.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn sqrt(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// sqrt method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`sqrt`]: Computes the element-wise square root of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn sqrt_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -413,13 +413,13 @@ pub trait FloatUnaryOps {
     /// # Panics
     ///
     /// * This function will panic if the tensor contains zeros, as the reciprocal of zero is undefined.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn recip(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// recip method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`recip`]: Computes the element-wise reciprocal of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn recip_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -442,13 +442,13 @@ pub trait FloatUnaryOps {
     /// # Panics
     ///
     /// * This function will panic if the tensor contains values less than or equal to zero, as the logarithm is not defined for such values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn ln(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// ln method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`ln`]: Computes the element-wise natural logarithm of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn ln_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -471,13 +471,13 @@ pub trait FloatUnaryOps {
     /// # Panics
     ///
     /// * This function will panic if the tensor contains values less than or equal to zero, as the logarithm is not defined for such values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn log2(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// log2 method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`log2`]: Computes the element-wise base-2 logarithm of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn log2_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -500,13 +500,13 @@ pub trait FloatUnaryOps {
     /// # Panics
     ///
     /// * This function will panic if the tensor contains values less than or equal to zero, as the logarithm is not defined for such values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn log10(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// log10 method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`log10`]: Computes the element-wise base-10 logarithm of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn log10_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -528,13 +528,13 @@ pub trait FloatUnaryOps {
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn celu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError>;
 
     /// celu method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`celu`]: Computes the element-wise Continuously Differentiable Exponential Linear Unit (CELU).
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn celu_<U>(
         &self,
         alpha: Self::OutputMeta,
@@ -560,13 +560,13 @@ pub trait FloatUnaryOps {
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn sigmoid(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// sigmoid method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`sigmoid`]: Computes the element-wise sigmoid function of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn sigmoid_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -588,13 +588,13 @@ pub trait FloatUnaryOps {
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn elu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError>;
 
     /// elu method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`elu`]: Computes the element-wise Exponential Linear Unit (ELU).
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn elu_<U>(
         &self,
         alpha: Self::OutputMeta,
@@ -640,13 +640,13 @@ pub trait FloatUnaryOps {
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn gelu(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// gelu method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`gelu`]: Computes the element-wise Gaussian Error Linear Unit (GELU).
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn gelu_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -670,7 +670,7 @@ pub trait FloatUnaryOps {
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn selu<U>(&self, alpha: U, gamma: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Into<Option<Self::OutputMeta>>;
@@ -678,7 +678,7 @@ pub trait FloatUnaryOps {
     /// selu method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`selu`]: Computes the element-wise Scaled Exponential Linear Unit (SELU).
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn selu_<U>(
         &self,
         alpha: Option<Self::OutputMeta>,
@@ -705,13 +705,13 @@ pub trait FloatUnaryOps {
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn hard_sigmoid(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// hard_sigmoid method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`hard_sigmoid`]: Computes the element-wise Hard Sigmoid.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn hard_sigmoid_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -733,13 +733,13 @@ pub trait FloatUnaryOps {
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn hard_swish(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// hard_swish method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`hard_swish`]: Computes the element-wise Hard Swish.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn hard_swish_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -761,13 +761,13 @@ pub trait FloatUnaryOps {
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn softplus(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Softplus method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`softplus`]: Computes the element-wise softplus of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn softplus_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -789,13 +789,13 @@ pub trait FloatUnaryOps {
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn softsign(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// softsign method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`softsign`]: Computes the element-wise softsign of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn softsign_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -817,13 +817,13 @@ pub trait FloatUnaryOps {
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn mish(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// mish method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`mish`]: Computes the element-wise Mish of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn mish_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -835,13 +835,13 @@ pub trait FloatUnaryOps {
     /// # Returns
     ///
     /// * A new tensor where each element is the cube root of the corresponding element in the original tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn cbrt(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// cbrt method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`cbrt`]: Computes the element-wise cube root of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn cbrt_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -875,13 +875,13 @@ where
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn floor(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Floor method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`floor`]: Computes the element-wise floor of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn floor_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -903,13 +903,13 @@ where
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn square(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Square method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`square`]: Computes the element-wise square of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn square_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -931,13 +931,13 @@ where
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn abs(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// abs method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`abs`]: Computes the element-wise absolute value of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn abs_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -958,13 +958,13 @@ where
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn ceil(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Ceil method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`ceil`]: Computes the element-wise ceiling of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn ceil_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -988,13 +988,13 @@ where
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn sign(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// sign method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`sign`]: Computes the element-wise sign of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn sign_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -1015,7 +1015,7 @@ where
     /// # Panics
     ///
     /// * This function will panic if `min` is greater than `max`.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn clamp(
         &self,
         min: Self::OutputMeta,
@@ -1025,7 +1025,7 @@ where
     /// clamp method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`clamp`]: Clamps (limits) the values of the tensor between the specified `min` and `max`.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn clamp_<U>(
         &self,
         min: Self::OutputMeta,
@@ -1051,13 +1051,13 @@ where
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn round(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// round method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`round`]: Computes the element-wise rounding of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn round_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -1078,7 +1078,7 @@ where
     ///
     /// - [`abs`]: Computes the element-wise absolute value of the tensor.
     /// - [`sign`]: Computes the element-wise sign of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn neg(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Inplace Version of neg.
@@ -1086,7 +1086,7 @@ where
     /// # See Also
     ///
     /// - [`neg`]: Computes the element-wise negation of the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn neg_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -1134,14 +1134,14 @@ where
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn leaky_relu(&self, alpha: Self::OutputMeta)
         -> std::result::Result<Self::Output, TensorError>;
 
     /// leaky_relu method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`leaky_relu`]: Computes the element-wise Leaky Rectified Linear Unit (Leaky ReLU).
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn leaky_relu_<U>(
         &self,
         alpha: Self::OutputMeta,
@@ -1167,13 +1167,13 @@ where
     /// # Panics
     ///
     /// * This function should not panic under normal conditions.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn relu6(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// relu6 method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`relu6`]: Computes the element-wise Rectified Linear Unit 6 (ReLU6).
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn relu6_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput>;
@@ -1212,7 +1212,7 @@ where
     ///
     /// - [`cumprod`]: Computes the cumulative product of the elements in the tensor.
     /// - [`sum`]: Computes the sum of all elements in the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn cumsum(&self, axis: Option<i64>) -> std::result::Result<Self::Output, TensorError>
     where
         Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>;
@@ -1240,7 +1240,7 @@ where
     ///
     /// - [`cumsum`]: Computes the cumulative sum of the elements in the tensor.
     /// - [`prod`]: Computes the product of all elements in the tensor.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn cumprod(&self, axis: Option<i64>) -> std::result::Result<Self::Output, TensorError>
     where
         Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>;

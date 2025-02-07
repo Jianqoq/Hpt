@@ -647,7 +647,7 @@ impl<T> ParStridedHelper for ParStrided<T> {
 }
 
 impl<T: CommonBounds> ShapeManipulator for ParStrided<T> {
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn reshape<S: Into<Shape>>(self, shape: S) -> Self {
         par_reshape(self, shape)
     }

@@ -178,7 +178,7 @@ impl _Allocator {
     /// # Safety
     ///
     /// This function checks `null` ptr internally, any memory allocated through this method, downstream don't need to check for `null` ptr
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn allocate(
         &mut self,
         layout: Layout,

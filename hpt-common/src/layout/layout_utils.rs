@@ -129,7 +129,7 @@ impl Layout {
     /// # Panics
     ///
     /// if the length of `axes` is not equal to the layout's ndim
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn permute<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Layout, TensorError> {
         let axes = process_axes(axes, self.shape.len())?;
         ShapeError::check_dim(axes.len(), self.shape.len())?;
@@ -186,7 +186,7 @@ impl Layout {
     /// # Panics
     ///
     /// if the reshape is not possible
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn inplace_reshape(&self, shape: &Shape) -> std::result::Result<Layout, TensorError> {
         if let Some(new_strides) = self.is_reshape_possible(shape) {
             Ok(Layout {
@@ -217,7 +217,7 @@ impl Layout {
     /// # Panics
     ///
     /// if the broadcast is not possible
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn broadcast(&self, other: &Layout) -> std::result::Result<Layout, TensorError> {
         let shape = predict_broadcast_shape(&self.shape, &other.shape)?;
         let strides = shape_to_strides(&shape);

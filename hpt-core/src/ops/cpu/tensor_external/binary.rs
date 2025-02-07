@@ -29,40 +29,40 @@ macro_rules! impl_bin_ops {
         type OutputMeta = NormalType<A, B>;
         type InplaceOutput = _Tensor<NormalType<A, B>, Cpu, DEVICE>;
 
-        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[track_caller]
         fn add_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
             where
                 U: Borrow<Self::InplaceOutput>
         {
             binary_fn_with_out_simd(self, &rhs, |a, b| a._add(b), |a, b| a._add(b), Some(out))
         }
-        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[track_caller]
         fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
             where
                 U: Borrow<Self::InplaceOutput>
         {
             binary_fn_with_out_simd(self, &rhs, |a, b| a._sub(b), |a, b| a._sub(b), Some(out))
         }
-        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[track_caller]
         fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
             where
                 U: Borrow<Self::InplaceOutput>
         {
             binary_fn_with_out_simd(self, &rhs, |a, b| a._mul(b), |a, b| a._mul(b), Some(out))
         }
-        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[track_caller]
         fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
             where
                 U: Borrow<Self::InplaceOutput>
         {
             binary_fn_with_out_simd(self, &rhs, |a, b| a._rem(b), |a, b| a._rem(b), Some(out))
         }
-        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[track_caller]
         fn pow(&self, rhs: $($rhs)*) -> std::result::Result<Self::Output, TensorError>
         {
             binary_fn_with_out_simd(self, &rhs, |a, b| a._pow(b), |a, b| a._pow(b), None::<Self::Output>)
         }
-        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[track_caller]
         fn pow_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
             where
                 U: Borrow<Self::InplaceOutput>
@@ -112,7 +112,7 @@ macro_rules! impl_bin_ops_basic {
         type Output = Tensor<NormalType<A, B>, Cpu, DEVICE>;
         type OutputMeta = NormalType<A, B>;
         type InplaceOutput = Tensor<NormalType<A, B>, Cpu, DEVICE>;
-        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[track_caller]
         #[inline]
         fn add_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
             where
@@ -120,7 +120,7 @@ macro_rules! impl_bin_ops_basic {
         {
             Ok(self.inner.add_(rhs.inner.as_ref(), out.borrow().inner.as_ref())?.into())
         }
-        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[track_caller]
         #[inline]
         fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
             where
@@ -128,7 +128,7 @@ macro_rules! impl_bin_ops_basic {
         {
             Ok(self.inner.sub_(rhs.inner.as_ref(), out.borrow().inner.as_ref())?.into())
         }
-        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[track_caller]
         #[inline]
         fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
             where
@@ -136,7 +136,7 @@ macro_rules! impl_bin_ops_basic {
         {
             Ok(self.inner.mul_(rhs.inner.as_ref(), out.borrow().inner.as_ref())?.into())
         }
-        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[track_caller]
         #[inline]
         fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
             where
@@ -144,12 +144,12 @@ macro_rules! impl_bin_ops_basic {
         {
             Ok(self.inner.rem_(rhs.inner.as_ref(), out.borrow().inner.as_ref())?.into())
         }
-        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[track_caller]
         #[inline]
         fn pow(&self, rhs: $($rhs)*) -> std::result::Result<Self::Output, TensorError> {
             Ok(self.inner.pow(rhs.inner.as_ref())?.into())
         }
-        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[track_caller]
         #[inline]
         fn pow_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
             where

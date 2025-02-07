@@ -15,7 +15,8 @@
 #define all_u32(a, b) ((bool)a) && ((bool)b)
 #define all_u64(a, b) ((bool)a) && ((bool)b)
 
-#define all_f16(a, b) ((bool)__half2float(a)) && ((bool)__half2float(b))
+#define all_f16(a, b) (a && b)
+#define all_bf16(a, b) (a && b)
 
 #define DEFINE_REDUCE_KERNEL(rust_type, type)                                                                                                                         \
     __device__ __forceinline__ void warpReduce_##rust_type(volatile bool *sdata_##rust_type, unsigned int tid)                                                                \
@@ -249,3 +250,4 @@ DEFINE_REDUCE_KERNEL(u64, unsigned long long)
 DEFINE_REDUCE_KERNEL(f32, float)
 DEFINE_REDUCE_KERNEL(f64, double)
 DEFINE_REDUCE_KERNEL(f16, __half)
+DEFINE_REDUCE_KERNEL(bf16, __nv_bfloat16)

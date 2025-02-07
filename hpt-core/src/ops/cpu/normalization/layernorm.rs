@@ -18,7 +18,7 @@ use hpt_types::{
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn layernorm<S>(
         &self,
         normalized_shape: S,
@@ -233,7 +233,7 @@ fn update_prg3<T, O>(
 
 impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     /// LayerNorm
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn layernorm<S>(
         &self,
         normalized_shape: S,

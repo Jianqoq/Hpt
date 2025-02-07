@@ -10,7 +10,7 @@ use hpt_common::{
 
 use crate::iterator_traits::{ParStridedHelper, StridedHelper};
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn par_reshape<S: Into<Shape>, T: ParStridedHelper>(mut iterator: T, shape: S) -> T {
     let tmp = shape.into();
     let res_shape = tmp;
@@ -69,7 +69,7 @@ pub(crate) fn par_reshape<S: Into<Shape>, T: ParStridedHelper>(mut iterator: T, 
     iterator
 }
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn par_transpose<AXIS: Into<Axis>, T: ParStridedHelper>(
     mut iterator: T,
     axes: AXIS,
@@ -105,7 +105,7 @@ pub(crate) fn par_transpose<AXIS: Into<Axis>, T: ParStridedHelper>(
     iterator
 }
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn par_expand<S: Into<Shape>, T: ParStridedHelper>(mut iterator: T, shape: S) -> T {
     let res_shape = shape.into();
 
@@ -131,7 +131,7 @@ pub(crate) fn par_expand<S: Into<Shape>, T: ParStridedHelper>(mut iterator: T, s
     iterator
 }
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn reshape<S: Into<Shape>, T: StridedHelper>(mut iterator: T, shape: S) -> T {
     let tmp = shape.into();
     let res_shape = tmp;
@@ -181,7 +181,7 @@ pub(crate) fn reshape<S: Into<Shape>, T: StridedHelper>(mut iterator: T, shape: 
     iterator
 }
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn expand<T: StridedHelper, S: Into<Shape>>(mut iterator: T, shape: S) -> T {
     let res_shape: Shape = shape.into();
     let new_strides = iterator
@@ -193,7 +193,7 @@ pub(crate) fn expand<T: StridedHelper, S: Into<Shape>>(mut iterator: T, shape: S
     iterator
 }
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn transpose<T: StridedHelper, AXIS: Into<Axis>>(mut iterator: T, axes: AXIS) -> T {
     // ErrHandler::check_axes_in_range(self.shape().len(), axes).unwrap();
     let axes = process_axes(axes, iterator._layout().shape().len()).unwrap();

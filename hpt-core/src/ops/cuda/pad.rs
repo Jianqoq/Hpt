@@ -6,7 +6,7 @@ use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
 
 use super::cuda_utils::compute_kernel_launch_config;
 impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn pad(&self, pads: &[(i64, i64)], val: T) -> anyhow::Result<_Tensor<T, Cuda, DEVICE_ID>> {
         let res_shape = self
             .shape()
@@ -89,7 +89,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> Tensor<T, Cuda, DEVIC
     /// # Returns
     ///
     /// This function returns a `Result` containing a new tensor with the one-hot encoded values.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn pad(&self, pads: &[(i64, i64)], val: T) -> anyhow::Result<Tensor<T, Cuda, DEVICE_ID>> {
         Ok(self.inner.pad(pads, val)?.into())
     }

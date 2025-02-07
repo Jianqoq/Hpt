@@ -33,7 +33,7 @@ where
     usize: Cast<FBO<T>>,
     i64: Cast<T>,
 {
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub(crate) fn hamming_window(
         window_length: i64,
         periodic: bool,
@@ -41,7 +41,7 @@ where
         Self::__hamming_window(window_length, (0.54).cast(), (0.46).cast(), periodic)
     }
 
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub(crate) fn hann_window(
         window_length: i64,
         periodic: bool,
@@ -49,7 +49,7 @@ where
         Self::__hamming_window(window_length, (0.5).cast(), (0.5).cast(), periodic)
     }
 
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn __hamming_window(
         window_length: i64,
         alpha: FBO<T>,
@@ -113,7 +113,7 @@ where
     /// # Returns
     ///
     /// This function returns a `Result` containing a tensor of type `<T as FloatOutBinary>::Output`
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn blackman_window(
         window_length: i64,
         periodic: bool,

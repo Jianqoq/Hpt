@@ -7,7 +7,6 @@ use crate::ops::cpu::kernels::conv_group::Params;
 use crate::ops::cpu::kernels::conv_group::PartialParams;
 use crate::tensor_base::_Tensor;
 use crate::Cpu;
-use crate::Tensor;
 use crate::REGNUM;
 use crate::SIMD_WIDTH;
 use hpt_common::error::base::TensorError;
@@ -17,300 +16,267 @@ use hpt_traits::CommonBounds;
 use hpt_traits::TensorCreator;
 use hpt_traits::TensorInfo;
 use hpt_types::into_scalar::Cast;
-use hpt_types::type_promote::NormalOut;
 use hpt_types::vectors::traits::*;
 use rayon::prelude::*;
 
-impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
+pub(crate) fn conv2d_group<T: CommonBounds, const DEVICE: usize>(
+    input: &_Tensor<T, Cpu, DEVICE>,
+    kernels: &_Tensor<T, Cpu, DEVICE>,
+    bias: Option<&_Tensor<T, Cpu, DEVICE>>,
+    steps: [i64; 2],
+    padding: [(i64, i64); 2],
+    dilation: [i64; 2],
+    groups: i64,
+    activation: Option<fn(T::Vec) -> T::Vec>,
+) -> Result<_Tensor<T, Cpu, DEVICE>, TensorError>
 where
-    T: CommonBounds + Cast<T> + NormalOut<Output = T>,
-    T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
     bool: Cast<T>,
 {
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    #[inline(never)]
-    pub fn conv2d_group(
-        &self,
-        kernels: &_Tensor<T, Cpu, DEVICE>,
-        bias: Option<&_Tensor<T, Cpu, DEVICE>>,
-        steps: [i64; 2],
-        padding: [(i64, i64); 2],
-        dilation: [i64; 2],
-        groups: i64,
-        activation: Option<fn(T::Vec) -> T::Vec>,
-    ) -> Result<_Tensor<T, Cpu, DEVICE>, TensorError> {
-        let img_shape = self.shape();
-        ShapeError::check_dim(4, img_shape.len())?;
-        let batch = img_shape[0];
-        let img_height = img_shape[1];
-        let img_width = img_shape[2];
-        let in_channels = img_shape[3];
-        let kernel_shape = kernels.shape();
-        let kernel_height = kernel_shape[0];
-        let kernel_width = kernel_shape[1];
-        let k_in_channels = kernel_shape[2];
-        let out_channels = kernel_shape[3];
-        if in_channels / groups != k_in_channels {
-            panic!(
-                "kernel in_channel must equal to in_channel / groups, got {} and {}",
-                k_in_channels,
-                in_channels / groups
-            );
-        }
-        if in_channels % groups != 0 {
-            panic!("The number of input channels must be divisible by the number of groups.");
-        }
-        if out_channels % groups != 0 {
-            panic!("The number of output channels must be divisible by the number of groups.");
-        }
-        let in_channels_per_group = in_channels / groups;
-        let out_channels_per_group = out_channels / groups;
-        let (step_width, step_height) = (steps[0], steps[1]);
-        let ((ph_start, ph_end), (pw_start, pw_end)) = (padding[0], padding[1]);
-        let (dh, dw) = (dilation[0], dilation[1]);
-
-        let out_height =
-            (img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height + 1;
-        let out_width =
-            (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
-        let img = self.clone();
-        if out_height <= 0 || out_width <= 0 {
-            return Err(ShapeError::ConvError {
-                message: if out_height <= 0 {
-                    "output height <= 0".to_string()
-                } else {
-                    "output width <= 0".to_string()
-                },
-                location: core::panic::Location::caller(),
-            }
-            .into());
-        }
-        let activation = activation.unwrap_or(|x| x);
-        let output =
-            _Tensor::<T, Cpu, DEVICE>::empty([batch, out_height, out_width, out_channels])?;
-        let out = output.ptr();
-        let inp = img.ptr();
-
-        let osb = output.strides()[0]; // batch
-        let osh = output.strides()[1]; // height
-        let osw = output.strides()[2]; // width
-
-        let isb = img.strides()[0]; // batch
-        let ish = img.strides()[1]; // height
-        let isw = img.strides()[2]; // width
-
-        let ks0 = kernels.strides()[0]; // kernel_height
-        let ks1 = kernels.strides()[1]; // kernel_width
-        let ks2 = kernels.strides()[2]; // in_channels
-
-        let oh_block = (3).min(out_height).max(1);
-
-        let cache = Cache::<T>::new();
-
-        let mut oc_nvec = cache.l1_line_size / T::Vec::SIZE;
-        let mut ow_block = predict_ow_block(oc_nvec);
-
-        let params = kernel_params::<T>(
-            out_channels_per_group as usize,
-            in_channels_per_group as usize,
-            ow_block,
-            oc_nvec,
-            oh_block as usize,
-            [kernel_height as usize, kernel_width as usize],
-            cache,
+    let img_shape = input.shape();
+    ShapeError::check_dim(4, img_shape.len())?;
+    let batch = img_shape[0];
+    let img_height = img_shape[1];
+    let img_width = img_shape[2];
+    let in_channels = img_shape[3];
+    let kernel_shape = kernels.shape();
+    let kernel_height = kernel_shape[0];
+    let kernel_width = kernel_shape[1];
+    let k_in_channels = kernel_shape[2];
+    let out_channels = kernel_shape[3];
+    if in_channels / groups != k_in_channels {
+        panic!(
+            "kernel in_channel must equal to in_channel / groups, got {} and {}",
+            k_in_channels,
+            in_channels / groups
         );
-        let (ic_nvec, jb) = params;
+    }
+    if in_channels % groups != 0 {
+        panic!("The number of input channels must be divisible by the number of groups.");
+    }
+    if out_channels % groups != 0 {
+        panic!("The number of output channels must be divisible by the number of groups.");
+    }
+    let in_channels_per_group = in_channels / groups;
+    let out_channels_per_group = out_channels / groups;
+    let (step_width, step_height) = (steps[0], steps[1]);
+    let ((ph_start, ph_end), (pw_start, pw_end)) = (padding[0], padding[1]);
+    let (dh, dw) = (dilation[0], dilation[1]);
 
-        // retrieve micro kernels start
+    let out_height =
+        (img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height + 1;
+    let out_width =
+        (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
+    let img = input.clone();
+    if out_height <= 0 || out_width <= 0 {
+        return Err(ShapeError::ConvError {
+            message: if out_height <= 0 {
+                "output height <= 0".to_string()
+            } else {
+                "output width <= 0".to_string()
+            },
+            location: core::panic::Location::caller(),
+        }
+        .into());
+    }
+    let activation = activation.unwrap_or(|x| x);
+    let output =
+        _Tensor::<T, Cpu, DEVICE>::empty([batch, out_height, out_width, out_channels])?;
+    let out = output.ptr();
+    let inp = img.ptr();
 
-        let full_oc_kernel =
-            conv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(&format!(
-                "unable to find iconv2d_microkernel_{}x{}",
-                ow_block, oc_nvec
-            ));
-        let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
-        let full_oc_kernel_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
-            &mut oc_nvec,
-            &mut ((out_width as usize) % ow_block),
-        );
-        if full_oc_kernel_ow_remain.is_none() {
-            assert_eq!((out_width as usize) % ow_block, 0);
-        }
-        let partial_oc_kernel = remain_oc_kernel_dispatch::<T>(&mut ow_block);
-        if let Some(partial_oc_kernel) = partial_oc_kernel {
-            assert_eq!(ow_block, partial_oc_kernel.ow_block);
-        }
-        let partial_oc_kernel_ow_remain =
-            remain_oc_kernel_dispatch::<T>(&mut ((out_width as usize) % ow_block));
-        if partial_oc_kernel_ow_remain.is_none() {
-            assert_eq!((out_width as usize) % ow_block, 0);
-        }
-        let full_oc_kernel_fn_1_oc = conv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ow_block);
-        let full_oc_kernel_fn_1_oc_ow_remain =
-            conv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ((out_width as usize) % ow_block));
-        let has_bias = bias.is_some();
-        let bias_full_oc_kernel = if has_bias {
-            Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut oc_nvec, &mut ow_block).unwrap())
-        } else {
-            None
-        };
-        let bias_one_oc_kernel = if has_bias {
-            Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut 1, &mut ow_block).unwrap())
-        } else {
-            None
-        };
-        let bias_remain_oc_kernel = if has_bias {
-            Some(bias_remain_oc_kernel_dispatch::<T>(&mut ow_block).unwrap())
-        } else {
-            None
-        };
-        let bias_full_oc_ow_remain = if has_bias {
-            Some(
-                conv2d_full_oc_bias_kernel_dispatch::<T>(
-                    &mut oc_nvec,
-                    &mut ((out_width as usize) % ow_block),
-                )
+    let osb = output.strides()[0]; // batch
+    let osh = output.strides()[1]; // height
+    let osw = output.strides()[2]; // width
+
+    let isb = img.strides()[0]; // batch
+    let ish = img.strides()[1]; // height
+    let isw = img.strides()[2]; // width
+
+    let ks0 = kernels.strides()[0]; // kernel_height
+    let ks1 = kernels.strides()[1]; // kernel_width
+    let ks2 = kernels.strides()[2]; // in_channels
+
+    let oh_block = (3).min(out_height).max(1);
+
+    let cache = Cache::<T>::new();
+
+    let mut oc_nvec = cache.l1_line_size / T::Vec::SIZE;
+    let mut ow_block = predict_ow_block(oc_nvec);
+
+    let params = kernel_params::<T>(
+        out_channels_per_group as usize,
+        in_channels_per_group as usize,
+        ow_block,
+        oc_nvec,
+        oh_block as usize,
+        [kernel_height as usize, kernel_width as usize],
+        cache,
+    );
+    let (ic_nvec, jb) = params;
+
+    // retrieve micro kernels start
+
+    let full_oc_kernel =
+        conv2d_full_oc_kernel_dispatch(&mut oc_nvec, &mut ow_block).expect(&format!(
+            "unable to find iconv2d_microkernel_{}x{}",
+            ow_block, oc_nvec
+        ));
+    let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
+    let full_oc_kernel_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
+        &mut oc_nvec,
+        &mut ((out_width as usize) % ow_block),
+    );
+    if full_oc_kernel_ow_remain.is_none() {
+        assert_eq!((out_width as usize) % ow_block, 0);
+    }
+    let partial_oc_kernel = remain_oc_kernel_dispatch::<T>(&mut ow_block);
+    if let Some(partial_oc_kernel) = partial_oc_kernel {
+        assert_eq!(ow_block, partial_oc_kernel.ow_block);
+    }
+    let partial_oc_kernel_ow_remain =
+        remain_oc_kernel_dispatch::<T>(&mut ((out_width as usize) % ow_block));
+    if partial_oc_kernel_ow_remain.is_none() {
+        assert_eq!((out_width as usize) % ow_block, 0);
+    }
+    let full_oc_kernel_fn_1_oc = conv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ow_block);
+    let full_oc_kernel_fn_1_oc_ow_remain =
+        conv2d_full_oc_kernel_dispatch::<T>(&mut 1, &mut ((out_width as usize) % ow_block));
+    let has_bias = bias.is_some();
+    let bias_full_oc_kernel = if has_bias {
+        Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut oc_nvec, &mut ow_block).unwrap())
+    } else {
+        None
+    };
+    let bias_one_oc_kernel = if has_bias {
+        Some(conv2d_full_oc_bias_kernel_dispatch::<T>(&mut 1, &mut ow_block).unwrap())
+    } else {
+        None
+    };
+    let bias_remain_oc_kernel = if has_bias {
+        Some(bias_remain_oc_kernel_dispatch::<T>(&mut ow_block).unwrap())
+    } else {
+        None
+    };
+    let bias_full_oc_ow_remain = if has_bias {
+        Some(
+            conv2d_full_oc_bias_kernel_dispatch::<T>(
+                &mut oc_nvec,
+                &mut ((out_width as usize) % ow_block),
+            )
+            .unwrap(),
+        )
+    } else {
+        None
+    };
+    let bias_one_oc_ow_remain = if has_bias {
+        Some(
+            conv2d_full_oc_bias_kernel_dispatch::<T>(
+                &mut 1,
+                &mut ((out_width as usize) % ow_block),
+            )
+            .unwrap(),
+        )
+    } else {
+        None
+    };
+    let bias_partial_oc_ow_remain = if has_bias {
+        Some(
+            bias_remain_oc_kernel_dispatch::<T>(&mut ((out_width as usize) % ow_block))
                 .unwrap(),
-            )
-        } else {
-            None
+        )
+    } else {
+        None
+    };
+
+    // retrieve micro kernels end
+
+    let num_oh = (out_height + oh_block - 1) / oh_block; // div ceil, i.e. ceiling of out_height / oh_block
+    let outer = batch * num_oh;
+    let out_width_full_end = out_width - (out_width % (ow_block as i64)); // the end of the out width that is a multiple of ow_block
+
+    // create new memory space to store the reordered kernel filter
+    let ro_kernel = kernels.empty_like()?;
+    let ro_ptr = ro_kernel.ptr();
+
+    // reorder the kernel filter, so that when we do convolution, we can simply increment the pointer and get the data, this can significantly reduce cache miss rate and improve performance
+    reorder_kernel(
+        &kernels.ptr(),
+        ro_ptr.clone(),
+        jb,
+        groups as usize,
+        [in_channels_per_group as usize, ic_nvec],
+        [out_channels_per_group as usize, oc_nvec],
+        [ks0 as usize, ks1 as usize, ks2 as usize],
+        [kernel_height as usize, kernel_width as usize],
+    );
+
+    let ic_block_size = ic_nvec * T::Vec::SIZE; // in channel block size
+    let oc_block_size = oc_nvec * T::Vec::SIZE; // out channel block size, but this is only caculated based on cache line size, we have another block size `jb`
+    (0..outer).into_par_iter().for_each(|idx| {
+        let mut out = out.clone();
+        let mut kernel = ro_ptr.clone();
+        let b = idx / num_oh;
+        let ll = idx % num_oh;
+        let ll = ll * oh_block;
+        let l_end = (ll + oh_block).min(out_height);
+        let params = Params {
+            arg1: [0, 0],
+            arg2: [kernel_height, kernel_width],
+            arg3: [b, 0, 0, 0],
+            arg4: [osb, osh, osw],
+            arg5: [step_height, step_width],
+            arg6: [isb, ish, isw],
+            pads: [ph_start, pw_start],
+            arg8: [dh, dw],
+            arg9: [img_height, img_width],
+            per_group: [in_channels_per_group, out_channels_per_group],
+            group_idx: 0,
         };
-        let bias_one_oc_ow_remain = if has_bias {
-            Some(
-                conv2d_full_oc_bias_kernel_dispatch::<T>(
-                    &mut 1,
-                    &mut ((out_width as usize) % ow_block),
-                )
-                .unwrap(),
-            )
-        } else {
-            None
-        };
-        let bias_partial_oc_ow_remain = if has_bias {
-            Some(
-                bias_remain_oc_kernel_dispatch::<T>(&mut ((out_width as usize) % ow_block))
-                    .unwrap(),
-            )
-        } else {
-            None
-        };
-
-        // retrieve micro kernels end
-
-        let num_oh = (out_height + oh_block - 1) / oh_block; // div ceil, i.e. ceiling of out_height / oh_block
-        let outer = batch * num_oh;
-        let out_width_full_end = out_width - (out_width % (ow_block as i64)); // the end of the out width that is a multiple of ow_block
-
-        // create new memory space to store the reordered kernel filter
-        let ro_kernel = kernels.empty_like()?;
-        let ro_ptr = ro_kernel.ptr();
-
-        // reorder the kernel filter, so that when we do convolution, we can simply increment the pointer and get the data, this can significantly reduce cache miss rate and improve performance
-        reorder_kernel(
-            &kernels.ptr(),
-            ro_ptr.clone(),
-            jb,
-            groups as usize,
-            [in_channels_per_group as usize, ic_nvec],
-            [out_channels_per_group as usize, oc_nvec],
-            [ks0 as usize, ks1 as usize, ks2 as usize],
-            [kernel_height as usize, kernel_width as usize],
-        );
-
-        let ic_block_size = ic_nvec * T::Vec::SIZE; // in channel block size
-        let oc_block_size = oc_nvec * T::Vec::SIZE; // out channel block size, but this is only caculated based on cache line size, we have another block size `jb`
-        (0..outer).into_par_iter().for_each(|idx| {
-            let mut out = out.clone();
-            let mut kernel = ro_ptr.clone();
-            let b = idx / num_oh;
-            let ll = idx % num_oh;
-            let ll = ll * oh_block;
-            let l_end = (ll + oh_block).min(out_height);
-            let params = Params {
-                arg1: [0, 0],
-                arg2: [kernel_height, kernel_width],
-                arg3: [b, 0, 0, 0],
-                arg4: [osb, osh, osw],
-                arg5: [step_height, step_width],
-                arg6: [isb, ish, isw],
-                pads: [ph_start, pw_start],
-                arg8: [dh, dw],
-                arg9: [img_height, img_width],
-                per_group: [in_channels_per_group, out_channels_per_group],
-                group_idx: 0,
-            };
-            match (
-                partial_oc_kernel,
-                full_oc_kernel_ow_remain,
-                partial_oc_kernel_ow_remain,
-            ) {
-                (None, None, None) => {
-                    for g in 0..groups {
-                        for ii in (0..in_channels_per_group).step_by(ic_block_size) {
-                            let i_end = (ii + (ic_block_size as i64)).min(in_channels_per_group);
-                            let end = i_end == in_channels_per_group;
-                            let params = Params {
-                                arg1: [ii, i_end],
-                                group_idx: g,
-                                ..params
-                            };
-                            if end {
-                                if has_bias {
-                                    let bias = bias.unwrap().ptr();
-                                    let bias_full_oc_kernel = bias_full_oc_kernel.unwrap();
-                                    conv_perfect(
-                                        out_channels_per_group,
-                                        oc_block_size,
-                                        ow_block,
-                                        out_width_full_end,
-                                        [kernel_height, kernel_width],
-                                        [ll, l_end],
-                                        g,
-                                        i_end - ii,
-                                        jb,
-                                        &mut kernel,
-                                        &mut out,
-                                        |l, k, j, kernel, out| {
-                                            bias_full_oc_kernel(
-                                                Params {
-                                                    arg3: [b, l, k, j],
-                                                    ..params
-                                                },
-                                                out,
-                                                kernel,
-                                                &inp,
-                                                &bias,
-                                                activation,
-                                            );
-                                        },
-                                    );
-                                } else {
-                                    conv_perfect(
-                                        out_channels_per_group,
-                                        oc_block_size,
-                                        ow_block,
-                                        out_width_full_end,
-                                        [kernel_height, kernel_width],
-                                        [ll, l_end],
-                                        g,
-                                        i_end - ii,
-                                        jb,
-                                        &mut kernel,
-                                        &mut out,
-                                        |l, k, j, kernel, out| {
-                                            full_oc_kernel_fn(
-                                                Params {
-                                                    arg3: [b, l, k, j],
-                                                    ..params
-                                                },
-                                                out,
-                                                kernel,
-                                                &inp,
-                                                activation,
-                                            );
-                                        },
-                                    );
-                                }
+        match (
+            partial_oc_kernel,
+            full_oc_kernel_ow_remain,
+            partial_oc_kernel_ow_remain,
+        ) {
+            (None, None, None) => {
+                for g in 0..groups {
+                    for ii in (0..in_channels_per_group).step_by(ic_block_size) {
+                        let i_end = (ii + (ic_block_size as i64)).min(in_channels_per_group);
+                        let end = i_end == in_channels_per_group;
+                        let params = Params {
+                            arg1: [ii, i_end],
+                            group_idx: g,
+                            ..params
+                        };
+                        if end {
+                            if has_bias {
+                                let bias = bias.unwrap().ptr();
+                                let bias_full_oc_kernel = bias_full_oc_kernel.unwrap();
+                                conv_perfect(
+                                    out_channels_per_group,
+                                    oc_block_size,
+                                    ow_block,
+                                    out_width_full_end,
+                                    [kernel_height, kernel_width],
+                                    [ll, l_end],
+                                    g,
+                                    i_end - ii,
+                                    jb,
+                                    &mut kernel,
+                                    &mut out,
+                                    |l, k, j, kernel, out| {
+                                        bias_full_oc_kernel(
+                                            Params {
+                                                arg3: [b, l, k, j],
+                                                ..params
+                                            },
+                                            out,
+                                            kernel,
+                                            &inp,
+                                            &bias,
+                                            activation,
+                                        );
+                                    },
+                                );
                             } else {
                                 conv_perfect(
                                     out_channels_per_group,
@@ -333,169 +299,195 @@ where
                                             out,
                                             kernel,
                                             &inp,
-                                            |x| x,
+                                            activation,
                                         );
                                     },
                                 );
                             }
+                        } else {
+                            conv_perfect(
+                                out_channels_per_group,
+                                oc_block_size,
+                                ow_block,
+                                out_width_full_end,
+                                [kernel_height, kernel_width],
+                                [ll, l_end],
+                                g,
+                                i_end - ii,
+                                jb,
+                                &mut kernel,
+                                &mut out,
+                                |l, k, j, kernel, out| {
+                                    full_oc_kernel_fn(
+                                        Params {
+                                            arg3: [b, l, k, j],
+                                            ..params
+                                        },
+                                        out,
+                                        kernel,
+                                        &inp,
+                                        |x| x,
+                                    );
+                                },
+                            );
                         }
                     }
                 }
-                _ => {
-                    for g in 0..groups {
-                        for ii in (0..in_channels_per_group).step_by(ic_block_size) {
-                            let i_end = (ii + (ic_block_size as i64)).min(in_channels_per_group);
-                            if i_end == in_channels_per_group && has_bias {
-                                let bias = bias.unwrap().ptr();
-                                let bias_full_oc_kernel = bias_full_oc_kernel.unwrap();
-                                // out channel has two levels of blocking:
-                                // 1. it first blocks by oc_block_size * jb
-                                // 2. it then blocks by oc_block_size (cache line size)
-                                for jj in (0..out_channels_per_group)
-                                    .step_by(oc_block_size * (jb as usize))
-                                {
-                                    // make sure jj_end is in the range of out_channels
-                                    let jj_end = (jj + (oc_block_size as i64) * (jb as i64))
-                                        .min(out_channels_per_group);
-                                    let jj = g * out_channels_per_group + jj;
-                                    let jj_end = g * out_channels_per_group + jj_end;
+            }
+            _ => {
+                for g in 0..groups {
+                    for ii in (0..in_channels_per_group).step_by(ic_block_size) {
+                        let i_end = (ii + (ic_block_size as i64)).min(in_channels_per_group);
+                        if i_end == in_channels_per_group && has_bias {
+                            let bias = bias.unwrap().ptr();
+                            let bias_full_oc_kernel = bias_full_oc_kernel.unwrap();
+                            // out channel has two levels of blocking:
+                            // 1. it first blocks by oc_block_size * jb
+                            // 2. it then blocks by oc_block_size (cache line size)
+                            for jj in (0..out_channels_per_group)
+                                .step_by(oc_block_size * (jb as usize))
+                            {
+                                // make sure jj_end is in the range of out_channels
+                                let jj_end = (jj + (oc_block_size as i64) * (jb as i64))
+                                    .min(out_channels_per_group);
+                                let jj = g * out_channels_per_group + jj;
+                                let jj_end = g * out_channels_per_group + jj_end;
 
-                                    // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
-                                    let remain = (jj_end - jj) % (oc_block_size as i64);
-                                    if remain > 0 {
-                                        handle_bias_remain(
-                                            [jj, jj_end],
-                                            [out_width, ow_block as i64],
-                                            [ll, l_end],
-                                            [ii, i_end],
-                                            [kernel_height, kernel_width],
-                                            [osb, osh, osw],
-                                            [isb, ish, isw],
-                                            [step_height, step_width],
-                                            [ph_start, pw_start],
-                                            [dh, dw],
-                                            [img_height, img_width],
-                                            [in_channels_per_group, out_channels_per_group],
-                                            g,
-                                            oc_block_size as i64,
-                                            b,
-                                            remain,
-                                            &mut out,
-                                            &mut kernel,
-                                            &inp,
-                                            &bias,
-                                            activation,
-                                            bias_full_oc_kernel,
-                                            bias_remain_oc_kernel.unwrap(),
-                                            bias_one_oc_kernel.unwrap(),
-                                            bias_full_oc_ow_remain,
-                                            bias_partial_oc_ow_remain,
-                                            bias_one_oc_ow_remain,
-                                        );
-                                    } else {
-                                        handle_bias_normal(
-                                            [jj, jj_end],
-                                            [out_width, ow_block as i64],
-                                            [ll, l_end],
-                                            [ii, i_end],
-                                            [kernel_height, kernel_width],
-                                            [osb, osh, osw],
-                                            [isb, ish, isw],
-                                            [step_height, step_width],
-                                            [ph_start, pw_start],
-                                            [dh, dw],
-                                            [img_height, img_width],
-                                            [in_channels_per_group, out_channels_per_group],
-                                            g,
-                                            oc_block_size as i64,
-                                            b,
-                                            &mut out,
-                                            &mut kernel,
-                                            &inp,
-                                            &bias,
-                                            activation,
-                                            bias_full_oc_kernel,
-                                            bias_full_oc_ow_remain,
-                                        );
-                                    }
+                                // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
+                                let remain = (jj_end - jj) % (oc_block_size as i64);
+                                if remain > 0 {
+                                    handle_bias_remain(
+                                        [jj, jj_end],
+                                        [out_width, ow_block as i64],
+                                        [ll, l_end],
+                                        [ii, i_end],
+                                        [kernel_height, kernel_width],
+                                        [osb, osh, osw],
+                                        [isb, ish, isw],
+                                        [step_height, step_width],
+                                        [ph_start, pw_start],
+                                        [dh, dw],
+                                        [img_height, img_width],
+                                        [in_channels_per_group, out_channels_per_group],
+                                        g,
+                                        oc_block_size as i64,
+                                        b,
+                                        remain,
+                                        &mut out,
+                                        &mut kernel,
+                                        &inp,
+                                        &bias,
+                                        activation,
+                                        bias_full_oc_kernel,
+                                        bias_remain_oc_kernel.unwrap(),
+                                        bias_one_oc_kernel.unwrap(),
+                                        bias_full_oc_ow_remain,
+                                        bias_partial_oc_ow_remain,
+                                        bias_one_oc_ow_remain,
+                                    );
+                                } else {
+                                    handle_bias_normal(
+                                        [jj, jj_end],
+                                        [out_width, ow_block as i64],
+                                        [ll, l_end],
+                                        [ii, i_end],
+                                        [kernel_height, kernel_width],
+                                        [osb, osh, osw],
+                                        [isb, ish, isw],
+                                        [step_height, step_width],
+                                        [ph_start, pw_start],
+                                        [dh, dw],
+                                        [img_height, img_width],
+                                        [in_channels_per_group, out_channels_per_group],
+                                        g,
+                                        oc_block_size as i64,
+                                        b,
+                                        &mut out,
+                                        &mut kernel,
+                                        &inp,
+                                        &bias,
+                                        activation,
+                                        bias_full_oc_kernel,
+                                        bias_full_oc_ow_remain,
+                                    );
                                 }
-                            } else {
-                                // out channel has two levels of blocking:
-                                // 1. it first blocks by oc_block_size * jb
-                                // 2. it then blocks by oc_block_size (cache line size)
-                                for jj in (0..out_channels_per_group)
-                                    .step_by(oc_block_size * (jb as usize))
-                                {
-                                    // make sure jj_end is in the range of out_channels
-                                    let jj_end = (jj + (oc_block_size as i64) * (jb as i64))
-                                        .min(out_channels_per_group);
-                                    let jj = g * out_channels_per_group + jj;
-                                    let jj_end = g * out_channels_per_group + jj_end;
-                                    // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
-                                    let remain = (jj_end - jj) % (oc_block_size as i64);
-                                    if remain > 0 {
-                                        handle_normal_remain(
-                                            [jj, jj_end],
-                                            [out_width, ow_block as i64],
-                                            [ll, l_end],
-                                            [ii, i_end],
-                                            [kernel_height, kernel_width],
-                                            [osb, osh, osw],
-                                            [isb, ish, isw],
-                                            [step_height, step_width],
-                                            [ph_start, pw_start],
-                                            [dh, dw],
-                                            [img_height, img_width],
-                                            [in_channels_per_group, out_channels_per_group],
-                                            g,
-                                            oc_block_size as i64,
-                                            b,
-                                            remain,
-                                            &mut out,
-                                            &mut kernel,
-                                            &inp,
-                                            |x| x,
-                                            full_oc_kernel_fn,
-                                            partial_oc_kernel.unwrap().kernel,
-                                            full_oc_kernel_fn_1_oc.unwrap().kernel,
-                                            full_oc_kernel_ow_remain.map(|x| x.kernel),
-                                            partial_oc_kernel_ow_remain.map(|x| x.kernel),
-                                            full_oc_kernel_fn_1_oc_ow_remain.map(|x| x.kernel),
-                                        );
-                                    } else {
-                                        handle_normal(
-                                            [jj, jj_end],
-                                            [out_width, ow_block as i64],
-                                            [ll, l_end],
-                                            [ii, i_end],
-                                            [kernel_height, kernel_width],
-                                            [osb, osh, osw],
-                                            [isb, ish, isw],
-                                            [step_height, step_width],
-                                            [ph_start, pw_start],
-                                            [dh, dw],
-                                            [img_height, img_width],
-                                            [in_channels_per_group, out_channels_per_group],
-                                            g,
-                                            b,
-                                            oc_block_size,
-                                            &mut out,
-                                            &mut kernel,
-                                            &inp,
-                                            |x| x,
-                                            full_oc_kernel_fn,
-                                            full_oc_kernel_ow_remain.map(|x| x.kernel),
-                                        );
-                                    }
+                            }
+                        } else {
+                            // out channel has two levels of blocking:
+                            // 1. it first blocks by oc_block_size * jb
+                            // 2. it then blocks by oc_block_size (cache line size)
+                            for jj in (0..out_channels_per_group)
+                                .step_by(oc_block_size * (jb as usize))
+                            {
+                                // make sure jj_end is in the range of out_channels
+                                let jj_end = (jj + (oc_block_size as i64) * (jb as i64))
+                                    .min(out_channels_per_group);
+                                let jj = g * out_channels_per_group + jj;
+                                let jj_end = g * out_channels_per_group + jj_end;
+                                // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
+                                let remain = (jj_end - jj) % (oc_block_size as i64);
+                                if remain > 0 {
+                                    handle_normal_remain(
+                                        [jj, jj_end],
+                                        [out_width, ow_block as i64],
+                                        [ll, l_end],
+                                        [ii, i_end],
+                                        [kernel_height, kernel_width],
+                                        [osb, osh, osw],
+                                        [isb, ish, isw],
+                                        [step_height, step_width],
+                                        [ph_start, pw_start],
+                                        [dh, dw],
+                                        [img_height, img_width],
+                                        [in_channels_per_group, out_channels_per_group],
+                                        g,
+                                        oc_block_size as i64,
+                                        b,
+                                        remain,
+                                        &mut out,
+                                        &mut kernel,
+                                        &inp,
+                                        |x| x,
+                                        full_oc_kernel_fn,
+                                        partial_oc_kernel.unwrap().kernel,
+                                        full_oc_kernel_fn_1_oc.unwrap().kernel,
+                                        full_oc_kernel_ow_remain.map(|x| x.kernel),
+                                        partial_oc_kernel_ow_remain.map(|x| x.kernel),
+                                        full_oc_kernel_fn_1_oc_ow_remain.map(|x| x.kernel),
+                                    );
+                                } else {
+                                    handle_normal(
+                                        [jj, jj_end],
+                                        [out_width, ow_block as i64],
+                                        [ll, l_end],
+                                        [ii, i_end],
+                                        [kernel_height, kernel_width],
+                                        [osb, osh, osw],
+                                        [isb, ish, isw],
+                                        [step_height, step_width],
+                                        [ph_start, pw_start],
+                                        [dh, dw],
+                                        [img_height, img_width],
+                                        [in_channels_per_group, out_channels_per_group],
+                                        g,
+                                        b,
+                                        oc_block_size,
+                                        &mut out,
+                                        &mut kernel,
+                                        &inp,
+                                        |x| x,
+                                        full_oc_kernel_fn,
+                                        full_oc_kernel_ow_remain.map(|x| x.kernel),
+                                    );
                                 }
                             }
                         }
                     }
                 }
-            };
-        });
-        Ok(output)
-    }
+            }
+        };
+    });
+    Ok(output)
 }
 
 #[allow(unused)]
@@ -1561,57 +1553,4 @@ fn handle_normal_remain<T: CommonBounds>(
         );
     }
     *kernel += kernel_height * kernel_width * (jj_end - jj_start) * (i_end - ii);
-}
-
-impl<T> Tensor<T>
-where
-    T: CommonBounds + Cast<T> + NormalOut<Output = T>,
-    T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
-    bool: Cast<T>,
-{
-    /// Performs a 2D convolution operation on the input tensor.
-    ///
-    /// This method applies a 2D convolution operation on the tensor using the specified kernel,
-    /// strides (steps), padding, and dilation factors. It optionally accepts a configuration (`Conv2dConfig`)
-    /// to fine-tune the performance, such as optimizing for cache usage and block sizes.
-    ///
-    /// # Arguments
-    ///
-    /// * `kernels` - A reference to the tensor representing the convolution kernels (filters).
-    ///   The size of the kernel tensor determines the spatial dimensions of the convolution operation.
-    /// * `steps` - A 2-element array specifying the stride (step size) of the convolution along the height and width dimensions.
-    /// * `padding` - A 2-element array of tuples representing the padding for the height and width dimensions.
-    ///   Each tuple specifies the amount of padding added before and after the data along the respective axis.
-    /// * `dilation` - A 2-element array specifying the dilation factor for the convolution along the height and width dimensions.
-    ///   Dilation allows the kernel to be applied to inputs with gaps, increasing the receptive field of the kernel.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing the output tensor after applying the 2D convolution operation.
-    #[cfg_attr(feature = "track_caller", track_caller)]
-    #[inline(never)]
-    pub fn conv2d_group(
-        &self,
-        kernels: &Tensor<T>,
-        bias: Option<&Tensor<T>>,
-        steps: [i64; 2],
-        padding: [(i64, i64); 2],
-        dilation: [i64; 2],
-        groups: i64,
-        activation: Option<fn(T::Vec) -> T::Vec>,
-    ) -> anyhow::Result<Tensor<T>> {
-        Ok(self
-            .inner
-            .as_ref()
-            .conv2d_group(
-                kernels.inner.as_ref(),
-                bias.map(|b| b.inner.as_ref()),
-                steps,
-                padding,
-                dilation,
-                groups,
-                activation,
-            )?
-            .into())
-    }
 }

@@ -1,9 +1,9 @@
 # Adding New Arch Support
 
-# Reason
+### Things to know
 If you found that the CPU you are using has the Simd instruction Hpt is not supported and you are willing to add support for that instruction like `avx512f`.
 
-# How
+### How
 1. All the Tensor operations are using implementation from `hpt-types/scalars/simd` and `hpt-types/vectors/arch_simd`.
 
 2. The folder `vectors` defines the simd vectors for simd registers with different size of bits. If your simd register is using `128-bit` and the instruction is not supported. You will want to go to `arch_simd/_128bit` folder, for each of the different type, you will need to add the computation for the new instruction.

@@ -246,7 +246,7 @@ where
     T: CommonBounds,
 {
     #[allow(unused)]
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn cumsum<A: Into<Option<i64>>>(&self, axis: A) -> std::result::Result<Self, TensorError>
     where
         T: NormalOut<T, Output = T>,
@@ -255,7 +255,7 @@ where
     }
 
     #[allow(unused)]
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn cumprod(&self, axis: Option<i64>) -> std::result::Result<Self, TensorError>
     where
         T: NormalOut<T, Output = T>,
@@ -319,7 +319,7 @@ where
     ///
     /// This function returns a `Result` containing a new tensor with the cumulative sum computed along the specified axis.
     #[allow(unused)]
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn cumsum<A: Into<Option<i64>>>(&self, axis: A) -> anyhow::Result<Self>
     where
         T: NormalOut<T, Output = T>,
@@ -343,7 +343,7 @@ where
     ///
     /// This function returns a `Result` containing a new tensor with the cumulative product computed along the specified axis.
     #[allow(unused)]
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn cumprod<A: Into<Option<i64>>>(&self, axis: A) -> anyhow::Result<Self>
     where
         T: NormalOut<T, Output = T>,

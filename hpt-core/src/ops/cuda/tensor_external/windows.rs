@@ -48,7 +48,7 @@ where
     /// # Returns
     ///
     /// - A tensor containing the Hamming window.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn hamming_window(
         window_length: i64,
         periodic: bool,
@@ -78,7 +78,7 @@ where
     /// # Returns
     ///
     /// - A tensor containing the Hann window.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn hann_window(
         window_length: i64,
         periodic: bool,
@@ -106,7 +106,7 @@ where
     /// # Returns
     ///
     /// This function returns a `Result` containing a tensor of type `<T as FloatOutBinary>::Output`
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn blackman_window(
         window_length: i64,
         periodic: bool,

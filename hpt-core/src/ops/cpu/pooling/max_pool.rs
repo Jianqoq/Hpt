@@ -34,7 +34,7 @@ where
     /// # Returns
     ///
     /// This function returns a `Result` containing the output tensor after applying the 2D max pooling operation.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     #[inline(never)]
     pub fn maxpool2d(
         &self,
@@ -56,7 +56,7 @@ where
         )
     }
 
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn adaptive_maxpool2d(
         &self,
         output_size: [i64; 2],
@@ -99,7 +99,7 @@ where
     /// # Returns
     ///
     /// This function returns a `Result` containing the output tensor after applying the 2D convolution operation.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     #[inline(never)]
     pub fn maxpool2d(
         &self,
@@ -121,7 +121,7 @@ where
     /// # Returns
     ///
     /// This function returns a `Result` containing the output tensor after applying the adaptive max pooling operation.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn adaptive_maxpool2d(
         &self,
         output_size: [i64; 2],

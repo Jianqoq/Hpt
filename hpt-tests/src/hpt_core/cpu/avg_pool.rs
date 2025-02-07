@@ -2,7 +2,7 @@
 use hpt_core::set_num_threads;
 use hpt_core::ShapeManipulate;
 use hpt_core::TensorLike;
-use hpt_core::{CommonBounds, TensorInfo};
+use hpt_core::{CommonBounds, TensorInfo, FloatOutPooling};
 use hpt_core::{Tensor, TensorCreator};
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;

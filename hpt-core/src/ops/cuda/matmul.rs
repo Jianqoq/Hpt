@@ -13,7 +13,7 @@ use hpt_traits::TensorCreator;
 use hpt_traits::TensorInfo;
 use std::borrow::{Borrow, BorrowMut};
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn matmul_with_out<T, O, const CUDA_DEVICE: usize>(
     lhs: &_Tensor<T, Cuda, CUDA_DEVICE>,
     rhs: &_Tensor<T, Cuda, CUDA_DEVICE>,

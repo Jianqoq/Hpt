@@ -43,7 +43,7 @@ use std::borrow::Borrow;
 ///
 /// If the vector sizes of the input tensors match and SIMD is enabled, the `f2` function is applied to
 /// perform vectorized operations for faster computation. If not, the scalar function `f` is applied to each element.
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn binary_fn_with_out_simd<A, B, O, K, F, F2, const DEVICE: usize>(
     lhs: &_Tensor<A, Cpu, DEVICE>,
     rhs: &_Tensor<B, Cpu, DEVICE>,
@@ -256,7 +256,7 @@ where
 }
 
 /// Perform binary operation with output tensor
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub fn binary_with_out<A, B, O, K, F, F2, const DEVICE: usize>(
     lhs: &Tensor<A, Cpu, DEVICE>,
     rhs: &Tensor<B, Cpu, DEVICE>,
@@ -279,7 +279,7 @@ where
     Ok(binary_fn_with_out_simd(lhs.inner.as_ref(), rhs.inner.as_ref(), f, f2, out)?.into())
 }
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn binary_fn_with_out_simd_3<A, B, C, O, K, F, F2, const DEVICE: usize>(
     a: &_Tensor<A, Cpu, DEVICE>,
     b: &_Tensor<B, Cpu, DEVICE>,

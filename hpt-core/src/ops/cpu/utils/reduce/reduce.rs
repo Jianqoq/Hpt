@@ -176,7 +176,7 @@ macro_rules! register_reduction_one_axis {
         $kernel_name:ident,
         $($trait_bound:tt)*
     ) => {
-        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[track_caller]
         pub(crate) fn $fn_name<$generic_a, $generic_b, const DEVICE: usize>(a: &_Tensor<$generic_a, Cpu, DEVICE>, axes: Vec<usize>,
              init_val: $generic_b, keepdims: bool, c: Option<_Tensor<$generic_b, Cpu, DEVICE>>) -> std::result::Result<_Tensor<$generic_b, Cpu, DEVICE>, TensorError> $($trait_bound)*
          {
@@ -189,7 +189,7 @@ macro_rules! register_reduction_one_axis {
         $kernel_name:ident,
         $($trait_bound:tt)*
     ) => {
-        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[track_caller]
         pub(crate) fn $fn_name<$generic_a, const DEVICE: usize>(a: &_Tensor<$generic_a, Cpu, DEVICE>, axes: Vec<usize>,
              init_val: $generic_a, keepdims: bool, c: Option<_Tensor<$generic_a, Cpu, DEVICE>>) -> std::result::Result<_Tensor<$generic_a, Cpu, DEVICE>, TensorError> $($trait_bound)*
          {
@@ -202,7 +202,7 @@ macro_rules! register_reduction_one_axis {
         $kernel_name:ident,
         $($trait_bound:tt)*
     ) => {
-        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[track_caller]
         pub(crate) fn $fn_name<$generic_a, const DEVICE: usize>(a: &_Tensor<$generic_a, Cpu, DEVICE>, axes: Vec<usize>,
              init_val: $($specific_type)*, keepdims: bool, c: Option<_Tensor<$($specific_type)*, Cpu, DEVICE>>) -> std::result::Result<_Tensor<$($specific_type)*, Cpu, DEVICE>, TensorError> $($trait_bound)*
          {
@@ -219,7 +219,7 @@ use crate::ops::cpu::kernels::reduce::{
     uncontiguous_reduce_dim_include,
 };
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn reduce<T, F, F2, F3, const DEVICE: usize>(
     a: &_Tensor<T, Cpu, DEVICE>,
     op: F,
@@ -249,7 +249,7 @@ where
     }
 }
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
     a: &_Tensor<T, Cpu, DEVICE>,
     op: F,
@@ -286,7 +286,7 @@ where
     }
 }
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: usize>(
     a: &_Tensor<T, Cpu, DEVICE>,
     op: F,
@@ -361,7 +361,7 @@ register_reduction_one_axis!(
     where T: CommonBounds + NormalOut<T, Output = T> + Cmp<T, Output = bool>
 );
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: usize>(
     a: &_Tensor<T, Cpu, DEVICE>,
     op: F,
@@ -600,7 +600,7 @@ where
     }
 }
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
     a: &_Tensor<T, Cpu, DEVICE>,
     op: F,

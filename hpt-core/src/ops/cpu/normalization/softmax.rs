@@ -31,7 +31,7 @@ use super::normalize_utils::{
 };
 
 impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn softmax(
         &self,
         axis: i64,
@@ -82,7 +82,7 @@ impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     ///
     /// This function returns a `Result` containing a tensor with the softmax values computed along
     /// the specified axis.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn softmax(
         &self,
         axis: i64,
@@ -122,7 +122,7 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
     ///
     /// This function returns a `Result` containing a tensor with the softmax values computed along
     /// the specified axis.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn softmax(
         &self,
         axis: i64,
@@ -170,7 +170,7 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
     }
 }
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn contiguous_softmax<T, O, const DEVICE: usize>(
     a: &_Tensor<T, Cpu, DEVICE>,
     axis: i64,
@@ -300,7 +300,7 @@ where
     )
 }
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn uncontiguous_softmax<T, O, const DEVICE: usize>(
     a: &_Tensor<T, Cpu, DEVICE>,
     axis: i64,

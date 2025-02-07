@@ -44,7 +44,7 @@ use super::cuda_utils::get_array_str;
 ///
 /// If the vector sizes of the input tensors match and SIMD is enabled, the `f2` function is applied to
 /// perform vectorized operations for faster computation. If not, the scalar function `f` is applied to each element.
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn binary_fn_with_out_simd<A, B, O, K, F, const CUDA_DEVICE: usize>(
     lhs: &_Tensor<A, Cuda, CUDA_DEVICE>,
     rhs: &_Tensor<B, Cuda, CUDA_DEVICE>,

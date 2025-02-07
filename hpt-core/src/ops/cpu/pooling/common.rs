@@ -5,21 +5,25 @@ use hpt_common::{
 use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use crate::{tensor_base::_Tensor, REGNUM};
+use crate::{tensor_base::_Tensor, Cpu, REGNUM};
 use hpt_types::{into_scalar::Cast, traits::VecTrait};
 
-#[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn pooling_template<T: CommonBounds>(
-    img: &_Tensor<T>,
+#[track_caller]
+pub(crate) fn pooling_template<T: CommonBounds, O: CommonBounds, const DEVICE: usize>(
+    img: &_Tensor<T, Cpu, DEVICE>,
     kernels_shape: &Shape,
     steps: [i64; 2],
     padding: [(i64, i64); 2],
     dilation: [i64; 2],
     scalar_op: impl Fn(T, T) -> T + Send + Sync,
     vec_op: impl Fn(T::Vec, T::Vec) -> T::Vec + Send + Sync,
-    post_scalar_op: impl Fn(T) -> T + Send + Sync,
-    post_vec_op: impl Fn(T::Vec) -> T::Vec + Send + Sync,
-) -> Result<_Tensor<T>, TensorError> {
+    post_scalar_op: impl Fn(T) -> O + Send + Sync,
+    post_vec_op: impl Fn(T::Vec) -> O::Vec + Send + Sync,
+) -> Result<_Tensor<O, Cpu, DEVICE>, TensorError> {
+    ShapeError::check_contiguous(
+        "pooling input must be contiguous".to_string(),
+        &img.layout(),
+    )?;
     let img_shape = img.shape();
     ShapeError::check_dim(4, img_shape.len())?;
     let batch = img_shape[0];
@@ -47,7 +51,7 @@ pub(crate) fn pooling_template<T: CommonBounds>(
         })
         .into());
     }
-    let output = _Tensor::<T>::empty([batch, out_height, out_width, in_channels])?;
+    let output = _Tensor::<O, Cpu, DEVICE>::empty([batch, out_height, out_width, in_channels])?;
     let out = output.ptr();
     let inp = img.ptr();
 
@@ -63,6 +67,7 @@ pub(crate) fn pooling_template<T: CommonBounds>(
 
     const IC_BLOCK_SIZE: usize = REGNUM / 2;
     let in_channel_remain = in_channels % ((IC_BLOCK_SIZE * T::Vec::SIZE) as i64);
+    let same_vec_size = T::Vec::SIZE == O::Vec::SIZE;
     (0..out_size).into_par_iter().for_each(|idx| {
         let out = out.clone();
         let b = idx / (out_height * out_width);
@@ -97,12 +102,24 @@ pub(crate) fn pooling_template<T: CommonBounds>(
                     }
                 }
             }
-            for (idx, vec) in res_vecs.iter().enumerate() {
-                let i = ii + ((idx * T::Vec::SIZE) as i64);
-                let out_idx = b * osb + h * osh + w * osw + i;
-                let out_vec = (unsafe { out.ptr.add(out_idx as usize) }) as *mut T::Vec;
-                unsafe {
-                    out_vec.write_unaligned(post_vec_op(vec.read_unaligned()));
+            if same_vec_size {
+                for (idx, vec) in res_vecs.into_iter().enumerate() {
+                    let i = ii + ((idx * T::Vec::SIZE) as i64);
+                    let out_idx = b * osb + h * osh + w * osw + i;
+                    let out_vec = (unsafe { out.ptr.add(out_idx as usize) }) as *mut O::Vec;
+                    unsafe {
+                        out_vec.write_unaligned(post_vec_op(vec.read_unaligned()));
+                    }
+                }
+            } else {
+                for vec in res_vecs {
+                    for i in 0..T::Vec::SIZE {
+                        let out_idx = b * osb + h * osh + w * osw + ii + i as i64;
+                        let out = (unsafe { out.ptr.add(out_idx as usize) }) as *mut O;
+                        unsafe {
+                            out.write(post_scalar_op(vec[i]));
+                        }
+                    }
                 }
             }
         }
@@ -133,10 +150,20 @@ pub(crate) fn pooling_template<T: CommonBounds>(
                 }
             }
             let i = ii;
-            let out_idx = b * osb + h * osh + w * osw + i;
-            let out_vec = (unsafe { out.ptr.add(out_idx as usize) }) as *mut T::Vec;
-            unsafe {
-                out_vec.write_unaligned(post_vec_op(res_vecs.read_unaligned()));
+            if same_vec_size {
+                let out_idx = b * osb + h * osh + w * osw + i;
+                let out_vec = (unsafe { out.ptr.add(out_idx as usize) }) as *mut O::Vec;
+                unsafe {
+                    out_vec.write_unaligned(post_vec_op(res_vecs.read_unaligned()));
+                }
+            } else {
+                for i in 0..T::Vec::SIZE {
+                    let out_idx = b * osb + h * osh + w * osw + ii + i as i64;
+                    let out = (unsafe { out.ptr.add(out_idx as usize) }) as *mut O;
+                    unsafe {
+                        out.write(post_scalar_op(res_vecs[i]));
+                    }
+                }
             }
         }
 
@@ -165,7 +192,7 @@ pub(crate) fn pooling_template<T: CommonBounds>(
             }
             let i = ii;
             let out_idx = b * osb + h * osh + w * osw + i;
-            let out = (unsafe { out.ptr.add(out_idx as usize) }) as *mut T;
+            let out = (unsafe { out.ptr.add(out_idx as usize) }) as *mut O;
             unsafe {
                 out.write_unaligned(post_scalar_op(res));
             }
@@ -175,18 +202,22 @@ pub(crate) fn pooling_template<T: CommonBounds>(
     Ok(output)
 }
 
-#[cfg_attr(feature = "track_caller", track_caller)]
-pub(crate) fn adaptive_pooling_template<T: CommonBounds>(
-    img: &_Tensor<T>,
+#[track_caller]
+pub(crate) fn adaptive_pooling_template<T: CommonBounds, O: CommonBounds, const DEVICE: usize>(
+    img: &_Tensor<T, Cpu, DEVICE>,
     output_size: [i64; 2],
     scalar_op: impl Fn(T, T) -> T + Send + Sync,
     vec_op: impl Fn(T::Vec, T::Vec) -> T::Vec + Send + Sync,
-    post_scalar_op: impl Fn(T, T) -> T + Send + Sync,
-    post_vec_op: impl Fn(T::Vec, T::Vec) -> T::Vec + Send + Sync,
-) -> std::result::Result<_Tensor<T>, TensorError>
+    post_scalar_op: impl Fn(T, O) -> O + Send + Sync,
+    post_vec_op: impl Fn(T::Vec, O::Vec) -> O::Vec + Send + Sync,
+) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
 where
-    i64: Cast<T>,
+    i64: Cast<O>,
 {
+    ShapeError::check_contiguous(
+        "pooling input must be contiguous".to_string(),
+        &img.layout(),
+    )?;
     let img_shape = img.shape();
     ShapeError::check_dim(4, img_shape.len())?;
     let batch = img_shape[0];
@@ -208,7 +239,7 @@ where
         }
         .into());
     }
-    let output = _Tensor::<T>::empty([batch, out_height, out_width, in_channels])?;
+    let output = _Tensor::<O, Cpu, DEVICE>::empty([batch, out_height, out_width, in_channels])?;
     let out = output.ptr();
     let inp = img.ptr();
 
@@ -233,8 +264,9 @@ where
         let end_h = ((h + 1) * img_height + out_height - 1) / out_height as i64;
         let start_w = (w * img_width / out_width) as i64;
         let end_w = ((w + 1) * img_width + out_width - 1) / out_width as i64;
-        let kernel_size: T = ((end_h - start_h) * (end_w - start_w)).cast();
-        let kernel_size_vec = T::Vec::splat(kernel_size);
+        let kernel_size: O = ((end_h - start_h) * (end_w - start_w)).cast();
+        let kernel_size_vec = O::Vec::splat(kernel_size);
+        let same_vec_size = T::Vec::SIZE == O::Vec::SIZE;
         for ii in (0..in_channels - in_channel_remain).step_by(IC_BLOCK_SIZE * T::Vec::SIZE) {
             let mut res_vecs = [T::Vec::splat(T::ZERO); IC_BLOCK_SIZE];
             for kh in start_h..end_h {
@@ -250,12 +282,24 @@ where
                     }
                 }
             }
-            for (idx, vec) in res_vecs.iter().enumerate() {
-                let i = ii + ((idx * T::Vec::SIZE) as i64);
-                let out_idx = b * osb + h * osh + w * osw + i;
-                let out_vec = (unsafe { out.ptr.add(out_idx as usize) }) as *mut T::Vec;
-                unsafe {
-                    out_vec.write_unaligned(post_vec_op(vec.read_unaligned(), kernel_size_vec));
+            if same_vec_size {
+                for (idx, vec) in res_vecs.iter().enumerate() {
+                    let i = ii + ((idx * T::Vec::SIZE) as i64);
+                    let out_idx = b * osb + h * osh + w * osw + i;
+                    let out_vec = (unsafe { out.ptr.add(out_idx as usize) }) as *mut O::Vec;
+                    unsafe {
+                        out_vec.write_unaligned(post_vec_op(vec.read_unaligned(), kernel_size_vec));
+                    }
+                }
+            } else {
+                for vec in res_vecs {
+                    for i in 0..T::Vec::SIZE {
+                        let out_idx = b * osb + h * osh + w * osw + ii + i as i64;
+                        let out = (unsafe { out.ptr.add(out_idx as usize) }) as *mut O;
+                        unsafe {
+                            out.write(post_scalar_op(vec[i], kernel_size));
+                        }
+                    }
                 }
             }
         }
@@ -272,11 +316,22 @@ where
                     res_vecs = vec_op(res_vecs, inp_vec);
                 }
             }
-            let i = ii;
-            let out_idx = b * osb + h * osh + w * osw + i;
-            let out_vec = (unsafe { out.ptr.add(out_idx as usize) }) as *mut T::Vec;
-            unsafe {
-                out_vec.write_unaligned(post_vec_op(res_vecs.read_unaligned(), kernel_size_vec));
+            if same_vec_size {
+                let i = ii;
+                let out_idx = b * osb + h * osh + w * osw + i;
+                let out_vec = (unsafe { out.ptr.add(out_idx as usize) }) as *mut O::Vec;
+                unsafe {
+                    out_vec
+                        .write_unaligned(post_vec_op(res_vecs.read_unaligned(), kernel_size_vec));
+                }
+            } else {
+                for i in 0..T::Vec::SIZE {
+                    let out_idx = b * osb + h * osh + w * osw + ii + i as i64;
+                    let out = (unsafe { out.ptr.add(out_idx as usize) }) as *mut O;
+                    unsafe {
+                        out.write(post_scalar_op(res_vecs[i], kernel_size));
+                    }
+                }
             }
         }
 
@@ -292,7 +347,7 @@ where
             }
             let i = ii;
             let out_idx = b * osb + h * osh + w * osw + i;
-            let out = (unsafe { out.ptr.add(out_idx as usize) }) as *mut T;
+            let out = (unsafe { out.ptr.add(out_idx as usize) }) as *mut O;
             unsafe {
                 out.write_unaligned(post_scalar_op(res, kernel_size));
             }

@@ -13,7 +13,7 @@ where
     T: CommonBounds + NormalOut<bool, Output = T> + NormalOut<T, Output = T> + DeviceRepr,
     f64: Cast<T>,
 {
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn dropout(&self, rate: f64) -> anyhow::Result<_Tensor<T, Cuda, DEVICE_ID>> {
         let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(self.shape())?;
         let scale: T = (1.0 / (1.0 - rate)).cast();
@@ -95,7 +95,7 @@ where
     /// # Returns
     ///
     /// This function returns a `Result` containing a new tensor with dropout applied.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn dropout(&self, rate: f64) -> anyhow::Result<Tensor<T, Cuda, DEVICE_ID>> {
         Ok(self.inner.dropout(rate)?.into())
     }

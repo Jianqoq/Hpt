@@ -12,7 +12,7 @@ use hpt_types::dtype::TypeCommon;
 use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn matmul_with_out<A, B, O, Q>(
     lhs: &_Tensor<A>,
     rhs: &_Tensor<B>,

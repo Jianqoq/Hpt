@@ -96,7 +96,6 @@ pub(crate) fn template_function<T: CommonBounds>(
     out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
-    activation: fn(T::Vec) -> T::Vec,
 ) where
     bool: Cast<T>,
 {
@@ -216,7 +215,7 @@ pub(crate) fn template_function<T: CommonBounds>(
 pub(crate) fn full_oc_kernel_dispatch<T: CommonBounds>(
     oc: &mut usize, // output channels block size
     kb: &mut usize, // outwidth block size
-) -> fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+) -> fn(Params, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>)
 where
     bool: Cast<T>,
 {

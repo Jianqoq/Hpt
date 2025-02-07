@@ -11,7 +11,7 @@ use regex::Regex;
 
 use crate::{cuda_compiled::CUDA_COMPILED, tensor_base::_Tensor, Cuda};
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn compile_kernel(
     module: &str,
     code: &str,
