@@ -288,10 +288,16 @@ export default defineUserConfig({
             {
               text: 'slice',
               link: '/user_guide/slice/slice.md'
+            },
+            {
+              text: 'save/load',
+              link: '/user_guide/save_load/save_load.md'
             }
           ]
         }
+
       ],
+
       '/dev_guide/': [
         {
           text: 'Dev Guide',

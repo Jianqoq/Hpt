@@ -13,8 +13,11 @@ Creates a 1-D tensor with `n` numbers geometrically spaced between `start` and `
 
 ## Parameters:
 `start`: The starting value of the sequence
+
 `end`: The end value of the sequence
+
 `n`: Number of samples to generate
+
 `include_end`: Whether to include the end value in the sequence
 
 ## Returns:

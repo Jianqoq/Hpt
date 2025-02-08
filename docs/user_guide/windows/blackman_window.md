@@ -9,6 +9,7 @@ Creates a Blackman window tensor. The Blackman window is a taper formed by using
 
 ## Parameters:
 `window_length`: The length of the window
+
 `periodic`: If true, returns a window to be used as periodic function. If false, returns a symmetric window
 
 ## Returns:

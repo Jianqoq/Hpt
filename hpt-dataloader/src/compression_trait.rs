@@ -136,9 +136,9 @@ pub struct TensorSaver {
 }
 
 impl TensorSaver {
-    pub fn new(file_path: std::path::PathBuf) -> Self {
+    pub fn new<P: Into<std::path::PathBuf>>(file_path: P) -> Self {
         Self {
-            file_path,
+            file_path: file_path.into(),
             to_saves: None,
         }
     }
@@ -185,9 +185,9 @@ pub struct TensorLoader {
 }
 
 impl TensorLoader {
-    pub fn new(file_path: std::path::PathBuf) -> Self {
+    pub fn new<P: Into<std::path::PathBuf>>(file_path: P) -> Self {
         Self {
-            file_path,
+            file_path: file_path.into(),
             to_loads: None,
         }
     }

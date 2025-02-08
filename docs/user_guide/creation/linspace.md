@@ -11,8 +11,11 @@ Creates a 1-D tensor of `num` evenly spaced values between `start` and `end`.
 
 ## Parameters:
 `start`: The starting value of the sequence
+
 `end`: The end value of the sequence
+
 `num`: Number of samples to generate
+
 `include_end`: Whether to include the end value in the sequence
 
 ## Returns:

@@ -16,6 +16,7 @@ Creates a new tensor of the specified shape, filled with a specified value.
 
 ## Parameters:
 `val`: The value to fill the tensor with.
+
 `shape`: The desired shape for the tensor.
 
 ## Returns:

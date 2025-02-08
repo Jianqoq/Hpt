@@ -9,6 +9,7 @@ Creates a Hann window tensor. The Hann window is a taper formed by using a raise
 
 ## Parameters:
 `window_length`: The length of the window
+
 `periodic`: If true, returns a window to be used as periodic function. If false, returns a symmetric window
 
 ## Returns:
