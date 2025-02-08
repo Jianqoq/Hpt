@@ -483,79 +483,43 @@ pub fn get_broadcast_axes_from(
     Ok(axes)
 }
 
-/// Determines if it is possible to reshape an array with a given shape and strides to a new shape.
-///
-/// This function attempts to compute the strides for the new shape based on the original shape and
-/// strides. If the reshaping is possible without changing the order of the data in memory, it
-/// returns `Some(new_strides)`. Otherwise, it returns `None`, indicating that the reshape operation
-/// cannot be performed while maintaining the data layout.
-///
-/// **Note**: This implementation is adapted from NumPy's internal `PyArray_CheckStrides` function,
-/// modified to fit Rust's programming model and conventions.
-///
-/// # Parameters
-///
-/// - `original_shape`: A slice of `i64` representing the shape of the original array.
-/// - `original_strides`: A slice of `i64` representing the strides of the original array.
-/// - `new_shape`: A slice of `i64` representing the desired shape after reshaping.
-///
-/// # Returns
-///
-/// - `Option<Strides>`: Returns `Some(new_strides)` if the reshape is possible with the computed
-///   strides. Returns `None` if the reshape is not possible while preserving the data layout.
-///
-/// # Algorithm Overview
-///
-/// The function works by trying to match the dimensions of the original and new shapes, accounting
-/// for dimensions of size 1 (which can be broadcasted). It iteratively collapses dimensions and
-/// checks if the strides are compatible. If at any point the strides are incompatible, it returns
-/// `None`. If it successfully computes compatible strides for the new shape, it returns them.
-///
-/// # Example
-///
-/// ```rust
-/// let original_shape = &[2, 3, 4];
-/// let original_strides = &[12, 4, 1];
-/// let new_shape = &[6, 4];
-///
-/// if let Some(new_strides) = is_reshape_possible(original_shape, original_strides, new_shape) {
-///     println!("Reshape is possible with strides: {:?}", new_strides);
-/// } else {
-///     println!("Reshape is not possible while preserving data layout.");
-/// }
-/// ```
-///
-/// # Notes
-///
-/// - This function assumes that the array is in C-contiguous order (row-major).
-/// - The function ignores dimensions of size 1 in the original shape, as they do not affect the
-///   memory layout.
-/// - The algorithm is based on NumPy's reshape stride computation, adapted for Rust.
-///
-/// # Implementation Details
-///
-/// The function uses several indices to keep track of positions in the original and new shapes:
-///
-/// - `oi`, `oj`: Indices for iterating over the original shape dimensions.
-/// - `ni`, `nj`: Indices for iterating over the new shape dimensions.
-/// - `oldnd`: The effective number of dimensions in the original shape after removing size-1 dimensions.
-///
-/// The main loop tries to match products of dimensions (`np` and `op`) from the new and original
-/// shapes until they are equal, indicating that those dimensions can be aligned. It then checks if
-/// the strides are compatible and computes the new strides accordingly.
-///
-/// # Limitations
-///
-/// - The function does not handle all possible cases where reshaping might be possible, especially
-///   for non-contiguous arrays or arrays with unusual strides.
-/// - It assumes that the original array is in a standard contiguous layout.
-///
-/// # Acknowledgments
-///
-/// This function is adapted from NumPy's internal reshape stride computation.
-/// The adaptation involves translating the logic into Rust and
-/// modifying it to fit Rust's data structures and error handling.
+// This file contains code translated from NumPy (https://github.com/numpy/numpy)
+// Original work Copyright (c) 2005-2025, NumPy Developers
+// Modified work Copyright (c) 2025 hpt Contributors
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
 
+//     * Redistributions of source code must retain the above copyright
+//        notice, this list of conditions and the following disclaimer.
+
+//     * Redistributions in binary form must reproduce the above
+//        copyright notice, this list of conditions and the following
+//        disclaimer in the documentation and/or other materials provided
+//        with the distribution.
+
+//     * Neither the name of the NumPy Developers nor the names of any
+//        contributors may be used to endorse or promote products derived
+//        from this software without specific prior written permission.
+
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// This Rust port is additionally licensed under Apache-2.0 OR MIT
+// See repository root for details
+
+/// Attempt to reshape an array without copying data.
+/// Translated from NumPy's _attempt_nocopy_reshape function.
 pub fn is_reshape_possible(
     original_shape: &[i64],
     original_strides: &[i64],
@@ -891,14 +855,12 @@ pub fn mt_intervals_simd(
     assert!(vec_size > 0, "vec_size must be greater than zero");
     assert!(num_threads > 0, "num_threads must be greater than zero");
 
-    // 计算可以被 vec_size 整除的对齐大小和剩余部分
     let aligned_size = (outer_loop_size / vec_size) * vec_size;
     let remainder = outer_loop_size - aligned_size;
 
     let mut intervals = Vec::with_capacity(num_threads);
 
     if aligned_size > 0 {
-        // 计算总的 vec 块数
         let total_vec_blocks = aligned_size / vec_size;
         let base_blocks_per_thread = total_vec_blocks / num_threads;
         let extra_blocks = total_vec_blocks % num_threads;
@@ -908,7 +870,6 @@ pub fn mt_intervals_simd(
         for i in 0..num_threads {
             let mut blocks = base_blocks_per_thread;
 
-            // 前 extra_blocks 个线程多分配一个块
             if i < extra_blocks {
                 blocks += 1;
             }
@@ -918,7 +879,6 @@ pub fn mt_intervals_simd(
             start = end;
         }
 
-        // 将 remainder 分配给最后一个线程
         if remainder > 0 {
             if let Some(last) = intervals.last_mut() {
                 *last = (last.0, last.1 + remainder);
@@ -927,7 +887,6 @@ pub fn mt_intervals_simd(
     }
 
     if aligned_size == 0 && remainder > 0 {
-        // 当 aligned_size 为 0 且有剩余时，将剩余分配给第一个线程
         if num_threads >= 1 {
             intervals.push((0, remainder));
             for _ in 1..num_threads {
@@ -935,12 +894,10 @@ pub fn mt_intervals_simd(
             }
         }
     } else if aligned_size > 0 {
-        // 当 aligned_size > 0 时，确保 intervals 长度为 num_threads
         while intervals.len() < num_threads {
             intervals.push((aligned_size, aligned_size));
         }
     } else {
-        // 当 aligned_size == 0 且 remainder == 0 时，所有线程返回 (0, 0)
         for _ in intervals.len()..num_threads {
             intervals.push((0, 0));
         }

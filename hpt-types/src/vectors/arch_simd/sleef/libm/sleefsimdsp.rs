@@ -1945,9 +1945,7 @@ pub(crate) unsafe fn xlog2f(d: VFloat) -> VFloat {
 
 #[inline(always)]
 pub(crate) unsafe fn xlog1pf(d: VFloat) -> VFloat {
-    let x: VFloat2;
     let mut t: VFloat;
-    let x2: VFloat;
 
     let dp1 = vadd_vf_vf_vf(d, vcast_vf_f(1.0));
 
@@ -1986,11 +1984,11 @@ pub(crate) unsafe fn xlog1pf(d: VFloat) -> VFloat {
         (m, s)
     };
 
-    x = dfdiv_vf2_vf2_vf2(
+    let x = dfdiv_vf2_vf2_vf2(
         vcast_vf2_vf_vf(m, vcast_vf_f(0.0)),
         dfadd_vf2_vf_vf(vcast_vf_f(2.0), m),
     );
-    x2 = vmul_vf_vf_vf(vf2getx_vf_vf2(x), vf2getx_vf_vf2(x));
+    let x2 = vmul_vf_vf_vf(vf2getx_vf_vf2(x), vf2getx_vf_vf2(x));
 
     t = vcast_vf_f(0.3027294874f32);
     t = vmla_vf_vf_vf_vf(t, x2, vcast_vf_f(0.3996108174f32));
@@ -2026,7 +2024,6 @@ pub(crate) unsafe fn xsqrtf_u05(d: VFloat) -> VFloat {
     {
         use helper::vfmanp_vf_vf_vf_vf;
         use helper::vfmapn_vf_vf_vf_vf;
-        let q: VFloat;
         let mut w: VFloat;
         let mut x: VFloat;
         let mut y: VFloat;
@@ -2036,7 +2033,7 @@ pub(crate) unsafe fn xsqrtf_u05(d: VFloat) -> VFloat {
 
         let o = vlt_vo_vf_vf(d, vcast_vf_f(5.293955920339377e-23f32));
         let d = vsel_vf_vo_vf_vf(o, vmul_vf_vf_vf(d, vcast_vf_f(1.888946593147858e22f32)), d);
-        q = vsel_vf_vo_vf_vf(o, vcast_vf_f(7.275957614183426e-12f32), vcast_vf_f(1.0));
+        let q = vsel_vf_vo_vf_vf(o, vcast_vf_f(7.275957614183426e-12f32), vcast_vf_f(1.0));
 
         y = vreinterpret_vf_vi2(vsub_vi2_vi2_vi2(
             vcast_vi2_i(0x5f3759df),

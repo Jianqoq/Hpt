@@ -148,8 +148,6 @@ impl CudaType for bf16 {
     const CUDA_TYPE: &'static str = "bfloat16";
 }
 
-
-
 /// common trait for all data types
 ///
 /// This trait is used to define the common properties of all data types

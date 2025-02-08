@@ -69,8 +69,8 @@ pub fn array_vec_sum<T: TypeCommon + NormalOut<T, Output = T> + Copy>(array: &[T
         sum_vec = sum_vec._add(vec.read_unaligned());
     }
     let mut sum = T::ZERO;
-    for i in array.len() - remain..array.len() {
-        sum = sum._add(array[i]);
+    for i in array.iter().skip(array.len() - remain) {
+        sum = sum._add(*i);
     }
     for i in 0..T::Vec::SIZE {
         sum = sum._add(sum_vec.extract(i));
@@ -91,11 +91,11 @@ pub fn array_vec_reduce<T: TypeCommon + NormalOut<T, Output = T> + Copy>(
     let vecs = array as *const _ as *const T::Vec;
     let mut red_vec = T::Vec::splat(init);
     for i in 0..array.len() / T::Vec::SIZE {
-        red_vec = vec_op(red_vec, unsafe { vecs.offset(i as isize).read_unaligned() });
+        red_vec = vec_op(red_vec, unsafe { vecs.add(i).read_unaligned() });
     }
     let mut red = init;
-    for i in array.len() - remain..array.len() {
-        red = scalar_op(red, array[i]);
+    for i in array.iter().skip(array.len() - remain) {
+        red = scalar_op(red, *i);
     }
     for i in 0..T::Vec::SIZE {
         red = vec_reduce_op(red, red_vec.extract(i));

@@ -1,8 +1,17 @@
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_traits::{CommonBounds, FloatOutPooling, NormalPooling};
-use hpt_types::{dtype::TypeCommon, into_scalar::Cast, traits::VecTrait, type_promote::{FloatOutBinary, NormalOut}};
+use hpt_types::{
+    dtype::TypeCommon,
+    into_scalar::Cast,
+    traits::VecTrait,
+    type_promote::{FloatOutBinary, NormalOut},
+};
 
-use crate::{ops::cpu::pooling::common::{adaptive_pooling_template, pooling_template}, tensor_base::_Tensor, Cpu};
+use crate::{
+    ops::cpu::kernels::pooling::common::{adaptive_pooling_template, pooling_template},
+    tensor_base::_Tensor,
+    Cpu,
+};
 
 impl<T, const DEVICE: usize> FloatOutPooling for _Tensor<T, Cpu, DEVICE>
 where
@@ -32,7 +41,6 @@ where
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-
     ) -> Result<Self::Output, TensorError> {
         let kernels_shape: Shape = kernels_shape.into();
         let kernel_size: <T as FloatOutBinary>::Output = kernels_shape.size().cast();

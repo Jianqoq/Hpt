@@ -72,12 +72,8 @@ where
             .into())
     }
 
-
     #[track_caller]
-    fn adaptive_maxpool2d(
-        &self,
-        output_size: [i64; 2],
-    ) -> Result<Self::Output, TensorError> {
+    fn adaptive_maxpool2d(&self, output_size: [i64; 2]) -> Result<Self::Output, TensorError> {
         Ok(self.inner.adaptive_maxpool2d(output_size)?.into())
     }
 }
