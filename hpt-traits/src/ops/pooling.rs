@@ -6,16 +6,16 @@ pub trait NormalPooling {
     type Output;
 
     /// Performs a 2D max pooling operation on the input tensor.
-    fn maxpool2d(
+    fn maxpool2d<S: Into<Shape>>(
         &self,
-        kernels_shape: &Shape,
+        kernels_shape: S,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
     ) -> Result<Self::Output, TensorError>;
 
     /// Performs a adaptive max pooling operation on the input tensor.
-    fn adaptive_maxpool2d(self, output_size: [usize; 2]) -> Result<Self::Output, TensorError>;
+    fn adaptive_maxpool2d(&self, output_size: [i64; 2]) -> Result<Self::Output, TensorError>;
 }
 
 /// trait for pooling that the output type is the same as the input type
@@ -24,9 +24,9 @@ pub trait FloatOutPooling {
     type Output;
 
     /// Performs a 2D average pooling operation on the input tensor.
-    fn avgpool2d(
+    fn avgpool2d<S: Into<Shape>>(
         &self,
-        kernels_shape: &Shape,
+        kernels_shape: S,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],

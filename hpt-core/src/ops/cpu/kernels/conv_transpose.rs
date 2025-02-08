@@ -163,10 +163,9 @@ pub(crate) struct PartialParams {
 )]
 pub(crate) fn template_function<T: CommonBounds>(
     params: PartialParams,
-    mut out: &mut Pointer<T>,
+    out: &mut Pointer<T>,
     kernel: &mut Pointer<T>,
     inp: &Pointer<T>,
-    activation: fn(T::Vec) -> T::Vec,
 ) where
     bool: Cast<T>,
 {
@@ -268,7 +267,7 @@ where
 
 pub(crate) fn remain_ic_kernel_dispatch<T: CommonBounds>(
     kb: &mut usize, // outwidth block size
-) -> fn(PartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>, fn(T::Vec) -> T::Vec)
+) -> fn(PartialParams, &mut Pointer<T>, &mut Pointer<T>, &Pointer<T>)
 where
     bool: Cast<T>,
 {

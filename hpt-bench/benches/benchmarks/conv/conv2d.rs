@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
 use hpt_core::TensorInfo;
 use hpt_core::TensorLike;
-use hpt_core::{Random, Tensor};
+use hpt_core::{Random, Tensor, Conv};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::time::Duration;
 use tch::{Device, Kind, Tensor as TchTensor};

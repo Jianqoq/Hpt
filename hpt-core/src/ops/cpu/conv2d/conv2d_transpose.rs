@@ -25,6 +25,10 @@ pub(crate) fn conv2d_transpose<T: CommonBounds, const DEVICE: usize>(
 where
     bool: Cast<T>,
 {
+    ShapeError::check_contiguous(
+        "conv2d_transpose input must be contiguous".to_string(),
+        &input.layout(),
+    )?;
     let inp_shape = input.shape();
     ShapeError::check_dim(4, inp_shape.len())?;
     let batch = inp_shape[0];
@@ -163,7 +167,7 @@ where
                                     arg9: [out_height, out_width],
                                     ic_remain: in_channel % (T::Vec::SIZE * ic_block) as i64,
                                 };
-                                remain_ic(param, &mut out, &mut kernel, &inp, |x| x);
+                                remain_ic(param, &mut out, &mut kernel, &inp);
                                 kernel = original.clone();
                             }
                             kernel += kh * kw * (o_end - oo) * remain;
@@ -222,7 +226,7 @@ where
                                     arg9: [out_height, out_width],
                                     ic_remain: in_channel % (T::Vec::SIZE * ic_block) as i64,
                                 };
-                                remain_ic_remain_ow(param, &mut out, &mut kernel, &inp, |x| x);
+                                remain_ic_remain_ow(param, &mut out, &mut kernel, &inp);
                                 kernel = original.clone();
                             }
                             kernel += kh

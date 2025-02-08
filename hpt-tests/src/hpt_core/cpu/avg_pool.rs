@@ -42,7 +42,7 @@ fn assert_eq(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let res = a
-        .avgpool2d(&a_kernel.shape(), [1, 1], [(0, 0), (0, 0)], [1, 1])?
+        .avgpool2d(a_kernel.shape(), [1, 1], [(0, 0), (0, 0)], [1, 1])?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.avg_pool2d(&b_kernel.size(), &[1, 1], &[0, 0], false, true, None);
@@ -62,7 +62,7 @@ fn assert_eq_pad(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let res = a
-        .avgpool2d(&a_kernel.shape(), [1, 1], [(2, 2), (2, 2)], [1, 1])?
+        .avgpool2d(a_kernel.shape(), [1, 1], [(2, 2), (2, 2)], [1, 1])?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.avg_pool2d(&b_kernel.size(), &[1, 1], &[2, 2], false, true, None);
