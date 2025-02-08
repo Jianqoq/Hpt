@@ -2,7 +2,7 @@ use hpt_traits::{ops::conv::Conv, CommonBounds};
 use hpt_types::{into_scalar::Cast, traits::VecTrait, type_promote::NormalOut};
 
 use crate::{
-    ops::cpu::conv2d::{conv2d::conv2d, conv2d_group::conv2d_group, conv2d_transpose::conv2d_transpose, dwconv2d::dwconv2d},
+    ops::cpu::kernels::conv2d::{conv2d::conv2d, conv2d_group::conv2d_group, conv2d_transpose::conv2d_transpose, dwconv2d::dwconv2d},
     tensor_base::_Tensor,
     Cpu,
 };

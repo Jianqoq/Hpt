@@ -8,19 +8,6 @@ pub mod ops {
     pub mod cpu {
         /// a module defines affine_grid operation
         pub mod affine_grid;
-        /// a module defines conv2d operation
-        pub mod conv2d {
-            /// a module defines batchnorm_conv2d operation
-            pub mod batchnorm_conv2d;
-            /// a module defines conv2d operation
-            pub mod conv2d;
-            /// a module defines conv2d_group operation
-            pub mod conv2d_group;
-            /// a module defines conv2d_transpose operation
-            pub mod conv2d_transpose;
-            /// a module defines dwconv2d operation
-            pub mod dwconv2d;
-        }
         pub(crate) mod utils {
             pub(crate) mod reduce {
                 pub(crate) mod reduce;
@@ -36,18 +23,6 @@ pub mod ops {
             pub(crate) mod unary {
                 pub(crate) mod unary;
             }
-        }
-
-        /// a module defines normalization operations
-        pub mod normalization {
-            /// a module defines layernorm
-            pub mod layernorm;
-            /// a module defines log_softmax
-            pub mod log_softmax;
-            /// a module defines softmax utils
-            pub mod normalize_utils;
-            /// a module defines softmax
-            pub mod softmax;
         }
         /// a module defines all the std::ops operations
         pub mod std_ops;
@@ -73,6 +48,35 @@ pub mod ops {
             pub mod reduce;
             /// a module defines the softmax kernels
             pub mod softmax;
+            /// a module contains all the pooling operations
+            pub mod pooling {
+                /// a module contains all the common pooling operations
+                pub mod common;
+            }
+            /// a module defines normalization operations
+            pub mod normalization {
+                /// a module defines layernorm
+                pub mod layernorm;
+                /// a module defines log_softmax
+                pub mod log_softmax;
+                /// a module defines softmax utils
+                pub mod normalize_utils;
+                /// a module defines softmax
+                pub mod softmax;
+            }
+            /// a module defines conv2d operation
+            pub mod conv2d {
+                /// a module defines batchnorm_conv2d operation
+                pub mod batchnorm_conv2d;
+                /// a module defines conv2d operation
+                pub mod conv2d;
+                /// a module defines conv2d_group operation
+                pub mod conv2d_group;
+                /// a module defines conv2d_transpose operation
+                pub mod conv2d_transpose;
+                /// a module defines dwconv2d operation
+                pub mod dwconv2d;
+            }
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_external {
@@ -86,6 +90,8 @@ pub mod ops {
             pub mod cmp;
             /// a module that contains all the common reduce functions
             pub mod common_reduce;
+            /// a module that contains all the conv functions
+            pub mod conv;
             /// a module that contains all fft operations
             pub mod fft;
             /// a module that contains all the unary operations that has floating type output
@@ -96,6 +102,8 @@ pub mod ops {
             pub mod normal_creation;
             /// a module that contains all the unary operations that has self type output
             pub mod normal_out_unary;
+            /// a module that contains all the pooling functions
+            pub mod pooling;
             /// a module that contains all the random number generate functions
             pub mod random;
             /// a module that contains all the shape manipulation functions
@@ -106,10 +114,6 @@ pub mod ops {
             pub mod tensordot;
             /// a module that contains all the windows creation functions
             pub mod windows;
-            /// a module that contains all the conv functions
-            pub mod conv;
-            /// a module that contains all the pooling functions
-            pub mod pooling;
         }
         /// a module that contains all the functions only for the internal user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_internal {
@@ -121,6 +125,8 @@ pub mod ops {
             pub mod cmp;
             /// a module that contains all the common reduce functions
             pub mod common_reduce;
+            /// a module that contains all the conv functions
+            pub mod conv;
             /// a module that contains all fft operations
             pub mod fft;
             /// a module that contains all the unary operations that has floating type output
@@ -131,6 +137,8 @@ pub mod ops {
             pub mod normal_creation;
             /// a module that contains all the unary operations that has self type output
             pub mod normal_out_unary;
+            /// a module that contains all the pooling functions
+            pub mod pooling;
             /// a module that contains all the random number generate functions
             pub mod random;
             /// a module that contains all the shape manipulation functions
@@ -141,16 +149,6 @@ pub mod ops {
             pub mod tensordot;
             /// a module that contains all the windows creation functions
             pub mod windows;
-            /// a module that contains all the conv functions
-            pub mod conv;
-            /// a module that contains all the pooling functions
-            pub mod pooling;
-        }
-
-        /// a module contains all the pooling operations
-        pub mod pooling {
-            /// a module contains all the common pooling operations
-            pub mod common;
         }
 
         /// a module contains cpu L1, L2, L3 cache helper
