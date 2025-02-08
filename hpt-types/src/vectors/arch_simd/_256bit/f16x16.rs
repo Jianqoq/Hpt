@@ -122,7 +122,7 @@ impl f16x16 {
 
                 std::mem::transmute([res0, res1])
             }
-            #[cfg(not(all(
+            #[cfg(not(any(
                 all(
                     target_feature = "f16c",
                     target_arch = "x86_64",
