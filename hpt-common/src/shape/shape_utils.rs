@@ -338,7 +338,7 @@ pub fn compare_and_pad_shapes(a_shape: &[i64], b_shape: &[i64]) -> (Vec<i64>, Ve
 /// - It then iterates over the dimensions, comparing corresponding dimensions from each shape:
 ///   - If the dimensions are equal or one of them is 1, the resulting dimension is set to the maximum of the two.
 ///   - If neither condition is met, an error is returned.
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub fn predict_broadcast_shape(
     a_shape: &[i64],
     b_shape: &[i64],
@@ -450,7 +450,7 @@ pub fn predict_broadcast_shape(
 ///
 /// - Returns an error if any dimension in `res_shape` is `1` while the corresponding dimension in `a_shape` is
 ///   greater than `1`, as broadcasting cannot be performed in this case.
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub fn get_broadcast_axes_from(
     a_shape: &[i64],
     res_shape: &[i64],

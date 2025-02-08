@@ -149,7 +149,7 @@ use hpt_types::into_scalar::Cast;
 /// # Acknowledgments
 ///
 /// This function provides a flexible template for reduction operations on tensors, allowing for optimized implementations of various reduction functions.
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: usize>(
     a: &_Tensor<T, Cpu, DEVICE>,
     axes: &[usize],
@@ -413,7 +413,7 @@ where
 ///
 /// This function provides a flexible template for reduction operations on non-contiguous tensors, enabling optimized implementations of various reduction functions in the context of complex memory layouts.
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: usize>(
     a: &_Tensor<T, Cpu, DEVICE>,
     axes: &[usize],

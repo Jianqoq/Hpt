@@ -37,17 +37,17 @@ where
     type Output = _Tensor<FBO<T>, Cpu, DEVICE>;
     type Meta = T;
 
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn hamming_window(window_length: i64, periodic: bool) -> Result<Self::Output, TensorError> {
         __hamming_window(window_length, (0.54).cast(), (0.46).cast(), periodic)
     }
 
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn hann_window(window_length: i64, periodic: bool) -> Result<Self::Output, TensorError> {
         __hamming_window(window_length, (0.5).cast(), (0.5).cast(), periodic)
     }
 
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn blackman_window(window_length: i64, periodic: bool) -> Result<Self::Output, TensorError>
     where
         Self::Meta: FloatConst,
@@ -77,7 +77,7 @@ where
     }
 }
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 fn __hamming_window<T, const DEVICE: usize>(
     window_length: i64,
     alpha: FBO<T>,

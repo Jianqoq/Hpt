@@ -32,7 +32,7 @@ use super::cuda_utils::{
 ///
 /// This function returns a `Result` containing a new tensor that is the result of concatenating
 /// the input tensors along the specified axis.
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn concat<T, const DEVICE: usize>(
     tensors: Vec<&_Tensor<T, Cuda, DEVICE>>,
     axis: usize,

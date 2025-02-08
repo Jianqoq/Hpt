@@ -1,20 +1,8 @@
-### Type Promote
+# Type Promote
 
-The type promotion system in Hpt handles type conversions and operations between different numeric types.
+### Things to know
 
-### Overview
-
-The type promotion system provides auto casting for different types
-
-### Core Traits
-
-`pub trait FloatOutBinaryPromote<RHS = Self>` See implementation at [here](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L59)
-
-`pub trait NormalOutPromote<RHS = Self>` See implementation at [here](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L126)
-
-`pub trait SimdCmpPromote<RHS = Self>` See implementation at [here](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L312)
-
-`pub trait FloatOutUnaryPromote` See implementation at [here](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-types/src/type_promote.rs#L575)
+The type promotion system in Hpt handles type conversions and operations between different numeric types. It is implemented in `tensor-types` crate.
 
 ### Implementation
 

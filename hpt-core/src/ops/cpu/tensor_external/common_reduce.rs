@@ -237,7 +237,7 @@ where
 {
     type Output = Tensor<FloatBinaryType<T>, Cpu, DEVICE>;
 
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn mean<S: Into<Axis>>(
         &self,
         axis: S,
@@ -251,7 +251,7 @@ where
     }
 
     #[allow(unused)]
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn reducel2<S: Into<Axis>>(
         &self,
         axis: S,
@@ -265,7 +265,7 @@ where
     }
 
     #[allow(unused)]
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn reducel3<S: Into<Axis>>(
         &self,
         axis: S,
@@ -283,7 +283,7 @@ where
     }
 
     #[allow(unused)]
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn logsumexp<S: Into<Axis>>(
         &self,
         axis: S,
@@ -790,7 +790,7 @@ where
 {
     type Output = DiffTensor<FloatBinaryType<T>, Cpu, DEVICE>;
 
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn mean<S: Into<Axis>>(
         &self,
         axes: S,
@@ -831,7 +831,7 @@ where
     }
 
     #[allow(unused)]
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn reducel2<S: Into<Axis>>(
         &self,
         axes: S,
@@ -872,7 +872,7 @@ where
     }
 
     #[allow(unused)]
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn reducel3<S: Into<Axis>>(
         &self,
         axes: S,
@@ -913,7 +913,7 @@ where
     }
 
     #[allow(unused)]
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn logsumexp<S: Into<Axis>>(
         &self,
         _: S,

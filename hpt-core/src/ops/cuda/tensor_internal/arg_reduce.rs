@@ -25,7 +25,7 @@ use hpt_types::{
     type_promote::{Cmp, NormalOut},
 };
 
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub(crate) fn contiguous_reduce<T, const DEVICE_ID: usize>(
     a: &_Tensor<T, Cuda, DEVICE_ID>,
     axes: &[usize],

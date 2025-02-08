@@ -29,19 +29,19 @@ where
 {
     type Output = Tensor<FBO<T>, Cpu, DEVICE>;
     type Meta = T;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn hamming_window(window_length: i64, periodic: bool) -> Result<Self::Output, TensorError> {
         Ok(Tensor::from(
             _Tensor::hamming_window(window_length, periodic)?.into(),
         ))
     }
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn hann_window(window_length: i64, periodic: bool) -> Result<Self::Output, TensorError> {
         Ok(Tensor::from(
             _Tensor::hann_window(window_length, periodic)?.into(),
         ))
     }
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn blackman_window(window_length: i64, periodic: bool) -> Result<Self::Output, TensorError>
     where
         T: FloatConst,

@@ -1,8 +1,8 @@
 #![allow(unused)]
 use hpt_core::set_num_threads;
-use hpt_core::ShapeManipulate;
 use hpt_core::TensorLike;
 use hpt_core::{CommonBounds, TensorInfo};
+use hpt_core::{FloatOutPooling, ShapeManipulate};
 use hpt_core::{Tensor, TensorCreator};
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
@@ -42,7 +42,7 @@ fn assert_eq(a: &Tensor<f64>, b: &tch::Tensor) -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_case0() -> anyhow::Result<()> {
+fn test() -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
 
     for _ in 0..100 {

@@ -34,7 +34,7 @@ impl std::fmt::Display for Axis {
 /// # Error
 ///
 /// if the axis is out of `0..ndim`
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub fn process_axes<T: Into<Axis>>(
     axes: T,
     ndim: usize,

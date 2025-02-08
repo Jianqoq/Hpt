@@ -64,7 +64,7 @@ pub enum Slice {
 /// let result = slice_process(shape, strides, &index, alpha).unwrap();
 /// assert_eq!(result, (vec![2, 3, 3], vec![20, 5, 2], 20));
 /// ```
-#[cfg_attr(feature = "track_caller", track_caller)]
+#[track_caller]
 pub fn slice_process(
     shape: Vec<i64>,
     strides: Vec<i64>,

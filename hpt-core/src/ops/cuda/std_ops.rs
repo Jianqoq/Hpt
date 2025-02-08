@@ -40,7 +40,7 @@ where
     Scalar<T>: NormalOut<Scalar<U>, Output = Scalar<<T as NormalOut<U>>::Output>>,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE>) -> Self::Output {
         binary_fn_with_out_simd(
             &self,
@@ -82,7 +82,7 @@ where
     Scalar<T>: NormalOut<Scalar<U>, Output = Scalar<<T as NormalOut<U>>::Output>>,
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE>) -> Self::Output {
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
@@ -203,7 +203,7 @@ where
     Scalar<T>: NormalOut<Scalar<rhs_type>, Output = Scalar<<T as NormalOut<rhs_type>>::Output>>,
 {
     type Output = out_type<<T as NormalOut<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
         let rhs: _Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs.into();
         self.inner.as_ref().method_name(rhs).into()
@@ -328,7 +328,7 @@ where
     >,
 {
     type Output = out_type<<T as NormalOut<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
         let rhs: _Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs.into();
         self.inner.as_ref().method_name(rhs).into()
@@ -451,7 +451,7 @@ where
     Scalar<lhs_type>: NormalOut<Scalar<T>, Output = Scalar<<lhs_type as NormalOut<T>>::Output>>,
 {
     type Output = out_type<<lhs_type as NormalOut<T>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
         let lhs: _Tensor<lhs_type, Cuda, CUDA_DEVICE> = self.into();
         lhs.method_name(rhs.inner.as_ref()).into()
@@ -575,7 +575,7 @@ where
         NormalOut<Scalar<T>, Output = Scalar<<lhs_type_ident as NormalOut<T>>::Output>>,
 {
     type Output = out_type<<lhs_type_ident as NormalOut<T>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
         let lhs: _Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = self.into();
         lhs.method_name(rhs.inner.as_ref()).into()
@@ -608,7 +608,7 @@ where
     Scalar<T>: BitWiseOut<Scalar<U>, Output = Scalar<<T as BitWiseOut<U>>::Output>>,
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE>) -> Self::Output {
         binary_fn_with_out_simd(
             &self,
@@ -646,7 +646,7 @@ where
     Scalar<T>: BitWiseOut<Scalar<U>, Output = Scalar<<T as BitWiseOut<U>>::Output>>,
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE>) -> Self::Output {
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
@@ -741,7 +741,7 @@ where
     Scalar<T>: BitWiseOut<Scalar<rhs_type>, Output = Scalar<<T as BitWiseOut<rhs_type>>::Output>>,
 {
     type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
         let rhs: _Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs.into();
         self.inner.as_ref().method_name(rhs).into()
@@ -840,7 +840,7 @@ where
     >,
 {
     type Output = out_type<<T as BitWiseOut<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
         let rhs: _Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs.into();
         self.inner.as_ref().method_name(rhs).into()
@@ -937,7 +937,7 @@ where
     Scalar<lhs_type>: BitWiseOut<Scalar<T>, Output = Scalar<<lhs_type as BitWiseOut<T>>::Output>>,
 {
     type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
         let lhs: _Tensor<lhs_type, Cuda, CUDA_DEVICE> = self.into();
         lhs.method_name(rhs.inner.as_ref()).into()
@@ -1035,7 +1035,7 @@ where
         BitWiseOut<Scalar<T>, Output = Scalar<<lhs_type_ident as BitWiseOut<T>>::Output>>,
 {
     type Output = out_type<<lhs_type_ident as BitWiseOut<T>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
         let lhs: _Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = self.into();
         lhs.method_name(rhs.inner.as_ref()).into()
@@ -1060,7 +1060,7 @@ where
     Scalar<T>: FloatOutBinary<Scalar<U>, Output = Scalar<<T as FloatOutBinary<U>>::Output>>,
 {
     type Output = out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE>) -> Self::Output {
         binary_fn_with_out_simd(
             &self,
@@ -1090,7 +1090,7 @@ where
     Scalar<T>: FloatOutBinary<Scalar<U>, Output = Scalar<<T as FloatOutBinary<U>>::Output>>,
 {
     type Output = out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE>) -> Self::Output {
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
@@ -1134,7 +1134,7 @@ where
         FloatOutBinary<Scalar<rhs_type>, Output = Scalar<<T as FloatOutBinary<rhs_type>>::Output>>,
 {
     type Output = out_type<<T as FloatOutBinary<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
         let rhs: _Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs.into();
         self.inner.as_ref().method_name(rhs).into()
@@ -1182,7 +1182,7 @@ where
     >,
 {
     type Output = out_type<<T as FloatOutBinary<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
         let rhs: _Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs.into();
         self.inner.as_ref().method_name(rhs).into()
@@ -1228,7 +1228,7 @@ where
         FloatOutBinary<Scalar<T>, Output = Scalar<<lhs_type as FloatOutBinary<T>>::Output>>,
 {
     type Output = out_type<<lhs_type as FloatOutBinary<T>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
         let lhs: _Tensor<lhs_type, Cuda, CUDA_DEVICE> = self.into();
         lhs.method_name(rhs.inner.as_ref()).into()
@@ -1275,7 +1275,7 @@ where
         FloatOutBinary<Scalar<T>, Output = Scalar<<lhs_type_ident as FloatOutBinary<T>>::Output>>,
 {
     type Output = out_type<<lhs_type_ident as FloatOutBinary<T>>::Output, Cuda, CUDA_DEVICE>;
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
         let lhs: _Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = self.into();
         lhs.method_name(rhs.inner.as_ref()).into()
@@ -1312,7 +1312,7 @@ where
 //          T::Vec: NormalOut<<$type as TypeCommon>::Vec, Output = <<T as NormalOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<T as NormalOut<$type>>::Output, Cuda, CUDA_DEVICE>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn add(self, rhs: $type) -> Self::Output {
 //                 let rhs: _Tensor<$type, Cuda, CUDA_DEVICE> = rhs.into();
 //                 binary_fn_with_out_simd(&self, &rhs, |x, y| x._add(y), |x, y| x._add(y), None::<_Tensor<<T as NormalOut<$type>>::Output, Cuda, CUDA_DEVICE>>).unwrap()
@@ -1324,7 +1324,7 @@ where
 //         T::Vec: NormalOut<<$type as TypeCommon>::Vec, Output = <<T as NormalOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<T as NormalOut<$type>>::Output, Cuda, CUDA_DEVICE>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn mul(self, rhs: $type) -> Self::Output {
 //                 let rhs: _Tensor<$type, Cuda, CUDA_DEVICE> = rhs.into();
 //                 binary_fn_with_out_simd(&self, &rhs, |x, y| x._mul(y), |x, y| x._mul(y), None::<_Tensor<<T as NormalOut<$type>>::Output, Cuda, CUDA_DEVICE>>).unwrap()
@@ -1336,7 +1336,7 @@ where
 //         T::Vec: NormalOut<<$type as TypeCommon>::Vec, Output = <<T as NormalOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<T as NormalOut<$type>>::Output, Cuda, CUDA_DEVICE>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn sub(self, rhs: $type) -> Self::Output {
 //                 let rhs: _Tensor<$type, Cuda, CUDA_DEVICE> = rhs.into();
 //                 binary_fn_with_out_simd(&self, &rhs, |x, y| x._sub(y), |x, y| x._sub(y), None::<_Tensor<<T as NormalOut<$type>>::Output, Cuda, CUDA_DEVICE>>).unwrap()
@@ -1348,7 +1348,7 @@ where
 //         T::Vec: FloatOutBinary<<$type as TypeCommon>::Vec, Output = <<T as FloatOutBinary<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<T as FloatOutBinary<$type>>::Output, Cuda, CUDA_DEVICE>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn div(self, rhs: $type) -> Self::Output {
 //                 let rhs: _Tensor<$type, Cuda, CUDA_DEVICE> = rhs.into();
 //                 binary_fn_with_out_simd(&self, &rhs, |x, y| x._div(y), |x, y| x._div(y), None::<_Tensor<<T as FloatOutBinary<$type>>::Output, Cuda, CUDA_DEVICE>>).unwrap()
@@ -1360,7 +1360,7 @@ where
 //         T::Vec: NormalOut<<$type as TypeCommon>::Vec, Output = <<T as NormalOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<T as NormalOut<$type>>::Output, Cuda, CUDA_DEVICE>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn rem(self, rhs: $type) -> Self::Output {
 //                 let rhs: _Tensor<$type, Cuda, CUDA_DEVICE> = rhs.into();
 //                 binary_fn_with_out_simd(&self, &rhs, |x, y| x._rem(y), |x, y| x._rem(y), None::<_Tensor<<T as NormalOut<$type>>::Output, Cuda, CUDA_DEVICE>>).unwrap()
@@ -1383,7 +1383,7 @@ where
 //          T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<T as BitWiseOut<$type>>::Output, Cuda, CUDA_DEVICE>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn bitand(self, rhs: $type) -> Self::Output {
 //                 let rhs: _Tensor<$type, Cuda, CUDA_DEVICE> = rhs.into();
 //                 binary_fn_with_out_simd(&self, &rhs, |x, y| x._bitand(y), |x, y| x._bitand(y), None::<_Tensor<<T as BitWiseOut<$type>>::Output, Cuda, CUDA_DEVICE>>).unwrap()
@@ -1396,7 +1396,7 @@ where
 //         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<T as BitWiseOut<$type>>::Output, Cuda, CUDA_DEVICE>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn bitor(self, rhs: $type) -> Self::Output {
 //                 let rhs: _Tensor<$type, Cuda, CUDA_DEVICE> = rhs.into();
 //                 binary_fn_with_out_simd(&self, &rhs, |x, y| x._bitor(y), |x, y| x._bitor(y), None::<_Tensor<<T as BitWiseOut<$type>>::Output, Cuda, CUDA_DEVICE>>).unwrap()
@@ -1409,7 +1409,7 @@ where
 //         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<T as BitWiseOut<$type>>::Output, Cuda, CUDA_DEVICE>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn bitxor(self, rhs: $type) -> Self::Output {
 //                 let rhs: _Tensor<$type, Cuda, CUDA_DEVICE> = rhs.into();
 //                 binary_fn_with_out_simd(&self, &rhs, |x, y| x._bitxor(y), |x, y| x._bitxor(y), None::<_Tensor<<T as BitWiseOut<$type>>::Output, Cuda, CUDA_DEVICE>>).unwrap()
@@ -1422,7 +1422,7 @@ where
 //         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<T as BitWiseOut<$type>>::Output, Cuda, CUDA_DEVICE>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn shl(self, rhs: $type) -> Self::Output {
 //                 let rhs: _Tensor<$type, Cuda, CUDA_DEVICE> = rhs.into();
 //                 binary_fn_with_out_simd(&self, &rhs, |x, y| x._shl(y), |x, y| x._shl(y), None::<_Tensor<<T as BitWiseOut<$type>>::Output, Cuda, CUDA_DEVICE>>).unwrap()
@@ -1435,7 +1435,7 @@ where
 //         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<T as BitWiseOut<$type>>::Output, Cuda, CUDA_DEVICE>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn shr(self, rhs: $type) -> Self::Output {
 //                 let rhs: _Tensor<$type, Cuda, CUDA_DEVICE> = rhs.into();
 //                 binary_fn_with_out_simd(&self, &rhs, |x, y| x._shr(y), |x, y| x._shr(y), None::<_Tensor<<T as BitWiseOut<$type>>::Output, Cuda, CUDA_DEVICE>>).unwrap()
@@ -1457,7 +1457,7 @@ where
 //         <$type as TypeCommon>::Vec: NormalOut<<T as TypeCommon>::Vec, Output = <<$type as NormalOut<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<$type as NormalOut<T>>::Output, Cuda, CUDA_DEVICE>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn add(self, rhs: $($tokens)*_Tensor<T, Cuda, CUDA_DEVICE>) -> Self::Output {
 //                 let lhs: _Tensor<$type, Cuda, CUDA_DEVICE> = self.into();
 //                 binary_fn_with_out_simd(&lhs, &rhs, |x, y| x._add(y), |x, y| x._add(y), None::<_Tensor<<$type as NormalOut<T>>::Output, Cuda, CUDA_DEVICE>>).unwrap()
@@ -1469,7 +1469,7 @@ where
 //         <$type as TypeCommon>::Vec: NormalOut<<T as TypeCommon>::Vec, Output = <<$type as NormalOut<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<$type as NormalOut<T>>::Output, Cuda, CUDA_DEVICE>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn mul(self, rhs: $($tokens)*_Tensor<T, Cuda, CUDA_DEVICE>) -> Self::Output {
 //                 let lhs: _Tensor<$type, Cuda, CUDA_DEVICE> = self.into();
 //                 binary_fn_with_out_simd(&lhs, &rhs, |x, y| x._mul(y), |x, y| x._mul(y), None::<_Tensor<<$type as NormalOut<T>>::Output, Cuda, CUDA_DEVICE>>).unwrap()
@@ -1481,7 +1481,7 @@ where
 //         <$type as TypeCommon>::Vec: NormalOut<<T as TypeCommon>::Vec, Output = <<$type as NormalOut<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<$type as NormalOut<T>>::Output, Cuda, CUDA_DEVICE>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn sub(self, rhs: $($tokens)*_Tensor<T, Cuda, CUDA_DEVICE>) -> Self::Output {
 //                 let lhs: _Tensor<$type, Cuda, CUDA_DEVICE> = self.into();
 //                 binary_fn_with_out_simd(&lhs, &rhs, |x, y| x._sub(y), |x, y| x._sub(y), None::<_Tensor<<$type as NormalOut<T>>::Output, Cuda, CUDA_DEVICE>>).unwrap()
@@ -1493,7 +1493,7 @@ where
 //         <$type as TypeCommon>::Vec: FloatOutBinary<<T as TypeCommon>::Vec, Output = <<$type as FloatOutBinary<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<$type as FloatOutBinary<T>>::Output, Cuda, CUDA_DEVICE>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn div(self, rhs: $($tokens)*_Tensor<T, Cuda, CUDA_DEVICE>) -> Self::Output {
 //                 let lhs: _Tensor<$type, Cuda, CUDA_DEVICE> = self.into();
 //                 binary_fn_with_out_simd(&lhs, &rhs, |x, y| x._div(y), |x, y| x._div(y), None::<_Tensor<<$type as FloatOutBinary<T>>::Output>>).unwrap()
@@ -1515,7 +1515,7 @@ where
 //         <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<$type as BitWiseOut<T>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn bitand(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
 //                 let lhs: _Tensor<$type> = self.into();
 //                 binary_fn_with_out_simd(&lhs, &rhs, |x, y| x._bitand(y), |x, y| x._bitand(y), None::<_Tensor<<$type as BitWiseOut<T>>::Output>>).unwrap()
@@ -1527,7 +1527,7 @@ where
 //         <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<$type as BitWiseOut<T>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn bitor(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
 //                 let lhs: _Tensor<$type> = self.into();
 //                 binary_fn_with_out_simd(&lhs, &rhs, |x, y| x._bitor(y), |x, y| x._bitor(y), None::<_Tensor<<$type as BitWiseOut<T>>::Output>>).unwrap()
@@ -1539,7 +1539,7 @@ where
 //         <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<$type as BitWiseOut<T>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn bitxor(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
 //                 let lhs: _Tensor<$type> = self.into();
 //                 binary_fn_with_out_simd(&lhs, &rhs, |x, y| x._bitxor(y), |x, y| x._bitxor(y), None::<_Tensor<<$type as BitWiseOut<T>>::Output>>).unwrap()
@@ -1551,7 +1551,7 @@ where
 //         <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<$type as BitWiseOut<T>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn shl(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
 //                 let lhs: _Tensor<$type> = self.into();
 //                 binary_fn_with_out_simd(&lhs, &rhs, |x, y| x._shl(y), |x, y| x._shl(y), None::<_Tensor<<$type as BitWiseOut<T>>::Output>>).unwrap()
@@ -1563,7 +1563,7 @@ where
 //         <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = _Tensor<<$type as BitWiseOut<T>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn shr(self, rhs: $($tokens)*_Tensor<T>) -> Self::Output {
 //                 let lhs: _Tensor<$type> = self.into();
 //                 binary_fn_with_out_simd(&lhs, &rhs, |x, y| x._shr(y), |x, y| x._shr(y), None::<_Tensor<<$type as BitWiseOut<T>>::Output>>).unwrap()
@@ -1580,7 +1580,7 @@ where
 // //     T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>,
 // // {
 // //     type Output = _Tensor<<T as BitWiseOut<T>>::Output>;
-// //     #[cfg_attr(feature = "track_caller", track_caller)]
+// //     #[track_caller]
 // //     fn not(self) -> Self::Output {
 // //         let lhs: _Tensor<T> = self.into();
 // //         uary_fn_with_out_simd(
@@ -1600,7 +1600,7 @@ where
 // //     T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>,
 // // {
 // //     type Output = _Tensor<<T as BitWiseOut<T>>::Output>;
-// //     #[cfg_attr(feature = "track_caller", track_caller)]
+// //     #[track_caller]
 // //     fn not(self) -> Self::Output {
 // //         let lhs: _Tensor<T> = self.into();
 // //         uary_fn_with_out_simd(
@@ -1621,7 +1621,7 @@ where
 //     _Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 // {
 //     type Output = _Tensor<NormalType<T>>;
-//     #[cfg_attr(feature = "track_caller", track_caller)]
+//     #[track_caller]
 //     fn neg(self) -> Self::Output {
 //         <_Tensor<T> as NormalUaryOps>::neg(&self).unwrap()
 //     }
@@ -1635,7 +1635,7 @@ where
 //     _Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 // {
 //     type Output = _Tensor<NormalType<T>>;
-//     #[cfg_attr(feature = "track_caller", track_caller)]
+//     #[track_caller]
 //     fn neg(self) -> Self::Output {
 //         <_Tensor<T> as NormalUaryOps>::neg(&self).unwrap()
 //     }
@@ -1790,7 +1790,7 @@ where
 //         {
 //             type Output = Tensor<<T as NormalOut<U>>::Output>;
 
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn $op2(self, rhs: Tensor<U>) -> Self::Output {
 //                 self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
 //             }
@@ -1812,7 +1812,7 @@ where
 //             {
 //                 type Output = Tensor<<T as NormalOut<U>>::Output>;
 
-//                 #[cfg_attr(feature = "track_caller", track_caller)]
+//                 #[track_caller]
 //                 fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
 //                     self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
 //                 }
@@ -1833,7 +1833,7 @@ where
 //                 T::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as NormalOut<U>>::Output>;
-//                 #[cfg_attr(feature = "track_caller", track_caller)]
+//                 #[track_caller]
 //                 fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
 //                     self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
 //                 }
@@ -1854,7 +1854,7 @@ where
 //                 T::Vec: NormalOut<<U as TypeCommon>::Vec, Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as NormalOut<U>>::Output>;
-//                 #[cfg_attr(feature = "track_caller", track_caller)]
+//                 #[track_caller]
 //                 fn $op2(self, rhs: Tensor<U>) -> Self::Output {
 //                     self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
 //                 }
@@ -1938,7 +1938,7 @@ where
 //                 T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as BitWiseOut<U>>::Output>;
-//                 #[cfg_attr(feature = "track_caller", track_caller)]
+//                 #[track_caller]
 //                 fn $op2(self, rhs: Tensor<U>) -> Self::Output {
 //                     self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
 //                 }
@@ -2044,7 +2044,7 @@ where
 //             {
 //                 type Output = Tensor<<T as BitWiseOut<U>>::Output>;
 
-//                 #[cfg_attr(feature = "track_caller", track_caller)]
+//                 #[track_caller]
 //                 fn $op2(self, rhs: Tensor<U>) -> Self::Output {
 //                     self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
 //                 }
@@ -2066,7 +2066,7 @@ where
 //             {
 //                 type Output = Tensor<<T as BitWiseOut<U>>::Output>;
 
-//                 #[cfg_attr(feature = "track_caller", track_caller)]
+//                 #[track_caller]
 //                 fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
 //                     self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
 //                 }
@@ -2088,7 +2088,7 @@ where
 //             {
 //                 type Output = Tensor<<T as BitWiseOut<U>>::Output>;
 
-//                 #[cfg_attr(feature = "track_caller", track_caller)]
+//                 #[track_caller]
 //                 fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
 //                     self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
 //                 }
@@ -2109,7 +2109,7 @@ where
 //                 T::Vec: BitWiseOut<U::Vec, Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as BitWiseOut<U>>::Output>;
-//                 #[cfg_attr(feature = "track_caller", track_caller)]
+//                 #[track_caller]
 //                 fn $op2(self, rhs: Tensor<U>) -> Self::Output {
 //                     self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
 //                 }
@@ -2135,7 +2135,7 @@ where
 //                 T::Vec: FloatOutBinary<U::Vec, Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as FloatOutBinary<U>>::Output>;
-//                 #[cfg_attr(feature = "track_caller", track_caller)]
+//                 #[track_caller]
 //                 fn $op2(self, rhs: Tensor<U>) -> Self::Output {
 //                     self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
 //                 }
@@ -2156,7 +2156,7 @@ where
 //                 T::Vec: FloatOutBinary<U::Vec, Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as FloatOutBinary<U>>::Output>;
-//                 #[cfg_attr(feature = "track_caller", track_caller)]
+//                 #[track_caller]
 //                 fn $op2(self, rhs: &'a Tensor<U>) -> Self::Output {
 //                     self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
 //                 }
@@ -2197,7 +2197,7 @@ where
 //                 T::Vec: FloatOutBinary<U::Vec, Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec>,
 //             {
 //                 type Output = Tensor<<T as FloatOutBinary<U>>::Output>;
-//                 #[cfg_attr(feature = "track_caller", track_caller)]
+//                 #[track_caller]
 //                 fn $op2(self, rhs: Tensor<U>) -> Self::Output {
 //                     self.inner.as_ref().$op3(rhs.inner.as_ref()).into()
 //                 }
@@ -2240,7 +2240,7 @@ where
 //          T::Vec: NormalOut<<$type as TypeCommon>::Vec, Output = <<T as NormalOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<T as NormalOut<$type>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn add(self, rhs: $type) -> Self::Output {
 //                 self.inner.as_ref().add(rhs).into()
 //             }
@@ -2251,7 +2251,7 @@ where
 //         T::Vec: NormalOut<<$type as TypeCommon>::Vec, Output = <<T as NormalOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<T as NormalOut<$type>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn mul(self, rhs: $type) -> Self::Output {
 //                 self.inner.as_ref().mul(rhs).into()
 //             }
@@ -2262,7 +2262,7 @@ where
 //         T::Vec: NormalOut<<$type as TypeCommon>::Vec, Output = <<T as NormalOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<T as NormalOut<$type>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn sub(self, rhs: $type) -> Self::Output {
 //                 self.inner.as_ref().sub(rhs).into()
 //             }
@@ -2273,7 +2273,7 @@ where
 //         T::Vec: FloatOutBinary<<$type as TypeCommon>::Vec, Output = <<T as FloatOutBinary<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<T as FloatOutBinary<$type>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn div(self, rhs: $type) -> Self::Output {
 //                 self.inner.as_ref().div(rhs).into()
 //             }
@@ -2284,7 +2284,7 @@ where
 //         T::Vec: NormalOut<<$type as TypeCommon>::Vec, Output = <<T as NormalOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<T as NormalOut<$type>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn rem(self, rhs: $type) -> Self::Output {
 //                 self.inner.as_ref().rem(rhs).into()
 //             }
@@ -2306,7 +2306,7 @@ where
 //          T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<T as BitWiseOut<$type>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn bitand(self, rhs: $type) -> Self::Output {
 //                 self.inner.as_ref().bitand(rhs).into()
 //             }
@@ -2318,7 +2318,7 @@ where
 //         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<T as BitWiseOut<$type>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn bitor(self, rhs: $type) -> Self::Output {
 //                 self.inner.as_ref().bitor(rhs).into()
 //             }
@@ -2330,7 +2330,7 @@ where
 //         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<T as BitWiseOut<$type>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn bitxor(self, rhs: $type) -> Self::Output {
 //                 self.inner.as_ref().bitxor(rhs).into()
 //             }
@@ -2342,7 +2342,7 @@ where
 //         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<T as BitWiseOut<$type>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn shl(self, rhs: $type) -> Self::Output {
 //                 self.inner.as_ref().shl(rhs).into()
 //             }
@@ -2354,7 +2354,7 @@ where
 //         T::Vec: BitWiseOut<<$type as TypeCommon>::Vec, Output = <<T as BitWiseOut<$type>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<T as BitWiseOut<$type>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn shr(self, rhs: $type) -> Self::Output {
 //                 self.inner.as_ref().shr(rhs).into()
 //             }
@@ -2375,7 +2375,7 @@ where
 //         <$type as TypeCommon>::Vec: NormalOut<<T as TypeCommon>::Vec, Output = <<$type as NormalOut<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<$type as NormalOut<T>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn add(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
 //                 self.add(rhs.inner.as_ref()).into()
 //             }
@@ -2386,7 +2386,7 @@ where
 //         <$type as TypeCommon>::Vec: NormalOut<<T as TypeCommon>::Vec, Output = <<$type as NormalOut<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<$type as NormalOut<T>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn mul(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
 //                 self.mul(rhs.inner.as_ref()).into()
 //             }
@@ -2397,7 +2397,7 @@ where
 //         <$type as TypeCommon>::Vec: NormalOut<<T as TypeCommon>::Vec, Output = <<$type as NormalOut<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<$type as NormalOut<T>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn sub(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
 //                 self.sub(rhs.inner.as_ref()).into()
 //             }
@@ -2408,7 +2408,7 @@ where
 //         <$type as TypeCommon>::Vec: FloatOutBinary<<T as TypeCommon>::Vec, Output = <<$type as FloatOutBinary<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<$type as FloatOutBinary<T>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn div(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
 //                 self.div(rhs.inner.as_ref()).into()
 //             }
@@ -2429,7 +2429,7 @@ where
 //         <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<$type as BitWiseOut<T>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn bitand(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
 //                 self.bitand(rhs.inner.as_ref()).into()
 //             }
@@ -2440,7 +2440,7 @@ where
 //         <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<$type as BitWiseOut<T>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn bitor(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
 //                 self.bitor(rhs.inner.as_ref()).into()
 //             }
@@ -2451,7 +2451,7 @@ where
 //         <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<$type as BitWiseOut<T>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn bitxor(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
 //                 self.bitxor(rhs.inner.as_ref()).into()
 //             }
@@ -2462,7 +2462,7 @@ where
 //         <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<$type as BitWiseOut<T>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn shl(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
 //                 self.shl(rhs.inner.as_ref()).into()
 //             }
@@ -2473,7 +2473,7 @@ where
 //         <$type as TypeCommon>::Vec: BitWiseOut<<T as TypeCommon>::Vec, Output = <<$type as BitWiseOut<T>>::Output as TypeCommon>::Vec>,
 //          {
 //             type Output = Tensor<<$type as BitWiseOut<T>>::Output>;
-//             #[cfg_attr(feature = "track_caller", track_caller)]
+//             #[track_caller]
 //             fn shr(self, rhs: $($tokens)*Tensor<T>) -> Self::Output {
 //                 self.shr(rhs.inner.as_ref()).into()
 //             }
@@ -2621,7 +2621,7 @@ where
 //     T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>,
 // {
 //     type Output = Tensor<<T as BitWiseOut<T>>::Output>;
-//     #[cfg_attr(feature = "track_caller", track_caller)]
+//     #[track_caller]
 //     fn not(self) -> Self::Output {
 //         self.inner.as_ref().not().into()
 //     }
@@ -2634,7 +2634,7 @@ where
 //     T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>,
 // {
 //     type Output = Tensor<<T as BitWiseOut<T>>::Output>;
-//     #[cfg_attr(feature = "track_caller", track_caller)]
+//     #[track_caller]
 //     fn not(self) -> Self::Output {
 //         self.inner.as_ref().not().into()
 //     }
@@ -2648,7 +2648,7 @@ where
 //     Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 // {
 //     type Output = Tensor<NormalType<T>>;
-//     #[cfg_attr(feature = "track_caller", track_caller)]
+//     #[track_caller]
 //     fn neg(self) -> Self::Output {
 //         <_Tensor<T> as NormalUaryOps>::neg(self.inner.as_ref())
 //             .unwrap()
@@ -2664,7 +2664,7 @@ where
 //     Tensor<NormalType<T>>: TensorLike<NormalType<T>>,
 // {
 //     type Output = Tensor<NormalType<T>>;
-//     #[cfg_attr(feature = "track_caller", track_caller)]
+//     #[track_caller]
 //     fn neg(self) -> Self::Output {
 //         <_Tensor<T> as NormalUaryOps>::neg(self.inner.as_ref())
 //             .unwrap()

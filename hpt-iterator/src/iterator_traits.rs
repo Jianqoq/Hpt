@@ -211,7 +211,7 @@ pub trait ParStridedIteratorZip: Sized + IterGetSet {
     ///
     /// This method will panic if the shapes of `self` and `other` cannot be broadcasted together.
     /// Ensure that the shapes are compatible before calling this method.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn zip<'a, C>(mut self, mut other: C) -> ParStridedZip<'a, Self, C>
     where
         C: UnindexedProducer + 'a + IterGetSet + ParallelIterator + ShapeManipulator,
@@ -271,7 +271,7 @@ pub trait ParStridedIteratorSimdZip: Sized + IterGetSetSimd {
     ///
     /// This method will panic if the shapes of `self` and `other` cannot be broadcasted together.
     /// Ensure that the shapes are compatible before calling this method.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn zip<'a, C>(mut self, mut other: C) -> ParStridedZipSimd<'a, Self, C>
     where
         C: UnindexedProducer + 'a + IterGetSetSimd + ParallelIterator + ShapeManipulator,

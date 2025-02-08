@@ -48,7 +48,7 @@ where
     /// # Returns
     ///
     /// This function returns a `Result` containing the output tensor after applying the 2D convolution operation.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     pub fn batchnorm_conv2d(
         &self,
         kernels: &_Tensor<T, Cpu, DEVICE>,
@@ -63,6 +63,36 @@ where
         dilation: [i64; 2],
         activation: Option<fn(T::Vec) -> T::Vec>,
     ) -> std::result::Result<_Tensor<T, Cpu, DEVICE>, TensorError> {
+        ShapeError::check_contiguous(
+            "BatchNormConv2d requires input tensor to be contiguous. ".to_string(),
+            self.layout(),
+        )?;
+        ShapeError::check_contiguous(
+            "BatchNormConv2d requires kernel tensor to be contiguous. ".to_string(),
+            kernels.layout(),
+        )?;
+        if let Some(bias) = bias {
+            ShapeError::check_contiguous(
+                "BatchNormConv2d requires bias tensor to be contiguous. ".to_string(),
+                bias.layout(),
+            )?;
+        }
+        ShapeError::check_contiguous(
+            "BatchNormConv2d requires mean tensor to be contiguous. ".to_string(),
+            mean.layout(),
+        )?;
+        ShapeError::check_contiguous(
+            "BatchNormConv2d requires var tensor to be contiguous. ".to_string(),
+            var.layout(),
+        )?;
+        ShapeError::check_contiguous(
+            "BatchNormConv2d requires gamma tensor to be contiguous. ".to_string(),
+            gamma.layout(),
+        )?;
+        ShapeError::check_contiguous(
+            "BatchNormConv2d requires beta tensor to be contiguous. ".to_string(),
+            beta.layout(),
+        )?;
         let img_shape = self.shape();
         ShapeError::check_dim(4, img_shape.len())?;
         let batch = img_shape[0];
@@ -1400,7 +1430,7 @@ where
     /// # Returns
     ///
     /// This function returns a `Result` containing the output tensor after applying the 2D convolution operation.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     #[inline(never)]
     pub fn batchnorm_conv2d(
         &self,

@@ -106,6 +106,10 @@ pub mod ops {
             pub mod tensordot;
             /// a module that contains all the windows creation functions
             pub mod windows;
+            /// a module that contains all the conv functions
+            pub mod conv;
+            /// a module that contains all the pooling functions
+            pub mod pooling;
         }
         /// a module that contains all the functions only for the internal user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_internal {
@@ -137,16 +141,16 @@ pub mod ops {
             pub mod tensordot;
             /// a module that contains all the windows creation functions
             pub mod windows;
+            /// a module that contains all the conv functions
+            pub mod conv;
+            /// a module that contains all the pooling functions
+            pub mod pooling;
         }
 
         /// a module contains all the pooling operations
         pub mod pooling {
-            /// a module contains all the avg pooling operations
-            pub mod avg_pool;
             /// a module contains all the common pooling operations
             pub mod common;
-            /// a module contains all the max pooling operations
-            pub mod max_pool;
         }
 
         /// a module contains cpu L1, L2, L3 cache helper

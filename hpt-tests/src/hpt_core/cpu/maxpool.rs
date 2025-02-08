@@ -3,7 +3,7 @@ use hpt_core::set_num_threads;
 use hpt_core::ShapeManipulate;
 use hpt_core::TensorLike;
 use hpt_core::{CommonBounds, TensorInfo};
-use hpt_core::{Tensor, TensorCreator};
+use hpt_core::{Tensor, TensorCreator, NormalPooling};
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
 use rand::Rng;
@@ -42,7 +42,7 @@ fn assert_eq(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let res = a
-        .maxpool2d(&a_kernel.shape(), [1, 1], [(0, 0), (0, 0)], [1, 1])?
+        .maxpool2d(a_kernel.shape(), [1, 1], [(0, 0), (0, 0)], [1, 1])?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.max_pool2d(&b_kernel.size(), &[1, 1], &[0, 0], [1, 1], false);
@@ -62,7 +62,7 @@ fn assert_eq_pad(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let res = a
-        .maxpool2d(&a_kernel.shape(), [1, 1], [(2, 2), (2, 2)], [1, 1])?
+        .maxpool2d(a_kernel.shape(), [1, 1], [(2, 2), (2, 2)], [1, 1])?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.max_pool2d(&b_kernel.size(), &[1, 1], &[2, 2], [1, 1], false);

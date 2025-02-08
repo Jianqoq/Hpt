@@ -520,7 +520,7 @@ where
     ///
     /// This function returns a `Result` containing a tensor with the mean values along
     /// the specified axis.
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn mean<S: Into<Axis>>(
         &self,
         axis: S,
@@ -570,7 +570,7 @@ where
     /// This function returns a `Result` containing a tensor of type `_Tensor<FloatBinaryType<T>>`
     /// with the L2 norm values along the specified axis.
     #[allow(unused)]
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn reducel2<S: Into<Axis>>(
         &self,
         axis: S,
@@ -616,7 +616,7 @@ where
     /// This function returns a `Result` containing a tensor of type `_Tensor<FloatBinaryType<T>>`
     /// with the L3 norm values along the specified axis.
     #[allow(unused)]
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn reducel3<S: Into<Axis>>(
         &self,
         axis: S,
@@ -688,7 +688,7 @@ where
     /// This function returns a `Result` containing a tensor of type `_Tensor<FloatBinaryType<T>>`
     /// with the LogSumExp values along the specified axis.
     #[allow(unused)]
-    #[cfg_attr(feature = "track_caller", track_caller)]
+    #[track_caller]
     fn logsumexp<S: Into<Axis>>(
         &self,
         axis: S,
