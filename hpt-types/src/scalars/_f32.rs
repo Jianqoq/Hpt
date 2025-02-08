@@ -27,7 +27,7 @@ impl NormalOut2 for f32 {
     #[inline(always)]
     fn __mul_add(self, a: Self, b: Self) -> Self {
         #[cfg(target_feature = "fma")]
-        return (self * a) + b;
+        return self.mul_add(a, b);
         #[cfg(not(target_feature = "fma"))]
         return std::hint::black_box((self * a) + b);
     }
