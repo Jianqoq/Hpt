@@ -29,9 +29,7 @@ use hpt_types::into_scalar::Cast;
 #[derive(Clone)]
 pub struct Tensor<T, B = Cpu, const DEVICE_ID: usize = 0>
 where
-    B: BackendTy 
-    + Buffer
-    ,
+    B: BackendTy + Buffer,
 {
     pub(crate) inner: Arc<_Tensor<T, B, DEVICE_ID>>,
 }
