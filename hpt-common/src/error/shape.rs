@@ -210,7 +210,10 @@ impl ShapeError {
 
     /// Check if the tensor is contiguous
     #[track_caller]
-    pub fn check_contiguous(msg: String, layout: &crate::layout::layout::Layout) -> Result<(), Self> {
+    pub fn check_contiguous(
+        msg: String,
+        layout: &crate::layout::layout::Layout,
+    ) -> Result<(), Self> {
         if !layout.is_contiguous() {
             return Err(Self::ContiguousError {
                 message: msg,
@@ -242,7 +245,10 @@ impl ShapeError {
         inplace_layout: &crate::layout::layout::Layout,
     ) -> Result<(), Self> {
         Self::check_size_match(out_shape.size(), inplace_layout.size())?;
-        Self::check_contiguous("Method with out Tensor requires out Tensor to be contiguous. ".to_string(), inplace_layout)?;
+        Self::check_contiguous(
+            "Method with out Tensor requires out Tensor to be contiguous. ".to_string(),
+            inplace_layout,
+        )?;
         Ok(())
     }
 

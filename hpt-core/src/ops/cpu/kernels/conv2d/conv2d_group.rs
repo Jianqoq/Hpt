@@ -64,8 +64,7 @@ where
 
     let out_height =
         (img_height + ph_start + ph_end - dh * (kernel_height - 1) - 1) / step_height + 1;
-    let out_width =
-        (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
+    let out_width = (img_width + pw_start + pw_end - dw * (kernel_width - 1) - 1) / step_width + 1;
     let img = input.clone();
     if out_height <= 0 || out_width <= 0 {
         return Err(ShapeError::ConvError {
@@ -79,8 +78,7 @@ where
         .into());
     }
     let activation = activation.unwrap_or(|x| x);
-    let output =
-        _Tensor::<T, Cpu, DEVICE>::empty([batch, out_height, out_width, out_channels])?;
+    let output = _Tensor::<T, Cpu, DEVICE>::empty([batch, out_height, out_width, out_channels])?;
     let out = output.ptr();
     let inp = img.ptr();
 
@@ -122,10 +120,8 @@ where
             ow_block, oc_nvec
         ));
     let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
-    let full_oc_kernel_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
-        &mut oc_nvec,
-        &mut ((out_width as usize) % ow_block),
-    );
+    let full_oc_kernel_ow_remain =
+        conv2d_full_oc_kernel_dispatch::<T>(&mut oc_nvec, &mut ((out_width as usize) % ow_block));
     if full_oc_kernel_ow_remain.is_none() {
         assert_eq!((out_width as usize) % ow_block, 0);
     }
@@ -180,10 +176,7 @@ where
         None
     };
     let bias_partial_oc_ow_remain = if has_bias {
-        Some(
-            bias_remain_oc_kernel_dispatch::<T>(&mut ((out_width as usize) % ow_block))
-                .unwrap(),
-        )
+        Some(bias_remain_oc_kernel_dispatch::<T>(&mut ((out_width as usize) % ow_block)).unwrap())
     } else {
         None
     };
@@ -344,8 +337,8 @@ where
                             // out channel has two levels of blocking:
                             // 1. it first blocks by oc_block_size * jb
                             // 2. it then blocks by oc_block_size (cache line size)
-                            for jj in (0..out_channels_per_group)
-                                .step_by(oc_block_size * (jb as usize))
+                            for jj in
+                                (0..out_channels_per_group).step_by(oc_block_size * (jb as usize))
                             {
                                 // make sure jj_end is in the range of out_channels
                                 let jj_end = (jj + (oc_block_size as i64) * (jb as i64))
@@ -416,8 +409,8 @@ where
                             // out channel has two levels of blocking:
                             // 1. it first blocks by oc_block_size * jb
                             // 2. it then blocks by oc_block_size (cache line size)
-                            for jj in (0..out_channels_per_group)
-                                .step_by(oc_block_size * (jb as usize))
+                            for jj in
+                                (0..out_channels_per_group).step_by(oc_block_size * (jb as usize))
                             {
                                 // make sure jj_end is in the range of out_channels
                                 let jj_end = (jj + (oc_block_size as i64) * (jb as i64))

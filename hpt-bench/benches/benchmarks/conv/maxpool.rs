@@ -3,7 +3,7 @@ use hpt_core::ShapeManipulate;
 use hpt_core::TensorCreator;
 use hpt_core::TensorInfo;
 use hpt_core::TensorLike;
-use hpt_core::{Random, Tensor, NormalPooling};
+use hpt_core::{NormalPooling, Random, Tensor};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::time::Duration;
 use tch::{Device, Kind, Tensor as TchTensor};
@@ -59,9 +59,7 @@ fn maxpool_benchmark(c: &mut Criterion) {
                             BenchmarkId::new("hpt", format!("hpt {}", idx)),
                             &[ic, kh, kw, h, w],
                             |b, _| {
-                                b.iter(|| {
-                                    a2.maxpool2d([kh, kw], [1, 1], [(0, 0), (0, 0)], [1, 1])
-                                });
+                                b.iter(|| a2.maxpool2d([kh, kw], [1, 1], [(0, 0), (0, 0)], [1, 1]));
                             },
                         );
                         let a = black_box(

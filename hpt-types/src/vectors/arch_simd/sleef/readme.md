@@ -1,1 +1,0 @@
-This folder contains Sleef math implementation, all the code are tranlated from C++ by claude-3.5-sonnet

@@ -39,6 +39,8 @@ jobs:
         toolchain: stable
         override: true
         components: clippy, rustfmt, rust-src
+    - name: Check formatting
+      run: cargo fmt --all -- --check
     - name: Install cargo-expand
       run: cargo install cargo-expand
     - name: Run tests

@@ -12,16 +12,16 @@ pub mod ops {
     pub mod binary;
     /// A module contains comparison operations
     pub mod cmp;
+    /// A module contains conv operations
+    pub mod conv;
     /// A module contains fft operations
     pub mod fft;
+    /// A module contains pooling operations
+    pub mod pooling;
     /// A module contains unary operations
     pub mod uary;
     /// A module contains window operations
     pub mod windows;
-    /// A module contains pooling operations
-    pub mod pooling;
-    /// A module contains conv operations
-    pub mod conv;
 }
 /// A module contains random number generation operations
 pub mod random;
@@ -31,11 +31,11 @@ pub mod shape_manipulate;
 pub use ops::advance::*;
 pub use ops::binary::*;
 pub use ops::cmp::*;
+pub use ops::conv::*;
 pub use ops::fft::*;
+pub use ops::pooling::*;
 pub use ops::uary::*;
 pub use ops::windows::*;
-pub use ops::pooling::*;
-pub use ops::conv::*;
 pub use random::*;
 pub use shape_manipulate::*;
 pub use tensor::*;
