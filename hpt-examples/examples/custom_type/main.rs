@@ -579,10 +579,8 @@ impl Cast<f64> for CustomType {
     }
 }
 
-
 fn main() -> anyhow::Result<()> {
     let a = Tensor::<CustomType>::arange(0, 16)?.reshape(&[4, 4])?;
     println!("{}", a);
     Ok(())
 }
-
