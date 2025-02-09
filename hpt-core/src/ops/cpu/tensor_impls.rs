@@ -127,7 +127,7 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
         U: CommonBounds,
         T: Cast<U>,
     {
-        if U::ID == T::ID {
+        if U::STR == T::STR {
             Ok(self.static_cast()?)
         } else {
             Ok(self.astype::<U>()?)
@@ -139,7 +139,7 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     where
         Dst: CommonBounds,
     {
-        if T::ID == Dst::ID {
+        if T::STR == Dst::STR {
             match self.parent.clone() {
                 Some(parent) => {
                     #[cfg(feature = "bound_check")]

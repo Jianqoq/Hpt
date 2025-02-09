@@ -2,8 +2,8 @@ use hpt_traits::CommonBounds;
 use hpt_types::into_scalar::Cast;
 
 pub(crate) fn format_float<T: CommonBounds + Cast<f64>>(val: T, precision: usize) -> String {
-    match T::ID {
-        hpt_types::dtype::Dtype::BF16 => {
+    match T::STR {
+        "bf16" => {
             let f64_val: f64 = val.cast();
             if f64_val - (f64_val as i64 as f64) != 0.0 {
                 format!("{:.prec$}", f64_val, prec = precision)
@@ -11,7 +11,7 @@ pub(crate) fn format_float<T: CommonBounds + Cast<f64>>(val: T, precision: usize
                 format!("{:.0}.", f64_val)
             }
         }
-        hpt_types::dtype::Dtype::F16 => {
+        "f16" => {
             let f64_val: f64 = val.cast();
             if f64_val - (f64_val as i64 as f64) != 0.0 {
                 format!("{:.prec$}", val, prec = precision)
@@ -19,7 +19,7 @@ pub(crate) fn format_float<T: CommonBounds + Cast<f64>>(val: T, precision: usize
                 format!("{:.0}.", val)
             }
         }
-        hpt_types::dtype::Dtype::F32 => {
+        "f32" => {
             let tmp_val: f64 = val.cast();
             if tmp_val - (tmp_val as i64 as f64) != 0.0 {
                 format!("{:.prec$}", val, prec = precision)
@@ -27,7 +27,7 @@ pub(crate) fn format_float<T: CommonBounds + Cast<f64>>(val: T, precision: usize
                 format!("{:.0}.", val)
             }
         }
-        hpt_types::dtype::Dtype::F64 => {
+        "f64" => {
             let tmp_val: f64 = val.cast();
             if tmp_val - (tmp_val as i64 as f64) != 0.0 {
                 format!("{:.prec$}", val, prec = precision)
@@ -35,14 +35,14 @@ pub(crate) fn format_float<T: CommonBounds + Cast<f64>>(val: T, precision: usize
                 format!("{:.0}.", val)
             }
         }
-        _ => panic!("{} is not a floating point type", T::ID),
+        _ => panic!("{} is not a floating point type", T::STR),
     }
 }
 
 pub(crate) fn format_complex<T: CommonBounds>(val: T, precision: usize) -> String {
     let mut val = val.to_string();
-    match T::ID {
-        hpt_types::dtype::Dtype::C32 => {
+    match T::STR {
+        "c32" => {
             let tmp_val: num_complex::Complex32 = val
                 .parse::<num_complex::Complex32>()
                 .expect("Failed to parse c32");
@@ -52,7 +52,7 @@ pub(crate) fn format_complex<T: CommonBounds>(val: T, precision: usize) -> Strin
             let im_str = format_float(im, precision);
             val = format!("{} + {}i", re_str, im_str);
         }
-        hpt_types::dtype::Dtype::C64 => {
+        "c64" => {
             let tmp_val: num_complex::Complex64 = val
                 .parse::<num_complex::Complex64>()
                 .expect("Failed to parse c64");
@@ -62,20 +62,16 @@ pub(crate) fn format_complex<T: CommonBounds>(val: T, precision: usize) -> Strin
             let im_str = format_float(im, precision);
             val = format!("{} + {}i", re_str, im_str);
         }
-        _ => panic!("{} is not a complex type", T::ID),
+        _ => panic!("{} is not a complex type", T::STR),
     }
     val
 }
 
 pub(crate) fn format_val<T: CommonBounds + Cast<f64>>(val: T, precision: usize) -> String {
-    match T::ID {
-        hpt_types::dtype::Dtype::BF16
-        | hpt_types::dtype::Dtype::F16
-        | hpt_types::dtype::Dtype::F32
-        | hpt_types::dtype::Dtype::F64 => format_float(val, precision),
-        hpt_types::dtype::Dtype::C32 | hpt_types::dtype::Dtype::C64 => {
-            format_complex(val, precision)
-        }
+    match T::STR {
+        "bf16" | "f16" | "f32" | "f64" => format_float(val, precision),
+
+        "c32" | "c64" => format_complex(val, precision),
         _ => val.to_string(),
     }
 }

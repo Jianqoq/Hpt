@@ -3,7 +3,6 @@ use anyhow::Result;
 use hpt_traits::CommonBounds;
 use hpt_traits::TensorCreator;
 use hpt_traits::TensorInfo;
-use hpt_types::dtype::Dtype;
 use num::traits::FromBytes;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -52,7 +51,7 @@ pub struct TensorMeta<T: CommonBounds, B: TensorCreator<T, Output = B> + Clone +
     pub shape: Vec<i64>,
     pub strides: Vec<i64>,
     pub size: usize,
-    pub dtype: Dtype,
+    pub dtype: String,
     pub compression_algo: CompressionAlgo,
     pub endian: Endian,
     pub indices: Vec<(usize, usize, usize, usize)>,

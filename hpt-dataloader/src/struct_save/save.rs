@@ -6,7 +6,6 @@ use crate::Endian;
 use crate::{compression_trait::CompressionTrait, CHUNK_BUFF};
 use flate2::write::{DeflateEncoder, GzEncoder, ZlibEncoder};
 use hpt_common::shape::shape::Shape;
-use hpt_types::dtype::Dtype;
 use indicatif::ProgressBar;
 
 pub trait Save {
@@ -49,10 +48,11 @@ fn generate_header_compressed(
         Vec<i64>,                          /* shape */
         Vec<i64>,                          /* strides */
         usize,                             /* size */
-        Dtype,                             /* dtype */
+        String,                            /* dtype */
         CompressionAlgo,                   /* compression_algo */
         Endian,                            /* endian */
         Vec<(usize, usize, usize, usize)>, /* indices */
+
     ),
     (String, usize, usize, usize, usize),
 ) {
@@ -62,7 +62,7 @@ fn generate_header_compressed(
         meta.data_saver.shape().to_vec(),
         meta.data_saver.shape().to_strides().to_vec(),
         meta.data_saver.size(),
-        meta.data_saver.dtype(),
+        meta.data_saver.dtype().to_string(),
         meta.compression_algo,
         meta.endian,
         vec![],
@@ -117,7 +117,7 @@ pub fn save(
     Vec<i64>,                          /* shape */
     Vec<i64>,                          /* strides */
     usize,                             /* size */
-    Dtype,                             /* dtype */
+    String,                            /* dtype */
     CompressionAlgo,                   /* compression_algo */
     Endian,                            /* endian */
     Vec<(usize, usize, usize, usize)>, /* indices */

@@ -2,7 +2,6 @@ use std::{collections::HashMap, io::Write};
 
 use hpt_common::{shape::shape::Shape, slice::Slice, strides::strides::Strides};
 use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
-use hpt_types::dtype::Dtype;
 use num::traits::{FromBytes, ToBytes};
 use serde::{Deserialize, Serialize};
 
@@ -50,7 +49,7 @@ pub trait DataLoaderTrait {
     fn fill_le_bytes_slice(&self, offset: isize, writer: &mut [u8]);
     fn offset(&mut self, offset: isize);
     fn size(&self) -> usize;
-    fn dtype(&self) -> Dtype;
+    fn dtype(&self) -> &'static str;
     fn mem_size(&self) -> usize;
 }
 
@@ -109,8 +108,8 @@ where
         writer.copy_from_slice(&val.to_le_bytes());
     }
 
-    fn dtype(&self) -> Dtype {
-        T::ID
+    fn dtype(&self) -> &'static str {
+        T::STR
     }
 }
 

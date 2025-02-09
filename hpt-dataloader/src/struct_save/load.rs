@@ -37,13 +37,13 @@ pub(crate) fn load<
     file: &mut File,
     meta: &TensorMeta<T, B>,
 ) -> std::io::Result<B> {
-    if meta.dtype != T::ID {
+    if meta.dtype != T::STR {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
             format!(
                 "the dtype stored is {}, but the dtype requested is {}",
                 meta.dtype,
-                T::ID
+                T::STR
             ),
         ));
     }

@@ -437,7 +437,7 @@ where
                 let a_data_ptr = iterator.ptrs.clone();
                 let current_size = iterator.end - iterator.start;
                 let shape_len = iterator.a_shape.len() as i64;
-                if T::ID == O::ID {
+                if T::STR == O::STR {
                     contiguous_reduce_dim_include_simd(
                         init_val,
                         inner_loop_size as isize,

@@ -281,9 +281,7 @@ export default defineUserConfig({
             },
             {
               text: 'custom type',
-              collapsible: true,
-              children: [
-              ]
+              link: '/user_guide/custom_type/custom_type.md'
             },
             {
               text: 'slice',
