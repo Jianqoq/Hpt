@@ -52,7 +52,6 @@ fn generate_header_compressed(
         CompressionAlgo,                   /* compression_algo */
         Endian,                            /* endian */
         Vec<(usize, usize, usize, usize)>, /* indices */
-
     ),
     (String, usize, usize, usize, usize),
 ) {

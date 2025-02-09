@@ -279,13 +279,13 @@ pub use hpt_dataloader::{
 pub use hpt_macros::match_selection;
 pub use hpt_traits::*;
 pub use hpt_types::dtype::TypeCommon;
+pub use hpt_types::into_scalar::Cast;
+pub use hpt_types::into_vec::IntoVec;
 pub use hpt_types::traits::VecTrait;
 pub use hpt_types::type_promote::{
     BitWiseOut, Eval, FloatOutBinary, FloatOutBinaryPromote, FloatOutUnary, FloatOutUnaryPromote,
     NormalOut, NormalOutPromote, NormalOutUnary,
 };
-pub use hpt_types::into_scalar::Cast;
-pub use hpt_types::into_vec::IntoVec;
 pub use hpt_types::vectors::*;
 pub use serde;
 pub use tensor::Tensor;
