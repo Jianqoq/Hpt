@@ -259,7 +259,6 @@ pub use crate::ops::cpu::utils::binary::binary_normal::binary_with_out;
 use ctor::ctor;
 pub use hpt_iterator::iterator_traits::*;
 pub use hpt_iterator::TensorIterator;
-pub use hpt_types::dtype::Dtype;
 
 pub use crate::backend::*;
 pub use flate2;
@@ -285,6 +284,8 @@ pub use hpt_types::type_promote::{
     BitWiseOut, Eval, FloatOutBinary, FloatOutBinaryPromote, FloatOutUnary, FloatOutUnaryPromote,
     NormalOut, NormalOutPromote, NormalOutUnary,
 };
+pub use hpt_types::into_scalar::Cast;
+pub use hpt_types::into_vec::IntoVec;
 pub use hpt_types::vectors::*;
 pub use serde;
 pub use tensor::Tensor;

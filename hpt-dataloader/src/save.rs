@@ -4,7 +4,7 @@ use crate::compression_trait::{CompressionAlgo, DataLoaderTrait, Meta};
 use crate::utils::create_file;
 use crate::Endian;
 use crate::{compression_trait::CompressionTrait, CHUNK_BUFF};
-use flate2::write::{DeflateEncoder, GzEncoder};
+use flate2::write::{DeflateEncoder, GzEncoder, ZlibEncoder};
 use indicatif::ProgressBar;
 
 fn generate_header_compressed(
@@ -261,7 +261,7 @@ fn compress_data(
         }
         CompressionAlgo::Zlib => {
             let mut encoder =
-                DeflateEncoder::new(Vec::new(), flate2::Compression::new(meta.compression_level));
+                ZlibEncoder::new(Vec::new(), flate2::Compression::new(meta.compression_level));
             encoder.write_all_data(chunk)?;
             encoder.flush_all()?;
             let compressed_data = encoder.finish_all()?;

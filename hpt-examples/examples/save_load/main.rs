@@ -6,7 +6,7 @@ fn main() -> Result<(), TensorError> {
     let c = &a + &b;
 
     // path need to convert to std::path::PathBuf
-    let saver = TensorSaver::new("f.ftz".into());
+    let saver = TensorSaver::new("f.ftz");
 
     saver
         .push("a", a, CompressionAlgo::Gzip, Endian::Native, 9)
@@ -15,7 +15,7 @@ fn main() -> Result<(), TensorError> {
         .save()
         .expect("save failed");
 
-    let loader = TensorLoader::new("f.ftz".into());
+    let loader = TensorLoader::new("f.ftz");
 
     /* load all must make sure all the tensors are the same type, because we saved different types in this example, so we can't load all at once
     let datas = loader

@@ -281,17 +281,21 @@ export default defineUserConfig({
             },
             {
               text: 'custom type',
-              collapsible: true,
-              children: [
-              ]
+              link: '/user_guide/custom_type/custom_type.md'
             },
             {
               text: 'slice',
               link: '/user_guide/slice/slice.md'
+            },
+            {
+              text: 'save/load',
+              link: '/user_guide/save_load/save_load.md'
             }
           ]
         }
+
       ],
+
       '/dev_guide/': [
         {
           text: 'Dev Guide',

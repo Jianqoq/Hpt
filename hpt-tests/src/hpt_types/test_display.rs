@@ -12,7 +12,7 @@ macro_rules! test_display {
         paste::paste! {
             #[test]
             fn [<test_ $type _display>]() {
-                assert_eq!(format!("{}", <$type as TypeCommon>::ID), stringify!($type));
+                assert_eq!(format!("{}", <$type as TypeCommon>::STR), stringify!($type));
             }
         }
     };

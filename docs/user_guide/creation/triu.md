@@ -9,6 +9,7 @@ Returns a copy of the tensor with elements below the k-th diagonal zeroed.
 
 ## Parameters:
 `x`: Input tensor of at least 2-D
+
 `k`: Diagonal below which to zero elements. k=0 is the main diagonal, k>0 is above and k<0 is below the main diagonal
 
 ## Returns:

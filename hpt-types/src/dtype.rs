@@ -8,71 +8,7 @@ use crate::{
 use core::f32;
 use half::{bf16, f16};
 use num_complex::{Complex32, Complex64};
-use serde::{Deserialize, Serialize};
-use std::fmt::{Debug, Display};
-
-/// enum for data type
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum Dtype {
-    /// boolean
-    Bool,
-    /// signed 8-bit integer
-    I8,
-    /// unsigned 8-bit integer
-    U8,
-    /// signed 16-bit integer
-    I16,
-    /// unsigned 16-bit integer
-    U16,
-    /// signed 32-bit integer
-    I32,
-    /// unsigned 32-bit integer
-    U32,
-    /// signed 64-bit integer
-    I64,
-    /// unsigned 64-bit integer
-    U64,
-    /// 16-bit bfloat
-    BF16,
-    /// 16-bit float
-    F16,
-    /// 32-bit float
-    F32,
-    /// 64-bit float
-    F64,
-    /// 32-bit complex
-    C32,
-    /// 64-bit complex
-    C64,
-    /// signed isize
-    Isize,
-    /// unsigned usize
-    Usize,
-}
-
-impl Display for Dtype {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Dtype::Bool => write!(f, "bool"),
-            Dtype::I8 => write!(f, "i8"),
-            Dtype::U8 => write!(f, "u8"),
-            Dtype::I16 => write!(f, "i16"),
-            Dtype::U16 => write!(f, "u16"),
-            Dtype::I32 => write!(f, "i32"),
-            Dtype::U32 => write!(f, "u32"),
-            Dtype::I64 => write!(f, "i64"),
-            Dtype::U64 => write!(f, "u64"),
-            Dtype::BF16 => write!(f, "bf16"),
-            Dtype::F16 => write!(f, "f16"),
-            Dtype::F32 => write!(f, "f32"),
-            Dtype::F64 => write!(f, "f64"),
-            Dtype::C32 => write!(f, "c32"),
-            Dtype::C64 => write!(f, "c64"),
-            Dtype::Isize => write!(f, "isize"),
-            Dtype::Usize => write!(f, "usize"),
-        }
-    }
-}
+use std::fmt::Debug;
 
 /// trait for cuda type
 pub trait CudaType {
@@ -155,8 +91,6 @@ pub trait TypeCommon
 where
     Self: Sized + Copy,
 {
-    /// the data type id
-    const ID: Dtype;
     /// the maximum value of the data type
     const MAX: Self;
     /// the minimum value of the data type
@@ -201,7 +135,6 @@ where
 macro_rules! impl_type_common {
     (
         $type:ty,
-        $dtype:ident,
         $max:expr,
         $min:expr,
         $zero:expr,
@@ -241,7 +174,6 @@ macro_rules! impl_type_common {
             }
         }
         impl TypeCommon for $type {
-            const ID: Dtype = Dtype::$dtype;
             const MAX: Self = $max;
             const MIN: Self = $min;
             const ZERO: Self = $zero;
@@ -260,14 +192,13 @@ macro_rules! impl_type_common {
 
 #[cfg(target_feature = "avx2")]
 mod type_impl {
-    use super::{Dtype, TypeCommon};
+    use super::TypeCommon;
     use crate::simd::_256bit::*;
     use crate::vectors::traits::VecTrait;
     use half::*;
     use num_complex::{Complex32, Complex64};
     impl_type_common!(
         bool,
-        Bool,
         true,
         false,
         false,
@@ -283,7 +214,6 @@ mod type_impl {
     );
     impl_type_common!(
         i8,
-        I8,
         i8::MAX,
         i8::MIN,
         0,
@@ -299,7 +229,6 @@ mod type_impl {
     );
     impl_type_common!(
         u8,
-        U8,
         u8::MAX,
         u8::MIN,
         0,
@@ -315,7 +244,6 @@ mod type_impl {
     );
     impl_type_common!(
         i16,
-        I16,
         i16::MAX,
         i16::MIN,
         0,
@@ -331,7 +259,6 @@ mod type_impl {
     );
     impl_type_common!(
         u16,
-        U16,
         u16::MAX,
         u16::MIN,
         0,
@@ -347,7 +274,6 @@ mod type_impl {
     );
     impl_type_common!(
         i32,
-        I32,
         i32::MAX,
         i32::MIN,
         0,
@@ -363,7 +289,6 @@ mod type_impl {
     );
     impl_type_common!(
         u32,
-        U32,
         u32::MAX,
         u32::MIN,
         0,
@@ -379,7 +304,6 @@ mod type_impl {
     );
     impl_type_common!(
         i64,
-        I64,
         i64::MAX,
         i64::MIN,
         0,
@@ -395,7 +319,6 @@ mod type_impl {
     );
     impl_type_common!(
         u64,
-        U64,
         u64::MAX,
         u64::MIN,
         0,
@@ -411,7 +334,6 @@ mod type_impl {
     );
     impl_type_common!(
         f32,
-        F32,
         f32::MAX,
         f32::MIN,
         0.0,
@@ -427,7 +349,6 @@ mod type_impl {
     );
     impl_type_common!(
         f64,
-        F64,
         f64::MAX,
         f64::MIN,
         0.0,
@@ -444,7 +365,6 @@ mod type_impl {
     #[cfg(target_pointer_width = "64")]
     impl_type_common!(
         isize,
-        Isize,
         isize::MAX,
         isize::MIN,
         0,
@@ -461,7 +381,6 @@ mod type_impl {
     #[cfg(target_pointer_width = "32")]
     impl_type_common!(
         isize,
-        Isize,
         isize::MAX,
         isize::MIN,
         0,
@@ -478,7 +397,6 @@ mod type_impl {
     #[cfg(target_pointer_width = "64")]
     impl_type_common!(
         usize,
-        Usize,
         usize::MAX,
         usize::MIN,
         0,
@@ -495,7 +413,6 @@ mod type_impl {
     #[cfg(target_pointer_width = "32")]
     impl_type_common!(
         usize,
-        Usize,
         usize::MAX,
         usize::MIN,
         0,
@@ -511,7 +428,6 @@ mod type_impl {
     );
     impl_type_common!(
         f16,
-        F16,
         f16::MAX,
         f16::MIN,
         f16::ZERO,
@@ -527,7 +443,6 @@ mod type_impl {
     );
     impl_type_common!(
         bf16,
-        BF16,
         bf16::MAX,
         bf16::MIN,
         bf16::ZERO,
@@ -543,7 +458,6 @@ mod type_impl {
     );
     impl_type_common!(
         Complex32,
-        C32,
         Complex32::new(f32::MAX, f32::MAX),
         Complex32::new(f32::MIN, f32::MIN),
         Complex32::new(0.0, 0.0),
@@ -559,7 +473,6 @@ mod type_impl {
     );
     impl_type_common!(
         Complex64,
-        C64,
         Complex64::new(f64::MAX, f64::MAX),
         Complex64::new(f64::MIN, f64::MIN),
         Complex64::new(0.0, 0.0),
@@ -591,7 +504,6 @@ mod type_impl {
     use simd::_128bit::*;
     impl_type_common!(
         bool,
-        Bool,
         true,
         false,
         false,
@@ -607,7 +519,6 @@ mod type_impl {
     );
     impl_type_common!(
         i8,
-        I8,
         i8::MAX,
         i8::MIN,
         0,
@@ -623,7 +534,6 @@ mod type_impl {
     );
     impl_type_common!(
         u8,
-        U8,
         u8::MAX,
         u8::MIN,
         0,
@@ -639,7 +549,6 @@ mod type_impl {
     );
     impl_type_common!(
         i16,
-        I16,
         i16::MAX,
         i16::MIN,
         0,
@@ -655,7 +564,6 @@ mod type_impl {
     );
     impl_type_common!(
         u16,
-        U16,
         u16::MAX,
         u16::MIN,
         0,
@@ -671,7 +579,6 @@ mod type_impl {
     );
     impl_type_common!(
         i32,
-        I32,
         i32::MAX,
         i32::MIN,
         0,
@@ -687,7 +594,6 @@ mod type_impl {
     );
     impl_type_common!(
         u32,
-        U32,
         u32::MAX,
         u32::MIN,
         0,
@@ -703,7 +609,6 @@ mod type_impl {
     );
     impl_type_common!(
         i64,
-        I64,
         i64::MAX,
         i64::MIN,
         0,
@@ -719,7 +624,6 @@ mod type_impl {
     );
     impl_type_common!(
         u64,
-        U64,
         u64::MAX,
         u64::MIN,
         0,
@@ -735,7 +639,6 @@ mod type_impl {
     );
     impl_type_common!(
         f32,
-        F32,
         f32::MAX,
         f32::MIN,
         0.0,
@@ -751,7 +654,6 @@ mod type_impl {
     );
     impl_type_common!(
         f64,
-        F64,
         f64::MAX,
         f64::MIN,
         0.0,
@@ -768,7 +670,6 @@ mod type_impl {
     #[cfg(target_pointer_width = "64")]
     impl_type_common!(
         isize,
-        Isize,
         isize::MAX,
         isize::MIN,
         0,
@@ -785,7 +686,6 @@ mod type_impl {
     #[cfg(target_pointer_width = "32")]
     impl_type_common!(
         isize,
-        Isize,
         isize::MAX,
         isize::MIN,
         0,
@@ -803,7 +703,6 @@ mod type_impl {
     #[cfg(target_pointer_width = "64")]
     impl_type_common!(
         usize,
-        Usize,
         usize::MAX,
         usize::MIN,
         0,
@@ -820,7 +719,6 @@ mod type_impl {
     #[cfg(target_pointer_width = "32")]
     impl_type_common!(
         usize,
-        Usize,
         usize::MAX,
         usize::MIN,
         0,
@@ -837,7 +735,6 @@ mod type_impl {
     );
     impl_type_common!(
         f16,
-        F16,
         f16::MAX,
         f16::MIN,
         f16::ZERO,
@@ -853,7 +750,6 @@ mod type_impl {
     );
     impl_type_common!(
         bf16,
-        BF16,
         bf16::MAX,
         bf16::MIN,
         bf16::ZERO,
@@ -869,7 +765,6 @@ mod type_impl {
     );
     impl_type_common!(
         Complex32,
-        C32,
         Complex32::new(f32::MAX, f32::MAX),
         Complex32::new(f32::MIN, f32::MIN),
         Complex32::new(0.0, 0.0),
@@ -885,7 +780,6 @@ mod type_impl {
     );
     impl_type_common!(
         Complex64,
-        C64,
         Complex64::new(f64::MAX, f64::MAX),
         Complex64::new(f64::MIN, f64::MIN),
         Complex64::new(0.0, 0.0),

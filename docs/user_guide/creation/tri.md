@@ -11,8 +11,11 @@ Creates a tensor with ones at and below (or above) the k-th diagonal.
 
 ## Parameters:
 `n`: Number of rows
+
 `m`: Number of columns
+
 `k`: The diagonal above or below which to fill with ones (0 represents the main diagonal)
+
 `low_triangle`: If true, fill with ones below and on the k-th diagonal; if false, fill with ones above the k-th diagonal
 
 ## Returns:

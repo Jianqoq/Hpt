@@ -258,14 +258,14 @@ where
                 ", shape=({}), strides=({}), dtype={})\n",
                 shape_str,
                 strides_str,
-                T::ID
+                T::STR
             ));
         } else {
             string.push_str(&format!(
                 ", shape=({}), strides=({}), dtype={}, grad_fn={})\n",
                 shape_str,
                 strides_str,
-                T::ID,
+                T::STR,
                 "None"
             ));
         }

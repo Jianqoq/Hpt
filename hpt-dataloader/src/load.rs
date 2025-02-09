@@ -27,11 +27,11 @@ pub(crate) fn load_compressed_slice<
         let info = res
             .get(&name)
             .expect(&format!("{} not found in header", name));
-        if info.dtype != T::ID.to_string() {
+        if info.dtype != T::STR.to_string() {
             return Err(anyhow::anyhow!(
                 "the dtype stored is {}, but the dtype requested is {}",
                 info.dtype,
-                T::ID
+                T::STR
             ));
         }
 

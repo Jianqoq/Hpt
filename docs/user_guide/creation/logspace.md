@@ -14,9 +14,13 @@ Creates a 1-D tensor with `num` numbers logarithmically spaced between `base^sta
 
 ## Parameters:
 `start`: The starting value of the sequence (power of base)
+
 `end`: The end value of the sequence (power of base)
+
 `num`: Number of samples to generate
+
 `include_end`: Whether to include the end value in the sequence
+
 `base`: The base of the log space (default is 10.0)
 
 ## Returns:
