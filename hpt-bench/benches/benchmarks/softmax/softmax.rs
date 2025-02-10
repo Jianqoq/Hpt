@@ -1,3 +1,4 @@
+use candle_core::Tensor as CandleTensor;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use hpt_core::{Random, Tensor};
 use std::time::Duration;
@@ -18,6 +19,15 @@ pub fn softmax_benchmark(c: &mut Criterion) {
         let shape = shapes[idx];
         let a = black_box(TchTensor::randn(shape, (Kind::Float, Device::Cpu)));
         let a2 = black_box(Tensor::<f32>::randn(shape).unwrap());
+        let a3 = black_box(
+            CandleTensor::randn(
+                0f32,
+                1f32,
+                &[shape[0] as usize, shape[1] as usize, shape[2] as usize],
+                &candle_core::Device::Cpu,
+            )
+            .unwrap(),
+        );
         for (i, axis) in axes.iter().enumerate() {
             group.bench_with_input(
                 BenchmarkId::new("torch", format!("tch {}.{}", idx, i)),
@@ -31,6 +41,13 @@ pub fn softmax_benchmark(c: &mut Criterion) {
                 &shapes[idx],
                 |b, _| {
                     b.iter(|| a2.softmax(*axis).unwrap());
+                },
+            );
+            group.bench_with_input(
+                BenchmarkId::new("candle", format!("candle {}.{}", idx, i)),
+                &shapes[idx],
+                |b, _| {
+                    b.iter(|| candle_nn::ops::softmax(&a3, *axis as usize));
                 },
             );
         }

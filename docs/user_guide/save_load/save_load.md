@@ -102,7 +102,7 @@ impl Linear {
     }
 }
 let linear = Linear::new(1000, 1000)?;
-linear.save("linear")?;
+linear.save("path/to/save/linear")?;
 ```
 
 # Load Struct
@@ -113,5 +113,5 @@ If you saved a struct in a file and you want to load the struct
 
 2. Load the file
 ```rust
-let linear = Linear::load("linear")?;
+let linear = Linear::load("path/to/save/linear")?;
 ```

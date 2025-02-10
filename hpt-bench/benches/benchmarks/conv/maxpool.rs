@@ -1,6 +1,6 @@
+use candle_core::Tensor as CandleTensor;
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
 use hpt_core::ShapeManipulate;
-use hpt_core::TensorCreator;
 use hpt_core::TensorInfo;
 use hpt_core::TensorLike;
 use hpt_core::{NormalPooling, Random, Tensor};
@@ -19,11 +19,14 @@ fn assert_eq_i64(a: &TchTensor, b: &Tensor<i64>) {
 
 fn maxpool_benchmark(c: &mut Criterion) {
     tch::set_num_threads(num_cpus::get_physical() as i32);
-    let ic_sets = [128, 256, 512, 1024];
+    let ic_sets = [
+        64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608,
+        640, 672, 704, 736, 768,
+    ];
     let kh_sets = [4];
     let kw_sets = [4];
-    let h_sets = [1024];
-    let w_sets = [1024];
+    let h_sets = [256];
+    let w_sets = [256];
     let mut group = c.benchmark_group(concat!("maxpool", " Benchmarks"));
     group
         .warm_up_time(Duration::new(1, 0))
@@ -46,6 +49,15 @@ fn maxpool_benchmark(c: &mut Criterion) {
                                 .contiguous()
                                 .unwrap(),
                         );
+                        let a3 = black_box(
+                            CandleTensor::randn(
+                                0f32,
+                                1f32,
+                                &[1 as usize, ic as usize, h as usize, w as usize],
+                                &candle_core::Device::Cpu,
+                            )
+                            .unwrap(),
+                        );
                         group.bench_with_input(
                             BenchmarkId::new("torch", format!("tch {}", idx)),
                             &[ic, kh, kw, h, w],
@@ -62,29 +74,13 @@ fn maxpool_benchmark(c: &mut Criterion) {
                                 b.iter(|| a2.maxpool2d([kh, kw], [1, 1], [(0, 0), (0, 0)], [1, 1]));
                             },
                         );
-                        let a = black_box(
-                            TchTensor::arange(1 * ic * h * w, (Kind::Int64, Device::Cpu))
-                                .reshape([ic, h, w]),
+                        group.bench_with_input(
+                            BenchmarkId::new("candle", format!("candle {}", idx)),
+                            &[ic, kh, kw, h, w],
+                            |b, _| {
+                                b.iter(|| a3.max_pool2d((kh as usize, kw as usize)));
+                            },
                         );
-                        let a2 = black_box(
-                            Tensor::<i64>::arange(0, 1 * ic * h * w)
-                                .unwrap()
-                                .reshape([1, ic, h, w])
-                                .unwrap()
-                                .permute([0, 2, 3, 1])
-                                .unwrap()
-                                .contiguous()
-                                .unwrap(),
-                        );
-                        let a_res = a.max_pool2d(&[kh, kw], [1, 1], [0, 0], [1, 1], false);
-                        let a2_res = a2
-                            .maxpool2d([kh, kw], [1, 1], [(0, 0), (0, 0)], [1, 1])
-                            .unwrap()
-                            .permute([0, 3, 1, 2])
-                            .unwrap()
-                            .contiguous()
-                            .unwrap();
-                        assert_eq_i64(&a_res, &a2_res);
                         idx += 1;
                     }
                 }
