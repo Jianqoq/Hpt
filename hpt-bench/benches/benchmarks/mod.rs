@@ -3,8 +3,8 @@ pub mod unary {
     pub mod unary_benches;
 }
 pub mod binary {
-    pub mod add_f32;
     pub mod add_broadcast_f32;
+    pub mod add_f32;
 }
 pub mod shape_manipulate {
     pub mod concat;

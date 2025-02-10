@@ -3,17 +3,15 @@ use std::time::Duration;
 use candle_core::Tensor as CandleTensor;
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
 use hpt_core::{Random, Tensor as HptTensor};
-use tch::{Device, Kind, Tensor as TchTensor};
 use ndarray::{Array, Zip};
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
+use tch::{Device, Kind, Tensor as TchTensor};
 
 fn add_f32_benchmark(c: &mut Criterion) {
     hpt_core::set_num_threads(num_cpus::get_physical());
     tch::set_num_threads(num_cpus::get_physical() as i32);
-    let shapes = [
-        [100, 100, 100, 100],
-    ];
+    let shapes = [[100, 100, 100, 100]];
 
     let mut group = c.benchmark_group("add f32 Benchmarks");
     group
@@ -84,15 +82,34 @@ fn add_f32_benchmark(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("ndarray", idx), &shapes[idx], |b, _| {
             b.iter(|| {
-                let mut res = Array::<f32, _>::zeros(shapes[idx].into_iter().map(|x| x as usize).collect::<Vec<usize>>());
-                let a4_broadcast = a4.broadcast(shapes[idx].into_iter().map(|x| x as usize).collect::<Vec<usize>>()).unwrap();
-                let c4_broadcast = c4.broadcast(shapes[idx].into_iter().map(|x| x as usize).collect::<Vec<usize>>()).unwrap();
+                let mut res = Array::<f32, _>::zeros(
+                    shapes[idx]
+                        .into_iter()
+                        .map(|x| x as usize)
+                        .collect::<Vec<usize>>(),
+                );
+                let a4_broadcast = a4
+                    .broadcast(
+                        shapes[idx]
+                            .into_iter()
+                            .map(|x| x as usize)
+                            .collect::<Vec<usize>>(),
+                    )
+                    .unwrap();
+                let c4_broadcast = c4
+                    .broadcast(
+                        shapes[idx]
+                            .into_iter()
+                            .map(|x| x as usize)
+                            .collect::<Vec<usize>>(),
+                    )
+                    .unwrap();
                 Zip::from(&mut res)
-                .and(&a4_broadcast)
-                .and(&c4_broadcast)
-                .par_for_each(|c, &a, &b| {
-                    *c = a + b;
-                });
+                    .and(&a4_broadcast)
+                    .and(&c4_broadcast)
+                    .par_for_each(|c, &a, &b| {
+                        *c = a + b;
+                    });
             });
         });
     }

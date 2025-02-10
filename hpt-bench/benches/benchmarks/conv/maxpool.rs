@@ -19,7 +19,10 @@ fn assert_eq_i64(a: &TchTensor, b: &Tensor<i64>) {
 
 fn maxpool_benchmark(c: &mut Criterion) {
     tch::set_num_threads(num_cpus::get_physical() as i32);
-    let ic_sets = [64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640, 672, 704, 736, 768];
+    let ic_sets = [
+        64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608,
+        640, 672, 704, 736, 768,
+    ];
     let kh_sets = [4];
     let kw_sets = [4];
     let h_sets = [256];

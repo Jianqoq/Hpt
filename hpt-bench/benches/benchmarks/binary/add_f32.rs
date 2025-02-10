@@ -10,9 +10,7 @@ use tch::{Device, Kind, Tensor as TchTensor};
 pub(crate) fn add_f32_benchmarks(c: &mut Criterion) {
     hpt_core::set_num_threads(num_cpus::get_physical());
     tch::set_num_threads(num_cpus::get_physical() as i32);
-    let shapes = [
-        [100, 100, 100, 100],
-    ];
+    let shapes = [[100, 100, 100, 100]];
 
     let mut group = c.benchmark_group("add f32 Benchmarks");
     group
@@ -80,11 +78,11 @@ pub(crate) fn add_f32_benchmarks(c: &mut Criterion) {
             b.iter(|| {
                 let mut res = Array::<f32, _>::zeros(a4.dim());
                 Zip::from(&mut res)
-                .and(&a4)
-                .and(&c4)
-                .par_for_each(|c, &a, &b| {
-                    *c = a + b;
-                });
+                    .and(&a4)
+                    .and(&c4)
+                    .par_for_each(|c, &a, &b| {
+                        *c = a + b;
+                    });
             });
         });
     }
