@@ -16,6 +16,7 @@ export default defineUserConfig({
     }),
     mdEnhancePlugin({
       mermaid: true,
+      chartjs: true,
     }),
   ],
   markdown: {
@@ -33,7 +34,12 @@ export default defineUserConfig({
         text: 'GitHub',
         link: 'https://github.com/Jianqoq/Hpt',
       },
+      {
+        text: 'Benchmarks',
+        link: '/benchmarks/benchmarks.md',
+      }
     ],
+
     sidebar: {
       '/user_guide/': [
         {
@@ -293,7 +299,6 @@ export default defineUserConfig({
             }
           ]
         }
-
       ],
 
       '/dev_guide/': [
@@ -333,6 +338,40 @@ export default defineUserConfig({
           ]
         }
       ],
+      '/benchmarks/': [
+        {
+          text: 'Benchmarks',
+          children: [
+            {
+              text: 'unary',
+              link: '/benchmarks/unary.md'
+            },
+            {
+              text: 'binary',
+              link: '/benchmarks/binary.md'
+            },
+            {
+              text: 'reduce',
+              link: '/benchmarks/reduce.md'
+            },
+            {
+              text: 'conv',
+              link: '/benchmarks/conv.md'
+            },
+            {
+              text: 'pooling',
+              link: '/benchmarks/pooling.md'
+            },
+            {
+              text: 'normalization',
+              link: '/benchmarks/normalization.md'
+            }
+          ]
+        }
+
+
+      ]
+
     },
   }),
 })

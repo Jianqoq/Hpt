@@ -51,6 +51,8 @@ fn main() {
     benchmarks::unary::unary_benches::elu_benches();
     #[cfg(any(feature = "celu", feature = "unary"))]
     benchmarks::unary::unary_benches::celu_benches();
+    #[cfg(any(feature = "log", feature = "unary"))]
+    benchmarks::unary::unary_benches::log_benches();
     #[cfg(any(feature = "log10", feature = "unary"))]
     benchmarks::unary::unary_benches::log10_benches();
     #[cfg(any(feature = "log2", feature = "unary"))]
@@ -74,6 +76,11 @@ fn main() {
     #[cfg(any(feature = "clip", feature = "unary"))]
     benchmarks::unary::unary_benches::clip_benches();
 
+    #[cfg(all(feature = "binary", feature = "f32", feature = "add"))]
+    benchmarks::binary::add_f32::add_f32_benches();
+    #[cfg(all(feature = "binary", feature = "f32", feature = "add_broadcast"))]
+    benchmarks::binary::add_broadcast_f32::add_broadcast_f32_benches();
+
     #[cfg(feature = "softmax")]
     benchmarks::softmax::softmax::softmax_benches();
 
@@ -86,7 +93,7 @@ fn main() {
 
     #[cfg(all(feature = "f32", feature = "conv2d"))]
     benchmarks::conv::conv2d::conv2d_benches();
-    #[cfg(any(feature = "f32", feature = "maxpool"))]
+    #[cfg(all(feature = "f32", feature = "maxpool"))]
     benchmarks::conv::maxpool::maxpool_benches();
 
     #[cfg(feature = "hamming")]

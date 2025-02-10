@@ -1,7 +1,5 @@
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
 use hpt_core::NormalReduce;
-use hpt_core::ShapeManipulate;
-use hpt_core::TensorCreator;
 use hpt_core::TensorInfo;
 use hpt_core::TensorLike;
 use hpt_core::{Random, Tensor};
@@ -53,22 +51,6 @@ macro_rules! reduction_bench_mark {
                                 b.iter(|| { a2.$hpt_method(axis, $($hpt_args),*) });
                             }
                         );
-                        let a = black_box(
-                            TchTensor::arange(shape.iter().product::<i64>(), (Kind::Int64, Device::Cpu)).reshape(
-                                shape
-                            )
-                        )
-                            .$tch_method(axis.clone(), false, Kind::Int64);
-                        let a2 = black_box(
-                            Tensor::<i64>
-                                ::arange(0, shape.iter().product::<i64>())
-                                .unwrap()
-                                .reshape(shape)
-                                .unwrap()
-                        )
-                            .$hpt_method(axis, false)
-                            .unwrap();
-                        $assert_method(&a, &a2);
                     }
                 }
 

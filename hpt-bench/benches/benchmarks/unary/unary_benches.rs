@@ -8,6 +8,7 @@ use hpt_core::TensorLike;
 use hpt_core::{Random, Tensor};
 use std::time::Duration;
 use tch::{Device, Kind, Tensor as TchTensor};
+use candle_core::Tensor as CandleTensor;
 
 macro_rules! unary_bench_mark {
     (
@@ -29,6 +30,7 @@ macro_rules! unary_bench_mark {
                     let shape = shapes[idx];
                     let a = black_box(TchTensor::randn(shape, (Kind::Float, Device::Cpu)));
                     let a2 = black_box(Tensor::<f32>::randn(shape).unwrap());
+                    let a3 = black_box(CandleTensor::randn(0f32, 1f32, shape.into_iter().map(|x|x as usize).collect::<Vec<usize>>(), &candle_core::Device::Cpu).unwrap());
                     group.bench_with_input(
                         BenchmarkId::new("torch", format!("tch {}", idx)),
                         &shapes[idx],
@@ -43,6 +45,11 @@ macro_rules! unary_bench_mark {
                             b.iter(|| { a2.$hpt_method($($hpt_args),*).unwrap() });
                         }
                     );
+                    group.bench_with_input(BenchmarkId::new("candle",format!("candle {}",idx)), &shapes[idx], |b,_|{
+                        b.iter(||{
+                            a3.gelu().unwrap()
+                        });
+                    });
                     let a = black_box(TchTensor::randn(shape, (Kind::Double, Device::Cpu)));
                     let mut a2 = black_box(Tensor::<f64>::empty(shape)).unwrap();
                     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, a2.size()) };
@@ -324,6 +331,17 @@ unary_bench_mark!(
     ],
     celu(),
     celu(1.0)
+);
+unary_bench_mark!(
+    "log",
+    [
+        [1024, 2048, 8],
+        [2048, 2048, 8],
+        [4096, 2048, 8],
+        [8192, 2048, 8],
+    ],
+    log(),
+    ln()
 );
 unary_bench_mark!(
     "log10",

@@ -14,6 +14,7 @@ num_cpus = "1.13.0"
 paste = "1.0.15"
 rayon = "1.8.0"
 syn =  {version = "2.0.82", default-features = false, features = ["derive", "full", "visit", "visit-mut"] }
+candle-core = { version = "0.8.2", features = ["mkl"] }
 
 [features]
 maxpool = []
@@ -69,7 +70,12 @@ clip = []
 recip = []
 conv2d = []
 f32 = []
+add = []
+add_broadcast = []
 default = [
+    "maxpool",
+    "add_broadcast",
+    "add",
     "hamming",
     "f32",
     "conv2d",

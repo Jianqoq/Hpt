@@ -9,6 +9,6 @@ actions:
     type: primary
   - text: Dev Guide
     link: /dev_guide/dev_guide
-    type: primary 
+    type: primary
 footer: Copyright © 2024
 ---
