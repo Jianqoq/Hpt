@@ -4,16 +4,15 @@ use candle_core::Tensor as CandleTensor;
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
 use hpt_core::{Random, Tensor as HptTensor};
 use tch::{Device, Kind, Tensor as TchTensor};
+use ndarray::{Array, Zip};
+use ndarray_rand::rand_distr::Uniform;
+use ndarray_rand::RandomExt;
 
 fn add_f32_benchmark(c: &mut Criterion) {
     hpt_core::set_num_threads(num_cpus::get_physical());
     tch::set_num_threads(num_cpus::get_physical() as i32);
     let shapes = [
-        [96, 96, 96, 96],
-        [98, 98, 98, 98],
         [100, 100, 100, 100],
-        [102, 102, 102, 102],
-        [104, 104, 104, 104],
     ];
 
     let mut group = c.benchmark_group("add f32 Benchmarks");
@@ -56,6 +55,20 @@ fn add_f32_benchmark(c: &mut Criterion) {
             )
             .unwrap(),
         );
+        let a4 = black_box(Array::random(
+            shape1
+                .into_iter()
+                .map(|x| x as usize)
+                .collect::<Vec<usize>>(),
+            Uniform::new(0f32, 1f32),
+        ));
+        let c4 = black_box(Array::random(
+            shape2
+                .into_iter()
+                .map(|x| x as usize)
+                .collect::<Vec<usize>>(),
+            Uniform::new(0f32, 1f32),
+        ));
 
         group.bench_with_input(BenchmarkId::new("torch", idx), &shapes[idx], |b, _| {
             b.iter(|| &a + &c);
@@ -67,6 +80,20 @@ fn add_f32_benchmark(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("candle", idx), &shapes[idx], |b, _| {
             b.iter(|| a3.broadcast_add(&c3).unwrap());
+        });
+
+        group.bench_with_input(BenchmarkId::new("ndarray", idx), &shapes[idx], |b, _| {
+            b.iter(|| {
+                let mut res = Array::<f32, _>::zeros(shapes[idx].into_iter().map(|x| x as usize).collect::<Vec<usize>>());
+                let a4_broadcast = a4.broadcast(shapes[idx].into_iter().map(|x| x as usize).collect::<Vec<usize>>()).unwrap();
+                let c4_broadcast = c4.broadcast(shapes[idx].into_iter().map(|x| x as usize).collect::<Vec<usize>>()).unwrap();
+                Zip::from(&mut res)
+                .and(&a4_broadcast)
+                .and(&c4_broadcast)
+                .par_for_each(|c, &a, &b| {
+                    *c = a + b;
+                });
+            });
         });
     }
 

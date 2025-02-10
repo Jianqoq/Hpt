@@ -22,8 +22,15 @@
       {
         "label": "Candle (mkl)",
         "data": [9.7761, 9.3340, 127.48, 124.98, 9.4629, 25.956],
-        "backgroundColor": "rgba(255, 206, 86)",
+        "backgroundColor": "rgb(255, 206, 86)",
         "borderColor": "rgb(255, 206, 86)",
+        "borderWidth": 1
+      },
+      {
+        "label": "Ndarray (par)",
+        "data": [13.255, 10.361, 10.958, 8.4123, 13.603, 10.678],
+        "backgroundColor": "rgb(32, 105, 241)",
+        "borderColor": "rgb(32, 105, 241)",
         "borderWidth": 1
       }
     ]
@@ -74,8 +81,15 @@
       {
         "label": "Candle (mkl)",
         "data": [37.246, 39.440, 503.73, 491.34, 37.443, 105.69],
-        "backgroundColor": "rgba(255, 206, 86)",
+        "backgroundColor": "rgb(255, 206, 86)",
         "borderColor": "rgb(255, 206, 86)",
+        "borderWidth": 1
+      },
+      {
+        "label": "Ndarray (par)",
+        "data": [51.814, 38.792, 43.535, 30.943, 53.382, 42.096],
+        "backgroundColor": "rgb(32, 105, 241)",
+        "borderColor": "rgb(32, 105, 241)",
         "borderWidth": 1
       }
     ]
@@ -108,6 +122,8 @@
 - `Torch`: 10 ulps
 
 - `Candle (mkl)`: 1 ulps
+
+- `Ndarray (par)`: 2 ulps
 
 # Compilation config
 ```cargo

@@ -22,8 +22,15 @@
       {
         "label": "Candle (mkl)",
         "data": [58.089],
-        "backgroundColor": "rgba(255, 206, 86)",
+        "backgroundColor": "rgb(255, 206, 86)",
         "borderColor": "rgb(255, 206, 86)",
+        "borderWidth": 1
+      },
+      {
+        "label": "Ndarray (par)",
+        "data": [64.678],
+        "backgroundColor": "rgb(32, 105, 241)",
+        "borderColor": "rgb(32, 105, 241)",
         "borderWidth": 1
       }
     ]
@@ -74,8 +81,15 @@
       {
         "label": "Candle (mkl)",
         "data": [330.83],
-        "backgroundColor": "rgba(255, 206, 86)",
+        "backgroundColor": "rgb(255, 206, 86)",
         "borderColor": "rgb(255, 206, 86)",
+        "borderWidth": 1
+      },
+      {
+        "label": "Ndarray (par)",
+        "data": [40.820],
+        "backgroundColor": "rgb(32, 105, 241)",
+        "borderColor": "rgb(32, 105, 241)",
         "borderWidth": 1
       }
     ]

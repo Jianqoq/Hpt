@@ -9,6 +9,9 @@ use hpt_core::{Random, Tensor};
 use std::time::Duration;
 use tch::{Device, Kind, Tensor as TchTensor};
 use candle_core::Tensor as CandleTensor;
+use ndarray::{Array, Zip};
+use ndarray_rand::rand_distr::Uniform;
+use ndarray_rand::RandomExt;
 
 macro_rules! unary_bench_mark {
     (
@@ -31,6 +34,7 @@ macro_rules! unary_bench_mark {
                     let a = black_box(TchTensor::randn(shape, (Kind::Float, Device::Cpu)));
                     let a2 = black_box(Tensor::<f32>::randn(shape).unwrap());
                     let a3 = black_box(CandleTensor::randn(0f32, 1f32, shape.into_iter().map(|x|x as usize).collect::<Vec<usize>>(), &candle_core::Device::Cpu).unwrap());
+                    let a4 = black_box(Array::random(shape.into_iter().map(|x|x as usize).collect::<Vec<usize>>(), Uniform::new(0f32, 1f32)));
                     group.bench_with_input(
                         BenchmarkId::new("torch", format!("tch {}", idx)),
                         &shapes[idx],
@@ -47,7 +51,17 @@ macro_rules! unary_bench_mark {
                     );
                     group.bench_with_input(BenchmarkId::new("candle",format!("candle {}",idx)), &shapes[idx], |b,_|{
                         b.iter(||{
-                            a3.gelu().unwrap()
+                            a3.sin().unwrap()
+                        });
+                    });
+                    group.bench_with_input(BenchmarkId::new("ndarray",format!("ndarray {}",idx)), &shapes[idx], |b,_|{
+                        b.iter(||{
+                            let mut res = Array::<f32, _>::zeros(shape.into_iter().map(|x|x as usize).collect::<Vec<usize>>());
+                            Zip::from(&mut res)
+                            .and(&a4)
+                            .par_for_each(|c, &a| {
+                                *c = 0.5 * a * (libm::erff(a * std::f32::consts::FRAC_1_SQRT_2) + 1.0);
+                            });
                         });
                     });
                     let a = black_box(TchTensor::randn(shape, (Kind::Double, Device::Cpu)));
