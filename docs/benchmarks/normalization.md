@@ -1,3 +1,5 @@
+# Normalization Benchmark
+
 ::: chartjs Softmax f32 Performance (size = 128 * 128 * 128)
 ```json
 {

@@ -289,10 +289,6 @@ impl SimdMath<u32> for u32x8 {
         self
     }
     #[inline(always)]
-    fn square(self) -> Self {
-        self * self
-    }
-    #[inline(always)]
     fn abs(self) -> Self {
         self
     }
@@ -355,6 +351,11 @@ impl FloatOutBinary2 for u32x8 {
     #[inline(always)]
     fn __log(self, _: Self) -> Self {
         panic!("Logarithm operation is not supported for u16")
+    }
+
+    #[inline(always)]
+    fn __hypot(self, _: Self) -> Self {
+        panic!("Hypot operation is not supported for u32x8");
     }
 }
 
@@ -443,7 +444,7 @@ impl NormalOutUnary2 for u32x8 {
 
     #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
-        self.max(u32x8::splat(0)) + alpha * self.min(u32x8::splat(0))
+        self.leaky_relu(alpha)
     }
 
     #[inline(always)]
@@ -459,6 +460,11 @@ impl NormalOutUnary2 for u32x8 {
     #[inline(always)]
     fn __trunc(self) -> Self {
         self
+    }
+
+    #[inline(always)]
+    fn __copysign(self, rhs: Self) -> Self {
+        self.abs() * rhs.signum()
     }
 }
 

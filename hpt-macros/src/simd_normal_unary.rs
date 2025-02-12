@@ -74,6 +74,10 @@ pub(crate) fn impl_simd_normal_out_unary() -> TokenStream {
                 fn _leaky_relu(self, alpha: Self) -> Self {
                     self.__leaky_relu(alpha)
                 }
+                #[inline(always)]
+                fn _copysign(self, rhs: Self) -> Self {
+                    self.__copysign(rhs)
+                }
             }
         };
         ret.extend(res);

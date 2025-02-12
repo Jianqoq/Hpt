@@ -41,6 +41,10 @@ pub fn impl_float_out_unary() -> TokenStream {
                         SimdMath::cos(self)
                     }
                     #[inline(always)]
+                    fn _sincos(self) -> (Self::Output, Self::Output) {
+                        SimdMath::sincos(self)
+                    }
+                    #[inline(always)]
                     fn _tan(self) -> Self::Output {
                         SimdMath::tan(self)
                     }
@@ -55,6 +59,10 @@ pub fn impl_float_out_unary() -> TokenStream {
                     #[inline(always)]
                     fn _atan(self) -> Self::Output {
                         SimdMath::atan(self)
+                    }
+                    #[inline(always)]
+                    fn _atan2(self, other: Self) -> Self::Output {
+                        SimdMath::atan2(self, other)
                     }
                     #[inline(always)]
                     fn _sinh(self) -> Self::Output {
@@ -83,6 +91,10 @@ pub fn impl_float_out_unary() -> TokenStream {
                     #[inline(always)]
                     fn _exp(self) -> Self::Output {
                         SimdMath::exp(self)
+                    }
+                    #[inline(always)]
+                    fn _exp10(self) -> Self::Output {
+                        SimdMath::exp10(self)
                     }
                     #[inline(always)]
                     fn _expm1(self) -> Self::Output {
@@ -180,6 +192,10 @@ pub fn impl_float_out_unary() -> TokenStream {
                         SimdMath::cos(self.into_vec())
                     }
                     #[inline(always)]
+                    fn _sincos(self) -> (Self::Output, Self::Output) {
+                        SimdMath::sincos(self.into_vec())
+                    }
+                    #[inline(always)]
                     fn _tan(self) -> Self::Output {
                         SimdMath::tan(self.into_vec())
                     }
@@ -194,6 +210,10 @@ pub fn impl_float_out_unary() -> TokenStream {
                     #[inline(always)]
                     fn _atan(self) -> Self::Output {
                         SimdMath::atan(self.into_vec())
+                    }
+                    #[inline(always)]
+                    fn _atan2(self, other: Self) -> Self::Output {
+                        SimdMath::atan2(self.into_vec(), other.into_vec())
                     }
                     #[inline(always)]
                     fn _sinh(self) -> Self::Output {
@@ -258,6 +278,10 @@ pub fn impl_float_out_unary() -> TokenStream {
                     #[inline(always)]
                     fn _exp2(self) -> Self::Output {
                         SimdMath::exp2(self.into_vec())
+                    }
+                    #[inline(always)]
+                    fn _exp10(self) -> Self::Output {
+                        SimdMath::exp10(self.into_vec())
                     }
                     #[inline(always)]
                     fn _recip(self) -> Self::Output {

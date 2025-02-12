@@ -70,6 +70,29 @@ where
         U: Borrow<Self::InplaceOutput>;
 }
 
+/// A trait for binary operations on tensors.
+pub trait FloatBinOps<RHS = Self>
+where
+    <<Self as FloatBinOps<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync,
+{
+    /// The output tensor type.
+    type Output;
+    /// The output tensor data type.
+    type OutputMeta: CommonBounds;
+    /// The inplace output tensor type.
+    type InplaceOutput;
+
+    ///
+    fn hypot<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
+    where
+        U: Borrow<Self::InplaceOutput>;
+
+    ///
+    fn hypot_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
+    where
+        U: Borrow<Self::InplaceOutput>;
+}
+
 /// A trait for matrix multiplication operations on tensors.
 pub trait Matmul<RHS = Self>
 where

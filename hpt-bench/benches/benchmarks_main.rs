@@ -80,6 +80,8 @@ fn main() {
     benchmarks::binary::add_f32::add_f32_benches();
     #[cfg(all(feature = "binary", feature = "f32", feature = "add_broadcast"))]
     benchmarks::binary::add_broadcast_f32::add_broadcast_f32_benches();
+    #[cfg(all(feature = "binary", feature = "f32", feature = "matmul"))]
+    benchmarks::binary::matmul_f32::matmul_f32_benches();
 
     #[cfg(feature = "softmax")]
     benchmarks::softmax::softmax::softmax_benches();

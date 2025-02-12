@@ -12,10 +12,13 @@ impl FloatOutBinary2 for half::f16 {
     fn __div(self, rhs: Self) -> Self {
         self / rhs
     }
-
     #[inline(always)]
     fn __log(self, base: Self) -> Self {
         self.log(base)
+    }
+    #[inline(always)]
+    fn __hypot(self, rhs: Self) -> Self {
+        self.hypot(rhs)
     }
 }
 
@@ -121,6 +124,11 @@ impl NormalOutUnary2 for half::f16 {
     fn __relu6(self) -> Self {
         self.min(half::f16::from_f32_const(6.0))
             .max(half::f16::from_f32_const(0.0))
+    }
+
+    #[inline(always)]
+    fn __copysign(self, rhs: Self) -> Self {
+        self.copysign(rhs)
     }
 }
 
@@ -308,5 +316,18 @@ impl FloatOutUnary2 for half::f16 {
     #[inline(always)]
     fn __cbrt(self) -> Self {
         self.to_f32().__cbrt().to_f16()
+    }
+    #[inline(always)]
+    fn __sincos(self) -> (Self, Self) {
+        let res = self.to_f32().sin_cos();
+        (res.0.to_f16(), res.1.to_f16())
+    }
+    #[inline(always)]
+    fn __atan2(self, rhs: Self) -> Self {
+        self.atan2(rhs)
+    }
+    #[inline(always)]
+    fn __exp10(self) -> Self {
+        self.to_f32().__exp10().to_f16()
     }
 }

@@ -53,6 +53,8 @@ pub trait FloatOutBinary<RHS = Self> {
     fn _div(self, rhs: RHS) -> Self::Output;
     /// perform log<sub>b</sub>(x)
     fn _log(self, base: RHS) -> Self::Output;
+    /// perform hypot(x, y)
+    fn _hypot(self, rhs: RHS) -> Self::Output;
 }
 
 /// this trait is used to perform type promotion for float out binary operations
@@ -67,6 +69,8 @@ pub trait FloatOutBinary2 {
     fn __div(self, rhs: Self) -> Self;
     /// perform log<sub>b</sub>(x)
     fn __log(self, base: Self) -> Self;
+    /// perform hypot(x, y)
+    fn __hypot(self, rhs: Self) -> Self;
 }
 
 float_out_binary!();
@@ -170,6 +174,11 @@ pub trait NormalOutUnary {
     ///
     /// Formula: f(x) = min(6, max(0, x))
     fn _relu6(self) -> Self;
+
+    /// Perform the copysign function.
+    ///
+    /// Formula: f(x, y) = x * sign(y)
+    fn _copysign(self, rhs: Self) -> Self;
 }
 
 /// internal trait for normal out unary
@@ -204,6 +213,11 @@ pub trait NormalOutUnary2 {
     ///
     /// Formula: f(x) = min(6, max(0, x))
     fn __relu6(self) -> Self;
+
+    /// Perform the copysign function.
+    ///
+    /// Formula: f(x, y) = x * sign(y)
+    fn __copysign(self, rhs: Self) -> Self;
 }
 
 impl_normal_out_unary!();
@@ -359,6 +373,9 @@ pub trait FloatOutUnary {
     /// Perform the base-2 exponential function: 2<sup>x</sup>.
     fn _exp2(self) -> Self::Output;
 
+    /// Perform the base-10 exponential function: 10<sup>x</sup>.
+    fn _exp10(self) -> Self::Output;
+
     /// Perform the natural logarithm: ln(x).
     fn _ln(self) -> Self::Output;
 
@@ -385,6 +402,9 @@ pub trait FloatOutUnary {
     /// Perform the cosine function: cos(x).
     fn _cos(self) -> Self::Output;
 
+    /// Perform the sine and cosine functions: sin(x) and cos(x).
+    fn _sincos(self) -> (Self::Output, Self::Output);
+
     /// Perform the tangent function: tan(x).
     fn _tan(self) -> Self::Output;
 
@@ -396,6 +416,9 @@ pub trait FloatOutUnary {
 
     /// Perform the inverse tangent (arctan) function: atan(x).
     fn _atan(self) -> Self::Output;
+
+    /// Perform the inverse tangent function: atan2(y, x).
+    fn _atan2(self, rhs: Self) -> Self::Output;
 
     /// Perform the hyperbolic sine function: sinh(x).
     fn _sinh(self) -> Self::Output;
@@ -477,6 +500,9 @@ pub trait FloatOutUnary2 {
     /// Perform the base-2 exponential function: 2<sup>x</sup>.
     fn __exp2(self) -> Self;
 
+    /// Perform the base-10 exponential function: 10<sup>x</sup>.
+    fn __exp10(self) -> Self;
+
     /// Perform the natural logarithm: ln(x).
     fn __ln(self) -> Self;
 
@@ -503,6 +529,11 @@ pub trait FloatOutUnary2 {
     /// Perform the cosine function: cos(x).
     fn __cos(self) -> Self;
 
+    /// Perform the sine and cosine functions: sin(x) and cos(x).
+    fn __sincos(self) -> (Self, Self)
+    where
+        Self: Sized;
+
     /// Perform the tangent function: tan(x).
     fn __tan(self) -> Self;
 
@@ -514,6 +545,9 @@ pub trait FloatOutUnary2 {
 
     /// Perform the inverse tangent (arctan) function: atan(x).
     fn __atan(self) -> Self;
+
+    /// Perform the inverse tangent function: atan2(y, x).
+    fn __atan2(self, rhs: Self) -> Self;
 
     /// Perform the hyperbolic sine function: sinh(x).
     fn __sinh(self) -> Self;

@@ -60,20 +60,11 @@ where
     fn conv2d_transpose(
         &self,
         kernels: &Self::Output,
-        bias: Option<&Self::Output>,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         output_padding: [i64; 2],
         dilation: [i64; 2],
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
-        conv2d_transpose(
-            self,
-            kernels,
-            bias,
-            steps,
-            padding,
-            output_padding,
-            dilation,
-        )
+        conv2d_transpose(self, kernels, steps, padding, output_padding, dilation)
     }
 }

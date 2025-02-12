@@ -1,10 +1,11 @@
+#![allow(unused)]
 use std::collections::HashMap;
 
 use hpt_core::arch_simd::_256bit::f32x8::f32x8;
 use hpt_core::{
-    binary_with_out, match_selection, IndexReduce, Matmul, NormalBinOps, NormalOut, NormalUaryOps,
-    ParStridedIteratorZip, Random, RandomInt, ShapeManipulate, Slice, Tensor, TensorCreator,
-    TensorError, TensorIterator, VecTrait,
+    binary_with_out, Matmul, NormalBinOps, NormalOut, NormalUaryOps, ParStridedIteratorZip, Random,
+    RandomInt, ShapeManipulate, Slice, Tensor, TensorCreator, TensorError, TensorIterator,
+    VecTrait,
 };
 use hpt_core::{Eval, TensorInfo};
 use rayon::iter::ParallelIterator;
@@ -296,7 +297,7 @@ pub struct Relu;
 
 impl Relu {
     pub fn forward(&self, x: &Tensor<f32>) -> Result<Tensor<f32>, TensorError> {
-        x.relu_(x)
+        x.relu_(&mut x.clone())
     }
 }
 

@@ -44,7 +44,6 @@ pub trait Conv<T: CommonBounds> {
     fn conv2d_transpose(
         &self,
         kernels: &Self::Output,
-        bias: Option<&Self::Output>,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         output_padding: [i64; 2],

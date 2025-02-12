@@ -1,3 +1,5 @@
+# Pooling Benchmark
+
 ::: chartjs MaxPool f32 Performance (width = 256, height = 256, kernel size = 4)
 ```json
 {

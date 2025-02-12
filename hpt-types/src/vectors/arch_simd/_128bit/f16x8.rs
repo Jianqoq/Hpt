@@ -340,13 +340,6 @@ impl SimdMath<half::f16> for f16x8 {
         Self::from_2_f32vec([high_tan, low_tan])
     }
     #[inline(always)]
-    fn square(self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let high_square = high.square();
-        let low_square = low.square();
-        Self::from_2_f32vec([high_square, low_square])
-    }
-    #[inline(always)]
     fn sqrt(self) -> Self {
         let [high, low] = self.to_2_f32vec();
         let high_sqrt = high.sqrt();
@@ -583,13 +576,6 @@ impl SimdMath<half::f16> for f16x8 {
         Self::from_2_f32vec([high_ln, low_ln])
     }
     #[inline(always)]
-    fn log(self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let high_log = high.log();
-        let low_log = low.log();
-        Self::from_2_f32vec([high_log, low_log])
-    }
-    #[inline(always)]
     fn sincos(self) -> (Self, Self) {
         let [high, low] = self.to_2_f32vec();
         let (high_sin, high_cos) = high.sincos();
@@ -728,6 +714,15 @@ impl FloatOutBinary2 for f16x8 {
         let low_log = low.__log(low_base);
         f16x8::from_2_f32vec([high_log, low_log])
     }
+
+    #[inline(always)]
+    fn __hypot(self, rhs: Self) -> Self {
+        let [high, low] = self.to_2_f32vec();
+        let [high_rhs, low_rhs] = rhs.to_2_f32vec();
+        let high_hypot = high.__hypot(high_rhs);
+        let low_hypot = low.__hypot(low_rhs);
+        f16x8::from_2_f32vec([high_hypot, low_hypot])
+    }
 }
 
 impl NormalOut2 for f16x8 {
@@ -753,11 +748,7 @@ impl NormalOut2 for f16x8 {
 
     #[inline(always)]
     fn __pow(self, rhs: Self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let [high_rhs, low_rhs] = rhs.to_2_f32vec();
-        let high_pow = high.__pow(high_rhs);
-        let low_pow = low.__pow(low_rhs);
-        f16x8::from_2_f32vec([high_pow, low_pow])
+        self.pow(rhs)
     }
 
     #[inline(always)]
@@ -767,20 +758,12 @@ impl NormalOut2 for f16x8 {
 
     #[inline(always)]
     fn __max(self, rhs: Self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let [high_rhs, low_rhs] = rhs.to_2_f32vec();
-        let high_max = high.__max(high_rhs);
-        let low_max = low.__max(low_rhs);
-        f16x8::from_2_f32vec([high_max, low_max])
+        self.max(rhs)
     }
 
     #[inline(always)]
     fn __min(self, rhs: Self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let [high_rhs, low_rhs] = rhs.to_2_f32vec();
-        let high_min = high.__min(high_rhs);
-        let low_min = low.__min(low_rhs);
-        f16x8::from_2_f32vec([high_min, low_min])
+        self.min(rhs)
     }
 
     #[inline(always)]
@@ -876,6 +859,11 @@ impl NormalOutUnary2 for f16x8 {
         let high_relu6 = high.__relu6();
         let low_relu6 = low.__relu6();
         f16x8::from_2_f32vec([high_relu6, low_relu6])
+    }
+
+    #[inline(always)]
+    fn __copysign(self, rhs: Self) -> Self {
+        self.copysign(rhs)
     }
 }
 

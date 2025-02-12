@@ -1,9 +1,9 @@
 use crate::arch_simd::sleef::arch::helper_avx2::vabs_vf_vf;
 use crate::arch_simd::sleef::libm::sleefsimdsp::{
-    xacosf_u1, xacoshf, xasinf_u1, xasinhf, xatan2f_u1, xatanf_u1, xatanhf, xcbrtf_u1, xcosf_u1,
-    xcoshf, xerff_u1, xexp10f, xexp2f, xexpf, xexpm1f, xhypotf_u05, xlog10f, xlog1pf, xlog2f,
-    xlogf_u1, xmaxf, xminf, xpowf, xroundf, xsincosf_u1, xsinf_u1, xsinhf, xsqrtf_u05, xtanf_u1,
-    xtanhf, xtruncf,
+    xacosf_u1, xacoshf, xasinf_u1, xasinhf, xatan2f_u1, xatanf_u1, xatanhf, xcbrtf_u1, xcopysignf,
+    xcosf_u1, xcoshf, xerff_u1, xexp10f, xexp2f, xexpf, xexpm1f, xhypotf_u05, xlog10f, xlog1pf,
+    xlog2f, xlogf_u1, xmaxf, xminf, xpowf, xroundf, xsincosf_u1, xsinf_u1, xsinhf, xsqrtf_u05,
+    xtanf_u1, xtanhf, xtruncf,
 };
 use crate::convertion::VecConvertor;
 use crate::simd::sleef::libm::sleefsimdsp::{xceilf, xfloorf};
@@ -234,10 +234,6 @@ impl SimdMath<f32> for f32x8 {
         f32x8(unsafe { xtanf_u1(self.0) })
     }
     #[inline(always)]
-    fn square(self) -> Self {
-        f32x8(unsafe { _mm256_mul_ps(self.0, self.0) })
-    }
-    #[inline(always)]
     fn sqrt(self) -> Self {
         f32x8(unsafe { xsqrtf_u05(self.0) })
     }
@@ -376,10 +372,6 @@ impl SimdMath<f32> for f32x8 {
         f32x8(unsafe { xlogf_u1(self.0) })
     }
     #[inline(always)]
-    fn log(self) -> Self {
-        f32x8(unsafe { xlogf_u1(self.0) })
-    }
-    #[inline(always)]
     fn sincos(self) -> (Self, Self) {
         let ret = unsafe { xsincosf_u1(self.0) };
         (f32x8(ret.x), f32x8(ret.y))
@@ -472,6 +464,10 @@ impl SimdMath<f32> for f32x8 {
     fn softsign(self) -> Self {
         self / (Self::splat(1.0) + self.abs())
     }
+    #[inline(always)]
+    fn copysign(self, rhs: Self) -> Self {
+        unsafe { f32x8(xcopysignf(self.0, rhs.0)) }
+    }
 }
 
 impl VecConvertor for f32x8 {
@@ -518,6 +514,11 @@ impl FloatOutBinary2 for f32x8 {
             self[7].log(base[7]),
         ];
         f32x8(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __hypot(self, rhs: Self) -> Self {
+        self.hypot(rhs)
     }
 }
 
@@ -606,7 +607,7 @@ impl NormalOutUnary2 for f32x8 {
 
     #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
-        self.max(Self::splat(0.0)) + alpha * self.min(Self::splat(0.0))
+        self.leaky_relu(alpha)
     }
 
     #[inline(always)]
@@ -622,6 +623,11 @@ impl NormalOutUnary2 for f32x8 {
     #[inline(always)]
     fn __trunc(self) -> Self {
         self.trunc()
+    }
+
+    #[inline(always)]
+    fn __copysign(self, rhs: Self) -> Self {
+        self.copysign(rhs)
     }
 }
 
