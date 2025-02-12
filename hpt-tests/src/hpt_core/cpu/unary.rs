@@ -87,7 +87,7 @@ macro_rules! test_unarys_out {
                 a.as_raw_mut().copy_from_slice(unsafe {
                     std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
                 });
-                let b = a.$hpt_method($($hpt_args,)* &a)?;
+                let b = a.$hpt_method($($hpt_args,)* &mut a.clone())?;
                 let tch_b = tch_a.$tch_method($($tch_args),*);
                 $assert_method(&b, &tch_b);
                 Ok(())

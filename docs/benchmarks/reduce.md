@@ -1,3 +1,5 @@
+# Reduce Benchmark
+
 ::: chartjs Sum f32 Performance (size = 1024 * 2048 * 8)
 ```json
 {

@@ -409,10 +409,6 @@ impl SimdMath<u8> for u8x16 {
         self
     }
     #[inline(always)]
-    fn square(self) -> Self {
-        self * self
-    }
-    #[inline(always)]
     fn abs(self) -> Self {
         self
     }
@@ -461,6 +457,11 @@ impl FloatOutBinary2 for u8x16 {
     #[inline(always)]
     fn __log(self, _: Self) -> Self {
         panic!("Logarithm operation is not supported for u8")
+    }
+
+    #[inline(always)]
+    fn __hypot(self, rhs: Self) -> Self {
+        panic!("Hypot operation is not supported for u8x16");
     }
 }
 
@@ -565,6 +566,10 @@ impl NormalOutUnary2 for u8x16 {
     #[inline(always)]
     fn __relu6(self) -> Self {
         self.relu6()
+    }
+    #[inline(always)]
+    fn __copysign(self, rhs: Self) -> Self {
+        self.abs() * rhs.signum()
     }
 }
 

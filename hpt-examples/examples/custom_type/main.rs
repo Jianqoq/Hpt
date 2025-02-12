@@ -62,6 +62,10 @@ impl NormalOutUnary for CustomType {
     fn _relu6(self) -> Self {
         todo!()
     }
+
+    fn _copysign(self, rhs: Self) -> Self {
+        todo!()
+    }
 }
 
 impl FloatOutUnary for CustomType {
@@ -198,6 +202,18 @@ impl FloatOutUnary for CustomType {
     fn _cbrt(self) -> Self::Output {
         todo!()
     }
+
+    fn _exp10(self) -> Self::Output {
+        todo!()
+    }
+
+    fn _sincos(self) -> (Self::Output, Self::Output) {
+        todo!()
+    }
+
+    fn _atan2(self, rhs: Self) -> Self::Output {
+        todo!()
+    }
 }
 
 impl FloatOutBinary for CustomType {
@@ -208,6 +224,10 @@ impl FloatOutBinary for CustomType {
     }
 
     fn _log(self, base: Self) -> Self::Output {
+        todo!()
+    }
+
+    fn _hypot(self, rhs: Self) -> Self::Output {
         todo!()
     }
 }
@@ -329,6 +349,10 @@ impl NormalOutUnary for CustomTypeVec {
     }
 
     fn _relu6(self) -> Self {
+        todo!()
+    }
+
+    fn _copysign(self, rhs: Self) -> Self {
         todo!()
     }
 }
@@ -467,6 +491,18 @@ impl FloatOutUnary for CustomTypeVec {
     fn _cbrt(self) -> Self::Output {
         todo!()
     }
+
+    fn _exp10(self) -> Self::Output {
+        todo!()
+    }
+
+    fn _sincos(self) -> (Self::Output, Self::Output) {
+        todo!()
+    }
+
+    fn _atan2(self, rhs: Self) -> Self::Output {
+        todo!()
+    }
 }
 
 impl FloatOutBinary for CustomTypeVec {
@@ -477,6 +513,10 @@ impl FloatOutBinary for CustomTypeVec {
     }
 
     fn _log(self, base: Self) -> Self::Output {
+        todo!()
+    }
+
+    fn _hypot(self, rhs: Self) -> Self::Output {
         todo!()
     }
 }

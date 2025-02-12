@@ -352,13 +352,6 @@ impl SimdMath<bf16> for bf16x16 {
         Self::from_2_f32vec([high_tan, low_tan])
     }
     #[inline(always)]
-    fn square(self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let high_square = high.square();
-        let low_square = low.square();
-        Self::from_2_f32vec([high_square, low_square])
-    }
-    #[inline(always)]
     fn sqrt(self) -> Self {
         let [high, low] = self.to_2_f32vec();
         let high_sqrt = high.sqrt();
@@ -586,13 +579,6 @@ impl SimdMath<bf16> for bf16x16 {
         Self::from_2_f32vec([high_ln, low_ln])
     }
     #[inline(always)]
-    fn log(self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let high_log = high.log();
-        let low_log = low.log();
-        Self::from_2_f32vec([high_log, low_log])
-    }
-    #[inline(always)]
     fn sincos(self) -> (Self, Self) {
         let [high, low] = self.to_2_f32vec();
         let (high_sin, high_cos) = high.sincos();
@@ -731,6 +717,15 @@ impl FloatOutBinary2 for bf16x16 {
         let low_log = low.__log(low_base);
         bf16x16::from_2_f32vec([high_log, low_log])
     }
+
+    #[inline(always)]
+    fn __hypot(self, rhs: Self) -> Self {
+        let [high, low] = self.to_2_f32vec();
+        let [high_rhs, low_rhs] = rhs.to_2_f32vec();
+        let high_hypot = high.__hypot(high_rhs);
+        let low_hypot = low.__hypot(low_rhs);
+        bf16x16::from_2_f32vec([high_hypot, low_hypot])
+    }
 }
 
 impl NormalOut2 for bf16x16 {
@@ -853,8 +848,7 @@ impl NormalOutUnary2 for bf16x16 {
 
     #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
-        self.max(bf16x16::splat(half::bf16::from_f32_const(0.0)))
-            + alpha * self.min(bf16x16::splat(half::bf16::from_f32_const(0.0)))
+        self.leaky_relu(alpha)
     }
 
     #[inline(always)]
@@ -879,6 +873,15 @@ impl NormalOutUnary2 for bf16x16 {
         let high_trunc = high.__trunc();
         let low_trunc = low.__trunc();
         bf16x16::from_2_f32vec([high_trunc, low_trunc])
+    }
+
+    #[inline(always)]
+    fn __copysign(self, rhs: Self) -> Self {
+        let [high, low] = self.to_2_f32vec();
+        let [high_rhs, low_rhs] = rhs.to_2_f32vec();
+        let high_copysign = high.__copysign(high_rhs);
+        let low_copysign = low.__copysign(low_rhs);
+        bf16x16::from_2_f32vec([high_copysign, low_copysign])
     }
 }
 

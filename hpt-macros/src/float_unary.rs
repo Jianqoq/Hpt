@@ -30,6 +30,25 @@ pub fn impl_float_out_unary() -> TokenStream {
         let lhs_dtype = lhs_type.dtype;
 
         let res = if lhs_dtype.is_float() || lhs_dtype.is_cplx32() || lhs_dtype.is_cplx64() {
+            let sin_cos = if lhs_dtype.is_float() {
+                quote! {
+                    self.sin_cos()
+                }
+            } else {
+                quote! {
+                    let (sin, cos) = (self.sin(), self.cos());
+                    (sin, cos)
+                }
+            };
+            let atan2 = if lhs_dtype.is_float() {
+                quote! {
+                    self.atan2(other)
+                }
+            } else {
+                quote! {
+                    panic!("atan2 is not supported for complex numbers")
+                }
+            };
             quote! {
                 impl FloatOutUnary for #lhs_dtype {
                     type Output = <#lhs_dtype as FloatOutUnaryPromote>::Output;
@@ -41,6 +60,9 @@ pub fn impl_float_out_unary() -> TokenStream {
                     }
                     fn _exp2(self) -> Self::Output {
                         self.__exp2()
+                    }
+                    fn _exp10(self) -> Self::Output {
+                        self.__exp10()
                     }
                     fn _ln(self) -> Self::Output {
                         self.__ln()
@@ -63,6 +85,9 @@ pub fn impl_float_out_unary() -> TokenStream {
                     fn _cos(self) -> Self::Output {
                         self.cos()
                     }
+                    fn _sincos(self) -> (Self::Output, Self::Output) {
+                        #sin_cos
+                    }
                     fn _tan(self) -> Self::Output {
                         self.tan()
                     }
@@ -74,6 +99,9 @@ pub fn impl_float_out_unary() -> TokenStream {
                     }
                     fn _atan(self) -> Self::Output {
                         self.atan()
+                    }
+                    fn _atan2(self, other: Self) -> Self::Output {
+                        #atan2
                     }
                     fn _sinh(self) -> Self::Output {
                         self.sinh()
@@ -150,6 +178,10 @@ pub fn impl_float_out_unary() -> TokenStream {
                         let lhs: Self::Output = self.cast();
                         lhs.__exp2()
                     }
+                    fn _exp10(self) -> Self::Output {
+                        let lhs: Self::Output = self.cast();
+                        lhs.__exp10()
+                    }
                     fn _ln(self) -> Self::Output {
                         let lhs: Self::Output = self.cast();
                         lhs.__ln()
@@ -178,6 +210,10 @@ pub fn impl_float_out_unary() -> TokenStream {
                         let lhs: Self::Output = self.cast();
                         lhs.__cos()
                     }
+                    fn _sincos(self) -> (Self::Output, Self::Output) {
+                        let lhs: Self::Output = self.cast();
+                        lhs.sin_cos()
+                    }
                     fn _tan(self) -> Self::Output {
                         let lhs: Self::Output = self.cast();
                         lhs.__tan()
@@ -193,6 +229,10 @@ pub fn impl_float_out_unary() -> TokenStream {
                     fn _atan(self) -> Self::Output {
                         let lhs: Self::Output = self.cast();
                         lhs.__atan()
+                    }
+                    fn _atan2(self, other: Self) -> Self::Output {
+                        let lhs: Self::Output = self.cast();
+                        lhs.__atan2(other.cast())
                     }
                     fn _sinh(self) -> Self::Output {
                         let lhs: Self::Output = self.cast();

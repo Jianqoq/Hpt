@@ -1,3 +1,5 @@
+# Unary Benchmark
+
 ::: chartjs Unary f32 Performance (size = 1024 * 2048 * 8)
 ```json
 {

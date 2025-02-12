@@ -381,18 +381,6 @@ impl SimdMath<f64> for f64x2 {
         f64x2(unsafe { xtan_u1(self.0) })
     }
     #[inline(always)]
-    fn square(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            f64x2(_mm_mul_pd(self.0, self.0))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            f64x2(vmulq_f64(self.0, self.0))
-        }
-    }
-
-    #[inline(always)]
     fn sqrt(self) -> Self {
         f64x2(unsafe { xsqrt_u05(self.0) })
     }
@@ -583,11 +571,6 @@ impl SimdMath<f64> for f64x2 {
     }
 
     #[inline(always)]
-    fn log(self) -> Self {
-        f64x2(unsafe { xlog_u1(self.0) })
-    }
-
-    #[inline(always)]
     fn atan2(self, other: Self) -> Self {
         f64x2(unsafe { xatan2_u1(self.0, other.0) })
     }
@@ -679,6 +662,11 @@ impl SimdMath<f64> for f64x2 {
     fn softsign(self) -> Self {
         self / (Self::splat(1.0) + self.abs())
     }
+
+    #[inline(always)]
+    fn copysign(self, rhs: Self) -> Self {
+        unsafe { xcopysign(self.0, rhs.0) }
+    }
 }
 
 impl VecConvertor for f64x2 {
@@ -750,6 +738,11 @@ impl FloatOutBinary2 for f64x2 {
     fn __log(self, base: Self) -> Self {
         let res = [self[0].log(base[0]), self[1].log(base[1])];
         f64x2(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __hypot(self, rhs: Self) -> Self {
+        self.hypot(rhs)
     }
 }
 
@@ -843,7 +836,7 @@ impl NormalOutUnary2 for f64x2 {
 
     #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
-        self.max(f64x2::splat(0.0)) + alpha * self.min(f64x2::splat(0.0))
+        self.leaky_relu(alpha)
     }
 
     #[inline(always)]
@@ -854,6 +847,11 @@ impl NormalOutUnary2 for f64x2 {
     #[inline(always)]
     fn __relu6(self) -> Self {
         self.relu6()
+    }
+
+    #[inline(always)]
+    fn __copysign(self, rhs: Self) -> Self {
+        self.copysign(rhs)
     }
 }
 

@@ -144,6 +144,11 @@ impl FloatOutBinary2 for cplx64x2 {
         let res = [self[0].__log(base[0]), self[1].__log(base[1])];
         cplx64x2(unsafe { std::mem::transmute(res) })
     }
+
+    #[inline(always)]
+    fn __hypot(self, _: Self) -> Self {
+        panic!("Hypot operation is not supported for cplx64x2");
+    }
 }
 
 impl NormalOut2 for cplx64x2 {
@@ -262,5 +267,10 @@ impl NormalOutUnary2 for cplx64x2 {
     fn __trunc(self) -> Self {
         let res = [self[0].__trunc(), self[1].__trunc()];
         cplx64x2(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __copysign(self, _: Self) -> Self {
+        panic!("Copysign operation is not supported for complex type")
     }
 }

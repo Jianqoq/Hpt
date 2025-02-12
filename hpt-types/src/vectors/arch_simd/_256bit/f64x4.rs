@@ -2,17 +2,14 @@ use crate::{
     arch_simd::sleef::{
         arch::helper_avx2::vabs_vd_vd,
         libm::sleefsimddp::{
-            xacos_u1, xacosh, xasin_u1, xasinh, xatan2_u1, xatan_u1, xatanh, xcbrt_u1, xcos_u1,
-            xcosh, xerf_u1, xexp, xexp10, xexp2, xexpm1, xfmax, xfmin, xhypot_u05, xlog10, xlog1p,
-            xlog2, xlog_u1, xpow, xround, xsin_u1, xsincos_u1, xsinh, xsqrt_u05, xtan_u1, xtanh,
-            xtrunc,
+            xacos_u1, xacosh, xasin_u1, xasinh, xatan2_u1, xatan_u1, xatanh, xcbrt_u1, xcopysign,
+            xcos_u1, xcosh, xerf_u1, xexp, xexp10, xexp2, xexpm1, xfmax, xfmin, xhypot_u05, xlog10,
+            xlog1p, xlog2, xlog_u1, xpow, xround, xsin_u1, xsincos_u1, xsinh, xsqrt_u05, xtan_u1,
+            xtanh, xtrunc,
         },
     },
     convertion::VecConvertor,
-    simd::sleef::{
-        arch::helper_avx2::vmul_vd_vd_vd,
-        libm::sleefsimddp::{xceil, xfloor},
-    },
+    simd::sleef::libm::sleefsimddp::{xceil, xfloor},
     traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
     type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
@@ -210,10 +207,6 @@ impl SimdMath<f64> for f64x4 {
         f64x4(unsafe { xtan_u1(self.0) })
     }
     #[inline(always)]
-    fn square(self) -> Self {
-        f64x4(unsafe { vmul_vd_vd_vd(self.0, self.0) })
-    }
-    #[inline(always)]
     fn sqrt(self) -> Self {
         f64x4(unsafe { xsqrt_u05(self.0) })
     }
@@ -353,10 +346,6 @@ impl SimdMath<f64> for f64x4 {
         f64x4(unsafe { xlog_u1(self.0) })
     }
     #[inline(always)]
-    fn log(self) -> Self {
-        f64x4(unsafe { xlog_u1(self.0) })
-    }
-    #[inline(always)]
     fn atan2(self, other: Self) -> Self {
         f64x4(unsafe { xatan2_u1(self.0, other.0) })
     }
@@ -449,6 +438,10 @@ impl SimdMath<f64> for f64x4 {
     fn softsign(self) -> Self {
         self / (Self::splat(1.0) + self.abs())
     }
+    #[inline(always)]
+    fn copysign(self, rhs: Self) -> Self {
+        unsafe { f64x4(xcopysign(self.0, rhs.0)) }
+    }
 }
 
 impl VecConvertor for f64x4 {
@@ -500,6 +493,11 @@ impl FloatOutBinary2 for f64x4 {
             self[3].log(base[3]),
         ];
         f64x4(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __hypot(self, rhs: Self) -> Self {
+        self.hypot(rhs)
     }
 }
 
@@ -588,7 +586,7 @@ impl NormalOutUnary2 for f64x4 {
 
     #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
-        self.max(f64x4::splat(0.0)) + alpha * self.min(f64x4::splat(0.0))
+        self.leaky_relu(alpha)
     }
 
     #[inline(always)]
@@ -604,6 +602,11 @@ impl NormalOutUnary2 for f64x4 {
     #[inline(always)]
     fn __trunc(self) -> Self {
         self.trunc()
+    }
+
+    #[inline(always)]
+    fn __copysign(self, rhs: Self) -> Self {
+        self.copysign(rhs)
     }
 }
 

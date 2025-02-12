@@ -11,6 +11,11 @@ impl FloatOutBinary2 for f64 {
     fn __log(self, base: Self) -> Self {
         self.log(base)
     }
+
+    #[inline(always)]
+    fn __hypot(self, rhs: Self) -> Self {
+        self.hypot(rhs)
+    }
 }
 
 impl NormalOut2 for f64 {
@@ -114,6 +119,11 @@ impl NormalOutUnary2 for f64 {
     #[inline(always)]
     fn __relu6(self) -> Self {
         self.min(6.0).max(0.0)
+    }
+
+    #[inline(always)]
+    fn __copysign(self, rhs: Self) -> Self {
+        self.copysign(rhs)
     }
 }
 
@@ -302,5 +312,17 @@ impl FloatOutUnary2 for f64 {
 
     fn __cbrt(self) -> Self {
         libm::cbrt(self)
+    }
+
+    fn __sincos(self) -> (Self, Self) {
+        self.sin_cos()
+    }
+
+    fn __atan2(self, rhs: Self) -> Self {
+        self.atan2(rhs)
+    }
+
+    fn __exp10(self) -> Self {
+        10f64.powf(self)
     }
 }

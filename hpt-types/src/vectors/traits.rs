@@ -138,10 +138,6 @@ pub(crate) trait SimdMath<T>: Copy {
     fn atanh(self) -> Self {
         unreachable!()
     }
-    /// compute the square of the vector
-    fn square(self) -> Self {
-        unreachable!()
-    }
     /// compute the absolute value of the vector
     fn abs(self) -> Self {
         unreachable!()
@@ -236,10 +232,6 @@ pub(crate) trait SimdMath<T>: Copy {
     }
     /// ln
     fn ln(self) -> Self {
-        unreachable!()
-    }
-    /// log
-    fn log(self) -> Self {
         unreachable!()
     }
     /// min

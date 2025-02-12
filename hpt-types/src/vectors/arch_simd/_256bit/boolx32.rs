@@ -253,6 +253,11 @@ impl FloatOutBinary2 for boolx32 {
     fn __log(self, _: Self) -> Self {
         panic!("Logarithm operation is not supported for bool")
     }
+
+    #[inline(always)]
+    fn __hypot(self, _: Self) -> Self {
+        panic!("Hypot operation is not supported for boolx32");
+    }
 }
 
 impl NormalOut2 for boolx32 {
@@ -356,6 +361,15 @@ impl NormalOutUnary2 for boolx32 {
     #[inline(always)]
     fn __trunc(self) -> Self {
         self
+    }
+
+    #[inline(always)]
+    fn __copysign(self, rhs: Self) -> Self {
+        let mut ret = boolx32::default();
+        for i in 0..32 {
+            ret.0[i] = self.0[i] ^ rhs.0[i];
+        }
+        ret
     }
 }
 

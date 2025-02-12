@@ -1,3 +1,5 @@
+# Binary Benchmark
+
 ::: chartjs Binary f32 Performance (size = 100 * 100 * 100 * 100)
 ```json
 {

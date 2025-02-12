@@ -154,6 +154,11 @@ impl FloatOutBinary2 for cplx32x4 {
         ];
         cplx32x4(unsafe { std::mem::transmute(res) })
     }
+
+    #[inline(always)]
+    fn __hypot(self, _: Self) -> Self {
+        panic!("Hypot operation is not supported for cplx32x4");
+    }
 }
 
 impl NormalOut2 for cplx32x4 {
@@ -329,5 +334,9 @@ impl NormalOutUnary2 for cplx32x4 {
             self[3].__trunc(),
         ];
         cplx32x4(unsafe { std::mem::transmute(res) })
+    }
+    #[inline(always)]
+    fn __copysign(self, _: Self) -> Self {
+        panic!("Copysign operation is not supported for complex type")
     }
 }

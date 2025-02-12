@@ -16,7 +16,6 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 pub(crate) fn conv2d_transpose<T: CommonBounds, const DEVICE: usize>(
     input: &_Tensor<T, Cpu, DEVICE>,
     kernels: &_Tensor<T, Cpu, DEVICE>,
-    bias: Option<&_Tensor<T, Cpu, DEVICE>>,
     steps: [i64; 2],
     padding: [(i64, i64); 2],
     output_padding: [i64; 2],
@@ -244,6 +243,8 @@ where
     Ok(res)
 }
 
+#[allow(unused)]
+#[track_caller]
 pub(crate) fn conv2d_backward_kernel<T: CommonBounds, const DEVICE: usize>(
     input: &_Tensor<T, Cpu, DEVICE>,
     grad_output: &_Tensor<T, Cpu, DEVICE>,
@@ -313,6 +314,8 @@ pub(crate) fn conv2d_backward_kernel<T: CommonBounds, const DEVICE: usize>(
     Ok(grad_kernel)
 }
 
+#[allow(unused)]
+#[track_caller]
 pub(crate) fn conv2d_backward_bias<T: CommonBounds, const DEVICE: usize>(
     grad_output: &_Tensor<T, Cpu, DEVICE>,
 ) -> Result<_Tensor<T, Cpu, DEVICE>, TensorError> {

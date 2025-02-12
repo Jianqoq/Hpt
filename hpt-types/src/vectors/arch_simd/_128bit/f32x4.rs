@@ -350,18 +350,6 @@ impl SimdMath<f32> for f32x4 {
         f32x4(unsafe { xtanf_u1(self.0) })
     }
     #[inline(always)]
-    fn square(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            f32x4(_mm_mul_ps(self.0, self.0))
-        }
-        #[cfg(target_arch = "aarch64")]
-        unsafe {
-            f32x4(vmulq_f32(self.0, self.0))
-        }
-    }
-
-    #[inline(always)]
     fn sqrt(self) -> Self {
         f32x4(unsafe { xsqrtf_u05(self.0) })
     }
@@ -561,11 +549,6 @@ impl SimdMath<f32> for f32x4 {
     }
 
     #[inline(always)]
-    fn log(self) -> Self {
-        f32x4(unsafe { xlogf_u1(self.0) })
-    }
-
-    #[inline(always)]
     fn sincos(self) -> (Self, Self) {
         let ret = unsafe { xsincosf_u1(self.0) };
         (f32x4(ret.x), f32x4(ret.y))
@@ -650,6 +633,10 @@ impl SimdMath<f32> for f32x4 {
     fn softsign(self) -> Self {
         self / (Self::splat(1.0) + self.abs())
     }
+    #[inline(always)]
+    fn copysign(self, rhs: Self) -> Self {
+        unsafe { xcopysignf(self.0, rhs.0) }
+    }
 }
 
 impl VecConvertor for f32x4 {
@@ -706,6 +693,11 @@ impl FloatOutBinary2 for f32x4 {
             self[3].log(base[3]),
         ];
         f32x4(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __hypot(self, rhs: Self) -> Self {
+        self.hypot(rhs)
     }
 }
 
@@ -810,6 +802,11 @@ impl NormalOutUnary2 for f32x4 {
     #[inline(always)]
     fn __relu6(self) -> Self {
         self.relu6()
+    }
+
+    #[inline(always)]
+    fn __copysign(self, rhs: Self) -> Self {
+        self.copysign(rhs)
     }
 }
 

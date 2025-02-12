@@ -10,6 +10,11 @@ impl FloatOutBinary2 for bool {
     fn __log(self, _: Self) -> Self {
         panic!("Logarithm operation is not supported for boolean type")
     }
+
+    #[inline(always)]
+    fn __hypot(self, _: Self) -> Self {
+        panic!("Hypot operation is not supported for boolean type")
+    }
 }
 
 impl NormalOut2 for bool {
@@ -113,6 +118,15 @@ impl NormalOutUnary2 for bool {
     #[inline(always)]
     fn __relu6(self) -> Self {
         self
+    }
+
+    #[inline(always)]
+    fn __copysign(self, sign: Self) -> Self {
+        if sign {
+            self
+        } else {
+            !self
+        }
     }
 }
 

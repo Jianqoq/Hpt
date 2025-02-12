@@ -291,10 +291,6 @@ impl SimdMath<i16> for i16x16 {
         self
     }
     #[inline(always)]
-    fn square(self) -> Self {
-        self * self
-    }
-    #[inline(always)]
     fn abs(self) -> Self {
         unsafe { i16x16(_mm256_abs_epi16(self.0)) }
     }
@@ -346,6 +342,11 @@ impl FloatOutBinary2 for i16x16 {
     #[inline(always)]
     fn __log(self, _: Self) -> Self {
         panic!("Logarithm operation is not supported for i16")
+    }
+
+    #[inline(always)]
+    fn __hypot(self, _: Self) -> Self {
+        panic!("Hypot operation is not supported for i16x16");
     }
 }
 
@@ -434,7 +435,7 @@ impl NormalOutUnary2 for i16x16 {
 
     #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
-        self.max(i16x16::splat(0)) + alpha * self.min(i16x16::splat(0))
+        self.leaky_relu(alpha)
     }
 
     #[inline(always)]
@@ -450,6 +451,11 @@ impl NormalOutUnary2 for i16x16 {
     #[inline(always)]
     fn __trunc(self) -> Self {
         self
+    }
+
+    #[inline(always)]
+    fn __copysign(self, rhs: Self) -> Self {
+        self.abs() * rhs.signum()
     }
 }
 

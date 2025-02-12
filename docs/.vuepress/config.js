@@ -365,11 +365,13 @@ export default defineUserConfig({
             {
               text: 'normalization',
               link: '/benchmarks/normalization.md'
+            },
+            {
+              text: 'matmul',
+              link: '/benchmarks/matmul.md'
             }
           ]
         }
-
-
       ]
 
     },

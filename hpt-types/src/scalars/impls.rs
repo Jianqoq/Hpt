@@ -12,10 +12,13 @@ macro_rules! impl_int_traits {
                     self / rhs
                 }
             }
-
             #[inline(always)]
             fn __log(self, _: Self) -> Self {
                 panic!("Logarithm operation is not supported for {}", stringify!($type));
+            }
+            #[inline(always)]
+            fn __hypot(self, _: Self) -> Self {
+                panic!("Hypot operation is not supported for {}", stringify!($type));
             }
         }
 
@@ -121,6 +124,11 @@ macro_rules! impl_int_traits {
             fn __relu6(self) -> Self {
                 self.min(6).max(0)
             }
+
+            #[inline(always)]
+            fn __copysign(self, _: Self) -> Self {
+                panic!("copysign is not supported for integer types")
+            }
         }
 
         impl BitWiseOut2 for $type {
@@ -196,10 +204,13 @@ macro_rules! impl_complex {
             fn __div(self, rhs: Self) -> Self {
                 self / rhs
             }
-
             #[inline(always)]
             fn __log(self, base: Self) -> Self {
                 self.log(base.re)
+            }
+            #[inline(always)]
+            fn __hypot(self, _: Self) -> Self {
+                panic!("Hypot operation is not supported for complex numbers");
             }
         }
 
@@ -340,6 +351,11 @@ macro_rules! impl_complex {
                 } else {
                     Complex::<$type>::new(0.0, 0.0)
                 }
+            }
+
+            #[inline(always)]
+            fn __copysign(self, _: Self) -> Self {
+                panic!("copysign is not supported for complex numbers")
             }
         }
 
@@ -538,6 +554,18 @@ macro_rules! impl_complex {
 
             fn __cbrt(self) -> Self {
                 panic!("cbrt is not supported for complex numbers")
+            }
+
+            fn __sincos(self) -> (Self, Self) {
+                (self.sin(), self.cos())
+            }
+
+            fn __atan2(self, _: Self) -> Self {
+                panic!("atan2 is not supported for complex numbers")
+            }
+
+            fn __exp10(self) -> Self {
+                panic!("exp10 is not supported for complex numbers")
             }
         }
     };
