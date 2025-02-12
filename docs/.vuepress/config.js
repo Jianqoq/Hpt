@@ -110,6 +110,10 @@ export default defineUserConfig({
                 { text: 'mish_', link: '/user_guide/unary/mish_.md' },
                 { text: 'cbrt', link: '/user_guide/unary/cbrt.md' },
                 { text: 'cbrt_', link: '/user_guide/unary/cbrt_.md' },
+                { text: 'sincos', link: '/user_guide/unary/sincos.md' },
+                { text: 'sincos_', link: '/user_guide/unary/sincos_.md' },
+                { text: 'exp10', link: '/user_guide/unary/exp10.md' },
+                { text: 'exp10_', link: '/user_guide/unary/exp10_.md' },
               ]
             },
             {
@@ -160,6 +164,30 @@ export default defineUserConfig({
                 { text: 'tensor_lt', link: '/user_guide/cmp/tensor_lt.md' },
                 { text: 'tensor_ge', link: '/user_guide/cmp/tensor_ge.md' },
                 { text: 'tensor_le', link: '/user_guide/cmp/tensor_le.md' },
+              ]
+            },
+            {
+              text: 'advanced',
+              collapsible: true,
+              children: [
+                { text: 'cumsum', link: '/user_guide/advanced/cumsum.md' },
+                { text: 'cumprod', link: '/user_guide/advanced/cumprod.md' },
+                { text: 'dropout', link: '/user_guide/advanced/dropout.md' },
+                { text: 'gather', link: '/user_guide/advanced/gather.md' },
+                { text: 'scatter', link: '/user_guide/advanced/scatter.md' },
+                { text: 'shrinkage', link: '/user_guide/advanced/shrinkage.md' },
+                { text: 'hardmax', link: '/user_guide/advanced/hardmax.md' },
+                { text: 'tensor_where', link: '/user_guide/advanced/tensor_where.md' },
+                { text: 'topk', link: '/user_guide/advanced/topk.md' },
+                { text: 'onehot', link: '/user_guide/advanced/onehot.md' },
+              ]
+            },
+            {
+              text: 'cumulative',
+              collapsible: true,
+              children: [
+                { text: 'cumsum', link: '/user_guide/cumulative/cumsum.md' },
+                { text: 'cumprod', link: '/user_guide/cumulative/cumprod.md' },
               ]
             },
             {
