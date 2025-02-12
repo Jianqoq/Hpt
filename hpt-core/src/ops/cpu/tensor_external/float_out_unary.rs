@@ -1,4 +1,4 @@
-use std::{borrow::BorrowMut, cell::RefCell, rc::Rc, sync::Arc};
+use std::{borrow::BorrowMut, cell::RefCell, rc::Rc};
 
 use hpt_common::error::base::TensorError;
 use hpt_iterator::{iterator_traits::ParStridedIteratorZip, TensorIterator};

@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 use hpt_common::slice;
 use hpt_common::slice::Slice;
-use hpt_core::AdvanceOps;
+use hpt_core::AdvancedOps;
 use hpt_core::ShapeManipulate;
 use hpt_core::TensorInfo;
 use hpt_core::TensorLike;

@@ -492,17 +492,29 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
     }
 
     fn dsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self>, TensorError> {
-        ShapeError::check_ndim_enough(3, self.inner.ndim())?;
+        ShapeError::check_ndim_enough(
+            "dsplit required input has 3 dimensions.".to_string(),
+            3,
+            self.inner.ndim(),
+        )?;
         DiffTensor::split(self, indices, 2)
     }
 
     fn hsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self>, TensorError> {
-        ShapeError::check_ndim_enough(2, self.inner.ndim())?;
+        ShapeError::check_ndim_enough(
+            "hsplit required input has 2 dimensions.".to_string(),
+            2,
+            self.inner.ndim(),
+        )?;
         DiffTensor::split(self, indices, 1)
     }
 
     fn vsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self>, TensorError> {
-        ShapeError::check_ndim_enough(1, self.inner.ndim())?;
+        ShapeError::check_ndim_enough(
+            "vsplit required input has 1 dimension.".to_string(),
+            1,
+            self.inner.ndim(),
+        )?;
         DiffTensor::split(self, indices, 0)
     }
 

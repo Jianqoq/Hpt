@@ -1,8 +1,12 @@
-use hpt_core::{FloatUnaryOps, Tensor, TensorError};
+use hpt_core::{Tensor, TensorError, TensorWhere};
 
 fn main() -> Result<(), TensorError> {
-    let a = Tensor::<f32>::new([2.0]); // 10^2
-    let b = a.exp10_(&mut a.clone())?;
-    println!("{}", b); // prints: 100.0
+    let condition = Tensor::<bool>::new(&[true, false, true]);
+    let x = Tensor::<f64>::new(&[1., 2., 3.]);
+    let y = Tensor::<f64>::new(&[4., 5., 6.]);
+    
+    let result = Tensor::tensor_where(&condition, &x, &y)?;
+    println!("{}", result);  // [1., 5., 3.]
+    
     Ok(())
 }

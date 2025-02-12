@@ -170,10 +170,8 @@ export default defineUserConfig({
               text: 'advanced',
               collapsible: true,
               children: [
-                { text: 'cumsum', link: '/user_guide/advanced/cumsum.md' },
-                { text: 'cumprod', link: '/user_guide/advanced/cumprod.md' },
                 { text: 'dropout', link: '/user_guide/advanced/dropout.md' },
-                { text: 'gather', link: '/user_guide/advanced/gather.md' },
+                // { text: 'gather', link: '/user_guide/advanced/gather.md' },
                 { text: 'scatter', link: '/user_guide/advanced/scatter.md' },
                 { text: 'shrinkage', link: '/user_guide/advanced/shrinkage.md' },
                 { text: 'hardmax', link: '/user_guide/advanced/hardmax.md' },

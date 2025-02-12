@@ -3,18 +3,19 @@ use std::rc::Rc;
 
 use crate::ops::cpu::utils::diff::diff_utils::handle_grad;
 use crate::tensor::DiffTensor;
+use crate::tensor_base::_Tensor;
 use crate::{Cpu, Tensor};
 use hpt_common::error::base::TensorError;
 use hpt_common::slice::Slice;
-use hpt_traits::ops::advance::{AdvanceOps, HardMax, Shrinkage};
-use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
+use hpt_traits::ops::advance::{AdvancedOps, HardMax, Shrinkage};
+use hpt_traits::{CommonBounds, TensorCreator, TensorInfo, TensorWhere};
 use hpt_types::dtype::TypeCommon;
 use hpt_types::into_scalar::Cast;
 use hpt_types::into_vec::IntoVec;
 use hpt_types::traits::SimdSelect;
 use hpt_types::type_promote::{Cmp, NormalOut, SimdCmp};
 
-impl<T: CommonBounds + PartialOrd, const DEVICE: usize> AdvanceOps for Tensor<T, Cpu, DEVICE>
+impl<T: CommonBounds + PartialOrd, const DEVICE: usize> AdvancedOps for Tensor<T, Cpu, DEVICE>
 where
     T: NormalOut<bool, Output = T> + Cast<i64>,
     f64: Cast<T>,
@@ -81,7 +82,7 @@ where
     }
 }
 
-impl<T: CommonBounds + PartialOrd, const DEVICE: usize> AdvanceOps for DiffTensor<T, Cpu, DEVICE>
+impl<T: CommonBounds + PartialOrd, const DEVICE: usize> AdvancedOps for DiffTensor<T, Cpu, DEVICE>
 where
     T: NormalOut<bool, Output = T> + Cast<i64>,
     f64: Cast<T>,
@@ -191,5 +192,25 @@ where
     type Output = Tensor<T, Cpu, DEVICE>;
     fn hardmax(&self, axis: i64) -> Result<Self::Output, TensorError> {
         Ok(self.inner.hardmax(axis)?.into())
+    }
+}
+
+impl<T, const DEVICE: usize> TensorWhere for Tensor<T, Cpu, DEVICE>
+where
+    T: CommonBounds,
+{
+    type Output = Tensor<T, Cpu, DEVICE>;
+    type Condition = Tensor<bool, Cpu, DEVICE>;
+    fn tensor_where(
+        condition: &Self::Condition,
+        x: &Self::Output,
+        y: &Self::Output,
+    ) -> Result<Self::Output, TensorError> {
+        let res = _Tensor::<T, Cpu, DEVICE>::tensor_where(
+            condition.inner.as_ref(),
+            x.inner.as_ref(),
+            y.inner.as_ref(),
+        )?;
+        Ok(res.into())
     }
 }

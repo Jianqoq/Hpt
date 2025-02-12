@@ -9,7 +9,7 @@ use hpt_common::shape::shape_utils::mt_intervals;
 use hpt_common::Pointer;
 use hpt_iterator::iterator_traits::{ParStridedIteratorSimdZip, ParStridedIteratorZip};
 use hpt_iterator::TensorIterator;
-use hpt_traits::ops::advance::{AdvanceOps, HardMax, Shrinkage};
+use hpt_traits::ops::advance::{AdvancedOps, HardMax, Shrinkage};
 use hpt_traits::{
     CommonBounds, NormalReduce, ShapeManipulate, TensorCreator, TensorInfo, TensorWhere,
 };
@@ -20,7 +20,7 @@ use hpt_types::traits::{SimdSelect, VecTrait};
 use hpt_types::type_promote::{Cmp, NormalOut, NormalOutUnary, SimdCmp};
 use rand_distr::Distribution;
 use rayon::iter::ParallelIterator;
-impl<T: CommonBounds + PartialOrd, const DEVICE: usize> AdvanceOps for _Tensor<T, Cpu, DEVICE>
+impl<T: CommonBounds + PartialOrd, const DEVICE: usize> AdvancedOps for _Tensor<T, Cpu, DEVICE>
 where
     T: NormalOut<bool, Output = T> + Cast<i64>,
     f64: Cast<T>,
@@ -394,6 +394,14 @@ where
     }
 
     fn gather(&self, indices: &Self::IndexOutput, axis: i64) -> Result<Self::Output, TensorError> {
+        if self.ndim() != indices.ndim() {
+            ShapeError::check_ndim_enough(
+                "gather requires input and indices have the same number of dimensions.".to_string(),
+                self.ndim(),
+                indices.ndim(),
+            )?;
+        }
+
         let axis = if axis < 0 {
             self.ndim() as i64 + axis
         } else {

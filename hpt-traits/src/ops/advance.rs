@@ -1,7 +1,7 @@
 use hpt_common::error::base::TensorError;
 
 /// A trait contains advance operations
-pub trait AdvanceOps {
+pub trait AdvancedOps {
     /// The type of the meta data
     type Meta;
     /// The type of the output tensor

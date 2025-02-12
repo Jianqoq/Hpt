@@ -1,6 +1,6 @@
 #[test]
 fn test_gather() -> anyhow::Result<()> {
-    use hpt_core::AdvanceOps;
+    use hpt_core::AdvancedOps;
     use hpt_core::TensorCreator;
     use hpt_core::TensorLike;
     use rand::Rng;

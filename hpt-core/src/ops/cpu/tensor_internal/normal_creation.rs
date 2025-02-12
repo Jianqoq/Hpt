@@ -301,7 +301,11 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
         T: NormalOut<bool, Output = T> + Cast<T>,
         T::Vec: NormalOut<BoolVector, Output = T::Vec>,
     {
-        ShapeError::check_ndim_enough(2, self.shape().len())?;
+        ShapeError::check_ndim_enough(
+            "Tril expected 2 dimensions.".to_string(),
+            2,
+            self.shape().len(),
+        )?;
         let mask: _Tensor<bool, Cpu, DEVICE> = _Tensor::<bool, Cpu, DEVICE>::tri(
             self.shape()[self.shape().len() - 2] as usize,
             self.shape()[self.shape().len() - 1] as usize,
@@ -317,7 +321,11 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
         T: NormalOut<bool, Output = T> + Cast<T>,
         T::Vec: NormalOut<BoolVector, Output = T::Vec>,
     {
-        ShapeError::check_ndim_enough(2, self.shape().len())?;
+        ShapeError::check_ndim_enough(
+            "Triu expected 2 dimensions.".to_string(),
+            2,
+            self.shape().len(),
+        )?;
         let mask: _Tensor<bool, Cpu, DEVICE> = _Tensor::<bool, Cpu, DEVICE>::tri(
             self.shape()[self.shape().len() - 2] as usize,
             self.shape()[self.shape().len() - 1] as usize,

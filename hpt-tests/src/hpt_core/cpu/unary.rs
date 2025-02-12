@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 use hpt_common::slice;
 use hpt_common::slice::Slice;
-use hpt_core::AdvanceOps;
+use hpt_core::AdvancedOps;
 use hpt_core::FloatUnaryOps;
 use hpt_core::NormalUaryOps;
 use hpt_core::ShapeManipulate;

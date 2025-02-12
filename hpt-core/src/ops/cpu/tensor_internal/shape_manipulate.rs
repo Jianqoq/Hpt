@@ -190,12 +190,11 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for _Tensor<T, Cpu, D
                     }
                     .into());
                 } else if i.shape().len() != tensors[0].shape().len() {
-                    return Err(ShapeError::NdimNotEnough {
-                        expected: tensors[0].ndim(),
-                        actual: i.ndim(),
-                        location: Location::caller(),
-                    }
-                    .into());
+                    ShapeError::check_ndim_enough(
+                        "concat dim mismatch".to_string(),
+                        tensors[0].ndim(),
+                        i.ndim(),
+                    )?;
                 }
             }
         }

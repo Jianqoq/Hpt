@@ -167,7 +167,11 @@ pub(crate) fn transpose<T: Clone, B: BackendTy + Buffer + Clone, const DEVICE_ID
     axis1: i64,
     axis2: i64,
 ) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
-    ShapeError::check_ndim_enough(2, a.layout.ndim())?;
+    ShapeError::check_ndim_enough(
+        "transpose expected 2 dimensions.".to_string(),
+        2,
+        a.layout.ndim(),
+    )?;
     permute(a, vec![axis1, axis2], |layout, axes| layout.permute(axes))
 }
 #[track_caller]
@@ -230,14 +234,22 @@ pub(crate) fn flip<
 pub(crate) fn fliplr<T: Clone, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize>(
     a: &_Tensor<T, B, DEVICE_ID>,
 ) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
-    ShapeError::check_ndim_enough(2, a.layout.ndim())?;
+    ShapeError::check_ndim_enough(
+        "fliplr expected 2 dimensions.".to_string(),
+        2,
+        a.layout.ndim(),
+    )?;
     flip(a, 1)
 }
 #[track_caller]
 pub(crate) fn flipud<T: Clone, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize>(
     a: &_Tensor<T, B, DEVICE_ID>,
 ) -> std::result::Result<_Tensor<T, B, DEVICE_ID>, TensorError> {
-    ShapeError::check_ndim_enough(1, a.layout.ndim())?;
+    ShapeError::check_ndim_enough(
+        "flipud expected 2 dimensions.".to_string(),
+        2,
+        a.layout.ndim(),
+    )?;
     flip(a, 0)
 }
 #[track_caller]
@@ -338,7 +350,11 @@ pub(crate) fn dsplit<T: CommonBounds, B: BackendTy + Buffer + Clone, const DEVIC
     a: &_Tensor<T, B, DEVICE_ID>,
     indices: &[i64],
 ) -> std::result::Result<Vec<_Tensor<T, B, DEVICE_ID>>, TensorError> {
-    ShapeError::check_ndim_enough(3, a.layout.ndim())?;
+    ShapeError::check_ndim_enough(
+        "dsplit required input has 3 dimensions.".to_string(),
+        3,
+        a.layout.ndim(),
+    )?;
     split(a, indices, 2)
 }
 #[track_caller]
@@ -346,7 +362,11 @@ pub(crate) fn hsplit<T: CommonBounds, B: BackendTy + Buffer + Clone, const DEVIC
     a: &_Tensor<T, B, DEVICE_ID>,
     indices: &[i64],
 ) -> std::result::Result<Vec<_Tensor<T, B, DEVICE_ID>>, TensorError> {
-    ShapeError::check_ndim_enough(2, a.layout.ndim())?;
+    ShapeError::check_ndim_enough(
+        "hsplit required input has 2 dimensions.".to_string(),
+        2,
+        a.layout.ndim(),
+    )?;
     split(a, indices, 1)
 }
 #[track_caller]
@@ -354,7 +374,11 @@ pub(crate) fn vsplit<T: CommonBounds, B: BackendTy + Buffer + Clone, const DEVIC
     a: &_Tensor<T, B, DEVICE_ID>,
     indices: &[i64],
 ) -> std::result::Result<Vec<_Tensor<T, B, DEVICE_ID>>, TensorError> {
-    ShapeError::check_ndim_enough(1, a.layout.ndim())?;
+    ShapeError::check_ndim_enough(
+        "vsplit required input has 1 dimension.".to_string(),
+        1,
+        a.layout.ndim(),
+    )?;
     split(a, indices, 0)
 }
 #[track_caller]
