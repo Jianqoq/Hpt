@@ -10,6 +10,6 @@ repository = "https://github.com/Jianqoq/Hpt"
 [dependencies]
 hpt-traits = { path = "../hpt-traits", version = "0.0.11" }
 hpt-common = { path = "../hpt-common", version = "0.0.11" }
-hpt-types = { path = "../hpt-types", version = "0.0.1" }
+hpt-types = { path = "../hpt-types", version = "0.0.11" }
 anyhow = "1.0.95"
 num-complex = "0.4.6"
