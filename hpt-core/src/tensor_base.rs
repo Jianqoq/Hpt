@@ -6,7 +6,7 @@ use hpt_allocator::CUDA_CACHE;
 use hpt_common::{layout::layout::Layout, utils::pointer::Pointer};
 use std::sync::Arc;
 
-/// This struct is the heart of the `DiffTensors` and `BasicTensors`. Both of them are just `wrappers` around this struct.
+/// This struct is the base of All Tensors.
 ///
 /// All the operations are happen on this struct.
 ///
