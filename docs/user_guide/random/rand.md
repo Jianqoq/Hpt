@@ -17,7 +17,7 @@ create a Tensor with data uniformly distributed between `low` and `high`.
 Tensor with type `T`
 ## Examples:
 ```rust
-use hpt_core::{Random, Tensor, TensorError};
+use hpt::{Random, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::rand([10, 10], 0.0, 10.0)?;

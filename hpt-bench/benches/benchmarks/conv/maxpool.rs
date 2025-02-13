@@ -1,9 +1,9 @@
 use candle_core::Tensor as CandleTensor;
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
-use hpt_core::ShapeManipulate;
-use hpt_core::TensorInfo;
-use hpt_core::TensorLike;
-use hpt_core::{NormalPooling, Random, Tensor};
+use hpt::ShapeManipulate;
+use hpt::TensorInfo;
+use hpt::TensorLike;
+use hpt::{NormalPooling, Random, Tensor};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::time::Duration;
 use tch::{Device, Kind, Tensor as TchTensor};

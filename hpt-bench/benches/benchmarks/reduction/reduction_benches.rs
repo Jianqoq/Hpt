@@ -1,8 +1,8 @@
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
-use hpt_core::NormalReduce;
-use hpt_core::TensorInfo;
-use hpt_core::TensorLike;
-use hpt_core::{Random, Tensor};
+use hpt::NormalReduce;
+use hpt::TensorInfo;
+use hpt::TensorLike;
+use hpt::{Random, Tensor};
 use std::time::Duration;
 use tch::{Device, Kind, Tensor as TchTensor};
 
@@ -25,7 +25,7 @@ macro_rules! reduction_bench_mark {
         paste::paste! {
             #[cfg(any(feature = $name, feature = "reduction"))]
             fn [<$name _benchmark>](c: &mut Criterion) {
-                hpt_core::set_num_threads(num_cpus::get_physical());
+                hpt::set_num_threads(num_cpus::get_physical());
                 tch::set_num_threads(num_cpus::get_physical() as i32);
                 let shapes = $shapes;
                 let axes = $axes;

@@ -9,7 +9,7 @@ create a Tensor with data in normal distribution. `mean = 0.0`, `std_dev = 1.0`.
 Tensor with type `T`
 ## Examples:
 ```rust
-use hpt_core::{Random, Tensor, TensorError};
+use hpt::{Random, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::randn([10, 10])?;

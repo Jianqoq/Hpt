@@ -545,7 +545,7 @@ impl FloatOutBinary2 for i32x4 {
     }
 
     #[inline(always)]
-    fn __hypot(self, rhs: Self) -> Self {
+    fn __hypot(self, _: Self) -> Self {
         panic!("Hypot operation is not supported for i32x4");
     }
 }

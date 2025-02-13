@@ -21,7 +21,7 @@ A new tensor of the specified shape, filled with ones.
 
 ## Examples:
 ```rust
-use hpt_core::{Tensor, TensorCreator, TensorError};
+use hpt::{Tensor, TensorCreator, TensorError};
 fn main() -> Result<(), TensorError> {
     // Create a 2D tensor of ones
     let a = Tensor::<f32>::ones(&[2, 3])?;

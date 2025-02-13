@@ -13,9 +13,9 @@ pub mod strided_zip_simd {
     /// A single thread SIMD-optimized zipped iterator combining two iterators over tensor elements.
     ///
     /// # Example
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::StridedIteratorSimd;
-    /// use hpt_core::TensorIterator;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::StridedIteratorSimd;
+    /// use hpt::TensorIterator;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// a.iter_simd().zip(a.iter_simd()).for_each(
     ///     |(x, y)| {

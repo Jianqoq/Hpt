@@ -94,8 +94,10 @@ pub enum ShapeError {
     },
 
     /// Error that occurs when the number of dimensions of a tensor is less than the expected value
-    #[error("Ndim not enough: expected greater than {expected}, got {actual} at {location}")]
+    #[error("Expected greater than {expected}, got {actual} at {location}")]
     NdimNotEnough {
+        /// Message describing the error
+        message: String,
         /// Expected dimension
         expected: usize,
         /// Actual dimension
@@ -163,6 +165,15 @@ pub enum ShapeError {
         /// Location where error occurred
         location: &'static Location<'static>,
     },
+
+    /// Error that occurs when the shape is invalid
+    #[error("Invalid shape: {message} at {location}")]
+    InvalidShape {
+        /// Message describing the invalid shape
+        message: String,
+        /// Location where error occurred
+        location: &'static Location<'static>,
+    },
 }
 
 impl ShapeError {
@@ -197,9 +208,10 @@ impl ShapeError {
 
     /// Check if the number of dimensions of a tensor is greater than the expected value
     #[track_caller]
-    pub fn check_ndim_enough(expected: usize, actual: usize) -> Result<(), Self> {
+    pub fn check_ndim_enough(msg: String, expected: usize, actual: usize) -> Result<(), Self> {
         if expected > actual {
             return Err(Self::NdimNotEnough {
+                message: msg,
                 expected,
                 actual,
                 location: Location::caller(),

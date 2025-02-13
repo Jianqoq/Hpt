@@ -9,7 +9,7 @@ same as `randn` but the shape will be based on `x`.
 Tensor with type `T`
 ## Examples:
 ```rust
-use hpt_core::{Random, Tensor, TensorError};
+use hpt::{Random, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::randn([10, 10])?;

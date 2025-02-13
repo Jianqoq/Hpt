@@ -20,7 +20,7 @@ A new tensor with the specified dimensions flattened into one.
 
 ## Examples:
 ```rust
-use hpt_core::{ShapeManipulate, Tensor, TensorError};
+use hpt::{ShapeManipulate, Tensor, TensorError};
 fn main() -> Result<(), TensorError> {
     // Create a 3D tensor with shape [2, 3, 2]
     let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0,

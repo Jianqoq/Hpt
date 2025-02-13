@@ -20,7 +20,7 @@ Tensor with type `T` containing random integers in the range `[low, high)`.
 
 ## Examples:
 ```rust
-use hpt_core::{RandomInt, Tensor, TensorError};
+use hpt::{RandomInt, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     // Create a 10x10 tensor with random integers between 0 and 100

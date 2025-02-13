@@ -22,7 +22,7 @@ A new tensor with the dimensions reordered according to the inverse of the speci
 
 ## Examples:
 ```rust
-use hpt_core::{ShapeManipulate, Tensor, TensorCreator, TensorError, TensorInfo};
+use hpt::{ShapeManipulate, Tensor, TensorCreator, TensorError, TensorInfo};
 fn main() -> Result<(), TensorError> {
     // Create a tensor with shape [2, 3, 4]
     let a = Tensor::<f32>::zeros(&[2, 3, 4])?;

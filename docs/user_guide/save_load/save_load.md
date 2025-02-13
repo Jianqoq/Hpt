@@ -14,8 +14,8 @@ let a = Tensor::<f32>::randn([1, 100, 100, 100])?;
 let saver = saver.push(
     /*name of the tensor to save*/ "a",
     /*tensor to save*/ a,
-    hpt_core::CompressionAlgo::Gzip,
-    hpt_core::Endian::Little,
+    hpt::CompressionAlgo::Gzip,
+    hpt::Endian::Little,
     /*compression level*/ 9,
 );
 ```
@@ -27,15 +27,15 @@ saver.save()?;
 Final code will be
 
 ```rust
-use hpt_core::{Random, Tensor, TensorSaver};
+use hpt::{Random, Tensor, TensorSaver};
 fn main() -> anyhow::Result<()> {
     let a = Tensor::<f32>::randn([1, 100, 100, 100])?;
     let saver = TensorSaver::new("path/to/save/file");
     let saver = saver.push(
         "a",
         a,
-        hpt_core::CompressionAlgo::Gzip,
-        hpt_core::Endian::Little,
+        hpt::CompressionAlgo::Gzip,
+        hpt::Endian::Little,
         9,
     );
     saver.save()?;
@@ -68,7 +68,7 @@ If you have a struct that contains a Tensor and you want to save a whole struct.
 
 1. Use `Save` and `Load` Derive macro.
 ```rust
-use hpt_core::{Load, Save};
+use hpt::{Load, Save};
 ```
 
 2. Derive the `Save` and `Load` for your struct.

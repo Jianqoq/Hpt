@@ -2,7 +2,7 @@
 
 use std::ops::{Index, IndexMut};
 
-use hpt_core::{
+use hpt::{
     Cast, FloatOutBinary, FloatOutUnary, IntoVec, NormalOut, NormalOutUnary, ShapeManipulate,
     Tensor, TensorCreator, TypeCommon, VecTrait,
 };

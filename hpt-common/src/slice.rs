@@ -264,7 +264,7 @@ pub fn slice_process(
 /// `[::2]`: load all the elements with step 2 along the corresponding dimension
 /// Example:
 /// ```
-/// use hpt_core::prelude::*;
+/// use hpt::prelude::*;
 /// let a = Tensor::<f32>::rand([128, 128, 128])?;
 /// let res = slice!(a[::2]); // load all the elements with step 2 along the first dimension
 /// let res = slice!(a[1:10:2, 2:10:3]); // load from index 1 to index 9 with step 2 for the first dimension, and load from index 2 to index 9 with step 3 for the second dimension

@@ -529,7 +529,7 @@ impl FloatOutBinary2 for i8x16 {
     }
 
     #[inline(always)]
-    fn __hypot(self, rhs: Self) -> Self {
+    fn __hypot(self, _: Self) -> Self {
         panic!("Hypot operation is not supported for i8x16");
     }
 }
@@ -584,7 +584,7 @@ impl NormalOut2 for i8x16 {
 impl NormalOutUnary2 for i8x16 {
     #[inline(always)]
     fn __square(self) -> Self {
-        self.square()
+        self * self
     }
 
     #[inline(always)]

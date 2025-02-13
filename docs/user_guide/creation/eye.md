@@ -18,7 +18,7 @@ A 2-D tensor of shape [n, m] with ones on the k-th diagonal.
 
 ## Examples:
 ```rust
-use hpt_core::{Tensor, TensorError, TensorCreator};
+use hpt::{Tensor, TensorError, TensorCreator};
 fn main() -> Result<(), TensorError> {
     // Create a 3x3 identity matrix (k=0)
     let a = Tensor::<f32>::eye(3, 3, 0)?;

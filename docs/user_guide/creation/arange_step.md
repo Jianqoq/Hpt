@@ -20,7 +20,7 @@ A 1-D tensor with values from `start` to `end-1` with step size `step`.
 
 ## Examples:
 ```rust
-use hpt_core::{Tensor, TensorError, TensorCreator};
+use hpt::{Tensor, TensorError, TensorCreator};
 fn main() -> Result<(), TensorError> {
     // Create sequence with step 2
     let a = Tensor::<f32>::arange_step(0.0, 5.0, 2.0)?;

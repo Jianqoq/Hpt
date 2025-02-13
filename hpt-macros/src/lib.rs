@@ -855,7 +855,7 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
                                 "none" => quote!(NoCompression),
                                 _ => panic!("Unsupported compression algorithm, supported: gzip, deflate, zlib, none"),
                             };
-                            compression_algo = Some(quote!(hpt_core::CompressionAlgo::#algo));
+                            compression_algo = Some(quote!(hpt::CompressionAlgo::#algo));
                         } else if meta.path.is_ident("level") {
                             let value: syn::LitStr = meta.value()?.parse()?;
                             let tmp: u32 = value.value().parse().map_err(|e| {
@@ -870,7 +870,7 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
                                 "big" => quote!(Big),
                                 _ => panic!("Unsupported endianness, supported: native, little, big"),
                             };
-                            endian = Some(quote!(hpt_core::Endian::#tmp));
+                            endian = Some(quote!(hpt::Endian::#tmp));
                         }
                         Ok(())
                     })
@@ -915,19 +915,19 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
     });
 
     let expanded = quote! {
-        #[derive(hpt_core::serde::Deserialize, hpt_core::serde::Serialize)]
+        #[derive(hpt::serde::Deserialize, hpt::serde::Serialize)]
         #visibility struct #meta_name #ty_generics #where_clause  {
             #(#meta_fields,)*
         }
-        impl #impl_generics hpt_core::Save for #name #ty_generics #where_clause {
+        impl #impl_generics hpt::Save for #name #ty_generics #where_clause {
             type Meta = #meta_name #ty_generics;
             fn __save(
                 data: &Self,
                 file: &mut std::fs::File,
                 len_so_far: &mut usize,
                 global_cnt: &mut usize,
-                compression_algo: hpt_core::CompressionAlgo,
-                endian: hpt_core::Endian,
+                compression_algo: hpt::CompressionAlgo,
+                endian: hpt::Endian,
                 level: u32,
             ) -> std::io::Result<Self::Meta> {
                 #(#call_save)*
@@ -977,20 +977,20 @@ pub fn impl_load(input: TokenStream) -> TokenStream {
     });
 
     let expanded = quote! {
-        impl #impl_generics hpt_core::MetaLoad for #meta_name #ty_generics #where_clause {
+        impl #impl_generics hpt::MetaLoad for #meta_name #ty_generics #where_clause {
             type Output = #name #ty_generics;
             fn load(&self, file: &mut std::fs::File) -> std::io::Result<Self::Output> {
-                use hpt_core::MetaLoad;
+                use hpt::MetaLoad;
                 #(#call_load)*
                 Ok(#name {
                     #(#construct_fields),*
                 })
             }
         }
-        impl #impl_generics hpt_core::Load for #name #ty_generics #where_clause {
+        impl #impl_generics hpt::Load for #name #ty_generics #where_clause {
             fn load(path: &str) -> std::io::Result<Self> {
-                use hpt_core::MetaLoad;
-                let meta = hpt_core::parse_header_compressed::<Self>(path).expect(format!("failed to parse header for {}", stringify!(#name)).as_str());
+                use hpt::MetaLoad;
+                let meta = hpt::parse_header_compressed::<Self>(path).expect(format!("failed to parse header for {}", stringify!(#name)).as_str());
                 let mut file = std::fs::File::open(path)?;
                 meta.load(&mut file)
             }

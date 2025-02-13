@@ -1,8 +1,8 @@
 use candle_core::Tensor as CandleTensor;
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
-use hpt_core::TensorInfo;
-use hpt_core::TensorLike;
-use hpt_core::{Conv, Random, Tensor};
+use hpt::TensorInfo;
+use hpt::TensorLike;
+use hpt::{Conv, Random, Tensor};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::time::Duration;
 use tch::{Device, Kind, Tensor as TchTensor};
@@ -18,7 +18,7 @@ fn assert_eq_i64(a: &TchTensor, b: &Tensor<i64>) {
 
 fn conv2d_benchmark(c: &mut Criterion) {
     tch::set_num_threads(num_cpus::get_physical() as i32);
-    hpt_core::set_num_threads(num_cpus::get_physical());
+    hpt::set_num_threads(num_cpus::get_physical());
     let shapes = [
         // (
         //     [

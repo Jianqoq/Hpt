@@ -33,7 +33,7 @@ A new Tensor containing the sliced values.
 
 ## Examples:
 ```rust
-use hpt_core::{ShapeManipulate, Slice, Tensor, TensorCreator, TensorError};
+use hpt::{ShapeManipulate, Slice, Tensor, TensorCreator, TensorError};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::arange(0, 16)?.reshape(&[4, 4])?;
@@ -56,7 +56,7 @@ To simplify the slicing, hpt provides a macro that allows you to write python li
 
 ## Examples:
 ```rust
-use hpt_core::{match_selection, ShapeManipulate, Slice, Tensor, TensorCreator, TensorError};
+use hpt::{match_selection, ShapeManipulate, Slice, Tensor, TensorCreator, TensorError};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::arange(0, 16)?.reshape(&[4, 4])?;

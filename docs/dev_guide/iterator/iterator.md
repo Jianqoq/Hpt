@@ -1,6 +1,6 @@
 ### Iterator
 
-Iterator are implemented using Rayon trait `UnindexedProducer`, the tasks are splitted in [split](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-iterator/src/par_strided.rs#L541) method. The main loop is happened in [fold_with](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-iterator/src/par_strided_zip.rs#L471). Iterator can be used to implement elementwise or broadcast elementwise calculations. Usage can be found at [here](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-core/src/ops/cpu/utils/binary/binary_normal.rs#L46) and [here](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-core/src/ops/cpu/utils/unary/unary.rs#L19)
+Iterator are implemented using Rayon trait `UnindexedProducer`, the tasks are splitted in [split](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-iterator/src/par_strided.rs#L541) method. The main loop is happened in [fold_with](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt-iterator/src/par_strided_zip.rs#L471). Iterator can be used to implement elementwise or broadcast elementwise calculations. Usage can be found at [here](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt/src/ops/cpu/utils/binary/binary_normal.rs#L46) and [here](https://github.com/Jianqoq/Hpt/blob/d9a51874b3447d562b7c9d043b50eb05259b78c4/hpt/src/ops/cpu/utils/unary/unary.rs#L19)
 
 ### Known issue
 

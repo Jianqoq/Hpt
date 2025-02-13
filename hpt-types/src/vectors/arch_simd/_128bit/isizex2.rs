@@ -312,7 +312,7 @@ impl FloatOutBinary2 for ISizeVEC {
     }
 
     #[inline(always)]
-    fn __hypot(self, rhs: Self) -> Self {
+    fn __hypot(self, _: Self) -> Self {
         panic!("Hypot operation is not supported for isizex2");
     }
 }

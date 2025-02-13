@@ -1,8 +1,8 @@
 use std::time::Duration;
 use criterion::{ black_box, criterion_group, criterion_main, BenchmarkId, Criterion };
 use tch::{ Tensor, Kind, Device };
-use hpt_core::tensor_base::_Tensor;
-use hpt_core::TensorInfo;
+use hpt::tensor_base::_Tensor;
+use hpt::TensorInfo;
 
 fn assert_eq(a: &Tensor, b: &_Tensor<f64>) {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
@@ -15,7 +15,7 @@ fn assert_eq(a: &Tensor, b: &_Tensor<f64>) {
 }
 
 fn hann_window_benchmark(c: &mut Criterion) {
-    hpt_core::set_num_threads(num_cpus::get_physical());
+    hpt::set_num_threads(num_cpus::get_physical());
     tch::set_num_threads(num_cpus::get_physical() as i32);
     let lens = [
         2048, 10240, 20480, 40960, 81920, 163840, 327680, 655360, 1310720, 2621440, 5242880,

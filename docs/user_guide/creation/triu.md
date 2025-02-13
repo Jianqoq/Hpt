@@ -17,7 +17,7 @@ A new tensor with the same shape as input, where all elements below the k-th dia
 
 ## Examples:
 ```rust
-use hpt_core::{Tensor, TensorError, ShapeManipulate, TensorCreator};
+use hpt::{Tensor, TensorError, ShapeManipulate, TensorCreator};
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 
                                 4.0, 5.0, 6.0,

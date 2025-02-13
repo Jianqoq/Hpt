@@ -135,6 +135,12 @@ impl FloatOutBinary2 for cplx64x1 {
         let res = [self[0].__log(base[0])];
         cplx64x1(unsafe { std::mem::transmute(res) })
     }
+
+    #[inline(always)]
+    fn __hypot(self, rhs: Self) -> Self {
+        let res = [self[0].__hypot(rhs[0])];
+        cplx64x1(unsafe { std::mem::transmute(res) })
+    }   
 }
 
 impl NormalOut2 for cplx64x1 {
@@ -248,6 +254,12 @@ impl NormalOutUnary2 for cplx64x1 {
     #[inline(always)]
     fn __relu6(self) -> Self {
         let res = [self[0].__relu6()];
+        cplx64x1(unsafe { std::mem::transmute(res) })
+    }
+
+    #[inline(always)]
+    fn __copysign(self, rhs: Self) -> Self {
+        let res = [self[0].__copysign(rhs[0])];
         cplx64x1(unsafe { std::mem::transmute(res) })
     }
 }

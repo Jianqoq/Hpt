@@ -13,7 +13,7 @@ Inverse sine with out
 Tensor with type `C`
 ## Examples:
 ```rust
-use hpt_core::{FloatUnaryOps, Tensor, TensorError};
+use hpt::{FloatUnaryOps, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new([10.0]);

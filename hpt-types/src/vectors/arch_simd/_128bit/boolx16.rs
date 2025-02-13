@@ -203,6 +203,11 @@ impl FloatOutBinary2 for boolx16 {
     fn __log(self, _: Self) -> Self {
         panic!("Logarithm operation is not supported for bool")
     }
+
+    #[inline(always)]
+    fn __hypot(self, _: Self) -> Self {
+        panic!("Hypotenuse operation is not supported for bool")
+    }
 }
 
 impl NormalOut2 for boolx16 {
@@ -306,6 +311,14 @@ impl NormalOutUnary2 for boolx16 {
     #[inline(always)]
     fn __relu6(self) -> Self {
         self
+    }
+    
+    fn __copysign(self, rhs: Self) -> Self {
+        let mut ret = boolx16::default();
+        for i in 0..16 {
+            ret.0[i] = self.0[i] ^ rhs.0[i];
+        }
+        ret
     }
 }
 

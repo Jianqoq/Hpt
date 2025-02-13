@@ -292,10 +292,6 @@ impl SimdMath<usize> for usizex2 {
         self
     }
     #[inline(always)]
-    fn square(self) -> Self {
-        self * self
-    }
-    #[inline(always)]
     fn abs(self) -> Self {
         self
     }
@@ -350,6 +346,11 @@ impl FloatOutBinary2 for USizeVEC {
     #[inline(always)]
     fn __log(self, _: Self) -> Self {
         panic!("Logarithm operation is not supported for i32")
+    }
+
+    #[inline(always)]
+    fn __hypot(self, _: Self) -> Self {
+        panic!("Hypotenuse operation is not supported for usize")
     }
 }
 
@@ -454,6 +455,11 @@ impl NormalOutUnary2 for USizeVEC {
     #[inline(always)]
     fn __relu6(self) -> Self {
         self.relu6()
+    }
+    
+    #[inline(always)]
+    fn __copysign(self, rhs: Self) -> Self {
+        self.abs() * rhs.signum()
     }
 }
 

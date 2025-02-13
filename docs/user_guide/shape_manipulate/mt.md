@@ -14,7 +14,7 @@ A new tensor with all its dimensions reversed.
 
 ## Examples:
 ```rust
-use hpt_core::{ShapeManipulate, Tensor, TensorCreator, TensorError, TensorInfo};
+use hpt::{ShapeManipulate, Tensor, TensorCreator, TensorError, TensorInfo};
 fn main() -> Result<(), TensorError> {
     // 2D tensor example
     let a = Tensor::<f32>::zeros(&[2, 3])?;

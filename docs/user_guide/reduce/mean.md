@@ -26,7 +26,7 @@ Tensor with type `C`
 
 ## Examples:
 ```rust
-use hpt_core::{NormalReduce, Tensor, TensorError};
+use hpt::{NormalReduce, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     // Mean over dimension 0

@@ -57,7 +57,7 @@ Complex64
 
 ### Usage
 
-In hpt-core, all the computation will be done by using these methods. If you are a developer want to implement a new method for Tensor, you will need to use these traits bounds. If you found that implement your new method for Tensor requires to write tons of trait bounds, you probabaly want to implement the method for scalar directly, then use this scalar method in Tensor impl by simply added one trait bound.
+In hpt, all the computation will be done by using these methods. If you are a developer want to implement a new method for Tensor, you will need to use these traits bounds. If you found that implement your new method for Tensor requires to write tons of trait bounds, you probabaly want to implement the method for scalar directly, then use this scalar method in Tensor impl by simply added one trait bound.
 
 ### Simd
 
