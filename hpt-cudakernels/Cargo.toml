@@ -2,14 +2,17 @@
 name = "hpt-cudakernels"
 version = "0.0.1"
 edition = "2021"
+description = "A library implements cuda kernels for hpt"
+authors = ["JianJian Li <ljj1849532909@gmail.com>"]
+repository = "https://github.com/Jianqoq/Hpt"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-phf = { version = "0.11.1", default-features = false }
+phf = { version = "0.11.3", default-features = false }
 
 [build-dependencies]
-phf = { version = "0.11.1", default-features = false }
-phf_codegen = "0.11.1"
+phf = { version = "0.11.3", default-features = false }
+phf_codegen = "0.11.3"
 regex = "1.11.1"
 
 [lib]
