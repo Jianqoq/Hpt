@@ -4,6 +4,9 @@ name = "hpt"
 version = "0.0.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+authors = ["JianJian Li <ljj1849532909@gmail.com>"]
+description = "High Performance Tensor (HPT) - A fast, efficient, and user-friendly tensor computation library for Rust"
+repository = "https://github.com/Jianqoq/Hpt"
 
 [dependencies]
 hpt-types = { path = "../hpt-types", version = "0.0.1" }
