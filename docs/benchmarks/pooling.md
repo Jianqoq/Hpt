@@ -73,6 +73,8 @@ codegen-units = 1
 `10`
 
 # Device specification
-`CPU`: i5-12600k
+`CPU`: 12th Gen Intel(R) Core(TM) i5-12600K   3.69 GHz
 
 `RAM`: G.SKILL Trident Z Royal Series (Intel XMP) DDR4 64GB
+
+`System`: Windows 11 Pro 23H2
