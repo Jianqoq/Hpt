@@ -1,10 +1,10 @@
 #![allow(unused)]
-use hpt_common::slice;
-use hpt_common::slice::Slice;
 use hpt::ShapeManipulate;
 use hpt::Tensor;
 use hpt::TensorLike;
 use hpt::{TensorCreator, TensorInfo};
+use hpt_common::slice;
+use hpt_common::slice::Slice;
 use hpt_macros::match_selection;
 
 #[allow(unused)]

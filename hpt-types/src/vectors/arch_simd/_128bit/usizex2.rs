@@ -456,7 +456,7 @@ impl NormalOutUnary2 for USizeVEC {
     fn __relu6(self) -> Self {
         self.relu6()
     }
-    
+
     #[inline(always)]
     fn __copysign(self, rhs: Self) -> Self {
         self.abs() * rhs.signum()

@@ -1,6 +1,4 @@
 #![allow(unused_imports)]
-use hpt_common::slice;
-use hpt_common::slice::Slice;
 use hpt::Matmul;
 use hpt::Random;
 use hpt::ShapeManipulate;
@@ -8,6 +6,8 @@ use hpt::TensorCmp;
 use hpt::TensorInfo;
 use hpt::TensorLike;
 use hpt::{Tensor, TensorCreator};
+use hpt_common::slice;
+use hpt_common::slice::Slice;
 use hpt_macros::match_selection;
 use rand::Rng;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};

@@ -142,7 +142,7 @@ impl FloatOutBinary2 for cplx32x2 {
         let res = [self[0].__log(base[0]), self[1].__log(base[1])];
         cplx32x2(unsafe { std::mem::transmute(res) })
     }
-    
+
     #[inline(always)]
     fn __hypot(self, rhs: Self) -> Self {
         let res = [self[0].__hypot(rhs[0]), self[1].__hypot(rhs[1])];
@@ -266,7 +266,7 @@ impl NormalOutUnary2 for cplx32x2 {
         let res = [self[0].__relu6(), self[1].__relu6()];
         cplx32x2(unsafe { std::mem::transmute(res) })
     }
-    
+
     #[inline(always)]
     fn __copysign(self, rhs: Self) -> Self {
         let res = [self[0].__copysign(rhs[0]), self[1].__copysign(rhs[1])];

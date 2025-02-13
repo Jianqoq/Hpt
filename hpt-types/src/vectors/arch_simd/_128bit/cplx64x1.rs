@@ -140,7 +140,7 @@ impl FloatOutBinary2 for cplx64x1 {
     fn __hypot(self, rhs: Self) -> Self {
         let res = [self[0].__hypot(rhs[0])];
         cplx64x1(unsafe { std::mem::transmute(res) })
-    }   
+    }
 }
 
 impl NormalOut2 for cplx64x1 {
