@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-hpt-macros = { path = "../hpt-macros" }
+hpt-macros = { path = "../hpt-macros", version = "0.1.0" }
 num-complex = "0.4"
 half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }
 paste = "1.0.15"
