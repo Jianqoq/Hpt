@@ -12,7 +12,7 @@ hpt-common = { path = "../hpt-common", version = "0.0.1" }
 hpt-types = { path = "../hpt-types", version = "0.0.1" }
 anyhow = "1.0.95"
 num = "0.4"
-rand_distr = "0.5.0"
+rand_distr = "0.4.3"
 
 [features]
 track_caller = []

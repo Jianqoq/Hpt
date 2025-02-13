@@ -233,20 +233,20 @@ where
     /// Generates a random number array following the Zipf distribution.
     ///
     /// # Parameters
-    /// - `n`: A `T` value representing the number of elements (size) of the Zipf distribution.
+    /// - `n`: A `u64` value representing the number of elements (size) of the Zipf distribution.
     /// - `a`: A value of type `Self::Meta` representing the exponent parameter of the Zipf distribution.
     /// - `shape`: The shape of the output array, can be converted from `S` into `Shape`.
     #[track_caller]
-    fn zipf<S: Into<Shape>>(n: Self::Meta, a: Self::Meta, shape: S) -> Result<Self, TensorError>;
+    fn zipf<S: Into<Shape>>(n: u64, a: Self::Meta, shape: S) -> Result<Self, TensorError>;
 
     /// Generates a random number array following the Zipf distribution,
     /// with the same shape as the calling instance.
     ///
     /// # Parameters
-    /// - `n`: A `T` value representing the number of elements (size) of the Zipf distribution.
+    /// - `n`: A `u64` value representing the number of elements (size) of the Zipf distribution.
     /// - `a`: A value of type `Self::Meta` representing the exponent parameter of the Zipf distribution.
     #[track_caller]
-    fn zipf_like(&self, n: Self::Meta, a: Self::Meta) -> Result<Self, TensorError>;
+    fn zipf_like(&self, n: u64, a: Self::Meta) -> Result<Self, TensorError>;
 
     /// Generates a random number array following the Triangular distribution.
     ///
