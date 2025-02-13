@@ -486,7 +486,7 @@ impl FloatOutBinary2 for u16x8 {
     }
 
     #[inline(always)]
-    fn __hypot(self, rhs: Self) -> Self {
+    fn __hypot(self, _: Self) -> Self {
         panic!("Hypot operation is not supported for u16x8");
     }
 }

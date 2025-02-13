@@ -493,7 +493,7 @@ mod type_impl {
     not(target_feature = "avx2")
 ))]
 mod type_impl {
-    use super::{Dtype, TypeCommon};
+    use super::TypeCommon;
     #[cfg(feature = "archsimd")]
     use crate::vectors::arch_simd as simd;
     #[cfg(feature = "stdsimd")]

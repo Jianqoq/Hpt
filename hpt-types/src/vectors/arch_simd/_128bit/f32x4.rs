@@ -633,10 +633,6 @@ impl SimdMath<f32> for f32x4 {
     fn softsign(self) -> Self {
         self / (Self::splat(1.0) + self.abs())
     }
-    #[inline(always)]
-    fn copysign(self, rhs: Self) -> Self {
-        unsafe { xcopysignf(self.0, rhs.0) }
-    }
 }
 
 impl VecConvertor for f32x4 {
