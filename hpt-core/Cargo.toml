@@ -6,7 +6,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-hpt-types = { path = "../hpt-types", version = "0.1.0" }
+hpt-types = { path = "../hpt-types", version = "0.0.1" }
 hpt-common = { path = "../hpt-common", version = "0.1.0" }
 hpt-iterator = { path = "../hpt-iterator", version = "0.1.0" }
 hpt-traits = { path = "../hpt-traits", version = "0.1.0" }
