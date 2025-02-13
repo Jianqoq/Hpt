@@ -164,7 +164,10 @@ where
             });
             Ok(grid)
         } else {
-            anyhow::bail!("Shape must be 4D")
+            return Err(TensorError::Shape(ShapeError::InvalidShape {
+                message: "Shape must be 4D".to_string(),
+                location: &Location::caller(),
+            }));
         }
     }
 }
@@ -200,7 +203,7 @@ where
         &self,
         shape: S,
         align_corners: bool,
-    ) -> anyhow::Result<Tensor<T>> {
+    ) -> Result<Tensor<T>, TensorError> {
         Ok(self.inner.affine_grid(shape, align_corners)?.into())
     }
 }
