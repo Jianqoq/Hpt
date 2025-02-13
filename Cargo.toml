@@ -24,7 +24,7 @@ members = [
 ]
 
 [dependencies]
-hpt = { path = "hpt", features = ["track_caller", "codegen"] }
+hpt = { path = "hpt", features = ["track_caller"] }
 hpt-common = { path = "hpt-common" }
 anyhow = "1.0.40"
 half = "2.4.1"

@@ -17,7 +17,7 @@ hpt-allocator = { path = "../hpt-allocator", version = "0.0.1" }
 hpt-macros = { path = "../hpt-macros", version = "0.0.1" }
 hpt-display = { path = "../hpt-display", version = "0.0.1" }
 hpt-cudakernels = { path = "../hpt-cudakernels", version = "0.0.1", optional = true }
-hpt-codegen = { path = "../hpt-codegen", version = "0.0.1", optional = true }
+# hpt-codegen = { path = "../hpt-codegen", version = "0.0.1", optional = true }
 hpt-dataloader = { path = "../hpt-dataloader", version = "0.0.1" }
 flate2 = "1.0.28"
 rand_distr = "0.4.3"
@@ -72,7 +72,7 @@ cuda = [
     "hpt-types/cuda",
     "hpt-macros/cuda",
 ]
-codegen = ["hpt-codegen"]
+# codegen = ["hpt-codegen"]
 
 [package.metadata.rust-analyzer]
 rustc_private = true
