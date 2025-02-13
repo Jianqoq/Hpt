@@ -1,4 +1,4 @@
-use hpt_core::Tensor;
+use hpt::Tensor;
 
 pub(crate) fn assert_f64(
     a: f64,

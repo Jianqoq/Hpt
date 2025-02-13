@@ -3,7 +3,7 @@ use core::f64;
 
 use backend::Cpu;
 use duplicate::duplicate_item;
-use hpt_core::*;
+use hpt::*;
 use hpt_common::slice;
 use hpt_common::slice::Slice;
 use rand::Rng;

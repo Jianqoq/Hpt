@@ -1,9 +1,9 @@
 #![allow(unused_imports)]
-use hpt_core::ShapeManipulate;
-use hpt_core::TensorInfo;
-use hpt_core::TensorLike;
-use hpt_core::WindowOps;
-use hpt_core::{Tensor, TensorCreator};
+use hpt::ShapeManipulate;
+use hpt::TensorInfo;
+use hpt::TensorLike;
+use hpt::WindowOps;
+use hpt::{Tensor, TensorCreator};
 use hpt_common::slice;
 use hpt_common::slice::Slice;
 use hpt_macros::match_selection;

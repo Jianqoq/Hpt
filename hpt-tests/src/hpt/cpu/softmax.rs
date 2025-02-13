@@ -1,10 +1,10 @@
 #![allow(unused)]
 use duplicate::duplicate_item;
-use hpt_core::set_global_display_lr_elements;
-use hpt_core::TensorInfo;
-use hpt_core::TensorLike;
-use hpt_core::{backend::Cpu, TensorCreator};
-use hpt_core::{set_num_threads, ShapeManipulate};
+use hpt::set_global_display_lr_elements;
+use hpt::TensorInfo;
+use hpt::TensorLike;
+use hpt::{backend::Cpu, TensorCreator};
+use hpt::{set_num_threads, ShapeManipulate};
 use hpt_common::slice;
 use hpt_common::slice::Slice;
 use hpt_macros::match_selection;

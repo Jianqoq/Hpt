@@ -1,11 +1,11 @@
 #![allow(unused_imports)]
-use hpt_core::Matmul;
-use hpt_core::Random;
-use hpt_core::ShapeManipulate;
-use hpt_core::TensorCmp;
-use hpt_core::TensorInfo;
-use hpt_core::TensorLike;
-use hpt_core::{Tensor, TensorCreator};
+use hpt::Matmul;
+use hpt::Random;
+use hpt::ShapeManipulate;
+use hpt::TensorCmp;
+use hpt::TensorInfo;
+use hpt::TensorLike;
+use hpt::{Tensor, TensorCreator};
 use hpt_common::slice;
 use hpt_common::slice::Slice;
 use hpt_macros::match_selection;
