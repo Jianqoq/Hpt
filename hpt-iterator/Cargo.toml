@@ -1,13 +1,13 @@
 [package]
 name = "hpt-iterator"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-hpt-common = { path = "../hpt-common" }
+hpt-common = { path = "../hpt-common", version = "0.0.1" }
 hpt-traits = { path = "../hpt-traits", default-features = false }
-hpt-types = { path = "../hpt-types" }
+hpt-types = { path = "../hpt-types", version = "0.0.1" }
 rayon = "1.8.0"
 
 [features]
