@@ -1,9 +1,8 @@
 use std::{
-    ops::{Add, Div, Mul, Neg, Sub},
-    sync::{Arc, Barrier},
+    ops::{Add, Div, Mul, Neg, Sub}, panic::Location, sync::{Arc, Barrier}
 };
 
-use hpt_common::{shape::shape::Shape, shape::shape_utils::mt_intervals};
+use hpt_common::{error::{base::TensorError, shape::ShapeError}, shape::{shape::Shape, shape_utils::mt_intervals}};
 use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
 use hpt_types::{dtype::FloatConst, into_scalar::Cast};
 
@@ -40,7 +39,7 @@ where
         &self,
         shape: S,
         align_corners: bool,
-    ) -> anyhow::Result<_Tensor<T>> {
+    ) -> Result<_Tensor<T>, TensorError> {
         let shape: Vec<i64> = shape.into().inner().clone();
         let theta_strides = self.strides();
         let theta_shape = self.shape();
@@ -50,7 +49,10 @@ where
                 || theta_shape[1] != 2i64
                 || theta_shape[2] != 3i64
             {
-                anyhow::bail!("Theta shape must be [n, 2, 3]");
+                return Err(TensorError::Shape(ShapeError::InvalidShape {
+                    message: "Theta shape must be [n, 2, 3]".to_string(),
+                    location: &Location::caller(),
+                }));
             }
             let n = shape[0];
             let h = shape[2];

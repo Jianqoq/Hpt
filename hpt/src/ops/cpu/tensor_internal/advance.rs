@@ -502,13 +502,13 @@ where
 
     fn dropout(&self, rate: f64) -> Result<Self::Output, TensorError> {
         let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(self.shape())?;
-        let bernoli = rand::distributions::Bernoulli::new(rate)
+        let bernoli = rand_distr::Bernoulli::new(rate)
             .expect("Failed to create Bernoulli distribution for dropout");
         let scale: T = (1.0 / (1.0 - rate)).cast();
         ret.par_iter_mut_simd()
             .zip(self.par_iter_simd())
             .for_each_init(
-                || rand::thread_rng(),
+                || rand::rng(),
                 |rng, (ret, val)| {
                     let mask = bernoli.sample(rng);
                     *ret = val._mul(mask)._mul(scale);

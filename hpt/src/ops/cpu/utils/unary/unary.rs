@@ -280,7 +280,7 @@ where
     ///
     /// This function returns a `Result` containing a tensor of type `_Tensor<<T as Eval>::Output>`,
     /// where each element is either `1` (if the corresponding element is `inf`) or `0` (if it is not).
-    pub fn is_inf(&self) -> anyhow::Result<Tensor<<T as Eval>::Output>> {
+    pub fn is_inf(&self) -> Result<Tensor<<T as Eval>::Output>, TensorError> {
         Ok(self.inner.is_inf()?.into())
     }
 
@@ -294,7 +294,7 @@ where
     ///
     /// This function returns a `Result` containing a tensor of type `_Tensor<<T as Eval>::Output>`,
     /// where each element is either `1` (if the corresponding element is `NaN`) or `0` (if it is not).
-    pub fn is_nan(&self) -> anyhow::Result<Tensor<<T as Eval>::Output>> {
+    pub fn is_nan(&self) -> Result<Tensor<<T as Eval>::Output>, TensorError> {
         Ok(self.inner.is_nan()?.into())
     }
 }
@@ -320,7 +320,7 @@ where
     /// This function returns a `Result` containing a new tensor with the cumulative sum computed along the specified axis.
     #[allow(unused)]
     #[track_caller]
-    pub fn cumsum<A: Into<Option<i64>>>(&self, axis: A) -> anyhow::Result<Self>
+    pub fn cumsum<A: Into<Option<i64>>>(&self, axis: A) -> Result<Self, TensorError>
     where
         T: NormalOut<T, Output = T>,
     {
@@ -344,7 +344,7 @@ where
     /// This function returns a `Result` containing a new tensor with the cumulative product computed along the specified axis.
     #[allow(unused)]
     #[track_caller]
-    pub fn cumprod<A: Into<Option<i64>>>(&self, axis: A) -> anyhow::Result<Self>
+    pub fn cumprod<A: Into<Option<i64>>>(&self, axis: A) -> Result<Self, TensorError>
     where
         T: NormalOut<T, Output = T>,
     {

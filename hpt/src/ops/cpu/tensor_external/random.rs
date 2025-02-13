@@ -9,7 +9,7 @@ use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_traits::{CommonBounds, Random, RandomInt};
 use hpt_types::into_scalar::Cast;
 use rand_distr::{
-    uniform::SampleUniform, Distribution, Exp1, Open01, OpenClosed01, Standard, StandardNormal,
+    uniform::SampleUniform, Distribution, Exp1, Open01, OpenClosed01, StandardUniform, StandardNormal,
 };
 
 impl<T, const DEVICE: usize> Random for Tensor<T, Cpu, DEVICE>
@@ -20,7 +20,7 @@ where
     Open01: Distribution<T>,
     Exp1: Distribution<T>,
     OpenClosed01: Distribution<T>,
-    Standard: Distribution<T>,
+    StandardUniform: Distribution<T>,
 {
     type Meta = T;
 
@@ -148,11 +148,11 @@ where
         Ok(_Tensor::weibull_like(self.inner.as_ref(), a, b)?.into())
     }
 
-    fn zipf<S: Into<Shape>>(n: u64, a: Self::Meta, shape: S) -> Result<Self, TensorError> {
+    fn zipf<S: Into<Shape>>(n: T, a: Self::Meta, shape: S) -> Result<Self, TensorError> {
         Ok(_Tensor::zipf(n, a, shape)?.into())
     }
 
-    fn zipf_like(&self, n: u64, a: Self::Meta) -> Result<Self, TensorError> {
+    fn zipf_like(&self, n: T, a: Self::Meta) -> Result<Self, TensorError> {
         Ok(_Tensor::zipf_like(self.inner.as_ref(), n, a)?.into())
     }
 
@@ -216,7 +216,7 @@ where
     Open01: Distribution<T>,
     Exp1: Distribution<T>,
     OpenClosed01: Distribution<T>,
-    Standard: Distribution<T>,
+    StandardUniform: Distribution<T>,
 {
     type Meta = T;
 
@@ -464,7 +464,7 @@ where
         })
     }
 
-    fn zipf<S: Into<Shape>>(n: u64, a: Self::Meta, shape: S) -> Result<Self, TensorError> {
+    fn zipf<S: Into<Shape>>(n: T, a: Self::Meta, shape: S) -> Result<Self, TensorError> {
         Ok(DiffTensor {
             inner: Tensor::zipf(n, a, shape)?,
             grad: Rc::new(RefCell::new(None)),
@@ -473,7 +473,7 @@ where
         })
     }
 
-    fn zipf_like(&self, n: u64, a: Self::Meta) -> Result<Self, TensorError> {
+    fn zipf_like(&self, n: T, a: Self::Meta) -> Result<Self, TensorError> {
         Ok(DiffTensor {
             inner: self.inner.zipf_like(n, a)?,
             grad: Rc::new(RefCell::new(None)),

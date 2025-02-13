@@ -198,7 +198,7 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
 
 impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     /// cast the tensor to the new type
-    pub fn astype<U>(&self) -> anyhow::Result<Tensor<U, Cpu, DEVICE>>
+    pub fn astype<U>(&self) -> Result<Tensor<U, Cpu, DEVICE>, TensorError>
     where
         U: CommonBounds,
         T: Cast<U>,
@@ -216,7 +216,7 @@ impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     }
 
     /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
-    pub fn static_cast<Dst>(&self) -> anyhow::Result<Tensor<Dst, Cpu, DEVICE>>
+    pub fn static_cast<Dst>(&self) -> Result<Tensor<Dst, Cpu, DEVICE>, TensorError>
     where
         Dst: CommonBounds,
     {

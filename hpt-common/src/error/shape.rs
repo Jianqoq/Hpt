@@ -165,6 +165,15 @@ pub enum ShapeError {
         /// Location where error occurred
         location: &'static Location<'static>,
     },
+
+    /// Error that occurs when the shape is invalid
+    #[error("Invalid shape: {message} at {location}")]
+    InvalidShape {
+        /// Message describing the invalid shape
+        message: String,
+        /// Location where error occurred
+        location: &'static Location<'static>,
+    },
 }
 
 impl ShapeError {
