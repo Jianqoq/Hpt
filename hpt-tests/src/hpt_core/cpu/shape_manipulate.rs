@@ -1,8 +1,8 @@
 #![allow(unused_imports)]
-use hpt_core::ShapeManipulate;
-use hpt_core::TensorInfo;
-use hpt_core::TensorLike;
-use hpt_core::{Tensor, TensorCreator};
+use hpt::ShapeManipulate;
+use hpt::TensorInfo;
+use hpt::TensorLike;
+use hpt::{Tensor, TensorCreator};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 #[allow(unused)]

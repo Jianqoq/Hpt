@@ -1,4 +1,4 @@
-use hpt_core::{CompressionAlgo, Endian, Random, Tensor, TensorError, TensorLoader, TensorSaver};
+use hpt::{CompressionAlgo, Endian, Random, Tensor, TensorError, TensorLoader, TensorSaver};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::randn([10, 10])?;

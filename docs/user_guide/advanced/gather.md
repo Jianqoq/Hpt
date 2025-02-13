@@ -22,7 +22,7 @@ A new tensor containing the gathered values.
 
 ## Examples:
 ```rust
-use hpt_core::{Tensor, TensorCreator, TensorError, AdvancedOps};
+use hpt::{Tensor, TensorCreator, TensorError, AdvancedOps};
 
 fn main() -> Result<(), TensorError> {
     // Create a sample tensor

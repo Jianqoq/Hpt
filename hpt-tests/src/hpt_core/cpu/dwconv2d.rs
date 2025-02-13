@@ -1,9 +1,9 @@
 #![allow(unused)]
-use hpt_core::NormalOutUnary;
-use hpt_core::ShapeManipulate;
-use hpt_core::TensorLike;
-use hpt_core::{set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo};
-use hpt_core::{Conv, Tensor, TensorCreator};
+use hpt::NormalOutUnary;
+use hpt::ShapeManipulate;
+use hpt::TensorLike;
+use hpt::{set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo};
+use hpt::{Conv, Tensor, TensorCreator};
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};

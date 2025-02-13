@@ -1,8 +1,8 @@
 #[test]
 fn test_gather() -> anyhow::Result<()> {
-    use hpt_core::AdvancedOps;
-    use hpt_core::TensorCreator;
-    use hpt_core::TensorLike;
+    use hpt::AdvancedOps;
+    use hpt::TensorCreator;
+    use hpt::TensorLike;
     use rand::Rng;
     let mut rng = rand::thread_rng();
     let ndim = rng.gen_range(1..=3);
@@ -10,7 +10,7 @@ fn test_gather() -> anyhow::Result<()> {
         let dim_size = rng.gen_range(2..=8);
         let shape = (0..ndim).map(|_| dim_size).collect::<Vec<_>>();
         let input = tch::Tensor::randn(&shape, (tch::Kind::Float, tch::Device::Cpu));
-        let mut hpt_input = hpt_core::Tensor::<f32>::empty(&shape)?;
+        let mut hpt_input = hpt::Tensor::<f32>::empty(&shape)?;
         hpt_input.as_raw_mut().copy_from_slice(unsafe {
             std::slice::from_raw_parts(input.data_ptr() as *const f32, input.numel())
         });
@@ -20,7 +20,7 @@ fn test_gather() -> anyhow::Result<()> {
             &shape,
             (tch::Kind::Int64, tch::Device::Cpu),
         );
-        let mut hpt_indices = hpt_core::Tensor::<i64>::empty(&shape)?;
+        let mut hpt_indices = hpt::Tensor::<i64>::empty(&shape)?;
         hpt_indices.as_raw_mut().copy_from_slice(unsafe {
             std::slice::from_raw_parts(indices.data_ptr() as *const i64, indices.numel())
         });

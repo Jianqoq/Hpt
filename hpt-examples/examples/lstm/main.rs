@@ -1,4 +1,4 @@
-use hpt_core::{
+use hpt::{
     match_selection, set_num_threads, FloatOutUnary, Matmul, NormalBinOps,
     ParStridedIteratorSimdZip, Random, ShapeManipulate, Slice, Tensor, TensorCreator, TensorError,
     TensorInfo, TensorIterator,

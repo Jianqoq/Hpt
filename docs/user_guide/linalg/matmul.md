@@ -21,7 +21,7 @@ A new Tensor containing the result of matrix multiplication.
 
 ## Examples:
 ```rust
-use hpt_core::{Matmul, Tensor, TensorCreator, TensorError};
+use hpt::{Matmul, Tensor, TensorCreator, TensorError};
 
 fn main() -> Result<(), TensorError> {
     // 2D matrix multiplication

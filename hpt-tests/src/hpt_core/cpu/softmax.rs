@@ -2,11 +2,11 @@
 use duplicate::duplicate_item;
 use hpt_common::slice;
 use hpt_common::slice::Slice;
-use hpt_core::set_global_display_lr_elements;
-use hpt_core::TensorInfo;
-use hpt_core::TensorLike;
-use hpt_core::{backend::Cpu, TensorCreator};
-use hpt_core::{set_num_threads, ShapeManipulate};
+use hpt::set_global_display_lr_elements;
+use hpt::TensorInfo;
+use hpt::TensorLike;
+use hpt::{backend::Cpu, TensorCreator};
+use hpt::{set_num_threads, ShapeManipulate};
 use hpt_macros::match_selection;
 use rand::Rng;
 use tch::Tensor;
@@ -15,7 +15,7 @@ use super::assert_utils::assert_f64;
 
 #[allow(unused)]
 #[track_caller]
-fn assert_eq_f64(hpt_res: &hpt_core::tensor::Tensor<f64>, tch_res: &Tensor) {
+fn assert_eq_f64(hpt_res: &hpt::tensor::Tensor<f64>, tch_res: &Tensor) {
     let a_raw = if hpt_res.strides().contains(&0) {
         let size = hpt_res
             .shape()
@@ -36,8 +36,8 @@ fn assert_eq_f64(hpt_res: &hpt_core::tensor::Tensor<f64>, tch_res: &Tensor) {
 fn common_input(
     end: i64,
     shape: &[i64],
-) -> anyhow::Result<(hpt_core::tensor::Tensor<f64>, Tensor)> {
-    let a = hpt_core::tensor::Tensor::<f64>::arange(0, end)?.reshape(shape)?;
+) -> anyhow::Result<(hpt::tensor::Tensor<f64>, Tensor)> {
+    let a = hpt::tensor::Tensor::<f64>::arange(0, end)?.reshape(shape)?;
     let tch_a = Tensor::arange(end, (tch::Kind::Double, tch::Device::Cpu)).reshape(shape);
     Ok((a, tch_a))
 }

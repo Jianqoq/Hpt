@@ -20,7 +20,7 @@ A new tensor with padding applied.
 
 ## Examples:
 ```rust
-use hpt_core::{AdvancedOps, Tensor, TensorError};
+use hpt::{AdvancedOps, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     let x = Tensor::<f64>::new(&[[1., 2.], [3., 4.]]); // 2x2 matrix

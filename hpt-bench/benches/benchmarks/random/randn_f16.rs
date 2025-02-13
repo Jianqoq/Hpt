@@ -1,10 +1,10 @@
 use criterion::{ black_box, criterion_group, criterion_main, BenchmarkId, Criterion };
 use tch::{ Tensor, Kind, Device };
-use hpt_core::{ tensor_base::_Tensor, Random };
+use hpt::{ tensor_base::_Tensor, Random };
 use half::f16;
 
 fn random_f16_benchmark(c: &mut Criterion) {
-    tch::set_num_threads(hpt_core::get_num_threads() as i32);
+    tch::set_num_threads(hpt::get_num_threads() as i32);
     let shapes = [
         [8, 8, 8],
         [16, 16, 16],

@@ -1,4 +1,4 @@
-use hpt_core::{
+use hpt::{
     ParStridedIteratorSimdZip, ParStridedIteratorZip, Random, Tensor, TensorCreator, TensorError,
     TensorIterator,
 };

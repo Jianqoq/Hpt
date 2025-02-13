@@ -1,8 +1,8 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use hpt_core::Tensor;
-use hpt_core::TensorInfo;
-use hpt_core::TensorLike;
-use hpt_core::WindowOps;
+use hpt::Tensor;
+use hpt::TensorInfo;
+use hpt::TensorLike;
+use hpt::WindowOps;
 use std::time::Duration;
 use tch::{Device, Kind, Tensor as TchTensor};
 
@@ -17,7 +17,7 @@ fn assert_eq(a: &TchTensor, b: &Tensor<f64>) {
 }
 
 fn hamming_window_benchmark(c: &mut Criterion) {
-    hpt_core::set_num_threads(num_cpus::get_physical());
+    hpt::set_num_threads(num_cpus::get_physical());
     tch::set_num_threads(num_cpus::get_physical() as i32);
     let lens = [
         2048, 10240, 20480, 40960, 81920, 163840, 327680, 655360, 1310720, 2621440, 5242880,
@@ -43,7 +43,7 @@ fn hamming_window_benchmark(c: &mut Criterion) {
             BenchmarkId::new("hpt", format!("hpt {}", idx)),
             &lens,
             |b, _| {
-                b.iter(|| hpt_core::tensor::Tensor::<f32>::hamming_window(lens, false).unwrap());
+                b.iter(|| hpt::tensor::Tensor::<f32>::hamming_window(lens, false).unwrap());
             },
         );
         let a = black_box(TchTensor::hamming_window_periodic(
@@ -51,7 +51,7 @@ fn hamming_window_benchmark(c: &mut Criterion) {
             false,
             (Kind::Double, Device::Cpu),
         ));
-        let a2 = black_box(hpt_core::tensor::Tensor::<f64>::hamming_window(lens, false).unwrap());
+        let a2 = black_box(hpt::tensor::Tensor::<f64>::hamming_window(lens, false).unwrap());
         assert_eq(&a, &a2);
     }
 

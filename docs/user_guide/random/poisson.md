@@ -17,7 +17,7 @@ Tensor with type `T` containing random values from the Poisson distribution.
 
 ## Examples:
 ```rust
-use hpt_core::{Random, Tensor, TensorError};
+use hpt::{Random, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     // Create a 10x10 tensor with Poisson distribution (λ=5.0)

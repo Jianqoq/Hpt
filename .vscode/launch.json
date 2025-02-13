@@ -87,7 +87,7 @@
             "type": "cppdbg",
             "request": "launch",
             "MIMode": "gdb",
-            "name": "Debug unit tests in library 'hpt_core'",
+            "name": "Debug unit tests in library 'hpt'",
             "cargo": {
                 "args": [
                     "test",
@@ -96,7 +96,7 @@
                     "--package=hpt"
                 ],
                 "filter": {
-                    "name": "hpt_core",
+                    "name": "hpt",
                     "kind": "lib"
                 }
             },

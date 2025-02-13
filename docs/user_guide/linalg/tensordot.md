@@ -23,7 +23,7 @@ A new Tensor containing the result of the tensor dot product.
 
 ## Examples:
 ```rust
-use hpt_core::{Tensor, TensorCreator, TensorDot, TensorError};
+use hpt::{Tensor, TensorCreator, TensorDot, TensorError};
 
 fn main() -> Result<(), TensorError> {
     // Matrix multiplication (2D tensordot)

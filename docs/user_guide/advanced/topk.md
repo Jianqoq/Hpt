@@ -28,7 +28,7 @@ A tuple of two tensors:
 
 ## Examples:
 ```rust
-use hpt_core::{Tensor, TensorError, AdvancedOps};
+use hpt::{Tensor, TensorError, AdvancedOps};
 
 fn main() -> Result<(), TensorError> {
     let x = Tensor::<f64>::new(&[5., 2., 8., 1., 9., 3.]);

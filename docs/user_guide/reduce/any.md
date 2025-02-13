@@ -26,7 +26,7 @@ Tensor with type `bool`
 
 ## Examples:
 ```rust
-use hpt_core::{EvalReduce, Tensor, TensorError};
+use hpt::{EvalReduce, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     // Max over dimension 0

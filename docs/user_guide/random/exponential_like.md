@@ -17,7 +17,7 @@ Tensor with type `T` containing random values from the exponential distribution.
 
 ## Examples:
 ```rust
-use hpt_core::{Random, Tensor, TensorError};
+use hpt::{Random, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     // Create an initial tensor

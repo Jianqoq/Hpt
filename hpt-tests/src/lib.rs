@@ -1,4 +1,4 @@
-pub mod hpt_core {
+pub mod hpt {
     pub mod cpu {
         pub mod adaptive_avg_pool;
         pub mod adaptive_max_pool;

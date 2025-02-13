@@ -26,7 +26,7 @@ A new tensor with an additional dimension of size `depth`.
 
 ## Examples:
 ```rust
-use hpt_core::{Tensor, TensorError, AdvancedOps};
+use hpt::{Tensor, TensorError, AdvancedOps};
 
 fn main() -> Result<(), TensorError> {
     let indices = Tensor::<i64>::new(&[1, 0, 2]);

@@ -20,7 +20,7 @@ A new tensor with elements selected from `x` and `y` based on the condition.
 
 ## Examples:
 ```rust
-use hpt_core::{Tensor, TensorError, TensorWhere};
+use hpt::{Tensor, TensorError, TensorWhere};
 
 fn main() -> Result<(), TensorError> {
     let condition = Tensor::<bool>::new(&[true, false, true]);

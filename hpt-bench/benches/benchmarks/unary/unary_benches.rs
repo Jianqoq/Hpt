@@ -1,12 +1,12 @@
 use crate::benchmarks::unary::float_cmp::assert_eq;
 use candle_core::Tensor as CandleTensor;
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
-use hpt_core::FloatUnaryOps;
-use hpt_core::NormalUaryOps;
-use hpt_core::TensorCreator;
-use hpt_core::TensorInfo;
-use hpt_core::TensorLike;
-use hpt_core::{Random, Tensor};
+use hpt::FloatUnaryOps;
+use hpt::NormalUaryOps;
+use hpt::TensorCreator;
+use hpt::TensorInfo;
+use hpt::TensorLike;
+use hpt::{Random, Tensor};
 use ndarray::{Array, Zip};
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
@@ -23,7 +23,7 @@ macro_rules! unary_bench_mark {
         paste::paste! {
             #[cfg(any(feature = $name, feature = "unary"))]
             fn [<$name _benchmark>](c: &mut Criterion) {
-                hpt_core::set_num_threads(num_cpus::get_physical());
+                hpt::set_num_threads(num_cpus::get_physical());
                 tch::set_num_threads(num_cpus::get_physical() as i32);
                 let shapes = $shapes;
 

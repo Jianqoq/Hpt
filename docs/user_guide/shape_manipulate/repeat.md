@@ -20,7 +20,7 @@ A new tensor with repeated elements along the specified axis.
 
 ## Examples:
 ```rust
-use hpt_core::{ShapeManipulate, Tensor, TensorError};
+use hpt::{ShapeManipulate, Tensor, TensorError};
 fn main() -> Result<(), TensorError> {
     // Create a 2D tensor
     let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2])?;

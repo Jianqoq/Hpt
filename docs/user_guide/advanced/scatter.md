@@ -23,7 +23,7 @@ A new tensor with scattered values.
 
 ## Examples:
 ```rust
-use hpt_core::{Tensor, TensorCreator, TensorError, AdvancedOps};
+use hpt::{Tensor, TensorCreator, TensorError, AdvancedOps};
 
 fn main() -> Result<(), TensorError> {
     let x = Tensor::<f64>::zeros(&[3, 5])?;  // base tensor

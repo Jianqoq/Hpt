@@ -22,7 +22,7 @@ A new tensor with expanded dimensions.
 
 ## Examples:
 ```rust
-use hpt_core::{ShapeManipulate, Tensor, TensorCreator, TensorError, TensorInfo};
+use hpt::{ShapeManipulate, Tensor, TensorCreator, TensorError, TensorInfo};
 fn main() -> Result<(), TensorError> {
     // Create a tensor with shape [1, 3, 1]
     let a = Tensor::<f32>::zeros(&[1, 3, 1])?;

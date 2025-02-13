@@ -23,7 +23,7 @@ Tensor with type `T` containing random values from the triangular distribution.
 
 ## Examples:
 ```rust
-use hpt_core::{Random, Tensor, TensorError};
+use hpt::{Random, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     // Create a 10x10 tensor with triangular distribution (low=0.0, high=10.0, mode=5.0)

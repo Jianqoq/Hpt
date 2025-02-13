@@ -17,7 +17,7 @@ A new tensor with the same shape as input, where some elements are set to zero.
 
 ## Examples:
 ```rust
-use hpt_core::{Tensor, TensorCreator, TensorError, AdvancedOps};
+use hpt::{Tensor, TensorCreator, TensorError, AdvancedOps};
 
 fn main() -> Result<(), TensorError> {
     let x = Tensor::<f32>::ones(&[3, 4])?;

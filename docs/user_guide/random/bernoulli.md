@@ -17,7 +17,7 @@ Tensor with type `T` containing random values (0 or 1) from the Bernoulli distri
 
 ## Examples:
 ```rust
-use hpt_core::{Random, Tensor, TensorError};
+use hpt::{Random, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     // Create a 10x10 tensor with Bernoulli distribution (p=0.7)

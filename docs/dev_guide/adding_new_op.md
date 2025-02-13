@@ -8,6 +8,6 @@ Tensor operators are define in `tensor-traits` crate. If you want to implement n
 
 3. Ensure performance is ideal by comparing with other frameworks
 
-4. Write test cases at [here](https://github.com/Jianqoq/Hpt/tree/main/hpt-tests/src/hpt_core). Make sure to follow the Dev Guide test cases rules.
+4. Write test cases at [here](https://github.com/Jianqoq/Hpt/tree/main/hpt-tests/src/hpt). Make sure to follow the Dev Guide test cases rules.
 
 5. commit and make a pull request

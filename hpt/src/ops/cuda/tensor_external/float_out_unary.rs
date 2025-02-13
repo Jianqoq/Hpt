@@ -44,8 +44,8 @@ where
     /// * This function may panic if the tensor contains invalid values for the sine function, such as `NaN` values.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.sin().unwrap();
     /// ```
@@ -69,8 +69,8 @@ where
     /// * This function may panic if the tensor contains invalid values for the cos function, such as `NaN` values.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.cos().unwrap();
     /// ```
@@ -94,8 +94,8 @@ where
     /// * This function may panic if the tensor contains invalid values for the tan function, such as `NaN` values.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.tan().unwrap();
     /// ```
@@ -119,8 +119,8 @@ where
     /// * This function may panic if the tensor contains invalid values for the asin function, such as `NaN` values.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.asin().unwrap();
     /// ```
@@ -144,8 +144,8 @@ where
     /// * This function may panic if the tensor contains invalid values for the acos function, such as `NaN` values.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.acos().unwrap();
     /// ```
@@ -169,8 +169,8 @@ where
     /// * This function may panic if the tensor contains invalid values for the atan function, such as `NaN` values.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.atan().unwrap();
     /// ```
@@ -194,8 +194,8 @@ where
     /// * This function may panic if the tensor contains invalid values for the sinh function, such as `NaN` values.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.sinh().unwrap();
     /// ```
@@ -219,8 +219,8 @@ where
     /// * This function may panic if the tensor contains invalid values for the cosh function, such as `NaN` values.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.cosh().unwrap();
     /// ```
@@ -244,8 +244,8 @@ where
     /// * This function may panic if the tensor contains invalid values for the tanh function, such as `NaN` values.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.tanh().unwrap();
     /// ```
@@ -269,8 +269,8 @@ where
     /// * This function may panic if the tensor contains invalid values for the asinh function, such as `NaN` values.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.asinh().unwrap();
     /// ```
@@ -294,8 +294,8 @@ where
     /// * This function may panic if the tensor contains invalid values for the acosh function, such as `NaN` values.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.acosh().unwrap();
     /// ```
@@ -319,8 +319,8 @@ where
     /// * This function may panic if the tensor contains invalid values for the atanh function, such as `NaN` values.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.atanh().unwrap();
     /// ```
@@ -427,8 +427,8 @@ where
     /// * This function may panic if the tensor contains values that would result in an overflow when calculating the exponential.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.exp().unwrap();
     /// ```
@@ -463,8 +463,8 @@ where
     /// * This function may panic if the tensor contains values that would result in an overflow when calculating the base-2 exponential.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.exp2().unwrap();
     /// ```
@@ -499,8 +499,8 @@ where
     /// * This function will panic if the tensor contains negative values, as the square root is not defined for negative numbers in real numbers.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([0.0, 1.0, 2.0, 3.0]);
     /// let b = a.sqrt().unwrap();
     /// ```
@@ -534,8 +534,8 @@ where
     /// * This function will panic if the tensor contains zeros, as the reciprocal of zero is undefined.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0]);
     /// let b = a.recip().unwrap();
     /// ```
@@ -570,8 +570,8 @@ where
     /// * This function will panic if the tensor contains values less than or equal to zero, as the logarithm is not defined for such values.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0]);
     /// let b = a.ln().unwrap();
     /// ```
@@ -606,8 +606,8 @@ where
     /// * This function will panic if the tensor contains values less than or equal to zero, as the logarithm is not defined for such values.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0]);
     /// let b = a.log2().unwrap();
     /// ```
@@ -642,8 +642,8 @@ where
     /// * This function will panic if the tensor contains values less than or equal to zero, as the logarithm is not defined for such values.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([1.0, 2.0, 3.0, 4.0]);
     /// let b = a.log10().unwrap();
     /// ```
@@ -677,8 +677,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.celu(1.0).unwrap();
     /// ```
@@ -716,8 +716,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.sigmoid().unwrap();
     /// ```
@@ -751,8 +751,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.elu(1.0).unwrap();
     /// ```
@@ -790,8 +790,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.erf().unwrap();
     /// ```
@@ -818,8 +818,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.fast_hard_sigmoid().unwrap();
     /// ```
@@ -846,8 +846,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.gelu().unwrap();
     /// ```
@@ -883,8 +883,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.selu(None, None).unwrap();
     /// ```
@@ -932,8 +932,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.hard_sigmoid().unwrap();
     /// ```
@@ -967,8 +967,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.hard_swish().unwrap();
     /// ```
@@ -1002,8 +1002,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.softplus().unwrap();
     /// ```
@@ -1037,8 +1037,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.softsign().unwrap();
     /// ```
@@ -1072,8 +1072,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Example
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::FloatUnaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::FloatUnaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 0.0, 1.0, 2.0]);
     /// let b = a.mish().unwrap();
     /// ```

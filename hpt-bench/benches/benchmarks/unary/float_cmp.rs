@@ -1,6 +1,6 @@
-use hpt_core::Tensor;
-use hpt_core::TensorInfo;
-use hpt_core::TensorLike;
+use hpt::Tensor;
+use hpt::TensorInfo;
+use hpt::TensorLike;
 use tch::Tensor as TchTensor;
 
 #[allow(unused)]

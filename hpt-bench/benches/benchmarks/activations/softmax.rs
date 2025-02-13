@@ -1,13 +1,13 @@
 use std::time::Duration;
-use hpt_core::TensorCreator;
+use hpt::TensorCreator;
 use criterion::{ black_box, criterion_group, criterion_main, BenchmarkId, Criterion };
 use tch::{ Tensor, Kind, Device };
-use hpt_core::{ tensor_base::_Tensor, Random };
-use hpt_core::ShapeManipulate;
-use hpt_core::TensorInfo;
+use hpt::{ tensor_base::_Tensor, Random };
+use hpt::ShapeManipulate;
+use hpt::TensorInfo;
 
 pub(crate) fn softmax_benchmark(c: &mut Criterion) {
-    hpt_core::set_num_threads(num_cpus::get_physical());
+    hpt::set_num_threads(num_cpus::get_physical());
     tch::set_num_threads(num_cpus::get_physical() as i32);
     let shapes = [
         [15, 2048, 2048],

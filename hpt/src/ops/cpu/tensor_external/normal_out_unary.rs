@@ -34,8 +34,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Examples
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::NormalUaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::NormalUaryOps;
     /// let a = Tensor::<f64>::new([0.1, 1.5, 2.9, 3.0]);
     /// let b = a.floor().unwrap();
     /// ```
@@ -67,8 +67,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Examples
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::NormalUaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::NormalUaryOps;
     /// let a = Tensor::<f64>::new([0.1, 1.5, 2.9, 3.0]);
     /// let b = a.square().unwrap();
     /// ```
@@ -106,8 +106,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Examples
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::NormalUaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::NormalUaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 1.5, -2.9, 3.0]);
     /// let b = a.abs().unwrap();
     /// ```
@@ -144,8 +144,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Examples
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::NormalUaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::NormalUaryOps;
     /// let a = Tensor::<f64>::new([0.1, 1.5, 2.9, 3.0]);
     /// let b = a.ceil().unwrap();
     /// ```
@@ -185,8 +185,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Examples
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::NormalUaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::NormalUaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 1.5, -2.9, 3.0]);
     /// let b = a.sign().unwrap();
     /// ```
@@ -223,8 +223,8 @@ where
     /// * This function will panic if `min` is greater than `max`.
     /// # Examples
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::NormalUaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::NormalUaryOps;
     /// let a = Tensor::<f64>::new([-1.0, 1.5, -2.9, 3.0]);
     /// let b = a.clip(-1.0, 1.0).unwrap();
     /// ```
@@ -272,8 +272,8 @@ where
     /// * This function should not panic under normal conditions.
     /// # Examples
     /// ```
-    /// use hpt_core::tensor::Tensor;
-    /// use hpt_core::NormalUaryOps;
+    /// use hpt::tensor::Tensor;
+    /// use hpt::NormalUaryOps;
     /// let a = Tensor::<f64>::new([0.1, 1.5, 2.9, 3.0]);
     /// let b = a.round().unwrap();
     /// ```
