@@ -18,3 +18,4 @@ rand_distr = "0.4.3"
 track_caller = []
 stdsimd = ["hpt-types/stdsimd"]
 archsimd = ["hpt-types/archsimd"]
+default = ["track_caller", "archsimd"]
