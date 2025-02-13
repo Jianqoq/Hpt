@@ -1,9 +1,9 @@
 #![allow(unused)]
-use hpt::set_num_threads;
-use hpt::ShapeManipulate;
-use hpt::TensorLike;
-use hpt::{CommonBounds, TensorInfo};
-use hpt::{NormalPooling, Tensor, TensorCreator};
+use hpt_core::set_num_threads;
+use hpt_core::ShapeManipulate;
+use hpt_core::TensorLike;
+use hpt_core::{CommonBounds, TensorInfo};
+use hpt_core::{NormalPooling, Tensor, TensorCreator};
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
 use rand::Rng;

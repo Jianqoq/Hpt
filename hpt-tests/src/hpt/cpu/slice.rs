@@ -1,8 +1,8 @@
 #![allow(unused)]
-use hpt::ShapeManipulate;
-use hpt::Tensor;
-use hpt::TensorLike;
-use hpt::{TensorCreator, TensorInfo};
+use hpt_core::ShapeManipulate;
+use hpt_core::Tensor;
+use hpt_core::TensorLike;
+use hpt_core::{TensorCreator, TensorInfo};
 use hpt_common::slice;
 use hpt_common::slice::Slice;
 use hpt_macros::match_selection;

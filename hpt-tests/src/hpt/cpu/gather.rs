@@ -1,8 +1,8 @@
 #[test]
 fn test_gather() -> anyhow::Result<()> {
-    use hpt::AdvancedOps;
-    use hpt::TensorCreator;
-    use hpt::TensorLike;
+    use hpt_core::AdvancedOps;
+    use hpt_core::TensorCreator;
+    use hpt_core::TensorLike;
     use rand::Rng;
     let mut rng = rand::thread_rng();
     let ndim = rng.gen_range(1..=3);
