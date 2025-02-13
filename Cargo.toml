@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 members = [
     "hpt-allocator",
     "hpt-common",
-    "hpt-core",
+    "hpt",
     "hpt-traits",
     "hpt-types",
     "hpt-macros",
@@ -24,7 +24,7 @@ members = [
 ]
 
 [dependencies]
-hpt-core = { path = "hpt-core", features = ["track_caller", "codegen"] }
+hpt = { path = "hpt", features = ["track_caller", "codegen"] }
 hpt-common = { path = "hpt-common" }
 anyhow = "1.0.40"
 half = "2.4.1"

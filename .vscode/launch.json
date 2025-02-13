@@ -93,7 +93,7 @@
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=hpt-core"
+                    "--package=hpt"
                 ],
                 "filter": {
                     "name": "hpt_core",
