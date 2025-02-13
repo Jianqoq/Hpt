@@ -506,7 +506,7 @@ impl FloatOutBinary2 for u64x2 {
     fn __log(self, _: Self) -> Self {
         panic!("Logarithm operation is not supported for u64")
     }
-    
+
     #[inline(always)]
     fn __hypot(self, _: Self) -> Self {
         panic!("Hypotenuse operation is not supported for u64")
@@ -615,7 +615,7 @@ impl NormalOutUnary2 for u64x2 {
     fn __relu6(self) -> Self {
         self.relu6()
     }
-    
+
     #[inline(always)]
     fn __copysign(self, rhs: Self) -> Self {
         self.abs() * rhs.signum()

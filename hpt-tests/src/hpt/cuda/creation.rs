@@ -1,11 +1,11 @@
 #![allow(unused_imports)]
-use hpt_common::slice;
-use hpt_common::slice::Slice;
 use hpt::Cuda;
 use hpt::ShapeManipulate;
 use hpt::TensorInfo;
 use hpt::TensorLike;
 use hpt::{Tensor, TensorCreator};
+use hpt_common::slice;
+use hpt_common::slice::Slice;
 use hpt_macros::match_selection;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 

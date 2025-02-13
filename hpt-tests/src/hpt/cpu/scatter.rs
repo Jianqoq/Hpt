@@ -1,12 +1,12 @@
 #![allow(unused_imports)]
-use hpt_common::slice;
-use hpt_common::slice::Slice;
 use hpt::set_global_display_lr_elements;
 use hpt::AdvancedOps;
 use hpt::ShapeManipulate;
 use hpt::TensorInfo;
 use hpt::TensorLike;
 use hpt::{set_num_threads, Tensor, TensorCreator};
+use hpt_common::slice;
+use hpt_common::slice::Slice;
 use hpt_macros::match_selection;
 use rand::Rng;
 

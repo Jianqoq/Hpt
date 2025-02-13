@@ -13,7 +13,7 @@ pub trait FloatUnaryOps {
     /// output tensor data type
     type OutputMeta: Send;
     /// Computes sine element-wise.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -23,7 +23,7 @@ pub trait FloatUnaryOps {
     fn sin(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes cosine element-wise.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -33,13 +33,13 @@ pub trait FloatUnaryOps {
     fn cos(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes sine and cosine element-wise.
-    /// 
+    ///
     /// # Example
     #[track_caller]
     fn sincos(&self) -> std::result::Result<(Self::Output, Self::Output), TensorError>;
 
     /// Computes tangent element-wise.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -49,7 +49,7 @@ pub trait FloatUnaryOps {
     fn tan(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes arcsine element-wise.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -59,7 +59,7 @@ pub trait FloatUnaryOps {
     fn asin(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes arccosine element-wise.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -69,7 +69,7 @@ pub trait FloatUnaryOps {
     fn acos(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes arctangent element-wise.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -79,7 +79,7 @@ pub trait FloatUnaryOps {
     fn atan(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes hyperbolic sine element-wise.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -89,7 +89,7 @@ pub trait FloatUnaryOps {
     fn sinh(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes hyperbolic cosine element-wise.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -99,7 +99,7 @@ pub trait FloatUnaryOps {
     fn cosh(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes hyperbolic tangent element-wise.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -109,7 +109,7 @@ pub trait FloatUnaryOps {
     fn tanh(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes the element-wise asinh of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -119,7 +119,7 @@ pub trait FloatUnaryOps {
     fn asinh(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes the element-wise acosh of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -129,7 +129,7 @@ pub trait FloatUnaryOps {
     fn acosh(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes the element-wise atanh of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -272,7 +272,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise base-10 exponential of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -290,7 +290,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise square root of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -308,7 +308,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise reciprocal of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -326,7 +326,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise natural logarithm of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -344,7 +344,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise base-2 logarithm of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -362,7 +362,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise base-10 logarithm of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -380,7 +380,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise Continuously Differentiable Exponential Linear Unit (CELU) activation function.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -402,7 +402,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise sigmoid activation function of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -420,7 +420,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise Exponential Linear Unit (ELU) activation function.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -442,7 +442,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise error function (erf) of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -451,7 +451,7 @@ pub trait FloatUnaryOps {
     fn erf(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// Computes the element-wise Gaussian Error Linear Unit (GELU) activation function.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -469,7 +469,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise Scaled Exponential Linear Unit (SELU) activation function.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -494,7 +494,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise Hard Sigmoid activation function.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -512,7 +512,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise Hard Swish activation function.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -530,7 +530,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise Softplus activation function.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -548,7 +548,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise Softsign activation function.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -566,7 +566,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise Mish activation function.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -584,7 +584,7 @@ pub trait FloatUnaryOps {
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise cube root of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -615,7 +615,7 @@ where
     type OutputMeta;
 
     /// Computes the element-wise floor of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -633,7 +633,7 @@ where
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise square of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -651,7 +651,7 @@ where
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise absolute value of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -669,7 +669,7 @@ where
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise ceiling of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -687,7 +687,7 @@ where
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise sign of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -705,7 +705,7 @@ where
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Clamps (limits) the values of the tensor between the specified `min` and `max`.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -732,7 +732,7 @@ where
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise rounding of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -750,7 +750,7 @@ where
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise negation (multiplying by -1) of the tensor.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -770,7 +770,7 @@ where
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise Rectified Linear Unit (ReLU) activation function.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -788,7 +788,7 @@ where
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise Leaky Rectified Linear Unit (Leaky ReLU) activation function.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -811,7 +811,7 @@ where
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise Rectified Linear Unit 6 (ReLU6) activation function.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
@@ -840,7 +840,7 @@ where
     /// The output type of the accumulative operation.
     type Output;
     /// Computes the cumulative sum of the elements in the tensor along a specified axis.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([1.0, 2.0, 3.0]);
@@ -852,7 +852,7 @@ where
         Self::Meta: NormalOut<Self::Meta, Output = Self::Meta>;
 
     /// Computes the cumulative product of the elements in the tensor along a specified axis.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([1.0, 2.0, 3.0]);

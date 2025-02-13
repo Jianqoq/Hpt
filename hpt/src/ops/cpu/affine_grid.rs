@@ -1,8 +1,13 @@
 use std::{
-    ops::{Add, Div, Mul, Neg, Sub}, panic::Location, sync::{Arc, Barrier}
+    ops::{Add, Div, Mul, Neg, Sub},
+    panic::Location,
+    sync::{Arc, Barrier},
 };
 
-use hpt_common::{error::{base::TensorError, shape::ShapeError}, shape::{shape::Shape, shape_utils::mt_intervals}};
+use hpt_common::{
+    error::{base::TensorError, shape::ShapeError},
+    shape::{shape::Shape, shape_utils::mt_intervals},
+};
 use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
 use hpt_types::{dtype::FloatConst, into_scalar::Cast};
 

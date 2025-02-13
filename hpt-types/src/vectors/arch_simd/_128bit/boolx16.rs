@@ -312,7 +312,7 @@ impl NormalOutUnary2 for boolx16 {
     fn __relu6(self) -> Self {
         self
     }
-    
+
     fn __copysign(self, rhs: Self) -> Self {
         let mut ret = boolx16::default();
         for i in 0..16 {

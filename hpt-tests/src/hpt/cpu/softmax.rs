@@ -1,12 +1,12 @@
 #![allow(unused)]
 use duplicate::duplicate_item;
-use hpt_common::slice;
-use hpt_common::slice::Slice;
 use hpt::set_global_display_lr_elements;
 use hpt::TensorInfo;
 use hpt::TensorLike;
 use hpt::{backend::Cpu, TensorCreator};
 use hpt::{set_num_threads, ShapeManipulate};
+use hpt_common::slice;
+use hpt_common::slice::Slice;
 use hpt_macros::match_selection;
 use rand::Rng;
 use tch::Tensor;
@@ -33,10 +33,7 @@ fn assert_eq_f64(hpt_res: &hpt::tensor::Tensor<f64>, tch_res: &Tensor) {
     });
 }
 
-fn common_input(
-    end: i64,
-    shape: &[i64],
-) -> anyhow::Result<(hpt::tensor::Tensor<f64>, Tensor)> {
+fn common_input(end: i64, shape: &[i64]) -> anyhow::Result<(hpt::tensor::Tensor<f64>, Tensor)> {
     let a = hpt::tensor::Tensor::<f64>::arange(0, end)?.reshape(shape)?;
     let tch_a = Tensor::arange(end, (tch::Kind::Double, tch::Device::Cpu)).reshape(shape);
     Ok((a, tch_a))
