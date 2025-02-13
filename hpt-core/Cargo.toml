@@ -11,7 +11,7 @@ hpt-common = { path = "../hpt-common", version = "0.1.0" }
 hpt-iterator = { path = "../hpt-iterator", version = "0.1.0" }
 hpt-traits = { path = "../hpt-traits", version = "0.1.0" }
 hpt-allocator = { path = "../hpt-allocator", version = "0.1.0" }
-hpt-macros = { path = "../hpt-macros", version = "0.1.0" }
+hpt-macros = { path = "../hpt-macros", version = "0.0.1" }
 hpt-display = { path = "../hpt-display", version = "0.1.0" }
 hpt-cudakernels = { path = "../hpt-cudakernels", version = "0.1.0", optional = true }
 hpt-codegen = { path = "../hpt-codegen", version = "0.1.0", optional = true }
