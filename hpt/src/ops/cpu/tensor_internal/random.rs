@@ -287,7 +287,7 @@ where
     ) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
-        let triangular = rand_distr::Triangular::new(low, high, mode)?;
+        let triangular = rand_distr::Triangular::new(low, high, mode).expect("Triangular::new failed");
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::rng(),
             |rng, x| {
@@ -313,7 +313,8 @@ where
     {
         let res_shape = Shape::from(shape.into());
         let mut ret = _Tensor::empty(res_shape)?;
-        let bernoulli = rand_distr::Bernoulli::new(p.cast())?;
+        let p: f64 = p.cast();
+        let bernoulli = rand_distr::Bernoulli::new(p)?;
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::rng(),
             |rng, x| {
