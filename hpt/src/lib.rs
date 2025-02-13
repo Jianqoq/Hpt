@@ -262,10 +262,10 @@ pub use hpt_iterator::TensorIterator;
 
 pub use crate::backend::*;
 pub use flate2;
-#[cfg(feature = "codegen")]
-pub use hpt_codegen::compile;
-#[cfg(feature = "codegen")]
-pub use hpt_codegen::fuse_proc_macro;
+// #[cfg(feature = "codegen")]
+// pub use hpt_codegen::compile;
+// #[cfg(feature = "codegen")]
+// pub use hpt_codegen::fuse_proc_macro;
 pub use hpt_common::slice;
 pub use hpt_common::{
     error::base::TensorError, shape::shape::Shape, slice::Slice, strides::strides::Strides,
