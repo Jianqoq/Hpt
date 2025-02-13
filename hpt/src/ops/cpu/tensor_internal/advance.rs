@@ -508,7 +508,7 @@ where
         ret.par_iter_mut_simd()
             .zip(self.par_iter_simd())
             .for_each_init(
-                || rand::rng(),
+                || rand::thread_rng(),
                 |rng, (ret, val)| {
                     let mask = bernoli.sample(rng);
                     *ret = val._mul(mask)._mul(scale);

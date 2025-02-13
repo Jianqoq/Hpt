@@ -10,15 +10,15 @@ repository = "https://github.com/Jianqoq/Hpt"
 
 [dependencies]
 hpt-types = { path = "../hpt-types", version = "0.0.1" }
-hpt-common = { path = "../hpt-common", version = "0.0.1" }
-hpt-iterator = { path = "../hpt-iterator", version = "0.0.1" }
-hpt-traits = { path = "../hpt-traits", version = "0.0.1" }
-hpt-allocator = { path = "../hpt-allocator", version = "0.0.1" }
+hpt-common = { path = "../hpt-common", version = "0.0.11" }
+hpt-iterator = { path = "../hpt-iterator", version = "0.0.11" }
+hpt-traits = { path = "../hpt-traits", version = "0.0.11" }
+hpt-allocator = { path = "../hpt-allocator", version = "0.0.11" }
 hpt-macros = { path = "../hpt-macros", version = "0.0.1" }
-hpt-display = { path = "../hpt-display", version = "0.0.1" }
+hpt-display = { path = "../hpt-display", version = "0.0.11" }
 hpt-cudakernels = { path = "../hpt-cudakernels", version = "0.0.1", optional = true }
 # hpt-codegen = { path = "../hpt-codegen", version = "0.0.1", optional = true }
-hpt-dataloader = { path = "../hpt-dataloader", version = "0.0.1" }
+hpt-dataloader = { path = "../hpt-dataloader", version = "0.0.11" }
 flate2 = "1.0.28"
 rand_distr = "0.4.3"
 # rustfft = "6.2.0"
