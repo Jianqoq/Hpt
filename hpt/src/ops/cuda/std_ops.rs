@@ -206,7 +206,9 @@ where
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
         let rhs: Tensor<rhs_type> = rhs.into();
-        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs.to_cuda::<CUDA_DEVICE>().expect("Failed to convert to cuda");
+        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
@@ -332,7 +334,9 @@ where
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
         let rhs: Tensor<rhs_type_ident> = (*rhs).into();
-        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs.to_cuda::<CUDA_DEVICE>().expect("Failed to convert to cuda");
+        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
@@ -456,7 +460,9 @@ where
     #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
         let lhs: Tensor<lhs_type> = self.into();
-        let lhs: Tensor<lhs_type, Cuda, CUDA_DEVICE> = lhs.to_cuda::<CUDA_DEVICE>().expect("Failed to convert to cuda");
+        let lhs: Tensor<lhs_type, Cuda, CUDA_DEVICE> = lhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
         lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
@@ -581,7 +587,9 @@ where
     #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
         let lhs: Tensor<lhs_type_ident> = (*self).into();
-        let lhs: Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = lhs.to_cuda::<CUDA_DEVICE>().expect("Failed to convert to cuda");
+        let lhs: Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = lhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
         lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
@@ -748,7 +756,9 @@ where
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
         let rhs: Tensor<rhs_type> = rhs.into();
-        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs.to_cuda::<CUDA_DEVICE>().expect("Failed to convert to cuda");
+        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
@@ -848,7 +858,9 @@ where
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
         let rhs: Tensor<rhs_type_ident> = (*rhs).into();
-        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs.to_cuda::<CUDA_DEVICE>().expect("Failed to convert to cuda");
+        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
@@ -946,7 +958,9 @@ where
     #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
         let lhs: Tensor<lhs_type> = self.into();
-        let lhs: Tensor<lhs_type, Cuda, CUDA_DEVICE> = lhs.to_cuda::<CUDA_DEVICE>().expect("Failed to convert to cuda");
+        let lhs: Tensor<lhs_type, Cuda, CUDA_DEVICE> = lhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
         lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
@@ -1045,7 +1059,9 @@ where
     #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
         let lhs: Tensor<lhs_type_ident> = (*self).into();
-        let lhs: Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = lhs.to_cuda::<CUDA_DEVICE>().expect("Failed to convert to cuda");
+        let lhs: Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = lhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
         lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
@@ -1145,7 +1161,9 @@ where
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
         let rhs: Tensor<rhs_type> = rhs.into();
-        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs.to_cuda::<CUDA_DEVICE>().expect("Failed to convert to cuda");
+        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
@@ -1194,7 +1212,9 @@ where
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
         let rhs: Tensor<rhs_type_ident> = (*rhs).into();
-        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs.to_cuda::<CUDA_DEVICE>().expect("Failed to convert to cuda");
+        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
@@ -1241,7 +1261,9 @@ where
     #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
         let lhs: Tensor<lhs_type> = self.into();
-        let lhs: Tensor<lhs_type, Cuda, CUDA_DEVICE> = lhs.to_cuda::<CUDA_DEVICE>().expect("Failed to convert to cuda");
+        let lhs: Tensor<lhs_type, Cuda, CUDA_DEVICE> = lhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
         lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
@@ -1289,7 +1311,9 @@ where
     #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
         let lhs: Tensor<lhs_type_ident> = (*self).into();
-        let lhs: Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = lhs.to_cuda::<CUDA_DEVICE>().expect("Failed to convert to cuda");
+        let lhs: Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = lhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
         lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }

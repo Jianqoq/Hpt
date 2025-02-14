@@ -528,10 +528,10 @@ mod type_impl {
 ))]
 mod type_impl {
     use super::TypeCommon;
+    use crate::simd::_128bit::*;
     use crate::vectors::traits::VecTrait;
     use half::*;
     use num_complex::{Complex32, Complex64};
-    use crate::simd::_128bit::*;
     impl_type_common!(
         bool,
         true,
