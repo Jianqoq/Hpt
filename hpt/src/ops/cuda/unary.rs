@@ -2,12 +2,15 @@ use crate::ops::cuda::cuda_utils::{compile_kernel, compute_kernel_launch_config,
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use cudarc::driver::{DeviceRepr, LaunchAsync};
-use hpt_common::err_handler::TensorError::{self, InvalidOutSize};
+use hpt_types::dtype::CudaType;
+use hpt_common::error::base::TensorError;
+use hpt_common::error::shape::ShapeError;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::{TensorCreator, TensorInfo};
 use hpt_types::cuda_types::scalar::Scalar;
-use std::borrow::Borrow;
-use std::panic::Location;
+use std::borrow::BorrowMut;
+
+use super::cuda_utils::get_include_1;
 
 pub(crate) fn uary_fn_with_out_simd<A, O, K, F, const DEVICE_ID: usize>(
     inp: &_Tensor<A, Cuda, DEVICE_ID>,
@@ -16,42 +19,26 @@ pub(crate) fn uary_fn_with_out_simd<A, O, K, F, const DEVICE_ID: usize>(
     out: Option<O>,
 ) -> std::result::Result<_Tensor<K, Cuda, DEVICE_ID>, TensorError>
 where
-    A: CommonBounds + DeviceRepr,
-    K: CommonBounds + DeviceRepr,
-    O: Borrow<_Tensor<K, Cuda, DEVICE_ID>>,
+    A: CommonBounds + DeviceRepr + CudaType,
+    K: CommonBounds + DeviceRepr + CudaType,
+    O: BorrowMut<_Tensor<K, Cuda, DEVICE_ID>>,
     F: Fn(Scalar<K>, Scalar<A>) -> Scalar<K>,
 {
-    let ret = if let Some(out) = out {
-        if out.borrow().size() * size_of::<K>() == inp.size() * size_of::<A>() {
-            out.borrow().static_cast()?
-        } else {
-            return Err(InvalidOutSize(
-                inp.size() * size_of::<A>(),
-                out.borrow().size() * size_of::<K>(),
-                Location::caller(),
-            )
-            .into());
-        }
+    let ret = if let Some(mut out) = out {
+        ShapeError::check_size_match(inp.size() as i64, out.borrow_mut().size() as i64)?;
+        (*out.borrow_mut()).clone()
     } else {
         _Tensor::<K, Cuda, DEVICE_ID>::empty(inp.shape())?
     };
-    let half_include = if K::CUDA_TYPE == "half" || A::CUDA_TYPE == "half" {
-        "#include <cuda_fp16.h>"
-    } else {
-        ""
-    };
-    let bfloat16_include = if K::CUDA_TYPE == "bfloat16" || A::CUDA_TYPE == "bfloat16" {
-        "#include <cuda_bf16.h>"
-    } else {
-        ""
-    };
+    let a_include = get_include_1::<A>();
+    let k_include = get_include_1::<K>();
     let code = if inp.is_contiguous() || inp.parent().is_some() {
         let scalar_a = Scalar::<A>::new("inp[idx]".to_string());
         let scalar_k = Scalar::<K>::new("out[idx]".to_string());
         format!(
             "
-        {half_include}
-        {bfloat16_include}
+        {a_include}
+        {k_include}
         extern \"C\" __global__ void unary(const {}* inp, {}* out, int size) {{
             int idx = blockIdx.x * blockDim.x + threadIdx.x;
             if (idx < size) {{
@@ -70,8 +57,8 @@ where
         let scalar_k = Scalar::<K>::new("out[idx]".to_string());
         format!(
             "
-        {half_include}
-        {bfloat16_include}
+        {a_include}
+        {k_include}
         __constant__ long long shape[] = {{{}}};
         __constant__ long long strides[] = {{{}}};
         extern \"C\" __global__ void unary(const {}* inp, {}* out, int size) {{
@@ -103,13 +90,6 @@ where
     let inp_slice = inp.cuda_slice();
     let reg_info = map.get("unary").expect("func_name not found");
     let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
-    unsafe { kernel.launch(cfg, (inp_slice, out_slice, ret.size())) }.map_err(|e| {
-        TensorError::CudaKernelLaunchingError(
-            module_name.to_string(),
-            "unary".to_string(),
-            Location::caller(),
-            e,
-        )
-    })?;
+    unsafe { kernel.launch(cfg, (inp_slice, out_slice, ret.size())) }?;
     Ok(ret)
 }

@@ -2,9 +2,10 @@ use crate::ops::cuda::cuda_utils::load_ptx_and_get_data;
 use crate::CUDA_SEED;
 use crate::{tensor_base::_Tensor, Cuda, Tensor};
 use cudarc::driver::{DeviceRepr, LaunchAsync};
+use hpt_common::error::base::TensorError;
 use hpt_cudakernels::DROPOUT;
 use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
-use hpt_types::{cast::Cast, type_promote::NormalOut};
+use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
 
 use super::cuda_utils::compute_kernel_launch_config;
 
@@ -14,13 +15,13 @@ where
     f64: Cast<T>,
 {
     #[track_caller]
-    pub fn dropout(&self, rate: f64) -> anyhow::Result<_Tensor<T, Cuda, DEVICE_ID>> {
+    pub fn dropout(&self, rate: f64) -> Result<_Tensor<T, Cuda, DEVICE_ID>, TensorError> {
         let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(self.shape())?;
         let scale: T = (1.0 / (1.0 - rate)).cast();
         if self.is_contiguous() {
             let (kernel, reg_info) = load_ptx_and_get_data(
                 "dropout",
-                &format!("dropout_{}", T::ID),
+                &format!("dropout_{}", T::STR),
                 self.device(),
                 self.device_cap(),
                 &DROPOUT,
@@ -44,7 +45,7 @@ where
         } else {
             let (kernel, reg_info) = load_ptx_and_get_data(
                 "dropout",
-                &format!("dropout_uncontiguous_{}", T::ID),
+                &format!("dropout_uncontiguous_{}", T::STR),
                 self.device(),
                 self.device_cap(),
                 &DROPOUT,
@@ -96,7 +97,7 @@ where
     ///
     /// This function returns a `Result` containing a new tensor with dropout applied.
     #[track_caller]
-    pub fn dropout(&self, rate: f64) -> anyhow::Result<Tensor<T, Cuda, DEVICE_ID>> {
+    pub fn dropout(&self, rate: f64) -> Result<Tensor<T, Cuda, DEVICE_ID>, TensorError> {
         Ok(self.inner.dropout(rate)?.into())
     }
 }

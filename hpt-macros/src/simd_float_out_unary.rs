@@ -212,8 +212,8 @@ pub fn impl_float_out_unary() -> TokenStream {
                         SimdMath::atan(self.into_vec())
                     }
                     #[inline(always)]
-                    fn _atan2(self, other: Self) -> Self::Output {
-                        SimdMath::atan2(self.into_vec(), other.into_vec())
+                    fn _atan2(self, other: Self::Output) -> Self::Output {
+                        SimdMath::atan2(self.into_vec(), other)
                     }
                     #[inline(always)]
                     fn _sinh(self) -> Self::Output {

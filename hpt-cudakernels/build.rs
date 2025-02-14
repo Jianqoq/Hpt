@@ -175,6 +175,7 @@ fn compile_cu(cu_file: &Path, out_dir: &Path, caps: &[u32]) -> Result<Vec<String
         let mut cmd = Command::new("nvcc");
         cmd.arg("-ptx")
             .arg("-O3")
+            .arg("-allow-unsupported-compiler")
             .arg(cu_file.to_str().unwrap())
             .arg("-o")
             .arg(obj_file.to_str().unwrap())

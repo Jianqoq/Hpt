@@ -124,6 +124,9 @@ pub fn impl_cuda_float_out_binary() -> TokenStream {
                         fn _log(self, base: Scalar<#rhs_dtype>) -> Self::Output {
                             self.__log(base)
                         }
+                        fn _hypot(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            self.__hypot(rhs)
+                        }
                     }
                 }
             } else {
@@ -140,6 +143,11 @@ pub fn impl_cuda_float_out_binary() -> TokenStream {
                             let lhs_scalar: Self::Output = self.cast();
                             let base_scalar: Self::Output = base.cast();
                             lhs_scalar.__log(base_scalar)
+                        }
+                        fn _hypot(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
+                            lhs_scalar.__hypot(rhs_scalar)
                         }
                     }
                 }

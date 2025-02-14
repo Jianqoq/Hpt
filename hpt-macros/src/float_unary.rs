@@ -230,9 +230,9 @@ pub fn impl_float_out_unary() -> TokenStream {
                         let lhs: Self::Output = self.cast();
                         lhs.__atan()
                     }
-                    fn _atan2(self, other: Self) -> Self::Output {
+                    fn _atan2(self, other: Self::Output) -> Self::Output {
                         let lhs: Self::Output = self.cast();
-                        lhs.__atan2(other.cast())
+                        lhs.__atan2(other)
                     }
                     fn _sinh(self) -> Self::Output {
                         let lhs: Self::Output = self.cast();
@@ -355,7 +355,6 @@ pub fn impl_cuda_float_out_unary() -> TokenStream {
             quote! {
                 impl FloatOutUnary for Scalar<#lhs_dtype> {
                     type Output = <Scalar<#lhs_dtype> as FloatOutUnaryPromote>::Output;
-                    type Base = <Scalar<#lhs_dtype> as FloatOutUnaryPromote>::Output;
                     fn _exp(self) -> Self::Output {
                         self.__exp()
                     }
@@ -434,9 +433,6 @@ pub fn impl_cuda_float_out_unary() -> TokenStream {
                     fn _hard_sigmoid(self) -> Self::Output {
                         self.__hard_sigmoid()
                     }
-                    fn _fast_hard_sigmoid(self) -> Self::Output {
-                        self.__fast_hard_sigmoid()
-                    }
                     fn _hard_swish(self) -> Self::Output {
                         self.__hard_swish()
                     }
@@ -452,13 +448,28 @@ pub fn impl_cuda_float_out_unary() -> TokenStream {
                     fn _cbrt(self) -> Self::Output {
                         self.__cbrt()
                     }
+                    fn _expm1(self) -> Self::Output {
+                        self.__expm1()
+                    }
+                    fn _exp10(self) -> Self::Output {
+                        self.__exp10()
+                    }
+                    fn _log1p(self) -> Self::Output {
+                        self.__log1p()
+                    }
+                    fn _sincos(self) -> (Self::Output, Self::Output) {
+                        self.__sincos()
+                    }
+                    fn _atan2(self, other: Self) -> Self::Output {
+                        self.__atan2(other)
+                    }
+                    
                 }
             }
         } else {
             quote! {
                 impl FloatOutUnary for Scalar<#lhs_dtype> {
                     type Output = <Scalar<#lhs_dtype> as FloatOutUnaryPromote>::Output;
-                    type Base = <Scalar<#lhs_dtype> as FloatOutUnaryPromote>::Output;
                     fn _exp(self) -> Self::Output {
                         let lhs: Self::Output = self.cast();
                         lhs.__exp()
@@ -539,7 +550,7 @@ pub fn impl_cuda_float_out_unary() -> TokenStream {
                         let lhs: Self::Output = self.cast();
                         lhs.__erf()
                     }
-                    fn _celu(self, alpha: Self) -> Self::Output {
+                    fn _celu(self, alpha: Self::Output) -> Self::Output {
                         let lhs: Self::Output = self.cast();
                         lhs.__celu(alpha)
                     }
@@ -547,7 +558,7 @@ pub fn impl_cuda_float_out_unary() -> TokenStream {
                         let lhs: Self::Output = self.cast();
                         lhs.__sigmoid()
                     }
-                    fn _elu(self, alpha: Self) -> Self::Output {
+                    fn _elu(self, alpha: Self::Output) -> Self::Output {
                         let lhs: Self::Output = self.cast();
                         lhs.__elu(alpha)
                     }
@@ -555,17 +566,13 @@ pub fn impl_cuda_float_out_unary() -> TokenStream {
                         let lhs: Self::Output = self.cast();
                         lhs.__gelu()
                     }
-                    fn _selu(self, alpha: Self, scale: Self) -> Self::Output {
+                    fn _selu(self, alpha: Self::Output, scale: Self::Output) -> Self::Output {
                         let lhs: Self::Output = self.cast();
                         lhs.__selu(alpha, scale)
                     }
                     fn _hard_sigmoid(self) -> Self::Output {
                         let lhs: Self::Output = self.cast();
                         lhs.__hard_sigmoid()
-                    }
-                    fn _fast_hard_sigmoid(self) -> Self::Output {
-                        let lhs: Self::Output = self.cast();
-                        lhs.__fast_hard_sigmoid()
                     }
                     fn _hard_swish(self) -> Self::Output {
                         let lhs: Self::Output = self.cast();
@@ -586,6 +593,26 @@ pub fn impl_cuda_float_out_unary() -> TokenStream {
                     fn _cbrt(self) -> Self::Output {
                         let lhs: Self::Output = self.cast();
                         lhs.__cbrt()
+                    }
+                    fn _expm1(self) -> Self::Output {
+                        let lhs: Self::Output = self.cast();
+                        lhs.__expm1()
+                    }
+                    fn _exp10(self) -> Self::Output {
+                        let lhs: Self::Output = self.cast();
+                        lhs.__exp10()
+                    }
+                    fn _log1p(self) -> Self::Output {
+                        let lhs: Self::Output = self.cast();
+                        lhs.__log1p()
+                    }
+                    fn _sincos(self) -> (Self::Output, Self::Output) {
+                        let lhs: Self::Output = self.cast();
+                        lhs.__sincos()
+                    }
+                    fn _atan2(self, other: Self::Output) -> Self::Output {
+                        let lhs: Self::Output = self.cast();
+                        lhs.__atan2(other)
                     }
                 }
             }

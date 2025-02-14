@@ -5,7 +5,7 @@ use crate::{
     error::{base::TensorError, shape::ShapeError},
     shape::{
         shape::Shape,
-        shape_utils::{is_reshape_possible, predict_broadcast_shape},
+        shape_utils::{is_reshape_possible, predict_broadcast_shape, try_pad_shape},
     },
     strides::{strides::Strides, strides_utils::shape_to_strides},
 };
@@ -59,6 +59,34 @@ impl Layout {
             return None;
         }
         is_reshape_possible(&self.shape, &self.strides, shape)
+    }
+
+    /// # Internal Function
+    ///
+    /// a function use to calculate the broadcast layout based on the target shape
+    ///
+    /// # Arguments
+    ///
+    /// * `shape` - the target shape
+    pub fn to_broadcast_layout(&self, target_shape: &[i64]) -> Result<Layout, TensorError> {
+        let padded_shape = try_pad_shape(&self.shape, target_shape.len());
+
+        // try_pad_shape can also used on strides
+        let padded_strides = try_pad_shape(&self.strides, target_shape.len());
+        let mut new_strides = vec![0; target_shape.len()];
+
+        for i in 0..target_shape.len() {
+            if padded_shape[i] == target_shape[i] {
+                new_strides[i] = padded_strides[i];
+            } else {
+                new_strides[i] = 0;
+            }
+        }
+
+        Ok(Layout {
+            shape: target_shape.into(),
+            strides: new_strides.into(),
+        })
     }
 
     /// # Internal Function
@@ -130,7 +158,7 @@ impl Layout {
     ///
     /// if the length of `axes` is not equal to the layout's ndim
     #[track_caller]
-    pub fn permute<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Layout, TensorError> {
+    pub fn permute<A: Into<Axis>>(&self, axes: A) -> Result<Layout, TensorError> {
         let axes = process_axes(axes, self.shape.len())?;
         ShapeError::check_dim(axes.len(), self.shape.len())?;
         let mut new_shape = self.shape().to_vec();
@@ -156,7 +184,7 @@ impl Layout {
     /// # Returns
     ///
     /// * `Result<Layout>` - the new layout after inverse permutation
-    pub fn permute_inv<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Layout, TensorError> {
+    pub fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Layout, TensorError> {
         let axes = process_axes(axes, self.shape.len())?;
         ShapeError::check_dim(axes.len(), self.shape.len())?;
         let mut new_shape = self.shape().to_vec();
@@ -187,7 +215,7 @@ impl Layout {
     ///
     /// if the reshape is not possible
     #[track_caller]
-    pub fn inplace_reshape(&self, shape: &Shape) -> std::result::Result<Layout, TensorError> {
+    pub fn inplace_reshape(&self, shape: &Shape) -> Result<Layout, TensorError> {
         if let Some(new_strides) = self.is_reshape_possible(shape) {
             Ok(Layout {
                 shape: shape.clone(),
@@ -218,7 +246,7 @@ impl Layout {
     ///
     /// if the broadcast is not possible
     #[track_caller]
-    pub fn broadcast(&self, other: &Layout) -> std::result::Result<Layout, TensorError> {
+    pub fn broadcast(&self, other: &Layout) -> Result<Layout, TensorError> {
         let shape = predict_broadcast_shape(&self.shape, &other.shape)?;
         let strides = shape_to_strides(&shape);
         Ok(Layout { shape, strides })
@@ -247,11 +275,7 @@ impl Layout {
     /// if the `axes` contains the same axis as the layout's ndim
     ///
     /// if the `axes` contains the axis out of range
-    pub fn reduce<A: Into<Axis>>(
-        &self,
-        axes: A,
-        keep_dims: bool,
-    ) -> std::result::Result<Layout, TensorError> {
+    pub fn reduce<A: Into<Axis>>(&self, axes: A, keep_dims: bool) -> Result<Layout, TensorError> {
         let axis = process_axes(axes, self.shape.len())?;
         let new_shape = if keep_dims {
             let mut vec = Vec::with_capacity(self.shape.len());

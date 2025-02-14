@@ -13,6 +13,11 @@ impl FloatOutBinary2 for Scalar<f32> {
     fn __log(self, base: Self) -> Self {
         Scalar::new(format!("(logf({}) / logf({}))", self.val, base.val))
     }
+
+    #[inline(always)]
+    fn __hypot(self, rhs: Self) -> Self {
+        Scalar::new(format!("hypotf({}, {})", self.val, rhs.val))
+    }
 }
 
 impl NormalOut2 for Scalar<f32> {
@@ -60,7 +65,7 @@ impl NormalOut2 for Scalar<f32> {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
+    fn __clamp(self, min: Self, max: Self) -> Self {
         Scalar::new(format!(
             "fminf(fmaxf({}, {}), {})",
             self.val, min.val, max.val
@@ -100,7 +105,7 @@ impl NormalOutUnary2 for Scalar<f32> {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
+    fn __signum(self) -> Self {
         Scalar::new(format!("copysignf(1.0f, {})", self.val))
     }
 
@@ -120,6 +125,16 @@ impl NormalOutUnary2 for Scalar<f32> {
     #[inline(always)]
     fn __relu6(self) -> Self {
         Scalar::new(format!("fminf(fmaxf({}, 0.0f), 6.0f)", self.val))
+    }
+
+    #[inline(always)]
+    fn __trunc(self) -> Self {
+        Scalar::new(format!("truncf({})", self.val))
+    }
+
+    #[inline(always)]
+    fn __copysign(self, rhs: Self) -> Self {
+        Scalar::new(format!("copysignf({}, {})", self.val, rhs.val))
     }
 }
 
@@ -298,13 +313,6 @@ impl FloatOutUnary2 for Scalar<f32> {
         ))
     }
 
-    fn __fast_hard_sigmoid(self) -> Self {
-        Scalar::new(format!(
-            "(fminf(fmaxf({} + 1.0f, 0.0f), 2.0f) * 0.5f)",
-            self.val
-        ))
-    }
-
     fn __hard_swish(self) -> Self {
         Scalar::new(format!(
             "({} * (fminf(fmaxf({} + 3.0f, 0.0f), 6.0f) / 6.0f))",
@@ -332,5 +340,31 @@ impl FloatOutUnary2 for Scalar<f32> {
 
     fn __cbrt(self) -> Self {
         Scalar::new(format!("cbrtf({})", self.val))
+    }
+    
+    fn __expm1(self) -> Self {
+        Scalar::new(format!("expm1f({})", self.val))
+    }
+    
+    fn __exp10(self) -> Self {
+        Scalar::new(format!("exp10f({})", self.val))
+    }
+
+    fn __log1p(self) -> Self {
+        Scalar::new(format!("log1pf({})", self.val))
+    }
+
+    fn __sincos(self) -> (Self, Self)
+    where
+        Self: Sized,
+    {
+        (
+            Scalar::new(format!("sinf({})", self.val)),
+            Scalar::new(format!("cosf({})", self.val)),
+        )
+    }
+
+    fn __atan2(self, rhs: Self) -> Self {
+        Scalar::new(format!("atan2f({}, {})", self.val, rhs.val))
     }
 }

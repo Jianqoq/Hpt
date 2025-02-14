@@ -11,6 +11,11 @@ impl FloatOutBinary2 for Scalar<bool> {
     fn __log(self, _: Self) -> Self {
         panic!("Logarithm operation is not supported for bool")
     }
+
+    #[inline(always)]
+    fn __hypot(self, _: Self) -> Self {
+        panic!("Hypotenuse operation is not supported for bool")
+    }
 }
 
 impl NormalOut2 for Scalar<bool> {
@@ -55,7 +60,7 @@ impl NormalOut2 for Scalar<bool> {
     }
 
     #[inline(always)]
-    fn __clip(self, _: Self, _: Self) -> Self {
+    fn __clamp(self, _: Self, _: Self) -> Self {
         self
     }
 }
@@ -92,11 +97,6 @@ impl NormalOutUnary2 for Scalar<bool> {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
-        self
-    }
-
-    #[inline(always)]
     fn __leaky_relu(self, _: Self) -> Self {
         self
     }
@@ -108,6 +108,20 @@ impl NormalOutUnary2 for Scalar<bool> {
 
     #[inline(always)]
     fn __relu6(self) -> Self {
+        self
+    }
+    #[inline(always)]
+    fn __signum(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __trunc(self) -> Self {
+        self
+    }
+    
+    #[inline(always)]
+    fn __copysign(self, _: Self) -> Self {
         self
     }
 }

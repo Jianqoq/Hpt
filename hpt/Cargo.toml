@@ -1,7 +1,7 @@
 
 [package]
 name = "hpt"
-version = "0.0.12"
+version = "0.0.13"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["JianJian Li <ljj1849532909@gmail.com>"]
@@ -9,16 +9,16 @@ description = "High Performance Tensor (HPT) - A fast, efficient, and user-frien
 repository = "https://github.com/Jianqoq/Hpt"
 
 [dependencies]
-hpt-types = { path = "../hpt-types", version = "0.0.11" }
-hpt-common = { path = "../hpt-common", version = "0.0.11" }
-hpt-iterator = { path = "../hpt-iterator", version = "0.0.11" }
-hpt-traits = { path = "../hpt-traits", version = "0.0.11" }
-hpt-allocator = { path = "../hpt-allocator", version = "0.0.11" }
-hpt-macros = { path = "../hpt-macros", version = "0.0.11" }
-hpt-display = { path = "../hpt-display", version = "0.0.11" }
-hpt-cudakernels = { path = "../hpt-cudakernels", version = "0.0.11", optional = true }
+hpt-types = { path = "../hpt-types", version = "0.0.12" }
+hpt-common = { path = "../hpt-common", version = "0.0.12" }
+hpt-iterator = { path = "../hpt-iterator", version = "0.0.12" }
+hpt-traits = { path = "../hpt-traits", version = "0.0.12" }
+hpt-allocator = { path = "../hpt-allocator", version = "0.0.12" }
+hpt-macros = { path = "../hpt-macros", version = "0.0.12" }
+hpt-display = { path = "../hpt-display", version = "0.0.12" }
+hpt-cudakernels = { path = "../hpt-cudakernels", version = "0.0.12", optional = true }
 # hpt-codegen = { path = "../hpt-codegen", version = "0.0.1", optional = true }
-hpt-dataloader = { path = "../hpt-dataloader", version = "0.0.11" }
+hpt-dataloader = { path = "../hpt-dataloader", version = "0.0.12" }
 flate2 = "1.0.28"
 rand_distr = "0.4.3"
 # rustfft = "6.2.0"
@@ -35,10 +35,17 @@ half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }
 gemm = { version = "0.18.0", features = ["rayon"] }
 num_cpus = "1.16.0"
 once_cell = "1.20.3"
-cudarc = { version = "0.12.1", optional = true, features = [
-    "cuda-12010",
+cudarc = { version = "0.13.4", optional = true, features = [
+    "std",
+    "cublas",
+    "cublaslt",
+    "curand",
+    "driver",
+    "nvrtc",
     "f16",
-] }
+    "cuda-version-from-build-system",
+    "dynamic-linking",
+], default-features = false }
 regex = { version = "1.11.1", optional = true }
 bindgen_cuda = { version = "0.1.5", optional = true }
 phf = { version = "0.11.3", optional = true }

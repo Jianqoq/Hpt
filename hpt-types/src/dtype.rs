@@ -44,12 +44,24 @@ impl CudaType for u32 {
     const CUDA_TYPE: &'static str = "unsigned int";
 }
 
+#[cfg(target_os = "windows")]
 impl CudaType for i64 {
     const CUDA_TYPE: &'static str = "long long";
 }
 
+#[cfg(not(target_os = "windows"))]
+impl CudaType for i64 {
+    const CUDA_TYPE: &'static str = "long";
+}
+
+#[cfg(target_os = "windows")]
 impl CudaType for u64 {
     const CUDA_TYPE: &'static str = "unsigned long long";
+}
+
+#[cfg(not(target_os = "windows"))]
+impl CudaType for u64 {
+    const CUDA_TYPE: &'static str = "unsigned long";
 }
 
 impl CudaType for f32 {
@@ -68,12 +80,34 @@ impl CudaType for Complex64 {
     const CUDA_TYPE: &'static str = "cuDoubleComplex";
 }
 
+#[cfg(all(target_pointer_width = "64", target_os = "windows"))]
 impl CudaType for isize {
     const CUDA_TYPE: &'static str = "long long";
 }
 
+#[cfg(all(target_pointer_width = "64", not(target_os = "windows")))]
+impl CudaType for isize {
+    const CUDA_TYPE: &'static str = "long";
+}
+
+#[cfg(target_pointer_width = "32")]
+impl CudaType for isize {
+    const CUDA_TYPE: &'static str = "int";
+}
+
+#[cfg(all(target_pointer_width = "64", target_os = "windows"))]
 impl CudaType for usize {
     const CUDA_TYPE: &'static str = "unsigned long long";
+}
+
+#[cfg(all(target_pointer_width = "64", not(target_os = "windows")))]
+impl CudaType for usize {
+    const CUDA_TYPE: &'static str = "unsigned long";
+}
+
+#[cfg(target_pointer_width = "32")]
+impl CudaType for usize {
+    const CUDA_TYPE: &'static str = "unsigned int";
 }
 
 impl CudaType for f16 {
@@ -81,7 +115,7 @@ impl CudaType for f16 {
 }
 
 impl CudaType for bf16 {
-    const CUDA_TYPE: &'static str = "bfloat16";
+    const CUDA_TYPE: &'static str = "__nv_bfloat16";
 }
 
 /// common trait for all data types

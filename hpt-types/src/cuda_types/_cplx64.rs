@@ -15,6 +15,11 @@ impl FloatOutBinary2 for Scalar<Complex64> {
     fn __log(self, _: Self) -> Self {
         panic!("Log operation is not well-defined for complex numbers")
     }
+
+    #[inline(always)]
+    fn __hypot(self, _: Self) -> Self {
+        panic!("Hypotenuse operation is not well-defined for complex numbers")
+    }
 }
 
 impl NormalOut2 for Scalar<Complex64> {
@@ -62,7 +67,7 @@ impl NormalOut2 for Scalar<Complex64> {
     }
 
     #[inline(always)]
-    fn __clip(self, _: Self, _: Self) -> Self {
+    fn __clamp(self, _: Self, _: Self) -> Self {
         panic!("Clip operation is not well-defined for complex numbers")
     }
 }
@@ -99,7 +104,7 @@ impl NormalOutUnary2 for Scalar<Complex64> {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
+    fn __signum(self) -> Self {
         panic!("Sign operation is not well-defined for complex numbers")
     }
 
@@ -116,6 +121,16 @@ impl NormalOutUnary2 for Scalar<Complex64> {
     #[inline(always)]
     fn __relu6(self) -> Self {
         panic!("ReLU6 is not well-defined for complex numbers")
+    }
+
+    #[inline(always)]
+    fn __trunc(self) -> Self {
+        panic!("Trunc operation is not well-defined for complex numbers")
+    }
+
+    #[inline(always)]
+    fn __copysign(self, _: Self) -> Self {
+        panic!("Copysign operation is not well-defined for complex numbers")
     }
 }
 
@@ -285,10 +300,6 @@ impl FloatOutUnary2 for Scalar<Complex64> {
         panic!("Hard sigmoid operation is not well-defined for complex numbers")
     }
 
-    fn __fast_hard_sigmoid(self) -> Self {
-        panic!("Fast hard sigmoid operation is not well-defined for complex numbers")
-    }
-
     fn __hard_swish(self) -> Self {
         panic!("Hard swish operation is not well-defined for complex numbers")
     }
@@ -307,5 +318,27 @@ impl FloatOutUnary2 for Scalar<Complex64> {
 
     fn __cbrt(self) -> Self {
         panic!("Cbrt operation is not well-defined for complex numbers")
+    }
+    
+    fn __expm1(self) -> Self {
+        panic!("Expm1 operation is not well-defined for complex numbers")
+    }
+    
+    fn __exp10(self) -> Self {
+        panic!("Exp10 operation is not well-defined for complex numbers")
+    }
+    
+    fn __log1p(self) -> Self {
+        panic!("Log1p operation is not well-defined for complex numbers")
+    }
+    
+    fn __sincos(self) -> (Self, Self)
+    where
+        Self: Sized {
+        panic!("Sincos operation is not well-defined for complex numbers")
+    }
+    
+    fn __atan2(self, _: Self) -> Self {
+        panic!("Atan2 operation is not well-defined for complex numbers")
     }
 }

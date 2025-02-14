@@ -17,6 +17,15 @@ impl FloatOutBinary2 for Scalar<bf16> {
             base.to_f32().val
         ))
     }
+
+    #[inline(always)]
+    fn __hypot(self, rhs: Self) -> Self {
+        Scalar::new(format!(
+            "__float2bfloat16_rn(hypotf({}, {}))",
+            self.to_f32().val,
+            rhs.to_f32().val
+        ))
+    }
 }
 
 impl NormalOut2 for Scalar<bf16> {
@@ -70,7 +79,7 @@ impl NormalOut2 for Scalar<bf16> {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
+    fn __clamp(self, min: Self, max: Self) -> Self {
         Scalar::new(format!(
             "__hmin_nan(__hmax_nan({}, {}), {})",
             self.val, min.val, max.val
@@ -116,14 +125,6 @@ impl NormalOutUnary2 for Scalar<bf16> {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
-        Scalar::new(format!(
-            "__float2bfloat16_rn(copysignf(1.0f, {}))",
-            self.to_f32().val
-        ))
-    }
-
-    #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
         Scalar::new(format!(
             "({} > __nv_bfloat16(0.0)) ? {} : ({} * {})",
@@ -141,6 +142,32 @@ impl NormalOutUnary2 for Scalar<bf16> {
         Scalar::new(format!(
             "__hmin(__hmax({}, __nv_bfloat16(0.0)), __nv_bfloat16(6.0))",
             self.val
+        ))
+    }
+
+    #[inline(always)]
+    fn __signum(self) -> Self {
+        Scalar::new(format!(
+            "({} == __nv_bfloat16(0.0)) ? __nv_bfloat16(0.0) : (({} > __nv_bfloat16(0.0)) ? __nv_bfloat16(1.0) : __nv_bfloat16(-1.0))",
+            self.val,
+            self.val
+        ))
+    }
+
+    #[inline(always)]
+    fn __trunc(self) -> Self {
+        Scalar::new(format!(
+            "__float2bfloat16_rn(truncf({}))",
+            self.to_f32().val
+        ))
+    }
+
+    #[inline(always)]
+    fn __copysign(self, rhs: Self) -> Self {
+        Scalar::new(format!(
+            "__float2bfloat16_rn(copysignf({}, {}))",
+            self.to_f32().val,
+            rhs.to_f32().val
         ))
     }
 }
@@ -345,13 +372,6 @@ impl FloatOutUnary2 for Scalar<bf16> {
         ))
     }
 
-    fn __fast_hard_sigmoid(self) -> Self {
-        Scalar::new(format!(
-            "__hmin_nan(__hmax_nan({} + __nv_bfloat16(1.0), __nv_bfloat16(0.0)), __nv_bfloat16(2.0)) * __nv_bfloat16(0.5)",
-            self.val
-        ))
-    }
-
     fn __hard_swish(self) -> Self {
         Scalar::new(format!(
             "({} * (__hmin_nan(__hmax_nan({} + __nv_bfloat16(3.0), __nv_bfloat16(0.0)), __nv_bfloat16(6.0)) / __nv_bfloat16(6.0)))",
@@ -385,5 +405,49 @@ impl FloatOutUnary2 for Scalar<bf16> {
 
     fn __cbrt(self) -> Self {
         Scalar::new(format!("__float2bfloat16_rn(cbrtf({}))", self.to_f32().val))
+    }
+
+    #[inline(always)]
+    fn __expm1(self) -> Self {
+        Scalar::new(format!(
+            "__float2bfloat16_rn(expm1f({}))",
+            self.to_f32().val
+        ))
+    }
+
+    #[inline(always)]
+    fn __exp10(self) -> Self {
+        Scalar::new(format!(
+            "__float2bfloat16_rn(exp10f({}))",
+            self.to_f32().val
+        ))
+    }
+
+    #[inline(always)]
+    fn __log1p(self) -> Self {
+        Scalar::new(format!(
+            "__float2bfloat16_rn(log1pf({}))",
+            self.to_f32().val
+        ))
+    }
+
+    #[inline(always)]
+    fn __sincos(self) -> (Self, Self)
+    where
+        Self: Sized,
+    {
+        (
+            Scalar::new(format!("__float2bfloat16_rn(sinf({}))", self.to_f32().val)),
+            Scalar::new(format!("__float2bfloat16_rn(cosf({}))", self.to_f32().val)),
+        )
+    }
+
+    #[inline(always)]
+    fn __atan2(self, rhs: Self) -> Self {
+        Scalar::new(format!(
+            "__float2bfloat16_rn(atan2f({}, {}))",
+            self.to_f32().val,
+            rhs.to_f32().val
+        ))
     }
 }

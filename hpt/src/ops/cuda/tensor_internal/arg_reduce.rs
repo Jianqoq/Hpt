@@ -1,5 +1,3 @@
-use std::panic::Location;
-
 use crate::{
     ops::cuda::{
         cuda_utils::{compute_kernel_launch_config, load_ptx_and_get_data},
@@ -9,19 +7,16 @@ use crate::{
     Cuda,
 };
 use cudarc::driver::LaunchConfig;
-use cudarc::{
-    driver::{DeviceRepr, DeviceSlice, LaunchAsync},
-    types::CudaTypeName,
-};
+use cudarc::driver::{DeviceRepr, DeviceSlice, LaunchAsync};
+use hpt_types::dtype::CudaType;
 use hpt_common::{
-    axis::{process_axes, Axis},
-    err_handler::TensorError,
+    axis::axis::{process_axes, Axis},
+    error::base::TensorError,
 };
 use hpt_cudakernels::{RegisterInfo, ARGMAX, ARGMIN};
 use hpt_traits::{CommonBounds, IndexReduce, ShapeManipulate, TensorInfo};
 use hpt_types::{
-    cast::Cast,
-    convertion::Convertor,
+    into_scalar::Cast,
     type_promote::{Cmp, NormalOut},
 };
 
@@ -41,9 +36,9 @@ pub(crate) fn contiguous_reduce<T, const DEVICE_ID: usize>(
     >,
     module_name: &str,
     c: Option<_Tensor<i64, Cuda, DEVICE_ID>>,
-) -> std::result::Result<_Tensor<i64, Cuda, DEVICE_ID>, TensorError>
+) -> Result<_Tensor<i64, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + Cast<i64> + Convertor + DeviceRepr + CudaTypeName,
+    T: CommonBounds + Cast<i64> + DeviceRepr + CudaType,
 {
     let max_axis = *axes.iter().max().unwrap();
     let (a, fused_dims) = if max_axis == a.ndim() - 1 {
@@ -65,7 +60,7 @@ where
         |res| {
             let (reduce_kernel, reg_info) = load_ptx_and_get_data(
                 module_name,
-                &format!("contiguous_reduce_{}", T::ID),
+                &format!("contiguous_reduce_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,
@@ -93,7 +88,7 @@ where
 
             let reduce_kernel = a
                 .device()
-                .get_func(module_name, &format!("contiguous_reduce2_{}", T::ID))
+                .get_func(module_name, &format!("contiguous_reduce2_{}", T::STR))
                 .unwrap();
 
             while num_blocks > 1 {
@@ -127,7 +122,7 @@ where
             let outer_loop_size = a.size() / (inner_loop_size * inner_loop_size2);
             let (reduce_kernel, reg_info) = load_ptx_and_get_data(
                 module_name,
-                &format!("contiguous_reduce3_{}", T::ID),
+                &format!("contiguous_reduce3_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,
@@ -175,7 +170,7 @@ where
             let mut inp_idx = tmp_idx;
             let reduce_kernel = a
                 .device()
-                .get_func(&module_name, &format!("contiguous_reduce33_{}", T::ID))
+                .get_func(&module_name, &format!("contiguous_reduce33_{}", T::STR))
                 .unwrap();
             while reduce_size > 1 {
                 cfg = compute_kernel_launch_config(a.device(), &reg_info, reduce_size);
@@ -231,7 +226,7 @@ where
             let transposed_tensor = transposed_tensor.permute(&perm).unwrap();
             let (reduce_kernel, _) = load_ptx_and_get_data(
                 module_name,
-                &format!("contiguous_reduce4_{}", T::ID),
+                &format!("contiguous_reduce4_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,
@@ -282,7 +277,7 @@ where
             .unwrap();
             let (reduce_kernel, _) = load_ptx_and_get_data(
                 module_name,
-                &format!("contiguous_reduce44_{}", T::ID),
+                &format!("contiguous_reduce44_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,
@@ -352,35 +347,26 @@ where
 }
 
 impl<
-        T: CommonBounds + NormalOut<Output = T> + Cmp + DeviceRepr + CudaTypeName + Cast<i64>,
+        T: CommonBounds
+            + NormalOut<Output = T>
+            + Cmp
+            + DeviceRepr
+            + CudaType
+            + Cast<i64>,
         const DEVICE_ID: usize,
     > IndexReduce for _Tensor<T, Cuda, DEVICE_ID>
 {
     type Output = _Tensor<i64, Cuda, DEVICE_ID>;
 
-    fn argmax<S: Into<Axis>>(
-        &self,
-        axis: S,
-        keep_dims: bool,
-    ) -> std::result::Result<Self::Output, TensorError> {
+    fn argmax<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError> {
         let axis: Axis = axis.into();
         let axes: Vec<usize> = process_axes(axis.clone(), self.ndim())?;
-        if axes.len() != 1 {
-            return Err(TensorError::ArgReduceErr(axis, Location::caller()));
-        }
         contiguous_reduce(self, &axes, keep_dims, false, &ARGMAX, "argmax", None)
     }
 
-    fn argmin<S: Into<Axis>>(
-        &self,
-        axis: S,
-        keep_dims: bool,
-    ) -> std::result::Result<Self::Output, TensorError> {
+    fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError> {
         let axis: Axis = axis.into();
         let axes: Vec<usize> = process_axes(axis.clone(), self.ndim())?;
-        if axes.len() != 1 {
-            return Err(TensorError::ArgReduceErr(axis, Location::caller()));
-        }
         contiguous_reduce(self, &axes, keep_dims, false, &ARGMIN, "argmin", None)
     }
 }

@@ -3,8 +3,9 @@ use crate::{
     tensor_base::_Tensor,
     Cuda,
 };
-use cudarc::{driver::DeviceRepr, types::CudaTypeName};
-use hpt_common::err_handler::TensorError;
+use cudarc::driver::DeviceRepr;
+use hpt_types::dtype::CudaType;
+use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, ShapeManipulate, TensorInfo};
 use hpt_types::into_scalar::Cast;
 
@@ -165,8 +166,8 @@ pub(crate) fn contiguous_reduce_template<T, F1, F2, F4, O, const DEVICE_ID: usiz
     kd: F4,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + Cast<O> + DeviceRepr + CudaTypeName,
-    O: CommonBounds + DeviceRepr + CudaTypeName,
+    T: CommonBounds + Cast<O> + DeviceRepr + CudaType,
+    O: CommonBounds + DeviceRepr + CudaType,
     F1: Fn(CudaSlice),
     F2: Fn(usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
     F4: Fn(usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
@@ -399,8 +400,8 @@ pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O, const DEVICE_ID:
     kd: F4,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + Cast<O> + DeviceRepr + CudaTypeName,
-    O: CommonBounds + DeviceRepr + CudaTypeName,
+    T: CommonBounds + Cast<O> + DeviceRepr + CudaType,
+    O: CommonBounds + DeviceRepr + CudaType,
     F1: Fn(&mut O),
     F2: Fn(usize, usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
     F3: Fn(usize, usize, _Tensor<T, Cuda, DEVICE_ID>, &_Tensor<O, Cuda, DEVICE_ID>),

@@ -4,17 +4,20 @@ use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use cudarc::driver::DeviceRepr;
 use cudarc::driver::LaunchAsync;
-use hpt_common::err_handler::TensorError::InvalidOutSize;
-use hpt_common::shape::Shape;
+use hpt_common::error::base::TensorError;
+use hpt_common::error::shape::ShapeError;
+use hpt_common::shape::shape::Shape;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorCreator;
 use hpt_traits::tensor::TensorInfo;
 use hpt_traits::TensorLike;
 use hpt_types::cuda_types::scalar::Scalar;
-use std::borrow::Borrow;
-use std::panic::Location;
+use hpt_types::dtype::CudaType;
+use std::borrow::BorrowMut;
+use std::collections::HashSet;
 
 use super::cuda_utils::get_array_str;
+use super::cuda_utils::get_include_1;
 
 /// Performs a binary operation on two tensors with optional SIMD optimization and an output tensor.
 ///
@@ -50,38 +53,34 @@ pub(crate) fn binary_fn_with_out_simd<A, B, O, K, F, const CUDA_DEVICE: usize>(
     rhs: &_Tensor<B, Cuda, CUDA_DEVICE>,
     f: F,
     out: Option<O>,
-) -> anyhow::Result<_Tensor<K, Cuda, CUDA_DEVICE>>
+) -> Result<_Tensor<K, Cuda, CUDA_DEVICE>, TensorError>
 where
-    A: CommonBounds + DeviceRepr,
-    B: CommonBounds + DeviceRepr,
-    O: Borrow<_Tensor<K, Cuda, CUDA_DEVICE>>,
-    K: CommonBounds + DeviceRepr,
+    A: CommonBounds + DeviceRepr + CudaType,
+    B: CommonBounds + DeviceRepr + CudaType,
+    O: BorrowMut<_Tensor<K, Cuda, CUDA_DEVICE>>,
+    K: CommonBounds + DeviceRepr + CudaType,
     F: Fn(Scalar<K>, Scalar<A>, Scalar<B>) -> Scalar<K>,
 {
     let module_name = format!(
         "bn{}{}{}{}{}{}",
-        A::ID,
+        A::STR,
         lhs.layout.shape(),
         lhs.layout.strides(),
-        B::ID,
+        B::STR,
         rhs.layout.shape(),
         rhs.layout.strides()
     );
-    let half_include = if K::CUDA_TYPE == "half" || A::CUDA_TYPE == "half" || B::CUDA_TYPE == "half"
-    {
-        "#include <cuda_fp16.h>"
-    } else {
-        ""
-    };
-    let bfloat16_include =
-        if K::CUDA_TYPE == "bfloat16" || A::CUDA_TYPE == "bfloat16" || B::CUDA_TYPE == "bfloat16" {
-            "#include <cuda_bf16.h>"
-        } else {
-            ""
-        };
+    let k_include = get_include_1::<K>();
+    let a_include = get_include_1::<A>();
+    let b_include = get_include_1::<B>();
+    let mut set = HashSet::new();
+    set.insert(k_include);
+    set.insert(a_include);
+    set.insert(b_include);
+    let includes = set.into_iter().collect::<Vec<_>>().join("\n");
     if lhs.size() == 1 {
         let val = lhs.to_cpu()?.as_raw()[0];
-        let res = extract_out::<B, K, O, CUDA_DEVICE>(rhs.size(), rhs.shape(), out)?;
+        let res = extract_out::<B, K, O, CUDA_DEVICE>(rhs.shape(), out)?;
         if rhs.is_contiguous() {
             let out_scalar = Scalar::new("out[idx]".to_string());
             let lhs_scalar = Scalar::new("lhs".to_string());
@@ -90,8 +89,7 @@ where
                 &module_name,
                 &format!(
                     "
-                    {half_include}
-                    {bfloat16_include}
+                    {includes}
                     extern \"C\" __global__ void lhs_scalar_rhs_contiguous({} *out, {} lhs, {} *rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -123,7 +121,7 @@ where
             let cfg = compute_kernel_launch_config(res.device(), reg_info, res.size());
             unsafe { kernel.launch(cfg, (out_slice, val, rhs_slice)) }?;
         } else {
-            let rhs_broadcast_layout = rhs.layout.to_broadcast_layout(res.shape())?;
+            let rhs_broadcast_layout = rhs.layout.broadcast(&res.layout)?;
             let shape_str = get_array_str(rhs_broadcast_layout.shape());
             let strides_str = get_array_str(rhs_broadcast_layout.strides());
             let out_scalar = Scalar::new("out[idx]".to_string());
@@ -133,8 +131,7 @@ where
                 &module_name,
                 &format!(
                     "
-                    {half_include}
-                    {bfloat16_include}
+                    {includes}
                     __constant__ long long shape[] = {{{}}};
                     __constant__ long long strides[] = {{{}}};
                     extern \"C\" __global__ void lhs_scalar_rhs_contiguous({} *out, {} lhs, {} *rhs)
@@ -182,7 +179,7 @@ where
         Ok(res)
     } else if rhs.size() == 1 {
         let val = rhs.to_cpu()?.as_raw()[0];
-        let res = extract_out::<A, K, O, CUDA_DEVICE>(lhs.size(), lhs.shape(), out)?;
+        let res = extract_out::<A, K, O, CUDA_DEVICE>(lhs.shape(), out)?;
         if lhs.is_contiguous() {
             let out_scalar = Scalar::new("out[idx]".to_string());
             let lhs_scalar = Scalar::new("lhs[idx]".to_string());
@@ -191,8 +188,7 @@ where
                 &module_name,
                 &format!(
                     "
-                    {half_include}
-                    {bfloat16_include}
+                    {includes}
                     extern \"C\" __global__ void rhs_scalar_lhs_contiguous({} *out, {} *lhs, {} rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -234,8 +230,7 @@ where
                 &module_name,
                 &format!(
                     "
-                    {half_include}
-                    {bfloat16_include}
+                    {includes}
                     __constant__ long long shape[] = {{{}}};
                     __constant__ long long strides[] = {{{}}};
                     extern \"C\" __global__ void rhs_scalar_lhs_contiguous({} *out, {} *lhs, {} rhs)
@@ -283,7 +278,7 @@ where
         Ok(res)
     } else {
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
-            let res = extract_out::<B, K, O, CUDA_DEVICE>(rhs.size(), rhs.shape(), out)?;
+            let res = extract_out::<B, K, O, CUDA_DEVICE>(rhs.shape(), out)?;
             let out_scalar = Scalar::new("out[idx]".to_string());
             let lhs_scalar = Scalar::new("lhs[idx]".to_string());
             let rhs_scalar = Scalar::new("rhs[idx]".to_string());
@@ -291,8 +286,7 @@ where
                 &module_name,
                 &format!(
                     "
-                    {half_include}
-                    {bfloat16_include}
+                    {includes}
                     extern \"C\" __global__ void lhs_scalar_rhs_contiguous({} *out, {} *lhs, {} *rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -329,11 +323,7 @@ where
             let res_layout = lhs.layout.broadcast(&rhs.layout)?;
             let lhs_broadcast_layout = lhs.layout.to_broadcast_layout(res_layout.shape())?;
             let rhs_broadcast_layout = rhs.layout.to_broadcast_layout(res_layout.shape())?;
-            let res = extract_out::<K, K, O, CUDA_DEVICE>(
-                res_layout.size() as usize,
-                res_layout.shape(),
-                out,
-            )?;
+            let res = extract_out::<K, K, O, CUDA_DEVICE>(res_layout.shape(), out)?;
             let lhs_shape_str = get_array_str(lhs_broadcast_layout.shape());
             let lhs_strides_str = get_array_str(lhs_broadcast_layout.strides());
             let rhs_shape_str = get_array_str(rhs_broadcast_layout.shape());
@@ -345,8 +335,7 @@ where
                 &module_name,
                 &format!(
                     "
-                    {half_include}
-                    {bfloat16_include}
+                    {includes}
                     __constant__ long long lhs_shape[] = {{{}}};
                     __constant__ long long lhs_strides[] = {{{}}};
                     __constant__ long long rhs_shape[] = {{{}}};
@@ -400,26 +389,17 @@ where
 }
 
 fn extract_out<A, K, O, const CUDA_DEVICE: usize>(
-    size: usize,
     res_shape: &Shape,
     out: Option<O>,
-) -> anyhow::Result<_Tensor<K, Cuda, CUDA_DEVICE>>
+) -> Result<_Tensor<K, Cuda, CUDA_DEVICE>, TensorError>
 where
     A: CommonBounds + DeviceRepr,
     K: CommonBounds + DeviceRepr,
-    O: Borrow<_Tensor<K, Cuda, CUDA_DEVICE>>,
+    O: BorrowMut<_Tensor<K, Cuda, CUDA_DEVICE>>,
 {
-    let ret = if let Some(out) = out {
-        if out.borrow().size() * size_of::<K>() != size * size_of::<A>() {
-            return Err(InvalidOutSize(
-                size * size_of::<A>(),
-                out.borrow().size() * size_of::<K>(),
-                Location::caller(),
-            )
-            .into());
-        } else {
-            out.borrow().static_cast::<K>()?
-        }
+    let ret = if let Some(mut out) = out {
+        ShapeError::check_inplace_out_layout_valid(res_shape, &out.borrow().layout())?;
+        (*out.borrow_mut()).clone()
     } else {
         _Tensor::<K, Cuda, CUDA_DEVICE>::empty(res_shape)?
     };

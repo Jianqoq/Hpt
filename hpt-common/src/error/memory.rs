@@ -40,5 +40,3 @@ pub enum MemoryError {
         location: &'static Location<'static>,
     },
 }
-
-impl MemoryError {}

@@ -7,27 +7,22 @@ use crate::Cuda;
 use super::cuda_utils::compute_kernel_launch_config;
 use super::cuda_utils::load_ptx_and_get_data;
 use super::reduce_template::uncontiguos_reduce_template;
-use anyhow;
 use cudarc::driver::DeviceRepr;
 use cudarc::driver::LaunchAsync;
 use cudarc::driver::LaunchConfig;
-use cudarc::types::CudaTypeName;
-use hpt_common::err_handler::TensorError;
+use hpt_types::dtype::CudaType;
+use hpt_common::error::base::TensorError;
 use hpt_cudakernels::RegisterInfo;
 use hpt_traits::shape_manipulate::ShapeManipulate;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
 use hpt_traits::TensorCreator;
 use hpt_traits::TensorLike;
-use hpt_types::convertion::Convertor;
 use hpt_types::into_scalar::Cast;
 
 #[track_caller]
-pub(crate) fn reduce<T, F, F2, F3, const DEVICE_ID: usize>(
+pub(crate) fn reduce<T, const DEVICE_ID: usize>(
     a: &_Tensor<T, Cuda, DEVICE_ID>,
-    op: F,
-    op_no_cast: F2,
-    vec_op: F3,
     axes: &[usize],
     init_val: T,
     keepdims: bool,
@@ -44,22 +39,12 @@ pub(crate) fn reduce<T, F, F2, F3, const DEVICE_ID: usize>(
     c: Option<_Tensor<T, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<T, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + Cast<T> + Convertor + DeviceRepr + CudaTypeName,
-    F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
-    F2: Fn(T, T) -> T + Sync + Send + 'static + Copy,
-    F3: Fn(T::Vec, T::Vec) -> T::Vec + Sync + Send + 'static + Copy,
+    T: CommonBounds + Cast<T> + DeviceRepr + CudaType,
     T::Vec: Copy,
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<_, _, _, _, fn(T) -> T, _, _, fn(T::Vec) -> T::Vec, T, DEVICE_ID>(
+        contiguous_reduce::<T, T, DEVICE_ID>(
             a,
-            op,
-            op_no_cast,
-            op,
-            None,
-            vec_op,
-            vec_op,
-            None,
             &axes,
             init_val,
             keepdims,
@@ -69,20 +54,13 @@ where
             c,
         )
     } else {
-        uncontiguous_reduce::<_, _, _, fn(T) -> T, _, fn(T::Vec) -> T::Vec, T, DEVICE_ID>(
-            a, op, op, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
-        )
+        uncontiguous_reduce::<T, T, DEVICE_ID>(a, &axes, init_val, keepdims, init_out, c)
     }
 }
 
 #[track_caller]
-pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O, const DEVICE_ID: usize>(
+pub(crate) fn reduce2<T, O, const DEVICE_ID: usize>(
     a: &_Tensor<T, Cuda, DEVICE_ID>,
-    op: F,
-    op_no_cast: F2,
-    op2: F3,
-    vec_op: F4,
-    vec_op2: F5,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -99,26 +77,14 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O, const DEVICE_ID: usize>(
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + Cast<O> + Convertor + DeviceRepr + CudaTypeName,
-    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
-    F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-    F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-    F4: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-    F5: Fn(O::Vec, O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-    O: CommonBounds + DeviceRepr + CudaTypeName,
+    T: CommonBounds + Cast<O> + DeviceRepr + CudaType,
+    O: CommonBounds + DeviceRepr + CudaType,
     T::Vec: Copy,
     O::Vec: Copy,
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, F, F2, F3, fn(O) -> O, _, _, fn(O::Vec) -> O::Vec, O, DEVICE_ID>(
+        contiguous_reduce::<T, O, DEVICE_ID>(
             a,
-            op,
-            op_no_cast,
-            op2,
-            None,
-            vec_op,
-            vec_op2,
-            None,
             &axes,
             init_val,
             keepdims,
@@ -128,22 +94,13 @@ where
             c,
         )
     } else {
-        uncontiguous_reduce::<T, F, F3, fn(O) -> O, _, fn(O::Vec) -> O::Vec, O, DEVICE_ID>(
-            a, op, op2, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
-        )
+        uncontiguous_reduce::<T, O, DEVICE_ID>(a, &axes, init_val, keepdims, init_out, c)
     }
 }
 
 #[track_caller]
-pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE_ID: usize>(
+pub(crate) fn reduce3<T, O, const DEVICE_ID: usize>(
     a: &_Tensor<T, Cuda, DEVICE_ID>,
-    op: F,
-    op_no_cast: F2,
-    op2: F3,
-    op3: F4,
-    vec_op: F5,
-    vec_op2: F6,
-    op5: F7,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -160,27 +117,13 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE_ID: usize>(
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + Cast<O> + Convertor + DeviceRepr + CudaTypeName,
-    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
-    F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-    F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-    F4: Fn(O) -> O + Sync + Send + 'static + Copy,
-    F5: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-    F6: Fn(O::Vec, O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-    F7: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-    O: CommonBounds + DeviceRepr + CudaTypeName,
+    T: CommonBounds + Cast<O> + DeviceRepr + CudaType,
+    O: CommonBounds + DeviceRepr + CudaType,
     O::Vec: Copy,
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, F, F2, F3, F4, F5, F6, F7, O, DEVICE_ID>(
+        contiguous_reduce::<T, O, DEVICE_ID>(
             a,
-            op,
-            op_no_cast,
-            op2,
-            Some(op3),
-            vec_op,
-            vec_op2,
-            Some(op5),
             &axes,
             init_val,
             keepdims,
@@ -190,32 +133,13 @@ where
             c,
         )
     } else {
-        uncontiguous_reduce::<T, F, F3, F4, F5, F7, O, DEVICE_ID>(
-            a,
-            op,
-            op2,
-            Some(op3),
-            vec_op,
-            Some(op5),
-            &axes,
-            init_val,
-            keepdims,
-            init_out,
-            c,
-        )
+        uncontiguous_reduce::<T, O, DEVICE_ID>(a, &axes, init_val, keepdims, init_out, c)
     }
 }
 
 #[track_caller]
-pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE_ID: usize>(
+pub(crate) fn contiguous_reduce<T, O, const DEVICE_ID: usize>(
     a: &_Tensor<T, Cuda, DEVICE_ID>,
-    op: F,
-    op_no_cast: F2,
-    op2: F3,
-    op3: Option<F4>,
-    vec_op: F5,
-    vec_op2: F6,
-    vec_post: Option<F7>,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -232,15 +156,8 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE_ID
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + Cast<O> + Convertor + DeviceRepr + CudaTypeName,
-    O: CommonBounds + DeviceRepr + CudaTypeName,
-    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
-    F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-    F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-    F4: Fn(O) -> O + Sync + Send + 'static + Copy,
-    F5: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
-    F6: Fn(O::Vec, O::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
-    F7: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    T: CommonBounds + Cast<O> + DeviceRepr + CudaType,
+    O: CommonBounds + DeviceRepr + CudaType,
     T::Vec: Copy,
     O::Vec: Copy,
 {
@@ -264,7 +181,7 @@ where
         |res| {
             let (reduce_kernel, reg_info) = load_ptx_and_get_data(
                 module_name,
-                &format!("contiguous_reduce_{}", T::ID),
+                &format!("contiguous_reduce_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,
@@ -322,7 +239,7 @@ where
             let outer_loop_size = a.size() / (inner_loop_size * inner_loop_size2);
             let (reduce_kernel, reg_info) = load_ptx_and_get_data(
                 module_name,
-                &format!("contiguous_reduce2_{}", T::ID),
+                &format!("contiguous_reduce2_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,
@@ -376,7 +293,7 @@ where
             let mut inp = tmp_buffer;
             let reduce_kernel = a
                 .device()
-                .get_func(&module_name, &format!("contiguous_reduce22_{}", T::ID))
+                .get_func(&module_name, &format!("contiguous_reduce22_{}", T::STR))
                 .unwrap();
             while reduce_size > 1 {
                 let cfg = compute_cfg(reduce_size);
@@ -406,7 +323,7 @@ where
             let transposed_tensor = transposed_tensor.permute(&perm).unwrap();
             let (reduce_kernel, _) = load_ptx_and_get_data(
                 module_name,
-                &format!("contiguous_reduce3_{}", T::ID),
+                &format!("contiguous_reduce3_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,
@@ -451,7 +368,7 @@ where
             .unwrap();
             let (reduce_kernel, _) = load_ptx_and_get_data(
                 module_name,
-                &format!("contiguous_reduce33_{}", T::ID),
+                &format!("contiguous_reduce33_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,
@@ -508,13 +425,8 @@ where
 }
 
 #[track_caller]
-pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE_ID: usize>(
+pub(crate) fn uncontiguous_reduce<T, O, const DEVICE_ID: usize>(
     a: &_Tensor<T, Cuda, DEVICE_ID>,
-    op: F,
-    op2: F2,
-    op3: Option<F3>,
-    _: F4,
-    _: Option<F5>,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -522,13 +434,8 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE_ID: usiz
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + Cast<O> + Convertor + DeviceRepr + CudaTypeName,
-    O: CommonBounds + DeviceRepr + CudaTypeName,
-    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
-    F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-    F3: Fn(O) -> O + Sync + Send + 'static + Copy,
-    F4: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
-    F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    T: CommonBounds + Cast<O> + DeviceRepr + CudaType,
+    O: CommonBounds + DeviceRepr + CudaType,
     T::Vec: Copy,
     O::Vec: Copy,
 {

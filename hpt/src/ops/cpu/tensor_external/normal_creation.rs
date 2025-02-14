@@ -144,7 +144,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
     type Output = DiffTensor<T, Cpu, DEVICE>;
 
     fn empty<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
-        let ret = Tensor::empty(shape)?;
+        let ret = Tensor::<T, Cpu, DEVICE>::empty(shape)?;
         Ok(DiffTensor {
             inner: ret,
             grad: Rc::new(RefCell::new(None)),
@@ -154,7 +154,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
     }
 
     fn zeros<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
-        let ret = Tensor::zeros(shape)?;
+        let ret = Tensor::<T, Cpu, DEVICE>::zeros(shape)?;
         Ok(DiffTensor {
             inner: ret,
             grad: Rc::new(RefCell::new(None)),
@@ -167,7 +167,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
     where
         u8: Cast<T>,
     {
-        let ret = Tensor::ones(shape)?;
+        let ret = Tensor::<T, Cpu, DEVICE>::ones(shape)?;
         Ok(DiffTensor {
             inner: ret,
             grad: Rc::new(RefCell::new(None)),
@@ -258,7 +258,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
     }
 
     fn eye(n: usize, m: usize, k: usize) -> Result<Self::Output, TensorError> {
-        let ret = Tensor::eye(n, m, k)?;
+        let ret = Tensor::<T, Cpu, DEVICE>::eye(n, m, k)?;
         Ok(DiffTensor {
             inner: ret,
             grad: Rc::new(RefCell::new(None)),

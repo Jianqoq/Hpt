@@ -2,6 +2,11 @@
 
 Hpt is a high performance N-dimensional array library. It is being highly optimized and is designed to be easy to use. Most of the operators are implemented based on Onnx operator list. Hence, you can use it to build most of the deep learning models.
 
+
+# Note
+
+Hpt is in early stage, bugs and wrong calculation results are expected
+
 # Features
 #### Memory Layout
 - Optimized memory layout with support for both contiguous and not contiguous tensors.

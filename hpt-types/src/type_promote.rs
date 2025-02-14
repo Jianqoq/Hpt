@@ -418,7 +418,7 @@ pub trait FloatOutUnary {
     fn _atan(self) -> Self::Output;
 
     /// Perform the inverse tangent function: atan2(y, x).
-    fn _atan2(self, rhs: Self) -> Self::Output;
+    fn _atan2(self, rhs: Self::Output) -> Self::Output;
 
     /// Perform the hyperbolic sine function: sinh(x).
     fn _sinh(self) -> Self::Output;

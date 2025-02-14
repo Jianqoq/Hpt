@@ -1,5 +1,5 @@
 use crate::{tensor::Tensor, Cuda};
-use anyhow::Result;
+use hpt_common::error::base::TensorError;
 use hpt_common::slice::Slice;
 use hpt_traits::CommonBounds;
 
@@ -22,7 +22,8 @@ where
     ///
     /// Returns a `Result` containing the sliced tensor as a new tensor. If any slicing error occurs
     /// (e.g., out-of-bounds access), an error message is returned.
-    pub fn slice(&self, index: &[Slice]) -> Result<Tensor<T, Cuda, DEVICE_ID>> {
+    #[track_caller]
+    pub fn slice(&self, index: &[Slice]) -> Result<Tensor<T, Cuda, DEVICE_ID>, TensorError> {
         Ok(self.inner.slice(index)?.into())
     }
 }

@@ -2,11 +2,13 @@ use std::{collections::HashMap, panic::Location, sync::Arc};
 
 use cudarc::{
     driver::{CudaDevice, CudaFunction, LaunchConfig},
-    nvrtc::{compile_ptx_with_opts, CompileOptions},
+    nvrtc::{compile_ptx_with_opts, CompileOptions}
 };
-use hpt_common::err_handler::TensorError;
+use hpt_common::error::{
+    base::TensorError, common::CommonError, device::DeviceError, kernel::KernelError,
+};
 use hpt_cudakernels::RegisterInfo;
-use hpt_types::dtype::TypeCommon;
+use hpt_types::dtype::{CudaType, TypeCommon};
 use regex::Regex;
 
 use crate::{cuda_compiled::CUDA_COMPILED, tensor_base::_Tensor, Cuda};
@@ -17,7 +19,7 @@ pub(crate) fn compile_kernel(
     code: &str,
     device: Arc<CudaDevice>,
     kernels: &[&'static str],
-) -> std::result::Result<Arc<HashMap<String, RegisterInfo>>, TensorError> {
+) -> Result<Arc<HashMap<String, RegisterInfo>>, TensorError> {
     if let Ok(mut cache) = CUDA_COMPILED.lock() {
         if let Some(set) = cache.get_mut(&device.ordinal()) {
             if let Some(reg_info) = set.get(module) {
@@ -26,30 +28,17 @@ pub(crate) fn compile_kernel(
                 let cuda_path = if let Ok(cuda_path) = std::env::var("CUDA_PATH") {
                     cuda_path
                 } else {
-                    return Err(TensorError::EnvVarNotSet(
-                        "CUDA_PATH",
-                        "compile_kernel",
-                        Location::caller(),
-                    ));
+                    return Err(DeviceError::EnvVarNotSet {
+                        variable: "CUDA_PATH".to_string(),
+                        location: Location::caller(),
+                    }
+                    .into());
                 };
                 let mut opts = CompileOptions::default();
                 opts.include_paths.push(format!("{}/include", cuda_path));
-                let ptx = compile_ptx_with_opts(code, opts).map_err(|_| {
-                    TensorError::CudaKernelCompileError(
-                        module.to_string(),
-                        code.to_string(),
-                        Location::caller(),
-                    )
-                })?;
+                let ptx = compile_ptx_with_opts(code, opts)?;
                 let reg_counts = count_registers(&ptx.to_src());
-                device.load_ptx(ptx, module, kernels).map_err(|x| {
-                    TensorError::CudaLoadPTXFailed(
-                        module.to_string(),
-                        code.to_string(),
-                        Location::caller(),
-                        x,
-                    )
-                })?;
+                device.load_ptx(ptx, module, kernels)?;
                 set.insert(module.to_string(), Arc::new(reg_counts));
                 Ok(set.get(module).unwrap().clone())
             }
@@ -58,32 +47,20 @@ pub(crate) fn compile_kernel(
             let cuda_path = std::env::var("CUDA_PATH").unwrap();
             let mut opts = CompileOptions::default();
             opts.include_paths.push(format!("{}/include", cuda_path));
-            let ptx = compile_ptx_with_opts(code, opts).map_err(|_| {
-                TensorError::CudaKernelCompileError(
-                    module.to_string(),
-                    code.to_string(),
-                    Location::caller(),
-                )
-            })?;
+            let ptx = compile_ptx_with_opts(code, opts)?;
             let reg_counts = count_registers(&ptx.to_src());
-            device.load_ptx(ptx, module, kernels).map_err(|x| {
-                TensorError::CudaLoadPTXFailed(
-                    module.to_string(),
-                    code.to_string(),
-                    Location::caller(),
-                    x,
-                )
-            })?;
+            device.load_ptx(ptx, module, kernels)?;
             let reg_counts = Arc::new(reg_counts);
             map.insert(module.to_string(), reg_counts.clone());
             cache.insert(device.ordinal(), map);
             Ok(reg_counts)
         }
     } else {
-        Err(TensorError::LockFailed(
-            "compile_kernel",
-            Location::caller(),
-        ))
+        Err(CommonError::LockFailed {
+            message: "compile_kernel".to_string(),
+            location: Location::caller(),
+        }
+        .into())
     }
 }
 
@@ -100,54 +77,49 @@ pub(crate) fn load_ptx_and_get_data(
             &'static [&str],
         ),
     >,
-) -> std::result::Result<(CudaFunction, RegisterInfo), TensorError> {
+) -> Result<(CudaFunction, RegisterInfo), TensorError> {
     if let Some(func) = device.get_func(module, func_name) {
         if let Some(meta) = meta.get(&cap) {
             if let Some(reg_info) = meta.1.get(func_name) {
                 Ok((func, *reg_info))
             } else {
-                Err(TensorError::CudaKernelReginfoNotFound(
-                    module.to_string(),
-                    func_name.to_string(),
-                    Location::caller(),
-                ))
+                Err(KernelError::CudaKernelRegInfoNotFound {
+                    module: module.to_string(),
+                    func_name: func_name.to_string(),
+                    location: Location::caller(),
+                }
+                .into())
             }
         } else {
-            Err(TensorError::CudaKernelMetaNotFound(
+            Err(KernelError::CudaKernelMetaNotFound {
+                module: module.to_string(),
+                func_name: func_name.to_string(),
                 cap,
-                module.to_string(),
-                func_name.to_string(),
-                Location::caller(),
-            ))
+                location: Location::caller(),
+            }
+            .into())
         }
     } else {
         if let Some(meta) = meta.get(&cap) {
-            device
-                .load_ptx(meta.0.into(), module, meta.2)
-                .map_err(|x| {
-                    TensorError::CudaLoadPTXFailed(
-                        module.to_string(),
-                        meta.0.to_string(),
-                        Location::caller(),
-                        x,
-                    )
-                })?;
+            device.load_ptx(meta.0.into(), module, meta.2)?;
             if let Some(reg_info) = meta.1.get(func_name) {
                 Ok((device.get_func(module, func_name).unwrap(), *reg_info))
             } else {
-                Err(TensorError::CudaKernelReginfoNotFound(
-                    module.to_string(),
-                    func_name.to_string(),
-                    Location::caller(),
-                ))
+                Err(KernelError::CudaKernelRegInfoNotFound {
+                    module: module.to_string(),
+                    func_name: func_name.to_string(),
+                    location: Location::caller(),
+                }
+                .into())
             }
         } else {
-            Err(TensorError::CudaKernelMetaNotFound(
+            Err(KernelError::CudaKernelMetaNotFound {
                 cap,
-                module.to_string(),
-                func_name.to_string(),
-                Location::caller(),
-            ))
+                module: module.to_string(),
+                func_name: func_name.to_string(),
+                location: Location::caller(),
+            }
+            .into())
         }
     }
 }
@@ -258,9 +230,11 @@ pub(crate) fn compute_kernel_launch_config(
     }
 }
 
-pub(crate) fn get_include_1<T: TypeCommon>() -> &'static str {
-    if T::CUDA_TYPE == "half" {
+pub(crate) fn get_include_1<T: TypeCommon + CudaType>() -> &'static str {
+    if T::CUDA_TYPE == "__half" {
         "#include <cuda_fp16.h>"
+    } else if T::CUDA_TYPE == "__nv_bfloat16" {
+        "#include <cuda_bf16.h>"
     } else {
         ""
     }
@@ -272,7 +246,7 @@ pub(crate) fn get_module_name_1<T: TypeCommon, const CUDA_DEVICE: usize>(
 ) -> String {
     format!(
         "{header}{}{}{}",
-        T::ID,
+        T::STR,
         tensor.layout.shape(),
         tensor.layout.strides(),
     )
@@ -286,7 +260,7 @@ pub(crate) fn get_module_name_vec<T: TypeCommon, const CUDA_DEVICE: usize>(
     for i in tensors.iter() {
         string.push_str(&format!(
             "{}{}{}",
-            T::ID,
+            T::STR,
             i.layout.shape(),
             i.layout.strides(),
         ));
