@@ -1,9 +1,8 @@
-use std::{alloc::Layout, num::NonZeroUsize, panic::Location, sync::Mutex};
+use std::{alloc::Layout, num::NonZeroUsize, sync::Mutex};
 
-use crate::{ptr::SafePtr, storage::cpu::CPU_STORAGE, storage::Storage, traits::Allocator};
+use crate::{ptr::SafePtr, storage::{cpu::CPU_STORAGE, CommonStorage, Storage}, traits::Allocator};
 use hashbrown::{HashMap, HashSet};
 use hpt_common::error::base::TensorError;
-use hpt_common::error::memory::MemoryError;
 use lru::LruCache;
 use once_cell::sync::Lazy;
 
@@ -43,23 +42,23 @@ impl Allocator for CpuAllocator {
     }
     fn deallocate(&mut self, ptr: *mut u8, layout: &Layout, device_id: usize) {
         if let Some(allocator) = self.allocator.get_mut(&device_id) {
-            allocator.deallocate(ptr, layout);
+            allocator.deallocate(ptr, layout, device_id);
+        } else {
+            panic!("device {} not found in allocator", device_id);
         }
     }
-
     fn insert_ptr(&mut self, ptr: *mut u8, device_id: usize) {
         if let Some(allocator) = self.allocator.get_mut(&device_id) {
-            allocator.insert_ptr(ptr);
+            allocator.insert_ptr(ptr, device_id);
         } else {
             let mut allocator = _Allocator {
                 cache: LruCache::new(NonZeroUsize::new(100).unwrap()),
                 allocated: HashSet::new(),
             };
-            allocator.insert_ptr(ptr);
+            allocator.insert_ptr(ptr, device_id);
             self.allocator.insert(device_id, allocator);
         }
     }
-
     fn clear(&mut self) {
         for (_, allocator) in self.allocator.iter_mut() {
             for (layout, ptrs) in allocator.cache.iter_mut() {
@@ -89,72 +88,24 @@ struct _Allocator {
 }
 
 impl _Allocator {
-    /// # Main Allocation Function
-    /// allocating and freeing memory is expensive, we are using `LRU`(least recently used) algorithm to reuse the memory
-    ///
-    /// allocate memory based on layout provided, if the layout is not found in the cache, allocate, otherwise pop from the cache
-    ///
-    /// this function internally checks if the cache is full, if it is full, it pops the least recently used layout and deallocates the memory
-    ///
-    /// if the cache is not full, it inserts the allocated memory into the cache, and increments the reference count in the storage
-    ///
-    /// # Safety
-    ///
-    /// This function checks `null` ptr internally, any memory allocated through this method, downstream don't need to check for `null` ptr
     fn allocate(
         &mut self,
         layout: Layout,
         device_id: usize,
     ) -> std::result::Result<*mut u8, TensorError> {
-        let ptr = if let Some(ptr) = self.cache.get_mut(&layout)
-        /*check if we previously allocated same layout of memory */
-        {
-            // try pop the memory out, if it return None, there is no available cached memory, we need to allocate new memory
-            if let Some(safe_ptr) = ptr.pop() {
-                safe_ptr.ptr
-            } else {
-                let ptr = unsafe { std::alloc::alloc(layout) };
-                if ptr.is_null() {
-                    return Err(TensorError::Memory(MemoryError::AllocationFailed {
-                        device: "cpu".to_string(),
-                        id: device_id,
-                        size: layout.size() / 1024 / 1024,
-                        source: None,
-                        location: Location::caller(),
-                    }));
-                }
-                self.allocated.insert(SafePtr { ptr });
-                ptr
-            }
-        } else {
-            let ptr = unsafe { std::alloc::alloc(layout) };
-            if ptr.is_null() {
-                return Err(TensorError::Memory(MemoryError::AllocationFailed {
-                    device: "cpu".to_string(),
-                    id: device_id,
-                    size: layout.size() / 1024 / 1024,
-                    source: None,
-                    location: Location::caller(),
-                }));
-            }
-            self.allocated.insert(SafePtr { ptr });
-            ptr
-        };
-        // check if the cache is full, if it is full, pop the least recently used layout and deallocate the memory
-        if self.cache.cap().get() == self.cache.len() {
-            if let Some((layout, ptrs)) = self.cache.pop_lru() {
-                for safe_ptr in ptrs {
-                    unsafe {
-                        std::alloc::dealloc(safe_ptr.ptr, layout);
-                    }
-                }
-            }
-        }
-        // increment the reference count in the storage of the ptr allocated
         if let Ok(mut storage) = CPU_STORAGE.lock() {
-            storage.increment_ref(SafePtr { ptr });
+            crate::utils::allocate::allocate_helper(
+                &mut self.cache,
+                &mut self.allocated,
+                &mut storage,
+                || unsafe { std::alloc::alloc(layout) },
+                |ptr, layout| unsafe { std::alloc::dealloc(ptr, layout) },
+                layout,
+                device_id,
+            )
+        } else {
+            panic!("Failed to lock CPU_STORAGE");
         }
-        Ok(ptr)
     }
 
     /// # Main Deallocation Function
@@ -162,16 +113,18 @@ impl _Allocator {
     /// deallocate memory based on the ptr provided, if the ptr is found in the storage, decrement the reference count
     ///
     /// if the reference count is 0, remove the ptr from the storage, remove the ptr from the allocated set, and insert the ptr into the cache
-    fn deallocate(&mut self, ptr: *mut u8, layout: &Layout) {
+    fn deallocate(&mut self, ptr: *mut u8, layout: &Layout, device_id: usize) {
         if let Ok(mut storage) = CPU_STORAGE.lock() {
-            if storage.decrement_ref(SafePtr { ptr }) {
-                self.allocated.remove(&SafePtr { ptr });
-                if let Some(ptrs) = self.cache.get_mut(layout) {
-                    ptrs.push(SafePtr { ptr });
-                } else {
-                    self.cache.put(layout.clone(), vec![SafePtr { ptr }]);
-                }
-            }
+            crate::utils::deallocate::deallocate_helper(
+                &mut self.cache,
+                &mut self.allocated,
+                &mut storage,
+                layout,
+                ptr,
+                device_id,
+            );
+        } else {
+            panic!("Failed to lock CPU_STORAGE");
         }
     }
 
@@ -180,10 +133,16 @@ impl _Allocator {
     /// insert the ptr into the allocated set, and increment the reference count in the storage
     ///
     /// this function is used to insert the ptr into the allocated set, and increment the reference count in the storage
-    fn insert_ptr(&mut self, ptr: *mut u8) {
+    fn insert_ptr(&mut self, ptr: *mut u8, device_id: usize) {
         self.allocated.insert(SafePtr { ptr });
-        if let Ok(mut storage) = CPU_STORAGE.lock() {
-            storage.increment_ref(SafePtr { ptr });
+        if let Ok(mut map) = CPU_STORAGE.lock() {
+            if let Some(storage) = map.get_mut(&device_id) {
+                storage.increment_ref(SafePtr { ptr });
+            } else {
+                let mut storage = CommonStorage::new();
+                storage.increment_ref(SafePtr { ptr });
+                map.insert(device_id, storage);
+            }
         }
     }
 }

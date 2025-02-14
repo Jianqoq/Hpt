@@ -2,8 +2,10 @@ use std::panic::Location;
 
 use crate::{tensor_base::_Tensor, Cuda};
 use cudarc::driver::LaunchAsync;
-use cudarc::{driver::DeviceRepr, types::CudaTypeName};
-use hpt_common::{err_handler::TensorError, slice::Slice};
+use cudarc::driver::DeviceRepr;
+use hpt_types::dtype::CudaType;
+use hpt_common::error::shape::ShapeError;
+use hpt_common::{error::base::TensorError, slice::Slice};
 use hpt_traits::{
     shape_manipulate::ShapeManipulate,
     tensor::{CommonBounds, TensorCreator, TensorInfo},
@@ -34,29 +36,29 @@ use super::cuda_utils::{
 /// the input tensors along the specified axis.
 #[track_caller]
 pub(crate) fn concat<T, const DEVICE: usize>(
-    tensors: Vec<&_Tensor<T, Cuda, DEVICE>>,
+    tensors: Vec<_Tensor<T, Cuda, DEVICE>>,
     axis: usize,
     keepdims: bool,
-) -> std::result::Result<_Tensor<T, Cuda, DEVICE>, TensorError>
+) -> Result<_Tensor<T, Cuda, DEVICE>, TensorError>
 where
-    T: CommonBounds + DeviceRepr + CudaTypeName,
+    T: CommonBounds + DeviceRepr + CudaType,
 {
     let length = tensors.len();
     for i in tensors.iter() {
         for (idx, x) in tensors[0].shape().iter().enumerate() {
             if idx != axis && i.shape().len() == tensors[0].shape().len() && *x != i.shape()[idx] {
-                return Err(TensorError::ConcatError(
-                    axis,
-                    *x as usize,
-                    Location::caller(),
-                ));
+                return Err(ShapeError::ConcatDimMismatch {
+                    expected: *x as usize,
+                    actual: i.shape()[idx] as usize,
+                    location: Location::caller(),
+                }
+                .into());
             } else if i.shape().len() != tensors[0].shape().len() {
-                return Err(TensorError::NdimMismatched(
+                ShapeError::check_ndim_enough(
+                    "concat dim mismatch".to_string(),
                     tensors[0].ndim(),
                     i.ndim(),
-                    Location::caller(),
-                )
-                .into());
+                )?;
             }
         }
     }
@@ -132,29 +134,19 @@ where
         let strides = new_tensor.cuda_strides()?;
         let cfg = compute_kernel_launch_config(res.device(), reg_info, input.size());
         unsafe {
-            kernel
-                .clone()
-                .launch(
-                    cfg,
-                    (
-                        out_slice,
-                        inp_slice,
-                        &shape,
-                        &strides,
-                        &inp_shape,
-                        &inp_strides,
-                        input.ndim() as u64,
-                        input.size() as u64,
-                    ),
-                )
-                .map_err(|e| {
-                    TensorError::CudaKernelLaunchingError(
-                        module_name.clone(),
-                        "assign".to_string(),
-                        Location::caller(),
-                        e,
-                    )
-                })?;
+            kernel.clone().launch(
+                cfg,
+                (
+                    out_slice,
+                    inp_slice,
+                    &shape,
+                    &strides,
+                    &inp_shape,
+                    &inp_strides,
+                    input.ndim() as u64,
+                    input.size() as u64,
+                ),
+            )?;
         };
     }
     if keepdims {

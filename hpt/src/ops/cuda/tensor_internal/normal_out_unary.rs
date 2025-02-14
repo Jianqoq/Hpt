@@ -4,30 +4,28 @@ use crate::{
     Cuda,
 };
 use cudarc::driver::DeviceRepr;
-use hpt_common::err_handler::TensorError;
+use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, NormalUaryOps, TensorLike};
-use hpt_types::cuda_types::scalar::Scalar;
+use hpt_types::{cuda_types::scalar::Scalar, dtype::CudaType};
 use hpt_types::type_promote::{NormalOut, NormalOutUnary};
-use std::borrow::Borrow;
+use std::borrow::BorrowMut;
 
 pub(crate) type NormalType<T> = <T as NormalOut>::Output;
 
-impl<T, const DEVICE_ID: usize> NormalUaryOps for _Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE: usize> NormalUaryOps for _Tensor<T, Cuda, DEVICE>
 where
-    T: CommonBounds + DeviceRepr,
-    T::Vec: NormalOutUnary<Base = NormalType<T>>,
-    T: NormalOutUnary<Base = NormalType<T>>,
-    _Tensor<NormalType<T>, Cuda, DEVICE_ID>: TensorLike<NormalType<T>>,
-    Scalar<T>:
-        NormalOutUnary<Base = Scalar<NormalType<T>>> + NormalOut<Output = Scalar<NormalType<T>>>,
+    T: CommonBounds + DeviceRepr + CudaType + NormalOutUnary,
+    T::Vec: NormalOutUnary,
+    _Tensor<NormalType<T>, Cuda, DEVICE>: TensorLike<NormalType<T>>,
+    Scalar<T>: NormalOutUnary + NormalOut<Output = Scalar<NormalType<T>>>,
 {
-    type Output = _Tensor<NormalType<T>, Cuda, DEVICE_ID>;
+    type Output = _Tensor<NormalType<T>, Cuda, DEVICE>;
 
-    type InplaceOutput = _Tensor<NormalType<T>, Cuda, DEVICE_ID>;
+    type InplaceOutput = _Tensor<NormalType<T>, Cuda, DEVICE>;
 
     type OutputMeta = NormalType<T>;
 
-    fn floor(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn floor(&self) -> Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("floor", self),
@@ -36,9 +34,9 @@ where
         )
     }
 
-    fn floor_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
+    fn floor_<U>(&self, out: U) -> Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>,
+        U: BorrowMut<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(
             self,
@@ -48,7 +46,7 @@ where
         )
     }
 
-    fn square(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn square(&self) -> Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("square", self),
@@ -57,9 +55,9 @@ where
         )
     }
 
-    fn square_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
+    fn square_<U>(&self, out: U) -> Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>,
+        U: BorrowMut<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(
             self,
@@ -69,7 +67,7 @@ where
         )
     }
 
-    fn abs(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn abs(&self) -> Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("abs", self),
@@ -78,9 +76,9 @@ where
         )
     }
 
-    fn abs_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
+    fn abs_<U>(&self, out: U) -> Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>,
+        U: BorrowMut<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(
             self,
@@ -90,7 +88,7 @@ where
         )
     }
 
-    fn ceil(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn ceil(&self) -> Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("ceil", self),
@@ -98,9 +96,9 @@ where
             None::<Self::Output>,
         )
     }
-    fn ceil_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
+    fn ceil_<U>(&self, out: U) -> Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>,
+        U: BorrowMut<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(
             self,
@@ -110,37 +108,33 @@ where
         )
     }
 
-    fn sign(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn sign(&self) -> Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("sign", self),
-            |out, x| out.assign(x._sign()),
+            |out, x| out.assign(x._signum()),
             None::<Self::Output>,
         )
     }
-    fn sign_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
+    fn sign_<U>(&self, out: U) -> Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>,
+        U: BorrowMut<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("sign", self),
-            |out, x| out.assign(x._sign()),
+            |out, x| out.assign(x._signum()),
             Some(out),
         )
     }
-    fn clamp(
-        &self,
-        min: NormalType<T>,
-        max: NormalType<T>,
-    ) -> std::result::Result<Self::Output, TensorError> {
+    fn clamp(&self, min: NormalType<T>, max: NormalType<T>) -> Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("clamp", self),
             |out, x| {
                 let min_scalar = Scalar::new(min);
                 let max_scalar = Scalar::new(max);
-                out.assign(x._clip(min_scalar, max_scalar))
+                out.assign(x._clamp(min_scalar, max_scalar))
             },
             None::<Self::Output>,
         )
@@ -150,9 +144,9 @@ where
         min: NormalType<T>,
         max: NormalType<T>,
         out: U,
-    ) -> std::result::Result<Self::Output, TensorError>
+    ) -> Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>,
+        U: BorrowMut<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(
             self,
@@ -160,12 +154,12 @@ where
             |out, x| {
                 let min_scalar = Scalar::new(min);
                 let max_scalar = Scalar::new(max);
-                out.assign(x._clip(min_scalar, max_scalar))
+                out.assign(x._clamp(min_scalar, max_scalar))
             },
             Some(out),
         )
     }
-    fn round(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn round(&self) -> Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("round", self),
@@ -173,9 +167,9 @@ where
             None::<Self::Output>,
         )
     }
-    fn round_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
+    fn round_<U>(&self, out: U) -> Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>,
+        U: BorrowMut<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(
             self,
@@ -185,7 +179,7 @@ where
         )
     }
 
-    fn neg(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn neg(&self) -> Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("neg", self),
@@ -194,9 +188,9 @@ where
         )
     }
 
-    fn neg_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
+    fn neg_<U>(&self, out: U) -> Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>,
+        U: BorrowMut<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(
             self,
@@ -206,7 +200,7 @@ where
         )
     }
 
-    fn relu(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn relu(&self) -> Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("relu", self),
@@ -215,9 +209,9 @@ where
         )
     }
 
-    fn relu_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
+    fn relu_<U>(&self, out: U) -> Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>,
+        U: BorrowMut<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(
             self,
@@ -227,10 +221,7 @@ where
         )
     }
 
-    fn leaky_relu(
-        &self,
-        alpha: Self::OutputMeta,
-    ) -> std::result::Result<Self::Output, TensorError> {
+    fn leaky_relu(&self, alpha: Self::OutputMeta) -> Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("leaky_relu", self),
@@ -242,13 +233,9 @@ where
         )
     }
 
-    fn leaky_relu_<U>(
-        &self,
-        alpha: Self::OutputMeta,
-        out: U,
-    ) -> std::result::Result<Self::Output, TensorError>
+    fn leaky_relu_<U>(&self, alpha: Self::OutputMeta, out: U) -> Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>,
+        U: BorrowMut<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(
             self,
@@ -261,7 +248,7 @@ where
         )
     }
 
-    fn relu6(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn relu6(&self) -> Result<Self::Output, TensorError> {
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("leaky_relu", self),
@@ -270,9 +257,9 @@ where
         )
     }
 
-    fn relu6_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
+    fn relu6_<U>(&self, out: U) -> Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>,
+        U: BorrowMut<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(
             self,

@@ -4,7 +4,7 @@ use cudarc::{
     cublas::{CudaBlas, Gemm},
     driver::DeviceRepr,
 };
-use hpt_common::err_handler::TensorError;
+use hpt_common::error::base::TensorError;
 use hpt_cudakernels::MATMUL;
 use hpt_traits::{CommonBounds, Matmul};
 
@@ -61,7 +61,7 @@ where
     pub fn matmul_naive(
         &self,
         rhs: &Tensor<T, Cuda, CUDA_DEVICE>,
-    ) -> anyhow::Result<Tensor<T, Cuda, CUDA_DEVICE>> {
+    ) -> Result<Tensor<T, Cuda, CUDA_DEVICE>, TensorError> {
         let ret = _Tensor::<T, Cuda, CUDA_DEVICE>::zeros(vec![
             self.inner.layout.shape()[0],
             rhs.inner.layout.shape()[1],
@@ -101,7 +101,7 @@ where
     pub fn matmul_blocked(
         &self,
         rhs: &Tensor<T, Cuda, CUDA_DEVICE>,
-    ) -> anyhow::Result<Tensor<T, Cuda, CUDA_DEVICE>> {
+    ) -> Result<Tensor<T, Cuda, CUDA_DEVICE>, TensorError> {
         let ret = _Tensor::<T, Cuda, CUDA_DEVICE>::zeros(vec![
             self.inner.layout.shape()[0],
             rhs.inner.layout.shape()[1],
@@ -145,7 +145,7 @@ where
     pub fn matmul_blocked_vec(
         &self,
         rhs: &Tensor<T, Cuda, CUDA_DEVICE>,
-    ) -> anyhow::Result<Tensor<T, Cuda, CUDA_DEVICE>> {
+    ) -> Result<Tensor<T, Cuda, CUDA_DEVICE>, TensorError> {
         let ret = _Tensor::<T, Cuda, CUDA_DEVICE>::zeros(vec![
             self.inner.layout.shape()[0],
             rhs.inner.layout.shape()[1],
@@ -189,7 +189,7 @@ where
     pub fn matmul_nn(
         &self,
         rhs: &Tensor<T, Cuda, CUDA_DEVICE>,
-    ) -> anyhow::Result<Tensor<T, Cuda, CUDA_DEVICE>> {
+    ) -> Result<Tensor<T, Cuda, CUDA_DEVICE>, TensorError> {
         let ret = _Tensor::<T, Cuda, CUDA_DEVICE>::zeros(vec![
             self.inner.layout.shape()[0],
             rhs.inner.layout.shape()[1],

@@ -1,13 +1,14 @@
 use crate::ops::cuda::cuda_utils::load_ptx_and_get_data;
 use crate::{tensor_base::_Tensor, Cuda, Tensor};
 use cudarc::driver::{DeviceRepr, LaunchAsync};
+use hpt_common::error::base::TensorError;
 use hpt_cudakernels::PAD;
 use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
 
 use super::cuda_utils::compute_kernel_launch_config;
 impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
     #[track_caller]
-    pub fn pad(&self, pads: &[(i64, i64)], val: T) -> anyhow::Result<_Tensor<T, Cuda, DEVICE_ID>> {
+    pub fn pad(&self, pads: &[(i64, i64)], val: T) -> Result<_Tensor<T, Cuda, DEVICE_ID>, TensorError> {
         let res_shape = self
             .shape()
             .iter()
@@ -32,7 +33,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVI
 
         let (kernel, reg_info) = load_ptx_and_get_data(
             "pad",
-            &format!("pad_{}", T::ID),
+            &format!("pad_{}", T::STR),
             self.device(),
             self.device_cap(),
             &PAD,
@@ -90,7 +91,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> Tensor<T, Cuda, DEVIC
     ///
     /// This function returns a `Result` containing a new tensor with the one-hot encoded values.
     #[track_caller]
-    pub fn pad(&self, pads: &[(i64, i64)], val: T) -> anyhow::Result<Tensor<T, Cuda, DEVICE_ID>> {
+    pub fn pad(&self, pads: &[(i64, i64)], val: T) -> Result<Tensor<T, Cuda, DEVICE_ID>, TensorError> {
         Ok(self.inner.pad(pads, val)?.into())
     }
 }

@@ -2,13 +2,14 @@ use std::{borrow::Borrow, ops::BitAnd};
 
 use crate::tensor::Tensor;
 use crate::Cuda;
-use cudarc::{driver::DeviceRepr, types::CudaTypeName};
-use hpt_common::axis::Axis;
-use hpt_common::err_handler::TensorError;
+use cudarc::driver::DeviceRepr;
+use hpt_types::dtype::CudaType;
+use hpt_common::axis::axis::Axis;
+use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce};
-use hpt_types::{cast::Cast, traits::SimdSelect, type_promote::Eval};
+use hpt_types::{into_scalar::Cast, traits::SimdSelect, type_promote::Eval};
 
-impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> NormalReduce<T>
+impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> NormalReduce<T>
     for Tensor<T, Cuda, DEVICE_ID>
 {
     type Output = Self;
@@ -17,7 +18,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
         &self,
         axes: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::Output, TensorError> {
+    ) -> Result<Self::Output, TensorError> {
         Ok(self.inner.sum(axes, keep_dims)?.into())
     }
 
@@ -27,7 +28,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
         keep_dims: bool,
         init_out: bool,
         out: O,
-    ) -> std::result::Result<Self::Output, TensorError>
+    ) -> Result<Self::Output, TensorError>
     where
         O: Borrow<Self::Output>,
     {
@@ -50,7 +51,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::Output, TensorError> {
+    ) -> Result<Self::Output, TensorError> {
         Ok(self.inner.prod(axis, keep_dims)?.into())
     }
 
@@ -67,7 +68,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::Output, TensorError> {
+    ) -> Result<Self::Output, TensorError> {
         Ok(self.inner.min(axis, keep_dims)?.into())
     }
 
@@ -84,7 +85,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::Output, TensorError> {
+    ) -> Result<Self::Output, TensorError> {
         Ok(self.inner.max(axis, keep_dims)?.into())
     }
 
@@ -101,7 +102,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::Output, TensorError> {
+    ) -> Result<Self::Output, TensorError> {
         Ok(self.inner.reducel1(axis, keep_dims)?.into())
     }
 
@@ -109,21 +110,21 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> Normal
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::Output, TensorError> {
+    ) -> Result<Self::Output, TensorError> {
         Ok(self.inner.sum_square(axis, keep_dims)?.into())
     }
 }
 
 impl<T, const DEVICE_ID: usize> EvalReduce for Tensor<T, Cuda, DEVICE_ID>
 where
-    T: CommonBounds + Eval<Output = bool> + Cast<bool> + DeviceRepr + CudaTypeName,
+    T: CommonBounds + Eval<Output = bool> + Cast<bool> + DeviceRepr + CudaType,
 {
     type BoolOutput = Tensor<bool, Cuda, DEVICE_ID>;
     fn all<S: Into<Axis>>(
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::BoolOutput, TensorError> {
+    ) -> Result<Self::BoolOutput, TensorError> {
         Ok(self.inner.all(axis, keep_dims)?.into())
     }
 
@@ -131,14 +132,14 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::BoolOutput, TensorError> {
+    ) -> Result<Self::BoolOutput, TensorError> {
         Ok(self.inner.any(axis, keep_dims)?.into())
     }
 }
 
 impl<T, const DEVICE_ID: usize> NormalEvalReduce<T> for Tensor<T, Cuda, DEVICE_ID>
 where
-    T: CommonBounds + Eval<Output = bool> + Cast<bool> + DeviceRepr + CudaTypeName,
+    T: CommonBounds + Eval<Output = bool> + Cast<bool> + DeviceRepr + CudaType,
     T::Vec: Eval,
     <T::Vec as Eval>::Output: SimdSelect<T::Vec> + Copy,
     <T::Vec as Eval>::Output: BitAnd<Output = <T::Vec as Eval>::Output>,
@@ -149,7 +150,7 @@ where
         &self,
         axes: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::Output, TensorError> {
+    ) -> Result<Self::Output, TensorError> {
         Ok(self.inner.nansum(axes, keep_dims)?.into())
     }
 
@@ -157,7 +158,19 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<Self::Output, TensorError> {
+    ) -> Result<Self::Output, TensorError> {
         Ok(self.inner.nanprod(axis, keep_dims)?.into())
+    }
+    
+    fn nansum_<S: Into<Axis>, O>(
+        &self,
+        _: S,
+        _: bool,
+        _: bool,
+        _: O,
+    ) -> Result<Self::Output, TensorError>
+    where
+        O: Borrow<Self::Output> {
+        todo!()
     }
 }

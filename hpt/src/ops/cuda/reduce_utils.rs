@@ -1,10 +1,10 @@
-use std::panic::Location;
-
 use crate::ops::cuda::cuda_utils::load_ptx_and_get_data;
 use crate::{backend::Cuda, tensor_base::_Tensor};
 use cudarc::driver::LaunchAsync;
-use cudarc::{driver::DeviceRepr, types::CudaTypeName};
-use hpt_common::err_handler::TensorError;
+use cudarc::driver::DeviceRepr;
+use hpt_types::dtype::CudaType;
+use hpt_common::error::base::TensorError;
+use hpt_common::error::shape::ShapeError;
 use hpt_cudakernels::SET_VAL;
 use hpt_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
@@ -35,8 +35,8 @@ pub(crate) fn rearrange_array(ndim: usize, to_reduce: &[usize]) -> Vec<usize> {
 }
 
 pub(crate) fn reduce_prepare<
-    T: CommonBounds + DeviceRepr + CudaTypeName,
-    O: CommonBounds + DeviceRepr + CudaTypeName,
+    T: CommonBounds + DeviceRepr + CudaType,
+    O: CommonBounds + DeviceRepr + CudaType,
     const DEVICE_ID: usize,
 >(
     a: &_Tensor<T, Cuda, DEVICE_ID>,
@@ -56,13 +56,11 @@ pub(crate) fn reduce_prepare<
 
     let res_layout = a.layout.reduce(axes, false)?;
     let res = if let Some(out) = c {
-        // we need a better logic to verify the out is valid.
-        // we need to get the real size and compare the real size with the res_shape
-        TensorError::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
+        ShapeError::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
         if init_out {
             let (kernel, reg_info) = load_ptx_and_get_data(
                 "set_val",
-                &format!("set_val_{}", O::ID),
+                &format!("set_val_{}", O::STR),
                 a.device(),
                 a.device_cap(),
                 &SET_VAL,
@@ -71,19 +69,10 @@ pub(crate) fn reduce_prepare<
             let cfg =
                 compute_kernel_launch_config(out.device(), &reg_info, res_layout.size() as usize);
             unsafe {
-                kernel
-                    .launch(
-                        cfg,
-                        (out.cuda_slice(), init_val, res_layout.size() as usize),
-                    )
-                    .map_err(|e| {
-                        TensorError::CudaKernelLaunchingError(
-                            "set_val".to_string(),
-                            format!("set_val_{}", O::ID),
-                            Location::caller(),
-                            e,
-                        )
-                    })?
+                kernel.launch(
+                    cfg,
+                    (out.cuda_slice(), init_val, res_layout.size() as usize),
+                )?
             };
         }
         out.reshape(res_layout.shape())?
@@ -95,8 +84,8 @@ pub(crate) fn reduce_prepare<
 }
 
 pub(crate) fn uncontiguous_reduce_prepare<
-    T: CommonBounds + DeviceRepr + CudaTypeName,
-    O: CommonBounds + DeviceRepr + CudaTypeName,
+    T: CommonBounds + DeviceRepr + CudaType,
+    O: CommonBounds + DeviceRepr + CudaType,
     const DEVICE_ID: usize,
 >(
     a: &_Tensor<T, Cuda, DEVICE_ID>,
@@ -137,7 +126,7 @@ pub(crate) fn uncontiguous_reduce_prepare<
     let res = if let Some(mut out) = c {
         // we need a better logic to verify the out is valid.
         // we need to get the real size and compare the real size with the res_shape
-        TensorError::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
+        ShapeError::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;
         if init_out {
             out.as_raw_mut().par_iter_mut().for_each(|x| {
                 *x = init_val;

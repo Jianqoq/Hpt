@@ -17,6 +17,53 @@ Hpt is a high performance N-dimensional array library. It is being highly optimi
 - Strong type system ensures correctness at compile time, preventing runtime errors.
 #### Zero-Copy
 - Minimizes memory overhead with zero-copy operations and efficient data sharing.
+#### Auto Type Promote
+- Allows auto type promote when compute with different types.
+#### Custom Type
+- Allows user to define their own data type for calculation (CPU support only).
+
+# Note
+
+Hpt is in early stage, bugs and wrong calculation results are expected
+
+# Get Start
+```rust
+use hpt::*;
+
+fn main() -> anyhow::Result<()> {
+    let x = Tensor::new(&[1f64, 2., 3.]);
+    let y = Tensor::new(&[4i64, 5, 6]);
+
+    let result: Tensor<f64> = x + y; // with `normal_promote` feature enabled, i64 + f64 will output f64
+    println!("{}", result); // [5., 7., 9.]
+
+    Ok(())
+}
+```
+
+To use Cuda (Note that Cuda is in development and not tested)
+```rust
+use hpt::*;
+
+fn main() -> anyhow::Result<()> {
+    let x = Tensor::<f64>::new(&[1f64, 2., 3.]).to_cuda::<0/*Cuda device id*/>()?;
+    let y = Tensor::<i64>::new(&[4i64, 5, 6]).to_cuda::<0/*Cuda device id*/>()?;
+
+    let result = x + y; // with `normal_promote` feature enabled, i64 + f64 will output f64
+    println!("{}", result); // [5., 7., 9.]
+
+    Ok(())
+}
+```
+
+# How To Get Highest Performance
+- Compile your program with the following configuration in `Cargo.toml`, note that lto is very important.
+```cargo
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+```
+- Ensure your Env variable `RUSTFLAGS` enabled the best features your CPU has, like `-C target-feature=+avx2 -C target-feature=+fma`.
 
 # Benchmarks
 [benchmarks](https://jianqoq.github.io/Hpt/benchmarks/benchmarks.html)

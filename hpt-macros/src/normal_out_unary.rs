@@ -117,7 +117,6 @@ pub(crate) fn __impl_normal_out_unary_cuda() -> TokenStream {
 
         let res = quote! {
             impl NormalOutUnary for Scalar<#lhs_dtype> {
-                type Base = <Self as NormalOutPromote<Self>>::Output;
                 #[inline(always)]
                 fn _square(self) -> Self {
                     self._square()
@@ -155,8 +154,16 @@ pub(crate) fn __impl_normal_out_unary_cuda() -> TokenStream {
                     self.__relu6()
                 }
                 #[inline(always)]
-                fn _leaky_relu(self, alpha: Self::Base) -> Self {
-                    self.clone().__leaky_relu(alpha)
+                fn _leaky_relu(self, alpha: Self) -> Self {
+                    self.__leaky_relu(alpha)
+                }
+                #[inline(always)]
+                fn _copysign(self, rhs: Self) -> Self {
+                    self.__copysign(rhs)
+                }
+                #[inline(always)]
+                fn _trunc(self) -> Self {
+                    self.__trunc()
                 }
             }
         };

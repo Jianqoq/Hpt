@@ -1,6 +1,6 @@
 [package]
 name = "hpt-allocator"
-version = "0.0.11"
+version = "0.0.12"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "A library for memory allocator for hpt"
@@ -14,8 +14,18 @@ lazy_static = "1.5.0"
 hashbrown = "0.14.3"
 ctor = "0.3.1"
 anyhow = "1.0.95"
-cudarc = {version = "0.13.4", optional = true}
-hpt-common = {path = "../hpt-common", version = "0.0.11"}
+cudarc = { version = "0.13.4", optional = true, features = [
+    "std",
+    "cublas",
+    "cublaslt",
+    "curand",
+    "driver",
+    "nvrtc",
+    "f16",
+    "cuda-version-from-build-system",
+    "dynamic-linking",
+], default-features = false }
+hpt-common = { path = "../hpt-common", version = "0.0.12" }
 
 [features]
 cuda = ["cudarc"]

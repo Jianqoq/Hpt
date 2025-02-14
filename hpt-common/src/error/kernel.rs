@@ -22,4 +22,45 @@ pub enum KernelError {
         /// Location where the error occurred
         location: &'static Location<'static>,
     },
+
+    /// Error that occurs when CUDA kernel region info is not found
+    #[error("CUDA kernel region info not found for module: {module}, func_name: {func_name}")]
+    CudaKernelRegInfoNotFound {
+        /// Module name
+        module: String,
+        /// Function name
+        func_name: String,
+        /// Location where the error occurred
+        location: &'static Location<'static>,
+    },
+
+    /// Error that occurs when CUDA kernel meta data is not found
+    #[error(
+        "CUDA kernel meta data not found for module: {module}, func_name: {func_name}, cap: {cap}"
+    )]
+    CudaKernelMetaNotFound {
+        /// cap
+        cap: usize,
+        /// Module name
+        module: String,
+        /// Function name
+        func_name: String,
+        /// Location where the error occurred
+        location: &'static Location<'static>,
+    },
+}
+
+#[cfg(feature = "cuda")]
+mod impls {
+    use crate::error::base::TensorError;
+    use crate::error::kernel::KernelError;
+    use std::panic::Location;
+    impl From<cudarc::nvrtc::CompileError> for TensorError {
+        fn from(source: cudarc::nvrtc::CompileError) -> Self {
+            Self::Kernel(KernelError::CompilationFailed {
+                message: source.to_string(),
+                location: Location::caller(),
+            })
+        }
+    }
 }

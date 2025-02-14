@@ -29,21 +29,21 @@ struct LSTM {
 impl LSTM {
     fn new(input_size: usize, hidden_size: usize) -> Result<Self, TensorError> {
         Ok(Self {
-            w_ii: Tensor::randn(&[hidden_size, input_size])?,
-            w_hi: Tensor::randn(&[hidden_size, hidden_size])?,
-            b_i: Tensor::zeros(&[hidden_size])?,
+            w_ii: Tensor::<f32>::randn(&[hidden_size, input_size])?,
+            w_hi: Tensor::<f32>::randn(&[hidden_size, hidden_size])?,
+            b_i: Tensor::<f32>::zeros(&[hidden_size])?,
 
-            w_if: Tensor::randn(&[hidden_size, input_size])?,
-            w_hf: Tensor::randn(&[hidden_size, hidden_size])?,
-            b_f: Tensor::zeros(&[hidden_size])?,
+            w_if: Tensor::<f32>::randn(&[hidden_size, input_size])?,
+            w_hf: Tensor::<f32>::randn(&[hidden_size, hidden_size])?,
+            b_f: Tensor::<f32>::zeros(&[hidden_size])?,
 
-            w_ig: Tensor::randn(&[hidden_size, input_size])?,
-            w_hg: Tensor::randn(&[hidden_size, hidden_size])?,
-            b_g: Tensor::zeros(&[hidden_size])?,
+            w_ig: Tensor::<f32>::randn(&[hidden_size, input_size])?,
+            w_hg: Tensor::<f32>::randn(&[hidden_size, hidden_size])?,
+            b_g: Tensor::<f32>::zeros(&[hidden_size])?,
 
-            w_io: Tensor::randn(&[hidden_size, input_size])?,
-            w_ho: Tensor::randn(&[hidden_size, hidden_size])?,
-            b_o: Tensor::zeros(&[hidden_size])?,
+            w_io: Tensor::<f32>::randn(&[hidden_size, input_size])?,
+            w_ho: Tensor::<f32>::randn(&[hidden_size, hidden_size])?,
+            b_o: Tensor::<f32>::zeros(&[hidden_size])?,
         })
     }
     fn forward(
@@ -163,8 +163,8 @@ struct LinearLayer {
 impl LinearLayer {
     fn new(in_features: usize, out_features: usize) -> Result<Self, TensorError> {
         // 初始化权重和偏置
-        let weight = Tensor::randn(&[out_features, in_features])?;
-        let bias = Tensor::zeros(&[out_features])?;
+        let weight = Tensor::<f32>::randn(&[out_features, in_features])?;
+        let bias = Tensor::<f32>::zeros(&[out_features])?;
 
         Ok(Self { weight, bias })
     }
@@ -220,8 +220,8 @@ impl LSTMModel {
             let mut states = Vec::with_capacity(self.num_layers);
             for _ in 0..self.num_layers {
                 states.push((
-                    Tensor::zeros(&[batch_size, self.hidden_size as i64])?,
-                    Tensor::zeros(&[batch_size, self.hidden_size as i64])?,
+                    Tensor::<f32>::zeros(&[batch_size, self.hidden_size as i64])?,
+                    Tensor::<f32>::zeros(&[batch_size, self.hidden_size as i64])?,
                 ));
             }
             states

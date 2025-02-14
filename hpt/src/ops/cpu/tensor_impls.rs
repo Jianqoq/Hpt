@@ -4,8 +4,12 @@ use std::{fmt::Display, sync::atomic::Ordering};
 use crate::tensor::DiffTensor;
 use crate::CompressionAlgo;
 use crate::Cpu;
+#[cfg(feature = "cuda")]
+use crate::Cuda;
 use crate::{save, Save};
 use crate::{tensor_base::_Tensor, Tensor, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION};
+#[cfg(feature = "cuda")]
+use cudarc::driver::DeviceRepr;
 use hpt_common::error::base::TensorError;
 use hpt_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
 use hpt_dataloader::data_loader::TensorMeta;
@@ -230,6 +234,24 @@ impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
         U: Cast<f64>,
     {
         self.inner.allclose(&other.inner)
+    }
+
+    /// convert the tensor from cpu to the cuda tensor
+    #[cfg(feature = "cuda")]
+    pub fn to_cuda<const CUDA_DEVICE: usize>(
+        &self,
+    ) -> Result<Tensor<T, Cuda, CUDA_DEVICE>, TensorError>
+    where
+        T: DeviceRepr,
+    {
+        let data = _Tensor::<T, Cuda, CUDA_DEVICE>::empty(self.shape()).unwrap();
+        let device = data.device();
+        let mut ptr = unsafe { device.upgrade_device_ptr(data.ptr().ptr as u64, data.size()) };
+        data.device()
+            .htod_sync_copy_into(self.as_raw(), &mut ptr)
+            .unwrap();
+        ptr.leak();
+        Ok(data.into())
     }
 }
 

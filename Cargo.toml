@@ -31,44 +31,45 @@ exclude = [
 ]
 
 [dependencies]
-# hpt = { path = "./hpt", features = ["track_caller"], version = "0.0.11" }
-hpt = "0.0.11"
+hpt = { path = "./hpt", features = ["track_caller", "cuda"], version = "0.0.13" }
+# hpt = {version = "0.0.11", features = ["cuda"]}
+anyhow = "1.0.95"
 
-[dev-dependencies]
-hpt-common = { path = "./hpt-common" }
-anyhow = "1.0.40"
-half = "2.4.1"
-tch = { version = "0.17.0", features = ["download-libtorch"] }
-rayon = "1.8.0"
-cache-size = "0.7.0"
-rust_xlsxwriter = "=0.25.0"
-num-complex = "0.4"
-regex = "1.11.1"
-num = "0.4"
-serde = "1.0.217"
-serde_json = "1.0"
-safetensors = "0.5.0"
-memmap2 = "0.9.0"
-sysinfo = "0.33.1"
-base64 = "0.22.1"
+# [dev-dependencies]
+# hpt-common = { path = "./hpt-common" }
+# anyhow = "1.0.40"
+# half = "2.4.1"
+# tch = { version = "0.17.0", features = ["download-libtorch"] }
+# rayon = "1.8.0"
+# cache-size = "0.7.0"
+# rust_xlsxwriter = "=0.25.0"
+# num-complex = "0.4"
+# regex = "1.11.1"
+# num = "0.4"
+# serde = "1.0.217"
+# serde_json = "1.0"
+# safetensors = "0.5.0"
+# memmap2 = "0.9.0"
+# sysinfo = "0.33.1"
+# base64 = "0.22.1"
 
 [[bin]]
 name = "etensor"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 3
+opt-level = 0
 incremental = true
 debug = true
-lto = "fat"
-codegen-units = 1
+# lto = "fat"
+# codegen-units = 1
 
 [profile.dev]
 opt-level = 0
-incremental = false
+incremental = true
 debug = true
 
 [profile.test]
 opt-level = 0
-incremental = false
+incremental = true
 debug = true

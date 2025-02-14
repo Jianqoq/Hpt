@@ -1,4 +1,3 @@
-use std::panic::Location;
 use std::sync::Arc;
 
 use crate::ops::cuda::cuda_utils::{
@@ -8,11 +7,11 @@ use crate::{tensor_base::_Tensor, Cuda, Tensor};
 use crate::{Backend, ALIGN};
 use cudarc::driver::{CudaDevice, DeviceRepr, LaunchAsync};
 use hpt_allocator::CUDA_CACHE;
-use hpt_common::err_handler::TensorError;
-use hpt_common::{layout::Layout, pointer::Pointer, shape::Shape};
+use hpt_common::error::base::TensorError;
+use hpt_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
 use hpt_traits::TensorCreator;
 use hpt_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
-use hpt_types::convertion::Convertor;
+use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
 
 use super::cuda_utils::compute_kernel_launch_config;
@@ -20,7 +19,7 @@ use super::unary::uary_fn_with_out_simd;
 
 impl<T, const DEVICE_ID: usize> TensorLike<T> for _Tensor<T, Cuda, DEVICE_ID>
 where
-    T: CommonBounds + DeviceRepr,
+    T: CommonBounds + DeviceRepr + CudaType,
 {
     fn as_raw(&self) -> &[T] {
         unimplemented!()
@@ -76,21 +75,14 @@ where
         let inp_slice = self.cuda_slice();
         let reg_info = map.get("contiguous").expect("func_name not found");
         let cfg = compute_kernel_launch_config(res.device(), reg_info, res.size());
-        unsafe { kernel.launch(cfg, (out_slice, inp_slice)) }.map_err(|e| {
-            TensorError::CudaKernelLaunchingError(
-                module_name.into(),
-                "contiguous".into(),
-                Location::caller(),
-                e,
-            )
-        })?;
+        unsafe { kernel.launch(cfg, (out_slice, inp_slice)) }?;
         Ok(res)
     }
 }
 
 impl<T, const DEVICE_ID: usize> TensorLike<T> for Tensor<T, Cuda, DEVICE_ID>
 where
-    T: CommonBounds + DeviceRepr,
+    T: CommonBounds + DeviceRepr + CudaType,
 {
     fn as_raw(&self) -> &[T] {
         unimplemented!()
@@ -184,22 +176,11 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorAlloc
     }
 }
 
-// impl<T: CommonBounds> TensorIterator<'_, T> for _Tensor<T, Cuda> {}
-
 impl<T: CommonBounds, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
-    // /// copy the data from the other tensor to this tensor
-    // pub fn assign(&mut self, other: &_Tensor<T>) {
-    //     self.par_iter_mut_simd()
-    //         .zip(other.par_iter_simd())
-    //         .for_each(|(a, b)| {
-    //             *a = b;
-    //         });
-    // }
-
     /// cast the tensor to the new type
     pub fn astype<U>(&self) -> std::result::Result<_Tensor<U, Cuda, DEVICE_ID>, TensorError>
     where
-        U: CommonBounds + DeviceRepr,
+        U: CommonBounds + DeviceRepr + CudaType,
         T: Cast<U>,
     {
         let ret: _Tensor<U, Cuda, DEVICE_ID> =
@@ -210,60 +191,6 @@ impl<T: CommonBounds, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
             |out, x| out.assign(x),
             None::<_Tensor<U, Cuda, DEVICE_ID>>,
         )
-    }
-
-    // /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
-    // pub fn try_astype<U>(&self) -> anyhow::Result<_Tensor<U, Cuda>>
-    // where
-    //     U: CommonBounds,
-    //     T: Cast<U>,
-    // {
-    //     if U::ID == T::ID {
-    //         Ok(self.static_cast()?)
-    //     } else {
-    //         Ok(self.astype::<U>()?)
-    //     }
-    // }
-
-    /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
-    pub fn static_cast<Dst>(
-        &self,
-    ) -> std::result::Result<_Tensor<Dst, Cuda, DEVICE_ID>, TensorError>
-    where
-        Dst: CommonBounds,
-    {
-        if T::ID == Dst::ID {
-            match self.parent.clone() {
-                Some(parent) => {
-                    #[cfg(feature = "bound_check")]
-                    let new_parent = Pointer::new(parent.ptr as *mut Dst, parent.len);
-                    #[cfg(not(feature = "bound_check"))]
-                    let new_parent = Pointer::new(parent.ptr as *mut Dst);
-                    Ok(_Tensor {
-                        #[cfg(feature = "bound_check")]
-                        data: Pointer::new(self.data.ptr as *mut Dst, self.ptr().len),
-                        #[cfg(not(feature = "bound_check"))]
-                        data: Pointer::new(self.data.ptr as *mut Dst),
-                        parent: Some(new_parent),
-                        mem_layout: self.mem_layout.clone(),
-                        layout: self.layout.clone(),
-                        _backend: self._backend.clone(),
-                    })
-                }
-                None => Ok(_Tensor {
-                    #[cfg(feature = "bound_check")]
-                    data: Pointer::new(self.data.ptr as *mut Dst, self.ptr().len),
-                    #[cfg(not(feature = "bound_check"))]
-                    data: Pointer::new(self.data.ptr as *mut Dst),
-                    parent: None,
-                    mem_layout: self.mem_layout.clone(),
-                    layout: self.layout.clone(),
-                    _backend: self._backend.clone(),
-                }),
-            }
-        } else {
-            panic!("Cannot cast tensor to different type")
-        }
     }
 
     // /// check if two tensors are close to each other
@@ -312,16 +239,14 @@ impl<T: CommonBounds, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
     pub(crate) fn cuda_shape(
         &self,
     ) -> std::result::Result<cudarc::driver::CudaSlice<i64>, TensorError> {
-        self.device()
-            .htod_sync_copy(self.shape())
-            .map_err(|x| TensorError::CudaHostToDeviceError(Location::caller(), x))
+        let res = self.device().htod_sync_copy(self.shape())?;
+        Ok(res)
     }
     pub(crate) fn cuda_strides(
         &self,
     ) -> std::result::Result<cudarc::driver::CudaSlice<i64>, TensorError> {
-        self.device()
-            .htod_sync_copy(self.strides())
-            .map_err(|x| TensorError::CudaHostToDeviceError(Location::caller(), x))
+        let res = self.device().htod_sync_copy(self.strides())?;
+        Ok(res)
     }
     pub(crate) fn device_cap(&self) -> usize {
         self._backend._backend.cap
@@ -330,7 +255,7 @@ impl<T: CommonBounds, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
 
 impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> Tensor<T, Cuda, DEVICE_ID> {
     /// copy the data from the cuda tensor to the cpu tensor
-    pub fn to_cpu(&self) -> anyhow::Result<Tensor<T>> {
+    pub fn to_cpu(&self) -> Result<Tensor<T>, TensorError> {
         Ok(self.inner.as_ref().to_cpu()?.into())
     }
     /// get the device of the tensor
@@ -345,9 +270,9 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> Tensor<T, Cuda, DEVIC
     // }
 
     /// cast the tensor to the new type
-    pub fn astype<U>(&self) -> anyhow::Result<Tensor<U, Cuda, DEVICE_ID>>
+    pub fn astype<U>(&self) -> Result<Tensor<U, Cuda, DEVICE_ID>, TensorError>
     where
-        U: CommonBounds + DeviceRepr,
+        U: CommonBounds + DeviceRepr + CudaType,
         T: Cast<U>,
     {
         Ok(self.inner.astype()?.into())
@@ -382,7 +307,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> Tensor<T, Cuda, DEVIC
 
 impl<T, const DEVICE_ID: usize> std::fmt::Display for _Tensor<T, Cuda, DEVICE_ID>
 where
-    T: CommonBounds + Convertor + DeviceRepr,
+    T: CommonBounds + DeviceRepr + Cast<f64>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut data = _Tensor::<T>::empty(self.layout.shape().clone()).unwrap();
@@ -400,7 +325,7 @@ where
 
 impl<T, const DEVICE_ID: usize> std::fmt::Display for Tensor<T, Cuda, DEVICE_ID>
 where
-    T: CommonBounds + Convertor + DeviceRepr,
+    T: CommonBounds + DeviceRepr + Cast<f64>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.inner.as_ref())

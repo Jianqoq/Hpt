@@ -4,16 +4,14 @@
 
 use std::sync::Arc;
 
-use hpt_allocator::{clone_storage, CPU_STORAGE};
-
-#[cfg(feature = "cuda")]
-use hpt_allocator::cuda_clone_storage;
+use hpt_allocator::clone_storage;
 
 /// Cpu backend
 ///
 /// this backend stores the pointer of the data memory
 pub struct Cpu {
     pub(crate) ptr: u64,
+    pub(crate) device_id: usize,
 }
 
 #[cfg(feature = "cuda")]
@@ -39,17 +37,26 @@ pub struct Backend<B> {
 
 impl Clone for Cpu {
     fn clone(&self) -> Self {
-        // increment the reference count
-        clone_storage(self.ptr as *mut u8);
-        Cpu { ptr: self.ptr }
+        if let Ok(mut storage) = hpt_allocator::CPU_STORAGE.lock() {
+            clone_storage(self.ptr as *mut u8, self.device_id, &mut storage);
+            Cpu {
+                ptr: self.ptr,
+                device_id: self.device_id,
+            }
+        } else {
+            panic!("failed to lock CPU_STORAGE");
+        }
     }
 }
 
 impl Backend<Cpu> {
     /// create a new Cpu backend
-    pub fn new(address: u64) -> Self {
+    pub fn new(address: u64, device_id: usize) -> Self {
         Backend {
-            _backend: Cpu { ptr: address },
+            _backend: Cpu {
+                ptr: address,
+                device_id,
+            },
         }
     }
 }
@@ -57,8 +64,11 @@ impl Backend<Cpu> {
 #[cfg(feature = "cuda")]
 impl Clone for Cuda {
     fn clone(&self) -> Self {
-        // increment the reference count
-        cuda_clone_storage(self.ptr as *mut u8, self.device.ordinal());
+        if let Ok(mut storage) = hpt_allocator::CUDA_STORAGE.lock() {
+            clone_storage(self.ptr as *mut u8, self.device.ordinal(), &mut storage);
+        } else {
+            panic!("failed to lock CPU_STORAGE");
+        }
         Cuda {
             ptr: self.ptr,
             device: self.device.clone(),

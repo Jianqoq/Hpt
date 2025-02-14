@@ -2,80 +2,80 @@ use crate::ops::cuda::concat::concat;
 use crate::Cuda;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
 use cudarc::driver::DeviceRepr;
-use cudarc::types::CudaTypeName;
-use hpt_common::err_handler::TensorError;
-use hpt_common::{axis::Axis, shape::Shape};
+use hpt_types::dtype::CudaType;
+use hpt_common::error::base::TensorError;
+use hpt_common::{axis::axis::Axis, shape::shape::Shape};
 use hpt_traits::{CommonBounds, ShapeManipulate};
 
-impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeManipulate
+impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> ShapeManipulate
     for Tensor<T, Cuda, DEVICE_ID>
 {
     type Meta = T;
     type Output = Tensor<T, Cuda, DEVICE_ID>;
 
-    fn squeeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError> {
+    fn squeeze<A: Into<Axis>>(&self, axes: A) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::squeeze(self.inner.as_ref(), axes)?.into())
     }
 
-    fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError> {
+    fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::unsqueeze(self.inner.as_ref(), axes)?.into())
     }
 
-    fn reshape<S: Into<Shape>>(&self, shape: S) -> std::result::Result<Self::Output, TensorError> {
+    fn reshape<S: Into<Shape>>(&self, shape: S) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::reshape(self.inner.as_ref(), shape)?.into())
     }
 
-    fn transpose(&self, axis1: i64, axis2: i64) -> std::result::Result<Self::Output, TensorError> {
+    fn transpose(&self, axis1: i64, axis2: i64) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::transpose(self.inner.as_ref(), axis1, axis2)?.into())
     }
 
-    fn permute<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError> {
+    fn permute<A: Into<Axis>>(&self, axes: A) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::permute(self.inner.as_ref(), axes)?.into())
     }
 
     fn permute_inv<A: Into<Axis>>(
         &self,
         axes: A,
-    ) -> std::result::Result<Self::Output, TensorError> {
+    ) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::permute_inv(self.inner.as_ref(), axes)?.into())
     }
 
-    fn expand<S: Into<Shape>>(&self, shape: S) -> std::result::Result<Self::Output, TensorError> {
+    fn expand<S: Into<Shape>>(&self, shape: S) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::expand(self.inner.as_ref(), shape)?.into())
     }
 
-    fn t(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn t(&self) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::t(self.inner.as_ref())?.into())
     }
 
-    fn mt(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn mt(&self) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::mt(self.inner.as_ref())?.into())
     }
 
-    fn flip<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError> {
+    fn flip<A: Into<Axis>>(&self, axes: A) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::flip(self.inner.as_ref(), axes)?.into())
     }
 
-    fn fliplr(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn fliplr(&self) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::fliplr(self.inner.as_ref())?.into())
     }
 
-    fn flipud(&self) -> std::result::Result<Self::Output, TensorError> {
+    fn flipud(&self) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::flipud(self.inner.as_ref())?.into())
     }
 
-    fn tile<S: Into<Axis>>(&self, repeats: S) -> std::result::Result<Self::Output, TensorError> {
+    fn tile<S: Into<Axis>>(&self, repeats: S) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::tile(self.inner.as_ref(), repeats)?.into())
     }
 
-    fn trim_zeros(&self, trim: &str) -> std::result::Result<Self::Output, TensorError>
+    fn trim_zeros(&self, trim: &str) -> Result<Self::Output, TensorError>
     where
         Self::Meta: PartialEq,
     {
         Ok(_Tensor::trim_zeros(self.inner.as_ref(), trim)?.into())
     }
 
-    fn repeat(&self, repeats: usize, axes: i16) -> std::result::Result<Self::Output, TensorError> {
+    fn repeat(&self, repeats: usize, axes: i16) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::repeat(self.inner.as_ref(), repeats, axes)?.into())
     }
 
@@ -83,7 +83,7 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeM
         &self,
         indices_or_sections: &[i64],
         axis: i64,
-    ) -> std::result::Result<Vec<Self::Output>, TensorError> {
+    ) -> Result<Vec<Self::Output>, TensorError> {
         Ok(
             _Tensor::split(self.inner.as_ref(), indices_or_sections, axis)?
                 .into_iter()
@@ -92,32 +92,32 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeM
         )
     }
 
-    fn dsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self::Output>, TensorError> {
+    fn dsplit(&self, indices: &[i64]) -> Result<Vec<Self::Output>, TensorError> {
         Ok(_Tensor::dsplit(self.inner.as_ref(), indices)?
             .into_iter()
             .map(|x| x.into())
             .collect())
     }
 
-    fn hsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self::Output>, TensorError> {
+    fn hsplit(&self, indices: &[i64]) -> Result<Vec<Self::Output>, TensorError> {
         Ok(_Tensor::hsplit(self.inner.as_ref(), indices)?
             .into_iter()
             .map(|x| x.into())
             .collect())
     }
 
-    fn vsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self::Output>, TensorError> {
+    fn vsplit(&self, indices: &[i64]) -> Result<Vec<Self::Output>, TensorError> {
         Ok(_Tensor::vsplit(self.inner.as_ref(), indices)?
             .into_iter()
             .map(|x| x.into())
             .collect())
     }
 
-    fn swap_axes(&self, axis1: i64, axis2: i64) -> std::result::Result<Self::Output, TensorError> {
+    fn swap_axes(&self, axis1: i64, axis2: i64) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::swap_axes(self.inner.as_ref(), axis1, axis2)?.into())
     }
 
-    fn flatten<A>(&self, start: A, end: A) -> std::result::Result<Self::Output, TensorError>
+    fn flatten<A>(&self, start: A, end: A) -> Result<Self::Output, TensorError>
     where
         A: Into<Option<usize>>,
     {
@@ -125,27 +125,27 @@ impl<T: CommonBounds + DeviceRepr + CudaTypeName, const DEVICE_ID: usize> ShapeM
     }
 
     fn concat(
-        tensors: Vec<&Self>,
+        tensors: Vec<Self>,
         axis: usize,
         keepdims: bool,
-    ) -> std::result::Result<Self::Output, TensorError> {
+    ) -> Result<Self::Output, TensorError> {
         Ok(concat(
-            tensors.iter().map(|x| x.inner.as_ref()).collect(),
+            tensors.iter().map(|x| x.inner.as_ref().clone()).collect(),
             axis,
             keepdims,
         )?
         .into())
     }
 
-    fn vstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
-        Ok(concat(tensors.iter().map(|x| x.inner.as_ref()).collect(), 0, false)?.into())
+    fn vstack(tensors: Vec<Self>) -> Result<Self::Output, TensorError> {
+        Ok(concat(tensors.iter().map(|x| x.inner.as_ref().clone()).collect(), 0, false)?.into())
     }
 
-    fn hstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
-        Ok(concat(tensors.iter().map(|x| x.inner.as_ref()).collect(), 1, false)?.into())
+    fn hstack(tensors: Vec<Self>) -> Result<Self::Output, TensorError> {
+        Ok(concat(tensors.iter().map(|x| x.inner.as_ref().clone()).collect(), 1, false)?.into())
     }
 
-    fn dstack(tensors: Vec<&Self>) -> std::result::Result<Self::Output, TensorError> {
-        Ok(concat(tensors.iter().map(|x| x.inner.as_ref()).collect(), 2, false)?.into())
+    fn dstack(tensors: Vec<Self>) -> Result<Self::Output, TensorError> {
+        Ok(concat(tensors.iter().map(|x| x.inner.as_ref().clone()).collect(), 2, false)?.into())
     }
 }

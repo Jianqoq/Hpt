@@ -1,13 +1,13 @@
 use crate::ops::cuda::{cuda_utils::get_module_name_1, unary::uary_fn_with_out_simd};
 use crate::{tensor_base::_Tensor, Cuda};
 use cudarc::driver::DeviceRepr;
-use hpt_common::err_handler::TensorError;
+use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, TensorCreator};
 use hpt_types::cuda_types::scalar::Scalar;
-use hpt_types::dtype::Dtype::*;
+use hpt_types::dtype::CudaType;
 use hpt_types::{
-    cast::Cast,
     dtype::{FloatConst, TypeCommon},
+    into_scalar::Cast,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 use std::ops::{Mul, Sub};
@@ -18,13 +18,14 @@ type FBO<T> = <T as FloatOutBinary>::Output;
 impl<T, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID>
 where
     f64: Cast<FBO<T>>,
-    T: CommonBounds + FloatOutBinary + DeviceRepr,
+    T: CommonBounds + FloatOutBinary + DeviceRepr + CudaType,
     FBO<T>: CommonBounds
         + FloatOutUnary<Output = FBO<T>>
         + Mul<Output = FBO<T>>
         + Sub<Output = FBO<T>>
         + FloatConst
-        + DeviceRepr,
+        + DeviceRepr
+        + CudaType,
     FBO<T>: std::ops::Neg<Output = FBO<T>>,
     FBO<T>: NormalOut<FBO<T>, Output = FBO<T>> + FloatOutBinary<FBO<T>, Output = FBO<T>>,
     Simd<T>: NormalOut<Simd<T>, Output = Simd<T>>
@@ -67,22 +68,22 @@ where
             &ret,
             &get_module_name_1("hamming_window", &ret),
             |out, idx| {
-                let res = match T::ID {
-                    F32 => {
+                let res = match T::STR {
+                    "f32" => {
                         format!(
                             "
                         float n = (float){idx};
                         {out} = {alpha} - {beta} * cosf(2.0f * M_PI * n / {length});"
                         )
                     }
-                    F64 => {
+                    "f64" => {
                         format!(
                             "
                         double n = (double){idx};
                         {out} = {alpha} - {beta} * cos(2.0 * M_PI * n / {length});"
                         )
                     }
-                    F16 => {
+                    "f16" => {
                         format!("
                         float n = (float){idx};
                         {out} = __float2half({alpha}f - {beta}f * cosf(2.0f * M_PI * n / {length}));")
@@ -134,8 +135,8 @@ where
             &ret,
             &get_module_name_1("blackman_window", &ret),
             |out, idx| {
-                let res = match T::ID {
-                    F32 => {
+                let res = match T::STR {
+                    "f32" => {
                         format!(
                             "
                             float n = (float){idx};
@@ -144,7 +145,7 @@ where
                             {out} = 0.42f - 0.5f * cosf(w1) + 0.08f * cosf(w2);"
                         )
                     }
-                    F64 => {
+                    "f64" => {
                         format!(
                             "
                             double n = (double){idx};
@@ -153,7 +154,7 @@ where
                             {out} = 0.42 - 0.5 * cos(w1) + 0.08 * cos(w2);"
                         )
                     }
-                    F16 => {
+                    "f16" => {
                         format!(
                             "
                             float n = (float){idx};

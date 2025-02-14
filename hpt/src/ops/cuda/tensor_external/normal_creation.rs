@@ -1,12 +1,8 @@
 use crate::{tensor_base::_Tensor, BoolVector, Cuda, Tensor};
 use cudarc::driver::DeviceRepr;
-use hpt_common::{err_handler::TensorError, shape::Shape};
+use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
-use hpt_types::{
-    cast::Cast,
-    convertion::{Convertor, FromScalar},
-    type_promote::NormalOut,
-};
+use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
 
 impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
     for Tensor<T, Cuda, DEVICE_ID>
@@ -53,24 +49,21 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
 
     fn arange<U>(start: U, end: U) -> std::result::Result<Self::Output, TensorError>
     where
-        T: Convertor + FromScalar<U>,
         usize: Cast<T>,
-        U: Convertor + Cast<T> + Copy,
+        U: Cast<i64> + Cast<T> + Copy,
     {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::arange(start, end)?.into())
     }
 
     fn arange_step(start: T, end: T, step: T) -> std::result::Result<Self::Output, TensorError>
     where
-        T: Convertor + FromScalar<usize>,
+        T: Cast<f64> + Cast<usize>,
+        usize: Cast<T>,
     {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::arange_step(start, end, step)?.into())
     }
 
-    fn eye(n: usize, m: usize, k: usize) -> std::result::Result<Self::Output, TensorError>
-    where
-        u8: Cast<T>,
-    {
+    fn eye(n: usize, m: usize, k: usize) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::eye(n, m, k)?.into())
     }
 
@@ -81,8 +74,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         include_end: bool,
     ) -> std::result::Result<Self::Output, TensorError>
     where
-        T: Convertor,
-        U: Convertor + Cast<T> + Copy,
+        U: Cast<f64> + Cast<T> + Copy,
         usize: Cast<T>,
         f64: Cast<T>,
     {
@@ -97,7 +89,9 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
         base: T,
     ) -> std::result::Result<Self::Output, TensorError>
     where
-        T: Convertor + num::Float + FromScalar<usize> + FromScalar<f64>,
+        T: Cast<f64> + num::Float + NormalOut<T, Output = T>,
+        usize: Cast<T>,
+        f64: Cast<T>,
     {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::logspace(start, end, num, include_end, base)?.into())
     }
@@ -111,6 +105,7 @@ impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
     where
         f64: Cast<T>,
         usize: Cast<T>,
+        T: Cast<f64>,
     {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::geomspace(start, end, n, include_end)?.into())
     }

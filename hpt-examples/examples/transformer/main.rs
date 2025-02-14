@@ -276,8 +276,8 @@ pub struct LayerNorm {
 impl LayerNorm {
     pub fn new(normalized_shape: &[i64], eps: f32) -> Result<Self, TensorError> {
         Ok(LayerNorm {
-            gamma: Tensor::empty(normalized_shape)?,
-            beta: Tensor::empty(normalized_shape)?,
+            gamma: Tensor::<f32>::empty(normalized_shape)?,
+            beta: Tensor::<f32>::empty(normalized_shape)?,
             eps,
             normalized_shape: normalized_shape.to_vec(),
         })

@@ -53,7 +53,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
             parent: None,
             layout: Layout::from(res_shape.clone()),
             mem_layout: Arc::new(layout),
-            _backend: Backend::<Cpu>::new(ptr as u64),
+            _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
         })
     }
 

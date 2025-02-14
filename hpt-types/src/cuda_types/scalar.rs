@@ -35,45 +35,37 @@ where
 
     /// Create a new scalar from a value
     pub fn new_from_val(val: T) -> Self {
-        match T::ID {
-            crate::dtype::Dtype::Bool
-            | crate::dtype::Dtype::I8
-            | crate::dtype::Dtype::U8
-            | crate::dtype::Dtype::I16
-            | crate::dtype::Dtype::U16
-            | crate::dtype::Dtype::I32
-            | crate::dtype::Dtype::U32
-            | crate::dtype::Dtype::I64
-            | crate::dtype::Dtype::U64
-            | crate::dtype::Dtype::Isize
-            | crate::dtype::Dtype::Usize => Self {
+        match T::STR {
+            "bool" | "i8" | "u8" | "i16" | "u16" | "i32" | "u32" | "i64" | "u64" | "isize"
+            | "usize" => Self {
                 val: format!("{}", val),
                 _marker: PhantomData,
             },
-            crate::dtype::Dtype::BF16 => Self {
+            "bf16" => Self {
                 val: format!("__nv_bfloat16((unsigned short){})", val),
                 _marker: PhantomData,
             },
-            crate::dtype::Dtype::F16 => Self {
+            "f16" => Self {
                 val: format!("__half((unsigned short){})", val),
                 _marker: PhantomData,
             },
-            crate::dtype::Dtype::F32 => Self {
+            "f32" => Self {
                 val: format!("(float){}", val),
                 _marker: PhantomData,
             },
-            crate::dtype::Dtype::F64 => Self {
+            "f64" => Self {
                 val: format!("(double){}", val),
                 _marker: PhantomData,
             },
-            crate::dtype::Dtype::C32 => Self {
+            "c32" => Self {
                 val: format!("make_cuFloatComplex((float){}, (float)0.0)", val),
                 _marker: PhantomData,
             },
-            crate::dtype::Dtype::C64 => Self {
+            "c64" => Self {
                 val: format!("make_cuDoubleComplex((double){}, (double)0.0)", val),
                 _marker: PhantomData,
             },
+            _ => panic!("Unsupported type: {}", T::STR),
         }
     }
 

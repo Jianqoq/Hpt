@@ -3,7 +3,8 @@ use std::ops::{Add, Neg, Sub};
 use crate::Cuda;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
 use cudarc::driver::DeviceRepr;
-use hpt_common::err_handler::TensorError;
+use hpt_types::dtype::CudaType;
+use hpt_common::error::base::TensorError;
 use hpt_traits::CommonBounds;
 use hpt_types::cuda_types::scalar::Scalar;
 use hpt_types::traits::SimdSelect;
@@ -14,10 +15,16 @@ use super::unary::uary_fn_with_out_simd;
 
 impl<T, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID>
 where
-    T: CommonBounds + PartialOrd + Sub<Output = T> + Neg<Output = T> + Add<Output = T> + DeviceRepr,
+    T: CommonBounds
+        + PartialOrd
+        + Sub<Output = T>
+        + Neg<Output = T>
+        + Add<Output = T>
+        + DeviceRepr
+        + CudaType,
     T::Vec: SimdCmp + NormalOut<Output = T::Vec>,
     <T::Vec as SimdCmp>::Output: SimdSelect<T::Vec>,
-    Scalar<T>: NormalOutUnary<Base = Scalar<T>> + NormalOut<Output = Scalar<T>>,
+    Scalar<T>: NormalOutUnary + NormalOut<Output = Scalar<T>>,
 {
     /// Applies the shrinkage operation to the input tensor.
     ///
@@ -49,7 +56,7 @@ where
             self,
             "shrinkage",
             |out, x| {
-                let sign = x.clone()._sign();
+                let sign = x.clone()._signum();
                 let abs = x._abs();
                 let zero = Scalar::<T>::new_from_val(T::ZERO);
                 let lambda = Scalar::<T>::new_from_val(lambda);
@@ -65,10 +72,16 @@ where
 
 impl<T, const DEVICE_ID: usize> Tensor<T, Cuda, DEVICE_ID>
 where
-    T: CommonBounds + PartialOrd + Sub<Output = T> + Neg<Output = T> + Add<Output = T> + DeviceRepr,
+    T: CommonBounds
+        + PartialOrd
+        + Sub<Output = T>
+        + Neg<Output = T>
+        + Add<Output = T>
+        + DeviceRepr
+        + CudaType,
     T::Vec: SimdCmp + NormalOut<Output = T::Vec>,
     <T::Vec as SimdCmp>::Output: SimdSelect<T::Vec>,
-    Scalar<T>: NormalOutUnary<Base = Scalar<T>> + NormalOut<Output = Scalar<T>>,
+    Scalar<T>: NormalOutUnary + NormalOut<Output = Scalar<T>>,
 {
     /// Applies the shrinkage operation to the input tensor.
     ///

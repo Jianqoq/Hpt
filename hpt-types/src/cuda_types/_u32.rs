@@ -11,6 +11,11 @@ impl FloatOutBinary2 for Scalar<u32> {
     fn __log(self, _: Self) -> Self {
         panic!("Logarithm operation is not supported for u32")
     }
+
+    #[inline(always)]
+    fn __hypot(self, _: Self) -> Self {
+        panic!("Hypot operation is not supported for u32")
+    }
 }
 
 impl NormalOut2 for Scalar<u32> {
@@ -58,7 +63,7 @@ impl NormalOut2 for Scalar<u32> {
     }
 
     #[inline(always)]
-    fn __clip(self, min: Self, max: Self) -> Self {
+    fn __clamp(self, min: Self, max: Self) -> Self {
         Scalar::new(format!("min(max({}, {}), {})", self.val, min.val, max.val))
     }
 }
@@ -95,7 +100,7 @@ impl NormalOutUnary2 for Scalar<u32> {
     }
 
     #[inline(always)]
-    fn __sign(self) -> Self {
+    fn __signum(self) -> Self {
         Scalar::new(format!("({} > 0 ? 1 : 0)", self.val))
     }
 
@@ -115,6 +120,16 @@ impl NormalOutUnary2 for Scalar<u32> {
     #[inline(always)]
     fn __relu6(self) -> Self {
         Scalar::new(format!("min(max({}, 0), 6)", self.val))
+    }
+    
+    #[inline(always)]
+    fn __trunc(self) -> Self {
+        self
+    }
+
+    #[inline(always)]
+    fn __copysign(self, _: Self) -> Self {
+        self
     }
 }
 
