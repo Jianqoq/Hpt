@@ -3,12 +3,12 @@
 use crate::{backend::Cpu, tensor_base::_Tensor, Cuda};
 use cudarc::driver::DeviceRepr;
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
-use hpt_types::dtype::CudaType;
 use hpt_traits::{
     random::Random,
     tensor::{CommonBounds, TensorCreator, TensorInfo},
     RandomInt, TensorLike,
 };
+use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
 use rand_distr::{
     uniform::SampleUniform, Distribution, Exp1, Normal, NormalInverseGaussian, Open01,
@@ -44,12 +44,14 @@ where
                 .unwrap()
                 .as_secs(),
             ret.device(),
-        ).expect("CUDA_RNG error");
+        )
+        .expect("CUDA_RNG error");
         let mut cuda_slice = unsafe {
             ret.device()
                 .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
         };
-        rng.fill_with_normal(&mut cuda_slice, T::ZERO, T::ONE).expect("CUDA_RNG error");
+        rng.fill_with_normal(&mut cuda_slice, T::ZERO, T::ONE)
+            .expect("CUDA_RNG error");
         Ok(ret)
     }
 
@@ -57,7 +59,11 @@ where
         _Tensor::randn(self.shape())
     }
 
-    fn rand<S: Into<Shape>>(shape: S, low: Self::Meta, high: Self::Meta) -> Result<Self, TensorError> {
+    fn rand<S: Into<Shape>>(
+        shape: S,
+        low: Self::Meta,
+        high: Self::Meta,
+    ) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(res_shape)?;
         let rng = cudarc::curand::CudaRng::new(
@@ -66,12 +72,14 @@ where
                 .unwrap()
                 .as_secs(),
             ret.device(),
-        ).expect("CUDA_RNG error");
+        )
+        .expect("CUDA_RNG error");
         let mut cuda_slice = unsafe {
             ret.device()
                 .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
         };
-        rng.fill_with_uniform(&mut cuda_slice).expect("CUDA_RNG error");
+        rng.fill_with_uniform(&mut cuda_slice)
+            .expect("CUDA_RNG error");
         Ok(ret)
     }
 
@@ -103,7 +111,11 @@ where
         _Tensor::exponential(lambda, self.shape().clone())
     }
 
-    fn gamma<S: Into<Shape>>(gamma_shape: Self::Meta, scale: Self::Meta, shape: S) -> Result<Self, TensorError> {
+    fn gamma<S: Into<Shape>>(
+        gamma_shape: Self::Meta,
+        scale: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError> {
         unimplemented!()
     }
 
@@ -111,7 +123,11 @@ where
         _Tensor::gamma(gamma_shape, scale, self.shape().clone())
     }
 
-    fn gumbel<S: Into<Shape>>(mu: Self::Meta, beta: Self::Meta, shape: S) -> Result<Self, TensorError> {
+    fn gumbel<S: Into<Shape>>(
+        mu: Self::Meta,
+        beta: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError> {
         unimplemented!()
     }
 
@@ -119,7 +135,11 @@ where
         _Tensor::gumbel(mu, beta, self.shape().clone())
     }
 
-    fn lognormal<S: Into<Shape>>(mean: Self::Meta, std: Self::Meta, shape: S) -> Result<Self, TensorError> {
+    fn lognormal<S: Into<Shape>>(
+        mean: Self::Meta,
+        std: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
         let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(res_shape)?;
         let rng = cudarc::curand::CudaRng::new(
@@ -128,12 +148,14 @@ where
                 .unwrap()
                 .as_secs(),
             ret.device(),
-        ).expect("CUDA_RNG error");
+        )
+        .expect("CUDA_RNG error");
         let mut cuda_slice = unsafe {
             ret.device()
                 .upgrade_device_ptr::<T>(ret.ptr().ptr as u64, ret.size())
         };
-        rng.fill_with_log_normal(&mut cuda_slice, mean, std).expect("CUDA_RNG error");
+        rng.fill_with_log_normal(&mut cuda_slice, mean, std)
+            .expect("CUDA_RNG error");
         Ok(ret)
     }
 
@@ -153,7 +175,11 @@ where
         _Tensor::normal_gaussian(mean, std, self.shape().clone())
     }
 
-    fn pareto<S: Into<Shape>>(pareto_shape: Self::Meta, a: Self::Meta, shape: S) -> Result<Self, TensorError> {
+    fn pareto<S: Into<Shape>>(
+        pareto_shape: Self::Meta,
+        a: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError> {
         unimplemented!()
     }
 
@@ -169,7 +195,11 @@ where
         _Tensor::poisson(lambda, self.shape().clone())
     }
 
-    fn weibull<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self, TensorError> {
+    fn weibull<S: Into<Shape>>(
+        a: Self::Meta,
+        b: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError> {
         unimplemented!()
     }
 
@@ -194,7 +224,12 @@ where
         unimplemented!()
     }
 
-    fn triangular_like(&self, low: Self::Meta, high: Self::Meta, mode: Self::Meta) -> Result<Self, TensorError> {
+    fn triangular_like(
+        &self,
+        low: Self::Meta,
+        high: Self::Meta,
+        mode: Self::Meta,
+    ) -> Result<Self, TensorError> {
         _Tensor::triangular(low, high, mode, self.shape().clone())
     }
 
@@ -212,7 +247,11 @@ where
     T: CommonBounds + SampleUniform,
 {
     type Meta = T;
-    fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self, TensorError>
+    fn randint<S: Into<Shape>>(
+        low: Self::Meta,
+        high: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError>
     where
         <T as SampleUniform>::Sampler: Sync,
     {

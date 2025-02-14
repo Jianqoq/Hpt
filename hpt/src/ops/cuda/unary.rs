@@ -2,12 +2,12 @@ use crate::ops::cuda::cuda_utils::{compile_kernel, compute_kernel_launch_config,
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use cudarc::driver::{DeviceRepr, LaunchAsync};
-use hpt_types::dtype::CudaType;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::{TensorCreator, TensorInfo};
 use hpt_types::cuda_types::scalar::Scalar;
+use hpt_types::dtype::CudaType;
 use std::borrow::BorrowMut;
 
 use super::cuda_utils::get_include_1;

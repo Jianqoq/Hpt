@@ -8,13 +8,13 @@ use crate::{
 };
 use cudarc::driver::LaunchConfig;
 use cudarc::driver::{DeviceRepr, DeviceSlice, LaunchAsync};
-use hpt_types::dtype::CudaType;
 use hpt_common::{
     axis::axis::{process_axes, Axis},
     error::base::TensorError,
 };
 use hpt_cudakernels::{RegisterInfo, ARGMAX, ARGMIN};
 use hpt_traits::{CommonBounds, IndexReduce, ShapeManipulate, TensorInfo};
+use hpt_types::dtype::CudaType;
 use hpt_types::{
     into_scalar::Cast,
     type_promote::{Cmp, NormalOut},
@@ -347,12 +347,7 @@ where
 }
 
 impl<
-        T: CommonBounds
-            + NormalOut<Output = T>
-            + Cmp
-            + DeviceRepr
-            + CudaType
-            + Cast<i64>,
+        T: CommonBounds + NormalOut<Output = T> + Cmp + DeviceRepr + CudaType + Cast<i64>,
         const DEVICE_ID: usize,
     > IndexReduce for _Tensor<T, Cuda, DEVICE_ID>
 {

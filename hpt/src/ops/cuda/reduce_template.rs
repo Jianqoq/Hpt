@@ -4,9 +4,9 @@ use crate::{
     Cuda,
 };
 use cudarc::driver::DeviceRepr;
-use hpt_types::dtype::CudaType;
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, ShapeManipulate, TensorInfo};
+use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
 
 use super::cuda_slice::CudaSlice;

@@ -121,12 +121,12 @@ impl NormalOutUnary2 for Scalar<u16> {
     fn __relu6(self) -> Self {
         Scalar::new(format!("min(max({}, 0), 6)", self.val))
     }
-    
+
     #[inline(always)]
     fn __trunc(self) -> Self {
         self
     }
-    
+
     #[inline(always)]
     fn __copysign(self, _: Self) -> Self {
         self

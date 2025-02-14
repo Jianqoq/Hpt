@@ -341,11 +341,11 @@ impl FloatOutUnary2 for Scalar<f32> {
     fn __cbrt(self) -> Self {
         Scalar::new(format!("cbrtf({})", self.val))
     }
-    
+
     fn __expm1(self) -> Self {
         Scalar::new(format!("expm1f({})", self.val))
     }
-    
+
     fn __exp10(self) -> Self {
         Scalar::new(format!("exp10f({})", self.val))
     }

@@ -463,7 +463,7 @@ pub fn impl_cuda_float_out_unary() -> TokenStream {
                     fn _atan2(self, other: Self) -> Self::Output {
                         self.__atan2(other)
                     }
-                    
+
                 }
             }
         } else {

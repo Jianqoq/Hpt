@@ -13,12 +13,12 @@ pub(crate) mod utils {
 pub mod traits;
 
 pub use crate::allocators::cpu::CACHE;
+#[cfg(feature = "cuda")]
+pub use crate::allocators::cuda::CUDA_CACHE;
 pub use crate::storage::clone_storage;
 pub use storage::cpu::CPU_STORAGE;
 #[cfg(feature = "cuda")]
 pub use storage::cuda::CUDA_STORAGE;
-#[cfg(feature = "cuda")]
-pub use crate::allocators::cuda::CUDA_CACHE;
 use traits::Allocator;
 
 /// program will free all the memory before exit

@@ -2,10 +2,10 @@ use crate::ops::cuda::concat::concat;
 use crate::Cuda;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
 use cudarc::driver::DeviceRepr;
-use hpt_types::dtype::CudaType;
 use hpt_common::error::base::TensorError;
 use hpt_common::{axis::axis::Axis, shape::shape::Shape};
 use hpt_traits::{CommonBounds, ShapeManipulate};
+use hpt_types::dtype::CudaType;
 
 impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> ShapeManipulate
     for Tensor<T, Cuda, DEVICE_ID>
@@ -33,10 +33,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> ShapeManip
         Ok(_Tensor::permute(self.inner.as_ref(), axes)?.into())
     }
 
-    fn permute_inv<A: Into<Axis>>(
-        &self,
-        axes: A,
-    ) -> Result<Self::Output, TensorError> {
+    fn permute_inv<A: Into<Axis>>(&self, axes: A) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::permute_inv(self.inner.as_ref(), axes)?.into())
     }
 
@@ -138,14 +135,29 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> ShapeManip
     }
 
     fn vstack(tensors: Vec<Self>) -> Result<Self::Output, TensorError> {
-        Ok(concat(tensors.iter().map(|x| x.inner.as_ref().clone()).collect(), 0, false)?.into())
+        Ok(concat(
+            tensors.iter().map(|x| x.inner.as_ref().clone()).collect(),
+            0,
+            false,
+        )?
+        .into())
     }
 
     fn hstack(tensors: Vec<Self>) -> Result<Self::Output, TensorError> {
-        Ok(concat(tensors.iter().map(|x| x.inner.as_ref().clone()).collect(), 1, false)?.into())
+        Ok(concat(
+            tensors.iter().map(|x| x.inner.as_ref().clone()).collect(),
+            1,
+            false,
+        )?
+        .into())
     }
 
     fn dstack(tensors: Vec<Self>) -> Result<Self::Output, TensorError> {
-        Ok(concat(tensors.iter().map(|x| x.inner.as_ref().clone()).collect(), 2, false)?.into())
+        Ok(concat(
+            tensors.iter().map(|x| x.inner.as_ref().clone()).collect(),
+            2,
+            false,
+        )?
+        .into())
     }
 }

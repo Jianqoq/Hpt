@@ -338,19 +338,19 @@ impl FloatOutUnary2 for Scalar<f64> {
     fn __cbrt(self) -> Self {
         Scalar::new(format!("cbrt({})", self.val))
     }
-    
+
     fn __expm1(self) -> Self {
         Scalar::new(format!("expm1({})", self.val))
     }
-    
+
     fn __exp10(self) -> Self {
         Scalar::new(format!("exp10({})", self.val))
     }
-    
+
     fn __log1p(self) -> Self {
         Scalar::new(format!("log1p({})", self.val))
     }
-    
+
     fn __sincos(self) -> (Self, Self)
     where
         Self: Sized,

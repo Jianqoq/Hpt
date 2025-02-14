@@ -1,8 +1,8 @@
 use crate::{ops::cpu::tensor_internal::windows::Simd, tensor::Tensor, tensor_base::_Tensor, Cuda};
 use cudarc::driver::DeviceRepr;
-use hpt_types::dtype::CudaType;
 use hpt_common::error::base::TensorError;
 use hpt_traits::CommonBounds;
+use hpt_types::dtype::CudaType;
 use hpt_types::{
     dtype::FloatConst,
     into_scalar::Cast,

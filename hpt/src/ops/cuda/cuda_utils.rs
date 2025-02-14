@@ -2,7 +2,7 @@ use std::{collections::HashMap, panic::Location, sync::Arc};
 
 use cudarc::{
     driver::{CudaDevice, CudaFunction, LaunchConfig},
-    nvrtc::{compile_ptx_with_opts, CompileOptions}
+    nvrtc::{compile_ptx_with_opts, CompileOptions},
 };
 use hpt_common::error::{
     base::TensorError, common::CommonError, device::DeviceError, kernel::KernelError,

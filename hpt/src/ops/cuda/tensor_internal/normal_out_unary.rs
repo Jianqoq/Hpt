@@ -6,8 +6,8 @@ use crate::{
 use cudarc::driver::DeviceRepr;
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, NormalUaryOps, TensorLike};
-use hpt_types::{cuda_types::scalar::Scalar, dtype::CudaType};
 use hpt_types::type_promote::{NormalOut, NormalOutUnary};
+use hpt_types::{cuda_types::scalar::Scalar, dtype::CudaType};
 use std::borrow::BorrowMut;
 
 pub(crate) type NormalType<T> = <T as NormalOut>::Output;

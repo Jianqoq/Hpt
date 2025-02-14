@@ -4,7 +4,9 @@ use hpt_common::axis::axis::Axis;
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, IndexReduce};
 use hpt_types::{
-    dtype::CudaType, into_scalar::Cast, type_promote::{Cmp, NormalOut}
+    dtype::CudaType,
+    into_scalar::Cast,
+    type_promote::{Cmp, NormalOut},
 };
 impl<
         T: CommonBounds + NormalOut<Output = T> + Cmp + DeviceRepr + CudaType + Cast<i64>,

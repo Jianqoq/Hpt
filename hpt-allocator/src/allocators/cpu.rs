@@ -1,6 +1,10 @@
 use std::{alloc::Layout, num::NonZeroUsize, sync::Mutex};
 
-use crate::{ptr::SafePtr, storage::{cpu::CPU_STORAGE, CommonStorage, Storage}, traits::Allocator};
+use crate::{
+    ptr::SafePtr,
+    storage::{cpu::CPU_STORAGE, CommonStorage, Storage},
+    traits::Allocator,
+};
 use hashbrown::{HashMap, HashSet};
 use hpt_common::error::base::TensorError;
 use lru::LruCache;

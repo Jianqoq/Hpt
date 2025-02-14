@@ -10,7 +10,6 @@ use super::reduce_template::uncontiguos_reduce_template;
 use cudarc::driver::DeviceRepr;
 use cudarc::driver::LaunchAsync;
 use cudarc::driver::LaunchConfig;
-use hpt_types::dtype::CudaType;
 use hpt_common::error::base::TensorError;
 use hpt_cudakernels::RegisterInfo;
 use hpt_traits::shape_manipulate::ShapeManipulate;
@@ -18,6 +17,7 @@ use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
 use hpt_traits::TensorCreator;
 use hpt_traits::TensorLike;
+use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
 
 #[track_caller]

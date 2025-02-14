@@ -3,10 +3,10 @@ use std::{borrow::Borrow, ops::BitAnd};
 use crate::tensor::Tensor;
 use crate::Cuda;
 use cudarc::driver::DeviceRepr;
-use hpt_types::dtype::CudaType;
 use hpt_common::axis::axis::Axis;
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce};
+use hpt_types::dtype::CudaType;
 use hpt_types::{into_scalar::Cast, traits::SimdSelect, type_promote::Eval};
 
 impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> NormalReduce<T>
@@ -14,11 +14,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> NormalRedu
 {
     type Output = Self;
 
-    fn sum<S: Into<Axis>>(
-        &self,
-        axes: S,
-        keep_dims: bool,
-    ) -> Result<Self::Output, TensorError> {
+    fn sum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> Result<Self::Output, TensorError> {
         Ok(self.inner.sum(axes, keep_dims)?.into())
     }
 
@@ -47,11 +43,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> NormalRedu
     //     Ok(self.inner.sum_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn prod<S: Into<Axis>>(
-        &self,
-        axis: S,
-        keep_dims: bool,
-    ) -> Result<Self::Output, TensorError> {
+    fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError> {
         Ok(self.inner.prod(axis, keep_dims)?.into())
     }
 
@@ -64,11 +56,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> NormalRedu
     //     Ok(self.inner.prod_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn min<S: Into<Axis>>(
-        &self,
-        axis: S,
-        keep_dims: bool,
-    ) -> Result<Self::Output, TensorError> {
+    fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError> {
         Ok(self.inner.min(axis, keep_dims)?.into())
     }
 
@@ -81,11 +69,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> NormalRedu
     //     Ok(self.inner.min_with_init(init_val, axes, keep_dims)?.into())
     // }
 
-    fn max<S: Into<Axis>>(
-        &self,
-        axis: S,
-        keep_dims: bool,
-    ) -> Result<Self::Output, TensorError> {
+    fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError> {
         Ok(self.inner.max(axis, keep_dims)?.into())
     }
 
@@ -146,11 +130,7 @@ where
 {
     type Output = Self;
 
-    fn nansum<S: Into<Axis>>(
-        &self,
-        axes: S,
-        keep_dims: bool,
-    ) -> Result<Self::Output, TensorError> {
+    fn nansum<S: Into<Axis>>(&self, axes: S, keep_dims: bool) -> Result<Self::Output, TensorError> {
         Ok(self.inner.nansum(axes, keep_dims)?.into())
     }
 
@@ -161,7 +141,7 @@ where
     ) -> Result<Self::Output, TensorError> {
         Ok(self.inner.nanprod(axis, keep_dims)?.into())
     }
-    
+
     fn nansum_<S: Into<Axis>, O>(
         &self,
         _: S,
@@ -170,7 +150,8 @@ where
         _: O,
     ) -> Result<Self::Output, TensorError>
     where
-        O: Borrow<Self::Output> {
+        O: Borrow<Self::Output>,
+    {
         todo!()
     }
 }
