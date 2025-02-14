@@ -25,8 +25,6 @@ use hpt_macros::{
 };
 use num_complex::{Complex32, Complex64};
 use num_traits::float::Float;
-#[cfg(feature = "stdsimd")]
-use sleef::Sleef;
 #[cfg(feature = "cuda")]
 mod cuda_imports {
     use super::*;

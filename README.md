@@ -41,7 +41,7 @@ fn main() -> anyhow::Result<()> {
 }
 ```
 
-To use Cuda (Note that Cuda is in development and not tested)
+To use Cuda, enable feature `cuda` (Note that Cuda is in development and not tested)
 ```rust
 use hpt::*;
 

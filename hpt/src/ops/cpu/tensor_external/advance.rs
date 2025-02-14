@@ -50,24 +50,24 @@ where
         Ok(self.inner.onehot(depth, axis, true_val, false_val)?.into())
     }
 
-    fn gather(&self, indices: &Self::IndexOutput, axis: i64) -> Result<Self::Output, TensorError> {
-        Ok(self.inner.gather(indices.inner.as_ref(), axis)?.into())
-    }
+    // fn gather(&self, indices: &Self::IndexOutput, axis: i64) -> Result<Self::Output, TensorError> {
+    //     Ok(self.inner.gather(indices.inner.as_ref(), axis)?.into())
+    // }
 
     fn dropout(&self, rate: f64) -> Result<Self::Output, TensorError> {
         Ok(self.inner.dropout(rate)?.into())
     }
 
-    fn gather_elements(
-        &self,
-        indices: &Self::IndexOutput,
-        axis: i64,
-    ) -> Result<Self::Output, TensorError> {
-        Ok(self
-            .inner
-            .gather_elements(indices.inner.as_ref(), axis)?
-            .into())
-    }
+    // fn gather_elements(
+    //     &self,
+    //     indices: &Self::IndexOutput,
+    //     axis: i64,
+    // ) -> Result<Self::Output, TensorError> {
+    //     Ok(self
+    //         .inner
+    //         .gather_elements(indices.inner.as_ref(), axis)?
+    //         .into())
+    // }
 
     fn scatter(
         &self,
@@ -148,17 +148,17 @@ where
         unimplemented!()
     }
 
-    fn gather(&self, _: &Self::IndexOutput, _: i64) -> Result<Self::Output, TensorError> {
-        unimplemented!()
-    }
+    // fn gather(&self, _: &Self::IndexOutput, _: i64) -> Result<Self::Output, TensorError> {
+    //     unimplemented!()
+    // }
 
     fn dropout(&self, _: f64) -> Result<Self::Output, TensorError> {
         unimplemented!()
     }
 
-    fn gather_elements(&self, _: &Self::IndexOutput, _: i64) -> Result<Self::Output, TensorError> {
-        unimplemented!()
-    }
+    // fn gather_elements(&self, _: &Self::IndexOutput, _: i64) -> Result<Self::Output, TensorError> {
+    //     unimplemented!()
+    // }
 
     fn scatter(
         &self,

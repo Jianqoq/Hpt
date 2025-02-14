@@ -57,15 +57,13 @@ safetensors = "0.5.2"
 raw-cpuid = { version = "11.3.0", default-features = false }
 
 [features]
-default = ["track_caller", "archsimd"]
+default = ["track_caller", "normal_promote"]
 track_caller = [
     "hpt-traits/track_caller",
     "hpt-common/track_caller",
     "hpt-iterator/track_caller",
 ]
 bound_check = ["hpt-common/bound_check", "hpt-iterator/bound_check"]
-stdsimd = ["hpt-types/stdsimd", "hpt-traits/stdsimd"]
-archsimd = ["hpt-types/archsimd", "hpt-traits/archsimd"]
 cuda = [
     "cudarc",
     "bindgen_cuda",
@@ -78,6 +76,7 @@ cuda = [
     "hpt-types/cuda",
     "hpt-macros/cuda",
 ]
+normal_promote = ["hpt-types/normal_promote"]
 # codegen = ["hpt-codegen"]
 
 [package.metadata.rust-analyzer]

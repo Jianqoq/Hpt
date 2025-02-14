@@ -4,9 +4,7 @@ use crate::ops::cuda::cuda_utils::{
     compile_kernel, get_array_str, get_include_1, get_module_name_1,
 };
 use crate::{tensor_base::_Tensor, Cuda, Tensor};
-use crate::{Backend, ALIGN};
 use cudarc::driver::{CudaDevice, DeviceRepr, LaunchAsync};
-use hpt_allocator::CUDA_CACHE;
 use hpt_common::error::base::TensorError;
 use hpt_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
 use hpt_traits::TensorCreator;
@@ -345,61 +343,3 @@ impl<T, const DEVICE_ID: usize> Into<Tensor<T, Cuda, DEVICE_ID>> for &Tensor<T, 
         }
     }
 }
-
-impl<T, const DEVICE_ID: usize> From<T> for _Tensor<T, Cuda, DEVICE_ID>
-where
-    T: DeviceRepr + CommonBounds,
-{
-    fn from(value: T) -> Self {
-        if let Ok(mut cache) = CUDA_CACHE.lock() {
-            let (ptr, device) = cache.host_to_device(&[value], DEVICE_ID).unwrap();
-            let layout = Layout::new(vec![1], vec![1]);
-            let mem_layout = std::alloc::Layout::from_size_align(size_of::<T>(), ALIGN).unwrap();
-            _Tensor {
-                #[cfg(feature = "bound_check")]
-                data: Pointer::new(ptr as *mut T, 1),
-                #[cfg(not(feature = "bound_check"))]
-                data: Pointer::new(ptr as *mut T),
-                parent: None,
-                layout,
-                mem_layout: Arc::new(mem_layout),
-                _backend: Backend::<Cuda>::new(ptr as u64, device),
-            }
-        } else {
-            panic!("Failed to lock CUDA cache");
-        }
-    }
-}
-
-impl<'a, T, const DEVICE_ID: usize> From<&'a T> for _Tensor<T, Cuda, DEVICE_ID>
-where
-    T: DeviceRepr + CommonBounds,
-{
-    fn from(value: &'a T) -> Self {
-        _Tensor::from(*value)
-    }
-}
-
-// impl<'a, T> Into<_Tensor<T, Cuda>> for &'a [T] {
-//     fn into(self) -> _Tensor<T, Cuda> {
-//         let shape = vec![self.len() as i64];
-//         let strides = vec![1];
-//         let layout = Layout::new(shape, strides);
-//         let mem_layout =
-//             std::alloc::Layout::from_size_align(self.len() * size_of::<T>(), ALIGN).unwrap();
-//         let ptr = CACHE.allocate(mem_layout.clone()).unwrap();
-//         unsafe {
-//             std::ptr::copy_nonoverlapping(self.as_ptr(), ptr as *mut T, self.len());
-//         }
-//         _Tensor {
-//             #[cfg(feature = "bound_check")]
-//             data: Pointer::new(ptr as *mut T, self.len() as i64),
-//             #[cfg(not(feature = "bound_check"))]
-//             data: Pointer::new(ptr as *mut T),
-//             parent: None,
-//             layout,
-//             mem_layout: Arc::new(mem_layout),
-//             _backend: Backend::new(ptr as u64),
-//         }
-//     }
-// }

@@ -27,15 +27,15 @@ pub trait AdvancedOps {
         false_val: Self::Meta,
     ) -> Result<Self::Output, TensorError>;
     /// Gather the tensor
-    fn gather(&self, indices: &Self::IndexOutput, axis: i64) -> Result<Self::Output, TensorError>;
+    // fn gather(&self, indices: &Self::IndexOutput, axis: i64) -> Result<Self::Output, TensorError>;
     /// Dropout the tensor
     fn dropout(&self, rate: f64) -> Result<Self::Output, TensorError>;
     /// Gather elements the tensor
-    fn gather_elements(
-        &self,
-        indices: &Self::IndexOutput,
-        axis: i64,
-    ) -> Result<Self::Output, TensorError>;
+    // fn gather_elements(
+    //     &self,
+    //     indices: &Self::IndexOutput,
+    //     axis: i64,
+    // ) -> Result<Self::Output, TensorError>;
     /// Scatter elements the tensor
     fn scatter(
         &self,

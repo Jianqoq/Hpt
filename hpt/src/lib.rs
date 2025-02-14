@@ -1,5 +1,4 @@
 //! This crate is dynamic graph based tensor library
-#![cfg_attr(feature = "stdsimd", feature(portable_simd))]
 #![deny(missing_docs)]
 
 /// a module contains all the Tensor operations. include the CPU and GPU operations
@@ -364,10 +363,7 @@ pub(crate) const REGNUM: usize = 8;
 #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 pub(crate) const REGNUM: usize = 32;
 
-#[cfg(feature = "archsimd")]
 use hpt_types::arch_simd as simd;
-#[cfg(feature = "stdsimd")]
-use hpt_types::std_simd as simd;
 
 #[cfg(target_feature = "avx2")]
 type BoolVector = simd::_256bit::boolx32::boolx32;

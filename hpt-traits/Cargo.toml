@@ -16,6 +16,4 @@ rand_distr = "0.4.3"
 
 [features]
 track_caller = []
-stdsimd = ["hpt-types/stdsimd"]
-archsimd = ["hpt-types/archsimd"]
-default = ["track_caller", "archsimd"]
+default = ["track_caller"]

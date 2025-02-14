@@ -18,8 +18,6 @@ libm = "0.2.11"
 serde = "1.0.217"
 
 [features]
-stdsimd = ["dep:sleef"]
-archsimd = []
 cuda = []
-default = ["archsimd", "normal_promote"]
+default = ["normal_promote"]
 normal_promote = []
