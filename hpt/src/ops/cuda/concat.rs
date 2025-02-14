@@ -1,15 +1,15 @@
 use std::panic::Location;
 
 use crate::{tensor_base::_Tensor, Cuda};
-use cudarc::driver::LaunchAsync;
 use cudarc::driver::DeviceRepr;
-use hpt_types::dtype::CudaType;
+use cudarc::driver::LaunchAsync;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::{error::base::TensorError, slice::Slice};
 use hpt_traits::{
     shape_manipulate::ShapeManipulate,
     tensor::{CommonBounds, TensorCreator, TensorInfo},
 };
+use hpt_types::dtype::CudaType;
 
 use super::cuda_utils::{
     compile_kernel, compute_kernel_launch_config, get_include_1, get_module_name_vec,

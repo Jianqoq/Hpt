@@ -1,9 +1,9 @@
 use std::borrow::BorrowMut;
 
 use cudarc::driver::DeviceRepr;
-use hpt_types::dtype::CudaType;
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, FloatUnaryOps};
+use hpt_types::dtype::CudaType;
 use hpt_types::{
     cuda_types::scalar::Scalar, dtype::TypeCommon, into_scalar::Cast, type_promote::FloatOutUnary,
 };
@@ -317,11 +317,7 @@ where
         Ok(_Tensor::celu(self.inner.as_ref(), alpha)?.into())
     }
 
-    fn celu_<U>(
-        &self,
-        alpha: Self::OutputMeta,
-        mut out: U,
-    ) -> Result<Self::Output, TensorError>
+    fn celu_<U>(&self, alpha: Self::OutputMeta, mut out: U) -> Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
@@ -352,11 +348,7 @@ where
         Ok(_Tensor::elu(self.inner.as_ref(), alpha)?.into())
     }
 
-    fn elu_<U>(
-        &self,
-        alpha: Self::OutputMeta,
-        mut out: U,
-    ) -> Result<Self::Output, TensorError>
+    fn elu_<U>(&self, alpha: Self::OutputMeta, mut out: U) -> Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
@@ -507,10 +499,7 @@ where
         Ok((sin.into(), cos.into()))
     }
 
-    fn sincos_<U, O>(
-        &self,
-        mut outs: (U, O),
-    ) -> Result<(Self::Output, Self::Output), TensorError>
+    fn sincos_<U, O>(&self, mut outs: (U, O)) -> Result<(Self::Output, Self::Output), TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
         O: BorrowMut<Self::InplaceOutput>,

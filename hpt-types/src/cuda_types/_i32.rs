@@ -124,19 +124,17 @@ impl NormalOutUnary2 for Scalar<i32> {
     fn __relu6(self) -> Self {
         Scalar::new(format!("min(max({}, 0), 6)", self.val))
     }
-    
+
     #[inline(always)]
     fn __trunc(self) -> Self {
         self
     }
-    
+
     #[inline(always)]
     fn __copysign(self, rhs: Self) -> Self {
         Scalar::new(format!(
             "({} >= 0 ? abs({}) : -abs({}))",
-            rhs.val,
-            self.val,
-            self.val
+            rhs.val, self.val, self.val
         ))
     }
 }

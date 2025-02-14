@@ -7,6 +7,8 @@
 pub mod autograd;
 /// Base error types and common functionality
 pub mod base;
+/// Common errors
+pub mod common;
 /// Device-related errors (GPU, CPU, etc.)
 pub mod device;
 /// Kernel-related errors (CUDA, etc.)
@@ -19,5 +21,3 @@ pub mod param;
 pub mod random;
 /// Shape-related errors (dimension mismatch, broadcasting, etc.)
 pub mod shape;
-/// Common errors
-pub mod common;

@@ -1,12 +1,12 @@
 use crate::ops::cuda::cuda_utils::load_ptx_and_get_data;
 use crate::{backend::Cuda, tensor_base::_Tensor};
-use cudarc::driver::LaunchAsync;
 use cudarc::driver::DeviceRepr;
-use hpt_types::dtype::CudaType;
+use cudarc::driver::LaunchAsync;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_cudakernels::SET_VAL;
 use hpt_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike};
+use hpt_types::dtype::CudaType;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use super::cuda_utils::compute_kernel_launch_config;

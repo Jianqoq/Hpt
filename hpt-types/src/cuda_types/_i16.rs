@@ -11,7 +11,7 @@ impl FloatOutBinary2 for Scalar<i16> {
     fn __log(self, _: Self) -> Self {
         panic!("Logarithm operation is not supported for i16")
     }
-    
+
     fn __hypot(self, _: Self) -> Self {
         panic!("Hypot operation is not supported for i16")
     }
@@ -123,7 +123,7 @@ impl NormalOutUnary2 for Scalar<i16> {
     fn __relu6(self) -> Self {
         Scalar::new(format!("min(max({}, 0), 6)", self.val))
     }
-    
+
     #[inline(always)]
     fn __trunc(self) -> Self {
         self
@@ -133,9 +133,7 @@ impl NormalOutUnary2 for Scalar<i16> {
     fn __copysign(self, rhs: Self) -> Self {
         Scalar::new(format!(
             "({} >= 0 ? abs({}) : -abs({}))",
-            rhs.val,
-            self.val,
-            self.val
+            rhs.val, self.val, self.val
         ))
     }
 }

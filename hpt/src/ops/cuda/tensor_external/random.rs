@@ -1,8 +1,8 @@
 use crate::{tensor::Tensor, tensor_base::_Tensor, Cuda};
 use cudarc::driver::DeviceRepr;
-use hpt_types::dtype::CudaType;
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_traits::{CommonBounds, Random, RandomInt};
+use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
 use rand_distr::{
     uniform::SampleUniform, Distribution, Exp1, Open01, OpenClosed01, Standard, StandardNormal,
@@ -36,7 +36,11 @@ where
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::randn_like(self.inner.as_ref())?.into())
     }
 
-    fn rand<S: Into<Shape>>(shape: S, low: Self::Meta, high: Self::Meta) -> Result<Self, TensorError> {
+    fn rand<S: Into<Shape>>(
+        shape: S,
+        low: Self::Meta,
+        high: Self::Meta,
+    ) -> Result<Self, TensorError> {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::rand(shape, low, high)?.into())
     }
 
@@ -68,7 +72,11 @@ where
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::exponential_like(self.inner.as_ref(), lambda)?.into())
     }
 
-    fn gamma<S: Into<Shape>>(gamm_shape: Self::Meta, scale: Self::Meta, shape: S) -> Result<Self, TensorError> {
+    fn gamma<S: Into<Shape>>(
+        gamm_shape: Self::Meta,
+        scale: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError> {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::gamma(gamm_shape, scale, shape)?.into())
     }
 
@@ -76,7 +84,11 @@ where
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::gamma_like(self.inner.as_ref(), shape, scale)?.into())
     }
 
-    fn gumbel<S: Into<Shape>>(mu: Self::Meta, beta: Self::Meta, shape: S) -> Result<Self, TensorError> {
+    fn gumbel<S: Into<Shape>>(
+        mu: Self::Meta,
+        beta: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError> {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::gumbel(mu, beta, shape)?.into())
     }
 
@@ -84,7 +96,11 @@ where
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::gumbel_like(self.inner.as_ref(), mu, beta)?.into())
     }
 
-    fn lognormal<S: Into<Shape>>(mean: Self::Meta, std: Self::Meta, shape: S) -> Result<Self, TensorError> {
+    fn lognormal<S: Into<Shape>>(
+        mean: Self::Meta,
+        std: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError> {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::lognormal(mean, std, shape)?.into())
     }
 
@@ -107,7 +123,11 @@ where
         )
     }
 
-    fn pareto<S: Into<Shape>>(pareto_shape: Self::Meta, a: Self::Meta, shape: S) -> Result<Self, TensorError> {
+    fn pareto<S: Into<Shape>>(
+        pareto_shape: Self::Meta,
+        a: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError> {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::pareto(pareto_shape, a, shape)?.into())
     }
 
@@ -126,7 +146,11 @@ where
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::poisson_like(self.inner.as_ref(), lambda)?.into())
     }
 
-    fn weibull<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self, TensorError> {
+    fn weibull<S: Into<Shape>>(
+        a: Self::Meta,
+        b: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError> {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::weibull(a, b, shape)?.into())
     }
 
@@ -151,7 +175,12 @@ where
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::triangular(low, high, mode, shape)?.into())
     }
 
-    fn triangular_like(&self, low: Self::Meta, high: Self::Meta, mode: Self::Meta) -> Result<Self, TensorError> {
+    fn triangular_like(
+        &self,
+        low: Self::Meta,
+        high: Self::Meta,
+        mode: Self::Meta,
+    ) -> Result<Self, TensorError> {
         Ok(
             _Tensor::<T, Cuda, DEVICE_ID>::triangular_like(self.inner.as_ref(), low, high, mode)?
                 .into(),
@@ -173,7 +202,11 @@ where
 {
     type Meta = T;
 
-    fn randint<S: Into<Shape>>(low: Self::Meta, high: Self::Meta, shape: S) -> Result<Self, TensorError>
+    fn randint<S: Into<Shape>>(
+        low: Self::Meta,
+        high: Self::Meta,
+        shape: S,
+    ) -> Result<Self, TensorError>
     where
         <T as SampleUniform>::Sampler: Sync,
     {

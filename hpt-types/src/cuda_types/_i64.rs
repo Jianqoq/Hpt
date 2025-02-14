@@ -134,9 +134,7 @@ impl NormalOutUnary2 for Scalar<i64> {
     fn __copysign(self, rhs: Self) -> Self {
         Scalar::new(format!(
             "({} >= 0 ? abs({}) : -abs({}))",
-            rhs.val,
-            self.val,
-            self.val
+            rhs.val, self.val, self.val
         ))
     }
 }

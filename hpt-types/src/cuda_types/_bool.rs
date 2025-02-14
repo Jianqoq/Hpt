@@ -119,7 +119,7 @@ impl NormalOutUnary2 for Scalar<bool> {
     fn __trunc(self) -> Self {
         self
     }
-    
+
     #[inline(always)]
     fn __copysign(self, _: Self) -> Self {
         self

@@ -5,9 +5,9 @@ use crate::{
     Cuda,
 };
 use cudarc::driver::DeviceRepr;
-use hpt_types::dtype::CudaType;
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, NormalUaryOps, TensorLike};
+use hpt_types::dtype::CudaType;
 use hpt_types::{
     cuda_types::scalar::Scalar,
     into_scalar::Cast,

@@ -1,7 +1,6 @@
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use cudarc::driver::DeviceRepr;
-use hpt_types::dtype::CudaType;
 use hpt_common::axis::axis::Axis;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::param::ParamError;
@@ -11,6 +10,7 @@ use hpt_common::slice;
 use hpt_common::slice::Slice;
 use hpt_macros::match_selection;
 use hpt_traits::{CommonBounds, ShapeManipulate, TensorInfo, TensorLike};
+use hpt_types::dtype::CudaType;
 use std::panic::Location;
 
 impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> ShapeManipulate

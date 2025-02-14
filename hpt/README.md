@@ -57,7 +57,7 @@ fn main() -> anyhow::Result<()> {
 ```
 
 # How To Get Highest Performance
-- Compile your program with the following configuration in `Cargo.toml`, note that lto is very important.
+- Compile your program with the following configuration in `Cargo.toml`, note that `lto` is very important.
 ```cargo
 opt-level = 3
 lto = "fat"

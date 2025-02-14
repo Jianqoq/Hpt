@@ -319,25 +319,26 @@ impl FloatOutUnary2 for Scalar<Complex64> {
     fn __cbrt(self) -> Self {
         panic!("Cbrt operation is not well-defined for complex numbers")
     }
-    
+
     fn __expm1(self) -> Self {
         panic!("Expm1 operation is not well-defined for complex numbers")
     }
-    
+
     fn __exp10(self) -> Self {
         panic!("Exp10 operation is not well-defined for complex numbers")
     }
-    
+
     fn __log1p(self) -> Self {
         panic!("Log1p operation is not well-defined for complex numbers")
     }
-    
+
     fn __sincos(self) -> (Self, Self)
     where
-        Self: Sized {
+        Self: Sized,
+    {
         panic!("Sincos operation is not well-defined for complex numbers")
     }
-    
+
     fn __atan2(self, _: Self) -> Self {
         panic!("Atan2 operation is not well-defined for complex numbers")
     }
