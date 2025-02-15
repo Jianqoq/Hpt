@@ -258,6 +258,7 @@ pub use hpt_iterator::TensorIterator;
 
 pub use crate::backend::*;
 pub use flate2;
+pub use rayon::iter::ParallelIterator;
 // #[cfg(feature = "codegen")]
 // pub use hpt_codegen::compile;
 // #[cfg(feature = "codegen")]
