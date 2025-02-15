@@ -22,6 +22,8 @@ pub mod ops {
     pub mod uary;
     /// A module contains window operations
     pub mod windows;
+    /// A module contains cumulative operations
+    pub mod cumulative;
 }
 /// A module contains random number generation operations
 pub mod random;
@@ -38,4 +40,5 @@ pub use ops::uary::*;
 pub use ops::windows::*;
 pub use random::*;
 pub use shape_manipulate::*;
+pub use ops::cumulative::*;
 pub use tensor::*;

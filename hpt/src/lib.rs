@@ -113,6 +113,8 @@ pub mod ops {
             pub mod tensordot;
             /// a module that contains all the windows creation functions
             pub mod windows;
+            /// a module that contains all the cumulative operations
+            pub mod cumulative;
         }
         /// a module that contains all the functions only for the internal user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_internal {
@@ -148,6 +150,8 @@ pub mod ops {
             pub mod tensordot;
             /// a module that contains all the windows creation functions
             pub mod windows;
+            /// a module that contains all the cumulative operations
+            pub mod cumulative;
         }
 
         /// a module contains cpu L1, L2, L3 cache helper
