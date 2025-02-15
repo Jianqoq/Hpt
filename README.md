@@ -26,6 +26,11 @@ Hpt is a high performance N-dimensional array library. It is being highly optimi
 
 Hpt is in early stage, bugs and wrong calculation results are expected
 
+# Cargo Features
+- `cuda`: enable cuda support
+- `bound_check`: enable bound check, this is experiment and will reduce performance.
+- `normal_promote`: auto type promote. There may be more type promote feature in the future.
+
 # Get Start
 ```rust
 use hpt::*;
