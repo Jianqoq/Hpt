@@ -1,12 +1,13 @@
 #![allow(unused)]
 
-use crate::ops::cuda::reduce_template::contiguous_reduce_template;
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 
-use super::cuda_utils::compute_kernel_launch_config;
-use super::cuda_utils::load_ptx_and_get_data;
-use super::reduce_template::uncontiguos_reduce_template;
+use crate::ops::cuda::cuda_utils::compute_kernel_launch_config;
+use crate::ops::cuda::cuda_utils::load_ptx_and_get_data;
+use crate::ops::cuda::utils::reduce::reduce_template::{
+    contiguous_reduce_template, uncontiguos_reduce_template,
+};
 use cudarc::driver::DeviceRepr;
 use cudarc::driver::LaunchAsync;
 use cudarc::driver::LaunchConfig;

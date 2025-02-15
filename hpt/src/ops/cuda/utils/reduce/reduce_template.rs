@@ -1,5 +1,5 @@
 use crate::{
-    ops::cuda::reduce_utils::{reduce_prepare, uncontiguous_reduce_prepare},
+    ops::cuda::utils::reduce::reduce_utils::{reduce_prepare, uncontiguous_reduce_prepare},
     tensor_base::_Tensor,
     Cuda,
 };
@@ -9,7 +9,7 @@ use hpt_traits::{CommonBounds, ShapeManipulate, TensorInfo};
 use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
 
-use super::cuda_slice::CudaSlice;
+use crate::ops::cuda::cuda_slice::CudaSlice;
 
 /// Performs a reduction operation on a tensor using customizable functions.
 ///

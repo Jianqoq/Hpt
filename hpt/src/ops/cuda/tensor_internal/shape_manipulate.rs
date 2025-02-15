@@ -1,6 +1,9 @@
-use crate::tensor_base::_Tensor;
+use crate::ops::cuda::cuda_utils::{
+    compile_kernel, compute_kernel_launch_config, get_module_name_vec,
+};
 use crate::Cuda;
-use cudarc::driver::DeviceRepr;
+use crate::{ops::cuda::cuda_utils::get_include_1, tensor_base::_Tensor};
+use cudarc::driver::{DeviceRepr, LaunchAsync};
 use hpt_common::axis::axis::Axis;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::param::ParamError;
@@ -9,12 +12,12 @@ use hpt_common::shape::shape::Shape;
 use hpt_common::slice;
 use hpt_common::slice::Slice;
 use hpt_macros::match_selection;
-use hpt_traits::{CommonBounds, ShapeManipulate, TensorInfo, TensorLike};
+use hpt_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike};
 use hpt_types::dtype::CudaType;
 use std::panic::Location;
 
-impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> ShapeManipulate
-    for _Tensor<T, Cuda, DEVICE_ID>
+impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> ShapeManipulate
+    for _Tensor<T, Cuda, DEVICE>
 {
     type Meta = T;
     type Output = Self;
@@ -171,16 +174,138 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> ShapeManip
     where
         T: 'static,
     {
-        crate::ops::cuda::concat::concat(tensors, axis, keepdims)
+        let length = tensors.len();
+        for i in tensors.iter() {
+            for (idx, x) in tensors[0].shape().iter().enumerate() {
+                if idx != axis
+                    && i.shape().len() == tensors[0].shape().len()
+                    && *x != i.shape()[idx]
+                {
+                    return Err(ShapeError::ConcatDimMismatch {
+                        expected: *x as usize,
+                        actual: i.shape()[idx] as usize,
+                        location: Location::caller(),
+                    }
+                    .into());
+                } else if i.shape().len() != tensors[0].shape().len() {
+                    ShapeError::check_ndim_enough(
+                        "concat dim mismatch".to_string(),
+                        tensors[0].ndim(),
+                        i.ndim(),
+                    )?;
+                }
+            }
+        }
+        let mut new_shape: Vec<i64> = vec![0; tensors[0].ndim()];
+        tensors.iter().for_each(|x| {
+            new_shape[axis] += x.shape()[axis];
+        });
+        tensors[0].shape().iter().enumerate().for_each(|(i, x)| {
+            if i != axis {
+                new_shape[i] = *x;
+            }
+        });
+        let new_tensor = _Tensor::<T, Cuda, DEVICE>::empty(&new_shape)?;
+        let mut begin = 0;
+        let mut res_slices = Vec::with_capacity(length);
+        for i in tensors.iter() {
+            let mut selections = vec![Slice::Full; new_shape.len()];
+            selections[axis] = Slice::Range((begin, begin + i.shape()[axis]));
+            begin += i.shape()[axis];
+            let res_tensor = new_tensor.slice(&selections)?;
+            res_slices.push(res_tensor);
+        }
+        let tensors = tensors
+            .iter()
+            .map(|x| (*x).clone())
+            .collect::<Vec<_Tensor<T, Cuda, DEVICE>>>();
+
+        let include = get_include_1::<T>();
+        let module_name = get_module_name_vec("cc", &tensors);
+        let map = compile_kernel(
+            &module_name,
+            &format!(
+                "
+                        {include}
+                        extern \"C\" __global__ void assign({} *out, {} *inp, long long *shape, long long *strides, long long *inp_shape, long long *inp_strides, size_t ndim, size_t size)
+                        {{
+                            size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+                            size_t stride = blockDim.x * gridDim.x;
+                            while (idx < size)
+                            {{
+                                long inp_amount = idx;
+                                long inp_offset = 0;
+                                long out_offset = 0;
+                                long out_amount = idx;
+                                for (int j = ndim - 1; j >= 0; j--)
+                                {{
+                                    inp_offset += (inp_amount % inp_shape[j]) * inp_strides[j];
+                                    inp_amount /= inp_shape[j];
+                                    out_offset += (out_amount % shape[j]) * strides[j];
+                                    out_amount /= shape[j];
+                                }}
+                                out[out_offset] = inp[inp_offset];
+                                idx += stride;
+                            }}
+                        }}",
+                T::CUDA_TYPE,
+                T::CUDA_TYPE,
+            ),
+            tensors[0].device(),
+            &["assign"],
+        )?;
+        let kernel = tensors[0]
+            .device()
+            .get_func(&module_name, "assign")
+            .unwrap();
+        let reg_info = map.get("assign").expect("func_name not found");
+        for (res, input) in res_slices.into_iter().zip(tensors.into_iter()) {
+            let out_slice = res.cuda_slice();
+            let inp_slice = input.cuda_slice();
+            let inp_shape = new_tensor.cuda_shape()?;
+            let inp_strides = new_tensor.cuda_strides()?;
+            let shape = new_tensor.cuda_shape()?;
+            let strides = new_tensor.cuda_strides()?;
+            let cfg = compute_kernel_launch_config(res.device(), reg_info, input.size());
+            unsafe {
+                kernel.clone().launch(
+                    cfg,
+                    (
+                        out_slice,
+                        inp_slice,
+                        &shape,
+                        &strides,
+                        &inp_shape,
+                        &inp_strides,
+                        input.ndim() as u64,
+                        input.size() as u64,
+                    ),
+                )?;
+            };
+        }
+        if keepdims {
+            let mut res_shape = Vec::with_capacity(new_shape.len() + 1);
+            for (idx, i) in new_shape.iter().enumerate() {
+                if idx == axis {
+                    res_shape.push(length as i64);
+                    res_shape.push(*i / (length as i64));
+                } else {
+                    res_shape.push(*i);
+                }
+            }
+            new_tensor.reshape(res_shape)
+        } else {
+            Ok(new_tensor)
+        }
     }
     fn vstack(tensors: Vec<Self>) -> Result<Self, TensorError> {
-        crate::ops::cuda::concat::concat(tensors, 0, false)
+        Self::concat(tensors, 0, false)
     }
     fn hstack(mut tensors: Vec<Self>) -> Result<Self, TensorError> {
         for tensor in tensors.iter_mut() {
             if tensor.shape().len() < 2 {
                 return if tensor.shape().len() == 1 {
-                    crate::ops::cuda::concat::concat(tensors, 0, false)
+                    Self::concat(tensors, 0, false)
                 } else {
                     // scalar
                     let mut tensors_ref = Vec::with_capacity(tensors.len());
@@ -191,11 +316,11 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> ShapeManip
                     for tensor in tensors_holder {
                         tensors_ref.push(tensor);
                     }
-                    crate::ops::cuda::concat::concat(tensors_ref, 0, false)
+                    Self::concat(tensors_ref, 0, false)
                 };
             }
         }
-        crate::ops::cuda::concat::concat(tensors, 1, false)
+        Self::concat(tensors, 1, false)
     }
     fn dstack(mut tensors: Vec<Self>) -> Result<Self, TensorError> {
         let mut new_tensors = Vec::with_capacity(tensors.len());
@@ -220,6 +345,6 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> ShapeManip
         for tensor in new_tensors {
             tensors_ref.push(tensor);
         }
-        crate::ops::cuda::concat::concat(tensors_ref, 2, false)
+        Self::concat(tensors_ref, 2, false)
     }
 }

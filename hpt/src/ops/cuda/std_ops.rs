@@ -1,13 +1,11 @@
-use crate::ops::cuda::binary_normal::*;
+use crate::ops::cuda::utils::binary::binary_normal::*;
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use crate::Tensor;
 use cudarc::driver::DeviceRepr;
 use hpt_traits::tensor::CommonBounds;
 use hpt_types::into_scalar::Cast;
-use hpt_types::type_promote::BitWiseOut;
-use hpt_types::type_promote::FloatOutBinary;
-use hpt_types::type_promote::NormalOut;
+use hpt_types::type_promote::{BitWiseOut, FloatOutBinary, NormalOut};
 use hpt_types::{cuda_types::scalar::Scalar, dtype::CudaType};
 
 // define add, sub, mul, rem for _Tensor

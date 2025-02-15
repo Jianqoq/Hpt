@@ -10,7 +10,7 @@ use hpt_types::cuda_types::scalar::Scalar;
 use hpt_types::dtype::CudaType;
 use std::borrow::BorrowMut;
 
-use super::cuda_utils::get_include_1;
+use crate::ops::cuda::cuda_utils::get_include_1;
 
 pub(crate) fn uary_fn_with_out_simd<A, O, K, F, const DEVICE_ID: usize>(
     inp: &_Tensor<A, Cuda, DEVICE_ID>,

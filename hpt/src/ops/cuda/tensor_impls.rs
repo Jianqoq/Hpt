@@ -12,8 +12,8 @@ use hpt_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
 use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
 
-use super::cuda_utils::compute_kernel_launch_config;
-use super::unary::uary_fn_with_out_simd;
+use crate::ops::cuda::cuda_utils::compute_kernel_launch_config;
+use crate::ops::cuda::utils::unary::unary::uary_fn_with_out_simd;
 
 impl<T, const DEVICE_ID: usize> TensorLike<T> for _Tensor<T, Cuda, DEVICE_ID>
 where

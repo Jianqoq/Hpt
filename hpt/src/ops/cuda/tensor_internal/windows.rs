@@ -1,4 +1,4 @@
-use crate::ops::cuda::{cuda_utils::get_module_name_1, unary::uary_fn_with_out_simd};
+use crate::ops::cuda::{cuda_utils::get_module_name_1, utils::unary::unary::uary_fn_with_out_simd};
 use crate::{tensor_base::_Tensor, Cuda};
 use cudarc::driver::DeviceRepr;
 use hpt_common::error::base::TensorError;
