@@ -36,15 +36,10 @@ try {
         try {
             Write-Host "Running dry run check..."
             cargo publish --dry-run
-            
-            $continue = Read-Host "Dry run successful. Continue with publish? (Y/N)"
-            if ($continue -eq 'Y' -or $continue -eq 'y') {
-                Write-Host "Publishing $package..."
-                cargo publish
-                Write-Host "$package published successfully!"
-            } else {
-                Write-Host "Skipping $package"
-            }
+            Read-Host "Dry run successful. Continue with publish? (Y/N)"
+            Write-Host "Publishing $package..."
+            cargo publish
+            Write-Host "$package published successfully!"
         }
         catch {
             Write-Host "Error processing $package"
