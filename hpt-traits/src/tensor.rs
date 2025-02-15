@@ -3,10 +3,7 @@ use hpt_common::{
     axis::axis::Axis, layout::layout::Layout, shape::shape::Shape, strides::strides::Strides,
     utils::pointer::Pointer,
 };
-#[cfg(feature = "archsimd")]
 use hpt_types::arch_simd as simd;
-#[cfg(feature = "stdsimd")]
-use hpt_types::std_simd as simd;
 use hpt_types::{
     dtype::TypeCommon,
     into_scalar::Cast,

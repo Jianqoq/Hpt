@@ -16,8 +16,8 @@ use hpt_types::dtype::CudaType;
 use std::borrow::BorrowMut;
 use std::collections::HashSet;
 
-use super::cuda_utils::get_array_str;
-use super::cuda_utils::get_include_1;
+use crate::ops::cuda::cuda_utils::get_array_str;
+use crate::ops::cuda::cuda_utils::get_include_1;
 
 /// Performs a binary operation on two tensors with optional SIMD optimization and an output tensor.
 ///

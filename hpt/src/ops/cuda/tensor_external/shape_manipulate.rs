@@ -1,4 +1,3 @@
-use crate::ops::cuda::concat::concat;
 use crate::Cuda;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
 use cudarc::driver::DeviceRepr;
@@ -125,38 +124,44 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> ShapeManip
         tensors: Vec<Self>,
         axis: usize,
         keepdims: bool,
-    ) -> Result<Self::Output, TensorError> {
-        Ok(concat(
-            tensors.iter().map(|x| x.inner.as_ref().clone()).collect(),
+    ) -> std::result::Result<Self::Output, TensorError> {
+        Ok(_Tensor::concat(
+            tensors
+                .into_iter()
+                .map(|x| x.inner.as_ref().clone())
+                .collect(),
             axis,
             keepdims,
         )?
         .into())
     }
 
-    fn vstack(tensors: Vec<Self>) -> Result<Self::Output, TensorError> {
-        Ok(concat(
-            tensors.iter().map(|x| x.inner.as_ref().clone()).collect(),
-            0,
-            false,
+    fn vstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError> {
+        Ok(_Tensor::vstack(
+            tensors
+                .into_iter()
+                .map(|x| x.inner.as_ref().clone())
+                .collect(),
         )?
         .into())
     }
 
-    fn hstack(tensors: Vec<Self>) -> Result<Self::Output, TensorError> {
-        Ok(concat(
-            tensors.iter().map(|x| x.inner.as_ref().clone()).collect(),
-            1,
-            false,
+    fn hstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError> {
+        Ok(_Tensor::hstack(
+            tensors
+                .into_iter()
+                .map(|x| x.inner.as_ref().clone())
+                .collect(),
         )?
         .into())
     }
 
-    fn dstack(tensors: Vec<Self>) -> Result<Self::Output, TensorError> {
-        Ok(concat(
-            tensors.iter().map(|x| x.inner.as_ref().clone()).collect(),
-            2,
-            false,
+    fn dstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError> {
+        Ok(_Tensor::dstack(
+            tensors
+                .into_iter()
+                .map(|x| x.inner.as_ref().clone())
+                .collect(),
         )?
         .into())
     }

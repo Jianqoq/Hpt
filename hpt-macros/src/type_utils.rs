@@ -107,111 +107,6 @@ pub fn type_simd_lanes(list: &str) -> u8 {
     }
 }
 
-pub fn type_simd_is_arr(list: &str) -> bool {
-    #[cfg(all(
-        any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),
-        not(target_feature = "avx2")
-    ))]
-    match list.to_lowercase().as_str() {
-        "bool" => true,
-        "i8" => false,
-        "u8" => false,
-        "i16" => false,
-        "u16" => false,
-        "i32" => false,
-        "u32" => false,
-        "i64" => false,
-        "u64" => false,
-        "bf16" => true,
-        "f16" => true,
-        "f32" => false,
-        "f64" => false,
-        #[cfg(target_pointer_width = "64")]
-        "isize" => false,
-        #[cfg(target_pointer_width = "64")]
-        "usize" => false,
-        #[cfg(target_pointer_width = "32")]
-        "isize" => false,
-        #[cfg(target_pointer_width = "32")]
-        "usize" => false,
-        #[cfg(target_pointer_width = "64")]
-        "complex32" => true,
-        #[cfg(target_pointer_width = "64")]
-        "complex64" => true,
-        #[cfg(target_pointer_width = "32")]
-        "complex32" => true,
-        #[cfg(target_pointer_width = "32")]
-        "complex64" => true,
-        _ => false,
-    }
-    #[cfg(target_feature = "avx2")]
-    match list.to_lowercase().as_str() {
-        "bool" => true,
-        "i8" => false,
-        "u8" => false,
-        "i16" => false,
-        "u16" => false,
-        "i32" => false,
-        "u32" => false,
-        "i64" => false,
-        "u64" => false,
-        "bf16" => true,
-        "f16" => true,
-        "f32" => false,
-        "f64" => false,
-        #[cfg(target_pointer_width = "64")]
-        "isize" => false,
-        #[cfg(target_pointer_width = "64")]
-        "usize" => false,
-        #[cfg(target_pointer_width = "32")]
-        "isize" => false,
-        #[cfg(target_pointer_width = "32")]
-        "usize" => false,
-        #[cfg(target_pointer_width = "64")]
-        "complex32" => true,
-        #[cfg(target_pointer_width = "64")]
-        "complex64" => true,
-        #[cfg(target_pointer_width = "32")]
-        "complex32" => true,
-        #[cfg(target_pointer_width = "32")]
-        "complex64" => true,
-        _ => false,
-    }
-    #[cfg(target_feature = "avx512f")]
-    match list.to_lowercase().as_str() {
-        "bool" => true,
-        "i8" => false,
-        "u8" => false,
-        "i16" => false,
-        "u16" => false,
-        "i32" => false,
-        "u32" => false,
-        "i64" => false,
-        "u64" => false,
-        "bf16" => true,
-        "f16" => true,
-        "f32" => false,
-        "f64" => false,
-        #[cfg(target_pointer_width = "64")]
-        "isize" => false,
-        #[cfg(target_pointer_width = "64")]
-        "usize" => false,
-        #[cfg(target_pointer_width = "32")]
-        "isize" => false,
-        #[cfg(target_pointer_width = "32")]
-        "usize" => false,
-        #[cfg(target_pointer_width = "64")]
-        "Complex32" => true,
-        #[cfg(target_pointer_width = "64")]
-        "Complex64" => true,
-        #[cfg(target_pointer_width = "32")]
-        "Complex32" => true,
-        #[cfg(target_pointer_width = "32")]
-        "Complex64" => true,
-        _ => 0,
-    }
-}
-
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub(crate) enum Type {
     Bool,
@@ -250,12 +145,6 @@ impl Type {
     }
     pub fn is_bf16(&self) -> bool {
         matches!(self, Type::BF16)
-    }
-    pub fn is_f32(&self) -> bool {
-        matches!(self, Type::F32)
-    }
-    pub fn is_f64(&self) -> bool {
-        matches!(self, Type::F64)
     }
     pub fn is_cplx(&self) -> bool {
         matches!(

@@ -393,112 +393,112 @@ where
         Ok(res)
     }
 
-    fn gather(&self, indices: &Self::IndexOutput, axis: i64) -> Result<Self::Output, TensorError> {
-        if self.ndim() != indices.ndim() {
-            ShapeError::check_ndim_enough(
-                "gather requires input and indices have the same number of dimensions.".to_string(),
-                self.ndim(),
-                indices.ndim(),
-            )?;
-        }
+    // fn gather(&self, indices: &Self::IndexOutput, axis: i64) -> Result<Self::Output, TensorError> {
+    //     if self.ndim() != indices.ndim() {
+    //         ShapeError::check_ndim_enough(
+    //             "gather requires input and indices have the same number of dimensions.".to_string(),
+    //             self.ndim(),
+    //             indices.ndim(),
+    //         )?;
+    //     }
 
-        let axis = if axis < 0 {
-            self.ndim() as i64 + axis
-        } else {
-            axis
-        } as usize;
+    //     let axis = if axis < 0 {
+    //         self.ndim() as i64 + axis
+    //     } else {
+    //         axis
+    //     } as usize;
 
-        let mut permute_axes = (0..indices.ndim()).collect::<Vec<usize>>();
-        permute_axes.retain(|x| *x != (axis as usize));
-        permute_axes.push(axis as usize);
-        let permuted_indices = indices.permute(&permute_axes)?;
-        let inner_size = *permuted_indices.shape().last().unwrap();
-        let outer_size = permuted_indices.size() as i64 / inner_size;
+    //     let mut permute_axes = (0..indices.ndim()).collect::<Vec<usize>>();
+    //     permute_axes.retain(|x| *x != (axis as usize));
+    //     permute_axes.push(axis as usize);
+    //     let permuted_indices = indices.permute(&permute_axes)?;
+    //     let inner_size = *permuted_indices.shape().last().unwrap();
+    //     let outer_size = permuted_indices.size() as i64 / inner_size;
 
-        let mut res_shape = self.shape().to_vec();
-        res_shape[axis] = *permuted_indices.shape().last().unwrap();
-        let res = Self::empty(res_shape)?;
-        let permuted_self = self.permute(&permute_axes)?;
+    //     let mut res_shape = self.shape().to_vec();
+    //     res_shape[axis] = *permuted_indices.shape().last().unwrap();
+    //     let res = Self::empty(res_shape)?;
+    //     let permuted_self = self.permute(&permute_axes)?;
 
-        if self.ndim() == 1 {
-            for i in 0..indices.size() {
-                let idx = indices.ptr()[i];
-                if idx < 0 || idx >= self.shape()[0] as i64 {
-                    return Err(ShapeError::DimOutOfRange {
-                        expected: 0..self.shape()[0] as i64,
-                        actual: idx,
-                        location: core::panic::Location::caller(),
-                    }
-                    .into());
-                }
-                res.ptr()[i] = self.ptr()[idx as usize];
-            }
-            return Ok(res);
-        }
+    //     if self.ndim() == 1 {
+    //         for i in 0..indices.size() {
+    //             let idx = indices.ptr()[i];
+    //             if idx < 0 || idx >= self.shape()[0] as i64 {
+    //                 return Err(ShapeError::DimOutOfRange {
+    //                     expected: 0..self.shape()[0] as i64,
+    //                     actual: idx,
+    //                     location: core::panic::Location::caller(),
+    //                 }
+    //                 .into());
+    //             }
+    //             res.ptr()[i] = self.ptr()[idx as usize];
+    //         }
+    //         return Ok(res);
+    //     }
 
-        THREAD_POOL.with_borrow_mut(|pool| {
-            let num_threads = (outer_size as usize).min(pool.max_count());
-            let intervals = mt_intervals(outer_size as usize, num_threads);
+    //     THREAD_POOL.with_borrow_mut(|pool| {
+    //         let num_threads = (outer_size as usize).min(pool.max_count());
+    //         let intervals = mt_intervals(outer_size as usize, num_threads);
 
-            for (start, end) in intervals {
-                let self_ptr = permuted_self.ptr();
-                let indices_ptr = permuted_indices.ptr();
-                let mut res_ptr = res.ptr();
+    //         for (start, end) in intervals {
+    //             let self_ptr = permuted_self.ptr();
+    //             let indices_ptr = permuted_indices.ptr();
+    //             let mut res_ptr = res.ptr();
 
-                let gather_size = indices.shape()[axis];
-                let self_last_strides = *self.strides().last().unwrap();
-                let axis_self_last_stride = self.strides()[axis];
-                let self_inner_size = *permuted_self.shape().last().unwrap();
+    //             let gather_size = indices.shape()[axis];
+    //             let self_last_strides = *self.strides().last().unwrap();
+    //             let axis_self_last_stride = self.strides()[axis];
+    //             let self_inner_size = *permuted_self.shape().last().unwrap();
 
-                let res_shape = res.shape().clone();
-                let res_strides = res.strides().clone();
+    //             let res_shape = res.shape().clone();
+    //             let res_strides = res.strides().clone();
 
-                let permuted_self_shape = permuted_self.shape().clone();
-                let permuted_self_strides = permuted_self.strides().clone();
+    //             let permuted_self_shape = permuted_self.shape().clone();
+    //             let permuted_self_strides = permuted_self.strides().clone();
 
-                let indices_shape = indices.shape().clone();
-                let indices_strides = indices.strides().clone();
+    //             let indices_shape = indices.shape().clone();
+    //             let indices_strides = indices.strides().clone();
 
-                pool.execute(move || {
-                    for outer_idx in start as i64..end as i64 {
-                        let mut indices_amount = outer_idx * *indices_shape.last().unwrap();
-                        let mut indices_offset = 0;
-                        for j in (0..indices_shape.len()).rev() {
-                            indices_offset +=
-                                (indices_amount % indices_shape[j]) * indices_strides[j];
-                            indices_amount /= indices_shape[j];
-                        }
+    //             pool.execute(move || {
+    //                 for outer_idx in start as i64..end as i64 {
+    //                     let mut indices_amount = outer_idx * *indices_shape.last().unwrap();
+    //                     let mut indices_offset = 0;
+    //                     for j in (0..indices_shape.len()).rev() {
+    //                         indices_offset +=
+    //                             (indices_amount % indices_shape[j]) * indices_strides[j];
+    //                         indices_amount /= indices_shape[j];
+    //                     }
 
-                        let mut res_indices_amount = outer_idx * gather_size;
-                        let mut res_indices_offset = 0;
-                        for j in (0..res_shape.len()).rev() {
-                            res_indices_offset +=
-                                (res_indices_amount % res_shape[j]) * res_strides[j];
-                            res_indices_amount /= res_shape[j];
-                        }
+    //                     let mut res_indices_amount = outer_idx * gather_size;
+    //                     let mut res_indices_offset = 0;
+    //                     for j in (0..res_shape.len()).rev() {
+    //                         res_indices_offset +=
+    //                             (res_indices_amount % res_shape[j]) * res_strides[j];
+    //                         res_indices_amount /= res_shape[j];
+    //                     }
 
-                        let mut inp_indices_amount = outer_idx * self_inner_size;
-                        let mut inp_indices_offset = 0;
-                        for j in (0..permuted_self_shape.len() - 1).rev() {
-                            inp_indices_offset += (inp_indices_amount % permuted_self_shape[j])
-                                * permuted_self_strides[j];
-                            inp_indices_amount /= permuted_self_shape[j];
-                        }
-                        for gather_idx in 0..gather_size {
-                            let index = indices_ptr[indices_offset + gather_idx];
-                            let val = self_ptr[(inp_indices_offset
-                                + gather_idx * self_last_strides)
-                                + index * axis_self_last_stride];
-                            res_ptr[res_indices_offset + gather_idx] = val;
-                        }
-                    }
-                });
-            }
-            pool.join();
-        });
+    //                     let mut inp_indices_amount = outer_idx * self_inner_size;
+    //                     let mut inp_indices_offset = 0;
+    //                     for j in (0..permuted_self_shape.len() - 1).rev() {
+    //                         inp_indices_offset += (inp_indices_amount % permuted_self_shape[j])
+    //                             * permuted_self_strides[j];
+    //                         inp_indices_amount /= permuted_self_shape[j];
+    //                     }
+    //                     for gather_idx in 0..gather_size {
+    //                         let index = indices_ptr[indices_offset + gather_idx];
+    //                         let val = self_ptr[(inp_indices_offset
+    //                             + gather_idx * self_last_strides)
+    //                             + index * axis_self_last_stride];
+    //                         res_ptr[res_indices_offset + gather_idx] = val;
+    //                     }
+    //                 }
+    //             });
+    //         }
+    //         pool.join();
+    //     });
 
-        Ok(res)
-    }
+    //     Ok(res)
+    // }
 
     fn dropout(&self, rate: f64) -> Result<Self::Output, TensorError> {
         let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(self.shape())?;
@@ -517,142 +517,142 @@ where
         Ok(ret)
     }
 
-    fn gather_elements(
-        &self,
-        indices: &Self::IndexOutput,
-        axis: i64,
-    ) -> Result<Self::Output, TensorError> {
-        let axis = (if axis < 0 {
-            (self.ndim() as i64) + axis
-        } else {
-            axis
-        }) as usize;
-        let ret = _Tensor::<T, Cpu, DEVICE>::empty(indices.shape())?;
-        let inner_loop_size = indices.shape()[indices.ndim() - 1] as usize;
-        let outer_loop_size = indices.size() / inner_loop_size;
+    // fn gather_elements(
+    //     &self,
+    //     indices: &Self::IndexOutput,
+    //     axis: i64,
+    // ) -> Result<Self::Output, TensorError> {
+    //     let axis = (if axis < 0 {
+    //         (self.ndim() as i64) + axis
+    //     } else {
+    //         axis
+    //     }) as usize;
+    //     let ret = _Tensor::<T, Cpu, DEVICE>::empty(indices.shape())?;
+    //     let inner_loop_size = indices.shape()[indices.ndim() - 1] as usize;
+    //     let outer_loop_size = indices.size() / inner_loop_size;
 
-        THREAD_POOL.with_borrow_mut(|pool| {
-            let num_threads = if outer_loop_size < pool.max_count() {
-                outer_loop_size
-            } else {
-                pool.max_count()
-            };
-            let intervals = mt_intervals(outer_loop_size, num_threads);
-            let mut res_ptrs = Vec::with_capacity(num_threads);
-            let mut idx_ptrs = Vec::with_capacity(num_threads);
-            let mut prgs = Vec::with_capacity(num_threads);
-            for (start, _) in intervals.iter() {
-                let mut res_ptr = ret.ptr().clone();
-                let mut idx_ptr = indices.ptr().clone();
-                let mut res_prg = vec![0; ret.ndim()];
-                let mut amount = *start * (*ret.shape().last().unwrap() as usize);
+    //     THREAD_POOL.with_borrow_mut(|pool| {
+    //         let num_threads = if outer_loop_size < pool.max_count() {
+    //             outer_loop_size
+    //         } else {
+    //             pool.max_count()
+    //         };
+    //         let intervals = mt_intervals(outer_loop_size, num_threads);
+    //         let mut res_ptrs = Vec::with_capacity(num_threads);
+    //         let mut idx_ptrs = Vec::with_capacity(num_threads);
+    //         let mut prgs = Vec::with_capacity(num_threads);
+    //         for (start, _) in intervals.iter() {
+    //             let mut res_ptr = ret.ptr().clone();
+    //             let mut idx_ptr = indices.ptr().clone();
+    //             let mut res_prg = vec![0; ret.ndim()];
+    //             let mut amount = *start * (*ret.shape().last().unwrap() as usize);
 
-                let mut index = 0;
-                let mut idx_index = 0;
-                for j in (0..ret.shape().len()).rev() {
-                    res_prg[j] = (amount as i64) % ret.shape()[j];
-                    amount /= ret.shape()[j] as usize;
-                    index += res_prg[j] * ret.strides()[j];
-                    idx_index += res_prg[j] * indices.strides()[j];
-                }
-                res_ptr.offset(index);
-                res_ptrs.push(res_ptr);
-                prgs.push(res_prg);
-                idx_ptr.offset(idx_index);
-                idx_ptrs.push(idx_ptr);
-            }
-            let idx_last_stride = indices.strides()[indices.ndim() - 1];
-            let ndim = self.ndim() as i64;
+    //             let mut index = 0;
+    //             let mut idx_index = 0;
+    //             for j in (0..ret.shape().len()).rev() {
+    //                 res_prg[j] = (amount as i64) % ret.shape()[j];
+    //                 amount /= ret.shape()[j] as usize;
+    //                 index += res_prg[j] * ret.strides()[j];
+    //                 idx_index += res_prg[j] * indices.strides()[j];
+    //             }
+    //             res_ptr.offset(index);
+    //             res_ptrs.push(res_ptr);
+    //             prgs.push(res_prg);
+    //             idx_ptr.offset(idx_index);
+    //             idx_ptrs.push(idx_ptr);
+    //         }
+    //         let idx_last_stride = indices.strides()[indices.ndim() - 1];
+    //         let ndim = self.ndim() as i64;
 
-            for ((((start, end), mut res_ptr), mut idx_ptr), mut prg) in intervals
-                .into_iter()
-                .zip(res_ptrs.into_iter())
-                .zip(idx_ptrs.into_iter())
-                .zip(prgs.into_iter())
-            {
-                let shape = ret.shape().clone();
-                let ret_strides = ret.strides().clone();
-                let indice_strides = indices.strides().clone();
-                let inp_ptr = self.ptr().clone();
-                let inp_strides = self.strides().clone();
-                let inp_idx_stride = self.strides()[axis];
-                let inp_last_stride = self.strides()[(ndim as usize) - 1];
-                pool.execute(move || {
-                    if axis == (ndim as usize) - 1 {
-                        let index_cal = |prg: &[i64]| {
-                            let mut acc = 0;
-                            for (i, &x) in prg.iter().enumerate().take((ndim as usize) - 1) {
-                                acc += x * inp_strides[i];
-                            }
-                            acc
-                        };
-                        for _ in start..end {
-                            for i in 0..inner_loop_size as i64 {
-                                let idx = idx_ptr[i * idx_last_stride];
-                                let inp_index = index_cal(&prg);
-                                res_ptr[i] = inp_ptr[inp_index + idx * inp_idx_stride];
-                            }
-                            for j in (0..ndim - 1).rev() {
-                                let j = j as usize;
-                                if prg[j] < shape[j] - 1 {
-                                    prg[j] += 1;
-                                    res_ptr.offset(ret_strides[j]);
-                                    idx_ptr.offset(indice_strides[j]);
-                                    break;
-                                } else {
-                                    prg[j] = 0;
-                                    res_ptr.offset(-ret_strides[j] * (shape[j] - 1));
-                                    idx_ptr.offset(-indice_strides[j] * (shape[j] - 1));
-                                }
-                            }
-                        }
-                    } else {
-                        let index_cal = |prg: &mut [i64]| {
-                            let tmp = prg[axis];
-                            let mut acc = 0;
-                            for (i, &x) in prg.iter().enumerate().take((ndim as usize) - 1) {
-                                if i == axis {
-                                    continue;
-                                }
-                                acc += x * inp_strides[i];
-                            }
-                            prg[axis] = tmp;
-                            acc
-                        };
-                        let mut offset = index_cal(&mut prg);
-                        for _ in start..end {
-                            for i in 0..inner_loop_size as i64 {
-                                let idx = idx_ptr[i * idx_last_stride];
-                                res_ptr[i] =
-                                    inp_ptr[offset + idx * inp_idx_stride + i * inp_last_stride];
-                            }
-                            for j in (0..ndim - 1).rev() {
-                                let j = j as usize;
-                                if prg[j] < shape[j] - 1 {
-                                    prg[j] += 1;
-                                    res_ptr.offset(ret_strides[j]);
-                                    idx_ptr.offset(indice_strides[j]);
-                                    if j != axis {
-                                        offset += inp_strides[j];
-                                    }
-                                    break;
-                                } else {
-                                    prg[j] = 0;
-                                    res_ptr.offset(-ret_strides[j] * (shape[j] - 1));
-                                    idx_ptr.offset(-indice_strides[j] * (shape[j] - 1));
-                                    if j != axis {
-                                        offset -= inp_strides[j] * (shape[j] - 1);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-            pool.join();
-        });
-        Ok(ret)
-    }
+    //         for ((((start, end), mut res_ptr), mut idx_ptr), mut prg) in intervals
+    //             .into_iter()
+    //             .zip(res_ptrs.into_iter())
+    //             .zip(idx_ptrs.into_iter())
+    //             .zip(prgs.into_iter())
+    //         {
+    //             let shape = ret.shape().clone();
+    //             let ret_strides = ret.strides().clone();
+    //             let indice_strides = indices.strides().clone();
+    //             let inp_ptr = self.ptr().clone();
+    //             let inp_strides = self.strides().clone();
+    //             let inp_idx_stride = self.strides()[axis];
+    //             let inp_last_stride = self.strides()[(ndim as usize) - 1];
+    //             pool.execute(move || {
+    //                 if axis == (ndim as usize) - 1 {
+    //                     let index_cal = |prg: &[i64]| {
+    //                         let mut acc = 0;
+    //                         for (i, &x) in prg.iter().enumerate().take((ndim as usize) - 1) {
+    //                             acc += x * inp_strides[i];
+    //                         }
+    //                         acc
+    //                     };
+    //                     for _ in start..end {
+    //                         for i in 0..inner_loop_size as i64 {
+    //                             let idx = idx_ptr[i * idx_last_stride];
+    //                             let inp_index = index_cal(&prg);
+    //                             res_ptr[i] = inp_ptr[inp_index + idx * inp_idx_stride];
+    //                         }
+    //                         for j in (0..ndim - 1).rev() {
+    //                             let j = j as usize;
+    //                             if prg[j] < shape[j] - 1 {
+    //                                 prg[j] += 1;
+    //                                 res_ptr.offset(ret_strides[j]);
+    //                                 idx_ptr.offset(indice_strides[j]);
+    //                                 break;
+    //                             } else {
+    //                                 prg[j] = 0;
+    //                                 res_ptr.offset(-ret_strides[j] * (shape[j] - 1));
+    //                                 idx_ptr.offset(-indice_strides[j] * (shape[j] - 1));
+    //                             }
+    //                         }
+    //                     }
+    //                 } else {
+    //                     let index_cal = |prg: &mut [i64]| {
+    //                         let tmp = prg[axis];
+    //                         let mut acc = 0;
+    //                         for (i, &x) in prg.iter().enumerate().take((ndim as usize) - 1) {
+    //                             if i == axis {
+    //                                 continue;
+    //                             }
+    //                             acc += x * inp_strides[i];
+    //                         }
+    //                         prg[axis] = tmp;
+    //                         acc
+    //                     };
+    //                     let mut offset = index_cal(&mut prg);
+    //                     for _ in start..end {
+    //                         for i in 0..inner_loop_size as i64 {
+    //                             let idx = idx_ptr[i * idx_last_stride];
+    //                             res_ptr[i] =
+    //                                 inp_ptr[offset + idx * inp_idx_stride + i * inp_last_stride];
+    //                         }
+    //                         for j in (0..ndim - 1).rev() {
+    //                             let j = j as usize;
+    //                             if prg[j] < shape[j] - 1 {
+    //                                 prg[j] += 1;
+    //                                 res_ptr.offset(ret_strides[j]);
+    //                                 idx_ptr.offset(indice_strides[j]);
+    //                                 if j != axis {
+    //                                     offset += inp_strides[j];
+    //                                 }
+    //                                 break;
+    //                             } else {
+    //                                 prg[j] = 0;
+    //                                 res_ptr.offset(-ret_strides[j] * (shape[j] - 1));
+    //                                 idx_ptr.offset(-indice_strides[j] * (shape[j] - 1));
+    //                                 if j != axis {
+    //                                     offset -= inp_strides[j] * (shape[j] - 1);
+    //                                 }
+    //                             }
+    //                         }
+    //                     }
+    //                 }
+    //             });
+    //         }
+    //         pool.join();
+    //     });
+    //     Ok(ret)
+    // }
 
     fn scatter(
         &self,

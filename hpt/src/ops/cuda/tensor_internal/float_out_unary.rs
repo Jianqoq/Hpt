@@ -1,7 +1,7 @@
 use std::borrow::BorrowMut;
 
 use crate::{
-    ops::cuda::{cuda_utils::get_module_name_1, unary::uary_fn_with_out_simd},
+    ops::cuda::{cuda_utils::get_module_name_1, utils::unary::unary::uary_fn_with_out_simd},
     tensor_base::_Tensor,
     Cuda,
 };

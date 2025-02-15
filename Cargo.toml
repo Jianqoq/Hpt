@@ -31,7 +31,7 @@ exclude = [
 ]
 
 [dependencies]
-hpt = { path = "./hpt", features = ["track_caller", "cuda"], version = "0.0.13" }
+hpt = { path = "./hpt", features = ["track_caller", "cuda"], version = "0.0.14" }
 # hpt = {version = "0.0.11", features = ["cuda"]}
 anyhow = "1.0.95"
 

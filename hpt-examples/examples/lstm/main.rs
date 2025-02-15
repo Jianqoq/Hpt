@@ -152,7 +152,7 @@ struct LSTMModel {
     hidden_size: usize,
     num_layers: usize,
     lstm_cells: Vec<LSTM>,
-    output_layer: Option<LinearLayer>, // 可选的输出层
+    output_layer: Option<LinearLayer>,
 }
 
 struct LinearLayer {
@@ -162,7 +162,6 @@ struct LinearLayer {
 
 impl LinearLayer {
     fn new(in_features: usize, out_features: usize) -> Result<Self, TensorError> {
-        // 初始化权重和偏置
         let weight = Tensor::<f32>::randn(&[out_features, in_features])?;
         let bias = Tensor::<f32>::zeros(&[out_features])?;
 
@@ -184,15 +183,12 @@ impl LSTMModel {
     ) -> Result<Self, TensorError> {
         let mut lstm_cells = Vec::with_capacity(num_layers);
 
-        // 创建第一层
         lstm_cells.push(LSTM::new(input_size, hidden_size)?);
 
-        // 创建其余层
         for _ in 1..num_layers {
             lstm_cells.push(LSTM::new(hidden_size, hidden_size)?);
         }
 
-        // 如果指定了输出大小，创建输出层
         let output_layer = if let Some(out_size) = output_size {
             Some(LinearLayer::new(hidden_size, out_size)?)
         } else {
@@ -260,15 +256,13 @@ impl LSTMModel {
 
 fn main() -> anyhow::Result<()> {
     set_num_threads(10);
-    // 创建模型
+
     let model = LSTMModel::new(1024, 1024, 4, Some(20))?;
 
-    // 创建示例输入
     let batch_size = 4096;
     let seq_length = 10;
     let input = Tensor::randn(&[batch_size, seq_length, 1024])?;
 
-    // 前向传播
     let start_time = std::time::Instant::now();
     for _ in 0..1 {
         let _ = model.forward(&input, None)?;

@@ -2,7 +2,7 @@
 
 use std::borrow::Borrow;
 
-use crate::{ops::cuda::binary_normal::binary_fn_with_out_simd, Cuda};
+use crate::{ops::cuda::utils::binary::binary_normal::binary_fn_with_out_simd, Cuda};
 use crate::{tensor::Tensor, tensor_base::_Tensor, BoolVector};
 use cudarc::driver::DeviceRepr;
 use hpt_common::error::base::TensorError;

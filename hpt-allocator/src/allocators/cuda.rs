@@ -10,7 +10,6 @@ use crate::{
     storage::{CommonStorage, Storage},
     CUDA_STORAGE,
 };
-use cudarc::driver::DeviceRepr;
 use hashbrown::{HashMap, HashSet};
 use hpt_common::error::base::TensorError;
 use lru::LruCache;
@@ -52,7 +51,7 @@ impl CudaAllocator {
         &mut self,
         layout: Layout,
         device_id: usize,
-    ) -> std::result::Result<(*mut u8, Arc<cudarc::driver::CudaDevice>), TensorError> {
+    ) -> Result<(*mut u8, Arc<cudarc::driver::CudaDevice>), TensorError> {
         if let Some((device, allocator)) = self.allocator.get_mut(&device_id) {
             Ok((
                 allocator.allocate(layout, device_id, device.clone())?,
@@ -121,30 +120,6 @@ impl CudaAllocator {
             assert_eq!(allocator.allocated.len(), 0);
         }
     }
-
-    /// get the device by device_id
-    pub fn host_to_device<T: DeviceRepr>(
-        &mut self,
-        value: &[T],
-        device_id: usize,
-    ) -> anyhow::Result<(*mut u8, Arc<cudarc::driver::CudaDevice>)> {
-        if let Some((device, allocator)) = self.allocator.get_mut(&device_id) {
-            Ok((
-                allocator.htod(value, device_id, device.clone())?,
-                device.clone(),
-            ))
-        } else {
-            let mut allocator = _Allocator {
-                cache: LruCache::new(NonZeroUsize::new(10).unwrap()),
-                allocated: HashSet::new(),
-            };
-            let device = cudarc::driver::CudaDevice::new(device_id).unwrap();
-            let ptr = allocator.htod(value, device_id, device.clone())?;
-            self.allocator
-                .insert(device_id, (device.clone(), allocator));
-            Ok((ptr, device))
-        }
-    }
 }
 
 impl CudaAllocator {
@@ -167,7 +142,7 @@ impl _Allocator {
         layout: Layout,
         device_id: usize,
         device: Arc<cudarc::driver::CudaDevice>,
-    ) -> std::result::Result<*mut u8, TensorError> {
+    ) -> Result<*mut u8, TensorError> {
         if let Ok(mut storage) = CUDA_STORAGE.lock() {
             let res = crate::utils::allocate::allocate_helper(
                 &mut self.cache,
@@ -203,37 +178,6 @@ impl _Allocator {
         } else {
             panic!("Failed to lock CPU_STORAGE");
         }
-    }
-
-    fn htod<T: DeviceRepr>(
-        &mut self,
-        value: &[T],
-        device_id: usize,
-        device: Arc<cudarc::driver::CudaDevice>,
-    ) -> anyhow::Result<*mut u8> {
-        let layout = Layout::from_size_align(value.len() * size_of::<T>(), 32).unwrap();
-        let slice = device.htod_sync_copy(value)?;
-        let ptr = slice.leak() as *mut u8;
-        if ptr.is_null() {
-            anyhow::bail!(
-                "Failed to allocate memory, for {} MB",
-                layout.size() / 1024 / 1024
-            );
-        }
-        self.allocated.insert(SafePtr { ptr });
-        if let Ok(mut storage) = CUDA_STORAGE.lock() {
-            if let Some(storage) = storage.get_mut(&device_id) {
-                if let Some(cnt) = storage.storage.get_mut(&SafePtr { ptr }) {
-                    *cnt = match cnt.checked_add(1) {
-                        Some(cnt) => cnt,
-                        None => anyhow::bail!("Reference count overflow"),
-                    };
-                } else {
-                    storage.storage.insert(SafePtr { ptr }, 1);
-                }
-            }
-        }
-        Ok(ptr)
     }
 
     /// # Main Deallocation Function

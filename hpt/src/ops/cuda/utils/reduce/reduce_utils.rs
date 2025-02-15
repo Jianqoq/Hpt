@@ -9,7 +9,7 @@ use hpt_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, Tenso
 use hpt_types::dtype::CudaType;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
-use super::cuda_utils::compute_kernel_launch_config;
+use crate::ops::cuda::cuda_utils::compute_kernel_launch_config;
 
 pub(crate) fn rearrange_array(ndim: usize, to_reduce: &[usize]) -> Vec<usize> {
     let mut origin_order = (0..ndim).collect::<Vec<usize>>();

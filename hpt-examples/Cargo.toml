@@ -12,11 +12,11 @@ anyhow = "1.0.40"
 mimalloc = "0.1.43"
 
 [profile.release]
-opt-level = 0
+opt-level = 3
 incremental = true
 debug = true
-# lto = "fat"
-# codegen-units = 1
+lto = "fat"
+codegen-units = 1
 
 [profile.dev]
 opt-level = 0

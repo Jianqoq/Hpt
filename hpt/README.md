@@ -26,6 +26,11 @@ Hpt is a high performance N-dimensional array library. It is being highly optimi
 
 Hpt is in early stage, bugs and wrong calculation results are expected
 
+# Cargo Features
+- `cuda`: enable cuda support
+- `bound_check`: enable bound check, this is experiment and will reduce performance.
+- `normal_promote`: auto type promote. There may be more type promote feature in the future.
+
 # Get Start
 ```rust
 use hpt::*;
@@ -34,14 +39,17 @@ fn main() -> anyhow::Result<()> {
     let x = Tensor::new(&[1f64, 2., 3.]);
     let y = Tensor::new(&[4i64, 5, 6]);
 
-    let result: Tensor<f64> = x + y; // with `normal_promote` feature enabled, i64 + f64 will output f64
-    println!("{}", result); // [5., 7., 9.]
+    let result: Tensor<f64> = x + &y; // with `normal_promote` feature enabled, i64 + f64 will output f64
+    println!("{}", result); // [5. 7. 9.]
 
+    // All the available methods are listed in https://jianqoq.github.io/Hpt/user_guide/user_guide.html
+    let result: Tensor<f64> = y.sin()?;
+    println!("{}", result); // [-0.7568 -0.9589 -0.2794]
     Ok(())
 }
 ```
 
-To use Cuda (Note that Cuda is in development and not tested)
+To use Cuda, enable feature `cuda` (Note that Cuda is in development and not tested)
 ```rust
 use hpt::*;
 
@@ -49,12 +57,17 @@ fn main() -> anyhow::Result<()> {
     let x = Tensor::<f64>::new(&[1f64, 2., 3.]).to_cuda::<0/*Cuda device id*/>()?;
     let y = Tensor::<i64>::new(&[4i64, 5, 6]).to_cuda::<0/*Cuda device id*/>()?;
 
-    let result = x + y; // with `normal_promote` feature enabled, i64 + f64 will output f64
-    println!("{}", result); // [5., 7., 9.]
+    let result = x + &y; // with `normal_promote` feature enabled, i64 + f64 will output f64
+    println!("{}", result); // [5. 7. 9.]
 
+    // All the available methods are listed in https://jianqoq.github.io/Hpt/user_guide/user_guide.html
+    let result: Tensor<f64, Cuda, 0> = y.sin()?;
+    println!("{}", result); // [-0.7568 -0.9589 -0.2794]
     Ok(())
 }
 ```
+
+#### For more examples, reference [here](https://github.com/Jianqoq/Hpt/tree/main/hpt-examples/examples) and [documentation](https://jianqoq.github.io/Hpt/user_guide/user_guide.html)
 
 # How To Get Highest Performance
 - Compile your program with the following configuration in `Cargo.toml`, note that `lto` is very important.

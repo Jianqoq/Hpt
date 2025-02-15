@@ -8,15 +8,11 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 hpt-macros = { path = "../hpt-macros" }
 hpt-common = { path = "../hpt-common" }
-hpt = { path = "../hpt", features = [
-    "track_caller",
-    "bound_check",
-    "archsimd",
-] }
+hpt = { path = "../hpt", features = ["track_caller", "bound_check"] }
 hpt-codegen = { path = "../hpt-codegen" }
 hpt-types = { path = "../hpt-types" }
 serde_json = "1"
-tch = {version = "0.17.0", features = ["download-libtorch"]}
+tch = { version = "0.17.0", features = ["download-libtorch"] }
 anyhow = "1.0.75"
 rayon = { version = "1.10.0", default-features = false }
 paste = "1.0.15"
@@ -27,6 +23,7 @@ num-traits = "0.2.19"
 num-complex = "0.4"
 libm = "0.2.11"
 duplicate = "2.0.0"
+half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }
 
 [features]
 cuda = ["hpt/cuda"]

@@ -1,5 +1,4 @@
 //! This crate is dynamic graph based tensor library
-#![cfg_attr(feature = "stdsimd", feature(portable_simd))]
 #![deny(missing_docs)]
 
 /// a module contains all the Tensor operations. include the CPU and GPU operations
@@ -167,12 +166,16 @@ pub mod ops {
         pub(crate) mod tensor_impls;
         /// a module contains cuda tensor internal impls
         pub(crate) mod tensor_internal {
+            /// a module contains cuda tensor advanced impls
+            pub(crate) mod advance;
             /// a module contains cuda tensor arg reduce impls
             pub(crate) mod arg_reduce;
             /// a module contains cuda tensor common reduce impls
             pub(crate) mod common_reduce;
             /// a module contains cuda tensor float out unary impls
             pub(crate) mod float_out_unary;
+            /// a module contains cuda matmul impls
+            pub(crate) mod matmul;
             /// a module contains cuda tensor normal creation impls
             pub(crate) mod normal_creation;
             /// a module contains cuda tensor normal out unary impls
@@ -208,32 +211,25 @@ pub mod ops {
             /// a module contains cuda tensor windows impls
             pub(crate) mod windows;
         }
-        /// a module contains cuda binary normal impls
-        pub(crate) mod binary_normal;
-        /// a module contains cuda concat impls
-        pub(crate) mod concat;
+        pub(crate) mod utils {
+            pub(crate) mod reduce {
+                pub(crate) mod reduce;
+                pub(crate) mod reduce_template;
+                pub(crate) mod reduce_utils;
+            }
+            pub(crate) mod binary {
+                pub(crate) mod binary_normal;
+            }
+            pub(crate) mod unary {
+                pub(crate) mod unary;
+            }
+        }
         /// a module contains cuda slice impls
         pub(crate) mod cuda_slice;
         /// a module contains cuda utils
         pub(crate) mod cuda_utils;
-        /// a module contains cuda dropout impls
-        pub(crate) mod dropout;
-        /// a module contains cuda matmul impls
-        pub(crate) mod matmul;
-        /// a module contains cuda pad impls
-        pub(crate) mod pad;
-        /// a module contains cuda reduce impls
-        pub(crate) mod reduce;
-        /// a module contains cuda reduce template impls
-        pub(crate) mod reduce_template;
-        /// a module contains cuda reduce utils impls
-        pub(crate) mod reduce_utils;
-        /// a module contains cuda shrinkage impls
-        pub(crate) mod shrinkage;
         /// a module contains cuda std ops impls
         pub(crate) mod std_ops;
-        /// a module contains cuda normal out unary impls
-        pub(crate) mod unary;
     }
 
     /// a module contains all the common ops
@@ -364,10 +360,7 @@ pub(crate) const REGNUM: usize = 8;
 #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
 pub(crate) const REGNUM: usize = 32;
 
-#[cfg(feature = "archsimd")]
 use hpt_types::arch_simd as simd;
-#[cfg(feature = "stdsimd")]
-use hpt_types::std_simd as simd;
 
 #[cfg(target_feature = "avx2")]
 type BoolVector = simd::_256bit::boolx32::boolx32;

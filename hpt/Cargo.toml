@@ -1,7 +1,7 @@
 
 [package]
 name = "hpt"
-version = "0.0.13"
+version = "0.0.14"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["JianJian Li <ljj1849532909@gmail.com>"]
@@ -9,16 +9,16 @@ description = "High Performance Tensor (HPT) - A fast, efficient, and user-frien
 repository = "https://github.com/Jianqoq/Hpt"
 
 [dependencies]
-hpt-types = { path = "../hpt-types", version = "0.0.12" }
-hpt-common = { path = "../hpt-common", version = "0.0.12" }
-hpt-iterator = { path = "../hpt-iterator", version = "0.0.12" }
-hpt-traits = { path = "../hpt-traits", version = "0.0.12" }
-hpt-allocator = { path = "../hpt-allocator", version = "0.0.12" }
-hpt-macros = { path = "../hpt-macros", version = "0.0.12" }
-hpt-display = { path = "../hpt-display", version = "0.0.12" }
-hpt-cudakernels = { path = "../hpt-cudakernels", version = "0.0.12", optional = true }
+hpt-types = { path = "../hpt-types", version = "0.0.13" }
+hpt-common = { path = "../hpt-common", version = "0.0.13" }
+hpt-iterator = { path = "../hpt-iterator", version = "0.0.13" }
+hpt-traits = { path = "../hpt-traits", version = "0.0.13" }
+hpt-allocator = { path = "../hpt-allocator", version = "0.0.13" }
+hpt-macros = { path = "../hpt-macros", version = "0.0.13" }
+hpt-display = { path = "../hpt-display", version = "0.0.13" }
+hpt-cudakernels = { path = "../hpt-cudakernels", version = "0.0.13", optional = true }
 # hpt-codegen = { path = "../hpt-codegen", version = "0.0.1", optional = true }
-hpt-dataloader = { path = "../hpt-dataloader", version = "0.0.12" }
+hpt-dataloader = { path = "../hpt-dataloader", version = "0.0.13" }
 flate2 = "1.0.28"
 rand_distr = "0.4.3"
 # rustfft = "6.2.0"
@@ -57,15 +57,13 @@ safetensors = "0.5.2"
 raw-cpuid = { version = "11.3.0", default-features = false }
 
 [features]
-default = ["track_caller", "archsimd"]
+default = ["track_caller", "normal_promote"]
 track_caller = [
     "hpt-traits/track_caller",
     "hpt-common/track_caller",
     "hpt-iterator/track_caller",
 ]
 bound_check = ["hpt-common/bound_check", "hpt-iterator/bound_check"]
-stdsimd = ["hpt-types/stdsimd", "hpt-traits/stdsimd"]
-archsimd = ["hpt-types/archsimd", "hpt-traits/archsimd"]
 cuda = [
     "cudarc",
     "bindgen_cuda",
@@ -78,6 +76,7 @@ cuda = [
     "hpt-types/cuda",
     "hpt-macros/cuda",
 ]
+normal_promote = ["hpt-types/normal_promote"]
 # codegen = ["hpt-codegen"]
 
 [package.metadata.rust-analyzer]

@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::ops::BitAnd;
 
-use crate::ops::cuda::reduce::{reduce, reduce2};
+use crate::ops::cuda::utils::reduce::reduce::{reduce, reduce2};
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use cudarc::driver::DeviceRepr;

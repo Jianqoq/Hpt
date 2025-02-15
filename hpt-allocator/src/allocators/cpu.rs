@@ -92,11 +92,7 @@ struct _Allocator {
 }
 
 impl _Allocator {
-    fn allocate(
-        &mut self,
-        layout: Layout,
-        device_id: usize,
-    ) -> std::result::Result<*mut u8, TensorError> {
+    fn allocate(&mut self, layout: Layout, device_id: usize) -> Result<*mut u8, TensorError> {
         if let Ok(mut storage) = CPU_STORAGE.lock() {
             crate::utils::allocate::allocate_helper(
                 &mut self.cache,

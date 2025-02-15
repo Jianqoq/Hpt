@@ -26,7 +26,6 @@ use normal_out::__impl_normal_out_binary;
 use proc_macro::TokenStream;
 use scalar_convert::__impl_scalar_convert;
 use simd_bitwise::impl_simd_bitwise_out;
-use simd_convert::__impl_simd_convert;
 use simd_float_out_binary::{
     impl_simd_binary_out_float, impl_simd_binary_out_float_lhs_scalar,
     impl_simd_binary_out_float_rhs_scalar,
@@ -47,7 +46,6 @@ mod scalar_convert;
 mod simd_bitwise;
 
 mod simd_cmp;
-mod simd_convert;
 mod simd_eval;
 mod simd_float_out_binary;
 mod simd_float_out_unary;
@@ -299,12 +297,6 @@ pub fn impl_normal_out_simd_with_rhs_scalar(_: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn impl_normal_out_simd_with_lhs_scalar(_: TokenStream) -> TokenStream {
     impl_simd_normal_out_with_lhs_scalar()
-}
-
-/// implement simd convert trait
-#[proc_macro]
-pub fn impl_simd_convert(_: TokenStream) -> TokenStream {
-    __impl_simd_convert()
 }
 
 /// implement scalar convert trait

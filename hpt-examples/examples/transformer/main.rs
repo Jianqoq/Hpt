@@ -1,14 +1,15 @@
 #![allow(unused)]
 use std::collections::HashMap;
 
-use hpt::arch_simd::_256bit::f32x8::f32x8;
 use hpt::{
-    binary_with_out, Matmul, NormalBinOps, NormalOut, NormalUaryOps, ParStridedIteratorZip, Random,
-    RandomInt, ShapeManipulate, Slice, Tensor, TensorCreator, TensorError, TensorIterator,
-    VecTrait,
+    binary_with_out, match_selection, IndexReduce, Matmul, NormalBinOps, NormalOut, NormalUaryOps,
+    ParStridedIteratorZip, Random, RandomInt, ShapeManipulate, Slice, Tensor, TensorCreator,
+    TensorError, TensorIterator, TypeCommon, VecTrait,
 };
 use hpt::{Eval, TensorInfo};
 use rayon::iter::ParallelIterator;
+
+type F32Vec = <f32 as TypeCommon>::Vec;
 
 struct Encoder {
     mha: MultiHeadAttention,
@@ -88,18 +89,14 @@ impl Embedding {
     }
 
     fn forward(&self, input: &Tensor<i64>) -> Result<Tensor<f32>, TensorError> {
-        // 获取输入形状
         let input_shape = input.shape();
         let embedding_dim = self.weight.shape()[1];
 
-        // 将输入展平
         let flat_input = input.flatten(None, None)?;
         let indices = flat_input.ptr();
 
-        // 创建输出tensor
         let mut output = Vec::with_capacity(flat_input.size() as usize);
 
-        // 查找每个索引对应的embedding
         for idx in 0..flat_input.size() {
             let idx = indices[idx];
             let embedding = self
@@ -108,7 +105,6 @@ impl Embedding {
             output.push(embedding);
         }
 
-        // 合并并重塑回原始维度
         let mut new_shape = input_shape.to_vec();
         new_shape.push(embedding_dim);
 
@@ -128,7 +124,7 @@ impl PositionalEncoding {
             &Tensor::<f32>::new([10000.0]),
             &Tensor::<f32>::arange_step(0.0, embedding_dim as f32, 2.0)?,
             |a, b| a._pow(b) / embedding_dim as f32,
-            |a, b| a._pow(b) / f32x8::splat(embedding_dim as f32),
+            |a, b| a._pow(b) / F32Vec::splat(embedding_dim as f32),
             None::<Tensor<f32>>,
         )?;
         let pos = Tensor::<f32>::arange(0.0, seq_len as f32)?.unsqueeze(1)?;
@@ -368,7 +364,7 @@ impl Transformer {
         &self,
         question: &Tensor<i64>,
         word_id: &HashMap<String, i64>,
-    ) -> Result<Tensor<f32>, TensorError> {
+    ) -> Result<Tensor<i64>, TensorError> {
         let word_vec = self.word_embedding.forward(&question)?;
         let mut encoder_output = PositionalEncoding.forward(&word_vec)?;
         for _ in 0..10 {
@@ -376,32 +372,29 @@ impl Transformer {
                 encoder_output = i.forward(&encoder_output)?;
             }
         }
-        // let mut outputs = Vec::new();
-        // let start_token = Tensor::<i64>::new([[*word_id.get("_").unwrap()]]);
-        // for _ in 0..10 {
-        //     let x = if outputs.is_empty() {
-        //         start_token.clone()
-        //     } else {
-        //         let mut tensors = vec![start_token.clone()];
-        //         tensors.extend_from_slice(&outputs);
-        //         Tensor::<i64>::concat(tensors, 1, false)?
-        //     };
-        //     let word_vec = self.word_embedding2.forward(&x)?;
-        //     let mut decoder_output = PositionalEncoding.forward(&word_vec)?;
-        //     let now = std::time::Instant::now();
-        //     for i in &self.decoder {
-        //         decoder_output =
-        //             i.forward(*x.shape().last().unwrap(), &decoder_output, &encoder_output)?;
-        //     }
-        //     println!("Time: {:?}", now.elapsed());
-        //     let score = self.linear.forward(&decoder_output)?;
-        //     let sliced = score.slice(&match_selection!(:, -1:, :))?;
-        //     let prob = sliced.softmax(-1)?;
-        //     let next_token = prob.argmax(-1, false)?;
-        //     outputs.push(next_token);
-        // }
-        // Tensor::<i64>::concat(outputs, 1, false)
-        Ok(encoder_output)
+        let mut outputs = Vec::new();
+        let start_token = Tensor::<i64>::new([[*word_id.get("_").unwrap()]]);
+        for _ in 0..10 {
+            let x = if outputs.is_empty() {
+                start_token.clone()
+            } else {
+                let mut tensors = vec![start_token.clone()];
+                tensors.extend_from_slice(&outputs);
+                Tensor::<i64>::concat(tensors, 1, false)?
+            };
+            let word_vec = self.word_embedding2.forward(&x)?;
+            let mut decoder_output = PositionalEncoding.forward(&word_vec)?;
+            for i in &self.decoder {
+                decoder_output =
+                    i.forward(*x.shape().last().unwrap(), &decoder_output, &encoder_output)?;
+            }
+            let score = self.linear.forward(&decoder_output)?;
+            let sliced = score.slice(&match_selection!(:, -1:, :))?;
+            let prob = sliced.softmax(-1)?;
+            let next_token = prob.argmax(-1, false)?;
+            outputs.push(next_token);
+        }
+        Tensor::<i64>::concat(outputs, 1, false)
     }
 }
 
@@ -411,18 +404,8 @@ fn main() -> anyhow::Result<()> {
     let mut word_id = HashMap::new();
     word_id.insert("_".to_string(), 5);
     let now = std::time::Instant::now();
-    for _ in 0..10 {
-        let output = mh.generate(&dummy_questions, &word_id)?;
-    }
-    println!("Time: {:?}", now.elapsed() / 10);
-
-    // let mh = MultiHeadAttention::new(1024, 8, 0.0)?;
-    // let dummy_questions = Tensor::<f32>::randn([1, 1024, 1024])?;
-    // let now = std::time::Instant::now();
-    // for _ in 0..100 {
-    //     let output = mh.forward(&dummy_questions, &dummy_questions, &dummy_questions, None)?;
-    // }
-    // println!("Time: {:?}", now.elapsed() / 100);
+    let output = mh.generate(&dummy_questions, &word_id)?;
+    println!("Time: {:?}", now.elapsed());
 
     Ok(())
 }

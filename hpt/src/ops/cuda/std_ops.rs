@@ -1,13 +1,11 @@
-use crate::ops::cuda::binary_normal::*;
+use crate::ops::cuda::utils::binary::binary_normal::*;
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use crate::Tensor;
 use cudarc::driver::DeviceRepr;
 use hpt_traits::tensor::CommonBounds;
 use hpt_types::into_scalar::Cast;
-use hpt_types::type_promote::BitWiseOut;
-use hpt_types::type_promote::FloatOutBinary;
-use hpt_types::type_promote::NormalOut;
+use hpt_types::type_promote::{BitWiseOut, FloatOutBinary, NormalOut};
 use hpt_types::{cuda_types::scalar::Scalar, dtype::CudaType};
 
 // define add, sub, mul, rem for _Tensor
@@ -205,8 +203,11 @@ where
     type Output = out_type<<T as NormalOut<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
-        let rhs: _Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs.into();
-        self.inner.as_ref().method_name(rhs).into()
+        let rhs: Tensor<rhs_type> = rhs.into();
+        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
+        self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
 
@@ -330,8 +331,11 @@ where
     type Output = out_type<<T as NormalOut<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
-        let rhs: _Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs.into();
-        self.inner.as_ref().method_name(rhs).into()
+        let rhs: Tensor<rhs_type_ident> = (*rhs).into();
+        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
+        self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
 
@@ -453,8 +457,11 @@ where
     type Output = out_type<<lhs_type as NormalOut<T>>::Output, Cuda, CUDA_DEVICE>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
-        let lhs: _Tensor<lhs_type, Cuda, CUDA_DEVICE> = self.into();
-        lhs.method_name(rhs.inner.as_ref()).into()
+        let lhs: Tensor<lhs_type> = self.into();
+        let lhs: Tensor<lhs_type, Cuda, CUDA_DEVICE> = lhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
+        lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
 
@@ -577,8 +584,11 @@ where
     type Output = out_type<<lhs_type_ident as NormalOut<T>>::Output, Cuda, CUDA_DEVICE>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
-        let lhs: _Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = self.into();
-        lhs.method_name(rhs.inner.as_ref()).into()
+        let lhs: Tensor<lhs_type_ident> = (*self).into();
+        let lhs: Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = lhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
+        lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
 
@@ -743,8 +753,11 @@ where
     type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
-        let rhs: _Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs.into();
-        self.inner.as_ref().method_name(rhs).into()
+        let rhs: Tensor<rhs_type> = rhs.into();
+        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
+        self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
 
@@ -842,8 +855,11 @@ where
     type Output = out_type<<T as BitWiseOut<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
-        let rhs: _Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs.into();
-        self.inner.as_ref().method_name(rhs).into()
+        let rhs: Tensor<rhs_type_ident> = (*rhs).into();
+        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
+        self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
 
@@ -939,8 +955,11 @@ where
     type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cuda, CUDA_DEVICE>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
-        let lhs: _Tensor<lhs_type, Cuda, CUDA_DEVICE> = self.into();
-        lhs.method_name(rhs.inner.as_ref()).into()
+        let lhs: Tensor<lhs_type> = self.into();
+        let lhs: Tensor<lhs_type, Cuda, CUDA_DEVICE> = lhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
+        lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
 
@@ -1037,8 +1056,11 @@ where
     type Output = out_type<<lhs_type_ident as BitWiseOut<T>>::Output, Cuda, CUDA_DEVICE>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
-        let lhs: _Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = self.into();
-        lhs.method_name(rhs.inner.as_ref()).into()
+        let lhs: Tensor<lhs_type_ident> = (*self).into();
+        let lhs: Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = lhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
+        lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
 
@@ -1136,8 +1158,11 @@ where
     type Output = out_type<<T as FloatOutBinary<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
-        let rhs: _Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs.into();
-        self.inner.as_ref().method_name(rhs).into()
+        let rhs: Tensor<rhs_type> = rhs.into();
+        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
+        self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
 
@@ -1184,8 +1209,11 @@ where
     type Output = out_type<<T as FloatOutBinary<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
-        let rhs: _Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs.into();
-        self.inner.as_ref().method_name(rhs).into()
+        let rhs: Tensor<rhs_type_ident> = (*rhs).into();
+        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
+        self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
 
@@ -1230,8 +1258,11 @@ where
     type Output = out_type<<lhs_type as FloatOutBinary<T>>::Output, Cuda, CUDA_DEVICE>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
-        let lhs: _Tensor<lhs_type, Cuda, CUDA_DEVICE> = self.into();
-        lhs.method_name(rhs.inner.as_ref()).into()
+        let lhs: Tensor<lhs_type> = self.into();
+        let lhs: Tensor<lhs_type, Cuda, CUDA_DEVICE> = lhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
+        lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
 
@@ -1277,7 +1308,10 @@ where
     type Output = out_type<<lhs_type_ident as FloatOutBinary<T>>::Output, Cuda, CUDA_DEVICE>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
-        let lhs: _Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = self.into();
-        lhs.method_name(rhs.inner.as_ref()).into()
+        let lhs: Tensor<lhs_type_ident> = (*self).into();
+        let lhs: Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = lhs
+            .to_cuda::<CUDA_DEVICE>()
+            .expect("Failed to convert to cuda");
+        lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }

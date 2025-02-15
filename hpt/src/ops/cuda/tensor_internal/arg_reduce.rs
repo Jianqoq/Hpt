@@ -1,7 +1,7 @@
 use crate::{
     ops::cuda::{
         cuda_utils::{compute_kernel_launch_config, load_ptx_and_get_data},
-        reduce_template::contiguous_reduce_template,
+        utils::reduce::reduce_template::contiguous_reduce_template,
     },
     tensor_base::_Tensor,
     Cuda,

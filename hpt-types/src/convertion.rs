@@ -1,8 +1,6 @@
 use half::bf16;
 use half::f16;
 use hpt_macros::impl_scalar_convert;
-#[cfg(feature = "stdsimd")]
-use hpt_macros::impl_simd_convert;
 use num_complex::{Complex32, Complex64};
 
 use crate::dtype::TypeCommon;
@@ -15,13 +13,6 @@ use crate::simd::_128bit::*;
 use crate::simd::_256bit::*;
 #[cfg(target_feature = "avx512f")]
 use crate::simd::_512bit::*;
-
-#[cfg(feature = "stdsimd")]
-use std::simd::num::SimdFloat;
-#[cfg(feature = "stdsimd")]
-use std::simd::num::SimdInt;
-#[cfg(feature = "stdsimd")]
-use std::simd::num::SimdUint;
 
 /// Convertor trait
 ///
@@ -215,8 +206,5 @@ pub(crate) trait VecConvertor: Sized {
         unreachable!()
     }
 }
-
-#[cfg(feature = "stdsimd")]
-impl_simd_convert!();
 
 impl_scalar_convert!();
