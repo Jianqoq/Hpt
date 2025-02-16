@@ -11,7 +11,7 @@ Cargo.lock
 *.txt
 *.model
 
-resnet
+resnet.safetensor
 resnet_inp
 
 /src/**/target
