@@ -727,15 +727,16 @@ fn create_resnet() -> anyhow::Result<ResNet> {
 }
 fn main() -> anyhow::Result<()> {
     let resnet = create_resnet()?;
+    // you can save the model to a file
     resnet.save("resnet.model")?;
-
+    // you can load the model from a file
+    let resnet = ResNet::load("resnet.model")?;
     let buffer = std::fs::read("resnet_inp")?;
     let inp = safetensors::SafeTensors::deserialize(&buffer)?;
     let inp = Tensor::<f32>::from_safe_tensors(&inp, "inp")
         .permute(&[0, 2, 3, 1])?
         .contiguous()?;
-    let data = ResNet::load("resnet.model")?;
-    let output = data.forward(&inp)?;
+    let output = resnet.forward(&inp)?;
     println!(
         "{}",
         output
