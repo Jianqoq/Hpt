@@ -33,3 +33,8 @@ fn main() -> Result<(), TensorError> {
     Ok(())
 }
 ```
+## Backend Support
+| Backend | Supported |
+|---------|-----------|
+| CPU     | ✅         |
+| Cuda    | ✅        |

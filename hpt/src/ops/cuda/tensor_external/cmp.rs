@@ -32,9 +32,10 @@ where
         D: Borrow<Self::RHS>,
     {
         let res = binary_fn_with_out_simd(
+            "neq",
             self.inner.as_ref(),
             rhs.borrow().inner.as_ref(),
-            |out, x, y| out.assign(x._eq(y)),
+            |out, x, y| out.assign(x._ne(y)),
             None::<_Tensor<bool, Cuda, DEVICE_ID>>,
         )?;
         Ok(res.into())
@@ -45,6 +46,7 @@ where
         D: Borrow<Self::RHS>,
     {
         let res = binary_fn_with_out_simd(
+            "eq",
             self.inner.as_ref(),
             rhs.borrow().inner.as_ref(),
             |out, x, y| out.assign(x._eq(y)),
@@ -58,6 +60,7 @@ where
         D: Borrow<Self::RHS>,
     {
         let res = binary_fn_with_out_simd(
+            "lt",
             self.inner.as_ref(),
             rhs.borrow().inner.as_ref(),
             |out, x, y| out.assign(x._lt(y)),
@@ -71,6 +74,7 @@ where
         D: Borrow<Self::RHS>,
     {
         let res = binary_fn_with_out_simd(
+            "gt",
             self.inner.as_ref(),
             rhs.borrow().inner.as_ref(),
             |out, x, y| out.assign(x._gt(y)),
@@ -84,6 +88,7 @@ where
         D: Borrow<Self::RHS>,
     {
         let res = binary_fn_with_out_simd(
+            "le",
             self.inner.as_ref(),
             rhs.borrow().inner.as_ref(),
             |out, x, y| out.assign(x._le(y)),
@@ -97,6 +102,7 @@ where
         D: Borrow<Self::RHS>,
     {
         let res = binary_fn_with_out_simd(
+            "ge",
             self.inner.as_ref(),
             rhs.borrow().inner.as_ref(),
             |out, x, y| out.assign(x._ge(y)),

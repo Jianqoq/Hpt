@@ -17,7 +17,12 @@ use hpt::{FloatUnaryOps, Tensor, TensorError};
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new([4.0]);
     let b = a.sqrt()?;
-    println!("{}", b);  // prints: 2.0
+    println!("{}", b);
     Ok(())
 }
 ```
+## Backend Support
+| Backend | Supported |
+|---------|-----------|
+| CPU     | ✅         |
+| Cuda    | ✅        |

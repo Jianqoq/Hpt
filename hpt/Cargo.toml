@@ -47,9 +47,7 @@ cudarc = { version = "0.13.4", optional = true, features = [
     "dynamic-linking",
 ], default-features = false }
 regex = { version = "1.11.1", optional = true }
-bindgen_cuda = { version = "0.1.5", optional = true }
 phf = { version = "0.11.3", optional = true }
-xxhash-rust = { version = "0.8.15", optional = true, features = ["xxh64"] }
 serde = "1.0.217"
 safetensors = "0.5.2"
 
@@ -66,13 +64,11 @@ track_caller = [
 bound_check = ["hpt-common/bound_check", "hpt-iterator/bound_check"]
 cuda = [
     "cudarc",
-    "bindgen_cuda",
     "hpt-allocator/cuda",
     "regex",
     "hpt-cudakernels/cuda",
     "hpt-common/cuda",
     "phf",
-    "xxhash-rust",
     "hpt-types/cuda",
     "hpt-macros/cuda",
 ]

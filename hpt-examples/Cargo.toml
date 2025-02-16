@@ -10,6 +10,10 @@ rayon = "1.8.0"
 hpt = { path = "../hpt", features = ["track_caller"] }
 anyhow = "1.0.40"
 mimalloc = "0.1.43"
+candle-core = { version = "0.8.2", features = ["mkl"] }
+candle-nn = "0.8.2"
+serde_json = "1.0"
+safetensors = "0.5.0"
 
 [profile.release]
 opt-level = 3

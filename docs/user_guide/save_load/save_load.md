@@ -115,3 +115,9 @@ If you saved a struct in a file and you want to load the struct
 ```rust
 let linear = Linear::load("path/to/save/linear")?;
 ```
+
+## Backend Support
+| Backend | Supported |
+|---------|-----------|
+| CPU     | ✅         |
+| Cuda    | ❌        |

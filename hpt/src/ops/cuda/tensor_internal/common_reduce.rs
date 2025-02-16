@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::borrow::BorrowMut;
 use std::ops::BitAnd;
 
 use crate::ops::cuda::utils::reduce::reduce::{reduce, reduce2};
@@ -36,7 +36,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> NormalRedu
         out: O,
     ) -> std::result::Result<Self::Output, TensorError>
     where
-        O: Borrow<Self::Output>,
+        O: BorrowMut<Self::Output>,
     {
         let axes = process_axes(axes, self.ndim())?;
         reduce(
@@ -51,28 +51,6 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> NormalRedu
         )
     }
 
-    // fn sum_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool,
-    // ) -> anyhow::Result<Self::Output> {
-    //     let axes = process_axes(axes, self.ndim())?;
-    //     reduce(
-    //         self,
-    //         |a, b| a._add(b),
-    //         |a, b| a._add(b),
-    //         |a, b| a._add(b),
-    //         &axes,
-    //         init_val,
-    //         keep_dims,
-    //         false,
-    //         &SUM,
-    //         "sum",
-    //         None,
-    //     )
-    // }
-
     fn prod<S: Into<Axis>>(
         &self,
         axis: S,
@@ -81,28 +59,6 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> NormalRedu
         let axes = process_axes(axis, self.ndim())?;
         reduce(self, &axes, T::ONE, keep_dims, false, &PROD, "prod", None)
     }
-
-    // fn prod_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool,
-    // ) -> anyhow::Result<Self::Output> {
-    //     let axes = process_axes(axes, self.ndim())?;
-    //     reduce(
-    //         self,
-    //         |a, b| a._mul(b),
-    //         |a, b| a._mul(b),
-    //         |a, b| a._mul(b),
-    //         &axes,
-    //         init_val,
-    //         keep_dims,
-    //         false,
-    //         &PROD,
-    //         "prod",
-    //         None,
-    //     )
-    // }
 
     fn min<S: Into<Axis>>(
         &self,
@@ -113,28 +69,6 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> NormalRedu
         reduce(self, &axes, T::INF, keep_dims, false, &MIN, "min", None)
     }
 
-    // fn min_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool,
-    // ) -> anyhow::Result<Self> {
-    //     let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-    //     reduce(
-    //         self,
-    //         |a, b| a._min(b),
-    //         |a, b| a._min(b),
-    //         |a, b| a._min(b),
-    //         &axes,
-    //         init_val,
-    //         keep_dims,
-    //         false,
-    //         &MIN,
-    //         "min",
-    //         None,
-    //     )
-    // }
-
     fn max<S: Into<Axis>>(
         &self,
         axis: S,
@@ -143,28 +77,6 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> NormalRedu
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(self, &axes, T::NEG_INF, keep_dims, false, &MAX, "max", None)
     }
-
-    // fn max_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool,
-    // ) -> anyhow::Result<Self> {
-    //     let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-    //     reduce(
-    //         self,
-    //         |a, b| a._max(b),
-    //         |a, b| a._max(b),
-    //         |a, b| a._max(b),
-    //         &axes,
-    //         init_val,
-    //         keep_dims,
-    //         false,
-    //         &MAX,
-    //         "max",
-    //         None,
-    //     )
-    // }
 
     fn reducel1<S: Into<Axis>>(
         &self,
@@ -245,51 +157,6 @@ where
         )
     }
 
-    // fn nansum_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool,
-    // ) -> anyhow::Result<Self::Output> {
-    //     let axes = process_axes(axes, self.ndim())?;
-    //     reduce(
-    //         self,
-    //         |a, b| {
-    //             if b._is_nan() {
-    //                 if a._is_nan() {
-    //                     T::ZERO
-    //                 } else {
-    //                     a
-    //                 }
-    //             } else {
-    //                 b._add(a)
-    //             }
-    //         },
-    //         |a, b| {
-    //             if b._is_nan() {
-    //                 if a._is_nan() {
-    //                     T::ZERO
-    //                 } else {
-    //                     a
-    //                 }
-    //             } else {
-    //                 b._add(a)
-    //             }
-    //         },
-    //         |a, b| {
-    //             let mask = b._is_nan();
-    //             mask.select(a, b._add(a))
-    //         },
-    //         &axes,
-    //         init_val,
-    //         keep_dims,
-    //         false,
-    //         &NANSUM,
-    //         "nansum",
-    //         None,
-    //     )
-    // }
-
     fn nanprod<S: Into<Axis>>(
         &self,
         axis: S,
@@ -310,59 +177,24 @@ where
 
     fn nansum_<S: Into<hpt_common::axis::axis::Axis>, O>(
         &self,
-        _: S,
-        _: bool,
-        _: bool,
-        _: O,
+        axes: S,
+        keep_dims: bool,
+        init_out: bool,
+        mut out: O,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError>
     where
-        O: Borrow<Self::Output>,
+        O: BorrowMut<Self::Output>,
     {
-        todo!()
+        let axes = process_axes(axes, self.ndim())?;
+        reduce(
+            self,
+            &axes,
+            T::ZERO,
+            keep_dims,
+            init_out,
+            &NANSUM,
+            "nansum",
+            Some(out.borrow_mut().clone()),
+        )
     }
-
-    // fn nanprod_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool,
-    // ) -> anyhow::Result<Self::Output> {
-    //     let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-    //     reduce(
-    //         self,
-    //         |a, b| {
-    //             if b._is_nan() {
-    //                 if a._is_nan() {
-    //                     T::ONE
-    //                 } else {
-    //                     a
-    //                 }
-    //             } else {
-    //                 b._mul(a)
-    //             }
-    //         },
-    //         |a, b| {
-    //             if b._is_nan() {
-    //                 if a._is_nan() {
-    //                     T::ONE
-    //                 } else {
-    //                     a
-    //                 }
-    //             } else {
-    //                 b._mul(a)
-    //             }
-    //         },
-    //         |a, b| {
-    //             let mask = b._is_nan();
-    //             mask.select(a, b._mul(a))
-    //         },
-    //         &axes,
-    //         init_val,
-    //         keep_dims,
-    //         false,
-    //         &NANPROD,
-    //         "nanprod",
-    //         None,
-    //     )
-    // }
 }

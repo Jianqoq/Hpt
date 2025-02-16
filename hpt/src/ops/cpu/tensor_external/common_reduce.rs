@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -42,14 +42,14 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for Tensor<T, Cpu, DE
         axes: S,
         keep_dims: bool,
         init_out: bool,
-        out: O,
+        mut out: O,
     ) -> std::result::Result<Self::Output, TensorError>
     where
-        O: Borrow<Self::Output>,
+        O: BorrowMut<Self::Output>,
     {
         Ok(self
             .inner
-            .sum_(axes, keep_dims, init_out, out.borrow())?
+            .sum_(axes, keep_dims, init_out, out.borrow_mut())?
             .into())
     }
 
@@ -174,25 +174,16 @@ where
         axes: S,
         keep_dims: bool,
         init_out: bool,
-        out: O,
+        mut out: O,
     ) -> std::result::Result<Self::Output, TensorError>
     where
-        O: Borrow<Self::Output>,
+        O: BorrowMut<Self::Output>,
     {
         Ok(self
             .inner
-            .nansum_(axes, keep_dims, init_out, out.borrow())?
+            .nansum_(axes, keep_dims, init_out, out.borrow_mut())?
             .into())
     }
-
-    // fn nansum_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool
-    // ) -> anyhow::Result<Self::Output> {
-    //     Ok(self.inner.nansum_with_init(init_val, axes, keep_dims)?.into())
-    // }
 
     fn nanprod<S: Into<Axis>>(
         &self,
@@ -201,15 +192,6 @@ where
     ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self.inner.nanprod(axis, keep_dims)?.into())
     }
-
-    // fn nanprod_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool
-    // ) -> anyhow::Result<Self::Output> {
-    //     Ok(self.inner.nanprod_with_init(init_val, axes, keep_dims)?.into())
-    // }
 }
 
 impl<T, const DEVICE: usize> FloatReduce<T> for Tensor<T, Cpu, DEVICE>
@@ -344,7 +326,7 @@ where
         _: O,
     ) -> std::result::Result<Self::Output, TensorError>
     where
-        O: Borrow<Self::Output>,
+        O: BorrowMut<Self::Output>,
     {
         Err(TensorError::Autograd(AutogradError::InplaceCompError {
             op: "sum_",
@@ -400,15 +382,6 @@ where
         })
     }
 
-    // fn prod_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool
-    // ) -> anyhow::Result<Self::Output> {
-    //     Ok(self.inner.prod_with_init(init_val, axes, keep_dims)?.into())
-    // }
-
     fn min<S: Into<Axis>>(
         &self,
         axis: S,
@@ -457,15 +430,6 @@ where
         })
     }
 
-    // fn min_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool
-    // ) -> anyhow::Result<Self> {
-    //     Ok(self.inner.min_with_init(init_val, axes, keep_dims)?.into())
-    // }
-
     fn max<S: Into<Axis>>(
         &self,
         axis: S,
@@ -513,15 +477,6 @@ where
             })),
         })
     }
-
-    // fn max_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool
-    // ) -> anyhow::Result<Self> {
-    //     Ok(self.inner.max_with_init(init_val, axes, keep_dims)?.into())
-    // }
 
     fn reducel1<S: Into<Axis>>(
         &self,
@@ -693,22 +648,13 @@ where
         _: O,
     ) -> std::result::Result<Self::Output, TensorError>
     where
-        O: Borrow<Self::Output>,
+        O: BorrowMut<Self::Output>,
     {
         Err(TensorError::Autograd(AutogradError::InplaceCompError {
             op: "nansum_",
             location: std::panic::Location::caller(),
         }))
     }
-
-    // fn nansum_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool
-    // ) -> anyhow::Result<Self::Output> {
-    //     Ok(self.inner.nansum_with_init(init_val, axes, keep_dims)?.into())
-    // }
 
     fn nanprod<S: Into<Axis>>(
         &self,
@@ -752,15 +698,6 @@ where
             })),
         })
     }
-
-    // fn nanprod_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool
-    // ) -> anyhow::Result<Self::Output> {
-    //     Ok(self.inner.nanprod_with_init(init_val, axes, keep_dims)?.into())
-    // }
 }
 
 impl<T, const DEVICE: usize> FloatReduce<T> for DiffTensor<T, Cpu, DEVICE>
@@ -920,24 +857,5 @@ where
         _: bool,
     ) -> Result<DiffTensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError> {
         todo!()
-        // let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        // let x_max = self.max(axes.as_ref(), true)?;
-        // let sub = self - &x_max;
-        // let exp = sub.exp()?;
-        // let sum_exp = reduce(
-        //     &exp,
-        //     |a, b| a._add(b),
-        //     &axes,
-        //     <T as FloatOut>::Output::ZERO,
-        //     true,
-        //     false,
-        //     None
-        // )?;
-        // let add = x_max + sum_exp.ln()?;
-        // if keep_dims {
-        //     Ok(add)
-        // } else {
-        //     Ok(add.squeeze(axes)?)
-        // }
     }
 }

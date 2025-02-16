@@ -3,10 +3,6 @@ use hpt::{
     ParStridedIteratorSimdZip, Random, ShapeManipulate, Slice, Tensor, TensorCreator, TensorError,
     TensorInfo, TensorIterator,
 };
-use mimalloc::MiMalloc;
-
-#[global_allocator]
-static GLOBAL: MiMalloc = MiMalloc;
 
 struct LSTM {
     w_ii: Tensor<f32>,
@@ -52,69 +48,17 @@ impl LSTM {
         h_t_1: &Tensor<f32>,
         c_t_1: &Tensor<f32>,
     ) -> Result<(Tensor<f32>, Tensor<f32>), TensorError> {
-        let x_w_ii = x_t.matmul(self.w_ii.t()?)?;
-        let x_w_if = x_t.matmul(self.w_if.t()?)?;
-        let x_w_ig = x_t.matmul(self.w_ig.t()?)?;
-        let x_w_io = x_t.matmul(self.w_io.t()?)?;
-        let h_t_w_hi = h_t_1.matmul(self.w_hi.t()?)?;
-        let h_t_w_hf = h_t_1.matmul(self.w_hf.t()?)?;
-        let h_t_w_hg = h_t_1.matmul(self.w_hg.t()?)?;
-        let h_t_w_ho = h_t_1.matmul(self.w_ho.t()?)?;
-        let i_t = x_w_ii
-            .par_iter_simd()
-            .zip(h_t_w_hi.par_iter_simd())
-            .zip(self.b_i.par_iter_simd())
-            .strided_map_simd(
-                |(res, ((x, y), z))| {
-                    *res = (x + y + z)._sigmoid();
-                },
-                |(res, ((x, y), z))| {
-                    res.write_unaligned((x + y + z)._sigmoid());
-                },
-            )
-            .collect::<Tensor<f32>>();
+        let i_t = x_t.matmul(self.w_ii.t()?)? + h_t_1.matmul(self.w_hi.t()?)? + &self.b_i;
+        // i_t.sigmoid_(i_t.clone())?;
 
-        let f_t = x_w_if
-            .par_iter_simd()
-            .zip(h_t_w_hf.par_iter_simd())
-            .zip(self.b_f.par_iter_simd())
-            .strided_map_simd(
-                |(res, ((x, y), z))| {
-                    *res = (x + y + z)._sigmoid();
-                },
-                |(res, ((x, y), z))| {
-                    res.write_unaligned((x + y + z)._sigmoid());
-                },
-            )
-            .collect::<Tensor<f32>>();
+        let f_t = x_t.matmul(self.w_if.t()?)? + h_t_1.matmul(self.w_hf.t()?)? + &self.b_f;
+        // f_t.sigmoid_(f_t.clone())?;
 
-        let g_t = x_w_ig
-            .par_iter_simd()
-            .zip(h_t_w_hg.par_iter_simd())
-            .zip(self.b_g.par_iter_simd())
-            .strided_map_simd(
-                |(res, ((x, y), z))| {
-                    *res = (x + y + z)._tanh();
-                },
-                |(res, ((x, y), z))| {
-                    res.write_unaligned((x + y + z)._tanh());
-                },
-            )
-            .collect::<Tensor<f32>>();
+        let g_t = x_t.matmul(self.w_ig.t()?)? + h_t_1.matmul(self.w_hg.t()?)? + &self.b_g;
+        // g_t.tanh_(g_t.clone())?;
 
-        let o_t = x_w_io
-            .par_iter_simd()
-            .zip(h_t_w_ho.par_iter_simd())
-            .zip(self.b_o.par_iter_simd())
-            .strided_map_simd(
-                |(res, ((x, y), z))| {
-                    *res = (x + y + z)._sigmoid();
-                },
-                |(res, ((x, y), z))| {
-                    res.write_unaligned((x + y + z)._sigmoid());
-                },
-            )
-            .collect::<Tensor<f32>>();
+        let o_t = x_t.matmul(self.w_io.t()?)? + h_t_1.matmul(self.w_ho.t()?)? + &self.b_o;
+        // o_t.sigmoid_(o_t.clone())?;
 
         let c_t = f_t
             .par_iter_simd()
@@ -225,6 +169,7 @@ impl LSTMModel {
 
         let mut outputs = Vec::with_capacity(seq_length as usize);
 
+        let mut total_time = std::time::Duration::from_secs(0);
         for t in 0..seq_length {
             let mut layer_input = x.slice(&match_selection![:, t:t+1, :])?.squeeze(1)?;
             for layer_idx in 0..self.num_layers {
@@ -232,16 +177,17 @@ impl LSTMModel {
                 let now = std::time::Instant::now();
                 let (h_t, c_t) =
                     lstm.forward(&layer_input, &states[layer_idx].0, &states[layer_idx].1)?;
-                println!("lstm Time taken: {:?}", now.elapsed());
+                // println!("lstm Time taken: {:?}", now.elapsed());
+                total_time += now.elapsed();
                 states[layer_idx] = (h_t.clone(), c_t);
 
                 layer_input = h_t;
             }
-            println!("next layer\n");
+            // println!("next layer\n");
             let output_t = layer_input.unsqueeze(1)?;
             outputs.push(output_t);
         }
-
+        // println!("total time taken: {:?}", total_time);
         let output = Tensor::concat(outputs, 1, false)?;
 
         let final_output = if let Some(output_layer) = &self.output_layer {
@@ -255,19 +201,19 @@ impl LSTMModel {
 }
 
 fn main() -> anyhow::Result<()> {
-    set_num_threads(10);
+    set_num_threads(16);
 
-    let model = LSTMModel::new(1024, 1024, 4, Some(20))?;
+    let model = LSTMModel::new(512, 512, 4, Some(20))?;
 
-    let batch_size = 4096;
-    let seq_length = 10;
-    let input = Tensor::randn(&[batch_size, seq_length, 1024])?;
+    let batch_size = 1024;
+    let seq_length = 50;
+    let input = Tensor::randn(&[batch_size, seq_length, 512])?;
 
     let start_time = std::time::Instant::now();
     for _ in 0..1 {
         let _ = model.forward(&input, None)?;
     }
-    println!("Time taken: {:?}", start_time.elapsed() / 10);
+    println!("Time taken: {:?}", start_time.elapsed() / 1);
 
     Ok(())
 }

@@ -1,5 +1,4 @@
 /// argmax kernel
-#[macro_export]
 macro_rules! argmax_kernel {
     (
         $_:expr,
@@ -36,7 +35,6 @@ macro_rules! argmax_kernel {
 }
 
 /// argmin kernel
-#[macro_export]
 macro_rules! argmin_kernel {
     (
         $_:expr,
@@ -71,3 +69,6 @@ macro_rules! argmin_kernel {
         $result_ptr.add(1);
     };
 }
+
+pub(crate) use argmax_kernel;
+pub(crate) use argmin_kernel;

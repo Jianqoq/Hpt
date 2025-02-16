@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, ops::BitAnd};
+use std::{borrow::BorrowMut, ops::BitAnd};
 
 use crate::tensor::Tensor;
 use crate::Cuda;
@@ -23,14 +23,14 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> NormalRedu
         axes: S,
         keep_dims: bool,
         init_out: bool,
-        out: O,
+        mut out: O,
     ) -> Result<Self::Output, TensorError>
     where
-        O: Borrow<Self::Output>,
+        O: BorrowMut<Self::Output>,
     {
         Ok(self
             .inner
-            .sum_(axes, keep_dims, init_out, out.borrow())?
+            .sum_(axes, keep_dims, init_out, out.borrow_mut())?
             .into())
     }
 
@@ -144,14 +144,17 @@ where
 
     fn nansum_<S: Into<Axis>, O>(
         &self,
-        _: S,
-        _: bool,
-        _: bool,
-        _: O,
+        axes: S,
+        keep_dims: bool,
+        init_out: bool,
+        mut out: O,
     ) -> Result<Self::Output, TensorError>
     where
-        O: Borrow<Self::Output>,
+        O: BorrowMut<Self::Output>,
     {
-        todo!()
+        Ok(self
+            .inner
+            .nansum_(axes, keep_dims, init_out, out.borrow_mut())?
+            .into())
     }
 }

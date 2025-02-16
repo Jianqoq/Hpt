@@ -2,9 +2,9 @@ use crate::{tensor_base::_Tensor, BoolVector, Cuda, Tensor};
 use cudarc::driver::DeviceRepr;
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
-use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
+use hpt_types::{dtype::CudaType, into_scalar::Cast, type_promote::NormalOut};
 
-impl<T: CommonBounds + DeviceRepr, const DEVICE_ID: usize> TensorCreator<T>
+impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> TensorCreator<T>
     for Tensor<T, Cuda, DEVICE_ID>
 {
     type Output = Tensor<T, Cuda, DEVICE_ID>;

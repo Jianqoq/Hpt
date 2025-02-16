@@ -32,7 +32,7 @@ where
     };
     let a_include = get_include_1::<A>();
     let k_include = get_include_1::<K>();
-    let code = if inp.is_contiguous() || inp.parent().is_some() {
+    let code = if inp.is_contiguous() && !inp.parent().is_some() {
         let scalar_a = Scalar::<A>::new("inp[idx]".to_string());
         let scalar_k = Scalar::<K>::new("out[idx]".to_string());
         format!(
@@ -53,7 +53,7 @@ where
     } else {
         let shape_str = get_array_str(inp.shape());
         let strides_str = get_array_str(inp.strides());
-        let scalar_a = Scalar::<A>::new("inp[idx]".to_string());
+        let scalar_a = Scalar::<A>::new("inp[offset]".to_string());
         let scalar_k = Scalar::<K>::new("out[idx]".to_string());
         format!(
             "

@@ -17,10 +17,10 @@ use hpt_common::{
 };
 use hpt_cudakernels::CREATION;
 use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
-use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
+use hpt_types::{dtype::CudaType, into_scalar::Cast, type_promote::NormalOut};
 use std::{panic::Location, sync::Arc};
 
-impl<T: CommonBounds + DeviceRepr, const DEVICE: usize> TensorCreator<T>
+impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> TensorCreator<T>
     for _Tensor<T, Cuda, DEVICE>
 {
     type Output = Self;

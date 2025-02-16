@@ -10,6 +10,8 @@ use crate::{save, Save};
 use crate::{tensor_base::_Tensor, Tensor, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION};
 #[cfg(feature = "cuda")]
 use cudarc::driver::DeviceRepr;
+#[cfg(feature = "cuda")]
+use hpt_types::dtype::CudaType;
 use hpt_common::error::base::TensorError;
 use hpt_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
 use hpt_dataloader::data_loader::TensorMeta;
@@ -242,7 +244,7 @@ impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
         &self,
     ) -> Result<Tensor<T, Cuda, CUDA_DEVICE>, TensorError>
     where
-        T: DeviceRepr,
+        T: DeviceRepr + CudaType,
     {
         let data = _Tensor::<T, Cuda, CUDA_DEVICE>::empty(self.shape()).unwrap();
         let device = data.device();

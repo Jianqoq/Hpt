@@ -16,14 +16,21 @@ Tuple of two tensors (sine, cosine) with type `C`
 
 ## Examples:
 ```rust
-use hpt::{FloatUnaryOps, Tensor, TensorError};
+use hpt::{FloatUnaryOps, Tensor, TensorCreator, TensorError, TensorInfo};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new([10.0]);
-    let mut sin_out = Tensor::<f32>::zeros_like(&a);
-    let mut cos_out = Tensor::<f32>::zeros_like(&a);
-    let (sin, cos) = a.sincos_((sin_out, cos_out))?;
+    let mut sin_out = Tensor::<f32>::zeros_like(&a)?;
+    let mut cos_out = Tensor::<f32>::zeros_like(&a)?;
+    let (sin, cos) = a.sincos_((&mut sin_out, &mut cos_out))?;
     println!("sin: {}, cos: {}", sin, cos);
+    assert_eq!(sin.ptr().ptr as u64, sin_out.ptr().ptr as u64);
+    assert_eq!(cos.ptr().ptr as u64, cos_out.ptr().ptr as u64);
     Ok(())
 }
 ```
+## Backend Support
+| Backend | Supported |
+|---------|-----------|
+| CPU     | ✅         |
+| Cuda    | ✅        |

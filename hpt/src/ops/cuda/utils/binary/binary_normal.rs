@@ -49,6 +49,7 @@ use crate::ops::cuda::cuda_utils::get_include_1;
 /// perform vectorized operations for faster computation. If not, the scalar function `f` is applied to each element.
 #[track_caller]
 pub(crate) fn binary_fn_with_out_simd<A, B, O, K, F, const CUDA_DEVICE: usize>(
+    op_name: &str,
     lhs: &_Tensor<A, Cuda, CUDA_DEVICE>,
     rhs: &_Tensor<B, Cuda, CUDA_DEVICE>,
     f: F,
@@ -62,7 +63,8 @@ where
     F: Fn(Scalar<K>, Scalar<A>, Scalar<B>) -> Scalar<K>,
 {
     let module_name = format!(
-        "bn{}{}{}{}{}{}",
+        "bn{}{}{}{}{}{}{}",
+        op_name,
         A::STR,
         lhs.layout.shape(),
         lhs.layout.strides(),
@@ -79,7 +81,7 @@ where
     set.insert(b_include);
     let includes = set.into_iter().collect::<Vec<_>>().join("\n");
     if lhs.size() == 1 {
-        let val = lhs.to_cpu()?.as_raw()[0];
+        let val = lhs.to_cpu::<0>()?.as_raw()[0];
         let res = extract_out::<B, K, O, CUDA_DEVICE>(rhs.shape(), out)?;
         if rhs.is_contiguous() {
             let out_scalar = Scalar::new("out[idx]".to_string());
@@ -121,7 +123,7 @@ where
             let cfg = compute_kernel_launch_config(res.device(), reg_info, res.size());
             unsafe { kernel.launch(cfg, (out_slice, val, rhs_slice)) }?;
         } else {
-            let rhs_broadcast_layout = rhs.layout.broadcast(&res.layout)?;
+            let rhs_broadcast_layout = rhs.layout.to_broadcast_layout(res.shape())?;
             let shape_str = get_array_str(rhs_broadcast_layout.shape());
             let strides_str = get_array_str(rhs_broadcast_layout.strides());
             let out_scalar = Scalar::new("out[idx]".to_string());
@@ -134,7 +136,7 @@ where
                     {includes}
                     __constant__ long long shape[] = {{{}}};
                     __constant__ long long strides[] = {{{}}};
-                    extern \"C\" __global__ void lhs_scalar_rhs_contiguous({} *out, {} lhs, {} *rhs)
+                    extern \"C\" __global__ void lhs_scalar_rhs_not_contiguous({} *out, {} lhs, {} *rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
                         size_t stride = blockDim.x * gridDim.x;
@@ -178,7 +180,7 @@ where
         }
         Ok(res)
     } else if rhs.size() == 1 {
-        let val = rhs.to_cpu()?.as_raw()[0];
+        let val = rhs.to_cpu::<0>()?.as_raw()[0];
         let res = extract_out::<A, K, O, CUDA_DEVICE>(lhs.shape(), out)?;
         if lhs.is_contiguous() {
             let out_scalar = Scalar::new("out[idx]".to_string());
@@ -224,16 +226,16 @@ where
             let shape_str = get_array_str(lhs_broadcast_layout.shape());
             let strides_str = get_array_str(lhs_broadcast_layout.strides());
             let out_scalar = Scalar::new("out[idx]".to_string());
-            let lhs_scalar = Scalar::new("lhs[idx]".to_string());
+            let lhs_scalar = Scalar::new("lhs[offset]".to_string());
             let rhs_scalar = Scalar::new("rhs".to_string());
             let map = compile_kernel(
                 &module_name,
                 &format!(
                     "
                     {includes}
-                    __constant__ long long shape[] = {{{}}};
-                    __constant__ long long strides[] = {{{}}};
-                    extern \"C\" __global__ void rhs_scalar_lhs_contiguous({} *out, {} *lhs, {} rhs)
+                    __constant__ long long shape[] = {{{shape_str}}};
+                    __constant__ long long strides[] = {{{strides_str}}};
+                    extern \"C\" __global__ void rhs_scalar_lhs_not_contiguous({} *out, {} *lhs, {} rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
                         size_t stride = blockDim.x * gridDim.x;
@@ -251,8 +253,6 @@ where
                             idx += stride;
                         }}
                     }}",
-                    shape_str,
-                    strides_str,
                     K::CUDA_TYPE,
                     A::CUDA_TYPE,
                     B::CUDA_TYPE,
@@ -336,10 +336,10 @@ where
                 &format!(
                     "
                     {includes}
-                    __constant__ long long lhs_shape[] = {{{}}};
-                    __constant__ long long lhs_strides[] = {{{}}};
-                    __constant__ long long rhs_shape[] = {{{}}};
-                    __constant__ long long rhs_strides[] = {{{}}};
+                    __constant__ long long lhs_shape[] = {{{lhs_shape_str}}};
+                    __constant__ long long lhs_strides[] = {{{lhs_strides_str}}};
+                    __constant__ long long rhs_shape[] = {{{rhs_shape_str}}};
+                    __constant__ long long rhs_strides[] = {{{rhs_strides_str}}};
                     extern \"C\" __global__ void binop({} *out, {} *lhs, {} *rhs)
                     {{
                         size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -362,10 +362,6 @@ where
                             idx += stride;
                         }}
                     }}",
-                    lhs_shape_str,
-                    lhs_strides_str,
-                    rhs_shape_str,
-                    rhs_strides_str,
                     K::CUDA_TYPE,
                     A::CUDA_TYPE,
                     B::CUDA_TYPE,
@@ -376,7 +372,7 @@ where
                 res.device(),
                 &["binop"],
             )?;
-            let kernel = res.device().get_func(&module_name, "binop").unwrap();
+            let kernel = res.device().get_func(&module_name, "binop").expect("func_name not found");
             let out_slice = res.cuda_slice();
             let rhs_slice = rhs.cuda_slice();
             let lhs_slice = lhs.cuda_slice();
@@ -394,7 +390,7 @@ fn extract_out<A, K, O, const CUDA_DEVICE: usize>(
 ) -> Result<_Tensor<K, Cuda, CUDA_DEVICE>, TensorError>
 where
     A: CommonBounds + DeviceRepr,
-    K: CommonBounds + DeviceRepr,
+    K: CommonBounds + DeviceRepr + CudaType,
     O: BorrowMut<_Tensor<K, Cuda, CUDA_DEVICE>>,
 {
     let ret = if let Some(mut out) = out {

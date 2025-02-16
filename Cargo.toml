@@ -34,7 +34,8 @@ exclude = [
 hpt = { path = "./hpt", features = ["track_caller", "cuda"], version = "0.0.14" }
 # hpt = {version = "0.0.11", features = ["cuda"]}
 anyhow = "1.0.95"
-
+candle-core = { version = "0.8.2", features = ["mkl"] }
+candle-nn = "0.8.2"
 # [dev-dependencies]
 # hpt-common = { path = "./hpt-common" }
 # anyhow = "1.0.40"
@@ -58,11 +59,11 @@ name = "etensor"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 0
+opt-level = 3
 incremental = true
 debug = true
-# lto = "fat"
-# codegen-units = 1
+lto = "fat"
+codegen-units = 1
 
 [profile.dev]
 opt-level = 0

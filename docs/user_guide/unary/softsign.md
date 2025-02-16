@@ -17,7 +17,12 @@ use hpt::{FloatUnaryOps, Tensor, TensorError};
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new([2.0]);
     let b = a.softsign()?;
-    println!("{}", b);  // prints: 0.6666667
+    println!("{}", b);
     Ok(())
 }
 ```
+## Backend Support
+| Backend | Supported |
+|---------|-----------|
+| CPU     | ✅         |
+| Cuda    | ✅        |

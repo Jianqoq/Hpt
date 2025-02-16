@@ -2,7 +2,6 @@ pub mod hpt {
     pub mod cpu {
         pub mod adaptive_avg_pool;
         pub mod adaptive_max_pool;
-        pub mod assert_utils;
         pub mod avg_pool;
         pub mod binary;
         pub mod binary_out;
@@ -25,10 +24,16 @@ pub mod hpt {
         pub mod test_lib;
         pub mod topk;
         pub mod unary;
+        pub mod assert_utils;
     }
-    #[cfg(feature = "cuda")]
+    // #[cfg(feature = "cuda")]
     pub mod cuda {
         pub mod creation;
+        pub mod binary;
+        pub mod unary;
+        pub mod reduce;
+        pub mod assert_utils;
+
     }
 }
 

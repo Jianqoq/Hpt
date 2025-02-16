@@ -5,7 +5,7 @@ use hpt_traits::{
     AdvancedOps, CommonBounds, HardMax, Shrinkage, TensorCreator, TensorInfo, TensorWhere,
 };
 use hpt_types::{
-    dtype::TypeCommon,
+    dtype::{CudaType, TypeCommon},
     into_scalar::Cast,
     type_promote::{Cmp, NormalOut},
 };
@@ -17,7 +17,7 @@ use crate::{
 };
 use cudarc::driver::LaunchAsync;
 
-impl<T: CommonBounds + PartialOrd + DeviceRepr, const DEVICE: usize> AdvancedOps
+impl<T: CommonBounds + PartialOrd + DeviceRepr + CudaType, const DEVICE: usize> AdvancedOps
     for _Tensor<T, Cuda, DEVICE>
 where
     T: NormalOut<bool, Output = T> + Cast<i64>,

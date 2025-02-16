@@ -450,6 +450,14 @@ pub trait FloatUnaryOps {
     /// ```
     fn erf(&self) -> std::result::Result<Self::Output, TensorError>;
 
+    /// erf method with output tensor, this method will write the result to the output tensor
+    /// # See Also
+    /// - [`erf`]
+    #[track_caller]
+    fn erf_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
+    where
+        U: BorrowMut<Self::InplaceOutput>;
+
     /// Computes the element-wise Gaussian Error Linear Unit (GELU) activation function.
     ///
     /// # Example

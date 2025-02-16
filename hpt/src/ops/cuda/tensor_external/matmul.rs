@@ -6,12 +6,12 @@ use cudarc::{
 };
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, Matmul};
-
+use hpt_types::dtype::CudaType;
 use crate::{ops::cuda::tensor_internal::matmul::matmul_with_out, tensor::Tensor, Cuda};
 impl<T, const CUDA_DEVICE: usize> Matmul<Tensor<T, Cuda, CUDA_DEVICE>>
     for Tensor<T, Cuda, CUDA_DEVICE>
 where
-    T: CommonBounds + DeviceRepr,
+    T: CommonBounds + DeviceRepr + CudaType,
     CudaBlas: Gemm<T>,
 {
     type Output = Tensor<T, Cuda, CUDA_DEVICE>;
@@ -226,7 +226,7 @@ where
 impl<T, const CUDA_DEVICE: usize> Matmul<&Tensor<T, Cuda, CUDA_DEVICE>>
     for Tensor<T, Cuda, CUDA_DEVICE>
 where
-    T: CommonBounds + DeviceRepr,
+    T: CommonBounds + DeviceRepr + CudaType,
     CudaBlas: Gemm<T>,
 {
     type Output = Tensor<T, Cuda, CUDA_DEVICE>;

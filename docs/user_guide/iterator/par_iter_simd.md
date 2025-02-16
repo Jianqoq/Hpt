@@ -36,3 +36,8 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 ```
+## Backend Support
+| Backend | Supported |
+|---------|-----------|
+| CPU     | ✅         |
+| Cuda    | ❌        |
