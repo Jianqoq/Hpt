@@ -1,6 +1,7 @@
 #![allow(unused)]
 
 use crate::ops::cuda::utils::unary::strided_copy::strided_copy;
+use crate::ops::cuda::utils::unary::unary::unary_raw_mut;
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 
@@ -19,6 +20,7 @@ use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
 use hpt_traits::TensorCreator;
 use hpt_traits::TensorLike;
+use hpt_types::cuda_types::scalar::Scalar;
 use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
 
@@ -38,6 +40,7 @@ pub(crate) fn reduce<T, const DEVICE_ID: usize>(
         ),
     >,
     module_name: &str,
+    post_op: Option<impl Fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
     c: Option<_Tensor<T, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<T, Cuda, DEVICE_ID>, TensorError>
 where
@@ -53,6 +56,7 @@ where
             init_out,
             meta,
             module_name,
+            post_op,
             c,
         )
     } else {
@@ -64,6 +68,7 @@ where
             init_out,
             meta,
             module_name,
+            post_op,
             c,
         )
     }
@@ -85,6 +90,7 @@ pub(crate) fn reduce2<T, O, const DEVICE_ID: usize>(
         ),
     >,
     module_name: &str,
+    post_op: Option<impl Fn(Scalar<O>, Scalar<O>) -> Scalar<O>>,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
@@ -102,6 +108,7 @@ where
             init_out,
             meta,
             module_name,
+            post_op,
             c,
         )
     } else {
@@ -113,6 +120,7 @@ where
             init_out,
             meta,
             module_name,
+            post_op,
             c,
         )
     }
@@ -134,6 +142,7 @@ pub(crate) fn reduce3<T, O, const DEVICE_ID: usize>(
         ),
     >,
     module_name: &str,
+    post_op: Option<impl Fn(Scalar<O>, Scalar<O>) -> Scalar<O>>,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
@@ -150,6 +159,7 @@ where
             init_out,
             meta,
             module_name,
+            post_op,
             c,
         )
     } else {
@@ -161,6 +171,7 @@ where
             init_out,
             meta,
             module_name,
+            post_op,
             c,
         )
     }
@@ -182,7 +193,7 @@ pub(crate) fn contiguous_reduce<T, O, const DEVICE_ID: usize>(
         ),
     >,
     module_name: &str,
-    
+    post_op: Option<impl Fn(Scalar<O>, Scalar<O>) -> Scalar<O>>,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
@@ -262,6 +273,9 @@ where
             a.device().synchronize().unwrap();
             let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, 1) };
             let mut _res_ptr = unsafe { a.device().upgrade_device_ptr::<O>(res.inner, 1) };
+            if let Some(post_op) = &post_op {
+                unary_raw_mut(&tmp_buffer, &tmp_buffer, module_name, post_op);
+            }
             a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
             _res_ptr.leak();
         },
@@ -341,6 +355,9 @@ where
                     .upgrade_device_ptr::<O>(res.cuda_slice().inner, res.size())
             };
             let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, res.size()) };
+            if let Some(post_op) = &post_op {
+                unary_raw_mut(&tmp_buffer, &tmp_buffer, module_name, post_op);
+            }
             a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
             _res_ptr.leak();
         },
@@ -439,6 +456,9 @@ where
                 a.device()
                     .upgrade_device_ptr::<O>(tmp_buffer, result.size())
             };
+            if let Some(post_op) = &post_op {
+                unary_raw_mut(&tmp_buffer, &tmp_buffer, module_name, post_op);
+            }
             a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
             _res_ptr.leak();
         },
@@ -470,6 +490,7 @@ pub(crate) fn uncontiguous_reduce<T, O, const DEVICE_ID: usize>(
         ),
     >,
     module_name: &str,
+    post_op: Option<impl Fn(Scalar<O>, Scalar<O>) -> Scalar<O>>,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
@@ -485,7 +506,7 @@ where
         keepdims,
         init_out,
         c,
-        move |res| {
+        |res| {
             let (reduce_kernel, reg_info) = load_ptx_and_get_data(
                 module_name,
                 &format!("uncontiguous_reduce_{}", T::STR),
@@ -551,11 +572,14 @@ where
             }
             a.device().synchronize().unwrap();
             let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, 1) };
+            if let Some(post_op) = &post_op {
+                unary_raw_mut(&tmp_buffer, &tmp_buffer, module_name, post_op);
+            }
             let mut _res_ptr = unsafe { a.device().upgrade_device_ptr::<O>(res.inner, 1) };
             a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
             _res_ptr.leak();
         },
-        move |num_threads, inner_loop_size, inner_loop_size2, res, transposed_tensor| {
+        |num_threads, inner_loop_size, inner_loop_size2, res, transposed_tensor| {
             let outer_loop_size = a.size() / (inner_loop_size * inner_loop_size2);
             let (reduce_kernel, reg_info) = load_ptx_and_get_data(
                 module_name,
@@ -627,9 +651,12 @@ where
             }
             a.device().synchronize().unwrap();
             let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, res.size()) };
+            if let Some(post_op) = &post_op {
+                unary_raw_mut(&tmp_buffer, &tmp_buffer, module_name, post_op);
+            }
             strided_copy(&tmp_buffer, &mut res.clone()).expect("strided_copy failed");
         },
-        move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
+        |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
             let perm = (0..transposed_tensor.ndim()).collect::<Vec<_>>();
             let right = perm[perm.len() - axes.len()..].to_vec();
             let left = perm[..perm.len() - axes.len()].to_vec();
@@ -720,6 +747,9 @@ where
                 a.device()
                     .upgrade_device_ptr::<O>(tmp_buffer, result.size())
             };
+            if let Some(post_op) = &post_op {
+                unary_raw_mut(&tmp_buffer, &tmp_buffer, module_name, post_op);
+            }
             strided_copy(&tmp_buffer, &mut result.clone()).expect("strided_copy failed");
         },
     )
