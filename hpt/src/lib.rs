@@ -285,7 +285,7 @@ pub use hpt_dataloader::{
     CompressionAlgo, DataLoader, Endian, FromSafeTensors, Load, MetaLoad, Save, TensorLoader,
     TensorSaver,
 };
-pub use hpt_macros::match_selection;
+pub use hpt_macros::{match_selection, Save, Load};
 pub use hpt_traits::*;
 pub use hpt_types::dtype::TypeCommon;
 pub use hpt_types::into_scalar::Cast;
