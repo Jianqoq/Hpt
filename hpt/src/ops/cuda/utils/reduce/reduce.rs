@@ -40,6 +40,7 @@ pub(crate) fn reduce<T, const DEVICE_ID: usize>(
         ),
     >,
     module_name: &str,
+    op: &str,
     post_op: Option<impl Fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
     c: Option<_Tensor<T, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<T, Cuda, DEVICE_ID>, TensorError>
@@ -56,6 +57,7 @@ where
             init_out,
             meta,
             module_name,
+            op,
             post_op,
             c,
         )
@@ -68,6 +70,7 @@ where
             init_out,
             meta,
             module_name,
+            op,
             post_op,
             c,
         )
@@ -90,6 +93,7 @@ pub(crate) fn reduce2<T, O, const DEVICE_ID: usize>(
         ),
     >,
     module_name: &str,
+    op: &str,
     post_op: Option<impl Fn(Scalar<O>, Scalar<O>) -> Scalar<O>>,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
@@ -108,6 +112,7 @@ where
             init_out,
             meta,
             module_name,
+            op,
             post_op,
             c,
         )
@@ -120,6 +125,7 @@ where
             init_out,
             meta,
             module_name,
+            op,
             post_op,
             c,
         )
@@ -142,6 +148,7 @@ pub(crate) fn reduce3<T, O, const DEVICE_ID: usize>(
         ),
     >,
     module_name: &str,
+    op: &str,
     post_op: Option<impl Fn(Scalar<O>, Scalar<O>) -> Scalar<O>>,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
@@ -159,6 +166,7 @@ where
             init_out,
             meta,
             module_name,
+            op,
             post_op,
             c,
         )
@@ -171,6 +179,7 @@ where
             init_out,
             meta,
             module_name,
+            op,
             post_op,
             c,
         )
@@ -193,6 +202,7 @@ pub(crate) fn contiguous_reduce<T, O, const DEVICE_ID: usize>(
         ),
     >,
     module_name: &str,
+    op: &str,
     post_op: Option<impl Fn(Scalar<O>, Scalar<O>) -> Scalar<O>>,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
@@ -222,7 +232,7 @@ where
         |res| {
             let (reduce_kernel, reg_info) = load_ptx_and_get_data(
                 module_name,
-                &format!("contiguous_reduce_{}", T::STR),
+                &format!("contiguous_{op}_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,
@@ -283,7 +293,7 @@ where
             let outer_loop_size = a.size() / (inner_loop_size * inner_loop_size2);
             let (reduce_kernel, reg_info) = load_ptx_and_get_data(
                 module_name,
-                &format!("contiguous_reduce2_{}", T::STR),
+                &format!("contiguous_{op}2_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,
@@ -337,7 +347,7 @@ where
             let mut inp = tmp_buffer;
             let reduce_kernel = a
                 .device()
-                .get_func(&module_name, &format!("contiguous_reduce22_{}", T::STR))
+                .get_func(&module_name, &format!("contiguous_{op}22_{}", T::STR))
                 .unwrap();
             while reduce_size > 1 {
                 let cfg = compute_cfg(reduce_size);
@@ -370,7 +380,7 @@ where
             let transposed_tensor = transposed_tensor.permute(&perm).unwrap();
             let (reduce_kernel, _) = load_ptx_and_get_data(
                 module_name,
-                &format!("contiguous_reduce3_{}", T::STR),
+                &format!("contiguous_{op}3_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,
@@ -415,7 +425,7 @@ where
             .unwrap();
             let (reduce_kernel, _) = load_ptx_and_get_data(
                 module_name,
-                &format!("contiguous_reduce33_{}", T::STR),
+                &format!("contiguous_{op}33_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,
@@ -490,6 +500,7 @@ pub(crate) fn uncontiguous_reduce<T, O, const DEVICE_ID: usize>(
         ),
     >,
     module_name: &str,
+    op: &str,
     post_op: Option<impl Fn(Scalar<O>, Scalar<O>) -> Scalar<O>>,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
@@ -509,7 +520,7 @@ where
         |res| {
             let (reduce_kernel, reg_info) = load_ptx_and_get_data(
                 module_name,
-                &format!("uncontiguous_reduce_{}", T::STR),
+                &format!("uncontiguous_{op}_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,
@@ -555,7 +566,7 @@ where
 
             let contiguous_reduce_kernel = a
                 .device()
-                .get_func(&module_name, &format!("contiguous_reduce_{}", T::STR))
+                .get_func(&module_name, &format!("contiguous_{op}_{}", T::STR))
                 .unwrap();
 
             // keep reducing until the size is 1
@@ -583,7 +594,7 @@ where
             let outer_loop_size = a.size() / (inner_loop_size * inner_loop_size2);
             let (reduce_kernel, reg_info) = load_ptx_and_get_data(
                 module_name,
-                &format!("contiguous_reduce2_{}", T::STR),
+                &format!("contiguous_{op}2_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,
@@ -637,7 +648,7 @@ where
             let mut inp = tmp_buffer;
             let reduce_kernel = a
                 .device()
-                .get_func(&module_name, &format!("contiguous_reduce22_{}", T::STR))
+                .get_func(&module_name, &format!("contiguous_{op}22_{}", T::STR))
                 .unwrap();
             while reduce_size > 1 {
                 let cfg = compute_cfg(reduce_size);
@@ -665,7 +676,7 @@ where
             let transposed_tensor = transposed_tensor.permute(&perm).unwrap();
             let (reduce_kernel, _) = load_ptx_and_get_data(
                 module_name,
-                &format!("contiguous_reduce3_{}", T::STR),
+                &format!("contiguous_{op}3_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,
@@ -710,7 +721,7 @@ where
             .unwrap();
             let (reduce_kernel, _) = load_ptx_and_get_data(
                 module_name,
-                &format!("contiguous_reduce33_{}", T::STR),
+                &format!("contiguous_{op}33_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,

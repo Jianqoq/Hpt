@@ -8,7 +8,7 @@ use crate::Cuda;
 use cudarc::driver::DeviceRepr;
 use hpt_common::axis::axis::{process_axes, Axis};
 use hpt_common::error::base::TensorError;
-use hpt_cudakernels::{ALL, ANY, MAX, MIN, NANPROD, NANSUM, PROD, REDUCEL1, SUM};
+use hpt_cudakernels::REDUCE;
 use hpt_traits::{
     CommonBounds, EvalReduce, FloatReduce, NormalEvalReduce, NormalReduce, TensorInfo,
 };
@@ -36,7 +36,8 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
             T::ZERO,
             keep_dims,
             false,
-            &SUM,
+            &REDUCE,
+            "reduce",
             "sum",
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             None,
@@ -60,7 +61,8 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
             T::ZERO,
             keep_dims,
             init_out,
-            &SUM,
+            &REDUCE,
+            "reduce",
             "sum",
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             Some(out.borrow().clone()),
@@ -79,7 +81,8 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
             T::ONE,
             keep_dims,
             false,
-            &PROD,
+            &REDUCE,
+            "reduce",
             "prod",
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             None,
@@ -98,7 +101,8 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
             T::INF,
             keep_dims,
             false,
-            &MIN,
+            &REDUCE,
+            "reduce",
             "min",
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             None,
@@ -117,7 +121,8 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
             T::NEG_INF,
             keep_dims,
             false,
-            &MAX,
+            &REDUCE,
+            "reduce",
             "max",
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             None,
@@ -136,7 +141,8 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
             T::ZERO,
             keep_dims,
             false,
-            &REDUCEL1,
+            &REDUCE,
+            "reduce",
             "reducel1",
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             None,
@@ -169,7 +175,8 @@ where
             true,
             keep_dims,
             false,
-            &ALL,
+            &REDUCE,
+            "reduce",
             "all",
             None::<fn(Scalar<bool>, Scalar<bool>) -> Scalar<bool>>,
             None,
@@ -188,7 +195,8 @@ where
             false,
             keep_dims,
             false,
-            &ANY,
+            &REDUCE,
+            "reduce",
             "any",
             None::<fn(Scalar<bool>, Scalar<bool>) -> Scalar<bool>>,
             None,
@@ -217,7 +225,8 @@ where
             T::ZERO,
             keep_dims,
             false,
-            &NANSUM,
+            &REDUCE,
+            "reduce",
             "nansum",
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             None,
@@ -236,7 +245,8 @@ where
             T::ONE,
             keep_dims,
             false,
-            &NANPROD,
+            &REDUCE,
+            "reduce",
             "nanprod",
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             None,
@@ -260,7 +270,8 @@ where
             T::ZERO,
             keep_dims,
             init_out,
-            &NANSUM,
+            &REDUCE,
+            "reduce",
             "nansum",
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             Some(out.borrow_mut().clone()),
@@ -299,12 +310,16 @@ where
             FloatBinaryType::<T>::ZERO,
             keep_dims,
             false,
-            &NANSUM,
+            &REDUCE,
+            "reduce",
             "nansum",
-            Some(|out: Scalar<FloatBinaryType<T>>, b: Scalar<FloatBinaryType<T>>| {
-                let scalar_size: Scalar<FloatBinaryType<T>> = Scalar::<FloatBinaryType<T>>::new(reduce_size);
-                out.assign(b._div(scalar_size))
-            }),
+            Some(
+                |out: Scalar<FloatBinaryType<T>>, b: Scalar<FloatBinaryType<T>>| {
+                    let scalar_size: Scalar<FloatBinaryType<T>> =
+                        Scalar::<FloatBinaryType<T>>::new(reduce_size);
+                    out.assign(b._div(scalar_size))
+                },
+            ),
             None,
         )
     }
