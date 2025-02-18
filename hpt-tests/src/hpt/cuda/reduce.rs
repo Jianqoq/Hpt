@@ -123,7 +123,7 @@ fn common_input<const N: usize>(
 fn common_input_f64<const N: usize>(
     end: i64,
     shape: [i64; N],
-) -> anyhow::Result<(hpt::tensor::Tensor<f64, Cpu>, Tensor)> {
+) -> anyhow::Result<(hpt::tensor::Tensor<f64, Cuda>, Tensor)> {
     let tch_a = Tensor::randn(&shape, (tch::Kind::Double, tch::Device::Cpu)).reshape(&shape);
     let mut a = hpt::tensor::Tensor::<f64, Cpu>::empty(&shape)?;
     let a_size = a.size();
@@ -135,7 +135,7 @@ fn common_input_f64<const N: usize>(
         .for_each(|(a, b)| {
             *a = *b;
         });
-    Ok((a, tch_a))
+    Ok((a.to_cuda::<0>()?, tch_a))
 }
 
 #[duplicate_item(
@@ -1207,23 +1207,23 @@ fn test_sub_tensor_prod_step() -> anyhow::Result<()> {
 //     Ok(())
 // }
 
-// #[test]
-// fn test_reducel1() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
-//     let sum = a.reducel1(0, false)?;
-//     let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
-//     let tch_sum = tch_a.f_norm_out(&res, 1, 0, false)?;
-//     assert_eq_f64(&sum, &tch_sum);
-//     let sum = a.reducel1(1, false)?;
-//     let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
-//     let tch_sum = tch_a.f_norm_out(&res, 1, 1, false)?;
-//     assert_eq_f64(&sum, &tch_sum);
-//     let sum = a.reducel1(2, false)?;
-//     let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
-//     let tch_sum = tch_a.f_norm_out(&res, 1, 2, false)?;
-//     assert_eq_f64(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_reducel1() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
+    let sum = a.reducel1(0, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 1, 0, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    let sum = a.reducel1(1, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 1, 1, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    let sum = a.reducel1(2, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 1, 2, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    Ok(())
+}
 
 // #[test]
 // fn test_uncontiguous_reducel1() -> anyhow::Result<()> {
@@ -1305,23 +1305,23 @@ fn test_sub_tensor_prod_step() -> anyhow::Result<()> {
 //     Ok(())
 // }
 
-// #[test]
-// fn test_reducel2() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input_f64(1 * 1 * 10, [1, 1, 10])?;
-//     let sum = a.reducel2(0, false)?;
-//     let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
-//     let tch_sum = tch_a.f_norm_out(&res, 2, 0, false)?;
-//     assert_eq_f64(&sum, &tch_sum);
-//     let sum = a.reducel2(1, false)?;
-//     let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
-//     let tch_sum = tch_a.f_norm_out(&res, 2, 1, false)?;
-//     assert_eq_f64(&sum, &tch_sum);
-//     let sum = a.reducel2(2, false)?;
-//     let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
-//     let tch_sum = tch_a.f_norm_out(&res, 2, 2, false)?;
-//     assert_eq_f64(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_reducel2() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input_f64(1 * 1 * 10, [1, 1, 10])?;
+    let sum = a.reducel2(0, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 2, 0, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    let sum = a.reducel2(1, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 2, 1, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    let sum = a.reducel2(2, false)?;
+    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
+    let tch_sum = tch_a.f_norm_out(&res, 2, 2, false)?;
+    assert_eq_f64(&sum, &tch_sum);
+    Ok(())
+}
 
 // #[test]
 // fn test_uncontiguous_reducel2() -> anyhow::Result<()> {

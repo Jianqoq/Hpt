@@ -1,12 +1,15 @@
 use std::{borrow::BorrowMut, ops::BitAnd};
 
+use crate::ops::cpu::tensor_internal::float_out_unary::FloatBinaryType;
 use crate::tensor::Tensor;
 use crate::Cuda;
 use cudarc::driver::DeviceRepr;
 use hpt_common::axis::axis::Axis;
 use hpt_common::error::base::TensorError;
-use hpt_traits::{CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce};
+use hpt_traits::{CommonBounds, EvalReduce, FloatReduce, NormalEvalReduce, NormalReduce};
+use hpt_types::cuda_types::scalar::Scalar;
 use hpt_types::dtype::CudaType;
+use hpt_types::type_promote::{FloatOutBinary, FloatOutUnary, NormalOut};
 use hpt_types::{into_scalar::Cast, traits::SimdSelect, type_promote::Eval};
 
 impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize> NormalReduce<T>
@@ -156,5 +159,56 @@ where
             .inner
             .nansum_(axes, keep_dims, init_out, out.borrow_mut())?
             .into())
+    }
+}
+
+impl<T, const DEVICE: usize> FloatReduce<T> for Tensor<T, Cuda, DEVICE>
+where
+    T: FloatOutBinary + CommonBounds + Cast<FloatBinaryType<T>> + DeviceRepr + CudaType + Cast<f64>,
+    FloatBinaryType<T>: CommonBounds + FloatOutUnary<Output = FloatBinaryType<T>>,
+    f64: Cast<FloatBinaryType<T>>,
+    FloatBinaryType<T>: NormalOut<T, Output = FloatBinaryType<T>>
+        + NormalOut<<T as FloatOutUnary>::Output, Output = FloatBinaryType<T>>
+        + DeviceRepr
+        + CudaType,
+    Scalar<FloatBinaryType<T>>: FloatOutBinary<Output = Scalar<FloatBinaryType<T>>>
+        + FloatOutUnary<Output = Scalar<FloatBinaryType<T>>>,
+{
+    type Output = Tensor<FloatBinaryType<T>, Cuda, DEVICE>;
+
+    #[track_caller]
+    fn mean<S: Into<Axis>>(
+        &self,
+        axes: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        Ok(self.inner.mean(axes, keep_dims)?.into())
+    }
+    #[track_caller]
+    fn reducel2<S: Into<Axis>>(
+        &self,
+        axes: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        Ok(self.inner.reducel2(axes, keep_dims)?.into())
+    }
+    #[track_caller]
+    fn reducel3<S: Into<Axis>>(
+        &self,
+        axes: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        Ok(self.inner.reducel3(axes, keep_dims)?.into())
+    }
+    #[track_caller]
+    fn logsumexp<S: Into<Axis>>(
+        &self,
+        axes: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, TensorError>
+    where
+        T: CommonBounds,
+    {
+        Ok(self.inner.logsumexp(axes, keep_dims)?.into())
     }
 }

@@ -151,10 +151,22 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
 
     fn sum_square<S: Into<Axis>>(
         &self,
-        _: S,
-        _: bool,
+        axis: S,
+        keep_dims: bool,
     ) -> std::result::Result<Self::Output, TensorError> {
-        unimplemented!()
+        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
+        reduce(
+            self,
+            &axes,
+            T::ZERO,
+            keep_dims,
+            false,
+            &REDUCE,
+            "reduce",
+            "sum_square",
+            None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
+            None,
+        )
     }
 }
 
@@ -288,7 +300,8 @@ where
         + NormalOut<<T as FloatOutUnary>::Output, Output = FloatBinaryType<T>>
         + DeviceRepr
         + CudaType,
-    Scalar<FloatBinaryType<T>>: FloatOutBinary<Output = Scalar<FloatBinaryType<T>>>,
+    Scalar<FloatBinaryType<T>>: FloatOutBinary<Output = Scalar<FloatBinaryType<T>>>
+        + FloatOutUnary<Output = Scalar<FloatBinaryType<T>>>,
 {
     type Output = _Tensor<FloatBinaryType<T>, Cuda, DEVICE>;
 
@@ -297,7 +310,7 @@ where
         &self,
         axes: S,
         keep_dims: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cuda, DEVICE>, TensorError> {
+    ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
         let reduce_size: FloatBinaryType<T> = (axes
             .iter()
@@ -326,17 +339,33 @@ where
     #[track_caller]
     fn reducel2<S: Into<Axis>>(
         &self,
-        _: S,
-        _: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cuda, DEVICE>, TensorError> {
-        unimplemented!()
+        axes: S,
+        keep_dims: bool,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+        reduce3(
+            self,
+            &axes,
+            FloatBinaryType::<T>::ZERO,
+            keep_dims,
+            false,
+            &REDUCE,
+            "reduce",
+            "sum_square",
+            Some(
+                |out: Scalar<FloatBinaryType<T>>, b: Scalar<FloatBinaryType<T>>| {
+                    out.assign(b._sqrt())
+                },
+            ),
+            None,
+        )
     }
     #[track_caller]
     fn reducel3<S: Into<Axis>>(
         &self,
         _: S,
         _: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cuda, DEVICE>, TensorError> {
+    ) -> std::result::Result<Self::Output, TensorError> {
         unimplemented!()
     }
     #[track_caller]
@@ -344,7 +373,7 @@ where
         &self,
         _: S,
         _: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cuda, DEVICE>, TensorError>
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         T: CommonBounds,
     {

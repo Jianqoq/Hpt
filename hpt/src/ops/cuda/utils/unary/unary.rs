@@ -124,7 +124,7 @@ where
     );
     let map = compile_kernel(module_name, &code, slice.device(), &["unary_raw"])?;
     let kernel = slice.device().get_func(module_name, "unary_raw").unwrap();
-    let reg_info = map.get(module_name).expect("func_name not found");
+    let reg_info = map.get("unary_raw").expect("func_name not found");
     let cfg = compute_kernel_launch_config(slice.device(), reg_info, slice.len());
     unsafe { kernel.launch(cfg, (slice, res_slice, slice.len())) }?;
     Ok(())
