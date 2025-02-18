@@ -27,7 +27,7 @@ fn assert_eq(a: &hpt::tensor::Tensor<i64, Cuda>, b: &Tensor) {
         )
     };
     let caller = core::panic::Location::caller();
-    raw.par_iter().zip(tch_raw.par_iter()).for_each(|(a, b)| {
+    raw.iter().zip(tch_raw.iter()).for_each(|(a, b)| {
         if a != b {
             panic!("{} != {}, at {}", a, b, caller)
         }
@@ -151,7 +151,6 @@ fn func() -> anyhow::Result<()> {
             rng.gen_range(1..32),
             rng.gen_range(1..32),
             rng.gen_range(1..32),
-            rng.gen_range(1..32),
         ];
         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
         let sum = a.hpt_method(1, true)?;
@@ -193,258 +192,257 @@ fn func() -> anyhow::Result<()> {
     Ok(())
 }
 
-// #[duplicate_item(
-//     func                                hpt_method      tch_method;
-//     [test_uncontiguous_sum]             [sum]           [sum_dim_intlist];
-//     [test_uncontiguous_nan_sum]         [nansum]        [nansum];
-// )]
-// #[test]
-// fn func() -> anyhow::Result<()> {
-//     let mut rng = rand::thread_rng();
-//     for _ in 0..100 {
-//         let shape = [
-//             rng.gen_range(1..32),
-//             rng.gen_range(1..32),
-//             rng.gen_range(1..32),
-//             rng.gen_range(1..32),
-//         ];
-//         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
-//         let a = a.permute([1, 0, 3, 2])?;
-//         let tch_a = tch_a.permute(&[1, 0, 3, 2][..]);
-//         let sum = a.hpt_method(0, false)?;
-//         let tch_sum = tch_a.tch_method(0, false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method(1, false)?;
-//         let tch_sum = tch_a.tch_method(1, false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method(2, false)?;
-//         let tch_sum = tch_a.tch_method(2, false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method([0, 1], false)?;
-//         let tch_sum = tch_a.tch_method(&[0, 1][..], false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method([0, 2], false)?;
-//         let tch_sum = tch_a.tch_method(&[0, 2][..], false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method([1, 2], false)?;
-//         let tch_sum = tch_a.tch_method(&[1, 2][..], false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method([0, 1, 2], false)?;
-//         let tch_sum = tch_a.tch_method(&[0, 1, 2][..], false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//     }
-//     Ok(())
-// }
+#[duplicate_item(
+    func                                hpt_method      tch_method;
+    [test_uncontiguous_sum]             [sum]           [sum_dim_intlist];
+    [test_uncontiguous_nan_sum]         [nansum]        [nansum];
+)]
+#[test]
+fn func() -> anyhow::Result<()> {
+    let mut rng = rand::thread_rng();
+    for _ in 0..100 {
+        let shape = [
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
+        ];
+        let (a, tch_a) = common_input(shape.iter().product(), shape)?;
+        let a = a.permute([1, 0, 2])?;
+        let tch_a = tch_a.permute(&[1, 0, 2][..]);
+        let sum = a.hpt_method(0, false)?;
+        let tch_sum = tch_a.tch_method(0, false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method(1, false)?;
+        let tch_sum = tch_a.tch_method(1, false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method(2, false)?;
+        let tch_sum = tch_a.tch_method(2, false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method([0, 1], false)?;
+        let tch_sum = tch_a.tch_method(&[0, 1][..], false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method([0, 2], false)?;
+        let tch_sum = tch_a.tch_method(&[0, 2][..], false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method([1, 2], false)?;
+        let tch_sum = tch_a.tch_method(&[1, 2][..], false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method([0, 1, 2], false)?;
+        let tch_sum = tch_a.tch_method(&[0, 1, 2][..], false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+    }
+    Ok(())
+}
 
-// #[duplicate_item(
-//     func                             hpt_method      tch_method;
-//     [test_sub_tensor_sum]            [sum]           [sum_dim_intlist];
-//     [test_sub_tensor_nansum]         [nansum]        [nansum];
-// )]
-// #[test]
-// fn func() -> anyhow::Result<()> {
-//     let mut rng = rand::thread_rng();
-//     for _ in 0..100 {
-//         let shape = [
-//             rng.gen_range(1..32),
-//             rng.gen_range(1..32),
-//             rng.gen_range(1..32),
-//             rng.gen_range(1..32),
-//         ];
-//         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
-//         let dim0_max = if shape[0] > 1 {
-//             rng.gen_range(1..shape[0])
-//         } else {
-//             1
-//         };
-//         let dim0_min = if dim0_max > 0 {
-//             rng.gen_range(0..dim0_max)
-//         } else {
-//             0
-//         };
+#[duplicate_item(
+    func                             hpt_method      tch_method;
+    [test_sub_tensor_sum]            [sum]           [sum_dim_intlist];
+    [test_sub_tensor_nansum]         [nansum]        [nansum];
+)]
+#[test]
+fn func() -> anyhow::Result<()> {
+    let mut rng = rand::thread_rng();
+    for _ in 0..100 {
+        let shape = [
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
+        ];
+        let (a, tch_a) = common_input(shape.iter().product(), shape)?;
+        let dim0_max = if shape[0] > 1 {
+            rng.gen_range(1..shape[0])
+        } else {
+            1
+        };
+        let dim0_min = if dim0_max > 0 {
+            rng.gen_range(0..dim0_max)
+        } else {
+            0
+        };
 
-//         let dim1_max = if shape[1] > 1 {
-//             rng.gen_range(1..shape[1])
-//         } else {
-//             1
-//         };
-//         let dim1_min = if dim1_max > 0 {
-//             rng.gen_range(0..dim1_max)
-//         } else {
-//             0
-//         };
+        let dim1_max = if shape[1] > 1 {
+            rng.gen_range(1..shape[1])
+        } else {
+            1
+        };
+        let dim1_min = if dim1_max > 0 {
+            rng.gen_range(0..dim1_max)
+        } else {
+            0
+        };
 
-//         let dim2_max = if shape[2] > 1 {
-//             rng.gen_range(1..shape[2])
-//         } else {
-//             1
-//         };
-//         let dim2_min = if dim2_max > 0 {
-//             rng.gen_range(0..dim2_max)
-//         } else {
-//             0
-//         };
+        let dim2_max = if shape[2] > 1 {
+            rng.gen_range(1..shape[2])
+        } else {
+            1
+        };
+        let dim2_min = if dim2_max > 0 {
+            rng.gen_range(0..dim2_max)
+        } else {
+            0
+        };
 
-//         let dim3_max = if shape[3] > 1 {
-//             rng.gen_range(1..shape[3])
-//         } else {
-//             1
-//         };
-//         let dim3_min = if dim3_max > 0 {
-//             rng.gen_range(0..dim3_max)
-//         } else {
-//             0
-//         };
+        let dim3_max = if shape[3] > 1 {
+            rng.gen_range(1..shape[3])
+        } else {
+            1
+        };
+        let dim3_min = if dim3_max > 0 {
+            rng.gen_range(0..dim3_max)
+        } else {
+            0
+        };
 
-//         let a =
-//             slice!(a[dim0_min:dim0_max, dim1_min:dim1_max, dim2_min:dim2_max, dim3_min:dim3_max])?;
-//         let tch_a = tch_a
-//             .slice(0, dim0_min, dim0_max, 1)
-//             .slice(1, dim1_min, dim1_max, 1)
-//             .slice(2, dim2_min, dim2_max, 1)
-//             .slice(3, dim3_min, dim3_max, 1);
-//         let sum = a.hpt_method(0, true)?;
-//         let tch_sum = tch_a.tch_method(0, true, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method(1, false)?;
-//         let tch_sum = tch_a.tch_method(1, false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method(2, false)?;
-//         let tch_sum = tch_a.tch_method(2, false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method([0, 1], false)?;
-//         let tch_sum = tch_a.tch_method(&[0, 1][..], false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method([0, 2], false)?;
-//         let tch_sum = tch_a.tch_method(&[0, 2][..], false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method([1, 2], false)?;
-//         let tch_sum = tch_a.tch_method(&[1, 2][..], false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method([0, 1, 2], false)?;
-//         let tch_sum = tch_a.tch_method(&[0, 1, 2][..], false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//     }
-//     Ok(())
-// }
+        let a =
+            slice!(a[dim0_min:dim0_max, dim1_min:dim1_max, dim2_min:dim2_max, dim3_min:dim3_max])?;
+        let tch_a = tch_a
+            .slice(0, dim0_min, dim0_max, 1)
+            .slice(1, dim1_min, dim1_max, 1)
+            .slice(2, dim2_min, dim2_max, 1)
+            .slice(3, dim3_min, dim3_max, 1);
+        let sum = a.hpt_method(0, true)?;
+        let tch_sum = tch_a.tch_method(0, true, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method(1, false)?;
+        let tch_sum = tch_a.tch_method(1, false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method(2, false)?;
+        let tch_sum = tch_a.tch_method(2, false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method([0, 1], false)?;
+        let tch_sum = tch_a.tch_method(&[0, 1][..], false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method([0, 2], false)?;
+        let tch_sum = tch_a.tch_method(&[0, 2][..], false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method([1, 2], false)?;
+        let tch_sum = tch_a.tch_method(&[1, 2][..], false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method([0, 1, 2], false)?;
+        let tch_sum = tch_a.tch_method(&[0, 1, 2][..], false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+    }
+    Ok(())
+}
 
-// #[duplicate_item(
-//     func                                  hpt_method      tch_method;
-//     [test_sub_tensor_sum_step]            [sum]           [sum_dim_intlist];
-//     [test_sub_tensor_nansum_step]         [nansum]        [nansum];
-// )]
-// #[test]
-// fn func() -> anyhow::Result<()> {
-//     let mut rng = rand::thread_rng();
-//     for _ in 0..100 {
-//         let shape = [
-//             rng.gen_range(1..32),
-//             rng.gen_range(1..32),
-//             rng.gen_range(1..32),
-//             rng.gen_range(1..32),
-//         ];
-//         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
-//         let dim0_max = if shape[0] > 1 {
-//             rng.gen_range(1..shape[0])
-//         } else {
-//             1
-//         };
-//         let dim0_min = if dim0_max > 0 {
-//             rng.gen_range(0..dim0_max)
-//         } else {
-//             0
-//         };
-//         let dim0_step = if dim0_max > dim0_min {
-//             rng.gen_range(1..=(dim0_max - dim0_min).min(2))
-//         } else {
-//             1
-//         };
+#[duplicate_item(
+    func                                  hpt_method      tch_method;
+    [test_sub_tensor_sum_step]            [sum]           [sum_dim_intlist];
+    [test_sub_tensor_nansum_step]         [nansum]        [nansum];
+)]
+#[test]
+fn func() -> anyhow::Result<()> {
+    let mut rng = rand::thread_rng();
+    for _ in 0..100 {
+        let shape = [
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
+            rng.gen_range(1..32),
+        ];
+        let (a, tch_a) = common_input(shape.iter().product(), shape)?;
+        let dim0_max = if shape[0] > 1 {
+            rng.gen_range(1..shape[0])
+        } else {
+            1
+        };
+        let dim0_min = if dim0_max > 0 {
+            rng.gen_range(0..dim0_max)
+        } else {
+            0
+        };
+        let dim0_step = if dim0_max > dim0_min {
+            rng.gen_range(1..=(dim0_max - dim0_min).min(2))
+        } else {
+            1
+        };
 
-//         let dim1_max = if shape[1] > 1 {
-//             rng.gen_range(1..shape[1])
-//         } else {
-//             1
-//         };
-//         let dim1_min = if dim1_max > 0 {
-//             rng.gen_range(0..dim1_max)
-//         } else {
-//             0
-//         };
+        let dim1_max = if shape[1] > 1 {
+            rng.gen_range(1..shape[1])
+        } else {
+            1
+        };
+        let dim1_min = if dim1_max > 0 {
+            rng.gen_range(0..dim1_max)
+        } else {
+            0
+        };
 
-//         let dim1_step = if dim1_max > dim1_min {
-//             rng.gen_range(1..=(dim1_max - dim1_min).min(2))
-//         } else {
-//             1
-//         };
+        let dim1_step = if dim1_max > dim1_min {
+            rng.gen_range(1..=(dim1_max - dim1_min).min(2))
+        } else {
+            1
+        };
 
-//         let dim2_max = if shape[2] > 1 {
-//             rng.gen_range(1..shape[2])
-//         } else {
-//             1
-//         };
-//         let dim2_min = if dim2_max > 0 {
-//             rng.gen_range(0..dim2_max)
-//         } else {
-//             0
-//         };
+        let dim2_max = if shape[2] > 1 {
+            rng.gen_range(1..shape[2])
+        } else {
+            1
+        };
+        let dim2_min = if dim2_max > 0 {
+            rng.gen_range(0..dim2_max)
+        } else {
+            0
+        };
 
-//         let dim2_step = if dim2_max > dim2_min {
-//             rng.gen_range(1..=(dim2_max - dim2_min).min(2))
-//         } else {
-//             1
-//         };
+        let dim2_step = if dim2_max > dim2_min {
+            rng.gen_range(1..=(dim2_max - dim2_min).min(2))
+        } else {
+            1
+        };
 
-//         let dim3_max = if shape[3] > 1 {
-//             rng.gen_range(1..shape[3])
-//         } else {
-//             1
-//         };
-//         let dim3_min = if dim3_max > 0 {
-//             rng.gen_range(0..dim3_max)
-//         } else {
-//             0
-//         };
+        let dim3_max = if shape[3] > 1 {
+            rng.gen_range(1..shape[3])
+        } else {
+            1
+        };
+        let dim3_min = if dim3_max > 0 {
+            rng.gen_range(0..dim3_max)
+        } else {
+            0
+        };
 
-//         let dim3_step = if dim3_max > dim3_min {
-//             rng.gen_range(1..=(dim3_max - dim3_min).min(2))
-//         } else {
-//             1
-//         };
+        let dim3_step = if dim3_max > dim3_min {
+            rng.gen_range(1..=(dim3_max - dim3_min).min(2))
+        } else {
+            1
+        };
 
-//         let a = slice!(
-//             a[dim0_min:dim0_max:dim0_step,
-//              dim1_min:dim1_max:dim1_step, 
-//              dim2_min:dim2_max:dim2_step, 
-//              dim3_min:dim3_max:dim3_step])?;
-//         let tch_a = tch_a
-//             .slice(0, dim0_min, dim0_max, dim0_step)
-//             .slice(1, dim1_min, dim1_max, dim1_step)
-//             .slice(2, dim2_min, dim2_max, dim2_step)
-//             .slice(3, dim3_min, dim3_max, dim3_step);
-//         let sum = a.hpt_method(0, true)?;
-//         let tch_sum = tch_a.tch_method(0, true, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method(1, false)?;
-//         let tch_sum = tch_a.tch_method(1, false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method(2, false)?;
-//         let tch_sum = tch_a.tch_method(2, false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method([0, 1], false)?;
-//         let tch_sum = tch_a.tch_method(&[0, 1][..], false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method([0, 2], false)?;
-//         let tch_sum = tch_a.tch_method(&[0, 2][..], false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method([1, 2], false)?;
-//         let tch_sum = tch_a.tch_method(&[1, 2][..], false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//         let sum = a.hpt_method([0, 1, 2], false)?;
-//         let tch_sum = tch_a.tch_method(&[0, 1, 2][..], false, tch::Kind::Int64);
-//         assert_eq(&sum, &tch_sum);
-//     }
-//     Ok(())
-// }
+        let a = slice!(
+            a[dim0_min:dim0_max:dim0_step,
+             dim1_min:dim1_max:dim1_step, 
+             dim2_min:dim2_max:dim2_step, 
+             dim3_min:dim3_max:dim3_step])?;
+        let tch_a = tch_a
+            .slice(0, dim0_min, dim0_max, dim0_step)
+            .slice(1, dim1_min, dim1_max, dim1_step)
+            .slice(2, dim2_min, dim2_max, dim2_step)
+            .slice(3, dim3_min, dim3_max, dim3_step);
+        let sum = a.hpt_method(0, true)?;
+        let tch_sum = tch_a.tch_method(0, true, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method(1, false)?;
+        let tch_sum = tch_a.tch_method(1, false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method(2, false)?;
+        let tch_sum = tch_a.tch_method(2, false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method([0, 1], false)?;
+        let tch_sum = tch_a.tch_method(&[0, 1][..], false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method([0, 2], false)?;
+        let tch_sum = tch_a.tch_method(&[0, 2][..], false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method([1, 2], false)?;
+        let tch_sum = tch_a.tch_method(&[1, 2][..], false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+        let sum = a.hpt_method([0, 1, 2], false)?;
+        let tch_sum = tch_a.tch_method(&[0, 1, 2][..], false, tch::Kind::Int64);
+        assert_eq(&sum, &tch_sum);
+    }
+    Ok(())
+}
 
 #[test]
 fn test_prod() -> anyhow::Result<()> {
@@ -482,73 +480,73 @@ fn test_nanprod() -> anyhow::Result<()> {
     Ok(())
 }
 
-// #[test]
-// fn test_uncontiguous_prod() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = a.permute([1, 0, 2])?;
-//     let tch_a = tch_a.permute(&[1, 0, 2][..]);
-//     let sum = a.prod(0, false)?;
-//     let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.prod(1, false)?;
-//     let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.prod(2, false)?;
-//     let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
-//     assert_eq(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_uncontiguous_prod() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 0, 2])?;
+    let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let sum = a.prod(0, false)?;
+    let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(1, false)?;
+    let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(2, false)?;
+    let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_uncontiguous_prod2() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = a.permute([1, 2, 0])?;
-//     let tch_a = tch_a.permute(&[1, 2, 0][..]);
-//     let sum = a.prod(0, false)?;
-//     let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.prod(1, false)?;
-//     let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.prod(2, false)?;
-//     let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
-//     assert_eq(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_uncontiguous_prod2() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 2, 0])?;
+    let tch_a = tch_a.permute(&[1, 2, 0][..]);
+    let sum = a.prod(0, false)?;
+    let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(1, false)?;
+    let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(2, false)?;
+    let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_sub_tensor_prod() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = slice!(a[:, 1:3, 2:5])?;
-//     let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
-//     let sum = a.prod(0, false)?;
-//     let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.prod(1, false)?;
-//     let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.prod(2, false)?;
-//     let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
-//     assert_eq(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_sub_tensor_prod() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let sum = a.prod(0, false)?;
+    let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(1, false)?;
+    let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(2, false)?;
+    let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_sub_tensor_prod_step() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = slice!(a[:, 1:5:2, 2:9:2])?;
-//     let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
-//     let sum = a.prod(0, false)?;
-//     let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.prod(1, false)?;
-//     let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.prod(2, false)?;
-//     let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
-//     assert_eq(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_sub_tensor_prod_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    let sum = a.prod(0, false)?;
+    let tch_sum = tch_a.prod_dim_int(0, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(1, false)?;
+    let tch_sum = tch_a.prod_dim_int(1, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.prod(2, false)?;
+    let tch_sum = tch_a.prod_dim_int(2, false, tch::Kind::Int64);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
 
 // #[test]
 // fn test_mean() -> anyhow::Result<()> {

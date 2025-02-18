@@ -123,7 +123,7 @@ impl BasicBlock {
 impl Linear {
     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
         let out = x.matmul(&self.weight.t()?)?;
-        Ok(out.add_(&self.bias, &out)?)
+        Ok(out.add_(&self.bias, out.clone())?)
     }
 }
 
@@ -731,18 +731,19 @@ fn main() -> anyhow::Result<()> {
     resnet.save("resnet.model")?;
     // you can load the model from a file
     let resnet = ResNet::load("resnet.model")?;
-    let buffer = std::fs::read("resnet_inp")?;
-    let inp = safetensors::SafeTensors::deserialize(&buffer)?;
-    let inp = Tensor::<f32>::from_safe_tensors(&inp, "inp")
-        .permute(&[0, 2, 3, 1])?
-        .contiguous()?;
-    let output = resnet.forward(&inp)?;
-    println!(
-        "{}",
-        output
-            .permute(&[0, 3, 1, 2])?
-            .contiguous()?
-            .reshape(&[5, 1000])?
-    );
+    let mut size = vec![];
+    let mut time = vec![];
+    for i in 0..50 {
+        let inp = Tensor::<f32>::randn([5, 64 + 32 * i, 64 + 32 * i, 3])?;
+        let now = std::time::Instant::now();
+        for _ in 0..10 {
+            resnet.forward(&inp)?;
+        }
+        size.push(64 + 32 * i);
+        time.push((now.elapsed() / 10).as_secs_f32() * 1000.0);
+        println!("size: {:?}, time: {:?}", size.last().unwrap(), time.last().unwrap());
+    }
+    println!("size: {:?}", size);
+    println!("time: {:?}", time);
     Ok(())
 }

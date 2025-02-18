@@ -37,7 +37,7 @@ fn main() -> Result<(), TensorError> {
 }
 ```
 ## Backend Support
-| Backend | Supported                           |
-|---------|-------------------------------------|
-| CPU     | ✅                                   |
-| Cuda    | ⚠️ (uncontiguous not supported yet) |
+| Backend | Supported |
+|---------|-----------|
+| CPU     | ✅         |
+| Cuda    | ✅        |

@@ -478,48 +478,29 @@ where
 
 impl<T, const DEVICE: usize> FloatReduce<T> for _Tensor<T, Cpu, DEVICE>
 where
-    T: FloatOutBinary + CommonBounds + Cast<<T as FloatOutBinary>::Output>,
-    <T as FloatOutBinary>::Output:
-        CommonBounds + FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
-    <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<T::Vec, Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
-        + FloatOutUnary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
+    T: FloatOutBinary + CommonBounds + Cast<FloatBinaryType<T>>,
+    FloatBinaryType<T>:
+        CommonBounds + FloatOutUnary<Output = FloatBinaryType<T>>,
+    <FloatBinaryType<T> as TypeCommon>::Vec: NormalOut<T::Vec, Output = <FloatBinaryType<T> as TypeCommon>::Vec>
+        + FloatOutUnary<Output = <FloatBinaryType<T> as TypeCommon>::Vec>
         + NormalOut<
-            <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+            <FloatBinaryType<T> as TypeCommon>::Vec,
+            Output = <FloatBinaryType<T> as TypeCommon>::Vec,
         >,
-    f64: Cast<<T as FloatOutBinary>::Output>,
-    <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
-        + NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output>,
+    f64: Cast<FloatBinaryType<T>>,
+    FloatBinaryType<T>: NormalOut<T, Output = FloatBinaryType<T>>
+        + NormalOut<<T as FloatOutUnary>::Output, Output = FloatBinaryType<T>>,
     T::Vec: NormalOut<
-        <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-        Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+        <FloatBinaryType<T> as TypeCommon>::Vec,
+        Output = <FloatBinaryType<T> as TypeCommon>::Vec,
     >,
-    <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
+    <FloatBinaryType<T> as TypeCommon>::Vec: NormalOut<
         <<T as TypeCommon>::Vec as FloatOutUnary>::Output,
-        Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+        Output = <FloatBinaryType<T> as TypeCommon>::Vec,
     >,
 {
     type Output = _Tensor<FloatBinaryType<T>, Cpu, DEVICE>;
-    /// Computes the mean (average) of elements along a specified axis.
-    ///
-    /// This method calculates the mean (average) of the tensor's elements along a specified axis,
-    /// with an option to retain or collapse the reduced dimension. It returns a tensor with
-    /// the same type as the original tensor but transformed to its corresponding floating-point
-    /// type, making it suitable for operations that require floating-point precision.
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - Specifies the axis along which to compute the mean. This can be
-    ///   passed as a type that implements the `Into<Axis>` trait, allowing flexible input for axes.
-    /// * `keep_dims` - A boolean flag indicating whether to keep the reduced dimension in
-    ///   the output tensor:
-    ///   - If `true`, the reduced dimension will be retained with size 1.
-    ///   - If `false`, the reduced dimension will be removed from the output.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor with the mean values along
-    /// the specified axis.
+    
     #[track_caller]
     fn mean<S: Into<Axis>>(
         &self,
@@ -543,32 +524,13 @@ where
             |a, b| a._add(b),
             move |a| a._div(reduce_vec),
             &axes,
-            <T as FloatOutBinary>::Output::ZERO,
+            FloatBinaryType::<T>::ZERO,
             keep_dims,
             false,
             None,
         )
     }
-    /// Computes the L2 norm (Euclidean norm) along a specified axis.
-    ///
-    /// This method calculates the L2 norm of the tensor's elements along a specified axis
-    /// by summing the squares of the elements and then taking the square root. It provides
-    /// an option to retain or collapse the reduced dimension. The L2 norm is often used
-    /// in machine learning and optimization problems where minimizing distances is involved.
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - Specifies the axis along which to compute the L2 norm. This can be
-    ///   passed as a type that implements the `Into<Axis>` trait, allowing flexible input for axes.
-    /// * `keep_dims` - A boolean flag indicating whether to keep the reduced dimension in
-    ///   the output tensor:
-    ///   - If `true`, the reduced dimension will be retained with size 1.
-    ///   - If `false`, the reduced dimension will be removed from the output.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor of type `_Tensor<FloatBinaryType<T>>`
-    /// with the L2 norm values along the specified axis.
+    
     #[allow(unused)]
     #[track_caller]
     fn reducel2<S: Into<Axis>>(
@@ -587,34 +549,12 @@ where
             |a, b| a._add(b._square()),
             |a| a._sqrt(),
             &axes,
-            <T as FloatOutBinary>::Output::ZERO,
+            FloatBinaryType::<T>::ZERO,
             keep_dims,
             false,
             None,
         )
     }
-
-    /// Computes the L3 norm along a specified axis.
-    ///
-    /// This method calculates the L3 norm of the tensor's elements along a specified axis
-    /// by summing the cubes of the absolute values of the elements and then taking the cube root.
-    /// The L3 norm is less commonly used than L1 or L2 norms but can be applied in specific
-    /// mathematical or signal processing contexts. It provides an option to retain or collapse
-    /// the reduced dimension.
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - Specifies the axis along which to compute the L3 norm. This can be
-    ///   passed as a type that implements the `Into<Axis>` trait, allowing flexible input for axes.
-    /// * `keep_dims` - A boolean flag indicating whether to keep the reduced dimension in
-    ///   the output tensor:
-    ///   - If `true`, the reduced dimension will be retained with size 1.
-    ///   - If `false`, the reduced dimension will be removed from the output.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor of type `_Tensor<FloatBinaryType<T>>`
-    /// with the L3 norm values along the specified axis.
     #[allow(unused)]
     #[track_caller]
     fn reducel3<S: Into<Axis>>(
@@ -623,8 +563,8 @@ where
         keep_dims: bool,
     ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        let three: <T as FloatOutBinary>::Output = (3.0).cast();
-        let three_vec = <<T as FloatOutBinary>::Output as TypeCommon>::Vec::splat(three);
+        let three: FloatBinaryType<T> = (3.0).cast();
+        let three_vec = <FloatBinaryType<T> as TypeCommon>::Vec::splat(three);
         let mut res = reduce3(
             self,
             move |a, b| {
@@ -649,13 +589,13 @@ where
             },
             |a| a,
             &axes,
-            <T as FloatOutBinary>::Output::ZERO,
+            FloatBinaryType::<T>::ZERO,
             keep_dims,
             false,
             None,
         )?;
-        let one_third: <T as FloatOutBinary>::Output = (1.0f64 / 3.0f64).cast();
-        let one_third_vec = <<T as FloatOutBinary>::Output as TypeCommon>::Vec::splat(one_third);
+        let one_third: FloatBinaryType<T> = (1.0f64 / 3.0f64).cast();
+        let one_third_vec = <FloatBinaryType<T> as TypeCommon>::Vec::splat(one_third);
         res.par_iter_mut_simd().for_each(
             |x| {
                 *x = x._pow(one_third);
@@ -666,27 +606,6 @@ where
         );
         Ok(res)
     }
-
-    /// Computes the logarithm of the sum of exponentials (LogSumExp) along a specified axis.
-    ///
-    /// This method computes the LogSumExp function, which is a smooth approximation of the maximum.
-    /// It calculates `log(sum(exp(x)))` in a numerically stable way, which is useful in various
-    /// statistical and machine learning applications, such as when computing softmax functions.
-    /// It provides an option to retain or collapse the reduced dimension.
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - Specifies the axis along which to compute the LogSumExp. This can be
-    ///   passed as a type that implements the `Into<Axis>` trait, allowing flexible input for axes.
-    /// * `keep_dims` - A boolean flag indicating whether to keep the reduced dimension in
-    ///   the output tensor:
-    ///   - If `true`, the reduced dimension will be retained with size 1.
-    ///   - If `false`, the reduced dimension will be removed from the output.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a tensor of type `_Tensor<FloatBinaryType<T>>`
-    /// with the LogSumExp values along the specified axis.
     #[allow(unused)]
     #[track_caller]
     fn logsumexp<S: Into<Axis>>(
@@ -717,7 +636,7 @@ where
             |a, b| a._add(b._exp()),
             move |a| a._ln(),
             &axes,
-            <T as FloatOutBinary>::Output::ZERO,
+            FloatBinaryType::<T>::ZERO,
             keep_dims,
             false,
             None,

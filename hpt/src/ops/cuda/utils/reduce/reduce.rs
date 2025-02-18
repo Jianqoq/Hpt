@@ -1,5 +1,6 @@
 #![allow(unused)]
 
+use crate::ops::cuda::utils::unary::strided_copy::strided_copy;
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 
@@ -40,7 +41,7 @@ pub(crate) fn reduce<T, const DEVICE_ID: usize>(
     c: Option<_Tensor<T, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<T, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + Cast<T> + DeviceRepr + CudaType,
+    T: CommonBounds + Cast<T> + DeviceRepr + CudaType + Cast<f64>,
     T::Vec: Copy,
 {
     if a.is_contiguous() && a.parent().is_none() {
@@ -55,7 +56,16 @@ where
             c,
         )
     } else {
-        uncontiguous_reduce::<T, T, DEVICE_ID>(a, &axes, init_val, keepdims, init_out, c)
+        uncontiguous_reduce::<T, T, DEVICE_ID>(
+            a,
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            meta,
+            module_name,
+            c,
+        )
     }
 }
 
@@ -78,7 +88,7 @@ pub(crate) fn reduce2<T, O, const DEVICE_ID: usize>(
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + Cast<O> + DeviceRepr + CudaType,
+    T: CommonBounds + Cast<O> + DeviceRepr + CudaType + Cast<f64>,
     O: CommonBounds + DeviceRepr + CudaType,
     T::Vec: Copy,
     O::Vec: Copy,
@@ -95,7 +105,16 @@ where
             c,
         )
     } else {
-        uncontiguous_reduce::<T, O, DEVICE_ID>(a, &axes, init_val, keepdims, init_out, c)
+        uncontiguous_reduce::<T, O, DEVICE_ID>(
+            a,
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            meta,
+            module_name,
+            c,
+        )
     }
 }
 
@@ -118,7 +137,7 @@ pub(crate) fn reduce3<T, O, const DEVICE_ID: usize>(
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + Cast<O> + DeviceRepr + CudaType,
+    T: CommonBounds + Cast<O> + DeviceRepr + CudaType + Cast<f64>,
     O: CommonBounds + DeviceRepr + CudaType,
     O::Vec: Copy,
 {
@@ -134,7 +153,16 @@ where
             c,
         )
     } else {
-        uncontiguous_reduce::<T, O, DEVICE_ID>(a, &axes, init_val, keepdims, init_out, c)
+        uncontiguous_reduce::<T, O, DEVICE_ID>(
+            a,
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            meta,
+            module_name,
+            c,
+        )
     }
 }
 
@@ -154,6 +182,7 @@ pub(crate) fn contiguous_reduce<T, O, const DEVICE_ID: usize>(
         ),
     >,
     module_name: &str,
+    
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
@@ -432,10 +461,19 @@ pub(crate) fn uncontiguous_reduce<T, O, const DEVICE_ID: usize>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
+    meta: &phf::Map<
+        usize,
+        (
+            &'static str,
+            &'static phf::Map<&'static str, RegisterInfo>,
+            &'static [&str],
+        ),
+    >,
+    module_name: &str,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
-    T: CommonBounds + Cast<O> + DeviceRepr + CudaType,
+    T: CommonBounds + Cast<O> + DeviceRepr + CudaType + Cast<f64>,
     O: CommonBounds + DeviceRepr + CudaType,
     T::Vec: Copy,
     O::Vec: Copy,
@@ -447,9 +485,242 @@ where
         keepdims,
         init_out,
         c,
-        move |res| unimplemented!(),
-        move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| unimplemented!(),
-        move |num_threads, inner_loop_size, ap, result| unimplemented!(),
-        move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| unimplemented!(),
+        move |res| {
+            let (reduce_kernel, reg_info) = load_ptx_and_get_data(
+                module_name,
+                &format!("uncontiguous_reduce_{}", T::STR),
+                a.device(),
+                a.device_cap(),
+                &meta,
+            )
+            .unwrap();
+            let mut size = a.size();
+
+            let compute_cfg = |reduce_size: usize| {
+                let mut cfg = compute_kernel_launch_config(a.device(), &reg_info, reduce_size);
+                let block_dim_x = cfg.block_dim.0.next_power_of_two().max(64);
+                cfg.block_dim = (block_dim_x, 1, 1);
+                // calculate the number of blocks needed, divide by 2 for reduction
+                cfg.grid_dim = (
+                    reduce_size
+                        .div_ceil(block_dim_x as usize)
+                        .div_ceil(2)
+                        .max(1) as u32,
+                    1,
+                    1,
+                );
+                cfg.shared_mem_bytes = cfg.block_dim.0 * std::mem::size_of::<T>() as u32;
+                cfg
+            };
+
+            let cfg = compute_cfg(size);
+            let mut reduce_size = cfg.grid_dim.0 as usize;
+            let tmp_res = unsafe { a.device().alloc::<T>(reduce_size).unwrap() };
+            let tmp_buffer = tmp_res.leak();
+            unsafe {
+                reduce_kernel.clone().launch(
+                    cfg,
+                    (
+                        tmp_buffer,
+                        a.cuda_slice(),
+                        &a.cuda_shape().unwrap(),
+                        &a.cuda_strides().unwrap(),
+                        a.ndim(),
+                        size,
+                    ),
+                )
+            }
+            .unwrap();
+
+            let contiguous_reduce_kernel = a
+                .device()
+                .get_func(&module_name, &format!("contiguous_reduce_{}", T::STR))
+                .unwrap();
+
+            // keep reducing until the size is 1
+            while reduce_size > 1 {
+                let cfg = compute_cfg(reduce_size);
+                // it is safe to use tmp_buffer as input and output because there is no data racing
+                unsafe {
+                    contiguous_reduce_kernel
+                        .clone()
+                        .launch(cfg, (tmp_buffer, tmp_buffer, reduce_size))
+                }
+                .unwrap();
+                reduce_size = cfg.grid_dim.0 as usize;
+            }
+            a.device().synchronize().unwrap();
+            let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, 1) };
+            let mut _res_ptr = unsafe { a.device().upgrade_device_ptr::<O>(res.inner, 1) };
+            a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
+            _res_ptr.leak();
+        },
+        move |num_threads, inner_loop_size, inner_loop_size2, res, transposed_tensor| {
+            let outer_loop_size = a.size() / (inner_loop_size * inner_loop_size2);
+            let (reduce_kernel, reg_info) = load_ptx_and_get_data(
+                module_name,
+                &format!("contiguous_reduce2_{}", T::STR),
+                a.device(),
+                a.device_cap(),
+                &meta,
+            )
+            .unwrap();
+            let mut reduce_size = inner_loop_size * inner_loop_size2;
+
+            let compute_cfg = |reduce_size: usize| {
+                let mut cfg = compute_kernel_launch_config(a.device(), &reg_info, reduce_size);
+                let block_dim_x = cfg.block_dim.0.next_power_of_two().max(64);
+                cfg.block_dim = (block_dim_x, 1, 1);
+                // calculate the number of blocks needed, divide by 2 for reduction
+                cfg.grid_dim = (
+                    reduce_size
+                        .div_ceil(block_dim_x as usize)
+                        .div_ceil(2)
+                        .max(1) as u32,
+                    outer_loop_size as u32,
+                    1,
+                );
+                cfg.shared_mem_bytes = cfg.block_dim.0 * std::mem::size_of::<T>() as u32;
+                cfg
+            };
+
+            let cfg = compute_cfg(reduce_size);
+            let shape = transposed_tensor.cuda_shape().unwrap();
+            let strides = transposed_tensor.cuda_strides().unwrap();
+            let mut tmp_res = unsafe {
+                a.device()
+                    .alloc::<T>((cfg.grid_dim.0 * cfg.grid_dim.1) as usize)
+                    .unwrap()
+            };
+            let tmp_buffer = tmp_res.leak();
+            unsafe {
+                reduce_kernel.clone().launch(
+                    cfg,
+                    (
+                        tmp_buffer,
+                        transposed_tensor.cuda_slice(),
+                        &shape,
+                        &strides,
+                        transposed_tensor.ndim(),
+                        reduce_size,
+                        cfg.grid_dim.0 as usize,
+                    ),
+                )
+            }
+            .unwrap();
+
+            reduce_size = cfg.grid_dim.0 as usize;
+            let mut inp = tmp_buffer;
+            let reduce_kernel = a
+                .device()
+                .get_func(&module_name, &format!("contiguous_reduce22_{}", T::STR))
+                .unwrap();
+            while reduce_size > 1 {
+                let cfg = compute_cfg(reduce_size);
+                unsafe {
+                    reduce_kernel
+                        .clone()
+                        .launch(cfg, (tmp_buffer, inp, reduce_size, cfg.grid_dim.0 as usize))
+                }
+                .unwrap();
+                reduce_size = cfg.grid_dim.0 as usize;
+            }
+            a.device().synchronize().unwrap();
+            let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, res.size()) };
+            strided_copy(&tmp_buffer, &mut res.clone()).expect("strided_copy failed");
+        },
+        move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
+            let perm = (0..transposed_tensor.ndim()).collect::<Vec<_>>();
+            let right = perm[perm.len() - axes.len()..].to_vec();
+            let left = perm[..perm.len() - axes.len()].to_vec();
+            let mut perm = right;
+            perm.extend(left);
+            let transposed_tensor = transposed_tensor.permute(&perm).unwrap();
+            let (reduce_kernel, _) = load_ptx_and_get_data(
+                module_name,
+                &format!("contiguous_reduce3_{}", T::STR),
+                a.device(),
+                a.device_cap(),
+                &meta,
+            )
+            .unwrap();
+            let block_dim_x = 32; // x dimension must be 32, as it is the warp size
+            let block_dim_y = 32; // y dimension depends on the register used, currently 32
+            let mut reduce_size = inner_loop_size_2;
+            let grid_dim_x = (a.size() / reduce_size).div_ceil(block_dim_x as usize) as u32;
+            let launch_cfg = LaunchConfig {
+                block_dim: (block_dim_x, block_dim_y, 1),
+                grid_dim: (
+                    grid_dim_x,
+                    reduce_size.div_ceil(block_dim_y as usize) as u32,
+                    1,
+                ),
+                shared_mem_bytes: block_dim_x * block_dim_y * std::mem::size_of::<T>() as u32,
+            };
+            let shape = transposed_tensor.cuda_shape().unwrap();
+            let strides = transposed_tensor.cuda_strides().unwrap();
+            let mut height = launch_cfg.grid_dim.1;
+            let mut tmp_res = unsafe {
+                a.device()
+                    .alloc::<T>(result.size() * height as usize)
+                    .unwrap()
+            };
+            let tmp_buffer = tmp_res.leak();
+            unsafe {
+                reduce_kernel.launch(
+                    launch_cfg,
+                    (
+                        tmp_buffer,
+                        transposed_tensor.cuda_slice(),
+                        &shape,
+                        &strides,
+                        transposed_tensor.ndim(),
+                        result.size(),
+                        reduce_size,
+                    ),
+                )
+            }
+            .unwrap();
+            let (reduce_kernel, _) = load_ptx_and_get_data(
+                module_name,
+                &format!("contiguous_reduce33_{}", T::STR),
+                a.device(),
+                a.device_cap(),
+                &meta,
+            )
+            .unwrap();
+            while height > 1 {
+                reduce_size = height as usize;
+                let launch_cfg = LaunchConfig {
+                    block_dim: (block_dim_x, block_dim_y, 1),
+                    grid_dim: (
+                        grid_dim_x,
+                        reduce_size.div_ceil(block_dim_y as usize) as u32,
+                        1,
+                    ),
+                    shared_mem_bytes: block_dim_x * block_dim_y * std::mem::size_of::<T>() as u32,
+                };
+                unsafe {
+                    reduce_kernel.clone().launch(
+                        launch_cfg,
+                        (
+                            tmp_buffer,
+                            tmp_buffer,
+                            transposed_tensor.ndim(),
+                            result.size(),
+                            reduce_size,
+                        ),
+                    )
+                }
+                .unwrap();
+                height = launch_cfg.grid_dim.1;
+            }
+            a.device().synchronize().unwrap();
+            let tmp_buffer = unsafe {
+                a.device()
+                    .upgrade_device_ptr::<O>(tmp_buffer, result.size())
+            };
+            strided_copy(&tmp_buffer, &mut result.clone()).expect("strided_copy failed");
+        },
     )
 }

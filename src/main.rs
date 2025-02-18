@@ -1,192 +1,738 @@
-use candle_core::{IndexOp, Tensor};
 
-struct LSTM {
-    w_ii: Tensor,
-    w_hi: Tensor,
-    b_i: Tensor,
+// use candle_core::Tensor;
+// use candle_core::safetensors;
+// use candle_nn;
 
-    w_if: Tensor,
-    w_hf: Tensor,
-    b_f: Tensor,
 
-    w_ig: Tensor,
-    w_hg: Tensor,
-    b_g: Tensor,
 
-    w_io: Tensor,
-    w_ho: Tensor,
-    b_o: Tensor,
-}
+// impl Conv2dBatchNorm {
+//     #[track_caller]
+//     pub fn forward(
+//         &self,
+//         x: &Tensor,
+//     ) -> anyhow::Result<Tensor> {
+//         let conv = candle_nn::Conv2d::new(weight, bias, config);
+//         let bn = candle_nn::batch_norm::BatchNorm::new(num_features, running_mean, running_var, weight, bias, eps)
+//         Ok(x.batchnorm_conv2d(
+//             &self.weight,
+//             &self.running_mean,
+//             &self.running_var,
+//             &self.running_gamma,
+//             &self.running_beta,
+//             self.bias.as_ref(),
+//             self.eps,
+//             [self.steps as i64, self.steps as i64],
+//             [
+//                 (self.padding as i64, self.padding as i64),
+//                 (self.padding as i64, self.padding as i64),
+//             ],
+//             [self.dilation as i64, self.dilation as i64],
+//             Some(activation),
+//         )?)
+//     }
+// }
 
-impl LSTM {
-    fn new(input_size: usize, hidden_size: usize) -> anyhow::Result<Self> {
-        Ok(Self {
-            w_ii: Tensor::randn(0f32, 1f32,&[hidden_size, input_size], &candle_core::Device::Cpu)?,
-            w_hi: Tensor::randn(0f32, 1f32, &[hidden_size, hidden_size], &candle_core::Device::Cpu)?,
-            b_i: Tensor::zeros(&[hidden_size], candle_core::DType::F32, &candle_core::Device::Cpu)?,
 
-            w_if: Tensor::randn(0f32, 1f32, &[hidden_size, input_size], &candle_core::Device::Cpu)?,
-            w_hf: Tensor::randn(0f32, 1f32, &[hidden_size, hidden_size], &candle_core::Device::Cpu)?,
-            b_f: Tensor::zeros(&[hidden_size], candle_core::DType::F32, &candle_core::Device::Cpu)?,
+// pub struct MaxPool2d {
+//     kernel_size: Shape,
 
-            w_ig: Tensor::randn(0f32, 1f32, &[hidden_size, input_size], &candle_core::Device::Cpu)?,
-            w_hg: Tensor::randn(0f32, 1f32, &[hidden_size, hidden_size], &candle_core::Device::Cpu)?,
-            b_g: Tensor::zeros(&[hidden_size], candle_core::DType::F32, &candle_core::Device::Cpu)?,
+//     stride: usize,
 
-            w_io: Tensor::randn(0f32, 1f32, &[hidden_size, input_size], &candle_core::Device::Cpu)?,
-            w_ho: Tensor::randn(0f32, 1f32, &[hidden_size, hidden_size], &candle_core::Device::Cpu)?,
-            b_o: Tensor::zeros(&[hidden_size], candle_core::DType::F32, &candle_core::Device::Cpu)?,
-        })
-    }
-    fn forward(
-        &self,
-        x_t: &Tensor,
-        h_t_1: &Tensor,
-        c_t_1: &Tensor,
-    ) -> anyhow::Result<(Tensor, Tensor)> {
-        let x_t = x_t.contiguous()?;
-        let i_t =
-        candle_nn::ops::sigmoid(&((x_t.matmul(&self.w_ii.t()?)? + h_t_1.matmul(&self.w_hi.t()?)?)?.broadcast_add(&self.b_i))?)?;
+//     padding: usize,
 
-        let f_t =
-        candle_nn::ops::sigmoid(&((x_t.matmul(&self.w_if.t()?)? + h_t_1.matmul(&self.w_hf.t()?)?)?.broadcast_add(&self.b_f))?)?;
+//     dilation: usize,
+// }
 
-        let g_t =
-            ((x_t.matmul(&self.w_ig.t()?)? + h_t_1.matmul(&self.w_hg.t()?)?)?.broadcast_add(&self.b_g))?.tanh()?;
+// impl MaxPool2d {
+//     pub fn forward(&self, x: &Tensor) -> anyhow::Result<Tensor> {
+//         Ok(x.maxpool2d(
+//             &self.kernel_size,
+//             [self.stride as i64, self.stride as i64],
+//             [
+//                 (self.padding as i64, self.padding as i64),
+//                 (self.padding as i64, self.padding as i64),
+//             ],
+//             [self.dilation as i64, self.dilation as i64],
+//         )?)
+//     }
+// }
 
-        let o_t =
-        candle_nn::ops::sigmoid(&((x_t.matmul(&self.w_io.t()?)? + h_t_1.matmul(&self.w_ho.t()?)?)?.broadcast_add(&self.b_o))?)?;
 
-        
-        let c_t = ((f_t * c_t_1.clone())? + (i_t * g_t)?)?;
-        let h_t = o_t * c_t.tanh();
+// pub struct AdaptiveAvgPool2d {
+//     kernel_size: [i64; 2],
+// }
 
-        Ok((h_t?, c_t))
-    }
-}
+// impl AdaptiveAvgPool2d {
+//     pub fn forward(&self, x: &Tensor) -> anyhow::Result<Tensor> {
+//         Ok(x.adaptive_avgpool2d(self.kernel_size)?)
+//     }
+// }
 
-struct LSTMModel {
-    hidden_size: usize,
-    num_layers: usize,
-    lstm_cells: Vec<LSTM>,
-    output_layer: Option<LinearLayer>,
-}
 
-struct LinearLayer {
-    weight: Tensor,
-    bias: Tensor,
-}
+// pub struct DownSample {
+//     conv: Conv2dBatchNorm,
+// }
 
-impl LinearLayer {
-    fn new(in_features: usize, out_features: usize) -> anyhow::Result<Self> {
-        let weight = Tensor::randn(0f32, 1f32, &[out_features, in_features], &candle_core::Device::Cpu)?;
-        let bias = Tensor::zeros(&[out_features], candle_core::DType::F32, &candle_core::Device::Cpu)?;
+// impl DownSample {
+//     pub fn forward(&self, x: &Tensor) -> anyhow::Result<Tensor> {
+//         Ok(self.conv.forward(x, |x| x)?)
+//     }
+// }
 
-        Ok(Self { weight, bias })
-    }
 
-    fn forward(&self, input: &Tensor) -> anyhow::Result<Tensor> {
-        let output = input.matmul(&self.weight.t()?)?;
-        Ok((output + self.bias.clone())?)
-    }
-}
+// pub struct Sequential {
+//     layers: Vec<BasicBlock>,
+// }
 
-impl LSTMModel {
-    fn new(
-        input_size: usize,
-        hidden_size: usize,
-        num_layers: usize,
-        output_size: Option<usize>,
-    ) -> anyhow::Result<Self> {
-        let mut lstm_cells = Vec::with_capacity(num_layers);
+// impl Sequential {
+//     pub fn forward(&self, x: &Tensor) -> anyhow::Result<Tensor> {
+//         let mut x = x.clone();
+//         for layer in &self.layers {
+//             x = layer.forward(&x)?;
+//         }
+//         Ok(x)
+//     }
+// }
 
-        lstm_cells.push(LSTM::new(input_size, hidden_size)?);
 
-        for _ in 1..num_layers {
-            lstm_cells.push(LSTM::new(hidden_size, hidden_size)?);
-        }
+// pub struct BasicBlock {
+//     bn_conv1: Conv2dBatchNorm,
+//     bn_conv2: Conv2dBatchNorm,
+//     downsample: Option<DownSample>,
+// }
 
-        let output_layer = if let Some(out_size) = output_size {
-            Some(LinearLayer::new(hidden_size, out_size)?)
-        } else {
-            None
-        };
-        Ok(Self {
-            hidden_size,
-            num_layers,
-            lstm_cells,
-            output_layer,
-        })
-    }
+// impl BasicBlock {
+//     pub fn forward(&self, x: &Tensor) -> anyhow::Result<Tensor> {
+//         let identity = if let Some(downsample) = &self.downsample {
+//             downsample.forward(&x)?
+//         } else {
+//             x.clone()
+//         };
+//         let out = self.bn_conv1.forward(&x, |x| x._relu())?;
+//         let mut out = self.bn_conv2.forward(&out, |x| x)?;
+//         out.par_iter_mut_simd()
+//             .zip(identity.par_iter_simd())
+//             .for_each(
+//                 |(a, b)| *a = (*a + b)._relu(),
+//                 |(a, b)| {
+//                     a.write_unaligned((a.read_unaligned() + b)._relu());
+//                 },
+//             );
+//         Ok(out)
+//     }
+// }
 
-    fn forward(
-        &self,
-        x: &Tensor,
-        init_states: Option<Vec<(Tensor, Tensor)>>,
-    ) -> anyhow::Result<(Tensor, Vec<(Tensor, Tensor)>)> {
-        let batch_size = x.shape().dim(0)?;
-        let seq_length = x.shape().dim(1)?;
+// impl Linear {
+//     pub fn forward(&self, x: &Tensor) -> anyhow::Result<Tensor> {
+//         let out = x.matmul(&self.weight.t()?)?;
+//         Ok(out.add_(&self.bias, &out)?)
+//     }
+// }
 
-        let mut states = if let Some(init) = init_states {
-            init
-        } else {
-            let mut states = Vec::with_capacity(self.num_layers);
-            for _ in 0..self.num_layers {
-                states.push((
-                    Tensor::zeros(&[batch_size, self.hidden_size], candle_core::DType::F32, &candle_core::Device::Cpu)?,
-                    Tensor::zeros(&[batch_size, self.hidden_size], candle_core::DType::F32, &candle_core::Device::Cpu)?,
-                ));
-            }
-            states
-        };
 
-        let mut outputs = Vec::with_capacity(seq_length as usize);
+// pub struct Conv2dBatchNorm {
+//     conv: candle_nn::Conv2d,
+//     bn: candle_nn::batch_norm::BatchNorm,
+// }
 
-        let mut total_time = std::time::Duration::from_secs(0);
-        for t in 0..seq_length {
-            let mut layer_input = x.i((.., t..t+1, ..))?.squeeze(1)?;
-            // let mut layer_input = x.slice(&match_selection![:, t:t+1, :])?.squeeze(1)?;
-            for layer_idx in 0..self.num_layers {
-                let lstm = &self.lstm_cells[layer_idx];
-                let now = std::time::Instant::now();
-                let (h_t, c_t) =
-                    lstm.forward(&layer_input, &states[layer_idx].0, &states[layer_idx].1)?;
-                println!("lstm Time taken: {:?}", now.elapsed());
-                total_time += now.elapsed();
-                states[layer_idx] = (h_t.clone(), c_t);
 
-                layer_input = h_t;
-            }
-            // println!("next layer\n");
-            let output_t = layer_input.unsqueeze(1)?;
-            outputs.push(output_t);
-        }
-        println!("total time taken: {:?}", total_time);
-        let output = Tensor::cat(&outputs, 1)?;
-        // let output = Tensor::concat(outputs, 1, false)?;
+// pub struct Linear {
+//     weight: Tensor,
 
-        let final_output = if let Some(output_layer) = &self.output_layer {
-            output_layer.forward(&output)?
-        } else {
-            output
-        };
+//     bias: Tensor,
+// }
 
-        Ok((final_output, states))
-    }
-}
 
+// pub struct ResNet {
+//     bn_conv1: Conv2dBatchNorm,
+//     max_pool1: MaxPool2d,
+//     layer1: Sequential,
+//     layer2: Sequential,
+//     layer3: Sequential,
+//     layer4: Sequential,
+//     avg_pool: AdaptiveAvgPool2d,
+//     fc: Linear,
+// }
+
+// impl ResNet {
+//     pub fn forward(&self, x: &Tensor) -> anyhow::Result<Tensor> {
+//         let x = self.bn_conv1.forward(&x, |x| x._relu())?;
+//         let x = self.max_pool1.forward(&x)?;
+//         let x = self.layer1.forward(&x)?;
+//         let x = self.layer2.forward(&x)?;
+//         let x = self.layer3.forward(&x)?;
+//         let x = self.layer4.forward(&x)?;
+//         let x = self.avg_pool.forward(&x)?;
+//         let x = self.fc.forward(&x)?;
+//         Ok(x)
+//     }
+// }
+// fn create_resnet() -> anyhow::Result<ResNet> {
+//     let data = std::fs::read("resnet.safetensor").expect("failed to read weights");
+//     let data = safetensors::SafeTensors::deserialize(&data).expect("failed to deserialize weights");
+//     let max_pool1 = MaxPool2d {
+//         kernel_size: Shape::new([3, 3]),
+//         stride: 2,
+//         padding: 1,
+//         dilation: 1,
+//     };
+
+//     fn create_basic_block(
+//         data: &SafeTensors,
+//         weight: &str,
+//         running_mean: &str,
+//         running_var: &str,
+//         running_gamma: &str,
+//         running_beta: &str,
+//         conv2_weight: &str,
+//         conv2_running_mean: &str,
+//         conv2_running_var: &str,
+//         conv2_running_gamma: &str,
+//         conv2_running_beta: &str,
+//         eps: f32,
+//         conv1_steps: usize,
+//         conv1_padding: usize,
+//         conv1_dilation: usize,
+//         conv2_steps: usize,
+//         conv2_padding: usize,
+//         conv2_dilation: usize,
+//     ) -> BasicBlock {
+//         BasicBlock {
+//             bn_conv1: Conv2dBatchNorm {
+//                 weight_str: weight.to_string(),
+//                 weight: Tensor::<f32>::from_safe_tensors(data, weight)
+//                     .permute([2, 3, 1, 0])
+//                     .expect("permute failed")
+//                     .contiguous()
+//                     .expect("contiguous failed"),
+//                 bias: None,
+//                 running_mean: Tensor::<f32>::from_safe_tensors(data, running_mean),
+//                 running_var: Tensor::<f32>::from_safe_tensors(data, running_var),
+//                 running_gamma: Tensor::<f32>::from_safe_tensors(data, running_gamma),
+//                 running_beta: Tensor::<f32>::from_safe_tensors(data, running_beta),
+//                 eps,
+//                 steps: conv1_steps,
+//                 padding: conv1_padding,
+//                 dilation: conv1_dilation,
+//             },
+//             bn_conv2: Conv2dBatchNorm {
+//                 weight_str: conv2_weight.to_string(),
+//                 weight: Tensor::<f32>::from_safe_tensors(data, conv2_weight)
+//                     .permute([2, 3, 1, 0])
+//                     .expect("permute failed")
+//                     .contiguous()
+//                     .expect("contiguous failed"),
+//                 bias: None,
+//                 running_mean: Tensor::<f32>::from_safe_tensors(data, conv2_running_mean),
+//                 running_var: Tensor::<f32>::from_safe_tensors(data, conv2_running_var),
+//                 running_gamma: Tensor::<f32>::from_safe_tensors(data, conv2_running_gamma),
+//                 running_beta: Tensor::<f32>::from_safe_tensors(data, conv2_running_beta),
+//                 eps,
+//                 steps: conv2_steps,
+//                 padding: conv2_padding,
+//                 dilation: conv2_dilation,
+//             },
+//             downsample: None,
+//         }
+//     }
+
+//     fn create_basic_block_with_downsample(
+//         data: &SafeTensors,
+//         weight: &str,
+//         running_mean: &str,
+//         running_var: &str,
+//         running_gamma: &str,
+//         running_beta: &str,
+//         conv2_weight: &str,
+//         conv2_running_mean: &str,
+//         conv2_running_var: &str,
+//         conv2_running_gamma: &str,
+//         conv2_running_beta: &str,
+//         downsample_weight: &str,
+//         downsample_running_mean: &str,
+//         downsample_running_var: &str,
+//         downsample_running_gamma: &str,
+//         downsample_running_beta: &str,
+//         eps: f32,
+//         conv1_steps: usize,
+//         conv1_padding: usize,
+//         conv1_dilation: usize,
+//         conv2_steps: usize,
+//         conv2_padding: usize,
+//         conv2_dilation: usize,
+//         downsample_steps: usize,
+//         downsample_padding: usize,
+//         downsample_dilation: usize,
+//     ) -> BasicBlock {
+//         BasicBlock {
+//             bn_conv1: Conv2dBatchNorm {
+//                 weight_str: weight.to_string(),
+//                 weight: Tensor::<f32>::from_safe_tensors(data, weight)
+//                     .permute([2, 3, 1, 0])
+//                     .expect("permute failed")
+//                     .contiguous()
+//                     .expect("contiguous failed"),
+//                 bias: None,
+//                 running_mean: Tensor::<f32>::from_safe_tensors(data, running_mean),
+//                 running_var: Tensor::<f32>::from_safe_tensors(data, running_var),
+//                 running_gamma: Tensor::<f32>::from_safe_tensors(data, running_gamma),
+//                 running_beta: Tensor::<f32>::from_safe_tensors(data, running_beta),
+//                 eps,
+//                 steps: conv1_steps,
+//                 padding: conv1_padding,
+//                 dilation: conv1_dilation,
+//             },
+//             bn_conv2: Conv2dBatchNorm {
+//                 weight_str: conv2_weight.to_string(),
+//                 weight: Tensor::<f32>::from_safe_tensors(data, conv2_weight)
+//                     .permute([2, 3, 1, 0])
+//                     .expect("permute failed")
+//                     .contiguous()
+//                     .expect("contiguous failed"),
+//                 bias: None,
+//                 running_mean: Tensor::<f32>::from_safe_tensors(data, conv2_running_mean),
+//                 running_var: Tensor::<f32>::from_safe_tensors(data, conv2_running_var),
+//                 running_gamma: Tensor::<f32>::from_safe_tensors(data, conv2_running_gamma),
+//                 running_beta: Tensor::<f32>::from_safe_tensors(data, conv2_running_beta),
+//                 eps,
+//                 steps: conv2_steps,
+//                 padding: conv2_padding,
+//                 dilation: conv2_dilation,
+//             },
+//             downsample: Some(DownSample {
+//                 conv: Conv2dBatchNorm {
+//                     weight_str: downsample_weight.to_string(),
+//                     weight: Tensor::<f32>::from_safe_tensors(data, downsample_weight)
+//                         .permute([2, 3, 1, 0])
+//                         .expect("permute failed")
+//                         .contiguous()
+//                         .expect("contiguous failed"),
+//                     bias: None,
+//                     running_mean: Tensor::<f32>::from_safe_tensors(data, downsample_running_mean),
+//                     running_var: Tensor::<f32>::from_safe_tensors(data, downsample_running_var),
+//                     running_gamma: Tensor::<f32>::from_safe_tensors(data, downsample_running_gamma),
+//                     running_beta: Tensor::<f32>::from_safe_tensors(data, downsample_running_beta),
+//                     eps,
+//                     steps: downsample_steps,
+//                     padding: downsample_padding,
+//                     dilation: downsample_dilation,
+//                 },
+//             }),
+//         }
+//     }
+
+//     let layer1 = Sequential {
+//         layers: vec![
+//             create_basic_block(
+//                 &data,
+//                 "layer1.0.conv1.weight",
+//                 "layer1.0.bn1.running_mean",
+//                 "layer1.0.bn1.running_var",
+//                 "layer1.0.bn1.weight",
+//                 "layer1.0.bn1.bias",
+//                 "layer1.0.conv2.weight",
+//                 "layer1.0.bn2.running_mean",
+//                 "layer1.0.bn2.running_var",
+//                 "layer1.0.bn2.weight",
+//                 "layer1.0.bn2.bias",
+//                 1e-5, /*eps */
+//                 1,    /*conv1_steps */
+//                 1,    /*conv1_padding */
+//                 1,    /*conv1_dilation */
+//                 1,    /*conv2_steps */
+//                 1,    /*conv2_padding */
+//                 1,    /*conv2_dilation */
+//             ),
+//             create_basic_block(
+//                 &data,
+//                 "layer1.1.conv1.weight",
+//                 "layer1.1.bn1.running_mean",
+//                 "layer1.1.bn1.running_var",
+//                 "layer1.1.bn1.weight",
+//                 "layer1.1.bn1.bias",
+//                 "layer1.1.conv2.weight",
+//                 "layer1.1.bn2.running_mean",
+//                 "layer1.1.bn2.running_var",
+//                 "layer1.1.bn2.weight",
+//                 "layer1.1.bn2.bias",
+//                 1e-5, /*eps */
+//                 1,    /*conv1_steps */
+//                 1,    /*conv1_padding */
+//                 1,    /*conv1_dilation */
+//                 1,    /*conv2_steps */
+//                 1,    /*conv2_padding */
+//                 1,    /*conv2_dilation */
+//             ),
+//             create_basic_block(
+//                 &data,
+//                 "layer1.2.conv1.weight",
+//                 "layer1.2.bn1.running_mean",
+//                 "layer1.2.bn1.running_var",
+//                 "layer1.2.bn1.weight",
+//                 "layer1.2.bn1.bias",
+//                 "layer1.2.conv2.weight",
+//                 "layer1.2.bn2.running_mean",
+//                 "layer1.2.bn2.running_var",
+//                 "layer1.2.bn2.weight",
+//                 "layer1.2.bn2.bias",
+//                 1e-5, /*eps */
+//                 1,    /*conv1_steps */
+//                 1,    /*conv1_padding */
+//                 1,    /*conv1_dilation */
+//                 1,    /*conv2_steps */
+//                 1,    /*conv2_padding */
+//                 1,    /*conv2_dilation */
+//             ),
+//         ],
+//     };
+
+//     let layer2 = Sequential {
+//         layers: vec![
+//             create_basic_block_with_downsample(
+//                 &data,
+//                 "layer2.0.conv1.weight",
+//                 "layer2.0.bn1.running_mean",
+//                 "layer2.0.bn1.running_var",
+//                 "layer2.0.bn1.weight",
+//                 "layer2.0.bn1.bias",
+//                 "layer2.0.conv2.weight",
+//                 "layer2.0.bn2.running_mean",
+//                 "layer2.0.bn2.running_var",
+//                 "layer2.0.bn2.weight",
+//                 "layer2.0.bn2.bias",
+//                 "layer2.0.downsample.0.weight",
+//                 "layer2.0.downsample.1.running_mean",
+//                 "layer2.0.downsample.1.running_var",
+//                 "layer2.0.downsample.1.weight",
+//                 "layer2.0.downsample.1.bias",
+//                 1e-5, /*eps */
+//                 2,    /*conv1_steps */
+//                 1,    /*conv1_padding */
+//                 1,    /*conv1_dilation */
+//                 1,    /*conv2_steps */
+//                 1,    /*conv2_padding */
+//                 1,    /*conv2_dilation */
+//                 2,    /*downsample_steps */
+//                 0,    /*downsample_padding */
+//                 1,    /*downsample_dilation */
+//             ),
+//             create_basic_block(
+//                 &data,
+//                 "layer2.1.conv1.weight",
+//                 "layer2.1.bn1.running_mean",
+//                 "layer2.1.bn1.running_var",
+//                 "layer2.1.bn1.weight",
+//                 "layer2.1.bn1.bias",
+//                 "layer2.1.conv2.weight",
+//                 "layer2.1.bn2.running_mean",
+//                 "layer2.1.bn2.running_var",
+//                 "layer2.1.bn2.weight",
+//                 "layer2.1.bn2.bias",
+//                 1e-5, /*eps */
+//                 1,    /*conv1_steps */
+//                 1,    /*conv1_padding */
+//                 1,    /*conv1_dilation */
+//                 1,    /*conv2_steps */
+//                 1,    /*conv2_padding */
+//                 1,    /*conv2_dilation */
+//             ),
+//             create_basic_block(
+//                 &data,
+//                 "layer2.2.conv1.weight",
+//                 "layer2.2.bn1.running_mean",
+//                 "layer2.2.bn1.running_var",
+//                 "layer2.2.bn1.weight",
+//                 "layer2.2.bn1.bias",
+//                 "layer2.2.conv2.weight",
+//                 "layer2.2.bn2.running_mean",
+//                 "layer2.2.bn2.running_var",
+//                 "layer2.2.bn2.weight",
+//                 "layer2.2.bn2.bias",
+//                 1e-5, /*eps */
+//                 1,    /*conv1_steps */
+//                 1,    /*conv1_padding */
+//                 1,    /*conv1_dilation */
+//                 1,    /*conv2_steps */
+//                 1,    /*conv2_padding */
+//                 1,    /*conv2_dilation */
+//             ),
+//             create_basic_block(
+//                 &data,
+//                 "layer2.3.conv1.weight",
+//                 "layer2.3.bn1.running_mean",
+//                 "layer2.3.bn1.running_var",
+//                 "layer2.3.bn1.weight",
+//                 "layer2.3.bn1.bias",
+//                 "layer2.3.conv2.weight",
+//                 "layer2.3.bn2.running_mean",
+//                 "layer2.3.bn2.running_var",
+//                 "layer2.3.bn2.weight",
+//                 "layer2.3.bn2.bias",
+//                 1e-5, /*eps */
+//                 1,    /*conv1_steps */
+//                 1,    /*conv1_padding */
+//                 1,    /*conv1_dilation */
+//                 1,    /*conv2_steps */
+//                 1,    /*conv2_padding */
+//                 1,    /*conv2_dilation */
+//             ),
+//         ],
+//     };
+
+//     let layer3 = Sequential {
+//         layers: vec![
+//             create_basic_block_with_downsample(
+//                 &data,
+//                 "layer3.0.conv1.weight",
+//                 "layer3.0.bn1.running_mean",
+//                 "layer3.0.bn1.running_var",
+//                 "layer3.0.bn1.weight",
+//                 "layer3.0.bn1.bias",
+//                 "layer3.0.conv2.weight",
+//                 "layer3.0.bn2.running_mean",
+//                 "layer3.0.bn2.running_var",
+//                 "layer3.0.bn2.weight",
+//                 "layer3.0.bn2.bias",
+//                 "layer3.0.downsample.0.weight",
+//                 "layer3.0.downsample.1.running_mean",
+//                 "layer3.0.downsample.1.running_var",
+//                 "layer3.0.downsample.1.weight",
+//                 "layer3.0.downsample.1.bias",
+//                 1e-5, /*eps */
+//                 2,    /*conv1_steps */
+//                 1,    /*conv1_padding */
+//                 1,    /*conv1_dilation */
+//                 1,    /*conv2_steps */
+//                 1,    /*conv2_padding */
+//                 1,    /*conv2_dilation */
+//                 2,    /*downsample_steps */
+//                 0,    /*downsample_padding */
+//                 1,    /*downsample_dilation */
+//             ),
+//             create_basic_block(
+//                 &data,
+//                 "layer3.1.conv1.weight",
+//                 "layer3.1.bn1.running_mean",
+//                 "layer3.1.bn1.running_var",
+//                 "layer3.1.bn1.weight",
+//                 "layer3.1.bn1.bias",
+//                 "layer3.1.conv2.weight",
+//                 "layer3.1.bn2.running_mean",
+//                 "layer3.1.bn2.running_var",
+//                 "layer3.1.bn2.weight",
+//                 "layer3.1.bn2.bias",
+//                 1e-5, /*eps */
+//                 1,    /*conv1_steps */
+//                 1,    /*conv1_padding */
+//                 1,    /*conv1_dilation */
+//                 1,    /*conv2_steps */
+//                 1,    /*conv2_padding */
+//                 1,    /*conv2_dilation */
+//             ),
+//             create_basic_block(
+//                 &data,
+//                 "layer3.2.conv1.weight",
+//                 "layer3.2.bn1.running_mean",
+//                 "layer3.2.bn1.running_var",
+//                 "layer3.2.bn1.weight",
+//                 "layer3.2.bn1.bias",
+//                 "layer3.2.conv2.weight",
+//                 "layer3.2.bn2.running_mean",
+//                 "layer3.2.bn2.running_var",
+//                 "layer3.2.bn2.weight",
+//                 "layer3.2.bn2.bias",
+//                 1e-5, /*eps */
+//                 1,    /*conv1_steps */
+//                 1,    /*conv1_padding */
+//                 1,    /*conv1_dilation */
+//                 1,    /*conv2_steps */
+//                 1,    /*conv2_padding */
+//                 1,    /*conv2_dilation */
+//             ),
+//             create_basic_block(
+//                 &data,
+//                 "layer3.3.conv1.weight",
+//                 "layer3.3.bn1.running_mean",
+//                 "layer3.3.bn1.running_var",
+//                 "layer3.3.bn1.weight",
+//                 "layer3.3.bn1.bias",
+//                 "layer3.3.conv2.weight",
+//                 "layer3.3.bn2.running_mean",
+//                 "layer3.3.bn2.running_var",
+//                 "layer3.3.bn2.weight",
+//                 "layer3.3.bn2.bias",
+//                 1e-5, /*eps */
+//                 1,    /*conv1_steps */
+//                 1,    /*conv1_padding */
+//                 1,    /*conv1_dilation */
+//                 1,    /*conv2_steps */
+//                 1,    /*conv2_padding */
+//                 1,    /*conv2_dilation */
+//             ),
+//             create_basic_block(
+//                 &data,
+//                 "layer3.4.conv1.weight",
+//                 "layer3.4.bn1.running_mean",
+//                 "layer3.4.bn1.running_var",
+//                 "layer3.4.bn1.weight",
+//                 "layer3.4.bn1.bias",
+//                 "layer3.4.conv2.weight",
+//                 "layer3.4.bn2.running_mean",
+//                 "layer3.4.bn2.running_var",
+//                 "layer3.4.bn2.weight",
+//                 "layer3.4.bn2.bias",
+//                 1e-5, /*eps */
+//                 1,    /*conv1_steps */
+//                 1,    /*conv1_padding */
+//                 1,    /*conv1_dilation */
+//                 1,    /*conv2_steps */
+//                 1,    /*conv2_padding */
+//                 1,    /*conv2_dilation */
+//             ),
+//             create_basic_block(
+//                 &data,
+//                 "layer3.5.conv1.weight",
+//                 "layer3.5.bn1.running_mean",
+//                 "layer3.5.bn1.running_var",
+//                 "layer3.5.bn1.weight",
+//                 "layer3.5.bn1.bias",
+//                 "layer3.5.conv2.weight",
+//                 "layer3.5.bn2.running_mean",
+//                 "layer3.5.bn2.running_var",
+//                 "layer3.5.bn2.weight",
+//                 "layer3.5.bn2.bias",
+//                 1e-5, /*eps */
+//                 1,    /*conv1_steps */
+//                 1,    /*conv1_padding */
+//                 1,    /*conv1_dilation */
+//                 1,    /*conv2_steps */
+//                 1,    /*conv2_padding */
+//                 1,    /*conv2_dilation */
+//             ),
+//         ],
+//     };
+
+//     let layer4 = Sequential {
+//         layers: vec![
+//             create_basic_block_with_downsample(
+//                 &data,
+//                 "layer4.0.conv1.weight",
+//                 "layer4.0.bn1.running_mean",
+//                 "layer4.0.bn1.running_var",
+//                 "layer4.0.bn1.weight",
+//                 "layer4.0.bn1.bias",
+//                 "layer4.0.conv2.weight",
+//                 "layer4.0.bn2.running_mean",
+//                 "layer4.0.bn2.running_var",
+//                 "layer4.0.bn2.weight",
+//                 "layer4.0.bn2.bias",
+//                 "layer4.0.downsample.0.weight",
+//                 "layer4.0.downsample.1.running_mean",
+//                 "layer4.0.downsample.1.running_var",
+//                 "layer4.0.downsample.1.weight",
+//                 "layer4.0.downsample.1.bias",
+//                 1e-5, /*eps */
+//                 2,    /*conv1_steps */
+//                 1,    /*conv1_padding */
+//                 1,    /*conv1_dilation */
+//                 1,    /*conv2_steps */
+//                 1,    /*conv2_padding */
+//                 1,    /*conv2_dilation */
+//                 2,    /*downsample_steps */
+//                 0,    /*downsample_padding */
+//                 1,    /*downsample_dilation */
+//             ),
+//             create_basic_block(
+//                 &data,
+//                 "layer4.1.conv1.weight",
+//                 "layer4.1.bn1.running_mean",
+//                 "layer4.1.bn1.running_var",
+//                 "layer4.1.bn1.weight",
+//                 "layer4.1.bn1.bias",
+//                 "layer4.1.conv2.weight",
+//                 "layer4.1.bn2.running_mean",
+//                 "layer4.1.bn2.running_var",
+//                 "layer4.1.bn2.weight",
+//                 "layer4.1.bn2.bias",
+//                 1e-5, /*eps */
+//                 1,    /*conv1_steps */
+//                 1,    /*conv1_padding */
+//                 1,    /*conv1_dilation */
+//                 1,    /*conv2_steps */
+//                 1,    /*conv2_padding */
+//                 1,    /*conv2_dilation */
+//             ),
+//             create_basic_block(
+//                 &data,
+//                 "layer4.2.conv1.weight",
+//                 "layer4.2.bn1.running_mean",
+//                 "layer4.2.bn1.running_var",
+//                 "layer4.2.bn1.weight",
+//                 "layer4.2.bn1.bias",
+//                 "layer4.2.conv2.weight",
+//                 "layer4.2.bn2.running_mean",
+//                 "layer4.2.bn2.running_var",
+//                 "layer4.2.bn2.weight",
+//                 "layer4.2.bn2.bias",
+//                 1e-5, /*eps */
+//                 1,    /*conv1_steps */
+//                 1,    /*conv1_padding */
+//                 1,    /*conv1_dilation */
+//                 1,    /*conv2_steps */
+//                 1,    /*conv2_padding */
+//                 1,    /*conv2_dilation */
+//             ),
+//         ],
+//     };
+
+//     let avg_pool = AdaptiveAvgPool2d {
+//         kernel_size: [1, 1],
+//     };
+
+//     let fc = Linear {
+//         weight: Tensor::<f32>::from_safe_tensors(&data, "fc.weight"),
+//         bias: Tensor::<f32>::from_safe_tensors(&data, "fc.bias"),
+//     };
+//     Ok(ResNet {
+//         bn_conv1: Conv2dBatchNorm {
+//             weight_str: "conv1.weight".to_string(),
+//             weight: Tensor::<f32>::from_safe_tensors(&data, "conv1.weight")
+//                 .permute(&[2, 3, 1, 0])?
+//                 .contiguous()?,
+//             bias: None,
+//             running_mean: Tensor::<f32>::from_safe_tensors(&data, "bn1.running_mean"),
+//             running_var: Tensor::<f32>::from_safe_tensors(&data, "bn1.running_var"),
+//             running_gamma: Tensor::<f32>::from_safe_tensors(&data, "bn1.weight"),
+//             running_beta: Tensor::<f32>::from_safe_tensors(&data, "bn1.bias"),
+//             eps: 1e-5,
+//             steps: 2,
+//             padding: 3,
+//             dilation: 1,
+//         },
+//         max_pool1,
+//         layer1,
+//         layer2,
+//         layer3,
+//         layer4,
+//         avg_pool,
+//         fc,
+//     })
+// }
 fn main() -> anyhow::Result<()> {
-    let model = LSTMModel::new(1024, 1024, 4, Some(20))?;
-
-    let batch_size = 1024;
-    let seq_length = 10;
-    let input = Tensor::randn(0f32, 1f32, &[batch_size, seq_length, 1024], &candle_core::Device::Cpu)?;
-
-    let start_time = std::time::Instant::now();
-    for _ in 0..1 {
-        let _ = model.forward(&input, None)?;
-    }
-    println!("Time taken: {:?}", start_time.elapsed() / 1);
-
+    // let resnet = create_resnet()?;
+    // let mut size = vec![];
+    // let mut time = vec![];
+    // for i in 0..31 {
+    //     let inp = Tensor::<f32>::randn([1, 64 + 32 * i, 64 + 32 * i, 3])?;
+    //     let now = std::time::Instant::now();
+    //     for _ in 0..10 {
+    //         resnet.forward(&inp)?;
+    //     }
+    //     size.push(64 + 32 * i);
+    //     time.push(now.elapsed() / 10);
+    //     println!("size: {:?}, time: {:?}", size.last().unwrap(), time.last().unwrap());
+    // }
+    // println!("size: {:?}", size);
+    // println!("time: {:?}", time);
     Ok(())
 }

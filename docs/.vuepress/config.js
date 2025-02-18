@@ -394,6 +394,14 @@ export default defineUserConfig({
             {
               text: 'matmul',
               link: '/benchmarks/matmul.md'
+            },
+            {
+              text: 'nn',
+              collapsible: true,
+              children: [
+                { text: 'resnet', link: '/benchmarks/nn/resnet.md' },
+                { text: 'lstm', link: '/benchmarks/nn/lstm.md' }
+              ]
             }
           ]
         }

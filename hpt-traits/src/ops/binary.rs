@@ -1,4 +1,4 @@
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::BorrowMut;
 
 use hpt_common::error::base::TensorError;
 use hpt_types::dtype::TypeCommon;
@@ -24,7 +24,7 @@ where
     /// - [`add`]: Perform addition of `self` and `rhs` element-wise, with auto broadcasting.
     fn add_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>;
+        U: BorrowMut<Self::InplaceOutput>;
 
     /// Inplace version of subtraction
     ///
@@ -33,7 +33,7 @@ where
     /// - [`sub`]: Perform subtraction of `self` and `rhs` element-wise, with auto broadcasting.
     fn sub_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>;
+        U: BorrowMut<Self::InplaceOutput>;
 
     /// Inplace version of multiplication
     ///
@@ -42,7 +42,7 @@ where
     /// - [`mul`]: Perform multiplication of `self` and `rhs` element-wise, with auto broadcasting.
     fn mul_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>;
+        U: BorrowMut<Self::InplaceOutput>;
 
     /// Inplace version of rem
     ///
@@ -51,7 +51,7 @@ where
     /// - [`div`]: Perform rem of `self` and `rhs` element-wise, with auto broadcasting.
     fn rem_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>;
+        U: BorrowMut<Self::InplaceOutput>;
 
     /// Power of `self` and `rhs` element-wise, with auto broadcasting.
     ///
@@ -67,7 +67,7 @@ where
     /// - [`pow`]: Perform power of `self` and `rhs` element-wise, with auto broadcasting.
     fn pow_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>;
+        U: BorrowMut<Self::InplaceOutput>;
 }
 
 /// A trait for binary operations on tensors.
@@ -82,15 +82,30 @@ where
     /// The inplace output tensor type.
     type InplaceOutput;
 
+    /// Perform the hypot operation on `self` and `rhs` element-wise, with auto broadcasting.
     ///
-    fn hypot<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
-    where
-        U: Borrow<Self::InplaceOutput>;
+    /// # See Also
+    ///
+    /// - [`hypot`]: Perform the hypot operation on `self` and `rhs` element-wise, with auto broadcasting.
+    fn hypot(&self, rhs: &RHS) -> std::result::Result<Self::Output, TensorError>;
 
+    /// Inplace version of hypot
     ///
-    fn hypot_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::Output, TensorError>
+    /// # See Also
+    ///
+    /// - [`hypot`]: Perform the hypot operation on `self` and `rhs` element-wise, with auto broadcasting.
+    fn hypot_<U>(&self, rhs: &RHS, out: U) -> std::result::Result<Self::Output, TensorError>
     where
-        U: Borrow<Self::InplaceOutput>;
+        U: BorrowMut<Self::InplaceOutput>;
+
+    /// Inplace version of div
+    ///
+    /// # See Also
+    ///
+    /// - [`div`]: Perform division of `self` and `rhs` element-wise, with auto broadcasting.
+    fn div_<U>(&self, rhs: &RHS, out: U) -> std::result::Result<Self::Output, TensorError>
+    where
+        U: BorrowMut<Self::InplaceOutput>;
 }
 
 /// A trait for matrix multiplication operations on tensors.
@@ -138,7 +153,7 @@ where
     #[track_caller]
     fn matmul_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
-        U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;
+        U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;
 }
 
 /// A trait for tensor dot operations on tensors.

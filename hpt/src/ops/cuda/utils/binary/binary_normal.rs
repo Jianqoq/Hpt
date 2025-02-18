@@ -42,11 +42,6 @@ use crate::ops::cuda::cuda_utils::get_include_1;
 ///
 /// Returns a `Result` containing a new tensor with the result of the binary operation. If any error occurs
 /// (e.g., shape mismatch or allocation issues), an `anyhow::Result` with an error message is returned.
-///
-/// # SIMD Optimization
-///
-/// If the vector sizes of the input tensors match and SIMD is enabled, the `f2` function is applied to
-/// perform vectorized operations for faster computation. If not, the scalar function `f` is applied to each element.
 #[track_caller]
 pub(crate) fn binary_fn_with_out_simd<A, B, O, K, F, const CUDA_DEVICE: usize>(
     op_name: &str,

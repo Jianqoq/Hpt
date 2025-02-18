@@ -91,8 +91,12 @@ pub mod ops {
             pub mod common_reduce;
             /// a module that contains all the conv functions
             pub mod conv;
+            /// a module that contains all the cumulative operations
+            pub mod cumulative;
             /// a module that contains all fft operations
             pub mod fft;
+            /// a module that contains all the float out binary operations
+            pub mod float_out_binary;
             /// a module that contains all the unary operations that has floating type output
             pub mod float_out_unary;
             /// a module that contains matrix multiplication operations
@@ -113,8 +117,6 @@ pub mod ops {
             pub mod tensordot;
             /// a module that contains all the windows creation functions
             pub mod windows;
-            /// a module that contains all the cumulative operations
-            pub mod cumulative;
         }
         /// a module that contains all the functions only for the internal user (we may have diff tensor (differentiable tensor) in the future)
         pub mod tensor_internal {
@@ -128,8 +130,12 @@ pub mod ops {
             pub mod common_reduce;
             /// a module that contains all the conv functions
             pub mod conv;
+            /// a module that contains all the cumulative operations
+            pub mod cumulative;
             /// a module that contains all fft operations
             pub mod fft;
+            /// a module that contains all the float out binary operations
+            pub mod float_out_binary;
             /// a module that contains all the unary operations that has floating type output
             pub mod float_out_unary;
             /// a module that contains matrix multiplication operations
@@ -150,8 +156,6 @@ pub mod ops {
             pub mod tensordot;
             /// a module that contains all the windows creation functions
             pub mod windows;
-            /// a module that contains all the cumulative operations
-            pub mod cumulative;
         }
 
         /// a module contains cpu L1, L2, L3 cache helper
@@ -190,6 +194,8 @@ pub mod ops {
             pub(crate) mod shape_manipulate;
             /// a module contains cuda tensor windows impls
             pub(crate) mod windows;
+            /// a module contains cuda tensor float out binary impls
+            pub(crate) mod float_out_binary;
         }
         pub mod tensor_external {
             /// a module contains cuda tensor arg reduce impls
@@ -214,6 +220,8 @@ pub mod ops {
             pub(crate) mod slice;
             /// a module contains cuda tensor windows impls
             pub(crate) mod windows;
+            /// a module contains cuda tensor float out binary impls
+            pub(crate) mod float_out_binary;
         }
         pub(crate) mod utils {
             pub(crate) mod reduce {
@@ -225,6 +233,7 @@ pub mod ops {
                 pub(crate) mod binary_normal;
             }
             pub(crate) mod unary {
+                pub(crate) mod strided_copy;
                 pub(crate) mod unary;
             }
         }

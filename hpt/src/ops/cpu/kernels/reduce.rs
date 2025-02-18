@@ -731,7 +731,6 @@ pub(crate) fn uncontiguous_reduce_dim_not_include<T, O, F, F2>(
     for _ in 0..outer_loop_size {
         for _ in 0..intermediate_size {
             for i in 0..inner_loop_size {
-                // println!("sum: {}", inp_ptr[i * inp_last_stride]);
                 res_ptr[i * res_last_strides] =
                     op(res_ptr[i * res_last_strides], inp_ptr[i * inp_last_stride]);
             }

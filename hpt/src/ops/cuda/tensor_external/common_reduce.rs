@@ -9,7 +9,7 @@ use hpt_traits::{CommonBounds, EvalReduce, NormalEvalReduce, NormalReduce};
 use hpt_types::dtype::CudaType;
 use hpt_types::{into_scalar::Cast, traits::SimdSelect, type_promote::Eval};
 
-impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> NormalReduce<T>
+impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize> NormalReduce<T>
     for Tensor<T, Cuda, DEVICE_ID>
 {
     type Output = Self;
@@ -101,7 +101,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> NormalRedu
 
 impl<T, const DEVICE_ID: usize> EvalReduce for Tensor<T, Cuda, DEVICE_ID>
 where
-    T: CommonBounds + Eval<Output = bool> + Cast<bool> + DeviceRepr + CudaType,
+    T: CommonBounds + Eval<Output = bool> + Cast<bool> + DeviceRepr + CudaType + Cast<f64>,
 {
     type BoolOutput = Tensor<bool, Cuda, DEVICE_ID>;
     fn all<S: Into<Axis>>(
@@ -123,7 +123,7 @@ where
 
 impl<T, const DEVICE_ID: usize> NormalEvalReduce<T> for Tensor<T, Cuda, DEVICE_ID>
 where
-    T: CommonBounds + Eval<Output = bool> + Cast<bool> + DeviceRepr + CudaType,
+    T: CommonBounds + Eval<Output = bool> + Cast<bool> + DeviceRepr + CudaType + Cast<f64>,
     T::Vec: Eval,
     <T::Vec as Eval>::Output: SimdSelect<T::Vec> + Copy,
     <T::Vec as Eval>::Output: BitAnd<Output = <T::Vec as Eval>::Output>,

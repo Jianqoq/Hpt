@@ -1,7 +1,6 @@
 use hpt::{
-    match_selection, set_num_threads, FloatOutUnary, Matmul, NormalBinOps,
-    ParStridedIteratorSimdZip, Random, ShapeManipulate, Slice, Tensor, TensorCreator, TensorError,
-    TensorInfo, TensorIterator,
+    match_selection, FloatOutUnary, Matmul, NormalBinOps, ParStridedIteratorSimdZip, Random,
+    ShapeManipulate, Slice, Tensor, TensorCreator, TensorError, TensorInfo, TensorIterator,
 };
 
 struct LSTM {
@@ -201,19 +200,28 @@ impl LSTMModel {
 }
 
 fn main() -> anyhow::Result<()> {
-    set_num_threads(16);
-
     let model = LSTMModel::new(512, 512, 4, Some(20))?;
 
-    let batch_size = 1024;
-    let seq_length = 50;
-    let input = Tensor::randn(&[batch_size, seq_length, 512])?;
+    let mut times = Vec::new();
+    let mut batch_sizes = Vec::new();
+    for b in 1..=32 {
+        let batch_size = b * 32;
+        let seq_length = 10;
+        let input = Tensor::randn(&[batch_size, seq_length, 512])?;
 
-    let start_time = std::time::Instant::now();
-    for _ in 0..1 {
-        let _ = model.forward(&input, None)?;
+        let start_time = std::time::Instant::now();
+        for _ in 0..10 {
+            let _ = model.forward(&input, None)?;
+        }
+        times.push((start_time.elapsed() / 10).as_secs_f32() * 1000.0);
+        batch_sizes.push(batch_size);
+        println!(
+            "batch_size: {}, time: {}",
+            batch_size,
+            times.last().unwrap()
+        );
     }
-    println!("Time taken: {:?}", start_time.elapsed() / 1);
-
+    println!("batch_sizes: {:?}", batch_sizes);
+    println!("times: {:?}", times);
     Ok(())
 }
