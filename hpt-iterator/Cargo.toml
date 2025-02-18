@@ -3,7 +3,7 @@ name = "hpt-iterator"
 version = "0.0.13"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-description = "A library implements iterator for hpt"
+description = "An internal library implements iterator for hpt"
 authors = ["JianJian Li <ljj1849532909@gmail.com>"]
 repository = "https://github.com/Jianqoq/Hpt"
 

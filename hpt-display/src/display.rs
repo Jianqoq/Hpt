@@ -172,9 +172,7 @@ where
 /// # Arguments
 /// - `tensor`: A reference to the tensor to be displayed.
 /// - `f`: A reference to the formatter.
-/// - `max_size`: Threshold for displaying partial data of the tensor.
-/// - `max_element`: Number of elements to display in each row when the size of the tensor exceeds `max_size`.
-/// - `max_elemnt_each_row`: Number of elements to display in each row when the size of the tensor exceeds `max_size`.
+/// - `lr_elements_size`: Number of elements to display in left and right for each row and column.
 /// - `precision`: Number of decimal places to display for floating point numbers.
 /// - `show_backward`: A boolean indicating whether to display the gradient function of the tensor, currently only used in DiffTensor.
 pub fn display<U, T>(

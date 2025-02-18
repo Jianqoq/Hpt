@@ -26,7 +26,7 @@ pub mod hpt {
         pub mod unary;
         pub mod assert_utils;
     }
-    // #[cfg(feature = "cuda")]
+    #[cfg(feature = "cuda")]
     pub mod cuda {
         pub mod creation;
         pub mod binary;
