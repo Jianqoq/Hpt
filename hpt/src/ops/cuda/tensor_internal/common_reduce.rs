@@ -2,9 +2,7 @@ use std::borrow::BorrowMut;
 use std::ops::BitAnd;
 
 use crate::ops::cpu::tensor_internal::float_out_unary::FloatBinaryType;
-use crate::ops::cuda::cuda_utils::get_module_name_1;
 use crate::ops::cuda::utils::reduce::reduce::{reduce, reduce2};
-use crate::ops::cuda::utils::unary::unary::uary_fn_with_out_simd;
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use cudarc::driver::DeviceRepr;
@@ -104,11 +102,10 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
 
     fn sum_square<S: Into<Axis>>(
         &self,
-        axis: S,
-        keep_dims: bool,
+        _: S,
+        _: bool,
     ) -> std::result::Result<Self::Output, TensorError> {
-        let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce2(self, &axes, T::ZERO, keep_dims, false, &SUM, "sum", None)
+        unimplemented!()
     }
 }
 
@@ -221,8 +218,8 @@ where
     #[track_caller]
     fn mean<S: Into<Axis>>(
         &self,
-        axis: S,
-        keep_dims: bool,
+        _: S,
+        _: bool,
     ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cuda, DEVICE>, TensorError> {
         unimplemented!()
     }
