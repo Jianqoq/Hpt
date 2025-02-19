@@ -120,4 +120,4 @@ let linear = Linear::load("path/to/save/linear")?;
 | Backend | Supported |
 |---------|-----------|
 | CPU     | ✅         |
-| Cuda    | ❌        |
+| Cuda    | ✅        |
