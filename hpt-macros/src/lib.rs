@@ -908,6 +908,7 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         #[derive(hpt::serde::Deserialize, hpt::serde::Serialize)]
+        #[serde(crate = "hpt::serde")]
         #visibility struct #meta_name #ty_generics #where_clause  {
             #(#meta_fields,)*
         }

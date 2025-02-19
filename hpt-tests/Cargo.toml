@@ -27,6 +27,7 @@ half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }
 
 [features]
 cuda = ["hpt/cuda"]
+default = ["cuda"]
 
 [profile.dev]
 opt-level = 0

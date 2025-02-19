@@ -5,7 +5,7 @@ use hpt_common::error::base::TensorError;
 use hpt_traits::{ops::binary::NormalBinOps, tensor::CommonBounds};
 use hpt_types::dtype::TypeCommon;
 use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
-use std::borrow::Borrow;
+use std::borrow::BorrowMut;
 
 /// a type alias for the output type of the binary operations of `A` and `B`
 pub(crate) type NormalType<A, B> = <A as NormalOut<B>>::Output;
@@ -32,28 +32,28 @@ macro_rules! impl_bin_ops {
         #[track_caller]
         fn add_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
             where
-                U: Borrow<Self::InplaceOutput>
+                U: BorrowMut<Self::InplaceOutput>
         {
             binary_fn_with_out_simd(self, &rhs, |a, b| a._add(b), |a, b| a._add(b), Some(out))
         }
         #[track_caller]
         fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
             where
-                U: Borrow<Self::InplaceOutput>
+                U: BorrowMut<Self::InplaceOutput>
         {
             binary_fn_with_out_simd(self, &rhs, |a, b| a._sub(b), |a, b| a._sub(b), Some(out))
         }
         #[track_caller]
         fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
             where
-                U: Borrow<Self::InplaceOutput>
+                U: BorrowMut<Self::InplaceOutput>
         {
             binary_fn_with_out_simd(self, &rhs, |a, b| a._mul(b), |a, b| a._mul(b), Some(out))
         }
         #[track_caller]
         fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
             where
-                U: Borrow<Self::InplaceOutput>
+                U: BorrowMut<Self::InplaceOutput>
         {
             binary_fn_with_out_simd(self, &rhs, |a, b| a._rem(b), |a, b| a._rem(b), Some(out))
         }
@@ -65,7 +65,7 @@ macro_rules! impl_bin_ops {
         #[track_caller]
         fn pow_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
             where
-                U: Borrow<Self::InplaceOutput>
+                U: BorrowMut<Self::InplaceOutput>
         {
             binary_fn_with_out_simd(self, &rhs, |a, b| a._pow(b), |a, b| a._pow(b), Some(out))
         }
@@ -114,35 +114,35 @@ macro_rules! impl_bin_ops_basic {
         type InplaceOutput = Tensor<NormalType<A, B>, Cpu, DEVICE>;
         #[track_caller]
         #[inline]
-        fn add_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
+        fn add_<U>(&self, rhs: $($rhs)*, mut out: U) -> std::result::Result<Self::Output, TensorError>
             where
-                U: Borrow<Self::InplaceOutput>
+                U: BorrowMut<Self::InplaceOutput>
         {
-            Ok(self.inner.add_(rhs.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+            Ok(self.inner.add_(rhs.inner.as_ref(), out.borrow_mut().inner.as_ref().clone())?.into())
         }
         #[track_caller]
         #[inline]
-        fn sub_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
+        fn sub_<U>(&self, rhs: $($rhs)*, mut out: U) -> std::result::Result<Self::Output, TensorError>
             where
-                U: Borrow<Self::InplaceOutput>
+                U: BorrowMut<Self::InplaceOutput>
         {
-            Ok(self.inner.sub_(rhs.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+            Ok(self.inner.sub_(rhs.inner.as_ref(), out.borrow_mut().inner.as_ref().clone())?.into())
         }
         #[track_caller]
         #[inline]
-        fn mul_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
+        fn mul_<U>(&self, rhs: $($rhs)*, mut out: U) -> std::result::Result<Self::Output, TensorError>
             where
-                U: Borrow<Self::InplaceOutput>
+                U: BorrowMut<Self::InplaceOutput>
         {
-            Ok(self.inner.mul_(rhs.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+            Ok(self.inner.mul_(rhs.inner.as_ref(), out.borrow_mut().inner.as_ref().clone())?.into())
         }
         #[track_caller]
         #[inline]
-        fn rem_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
+        fn rem_<U>(&self, rhs: $($rhs)*, mut out: U) -> std::result::Result<Self::Output, TensorError>
             where
-                U: Borrow<Self::InplaceOutput>
+                U: BorrowMut<Self::InplaceOutput>
         {
-            Ok(self.inner.rem_(rhs.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+            Ok(self.inner.rem_(rhs.inner.as_ref(), out.borrow_mut().inner.as_ref().clone())?.into())
         }
         #[track_caller]
         #[inline]
@@ -151,11 +151,11 @@ macro_rules! impl_bin_ops_basic {
         }
         #[track_caller]
         #[inline]
-        fn pow_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
+        fn pow_<U>(&self, rhs: $($rhs)*, mut out: U) -> std::result::Result<Self::Output, TensorError>
             where
-                U: Borrow<Self::InplaceOutput>
+                U: BorrowMut<Self::InplaceOutput>
         {
-            Ok(self.inner.pow_(rhs.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+            Ok(self.inner.pow_(rhs.inner.as_ref(), out.borrow_mut().inner.as_ref().clone())?.into())
         }
     }
     };

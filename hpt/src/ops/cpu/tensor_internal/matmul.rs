@@ -39,10 +39,10 @@ where
                     out.borrow().static_cast::<<A as NormalOut<B>>::Output>()?;
                 casted
             } else {
-                _Tensor::<<A as NormalOut<B>>::Output>::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?
+                _Tensor::<<A as NormalOut<B>>::Output>::empty(vec![lhs.shape()[0], rhs.shape()[1]])?
             }
         } else {
-            _Tensor::<<A as NormalOut<B>>::Output>::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?
+            _Tensor::<<A as NormalOut<B>>::Output>::empty(vec![lhs.shape()[0], rhs.shape()[1]])?
         };
         let new_a = &lhs.try_astype()?;
         let new_b = &rhs.try_astype()?;
@@ -98,10 +98,10 @@ where
                 });
                 out.borrow().static_cast::<<A as NormalOut<B>>::Output>()?
             } else {
-                _Tensor::<<A as NormalOut<B>>::Output>::zeros(res_shape)?
+                _Tensor::<<A as NormalOut<B>>::Output>::empty(res_shape)?
             }
         } else {
-            _Tensor::<<A as NormalOut<B>>::Output>::zeros(res_shape)?
+            _Tensor::<<A as NormalOut<B>>::Output>::empty(res_shape)?
         };
         let a_strides = preprocess_strides(&a_shape, &lhs.strides());
         let b_strides = preprocess_strides(&b_shape, &rhs.strides());

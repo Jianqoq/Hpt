@@ -19,6 +19,8 @@ use hpt_iterator::iterator_traits::ParStridedIteratorZip;
 use hpt_iterator::TensorIterator;
 use hpt_traits::TensorCreator;
 use hpt_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
+#[cfg(feature = "cuda")]
+use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
 use num::traits::ToBytes;
 use rayon::iter::{
@@ -242,7 +244,7 @@ impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
         &self,
     ) -> Result<Tensor<T, Cuda, CUDA_DEVICE>, TensorError>
     where
-        T: DeviceRepr,
+        T: DeviceRepr + CudaType,
     {
         let data = _Tensor::<T, Cuda, CUDA_DEVICE>::empty(self.shape()).unwrap();
         let device = data.device();
@@ -386,5 +388,16 @@ impl<T: Clone, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
     /// Get the gradient of the tensor
     pub fn grad(&self) -> Option<Tensor<T, Cpu, DEVICE>> {
         self.grad.borrow().as_ref().cloned()
+    }
+}
+
+impl<T: CommonBounds, const CPU_DEVICE: usize, const CUDA_DEVICE: usize>
+    Into<Tensor<T, Cuda, CUDA_DEVICE>> for Tensor<T, Cpu, CPU_DEVICE>
+where
+    T: DeviceRepr + CudaType,
+{
+    fn into(self) -> Tensor<T, Cuda, CUDA_DEVICE> {
+        self.to_cuda::<CUDA_DEVICE>()
+            .expect("failed to convert cpu tensor to cuda tensor")
     }
 }

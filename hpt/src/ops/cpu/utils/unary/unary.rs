@@ -108,16 +108,17 @@ where
     }
 }
 
-fn cumulate<
+pub(crate) fn cumulate<
     T: CommonBounds,
     F: Fn(T, T) -> T + Send + Sync + 'static + Copy,
     A: Into<Option<i64>>,
+    const DEVICE: usize,
 >(
-    a: &_Tensor<T>,
+    a: &_Tensor<T, Cpu, DEVICE>,
     axis: A,
     init_val: T,
     op: F,
-) -> std::result::Result<_Tensor<T>, TensorError>
+) -> std::result::Result<_Tensor<T, Cpu, DEVICE>, TensorError>
 where
     T: NormalOut<T, Output = T>,
 {
@@ -216,7 +217,7 @@ where
             Ok(res)
         }
         None => {
-            let mut res = _Tensor::<T, Cpu>::empty(vec![a.size() as i64])?;
+            let mut res = _Tensor::<T, Cpu, DEVICE>::empty(vec![a.size() as i64])?;
             let mut tmp = init_val;
             if a.is_contiguous() {
                 let raw = a.as_raw();
@@ -238,29 +239,6 @@ where
                 Ok(res)
             }
         }
-    }
-}
-
-impl<T> _Tensor<T>
-where
-    T: CommonBounds,
-{
-    #[allow(unused)]
-    #[track_caller]
-    pub fn cumsum<A: Into<Option<i64>>>(&self, axis: A) -> std::result::Result<Self, TensorError>
-    where
-        T: NormalOut<T, Output = T>,
-    {
-        cumulate(self, axis, T::ZERO, |a, b| a._add(b))
-    }
-
-    #[allow(unused)]
-    #[track_caller]
-    pub fn cumprod(&self, axis: Option<i64>) -> std::result::Result<Self, TensorError>
-    where
-        T: NormalOut<T, Output = T>,
-    {
-        cumulate(self, axis, T::ONE, |a, b| a._mul(b))
     }
 }
 
@@ -296,58 +274,5 @@ where
     /// where each element is either `1` (if the corresponding element is `NaN`) or `0` (if it is not).
     pub fn is_nan(&self) -> Result<Tensor<<T as Eval>::Output>, TensorError> {
         Ok(self.inner.is_nan()?.into())
-    }
-}
-
-impl<T> Tensor<T>
-where
-    T: CommonBounds,
-{
-    /// Computes the cumulative sum of the elements along a specified axis.
-    ///
-    /// This method calculates the cumulative sum of the elements in the tensor along the given `axis`.
-    /// The cumulative sum of an element at position `i` is the sum of all elements from the start of the axis
-    /// up to and including position `i`. If no axis is specified, the cumulative sum is computed over a flattened
-    /// version of the tensor.
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - An optional axis along which to compute the cumulative sum. If `None`, the tensor is flattened,
-    ///   and the cumulative sum is computed over all elements.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a new tensor with the cumulative sum computed along the specified axis.
-    #[allow(unused)]
-    #[track_caller]
-    pub fn cumsum<A: Into<Option<i64>>>(&self, axis: A) -> Result<Self, TensorError>
-    where
-        T: NormalOut<T, Output = T>,
-    {
-        Ok(self.inner.cumsum(axis)?.into())
-    }
-
-    /// Computes the cumulative product of the elements along a specified axis.
-    ///
-    /// This method calculates the cumulative product of the elements in the tensor along the given `axis`.
-    /// The cumulative product of an element at position `i` is the product of all elements from the start of the axis
-    /// up to and including position `i`. If no axis is specified, the cumulative product is computed over a flattened
-    /// version of the tensor.
-    ///
-    /// # Arguments
-    ///
-    /// * `axis` - An optional axis along which to compute the cumulative product. If `None`, the tensor is flattened,
-    ///   and the cumulative product is computed over all elements.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing a new tensor with the cumulative product computed along the specified axis.
-    #[allow(unused)]
-    #[track_caller]
-    pub fn cumprod<A: Into<Option<i64>>>(&self, axis: A) -> Result<Self, TensorError>
-    where
-        T: NormalOut<T, Output = T>,
-    {
-        Ok(self.inner.cumprod(axis.into())?.into())
     }
 }

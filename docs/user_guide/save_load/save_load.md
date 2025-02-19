@@ -7,7 +7,7 @@ To save a list of Tensors
 let saver = TensorSaver::new("path/to/save/file");
 ```
 
-2. Push Tensors to the saver. Note: Tensors can be different type.
+2. Push Tensors to the saver. Note: Tensors can be different type. If the Tensor is cuda, you must convert it to cpu first.
 ```rust
 let a = Tensor::<f32>::randn([1, 100, 100, 100])?;
 // push method will move the saver and will return saver back.
@@ -45,7 +45,7 @@ fn main() -> anyhow::Result<()> {
 
 # Load
 
-To load a list of Tensors, you must make sure the Tensors you load are in same type.
+To load a list of Tensors, you must make sure the Tensors you load are in same type. You can only load data into CPU.
 
 1. Create a loader
 ```rust
@@ -115,3 +115,9 @@ If you saved a struct in a file and you want to load the struct
 ```rust
 let linear = Linear::load("path/to/save/linear")?;
 ```
+
+## Backend Support
+| Backend | Supported |
+|---------|-----------|
+| CPU     | ✅         |
+| Cuda    | ✅        |

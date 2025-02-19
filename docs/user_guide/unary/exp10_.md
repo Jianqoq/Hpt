@@ -16,12 +16,18 @@ Tensor with type `C`
 
 ## Examples:
 ```rust
-use hpt::{FloatUnaryOps, Tensor, TensorError};
+use hpt::{FloatUnaryOps, Tensor, TensorError, TensorInfo};
 
 fn main() -> Result<(), TensorError> {
-    let a = Tensor::<f32>::new([2.0]);  // 10^2
+    let a = Tensor::<f32>::new([10.0]);
     let b = a.exp10_(&mut a.clone())?;
-    println!("{}", b);  // prints: 100.0
+    println!("{}", b);
+    assert_eq!(a.ptr().ptr as u64, b.ptr().ptr as u64);
     Ok(())
 }
 ```
+## Backend Support
+| Backend | Supported |
+|---------|-----------|
+| CPU     | ✅         |
+| Cuda    | ✅        |

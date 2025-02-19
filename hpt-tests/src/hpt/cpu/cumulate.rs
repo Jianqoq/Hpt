@@ -6,7 +6,7 @@ use duplicate::duplicate_item;
 use hpt::ShapeManipulate;
 use hpt::TensorInfo;
 use hpt::TensorLike;
-use hpt::{RandomInt, Tensor, TensorCreator};
+use hpt::{RandomInt, Tensor, TensorCreator, CumulativeOps};
 use hpt_common::slice;
 use hpt_common::slice::Slice;
 use hpt_macros::match_selection;

@@ -10,7 +10,7 @@ use hpt_types::{
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary},
 };
 use std::fmt::Debug;
-use std::{borrow::Borrow, fmt::Display};
+use std::{borrow::BorrowMut, fmt::Display};
 
 #[cfg(target_feature = "avx2")]
 type BoolVector = simd::_256bit::boolx32::boolx32;
@@ -617,7 +617,7 @@ where
         out: O,
     ) -> Result<Self::Output, TensorError>
     where
-        O: Borrow<Self::Output>;
+        O: BorrowMut<Self::Output>;
 
     // /// Computes the sum of the elements along the specified axis, with an initial value.
     // ///
@@ -885,7 +885,7 @@ pub trait NormalEvalReduce<T> {
         out: O,
     ) -> Result<Self::Output, TensorError>
     where
-        O: Borrow<Self::Output>;
+        O: BorrowMut<Self::Output>;
     // /// Computes the sum of the elements along the specified axis, with an initial value, ignoring NaN values.
     // ///
     // /// The `nansum_with_init` function computes the sum of elements along the specified axes, starting from a given initial value and ignoring NaN values.
@@ -1049,7 +1049,8 @@ where
             <Self as FloatOutBinary<Self>>::Output,
             Output = <Self as FloatOutBinary<Self>>::Output,
         >
-        + NormalOutUnary,
+        + NormalOutUnary
+        + Cast<f64>,
 {
 }
 impl<T> CommonBounds for T
@@ -1077,6 +1078,7 @@ where
             <Self as FloatOutBinary<Self>>::Output,
             Output = <Self as FloatOutBinary<Self>>::Output,
         >
-        + NormalOutUnary,
+        + NormalOutUnary
+        + Cast<f64>,
 {
 }

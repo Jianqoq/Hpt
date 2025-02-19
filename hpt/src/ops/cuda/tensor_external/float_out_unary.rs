@@ -528,4 +528,15 @@ where
         )?
         .into())
     }
+    
+    fn erf_<U>(&self, mut out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
+    where
+        U: BorrowMut<Self::InplaceOutput>,
+    {
+        Ok(_Tensor::erf_(
+            self.inner.as_ref(),
+            out.borrow_mut().inner.as_ref().clone(),
+        )?
+        .into())
+    }
 }

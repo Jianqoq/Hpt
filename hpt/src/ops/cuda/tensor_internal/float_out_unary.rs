@@ -757,4 +757,16 @@ where
             Some(out),
         )
     }
+    
+    fn erf_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
+    where
+        U: BorrowMut<Self::InplaceOutput>,
+    {
+        uary_fn_with_out_simd(
+            self,
+            &get_module_name_1("erf", self),
+            |out, x| out.assign(x._erf()),
+            Some(out),
+        )
+    }
 }

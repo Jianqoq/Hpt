@@ -204,8 +204,8 @@ impl FloatOutUnary2 for Scalar<f64> {
     #[inline(always)]
     fn __celu(self, alpha: Self) -> Self {
         Scalar::new(format!(
-            "({} > 0.0) ? {} : ({} * exp({}) - 0.0)",
-            self.val, self.val, alpha.val, self.val
+            "({} > 0.0 ? {} : {} * (exp({} / {}) - 1.0))",
+            self.val, self.val, alpha.val, self.val, alpha.val
         ))
     }
     #[inline(always)]
@@ -246,19 +246,19 @@ impl FloatOutUnary2 for Scalar<f64> {
     }
     #[inline(always)]
     fn __sinh(self) -> Self {
-        Scalar::new(format!("sin({})", self.val))
+        Scalar::new(format!("sinh({})", self.val))
     }
     #[inline(always)]
     fn __cosh(self) -> Self {
-        Scalar::new(format!("cos({})", self.val))
+        Scalar::new(format!("cosh({})", self.val))
     }
     #[inline(always)]
     fn __tanh(self) -> Self {
-        Scalar::new(format!("tan({})", self.val))
+        Scalar::new(format!("tanh({})", self.val))
     }
     #[inline(always)]
     fn __asinh(self) -> Self {
-        Scalar::new(format!("asin({})", self.val))
+        Scalar::new(format!("asinh({})", self.val))
     }
     #[inline(always)]
     fn __acosh(self) -> Self {
@@ -291,8 +291,7 @@ impl FloatOutUnary2 for Scalar<f64> {
 
     fn __gelu(self) -> Self {
         Scalar::new(format!(
-            "(0.5 * {} * (1.0 + erf({} * {} * {})))",
-            self.val,
+            "(0.5 * {} * (1.0 + erf({} * {})))",
             self.val,
             self.val,
             std::f64::consts::FRAC_1_SQRT_2
@@ -307,7 +306,10 @@ impl FloatOutUnary2 for Scalar<f64> {
     }
 
     fn __hard_sigmoid(self) -> Self {
-        Scalar::new(format!("fmin(fmax({} * 0.2 + 0.5, 0.0), 1.0)", self.val))
+        Scalar::new(format!(
+            "fmax(fmin({} * (1.0 / 6.0) + 0.5, 1.0), 0.0)",
+            self.val
+        ))
     }
 
     fn __hard_swish(self) -> Self {
@@ -318,10 +320,7 @@ impl FloatOutUnary2 for Scalar<f64> {
     }
 
     fn __softplus(self) -> Self {
-        Scalar::new(format!(
-            "(fmax({}, 20.0) + log(1.0 + exp(-fabs({}))))",
-            self.val, self.val
-        ))
+        Scalar::new(format!("log(1.0 + exp({}))", self.val))
     }
 
     fn __softsign(self) -> Self {

@@ -307,7 +307,6 @@ export default defineUserConfig({
                 { text: 'par_iter_simd_mut', link: '/user_guide/iterator/par_iter_simd_mut.md' },
                 { text: 'strided_map', link: '/user_guide/iterator/strided_map.md' },
                 { text: 'strided_map_simd', link: '/user_guide/iterator/strided_map_simd.md' },
-                { text: 'for_each', link: '/user_guide/iterator/for_each.md' },
                 { text: 'collect', link: '/user_guide/iterator/collect.md' },
               ]
             },
@@ -395,6 +394,14 @@ export default defineUserConfig({
             {
               text: 'matmul',
               link: '/benchmarks/matmul.md'
+            },
+            {
+              text: 'nn',
+              collapsible: true,
+              children: [
+                { text: 'resnet', link: '/benchmarks/nn/resnet.md' },
+                { text: 'lstm', link: '/benchmarks/nn/lstm.md' }
+              ]
             }
           ]
         }

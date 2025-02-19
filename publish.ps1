@@ -36,7 +36,7 @@ try {
         try {
             Write-Host "Running dry run check..."
             cargo publish --dry-run
-            Read-Host "Dry run successful. Continue with publish? (Y/N)"
+            "Dry run successful"
             Write-Host "Publishing $package..."
             cargo publish
             Write-Host "$package published successfully!"

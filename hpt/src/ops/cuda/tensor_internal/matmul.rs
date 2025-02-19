@@ -10,6 +10,7 @@ use hpt_common::{
 };
 use hpt_traits::TensorCreator;
 use hpt_traits::TensorInfo;
+use hpt_types::dtype::CudaType;
 use std::borrow::{Borrow, BorrowMut};
 
 #[track_caller]
@@ -19,7 +20,7 @@ pub(crate) fn matmul_with_out<T, O, const CUDA_DEVICE: usize>(
     out: Option<O>,
 ) -> std::result::Result<_Tensor<T, Cuda, CUDA_DEVICE>, TensorError>
 where
-    T: CommonBounds + DeviceRepr,
+    T: CommonBounds + DeviceRepr + CudaType,
     CudaBlas: Gemm<T>,
     O: Borrow<_Tensor<T, Cuda, CUDA_DEVICE>> + BorrowMut<_Tensor<T, Cuda, CUDA_DEVICE>>,
 {

@@ -387,7 +387,7 @@ where
 /// This function provides a flexible template for reduction operations on non-contiguous tensors, enabling optimized implementations of various reduction functions in the context of complex memory layouts.
 
 #[track_caller]
-pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O, const DEVICE_ID: usize>(
+pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F4, O, const DEVICE_ID: usize>(
     a: &_Tensor<T, Cuda, DEVICE_ID>,
     axes: &[usize],
     init_val: O,
@@ -396,15 +396,13 @@ pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O, const DEVICE_ID:
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
     full_reduce: F1,
     nkd: F2,
-    kdo1: F3,
     kd: F4,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
     T: CommonBounds + Cast<O> + DeviceRepr + CudaType,
     O: CommonBounds + DeviceRepr + CudaType,
-    F1: Fn(&mut O),
+    F1: Fn(CudaSlice),
     F2: Fn(usize, usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
-    F3: Fn(usize, usize, _Tensor<T, Cuda, DEVICE_ID>, &_Tensor<O, Cuda, DEVICE_ID>),
     F4: Fn(usize, usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
 {
     let (keep_fast_dim, transposed_tensor, result, res_perm) =
@@ -414,9 +412,8 @@ where
         *x -= 1;
     });
 
-    let result_data = result.ptr();
     if a.ndim() == axes.len() {
-        full_reduce(unsafe { result_data.get_ptr().as_mut().unwrap() });
+        full_reduce(result.cuda_slice());
     } else {
         let inner_loop_size = (if keep_fast_dim {
             transposed_tensor.shape()[a.ndim() - axes.len() - 1]
@@ -442,31 +439,18 @@ where
         } else {
             let outer_loop_size = result.size() / inner_loop_size;
             let inner_loop_size_2 = a.size() / result.size();
-            if outer_loop_size == 1 {
-                let num_threads = if inner_loop_size < rayon::current_num_threads() {
-                    inner_loop_size
-                } else {
-                    rayon::current_num_threads()
-                };
-                let mut p = (0..a.ndim()).collect::<Vec<usize>>();
-                let front = p.remove(0);
-                p.push(front);
-                let _a = transposed_tensor.permute(&p).unwrap();
-                kdo1(num_threads, inner_loop_size, _a, &result);
+            let num_threads = if outer_loop_size < rayon::current_num_threads() {
+                outer_loop_size
             } else {
-                let num_threads = if outer_loop_size < rayon::current_num_threads() {
-                    outer_loop_size
-                } else {
-                    rayon::current_num_threads()
-                };
-                kd(
-                    num_threads,
-                    inner_loop_size,
-                    inner_loop_size_2,
-                    &result,
-                    &transposed_tensor,
-                );
-            }
+                rayon::current_num_threads()
+            };
+            kd(
+                num_threads,
+                inner_loop_size,
+                inner_loop_size_2,
+                &result,
+                &transposed_tensor,
+            );
         }
     }
     result

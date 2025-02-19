@@ -1,7 +1,7 @@
 use crate::backend::Cpu;
 use crate::ops::cpu::utils::reduce::reduce_template::contiguous_reduce_template;
 use crate::tensor_base::_Tensor;
-use crate::{argmax_kernel, argmin_kernel};
+use crate::ops::cpu::kernels::argreduce_kernels::{argmax_kernel, argmin_kernel};
 
 use crate::ops::cpu::utils::reduce::reduce_utils::{
     ReductionPreprocessor, UCReductionPreprocessor,

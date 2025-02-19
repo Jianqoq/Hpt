@@ -13,7 +13,7 @@ use crate::{
 use hpt_common::{
     error::base::TensorError, layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer,
 };
-use hpt_dataloader::DataLoader;
+use hpt_dataloader::{CPUTensorCreator, DataLoader};
 use hpt_display::display;
 use hpt_iterator::TensorIterator;
 use hpt_traits::tensor::{CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike};
@@ -70,48 +70,49 @@ impl<T: CommonBounds, const DEVICE: usize> TensorIterator<'_, T> for Tensor<T, C
 
 macro_rules! impl_tensor_info {
     ($tensor:ty) => {
-        impl<T, const DEVICE: usize> TensorInfo<T> for $tensor
+        impl<T, B, const DEVICE: usize> TensorInfo<T> for $tensor
         where
             T: CommonBounds,
+            B: BackendTy + Buffer,
         {
             fn ptr(&self) -> Pointer<T> {
-                self.inner.ptr().clone()
+                self.inner.as_ref().data.clone()
             }
 
             fn size(&self) -> usize {
-                self.inner.layout().size() as usize
+                self.inner.as_ref().layout.size() as usize
             }
 
             fn shape(&self) -> &Shape {
-                self.inner.layout().shape()
+                self.inner.as_ref().layout.shape()
             }
 
             fn strides(&self) -> &hpt_common::strides::strides::Strides {
-                self.inner.layout().strides()
+                self.inner.as_ref().layout.strides()
             }
 
             fn layout(&self) -> &Layout {
-                self.inner.layout()
+                &self.inner.as_ref().layout
             }
 
             fn parent(&self) -> Option<Pointer<T>> {
-                self.inner.parent().clone()
+                self.inner.as_ref().parent.clone()
             }
 
             fn ndim(&self) -> usize {
-                self.inner.layout().ndim()
+                self.inner.as_ref().layout.ndim()
             }
 
             fn is_contiguous(&self) -> bool {
-                self.inner.layout().is_contiguous()
+                self.inner.as_ref().layout.is_contiguous()
             }
         }
     };
 }
 
-impl_tensor_info!(Tensor<T, Cpu, DEVICE>);
-impl_tensor_info!(&Tensor<T, Cpu, DEVICE>);
-impl_tensor_info!(&mut Tensor<T, Cpu, DEVICE>);
+impl_tensor_info!(Tensor<T, B, DEVICE>);
+impl_tensor_info!(&Tensor<T, B, DEVICE>);
+impl_tensor_info!(&mut Tensor<T, B, DEVICE>);
 
 impl<T: CommonBounds, const DEVICE: usize> TensorAlloc for Tensor<T, Cpu, DEVICE> {
     type Meta = T;
@@ -119,7 +120,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorAlloc for Tensor<T, Cpu, DEVICE
     where
         Self: Sized,
     {
-        Self::empty(shape)
+        <Self as TensorCreator<T>>::empty(shape)
     }
 }
 
@@ -202,5 +203,12 @@ impl<T, const DEVICE_ID: usize> From<Tensor<T, Cpu, DEVICE_ID>> for DataLoader<T
             value.inner.layout.strides().clone(),
             value.inner.data.ptr,
         )
+    }
+}
+
+impl<T: CommonBounds, B: BackendTy + Buffer, const DEVICE: usize> CPUTensorCreator<T> for Tensor<T, B, DEVICE> {
+    type Output = Tensor<T, Cpu, DEVICE>;
+    fn empty<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
+        <Tensor<T, Cpu, DEVICE> as TensorCreator<T>>::empty(shape)
     }
 }

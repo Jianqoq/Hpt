@@ -52,6 +52,7 @@ where
         };
         rng.fill_with_normal(&mut cuda_slice, T::ZERO, T::ONE)
             .expect("CUDA_RNG error");
+        cuda_slice.leak();
         Ok(ret)
     }
 
@@ -80,6 +81,7 @@ where
         };
         rng.fill_with_uniform(&mut cuda_slice)
             .expect("CUDA_RNG error");
+        cuda_slice.leak();
         Ok(ret)
     }
 
@@ -156,6 +158,7 @@ where
         };
         rng.fill_with_log_normal(&mut cuda_slice, mean, std)
             .expect("CUDA_RNG error");
+        cuda_slice.leak();
         Ok(ret)
     }
 
