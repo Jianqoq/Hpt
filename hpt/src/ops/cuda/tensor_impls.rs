@@ -8,11 +8,14 @@ use crate::{tensor_base::_Tensor, Cuda, Tensor};
 use cudarc::driver::{CudaDevice, DeviceRepr, LaunchAsync};
 use hpt_common::error::base::TensorError;
 use hpt_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
+use hpt_dataloader::data_loader::TensorMeta;
+use hpt_dataloader::{CompressionAlgo, Endian, Save};
 use hpt_traits::TensorCreator;
 use hpt_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
 use hpt_types::cuda_types::scalar::Scalar;
 use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
+use num::traits::ToBytes;
 
 use crate::ops::cuda::cuda_utils::compute_kernel_launch_config;
 use crate::ops::cuda::utils::unary::unary::uary_fn_with_out_simd;
@@ -224,7 +227,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> _Tensor<T,
         let ptr = unsafe { device.upgrade_device_ptr(self.data.ptr as u64, self.size()) };
         self.device()
             .dtoh_sync_copy_into(&ptr, data.as_raw_mut())
-            .unwrap();
+            .expect("failed to copy data from cuda to cpu");
         ptr.leak();
         Ok(data.into())
     }
@@ -345,5 +348,46 @@ impl<T, const DEVICE_ID: usize> Into<Tensor<T, Cuda, DEVICE_ID>> for &Tensor<T, 
         Tensor {
             inner: self.inner.clone(),
         }
+    }
+}
+impl<
+        const N: usize,
+        T: CommonBounds + ToBytes<Bytes = [u8; N]> + DeviceRepr + CudaType,
+        const DEVICE: usize,
+    > Save for Tensor<T, Cuda, DEVICE>
+{
+    type Meta = TensorMeta<T, Self>;
+    fn __save(
+        data: &Self,
+        file: &mut std::fs::File,
+        len_so_far: &mut usize,
+        global_cnt: &mut usize,
+        compression_algo: CompressionAlgo,
+        endian: Endian,
+        level: u32,
+    ) -> std::io::Result<Self::Meta> {
+        let cpu_data: Tensor<T, Cpu> = data
+            .to_cpu::<0>()
+            .expect("failed to convert cuda tensor to cpu tensor");
+        let meta = Tensor::<T, Cpu>::__save(
+            &cpu_data,
+            file,
+            len_so_far,
+            global_cnt,
+            compression_algo,
+            endian,
+            level,
+        )?;
+        Ok(TensorMeta {
+            begin: meta.begin,
+            shape: meta.shape,
+            strides: meta.strides,
+            size: meta.size,
+            dtype: meta.dtype,
+            compression_algo,
+            endian,
+            indices: meta.indices,
+            phantom: std::marker::PhantomData,
+        })
     }
 }

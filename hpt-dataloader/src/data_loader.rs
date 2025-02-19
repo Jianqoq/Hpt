@@ -1,7 +1,5 @@
-use anyhow::Ok;
 use anyhow::Result;
 use hpt_traits::CommonBounds;
-use hpt_traits::TensorCreator;
 use hpt_traits::TensorInfo;
 use num::traits::FromBytes;
 use serde::{Deserialize, Serialize};
@@ -16,6 +14,7 @@ use std::{
 use crate::struct_save::load::load;
 use crate::struct_save::load::MetaLoad;
 use crate::struct_save::save::Save;
+use crate::CPUTensorCreator;
 use crate::CompressionAlgo;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -46,7 +45,10 @@ pub(crate) struct HeaderInfo {
 /// the meta data of the tensor
 #[derive(Serialize, Deserialize)]
 #[must_use]
-pub struct TensorMeta<T: CommonBounds, B: TensorCreator<T, Output = B> + Clone + TensorInfo<T>> {
+pub struct TensorMeta<T: CommonBounds, B: CPUTensorCreator<T>>
+where
+    <B as CPUTensorCreator<T>>::Output: Clone + TensorInfo<T>,
+{
     pub begin: usize,
     pub shape: Vec<i64>,
     pub strides: Vec<i64>,
@@ -73,15 +75,14 @@ pub fn parse_header_compressed<M: Save>(file: &str) -> anyhow::Result<<M as Save
     Ok(ret)
 }
 
-impl<
-        T: CommonBounds + FromBytes<Bytes = [u8; N]>,
-        B: TensorCreator<T, Output = B> + Clone + TensorInfo<T> + Display,
-        const N: usize,
-    > MetaLoad for TensorMeta<T, B>
+impl<T: CommonBounds + FromBytes<Bytes = [u8; N]>, B: CPUTensorCreator<T>, const N: usize> MetaLoad
+    for TensorMeta<T, B>
+where
+    <B as CPUTensorCreator<T>>::Output: Clone + TensorInfo<T> + Display + Into<B>,
 {
     type Output = B;
     fn load(&self, file: &mut std::fs::File) -> std::io::Result<Self::Output> {
-        load::<T, B, N>(file, self)
+        Ok(load::<T, B, N>(file, self)?.into())
     }
 }
 

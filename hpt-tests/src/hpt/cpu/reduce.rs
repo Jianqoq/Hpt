@@ -1244,26 +1244,6 @@ fn test_uncontiguous_reducel1() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_uncontiguous_reducel12() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
-    let a = a.permute([1, 2, 0])?;
-    let tch_a = tch_a.permute(&[1, 2, 0][..]);
-    let sum = a.reducel1(0, false)?;
-    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
-    let tch_sum = tch_a.f_norm_out(&res, 1, 0, false)?;
-    assert_eq_f64(&sum, &tch_sum);
-    let sum = a.reducel1(1, false)?;
-    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
-    let tch_sum = tch_a.f_norm_out(&res, 1, 1, false)?;
-    assert_eq_f64(&sum, &tch_sum);
-    let sum = a.reducel1(2, false)?;
-    let res = Tensor::empty(sum.shape().inner(), (tch::Kind::Double, tch::Device::Cpu));
-    let tch_sum = tch_a.f_norm_out(&res, 1, 2, false)?;
-    assert_eq_f64(&sum, &tch_sum);
-    Ok(())
-}
-
-#[test]
 fn test_sub_tensor_reducel1() -> anyhow::Result<()> {
     let (a, tch_a) = common_input_f64(2 * 5 * 10, [2, 5, 10])?;
     let a = slice!(a[:, 1:3, 2:5])?;

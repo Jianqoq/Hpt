@@ -1049,7 +1049,8 @@ where
             <Self as FloatOutBinary<Self>>::Output,
             Output = <Self as FloatOutBinary<Self>>::Output,
         >
-        + NormalOutUnary,
+        + NormalOutUnary
+        + Cast<f64>,
 {
 }
 impl<T> CommonBounds for T
@@ -1077,6 +1078,7 @@ where
             <Self as FloatOutBinary<Self>>::Output,
             Output = <Self as FloatOutBinary<Self>>::Output,
         >
-        + NormalOutUnary,
+        + NormalOutUnary
+        + Cast<f64>,
 {
 }

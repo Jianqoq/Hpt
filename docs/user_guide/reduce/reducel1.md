@@ -45,4 +45,4 @@ fn main() -> Result<(), TensorError> {
 | Backend | Supported |
 |---------|-----------|
 | CPU     | ✅         |
-| Cuda    | ❌        |
+| Cuda    | ✅        |

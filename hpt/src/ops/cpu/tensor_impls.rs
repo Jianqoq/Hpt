@@ -10,8 +10,6 @@ use crate::{save, Save};
 use crate::{tensor_base::_Tensor, Tensor, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION};
 #[cfg(feature = "cuda")]
 use cudarc::driver::DeviceRepr;
-#[cfg(feature = "cuda")]
-use hpt_types::dtype::CudaType;
 use hpt_common::error::base::TensorError;
 use hpt_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
 use hpt_dataloader::data_loader::TensorMeta;
@@ -21,6 +19,8 @@ use hpt_iterator::iterator_traits::ParStridedIteratorZip;
 use hpt_iterator::TensorIterator;
 use hpt_traits::TensorCreator;
 use hpt_traits::{CommonBounds, TensorAlloc, TensorInfo, TensorLike};
+#[cfg(feature = "cuda")]
+use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
 use num::traits::ToBytes;
 use rayon::iter::{
@@ -388,5 +388,16 @@ impl<T: Clone, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
     /// Get the gradient of the tensor
     pub fn grad(&self) -> Option<Tensor<T, Cpu, DEVICE>> {
         self.grad.borrow().as_ref().cloned()
+    }
+}
+
+impl<T: CommonBounds, const CPU_DEVICE: usize, const CUDA_DEVICE: usize>
+    Into<Tensor<T, Cuda, CUDA_DEVICE>> for Tensor<T, Cpu, CPU_DEVICE>
+where
+    T: DeviceRepr + CudaType,
+{
+    fn into(self) -> Tensor<T, Cuda, CUDA_DEVICE> {
+        self.to_cuda::<CUDA_DEVICE>()
+            .expect("failed to convert cpu tensor to cuda tensor")
     }
 }

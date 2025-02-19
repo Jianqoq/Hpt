@@ -13,7 +13,7 @@ use crate::{
 use hpt_common::{
     error::base::TensorError, layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer,
 };
-use hpt_dataloader::DataLoader;
+use hpt_dataloader::{CPUTensorCreator, DataLoader};
 use hpt_display::display;
 use hpt_iterator::TensorIterator;
 use hpt_traits::tensor::{CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike};
@@ -120,7 +120,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorAlloc for Tensor<T, Cpu, DEVICE
     where
         Self: Sized,
     {
-        Self::empty(shape)
+        <Self as TensorCreator<T>>::empty(shape)
     }
 }
 
@@ -203,5 +203,12 @@ impl<T, const DEVICE_ID: usize> From<Tensor<T, Cpu, DEVICE_ID>> for DataLoader<T
             value.inner.layout.strides().clone(),
             value.inner.data.ptr,
         )
+    }
+}
+
+impl<T: CommonBounds, B: BackendTy + Buffer, const DEVICE: usize> CPUTensorCreator<T> for Tensor<T, B, DEVICE> {
+    type Output = Tensor<T, Cpu, DEVICE>;
+    fn empty<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
+        <Tensor<T, Cpu, DEVICE> as TensorCreator<T>>::empty(shape)
     }
 }

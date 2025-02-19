@@ -1,5 +1,6 @@
 #![allow(unused)]
 
+use crate::ops::cuda::cuda_utils::get_module_name_1;
 use crate::ops::cuda::utils::unary::strided_copy::strided_copy;
 use crate::ops::cuda::utils::unary::unary::unary_raw_mut;
 use crate::tensor_base::_Tensor;
@@ -41,12 +42,12 @@ pub(crate) fn reduce<T, const DEVICE_ID: usize>(
     >,
     module_name: &str,
     op: &str,
+    has_cumulate: bool,
     post_op: Option<impl Fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
     c: Option<_Tensor<T, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<T, Cuda, DEVICE_ID>, TensorError>
 where
     T: CommonBounds + Cast<T> + DeviceRepr + CudaType + Cast<f64>,
-    T::Vec: Copy,
 {
     if a.is_contiguous() && a.parent().is_none() {
         contiguous_reduce::<T, T, DEVICE_ID>(
@@ -58,6 +59,7 @@ where
             meta,
             module_name,
             op,
+            has_cumulate,
             post_op,
             c,
         )
@@ -71,6 +73,7 @@ where
             meta,
             module_name,
             op,
+            has_cumulate,
             post_op,
             c,
         )
@@ -94,6 +97,7 @@ pub(crate) fn reduce2<T, O, const DEVICE_ID: usize>(
     >,
     module_name: &str,
     op: &str,
+    has_cumulate: bool,
     post_op: Option<impl Fn(Scalar<O>, Scalar<O>) -> Scalar<O>>,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
@@ -113,6 +117,7 @@ where
             meta,
             module_name,
             op,
+            has_cumulate,
             post_op,
             c,
         )
@@ -126,6 +131,7 @@ where
             meta,
             module_name,
             op,
+            has_cumulate,
             post_op,
             c,
         )
@@ -149,13 +155,13 @@ pub(crate) fn reduce3<T, O, const DEVICE_ID: usize>(
     >,
     module_name: &str,
     op: &str,
+    has_cumulate: bool,
     post_op: Option<impl Fn(Scalar<O>, Scalar<O>) -> Scalar<O>>,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
     T: CommonBounds + Cast<O> + DeviceRepr + CudaType + Cast<f64>,
     O: CommonBounds + DeviceRepr + CudaType,
-    O::Vec: Copy,
 {
     if a.is_contiguous() && a.parent().is_none() {
         contiguous_reduce::<T, O, DEVICE_ID>(
@@ -167,6 +173,7 @@ where
             meta,
             module_name,
             op,
+            has_cumulate,
             post_op,
             c,
         )
@@ -180,6 +187,7 @@ where
             meta,
             module_name,
             op,
+            has_cumulate,
             post_op,
             c,
         )
@@ -203,14 +211,13 @@ pub(crate) fn contiguous_reduce<T, O, const DEVICE_ID: usize>(
     >,
     module_name: &str,
     op: &str,
+    has_cumulate: bool,
     post_op: Option<impl Fn(Scalar<O>, Scalar<O>) -> Scalar<O>>,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
     T: CommonBounds + Cast<O> + DeviceRepr + CudaType,
     O: CommonBounds + DeviceRepr + CudaType,
-    T::Vec: Copy,
-    O::Vec: Copy,
 {
     let max_axis = *axes.iter().max().unwrap();
     let (a, fused_dims) = if max_axis == a.ndim() - 1 {
@@ -268,6 +275,17 @@ where
             }
             .unwrap();
 
+            let reduce_kernel = if has_cumulate {
+                a.device()
+                    .get_func(
+                        &module_name,
+                        &format!("contiguous_cumulate_{op}_{}", T::STR),
+                    )
+                    .unwrap()
+            } else {
+                reduce_kernel
+            };
+
             // keep reducing until the size is 1
             while reduce_size > 1 {
                 let cfg = compute_cfg(reduce_size);
@@ -284,9 +302,11 @@ where
             let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, 1) };
             let mut _res_ptr = unsafe { a.device().upgrade_device_ptr::<O>(res.inner, 1) };
             if let Some(post_op) = &post_op {
-                unary_raw_mut(&tmp_buffer, &tmp_buffer, module_name, post_op);
+                let module = get_module_name_1(module_name, &a);
+                unary_raw_mut(&tmp_buffer, &_res_ptr, &module, post_op);
+            } else {
+                a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
             }
-            a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
             _res_ptr.leak();
         },
         |inner_loop_size, inner_loop_size2, res, transposed_tensor| {
@@ -366,7 +386,8 @@ where
             };
             let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, res.size()) };
             if let Some(post_op) = &post_op {
-                unary_raw_mut(&tmp_buffer, &tmp_buffer, module_name, post_op);
+                let module = get_module_name_1(module_name, &a);
+                unary_raw_mut(&tmp_buffer, &tmp_buffer, &module, post_op);
             }
             a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
             _res_ptr.leak();
@@ -467,7 +488,8 @@ where
                     .upgrade_device_ptr::<O>(tmp_buffer, result.size())
             };
             if let Some(post_op) = &post_op {
-                unary_raw_mut(&tmp_buffer, &tmp_buffer, module_name, post_op);
+                let module = get_module_name_1(module_name, &a);
+                unary_raw_mut(&tmp_buffer, &tmp_buffer, &module, post_op);
             }
             a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
             _res_ptr.leak();
@@ -501,14 +523,13 @@ pub(crate) fn uncontiguous_reduce<T, O, const DEVICE_ID: usize>(
     >,
     module_name: &str,
     op: &str,
+    has_cumulate: bool,
     post_op: Option<impl Fn(Scalar<O>, Scalar<O>) -> Scalar<O>>,
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
     T: CommonBounds + Cast<O> + DeviceRepr + CudaType + Cast<f64>,
     O: CommonBounds + DeviceRepr + CudaType,
-    T::Vec: Copy,
-    O::Vec: Copy,
 {
     uncontiguos_reduce_template(
         a,
@@ -569,12 +590,23 @@ where
                 .get_func(&module_name, &format!("contiguous_{op}_{}", T::STR))
                 .unwrap();
 
+            let reduce_kernel = if has_cumulate {
+                a.device()
+                    .get_func(
+                        &module_name,
+                        &format!("uncontiguous_cumulate_{op}_{}", T::STR),
+                    )
+                    .unwrap()
+            } else {
+                contiguous_reduce_kernel
+            };
+
             // keep reducing until the size is 1
             while reduce_size > 1 {
                 let cfg = compute_cfg(reduce_size);
                 // it is safe to use tmp_buffer as input and output because there is no data racing
                 unsafe {
-                    contiguous_reduce_kernel
+                    reduce_kernel
                         .clone()
                         .launch(cfg, (tmp_buffer, tmp_buffer, reduce_size))
                 }
@@ -583,11 +615,13 @@ where
             }
             a.device().synchronize().unwrap();
             let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, 1) };
-            if let Some(post_op) = &post_op {
-                unary_raw_mut(&tmp_buffer, &tmp_buffer, module_name, post_op);
-            }
             let mut _res_ptr = unsafe { a.device().upgrade_device_ptr::<O>(res.inner, 1) };
-            a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
+            if let Some(post_op) = &post_op {
+                let module = get_module_name_1(module_name, &a);
+                unary_raw_mut(&tmp_buffer, &_res_ptr, &module, post_op);
+            } else {
+                a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
+            }
             _res_ptr.leak();
         },
         |num_threads, inner_loop_size, inner_loop_size2, res, transposed_tensor| {
@@ -663,7 +697,8 @@ where
             a.device().synchronize().unwrap();
             let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, res.size()) };
             if let Some(post_op) = &post_op {
-                unary_raw_mut(&tmp_buffer, &tmp_buffer, module_name, post_op);
+                let module = get_module_name_1(module_name, &a);
+                unary_raw_mut(&tmp_buffer, &tmp_buffer, &module, post_op);
             }
             strided_copy(&tmp_buffer, &mut res.clone()).expect("strided_copy failed");
         },
@@ -759,7 +794,8 @@ where
                     .upgrade_device_ptr::<O>(tmp_buffer, result.size())
             };
             if let Some(post_op) = &post_op {
-                unary_raw_mut(&tmp_buffer, &tmp_buffer, module_name, post_op);
+                let module = get_module_name_1(module_name, &a);
+                unary_raw_mut(&tmp_buffer, &tmp_buffer, &module, post_op);
             }
             strided_copy(&tmp_buffer, &mut result.clone()).expect("strided_copy failed");
         },

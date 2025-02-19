@@ -11,6 +11,7 @@ pub use struct_save::gen_header;
 pub use struct_save::load::{Load, MetaLoad};
 pub use struct_save::save::save;
 pub use struct_save::save::Save;
+pub use utils::CPUTensorCreator;
 mod struct_save {
     pub mod gen_header;
     pub mod load;

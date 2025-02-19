@@ -8,7 +8,7 @@ use crate::Cuda;
 use cudarc::driver::DeviceRepr;
 use hpt_common::axis::axis::{process_axes, Axis};
 use hpt_common::error::base::TensorError;
-use hpt_cudakernels::REDUCE;
+use hpt_cudakernels::{REDUCE, REDUCE2};
 use hpt_traits::{
     CommonBounds, EvalReduce, FloatReduce, NormalEvalReduce, NormalReduce, TensorInfo,
 };
@@ -39,6 +39,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
             &REDUCE,
             "reduce",
             "sum",
+            false,
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             None,
         )
@@ -64,6 +65,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
             &REDUCE,
             "reduce",
             "sum",
+            false,
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             Some(out.borrow().clone()),
         )
@@ -84,6 +86,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
             &REDUCE,
             "reduce",
             "prod",
+            false,
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             None,
         )
@@ -104,6 +107,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
             &REDUCE,
             "reduce",
             "min",
+            false,
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             None,
         )
@@ -124,6 +128,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
             &REDUCE,
             "reduce",
             "max",
+            false,
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             None,
         )
@@ -144,6 +149,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
             &REDUCE,
             "reduce",
             "reducel1",
+            false,
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             None,
         )
@@ -161,9 +167,10 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
             T::ZERO,
             keep_dims,
             false,
-            &REDUCE,
-            "reduce",
+            &REDUCE2,
+            "reduce2",
             "sum_square",
+            true,
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             None,
         )
@@ -190,6 +197,7 @@ where
             &REDUCE,
             "reduce",
             "all",
+            false,
             None::<fn(Scalar<bool>, Scalar<bool>) -> Scalar<bool>>,
             None,
         )
@@ -210,6 +218,7 @@ where
             &REDUCE,
             "reduce",
             "any",
+            false,
             None::<fn(Scalar<bool>, Scalar<bool>) -> Scalar<bool>>,
             None,
         )
@@ -240,6 +249,7 @@ where
             &REDUCE,
             "reduce",
             "nansum",
+            false,
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             None,
         )
@@ -260,6 +270,7 @@ where
             &REDUCE,
             "reduce",
             "nanprod",
+            false,
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             None,
         )
@@ -285,6 +296,7 @@ where
             &REDUCE,
             "reduce",
             "nansum",
+            false,
             None::<fn(Scalar<T>, Scalar<T>) -> Scalar<T>>,
             Some(out.borrow_mut().clone()),
         )
@@ -301,7 +313,8 @@ where
         + DeviceRepr
         + CudaType,
     Scalar<FloatBinaryType<T>>: FloatOutBinary<Output = Scalar<FloatBinaryType<T>>>
-        + FloatOutUnary<Output = Scalar<FloatBinaryType<T>>>,
+        + FloatOutUnary<Output = Scalar<FloatBinaryType<T>>>
+        + NormalOut<Output = Scalar<FloatBinaryType<T>>>,
 {
     type Output = _Tensor<FloatBinaryType<T>, Cuda, DEVICE>;
 
@@ -326,6 +339,7 @@ where
             &REDUCE,
             "reduce",
             "nansum",
+            false,
             Some(
                 |out: Scalar<FloatBinaryType<T>>, b: Scalar<FloatBinaryType<T>>| {
                     let scalar_size: Scalar<FloatBinaryType<T>> =
@@ -349,9 +363,10 @@ where
             FloatBinaryType::<T>::ZERO,
             keep_dims,
             false,
-            &REDUCE,
-            "reduce",
+            &REDUCE2,
+            "reduce2",
             "sum_square",
+            true,
             Some(
                 |out: Scalar<FloatBinaryType<T>>, b: Scalar<FloatBinaryType<T>>| {
                     out.assign(b._sqrt())
@@ -363,10 +378,30 @@ where
     #[track_caller]
     fn reducel3<S: Into<Axis>>(
         &self,
-        _: S,
-        _: bool,
+        axes: S,
+        keep_dims: bool,
     ) -> std::result::Result<Self::Output, TensorError> {
-        unimplemented!()
+        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+        reduce3(
+            self,
+            &axes,
+            FloatBinaryType::<T>::ZERO,
+            keep_dims,
+            false,
+            &REDUCE2,
+            "reduce2",
+            "reducel3",
+            true,
+            Some(
+                |out: Scalar<FloatBinaryType<T>>, b: Scalar<FloatBinaryType<T>>| {
+                    let one_third: FloatBinaryType<T> = (1.0f64 / 3.0f64).cast();
+                    let scalar: Scalar<FloatBinaryType<T>> =
+                        Scalar::<FloatBinaryType<T>>::new(one_third);
+                    out.assign(b._pow(scalar))
+                },
+            ),
+            None,
+        )
     }
     #[track_caller]
     fn logsumexp<S: Into<Axis>>(

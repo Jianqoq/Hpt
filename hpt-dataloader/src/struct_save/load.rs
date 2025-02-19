@@ -7,12 +7,12 @@ use std::{
 
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
 use hpt_common::shape::shape::Shape;
-use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
+use hpt_traits::{CommonBounds, TensorInfo};
 use num::traits::FromBytes;
 
 use crate::{
     data_loader::{parse_header_compressed, TensorMeta},
-    CompressionAlgo, Endian,
+    CPUTensorCreator, CompressionAlgo, Endian,
 };
 
 use super::save::Save;
@@ -31,12 +31,15 @@ pub trait Load: Sized + Save {
 pub(crate) fn load<
     'a,
     T: CommonBounds + FromBytes<Bytes = [u8; N]>,
-    B: TensorCreator<T, Output = B> + Clone + TensorInfo<T> + Display,
+    B: CPUTensorCreator<T>,
     const N: usize,
 >(
     file: &mut File,
     meta: &TensorMeta<T, B>,
-) -> std::io::Result<B> {
+) -> std::io::Result<<B as CPUTensorCreator<T>>::Output>
+where
+    <B as CPUTensorCreator<T>>::Output: Clone + TensorInfo<T> + Display,
+{
     if meta.dtype != T::STR {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
@@ -50,7 +53,7 @@ pub(crate) fn load<
     // since the shape is scaled with mem_size, we need to scale it back
     let shape = meta.shape.clone();
     // create the tensor
-    let tensor: B = B::empty(&shape)
+    let tensor = B::empty(&shape)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e.to_string()))?;
 
     if tensor.size() == 0 {

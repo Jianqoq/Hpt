@@ -172,7 +172,8 @@ where
         + DeviceRepr
         + CudaType,
     Scalar<FloatBinaryType<T>>: FloatOutBinary<Output = Scalar<FloatBinaryType<T>>>
-        + FloatOutUnary<Output = Scalar<FloatBinaryType<T>>>,
+        + FloatOutUnary<Output = Scalar<FloatBinaryType<T>>>
+        + NormalOut<Output = Scalar<FloatBinaryType<T>>>,
 {
     type Output = Tensor<FloatBinaryType<T>, Cuda, DEVICE>;
 
