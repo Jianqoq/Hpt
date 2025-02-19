@@ -1,4 +1,3 @@
-
 use hpt::*;
 use safetensors::SafeTensors;
 
@@ -741,7 +740,11 @@ fn main() -> anyhow::Result<()> {
         }
         size.push(64 + 32 * i);
         time.push((now.elapsed() / 10).as_secs_f32() * 1000.0);
-        println!("size: {:?}, time: {:?}", size.last().unwrap(), time.last().unwrap());
+        println!(
+            "size: {:?}, time: {:?}",
+            size.last().unwrap(),
+            time.last().unwrap()
+        );
     }
     println!("size: {:?}", size);
     println!("time: {:?}", time);

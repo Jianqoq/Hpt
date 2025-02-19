@@ -757,7 +757,7 @@ where
             Some(out),
         )
     }
-    
+
     fn erf_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
