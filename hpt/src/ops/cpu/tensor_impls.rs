@@ -391,6 +391,7 @@ impl<T: Clone, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
     }
 }
 
+#[cfg(feature = "cuda")]
 impl<T: CommonBounds, const CPU_DEVICE: usize, const CUDA_DEVICE: usize>
     Into<Tensor<T, Cuda, CUDA_DEVICE>> for Tensor<T, Cpu, CPU_DEVICE>
 where
