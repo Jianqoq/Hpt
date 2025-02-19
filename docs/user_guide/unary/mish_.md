@@ -1,6 +1,6 @@
 # mish_
 ```rust
-mish_(x: &Tensor<T>, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
+mish_(x: &Tensor<T>, out: &mut Tensor<C> | Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large x * \tanh(\ln(1 + e^x))$ for all elements with out
 

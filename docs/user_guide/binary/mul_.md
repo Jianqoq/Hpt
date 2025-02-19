@@ -3,7 +3,7 @@
 mul_(
     x: &Tensor<A> | Tensor<A> | scalar, 
     y: &Tensor<B> | Tensor<B> | scalar,
-    out: &Tensor<C> | Tensor<C>
+    out: &mut Tensor<C> | Tensor<C>
 ) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large x * y$ for all elements with out

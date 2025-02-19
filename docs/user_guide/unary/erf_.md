@@ -1,6 +1,6 @@
 # erf_
 ```rust
-erf_(x: &Tensor<T>, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
+erf_(x: &Tensor<T>, out: &mut Tensor<C> | Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \text{erf}(x) = \frac{2}{\sqrt{\pi}} \int_0^x e^{-t^2} dt$ for all elements with out
 

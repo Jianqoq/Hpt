@@ -3,7 +3,7 @@
 add_(
     x: &Tensor<A> | Tensor<A> | scalar, 
     y: &Tensor<B> | Tensor<B> | scalar,
-    out: &Tensor<C> | Tensor<C>
+    out: &mut Tensor<C> | Tensor<C>
 ) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large x + y$ for all elements with out
@@ -20,12 +20,12 @@ Tensor with type `C`
 
 ## Examples:
 ```rust
-use hpt::{FloatBinaryOps, Tensor, TensorError};
+use hpt::{NormalBinOps, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new([2.0]);
     let b = Tensor::<f32>::new([3.0]);
-    let c = a.add_(&b, &a)?;
+    let c = a.add_(&b, &mut a.clone())?;
     println!("{}", c);
     Ok(())
 }

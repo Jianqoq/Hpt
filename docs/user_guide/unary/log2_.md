@@ -1,6 +1,6 @@
 # log2_
 ```rust
-log2_(x: &Tensor<T>, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
+log2_(x: &Tensor<T>, out: &mut Tensor<C> | Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \log_{2}(x)$ for all elements with out
 
