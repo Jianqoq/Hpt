@@ -367,7 +367,10 @@ where
                 res.device(),
                 &["binop"],
             )?;
-            let kernel = res.device().get_func(&module_name, "binop").expect("func_name not found");
+            let kernel = res
+                .device()
+                .get_func(&module_name, "binop")
+                .expect("func_name not found");
             let out_slice = res.cuda_slice();
             let rhs_slice = rhs.cuda_slice();
             let lhs_slice = lhs.cuda_slice();

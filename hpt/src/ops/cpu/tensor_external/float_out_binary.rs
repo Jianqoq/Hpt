@@ -1,9 +1,7 @@
 use hpt_traits::{CommonBounds, FloatBinOps};
 use hpt_types::{dtype::TypeCommon, type_promote::FloatOutBinary};
 
-use crate::{
-    ops::cpu::tensor_internal::float_out_unary::FloatBinaryType, Cpu, Tensor,
-};
+use crate::{ops::cpu::tensor_internal::float_out_unary::FloatBinaryType, Cpu, Tensor};
 
 impl<T, const DEVICE: usize> FloatBinOps for Tensor<T, Cpu, DEVICE>
 where

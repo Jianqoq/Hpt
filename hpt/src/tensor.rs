@@ -206,7 +206,9 @@ impl<T, const DEVICE_ID: usize> From<Tensor<T, Cpu, DEVICE_ID>> for DataLoader<T
     }
 }
 
-impl<T: CommonBounds, B: BackendTy + Buffer, const DEVICE: usize> CPUTensorCreator<T> for Tensor<T, B, DEVICE> {
+impl<T: CommonBounds, B: BackendTy + Buffer, const DEVICE: usize> CPUTensorCreator<T>
+    for Tensor<T, B, DEVICE>
+{
     type Output = Tensor<T, Cpu, DEVICE>;
     fn empty<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
         <Tensor<T, Cpu, DEVICE> as TensorCreator<T>>::empty(shape)

@@ -1,11 +1,11 @@
 mod compression_trait;
 pub mod data_loader;
-pub use compression_trait::{DataLoader, TensorLoader, TensorSaver};
-pub use flate2::write::{DeflateEncoder, GzEncoder, ZlibEncoder};
 pub use compression_trait::CompressionAlgo;
 pub use compression_trait::DataLoaderTrait;
 pub use compression_trait::Meta;
+pub use compression_trait::{DataLoader, TensorLoader, TensorSaver};
 pub use data_loader::Endian;
+pub use flate2::write::{DeflateEncoder, GzEncoder, ZlibEncoder};
 pub use from_safetensors::from_safetensors::FromSafeTensors;
 pub use struct_save::gen_header;
 pub use struct_save::load::{Load, MetaLoad};

@@ -180,6 +180,8 @@ pub mod ops {
             pub(crate) mod arg_reduce;
             /// a module contains cuda tensor common reduce impls
             pub(crate) mod common_reduce;
+            /// a module contains cuda tensor float out binary impls
+            pub(crate) mod float_out_binary;
             /// a module contains cuda tensor float out unary impls
             pub(crate) mod float_out_unary;
             /// a module contains cuda matmul impls
@@ -194,8 +196,6 @@ pub mod ops {
             pub(crate) mod shape_manipulate;
             /// a module contains cuda tensor windows impls
             pub(crate) mod windows;
-            /// a module contains cuda tensor float out binary impls
-            pub(crate) mod float_out_binary;
         }
         pub mod tensor_external {
             /// a module contains cuda tensor arg reduce impls
@@ -204,6 +204,8 @@ pub mod ops {
             pub(crate) mod cmp;
             /// a module contains cuda tensor common reduce impls
             pub(crate) mod common_reduce;
+            /// a module contains cuda tensor float out binary impls
+            pub(crate) mod float_out_binary;
             /// a module contains cuda tensor float out unary impls
             pub(crate) mod float_out_unary;
             /// a module contains cuda tensor matmul impls
@@ -220,8 +222,6 @@ pub mod ops {
             pub(crate) mod slice;
             /// a module contains cuda tensor windows impls
             pub(crate) mod windows;
-            /// a module contains cuda tensor float out binary impls
-            pub(crate) mod float_out_binary;
         }
         pub(crate) mod utils {
             pub(crate) mod reduce {
@@ -285,7 +285,7 @@ pub use hpt_dataloader::{
     CompressionAlgo, DataLoader, Endian, FromSafeTensors, Load, MetaLoad, Save, TensorLoader,
     TensorSaver,
 };
-pub use hpt_macros::{match_selection, Save, Load};
+pub use hpt_macros::{match_selection, Load, Save};
 pub use hpt_traits::*;
 pub use hpt_types::dtype::TypeCommon;
 pub use hpt_types::into_scalar::Cast;

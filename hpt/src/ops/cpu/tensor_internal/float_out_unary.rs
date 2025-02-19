@@ -618,7 +618,7 @@ where
             );
         Ok((res1.clone(), res2.clone()))
     }
-    
+
     fn erf_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,

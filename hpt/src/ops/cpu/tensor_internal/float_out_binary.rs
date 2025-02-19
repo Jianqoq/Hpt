@@ -40,13 +40,7 @@ where
     where
         U: std::borrow::BorrowMut<Self::InplaceOutput>,
     {
-        binary_fn_with_out_simd(
-            self,
-            rhs,
-            |a, b| a._hypot(b),
-            |a, b| a._hypot(b),
-            Some(out),
-        )
+        binary_fn_with_out_simd(self, rhs, |a, b| a._hypot(b), |a, b| a._hypot(b), Some(out))
     }
 
     fn div_<U>(
@@ -57,12 +51,6 @@ where
     where
         U: std::borrow::BorrowMut<Self::InplaceOutput>,
     {
-        binary_fn_with_out_simd(
-            self,
-            rhs,
-            |a, b| a._div(b),
-            |a, b| a._div(b),
-            Some(out),
-        )
+        binary_fn_with_out_simd(self, rhs, |a, b| a._div(b), |a, b| a._div(b), Some(out))
     }
 }

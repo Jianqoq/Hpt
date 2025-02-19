@@ -1,5 +1,5 @@
 use crate::ops::cuda::cuda_utils::{
-    compile_kernel, compute_kernel_launch_config, get_array_str, get_include_1, get_module_name_1
+    compile_kernel, compute_kernel_launch_config, get_array_str, get_include_1, get_module_name_1,
 };
 use crate::tensor_base::_Tensor;
 use crate::Cuda;

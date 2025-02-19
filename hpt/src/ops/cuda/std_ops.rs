@@ -1500,9 +1500,8 @@ where
     #[track_caller]
     fn shl(self, rhs: rhs_type<T, Cuda, DEVICE>) -> Self::Output {
         let lhs: Tensor<lhs_type> = self.into();
-        let lhs: Tensor<lhs_type, Cuda, DEVICE> = lhs
-            .to_cuda::<DEVICE>()
-            .expect("Failed to convert to cuda");
+        let lhs: Tensor<lhs_type, Cuda, DEVICE> =
+            lhs.to_cuda::<DEVICE>().expect("Failed to convert to cuda");
         lhs.inner.as_ref().shl(rhs.inner.as_ref()).into()
     }
 }
@@ -1688,9 +1687,8 @@ where
     #[track_caller]
     fn shr(self, rhs: rhs_type<T, Cuda, DEVICE>) -> Self::Output {
         let lhs: Tensor<lhs_type> = self.into();
-        let lhs: Tensor<lhs_type, Cuda, DEVICE> = lhs
-            .to_cuda::<DEVICE>()
-            .expect("Failed to convert to cuda");
+        let lhs: Tensor<lhs_type, Cuda, DEVICE> =
+            lhs.to_cuda::<DEVICE>().expect("Failed to convert to cuda");
         lhs.inner.as_ref().shr(rhs.inner.as_ref()).into()
     }
 }

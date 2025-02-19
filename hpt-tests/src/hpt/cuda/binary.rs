@@ -69,7 +69,10 @@ fn no_assert_i64(b: &Tensor<i64, Cuda>, a: &TchTensor) {}
 fn common_input(
     lhs_shape: &[i64],
     rhs_shape: &[i64],
-) -> anyhow::Result<((TchTensor, TchTensor), (Tensor<f64, Cuda>, Tensor<f64, Cuda>))> {
+) -> anyhow::Result<(
+    (TchTensor, TchTensor),
+    (Tensor<f64, Cuda>, Tensor<f64, Cuda>),
+)> {
     let tch_a = TchTensor::randn(lhs_shape, (tch::Kind::Double, tch::Device::Cpu));
     let mut a = Tensor::<f64>::empty(lhs_shape)?;
     let a_size = a.size();
@@ -91,7 +94,10 @@ fn common_input(
 fn common_input_i64(
     lhs_shape: &[i64],
     rhs_shape: &[i64],
-) -> anyhow::Result<((TchTensor, TchTensor), (Tensor<i64, Cuda>, Tensor<i64, Cuda>))> {
+) -> anyhow::Result<(
+    (TchTensor, TchTensor),
+    (Tensor<i64, Cuda>, Tensor<i64, Cuda>),
+)> {
     let tch_a = TchTensor::arange(
         lhs_shape.iter().product::<i64>(),
         (tch::Kind::Int64, tch::Device::Cpu),

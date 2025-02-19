@@ -479,8 +479,7 @@ where
 impl<T, const DEVICE: usize> FloatReduce<T> for _Tensor<T, Cpu, DEVICE>
 where
     T: FloatOutBinary + CommonBounds + Cast<FloatBinaryType<T>>,
-    FloatBinaryType<T>:
-        CommonBounds + FloatOutUnary<Output = FloatBinaryType<T>>,
+    FloatBinaryType<T>: CommonBounds + FloatOutUnary<Output = FloatBinaryType<T>>,
     <FloatBinaryType<T> as TypeCommon>::Vec: NormalOut<T::Vec, Output = <FloatBinaryType<T> as TypeCommon>::Vec>
         + FloatOutUnary<Output = <FloatBinaryType<T> as TypeCommon>::Vec>
         + NormalOut<
@@ -500,7 +499,7 @@ where
     >,
 {
     type Output = _Tensor<FloatBinaryType<T>, Cpu, DEVICE>;
-    
+
     #[track_caller]
     fn mean<S: Into<Axis>>(
         &self,
@@ -530,7 +529,7 @@ where
             None,
         )
     }
-    
+
     #[allow(unused)]
     #[track_caller]
     fn reducel2<S: Into<Axis>>(

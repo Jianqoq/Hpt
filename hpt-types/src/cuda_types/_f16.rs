@@ -312,7 +312,9 @@ impl FloatOutUnary2 for Scalar<f16> {
     }
 
     fn __selu(self, alpha: Self, scale: Self) -> Self {
-        self.to_f32().__selu(alpha.to_f32(), scale.to_f32()).to_f16()
+        self.to_f32()
+            .__selu(alpha.to_f32(), scale.to_f32())
+            .to_f16()
     }
 
     fn __hard_sigmoid(self) -> Self {
