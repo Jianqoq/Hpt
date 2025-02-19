@@ -35,6 +35,10 @@ export default defineUserConfig({
         link: 'https://github.com/Jianqoq/Hpt',
       },
       {
+        text: 'crate.io',
+        link: 'https://crates.io/crates/hpt',
+      },
+      {
         text: 'Benchmarks',
         link: '/benchmarks/benchmarks.md',
       }

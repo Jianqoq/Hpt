@@ -367,7 +367,6 @@ macro_rules! impl_type_num {
 }
 
 /// This macro is used to generate the nested array type
-#[macro_export]
 macro_rules! repeate_generic {
     (const, $($t:ident),*) => {
         impl<$(const $t: usize), *>
