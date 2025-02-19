@@ -1,4 +1,4 @@
-use hpt::{TensorCmp, Tensor, TensorError};
+use hpt::{Tensor, TensorCmp, TensorError};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new([2.0, 2.0, 2.0]);
