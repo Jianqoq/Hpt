@@ -2,7 +2,7 @@
 ```rust
 cosh_(
     x: &Tensor<T>, 
-    out: &Tensor<C> | Tensor<C>
+    out: &mut Tensor<C> | Tensor<C>
 ) -> Result<Tensor<C>, TensorError>
 ```
 Hyperbolic cosine with out

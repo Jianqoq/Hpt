@@ -1,6 +1,6 @@
 # softplus_
 ```rust
-softplus_(x: &Tensor<T>, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
+softplus_(x: &Tensor<T>, out: &mut Tensor<C> | Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\ln(1 + e^x)$ for all elements with out
 

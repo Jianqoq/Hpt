@@ -1,6 +1,6 @@
 # sqrt_
 ```rust
-sqrt_(x: &Tensor<T>, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
+sqrt_(x: &Tensor<T>, out: &mut Tensor<C> | Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \sqrt{x}$ for all elements with out
 

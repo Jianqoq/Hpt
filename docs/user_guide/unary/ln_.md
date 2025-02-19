@@ -1,6 +1,6 @@
 # ln_
 ```rust
-ln_(x: &Tensor<T>, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
+ln_(x: &Tensor<T>, out: &mut Tensor<C> | Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \ln(x)$ for all elements with out
 

@@ -2,7 +2,7 @@
 ```rust
 exp2_(
     x: &Tensor<T>, 
-    out: &Tensor<C> | Tensor<C>
+    out: &mut Tensor<C> | Tensor<C>
 ) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large 2^x$ for all elements with out

@@ -1,6 +1,6 @@
 # hard_swish_
 ```rust
-hard_swish_(x: &Tensor<T>, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
+hard_swish_(x: &Tensor<T>, out: &mut Tensor<C> | Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large x \cdot \text{min}(\text{max}(0, \frac{x}{6} + 0.5), 1)$ for all elements with out. A piece-wise linear approximation of the swish function.
 

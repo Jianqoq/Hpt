@@ -1,6 +1,6 @@
 # gelu_
 ```rust
-gelu_(x: &Tensor<T>, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
+gelu_(x: &Tensor<T>, out: &mut Tensor<C> | Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large x \cdot \Phi(x)$ where $\Phi(x)$ is the cumulative distribution function of the standard normal distribution for all elements with out
 

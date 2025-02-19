@@ -2,7 +2,7 @@
 ```rust
 abs_(
     x: &Tensor<T>, 
-    out: &Tensor<T> | Tensor<T>
+    out: &mut Tensor<T> | Tensor<T>
 ) -> Result<Tensor<T>, TensorError>
 ```
 Calculate absolute of input with out

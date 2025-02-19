@@ -2,7 +2,7 @@
 ```rust
 asinh_(
     x: &Tensor<T>, 
-    out: &Tensor<C> | Tensor<C>
+    out: &mut Tensor<C> | Tensor<C>
 ) -> Result<Tensor<C>, TensorError>
 ```
 Inverse hyperbolic sine with out

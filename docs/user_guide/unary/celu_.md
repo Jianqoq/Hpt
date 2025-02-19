@@ -1,6 +1,6 @@
 # celu_
 ```rust
-celu_(x: &Tensor<T>, alpha: C, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
+celu_(x: &Tensor<T>, alpha: C, out: &mut Tensor<C> | Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \text{max}(0, x) + \text{min}(0, \alpha \cdot (e^{x/\alpha} - 1))$ for all elements with out
 

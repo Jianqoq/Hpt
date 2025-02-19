@@ -1,6 +1,6 @@
 # elu_
 ```rust
-elu_(x: &Tensor<T>, alpha: C, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
+elu_(x: &Tensor<T>, alpha: C, out: &mut Tensor<C> | Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large x$ for $x > 0$, $\large \alpha(e^x - 1)$ for $x \leq 0$ for all elements with out
 

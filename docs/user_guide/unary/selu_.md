@@ -4,7 +4,7 @@ selu_(
     x: &Tensor<T>, 
     alpha: C | None, 
     gamma: C | None,
-    out: &Tensor<C> | Tensor<C>
+    out: &mut Tensor<C> | Tensor<C>
 ) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \lambda * (\alpha * (e^x - 1))$ for $x < 0$, $\large \lambda * x$ for $x \geq 0$ for all elements

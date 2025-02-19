@@ -1,6 +1,6 @@
 # cbrt_
 ```rust
-cbrt_(x: &Tensor<T>, out: &Tensor<C>) -> Result<Tensor<C>, TensorError>
+cbrt_(x: &Tensor<T>, out: &mut Tensor<C> | Tensor<C>) -> Result<Tensor<C>, TensorError>
 ```
 Compute $\large \sqrt[3]{x}$ for all elements with out
 
