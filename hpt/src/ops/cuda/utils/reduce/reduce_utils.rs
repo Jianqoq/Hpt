@@ -53,7 +53,6 @@ pub(crate) fn reduce_prepare<
         .sort_by(|x, y| a.layout.strides()[*y].cmp(&a.layout.strides()[*x]));
     transposed_axis[a.layout.ndim() - axes.len()..]
         .sort_by(|x, y| a.layout.strides()[*y].cmp(&a.layout.strides()[*x]));
-
     let res_layout = a.layout.reduce(axes, false)?;
     let res = if let Some(out) = c {
         ShapeError::check_inplace_out_layout_valid(res_layout.shape(), &out.layout())?;

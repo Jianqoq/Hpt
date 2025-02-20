@@ -181,30 +181,34 @@ where
     }
     let mut fused_dims: Vec<usize> = vec![];
     let (a, axes) = if !keep_fast_dim {
-        let mut consec_axes = vec![];
-        let mut new_axes = axes.to_vec();
-        let mut max = a.ndim() - 1;
-        let mut last_removed = max;
-        while max > 0 {
-            if !axes.contains(&max) {
-                break;
-            } else {
-                consec_axes.push(max);
-                let removed = new_axes.remove(new_axes.iter().position(|&x| x == max).unwrap());
-                last_removed = removed;
+        if a.ndim() == 1 {
+            (a.clone(), axes.to_vec())
+        } else {
+            let mut consec_axes = vec![];
+            let mut new_axes = axes.to_vec();
+            let mut max = a.ndim() - 1;
+            let mut last_removed = max;
+            while max > 0 {
+                if !axes.contains(&max) {
+                    break;
+                } else {
+                    consec_axes.push(max);
+                    let removed = new_axes.remove(new_axes.iter().position(|&x| x == max).unwrap());
+                    last_removed = removed;
+                }
+                max -= 1;
             }
-            max -= 1;
+            new_axes.push(last_removed);
+            fused_dims.extend(consec_axes.iter());
+            let mut new_shape = a.shape().to_vec();
+            let mut prod = 1;
+            for dim in fused_dims.iter() {
+                prod *= new_shape[*dim];
+                new_shape.remove(*dim);
+            }
+            new_shape.push(prod);
+            (a.reshape(&new_shape)?, new_axes)
         }
-        new_axes.push(last_removed);
-        fused_dims.extend(consec_axes.iter());
-        let mut new_shape = a.shape().to_vec();
-        let mut prod = 1;
-        for dim in fused_dims.iter() {
-            prod *= new_shape[*dim];
-            new_shape.remove(*dim);
-        }
-        new_shape.push(prod);
-        (a.reshape(&new_shape)?, new_axes)
     } else {
         (a.clone(), axes.to_vec())
     };

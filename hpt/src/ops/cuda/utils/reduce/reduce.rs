@@ -266,12 +266,11 @@ where
 
             let cfg = compute_cfg(size);
             let mut reduce_size = cfg.grid_dim.0 as usize;
-            let tmp_res = unsafe { a.device().alloc::<T>(reduce_size).unwrap() };
-            let tmp_buffer = tmp_res.leak();
+            let tmp_buffer = unsafe { a.device().alloc::<O>(reduce_size).unwrap() };
             unsafe {
                 reduce_kernel
                     .clone()
-                    .launch(cfg, (tmp_buffer, a.cuda_slice(), size))
+                    .launch(cfg, (&tmp_buffer, a.cuda_slice(), size))
             }
             .unwrap();
 
@@ -293,13 +292,12 @@ where
                 unsafe {
                     reduce_kernel
                         .clone()
-                        .launch(cfg, (tmp_buffer, tmp_buffer, reduce_size))
+                        .launch(cfg, (&tmp_buffer, &tmp_buffer, reduce_size))
                 }
                 .unwrap();
                 reduce_size = cfg.grid_dim.0 as usize;
             }
             a.device().synchronize().unwrap();
-            let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, 1) };
             let mut _res_ptr = unsafe { a.device().upgrade_device_ptr::<O>(res.inner, 1) };
             if let Some(post_op) = &post_op {
                 let module = get_module_name_1(module_name, &a);

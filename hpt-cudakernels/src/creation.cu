@@ -60,6 +60,16 @@ extern "C" __global__ void fill_bf16(__nv_bfloat16 *out, __nv_bfloat16 value, si
         }
     }
 };
+extern "C" __global__ void fill_bool(bool *out, bool value, size_t N)
+{
+    bool *out_vec = (bool *)out;
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t stride = blockDim.x * gridDim.x;
+    for (size_t i = idx; i < N; i += stride)
+    {
+        out_vec[i] = value;
+    }
+};
 
 #define DEFINE_GEOMSPACE_KERNEL(func_name, vec_type, type, vec_size, ten)                                               \
     extern "C" __global__ void func_name(type *out, type start, type step, bool neg, size_t n)                          \

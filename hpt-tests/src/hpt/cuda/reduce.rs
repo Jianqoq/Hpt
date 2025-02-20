@@ -115,9 +115,18 @@ fn common_input<const N: usize>(
     end: i64,
     shape: [i64; N],
 ) -> anyhow::Result<(hpt::tensor::Tensor<i64, Cuda>, Tensor)> {
-    let a = hpt::tensor::Tensor::<i64, Cuda>::arange(0, end)?.reshape(&shape)?;
-    let tch_a = Tensor::arange(end, (tch::Kind::Int64, tch::Device::Cpu)).reshape(&shape);
-    Ok((a, tch_a))
+    let mut a = hpt::tensor::Tensor::<i64, Cpu>::empty(&shape)?;
+    let tch_a = Tensor::randint_low(-1000, 1000, &shape, (tch::Kind::Int64, tch::Device::Cpu));
+    let size = a.size();
+    let raw_mut = a.as_raw_mut();
+    let tch_raw = unsafe { core::slice::from_raw_parts_mut(tch_a.data_ptr() as *mut i64, size) };
+    raw_mut
+        .par_iter_mut()
+        .zip(tch_raw.par_iter())
+        .for_each(|(a, b)| {
+            *a = *b;
+        });
+    Ok((a.to_cuda::<0>()?, tch_a))
 }
 
 fn common_input_f64<const N: usize>(
@@ -1441,193 +1450,193 @@ fn test_sub_tensor_reducel3_step() -> anyhow::Result<()> {
     Ok(())
 }
 
-// #[test]
-// fn test_argmin() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let sum = a.argmin(0, false)?;
-//     let tch_sum = tch_a.argmin(0, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmin(1, false)?;
-//     let tch_sum = tch_a.argmin(1, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmin(2, false)?;
-//     let tch_sum = tch_a.argmin(2, false);
-//     assert_eq(&sum, &tch_sum);
-//     let a = a.permute([1, 0, 2])?;
-//     let tch_a = tch_a.permute(&[1, 0, 2][..]);
-//     let sum = a.argmin(0, false)?;
-//     let tch_sum = tch_a.argmin(0, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmin(1, false)?;
-//     let tch_sum = tch_a.argmin(1, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmin(2, false)?;
-//     let tch_sum = tch_a.argmin(2, false);
-//     assert_eq(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_argmin() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let sum = a.argmin(0, false)?;
+    let tch_sum = tch_a.argmin(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(1, false)?;
+    let tch_sum = tch_a.argmin(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(2, false)?;
+    let tch_sum = tch_a.argmin(2, false);
+    assert_eq(&sum, &tch_sum);
+    let a = a.permute([1, 0, 2])?;
+    let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let sum = a.argmin(0, false)?;
+    let tch_sum = tch_a.argmin(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(1, false)?;
+    let tch_sum = tch_a.argmin(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(2, false)?;
+    let tch_sum = tch_a.argmin(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_uncontiguous_argmin() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = a.permute([1, 0, 2])?;
-//     let tch_a = tch_a.permute(&[1, 0, 2][..]);
-//     let sum = a.argmin(0, false)?;
-//     let tch_sum = tch_a.argmin(0, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmin(1, false)?;
-//     let tch_sum = tch_a.argmin(1, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmin(2, false)?;
-//     let tch_sum = tch_a.argmin(2, false);
-//     assert_eq(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_uncontiguous_argmin() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 0, 2])?;
+    let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let sum = a.argmin(0, false)?;
+    let tch_sum = tch_a.argmin(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(1, false)?;
+    let tch_sum = tch_a.argmin(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(2, false)?;
+    let tch_sum = tch_a.argmin(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_uncontiguous_argmin2() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = a.permute([1, 2, 0])?;
-//     let tch_a = tch_a.permute(&[1, 2, 0][..]);
-//     let sum = a.argmin(0, false)?;
-//     let tch_sum = tch_a.argmin(0, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmin(1, false)?;
-//     let tch_sum = tch_a.argmin(1, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmin(2, false)?;
-//     let tch_sum = tch_a.argmin(2, false);
-//     assert_eq(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_uncontiguous_argmin2() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 2, 0])?;
+    let tch_a = tch_a.permute(&[1, 2, 0][..]);
+    let sum = a.argmin(0, false)?;
+    let tch_sum = tch_a.argmin(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(1, false)?;
+    let tch_sum = tch_a.argmin(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(2, false)?;
+    let tch_sum = tch_a.argmin(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_sub_tensor_argmin() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = slice!(a[:, 1:3, 2:5])?;
-//     let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
-//     let sum = a.argmin(0, false)?;
-//     let tch_sum = tch_a.argmin(0, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmin(1, false)?;
-//     let tch_sum = tch_a.argmin(1, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmin(2, false)?;
-//     let tch_sum = tch_a.argmin(2, false);
-//     assert_eq(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_sub_tensor_argmin() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let sum = a.argmin(0, false)?;
+    let tch_sum = tch_a.argmin(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(1, false)?;
+    let tch_sum = tch_a.argmin(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(2, false)?;
+    let tch_sum = tch_a.argmin(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_sub_tensor_argmin_step() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = slice!(a[:, 1:5:2, 2:9:2])?;
-//     let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
-//     let sum = a.argmin(0, false)?;
-//     let tch_sum = tch_a.argmin(0, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmin(1, false)?;
-//     let tch_sum = tch_a.argmin(1, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmin(2, false)?;
-//     let tch_sum = tch_a.argmin(2, false);
-//     assert_eq(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_sub_tensor_argmin_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    let sum = a.argmin(0, false)?;
+    let tch_sum = tch_a.argmin(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(1, false)?;
+    let tch_sum = tch_a.argmin(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmin(2, false)?;
+    let tch_sum = tch_a.argmin(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_argmax() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let sum = a.argmax(0, false)?;
-//     let tch_sum = tch_a.argmax(0, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmax(1, false)?;
-//     let tch_sum = tch_a.argmax(1, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmax(2, false)?;
-//     let tch_sum = tch_a.argmax(2, false);
-//     assert_eq(&sum, &tch_sum);
-//     let a = a.permute([1, 0, 2])?;
-//     let tch_a = tch_a.permute(&[1, 0, 2][..]);
-//     let sum = a.argmax(0, false)?;
-//     let tch_sum = tch_a.argmax(0, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmax(1, false)?;
-//     let tch_sum = tch_a.argmax(1, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmax(2, false)?;
-//     let tch_sum = tch_a.argmax(2, false);
-//     assert_eq(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_argmax() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let sum = a.argmax(0, false)?;
+    let tch_sum = tch_a.argmax(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(1, false)?;
+    let tch_sum = tch_a.argmax(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(2, false)?;
+    let tch_sum = tch_a.argmax(2, false);
+    assert_eq(&sum, &tch_sum);
+    let a = a.permute([1, 0, 2])?;
+    let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let sum = a.argmax(0, false)?;
+    let tch_sum = tch_a.argmax(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(1, false)?;
+    let tch_sum = tch_a.argmax(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(2, false)?;
+    let tch_sum = tch_a.argmax(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_uncontiguous_argmax() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = a.permute([1, 0, 2])?;
-//     let tch_a = tch_a.permute(&[1, 0, 2][..]);
-//     let sum = a.argmax(0, false)?;
-//     let tch_sum = tch_a.argmax(0, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmax(1, false)?;
-//     let tch_sum = tch_a.argmax(1, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmax(2, false)?;
-//     let tch_sum = tch_a.argmax(2, false);
-//     assert_eq(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_uncontiguous_argmax() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 0, 2])?;
+    let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let sum = a.argmax(0, false)?;
+    let tch_sum = tch_a.argmax(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(1, false)?;
+    let tch_sum = tch_a.argmax(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(2, false)?;
+    let tch_sum = tch_a.argmax(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_uncontiguous_argmax2() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = a.permute([1, 2, 0])?;
-//     let tch_a = tch_a.permute(&[1, 2, 0][..]);
-//     let sum = a.argmax(0, false)?;
-//     let tch_sum = tch_a.argmax(0, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmax(1, false)?;
-//     let tch_sum = tch_a.argmax(1, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmax(2, false)?;
-//     let tch_sum = tch_a.argmax(2, false);
-//     assert_eq(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_uncontiguous_argmax2() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 2, 0])?;
+    let tch_a = tch_a.permute(&[1, 2, 0][..]);
+    let sum = a.argmax(0, false)?;
+    let tch_sum = tch_a.argmax(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(1, false)?;
+    let tch_sum = tch_a.argmax(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(2, false)?;
+    let tch_sum = tch_a.argmax(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_sub_tensor_argmax() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = slice!(a[:, 1:3, 2:5])?;
-//     let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
-//     let sum = a.argmax(0, false)?;
-//     let tch_sum = tch_a.argmax(0, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmax(1, false)?;
-//     let tch_sum = tch_a.argmax(1, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmax(2, false)?;
-//     let tch_sum = tch_a.argmax(2, false);
-//     assert_eq(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_sub_tensor_argmax() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let sum = a.argmax(0, false)?;
+    let tch_sum = tch_a.argmax(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(1, false)?;
+    let tch_sum = tch_a.argmax(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(2, false)?;
+    let tch_sum = tch_a.argmax(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_sub_tensor_argmax_step() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = slice!(a[:, 1:5:2, 2:9:2])?;
-//     let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
-//     let sum = a.argmax(0, false)?;
-//     let tch_sum = tch_a.argmax(0, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmax(1, false)?;
-//     let tch_sum = tch_a.argmax(1, false);
-//     assert_eq(&sum, &tch_sum);
-//     let sum = a.argmax(2, false)?;
-//     let tch_sum = tch_a.argmax(2, false);
-//     assert_eq(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_sub_tensor_argmax_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    let sum = a.argmax(0, false)?;
+    let tch_sum = tch_a.argmax(0, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(1, false)?;
+    let tch_sum = tch_a.argmax(1, false);
+    assert_eq(&sum, &tch_sum);
+    let sum = a.argmax(2, false)?;
+    let tch_sum = tch_a.argmax(2, false);
+    assert_eq(&sum, &tch_sum);
+    Ok(())
+}
 
 #[test]
 fn test_all() -> anyhow::Result<()> {
@@ -1662,121 +1671,121 @@ fn test_all() -> anyhow::Result<()> {
     Ok(())
 }
 
-// #[test]
-// fn test_uncontiguous_all() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = a.permute([1, 0, 2])?;
-//     let tch_a = tch_a.permute(&[1, 0, 2][..]);
-//     let sum = a.all(0, false)?;
-//     let tch_sum = tch_a.all_dims(0, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all(1, false)?;
-//     let tch_sum = tch_a.all_dims(1, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all(2, false)?;
-//     let tch_sum = tch_a.all_dims(2, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all([0, 1], false)?;
-//     let tch_sum = tch_a.all_dims(&[0, 1][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all([0, 2], false)?;
-//     let tch_sum = tch_a.all_dims(&[0, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all([1, 2], false)?;
-//     let tch_sum = tch_a.all_dims(&[1, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all([0, 1, 2], false)?;
-//     let tch_sum = tch_a.all_dims(&[0, 1, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_uncontiguous_all() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 0, 2])?;
+    let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let sum = a.all(0, false)?;
+    let tch_sum = tch_a.all_dims(0, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all(1, false)?;
+    let tch_sum = tch_a.all_dims(1, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all(2, false)?;
+    let tch_sum = tch_a.all_dims(2, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all([0, 1], false)?;
+    let tch_sum = tch_a.all_dims(&[0, 1][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all([0, 2], false)?;
+    let tch_sum = tch_a.all_dims(&[0, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all([1, 2], false)?;
+    let tch_sum = tch_a.all_dims(&[1, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all([0, 1, 2], false)?;
+    let tch_sum = tch_a.all_dims(&[0, 1, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_sub_tensor_all() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = slice!(a[:, 1:3, 2:5])?;
-//     let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
-//     let sum = a.all(0, false)?;
-//     let tch_sum = tch_a.all_dims(0, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all(1, false)?;
-//     let tch_sum = tch_a.all_dims(1, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all(2, false)?;
-//     let tch_sum = tch_a.all_dims(2, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all([0, 1], false)?;
-//     let tch_sum = tch_a.all_dims(&[0, 1][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all([0, 2], false)?;
-//     let tch_sum = tch_a.all_dims(&[0, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all([1, 2], false)?;
-//     let tch_sum = tch_a.all_dims(&[1, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all([0, 1, 2], false)?;
-//     let tch_sum = tch_a.all_dims(&[0, 1, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_sub_tensor_all() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let sum = a.all(0, false)?;
+    let tch_sum = tch_a.all_dims(0, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all(1, false)?;
+    let tch_sum = tch_a.all_dims(1, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all(2, false)?;
+    let tch_sum = tch_a.all_dims(2, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all([0, 1], false)?;
+    let tch_sum = tch_a.all_dims(&[0, 1][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all([0, 2], false)?;
+    let tch_sum = tch_a.all_dims(&[0, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all([1, 2], false)?;
+    let tch_sum = tch_a.all_dims(&[1, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all([0, 1, 2], false)?;
+    let tch_sum = tch_a.all_dims(&[0, 1, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_sub_tensor_all_step() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = slice!(a[:, 1:5:2, 2:9:2])?;
-//     let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
-//     let sum = a.all(0, false)?;
-//     let tch_sum = tch_a.all_dims(0, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all(1, false)?;
-//     let tch_sum = tch_a.all_dims(1, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all(2, false)?;
-//     let tch_sum = tch_a.all_dims(2, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all([0, 1], false)?;
-//     let tch_sum = tch_a.all_dims(&[0, 1][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all([0, 2], false)?;
-//     let tch_sum = tch_a.all_dims(&[0, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all([1, 2], false)?;
-//     let tch_sum = tch_a.all_dims(&[1, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all([0, 1, 2], false)?;
-//     let tch_sum = tch_a.all_dims(&[0, 1, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_sub_tensor_all_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    let sum = a.all(0, false)?;
+    let tch_sum = tch_a.all_dims(0, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all(1, false)?;
+    let tch_sum = tch_a.all_dims(1, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all(2, false)?;
+    let tch_sum = tch_a.all_dims(2, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all([0, 1], false)?;
+    let tch_sum = tch_a.all_dims(&[0, 1][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all([0, 2], false)?;
+    let tch_sum = tch_a.all_dims(&[0, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all([1, 2], false)?;
+    let tch_sum = tch_a.all_dims(&[1, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all([0, 1, 2], false)?;
+    let tch_sum = tch_a.all_dims(&[0, 1, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_uncontiguous_all2() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = a.permute([1, 2, 0])?;
-//     let tch_a = tch_a.permute(&[1, 2, 0][..]);
-//     let sum = a.all(0, false)?;
-//     let tch_sum = tch_a.all_dims(0, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all(1, false)?;
-//     let tch_sum = tch_a.all_dims(1, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all(2, false)?;
-//     let tch_sum = tch_a.all_dims(2, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all([0, 1], false)?;
-//     let tch_sum = tch_a.all_dims(&[0, 1][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all([0, 2], false)?;
-//     let tch_sum = tch_a.all_dims(&[0, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all([1, 2], false)?;
-//     let tch_sum = tch_a.all_dims(&[1, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.all([0, 1, 2], false)?;
-//     let tch_sum = tch_a.all_dims(&[0, 1, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_uncontiguous_all2() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 2, 0])?;
+    let tch_a = tch_a.permute(&[1, 2, 0][..]);
+    let sum = a.all(0, false)?;
+    let tch_sum = tch_a.all_dims(0, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all(1, false)?;
+    let tch_sum = tch_a.all_dims(1, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all(2, false)?;
+    let tch_sum = tch_a.all_dims(2, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all([0, 1], false)?;
+    let tch_sum = tch_a.all_dims(&[0, 1][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all([0, 2], false)?;
+    let tch_sum = tch_a.all_dims(&[0, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all([1, 2], false)?;
+    let tch_sum = tch_a.all_dims(&[1, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.all([0, 1, 2], false)?;
+    let tch_sum = tch_a.all_dims(&[0, 1, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    Ok(())
+}
 
 #[test]
 fn test_any() -> anyhow::Result<()> {
@@ -1811,118 +1820,118 @@ fn test_any() -> anyhow::Result<()> {
     Ok(())
 }
 
-// #[test]
-// fn test_uncontiguous_any() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = a.permute([1, 0, 2])?;
-//     let tch_a = tch_a.permute(&[1, 0, 2][..]);
-//     let sum = a.any(0, false)?;
-//     let tch_sum = tch_a.any_dims(0, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any(1, false)?;
-//     let tch_sum = tch_a.any_dims(1, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any(2, false)?;
-//     let tch_sum = tch_a.any_dims(2, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any([0, 1], false)?;
-//     let tch_sum = tch_a.any_dims(&[0, 1][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any([0, 2], false)?;
-//     let tch_sum = tch_a.any_dims(&[0, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any([1, 2], false)?;
-//     let tch_sum = tch_a.any_dims(&[1, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any([0, 1, 2], false)?;
-//     let tch_sum = tch_a.any_dims(&[0, 1, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_uncontiguous_any() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 0, 2])?;
+    let tch_a = tch_a.permute(&[1, 0, 2][..]);
+    let sum = a.any(0, false)?;
+    let tch_sum = tch_a.any_dims(0, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any(1, false)?;
+    let tch_sum = tch_a.any_dims(1, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any(2, false)?;
+    let tch_sum = tch_a.any_dims(2, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any([0, 1], false)?;
+    let tch_sum = tch_a.any_dims(&[0, 1][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any([0, 2], false)?;
+    let tch_sum = tch_a.any_dims(&[0, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any([1, 2], false)?;
+    let tch_sum = tch_a.any_dims(&[1, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any([0, 1, 2], false)?;
+    let tch_sum = tch_a.any_dims(&[0, 1, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_sub_tensor_any() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = slice!(a[:, 1:3, 2:5])?;
-//     let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
-//     let sum = a.any(0, false)?;
-//     let tch_sum = tch_a.any_dims(0, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any(1, false)?;
-//     let tch_sum = tch_a.any_dims(1, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any(2, false)?;
-//     let tch_sum = tch_a.any_dims(2, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any([0, 1], false)?;
-//     let tch_sum = tch_a.any_dims(&[0, 1][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any([0, 2], false)?;
-//     let tch_sum = tch_a.any_dims(&[0, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any([1, 2], false)?;
-//     let tch_sum = tch_a.any_dims(&[1, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any([0, 1, 2], false)?;
-//     let tch_sum = tch_a.any_dims(&[0, 1, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_sub_tensor_any() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:3, 2:5])?;
+    let tch_a = tch_a.slice(1, 1, 3, 1).slice(2, 2, 5, 1);
+    let sum = a.any(0, false)?;
+    let tch_sum = tch_a.any_dims(0, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any(1, false)?;
+    let tch_sum = tch_a.any_dims(1, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any(2, false)?;
+    let tch_sum = tch_a.any_dims(2, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any([0, 1], false)?;
+    let tch_sum = tch_a.any_dims(&[0, 1][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any([0, 2], false)?;
+    let tch_sum = tch_a.any_dims(&[0, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any([1, 2], false)?;
+    let tch_sum = tch_a.any_dims(&[1, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any([0, 1, 2], false)?;
+    let tch_sum = tch_a.any_dims(&[0, 1, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_sub_tensor_any_step() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = slice!(a[:, 1:5:2, 2:9:2])?;
-//     let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
-//     let sum = a.any(0, false)?;
-//     let tch_sum = tch_a.any_dims(0, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any(1, false)?;
-//     let tch_sum = tch_a.any_dims(1, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any(2, false)?;
-//     let tch_sum = tch_a.any_dims(2, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any([0, 1], false)?;
-//     let tch_sum = tch_a.any_dims(&[0, 1][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any([0, 2], false)?;
-//     let tch_sum = tch_a.any_dims(&[0, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any([1, 2], false)?;
-//     let tch_sum = tch_a.any_dims(&[1, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any([0, 1, 2], false)?;
-//     let tch_sum = tch_a.any_dims(&[0, 1, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_sub_tensor_any_step() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = slice!(a[:, 1:5:2, 2:9:2])?;
+    let tch_a = tch_a.slice(1, 1, 5, 2).slice(2, 2, 9, 2);
+    let sum = a.any(0, false)?;
+    let tch_sum = tch_a.any_dims(0, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any(1, false)?;
+    let tch_sum = tch_a.any_dims(1, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any(2, false)?;
+    let tch_sum = tch_a.any_dims(2, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any([0, 1], false)?;
+    let tch_sum = tch_a.any_dims(&[0, 1][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any([0, 2], false)?;
+    let tch_sum = tch_a.any_dims(&[0, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any([1, 2], false)?;
+    let tch_sum = tch_a.any_dims(&[1, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any([0, 1, 2], false)?;
+    let tch_sum = tch_a.any_dims(&[0, 1, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    Ok(())
+}
 
-// #[test]
-// fn test_uncontiguous_any2() -> anyhow::Result<()> {
-//     let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
-//     let a = a.permute([1, 2, 0])?;
-//     let tch_a = tch_a.permute(&[1, 2, 0][..]);
-//     let sum = a.any(0, false)?;
-//     let tch_sum = tch_a.any_dims(0, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any(1, false)?;
-//     let tch_sum = tch_a.any_dims(1, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any(2, false)?;
-//     let tch_sum = tch_a.any_dims(2, false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any([0, 1], false)?;
-//     let tch_sum = tch_a.any_dims(&[0, 1][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any([0, 2], false)?;
-//     let tch_sum = tch_a.any_dims(&[0, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any([1, 2], false)?;
-//     let tch_sum = tch_a.any_dims(&[1, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     let sum = a.any([0, 1, 2], false)?;
-//     let tch_sum = tch_a.any_dims(&[0, 1, 2][..], false);
-//     assert_eq_bool(&sum, &tch_sum);
-//     Ok(())
-// }
+#[test]
+fn test_uncontiguous_any2() -> anyhow::Result<()> {
+    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let a = a.permute([1, 2, 0])?;
+    let tch_a = tch_a.permute(&[1, 2, 0][..]);
+    let sum = a.any(0, false)?;
+    let tch_sum = tch_a.any_dims(0, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any(1, false)?;
+    let tch_sum = tch_a.any_dims(1, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any(2, false)?;
+    let tch_sum = tch_a.any_dims(2, false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any([0, 1], false)?;
+    let tch_sum = tch_a.any_dims(&[0, 1][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any([0, 2], false)?;
+    let tch_sum = tch_a.any_dims(&[0, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any([1, 2], false)?;
+    let tch_sum = tch_a.any_dims(&[1, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    let sum = a.any([0, 1, 2], false)?;
+    let tch_sum = tch_a.any_dims(&[0, 1, 2][..], false);
+    assert_eq_bool(&sum, &tch_sum);
+    Ok(())
+}
