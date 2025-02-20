@@ -298,6 +298,9 @@ where
                 reduce_size = cfg.grid_dim.0 as usize;
             }
             a.device().synchronize().unwrap();
+            let tmp_buffer = tmp_buffer.leak();
+            // resize the slice
+            let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, 1) };
             let mut _res_ptr = unsafe { a.device().upgrade_device_ptr::<O>(res.inner, 1) };
             if let Some(post_op) = &post_op {
                 let module = get_module_name_1(module_name, &a);
@@ -339,17 +342,16 @@ where
             let cfg = compute_cfg(reduce_size);
             let shape = transposed_tensor.cuda_shape().unwrap();
             let strides = transposed_tensor.cuda_strides().unwrap();
-            let mut tmp_res = unsafe {
+            let tmp_buffer = unsafe {
                 a.device()
-                    .alloc::<T>((cfg.grid_dim.0 * cfg.grid_dim.1) as usize)
+                    .alloc::<O>((cfg.grid_dim.0 * cfg.grid_dim.1) as usize)
                     .unwrap()
             };
-            let tmp_buffer = tmp_res.leak();
             unsafe {
                 reduce_kernel.clone().launch(
                     cfg,
                     (
-                        tmp_buffer,
+                        &tmp_buffer,
                         transposed_tensor.cuda_slice(),
                         &shape,
                         &strides,
@@ -362,7 +364,6 @@ where
             .unwrap();
 
             reduce_size = cfg.grid_dim.0 as usize;
-            let mut inp = tmp_buffer;
             let reduce_kernel = a
                 .device()
                 .get_func(&module_name, &format!("contiguous_{op}22_{}", T::STR))
@@ -370,24 +371,33 @@ where
             while reduce_size > 1 {
                 let cfg = compute_cfg(reduce_size);
                 unsafe {
-                    reduce_kernel
-                        .clone()
-                        .launch(cfg, (tmp_buffer, inp, reduce_size, cfg.grid_dim.0 as usize))
+                    reduce_kernel.clone().launch(
+                        cfg,
+                        (
+                            &tmp_buffer,
+                            &tmp_buffer,
+                            reduce_size,
+                            cfg.grid_dim.0 as usize,
+                        ),
+                    )
                 }
                 .unwrap();
                 reduce_size = cfg.grid_dim.0 as usize;
             }
             a.device().synchronize().unwrap();
+            let tmp_buffer = tmp_buffer.leak();
+            // resize the slice
+            let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, res.size()) };
             let mut _res_ptr = unsafe {
                 a.device()
                     .upgrade_device_ptr::<O>(res.cuda_slice().inner, res.size())
             };
-            let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, res.size()) };
             if let Some(post_op) = &post_op {
                 let module = get_module_name_1(module_name, &a);
-                unary_raw_mut(&tmp_buffer, &tmp_buffer, &module, post_op);
+                unary_raw_mut(&tmp_buffer, &_res_ptr, &module, post_op);
+            } else {
+                a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
             }
-            a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
             _res_ptr.leak();
         },
         |inner_loop_size_2, result, transposed_tensor| {
@@ -421,17 +431,16 @@ where
             let shape = transposed_tensor.cuda_shape().unwrap();
             let strides = transposed_tensor.cuda_strides().unwrap();
             let mut height = launch_cfg.grid_dim.1;
-            let mut tmp_res = unsafe {
+            let tmp_buffer = unsafe {
                 a.device()
-                    .alloc::<T>(result.size() * height as usize)
+                    .alloc::<O>(result.size() * height as usize)
                     .unwrap()
             };
-            let tmp_buffer = tmp_res.leak();
             unsafe {
                 reduce_kernel.launch(
                     launch_cfg,
                     (
-                        tmp_buffer,
+                        &tmp_buffer,
                         transposed_tensor.cuda_slice(),
                         &shape,
                         &strides,
@@ -465,8 +474,8 @@ where
                     reduce_kernel.clone().launch(
                         launch_cfg,
                         (
-                            tmp_buffer,
-                            tmp_buffer,
+                            &tmp_buffer,
+                            &tmp_buffer,
                             transposed_tensor.ndim(),
                             result.size(),
                             reduce_size,
@@ -477,19 +486,22 @@ where
                 height = launch_cfg.grid_dim.1;
             }
             a.device().synchronize().unwrap();
-            let mut _res_ptr = unsafe {
-                a.device()
-                    .upgrade_device_ptr::<O>(result.cuda_slice().inner, result.size())
-            };
+            let tmp_buffer = tmp_buffer.leak();
+            // resize the slice
             let tmp_buffer = unsafe {
                 a.device()
                     .upgrade_device_ptr::<O>(tmp_buffer, result.size())
             };
+            let mut _res_ptr = unsafe {
+                a.device()
+                    .upgrade_device_ptr::<O>(result.cuda_slice().inner, result.size())
+            };
             if let Some(post_op) = &post_op {
                 let module = get_module_name_1(module_name, &a);
-                unary_raw_mut(&tmp_buffer, &tmp_buffer, &module, post_op);
+                unary_raw_mut(&tmp_buffer, &_res_ptr, &module, post_op);
+            } else {
+                a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
             }
-            a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
             _res_ptr.leak();
         },
     )?;
@@ -566,13 +578,12 @@ where
 
             let cfg = compute_cfg(size);
             let mut reduce_size = cfg.grid_dim.0 as usize;
-            let tmp_res = unsafe { a.device().alloc::<T>(reduce_size).unwrap() };
-            let tmp_buffer = tmp_res.leak();
+            let tmp_buffer = unsafe { a.device().alloc::<O>(reduce_size).unwrap() };
             unsafe {
                 reduce_kernel.clone().launch(
                     cfg,
                     (
-                        tmp_buffer,
+                        &tmp_buffer,
                         a.cuda_slice(),
                         &a.cuda_shape().unwrap(),
                         &a.cuda_strides().unwrap(),
@@ -606,12 +617,14 @@ where
                 unsafe {
                     reduce_kernel
                         .clone()
-                        .launch(cfg, (tmp_buffer, tmp_buffer, reduce_size))
+                        .launch(cfg, (&tmp_buffer, &tmp_buffer, reduce_size))
                 }
                 .unwrap();
                 reduce_size = cfg.grid_dim.0 as usize;
             }
             a.device().synchronize().unwrap();
+            let tmp_buffer = tmp_buffer.leak();
+            // resize the slice
             let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, 1) };
             let mut _res_ptr = unsafe { a.device().upgrade_device_ptr::<O>(res.inner, 1) };
             if let Some(post_op) = &post_op {
@@ -654,17 +667,16 @@ where
             let cfg = compute_cfg(reduce_size);
             let shape = transposed_tensor.cuda_shape().unwrap();
             let strides = transposed_tensor.cuda_strides().unwrap();
-            let mut tmp_res = unsafe {
+            let tmp_buffer = unsafe {
                 a.device()
-                    .alloc::<T>((cfg.grid_dim.0 * cfg.grid_dim.1) as usize)
+                    .alloc::<O>((cfg.grid_dim.0 * cfg.grid_dim.1) as usize)
                     .unwrap()
             };
-            let tmp_buffer = tmp_res.leak();
             unsafe {
                 reduce_kernel.clone().launch(
                     cfg,
                     (
-                        tmp_buffer,
+                        &tmp_buffer,
                         transposed_tensor.cuda_slice(),
                         &shape,
                         &strides,
@@ -677,7 +689,6 @@ where
             .unwrap();
 
             reduce_size = cfg.grid_dim.0 as usize;
-            let mut inp = tmp_buffer;
             let reduce_kernel = a
                 .device()
                 .get_func(&module_name, &format!("contiguous_{op}22_{}", T::STR))
@@ -685,14 +696,22 @@ where
             while reduce_size > 1 {
                 let cfg = compute_cfg(reduce_size);
                 unsafe {
-                    reduce_kernel
-                        .clone()
-                        .launch(cfg, (tmp_buffer, inp, reduce_size, cfg.grid_dim.0 as usize))
+                    reduce_kernel.clone().launch(
+                        cfg,
+                        (
+                            &tmp_buffer,
+                            &tmp_buffer,
+                            reduce_size,
+                            cfg.grid_dim.0 as usize,
+                        ),
+                    )
                 }
                 .unwrap();
                 reduce_size = cfg.grid_dim.0 as usize;
             }
             a.device().synchronize().unwrap();
+            let tmp_buffer = tmp_buffer.leak();
+            // resize the slice
             let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, res.size()) };
             if let Some(post_op) = &post_op {
                 let module = get_module_name_1(module_name, &a);
@@ -731,17 +750,16 @@ where
             let shape = transposed_tensor.cuda_shape().unwrap();
             let strides = transposed_tensor.cuda_strides().unwrap();
             let mut height = launch_cfg.grid_dim.1;
-            let mut tmp_res = unsafe {
+            let tmp_buffer = unsafe {
                 a.device()
-                    .alloc::<T>(result.size() * height as usize)
+                    .alloc::<O>(result.size() * height as usize)
                     .unwrap()
             };
-            let tmp_buffer = tmp_res.leak();
             unsafe {
                 reduce_kernel.launch(
                     launch_cfg,
                     (
-                        tmp_buffer,
+                        &tmp_buffer,
                         transposed_tensor.cuda_slice(),
                         &shape,
                         &strides,
@@ -775,8 +793,8 @@ where
                     reduce_kernel.clone().launch(
                         launch_cfg,
                         (
-                            tmp_buffer,
-                            tmp_buffer,
+                            &tmp_buffer,
+                            &tmp_buffer,
                             transposed_tensor.ndim(),
                             result.size(),
                             reduce_size,
@@ -787,6 +805,8 @@ where
                 height = launch_cfg.grid_dim.1;
             }
             a.device().synchronize().unwrap();
+            let tmp_buffer = tmp_buffer.leak();
+            // resize the slice
             let tmp_buffer = unsafe {
                 a.device()
                     .upgrade_device_ptr::<O>(tmp_buffer, result.size())

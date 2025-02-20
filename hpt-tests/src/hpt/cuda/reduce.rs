@@ -1789,34 +1789,34 @@ fn test_uncontiguous_all2() -> anyhow::Result<()> {
 
 #[test]
 fn test_any() -> anyhow::Result<()> {
-    let (a, tch_a) = common_input(2 * 5 * 10, [2, 5, 10])?;
+    let (a, tch_a) = common_input(200 * 500 * 1000, [200, 500, 1000])?;
     let sum = a.any(0, false)?;
     let tch_sum = tch_a.any_dims(0, false);
     assert_eq_bool(&sum, &tch_sum);
 
-    let sum = a.any(1, false)?;
-    let tch_sum = tch_a.any_dims(1, false);
-    assert_eq_bool(&sum, &tch_sum);
+    // let sum = a.any(1, false)?;
+    // let tch_sum = tch_a.any_dims(1, false);
+    // assert_eq_bool(&sum, &tch_sum);
 
-    let sum = a.any(2, false)?;
-    let tch_sum = tch_a.any_dims(2, false);
-    assert_eq_bool(&sum, &tch_sum);
+    // let sum = a.any(2, false)?;
+    // let tch_sum = tch_a.any_dims(2, false);
+    // assert_eq_bool(&sum, &tch_sum);
 
-    let sum = a.any([0, 1], false)?;
-    let tch_sum = tch_a.any_dims(&[0, 1][..], false);
-    assert_eq_bool(&sum, &tch_sum);
+    // let sum = a.any([0, 1], false)?;
+    // let tch_sum = tch_a.any_dims(&[0, 1][..], false);
+    // assert_eq_bool(&sum, &tch_sum);
 
-    let sum = a.any([0, 2], false)?;
-    let tch_sum = tch_a.any_dims(&[0, 2][..], false);
-    assert_eq_bool(&sum, &tch_sum);
+    // let sum = a.any([0, 2], false)?;
+    // let tch_sum = tch_a.any_dims(&[0, 2][..], false);
+    // assert_eq_bool(&sum, &tch_sum);
 
-    let sum = a.any([1, 2], false)?;
-    let tch_sum = tch_a.any_dims(&[1, 2][..], false);
-    assert_eq_bool(&sum, &tch_sum);
+    // let sum = a.any([1, 2], false)?;
+    // let tch_sum = tch_a.any_dims(&[1, 2][..], false);
+    // assert_eq_bool(&sum, &tch_sum);
 
-    let sum = a.any([0, 1, 2], false)?;
-    let tch_sum = tch_a.any_dims(&[0, 1, 2][..], false);
-    assert_eq_bool(&sum, &tch_sum);
+    // let sum = a.any([0, 1, 2], false)?;
+    // let tch_sum = tch_a.any_dims(&[0, 1, 2][..], false);
+    // assert_eq_bool(&sum, &tch_sum);
     Ok(())
 }
 

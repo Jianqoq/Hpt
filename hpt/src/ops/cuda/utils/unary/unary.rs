@@ -94,23 +94,26 @@ where
     Ok(ret)
 }
 
-pub(crate) fn unary_raw_mut<T, F>(
+pub(crate) fn unary_raw_mut<T, O, F>(
     slice: &CudaSlice<T>,
-    res_slice: &CudaSlice<T>,
+    res_slice: &CudaSlice<O>,
     module_name: &str,
     f: F,
 ) -> std::result::Result<(), TensorError>
 where
     T: CudaType + CommonBounds + DeviceRepr,
-    F: Fn(Scalar<T>, Scalar<T>) -> Scalar<T>,
+    O: CudaType + CommonBounds + DeviceRepr,
+    F: Fn(Scalar<O>, Scalar<T>) -> Scalar<O>,
 {
     assert_eq!(slice.device().ordinal(), res_slice.device().ordinal());
     let a_include = get_include_1::<T>();
+    let k_include = get_include_1::<O>();
     let scalar_a = Scalar::<T>::new("inp[idx]".to_string());
-    let scalar_k = Scalar::<T>::new("out[idx]".to_string());
+    let scalar_k = Scalar::<O>::new("out[idx]".to_string());
     let code = format!(
         "
         {a_include}
+        {k_include}
         extern \"C\" __global__ void unary_raw(const {}* inp, {}* out, int size) {{
             unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
             if (idx < size) {{
@@ -119,7 +122,7 @@ where
         }}
         ",
         T::CUDA_TYPE,
-        T::CUDA_TYPE,
+        O::CUDA_TYPE,
         f(scalar_k, scalar_a).val()
     );
     let map = compile_kernel(module_name, &code, slice.device(), &["unary_raw"])?;

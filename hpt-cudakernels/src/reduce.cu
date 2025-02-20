@@ -139,7 +139,7 @@
             out[blockIdx.x + blockIdx.y * num_blocks_per_row] = METHOD##sdata_##rust_type[0];                                                                                            \
     }                                                                                                                                                                                    \
                                                                                                                                                                                          \
-    extern "C" __global__ void contiguous_##METHOD##22_##rust_type(out_type *out, in_type *in, size_t cols, size_t num_blocks_per_row)                                                   \
+    extern "C" __global__ void contiguous_##METHOD##22_##rust_type(out_type *out, out_type *in, size_t cols, size_t num_blocks_per_row)                                                   \
     {                                                                                                                                                                                    \
         extern __shared__ out_type METHOD##sdata_##rust_type[];                                                                                                                          \
         unsigned int tid = threadIdx.x;                                                                                                                                                  \
@@ -198,7 +198,7 @@
             out[col_idx + blockIdx.y * cols] = METHOD##sdata_##rust_type[threadIdx.x];                                                                                                   \
         }                                                                                                                                                                                \
     }                                                                                                                                                                                    \
-    extern "C" __global__ void contiguous_##METHOD##33_##rust_type(out_type *out, in_type *in, size_t ndim, size_t cols, size_t rows)                                                    \
+    extern "C" __global__ void contiguous_##METHOD##33_##rust_type(out_type *out, out_type *in, size_t ndim, size_t cols, size_t rows)                                                    \
     {                                                                                                                                                                                    \
         extern __shared__ out_type METHOD##sdata_##rust_type[];                                                                                                                          \
         unsigned int tid = threadIdx.y * blockDim.x + threadIdx.x;                                                                                                                       \
