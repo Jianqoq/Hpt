@@ -1,12 +1,12 @@
-use std::{ collections::HashMap, io::Write };
+use std::{collections::HashMap, io::Write};
 
-use hpt_common::{ shape::shape::Shape, slice::Slice, strides::strides::Strides };
-use hpt_traits::{ CommonBounds, TensorInfo };
-use num::traits::{ FromBytes, ToBytes };
-use serde::{ Deserialize, Serialize };
+use hpt_common::{shape::shape::Shape, slice::Slice, strides::strides::Strides};
+use hpt_traits::{CommonBounds, TensorInfo};
+use num::traits::{FromBytes, ToBytes};
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    data_loader::{ Endian, HeaderInfo },
+    data_loader::{Endian, HeaderInfo},
     load::load_compressed_slice,
     save::save,
     CPUTensorCreator,
@@ -70,9 +70,9 @@ impl<T> DataLoader<T> {
     }
 }
 
-impl<T, const N: usize> DataLoaderTrait
-    for DataLoader<T>
-    where T: CommonBounds + ToBytes<Bytes = [u8; N]>
+impl<T, const N: usize> DataLoaderTrait for DataLoader<T>
+where
+    T: CommonBounds + ToBytes<Bytes = [u8; N]>,
 {
     fn shape(&self) -> &Shape {
         &self.shape
@@ -143,13 +143,17 @@ impl TensorSaver {
         }
     }
 
-    pub fn push<const N: usize, T: ToBytes<Bytes = [u8; N]> + CommonBounds, A: Into<DataLoader<T>>>(
+    pub fn push<
+        const N: usize,
+        T: ToBytes<Bytes = [u8; N]> + CommonBounds,
+        A: Into<DataLoader<T>>,
+    >(
         mut self,
         name: &str,
         tensor: A,
         compression_algo: CompressionAlgo,
         endian: Endian,
-        compression_level: u32
+        compression_level: u32,
     ) -> Self {
         let data_loader = tensor.into();
         let meta = Meta {
@@ -168,7 +172,10 @@ impl TensorSaver {
     }
 
     pub fn save(self) -> std::io::Result<()> {
-        save(self.file_path.to_str().unwrap().into(), self.to_saves.unwrap())
+        save(
+            self.file_path.to_str().unwrap().into(),
+            self.to_saves.unwrap(),
+        )
     }
 }
 
@@ -195,34 +202,32 @@ impl TensorLoader {
     }
 
     pub fn load<T, B, const N: usize>(self) -> std::io::Result<HashMap<String, B>>
-        where
-            T: CommonBounds + FromBytes<Bytes = [u8; N]>,
-            B: CPUTensorCreator<T>,
-            <B as CPUTensorCreator<T>>::Output: Into<B> + TensorInfo<T>
+    where
+        T: CommonBounds + FromBytes<Bytes = [u8; N]>,
+        B: CPUTensorCreator<T>,
+        <B as CPUTensorCreator<T>>::Output: Into<B> + TensorInfo<T>,
     {
         let res = load_compressed_slice::<T, B, N>(
             self.file_path.to_str().unwrap().into(),
-            self.to_loads.expect("no tensors to load")
-        ).expect("failed to load tensor");
+            self.to_loads.expect("no tensors to load"),
+        )
+        .expect("failed to load tensor");
         Ok(res)
     }
 
     pub fn load_all<T, B, const N: usize>(self) -> std::io::Result<HashMap<String, B>>
-        where
-            T: CommonBounds + FromBytes<Bytes = [u8; N]>,
-            B: CPUTensorCreator<T>,
-            <B as CPUTensorCreator<T>>::Output: Into<B> + TensorInfo<T>
+    where
+        T: CommonBounds + FromBytes<Bytes = [u8; N]>,
+        B: CPUTensorCreator<T>,
+        <B as CPUTensorCreator<T>>::Output: Into<B> + TensorInfo<T>,
     {
-        let res = HeaderInfo::parse_header_compressed(
-            self.file_path.to_str().unwrap().into()
-        ).expect("failed to parse header");
+        let res = HeaderInfo::parse_header_compressed(self.file_path.to_str().unwrap().into())
+            .expect("failed to parse header");
         let res = load_compressed_slice::<T, B, N>(
             self.file_path.to_str().unwrap().into(),
-            res
-                .into_values()
-                .map(|x| (x.name, vec![]))
-                .collect()
-        ).expect("failed to load tensor");
+            res.into_values().map(|x| (x.name, vec![])).collect(),
+        )
+        .expect("failed to load tensor");
         Ok(res)
     }
 }

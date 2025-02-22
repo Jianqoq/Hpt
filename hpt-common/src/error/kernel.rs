@@ -48,6 +48,15 @@ pub enum KernelError {
         /// Location where the error occurred
         location: &'static Location<'static>,
     },
+
+    /// Error that occurs when CUDA kernel launch config is too large
+    #[error("CUDA kernel launch config error: {msg}")]
+    LaunchConfigError {
+        /// Message
+        msg: String,
+        /// Location where the error occurred
+        location: &'static Location<'static>,
+    },
 }
 
 #[cfg(feature = "cuda")]

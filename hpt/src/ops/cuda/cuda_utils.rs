@@ -230,6 +230,91 @@ pub(crate) fn compute_kernel_launch_config(
     }
 }
 
+pub(crate) fn check_launch_config(
+    device: Arc<CudaDevice>,
+    config: &LaunchConfig,
+) -> Result<(), TensorError> {
+    use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_X;
+    use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Y;
+    use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Z;
+    use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK;
+    use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK;
+    let max_grid_dim_x = device
+        .attribute(CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_X)
+        .expect("failed to get max grid dim");
+    let max_grid_dim_y = device
+        .attribute(CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Y)
+        .expect("failed to get max grid dim");
+    let max_grid_dim_z = device
+        .attribute(CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Z)
+        .expect("failed to get max grid dim");
+    let max_block_size = device
+        .attribute(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)
+        .expect("failed to get max block dim");
+    let max_shared_mem = device
+        .attribute(CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK)
+        .expect("failed to get max shared mem");
+    if config.grid_dim.0 > max_grid_dim_x as u32 {
+        return Err(KernelError::LaunchConfigError {
+            msg: format!(
+                "max_grid_dim_x is {}, got {}",
+                max_grid_dim_x, config.grid_dim.0
+            ),
+            location: Location::caller(),
+        }
+        .into());
+    }
+    if config.grid_dim.1 > max_grid_dim_y as u32 {
+        return Err(KernelError::LaunchConfigError {
+            msg: format!(
+                "max_grid_dim_y is {}, got {}",
+                max_grid_dim_y, config.grid_dim.1
+            ),
+            location: Location::caller(),
+        }
+        .into());
+    }
+    if config.grid_dim.2 > max_grid_dim_z as u32 {
+        return Err(KernelError::LaunchConfigError {
+            msg: format!(
+                "max_grid_dim_z is {}, got {}",
+                max_grid_dim_z, config.grid_dim.2
+            ),
+            location: Location::caller(),
+        }
+        .into());
+    }
+    if config.block_dim.0 * config.block_dim.1 * config.block_dim.2 > max_block_size as u32 {
+        return Err(KernelError::LaunchConfigError {
+            msg: format!(
+                "max_block_size is {}, got {}",
+                max_block_size,
+                config.block_dim.0 * config.block_dim.1 * config.block_dim.2
+            ),
+            location: Location::caller(),
+        }
+        .into());
+    }
+    if config.shared_mem_bytes > max_shared_mem as u32 {
+        return Err(KernelError::LaunchConfigError {
+            msg: format!(
+                "max_shared_mem is {}, got {}",
+                max_shared_mem, config.shared_mem_bytes
+            ),
+            location: Location::caller(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
+pub(crate) fn max_grid_dim_y(device: Arc<CudaDevice>) -> u32 {
+    use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Y;
+    device
+        .attribute(CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Y)
+        .expect("failed to get max grid dim") as u32
+}
+
 pub(crate) fn get_include_1<T: TypeCommon + CudaType>() -> &'static str {
     if T::CUDA_TYPE == "__half" {
         "#include <cuda_fp16.h>"

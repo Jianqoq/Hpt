@@ -406,15 +406,11 @@ where
     T: CommonBounds + Cast<O> + DeviceRepr + CudaType,
     O: CommonBounds + DeviceRepr + CudaType,
     F1: Fn(CudaSlice),
-    F2: Fn(usize, usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
-    F4: Fn(usize, usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
+    F2: Fn(usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
+    F4: Fn(usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
 {
     let (keep_fast_dim, transposed_tensor, result, res_perm) =
         uncontiguous_reduce_prepare(a, axes, init_val, init_out, c)?;
-    let mut transposed_shape_sub_1 = transposed_tensor.shape().inner().clone();
-    transposed_shape_sub_1.iter_mut().for_each(|x| {
-        *x -= 1;
-    });
 
     if a.ndim() == axes.len() {
         full_reduce(result.cuda_slice());
@@ -428,29 +424,15 @@ where
         if !keep_fast_dim {
             let outer_loop_size = a_size / inner_loop_size;
             let inner_loop_size_2 = outer_loop_size / result.size();
-            let num_threads = if result.size() < rayon::current_num_threads() {
-                result.size()
-            } else {
-                rayon::current_num_threads()
-            };
             nkd(
-                num_threads,
                 inner_loop_size,
                 inner_loop_size_2,
                 &result,
                 &transposed_tensor,
             );
         } else {
-            let outer_loop_size = result.size() / inner_loop_size;
             let inner_loop_size_2 = a.size() / result.size();
-            let num_threads = if outer_loop_size < rayon::current_num_threads() {
-                outer_loop_size
-            } else {
-                rayon::current_num_threads()
-            };
             kd(
-                num_threads,
-                inner_loop_size,
                 inner_loop_size_2,
                 &result,
                 &transposed_tensor,

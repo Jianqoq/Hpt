@@ -97,7 +97,6 @@ where
 pub(crate) fn unary_raw_mut<T, O, F>(
     slice: &CudaSlice<T>,
     res_slice: &CudaSlice<O>,
-    module_name: &str,
     f: F,
 ) -> std::result::Result<(), TensorError>
 where
@@ -110,11 +109,12 @@ where
     let k_include = get_include_1::<O>();
     let scalar_a = Scalar::<T>::new("inp[idx]".to_string());
     let scalar_k = Scalar::<O>::new("out[idx]".to_string());
+    let res_scalar = f(scalar_k, scalar_a);
     let code = format!(
         "
         {a_include}
         {k_include}
-        extern \"C\" __global__ void unary_raw(const {}* inp, {}* out, int size) {{
+        extern \"C\" __global__ void unary_raw_mut(const {}* inp, {}* out, int size) {{
             unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
             if (idx < size) {{
                 {};
@@ -123,11 +123,20 @@ where
         ",
         T::CUDA_TYPE,
         O::CUDA_TYPE,
-        f(scalar_k, scalar_a).val()
+        res_scalar.val()
     );
-    let map = compile_kernel(module_name, &code, slice.device(), &["unary_raw"])?;
-    let kernel = slice.device().get_func(module_name, "unary_raw").unwrap();
-    let reg_info = map.get("unary_raw").expect("func_name not found");
+    let module_name = format!(
+        "unary_raw_mut_{}_{}_{}",
+        T::CUDA_TYPE,
+        O::CUDA_TYPE,
+        res_scalar.val()
+    );
+    let map = compile_kernel(&module_name, &code, slice.device(), &["unary_raw_mut"])?;
+    let kernel = slice
+        .device()
+        .get_func(&module_name, "unary_raw_mut")
+        .unwrap();
+    let reg_info = map.get("unary_raw_mut").expect("func_name not found");
     let cfg = compute_kernel_launch_config(slice.device(), reg_info, slice.len());
     unsafe { kernel.launch(cfg, (slice, res_slice, slice.len())) }?;
     Ok(())

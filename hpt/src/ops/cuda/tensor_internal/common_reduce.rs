@@ -194,8 +194,8 @@ where
             true,
             keep_dims,
             false,
-            &REDUCE,
-            "reduce",
+            &REDUCE2,
+            "reduce2",
             "all",
             false,
             None::<fn(Scalar<bool>, Scalar<bool>) -> Scalar<bool>>,
@@ -215,8 +215,8 @@ where
             false,
             keep_dims,
             false,
-            &REDUCE,
-            "reduce",
+            &REDUCE2,
+            "reduce2",
             "any",
             false,
             None::<fn(Scalar<bool>, Scalar<bool>) -> Scalar<bool>>,
@@ -336,9 +336,9 @@ where
             FloatBinaryType::<T>::ZERO,
             keep_dims,
             false,
-            &REDUCE,
-            "reduce",
-            "nansum",
+            &REDUCE2,
+            "reduce2",
+            "mean",
             false,
             Some(
                 |out: Scalar<FloatBinaryType<T>>, b: Scalar<FloatBinaryType<T>>| {
@@ -406,12 +406,29 @@ where
     #[track_caller]
     fn logsumexp<S: Into<Axis>>(
         &self,
-        _: S,
-        _: bool,
+        axes: S,
+        keep_dims: bool,
     ) -> std::result::Result<Self::Output, TensorError>
     where
         T: CommonBounds,
     {
-        unimplemented!()
+        let axes: Vec<usize> = process_axes(axes, self.ndim())?;
+        reduce3(
+            self,
+            &axes,
+            FloatBinaryType::<T>::ZERO,
+            keep_dims,
+            false,
+            &REDUCE2,
+            "reduce2",
+            "logsumexp",
+            true,
+            Some(
+                |out: Scalar<FloatBinaryType<T>>, b: Scalar<FloatBinaryType<T>>| {
+                    out.assign(b._ln())
+                },
+            ),
+            None,
+        )
     }
 }

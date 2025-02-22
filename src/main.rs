@@ -1,8 +1,9 @@
-use hpt::{Tensor, TensorCmp, TensorError};
+use hpt::{Cuda, IndexReduce, Random, Tensor, TensorError};
 
 fn main() -> Result<(), TensorError> {
-    let a = Tensor::<f32>::new([2.0, 2.0, 2.0]);
-    let b = a.tensor_eq(&a)?;
-    println!("{}", b); // [true true true]
+    let shape = [1, 256, 1];
+    let a = Tensor::<f64, Cuda>::randn(&shape)?;
+    let a = a.argmax(0, true)?;
+    println!("{}", a);
     Ok(())
 }
