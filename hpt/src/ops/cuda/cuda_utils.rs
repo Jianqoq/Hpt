@@ -230,6 +230,25 @@ pub(crate) fn compute_kernel_launch_config(
     }
 }
 
+pub(crate) fn compute_num_blocks(
+    device: Arc<CudaDevice>,
+    size: usize,
+    block_size: usize,
+    num_waves: usize,
+) -> usize {
+    use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_MULTIPROCESSOR;
+    use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT;
+    let sm_count = device
+        .attribute(CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)
+        .expect("failed to get sm count");
+    let tpm = device
+        .attribute(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_MULTIPROCESSOR)
+        .expect("failed to get tpm");
+    size.div_ceil(block_size)
+        .min(sm_count as usize * tpm as usize / block_size * num_waves)
+        .max(1)
+}
+
 pub(crate) fn check_launch_config(
     device: Arc<CudaDevice>,
     config: &LaunchConfig,

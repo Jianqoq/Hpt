@@ -8,7 +8,7 @@ use crate::Cuda;
 use cudarc::driver::DeviceRepr;
 use hpt_common::axis::axis::{process_axes, Axis};
 use hpt_common::error::base::TensorError;
-use hpt_cudakernels::{REDUCE, REDUCE2};
+use hpt_cudakernels::{REDUCE, REDUCE2, SUM};
 use hpt_traits::{
     CommonBounds, EvalReduce, FloatReduce, NormalEvalReduce, NormalReduce, TensorInfo,
 };
@@ -36,7 +36,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
             T::ZERO,
             keep_dims,
             false,
-            &REDUCE,
+            &SUM,
             "reduce",
             "sum",
             false,

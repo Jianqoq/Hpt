@@ -1,5 +1,6 @@
 #include <cuda_fp16.h>
 #include <cuda_bf16.h>
+#include "utils/index_calculator.cuh"
 #define WRAP 32
 
 #define DEFINE_REDUCE_KERNEL(rust_type, in_type, out_type, INIT_VAL, METHOD)                                                                                                                                                \
@@ -99,32 +100,21 @@
         }                                                                                                                                                                                                                   \
         unsigned int tid = threadIdx.x;                                                                                                                                                                                     \
         unsigned int i = 2 * blockIdx.x * blockDim.x + threadIdx.x;                                                                                                                                                         \
-        METHOD##sdata_##rust_type[tid] = INIT_VAL;                                                                                                                                                                          \
+        UncontiguousIndexCalculator<in_type> cal = UncontiguousIndexCalculator<in_type>(in, shape, strides, ndim);                                                                                                                            \
         if (i + blockDim.x < cols)                                                                                                                                                                                          \
         {                                                                                                                                                                                                                   \
-            long long a_offset = 0;                                                                                                                                                                                         \
-            long long a_amount = i + (blockIdx.y + start_row_idx) * cols;                                                                                                                                                   \
-            long long b_offset = 0;                                                                                                                                                                                         \
-            long long b_amount = i + blockDim.x + (blockIdx.y + start_row_idx) * cols;                                                                                                                                      \
-            for (int j = ndim - 1; j >= 0; j--)                                                                                                                                                                             \
-            {                                                                                                                                                                                                               \
-                a_offset += (a_amount % shape[j]) * strides[j];                                                                                                                                                             \
-                a_amount /= shape[j];                                                                                                                                                                                       \
-                b_offset += (b_amount % shape[j]) * strides[j];                                                                                                                                                             \
-                b_amount /= shape[j];                                                                                                                                                                                       \
-            }                                                                                                                                                                                                               \
-            METHOD##sdata_##rust_type[tid] = METHOD##_##rust_type(in[a_offset], in[b_offset]);                                                                                                                              \
+            long long a_q = i + (blockIdx.y + start_row_idx) * cols;                                                                                                                                                        \
+            long long b_q = i + blockDim.x + (blockIdx.y + start_row_idx) * cols;                                                                                                                                           \
+            METHOD##sdata_##rust_type[tid] = METHOD##_##rust_type(cal.get(a_q), cal.get(b_q));                                                                                                                              \
         }                                                                                                                                                                                                                   \
         else if (i < cols)                                                                                                                                                                                                  \
         {                                                                                                                                                                                                                   \
-            long long a_amount = i + (blockIdx.y + start_row_idx) * cols;                                                                                                                                                   \
-                                                                                                                                                                                                                            \
-            for (int j = ndim - 1; j >= 0; j--)                                                                                                                                                                             \
-            {                                                                                                                                                                                                               \
-                in += (a_amount % shape[j]) * strides[j];                                                                                                                                                                   \
-                a_amount /= shape[j];                                                                                                                                                                                       \
-            }                                                                                                                                                                                                               \
-            METHOD##sdata_##rust_type[tid] = *in;                                                                                                                                                                           \
+            long long a_q = i + (blockIdx.y + start_row_idx) * cols;                                                                                                                                                        \
+            METHOD##sdata_##rust_type[tid] = cal.get(a_q);                                                                                                                                                                  \
+        }                                                                                                                                                                                                                   \
+        else                                                                                                                                                                                                                \
+        {                                                                                                                                                                                                                   \
+            METHOD##sdata_##rust_type[tid] = INIT_VAL;                                                                                                                                                                      \
         }                                                                                                                                                                                                                   \
         __syncthreads();                                                                                                                                                                                                    \
         for (unsigned int s = blockDim.x / 2; s > WRAP; s >>= 1)                                                                                                                                                            \

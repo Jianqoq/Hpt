@@ -1,4 +1,5 @@
 use crate::ops::cuda::cuda_utils::check_launch_config;
+use crate::ops::cuda::cuda_utils::compute_num_blocks;
 use crate::ops::cuda::cuda_utils::max_grid_dim_y;
 use crate::ops::cuda::utils::unary::strided_copy::strided_copy;
 use crate::ops::cuda::utils::unary::unary::unary_raw_mut;
@@ -243,21 +244,13 @@ where
             )
             .unwrap();
             let size = a.size();
-
             let compute_cfg = |reduce_size: usize| {
                 let mut cfg = compute_kernel_launch_config(a.device(), &reg_info, reduce_size);
-                let block_dim_x = cfg.block_dim.0.next_power_of_two().max(64);
+                let num_blocks = compute_num_blocks(a.device(), reduce_size, 256, 4);
+                let block_dim_x = /*cfg.block_dim.0.next_power_of_two().max(256)*/ 256;
                 cfg.block_dim = (block_dim_x, 1, 1);
                 // calculate the number of blocks needed, divide by 2 for reduction
-                cfg.grid_dim = (
-                    reduce_size
-                        .div_ceil(block_dim_x as usize)
-                        .div_ceil(2)
-                        .max(1) as u32,
-                    1,
-                    1,
-                );
-                cfg.shared_mem_bytes = cfg.block_dim.0 * std::mem::size_of::<O>() as u32;
+                cfg.grid_dim = (num_blocks as u32, 1, 1);
                 check_launch_config(a.device(), &cfg).unwrap();
                 cfg
             };
@@ -265,6 +258,7 @@ where
             let cfg = compute_cfg(size);
             let mut reduce_size = cfg.grid_dim.0 as usize;
             let tmp_buffer = unsafe { a.device().alloc::<O>(reduce_size).unwrap() };
+
             unsafe {
                 reduce_kernel
                     .clone()
@@ -286,7 +280,6 @@ where
             // keep reducing until the size is 1
             while reduce_size > 1 {
                 let cfg = compute_cfg(reduce_size);
-                // it is safe to use tmp_buffer as input and output because there is no data racing
                 unsafe {
                     reduce_kernel
                         .clone()
@@ -322,13 +315,13 @@ where
             let max_grid_dim_y = max_grid_dim_y(a.device());
             let compute_cfg = |reduce_size: usize| {
                 let mut cfg = compute_kernel_launch_config(a.device(), &reg_info, reduce_size);
-                let block_dim_x = cfg.block_dim.0.next_power_of_two().max(64);
+                let block_dim_x = 256;
                 cfg.block_dim = (block_dim_x, 1, 1);
                 // calculate the number of blocks needed, divide by 2 for reduction
                 cfg.grid_dim = (
                     reduce_size
                         .div_ceil(block_dim_x as usize)
-                        .div_ceil(2)
+                        .div_ceil(4)
                         .max(1) as u32,
                     (outer_loop_size as u32).min(max_grid_dim_y),
                     1,

@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use regex::Regex;
+use walkdir::WalkDir;
 
 fn main() {
     if !cfg!(feature = "cuda") {
@@ -13,8 +14,12 @@ fn main() {
     }
     let caps = compute_cap();
     let cu_files = find_cu_files(Path::new("src")).expect("find cu files");
+    let h_files = find_h_files(Path::new("src")).expect("find cuh files");
     for cu_file in &cu_files {
         println!("cargo:rerun-if-changed={}", cu_file.display());
+    }
+    for h_file in &h_files {
+        println!("cargo:rerun-if-changed={}", h_file.display());
     }
     // create OUT_DIR if not exists
     let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR not set");
@@ -151,14 +156,28 @@ pub(crate) fn count_registers(ptx: &str) -> HashMap<String, (usize, usize, usize
 
 fn find_cu_files(dir: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
     let mut cu_files = Vec::new();
-    for entry in std::fs::read_dir(dir)? {
+    for entry in WalkDir::new(dir).follow_links(true) {
         let entry = entry?;
-        let path = entry.path();
+        let path = entry.path().to_owned();
         if path.extension().and_then(|s| s.to_str()) == Some("cu") {
             cu_files.push(path);
         }
     }
     Ok(cu_files)
+}
+
+fn find_h_files(dir: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
+    let mut h_files = Vec::new();
+    for entry in WalkDir::new(dir).follow_links(true) {
+        let entry = entry?;
+        let path = entry.path().to_owned();
+        if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+            if ext == "cuh" || ext == "h" {
+                h_files.push(path);
+            }
+        }
+    }
+    Ok(h_files)
 }
 
 fn compile_cu(cu_file: &Path, out_dir: &Path, caps: &[u32]) -> Result<Vec<String>, String> {
@@ -171,11 +190,35 @@ fn compile_cu(cu_file: &Path, out_dir: &Path, caps: &[u32]) -> Result<Vec<String
 
         let name = format!("{}_{}", file_stem, cap);
         let obj_file = out_dir.join(format!("{}.ptx", name));
-
+        let obj_file_exists = obj_file.exists();
+        if obj_file_exists {
+            let obj_time = obj_file
+                .metadata()
+                .and_then(|m| m.modified())
+                .expect("Failed to get obj file time");
+            let src_newer = cu_file
+                .metadata()
+                .and_then(|m| m.modified())
+                .map(|t| t > obj_time)
+                .unwrap_or(true);
+            let header_files = get_dependencies(cu_file)?;
+            let headers_newer = header_files.iter().any(|h| {
+                h.metadata()
+                    .and_then(|m| m.modified())
+                    .map(|t| t > obj_time)
+                    .unwrap_or(true)
+            });
+            if !src_newer && !headers_newer {
+                obj_files.push(name);
+                continue;
+            }
+        }
+        println!("cargo:warning=compiling: {}", cu_file.display());
         let mut cmd = Command::new("nvcc");
         cmd.arg("-ptx")
             .arg("-O3")
             .arg("-allow-unsupported-compiler")
+            .arg("--extended-lambda")
             .arg(cu_file.to_str().unwrap())
             .arg("-o")
             .arg(obj_file.to_str().unwrap())
@@ -195,6 +238,41 @@ fn compile_cu(cu_file: &Path, out_dir: &Path, caps: &[u32]) -> Result<Vec<String
     }
 
     Ok(obj_files)
+}
+
+fn get_dependencies(cu_file: &Path) -> Result<Vec<PathBuf>, String> {
+    let mut cmd = Command::new("nvcc");
+    cmd.arg("-M").arg(cu_file.to_str().unwrap());
+
+    let output = cmd
+        .output()
+        .map_err(|e| format!("Failed to get dependencies: {}", e))?;
+
+    let deps = String::from_utf8_lossy(&output.stdout);
+
+    let src_dir = std::env::current_dir()
+        .expect("get current dir failed")
+        .join("src")
+        .canonicalize()
+        .map_err(|e| e.to_string())?;
+
+    let deps: Vec<PathBuf> = deps
+        .split_whitespace()
+        .filter(|path| {
+            let ext = Path::new(path).extension().and_then(|s| s.to_str());
+            ext == Some("h") || ext == Some("cuh") || ext == Some("hpp")
+        })
+        .map(|path| PathBuf::from(path.replace("\\", "")))
+        .filter(|path| {
+            if let Ok(abs_path) = path.canonicalize() {
+                abs_path.starts_with(&src_dir)
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    Ok(deps)
 }
 
 fn compute_cap() -> Vec<u32> {
