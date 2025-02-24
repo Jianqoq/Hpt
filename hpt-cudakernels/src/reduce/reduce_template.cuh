@@ -3,6 +3,25 @@
 #include "reduce_helper.cuh"
 #include "../utils/index_calculator.cuh"
 
+// https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/cuda/block_reduce.cuh
+template <typename T, typename Op, typename Op2, unsigned int BLOCK_SIZE = 256, unsigned int WarpSize = 32>
+__device__ __forceinline__ T blockReduce(T val, T *shared)
+{
+    int tid = threadIdx.x;
+    int warp_id;
+    int lane_id;
+    divmod(tid, (int)WarpSize, warp_id, lane_id);
+    val = Op::warp_reduce(val);
+    __syncthreads();
+    if (lane_id == 0)
+        shared[warp_id] = val;
+    __syncthreads();
+    val = (tid < BLOCK_SIZE / WarpSize) ? shared[lane_id] : Op::identity();
+    if (warp_id == 0)
+        val = Op2::warp_reduce(val);
+    return val;
+}
+
 // https://github.com/DefTruth/CUDA-Learn-Notes/blob/main/kernels/reduce/block_all_reduce.cu
 template <typename Calculator, typename T, typename R, template <typename, typename, unsigned int> class Op = ReduceOp, unsigned int BLOCK_SIZE = 256, unsigned int WarpSize = 32>
 __device__ void all_reduce(R *out, size_t size, Calculator index_calculator)
@@ -31,27 +50,35 @@ __device__ void all_reduce(R *out, size_t size, Calculator index_calculator)
 }
 
 // size include no reduce dim and fast dim
-template <typename T, typename R, typename ProgressUpdater, template <typename, typename, unsigned int> class Op = ReduceOp, unsigned int WarpSize = 32>
-__device__ void reduce_fast_dim_include(R *out, T *in, long long *shape, long long *strides, size_t ndim, size_t fast_dim_size, size_t num_elements_per_thread, ProgressUpdater progress_updater)
+template <typename T, typename R, template <typename, typename, unsigned int> class Op = ReduceOp, typename ProgressUpdater, unsigned int BLOCK_SIZE = 256, unsigned int WarpSize = 32, bool fast_path = false>
+__device__ void reduce_fast_dim_include(R *out, T *in, long long *shape, long long *strides, int ndim, size_t fast_dim_size, size_t num_elements_per_thread, ProgressUpdater progress_updater)
 {
+    __shared__ R reduce_smem[WarpSize];
     unsigned int thread_offset = threadIdx.x;
     R total = Op<R, R, WarpSize>::identity();
+    auto idx_calculator = UncontiguousIndexCalculator<T>(in, shape, strides, ndim);
     while (thread_offset < fast_dim_size)
     {
         unsigned int idx = (blockIdx.x * fast_dim_size + thread_offset) * num_elements_per_thread;
-        T *in_ptr = UncontiguousIndexCalculator<T>(in, shape, strides, (int)ndim).get_ptr(idx);
-        progress_updater.set_ptr(in_ptr);
-        R sub_total = Op<R, R, WarpSize>::identity();
+        in = idx_calculator.get_ptr(idx);
+        progress_updater.set_ptr(in);
         for (size_t i = 0; i < num_elements_per_thread; i++)
         {
-            T val = progress_updater.get();
-            R res = Op<T, R, WarpSize>::process_single(val);
-            progress_updater.update();
-            sub_total = Op<R, R, WarpSize>::combine(sub_total, res);
+            R res = Op<T, R, WarpSize>::process_single(progress_updater.get());
+            total = Op<R, R, WarpSize>::combine(total, res);
+            if (fast_path)
+            {
+                in += strides[ndim - 1];
+                progress_updater.set_ptr(in);
+            }
+            else
+            {
+                progress_updater.update();
+            }
         }
-        total = Op<R, R, WarpSize>::combine(total, sub_total);
         thread_offset += blockDim.x;
     }
+    total = blockReduce<R, Op<R, R, WarpSize>, Op<R, R, BLOCK_SIZE / WarpSize>, BLOCK_SIZE, WarpSize>(total, reduce_smem);
     if (threadIdx.x == 0)
         out[blockIdx.x] = total;
 }

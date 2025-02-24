@@ -339,7 +339,6 @@ pub fn get_num_threads() -> usize {
     THREAD_POOL.with(|x| x.borrow().max_count())
 }
 
-
 static DISPLAY_PRECISION: AtomicUsize = AtomicUsize::new(4);
 static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
 

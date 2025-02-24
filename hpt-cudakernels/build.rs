@@ -91,17 +91,17 @@ fn main() {
             file_stem.to_uppercase(),
             cap_map.build()
         ));
-        if let Ok(mut file) = std::fs::File::open(&generated_constants) {
-            let mut content = String::new();
-            file.read_to_string(&mut content).unwrap();
-            let mut file =
-                std::fs::File::create(&generated_constants).expect("create generated.rs");
-            file.write_all(buffer.as_bytes()).unwrap();
-        } else {
-            let mut file =
-                std::fs::File::create(&generated_constants).expect("create generated.rs");
-            file.write_all(buffer.as_bytes()).unwrap();
-        }
+    }
+    if let Ok(mut file) = std::fs::File::open(&generated_constants) {
+        let mut content = String::new();
+        file.read_to_string(&mut content).unwrap();
+        let mut file =
+            std::fs::File::create(&generated_constants).expect("create generated.rs");
+        file.write_all(buffer.as_bytes()).unwrap();
+    } else {
+        let mut file =
+            std::fs::File::create(&generated_constants).expect("create generated.rs");
+        file.write_all(buffer.as_bytes()).unwrap();
     }
 }
 
@@ -213,7 +213,6 @@ fn compile_cu(cu_file: &Path, out_dir: &Path, caps: &[u32]) -> Result<Vec<String
                 continue;
             }
         }
-        println!("cargo:warning=compiling: {}", cu_file.display());
         let mut cmd = Command::new("nvcc");
         cmd.arg("-ptx")
             .arg("-O3")

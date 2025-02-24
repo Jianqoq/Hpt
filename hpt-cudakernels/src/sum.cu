@@ -1,6 +1,7 @@
 #include "reduce/reduce_template.cuh"
 #include "reduce/reduce_helper.cuh"
 #include "utils/loop_progress.cuh"
+#include <stdio.h>
 
 template <typename T, typename R = T, unsigned int WarpSize = 32>
 class Sum : public ReduceOp<T, R, WarpSize>
@@ -54,7 +55,7 @@ extern "C" __global__ void contiguous_sum_dim_include_f32(float *out, float *in,
     long long prg[25];
     auto func = [ndim, shape, strides, reduce_ndim_exclude_fast_dim, &prg] __device__(float *&data)
     {
-        for (size_t i = ndim - 1; i > ndim - reduce_ndim_exclude_fast_dim; i--)
+        for (size_t i = ndim - 1; i >= ndim - reduce_ndim_exclude_fast_dim; i--)
         {
             if (prg[i] < shape[i] - 1)
             {
@@ -70,5 +71,12 @@ extern "C" __global__ void contiguous_sum_dim_include_f32(float *out, float *in,
         }
     };
     auto progress_updater = ProgressUpdater<float, decltype(func)>(func, in);
-    reduce_fast_dim_include<float, float>(out, in, shape, strides, ndim, fast_dim_size, num_elements_per_thread, progress_updater);
+    if (reduce_ndim_exclude_fast_dim == 1)
+    {
+        reduce_fast_dim_include<float, float, Sum, ProgressUpdater<float, decltype(func)>, 64, 32, true>(out, in, shape, strides, ndim, fast_dim_size, num_elements_per_thread, progress_updater);
+    }
+    else
+    {
+        reduce_fast_dim_include<float, float, Sum, ProgressUpdater<float, decltype(func)>, 64, 32, false>(out, in, shape, strides, ndim, fast_dim_size, num_elements_per_thread, progress_updater);
+    }
 }

@@ -300,90 +300,61 @@ where
             }
             _res_ptr.leak();
         },
-        |inner_loop_size, inner_loop_size2, res, transposed_tensor| {
-            let outer_loop_size = a.size() / (inner_loop_size * inner_loop_size2);
-            let (reduce_kernel, reg_info) = load_ptx_and_get_data(
+        |inner_loop_size, _, res, transposed_tensor| {
+            // move last dim
+            let perm = (0..transposed_tensor.ndim()).collect::<Vec<_>>();
+            let mut right = perm[perm.len() - axes.len()..].to_vec();
+            let mut left = perm[..perm.len() - axes.len()].to_vec();
+            let last = right.pop().unwrap();
+            let reduce_size_no_fast_dim = right.iter().map(|&x| transposed_tensor.shape()[x] as usize).product::<usize>();
+            // println!("reduce_size_no_fast_dim: {}", reduce_size_no_fast_dim);
+            let fast_dim_size = inner_loop_size;
+            right.insert(0, last);
+            left.extend(right);
+            let transposed_tensor = transposed_tensor.permute(&left).unwrap();
+
+            let (reduce_kernel, _) = load_ptx_and_get_data(
                 module_name,
-                &format!("contiguous_{op}2_{}", T::STR),
+                &format!("contiguous_{op}_dim_include_{}", T::STR),
                 a.device(),
                 a.device_cap(),
                 &meta,
             )
             .unwrap();
-            let mut reduce_size = inner_loop_size * inner_loop_size2;
+            // let mut reduce_size = inner_loop_size * inner_loop_size2;
 
-            let max_grid_dim_y = max_grid_dim_y(a.device());
-            let compute_cfg = |reduce_size: usize| {
-                let mut cfg = compute_kernel_launch_config(a.device(), &reg_info, reduce_size);
-                let block_dim_x = 256;
+            let compute_cfg = |output_size: usize| {
+                let mut cfg = LaunchConfig::for_num_elems(0);
+                let block_dim_x = 64;
+                // let num_blocks = compute_num_blocks(a.device(), output_size, 256, 4);
                 cfg.block_dim = (block_dim_x, 1, 1);
-                // calculate the number of blocks needed, divide by 2 for reduction
-                cfg.grid_dim = (
-                    reduce_size
-                        .div_ceil(block_dim_x as usize)
-                        .div_ceil(4)
-                        .max(1) as u32,
-                    (outer_loop_size as u32).min(max_grid_dim_y),
-                    1,
-                );
-                cfg.shared_mem_bytes = cfg.block_dim.0 * std::mem::size_of::<O>() as u32;
+                cfg.grid_dim = (output_size as u32, 1, 1);
                 check_launch_config(a.device(), &cfg).unwrap();
                 cfg
             };
 
-            let cfg = compute_cfg(reduce_size);
+            let cfg = compute_cfg(res.size());
             let shape = transposed_tensor.cuda_shape().unwrap();
             let strides = transposed_tensor.cuda_strides().unwrap();
-            let tmp_buffer = unsafe {
-                a.device()
-                    .alloc::<O>(cfg.grid_dim.0 as usize * outer_loop_size)
-                    .unwrap()
-            };
-            for idx in (0..outer_loop_size).step_by(max_grid_dim_y as usize) {
-                unsafe {
-                    reduce_kernel.clone().launch(
-                        cfg,
-                        (
-                            &tmp_buffer,
-                            transposed_tensor.cuda_slice(),
-                            &shape,
-                            &strides,
-                            transposed_tensor.ndim(),
-                            idx,
-                            reduce_size,
-                            outer_loop_size,
-                            cfg.grid_dim.0 as usize,
-                        ),
-                    )
-                }
-                .unwrap();
-            }
+            let tmp_buffer = unsafe { a.device().alloc::<O>(cfg.grid_dim.0 as usize).unwrap() };
 
-            reduce_size = cfg.grid_dim.0 as usize;
-            let reduce_kernel = a
-                .device()
-                .get_func(&module_name, &format!("contiguous_{op}22_{}", O::STR))
-                .unwrap();
-            while reduce_size > 1 {
-                let cfg = compute_cfg(reduce_size);
-                for idx in (0..outer_loop_size).step_by(max_grid_dim_y as usize) {
-                    unsafe {
-                        reduce_kernel.clone().launch(
-                            cfg,
-                            (
-                                &tmp_buffer,
-                                &tmp_buffer,
-                                idx,
-                                reduce_size,
-                                outer_loop_size,
-                                cfg.grid_dim.0 as usize,
-                            ),
-                        )
-                    }
-                    .unwrap();
-                }
-                reduce_size = cfg.grid_dim.0 as usize;
+            // println!("cfg: {:?}", cfg);
+            unsafe {
+                reduce_kernel.clone().launch(
+                    cfg,
+                    (
+                        &tmp_buffer,
+                        transposed_tensor.cuda_slice(),
+                        &shape,
+                        &strides,
+                        transposed_tensor.ndim(),
+                        fast_dim_size,
+                        reduce_size_no_fast_dim,
+                        axes.len() - 1
+                    ),
+                )
             }
+            .unwrap();
             a.device().synchronize().unwrap();
             let tmp_buffer = tmp_buffer.leak();
             // resize the slice
