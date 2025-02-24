@@ -3,11 +3,36 @@
 #include "reduce_helper.cuh"
 #include "../utils/index_calculator.cuh"
 
+template <unsigned int WarpSize = 32>
+struct Block1D
+{
+    static __forceinline__ __device__ int Tid() { return threadIdx.x; }
+
+    static __forceinline__ __device__ int Warps()
+    {
+        return blockDim.x / WarpSize;
+    }
+};
+
+template <unsigned int WarpSize = 32>
+struct Block2D
+{
+    static __forceinline__ __device__ int Tid()
+    {
+        return threadIdx.x + threadIdx.y * blockDim.x;
+    }
+
+    static __forceinline__ __device__ int Warps()
+    {
+        return blockDim.x * blockDim.y / WarpSize;
+    }
+};
+
 // https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/cuda/block_reduce.cuh
-template <typename T, typename Op, typename Op2, unsigned int BLOCK_SIZE = 256, unsigned int WarpSize = 32>
+template <typename T, typename Op, typename Op2, unsigned int WarpSize = 32, typename B = Block1D<WarpSize>>
 __device__ __forceinline__ T blockReduce(T val, T *shared)
 {
-    int tid = threadIdx.x;
+    const int tid = B::Tid();
     int warp_id;
     int lane_id;
     divmod(tid, (int)WarpSize, warp_id, lane_id);
@@ -16,7 +41,7 @@ __device__ __forceinline__ T blockReduce(T val, T *shared)
     if (lane_id == 0)
         shared[warp_id] = val;
     __syncthreads();
-    val = (tid < BLOCK_SIZE / WarpSize) ? shared[lane_id] : Op::identity();
+    val = (tid < B::Warps()) ? shared[lane_id] : Op::identity();
     if (warp_id == 0)
         val = Op2::warp_reduce(val);
     return val;
@@ -50,8 +75,8 @@ __device__ void all_reduce(R *out, size_t size, Calculator index_calculator)
 }
 
 // size include no reduce dim and fast dim
-template <typename T, typename R, template <typename, typename, unsigned int> class Op = ReduceOp, typename ProgressUpdater, unsigned int BLOCK_SIZE = 256, unsigned int WarpSize = 32, bool fast_path = false>
-__device__ void reduce_fast_dim_include(R *out, T *in, long long *shape, long long *strides, int ndim, size_t fast_dim_size, size_t num_elements_per_thread, ProgressUpdater progress_updater)
+template <typename T, typename R, template <typename, typename, unsigned int> class Op = ReduceOp, typename ProgressUpdater, unsigned int WarpSize = 32, bool fast_path = false>
+__device__ void reduce_fast_dim_include(R *out, T *in, long long *shape, long long *strides, int ndim, size_t fast_dim_size, size_t num_elements_per_thread, size_t reduce_size_no_fast_dim, ProgressUpdater progress_updater)
 {
     __shared__ R reduce_smem[WarpSize];
     unsigned int thread_offset = threadIdx.x;
@@ -59,14 +84,15 @@ __device__ void reduce_fast_dim_include(R *out, T *in, long long *shape, long lo
     auto idx_calculator = UncontiguousIndexCalculator<T>(in, shape, strides, ndim);
     while (thread_offset < fast_dim_size)
     {
-        unsigned int idx = (blockIdx.x * fast_dim_size + thread_offset) * num_elements_per_thread;
-        in = idx_calculator.get_ptr(idx);
+        unsigned int horizontal_offset = threadIdx.y * num_elements_per_thread;
+        unsigned int idx = (blockIdx.x * fast_dim_size + thread_offset) * reduce_size_no_fast_dim;
+        in = idx_calculator.get_ptr(idx + horizontal_offset);
         progress_updater.set_ptr(in);
-        for (size_t i = 0; i < num_elements_per_thread; i++)
+        for (unsigned int i = horizontal_offset; i < horizontal_offset + num_elements_per_thread && i < reduce_size_no_fast_dim; i++)
         {
             R res = Op<T, R, WarpSize>::process_single(progress_updater.get());
             total = Op<R, R, WarpSize>::combine(total, res);
-            if (fast_path)
+            if constexpr (fast_path)
             {
                 in += strides[ndim - 1];
                 progress_updater.set_ptr(in);
@@ -78,7 +104,7 @@ __device__ void reduce_fast_dim_include(R *out, T *in, long long *shape, long lo
         }
         thread_offset += blockDim.x;
     }
-    total = blockReduce<R, Op<R, R, WarpSize>, Op<R, R, BLOCK_SIZE / WarpSize>, BLOCK_SIZE, WarpSize>(total, reduce_smem);
+    total = blockReduce<R, Op<R, R, WarpSize>, Op<R, R, 512 / WarpSize>, WarpSize, Block2D<WarpSize>>(total, reduce_smem);
     if (threadIdx.x == 0)
         out[blockIdx.x] = total;
 }

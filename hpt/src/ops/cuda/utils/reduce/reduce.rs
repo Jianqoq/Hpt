@@ -300,19 +300,21 @@ where
             }
             _res_ptr.leak();
         },
-        |inner_loop_size, _, res, transposed_tensor| {
+        |inner_loop_size, _, res, transposed_tensor, new_axes| {
             // move last dim
             let perm = (0..transposed_tensor.ndim()).collect::<Vec<_>>();
-            let mut right = perm[perm.len() - axes.len()..].to_vec();
-            let mut left = perm[..perm.len() - axes.len()].to_vec();
+            let mut right = perm[perm.len() - new_axes.len()..].to_vec();
+            let mut left = perm[..perm.len() - new_axes.len()].to_vec();
             let last = right.pop().unwrap();
-            let reduce_size_no_fast_dim = right.iter().map(|&x| transposed_tensor.shape()[x] as usize).product::<usize>();
+            let reduce_size_no_fast_dim = right
+                .iter()
+                .map(|&x| transposed_tensor.shape()[x] as usize)
+                .product::<usize>();
             // println!("reduce_size_no_fast_dim: {}", reduce_size_no_fast_dim);
             let fast_dim_size = inner_loop_size;
             right.insert(0, last);
             left.extend(right);
             let transposed_tensor = transposed_tensor.permute(&left).unwrap();
-
             let (reduce_kernel, _) = load_ptx_and_get_data(
                 module_name,
                 &format!("contiguous_{op}_dim_include_{}", T::STR),
@@ -325,9 +327,7 @@ where
 
             let compute_cfg = |output_size: usize| {
                 let mut cfg = LaunchConfig::for_num_elems(0);
-                let block_dim_x = 64;
-                // let num_blocks = compute_num_blocks(a.device(), output_size, 256, 4);
-                cfg.block_dim = (block_dim_x, 1, 1);
+                cfg.block_dim = (32, 16, 1);
                 cfg.grid_dim = (output_size as u32, 1, 1);
                 check_launch_config(a.device(), &cfg).unwrap();
                 cfg
@@ -336,39 +336,25 @@ where
             let cfg = compute_cfg(res.size());
             let shape = transposed_tensor.cuda_shape().unwrap();
             let strides = transposed_tensor.cuda_strides().unwrap();
-            let tmp_buffer = unsafe { a.device().alloc::<O>(cfg.grid_dim.0 as usize).unwrap() };
-
-            // println!("cfg: {:?}", cfg);
+            let num_elements_per_thread =
+                reduce_size_no_fast_dim.div_ceil(cfg.block_dim.1 as usize);
             unsafe {
                 reduce_kernel.clone().launch(
                     cfg,
                     (
-                        &tmp_buffer,
+                        res.cuda_slice(),
                         transposed_tensor.cuda_slice(),
                         &shape,
                         &strides,
                         transposed_tensor.ndim(),
                         fast_dim_size,
+                        num_elements_per_thread,
                         reduce_size_no_fast_dim,
-                        axes.len() - 1
+                        new_axes.len() - 1,
                     ),
                 )
             }
             .unwrap();
-            a.device().synchronize().unwrap();
-            let tmp_buffer = tmp_buffer.leak();
-            // resize the slice
-            let tmp_buffer = unsafe { a.device().upgrade_device_ptr::<O>(tmp_buffer, res.size()) };
-            let mut _res_ptr = unsafe {
-                a.device()
-                    .upgrade_device_ptr::<O>(res.cuda_slice().inner, res.size())
-            };
-            if let Some(post_op) = &post_op {
-                unary_raw_mut(&tmp_buffer, &_res_ptr, post_op).expect("post_op failed");
-            } else {
-                a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
-            }
-            _res_ptr.leak();
         },
         |inner_loop_size_2, result, transposed_tensor| {
             let perm = (0..transposed_tensor.ndim()).collect::<Vec<_>>();

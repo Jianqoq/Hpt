@@ -169,7 +169,7 @@ where
     T: CommonBounds + Cast<O> + DeviceRepr + CudaType,
     O: CommonBounds + DeviceRepr + CudaType,
     F1: Fn(CudaSlice),
-    F2: Fn(usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
+    F2: Fn(usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>, &[usize]),
     F4: Fn(usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
 {
     let mut keep_fast_dim = true;
@@ -233,6 +233,7 @@ where
                 inner_loop_size_2,
                 &result,
                 &transposed_tensor,
+                &axes,
             );
         } else {
             let inner_loop_size_2 = a.size() / result.size();
