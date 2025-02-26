@@ -50,7 +50,7 @@ extern "C" __global__ void contiguous_sum_f32(float *out, float *in, size_t size
         ContiguousIndexCalculator<float>, float, float, Sum, 256, 32>(out, size, ContiguousIndexCalculator<float>(in));
 }
 
-extern "C" __global__ void contiguous_sum_dim_include_f32(float *out, float *in, long long *shape, long long *strides, size_t ndim, size_t fast_dim_size, size_t num_elements_per_thread, size_t reduce_size_no_fast_dim, size_t reduce_ndim_exclude_fast_dim)
+extern "C" __global__ void contiguous_sum_fast_dim_include_f32(float *out, float *in, long long *shape, long long *strides, size_t ndim, size_t fast_dim_size, size_t num_elements_per_thread, size_t reduce_size_no_fast_dim, size_t reduce_ndim_exclude_fast_dim)
 {
     uint64_t prg[25];
     auto func = [ndim, shape, strides, reduce_ndim_exclude_fast_dim, &prg] __device__(float *&data)
@@ -78,5 +78,60 @@ extern "C" __global__ void contiguous_sum_dim_include_f32(float *out, float *in,
     else
     {
         reduce_fast_dim_include<float, float, Sum, ProgressUpdater<float, decltype(func)>, 32, false>(out, in, shape, strides, ndim, fast_dim_size, num_elements_per_thread, reduce_size_no_fast_dim, progress_updater);
+    }
+}
+
+__launch_bounds__(512, 4) extern "C" __global__ void contiguous_sum_fast_dim_only_f32(float *out, float *in, size_t fast_dim_size, size_t output_size)
+{
+    switch (blockDim.x)
+    {
+    case 32:
+        reduce_fast_dim_only<float, float, Sum, 32, 32>(out, in, fast_dim_size, output_size);
+        break;
+    case 64:
+        reduce_fast_dim_only<float, float, Sum, 64, 32>(out, in, fast_dim_size, output_size);
+        break;
+    case 128:
+        reduce_fast_dim_only<float, float, Sum, 128, 32>(out, in, fast_dim_size, output_size);
+        break;
+    case 256:
+        reduce_fast_dim_only<float, float, Sum, 256, 32>(out, in, fast_dim_size, output_size);
+        break;
+    case 512:
+        reduce_fast_dim_only<float, float, Sum, 512, 32>(out, in, fast_dim_size, output_size);
+        break;
+    default:
+        break;
+    }
+}
+
+extern "C" __global__ void contiguous_sum_fast_dim_no_include_f32(float *out, float *in, long long *shape, long long *strides, size_t ndim, size_t reduce_size, size_t reduce_ndim, size_t output_size)
+{
+    uint64_t prg[25];
+    auto func = [ndim, shape, strides, reduce_ndim, &prg] __device__(float *&data)
+    {
+        for (int i = ndim - 1; i >= ndim - reduce_ndim; i--)
+        {
+            if (prg[i] < shape[i] - 1)
+            {
+                prg[i]++;
+                data += strides[i];
+                break;
+            }
+            else
+            {
+                prg[i] = 0;
+                data -= strides[i] * (shape[i] - 1);
+            }
+        }
+    };
+    auto progress_updater = ProgressUpdater<float, decltype(func)>(func, in);
+    if (reduce_ndim == 1)
+    {
+        reduce_fast_dim_not_include<float, float, Sum, ProgressUpdater<float, decltype(func)>, 32, true>(out, in, shape, strides, ndim, reduce_size, progress_updater, output_size);
+    }
+    else
+    {
+        reduce_fast_dim_not_include<float, float, Sum, ProgressUpdater<float, decltype(func)>, 32, false>(out, in, shape, strides, ndim, reduce_size, progress_updater, output_size);
     }
 }

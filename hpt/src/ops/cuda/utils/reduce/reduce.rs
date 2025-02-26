@@ -310,25 +310,45 @@ where
                 .iter()
                 .map(|&x| transposed_tensor.shape()[x] as usize)
                 .product::<usize>();
-            // println!("reduce_size_no_fast_dim: {}", reduce_size_no_fast_dim);
             let fast_dim_size = inner_loop_size;
             right.insert(0, last);
             left.extend(right);
             let transposed_tensor = transposed_tensor.permute(&left).unwrap();
-            let (reduce_kernel, _) = load_ptx_and_get_data(
-                module_name,
-                &format!("contiguous_{op}_dim_include_{}", T::STR),
-                a.device(),
-                a.device_cap(),
-                &meta,
-            )
-            .unwrap();
-            // let mut reduce_size = inner_loop_size * inner_loop_size2;
+
+            let kernel_name = if reduce_size_no_fast_dim > 1 {
+                format!("contiguous_{op}_fast_dim_include_{}", T::STR)
+            } else {
+                assert_eq!(reduce_size_no_fast_dim, 1);
+                format!("contiguous_{op}_fast_dim_only_{}", T::STR)
+            };
+            let (reduce_kernel, _) =
+                load_ptx_and_get_data(module_name, &kernel_name, a.device(), a.device_cap(), &meta)
+                    .unwrap();
 
             let compute_cfg = |output_size: usize| {
                 let mut cfg = LaunchConfig::for_num_elems(0);
-                cfg.block_dim = (32, 16, 1);
-                cfg.grid_dim = (output_size as u32, 1, 1);
+                if reduce_size_no_fast_dim > 1 {
+                    cfg.block_dim = (32, 16, 1);
+                    cfg.grid_dim = (output_size as u32, 1, 1);
+                } else {
+                    fn compute_block_dim_x(fast_dim_size: usize) -> u32 {
+                        let mut block_dim = 32u32;
+                        while block_dim < 512 && block_dim * 2 <= fast_dim_size as u32 {
+                            block_dim *= 2;
+                        }
+                        block_dim
+                    }
+                    assert_eq!(reduce_size_no_fast_dim, 1);
+                    let block_size = compute_block_dim_x(fast_dim_size);
+                    let num_blocks = compute_num_blocks(
+                        a.device(),
+                        block_size as usize * output_size,
+                        block_size as usize,
+                        4,
+                    );
+                    cfg.block_dim = (block_size, 1, 1);
+                    cfg.grid_dim = (num_blocks as u32, 1, 1);
+                }
                 check_launch_config(a.device(), &cfg).unwrap();
                 cfg
             };
@@ -338,6 +358,56 @@ where
             let strides = transposed_tensor.cuda_strides().unwrap();
             let num_elements_per_thread =
                 reduce_size_no_fast_dim.div_ceil(cfg.block_dim.1 as usize);
+            if reduce_size_no_fast_dim > 1 {
+                unsafe {
+                    reduce_kernel.clone().launch(
+                        cfg,
+                        (
+                            res.cuda_slice(),
+                            transposed_tensor.cuda_slice(),
+                            &shape,
+                            &strides,
+                            transposed_tensor.ndim(),
+                            fast_dim_size,
+                            num_elements_per_thread,
+                            reduce_size_no_fast_dim,
+                            new_axes.len() - 1,
+                        ),
+                    )
+                }
+                .unwrap();
+            } else {
+                unsafe {
+                    reduce_kernel.clone().launch(
+                        cfg,
+                        (
+                            res.cuda_slice(),
+                            transposed_tensor.cuda_slice(),
+                            fast_dim_size,
+                            res.size(),
+                        ),
+                    )
+                }
+                .unwrap();
+            }
+        },
+        |reduce_size, res, transposed_tensor, new_axes| {
+            let kernel_name = format!("contiguous_{op}_fast_dim_no_include_{}", T::STR);
+            let (reduce_kernel, _) =
+                load_ptx_and_get_data(module_name, &kernel_name, a.device(), a.device_cap(), &meta)
+                    .unwrap();
+
+            let compute_cfg = |output_size: usize| {
+                let mut cfg = LaunchConfig::for_num_elems(0);
+                cfg.block_dim = (64, 1, 1);
+                cfg.grid_dim = (output_size.div_ceil(64) as u32, 1, 1);
+                check_launch_config(a.device(), &cfg).unwrap();
+                cfg
+            };
+
+            let cfg = compute_cfg(res.size());
+            let shape = transposed_tensor.cuda_shape().unwrap();
+            let strides = transposed_tensor.cuda_strides().unwrap();
             unsafe {
                 reduce_kernel.clone().launch(
                     cfg,
@@ -347,119 +417,13 @@ where
                         &shape,
                         &strides,
                         transposed_tensor.ndim(),
-                        fast_dim_size,
-                        num_elements_per_thread,
-                        reduce_size_no_fast_dim,
-                        new_axes.len() - 1,
-                    ),
-                )
-            }
-            .unwrap();
-        },
-        |inner_loop_size_2, result, transposed_tensor| {
-            let perm = (0..transposed_tensor.ndim()).collect::<Vec<_>>();
-            let right = perm[perm.len() - axes.len()..].to_vec();
-            let left = perm[..perm.len() - axes.len()].to_vec();
-            let mut perm = right;
-            perm.extend(left);
-            let transposed_tensor = transposed_tensor.permute(&perm).unwrap();
-            let (reduce_kernel, _) = load_ptx_and_get_data(
-                module_name,
-                &format!("contiguous_{op}3_{}", T::STR),
-                a.device(),
-                a.device_cap(),
-                &meta,
-            )
-            .unwrap();
-            let block_dim_x = 32; // x dimension must be 32, as it is the warp size
-            let block_dim_y = 32; // y dimension depends on the register used, currently 32
-            let mut reduce_size = inner_loop_size_2;
-            let grid_dim_x = (a.size() / reduce_size).div_ceil(block_dim_x as usize) as u32;
-            let launch_cfg = LaunchConfig {
-                block_dim: (block_dim_x, block_dim_y, 1),
-                grid_dim: (
-                    grid_dim_x,
-                    reduce_size.div_ceil(block_dim_y as usize) as u32,
-                    1,
-                ),
-                shared_mem_bytes: block_dim_x * block_dim_y * std::mem::size_of::<O>() as u32,
-            };
-            check_launch_config(a.device(), &launch_cfg).unwrap();
-            let shape = transposed_tensor.cuda_shape().unwrap();
-            let strides = transposed_tensor.cuda_strides().unwrap();
-            let mut height = launch_cfg.grid_dim.1;
-            let tmp_buffer = unsafe {
-                a.device()
-                    .alloc::<O>(result.size() * height as usize)
-                    .unwrap()
-            };
-            unsafe {
-                reduce_kernel.launch(
-                    launch_cfg,
-                    (
-                        &tmp_buffer,
-                        transposed_tensor.cuda_slice(),
-                        &shape,
-                        &strides,
-                        transposed_tensor.ndim(),
-                        result.size(),
                         reduce_size,
+                        new_axes.len(),
+                        res.size(),
                     ),
                 )
             }
             .unwrap();
-            let (reduce_kernel, _) = load_ptx_and_get_data(
-                module_name,
-                &format!("contiguous_{op}33_{}", T::STR),
-                a.device(),
-                a.device_cap(),
-                &meta,
-            )
-            .unwrap();
-            while height > 1 {
-                reduce_size = height as usize;
-                let launch_cfg = LaunchConfig {
-                    block_dim: (block_dim_x, block_dim_y, 1),
-                    grid_dim: (
-                        grid_dim_x,
-                        reduce_size.div_ceil(block_dim_y as usize) as u32,
-                        1,
-                    ),
-                    shared_mem_bytes: block_dim_x * block_dim_y * std::mem::size_of::<T>() as u32,
-                };
-                check_launch_config(a.device(), &launch_cfg).unwrap();
-                unsafe {
-                    reduce_kernel.clone().launch(
-                        launch_cfg,
-                        (
-                            &tmp_buffer,
-                            &tmp_buffer,
-                            transposed_tensor.ndim(),
-                            result.size(),
-                            reduce_size,
-                        ),
-                    )
-                }
-                .unwrap();
-                height = launch_cfg.grid_dim.1;
-            }
-            a.device().synchronize().unwrap();
-            let tmp_buffer = tmp_buffer.leak();
-            // resize the slice
-            let tmp_buffer = unsafe {
-                a.device()
-                    .upgrade_device_ptr::<O>(tmp_buffer, result.size())
-            };
-            let mut _res_ptr = unsafe {
-                a.device()
-                    .upgrade_device_ptr::<O>(result.cuda_slice().inner, result.size())
-            };
-            if let Some(post_op) = &post_op {
-                unary_raw_mut(&tmp_buffer, &_res_ptr, post_op).expect("post_op failed");
-            } else {
-                a.device().dtod_copy(&tmp_buffer, &mut _res_ptr).unwrap();
-            }
-            _res_ptr.leak();
         },
     )?;
     if !fused_dims.is_empty() {

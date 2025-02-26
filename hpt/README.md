@@ -28,7 +28,7 @@ Hpt is in early stage, bugs and wrong calculation results are expected
 
 # Cargo Features
 - `cuda`: enable cuda support
-- `bound_check`: enable bound check, this is experiment and will reduce performance.
+- `bound_check`: enable bound check, this is experimental and will reduce performance.
 - `normal_promote`: auto type promote. There may be more type promote feature in the future.
 
 # Get Start

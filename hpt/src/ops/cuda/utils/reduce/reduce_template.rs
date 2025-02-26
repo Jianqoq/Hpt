@@ -170,7 +170,7 @@ where
     O: CommonBounds + DeviceRepr + CudaType,
     F1: Fn(CudaSlice),
     F2: Fn(usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>, &[usize]),
-    F4: Fn(usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
+    F4: Fn(usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>, &[usize]),
 {
     let mut keep_fast_dim = true;
     for axis in axes.iter() {
@@ -237,7 +237,7 @@ where
             );
         } else {
             let inner_loop_size_2 = a.size() / result.size();
-            kd(inner_loop_size_2, &result, &transposed_tensor);
+            kd(inner_loop_size_2, &result, &transposed_tensor, &axes);
         }
     }
     result.reshape(a.layout.reduce(axes, keepdims)?.shape())
@@ -433,11 +433,7 @@ where
             );
         } else {
             let inner_loop_size_2 = a.size() / result.size();
-            kd(
-                inner_loop_size_2,
-                &result,
-                &transposed_tensor,
-            );
+            kd(inner_loop_size_2, &result, &transposed_tensor);
         }
     }
     result

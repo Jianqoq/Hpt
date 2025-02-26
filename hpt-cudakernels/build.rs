@@ -1,14 +1,22 @@
+use rayon::prelude::*;
+use regex::Regex;
 use std::collections::HashMap;
 use std::io::Read;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
-
-use regex::Regex;
 use walkdir::WalkDir;
 
 fn main() {
+    match rayon::ThreadPoolBuilder::new()
+        .num_threads(num_cpus::get_physical())
+        .stack_size(4 * 1024 * 1024)
+        .build_global()
+    {
+        Ok(_) => {}
+        Err(_) => {}
+    }
     if !cfg!(feature = "cuda") {
         return;
     }
@@ -36,8 +44,15 @@ fn main() {
 
     let mut buffer = String::new();
 
-    for cu_file in cu_files {
-        let obj_files = compile_cu(&cu_file, out_dir, &caps).expect("compile failed");
+    let results: Vec<_> = cu_files
+        .par_iter()
+        .map(|cu_file| {
+            let obj_files = compile_cu(cu_file, out_dir, &caps).expect("compile failed");
+            (cu_file, obj_files)
+        })
+        .collect();
+
+    for (cu_file, obj_files) in results {
         let mut cap_map = phf_codegen::Map::new();
         for (idx, name) in obj_files.into_iter().enumerate() {
             let name_upper_case = name.to_uppercase();
@@ -95,12 +110,10 @@ fn main() {
     if let Ok(mut file) = std::fs::File::open(&generated_constants) {
         let mut content = String::new();
         file.read_to_string(&mut content).unwrap();
-        let mut file =
-            std::fs::File::create(&generated_constants).expect("create generated.rs");
+        let mut file = std::fs::File::create(&generated_constants).expect("create generated.rs");
         file.write_all(buffer.as_bytes()).unwrap();
     } else {
-        let mut file =
-            std::fs::File::create(&generated_constants).expect("create generated.rs");
+        let mut file = std::fs::File::create(&generated_constants).expect("create generated.rs");
         file.write_all(buffer.as_bytes()).unwrap();
     }
 }
@@ -182,6 +195,8 @@ fn find_h_files(dir: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
 
 fn compile_cu(cu_file: &Path, out_dir: &Path, caps: &[u32]) -> Result<Vec<String>, String> {
     let mut obj_files = Vec::new();
+    let temp_dir = out_dir.join(format!("tmp_{}", std::process::id()));
+    std::fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
     for cap in caps {
         let file_stem = cu_file
             .file_stem()
@@ -221,7 +236,8 @@ fn compile_cu(cu_file: &Path, out_dir: &Path, caps: &[u32]) -> Result<Vec<String
             .arg(cu_file.to_str().unwrap())
             .arg("-o")
             .arg(obj_file.to_str().unwrap())
-            .arg(format!("-arch=sm_{}", cap));
+            .arg(format!("-arch=sm_{}", cap))
+            .env("TMPDIR", &temp_dir);
 
         let status = cmd
             .status()
@@ -235,6 +251,7 @@ fn compile_cu(cu_file: &Path, out_dir: &Path, caps: &[u32]) -> Result<Vec<String
         }
         obj_files.push(name);
     }
+    std::fs::remove_dir_all(temp_dir).ok();
 
     Ok(obj_files)
 }
