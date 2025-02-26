@@ -1,4 +1,5 @@
 # HPT
+![Crates.io](https://img.shields.io/crates/v/hpt.svg)
 
 Hpt is a high performance N-dimensional array library. It is being highly optimized and is designed to be easy to use. Most of the operators are implemented based on Onnx operator list. Hence, you can use it to build most of the deep learning models.
 

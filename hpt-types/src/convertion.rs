@@ -11,8 +11,6 @@ use crate::dtype::TypeCommon;
 use crate::simd::_128bit::*;
 #[cfg(target_feature = "avx2")]
 use crate::simd::_256bit::*;
-#[cfg(target_feature = "avx512f")]
-use crate::simd::_512bit::*;
 
 /// Convertor trait
 ///

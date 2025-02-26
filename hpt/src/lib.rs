@@ -377,8 +377,6 @@ use hpt_types::arch_simd as simd;
 
 #[cfg(target_feature = "avx2")]
 type BoolVector = simd::_256bit::boolx32::boolx32;
-#[cfg(any(target_feature = "avx512f"))]
-type BoolVector = simd::_512bit::boolx64::boolx64;
 #[cfg(any(
     all(not(target_feature = "avx2"), target_feature = "sse"),
     target_arch = "arm",

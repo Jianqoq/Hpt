@@ -131,45 +131,7 @@ pub mod vectors {
             /// A module defines a set of 256-bit vector types for usize
             pub mod usizex4;
         }
-        /// A module defines a set of 512-bit vector types
-        #[cfg(target_feature = "avx512f")]
-        pub mod _512bit {
-            /// A module defines a set of 512-bit vector types for bf16
-            pub mod bf16x32;
-            /// A module defines a set of 512-bit vector types for bool
-            pub mod boolx64;
-            /// A module defines a set of 512-bit vector types for cplx32
-            pub mod cplx32x8;
-            /// A module defines a set of 512-bit vector types for cplx64
-            pub mod cplx64x4;
-            /// A module defines a set of 512-bit vector types for f16
-            pub mod f16x32;
-            /// A module defines a set of 512-bit vector types for f32
-            pub mod f32x16;
-            /// A module defines a set of 512-bit vector types for f64
-            pub mod f64x8;
-            /// A module defines a set of 512-bit vector types for i16
-            pub mod i16x32;
-            /// A module defines a set of 512-bit vector types for i32
-            pub mod i32x16;
-            /// A module defines a set of 512-bit vector types for i64
-            pub mod i64x8;
-            /// A module defines a set of 512-bit vector types for i8
-            pub mod i8x64;
-            /// A module defines a set of 512-bit vector types for isize
-            pub mod isizex8;
-            /// A module defines a set of 512-bit vector types for u16
-            pub mod u16x32;
-            /// A module defines a set of 512-bit vector types for u32
-            pub mod u32x16;
-            /// A module defines a set of 512-bit vector types for u64
-            pub mod u64x8;
-            /// A module defines a set of 512-bit vector types for u8
-            pub mod u8x64;
-            /// A module defines a set of 512-bit vector types for usize
-            pub mod usizex8;
-        }
-
+        
         // This file contains code ported from SLEEF (https://github.com/shibatch/sleef)
         //
         // Original work Copyright (c) 2010-2022, Naoki Shibata and contributors
@@ -287,24 +249,6 @@ pub mod vectors {
             f64x2::f64_promote, i16x8::i16_promote, i32x4::i32_promote, i64x2::i64_promote,
             i8x16::i8_promote, u16x8::u16_promote, u32x4::u32_promote, u64x2::u64_promote,
             u8x16::u8_promote,
-        };
-    }
-    #[cfg(target_feature = "avx512f")]
-    pub(crate) mod vector_promote {
-        #[cfg(target_pointer_width = "32")]
-        pub(crate) use crate::vectors::arch_simd::_512bit::isizex16::isize_promote;
-        #[cfg(target_pointer_width = "64")]
-        pub(crate) use crate::vectors::arch_simd::_512bit::isizex8::isize_promote;
-        #[cfg(target_pointer_width = "32")]
-        pub(crate) use crate::vectors::arch_simd::_512bit::usizex16::usize_promote;
-        #[cfg(target_pointer_width = "64")]
-        pub(crate) use crate::vectors::arch_simd::_512bit::usizex8::usize_promote;
-        pub(crate) use crate::vectors::arch_simd::_512bit::{
-            bf16x32::bf16_promote, boolx64::bool_promote, cplx32x8::Complex32_promote,
-            cplx64x4::Complex64_promote, f16x32::f16_promote, f32x16::f32_promote,
-            f64x8::f64_promote, i16x32::i16_promote, i32x16::i32_promote, i64x8::i64_promote,
-            i8x64::i8_promote, u16x32::u16_promote, u32x16::u32_promote, u64x8::u64_promote,
-            u8x64::u8_promote,
         };
     }
 }

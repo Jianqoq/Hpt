@@ -10,6 +10,7 @@ Cargo.lock
 *.safetensors
 *.txt
 *.model
+*.xml
 
 resnet.safetensor
 resnet_inp
