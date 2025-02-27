@@ -354,8 +354,9 @@ where
             };
 
             let cfg = compute_cfg(res.size());
-            let shape = transposed_tensor.cuda_shape().unwrap();
-            let strides = transposed_tensor.cuda_strides().unwrap();
+            let shape = transposed_tensor.cuda_shape_i32().unwrap();
+            let strides = transposed_tensor.cuda_strides_i32().unwrap();
+            let fast_divmod = transposed_tensor.cuda_divmod().unwrap();
             let num_elements_per_thread =
                 reduce_size_no_fast_dim.div_ceil(cfg.block_dim.1 as usize);
             if reduce_size_no_fast_dim > 1 {
@@ -365,6 +366,7 @@ where
                         (
                             res.cuda_slice(),
                             transposed_tensor.cuda_slice(),
+                            &fast_divmod,
                             &shape,
                             &strides,
                             transposed_tensor.ndim(),
@@ -391,6 +393,38 @@ where
                 .unwrap();
             }
         },
+        |reduce_size, res, transposed_tensor| {
+            let mut cfg = LaunchConfig::for_num_elems(0);
+            let reduce_size = reduce_size as u32;
+            let block_dim_x = 1024;
+            let num_el_per_thread = reduce_size.div_ceil(block_dim_x);
+            cfg.block_dim = (block_dim_x as u32, 1, 1);
+            cfg.grid_dim = (res.size() as u32, 1, 1);
+            check_launch_config(a.device(), &cfg).unwrap();
+            let strides = transposed_tensor.cuda_strides_i32().unwrap();
+            let shape = transposed_tensor.cuda_divmod().unwrap();
+            let kernel_name = format!("contiguous_{op}_fast_dim_no_include_small_{}", T::STR);
+            let (reduce_kernel, _) =
+                load_ptx_and_get_data(module_name, &kernel_name, a.device(), a.device_cap(), &meta)
+                    .unwrap();
+            unsafe {
+                reduce_kernel
+                    .launch(
+                        cfg,
+                        (
+                            res.cuda_slice(),
+                            transposed_tensor.cuda_slice(),
+                            &shape,
+                            &strides,
+                            transposed_tensor.ndim(),
+                            reduce_size as usize,
+                            res.size(),
+                            num_el_per_thread as usize,
+                        ),
+                    )
+                    .unwrap();
+            }
+        },
         |reduce_size, res, transposed_tensor, new_axes| {
             let kernel_name = format!("contiguous_{op}_fast_dim_no_include_{}", T::STR);
             let (reduce_kernel, _) =
@@ -406,8 +440,8 @@ where
             };
 
             let cfg = compute_cfg(res.size());
-            let shape = transposed_tensor.cuda_shape().unwrap();
-            let strides = transposed_tensor.cuda_strides().unwrap();
+            let shape = transposed_tensor.cuda_divmod().unwrap();
+            let strides = transposed_tensor.cuda_strides_i32().unwrap();
             unsafe {
                 reduce_kernel.clone().launch(
                     cfg,

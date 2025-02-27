@@ -75,12 +75,12 @@ __device__ void all_reduce(R *out, size_t size, Calculator index_calculator)
 }
 
 template <typename T, typename R, template <typename, typename, unsigned int> class Op = ReduceOp, typename ProgressUpdater, unsigned int WarpSize = 32, bool fast_path = false>
-__device__ void reduce_fast_dim_include(R *out, T *in, long long *shape, long long *strides, int ndim, size_t fast_dim_size, size_t num_elements_per_thread, size_t reduce_size_no_fast_dim, ProgressUpdater progress_updater)
+__device__ void reduce_fast_dim_include(R *out, T *in, FastDivmod *shape, int *strides, int ndim, size_t fast_dim_size, size_t num_elements_per_thread, size_t reduce_size_no_fast_dim, ProgressUpdater progress_updater)
 {
     __shared__ R reduce_smem[WarpSize];
     unsigned int thread_offset = threadIdx.x;
     R total = Op<R, R, WarpSize>::identity();
-    auto idx_calculator = UncontiguousIndexCalculator<T>(in, shape, strides, ndim);
+    auto idx_calculator = FastUncontiguousIndexCalculator<T>(in, shape, strides, ndim);
     while (thread_offset < fast_dim_size)
     {
         unsigned int horizontal_offset = threadIdx.y * num_elements_per_thread;
@@ -132,10 +132,10 @@ __device__ void reduce_fast_dim_only(R *out, T *in, size_t fast_dim_size, size_t
 }
 
 template <typename T, typename R, template <typename, typename, unsigned int> class Op = ReduceOp, typename ProgressUpdater, unsigned int WarpSize = 32, bool fast_path = false>
-__device__ void reduce_fast_dim_not_include(R *out, T *in, long long *shape, long long *strides, int ndim, size_t reduce_size, ProgressUpdater progress_updater, size_t output_size)
+__device__ void reduce_fast_dim_not_include(R *out, T *in, FastDivmod *shape, int *strides, int ndim, size_t reduce_size, ProgressUpdater progress_updater, size_t output_size)
 {
     R total = Op<R, R, WarpSize>::identity();
-    auto idx_calculator = UncontiguousIndexCalculator<T>(in, shape, strides, ndim);
+    auto idx_calculator = FastUncontiguousIndexCalculator<T>(in, shape, strides, ndim);
     unsigned int idx = (blockIdx.x * blockDim.x + threadIdx.x) * reduce_size;
     if (blockIdx.x * blockDim.x + threadIdx.x >= output_size)
         return;
@@ -156,4 +156,37 @@ __device__ void reduce_fast_dim_not_include(R *out, T *in, long long *shape, lon
         }
     }
     out[blockIdx.x * blockDim.x + threadIdx.x] = total;
+}
+
+template <typename T, typename R, template <typename, typename, unsigned int> class Op = ReduceOp, unsigned int WarpSize = 32>
+__device__ void reduce_fast_dim_not_include_small(
+    R *out,
+    T *in,
+    FastDivmod *shape,
+    int *strides,
+    int ndim,
+    size_t reduce_size,
+    size_t output_size,
+    size_t num_el_per_thread)
+{
+    __shared__ R reduce_smem[WarpSize];
+    uint32_t x = blockIdx.x;
+    FastUncontiguousIndexCalculator<T> idx_calculator = FastUncontiguousIndexCalculator<T>(in, shape, strides, ndim);
+    while (x < output_size)
+    {
+        R total = Op<R, R, WarpSize>::identity();
+        uint32_t y = threadIdx.x;
+        uint32_t global_idx = x * reduce_size;
+        y *= num_el_per_thread;
+        for (uint32_t i = y; i < y + num_el_per_thread && i < reduce_size; i++)
+        {
+            uint32_t idx = global_idx + i;
+            T val = idx_calculator.get(idx);
+            R res = Op<T, R, WarpSize>::process_single(val);
+            total = Op<R, R, WarpSize>::combine(total, res);
+        }
+        total = blockReduce<R, Op<R, R, WarpSize>, Op<R, R, 1024 / WarpSize>, WarpSize>(total, reduce_smem);
+        out[x] = total;
+        x += gridDim.x * blockDim.x;
+    }
 }

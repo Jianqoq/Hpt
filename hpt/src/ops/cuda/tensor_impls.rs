@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::ops::common::divmod::FastDivmod;
 use crate::ops::cuda::cuda_utils::{
     compile_kernel, get_array_str, get_include_1, get_module_name_1,
 };
@@ -249,6 +250,32 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> _Tensor<T,
         &self,
     ) -> std::result::Result<cudarc::driver::CudaSlice<i64>, TensorError> {
         let res = self.device().htod_sync_copy(self.strides())?;
+        Ok(res)
+    }
+    pub(crate) fn cuda_divmod(
+        &self,
+    ) -> std::result::Result<cudarc::driver::CudaSlice<FastDivmod>, TensorError> {
+        let mut res = vec![];
+        for i in self.shape().iter() {
+            let fast_divmod = FastDivmod::new(*i as i32);
+            res.push(fast_divmod);
+        }
+        let res = self.device().htod_sync_copy(&res)?;
+        Ok(res)
+    }
+    #[allow(unused)]
+    pub(crate) fn cuda_shape_i32(
+        &self,
+    ) -> std::result::Result<cudarc::driver::CudaSlice<i32>, TensorError> {
+        let strides = self.shape().iter().map(|x| *x as i32).collect::<Vec<_>>();
+        let res = self.device().htod_sync_copy(&strides)?;
+        Ok(res)
+    }
+    pub(crate) fn cuda_strides_i32(
+        &self,
+    ) -> std::result::Result<cudarc::driver::CudaSlice<i32>, TensorError> {
+        let strides = self.strides().iter().map(|x| *x as i32).collect::<Vec<_>>();
+        let res = self.device().htod_sync_copy(&strides)?;
         Ok(res)
     }
     pub(crate) fn device_cap(&self) -> usize {

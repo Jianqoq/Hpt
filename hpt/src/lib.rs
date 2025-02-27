@@ -249,6 +249,8 @@ pub mod ops {
     pub mod common {
         /// a module contains all the functions to help create a tensor
         pub mod creation;
+        /// a module contains fast divmod ops
+        pub mod divmod;
         /// a module contains all the shape manipulation ops
         pub mod shape_manipulate;
     }
