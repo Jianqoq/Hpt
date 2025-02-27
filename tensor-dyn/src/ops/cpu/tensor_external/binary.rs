@@ -1,4 +1,5 @@
 use crate::ops::cpu::utils::binary::binary_normal::binary_fn_with_out_simd;
+use crate::Cpu;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
 use std::borrow::Borrow;
 use tensor_traits::{ops::binary::NormalBinOps, tensor::CommonBounds};
@@ -15,7 +16,7 @@ macro_rules! impl_bin_ops {
         [$($rhs:tt)*],
         $output:ident
     ) => {
-    impl<A, B> NormalBinOps<$($rhs)*>
+    impl<A, B, const DEVICE: usize> NormalBinOps<$($rhs)*>
         for $($lhs)*
         where
         A: CommonBounds + NormalOut<B>,
@@ -24,9 +25,9 @@ macro_rules! impl_bin_ops {
         <A as NormalOut<B>>::Output: IntoScalar<<A as NormalOut<B>>::Output>,
         A::Vec: NormalOut<B::Vec, Output = <<A as NormalOut<B>>::Output as TypeCommon>::Vec>,
     {
-        type Output = $output<NormalType<A, B>>;
+        type Output = $output<NormalType<A, B>, Cpu, DEVICE>;
         type OutputMeta = NormalType<A, B>;
-        type InplaceOutput = _Tensor<NormalType<A, B>>;
+        type InplaceOutput = _Tensor<NormalType<A, B>, Cpu, DEVICE>;
 
         #[cfg_attr(feature = "track_caller", track_caller)]
         fn add_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
@@ -56,14 +57,26 @@ macro_rules! impl_bin_ops {
         {
             binary_fn_with_out_simd(self, &rhs, |a, b| a._rem(b), |a, b| a._rem(b), Some(out))
         }
+        #[cfg_attr(feature = "track_caller", track_caller)]
+        fn pow(&self, rhs: $($rhs)*) -> std::result::Result<Self::Output, TensorError>
+        {
+            binary_fn_with_out_simd(self, &rhs, |a, b| a._pow(b), |a, b| a._pow(b), None::<Self::Output>)
+        }
+        #[cfg_attr(feature = "track_caller", track_caller)]
+        fn pow_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
+            where
+                U: Borrow<Self::InplaceOutput>
+        {
+            binary_fn_with_out_simd(self, &rhs, |a, b| a._pow(b), |a, b| a._pow(b), Some(out))
+        }
     }
     };
 }
 
-impl_bin_ops!([_Tensor<A>], [&_Tensor<B>], _Tensor);
-impl_bin_ops!([_Tensor<A>], [_Tensor<B>], _Tensor);
-impl_bin_ops!([&_Tensor<A>], [&_Tensor<B>], _Tensor);
-impl_bin_ops!([&_Tensor<A>], [_Tensor<B>], _Tensor);
+impl_bin_ops!([_Tensor<A, Cpu, DEVICE>], [&_Tensor<B, Cpu, DEVICE>], _Tensor);
+impl_bin_ops!([_Tensor<A, Cpu, DEVICE>], [_Tensor<B, Cpu, DEVICE>], _Tensor);
+impl_bin_ops!([&_Tensor<A, Cpu, DEVICE>], [&_Tensor<B, Cpu, DEVICE>], _Tensor);
+impl_bin_ops!([&_Tensor<A, Cpu, DEVICE>], [_Tensor<B, Cpu, DEVICE>], _Tensor);
 
 macro_rules! impl_bin_ops_basic {
     (
@@ -71,7 +84,7 @@ macro_rules! impl_bin_ops_basic {
         [$($rhs:tt)*],
         $output:ident
     ) => {
-        impl<A, B> NormalBinOps<$($rhs)*>
+        impl<A, B, const DEVICE: usize> NormalBinOps<$($rhs)*>
         for $($lhs)*
         where
         A: CommonBounds + NormalOut<B>,
@@ -80,9 +93,9 @@ macro_rules! impl_bin_ops_basic {
         <A as NormalOut<B>>::Output: IntoScalar<<A as NormalOut<B>>::Output>,
         A::Vec: NormalOut<B::Vec, Output = <<A as NormalOut<B>>::Output as TypeCommon>::Vec>,
     {
-        type Output = Tensor<NormalType<A, B>>;
+        type Output = Tensor<NormalType<A, B>, Cpu, DEVICE>;
         type OutputMeta = NormalType<A, B>;
-        type InplaceOutput = Tensor<NormalType<A, B>>;
+        type InplaceOutput = Tensor<NormalType<A, B>, Cpu, DEVICE>;
         #[cfg_attr(feature = "track_caller", track_caller)]
         #[inline]
         fn add_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
@@ -115,11 +128,24 @@ macro_rules! impl_bin_ops_basic {
         {
             Ok(self.inner.rem_(rhs.inner.as_ref(), out.borrow().inner.as_ref())?.into())
         }
+        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[inline]
+        fn pow(&self, rhs: $($rhs)*) -> std::result::Result<Self::Output, TensorError> {
+            Ok(self.inner.pow(rhs.inner.as_ref())?.into())
+        }
+        #[cfg_attr(feature = "track_caller", track_caller)]
+        #[inline]
+        fn pow_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
+            where
+                U: Borrow<Self::InplaceOutput>
+        {
+            Ok(self.inner.pow_(rhs.inner.as_ref(), out.borrow().inner.as_ref())?.into())
+        }
     }
     };
 }
 
-impl_bin_ops_basic!([Tensor<A>], [&Tensor<B>], Tensor);
-impl_bin_ops_basic!([Tensor<A>], [Tensor<B>], Tensor);
-impl_bin_ops_basic!([&Tensor<A>], [&Tensor<B>], Tensor);
-impl_bin_ops_basic!([&Tensor<A>], [Tensor<B>], Tensor);
+impl_bin_ops_basic!([Tensor<A, Cpu, DEVICE>], [&Tensor<B, Cpu, DEVICE>], Tensor);
+impl_bin_ops_basic!([Tensor<A, Cpu, DEVICE>], [Tensor<B, Cpu, DEVICE>], Tensor);
+impl_bin_ops_basic!([&Tensor<A, Cpu, DEVICE>], [&Tensor<B, Cpu, DEVICE>], Tensor);
+impl_bin_ops_basic!([&Tensor<A, Cpu, DEVICE>], [Tensor<B, Cpu, DEVICE>], Tensor);

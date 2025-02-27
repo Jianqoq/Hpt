@@ -26,9 +26,9 @@ use tensor_types::{
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 
-use super::softmax_utils::{
-    contiguous_softmax_template, uncontiguous_softmax_template, SoftmaxPreprocessor,
-    UCSoftmaxPreprocessor,
+use super::normalize_utils::{
+    contiguous_normalize_template, uncontiguous_normalize_template, NormalizePreprocessor,
+    UCNormalizePreprocessor,
 };
 
 impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
@@ -146,10 +146,9 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
             backward: Rc::new(RefCell::new(
-                move |grad: Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>| {
+                move |mut grad: Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>| {
                     use tensor_traits::NormalReduce;
                     let s_times_grad = grad
-                        .inner
                         .par_iter_mut()
                         .zip(res_clone.inner.par_iter())
                         .strided_map(|(res, (g, r))| *res = g._mul(r))
@@ -189,7 +188,7 @@ where
     } else {
         axis
     }) as usize;
-    contiguous_softmax_template(
+    contiguous_normalize_template(
         a,
         axis,
         c,
@@ -224,7 +223,7 @@ where
             axes.push(axis);
             let transposed_res_layout = result.layout.permute(axes).unwrap();
             let transposed_res_strides = transposed_res_layout.strides();
-            let iterators = SoftmaxPreprocessor::new(
+            let iterators = NormalizePreprocessor::new(
                 num_threads,
                 reduce_shape.inner().iter().product::<i64>() as usize,
                 a.ptr(),
@@ -264,7 +263,7 @@ where
             axes.push(axis);
             let transposed_res_layout = result.layout.permute(axes).unwrap();
             let transposed_res_strides = transposed_res_layout.strides();
-            let iterators = SoftmaxPreprocessor::new2(
+            let iterators = NormalizePreprocessor::new2(
                 num_threads,
                 outer_loop_size,
                 a.ptr(),
@@ -319,7 +318,7 @@ where
     } else {
         axis
     }) as usize;
-    uncontiguous_softmax_template(
+    uncontiguous_normalize_template(
         a,
         axis,
         c,
@@ -355,7 +354,7 @@ where
             axes.push(axis);
             let transposed_res_layout = result.layout.permute(axes).unwrap();
             let transposed_res_strides = transposed_res_layout.strides();
-            let iterators = SoftmaxPreprocessor::new(
+            let iterators = NormalizePreprocessor::new(
                 num_threads,
                 reduce_shape.inner().iter().product::<i64>() as usize,
                 a.ptr(),
@@ -397,7 +396,7 @@ where
             axes.push(axis);
             let transposed_res_layout = result.layout.permute(axes).unwrap();
             let transposed_res_strides = transposed_res_layout.strides();
-            let iterators = UCSoftmaxPreprocessor::new2(
+            let iterators = UCNormalizePreprocessor::new2(
                 num_threads,
                 outer_loop_size,
                 a.ptr(),

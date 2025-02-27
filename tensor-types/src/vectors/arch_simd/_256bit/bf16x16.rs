@@ -872,6 +872,14 @@ impl NormalOutUnary2 for bf16x16 {
         let low_relu6 = low.__relu6();
         bf16x16::from_2_f32vec([high_relu6, low_relu6])
     }
+
+    #[inline(always)]
+    fn __trunc(self) -> Self {
+        let [high, low] = self.to_2_f32vec();
+        let high_trunc = high.__trunc();
+        let low_trunc = low.__trunc();
+        bf16x16::from_2_f32vec([high_trunc, low_trunc])
+    }
 }
 
 impl Eval2 for bf16x16 {

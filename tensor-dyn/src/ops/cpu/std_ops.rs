@@ -1,7 +1,7 @@
 use crate::ops::cpu::tensor_internal::normal_out_unary::NormalType;
 use crate::ops::cpu::utils::binary::binary_normal::*;
 use crate::ops::cpu::utils::diff::diff_utils::handle_grad;
-use crate::ops::cpu::utils::unary::unary::unary_fn_with_out_simd;
+use crate::ops::cpu::utils::unary::unary::unary_fn_with_out;
 use crate::tensor::DiffTensor;
 use crate::tensor_base::_Tensor;
 use crate::Cpu;
@@ -1876,7 +1876,7 @@ where
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn not(self) -> Self::Output {
         let lhs: _Tensor<T> = self.into();
-        unary_fn_with_out_simd(
+        unary_fn_with_out(
             &lhs,
             |x| x._not(),
             |x| x._not(),
@@ -1896,7 +1896,7 @@ where
     #[cfg_attr(feature = "track_caller", track_caller)]
     fn not(self) -> Self::Output {
         let lhs: _Tensor<T> = self.into();
-        unary_fn_with_out_simd(
+        unary_fn_with_out(
             &lhs,
             |x| x._not(),
             |x| x._not(),

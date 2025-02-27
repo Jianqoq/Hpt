@@ -42,6 +42,7 @@ pub trait TensorIterator<'a, T: CommonBounds>
 where
     Self: TensorInfo<T> + 'a,
     &'a Self: TensorInfo<T>,
+    &'a mut Self: TensorInfo<T>,
 {
     /// Convert the tensor into a strided iterator.
     ///
@@ -53,7 +54,7 @@ where
     /// Convert the tensor into a mutable strided iterator.
     ///
     /// strided iterator is a single-threaded iterator
-    fn iter_mut(&'a self) -> StridedMut<'a, T> {
+    fn iter_mut(&'a mut self) -> StridedMut<'a, T> {
         StridedMut::new(self)
     }
 
@@ -81,7 +82,7 @@ where
     /// Convert the tensor into a mutable parallel strided simd iterator.
     ///
     /// parallel strided simd iterator is a multi-threaded simd iterator
-    fn par_iter_mut_simd(&'a self) -> ParStridedMutSimd<'a, T> {
+    fn par_iter_mut_simd(&'a mut self) -> ParStridedMutSimd<'a, T> {
         ParStridedMutSimd::new(self)
     }
 
@@ -95,7 +96,7 @@ where
     /// Convert the tensor into a mutable parallel strided iterator.
     ///
     /// parallel strided iterator is a multi-threaded iterator
-    fn par_iter_mut(&'a self) -> ParStridedMut<'a, T> {
+    fn par_iter_mut(&'a mut self) -> ParStridedMut<'a, T> {
         ParStridedMut::new(self)
     }
 }

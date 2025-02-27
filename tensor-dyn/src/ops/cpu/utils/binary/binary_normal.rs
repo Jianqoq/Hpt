@@ -1,5 +1,6 @@
 use crate::backend::Cpu;
 use crate::tensor_base::_Tensor;
+use crate::Tensor;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
@@ -252,6 +253,30 @@ where
             Ok(ret)
         }
     }
+}
+
+/// Perform binary operation with output tensor
+#[cfg_attr(feature = "track_caller", track_caller)]
+pub fn binary_with_out<A, B, O, K, F, F2, const DEVICE: usize>(
+    lhs: &Tensor<A, Cpu, DEVICE>,
+    rhs: &Tensor<B, Cpu, DEVICE>,
+    f: F,
+    f2: F2,
+    out: Option<O>,
+) -> std::result::Result<Tensor<K, Cpu, DEVICE>, TensorError>
+where
+    A: CommonBounds,
+    B: CommonBounds,
+    O: Borrow<Tensor<K, Cpu, DEVICE>>,
+    K: CommonBounds,
+    F: Fn(A, B) -> K + Sync + Send + Copy,
+    F2: Fn(<A as TypeCommon>::Vec, <B as TypeCommon>::Vec) -> <K as TypeCommon>::Vec
+        + Sync
+        + Send
+        + Copy,
+{
+    let out: Option<_Tensor<K, Cpu, DEVICE>> = out.map(|x| x.borrow().inner.as_ref().clone());
+    Ok(binary_fn_with_out_simd(lhs.inner.as_ref(), rhs.inner.as_ref(), f, f2, out)?.into())
 }
 
 #[cfg_attr(feature = "track_caller", track_caller)]

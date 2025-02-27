@@ -76,6 +76,9 @@ pub fn yield_one_before(shape: &[i64], idx: usize) -> Vec<i64> {
             new_shape.push(*s);
         }
     }
+    if idx == shape.len() {
+        new_shape.push(1);
+    }
     new_shape
 }
 

@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use rayon::iter::ParallelIterator;
 use tensor_dyn::arch_simd::_256bit::f32x8::f32x8;
 use tensor_dyn::{
-    binary_with_out, Matmul, NormalBinOps, NormalOut, NormalUaryOps, ParStridedIteratorZip, Random,
-    RandomInt, ShapeManipulate, Slice, Tensor, TensorCreator, TensorError, TensorIterator,
-    VecTrait,
+    binary_with_out, match_selection, IndexReduce, Matmul, NormalBinOps, NormalOut, NormalUaryOps,
+    ParStridedIteratorZip, Random, RandomInt, ShapeManipulate, Slice, Tensor, TensorCreator,
+    TensorError, TensorIterator, VecTrait,
 };
 use tensor_dyn::{Eval, TensorInfo};
 
@@ -26,9 +26,7 @@ impl Encoder {
         })
     }
     pub fn forward(&self, word_vec: &Tensor<f32>) -> Result<Tensor<f32>, TensorError> {
-        let x = self
-            .mha
-            .forward(&word_vec, &word_vec, &word_vec, None, None)?;
+        let x = self.mha.forward(&word_vec, &word_vec, &word_vec, None)?;
         let o = self.layernorm.forward(x + word_vec)?;
         let ff_res = self.feedforward.forward(&o)?;
         self.layernorm2.forward(ff_res + o)
@@ -57,18 +55,20 @@ impl Decoder {
             num_heads: num_head,
         })
     }
+
     pub fn forward(
         &self,
         seq_len: i64,
         word_vec: &Tensor<f32>,
         o2: &Tensor<f32>,
     ) -> Result<Tensor<f32>, TensorError> {
+        // println!("{}, {}, {}", seq_len, word_vec.shape(), o2.shape());
         let mask = Tensor::<f32>::tri(seq_len as usize, seq_len as usize, 0, false)?;
         let masked = self
             .masked_mha
-            .forward(&word_vec, &word_vec, &word_vec, Some(&mask), None)?;
-        let o = self.layernorm.forward(masked + word_vec)?;
-        let x = self.mha.forward(&o, &o2, &o2, None, None)?;
+            .forward(&word_vec, &word_vec, &word_vec, Some(&mask))?;
+        let o = self.layernorm.forward(&masked + word_vec)?;
+        let x = self.mha.forward(&o, &o2, &o2, None)?;
         let o2 = self.layernorm2.forward(x + o)?;
         let ff_res = self.ff.forward(&o2)?;
         self.layernorm3.forward(ff_res + o2)
@@ -86,16 +86,31 @@ impl Embedding {
     }
 
     fn forward(&self, input: &Tensor<i64>) -> Result<Tensor<f32>, TensorError> {
-        let ptr = input.ptr();
-        let mut outputs = Vec::new();
-        for i in 0..input.size() {
-            let index = ptr[i];
+        // 获取输入形状
+        let input_shape = input.shape();
+        let embedding_dim = self.weight.shape()[1];
+
+        // 将输入展平
+        let flat_input = input.flatten(None, None)?;
+        let indices = flat_input.ptr();
+
+        // 创建输出tensor
+        let mut output = Vec::with_capacity(flat_input.size() as usize);
+
+        // 查找每个索引对应的embedding
+        for idx in 0..flat_input.size() {
+            let idx = indices[idx];
             let embedding = self
                 .weight
-                .slice(&[Slice::Range((index, index + 1)), Slice::Full])?;
-            outputs.push(embedding);
+                .slice(&[Slice::Range((idx, idx + 1)), Slice::Full])?;
+            output.push(embedding);
         }
-        Ok(Tensor::concat(outputs, 0, true)?)
+
+        // 合并并重塑回原始维度
+        let mut new_shape = input_shape.to_vec();
+        new_shape.push(embedding_dim);
+
+        Tensor::concat(output, 0, false)?.reshape(new_shape)
     }
 }
 
@@ -115,11 +130,9 @@ impl PositionalEncoding {
             None::<Tensor<f32>>,
         )?;
         let pos = Tensor::<f32>::arange(0.0, seq_len as f32)?.unsqueeze(1)?;
-
         let pe = Tensor::<f32>::zeros([seq_len, embedding_dim])?;
         let mut pe_sin = pe.slice(&[Slice::Full, Slice::StepByRangeFrom((0, 2))])?;
         let mut pe_cos = pe.slice(&[Slice::Full, Slice::StepByRangeFrom((1, 2))])?;
-
         pe_sin
             .par_iter_mut()
             .zip(pos.par_iter())
@@ -134,8 +147,10 @@ impl PositionalEncoding {
             .for_each(|((res, pos), i_mat)| {
                 *res = (pos / i_mat).cos();
             });
-        Ok(pe
-            .expand([batch_size, seq_len, embedding_dim])?
+        let expanded = pe
+            .unsqueeze(0)?
+            .expand([batch_size, seq_len, embedding_dim])?;
+        Ok(expanded
             .par_iter()
             .zip(input.par_iter())
             .strided_map(|(res, (pe, input))| {
@@ -172,13 +187,13 @@ impl MultiHeadAttention {
             dropout_p: dropout,
         })
     }
+
     fn forward(
         &self,
         query: &Tensor<f32>,
         key: &Tensor<f32>,
         value: &Tensor<f32>,
         attn_mask: Option<&Tensor<f32>>,
-        key_padding_mask: Option<&Tensor<f32>>,
     ) -> Result<Tensor<f32>, TensorError> {
         let batch_size = query.shape()[0];
         let seq_len = query.shape()[1];
@@ -186,15 +201,21 @@ impl MultiHeadAttention {
         let seq_len_k = key.shape()[1];
         let seq_len_v = value.shape()[1];
 
-        let scaling = Tensor::<f32>::new([(self.head_dim as f32).sqrt()]);
+        let scaling = Tensor::<f32>::new([1.0 / (self.head_dim as f32).sqrt()]);
 
         let q = self.q_linear.forward(query)?;
         let k = self.k_linear.forward(key)?;
         let v = self.v_linear.forward(value)?;
 
-        let q = q.reshape([batch_size, seq_len, self.num_heads, self.head_dim])?;
-        let k = k.reshape([batch_size, seq_len_k, self.num_heads, self.head_dim])?;
-        let v = v.reshape([batch_size, seq_len_v, self.num_heads, self.head_dim])?;
+        let q = q
+            .reshape([batch_size, seq_len, self.num_heads, self.head_dim])?
+            .swap_axes(1, 2)?;
+        let k = k
+            .reshape([batch_size, seq_len_k, self.num_heads, self.head_dim])?
+            .swap_axes(1, 2)?;
+        let v = v
+            .reshape([batch_size, seq_len_v, self.num_heads, self.head_dim])?
+            .swap_axes(1, 2)?;
 
         let r = q.matmul(k.t()?)?;
         let mut scores = r.mul_(scaling, r.clone())?;
@@ -340,11 +361,12 @@ impl Transformer {
             linear: Linear::new(embedding_dim, corpus)?,
         })
     }
+
     pub fn generate(
         &self,
         question: &Tensor<i64>,
         word_id: &HashMap<String, i64>,
-    ) -> Result<(), TensorError> {
+    ) -> Result<Tensor<i64>, TensorError> {
         let word_vec = self.word_embedding.forward(&question)?;
         let mut encoder_output = PositionalEncoding.forward(&word_vec)?;
         for i in &self.encoders {
@@ -352,35 +374,51 @@ impl Transformer {
         }
         let mut outputs = Vec::new();
         let start_token = Tensor::<i64>::new([[*word_id.get("_").unwrap()]]);
-        for _ in 0..50 {
+        for _ in 0..1 {
             let x = if outputs.is_empty() {
                 start_token.clone()
             } else {
                 let mut tensors = vec![start_token.clone()];
                 tensors.extend_from_slice(&outputs);
-                Tensor::<i64>::concat(tensors, 1, true)?
+                Tensor::<i64>::concat(tensors, 1, false)?
             };
             let word_vec = self.word_embedding2.forward(&x)?;
-            let pe = PositionalEncoding.forward(&word_vec)?;
-            let mut decoder_output = word_vec + pe;
+            let mut decoder_output = PositionalEncoding.forward(&word_vec)?;
+            let now = std::time::Instant::now();
             for i in &self.decoder {
-                decoder_output = i.forward(*x.shape().last().unwrap(), &decoder_output, &encoder_output)?;
+                decoder_output =
+                    i.forward(*x.shape().last().unwrap(), &decoder_output, &encoder_output)?;
             }
+            println!("elapsed: {:?}", now.elapsed());
             // let score = self.linear.forward(&decoder_output)?;
+            // let sliced = score.slice(&match_selection!(:, -1:, :))?;
+            // let prob = sliced.softmax(-1)?;
+            // let next_token = prob.argmax(-1, false)?;
+            // outputs.push(next_token);
         }
-        Ok(())
+        // Tensor::<i64>::concat(outputs, 1, false)
+        Ok(start_token)
     }
 }
 
-fn main() -> Result<(), TensorError> {
-    let mh = Transformer::new(14, 128, 516, 8, 2)?;
-    let dummy_questions = Tensor::<i64>::randint(0, 14, [1, 512])?;
+fn main() -> anyhow::Result<()> {
+    let mh = Transformer::new(14, 1024, 516, 8, 2)?;
+    let dummy_questions = Tensor::<i64>::randint(0, 14, [1, 1024])?;
     let mut word_id = HashMap::new();
     word_id.insert("_".to_string(), 5);
     let now = std::time::Instant::now();
-    for _ in 0..1 {
-        let _ = mh.generate(&dummy_questions, &word_id)?;
+    for _ in 0..10 {
+        let output = mh.generate(&dummy_questions, &word_id)?;
     }
-    println!("Time: {:?}", now.elapsed() / 100);
+    println!("Time: {:?}", now.elapsed() / 10);
+
+    // let mh = MultiHeadAttention::new(1024, 8, 0.0)?;
+    // let dummy_questions = Tensor::<f32>::randn([1, 1024, 1024])?;
+    // let now = std::time::Instant::now();
+    // for _ in 0..100 {
+    //     let output = mh.forward(&dummy_questions, &dummy_questions, &dummy_questions, None)?;
+    // }
+    // println!("Time: {:?}", now.elapsed() / 100);
+
     Ok(())
 }

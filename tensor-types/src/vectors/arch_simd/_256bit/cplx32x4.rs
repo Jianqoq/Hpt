@@ -317,4 +317,15 @@ impl NormalOutUnary2 for cplx32x4 {
         ];
         cplx32x4(unsafe { std::mem::transmute(res) })
     }
+
+    #[inline(always)]
+    fn __trunc(self) -> Self {
+        let res = [
+            self[0].__trunc(),
+            self[1].__trunc(),
+            self[2].__trunc(),
+            self[3].__trunc(),
+        ];
+        cplx32x4(unsafe { std::mem::transmute(res) })
+    }
 }
