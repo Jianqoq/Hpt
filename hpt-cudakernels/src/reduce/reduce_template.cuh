@@ -119,7 +119,7 @@ __device__ void reduce_fast_dim_include(R *out, T *in, R *buffer, int32_t *finis
     }
     __threadfence();
     __syncthreads();
-    if (atomicAdd(&finished[blockIdx.x], 1) == gridDim.y - 1)
+    if (threadIdx.x == 0 && atomicAdd(&finished[blockIdx.x], 1) == gridDim.y - 1)
     {
         total = Op<R, R, WarpSize>::identity();
         for (uint32_t i = 0; i < gridDim.y; i++)
@@ -155,7 +155,7 @@ __device__ void reduce_fast_dim_only(R *out, T *in, R *buffer, int32_t *finished
         __threadfence();
         __syncthreads();
 
-        if (atomicAdd(&finished[y], 1) == gridDim.x - 1)
+        if (threadIdx.x == 0 && atomicAdd(&finished[y], 1) == gridDim.x - 1)
         {
             total = Op<R, R, WarpSize>::identity();
             for (uint32_t i = 0; i < gridDim.x; i++)
