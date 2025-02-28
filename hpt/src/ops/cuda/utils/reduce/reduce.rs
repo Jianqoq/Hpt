@@ -505,6 +505,7 @@ where
 
             let mut cfg =
                 compute_reduce_launch_config(res.size(), fast_dim_size as usize, reduce_size);
+            println!("cfg: {:#?}", cfg);
             cfg.shared_mem_bytes = cfg.block_size() as u32 * (std::mem::size_of::<O>() as u32);
             let buffer = unsafe {
                 a.device()

@@ -217,7 +217,7 @@ __device__ void reduce_fast_dim_not_include(R *out, R *buffer, T *in, int *finis
         __threadfence();
         __syncthreads();
 
-        if (atomicAdd(&finished[x], 1) == gridDim.y - 1)
+        if (threadIdx.y == 0 && atomicAdd(&finished[x], 1) == gridDim.y - 1)
         {
             total = Op<R, R, WarpSize>::identity();
             for (uint32_t i = 0; i < gridDim.y; i++)
