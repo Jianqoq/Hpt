@@ -154,7 +154,7 @@ use crate::ops::cuda::cuda_slice::CudaSlice;
 ///
 /// This function provides a flexible template for reduction operations on tensors, allowing for optimized implementations of various reduction functions.
 #[track_caller]
-pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE_ID: usize>(
+pub(crate) fn contiguous_reduce_template<T, F1, F2, F4, O, const DEVICE_ID: usize>(
     a: &_Tensor<T, Cuda, DEVICE_ID>,
     axes: &[usize],
     init_val: O,
@@ -163,7 +163,6 @@ pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE_ID: 
     c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
     full_reduce: F1,
     nkd: F2,
-    kdos: F3,
     kd: F4,
 ) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
 where
@@ -171,7 +170,6 @@ where
     O: CommonBounds + DeviceRepr + CudaType,
     F1: Fn(CudaSlice),
     F2: Fn(usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>, &[usize]),
-    F3: Fn(usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>),
     F4: Fn(usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>, &[usize]),
 {
     let mut keep_fast_dim = true;
@@ -243,11 +241,7 @@ where
             );
         } else {
             let inner_loop_size_2 = a.size() / result.size();
-            if result.size() <= 1024 {
-                kdos(inner_loop_size_2, &result, &transposed_tensor);
-            } else {
-                kd(inner_loop_size_2, &result, &transposed_tensor, &axes);
-            }
+            kd(inner_loop_size_2, &result, &transposed_tensor, &axes);
         }
     }
     result.reshape(a.layout.reduce(axes, keepdims)?.shape())

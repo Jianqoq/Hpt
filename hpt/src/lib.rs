@@ -236,6 +236,9 @@ pub mod ops {
                 pub(crate) mod strided_copy;
                 pub(crate) mod unary;
             }
+            pub(crate) mod launch_cfg {
+                pub(crate) mod launch_cfg_trait;
+            }
         }
         /// a module contains cuda slice impls
         pub(crate) mod cuda_slice;

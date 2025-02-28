@@ -53,6 +53,7 @@
         "xlocmon": "cpp",
         "xlocnum": "cpp",
         "xloctime": "cpp",
-        "__config": "cpp"
+        "__config": "cpp",
+        "array": "cpp"
     },
 }

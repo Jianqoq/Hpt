@@ -58,109 +58,91 @@ extern "C" __global__ void contiguous_sum_f32(float *out, float *in, size_t size
         ContiguousIndexCalculator<float>, float, float, Sum, 256, 32>(out, size, ContiguousIndexCalculator<float>(in));
 }
 
-extern "C" __global__ void contiguous_sum_fast_dim_include_f32(float *out, float *in, FastDivmod *fd, int *shape, int *strides, size_t ndim, size_t fast_dim_size, size_t num_elements_per_thread, size_t reduce_size_no_fast_dim, size_t reduce_ndim_exclude_fast_dim)
+extern "C" __global__ void contiguous_sum_fast_dim_include_f32(float *out, float *in, float *buffer, int *finished, FastDivmod *fd, int *strides, size_t ndim, size_t fast_dim_size, size_t reduce_size_no_fast_dim)
 {
-    int prg[25];
-    auto func = [ndim, shape, strides, reduce_ndim_exclude_fast_dim, &prg] __device__(float *&data)
-    {
-        for (int i = ndim - 1; i >= ndim - reduce_ndim_exclude_fast_dim; i--)
-        {
-            if (prg[i] < shape[i] - 1)
-            {
-                prg[i]++;
-                data += strides[i];
-                break;
-            }
-            else
-            {
-                prg[i] = 0;
-                data -= strides[i] * (shape[i] - 1);
-            }
-        }
-    };
-    auto progress_updater = ProgressUpdater<float, decltype(func)>(func, in);
-    if (reduce_ndim_exclude_fast_dim == 1)
-    {
-        reduce_fast_dim_include<float, float, Sum, ProgressUpdater<float, decltype(func)>, 32, true>(out, in, fd, strides, ndim, fast_dim_size, num_elements_per_thread, reduce_size_no_fast_dim, progress_updater);
-    }
-    else
-    {
-        reduce_fast_dim_include<float, float, Sum, ProgressUpdater<float, decltype(func)>, 32, false>(out, in, fd, strides, ndim, fast_dim_size, num_elements_per_thread, reduce_size_no_fast_dim, progress_updater);
-    }
-}
-
-__launch_bounds__(512, 4) extern "C" __global__ void contiguous_sum_fast_dim_only_f32(float *out, float *in, size_t fast_dim_size, size_t output_size)
-{
-    switch (blockDim.x)
+    switch (blockDim.x * blockDim.y)
     {
     case 32:
-        reduce_fast_dim_only<float, float, Sum, 32, 32>(out, in, fast_dim_size, output_size);
+        reduce_fast_dim_include<float, float, Sum, 32, 32>(out, in, buffer, finished, fd, strides, ndim, fast_dim_size, reduce_size_no_fast_dim);
         break;
     case 64:
-        reduce_fast_dim_only<float, float, Sum, 64, 32>(out, in, fast_dim_size, output_size);
+        reduce_fast_dim_include<float, float, Sum, 64, 32>(out, in, buffer, finished, fd, strides, ndim, fast_dim_size, reduce_size_no_fast_dim);
         break;
     case 128:
-        reduce_fast_dim_only<float, float, Sum, 128, 32>(out, in, fast_dim_size, output_size);
+        reduce_fast_dim_include<float, float, Sum, 128, 32>(out, in, buffer, finished, fd, strides, ndim, fast_dim_size, reduce_size_no_fast_dim);
         break;
     case 256:
-        reduce_fast_dim_only<float, float, Sum, 256, 32>(out, in, fast_dim_size, output_size);
+        reduce_fast_dim_include<float, float, Sum, 256, 32>(out, in, buffer, finished, fd, strides, ndim, fast_dim_size, reduce_size_no_fast_dim);
         break;
     case 512:
-        reduce_fast_dim_only<float, float, Sum, 512, 32>(out, in, fast_dim_size, output_size);
+        reduce_fast_dim_include<float, float, Sum, 512, 32>(out, in, buffer, finished, fd, strides, ndim, fast_dim_size, reduce_size_no_fast_dim);
         break;
     default:
         break;
     }
 }
 
-extern "C" __global__ void contiguous_sum_fast_dim_no_include_f32(float *out, float *in, FastDivmod *shape, int *strides, size_t ndim, size_t reduce_size, size_t reduce_ndim, size_t output_size)
+__launch_bounds__(512, 4) extern "C" __global__ void contiguous_sum_fast_dim_only_f32(float *out, float *in, float *buffer, int32_t *finished, size_t fast_dim_size, size_t output_size)
 {
-    uint64_t prg[25];
-    auto func = [ndim, shape, strides, reduce_ndim, &prg] __device__(float *&data)
+#define ARMS(BLOCK_SIZE)                                                                                                \
+    case BLOCK_SIZE:                                                                                                    \
+        reduce_fast_dim_only<float, float, Sum, BLOCK_SIZE, 32>(out, in, buffer, finished, fast_dim_size, output_size); \
+        break;
+
+    switch (blockDim.x)
     {
-        for (int i = ndim - 1; i >= ndim - reduce_ndim; i--)
-        {
-            if (prg[i] < shape[i] - 1)
-            {
-                prg[i]++;
-                data += strides[i];
-                break;
-            }
-            else
-            {
-                prg[i] = 0;
-                data -= strides[i] * (shape[i] - 1);
-            }
-        }
-    };
-    auto progress_updater = ProgressUpdater<float, decltype(func)>(func, in);
-    if (reduce_ndim == 1)
-    {
-        reduce_fast_dim_not_include<float, float, Sum, ProgressUpdater<float, decltype(func)>, 32, true>(out, in, shape, strides, ndim, reduce_size, progress_updater, output_size);
-    }
-    else
-    {
-        reduce_fast_dim_not_include<float, float, Sum, ProgressUpdater<float, decltype(func)>, 32, false>(out, in, shape, strides, ndim, reduce_size, progress_updater, output_size);
+        ARMS(32);
+        ARMS(64);
+        ARMS(96);
+        ARMS(128);
+        ARMS(160);
+        ARMS(192);
+        ARMS(224);
+        ARMS(256);
+        ARMS(288);
+        ARMS(320);
+        ARMS(352);
+        ARMS(384);
+        ARMS(416);
+        ARMS(448);
+        ARMS(480);
+        ARMS(512);
+    default:
+        break;
     }
 }
 
-extern "C" __global__ void contiguous_sum_fast_dim_no_include_small_f32(
-    float *out,
-    float *in,
-    FastDivmod *shape,
-    int *strides,
-    size_t ndim,
-    size_t reduce_size,
-    size_t output_size,
-    size_t num_el_per_thread)
+__launch_bounds__(512, 4) extern "C" __global__ void contiguous_sum_small_fast_dim_only_f32(float *out, float *in, size_t fast_dim_size, size_t output_size)
 {
-    reduce_fast_dim_not_include_small<float, float, Sum, 32>(
-        out,
-        in,
-        shape,
-        strides,
-        ndim,
-        reduce_size,
-        output_size,
-        num_el_per_thread);
+#define ARMS(BLOCK_SIZE)                                                                                    \
+    case BLOCK_SIZE:                                                                                        \
+        reduce_small_fast_dim_only<float, float, Sum, BLOCK_SIZE, 32>(out, in, fast_dim_size, output_size); \
+        break;
+
+    switch (blockDim.x)
+    {
+        ARMS(32);
+        ARMS(64);
+        ARMS(96);
+        ARMS(128);
+        ARMS(160);
+        ARMS(192);
+        ARMS(224);
+        ARMS(256);
+        ARMS(288);
+        ARMS(320);
+        ARMS(352);
+        ARMS(384);
+        ARMS(416);
+        ARMS(448);
+        ARMS(480);
+        ARMS(512);
+    default:
+        break;
+    }
+}
+
+extern "C" __global__ void contiguous_sum_fast_dim_no_include_f32(float *out, float *buffer, float *in, int *finished, FastDivmod *shape, int *strides, size_t ndim, size_t reduce_size, size_t output_size)
+{
+    reduce_fast_dim_not_include<float, float, Sum, 32>(out, buffer, in, finished, shape, strides, ndim, reduce_size, output_size);
 }

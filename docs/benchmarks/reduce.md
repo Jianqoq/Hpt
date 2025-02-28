@@ -59,7 +59,7 @@
 ```
 :::
 
-::: chartjs Cuda Sum f32 Performance (size = 1024 * 2048 * 8)
+::: chartjs Cuda Sum f32 Performance (size = 1024 * 1024 * 80)
 ```json
 {
   "type": "bar",
@@ -68,7 +68,7 @@
     "datasets": [
       {
         "label": "Hpt",
-        "data": [404.38, 535.42, 427.3, 4.2395, 448.51, 369.31, 383],
+        "data": [401.86, 396.35, 427.3, 438.21, 448.51, 369.31, 383],
         "backgroundColor": "rgb(75, 192, 192)",
         "borderColor": "rgb(75, 192, 192)",
         "borderWidth": 1
