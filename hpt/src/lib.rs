@@ -409,6 +409,7 @@ const SIMD_WIDTH: usize = 128;
 #[cfg(feature = "cuda")]
 const CUDA_SEED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(2621654116416541);
 
+#[allow(unused)]
 /// Set the seed for random number generation
 pub fn set_seed<B: BackendTy>(seed: u64) {
     match B::ID {

@@ -102,7 +102,7 @@
         "beginAtZero": true,
         "title": {
           "display": true,
-          "text": "Time (ms)"
+          "text": "Time (μs)"
         }
       },
       "x": {
