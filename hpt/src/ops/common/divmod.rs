@@ -7,6 +7,7 @@ pub(crate) struct FastDivmod {
 }
 
 // https://github.com/NVIDIA/cutlass/blob/main/include/cutlass/fast_math.h#L247
+#[allow(unused)]
 fn find_log2_i32(x: i32) -> i32 {
     let mut a = (31 - x.leading_zeros()) as i32;
     a += ((x & (x - 1)) != 0) as i32;
@@ -24,6 +25,7 @@ fn fast_divmod(quo: &mut i32, rem: &mut i32, src: i32, div: i32, mul: u32, shr: 
 }
 
 impl FastDivmod {
+    #[allow(unused)]
     pub(crate) fn new(divisor: i32) -> Self {
         assert!(divisor >= 0, "Divisor must be non-negative");
 

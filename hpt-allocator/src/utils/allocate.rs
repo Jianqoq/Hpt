@@ -35,6 +35,8 @@ fn allocate_mem(
                         return Ok(ptr);
                     }
                 }
+            } else {
+                break;
             }
         }
         let ptr = allocate_fn();
