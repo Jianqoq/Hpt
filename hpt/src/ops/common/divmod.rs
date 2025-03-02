@@ -1,5 +1,3 @@
-use cudarc::driver::DeviceRepr;
-
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct FastDivmod {
@@ -64,4 +62,7 @@ impl FastDivmod {
     }
 }
 
+#[cfg(feature = "cuda")]
+use cudarc::driver::DeviceRepr;
+#[cfg(feature = "cuda")]
 unsafe impl DeviceRepr for FastDivmod {}
