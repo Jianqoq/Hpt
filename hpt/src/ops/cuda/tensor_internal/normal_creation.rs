@@ -57,7 +57,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> TensorCreator
             parent: None,
             layout: Layout::from(res_shape.clone()),
             mem_layout: Arc::new(layout),
-            _backend: Backend::<Cuda>::new(ptr as u64, device),
+            _backend: Backend::<Cuda>::new(ptr as u64, device, false),
         })
     }
 
@@ -328,5 +328,42 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> TensorCreator
         u8: Cast<T>,
     {
         Self::eye(n, n, 0)
+    }
+
+    fn from_owned<S: Into<Shape>>(data: &mut [T], shape: S) -> Result<Self::Output, TensorError> {
+        let _shape = shape.into();
+        let res_shape = Shape::from(_shape);
+        let size = res_shape
+            .iter()
+            .try_fold(1i64, |acc, &num| acc.checked_mul(num).or(Some(i64::MAX)))
+            .unwrap_or(i64::MAX) as usize;
+        let layout = std::alloc::Layout::from_size_align(
+            size.checked_mul(size_of::<T>())
+                .unwrap_or((isize::MAX as usize) - (ALIGN - 1)), // when overflow happened, we use max memory `from_size_align` accept
+            ALIGN,
+        )
+        .map_err(|e| {
+            TensorError::Memory(MemoryError::AllocationFailed {
+                device: "cuda".to_string(),
+                id: DEVICE,
+                size,
+                source: Some(Box::new(e)),
+                location: Location::caller(),
+            })
+        })?;
+        let (ptr, device) = (
+            data.as_mut_ptr() as u64,
+            cudarc::driver::CudaDevice::new(DEVICE)?,
+        );
+        Ok(_Tensor {
+            #[cfg(feature = "bound_check")]
+            data: Pointer::new(ptr as *mut T, size as i64),
+            #[cfg(not(feature = "bound_check"))]
+            data: Pointer::new(ptr as *mut T),
+            parent: None,
+            layout: Layout::from(res_shape.clone()),
+            mem_layout: Arc::new(layout),
+            _backend: Backend::<Cuda>::new(ptr as u64, device, true),
+        })
     }
 }

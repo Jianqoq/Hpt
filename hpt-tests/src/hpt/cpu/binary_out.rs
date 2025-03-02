@@ -1,15 +1,7 @@
 #![allow(unused_imports)]
-use hpt::Matmul;
-use hpt::NormalBinOps;
-use hpt::Random;
-use hpt::ShapeManipulate;
-use hpt::TensorCmp;
-use hpt::TensorInfo;
-use hpt::TensorLike;
-use hpt::{Tensor, TensorCreator};
+use hpt::*;
 use hpt_common::slice;
-use hpt_common::slice::Slice;
-use hpt_macros::match_selection;
+use hpt_macros::select;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::ops::*;
 use tch::Tensor as TchTensor;

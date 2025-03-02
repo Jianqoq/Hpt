@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 
 use hpt::{
-    binary_with_out, match_selection, IndexReduce, Matmul, NormalBinOps, NormalOut, NormalUaryOps,
+    binary_with_out, select, IndexReduce, Matmul, NormalBinOps, NormalOut, NormalUaryOps,
     ParStridedIteratorZip, Random, RandomInt, ShapeManipulate, Slice, Tensor, TensorCreator,
     TensorError, TensorIterator, TypeCommon, VecTrait,
 };
@@ -99,9 +99,7 @@ impl Embedding {
 
         for idx in 0..flat_input.size() {
             let idx = indices[idx];
-            let embedding = self
-                .weight
-                .slice(&[Slice::Range((idx, idx + 1)), Slice::Full])?;
+            let embedding = self.weight.slice(&[(idx, idx + 1, 1), ((0, 0, 0))])?;
             output.push(embedding);
         }
 
@@ -129,8 +127,8 @@ impl PositionalEncoding {
         )?;
         let pos = Tensor::<f32>::arange(0.0, seq_len as f32)?.unsqueeze(1)?;
         let pe = Tensor::<f32>::zeros([seq_len, embedding_dim])?;
-        let mut pe_sin = pe.slice(&[Slice::Full, Slice::StepByRangeFrom((0, 2))])?;
-        let mut pe_cos = pe.slice(&[Slice::Full, Slice::StepByRangeFrom((1, 2))])?;
+        let mut pe_sin = pe.slice(&[((0, 0, 0)), (0, 2, 1)])?;
+        let mut pe_cos = pe.slice(&[((0, 0, 0)), (1, 2, 1)])?;
         pe_sin
             .par_iter_mut()
             .zip(pos.par_iter())
@@ -389,7 +387,7 @@ impl Transformer {
                     i.forward(*x.shape().last().unwrap(), &decoder_output, &encoder_output)?;
             }
             let score = self.linear.forward(&decoder_output)?;
-            let sliced = score.slice(&match_selection!(:, -1:, :))?;
+            let sliced = score.slice(&select!(:, -1:, :))?;
             let prob = sliced.softmax(-1)?;
             let next_token = prob.argmax(-1, false)?;
             outputs.push(next_token);

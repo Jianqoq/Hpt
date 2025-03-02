@@ -43,6 +43,7 @@ pub mod hpt_common {
     pub mod pointer;
     pub mod shape;
     pub mod shape_utils;
+    pub mod slice;
     pub mod strides;
 }
 

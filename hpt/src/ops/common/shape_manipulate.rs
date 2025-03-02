@@ -6,9 +6,8 @@ use hpt_common::{
     layout::layout::Layout,
     shape::shape::Shape,
     shape::shape_utils::{try_pad_shape, yield_one_after, yield_one_before},
-    slice::Slice,
 };
-use hpt_traits::CommonBounds;
+use hpt_traits::{CommonBounds, Slice};
 
 use crate::{tensor_base::_Tensor, BackendTy, Buffer};
 
@@ -329,18 +328,18 @@ pub(crate) fn split<T: CommonBounds, B: BackendTy + Buffer + Clone, const DEVICE
     }
     assert!(new_axis >= 0);
     let mut reses = vec![];
-    let mut tmp: Vec<Slice> = Vec::with_capacity(a.layout.ndim());
+    let mut tmp: Vec<(i64, i64, i64)> = Vec::with_capacity(a.layout.ndim());
     for _ in 0..a.layout.ndim() {
-        tmp.push(Slice::Full);
+        tmp.push((0, 0, 0));
     }
     let mut prev = 0;
     for &i in indices_or_sections.iter() {
-        tmp[axis as usize] = Slice::Range((prev, i));
+        tmp[axis as usize] = (prev, i, 1);
         prev = i;
         reses.push(a.slice(&tmp)?);
     }
     let last = *indices_or_sections.last().unwrap();
-    tmp[axis as usize] = Slice::Range((last, a.layout.shape()[axis as usize]));
+    tmp[axis as usize] = (last, a.layout.shape()[axis as usize], 1);
     let remain = a.slice(&tmp)?;
     reses.push(remain);
     Ok(reses)

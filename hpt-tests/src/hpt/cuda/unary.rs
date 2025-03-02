@@ -9,7 +9,7 @@ use hpt::TensorLike;
 use hpt::{Tensor, TensorCreator};
 use hpt_common::slice;
 use hpt_common::slice::Slice;
-use hpt_macros::match_selection;
+use hpt_macros::select;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 #[allow(unused)]
 fn assert_eq(b: &Tensor<f64, Cuda>, a: &tch::Tensor) {

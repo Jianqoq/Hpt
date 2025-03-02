@@ -55,7 +55,7 @@ let loader = TensorLoader::new("path/to/load/file");
 2. Load Tensors by passing the tensor name and slice.
 ```rust
 let loaded: std::collections::HashMap<String, Tensor<f32>> = loader
-    .push("a", &match_selection![:, 1:-1:2, 3::, :]) // you can use python slice syntax
+    .push("a", &select![:, 1:-1:2, 3::, :]) // you can use python slice syntax
     .push("b", &[]) // if you don't slice, simply use empty slice
     .load::<f32, Tensor<f32>, { std::mem::size_of::<f32>() }>()?;
 ```

@@ -1,31 +1,4 @@
-use crate::error::{base::TensorError, shape::ShapeError};
-
-/// Slice enum to hold the slice information
-///
-/// it stores the slice information the user wants to perform operations on
-///
-/// it is not being used directly by the user, but is used by the library internally
-#[derive(Debug, Clone)]
-pub enum Slice {
-    /// load the element at the index
-    From(i64),
-    /// load all the elements along the corresponding dimension
-    Full,
-    /// load from the first element to the end along the corresponding dimension
-    RangeFrom(i64),
-    /// load from the beginning to specified index along the corresponding dimension
-    RangeTo(i64),
-    /// load from the start index to the end index along the corresponding dimension
-    Range((i64, i64)),
-    /// load from the start index to the end index with step along the corresponding dimension
-    StepByRangeFrom((i64, i64)),
-    /// load all the elements with step along the corresponding dimension
-    StepByFullRange(i64),
-    /// load from the start index to the end index with step along the corresponding dimension
-    StepByRangeFromTo((i64, i64, i64)),
-    /// load from the start index to the end index with step along the corresponding dimension
-    StepByRangeTo((i64, i64)),
-}
+use crate::error::base::TensorError;
 
 /// # Internal Function
 /// Processes tensor slicing with given strides and shape, adjusting strides and shape
@@ -68,7 +41,7 @@ pub enum Slice {
 pub fn slice_process(
     shape: Vec<i64>,
     strides: Vec<i64>,
-    index: &[Slice],
+    index: &[(i64, i64, i64)],
     alpha: i64,
 ) -> std::result::Result<(Vec<i64>, Vec<i64>, i64), TensorError> {
     let mut res_shape: Vec<i64> = shape.clone();
@@ -83,157 +56,55 @@ pub fn slice_process(
     if index.len() > res_shape.len() {
         panic!("index length is greater than the shape length");
     }
-    for (idx, slice) in index.iter().enumerate() {
-        match slice {
-            Slice::From(mut __index) => {
-                let mut index;
-                if __index >= 0 {
-                    index = __index;
-                } else {
-                    index = __index + shape[idx];
-                }
-                index *= alpha;
-                ShapeError::check_index_out_of_range(index, shape[idx])?;
-                res_shape[idx] = alpha;
-                res_ptr += res_strides[idx] * index;
-            }
-            // tested
-            Slice::RangeFrom(mut __index) => {
-                let index = if __index >= 0 {
-                    __index
-                } else {
-                    __index + shape[idx]
-                };
-                let length = (shape[idx] - index) * alpha;
-                res_shape[idx] = if length > 0 { length } else { 0 };
-                res_ptr += res_strides[idx] * index;
-            }
-            Slice::RangeTo(r) => {
-                let range_to = if *r >= 0 { ..*r } else { ..*r + shape[idx] };
-                let mut end = range_to.end;
-                end *= alpha;
-                if range_to.end > res_shape[idx] {
-                    end = res_shape[idx];
-                }
-                res_shape[idx] = end;
-            }
-            // tested
-            Slice::Range((start, end)) => {
-                let range;
-                if *start >= 0 {
-                    if *end >= 0 {
-                        range = *start..*end;
-                    } else {
-                        range = *start..*end + shape[idx];
-                    }
-                } else if *end >= 0 {
-                    range = *start + shape[idx]..*end;
-                } else {
-                    range = start + shape[idx]..*end + shape[idx];
-                }
-                let mut start = range.start;
-                start *= alpha;
-                let mut end = range.end;
-                end *= alpha;
-                if start >= res_shape[idx] {
-                    start = res_shape[idx];
-                }
-                if end >= res_shape[idx] {
-                    end = res_shape[idx];
-                }
-                if start > end {
-                    res_shape[idx] = 0;
-                } else {
-                    res_shape[idx] = end - start;
-                    res_ptr += strides[idx] * start;
-                }
-            }
-            // tested
-            Slice::StepByRangeFromTo((start, end, step)) => {
-                let mut start = if *start >= 0 {
-                    *start
-                } else {
-                    *start + shape[idx]
-                };
-                let mut end = if *end >= 0 { *end } else { *end + shape[idx] };
-
-                if start >= shape[idx] {
-                    start = shape[idx] - 1;
-                }
-                if end > shape[idx] {
-                    end = shape[idx];
-                }
-
-                let length = if *step > 0 {
-                    (end - start + step - 1) / step
-                } else if *step < 0 {
-                    (end - start + step + 1) / step
-                } else {
-                    0
-                };
-
-                if length > 0 {
-                    res_shape[idx] = length * alpha;
-                    res_ptr += start * res_strides[idx];
-                    res_strides[idx] *= *step;
-                } else {
-                    res_shape[idx] = 0;
-                }
-            }
-            // tested
-            Slice::StepByRangeFrom((start, step)) => {
-                let mut start = if *start >= 0 {
-                    *start
-                } else {
-                    *start + shape[idx]
-                };
-                let end = if *step > 0 { shape[idx] } else { 0 };
-                if start >= shape[idx] {
-                    start = shape[idx] - 1;
-                }
-                let length;
-                if start <= end && *step > 0 {
-                    length = (end - 1 - start + step) / step;
-                } else if start >= end && *step < 0 {
-                    length = (end - start + step) / step;
-                } else {
-                    length = 0;
-                }
-                if length == 1 {
-                    res_shape[idx] = alpha;
-                    res_ptr += res_strides[idx] * start;
-                } else if length >= 0 {
-                    res_shape[idx] = length * alpha;
-                    res_ptr += start * res_strides[idx];
-                    res_strides[idx] *= *step;
-                } else {
-                    res_shape[idx] = 0;
-                }
-            }
-            // tested
-            Slice::StepByFullRange(step) => {
-                let start = if *step > 0 { 0 } else { shape[idx] - 1 };
-                let end = if *step > 0 { shape[idx] - 1 } else { 0 };
-                let length = if (start <= end && *step > 0) || (start >= end && *step < 0) {
-                    (end - start + step) / step
-                } else {
-                    0
-                };
-                if length == 1 {
-                    res_shape[idx] = alpha;
-                    res_ptr += res_strides[idx] * start;
-                } else if length >= 0 {
-                    res_shape[idx] = length * alpha;
-                    res_ptr += start * res_strides[idx];
-                    res_strides[idx] *= *step;
-                } else {
-                    res_shape[idx] = 0;
-                }
-            }
-            _ => {}
+    let mut new_indices = Vec::with_capacity(shape.len());
+    let ellipsis_pos = index
+        .iter()
+        .position(|&idx| idx == (0, 0, 0x7FFFFFFFFFFFFFFF));
+    if let Some(pos) = ellipsis_pos {
+        let missing_dims = shape.len() - (index.len() - 1);
+        new_indices.extend_from_slice(&index[0..pos]);
+        for _ in 0..missing_dims {
+            new_indices.push((0, 0x7FFFFFFFFFFFFFFF, 1));
         }
+        new_indices.extend_from_slice(&index[pos + 1..]);
+    } else {
+        new_indices = index.to_vec();
     }
 
+    for (idx, (start, mut end, step)) in new_indices.into_iter().enumerate() {
+        if end == 0x7FFFFFFFFFFFFFFF {
+            end = shape[idx];
+        }
+        let mut start = if start >= 0 {
+            start
+        } else {
+            start + shape[idx]
+        };
+        let mut end = if end >= 0 { end } else { end + shape[idx] };
+
+        if start >= shape[idx] {
+            start = shape[idx] - 1;
+        }
+        if end > shape[idx] {
+            end = shape[idx];
+        }
+
+        let length = if step > 0 {
+            (end - start + step - 1) / step
+        } else if step < 0 {
+            (end - start + step + 1) / step
+        } else {
+            0
+        };
+
+        if length > 0 {
+            res_shape[idx] = length * alpha;
+            res_ptr += start * res_strides[idx];
+            res_strides[idx] *= step;
+        } else {
+            res_shape[idx] = 0;
+        }
+    }
     let mut new_shape = Vec::new();
     let mut new_strides = Vec::new();
     for (i, &s) in res_shape.iter().enumerate() {
@@ -274,6 +145,6 @@ macro_rules! slice {
     (
         $tensor:ident [$($indexes:tt)*]
     ) => {
-        $tensor.slice(&match_selection!($($indexes)*))
+        $tensor.slice(&select!($($indexes)*))
     };
 }

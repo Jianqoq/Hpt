@@ -4,55 +4,17 @@ use crate::{
     tensor::{DiffTensor, Tensor},
     Cpu,
 };
-use hpt_common::{error::base::TensorError, slice::Slice};
+use hpt_common::error::base::TensorError;
 use hpt_iterator::{iterator_traits::ParStridedIteratorZip, TensorIterator};
-use hpt_traits::{CommonBounds, TensorCreator};
+use hpt_traits::{CommonBounds, Slice, TensorCreator};
 use num::Integer;
 use rayon::iter::ParallelIterator;
-impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE>
-where
-    T: CommonBounds,
-{
-    /// Extracts a slice of the tensor based on the provided indices.
-    ///
-    /// This method creates a new tensor that represents a slice of the original tensor.
-    /// It slices the tensor according to the specified indices and returns a new tensor
-    /// without copying the underlying data, but instead adjusting the shape and strides.
-    ///
-    /// # Arguments
-    ///
-    /// * `index` - A reference to a slice of `Slice` structs that define how to slice the tensor along each axis.
-    ///   The `Slice` type allows for specifying ranges, single elements, and other slicing options.
-    ///
-    /// # Returns
-    ///
-    /// Returns a `Result` containing the sliced tensor as a new tensor. If any slicing error occurs
-    /// (e.g., out-of-bounds access), an error message is returned.
-    pub fn slice(&self, index: &[Slice]) -> Result<Tensor<T, Cpu, DEVICE>, TensorError> {
-        Ok(self.inner.slice(index)?.into())
-    }
-}
 
-impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize> Slice for DiffTensor<T, Cpu, DEVICE>
 where
     T: CommonBounds,
 {
-    /// Extracts a slice of the tensor based on the provided indices.
-    ///
-    /// This method creates a new tensor that represents a slice of the original tensor.
-    /// It slices the tensor according to the specified indices and returns a new tensor
-    /// without copying the underlying data, but instead adjusting the shape and strides.
-    ///
-    /// # Arguments
-    ///
-    /// * `index` - A reference to a slice of `Slice` structs that define how to slice the tensor along each axis.
-    ///   The `Slice` type allows for specifying ranges, single elements, and other slicing options.
-    ///
-    /// # Returns
-    ///
-    /// Returns a `Result` containing the sliced tensor as a new tensor. If any slicing error occurs
-    /// (e.g., out-of-bounds access), an error message is returned.
-    pub fn slice(&self, index: &[Slice]) -> Result<DiffTensor<T, Cpu, DEVICE>, TensorError> {
+    fn slice(&self, index: &[(i64, i64, i64)]) -> Result<DiffTensor<T, Cpu, DEVICE>, TensorError> {
         let res = self.inner.slice(index)?;
         let lhs = self.clone();
         if let None = lhs.grad() {

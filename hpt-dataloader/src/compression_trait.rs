@@ -1,6 +1,6 @@
 use std::{collections::HashMap, io::Write};
 
-use hpt_common::{shape::shape::Shape, slice::Slice, strides::strides::Strides};
+use hpt_common::{shape::shape::Shape, strides::strides::Strides};
 use hpt_traits::{CommonBounds, TensorInfo};
 use num::traits::{FromBytes, ToBytes};
 use serde::{Deserialize, Serialize};
@@ -181,7 +181,7 @@ impl TensorSaver {
 
 pub struct TensorLoader {
     file_path: std::path::PathBuf,
-    to_loads: Option<Vec<(String, Vec<Slice>)>>,
+    to_loads: Option<Vec<(String, Vec<(i64, i64, i64)>)>>,
 }
 
 impl TensorLoader {
@@ -192,7 +192,7 @@ impl TensorLoader {
         }
     }
 
-    pub fn push(mut self, name: &str, slices: &[Slice]) -> Self {
+    pub fn push(mut self, name: &str, slices: &[(i64, i64, i64)]) -> Self {
         if let Some(to_loads) = &mut self.to_loads {
             to_loads.push((name.to_string(), slices.to_vec()));
         } else {

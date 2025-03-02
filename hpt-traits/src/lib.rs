@@ -20,6 +20,8 @@ pub mod ops {
     pub mod fft;
     /// A module contains pooling operations
     pub mod pooling;
+    /// A module contains slice operations
+    pub mod slice;
     /// A module contains unary operations
     pub mod uary;
     /// A module contains window operations
@@ -37,6 +39,7 @@ pub use ops::conv::*;
 pub use ops::cumulative::*;
 pub use ops::fft::*;
 pub use ops::pooling::*;
+pub use ops::slice::*;
 pub use ops::uary::*;
 pub use ops::windows::*;
 pub use random::*;

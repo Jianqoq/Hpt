@@ -10,9 +10,8 @@ use hpt_common::error::param::ParamError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape::Shape;
 use hpt_common::slice;
-use hpt_common::slice::Slice;
-use hpt_macros::match_selection;
-use hpt_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike};
+use hpt_macros::select;
+use hpt_traits::{CommonBounds, ShapeManipulate, Slice, TensorCreator, TensorInfo, TensorLike};
 use hpt_types::dtype::CudaType;
 use std::panic::Location;
 
@@ -209,8 +208,8 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> ShapeManipula
         let mut begin = 0;
         let mut res_slices = Vec::with_capacity(length);
         for i in tensors.iter() {
-            let mut selections = vec![Slice::Full; new_shape.len()];
-            selections[axis] = Slice::Range((begin, begin + i.shape()[axis]));
+            let mut selections = vec![(0, 0, 0); new_shape.len()];
+            selections[axis] = (begin, begin + i.shape()[axis], 1);
             begin += i.shape()[axis];
             let res_tensor = new_tensor.slice(&selections)?;
             res_slices.push(res_tensor);

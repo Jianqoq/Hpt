@@ -12,6 +12,7 @@ use hpt_allocator::clone_storage;
 pub struct Cpu {
     pub(crate) ptr: u64,
     pub(crate) device_id: usize,
+    pub(crate) is_owned: bool,
 }
 
 #[cfg(feature = "cuda")]
@@ -20,6 +21,7 @@ pub struct Cuda {
     pub(crate) ptr: u64,
     pub(crate) device: Arc<cudarc::driver::CudaDevice>,
     pub(crate) cap: usize,
+    pub(crate) is_owned: bool,
 }
 
 /// Wgpu backend
@@ -37,25 +39,30 @@ pub struct Backend<B> {
 
 impl Clone for Cpu {
     fn clone(&self) -> Self {
-        if let Ok(mut storage) = hpt_allocator::CPU_STORAGE.lock() {
-            clone_storage(self.ptr as *mut u8, self.device_id, &mut storage);
-            Cpu {
-                ptr: self.ptr,
-                device_id: self.device_id,
+        let ret = Cpu {
+            ptr: self.ptr,
+            device_id: self.device_id,
+            is_owned: self.is_owned,
+        };
+        if !self.is_owned {
+            if let Ok(mut storage) = hpt_allocator::CPU_STORAGE.lock() {
+                clone_storage(self.ptr as *mut u8, self.device_id, &mut storage);
+            } else {
+                panic!("failed to lock CPU_STORAGE");
             }
-        } else {
-            panic!("failed to lock CPU_STORAGE");
         }
+        ret
     }
 }
 
 impl Backend<Cpu> {
     /// create a new Cpu backend
-    pub fn new(address: u64, device_id: usize) -> Self {
+    pub fn new(address: u64, device_id: usize, is_owned: bool) -> Self {
         Backend {
             _backend: Cpu {
                 ptr: address,
                 device_id,
+                is_owned,
             },
         }
     }
@@ -64,23 +71,27 @@ impl Backend<Cpu> {
 #[cfg(feature = "cuda")]
 impl Clone for Cuda {
     fn clone(&self) -> Self {
-        if let Ok(mut storage) = hpt_allocator::CUDA_STORAGE.lock() {
-            clone_storage(self.ptr as *mut u8, self.device.ordinal(), &mut storage);
-        } else {
-            panic!("failed to lock CPU_STORAGE");
-        }
-        Cuda {
+        let ret = Cuda {
             ptr: self.ptr,
             device: self.device.clone(),
             cap: self.cap,
+            is_owned: self.is_owned,
+        };
+        if !self.is_owned {
+            if let Ok(mut storage) = hpt_allocator::CUDA_STORAGE.lock() {
+                clone_storage(self.ptr as *mut u8, self.device.ordinal(), &mut storage);
+            } else {
+                panic!("failed to lock CPU_STORAGE");
+            }
         }
+        ret
     }
 }
 
 #[cfg(feature = "cuda")]
 impl Backend<Cuda> {
     /// create a new Cuda backend
-    pub fn new(address: u64, device: Arc<cudarc::driver::CudaDevice>) -> Self {
+    pub fn new(address: u64, device: Arc<cudarc::driver::CudaDevice>, is_owned: bool) -> Self {
         let cap_major = device.attribute(
             cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR,
         ).expect("failed to get compute capability major when creating cuda backend");
@@ -92,6 +103,7 @@ impl Backend<Cuda> {
                 ptr: address,
                 device,
                 cap: (cap_major * 10 + cap_minor) as usize,
+                is_owned,
             },
         }
     }

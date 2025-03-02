@@ -6,9 +6,8 @@ use crate::tensor::DiffTensor;
 use crate::tensor_base::_Tensor;
 use crate::{Cpu, Tensor};
 use hpt_common::error::base::TensorError;
-use hpt_common::slice::Slice;
 use hpt_traits::ops::advance::{AdvancedOps, HardMax, Shrinkage};
-use hpt_traits::{CommonBounds, TensorCreator, TensorInfo, TensorWhere};
+use hpt_traits::{CommonBounds, Slice, TensorCreator, TensorInfo, TensorWhere};
 use hpt_types::dtype::TypeCommon;
 use hpt_types::into_scalar::Cast;
 use hpt_types::into_vec::IntoVec;
@@ -104,7 +103,7 @@ where
                 let mut ranges = Vec::with_capacity(pads.len());
 
                 for (dim, (pad_before, pad_after)) in pads.iter().enumerate() {
-                    ranges.push(Slice::Range((*pad_before, grad.shape()[dim] - *pad_after)));
+                    ranges.push((*pad_before, grad.shape()[dim] - *pad_after, 1));
                 }
                 grad = grad.slice(&ranges)?;
                 handle_grad(&mut lhs, grad, &[])?;

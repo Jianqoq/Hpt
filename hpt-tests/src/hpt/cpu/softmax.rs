@@ -6,8 +6,7 @@ use hpt::TensorLike;
 use hpt::{backend::Cpu, TensorCreator};
 use hpt::{set_num_threads, ShapeManipulate};
 use hpt_common::slice;
-use hpt_common::slice::Slice;
-use hpt_macros::match_selection;
+use hpt_macros::select;
 use rand::Rng;
 use tch::Tensor;
 

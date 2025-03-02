@@ -5,7 +5,7 @@ use std::{
 };
 
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
-use hpt_common::slice::{slice_process, Slice};
+use hpt_common::slice::slice_process;
 use hpt_traits::{CommonBounds, TensorInfo};
 use num::traits::FromBytes;
 
@@ -18,7 +18,7 @@ pub(crate) fn load_compressed_slice<
     const N: usize,
 >(
     file_name: &str,
-    queries: Vec<(String, Vec<Slice>)>,
+    queries: Vec<(String, Vec<(i64, i64, i64)>)>,
 ) -> anyhow::Result<HashMap<String, B>>
 where
     <B as CPUTensorCreator<T>>::Output: Into<B> + TensorInfo<T>,

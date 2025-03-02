@@ -5,7 +5,6 @@ use backend::Cpu;
 use duplicate::duplicate_item;
 use hpt::*;
 use hpt_common::slice;
-use hpt_common::slice::Slice;
 use rand::Rng;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,

@@ -77,7 +77,7 @@ macro_rules! impl_type_num {
                         parent: None,
                         layout: ly,
                         mem_layout: Arc::new(layout),
-                        _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                        _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
                     };
                 }
             }
@@ -121,7 +121,7 @@ macro_rules! impl_type_num {
                         parent: None,
                         layout: ly,
                         mem_layout: Arc::new(layout),
-                        _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                        _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
                     };
                 }
             }
@@ -166,7 +166,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
-                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
                 };
             }
         }
@@ -262,7 +262,7 @@ macro_rules! impl_type_num {
                 parent: None,
                 layout: ly,
                 mem_layout: Arc::new(layout),
-                _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
             };
         }
     }
@@ -307,7 +307,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
-                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
                 };
             }
         }
@@ -352,7 +352,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
-                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
                 };
             }
         }

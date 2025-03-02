@@ -144,4 +144,8 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> TensorCrea
     {
         Ok(_Tensor::<T, Cuda, DEVICE_ID>::eye(n, n, 0)?.into())
     }
+
+    fn from_owned<S: Into<Shape>>(data: &mut [T], shape: S) -> Result<Self::Output, TensorError> {
+        Ok(_Tensor::<T, Cuda, DEVICE_ID>::from_owned(data, shape)?.into())
+    }
 }

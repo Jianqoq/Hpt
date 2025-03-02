@@ -7,11 +7,10 @@ use crate::Cpu;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
-use hpt_common::slice::Slice;
 use hpt_common::{axis::axis::Axis, shape::shape::Shape};
 use hpt_iterator::iterator_traits::ParStridedIteratorZip;
 use hpt_iterator::TensorIterator;
-use hpt_traits::{CommonBounds, NormalReduce, ShapeManipulate, TensorCreator, TensorInfo};
+use hpt_traits::{CommonBounds, NormalReduce, ShapeManipulate, Slice, TensorCreator, TensorInfo};
 
 impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for Tensor<T, Cpu, DEVICE> {
     type Meta = T;
@@ -427,16 +426,16 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
         let mut slices = Vec::with_capacity(self.inner.ndim());
         let mut tmp = Vec::with_capacity(self.inner.ndim());
         for _ in 0..self.inner.ndim() {
-            tmp.push(Slice::Full);
+            tmp.push((0, 0, 0));
         }
         let mut prev = 0;
         for &i in indices_or_sections.iter() {
-            tmp[axis as usize] = Slice::Range((prev, i));
+            tmp[axis as usize] = (prev, i, 1);
             prev = i;
             slices.push(tmp.clone());
         }
         let last = *indices_or_sections.last().unwrap();
-        tmp[axis as usize] = Slice::Range((last, self.inner.shape()[axis as usize]));
+        tmp[axis as usize] = (last, self.inner.shape()[axis as usize], 1);
         slices.push(tmp);
         let res = self.inner.split(indices_or_sections, axis)?;
 

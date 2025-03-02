@@ -150,8 +150,6 @@ pub mod ops {
             pub mod random;
             /// a module that contains all the shape manipulation functions
             pub mod shape_manipulate;
-            /// a module that contains all the slice functions
-            pub mod slice;
             /// a module that contains all the tensordot functions
             pub mod tensordot;
             /// a module that contains all the windows creation functions
@@ -218,8 +216,6 @@ pub mod ops {
             pub(crate) mod random;
             /// a module contains cuda tensor shape manipulation impls
             pub(crate) mod shape_manipulate;
-            /// a module contains cuda tensor slice impls
-            pub(crate) mod slice;
             /// a module contains cuda tensor windows impls
             pub(crate) mod windows;
         }
@@ -257,6 +253,8 @@ pub mod ops {
         pub mod reduce;
         /// a module contains all the shape manipulation ops
         pub mod shape_manipulate;
+        /// a module contains slice op
+        pub mod slice;
     }
 }
 
@@ -284,17 +282,14 @@ pub use flate2;
 pub use hpt_allocator::resize_cpu_lru_cache;
 #[cfg(feature = "cuda")]
 pub use hpt_allocator::resize_cuda_lru_cache;
-pub use hpt_common::slice;
-pub use hpt_common::{
-    error::base::TensorError, shape::shape::Shape, slice::Slice, strides::strides::Strides,
-};
+pub use hpt_common::{error::base::TensorError, shape::shape::Shape, strides::strides::Strides};
 pub use hpt_dataloader::data_loader::parse_header_compressed;
 pub(crate) use hpt_dataloader::save;
 pub use hpt_dataloader::{
     CompressionAlgo, DataLoader, Endian, FromSafeTensors, Load, MetaLoad, Save, TensorLoader,
     TensorSaver,
 };
-pub use hpt_macros::{match_selection, Load, Save};
+pub use hpt_macros::{select, Load, Save};
 pub use hpt_traits::*;
 pub use hpt_types::dtype::TypeCommon;
 pub use hpt_types::into_scalar::Cast;

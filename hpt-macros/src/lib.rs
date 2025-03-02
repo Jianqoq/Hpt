@@ -74,6 +74,7 @@ struct SelectionParser {
     start: Option<Expr>,
     end: Option<Expr>,
     step: Option<Expr>,
+    skip: bool,
 }
 
 struct Selections {
@@ -85,6 +86,15 @@ impl parse::Parse for SelectionParser {
         let mut start: Option<Expr> = None;
         let mut end: Option<Expr> = None;
         let mut step: Option<Expr> = None;
+        if input.peek(Token![..]) {
+            input.parse::<Token![..]>()?;
+            return Ok(Self {
+                start,
+                end,
+                step,
+                skip: true,
+            });
+        }
         if input.peek(syn::Lit)
             || input.peek(syn::Ident)
             || input.peek(syn::token::Paren)
@@ -95,7 +105,12 @@ impl parse::Parse for SelectionParser {
         if input.peek(Token![:]) {
             input.parse::<Token![:]>()?;
         } else if input.is_empty() {
-            return Ok(Self { start, end, step });
+            return Ok(Self {
+                start,
+                end,
+                step,
+                skip: false,
+            });
         } else {
             return Err(syn::Error::new(
                 input.span(),
@@ -119,33 +134,40 @@ impl parse::Parse for SelectionParser {
         {
             step = Some(input.parse::<Expr>()?);
         }
-        Ok(Self { start, end, step })
+        Ok(Self {
+            start,
+            end,
+            step,
+            skip: false,
+        })
     }
 }
 
 impl parse::Parse for Selections {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
         let mut selections: Vec<TokenStream> = vec![];
-        let mut tokenstream = TokenStream2::new();
+
         while !input.is_empty() {
-            let lookahead = input.lookahead1();
-            if lookahead.peek(Token![,]) {
-                selections.push(tokenstream.into());
-                tokenstream = TokenStream2::new();
+            let mut item_tokens = TokenStream2::new();
+            while !input.is_empty() && !input.peek(Token![,]) {
+                let token = input.parse::<TokenTree>()?;
+                item_tokens.extend(quote!(#token));
+            }
+
+            selections.push(item_tokens.into());
+
+            if input.peek(Token![,]) {
                 input.parse::<Token![,]>()?;
-            } else {
-                let t = input.parse::<TokenTree>()?;
-                tokenstream.extend(quote!(#t));
             }
         }
-        selections.push(tokenstream.into());
+
         Ok(Self { selections })
     }
 }
 
 /// parse the input and generate the corresponding slice
 #[proc_macro]
-pub fn match_selection(input: TokenStream) -> TokenStream {
+pub fn select(input: TokenStream) -> TokenStream {
     let res: Selections = parse_macro_input!(input as Selections);
     let mut slices: Vec<SelectionParser> = vec![];
     for x in res.selections {
@@ -153,31 +175,48 @@ pub fn match_selection(input: TokenStream) -> TokenStream {
     }
     let mut ret_stream = TokenStream2::new();
     let len = slices.len();
+    let mut skipped = false;
     for (idx, x) in slices.into_iter().enumerate() {
+        if x.skip {
+            if skipped {
+                return syn::Error::new(
+                    proc_macro2::Span::call_site(),
+                    "unexpected token, slicing only support `..` once",
+                )
+                .to_compile_error()
+                .into();
+            }
+            ret_stream.extend(quote!((0, 0, 0x7FFFFFFFFFFFFFFF)));
+            skipped = true;
+            if idx != len - 1 {
+                ret_stream.extend(quote!(,));
+            }
+            continue;
+        }
         match (x.start, x.end, x.step) {
             (None, None, None) => {
-                ret_stream.extend(quote!(Slice::Full));
+                ret_stream.extend(quote!(((0, 0x7FFFFFFFFFFFFFFF, 1))));
             }
             (None, None, Some(step)) => {
-                ret_stream.extend(quote!(Slice::StepByFullRange(#step)));
+                ret_stream.extend(quote!((0, 0x7FFFFFFFFFFFFFFF, #step)));
             }
             (None, Some(end), None) => {
-                ret_stream.extend(quote!(Slice::RangeTo(#end)));
+                ret_stream.extend(quote!((0, #end, 1)));
             }
             (None, Some(end), Some(step)) => {
-                ret_stream.extend(quote!(Slice::StepByRangeTo((#end, #step))));
+                ret_stream.extend(quote!((0, #end, #step)));
             }
             (Some(start), None, None) => {
-                ret_stream.extend(quote!(Slice::From(#start)));
+                ret_stream.extend(quote!((#start, 0x7FFFFFFFFFFFFFFF, 1)));
             }
             (Some(start), None, Some(step)) => {
-                ret_stream.extend(quote!(Slice::StepByRangeFrom((#start, #step))));
+                ret_stream.extend(quote!((#start, 0x7FFFFFFFFFFFFFFF, #step)));
             }
             (Some(start), Some(end), None) => {
-                ret_stream.extend(quote!(Slice::Range((#start, #end))));
+                ret_stream.extend(quote!((#start, #end, 1)));
             }
             (Some(start), Some(end), Some(step)) => {
-                ret_stream.extend(quote!(Slice::StepByRangeFromTo((#start, #end, #step))));
+                ret_stream.extend(quote!((#start, #end, #step)));
             }
         }
         if idx != len - 1 {

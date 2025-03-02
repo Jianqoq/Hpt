@@ -1,5 +1,5 @@
 use hpt::{
-    match_selection, FloatOutUnary, Matmul, NormalBinOps, ParStridedIteratorSimdZip, Random,
+    select, FloatOutUnary, Matmul, NormalBinOps, ParStridedIteratorSimdZip, Random,
     ShapeManipulate, Slice, Tensor, TensorCreator, TensorError, TensorInfo, TensorIterator,
 };
 
@@ -170,7 +170,7 @@ impl LSTMModel {
 
         let mut total_time = std::time::Duration::from_secs(0);
         for t in 0..seq_length {
-            let mut layer_input = x.slice(&match_selection![:, t:t+1, :])?.squeeze(1)?;
+            let mut layer_input = x.slice(&select![:, t:t+1, :])?.squeeze(1)?;
             for layer_idx in 0..self.num_layers {
                 let lstm = &self.lstm_cells[layer_idx];
                 let now = std::time::Instant::now();

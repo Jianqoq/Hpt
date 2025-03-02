@@ -11,14 +11,13 @@ use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape::Shape;
 use hpt_common::shape::shape_utils::{mt_intervals, mt_intervals_simd};
-use hpt_common::slice::Slice;
 use hpt_iterator::iterator_traits::StridedIterator;
 use hpt_iterator::TensorIterator;
 use hpt_traits::shape_manipulate::ShapeManipulate;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorCreator;
 use hpt_traits::tensor::TensorInfo;
-use hpt_traits::TensorLike;
+use hpt_traits::{Slice, TensorLike};
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::{Cmp, NormalOut};
 use rayon::iter::ParallelIterator;
@@ -473,8 +472,8 @@ where
         },
         |num_threads, inner_loop_size, result| {
             let intervals = mt_intervals_simd(inner_loop_size, num_threads, O::Vec::SIZE);
-            let mut slices = vec![Slice::Full; a.ndim()];
-            let mut slices_res = vec![Slice::Full; result.ndim()];
+            let mut slices = vec![(0, 0, 0); a.ndim()];
+            let mut slices_res = vec![(0, 0, 0); result.ndim()];
             let mut sliced_tensors = Vec::with_capacity(num_threads);
             let mut sliced_res = Vec::with_capacity(num_threads);
             assert_eq!(inner_loop_size, result.size());
@@ -482,8 +481,8 @@ where
                 if end - start == 0 {
                     continue;
                 }
-                slices[a.ndim() - 1] = Slice::Range((start as i64, end as i64));
-                slices_res[result.ndim() - 1] = Slice::Range((start as i64, end as i64));
+                slices[a.ndim() - 1] = (start as i64, end as i64, 1);
+                slices_res[result.ndim() - 1] = (start as i64, end as i64, 1);
                 sliced_tensors.push(a.slice(&slices).expect("Slice failed"));
                 sliced_res.push(result.slice(&slices_res).expect("Slice failed"));
             }
@@ -687,8 +686,8 @@ where
         },
         move |num_threads, inner_loop_size, ap, result| {
             let intervals = mt_intervals(inner_loop_size, num_threads);
-            let mut slices = vec![Slice::Full; ap.ndim()];
-            let mut slices_res = vec![Slice::Full; result.ndim()];
+            let mut slices = vec![(0, 0, 0); ap.ndim()];
+            let mut slices_res = vec![(0, 0, 0); result.ndim()];
             let mut sliced_tensors = Vec::with_capacity(num_threads);
             let mut sliced_res = Vec::with_capacity(num_threads);
             assert_eq!(inner_loop_size, result.size());
@@ -696,8 +695,8 @@ where
                 if end - start == 0 {
                     continue;
                 }
-                slices[ap.ndim() - 1] = Slice::Range((start as i64, end as i64));
-                slices_res[result.ndim() - 1] = Slice::Range((start as i64, end as i64));
+                slices[ap.ndim() - 1] = (start as i64, end as i64, 1);
+                slices_res[result.ndim() - 1] = (start as i64, end as i64, 1);
                 sliced_tensors.push(ap.slice(&slices).expect("Slice failed"));
                 sliced_res.push(result.slice(&slices_res).expect("Slice failed"));
             }
