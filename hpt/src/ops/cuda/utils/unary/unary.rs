@@ -1,7 +1,7 @@
 use crate::ops::cuda::cuda_utils::{compile_kernel, compute_kernel_launch_config, get_array_str};
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
-use cudarc::driver::{CudaSlice, DeviceRepr, DeviceSlice, LaunchAsync};
+use cudarc::driver::{DeviceRepr, LaunchAsync};
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_traits::tensor::CommonBounds;
@@ -92,40 +92,4 @@ where
     let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
     unsafe { kernel.launch(cfg, (inp_slice, out_slice, ret.size())) }?;
     Ok(ret)
-}
-
-pub(crate) fn unary_raw_mut<T, F>(
-    slice: &CudaSlice<T>,
-    res_slice: &CudaSlice<T>,
-    module_name: &str,
-    f: F,
-) -> std::result::Result<(), TensorError>
-where
-    T: CudaType + CommonBounds + DeviceRepr,
-    F: Fn(Scalar<T>, Scalar<T>) -> Scalar<T>,
-{
-    assert_eq!(slice.device().ordinal(), res_slice.device().ordinal());
-    let a_include = get_include_1::<T>();
-    let scalar_a = Scalar::<T>::new("inp[idx]".to_string());
-    let scalar_k = Scalar::<T>::new("out[idx]".to_string());
-    let code = format!(
-        "
-        {a_include}
-        extern \"C\" __global__ void unary_raw(const {}* inp, {}* out, int size) {{
-            unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-            if (idx < size) {{
-                {};
-            }}
-        }}
-        ",
-        T::CUDA_TYPE,
-        T::CUDA_TYPE,
-        f(scalar_k, scalar_a).val()
-    );
-    let map = compile_kernel(module_name, &code, slice.device(), &["unary_raw"])?;
-    let kernel = slice.device().get_func(module_name, "unary_raw").unwrap();
-    let reg_info = map.get("unary_raw").expect("func_name not found");
-    let cfg = compute_kernel_launch_config(slice.device(), reg_info, slice.len());
-    unsafe { kernel.launch(cfg, (slice, res_slice, slice.len())) }?;
-    Ok(())
 }

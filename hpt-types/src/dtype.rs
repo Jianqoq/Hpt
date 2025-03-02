@@ -1,5 +1,3 @@
-#[cfg(target_feature = "avx512f")]
-use crate::vectors::_512bit::*;
 use crate::{
     into_vec::IntoVec,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary},

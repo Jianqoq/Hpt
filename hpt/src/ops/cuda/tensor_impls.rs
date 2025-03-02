@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use crate::ops::cuda::cuda_utils::{
-    compile_kernel, get_array_str, get_include_1, get_module_name_1,
-};
+use crate::ops::common::divmod::FastDivmod;
+use crate::ops::cuda::cuda_utils::get_module_name_1;
 use crate::Cpu;
 use crate::{tensor_base::_Tensor, Cuda, Tensor};
 use cudarc::driver::{CudaDevice, DeviceRepr, LaunchAsync};
@@ -20,6 +19,8 @@ use num::traits::ToBytes;
 use crate::ops::cuda::cuda_utils::compute_kernel_launch_config;
 use crate::ops::cuda::utils::unary::unary::uary_fn_with_out_simd;
 
+use super::cuda_utils::load_ptx_and_get_data;
+
 impl<T, const DEVICE_ID: usize> TensorLike<T> for _Tensor<T, Cuda, DEVICE_ID>
 where
     T: CommonBounds + DeviceRepr + CudaType,
@@ -34,51 +35,26 @@ where
 
     fn contiguous(&self) -> std::result::Result<Self, TensorError> {
         let res = Self::empty(self.shape().clone())?;
-        let shape_str = get_array_str(self.shape());
-        let strides_str = get_array_str(self.strides());
-        let include = get_include_1::<T>();
-        let module_name = get_module_name_1("ctg", self);
-        let map = compile_kernel(
-            &module_name,
-            &format!(
-                "
-                    {include}
-                    __constant__ long long shape[] = {{{}}};
-                    __constant__ long long strides[] = {{{}}};
-                    extern \"C\" __global__ void contiguous({} *out, {} *inp)
-                    {{
-                        size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-                        size_t stride = blockDim.x * gridDim.x;
-                        while (idx < {})
-                        {{
-                            long amount = idx;
-                            long offset = 0;
-                            #pragma unroll
-                            for (int j = {} - 1; j >= 0; j--)
-                            {{
-                                offset += amount % shape[j] * strides[j];
-                                amount /= shape[j];
-                            }}
-                            out[idx] = inp[offset];
-                            idx += stride;
-                        }}
-                    }}",
-                shape_str,
-                strides_str,
-                T::CUDA_TYPE,
-                T::CUDA_TYPE,
-                self.size(),
-                self.ndim(),
-            ),
-            self.device(),
-            &["contiguous"],
+        let (kernel, reg_info) = load_ptx_and_get_data(
+            "strided_copy",
+            &format!("strided_copy_{}", T::STR),
+            res.device(),
+            self.device_cap(),
+            &hpt_cudakernels::STRIDED_COPY,
         )?;
-        let kernel = res.device().get_func(&module_name, "contiguous").unwrap();
+        let cfg = compute_kernel_launch_config(res.device(), &reg_info, res.size());
         let out_slice = res.cuda_slice();
         let inp_slice = self.cuda_slice();
-        let reg_info = map.get("contiguous").expect("func_name not found");
-        let cfg = compute_kernel_launch_config(res.device(), reg_info, res.size());
-        unsafe { kernel.launch(cfg, (out_slice, inp_slice)) }?;
+        let shape = self.cuda_divmod()?;
+        let strides = self.cuda_strides()?;
+        let ndim = self.ndim();
+        let size = self.size();
+        unsafe {
+            kernel.launch(
+                cfg,
+                (out_slice, inp_slice, &shape, &strides, ndim as i32, size),
+            )
+        }?;
         Ok(res)
     }
 }
@@ -224,11 +200,20 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> _Tensor<T,
     {
         let mut data = _Tensor::<T, Cpu, CPU_DEVICE>::empty(self.layout.shape().clone())?;
         let device = self.device();
-        let ptr = unsafe { device.upgrade_device_ptr(self.data.ptr as u64, self.size()) };
-        self.device()
-            .dtoh_sync_copy_into(&ptr, data.as_raw_mut())
-            .expect("failed to copy data from cuda to cpu");
-        ptr.leak();
+        if !self.is_contiguous() || self.parent().is_some() {
+            let a = self.contiguous()?;
+            let ptr = unsafe { device.upgrade_device_ptr(a.data.ptr as u64, a.size()) };
+            self.device()
+                .dtoh_sync_copy_into(&ptr, data.as_raw_mut())
+                .expect("failed to copy data from cuda to cpu");
+            ptr.leak();
+        } else {
+            let ptr = unsafe { device.upgrade_device_ptr(self.data.ptr as u64, self.size()) };
+            self.device()
+                .dtoh_sync_copy_into(&ptr, data.as_raw_mut())
+                .expect("failed to copy data from cuda to cpu");
+            ptr.leak();
+        }
         Ok(data.into())
     }
     pub(crate) fn device(&self) -> Arc<CudaDevice> {
@@ -249,6 +234,32 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> _Tensor<T,
         &self,
     ) -> std::result::Result<cudarc::driver::CudaSlice<i64>, TensorError> {
         let res = self.device().htod_sync_copy(self.strides())?;
+        Ok(res)
+    }
+    pub(crate) fn cuda_divmod(
+        &self,
+    ) -> std::result::Result<cudarc::driver::CudaSlice<FastDivmod>, TensorError> {
+        let mut res = vec![];
+        for i in self.shape().iter() {
+            let fast_divmod = FastDivmod::new(*i as i32);
+            res.push(fast_divmod);
+        }
+        let res = self.device().htod_sync_copy(&res)?;
+        Ok(res)
+    }
+    #[allow(unused)]
+    pub(crate) fn cuda_shape_i32(
+        &self,
+    ) -> std::result::Result<cudarc::driver::CudaSlice<i32>, TensorError> {
+        let strides = self.shape().iter().map(|x| *x as i32).collect::<Vec<_>>();
+        let res = self.device().htod_sync_copy(&strides)?;
+        Ok(res)
+    }
+    pub(crate) fn cuda_strides_i32(
+        &self,
+    ) -> std::result::Result<cudarc::driver::CudaSlice<i32>, TensorError> {
+        let strides = self.strides().iter().map(|x| *x as i32).collect::<Vec<_>>();
+        let res = self.device().htod_sync_copy(&strides)?;
         Ok(res)
     }
     pub(crate) fn device_cap(&self) -> usize {
@@ -315,16 +326,10 @@ where
     T: CommonBounds + DeviceRepr + Cast<f64> + CudaType,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut data = _Tensor::<T>::empty(self.layout.shape().clone()).unwrap();
-        let device = self.device();
-        let ptr = unsafe { device.upgrade_device_ptr(self.ptr().ptr as u64, self.size()) };
-        self.device()
-            .dtoh_sync_copy_into(&ptr, data.as_raw_mut())
-            .unwrap();
-        ptr.leak();
-        data.layout.set_strides(self.strides().clone());
-        data.layout.set_shape(self.shape().clone());
-        write!(f, "{}", data)
+        let cpu_data = self
+            .to_cpu::<0>()
+            .expect("failed to convert cuda tensor to cpu tensor");
+        write!(f, "{}", cpu_data)
     }
 }
 

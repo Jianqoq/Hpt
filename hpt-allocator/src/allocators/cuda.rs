@@ -2,7 +2,10 @@ use std::{
     alloc::Layout,
     num::NonZeroUsize,
     panic::Location,
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex,
+    },
 };
 
 use crate::{
@@ -18,6 +21,7 @@ use once_cell::sync::Lazy;
 /// `lru` cache allocator
 pub static CUDA_CACHE: Lazy<Mutex<CudaAllocator>> = Lazy::new(|| Mutex::new(CudaAllocator::new()));
 
+pub static CUDA_LRU_CACHE_SIZE: AtomicUsize = AtomicUsize::new(1);
 /// # Allocator
 ///
 /// a `lru` based allocator, to allocate and deallocate memory
@@ -59,7 +63,9 @@ impl CudaAllocator {
             ))
         } else {
             let mut allocator = _Allocator {
-                cache: LruCache::new(NonZeroUsize::new(10).unwrap()),
+                cache: LruCache::new(
+                    NonZeroUsize::new(CUDA_LRU_CACHE_SIZE.load(Ordering::Relaxed)).unwrap(),
+                ),
                 allocated: HashSet::new(),
             };
             let device = cudarc::driver::CudaDevice::new(device_id).unwrap();
@@ -216,5 +222,30 @@ impl _Allocator {
                 map.insert(device_id, storage);
             }
         }
+    }
+}
+
+/// resize the lru cache of the cuda allocator
+///
+/// when `new_size` >= `old_size`, cache size will increase and data won't be deallocated
+///
+/// when `new_size` < `old_size`, all the data in cache will be deallocated
+pub fn resize_cuda_lru_cache(new_size: usize, device_id: usize) {
+    if let Ok(mut cache) = CUDA_CACHE.lock() {
+        if let Some((device, allocator)) = cache.allocator.get_mut(&device_id) {
+            crate::utils::cache_resize::resize_lru_cache(
+                &mut allocator.cache,
+                |ptr, layout| {
+                    let slice =
+                        unsafe { device.upgrade_device_ptr::<u8>(ptr as u64, layout.size()) };
+                    drop(slice);
+                },
+                new_size,
+            );
+        } else {
+            panic!("device {} not found in cuda allocator", device_id);
+        }
+    } else {
+        panic!("Failed to lock CUDA_CACHE");
     }
 }

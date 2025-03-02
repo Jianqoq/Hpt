@@ -11,7 +11,9 @@ use hpt_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo};
 use hpt_types::into_scalar::Cast;
 
 use crate::{
-    backend::Cpu, ops::cpu::utils::reduce::reduce_utils::rearrange_array, tensor_base::_Tensor,
+    backend::Cpu,
+    ops::common::reduce::{is_keep_fast_dim, rearrange_array},
+    tensor_base::_Tensor,
 };
 
 #[derive(Debug, Clone)]
@@ -239,10 +241,7 @@ pub(crate) fn normalize_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: 
     axis: usize,
     c: Option<_Tensor<O, Cpu, DEVICE>>,
 ) -> std::result::Result<(bool, _Tensor<T, Cpu, DEVICE>, _Tensor<O, Cpu, DEVICE>), TensorError> {
-    let mut keep_fast_dim = true;
-    if a.strides()[axis] == 1 {
-        keep_fast_dim = false;
-    }
+    let keep_fast_dim = is_keep_fast_dim(&a.layout.strides(), &[axis]);
     // get permute order, we move to_reduce axes to the end
     let mut transposed_axis = rearrange_array(a.ndim(), &[axis]);
 

@@ -1,4 +1,11 @@
-use std::{alloc::Layout, num::NonZeroUsize, sync::Mutex};
+use std::{
+    alloc::Layout,
+    num::NonZeroUsize,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Mutex,
+    },
+};
 
 use crate::{
     ptr::SafePtr,
@@ -12,6 +19,8 @@ use once_cell::sync::Lazy;
 
 /// `lru` cache allocator
 pub static CACHE: Lazy<Mutex<CpuAllocator>> = Lazy::new(|| Mutex::new(CpuAllocator::new()));
+
+pub static CPU_LRU_CACHE_SIZE: AtomicUsize = AtomicUsize::new(100);
 
 /// # Allocator
 ///
@@ -36,7 +45,9 @@ impl Allocator for CpuAllocator {
             allocator.allocate(layout, device_id)
         } else {
             let mut allocator = _Allocator {
-                cache: LruCache::new(NonZeroUsize::new(100).unwrap()),
+                cache: LruCache::new(
+                    NonZeroUsize::new(CPU_LRU_CACHE_SIZE.load(Ordering::Relaxed)).unwrap(),
+                ),
                 allocated: HashSet::new(),
             };
             let ptr = allocator.allocate(layout, device_id)?;
@@ -56,7 +67,9 @@ impl Allocator for CpuAllocator {
             allocator.insert_ptr(ptr, device_id);
         } else {
             let mut allocator = _Allocator {
-                cache: LruCache::new(NonZeroUsize::new(100).unwrap()),
+                cache: LruCache::new(
+                    NonZeroUsize::new(CPU_LRU_CACHE_SIZE.load(Ordering::Relaxed)).unwrap(),
+                ),
                 allocated: HashSet::new(),
             };
             allocator.insert_ptr(ptr, device_id);
@@ -144,5 +157,26 @@ impl _Allocator {
                 map.insert(device_id, storage);
             }
         }
+    }
+}
+
+/// resize the lru cache of the cpu allocator
+///
+/// when `new_size` >= `old_size`, cache size will increase and data won't be deallocated
+///
+/// when `new_size` < `old_size`, all the data in cache will be deallocated
+pub fn resize_cpu_lru_cache(new_size: usize, device_id: usize) {
+    if let Ok(mut cache) = CACHE.lock() {
+        if let Some(allocator) = cache.allocator.get_mut(&device_id) {
+            crate::utils::cache_resize::resize_lru_cache(
+                &mut allocator.cache,
+                |ptr, layout| unsafe { std::alloc::dealloc(ptr, layout) },
+                new_size,
+            );
+        } else {
+            panic!("device {} not found in cpu allocator", device_id);
+        }
+    } else {
+        panic!("Failed to lock CACHE");
     }
 }

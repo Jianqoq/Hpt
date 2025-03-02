@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use crate::{backend::Cpu, tensor_base::_Tensor, Cuda};
+use crate::{backend::Cpu, tensor_base::_Tensor, Cuda, CUDA_SEED};
 use cudarc::driver::DeviceRepr;
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_traits::{
@@ -39,10 +39,7 @@ where
         let res_shape = Shape::from(shape.into());
         let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(res_shape)?;
         let rng = cudarc::curand::CudaRng::new(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+            CUDA_SEED.load(std::sync::atomic::Ordering::Relaxed),
             ret.device(),
         )
         .expect("CUDA_RNG error");
@@ -68,10 +65,7 @@ where
         let res_shape = Shape::from(shape.into());
         let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(res_shape)?;
         let rng = cudarc::curand::CudaRng::new(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+            CUDA_SEED.load(std::sync::atomic::Ordering::Relaxed),
             ret.device(),
         )
         .expect("CUDA_RNG error");
@@ -145,10 +139,7 @@ where
         let res_shape = Shape::from(shape.into());
         let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(res_shape)?;
         let rng = cudarc::curand::CudaRng::new(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+            CUDA_SEED.load(std::sync::atomic::Ordering::Relaxed),
             ret.device(),
         )
         .expect("CUDA_RNG error");

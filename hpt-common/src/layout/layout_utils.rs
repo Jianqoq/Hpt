@@ -276,7 +276,8 @@ impl Layout {
     ///
     /// if the `axes` contains the axis out of range
     pub fn reduce<A: Into<Axis>>(&self, axes: A, keep_dims: bool) -> Result<Layout, TensorError> {
-        let axis = process_axes(axes, self.shape.len())?;
+        let a: Axis = axes.into();
+        let axis = process_axes(a, self.shape.len())?;
         let new_shape = if keep_dims {
             let mut vec = Vec::with_capacity(self.shape.len());
             for i in 0..self.shape.len() {

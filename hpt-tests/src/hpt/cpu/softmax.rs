@@ -1,6 +1,6 @@
 #![allow(unused)]
 use duplicate::duplicate_item;
-use hpt::set_global_display_lr_elements;
+use hpt::set_display_elements;
 use hpt::TensorInfo;
 use hpt::TensorLike;
 use hpt::{backend::Cpu, TensorCreator};

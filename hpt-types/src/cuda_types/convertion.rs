@@ -280,7 +280,7 @@ impl CudaConvertor for Scalar<f64> {
     }
     #[inline(always)]
     fn to_f16(&self) -> Scalar<half::f16> {
-        Scalar::new(format!("__float2half_rn({})", self.val))
+        Scalar::new(format!("__double2half_rn({})", self.val))
     }
     #[inline(always)]
     fn to_f32(&self) -> Scalar<f32> {

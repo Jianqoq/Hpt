@@ -1,7 +1,7 @@
 use std::{collections::HashMap, io::Write};
 
 use hpt_common::{shape::shape::Shape, slice::Slice, strides::strides::Strides};
-use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
+use hpt_traits::{CommonBounds, TensorInfo};
 use num::traits::{FromBytes, ToBytes};
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +9,7 @@ use crate::{
     data_loader::{Endian, HeaderInfo},
     load::load_compressed_slice,
     save::save,
+    CPUTensorCreator,
 };
 
 pub trait CompressionTrait {
@@ -203,7 +204,8 @@ impl TensorLoader {
     pub fn load<T, B, const N: usize>(self) -> std::io::Result<HashMap<String, B>>
     where
         T: CommonBounds + FromBytes<Bytes = [u8; N]>,
-        B: TensorCreator<T, Output = B> + Clone + TensorInfo<T>,
+        B: CPUTensorCreator<T>,
+        <B as CPUTensorCreator<T>>::Output: Into<B> + TensorInfo<T>,
     {
         let res = load_compressed_slice::<T, B, N>(
             self.file_path.to_str().unwrap().into(),
@@ -216,7 +218,8 @@ impl TensorLoader {
     pub fn load_all<T, B, const N: usize>(self) -> std::io::Result<HashMap<String, B>>
     where
         T: CommonBounds + FromBytes<Bytes = [u8; N]>,
-        B: TensorCreator<T, Output = B> + Clone + TensorInfo<T>,
+        B: CPUTensorCreator<T>,
+        <B as CPUTensorCreator<T>>::Output: Into<B> + TensorInfo<T>,
     {
         let res = HeaderInfo::parse_header_compressed(self.file_path.to_str().unwrap().into())
             .expect("failed to parse header");

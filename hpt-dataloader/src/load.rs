@@ -6,20 +6,23 @@ use std::{
 
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
 use hpt_common::slice::{slice_process, Slice};
-use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
+use hpt_traits::{CommonBounds, TensorInfo};
 use num::traits::FromBytes;
 
-use crate::{data_loader::HeaderInfo, CompressionAlgo, Endian};
+use crate::{data_loader::HeaderInfo, CPUTensorCreator, CompressionAlgo, Endian};
 
 pub(crate) fn load_compressed_slice<
     'a,
     T: CommonBounds + FromBytes<Bytes = [u8; N]>,
-    B: TensorCreator<T, Output = B> + Clone + TensorInfo<T>,
+    B: CPUTensorCreator<T>,
     const N: usize,
 >(
     file_name: &str,
     queries: Vec<(String, Vec<Slice>)>,
-) -> anyhow::Result<HashMap<String, B>> {
+) -> anyhow::Result<HashMap<String, B>>
+where
+    <B as CPUTensorCreator<T>>::Output: Into<B> + TensorInfo<T>,
+{
     let res = HeaderInfo::parse_header_compressed(file_name)?;
     let mut ret = HashMap::with_capacity(res.len());
     let mut file = File::open(file_name)?;
@@ -56,10 +59,10 @@ pub(crate) fn load_compressed_slice<
             *x /= std::mem::size_of::<T>() as i64;
         });
         // create the tensor
-        let tensor: B = B::empty(&shape)?;
+        let tensor = B::empty(&shape)?;
 
         if tensor.size() == 0 {
-            ret.insert(name, tensor);
+            ret.insert(name, tensor.into());
             continue;
         }
         let res = unsafe { std::slice::from_raw_parts_mut(tensor.ptr().ptr, tensor.size()) };
@@ -68,7 +71,7 @@ pub(crate) fn load_compressed_slice<
         let inner_loop_size = (*info.shape.last().unwrap() as usize) * std::mem::size_of::<T>();
 
         // based on the offset, get the start of the row
-        let row_idx = offset / inner_loop_size as i64;
+        let row_idx = offset / (inner_loop_size as i64);
         let num_rows_per_chunk = chunk_size / inner_loop_size;
         let mut block_idx = (row_idx as usize) / num_rows_per_chunk;
 
@@ -83,24 +86,25 @@ pub(crate) fn load_compressed_slice<
         )?;
         // calculate row index within the chunk
         let local_row_offset = (row_idx as usize) - block_locate_row;
-        let local_col_offset = offset % inner_loop_size as i64;
+        let local_col_offset = offset % (inner_loop_size as i64);
 
         let mut prg = vec![0; shape.len()];
         let inner = *shape.last().unwrap();
         let outer = shape.iter().product::<i64>() / inner;
 
-        let mut start_idx = (local_row_offset * inner_loop_size + local_col_offset as usize) as i64;
+        let mut start_idx =
+            (local_row_offset * inner_loop_size + (local_col_offset as usize)) as i64;
         let pack = get_pack_closure::<T, N>(info.endian);
 
         for idx in 0..(outer * inner) as usize {
             if start_idx < 0 {
                 let jumped_eles2 = -start_idx;
-                let jumped_rows2 = jumped_eles2 / inner_loop_size as i64;
+                let jumped_rows2 = jumped_eles2 / (inner_loop_size as i64);
                 let num_blocks2 = (jumped_rows2 as usize).div_ceil(num_rows_per_chunk);
                 assert!(num_blocks2 <= block_idx);
                 block_idx -= num_blocks2;
-                start_idx = (num_blocks2 as i64 * num_rows_per_chunk as i64 - jumped_rows2)
-                    * inner_loop_size as i64
+                start_idx = ((num_blocks2 as i64) * (num_rows_per_chunk as i64) - jumped_rows2)
+                    * (inner_loop_size as i64)
                     + local_col_offset;
                 let (_, new_idx, new_compressed_len, new_block_mem_size) = info.indices[block_idx];
                 block_mem_size = new_block_mem_size;
@@ -111,13 +115,13 @@ pub(crate) fn load_compressed_slice<
                     new_block_mem_size,
                     info.compress_algo,
                 )?;
-            } else if start_idx >= block_mem_size as i64 {
-                let jumped_eles = start_idx - block_mem_size as i64;
-                let jumped_rows = jumped_eles / inner_loop_size as i64;
-                let num_blocks = jumped_rows as usize / num_rows_per_chunk;
+            } else if start_idx >= (block_mem_size as i64) {
+                let jumped_eles = start_idx - (block_mem_size as i64);
+                let jumped_rows = jumped_eles / (inner_loop_size as i64);
+                let num_blocks = (jumped_rows as usize) / num_rows_per_chunk;
                 block_idx += num_blocks + 1;
-                start_idx = (jumped_rows - num_blocks as i64 * num_rows_per_chunk as i64)
-                    * inner_loop_size as i64
+                start_idx = (jumped_rows - (num_blocks as i64) * (num_rows_per_chunk as i64))
+                    * (inner_loop_size as i64)
                     + local_col_offset;
                 let (_, new_idx, new_compressed_len, new_block_mem_size) = info.indices[block_idx];
                 block_mem_size = new_block_mem_size;
@@ -130,21 +134,21 @@ pub(crate) fn load_compressed_slice<
                 )?;
             }
             let val = &uncompressed_data
-                [start_idx as usize..start_idx as usize + std::mem::size_of::<T>()];
+                [start_idx as usize..(start_idx as usize) + std::mem::size_of::<T>()];
             res[idx] = pack(val);
 
             for j in (0..shape.len()).rev() {
-                if prg[j] < (shape[j] - 1) {
+                if prg[j] < shape[j] - 1 {
                     prg[j] += 1;
-                    start_idx += strides[j] * std::mem::size_of::<T>() as i64;
+                    start_idx += strides[j] * (std::mem::size_of::<T>() as i64);
                     break;
                 } else {
                     prg[j] = 0;
-                    start_idx -= (strides[j] * (shape[j] - 1)) * std::mem::size_of::<T>() as i64;
+                    start_idx -= strides[j] * (shape[j] - 1) * (std::mem::size_of::<T>() as i64);
                 }
             }
         }
-        ret.insert(name, tensor);
+        ret.insert(name, tensor.into());
     }
     Ok(ret)
 }

@@ -9,6 +9,50 @@ use crate::{
     storage::{CommonStorage, Storage},
 };
 
+fn allocate_mem(
+    allocate_fn: impl Fn() -> *mut u8,
+    deallocate_fn: &impl Fn(*mut u8, std::alloc::Layout),
+    device_id: usize,
+    layout: std::alloc::Layout,
+    allocated: &mut HashSet<SafePtr>,
+    cache: &mut LruCache<std::alloc::Layout, Vec<SafePtr>>,
+) -> std::result::Result<*mut u8, TensorError> {
+    let ptr = allocate_fn();
+    if !ptr.is_null() {
+        allocated.insert(SafePtr { ptr });
+        Ok(ptr)
+    } else {
+        let needed_size = layout.size();
+        let mut freed_size = 0;
+        while freed_size < needed_size {
+            if let Some((layout, ptrs)) = cache.pop_lru() {
+                for safe_ptr in ptrs {
+                    deallocate_fn(safe_ptr.ptr, layout);
+                    freed_size += layout.size();
+                    let ptr = allocate_fn();
+                    if !ptr.is_null() {
+                        allocated.insert(SafePtr { ptr });
+                        return Ok(ptr);
+                    }
+                }
+            }
+        }
+        let ptr = allocate_fn();
+        if !ptr.is_null() {
+            allocated.insert(SafePtr { ptr });
+            Ok(ptr)
+        } else {
+            Err(TensorError::Memory(MemoryError::AllocationFailed {
+                device: "cpu".to_string(),
+                id: device_id,
+                size: layout.size() / 1024 / 1024,
+                source: None,
+                location: Location::caller(),
+            }))
+        }
+    }
+}
+
 /// allocate memory based on layout provided, if the layout is not found in the cache, allocate, otherwise pop from the cache
 ///
 /// this function internally checks if the cache is full, if it is full, it pops the least recently used layout and deallocates the memory
@@ -35,32 +79,24 @@ pub(crate) fn allocate_helper(
         if let Some(safe_ptr) = ptr.pop() {
             safe_ptr.ptr
         } else {
-            let ptr = allocate_fn();
-            if ptr.is_null() {
-                return Err(TensorError::Memory(MemoryError::AllocationFailed {
-                    device: "cpu".to_string(),
-                    id: device_id,
-                    size: layout.size() / 1024 / 1024,
-                    source: None,
-                    location: Location::caller(),
-                }));
-            }
-            allocated.insert(SafePtr { ptr });
-            ptr
+            allocate_mem(
+                allocate_fn,
+                &deallocate_fn,
+                device_id,
+                layout,
+                allocated,
+                cache,
+            )?
         }
     } else {
-        let ptr = allocate_fn();
-        if ptr.is_null() {
-            return Err(TensorError::Memory(MemoryError::AllocationFailed {
-                device: "cpu".to_string(),
-                id: device_id,
-                size: layout.size() / 1024 / 1024,
-                source: None,
-                location: Location::caller(),
-            }));
-        }
-        allocated.insert(SafePtr { ptr });
-        ptr
+        allocate_mem(
+            allocate_fn,
+            &deallocate_fn,
+            device_id,
+            layout,
+            allocated,
+            cache,
+        )?
     };
     // check if the cache is full, if it is full, pop the least recently used layout and deallocate the memory
     if cache.cap().get() == cache.len() {

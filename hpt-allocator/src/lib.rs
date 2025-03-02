@@ -7,6 +7,7 @@ mod ptr;
 mod storage;
 pub(crate) mod utils {
     pub(crate) mod allocate;
+    pub(crate) mod cache_resize;
     pub(crate) mod deallocate;
 }
 /// traits for the allocator
@@ -16,6 +17,9 @@ pub use crate::allocators::cpu::CACHE;
 #[cfg(feature = "cuda")]
 pub use crate::allocators::cuda::CUDA_CACHE;
 pub use crate::storage::clone_storage;
+pub use allocators::cpu::resize_cpu_lru_cache;
+#[cfg(feature = "cuda")]
+pub use allocators::cuda::resize_cuda_lru_cache;
 pub use storage::cpu::CPU_STORAGE;
 #[cfg(feature = "cuda")]
 pub use storage::cuda::CUDA_STORAGE;

@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 hpt-macros = { path = "../hpt-macros" }
 hpt-common = { path = "../hpt-common" }
 hpt = { path = "../hpt", features = ["track_caller", "bound_check"] }
-hpt-codegen = { path = "../hpt-codegen" }
+# hpt-codegen = { path = "../hpt-codegen" }
 hpt-types = { path = "../hpt-types" }
 serde_json = "1"
 tch = { version = "0.17.0", features = ["download-libtorch"] }
