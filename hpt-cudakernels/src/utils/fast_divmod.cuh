@@ -38,7 +38,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 template <typename T>
-__device__ __forceinline__ T divmod(T a, T b, T &div, T &mod)
+__device__ __forceinline__ void divmod(T a, T b, T &div, T &mod)
 {
     div = a / b;
     mod = a % b;

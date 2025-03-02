@@ -131,7 +131,7 @@ pub mod vectors {
             /// A module defines a set of 256-bit vector types for usize
             pub mod usizex4;
         }
-        
+
         // This file contains code ported from SLEEF (https://github.com/shibatch/sleef)
         //
         // Original work Copyright (c) 2010-2022, Naoki Shibata and contributors

@@ -1,6 +1,7 @@
 use rayon::prelude::*;
 use regex::Regex;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::io::Read;
 use std::io::Write;
 use std::path::Path;
@@ -43,7 +44,6 @@ fn main() {
     }
 
     let mut buffer = String::new();
-
     let results: Vec<_> = cu_files
         .par_iter()
         .map(|cu_file| {
@@ -252,43 +252,40 @@ fn compile_cu(cu_file: &Path, out_dir: &Path, caps: &[u32]) -> Result<Vec<String
         obj_files.push(name);
     }
     std::fs::remove_dir_all(temp_dir).ok();
-
     Ok(obj_files)
 }
 
 fn get_dependencies(cu_file: &Path) -> Result<Vec<PathBuf>, String> {
-    let mut cmd = Command::new("nvcc");
-    cmd.arg("-M").arg(cu_file.to_str().unwrap());
-
-    let output = cmd
-        .output()
-        .map_err(|e| format!("Failed to get dependencies: {}", e))?;
-
-    let deps = String::from_utf8_lossy(&output.stdout);
-
+    let content = std::fs::read_to_string(cu_file).map_err(|e| e.to_string())?;
     let src_dir = std::env::current_dir()
-        .expect("get current dir failed")
+        .map_err(|e| e.to_string())?
         .join("src")
         .canonicalize()
         .map_err(|e| e.to_string())?;
 
-    let deps: Vec<PathBuf> = deps
-        .split_whitespace()
-        .filter(|path| {
-            let ext = Path::new(path).extension().and_then(|s| s.to_str());
-            ext == Some("h") || ext == Some("cuh") || ext == Some("hpp")
-        })
-        .map(|path| PathBuf::from(path.replace("\\", "")))
-        .filter(|path| {
-            if let Ok(abs_path) = path.canonicalize() {
-                abs_path.starts_with(&src_dir)
-            } else {
-                false
-            }
-        })
-        .collect();
+    let file_dir = cu_file.parent().unwrap_or(Path::new(""));
 
-    Ok(deps)
+    let mut deps = HashSet::new();
+
+    for line in content.lines() {
+        let line = line.trim();
+        if let Some(path_str) = line
+            .strip_prefix("#include \"")
+            .and_then(|s| s.strip_suffix("\""))
+        {
+            if path_str.ends_with(".h") || path_str.ends_with(".cuh") || path_str.ends_with(".hpp")
+            {
+                let path = file_dir.join(path_str);
+                if let Ok(canonical_path) = path.canonicalize() {
+                    if canonical_path.starts_with(&src_dir) {
+                        deps.insert(canonical_path);
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(deps.into_iter().collect())
 }
 
 fn compute_cap() -> Vec<u32> {

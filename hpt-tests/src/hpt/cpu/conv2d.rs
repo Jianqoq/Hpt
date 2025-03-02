@@ -1,7 +1,7 @@
 #![allow(unused)]
 use hpt::ShapeManipulate;
 use hpt::TensorLike;
-use hpt::{set_global_display_lr_elements, set_num_threads, CommonBounds, TensorInfo};
+use hpt::{set_display_elements, set_num_threads, CommonBounds, TensorInfo};
 use hpt::{Conv, Tensor, TensorCreator};
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;

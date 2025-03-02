@@ -233,7 +233,6 @@ pub mod ops {
                 pub(crate) mod binary_normal;
             }
             pub(crate) mod unary {
-                pub(crate) mod strided_copy;
                 pub(crate) mod unary;
             }
             pub(crate) mod launch_cfg {
@@ -254,6 +253,8 @@ pub mod ops {
         pub mod creation;
         /// a module contains fast divmod ops
         pub mod divmod;
+        /// a module contains reduce utils
+        pub mod reduce;
         /// a module contains all the shape manipulation ops
         pub mod shape_manipulate;
     }
@@ -280,6 +281,9 @@ pub use flate2;
 // pub use hpt_codegen::compile;
 // #[cfg(feature = "codegen")]
 // pub use hpt_codegen::fuse_proc_macro;
+pub use hpt_allocator::resize_cpu_lru_cache;
+#[cfg(feature = "cuda")]
+pub use hpt_allocator::resize_cuda_lru_cache;
 pub use hpt_common::slice;
 pub use hpt_common::{
     error::base::TensorError, shape::shape::Shape, slice::Slice, strides::strides::Strides,
@@ -312,12 +316,12 @@ thread_local! {
 }
 
 /// Set the Tensor display precision
-pub fn set_global_display_precision(precision: usize) {
+pub fn set_display_precision(precision: usize) {
     DISPLAY_PRECISION.store(precision, std::sync::atomic::Ordering::Relaxed);
 }
 
 /// Set the left and right elements to display for each dimension
-pub fn set_global_display_lr_elements(lr_elements: usize) {
+pub fn set_display_elements(lr_elements: usize) {
     DISPLAY_LR_ELEMENTS.store(lr_elements, std::sync::atomic::Ordering::Relaxed);
 }
 
@@ -405,8 +409,18 @@ const SIMD_WIDTH: usize = 128;
 #[cfg(feature = "cuda")]
 const CUDA_SEED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(2621654116416541);
 
-#[cfg(feature = "cuda")]
-/// Set the CUDA seed for random number generation
-pub fn set_cuda_seed(seed: u64) {
-    CUDA_SEED.store(seed, std::sync::atomic::Ordering::Relaxed);
+/// Set the seed for random number generation
+pub fn set_seed<B: BackendTy>(seed: u64) {
+    match B::ID {
+        0 => {
+            panic!("CPU backend does not support setting seed");
+        }
+        #[cfg(feature = "cuda")]
+        1 => {
+            CUDA_SEED.store(seed, std::sync::atomic::Ordering::Relaxed);
+        }
+        _ => {
+            panic!("Unsupported backend {:?}", B::ID);
+        }
+    }
 }

@@ -1,7 +1,7 @@
 use crate::ops::cuda::cuda_utils::{compile_kernel, compute_kernel_launch_config, get_array_str};
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
-use cudarc::driver::{CudaSlice, DeviceRepr, DeviceSlice, LaunchAsync};
+use cudarc::driver::{DeviceRepr, LaunchAsync};
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_traits::tensor::CommonBounds;
@@ -92,52 +92,4 @@ where
     let cfg = compute_kernel_launch_config(ret.device(), reg_info, ret.size());
     unsafe { kernel.launch(cfg, (inp_slice, out_slice, ret.size())) }?;
     Ok(ret)
-}
-
-pub(crate) fn unary_raw_mut<T, O, F>(
-    slice: &CudaSlice<T>,
-    res_slice: &CudaSlice<O>,
-    f: F,
-) -> std::result::Result<(), TensorError>
-where
-    T: CudaType + CommonBounds + DeviceRepr,
-    O: CudaType + CommonBounds + DeviceRepr,
-    F: Fn(Scalar<O>, Scalar<T>) -> Scalar<O>,
-{
-    assert_eq!(slice.device().ordinal(), res_slice.device().ordinal());
-    let a_include = get_include_1::<T>();
-    let k_include = get_include_1::<O>();
-    let scalar_a = Scalar::<T>::new("inp[idx]".to_string());
-    let scalar_k = Scalar::<O>::new("out[idx]".to_string());
-    let res_scalar = f(scalar_k, scalar_a);
-    let code = format!(
-        "
-        {a_include}
-        {k_include}
-        extern \"C\" __global__ void unary_raw_mut(const {}* inp, {}* out, int size) {{
-            unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-            if (idx < size) {{
-                {};
-            }}
-        }}
-        ",
-        T::CUDA_TYPE,
-        O::CUDA_TYPE,
-        res_scalar.val()
-    );
-    let module_name = format!(
-        "unary_raw_mut_{}_{}_{}",
-        T::CUDA_TYPE,
-        O::CUDA_TYPE,
-        res_scalar.val()
-    );
-    let map = compile_kernel(&module_name, &code, slice.device(), &["unary_raw_mut"])?;
-    let kernel = slice
-        .device()
-        .get_func(&module_name, "unary_raw_mut")
-        .unwrap();
-    let reg_info = map.get("unary_raw_mut").expect("func_name not found");
-    let cfg = compute_kernel_launch_config(slice.device(), reg_info, slice.len());
-    unsafe { kernel.launch(cfg, (slice, res_slice, slice.len())) }?;
-    Ok(())
 }

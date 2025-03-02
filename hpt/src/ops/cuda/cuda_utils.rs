@@ -327,13 +327,6 @@ pub(crate) fn check_launch_config(
     Ok(())
 }
 
-pub(crate) fn max_grid_dim_y(device: Arc<CudaDevice>) -> u32 {
-    use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Y;
-    device
-        .attribute(CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Y)
-        .expect("failed to get max grid dim") as u32
-}
-
 pub(crate) fn get_include_1<T: TypeCommon + CudaType>() -> &'static str {
     if T::CUDA_TYPE == "__half" {
         "#include <cuda_fp16.h>"

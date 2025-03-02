@@ -52,7 +52,14 @@ impl FastDivmod {
     pub(crate) fn divmod(&self, dividend: i32) -> (i32, i32) {
         let mut quo = 0;
         let mut rem = 0;
-        fast_divmod(&mut quo, &mut rem, dividend, self.divisor, self.multiplier, self.shift_right);
+        fast_divmod(
+            &mut quo,
+            &mut rem,
+            dividend,
+            self.divisor,
+            self.multiplier,
+            self.shift_right,
+        );
         (quo, rem)
     }
 }

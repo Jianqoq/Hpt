@@ -68,7 +68,7 @@
     "datasets": [
       {
         "label": "Hpt",
-        "data": [401.86, 396.35, 427.3, 438.21, 455.26, 369.31, 383],
+        "data": [401.86, 396.35, 427.3, 438.21, 455.26, 369.31, 367.62],
         "backgroundColor": "rgb(75, 192, 192)",
         "borderColor": "rgb(75, 192, 192)",
         "borderWidth": 1
@@ -135,5 +135,7 @@ codegen-units = 1
 `CPU`: 12th Gen Intel(R) Core(TM) i5-12600K   3.69 GHz
 
 `RAM`: G.SKILL Trident Z Royal Series (Intel XMP) DDR4 64GB
+
+`GPU`: RTX 4090 24GB
 
 `System`: Windows 11 Pro 23H2

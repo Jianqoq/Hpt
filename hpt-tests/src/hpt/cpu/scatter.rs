@@ -1,5 +1,5 @@
 #![allow(unused_imports)]
-use hpt::set_global_display_lr_elements;
+use hpt::set_display_elements;
 use hpt::AdvancedOps;
 use hpt::ShapeManipulate;
 use hpt::TensorInfo;

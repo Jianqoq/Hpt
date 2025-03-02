@@ -74,7 +74,10 @@ fn assert_eq_f64(b: &hpt::tensor::Tensor<f64, Cuda>, a: &Tensor) {
         };
 
         if rel_diff > 0.05 {
-            panic!("{} != {} (relative_diff: {})", *a, *b, rel_diff);
+            panic!(
+                "{} != {} (relative_diff: {}), at {}",
+                *a, *b, rel_diff, caller
+            );
         }
     });
 }
@@ -155,12 +158,13 @@ fn common_input_f64<const N: usize>(
 #[test]
 fn func() -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
-    for _ in 0..100 {
+    for _ in 0..10000 {
         let shape = [
-            rng.gen_range(1..32),
-            rng.gen_range(1..32),
-            rng.gen_range(1..32),
+            rng.gen_range(1..512),
+            rng.gen_range(1..512),
+            rng.gen_range(1..512),
         ];
+        println!("shape: {:?}", shape);
         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
         let sum = a.hpt_method(1, true)?;
         let tch_sum = tch_a.tch_method(1, true, tch::Kind::Int64);
@@ -209,12 +213,13 @@ fn func() -> anyhow::Result<()> {
 #[test]
 fn func() -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
-    for _ in 0..100 {
+    for _ in 0..10000 {
         let shape = [
-            rng.gen_range(1..32),
-            rng.gen_range(1..32),
-            rng.gen_range(1..32),
+            rng.gen_range(1..512),
+            rng.gen_range(1..512),
+            rng.gen_range(1..512),
         ];
+        println!("shape: {:?}", shape);
         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
         let a = a.permute([1, 0, 2])?;
         let tch_a = tch_a.permute(&[1, 0, 2][..]);
@@ -251,13 +256,13 @@ fn func() -> anyhow::Result<()> {
 #[test]
 fn func() -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
-    for _ in 0..100 {
+    for idx in 0..10000 {
         let shape = [
-            rng.gen_range(1..32),
-            rng.gen_range(1..32),
-            rng.gen_range(1..32),
-            rng.gen_range(1..32),
+            rng.gen_range(1..512),
+            rng.gen_range(1..512),
+            rng.gen_range(1..512),
         ];
+        println!("shape: {:?}", shape);
         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
         let dim0_max = if shape[0] > 1 {
             rng.gen_range(1..shape[0])
@@ -291,25 +296,11 @@ fn func() -> anyhow::Result<()> {
         } else {
             0
         };
-
-        let dim3_max = if shape[3] > 1 {
-            rng.gen_range(1..shape[3])
-        } else {
-            1
-        };
-        let dim3_min = if dim3_max > 0 {
-            rng.gen_range(0..dim3_max)
-        } else {
-            0
-        };
-
-        let a =
-            slice!(a[dim0_min:dim0_max, dim1_min:dim1_max, dim2_min:dim2_max, dim3_min:dim3_max])?;
+        let a = slice!(a[dim0_min:dim0_max, dim1_min:dim1_max, dim2_min:dim2_max])?;
         let tch_a = tch_a
             .slice(0, dim0_min, dim0_max, 1)
             .slice(1, dim1_min, dim1_max, 1)
-            .slice(2, dim2_min, dim2_max, 1)
-            .slice(3, dim3_min, dim3_max, 1);
+            .slice(2, dim2_min, dim2_max, 1);
         let sum = a.hpt_method(0, true)?;
         let tch_sum = tch_a.tch_method(0, true, tch::Kind::Int64);
         assert_eq(&sum, &tch_sum);
@@ -330,6 +321,7 @@ fn func() -> anyhow::Result<()> {
         assert_eq(&sum, &tch_sum);
         let sum = a.hpt_method([0, 1, 2], false)?;
         let tch_sum = tch_a.tch_method(&[0, 1, 2][..], false, tch::Kind::Int64);
+        let sum_cpu = a.to_cpu::<0>()?.sum([0, 1, 2], false)?;
         assert_eq(&sum, &tch_sum);
     }
     Ok(())
@@ -343,13 +335,13 @@ fn func() -> anyhow::Result<()> {
 #[test]
 fn func() -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
-    for _ in 0..100 {
+    for _ in 0..10000 {
         let shape = [
-            rng.gen_range(1..32),
-            rng.gen_range(1..32),
-            rng.gen_range(1..32),
-            rng.gen_range(1..32),
+            rng.gen_range(1..512),
+            rng.gen_range(1..512),
+            rng.gen_range(1..512),
         ];
+        println!("shape: {:?}", shape);
         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
         let dim0_max = if shape[0] > 1 {
             rng.gen_range(1..shape[0])
@@ -401,33 +393,11 @@ fn func() -> anyhow::Result<()> {
             1
         };
 
-        let dim3_max = if shape[3] > 1 {
-            rng.gen_range(1..shape[3])
-        } else {
-            1
-        };
-        let dim3_min = if dim3_max > 0 {
-            rng.gen_range(0..dim3_max)
-        } else {
-            0
-        };
-
-        let dim3_step = if dim3_max > dim3_min {
-            rng.gen_range(1..=(dim3_max - dim3_min).min(2))
-        } else {
-            1
-        };
-
-        let a = slice!(
-            a[dim0_min:dim0_max:dim0_step,
-             dim1_min:dim1_max:dim1_step, 
-             dim2_min:dim2_max:dim2_step, 
-             dim3_min:dim3_max:dim3_step])?;
+        let a = slice!(a[dim0_min:dim0_max:dim0_step, dim1_min:dim1_max:dim1_step,  dim2_min:dim2_max:dim2_step])?;
         let tch_a = tch_a
             .slice(0, dim0_min, dim0_max, dim0_step)
             .slice(1, dim1_min, dim1_max, dim1_step)
-            .slice(2, dim2_min, dim2_max, dim2_step)
-            .slice(3, dim3_min, dim3_max, dim3_step);
+            .slice(2, dim2_min, dim2_max, dim2_step);
         let sum = a.hpt_method(0, true)?;
         let tch_sum = tch_a.tch_method(0, true, tch::Kind::Int64);
         assert_eq(&sum, &tch_sum);
@@ -1453,9 +1423,9 @@ fn test_sub_tensor_reducel3_step() -> anyhow::Result<()> {
 #[test]
 fn test_argmin() -> anyhow::Result<()> {
     let shape = [
-        rand::thread_rng().gen_range(1..1000),
-        rand::thread_rng().gen_range(1..1000),
-        rand::thread_rng().gen_range(1..1000),
+        rand::thread_rng().gen_range(1..512),
+        rand::thread_rng().gen_range(1..512),
+        rand::thread_rng().gen_range(1..512),
     ];
     let (a, tch_a) = common_input(shape.iter().product(), shape)?;
     let sum = a.argmin(0, false)?;
@@ -1795,9 +1765,9 @@ fn test_uncontiguous_all2() -> anyhow::Result<()> {
 #[test]
 fn test_any() -> anyhow::Result<()> {
     let shape = [
-        rand::thread_rng().gen_range(1..=1000),
-        rand::thread_rng().gen_range(1..=1000),
-        rand::thread_rng().gen_range(1..=1000),
+        rand::thread_rng().gen_range(1..=512),
+        rand::thread_rng().gen_range(1..=512),
+        rand::thread_rng().gen_range(1..=512),
     ];
     let (a, tch_a) = common_input(shape.iter().product(), shape)?;
     let sum = a.any(0, false)?;

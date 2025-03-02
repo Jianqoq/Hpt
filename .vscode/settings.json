@@ -54,6 +54,18 @@
         "xlocnum": "cpp",
         "xloctime": "cpp",
         "__config": "cpp",
-        "array": "cpp"
+        "array": "cpp",
+        "bit": "cpp",
+        "cctype": "cpp",
+        "clocale": "cpp",
+        "forward_list": "cpp",
+        "ios": "cpp",
+        "iostream": "cpp",
+        "optional": "cpp",
+        "ratio": "cpp",
+        "stdexcept": "cpp",
+        "system_error": "cpp",
+        "xfacet": "cpp",
+        "xlocinfo": "cpp"
     },
 }

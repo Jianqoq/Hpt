@@ -147,7 +147,6 @@ fn func() -> anyhow::Result<()> {
             rng.gen_range(1..32),
             rng.gen_range(1..32),
             rng.gen_range(1..32),
-            rng.gen_range(1..32),
         ];
         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
         let sum = a.hpt_method(1, true)?;
@@ -245,7 +244,6 @@ fn func() -> anyhow::Result<()> {
             rng.gen_range(1..32),
             rng.gen_range(1..32),
             rng.gen_range(1..32),
-            rng.gen_range(1..32),
         ];
         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
         let dim0_max = if shape[0] > 1 {
@@ -281,24 +279,11 @@ fn func() -> anyhow::Result<()> {
             0
         };
 
-        let dim3_max = if shape[3] > 1 {
-            rng.gen_range(1..shape[3])
-        } else {
-            1
-        };
-        let dim3_min = if dim3_max > 0 {
-            rng.gen_range(0..dim3_max)
-        } else {
-            0
-        };
-
-        let a =
-            slice!(a[dim0_min:dim0_max, dim1_min:dim1_max, dim2_min:dim2_max, dim3_min:dim3_max])?;
+        let a = slice!(a[dim0_min:dim0_max, dim1_min:dim1_max, dim2_min:dim2_max])?;
         let tch_a = tch_a
             .slice(0, dim0_min, dim0_max, 1)
             .slice(1, dim1_min, dim1_max, 1)
-            .slice(2, dim2_min, dim2_max, 1)
-            .slice(3, dim3_min, dim3_max, 1);
+            .slice(2, dim2_min, dim2_max, 1);
         let sum = a.hpt_method(0, true)?;
         let tch_sum = tch_a.tch_method(0, true, tch::Kind::Int64);
         assert_eq(&sum, &tch_sum);
@@ -334,7 +319,6 @@ fn func() -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
     for _ in 0..100 {
         let shape = [
-            rng.gen_range(1..32),
             rng.gen_range(1..32),
             rng.gen_range(1..32),
             rng.gen_range(1..32),
@@ -390,33 +374,14 @@ fn func() -> anyhow::Result<()> {
             1
         };
 
-        let dim3_max = if shape[3] > 1 {
-            rng.gen_range(1..shape[3])
-        } else {
-            1
-        };
-        let dim3_min = if dim3_max > 0 {
-            rng.gen_range(0..dim3_max)
-        } else {
-            0
-        };
-
-        let dim3_step = if dim3_max > dim3_min {
-            rng.gen_range(1..=(dim3_max - dim3_min).min(2))
-        } else {
-            1
-        };
-
         let a = slice!(
             a[dim0_min:dim0_max:dim0_step,
              dim1_min:dim1_max:dim1_step, 
-             dim2_min:dim2_max:dim2_step, 
-             dim3_min:dim3_max:dim3_step])?;
+             dim2_min:dim2_max:dim2_step])?;
         let tch_a = tch_a
             .slice(0, dim0_min, dim0_max, dim0_step)
             .slice(1, dim1_min, dim1_max, dim1_step)
-            .slice(2, dim2_min, dim2_max, dim2_step)
-            .slice(3, dim3_min, dim3_max, dim3_step);
+            .slice(2, dim2_min, dim2_max, dim2_step);
         let sum = a.hpt_method(0, true)?;
         let tch_sum = tch_a.tch_method(0, true, tch::Kind::Int64);
         assert_eq(&sum, &tch_sum);

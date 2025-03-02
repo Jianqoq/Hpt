@@ -315,6 +315,17 @@ export default defineUserConfig({
               ]
             },
             {
+              text: 'utils',
+              collapsible: true,
+              children: [
+                { text: 'set_display_elements', link: '/user_guide/utils/set_display_elements.md' },
+                { text: 'resize_cpu_lru_cache', link: '/user_guide/utils/resize_cpu_lru_cache.md' },
+                { text: 'resize_cuda_lru_cache', link: '/user_guide/utils/resize_cuda_lru_cache.md' },
+                { text: 'set_seed', link: '/user_guide/utils/set_seed.md' },
+                { text: "num_threads", link: '/user_guide/utils/num_threads.md' },
+              ]
+            },
+            {
               text: 'custom type',
               link: '/user_guide/custom_type/custom_type.md'
             },

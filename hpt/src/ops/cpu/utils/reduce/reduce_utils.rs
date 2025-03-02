@@ -10,30 +10,11 @@ use hpt_common::{
 use hpt_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, TensorLike};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
-use crate::{backend::Cpu, tensor_base::_Tensor};
-
-pub(crate) fn rearrange_array(ndim: usize, to_reduce: &[usize]) -> Vec<usize> {
-    let mut origin_order = (0..ndim).collect::<Vec<usize>>();
-    let mut to_reduce = to_reduce.to_vec();
-    // sort the reduce axes
-    to_reduce.sort();
-
-    // store the elements to be reduced
-    let mut moved_elements = Vec::new();
-    origin_order.retain(|&x| {
-        if to_reduce.contains(&x) {
-            moved_elements.push(x);
-            false
-        } else {
-            true
-        }
-    });
-
-    // put the reduced elements at the end
-    origin_order.extend(moved_elements);
-
-    origin_order
-}
+use crate::{
+    backend::Cpu,
+    ops::common::reduce::{is_keep_fast_dim, rearrange_array},
+    tensor_base::_Tensor,
+};
 
 pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: usize>(
     a: &_Tensor<T, Cpu, DEVICE>,
@@ -82,13 +63,7 @@ pub(crate) fn uncontiguous_reduce_prepare<T: CommonBounds, O: CommonBounds, cons
     ),
     TensorError,
 > {
-    let mut keep_fast_dim = true;
-    for axis in axes.iter() {
-        if a.strides()[*axis] == 1 {
-            keep_fast_dim = false;
-            break;
-        }
-    }
+    let keep_fast_dim = is_keep_fast_dim(&a.layout.strides(), axes);
     // get permute order, we move to_reduce axes to the end
     let mut transposed_axis = rearrange_array(a.ndim(), axes);
     // sort the transposed axis based on the stride, ordering the axis can increase the cpu cache hitting rate when we do iteration

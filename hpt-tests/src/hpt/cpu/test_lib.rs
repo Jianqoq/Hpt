@@ -1,12 +1,12 @@
 #![allow(unused_imports)]
-use hpt::{get_num_threads, set_global_display_lr_elements, set_num_threads, ShapeManipulate};
-use hpt::{set_global_display_precision, tensor::Tensor, TensorCreator};
+use hpt::{get_num_threads, set_display_elements, set_num_threads, ShapeManipulate};
+use hpt::{set_display_precision, tensor::Tensor, TensorCreator};
 
 #[test]
 fn test_set_global_display_precision() -> anyhow::Result<()> {
     let a = Tensor::<f32>::new(0.39871234566541987416541651);
     assert_eq!(a.to_string(), "Tensor(0.3987)\n");
-    set_global_display_precision(8);
+    set_display_precision(8);
     assert_eq!(a.to_string(), "Tensor(0.39871234)\n");
     Ok(())
 }
@@ -25,7 +25,7 @@ fn test_set_global_lr_precision() -> anyhow::Result<()> {
         [80. 81. 82. ... 87. 88. 89. ]
         [90. 91. 92. ... 97. 98. 99. ]], shape=(10, 10), strides=(10, 1), dtype=f32)\n"
     );
-    set_global_display_lr_elements(2);
+    set_display_elements(2);
     assert_eq!(
         a.to_string(),
         "Tensor([[ 0.  1. ...  8.  9. ]
