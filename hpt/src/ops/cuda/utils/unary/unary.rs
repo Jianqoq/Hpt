@@ -2,6 +2,7 @@ use crate::ops::cuda::cuda_utils::{compile_kernel, compute_kernel_launch_config,
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use cudarc::driver::{DeviceRepr, LaunchAsync};
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_traits::tensor::CommonBounds;
@@ -12,23 +13,25 @@ use std::borrow::BorrowMut;
 
 use crate::ops::cuda::cuda_utils::get_include_1;
 
-pub(crate) fn uary_fn_with_out_simd<A, O, K, F, const DEVICE_ID: usize>(
-    inp: &_Tensor<A, Cuda, DEVICE_ID>,
+pub(crate) fn uary_fn_with_out_simd<A, O, K, F, const DEVICE_ID: usize, Al>(
+    inp: &_Tensor<A, Cuda, DEVICE_ID, Al>,
     module_name: &str,
     f: F,
     out: Option<O>,
-) -> std::result::Result<_Tensor<K, Cuda, DEVICE_ID>, TensorError>
+) -> std::result::Result<_Tensor<K, Cuda, DEVICE_ID, Al>, TensorError>
 where
     A: CommonBounds + DeviceRepr + CudaType,
     K: CommonBounds + DeviceRepr + CudaType,
-    O: BorrowMut<_Tensor<K, Cuda, DEVICE_ID>>,
+    O: BorrowMut<_Tensor<K, Cuda, DEVICE_ID, Al>>,
     F: Fn(Scalar<K>, Scalar<A>) -> Scalar<K>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     let ret = if let Some(mut out) = out {
         ShapeError::check_size_match(inp.size() as i64, out.borrow_mut().size() as i64)?;
         (*out.borrow_mut()).clone()
     } else {
-        _Tensor::<K, Cuda, DEVICE_ID>::empty(inp.shape())?
+        _Tensor::<K, Cuda, DEVICE_ID, Al>::empty(inp.shape())?
     };
     let a_include = get_include_1::<A>();
     let k_include = get_include_1::<K>();

@@ -1,5 +1,7 @@
 use crate::tensor_base::_Tensor;
-use crate::{Cpu, THREAD_POOL};
+use crate::Cpu;
+use hpt_allocator::traits::Allocator;
+use hpt_allocator::traits::AllocatorOutputRetrive;
 use hpt_common::error::param::ParamError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::prg_update::next_sub1;
@@ -7,12 +9,18 @@ use hpt_common::shape::shape_utils::mt_intervals;
 use hpt_common::slice;
 use hpt_common::{axis::axis::Axis, error::base::TensorError, shape::shape::Shape};
 use hpt_macros::select;
+use hpt_traits::Concat;
 use hpt_traits::{CommonBounds, ShapeManipulate, Slice, TensorCreator, TensorInfo, TensorLike};
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use std::panic::Location;
 
-impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for _Tensor<T, Cpu, DEVICE> {
+impl<T: CommonBounds, const DEVICE: usize, Al> ShapeManipulate for _Tensor<T, Cpu, DEVICE, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
     type Meta = T;
-    type Output = _Tensor<T, Cpu, DEVICE>;
+    type Output = _Tensor<T, Cpu, DEVICE, Al>;
     fn squeeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self, TensorError> {
         Ok(crate::ops::common::shape_manipulate::squeeze(
             self,
@@ -167,6 +175,14 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for _Tensor<T, Cpu, D
             |a| a.contiguous(),
         )?)
     }
+}
+
+impl<T: CommonBounds, const DEVICE: usize, Al> Concat for _Tensor<T, Cpu, DEVICE, Al>
+where
+    Al: Allocator + Send + Sync + Clone + 'static,
+    Al::Output: AllocatorOutputRetrive,
+{
+    type Output = _Tensor<T, Cpu, DEVICE, Al>;
     fn concat(
         tensors: Vec<Self>,
         axis: usize,
@@ -206,7 +222,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for _Tensor<T, Cpu, D
                 new_shape[i] = *x;
             }
         });
-        let new_tensor = _Tensor::<T, Cpu, DEVICE>::empty(&new_shape)?;
+        let new_tensor = _Tensor::<T, Cpu, DEVICE, Al>::empty(&new_shape)?;
         let mut begin = 0;
         let mut res_slices = Vec::with_capacity(length);
         for i in tensors.iter() {
@@ -219,44 +235,46 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for _Tensor<T, Cpu, D
         let tensors = tensors
             .iter()
             .map(|x| (*x).clone())
-            .collect::<Vec<_Tensor<T, Cpu, DEVICE>>>();
-        THREAD_POOL.with_borrow_mut(|pool| {
-            let num_threads: usize;
-            if length < pool.max_count() {
-                num_threads = length;
-            } else {
-                num_threads = pool.max_count();
-            }
-            let intervals: Vec<(usize, usize)> = mt_intervals(length, num_threads);
-            for i in 0..num_threads {
-                let (start, end) = intervals[i];
-                let res_tensors = res_slices[start..end].to_vec();
-                let inputs = tensors[start..end].to_vec();
-                pool.execute(move || {
-                    for (res, input) in res_tensors.into_iter().zip(inputs.into_iter()) {
-                        let mut res_ptr = res.ptr();
-                        let mut a_data = input.ptr();
-                        let a_last_stride = *input.strides().last().unwrap();
-                        let inner_loop_size = *input.shape().last().unwrap();
-                        let outer_loop_size = input.size() / (inner_loop_size as usize);
-                        let mut prg = vec![0; input.ndim()];
-                        for _ in 0..outer_loop_size {
-                            for i in 0..inner_loop_size {
-                                res_ptr[i] = a_data[i * a_last_stride];
-                            }
-                            next_sub1(
-                                &mut prg,
-                                input.shape(),
-                                [&mut a_data, &mut res_ptr],
-                                [&input.shape(), &res.shape()],
-                                [&input.strides(), &res.strides()],
-                            );
+            .collect::<Vec<_Tensor<T, Cpu, DEVICE, Al>>>();
+        let num_threads = if length < rayon::current_num_threads() {
+            length
+        } else {
+            rayon::current_num_threads()
+        };
+        let intervals = mt_intervals(length, num_threads);
+        let res_tensors = intervals
+            .iter()
+            .map(|(start, end)| res_slices[*start..*end].to_vec())
+            .collect::<Vec<_>>();
+        let inputs = intervals
+            .iter()
+            .map(|(start, end)| tensors[*start..*end].to_vec())
+            .collect::<Vec<_>>();
+        res_tensors
+            .into_par_iter()
+            .zip(inputs.into_par_iter())
+            .for_each(|(res_tensors, inputs)| {
+                for (res, input) in res_tensors.into_iter().zip(inputs.into_iter()) {
+                    let mut res_ptr = res.ptr();
+                    let mut a_data = input.ptr();
+                    let a_last_stride = *input.strides().last().unwrap();
+                    let inner_loop_size = *input.shape().last().unwrap();
+                    let outer_loop_size = input.size() / (inner_loop_size as usize);
+                    let mut prg = vec![0; input.ndim()];
+                    for _ in 0..outer_loop_size {
+                        for i in 0..inner_loop_size {
+                            res_ptr[i] = a_data[i * a_last_stride];
                         }
+                        next_sub1(
+                            &mut prg,
+                            input.shape(),
+                            [&mut a_data, &mut res_ptr],
+                            [&input.shape(), &res.shape()],
+                            [&input.strides(), &res.strides()],
+                        );
                     }
-                });
-            }
-            pool.join();
-        });
+                }
+            });
         if keepdims {
             let mut res_shape = Vec::with_capacity(new_shape.len() + 1);
             for (idx, i) in new_shape.iter().enumerate() {

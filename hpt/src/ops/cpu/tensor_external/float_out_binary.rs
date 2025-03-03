@@ -2,18 +2,21 @@ use hpt_traits::{CommonBounds, FloatBinOps};
 use hpt_types::{dtype::TypeCommon, type_promote::FloatOutBinary};
 
 use crate::{ops::cpu::tensor_internal::float_out_unary::FloatBinaryType, Cpu, Tensor};
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 
-impl<T, const DEVICE: usize> FloatBinOps for Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> FloatBinOps for Tensor<T, Cpu, DEVICE, Al>
 where
     T: FloatOutBinary + CommonBounds,
     FloatBinaryType<T>: CommonBounds,
     T::Vec: FloatOutBinary<Output = <FloatBinaryType<T> as TypeCommon>::Vec>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = Tensor<FloatBinaryType<T>, Cpu, DEVICE>;
+    type Output = Tensor<FloatBinaryType<T>, Cpu, DEVICE, Al>;
 
     type OutputMeta = FloatBinaryType<T>;
 
-    type InplaceOutput = Tensor<FloatBinaryType<T>, Cpu, DEVICE>;
+    type InplaceOutput = Tensor<FloatBinaryType<T>, Cpu, DEVICE, Al>;
 
     fn hypot(
         &self,

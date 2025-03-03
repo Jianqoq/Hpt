@@ -1,13 +1,14 @@
 use crate::ops::cuda::utils::binary::binary_normal::*;
 use crate::tensor_base::_Tensor;
+use crate::Cpu;
 use crate::Cuda;
 use crate::Tensor;
 use cudarc::driver::DeviceRepr;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_traits::tensor::CommonBounds;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::{BitWiseOut, FloatOutBinary, NormalOut};
 use hpt_types::{cuda_types::scalar::Scalar, dtype::CudaType};
-
 // define add, sub, mul, rem for _Tensor
 #[duplicate::duplicate_item(
     lhs_type      rhs_type   out_type        trait_name   method_name        op;
@@ -28,24 +29,26 @@ use hpt_types::{cuda_types::scalar::Scalar, dtype::CudaType};
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Mul]    [mul]         [_mul];
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Rem]    [rem]         [_rem];
 )]
-impl<T, U, const CUDA_DEVICE: usize> trait_name<rhs_type<U, Cuda, CUDA_DEVICE>>
-    for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<T, U, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<U, Cuda, CUDA_DEVICE, Al>>
+    for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + NormalOut<U> + DeviceRepr + CudaType,
     U: CommonBounds + DeviceRepr + CudaType,
     <T as NormalOut<U>>::Output: CommonBounds + DeviceRepr + CudaType,
     <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
     Scalar<T>: NormalOut<Scalar<U>, Output = Scalar<<T as NormalOut<U>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
-    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE>) -> Self::Output {
+    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
         binary_fn_with_out_simd(
             stringify!(op),
             &self,
             &rhs,
             |out, x, y| out.assign(x.op(y)),
-            None::<out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE>>,
+            None::<out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE, Al>>,
         )
         .unwrap()
     }
@@ -71,18 +74,20 @@ where
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::Mul]       [mul];
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::Rem]       [rem];
 )]
-impl<T, U, const CUDA_DEVICE: usize> trait_name<rhs_type<U, Cuda, CUDA_DEVICE>>
-    for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<T, U, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<U, Cuda, CUDA_DEVICE, Al>>
+    for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + NormalOut<U> + DeviceRepr + CudaType,
     U: CommonBounds + DeviceRepr + CudaType,
     <T as NormalOut<U>>::Output: CommonBounds + DeviceRepr + CudaType,
     <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
     Scalar<T>: NormalOut<Scalar<U>, Output = Scalar<<T as NormalOut<U>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
-    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE>) -> Self::Output {
+    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
@@ -194,18 +199,21 @@ where
     [&Tensor]    [f64]        [Tensor]    [std::ops::Rem]    [rem];
     [&Tensor]    [half::f16]  [Tensor]    [std::ops::Rem]    [rem];
 )]
-impl<T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + NormalOut<rhs_type> + DeviceRepr + CudaType,
     <T as NormalOut<rhs_type>>::Output: CommonBounds + DeviceRepr + CudaType,
     <T as NormalOut<rhs_type>>::Output: Cast<<T as NormalOut<rhs_type>>::Output>,
     Scalar<T>: NormalOut<Scalar<rhs_type>, Output = Scalar<<T as NormalOut<rhs_type>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<T as NormalOut<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as NormalOut<rhs_type>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
-        let rhs: Tensor<rhs_type> = rhs.into();
-        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs
+        let rhs: Tensor<rhs_type, Cpu, 0, <Al as Allocator>::CpuAllocator> = rhs.into();
+        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE, Al> = rhs
             .to_cuda::<CUDA_DEVICE>()
             .expect("Failed to convert to cuda");
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
@@ -319,7 +327,8 @@ where
     [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Rem]    [rem];
     [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Rem]    [rem];
 )]
-impl<'a, T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<'a, T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type>
+    for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + NormalOut<rhs_type_ident> + DeviceRepr + CudaType,
     <T as NormalOut<rhs_type_ident>>::Output: CommonBounds + DeviceRepr + CudaType,
@@ -328,12 +337,15 @@ where
         Scalar<rhs_type_ident>,
         Output = Scalar<<T as NormalOut<rhs_type_ident>>::Output>,
     >,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<T as NormalOut<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as NormalOut<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
-        let rhs: Tensor<rhs_type_ident> = (*rhs).into();
-        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs
+        let rhs: Tensor<rhs_type_ident, Cpu, 0, <Al as Allocator>::CpuAllocator> = (*rhs).into();
+        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE, Al> = rhs
             .to_cuda::<CUDA_DEVICE>()
             .expect("Failed to convert to cuda");
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
@@ -447,19 +459,22 @@ where
     [&Tensor]    [f64]        [Tensor]    [std::ops::Rem]    [rem];
     [&Tensor]    [half::f16]  [Tensor]    [std::ops::Rem]    [rem];
 )]
-impl<T, const CUDA_DEVICE: usize> trait_name<rhs_type<T, Cuda, CUDA_DEVICE>> for lhs_type
+impl<T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<T, Cuda, CUDA_DEVICE, Al>> for lhs_type
 where
     T: CommonBounds + DeviceRepr + CudaType,
     lhs_type: CommonBounds + NormalOut<T> + DeviceRepr + CudaType,
     <lhs_type as NormalOut<T>>::Output: CommonBounds + DeviceRepr + CudaType,
     <lhs_type as NormalOut<T>>::Output: Cast<<lhs_type as NormalOut<T>>::Output>,
     Scalar<lhs_type>: NormalOut<Scalar<T>, Output = Scalar<<lhs_type as NormalOut<T>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<lhs_type as NormalOut<T>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<lhs_type as NormalOut<T>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
-    fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
-        let lhs: Tensor<lhs_type> = self.into();
-        let lhs: Tensor<lhs_type, Cuda, CUDA_DEVICE> = lhs
+    fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
+        let lhs: Tensor<lhs_type, Cpu, 0, <Al as Allocator>::CpuAllocator> = self.into();
+        let lhs: Tensor<lhs_type, Cuda, CUDA_DEVICE, Al> = lhs
             .to_cuda::<CUDA_DEVICE>()
             .expect("Failed to convert to cuda");
         lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
@@ -573,7 +588,8 @@ where
     [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Rem]    [rem];
     [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Rem]    [rem];
 )]
-impl<'a, T, const CUDA_DEVICE: usize> trait_name<rhs_type<T, Cuda, CUDA_DEVICE>> for lhs_type
+impl<'a, T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<T, Cuda, CUDA_DEVICE, Al>>
+    for lhs_type
 where
     T: CommonBounds + DeviceRepr + CudaType,
     lhs_type_ident: CommonBounds + NormalOut<T> + DeviceRepr + CudaType,
@@ -581,12 +597,15 @@ where
     <lhs_type_ident as NormalOut<T>>::Output: Cast<<lhs_type_ident as NormalOut<T>>::Output>,
     Scalar<lhs_type_ident>:
         NormalOut<Scalar<T>, Output = Scalar<<lhs_type_ident as NormalOut<T>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<lhs_type_ident as NormalOut<T>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<lhs_type_ident as NormalOut<T>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
-    fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
-        let lhs: Tensor<lhs_type_ident> = (*self).into();
-        let lhs: Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = lhs
+    fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
+        let lhs: Tensor<lhs_type_ident, Cpu, 0, <Al as Allocator>::CpuAllocator> = (*self).into();
+        let lhs: Tensor<lhs_type_ident, Cuda, CUDA_DEVICE, Al> = lhs
             .to_cuda::<CUDA_DEVICE>()
             .expect("Failed to convert to cuda");
         lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
@@ -609,24 +628,26 @@ where
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitOr]     [bitor]         [_bitor];
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitXor]    [bitxor]        [_bitxor];
 )]
-impl<T, U, const CUDA_DEVICE: usize> trait_name<rhs_type<U, Cuda, CUDA_DEVICE>>
-    for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<T, U, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<U, Cuda, CUDA_DEVICE, Al>>
+    for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + BitWiseOut<U> + DeviceRepr + CudaType,
     U: CommonBounds + DeviceRepr + CudaType,
     <T as BitWiseOut<U>>::Output: CommonBounds + DeviceRepr + CudaType,
     <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     Scalar<T>: BitWiseOut<Scalar<U>, Output = Scalar<<T as BitWiseOut<U>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
-    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE>) -> Self::Output {
+    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
         binary_fn_with_out_simd(
             stringify!(op),
             &self,
             &rhs,
             |out, x, y| out.assign(x.op(y)),
-            None::<out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>>,
+            None::<out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE, Al>>,
         )
         .unwrap()
     }
@@ -648,18 +669,20 @@ where
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::BitOr]     [bitor];
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::BitXor]    [bitxor];
 )]
-impl<T, U, const CUDA_DEVICE: usize> trait_name<rhs_type<U, Cuda, CUDA_DEVICE>>
-    for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<T, U, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<U, Cuda, CUDA_DEVICE, Al>>
+    for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + BitWiseOut<U> + DeviceRepr + CudaType,
     U: CommonBounds + DeviceRepr + CudaType,
     <T as BitWiseOut<U>>::Output: CommonBounds + DeviceRepr + CudaType,
     <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     Scalar<T>: BitWiseOut<Scalar<U>, Output = Scalar<<T as BitWiseOut<U>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
-    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE>) -> Self::Output {
+    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
@@ -745,18 +768,21 @@ where
     [&Tensor]    [f64]        [Tensor]    [std::ops::BitXor]    [bitxor];
     [&Tensor]    [half::f16]  [Tensor]    [std::ops::BitXor]    [bitxor];
 )]
-impl<T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + BitWiseOut<rhs_type> + DeviceRepr + CudaType,
     <T as BitWiseOut<rhs_type>>::Output: CommonBounds + DeviceRepr + CudaType,
     <T as BitWiseOut<rhs_type>>::Output: Cast<<T as BitWiseOut<rhs_type>>::Output>,
     Scalar<T>: BitWiseOut<Scalar<rhs_type>, Output = Scalar<<T as BitWiseOut<rhs_type>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
-        let rhs: Tensor<rhs_type> = rhs.into();
-        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs
+        let rhs: Tensor<rhs_type, Cpu, 0, <Al as Allocator>::CpuAllocator> = rhs.into();
+        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE, Al> = rhs
             .to_cuda::<CUDA_DEVICE>()
             .expect("Failed to convert to cuda");
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
@@ -844,7 +870,8 @@ where
     [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitOr]    [bitor];
     [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitOr]    [bitor];
 )]
-impl<'a, T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<'a, T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type>
+    for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + BitWiseOut<rhs_type_ident> + DeviceRepr + CudaType,
     <T as BitWiseOut<rhs_type_ident>>::Output: CommonBounds + DeviceRepr + CudaType,
@@ -853,12 +880,15 @@ where
         Scalar<rhs_type_ident>,
         Output = Scalar<<T as BitWiseOut<rhs_type_ident>>::Output>,
     >,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<T as BitWiseOut<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as BitWiseOut<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
-        let rhs: Tensor<rhs_type_ident> = (*rhs).into();
-        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs
+        let rhs: Tensor<rhs_type_ident, Cpu, 0, <Al as Allocator>::CpuAllocator> = (*rhs).into();
+        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE, Al> = rhs
             .to_cuda::<CUDA_DEVICE>()
             .expect("Failed to convert to cuda");
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
@@ -946,19 +976,22 @@ where
     [&Tensor]    [f64]        [Tensor]    [std::ops::BitOr]    [bitor];
     [&Tensor]    [half::f16]  [Tensor]    [std::ops::BitOr]    [bitor];
 )]
-impl<T, const CUDA_DEVICE: usize> trait_name<rhs_type<T, Cuda, CUDA_DEVICE>> for lhs_type
+impl<T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<T, Cuda, CUDA_DEVICE, Al>> for lhs_type
 where
     T: CommonBounds + DeviceRepr + CudaType,
     lhs_type: CommonBounds + BitWiseOut<T> + DeviceRepr + CudaType,
     <lhs_type as BitWiseOut<T>>::Output: CommonBounds + DeviceRepr + CudaType,
     <lhs_type as BitWiseOut<T>>::Output: Cast<<lhs_type as BitWiseOut<T>>::Output>,
     Scalar<lhs_type>: BitWiseOut<Scalar<T>, Output = Scalar<<lhs_type as BitWiseOut<T>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
-    fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
-        let lhs: Tensor<lhs_type> = self.into();
-        let lhs: Tensor<lhs_type, Cuda, CUDA_DEVICE> = lhs
+    fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
+        let lhs: Tensor<lhs_type, Cpu, 0, <Al as Allocator>::CpuAllocator> = self.into();
+        let lhs: Tensor<lhs_type, Cuda, CUDA_DEVICE, Al> = lhs
             .to_cuda::<CUDA_DEVICE>()
             .expect("Failed to convert to cuda");
         lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
@@ -1046,7 +1079,8 @@ where
     [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::BitXor]    [bitxor];
     [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::BitXor]    [bitxor];
 )]
-impl<'a, T, const CUDA_DEVICE: usize> trait_name<rhs_type<T, Cuda, CUDA_DEVICE>> for lhs_type
+impl<'a, T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<T, Cuda, CUDA_DEVICE, Al>>
+    for lhs_type
 where
     T: CommonBounds + DeviceRepr + CudaType,
     lhs_type_ident: CommonBounds + BitWiseOut<T> + DeviceRepr + CudaType,
@@ -1054,12 +1088,15 @@ where
     <lhs_type_ident as BitWiseOut<T>>::Output: Cast<<lhs_type_ident as BitWiseOut<T>>::Output>,
     Scalar<lhs_type_ident>:
         BitWiseOut<Scalar<T>, Output = Scalar<<lhs_type_ident as BitWiseOut<T>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<lhs_type_ident as BitWiseOut<T>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<lhs_type_ident as BitWiseOut<T>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
-    fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
-        let lhs: Tensor<lhs_type_ident> = (*self).into();
-        let lhs: Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = lhs
+    fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
+        let lhs: Tensor<lhs_type_ident, Cpu, 0, <Al as Allocator>::CpuAllocator> = (*self).into();
+        let lhs: Tensor<lhs_type_ident, Cuda, CUDA_DEVICE, Al> = lhs
             .to_cuda::<CUDA_DEVICE>()
             .expect("Failed to convert to cuda");
         lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
@@ -1074,24 +1111,26 @@ where
     [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Div]    [div]        [_div];
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Div]    [div]        [_div];
 )]
-impl<T, U, const CUDA_DEVICE: usize> trait_name<rhs_type<U, Cuda, CUDA_DEVICE>>
-    for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<T, U, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<U, Cuda, CUDA_DEVICE, Al>>
+    for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + FloatOutBinary<U> + DeviceRepr + CudaType,
     U: CommonBounds + DeviceRepr + CudaType,
     <T as FloatOutBinary<U>>::Output: CommonBounds + DeviceRepr + CudaType,
     <T as FloatOutBinary<U>>::Output: Cast<<T as FloatOutBinary<U>>::Output>,
     Scalar<T>: FloatOutBinary<Scalar<U>, Output = Scalar<<T as FloatOutBinary<U>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
-    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE>) -> Self::Output {
+    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
         binary_fn_with_out_simd(
             stringify!(op_string),
             &self,
             &rhs,
             |out, x, y| out.assign(x.op_string(y)),
-            None::<out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE>>,
+            None::<out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE, Al>>,
         )
         .unwrap()
     }
@@ -1105,18 +1144,20 @@ where
     [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Div]    [div];
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::Div]    [div];
 )]
-impl<T, U, const CUDA_DEVICE: usize> trait_name<rhs_type<U, Cuda, CUDA_DEVICE>>
-    for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<T, U, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<U, Cuda, CUDA_DEVICE, Al>>
+    for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + FloatOutBinary<U> + DeviceRepr + CudaType,
     U: CommonBounds + DeviceRepr + CudaType,
     <T as FloatOutBinary<U>>::Output: CommonBounds + DeviceRepr + CudaType,
     <T as FloatOutBinary<U>>::Output: Cast<<T as FloatOutBinary<U>>::Output>,
     Scalar<T>: FloatOutBinary<Scalar<U>, Output = Scalar<<T as FloatOutBinary<U>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
-    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE>) -> Self::Output {
+    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
@@ -1150,19 +1191,22 @@ where
     [&Tensor]    [f64]        [Tensor]    [std::ops::Div]    [div];
     [&Tensor]    [half::f16]  [Tensor]    [std::ops::Div]    [div];
 )]
-impl<T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + FloatOutBinary<rhs_type> + DeviceRepr + CudaType,
     <T as FloatOutBinary<rhs_type>>::Output: CommonBounds + DeviceRepr + CudaType,
     <T as FloatOutBinary<rhs_type>>::Output: Cast<<T as FloatOutBinary<rhs_type>>::Output>,
     Scalar<T>:
         FloatOutBinary<Scalar<rhs_type>, Output = Scalar<<T as FloatOutBinary<rhs_type>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<T as FloatOutBinary<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as FloatOutBinary<rhs_type>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
-        let rhs: Tensor<rhs_type> = rhs.into();
-        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs
+        let rhs: Tensor<rhs_type, Cpu, 0, <Al as Allocator>::CpuAllocator> = rhs.into();
+        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE, Al> = rhs
             .to_cuda::<CUDA_DEVICE>()
             .expect("Failed to convert to cuda");
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
@@ -1198,7 +1242,8 @@ where
     [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Div]    [div];
     [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Div]    [div];
 )]
-impl<'a, T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<'a, T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type>
+    for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + FloatOutBinary<rhs_type_ident> + DeviceRepr + CudaType,
     <T as FloatOutBinary<rhs_type_ident>>::Output: CommonBounds + DeviceRepr + CudaType,
@@ -1208,12 +1253,15 @@ where
         Scalar<rhs_type_ident>,
         Output = Scalar<<T as FloatOutBinary<rhs_type_ident>>::Output>,
     >,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<T as FloatOutBinary<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as FloatOutBinary<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
-        let rhs: Tensor<rhs_type_ident> = (*rhs).into();
-        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs
+        let rhs: Tensor<rhs_type_ident, Cpu, 0, <Al as Allocator>::CpuAllocator> = (*rhs).into();
+        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE, Al> = rhs
             .to_cuda::<CUDA_DEVICE>()
             .expect("Failed to convert to cuda");
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
@@ -1249,7 +1297,7 @@ where
     [&Tensor]    [f64]        [Tensor]    [std::ops::Div]    [div]         ["/"];
     [&Tensor]    [half::f16]  [Tensor]    [std::ops::Div]    [div]         ["/"];
 )]
-impl<T, const CUDA_DEVICE: usize> trait_name<rhs_type<T, Cuda, CUDA_DEVICE>> for lhs_type
+impl<T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<T, Cuda, CUDA_DEVICE, Al>> for lhs_type
 where
     T: CommonBounds + DeviceRepr + CudaType,
     lhs_type: CommonBounds + FloatOutBinary<T> + DeviceRepr + CudaType,
@@ -1257,12 +1305,15 @@ where
     <lhs_type as FloatOutBinary<T>>::Output: Cast<<lhs_type as FloatOutBinary<T>>::Output>,
     Scalar<lhs_type>:
         FloatOutBinary<Scalar<T>, Output = Scalar<<lhs_type as FloatOutBinary<T>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<lhs_type as FloatOutBinary<T>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<lhs_type as FloatOutBinary<T>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
-    fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
-        let lhs: Tensor<lhs_type> = self.into();
-        let lhs: Tensor<lhs_type, Cuda, CUDA_DEVICE> = lhs
+    fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
+        let lhs: Tensor<lhs_type, Cpu, 0, <Al as Allocator>::CpuAllocator> = self.into();
+        let lhs: Tensor<lhs_type, Cuda, CUDA_DEVICE, Al> = lhs
             .to_cuda::<CUDA_DEVICE>()
             .expect("Failed to convert to cuda");
         lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
@@ -1298,7 +1349,8 @@ where
     [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Div]    [div]         ["/"];
     [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Div]    [div]         ["/"];
 )]
-impl<'a, T, const CUDA_DEVICE: usize> trait_name<rhs_type<T, Cuda, CUDA_DEVICE>> for lhs_type
+impl<'a, T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<T, Cuda, CUDA_DEVICE, Al>>
+    for lhs_type
 where
     T: CommonBounds + DeviceRepr + CudaType,
     lhs_type_ident: CommonBounds + FloatOutBinary<T> + DeviceRepr + CudaType,
@@ -1307,12 +1359,15 @@ where
         Cast<<lhs_type_ident as FloatOutBinary<T>>::Output>,
     Scalar<lhs_type_ident>:
         FloatOutBinary<Scalar<T>, Output = Scalar<<lhs_type_ident as FloatOutBinary<T>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<lhs_type_ident as FloatOutBinary<T>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<lhs_type_ident as FloatOutBinary<T>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
-    fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE>) -> Self::Output {
-        let lhs: Tensor<lhs_type_ident> = (*self).into();
-        let lhs: Tensor<lhs_type_ident, Cuda, CUDA_DEVICE> = lhs
+    fn method_name(self, rhs: rhs_type<T, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
+        let lhs: Tensor<lhs_type_ident, Cpu, 0, <Al as Allocator>::CpuAllocator> = (*self).into();
+        let lhs: Tensor<lhs_type_ident, Cuda, CUDA_DEVICE, Al> = lhs
             .to_cuda::<CUDA_DEVICE>()
             .expect("Failed to convert to cuda");
         lhs.inner.as_ref().method_name(rhs.inner.as_ref()).into()
@@ -1326,24 +1381,26 @@ where
     [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Shl]    [shl]        [_shl];
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Shl]    [shl]        [_shl];
 )]
-impl<T, U, const CUDA_DEVICE: usize> trait_name<rhs_type<U, Cuda, CUDA_DEVICE>>
-    for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<T, U, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<U, Cuda, CUDA_DEVICE, Al>>
+    for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + BitWiseOut<U> + DeviceRepr + CudaType,
     U: CommonBounds + DeviceRepr + CudaType,
     <T as BitWiseOut<U>>::Output: CommonBounds + DeviceRepr + CudaType,
     <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     Scalar<T>: BitWiseOut<Scalar<U>, Output = Scalar<<T as BitWiseOut<U>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
-    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE>) -> Self::Output {
+    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
         binary_fn_with_out_simd(
             stringify!(op_string),
             &self,
             &rhs,
             |out, x, y| out.assign(x.op_string(y)),
-            None::<out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>>,
+            None::<out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE, Al>>,
         )
         .unwrap()
     }
@@ -1356,18 +1413,20 @@ where
     [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Shl]    [shl];
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::Shl]    [shl];
 )]
-impl<T, U, const CUDA_DEVICE: usize> trait_name<rhs_type<U, Cuda, CUDA_DEVICE>>
-    for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<T, U, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<U, Cuda, CUDA_DEVICE, Al>>
+    for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + BitWiseOut<U> + DeviceRepr + CudaType,
     U: CommonBounds + DeviceRepr + CudaType,
     <T as BitWiseOut<U>>::Output: CommonBounds + DeviceRepr + CudaType,
     <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     Scalar<T>: BitWiseOut<Scalar<U>, Output = Scalar<<T as BitWiseOut<U>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
-    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE>) -> Self::Output {
+    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
@@ -1400,18 +1459,21 @@ where
     [&Tensor]    [f64]        [Tensor]    [std::ops::Shl]    [shl];
     [&Tensor]    [half::f16]  [Tensor]    [std::ops::Shl]    [shl];
 )]
-impl<T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + BitWiseOut<rhs_type> + DeviceRepr + CudaType,
     <T as BitWiseOut<rhs_type>>::Output: CommonBounds + DeviceRepr + CudaType,
     <T as BitWiseOut<rhs_type>>::Output: Cast<<T as BitWiseOut<rhs_type>>::Output>,
     Scalar<T>: BitWiseOut<Scalar<rhs_type>, Output = Scalar<<T as BitWiseOut<rhs_type>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
-        let rhs: Tensor<rhs_type> = rhs.into();
-        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs
+        let rhs: Tensor<rhs_type, Cpu, 0, <Al as Allocator>::CpuAllocator> = rhs.into();
+        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE, Al> = rhs
             .to_cuda::<CUDA_DEVICE>()
             .expect("Failed to convert to cuda");
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
@@ -1446,7 +1508,8 @@ where
     [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Shl]    [shl];
     [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Shl]    [shl];
 )]
-impl<'a, T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<'a, T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type>
+    for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + BitWiseOut<rhs_type_ident> + DeviceRepr + CudaType,
     <T as BitWiseOut<rhs_type_ident>>::Output: CommonBounds + DeviceRepr + CudaType,
@@ -1455,12 +1518,15 @@ where
         Scalar<rhs_type_ident>,
         Output = Scalar<<T as BitWiseOut<rhs_type_ident>>::Output>,
     >,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<T as BitWiseOut<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as BitWiseOut<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
-        let rhs: Tensor<rhs_type_ident> = (*rhs).into();
-        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs
+        let rhs: Tensor<rhs_type_ident, Cpu, 0, <Al as Allocator>::CpuAllocator> = (*rhs).into();
+        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE, Al> = rhs
             .to_cuda::<CUDA_DEVICE>()
             .expect("Failed to convert to cuda");
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
@@ -1488,19 +1554,22 @@ where
     [Tensor]    [u64]       [Tensor]    [std::ops::Shl];
     [&Tensor]   [u64]       [Tensor]    [std::ops::Shl];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cuda, DEVICE>> for lhs_type
+impl<T, const DEVICE: usize, Al> trait_name<rhs_type<T, Cuda, DEVICE, Al>> for lhs_type
 where
     T: CommonBounds + DeviceRepr + CudaType,
     lhs_type: BitWiseOut<T>,
     <lhs_type as BitWiseOut<T>>::Output: CommonBounds + DeviceRepr + CudaType,
     <lhs_type as BitWiseOut<T>>::Output: Cast<<lhs_type as BitWiseOut<T>>::Output>,
     Scalar<lhs_type>: BitWiseOut<Scalar<T>, Output = Scalar<<lhs_type as BitWiseOut<T>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cuda, DEVICE>;
+    type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cuda, DEVICE, Al>;
     #[track_caller]
-    fn shl(self, rhs: rhs_type<T, Cuda, DEVICE>) -> Self::Output {
-        let lhs: Tensor<lhs_type> = self.into();
-        let lhs: Tensor<lhs_type, Cuda, DEVICE> =
+    fn shl(self, rhs: rhs_type<T, Cuda, DEVICE, Al>) -> Self::Output {
+        let lhs: Tensor<lhs_type, Cpu, 0, <Al as Allocator>::CpuAllocator> = self.into();
+        let lhs: Tensor<lhs_type, Cuda, DEVICE, Al> =
             lhs.to_cuda::<DEVICE>().expect("Failed to convert to cuda");
         lhs.inner.as_ref().shl(rhs.inner.as_ref()).into()
     }
@@ -1513,24 +1582,26 @@ where
     [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Shr]    [shr]        [_shr];
     [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Shr]    [shr]        [_shr];
 )]
-impl<T, U, const CUDA_DEVICE: usize> trait_name<rhs_type<U, Cuda, CUDA_DEVICE>>
-    for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<T, U, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<U, Cuda, CUDA_DEVICE, Al>>
+    for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + BitWiseOut<U> + DeviceRepr + CudaType,
     U: CommonBounds + DeviceRepr + CudaType,
     <T as BitWiseOut<U>>::Output: CommonBounds + DeviceRepr + CudaType,
     <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     Scalar<T>: BitWiseOut<Scalar<U>, Output = Scalar<<T as BitWiseOut<U>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
-    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE>) -> Self::Output {
+    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
         binary_fn_with_out_simd(
             stringify!(op_string),
             &self,
             &rhs,
             |out, x, y| out.assign(x.op_string(y)),
-            None::<out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>>,
+            None::<out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE, Al>>,
         )
         .unwrap()
     }
@@ -1543,18 +1614,20 @@ where
     [&Tensor]   [&Tensor]  [Tensor]    [std::ops::Shr]    [shr];
     [Tensor]    [&Tensor]  [Tensor]    [std::ops::Shr]    [shr];
 )]
-impl<T, U, const CUDA_DEVICE: usize> trait_name<rhs_type<U, Cuda, CUDA_DEVICE>>
-    for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<T, U, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<U, Cuda, CUDA_DEVICE, Al>>
+    for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + BitWiseOut<U> + DeviceRepr + CudaType,
     U: CommonBounds + DeviceRepr + CudaType,
     <T as BitWiseOut<U>>::Output: CommonBounds + DeviceRepr + CudaType,
     <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
     Scalar<T>: BitWiseOut<Scalar<U>, Output = Scalar<<T as BitWiseOut<U>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
-    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE>) -> Self::Output {
+    fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
     }
 }
@@ -1587,18 +1660,21 @@ where
     [&Tensor]    [f64]        [Tensor]    [std::ops::Shr]    [shr];
     [&Tensor]    [half::f16]  [Tensor]    [std::ops::Shr]    [shr];
 )]
-impl<T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + BitWiseOut<rhs_type> + DeviceRepr + CudaType,
     <T as BitWiseOut<rhs_type>>::Output: CommonBounds + DeviceRepr + CudaType,
     <T as BitWiseOut<rhs_type>>::Output: Cast<<T as BitWiseOut<rhs_type>>::Output>,
     Scalar<T>: BitWiseOut<Scalar<rhs_type>, Output = Scalar<<T as BitWiseOut<rhs_type>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
-        let rhs: Tensor<rhs_type> = rhs.into();
-        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE> = rhs
+        let rhs: Tensor<rhs_type, Cpu, 0, <Al as Allocator>::CpuAllocator> = rhs.into();
+        let rhs: Tensor<rhs_type, Cuda, CUDA_DEVICE, Al> = rhs
             .to_cuda::<CUDA_DEVICE>()
             .expect("Failed to convert to cuda");
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
@@ -1633,7 +1709,8 @@ where
     [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Shr]    [shr];
     [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Shr]    [shr];
 )]
-impl<'a, T, const CUDA_DEVICE: usize> trait_name<rhs_type> for lhs_type<T, Cuda, CUDA_DEVICE>
+impl<'a, T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type>
+    for lhs_type<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + BitWiseOut<rhs_type_ident> + DeviceRepr + CudaType,
     <T as BitWiseOut<rhs_type_ident>>::Output: CommonBounds + DeviceRepr + CudaType,
@@ -1642,12 +1719,15 @@ where
         Scalar<rhs_type_ident>,
         Output = Scalar<<T as BitWiseOut<rhs_type_ident>>::Output>,
     >,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<T as BitWiseOut<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE>;
+    type Output = out_type<<T as BitWiseOut<rhs_type_ident>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type) -> Self::Output {
-        let rhs: Tensor<rhs_type_ident> = (*rhs).into();
-        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE> = rhs
+        let rhs: Tensor<rhs_type_ident, Cpu, 0, <Al as Allocator>::CpuAllocator> = (*rhs).into();
+        let rhs: Tensor<rhs_type_ident, Cuda, CUDA_DEVICE, Al> = rhs
             .to_cuda::<CUDA_DEVICE>()
             .expect("Failed to convert to cuda");
         self.inner.as_ref().method_name(rhs.inner.as_ref()).into()
@@ -1675,19 +1755,22 @@ where
     [Tensor]    [u64]       [Tensor]    [std::ops::Shr];
     [&Tensor]   [u64]       [Tensor]    [std::ops::Shr];
 )]
-impl<T, const DEVICE: usize> trait_name<rhs_type<T, Cuda, DEVICE>> for lhs_type
+impl<T, const DEVICE: usize, Al> trait_name<rhs_type<T, Cuda, DEVICE, Al>> for lhs_type
 where
     T: CommonBounds + DeviceRepr + CudaType,
     lhs_type: BitWiseOut<T>,
     <lhs_type as BitWiseOut<T>>::Output: CommonBounds + DeviceRepr + CudaType,
     <lhs_type as BitWiseOut<T>>::Output: Cast<<lhs_type as BitWiseOut<T>>::Output>,
     Scalar<lhs_type>: BitWiseOut<Scalar<T>, Output = Scalar<<lhs_type as BitWiseOut<T>>::Output>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: Allocator<CudaAllocator = Al>,
 {
-    type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cuda, DEVICE>;
+    type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cuda, DEVICE, Al>;
     #[track_caller]
-    fn shr(self, rhs: rhs_type<T, Cuda, DEVICE>) -> Self::Output {
-        let lhs: Tensor<lhs_type> = self.into();
-        let lhs: Tensor<lhs_type, Cuda, DEVICE> =
+    fn shr(self, rhs: rhs_type<T, Cuda, DEVICE, Al>) -> Self::Output {
+        let lhs: Tensor<lhs_type, Cpu, 0, <Al as Allocator>::CpuAllocator> = self.into();
+        let lhs: Tensor<lhs_type, Cuda, DEVICE, Al> =
             lhs.to_cuda::<DEVICE>().expect("Failed to convert to cuda");
         lhs.inner.as_ref().shr(rhs.inner.as_ref()).into()
     }

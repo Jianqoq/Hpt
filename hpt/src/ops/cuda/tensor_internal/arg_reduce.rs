@@ -1,5 +1,6 @@
 use crate::{ops::cuda::utils::reduce::reduce::reduce3, tensor_base::_Tensor, Cuda};
 use cudarc::driver::DeviceRepr;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::{
     axis::axis::{process_axes, Axis},
     error::base::TensorError,
@@ -22,13 +23,17 @@ unsafe impl<T: DeviceRepr> DeviceRepr for ArgResult<T> {}
 impl<
         T: CommonBounds + NormalOut<Output = T> + Cmp + DeviceRepr + CudaType + Cast<i64>,
         const DEVICE_ID: usize,
-    > IndexReduce for _Tensor<T, Cuda, DEVICE_ID>
+        Al,
+    > IndexReduce for _Tensor<T, Cuda, DEVICE_ID, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<i64, Cuda, DEVICE_ID>;
+    type Output = _Tensor<i64, Cuda, DEVICE_ID, Al>;
 
     fn argmax<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce3::<T, i64, ArgResult<T>, DEVICE_ID>(
+        reduce3::<T, i64, ArgResult<T>, DEVICE_ID, Al>(
             self,
             &axes,
             0,
@@ -43,7 +48,7 @@ impl<
 
     fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce3::<T, i64, ArgResult<T>, DEVICE_ID>(
+        reduce3::<T, i64, ArgResult<T>, DEVICE_ID, Al>(
             self,
             &axes,
             0,

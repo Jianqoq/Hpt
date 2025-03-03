@@ -19,6 +19,8 @@ use std::collections::HashSet;
 use crate::ops::cuda::cuda_utils::get_array_str;
 use crate::ops::cuda::cuda_utils::get_include_1;
 
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
+
 /// Performs a binary operation on two tensors with optional SIMD optimization and an output tensor.
 ///
 /// This method applies a binary function element-wise on two tensors (`lhs` and `rhs`) and returns
@@ -43,19 +45,21 @@ use crate::ops::cuda::cuda_utils::get_include_1;
 /// Returns a `Result` containing a new tensor with the result of the binary operation. If any error occurs
 /// (e.g., shape mismatch or allocation issues), an `anyhow::Result` with an error message is returned.
 #[track_caller]
-pub(crate) fn binary_fn_with_out_simd<A, B, O, K, F, const CUDA_DEVICE: usize>(
+pub(crate) fn binary_fn_with_out_simd<A, B, O, K, F, const CUDA_DEVICE: usize, Al>(
     op_name: &str,
-    lhs: &_Tensor<A, Cuda, CUDA_DEVICE>,
-    rhs: &_Tensor<B, Cuda, CUDA_DEVICE>,
+    lhs: &_Tensor<A, Cuda, CUDA_DEVICE, Al>,
+    rhs: &_Tensor<B, Cuda, CUDA_DEVICE, Al>,
     f: F,
     out: Option<O>,
-) -> Result<_Tensor<K, Cuda, CUDA_DEVICE>, TensorError>
+) -> Result<_Tensor<K, Cuda, CUDA_DEVICE, Al>, TensorError>
 where
     A: CommonBounds + DeviceRepr + CudaType,
     B: CommonBounds + DeviceRepr + CudaType,
-    O: BorrowMut<_Tensor<K, Cuda, CUDA_DEVICE>>,
+    O: BorrowMut<_Tensor<K, Cuda, CUDA_DEVICE, Al>>,
     K: CommonBounds + DeviceRepr + CudaType,
     F: Fn(Scalar<K>, Scalar<A>, Scalar<B>) -> Scalar<K>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     let module_name = format!(
         "bn{}{}{}{}{}{}{}",
@@ -77,7 +81,7 @@ where
     let includes = set.into_iter().collect::<Vec<_>>().join("\n");
     if lhs.size() == 1 {
         let val = lhs.to_cpu::<0>()?.as_raw()[0];
-        let res = extract_out::<B, K, O, CUDA_DEVICE>(rhs.shape(), out)?;
+        let res = extract_out::<B, K, O, CUDA_DEVICE, Al>(rhs.shape(), out)?;
         if rhs.is_contiguous() {
             let out_scalar = Scalar::new("out[idx]".to_string());
             let lhs_scalar = Scalar::new("lhs".to_string());
@@ -176,7 +180,7 @@ where
         Ok(res)
     } else if rhs.size() == 1 {
         let val = rhs.to_cpu::<0>()?.as_raw()[0];
-        let res = extract_out::<A, K, O, CUDA_DEVICE>(lhs.shape(), out)?;
+        let res = extract_out::<A, K, O, CUDA_DEVICE, Al>(lhs.shape(), out)?;
         if lhs.is_contiguous() {
             let out_scalar = Scalar::new("out[idx]".to_string());
             let lhs_scalar = Scalar::new("lhs[idx]".to_string());
@@ -273,7 +277,7 @@ where
         Ok(res)
     } else {
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
-            let res = extract_out::<B, K, O, CUDA_DEVICE>(rhs.shape(), out)?;
+            let res = extract_out::<B, K, O, CUDA_DEVICE, Al>(rhs.shape(), out)?;
             let out_scalar = Scalar::new("out[idx]".to_string());
             let lhs_scalar = Scalar::new("lhs[idx]".to_string());
             let rhs_scalar = Scalar::new("rhs[idx]".to_string());
@@ -318,7 +322,7 @@ where
             let res_layout = lhs.layout.broadcast(&rhs.layout)?;
             let lhs_broadcast_layout = lhs.layout.to_broadcast_layout(res_layout.shape())?;
             let rhs_broadcast_layout = rhs.layout.to_broadcast_layout(res_layout.shape())?;
-            let res = extract_out::<K, K, O, CUDA_DEVICE>(res_layout.shape(), out)?;
+            let res = extract_out::<K, K, O, CUDA_DEVICE, Al>(res_layout.shape(), out)?;
             let lhs_shape_str = get_array_str(lhs_broadcast_layout.shape());
             let lhs_strides_str = get_array_str(lhs_broadcast_layout.strides());
             let rhs_shape_str = get_array_str(rhs_broadcast_layout.shape());
@@ -382,20 +386,22 @@ where
     }
 }
 
-fn extract_out<A, K, O, const CUDA_DEVICE: usize>(
+fn extract_out<A, K, O, const CUDA_DEVICE: usize, Al>(
     res_shape: &Shape,
     out: Option<O>,
-) -> Result<_Tensor<K, Cuda, CUDA_DEVICE>, TensorError>
+) -> Result<_Tensor<K, Cuda, CUDA_DEVICE, Al>, TensorError>
 where
     A: CommonBounds + DeviceRepr,
     K: CommonBounds + DeviceRepr + CudaType,
-    O: BorrowMut<_Tensor<K, Cuda, CUDA_DEVICE>>,
+    O: BorrowMut<_Tensor<K, Cuda, CUDA_DEVICE, Al>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     let ret = if let Some(mut out) = out {
         ShapeError::check_inplace_out_layout_valid(res_shape, &out.borrow().layout())?;
         (*out.borrow_mut()).clone()
     } else {
-        _Tensor::<K, Cuda, CUDA_DEVICE>::empty(res_shape)?
+        _Tensor::<K, Cuda, CUDA_DEVICE, Al>::empty(res_shape)?
     };
     Ok(ret)
 }

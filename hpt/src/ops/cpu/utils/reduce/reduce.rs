@@ -1,12 +1,13 @@
-use crate::Cpu;
 use crate::ops::cpu::kernels::argreduce_kernels::{argmax_kernel, argmin_kernel};
 use crate::ops::cpu::utils::reduce::reduce_template::contiguous_reduce_template;
 use crate::tensor_base::_Tensor;
+use crate::Cpu;
 
 use crate::ops::cpu::utils::reduce::reduce_utils::{
     ReductionPreprocessor, UCReductionPreprocessor,
 };
 use crate::THREAD_POOL;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape::Shape;
@@ -33,7 +34,7 @@ macro_rules! init_arr {
         $macro_init_val:expr,
         $($specific_type:tt)*
     ) => {
-        $result = _Tensor::<$($specific_type)*, Cpu, DEVICE>::empty($shape.clone())?;
+        $result = _Tensor::<$($specific_type)*, Cpu, DEVICE, Al>::empty($shape.clone())?;
         $result.as_raw_mut().par_iter_mut().for_each(|x| {
             *x = $macro_init_val;
         });
@@ -51,7 +52,7 @@ macro_rules! body_one_axis {
         $generic_a:ident,
         $($specific_type:tt)*
     ) => {
-        let a_: &_Tensor<$generic_a, Cpu, DEVICE> = &$a;
+        let a_: &_Tensor<$generic_a, Cpu, DEVICE, Al> = &$a;
         let a_shape = a_.shape();
         let a_shape_tmp = a_shape.clone();
         let mut a_shape_cpy = a_shape_tmp.to_vec();
@@ -176,8 +177,8 @@ macro_rules! register_reduction_one_axis {
         $($trait_bound:tt)*
     ) => {
         #[track_caller]
-        pub(crate) fn $fn_name<$generic_a, $generic_b, const DEVICE: usize>(a: &_Tensor<$generic_a, Cpu, DEVICE>, axes: Vec<usize>,
-             init_val: $generic_b, keepdims: bool, c: Option<_Tensor<$generic_b, Cpu, DEVICE>>) -> std::result::Result<_Tensor<$generic_b, Cpu, DEVICE>, TensorError> $($trait_bound)*
+        pub(crate) fn $fn_name<$generic_a, $generic_b, const DEVICE: usize, Al>(a: &_Tensor<$generic_a, Cpu, DEVICE, Al>, axes: Vec<usize>,
+             init_val: $generic_b, keepdims: bool, c: Option<_Tensor<$generic_b, Cpu, DEVICE, Al>>) -> std::result::Result<_Tensor<$generic_b, Cpu, DEVICE, Al>, TensorError> $($trait_bound)*
          {
             body_one_axis!(axes, a, init_val, keepdims, c, $kernel_name, $generic_a, $generic_b);
         }
@@ -189,8 +190,8 @@ macro_rules! register_reduction_one_axis {
         $($trait_bound:tt)*
     ) => {
         #[track_caller]
-        pub(crate) fn $fn_name<$generic_a, const DEVICE: usize>(a: &_Tensor<$generic_a, Cpu, DEVICE>, axes: Vec<usize>,
-             init_val: $generic_a, keepdims: bool, c: Option<_Tensor<$generic_a, Cpu, DEVICE>>) -> std::result::Result<_Tensor<$generic_a, Cpu, DEVICE>, TensorError> $($trait_bound)*
+        pub(crate) fn $fn_name<$generic_a, const DEVICE: usize, Al>(a: &_Tensor<$generic_a, Cpu, DEVICE, Al>, axes: Vec<usize>,
+             init_val: $generic_a, keepdims: bool, c: Option<_Tensor<$generic_a, Cpu, DEVICE, Al>>) -> std::result::Result<_Tensor<$generic_a, Cpu, DEVICE, Al>, TensorError> $($trait_bound)*
          {
             body_one_axis!(axes, a, init_val, keepdims, c, $kernel_name, $generic_a, $generic_a);
         }
@@ -202,8 +203,8 @@ macro_rules! register_reduction_one_axis {
         $($trait_bound:tt)*
     ) => {
         #[track_caller]
-        pub(crate) fn $fn_name<$generic_a, const DEVICE: usize>(a: &_Tensor<$generic_a, Cpu, DEVICE>, axes: Vec<usize>,
-             init_val: $($specific_type)*, keepdims: bool, c: Option<_Tensor<$($specific_type)*, Cpu, DEVICE>>) -> std::result::Result<_Tensor<$($specific_type)*, Cpu, DEVICE>, TensorError> $($trait_bound)*
+        pub(crate) fn $fn_name<$generic_a, const DEVICE: usize, Al>(a: &_Tensor<$generic_a, Cpu, DEVICE, Al>, axes: Vec<usize>,
+             init_val: $($specific_type)*, keepdims: bool, c: Option<_Tensor<$($specific_type)*, Cpu, DEVICE, Al>>) -> std::result::Result<_Tensor<$($specific_type)*, Cpu, DEVICE, Al>, TensorError> $($trait_bound)*
          {
             body_one_axis!(axes, a, init_val, keepdims, c, $kernel_name, $generic_a, $($specific_type)*);
         }
@@ -219,8 +220,8 @@ use crate::ops::cpu::kernels::reduce::{
 };
 
 #[track_caller]
-pub(crate) fn reduce<T, F, F2, F3, const DEVICE: usize>(
-    a: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn reduce<T, F, F2, F3, const DEVICE: usize, A>(
+    a: &_Tensor<T, Cpu, DEVICE, A>,
     op: F,
     op_no_cast: F2,
     vec_op: F3,
@@ -228,29 +229,31 @@ pub(crate) fn reduce<T, F, F2, F3, const DEVICE: usize>(
     init_val: T,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<T, Cpu, DEVICE>>,
-) -> std::result::Result<_Tensor<T, Cpu, DEVICE>, TensorError>
+    c: Option<_Tensor<T, Cpu, DEVICE, A>>,
+) -> std::result::Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
     T: CommonBounds + Cast<T>,
     F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
     F2: Fn(T, T) -> T + Sync + Send + 'static + Copy,
     F3: Fn(T::Vec, T::Vec) -> T::Vec + Sync + Send + 'static + Copy,
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<_, _, _, _, fn(T) -> T, _, _, fn(T::Vec) -> T::Vec, T, DEVICE>(
+        contiguous_reduce::<_, _, _, _, fn(T) -> T, _, _, fn(T::Vec) -> T::Vec, T, DEVICE, A>(
             a, op, op_no_cast, op, None, vec_op, vec_op, None, &axes, init_val, keepdims, init_out,
             c,
         )
     } else {
-        uncontiguous_reduce::<_, _, _, fn(T) -> T, _, fn(T::Vec) -> T::Vec, T, DEVICE>(
+        uncontiguous_reduce::<_, _, _, fn(T) -> T, _, fn(T::Vec) -> T::Vec, T, DEVICE, A>(
             a, op, op, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
         )
     }
 }
 
 #[track_caller]
-pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
-    a: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O, const DEVICE: usize, Al>(
+    a: &_Tensor<T, Cpu, DEVICE, Al>,
     op: F,
     op_no_cast: F2,
     op2: F3,
@@ -260,8 +263,8 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O, Cpu, DEVICE>>,
-) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+    c: Option<_Tensor<O, Cpu, DEVICE, Al>>,
+) -> std::result::Result<_Tensor<O, Cpu, DEVICE, Al>, TensorError>
 where
     T: CommonBounds + Cast<O>,
     F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
@@ -272,22 +275,24 @@ where
     O: CommonBounds,
     T::Vec: Copy,
     O::Vec: Copy,
+    Al: Allocator + Send + Sync,
+    Al::Output: AllocatorOutputRetrive,
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, F, F2, F3, fn(O) -> O, _, _, fn(O::Vec) -> O::Vec, O, DEVICE>(
+        contiguous_reduce::<T, F, F2, F3, fn(O) -> O, _, _, fn(O::Vec) -> O::Vec, O, DEVICE, Al>(
             a, op, op_no_cast, op2, None, vec_op, vec_op2, None, &axes, init_val, keepdims,
             init_out, c,
         )
     } else {
-        uncontiguous_reduce::<T, F, F3, fn(O) -> O, _, fn(O::Vec) -> O::Vec, O, DEVICE>(
+        uncontiguous_reduce::<T, F, F3, fn(O) -> O, _, fn(O::Vec) -> O::Vec, O, DEVICE, Al>(
             a, op, op2, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
         )
     }
 }
 
 #[track_caller]
-pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: usize>(
-    a: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: usize, Al>(
+    a: &_Tensor<T, Cpu, DEVICE, Al>,
     op: F,
     op_no_cast: F2,
     op2: F3,
@@ -299,8 +304,8 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: usize>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O, Cpu, DEVICE>>,
-) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+    c: Option<_Tensor<O, Cpu, DEVICE, Al>>,
+) -> std::result::Result<_Tensor<O, Cpu, DEVICE, Al>, TensorError>
 where
     T: CommonBounds + Cast<O>,
     F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
@@ -312,9 +317,11 @@ where
     F7: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
     O: CommonBounds,
     O::Vec: Copy,
+    Al: Allocator + Send + Sync,
+    Al::Output: AllocatorOutputRetrive,
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, F, F2, F3, F4, F5, F6, F7, O, DEVICE>(
+        contiguous_reduce::<T, F, F2, F3, F4, F5, F6, F7, O, DEVICE, Al>(
             a,
             op,
             op_no_cast,
@@ -330,7 +337,7 @@ where
             c,
         )
     } else {
-        uncontiguous_reduce::<T, F, F3, F4, F5, F7, O, DEVICE>(
+        uncontiguous_reduce::<T, F, F3, F4, F5, F7, O, DEVICE, Al>(
             a,
             op,
             op2,
@@ -350,19 +357,23 @@ register_reduction_one_axis!(
     T => [i64],
     argmax,
     argmax_kernel,
-    where T: CommonBounds + NormalOut<T, Output = T> + Cmp<T, Output = bool>
+    where T: CommonBounds + NormalOut<T, Output = T> + Cmp<T, Output = bool>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 );
 
 register_reduction_one_axis!(
     T => [i64],
     argmin,
     argmin_kernel,
-    where T: CommonBounds + NormalOut<T, Output = T> + Cmp<T, Output = bool>
+    where T: CommonBounds + NormalOut<T, Output = T> + Cmp<T, Output = bool>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 );
 
 #[track_caller]
-pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: usize>(
-    a: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: usize, A>(
+    a: &_Tensor<T, Cpu, DEVICE, A>,
     op: F,
     op_no_cast: F2,
     op2: F3,
@@ -374,8 +385,8 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: u
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O, Cpu, DEVICE>>,
-) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+    c: Option<_Tensor<O, Cpu, DEVICE, A>>,
+) -> std::result::Result<_Tensor<O, Cpu, DEVICE, A>, TensorError>
 where
     T: CommonBounds + Cast<O>,
     O: CommonBounds,
@@ -388,6 +399,8 @@ where
     F7: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
     T::Vec: Copy,
     O::Vec: Copy,
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
 {
     let max_axis = *axes.iter().max().unwrap();
     let (a, fused_dims) = if max_axis == a.ndim() - 1 {
@@ -600,8 +613,8 @@ where
 }
 
 #[track_caller]
-pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
-    a: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE: usize, Al>(
+    a: &_Tensor<T, Cpu, DEVICE, Al>,
     op: F,
     op2: F2,
     op3: Option<F3>,
@@ -611,8 +624,8 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE: usize>(
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O, Cpu, DEVICE>>,
-) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+    c: Option<_Tensor<O, Cpu, DEVICE, Al>>,
+) -> std::result::Result<_Tensor<O, Cpu, DEVICE, Al>, TensorError>
 where
     T: CommonBounds + Cast<O>,
     O: CommonBounds,
@@ -623,6 +636,8 @@ where
     F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
     T::Vec: Copy,
     O::Vec: Copy,
+    Al: Allocator + Send + Sync,
+    Al::Output: AllocatorOutputRetrive,
 {
     uncontiguos_reduce_template(
         a,

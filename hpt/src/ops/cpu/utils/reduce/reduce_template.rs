@@ -3,6 +3,7 @@ use crate::{
     tensor_base::_Tensor,
     Cpu,
 };
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, ShapeManipulate, TensorInfo};
 use hpt_types::into_scalar::Cast;
@@ -150,25 +151,27 @@ use hpt_types::into_scalar::Cast;
 ///
 /// This function provides a flexible template for reduction operations on tensors, allowing for optimized implementations of various reduction functions.
 #[track_caller]
-pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: usize>(
-    a: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn contiguous_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: usize, A>(
+    a: &_Tensor<T, Cpu, DEVICE, A>,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O, Cpu, DEVICE>>,
+    c: Option<_Tensor<O, Cpu, DEVICE, A>>,
     full_reduce: F1,
     nkd: F2,
     kdo1: F3,
     kd: F4,
-) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+) -> std::result::Result<_Tensor<O, Cpu, DEVICE, A>, TensorError>
 where
     T: CommonBounds + Cast<O>,
     O: CommonBounds,
     F1: Fn(&mut O),
-    F2: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
-    F3: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE>),
-    F4: Fn(usize, usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
+    F2: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE, A>, &_Tensor<T, Cpu, DEVICE, A>),
+    F3: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE, A>),
+    F4: Fn(usize, usize, usize, usize, &_Tensor<O, Cpu, DEVICE, A>, &_Tensor<T, Cpu, DEVICE, A>),
+    A: Allocator,
+    A::Output: AllocatorOutputRetrive,
 {
     let mut keep_fast_dim = true;
     for axis in axes.iter() {
@@ -414,25 +417,27 @@ where
 /// This function provides a flexible template for reduction operations on non-contiguous tensors, enabling optimized implementations of various reduction functions in the context of complex memory layouts.
 
 #[track_caller]
-pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: usize>(
-    a: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn uncontiguos_reduce_template<T, F1, F2, F3, F4, O, const DEVICE: usize, Al>(
+    a: &_Tensor<T, Cpu, DEVICE, Al>,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O, Cpu, DEVICE>>,
+    c: Option<_Tensor<O, Cpu, DEVICE, Al>>,
     full_reduce: F1,
     nkd: F2,
     kdo1: F3,
     kd: F4,
-) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+) -> std::result::Result<_Tensor<O, Cpu, DEVICE, Al>, TensorError>
 where
     T: CommonBounds + Cast<O>,
     O: CommonBounds,
     F1: Fn(&mut O),
-    F2: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
-    F3: Fn(usize, usize, _Tensor<T, Cpu, DEVICE>, &_Tensor<O, Cpu, DEVICE>),
-    F4: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
+    F2: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE, Al>, &_Tensor<T, Cpu, DEVICE, Al>),
+    F3: Fn(usize, usize, _Tensor<T, Cpu, DEVICE, Al>, &_Tensor<O, Cpu, DEVICE, Al>),
+    F4: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE, Al>, &_Tensor<T, Cpu, DEVICE, Al>),
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     let (keep_fast_dim, transposed_tensor, result, res_perm) =
         uncontiguous_reduce_prepare(a, axes, init_val, init_out, c)?;

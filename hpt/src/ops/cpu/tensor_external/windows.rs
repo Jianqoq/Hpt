@@ -1,4 +1,5 @@
 use crate::{ops::cpu::tensor_internal::windows::Simd, tensor::Tensor, tensor_base::_Tensor, Cpu};
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, WindowOps};
 use hpt_types::{
@@ -7,10 +8,9 @@ use hpt_types::{
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 use std::ops::{Mul, Sub};
-
 type FBO<T> = <T as FloatOutBinary>::Output;
 
-impl<T, const DEVICE: usize> WindowOps for Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> WindowOps for Tensor<T, Cpu, DEVICE, Al>
 where
     f64: Cast<FBO<T>>,
     T: CommonBounds + FloatOutBinary,
@@ -26,8 +26,10 @@ where
         + FloatOutUnary<Output = Simd<T>>,
     usize: Cast<FBO<T>>,
     i64: Cast<T>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = Tensor<FBO<T>, Cpu, DEVICE>;
+    type Output = Tensor<FBO<T>, Cpu, DEVICE, Al>;
     type Meta = T;
     #[track_caller]
     fn hamming_window(window_length: i64, periodic: bool) -> Result<Self::Output, TensorError> {
@@ -47,6 +49,6 @@ where
         T: FloatConst,
         i64: Cast<<T as FloatOutBinary>::Output>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::blackman_window(window_length, periodic)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::blackman_window(window_length, periodic)?.into())
     }
 }

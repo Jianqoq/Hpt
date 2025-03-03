@@ -6,6 +6,7 @@ use std::{
 };
 
 use crate::{tensor_base::_Tensor, BackendTy, Buffer, Cpu, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION};
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::{
     error::base::TensorError, layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer,
 };
@@ -23,29 +24,32 @@ use hpt_types::into_scalar::Cast;
 /// - `parent`: The parent tensor of the tensor. parent is always the root tensor (`not a view`).
 /// - `mem_layout`: std::alloc::layout, use for deallocate the memory and find cache in the allocator.
 #[derive(Clone)]
-pub struct Tensor<T, B = Cpu, const DEVICE_ID: usize = 0>
+pub struct Tensor<T, B = Cpu, const DEVICE_ID: usize = 0, A = hpt_allocator::HptAllocator<B>>
 where
     B: BackendTy + Buffer,
+    A: Allocator,
 {
-    pub(crate) inner: Arc<_Tensor<T, B, DEVICE_ID>>,
+    pub(crate) inner: Arc<_Tensor<T, B, DEVICE_ID, A>>,
 }
 use std::cell::RefCell;
 /// `DiffTensor` is a tensor that has a gradient.
 #[derive(Clone)]
-pub struct DiffTensor<T, B = Cpu, const DEVICE_ID: usize = 0>
+pub struct DiffTensor<T, B = Cpu, const DEVICE_ID: usize = 0, A = hpt_allocator::HptAllocator<B>>
 where
     B: BackendTy + Buffer,
+    A: Allocator,
 {
-    pub(crate) inner: Tensor<T, B, DEVICE_ID>,
-    pub(crate) grad: Rc<RefCell<Option<Tensor<T, B, DEVICE_ID>>>>,
+    pub(crate) inner: Tensor<T, B, DEVICE_ID, A>,
+    pub(crate) grad: Rc<RefCell<Option<Tensor<T, B, DEVICE_ID, A>>>>,
     pub(crate) out_degree: Rc<RefCell<usize>>,
     pub(crate) backward:
-        Rc<RefCell<dyn FnMut(Tensor<T, B, DEVICE_ID>) -> Result<bool, TensorError>>>,
+        Rc<RefCell<dyn FnMut(Tensor<T, B, DEVICE_ID, A>) -> Result<bool, TensorError>>>,
 }
 
-impl<T, const DEVICE: usize> TensorLike<T> for Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, A> TensorLike<T> for Tensor<T, Cpu, DEVICE, A>
 where
     T: CommonBounds,
+    A: Allocator,
 {
     fn as_raw(&self) -> &[T] {
         self.inner.as_raw()
@@ -62,14 +66,21 @@ where
     }
 }
 
-impl<T: CommonBounds, const DEVICE: usize> TensorIterator<'_, T> for Tensor<T, Cpu, DEVICE> {}
+impl<'a, T: CommonBounds, const DEVICE: usize, Al> TensorIterator<'a, T>
+    for Tensor<T, Cpu, DEVICE, Al>
+where
+    Al: Allocator + 'a,
+    Al::Output: AllocatorOutputRetrive,
+{
+}
 
 macro_rules! impl_tensor_info {
     ($tensor:ty) => {
-        impl<T, B, const DEVICE: usize> TensorInfo<T> for $tensor
+        impl<T, B, const DEVICE: usize, A> TensorInfo<T> for $tensor
         where
             T: CommonBounds,
             B: BackendTy + Buffer,
+            A: hpt_allocator::traits::Allocator,
         {
             fn ptr(&self) -> Pointer<T> {
                 self.inner.as_ref().data.clone()
@@ -106,11 +117,15 @@ macro_rules! impl_tensor_info {
     };
 }
 
-impl_tensor_info!(Tensor<T, B, DEVICE>);
-impl_tensor_info!(&Tensor<T, B, DEVICE>);
-impl_tensor_info!(&mut Tensor<T, B, DEVICE>);
+impl_tensor_info!(Tensor<T, B, DEVICE, A>);
+impl_tensor_info!(&Tensor<T, B, DEVICE, A>);
+impl_tensor_info!(&mut Tensor<T, B, DEVICE, A>);
 
-impl<T: CommonBounds, const DEVICE: usize> TensorAlloc for Tensor<T, Cpu, DEVICE> {
+impl<T: CommonBounds, const DEVICE: usize, Al> TensorAlloc for Tensor<T, Cpu, DEVICE, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
     type Meta = T;
     fn _empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError>
     where
@@ -120,9 +135,11 @@ impl<T: CommonBounds, const DEVICE: usize> TensorAlloc for Tensor<T, Cpu, DEVICE
     }
 }
 
-impl<T, const DEVICE: usize> Display for Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> Display for Tensor<T, Cpu, DEVICE, Al>
 where
     T: CommonBounds + Cast<f64>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
@@ -131,9 +148,11 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> Debug for Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> Debug for Tensor<T, Cpu, DEVICE, Al>
 where
     T: CommonBounds + Cast<f64>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
@@ -142,58 +161,67 @@ where
     }
 }
 
-impl<T, B: BackendTy + Buffer, const DEVICE_ID: usize> Borrow<_Tensor<T, B, DEVICE_ID>>
-    for Tensor<T, B, DEVICE_ID>
+impl<T, B: BackendTy + Buffer, const DEVICE_ID: usize, A> Borrow<_Tensor<T, B, DEVICE_ID, A>>
+    for Tensor<T, B, DEVICE_ID, A>
 where
     T: CommonBounds,
+    A: Allocator,
 {
-    fn borrow(&self) -> &_Tensor<T, B, DEVICE_ID> {
+    fn borrow(&self) -> &_Tensor<T, B, DEVICE_ID, A> {
         &self.inner
     }
 }
 
-impl<T, B: BackendTy + Buffer, const DEVICE_ID: usize> Borrow<_Tensor<T, B, DEVICE_ID>>
-    for &Tensor<T, B, DEVICE_ID>
+impl<T, B: BackendTy + Buffer, const DEVICE_ID: usize, A> Borrow<_Tensor<T, B, DEVICE_ID, A>>
+    for &Tensor<T, B, DEVICE_ID, A>
 where
     T: CommonBounds,
+    A: Allocator,
 {
-    fn borrow(&self) -> &_Tensor<T, B, DEVICE_ID> {
+    fn borrow(&self) -> &_Tensor<T, B, DEVICE_ID, A> {
         &self.inner
     }
 }
 
-impl<T, B: BackendTy + Buffer, const DEVICE_ID: usize> Borrow<_Tensor<T, B, DEVICE_ID>>
-    for &mut Tensor<T, B, DEVICE_ID>
+impl<T, B: BackendTy + Buffer, const DEVICE_ID: usize, A> Borrow<_Tensor<T, B, DEVICE_ID, A>>
+    for &mut Tensor<T, B, DEVICE_ID, A>
 where
     T: CommonBounds,
+    A: Allocator,
 {
-    fn borrow(&self) -> &_Tensor<T, B, DEVICE_ID> {
+    fn borrow(&self) -> &_Tensor<T, B, DEVICE_ID, A> {
         &self.inner
     }
 }
 
-impl<T, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize> BorrowMut<_Tensor<T, B, DEVICE_ID>>
-    for &mut Tensor<T, B, DEVICE_ID>
+impl<T, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize, A>
+    BorrowMut<_Tensor<T, B, DEVICE_ID, A>> for &mut Tensor<T, B, DEVICE_ID, A>
 where
     T: CommonBounds,
+    A: Allocator,
 {
-    fn borrow_mut(&mut self) -> &mut _Tensor<T, B, DEVICE_ID> {
+    fn borrow_mut(&mut self) -> &mut _Tensor<T, B, DEVICE_ID, A> {
         Arc::make_mut(&mut self.inner)
     }
 }
 
-impl<T, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize> BorrowMut<_Tensor<T, B, DEVICE_ID>>
-    for Tensor<T, B, DEVICE_ID>
+impl<T, B: BackendTy + Buffer + Clone, const DEVICE_ID: usize, A>
+    BorrowMut<_Tensor<T, B, DEVICE_ID, A>> for Tensor<T, B, DEVICE_ID, A>
 where
     T: CommonBounds,
+    A: Allocator,
 {
-    fn borrow_mut(&mut self) -> &mut _Tensor<T, B, DEVICE_ID> {
+    fn borrow_mut(&mut self) -> &mut _Tensor<T, B, DEVICE_ID, A> {
         Arc::make_mut(&mut self.inner)
     }
 }
 
-impl<T, const DEVICE_ID: usize> From<Tensor<T, Cpu, DEVICE_ID>> for DataLoader<T> {
-    fn from(value: Tensor<T, Cpu, DEVICE_ID>) -> Self {
+impl<T, const DEVICE_ID: usize, A> From<Tensor<T, Cpu, DEVICE_ID, A>> for DataLoader<T>
+where
+    T: CommonBounds,
+    A: Allocator,
+{
+    fn from(value: Tensor<T, Cpu, DEVICE_ID, A>) -> Self {
         DataLoader::new(
             value.inner.layout.shape().clone(),
             value.inner.layout.strides().clone(),
@@ -202,11 +230,14 @@ impl<T, const DEVICE_ID: usize> From<Tensor<T, Cpu, DEVICE_ID>> for DataLoader<T
     }
 }
 
-impl<T: CommonBounds, B: BackendTy + Buffer, const DEVICE: usize> CPUTensorCreator<T>
-    for Tensor<T, B, DEVICE>
+impl<T: CommonBounds, B: BackendTy + Buffer, const DEVICE: usize, A> CPUTensorCreator<T>
+    for Tensor<T, B, DEVICE, A>
+where
+    A: Allocator,
+    Tensor<T, Cpu, DEVICE, A>: hpt_traits::TensorCreator<T, Output = Tensor<T, Cpu, DEVICE, A>>,
 {
-    type Output = Tensor<T, Cpu, DEVICE>;
+    type Output = Tensor<T, Cpu, DEVICE, A>;
     fn empty<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
-        <Tensor<T, Cpu, DEVICE> as TensorCreator<T>>::empty(shape)
+        <Tensor<T, Cpu, DEVICE, A> as TensorCreator<T>>::empty(shape)
     }
 }

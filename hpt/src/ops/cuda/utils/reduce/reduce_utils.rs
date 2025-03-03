@@ -3,6 +3,7 @@ use crate::ops::cuda::cuda_utils::load_ptx_and_get_data;
 use crate::{tensor_base::_Tensor, Cuda};
 use cudarc::driver::DeviceRepr;
 use cudarc::driver::LaunchAsync;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_cudakernels::SET_VAL;
@@ -15,13 +16,24 @@ pub(crate) fn reduce_prepare<
     T: CommonBounds + DeviceRepr + CudaType,
     O: CommonBounds + DeviceRepr + CudaType,
     const DEVICE_ID: usize,
+    Al,
 >(
-    a: &_Tensor<T, Cuda, DEVICE_ID>,
+    a: &_Tensor<T, Cuda, DEVICE_ID, Al>,
     axes: &[usize],
     init_val: O,
     init_out: bool,
-    c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
-) -> std::result::Result<(_Tensor<T, Cuda, DEVICE_ID>, _Tensor<O, Cuda, DEVICE_ID>), TensorError> {
+    c: Option<_Tensor<O, Cuda, DEVICE_ID, Al>>,
+) -> std::result::Result<
+    (
+        _Tensor<T, Cuda, DEVICE_ID, Al>,
+        _Tensor<O, Cuda, DEVICE_ID, Al>,
+    ),
+    TensorError,
+>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
     // get permute order, we move to_reduce axes to the end
     let mut transposed_axis = rearrange_array(a.layout.ndim(), axes);
     // sort the transposed axis based on the stride, ordering the axis can increase the cpu cache hitting rate when we do iteration
@@ -52,7 +64,7 @@ pub(crate) fn reduce_prepare<
         }
         out.reshape(res_layout.shape())?
     } else {
-        let res = _Tensor::<O, Cuda, DEVICE_ID>::empty(res_layout.shape())?;
+        let res = _Tensor::<O, Cuda, DEVICE_ID, Al>::empty(res_layout.shape())?;
         res
     };
     Ok((a.permute(transposed_axis)?, res))

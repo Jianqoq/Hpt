@@ -8,73 +8,76 @@ use crate::{
     ops::cpu::tensor_internal::float_out_unary::FloatUnaryType, tensor::Tensor,
     tensor_base::_Tensor, Cpu,
 };
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 
-impl<T, const DEVICE: usize> FloatUnaryOps for Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> FloatUnaryOps for Tensor<T, Cpu, DEVICE, Al>
 where
     T: FloatOutUnary + CommonBounds,
     FloatUnaryType<T>: CommonBounds,
     f64: Cast<<T as FloatOutUnary>::Output>,
     T::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = Tensor<FloatUnaryType<T>, Cpu, DEVICE>;
+    type Output = Tensor<FloatUnaryType<T>, Cpu, DEVICE, Al>;
 
-    type InplaceOutput = Tensor<FloatUnaryType<T>, Cpu, DEVICE>;
+    type InplaceOutput = Tensor<FloatUnaryType<T>, Cpu, DEVICE, Al>;
 
     type OutputMeta = FloatUnaryType<T>;
 
     fn sin(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::sin(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::sin(self.inner.as_ref())?.into())
     }
 
     fn cos(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::cos(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::cos(self.inner.as_ref())?.into())
     }
 
     fn tan(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::tan(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::tan(self.inner.as_ref())?.into())
     }
 
     fn asin(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::asin(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::asin(self.inner.as_ref())?.into())
     }
 
     fn acos(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::acos(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::acos(self.inner.as_ref())?.into())
     }
 
     fn atan(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::atan(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::atan(self.inner.as_ref())?.into())
     }
 
     fn sinh(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::sinh(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::sinh(self.inner.as_ref())?.into())
     }
 
     fn cosh(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::cosh(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::cosh(self.inner.as_ref())?.into())
     }
 
     fn tanh(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::tanh(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::tanh(self.inner.as_ref())?.into())
     }
 
     fn asinh(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::asinh(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::asinh(self.inner.as_ref())?.into())
     }
 
     fn acosh(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::acosh(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::acosh(self.inner.as_ref())?.into())
     }
 
     fn atanh(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::atanh(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::atanh(self.inner.as_ref())?.into())
     }
 
     fn sin_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::sin_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::sin_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -85,7 +88,7 @@ where
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::cos_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::cos_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -96,7 +99,7 @@ where
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::tan_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::tan_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -107,7 +110,7 @@ where
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::asin_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::asin_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -118,7 +121,7 @@ where
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::acos_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::acos_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -129,7 +132,7 @@ where
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::atan_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::atan_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -140,7 +143,7 @@ where
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::sinh_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::sinh_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -151,7 +154,7 @@ where
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::cosh_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::cosh_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -162,7 +165,7 @@ where
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::tanh_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::tanh_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -173,7 +176,7 @@ where
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::asinh_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::asinh_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -184,7 +187,7 @@ where
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::acosh_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::acosh_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -195,7 +198,7 @@ where
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::atanh_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::atanh_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -203,14 +206,14 @@ where
     }
 
     fn exp(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::exp(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::exp(self.inner.as_ref())?.into())
     }
 
     fn exp_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::exp_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::exp_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -218,14 +221,14 @@ where
     }
 
     fn exp2(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::exp2(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::exp2(self.inner.as_ref())?.into())
     }
 
     fn exp2_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::exp2_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::exp2_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -233,14 +236,14 @@ where
     }
 
     fn sqrt(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::sqrt(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::sqrt(self.inner.as_ref())?.into())
     }
 
     fn sqrt_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::sqrt_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::sqrt_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -248,14 +251,14 @@ where
     }
 
     fn recip(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::recip(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::recip(self.inner.as_ref())?.into())
     }
 
     fn recip_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::recip_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::recip_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -263,14 +266,14 @@ where
     }
 
     fn ln(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::ln(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::ln(self.inner.as_ref())?.into())
     }
 
     fn ln_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::ln_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::ln_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -278,14 +281,14 @@ where
     }
 
     fn log2(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::log2(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::log2(self.inner.as_ref())?.into())
     }
 
     fn log2_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::log2_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::log2_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -293,14 +296,14 @@ where
     }
 
     fn log10(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::log10(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::log10(self.inner.as_ref())?.into())
     }
 
     fn log10_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::log10_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::log10_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -308,7 +311,7 @@ where
     }
 
     fn celu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::celu(self.inner.as_ref(), alpha)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::celu(self.inner.as_ref(), alpha)?.into())
     }
 
     fn celu_<U>(
@@ -319,7 +322,7 @@ where
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::celu_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::celu_(
             self.inner.as_ref(),
             alpha,
             out.borrow_mut().inner.as_ref().clone(),
@@ -328,14 +331,14 @@ where
     }
 
     fn sigmoid(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::sigmoid(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::sigmoid(self.inner.as_ref())?.into())
     }
 
     fn sigmoid_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::sigmoid_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::sigmoid_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -343,7 +346,7 @@ where
     }
 
     fn elu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::elu(self.inner.as_ref(), alpha)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::elu(self.inner.as_ref(), alpha)?.into())
     }
 
     fn elu_<U>(
@@ -354,7 +357,7 @@ where
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::elu_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::elu_(
             self.inner.as_ref(),
             alpha,
             out.borrow_mut().inner.as_ref().clone(),
@@ -363,18 +366,18 @@ where
     }
 
     fn erf(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::erf(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::erf(self.inner.as_ref())?.into())
     }
 
     fn gelu(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::gelu(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::gelu(self.inner.as_ref())?.into())
     }
 
     fn gelu_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::gelu_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::gelu_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -385,7 +388,7 @@ where
     where
         U: Into<Option<Self::OutputMeta>>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::selu(self.inner.as_ref(), alpha, gamma)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::selu(self.inner.as_ref(), alpha, gamma)?.into())
     }
 
     fn selu_<U>(
@@ -397,7 +400,7 @@ where
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::selu_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::selu_(
             self.inner.as_ref(),
             alpha,
             gamma,
@@ -407,14 +410,14 @@ where
     }
 
     fn hard_sigmoid(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::hard_sigmoid(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::hard_sigmoid(self.inner.as_ref())?.into())
     }
 
     fn hard_sigmoid_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::hard_sigmoid_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::hard_sigmoid_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -422,14 +425,14 @@ where
     }
 
     fn hard_swish(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::hard_swish(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::hard_swish(self.inner.as_ref())?.into())
     }
 
     fn hard_swish_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::hard_swish_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::hard_swish_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -437,14 +440,14 @@ where
     }
 
     fn softplus(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::softplus(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::softplus(self.inner.as_ref())?.into())
     }
 
     fn softplus_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::softplus_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::softplus_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -452,14 +455,14 @@ where
     }
 
     fn softsign(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::softsign(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::softsign(self.inner.as_ref())?.into())
     }
 
     fn softsign_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::softsign_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::softsign_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -467,14 +470,14 @@ where
     }
 
     fn mish(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::mish(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::mish(self.inner.as_ref())?.into())
     }
 
     fn mish_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::mish_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::mish_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -482,14 +485,14 @@ where
     }
 
     fn cbrt(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::cbrt(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::cbrt(self.inner.as_ref())?.into())
     }
 
     fn cbrt_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::cbrt_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::cbrt_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -502,14 +505,14 @@ where
     }
 
     fn exp10(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::exp10(self.inner.as_ref())?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::exp10(self.inner.as_ref())?.into())
     }
 
     fn exp10_<U>(&self, mut out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::exp10_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::exp10_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?
@@ -535,7 +538,7 @@ where
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::erf_(
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::erf_(
             self.inner.as_ref(),
             out.borrow_mut().inner.as_ref().clone(),
         )?

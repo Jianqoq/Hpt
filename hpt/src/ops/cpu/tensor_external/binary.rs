@@ -1,6 +1,7 @@
 use crate::ops::cpu::utils::binary::binary_normal::binary_fn_with_out_simd;
 use crate::Cpu;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_traits::{ops::binary::NormalBinOps, tensor::CommonBounds};
 use hpt_types::dtype::TypeCommon;
@@ -16,7 +17,7 @@ macro_rules! impl_bin_ops {
         [$($rhs:tt)*],
         $output:ident
     ) => {
-    impl<A, B, const DEVICE: usize> NormalBinOps<$($rhs)*>
+    impl<A, B, const DEVICE: usize, Al> NormalBinOps<$($rhs)*>
         for $($lhs)*
         where
         A: CommonBounds + NormalOut<B>,
@@ -24,10 +25,12 @@ macro_rules! impl_bin_ops {
         <A as NormalOut<B>>::Output: CommonBounds,
         <A as NormalOut<B>>::Output: Cast<<A as NormalOut<B>>::Output>,
         A::Vec: NormalOut<B::Vec, Output = <<A as NormalOut<B>>::Output as TypeCommon>::Vec>,
+        Al: Allocator,
+        Al::Output: AllocatorOutputRetrive,
     {
-        type Output = $output<NormalType<A, B>, Cpu, DEVICE>;
+        type Output = $output<NormalType<A, B>, Cpu, DEVICE, Al>;
         type OutputMeta = NormalType<A, B>;
-        type InplaceOutput = _Tensor<NormalType<A, B>, Cpu, DEVICE>;
+        type InplaceOutput = _Tensor<NormalType<A, B>, Cpu, DEVICE, Al>;
 
         #[track_caller]
         fn add_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
@@ -74,23 +77,23 @@ macro_rules! impl_bin_ops {
 }
 
 impl_bin_ops!(
-    [_Tensor<A, Cpu, DEVICE>],
-    [&_Tensor<B, Cpu, DEVICE>],
+    [_Tensor<A, Cpu, DEVICE, Al>],
+    [&_Tensor<B, Cpu, DEVICE, Al>],
     _Tensor
 );
 impl_bin_ops!(
-    [_Tensor<A, Cpu, DEVICE>],
-    [_Tensor<B, Cpu, DEVICE>],
+    [_Tensor<A, Cpu, DEVICE, Al>],
+    [_Tensor<B, Cpu, DEVICE, Al>],
     _Tensor
 );
 impl_bin_ops!(
-    [&_Tensor<A, Cpu, DEVICE>],
-    [&_Tensor<B, Cpu, DEVICE>],
+    [&_Tensor<A, Cpu, DEVICE, Al>],
+    [&_Tensor<B, Cpu, DEVICE, Al>],
     _Tensor
 );
 impl_bin_ops!(
-    [&_Tensor<A, Cpu, DEVICE>],
-    [_Tensor<B, Cpu, DEVICE>],
+    [&_Tensor<A, Cpu, DEVICE, Al>],
+    [_Tensor<B, Cpu, DEVICE, Al>],
     _Tensor
 );
 
@@ -100,7 +103,7 @@ macro_rules! impl_bin_ops_basic {
         [$($rhs:tt)*],
         $output:ident
     ) => {
-        impl<A, B, const DEVICE: usize> NormalBinOps<$($rhs)*>
+        impl<A, B, const DEVICE: usize, Al> NormalBinOps<$($rhs)*>
         for $($lhs)*
         where
         A: CommonBounds + NormalOut<B>,
@@ -108,10 +111,12 @@ macro_rules! impl_bin_ops_basic {
         <A as NormalOut<B>>::Output: CommonBounds,
         <A as NormalOut<B>>::Output: Cast<<A as NormalOut<B>>::Output>,
         A::Vec: NormalOut<B::Vec, Output = <<A as NormalOut<B>>::Output as TypeCommon>::Vec>,
+        Al: Allocator,
+        Al::Output: AllocatorOutputRetrive,
     {
-        type Output = Tensor<NormalType<A, B>, Cpu, DEVICE>;
+        type Output = Tensor<NormalType<A, B>, Cpu, DEVICE, Al>;
         type OutputMeta = NormalType<A, B>;
-        type InplaceOutput = Tensor<NormalType<A, B>, Cpu, DEVICE>;
+        type InplaceOutput = Tensor<NormalType<A, B>, Cpu, DEVICE, Al>;
         #[track_caller]
         #[inline]
         fn add_<U>(&self, rhs: $($rhs)*, mut out: U) -> std::result::Result<Self::Output, TensorError>
@@ -161,7 +166,23 @@ macro_rules! impl_bin_ops_basic {
     };
 }
 
-impl_bin_ops_basic!([Tensor<A, Cpu, DEVICE>], [&Tensor<B, Cpu, DEVICE>], Tensor);
-impl_bin_ops_basic!([Tensor<A, Cpu, DEVICE>], [Tensor<B, Cpu, DEVICE>], Tensor);
-impl_bin_ops_basic!([&Tensor<A, Cpu, DEVICE>], [&Tensor<B, Cpu, DEVICE>], Tensor);
-impl_bin_ops_basic!([&Tensor<A, Cpu, DEVICE>], [Tensor<B, Cpu, DEVICE>], Tensor);
+impl_bin_ops_basic!(
+    [Tensor<A, Cpu, DEVICE, Al>],
+    [&Tensor<B, Cpu, DEVICE, Al>],
+    Tensor
+);
+impl_bin_ops_basic!(
+    [Tensor<A, Cpu, DEVICE, Al>],
+    [Tensor<B, Cpu, DEVICE, Al>],
+    Tensor
+);
+impl_bin_ops_basic!(
+    [&Tensor<A, Cpu, DEVICE, Al>],
+    [&Tensor<B, Cpu, DEVICE, Al>],
+    Tensor
+);
+impl_bin_ops_basic!(
+    [&Tensor<A, Cpu, DEVICE, Al>],
+    [Tensor<B, Cpu, DEVICE, Al>],
+    Tensor
+);

@@ -2,7 +2,7 @@
 use hpt::ShapeManipulate;
 use hpt::TensorInfo;
 use hpt::TensorLike;
-use hpt::{Tensor, TensorCreator};
+use hpt::{Concat, Tensor, TensorCreator};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 #[allow(unused)]

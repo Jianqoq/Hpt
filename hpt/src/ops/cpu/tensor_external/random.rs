@@ -5,6 +5,7 @@ use crate::{
     tensor_base::_Tensor,
     Cpu,
 };
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_traits::{CommonBounds, Random, RandomInt};
 use hpt_types::into_scalar::Cast;
@@ -12,7 +13,7 @@ use rand_distr::{
     uniform::SampleUniform, Distribution, Exp1, Open01, OpenClosed01, Standard, StandardNormal,
 };
 
-impl<T, const DEVICE: usize> Random for Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> Random for Tensor<T, Cpu, DEVICE, Al>
 where
     T: CommonBounds + SampleUniform + num::Float + rand_distr::num_traits::FloatConst,
     <T as SampleUniform>::Sampler: Sync,
@@ -21,6 +22,8 @@ where
     Exp1: Distribution<T>,
     OpenClosed01: Distribution<T>,
     Standard: Distribution<T>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Meta = T;
 
@@ -183,9 +186,11 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> RandomInt for Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> RandomInt for Tensor<T, Cpu, DEVICE, Al>
 where
     T: CommonBounds + SampleUniform,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Meta = T;
 
@@ -208,7 +213,7 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> Random for DiffTensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> Random for DiffTensor<T, Cpu, DEVICE, Al>
 where
     T: CommonBounds + SampleUniform + num::Float + rand_distr::num_traits::FloatConst,
     <T as SampleUniform>::Sampler: Sync,
@@ -217,6 +222,8 @@ where
     Exp1: Distribution<T>,
     OpenClosed01: Distribution<T>,
     Standard: Distribution<T>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Meta = T;
 
@@ -524,9 +531,11 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> RandomInt for DiffTensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> RandomInt for DiffTensor<T, Cpu, DEVICE, Al>
 where
     T: CommonBounds + SampleUniform,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Meta = T;
 

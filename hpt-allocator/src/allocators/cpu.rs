@@ -18,9 +18,9 @@ use lru::LruCache;
 use once_cell::sync::Lazy;
 
 /// `lru` cache allocator
-pub static CACHE: Lazy<Mutex<CpuAllocator>> = Lazy::new(|| Mutex::new(CpuAllocator::new()));
+pub(crate) static CACHE: Lazy<Mutex<CpuAllocator>> = Lazy::new(|| Mutex::new(CpuAllocator::new()));
 
-pub static CPU_LRU_CACHE_SIZE: AtomicUsize = AtomicUsize::new(100);
+pub(crate) static CPU_LRU_CACHE_SIZE: AtomicUsize = AtomicUsize::new(100);
 
 /// # Allocator
 ///
@@ -35,12 +35,17 @@ pub static CPU_LRU_CACHE_SIZE: AtomicUsize = AtomicUsize::new(100);
 /// # Potential Memory Leak
 ///
 /// developer must carefully manage the reference count of the pointer allocated
+#[derive(Clone)]
 pub struct CpuAllocator {
     allocator: HashMap<usize, _Allocator>,
 }
 
 impl Allocator for CpuAllocator {
-    fn allocate(&mut self, layout: Layout, device_id: usize) -> Result<*mut u8, TensorError> {
+    type Output = *mut u8;
+    type CpuAllocator = CpuAllocator;
+    #[cfg(feature = "cuda")]
+    type CudaAllocator = crate::allocators::cuda::CudaAllocator;
+    fn allocate(&mut self, layout: Layout, device_id: usize) -> Result<Self::Output, TensorError> {
         if let Some(allocator) = self.allocator.get_mut(&device_id) {
             allocator.allocate(layout, device_id)
         } else {
@@ -55,6 +60,26 @@ impl Allocator for CpuAllocator {
             Ok(ptr)
         }
     }
+    fn allocate_zeroed(
+        &mut self,
+        layout: Layout,
+        device_id: usize,
+    ) -> Result<Self::Output, TensorError> {
+        if let Some(allocator) = self.allocator.get_mut(&device_id) {
+            allocator.allocate_zeroed(layout, device_id)
+        } else {
+            let mut allocator = _Allocator {
+                cache: LruCache::new(
+                    NonZeroUsize::new(CPU_LRU_CACHE_SIZE.load(Ordering::Relaxed)).unwrap(),
+                ),
+                allocated: HashSet::new(),
+            };
+            let ptr = allocator.allocate_zeroed(layout, device_id)?;
+            self.allocator.insert(device_id, allocator);
+            Ok(ptr)
+        }
+    }
+
     fn deallocate(&mut self, ptr: *mut u8, layout: &Layout, device_id: usize) {
         if let Some(allocator) = self.allocator.get_mut(&device_id) {
             allocator.deallocate(ptr, layout, device_id);
@@ -89,16 +114,15 @@ impl Allocator for CpuAllocator {
             assert_eq!(allocator.allocated.len(), 0);
         }
     }
-}
 
-impl CpuAllocator {
-    pub fn new() -> Self {
+    fn new() -> Self {
         CpuAllocator {
             allocator: HashMap::new(),
         }
     }
 }
 
+#[derive(Clone)]
 struct _Allocator {
     cache: LruCache<Layout, Vec<SafePtr>>,
     allocated: HashSet<SafePtr>,
@@ -112,6 +136,30 @@ impl _Allocator {
                 &mut self.allocated,
                 &mut storage,
                 || unsafe { std::alloc::alloc(layout) },
+                |_, _| {},
+                |ptr, layout| unsafe { std::alloc::dealloc(ptr, layout) },
+                layout,
+                device_id,
+            )
+        } else {
+            panic!("Failed to lock CPU_STORAGE");
+        }
+    }
+
+    fn allocate_zeroed(
+        &mut self,
+        layout: Layout,
+        device_id: usize,
+    ) -> Result<*mut u8, TensorError> {
+        if let Ok(mut storage) = CPU_STORAGE.lock() {
+            crate::utils::allocate::allocate_helper(
+                &mut self.cache,
+                &mut self.allocated,
+                &mut storage,
+                || unsafe { std::alloc::alloc_zeroed(layout) },
+                |ptr, layout| unsafe {
+                    std::ptr::write_bytes(ptr, 0, layout.size());
+                },
                 |ptr, layout| unsafe { std::alloc::dealloc(ptr, layout) },
                 layout,
                 device_id,

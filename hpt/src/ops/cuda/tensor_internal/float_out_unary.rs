@@ -6,6 +6,7 @@ use crate::{
     Cuda,
 };
 use cudarc::driver::DeviceRepr;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, FloatUnaryOps};
 use hpt_types::{cuda_types::scalar::Scalar, dtype::CudaType};
@@ -13,17 +14,19 @@ use hpt_types::{dtype::TypeCommon, into_scalar::Cast, type_promote::FloatOutUnar
 
 pub(crate) type FloatUnaryType<T> = <T as FloatOutUnary>::Output;
 
-impl<T, const DEVICE_ID: usize> FloatUnaryOps for _Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize, Al> FloatUnaryOps for _Tensor<T, Cuda, DEVICE_ID, Al>
 where
     T: FloatOutUnary + CommonBounds + DeviceRepr + CudaType,
     FloatUnaryType<T>: CommonBounds + DeviceRepr + CudaType,
     f64: Cast<<T as FloatOutUnary>::Output>,
     T::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,
     Scalar<T>: FloatOutUnary<Output = Scalar<FloatUnaryType<T>>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<FloatUnaryType<T>, Cuda, DEVICE_ID>;
+    type Output = _Tensor<FloatUnaryType<T>, Cuda, DEVICE_ID, Al>;
 
-    type InplaceOutput = _Tensor<FloatUnaryType<T>, Cuda, DEVICE_ID>;
+    type InplaceOutput = _Tensor<FloatUnaryType<T>, Cuda, DEVICE_ID, Al>;
 
     type OutputMeta = FloatUnaryType<T>;
 
@@ -137,7 +140,7 @@ where
 
     fn sin_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
-        U: BorrowMut<_Tensor<FloatUnaryType<T>, Cuda, DEVICE_ID>>,
+        U: BorrowMut<Self::InplaceOutput>,
     {
         uary_fn_with_out_simd(
             self,

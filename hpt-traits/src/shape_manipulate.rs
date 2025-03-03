@@ -461,7 +461,12 @@ where
     fn flatten<A>(&self, start: A, end: A) -> std::result::Result<Self::Output, TensorError>
     where
         A: Into<Option<usize>>;
+}
 
+/// trait for concat
+pub trait Concat: Sized {
+    /// the output type of concat
+    type Output;
     /// Concatenates multiple tensors along a specified axis.
     ///
     /// This operation combines a list of tensors into one, stacking them along the specified `axis`.

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::ops::cpu::utils::binary::binary_normal::binary_fn_with_out_simd;
 use crate::tensor_base::_Tensor;
 use crate::{Cpu, THREAD_POOL};
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape_utils::mt_intervals;
@@ -20,15 +21,19 @@ use hpt_types::traits::{SimdSelect, VecTrait};
 use hpt_types::type_promote::{Cmp, NormalOut, NormalOutUnary, SimdCmp};
 use rand_distr::Distribution;
 use rayon::iter::ParallelIterator;
-impl<T: CommonBounds + PartialOrd, const DEVICE: usize> AdvancedOps for _Tensor<T, Cpu, DEVICE>
+
+impl<T: CommonBounds + PartialOrd, const DEVICE: usize, Al> AdvancedOps
+    for _Tensor<T, Cpu, DEVICE, Al>
 where
     T: NormalOut<bool, Output = T> + Cast<i64>,
     f64: Cast<T>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Meta = T;
-    type Output = _Tensor<T, Cpu, DEVICE>;
+    type Output = _Tensor<T, Cpu, DEVICE, Al>;
 
-    type IndexOutput = _Tensor<i64, Cpu, DEVICE>;
+    type IndexOutput = _Tensor<i64, Cpu, DEVICE, Al>;
 
     fn pad(&self, pads: &[(i64, i64)], val: Self::Meta) -> Result<Self::Output, TensorError> {
         let res_shape = self
@@ -38,7 +43,7 @@ where
             .map(|(x, (a, b))| x + a + b)
             .collect::<Vec<_>>();
 
-        let res = _Tensor::<T, Cpu, DEVICE>::full(val, &res_shape)?;
+        let res = _Tensor::<T, Cpu, DEVICE, Al>::full(val, &res_shape)?;
 
         let outer_loop = self.shape()[..self.ndim() - 1].iter().product::<i64>();
         let inner_loop = self.shape()[self.ndim() - 1];
@@ -158,8 +163,8 @@ where
             .enumerate()
             .map(|(idx, x)| if idx == (dim as usize) { k } else { *x })
             .collect::<Vec<i64>>();
-        let res = _Tensor::<T, Cpu, DEVICE>::empty(&res_shape)?;
-        let res_indices = _Tensor::<i64, Cpu, DEVICE>::empty(&res_shape)?;
+        let res = _Tensor::<T, Cpu, DEVICE, Al>::empty(&res_shape)?;
+        let res_indices = _Tensor::<i64, Cpu, DEVICE, Al>::empty(&res_shape)?;
         let transposed_res = res.permute(&axes)?;
         let transposed_res_indices = res_indices.permute(&axes)?;
         let inner_loop = *transposed.shape().last().unwrap() as isize;
@@ -339,7 +344,7 @@ where
         ShapeError::check_index_out_of_range(axis, self.ndim() as i64)?;
         axis += 1;
         new_shape.insert(axis as usize, depth as i64);
-        let res = _Tensor::<T, Cpu, DEVICE>::full(false_val, new_shape)?;
+        let res = _Tensor::<T, Cpu, DEVICE, Al>::full(false_val, new_shape)?;
         let mut permute_axes = (0..res.ndim()).collect::<Vec<usize>>();
         permute_axes.retain(|x| *x != (axis as usize));
         permute_axes.push(axis as usize);
@@ -501,7 +506,7 @@ where
     // }
 
     fn dropout(&self, rate: f64) -> Result<Self::Output, TensorError> {
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(self.shape())?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, Al>::empty(self.shape())?;
         let bernoli = rand_distr::Bernoulli::new(rate)
             .expect("Failed to create Bernoulli distribution for dropout");
         let scale: T = (1.0 / (1.0 - rate)).cast();
@@ -696,13 +701,15 @@ where
     }
 }
 
-impl<T: CommonBounds, const DEVICE: usize> Shrinkage<T> for _Tensor<T, Cpu, DEVICE>
+impl<T: CommonBounds, const DEVICE: usize, Al> Shrinkage<T> for _Tensor<T, Cpu, DEVICE, Al>
 where
     T: Cmp<Output = bool> + TypeCommon,
     T::Vec: SimdCmp,
     <T::Vec as SimdCmp>::Output: SimdSelect<T::Vec>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<T, Cpu, DEVICE>;
+    type Output = _Tensor<T, Cpu, DEVICE, Al>;
     fn shrinkage(&self, bias: T, lambda: T) -> Result<Self::Output, TensorError> {
         let lambda_vec = T::Vec::splat(lambda);
         let neg_lambda = lambda._neg();
@@ -735,14 +742,16 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> HardMax<T> for _Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> HardMax<T> for _Tensor<T, Cpu, DEVICE, Al>
 where
     T: CommonBounds + Cmp<Output = bool>,
     <T as TypeCommon>::Vec: SimdCmp,
     <T::Vec as SimdCmp>::Output: IntoVec<T::Vec>,
     bool: NormalOut<T> + Cast<T>,
+    Al: Allocator + 'static + Send + Sync,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<T, Cpu, DEVICE>;
+    type Output = _Tensor<T, Cpu, DEVICE, Al>;
     fn hardmax(&self, axis: i64) -> Result<Self::Output, TensorError> {
         let axis = (if axis < 0 {
             (self.layout.ndim() as i64) + axis
@@ -767,12 +776,14 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> TensorWhere for _Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> TensorWhere for _Tensor<T, Cpu, DEVICE, Al>
 where
     T: CommonBounds,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<T, Cpu, DEVICE>;
-    type Condition = _Tensor<bool, Cpu, DEVICE>;
+    type Output = _Tensor<T, Cpu, DEVICE, Al>;
+    type Condition = _Tensor<bool, Cpu, DEVICE, Al>;
     fn tensor_where(
         condition: &Self::Condition,
         x: &Self::Output,
