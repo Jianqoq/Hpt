@@ -5,8 +5,8 @@ use hpt_traits::{CommonBounds, FloatUnaryOps};
 use hpt_types::{dtype::TypeCommon, into_scalar::Cast, type_promote::FloatOutUnary};
 
 use crate::{
-    backend::Cpu, ops::cpu::tensor_internal::float_out_unary::FloatUnaryType, tensor::Tensor,
-    tensor_base::_Tensor,
+    ops::cpu::tensor_internal::float_out_unary::FloatUnaryType, tensor::Tensor,
+    tensor_base::_Tensor, Cpu,
 };
 
 impl<T, const DEVICE: usize> FloatUnaryOps for Tensor<T, Cpu, DEVICE>

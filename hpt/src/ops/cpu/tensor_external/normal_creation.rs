@@ -1,10 +1,9 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    backend::Cpu,
     tensor::{DiffTensor, Tensor},
     tensor_base::_Tensor,
-    BoolVector,
+    BoolVector, Cpu,
 };
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_traits::{CommonBounds, TensorCreator};

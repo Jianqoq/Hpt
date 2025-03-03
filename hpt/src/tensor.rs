@@ -5,11 +5,7 @@ use std::{
     sync::{atomic::Ordering, Arc},
 };
 
-use crate::{
-    backend::{BackendTy, Buffer, Cpu},
-    tensor_base::_Tensor,
-    DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION,
-};
+use crate::{tensor_base::_Tensor, BackendTy, Buffer, Cpu, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION};
 use hpt_common::{
     error::base::TensorError, layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer,
 };

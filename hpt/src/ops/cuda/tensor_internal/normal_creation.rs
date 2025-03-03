@@ -1,11 +1,10 @@
 use crate::{
-    backend::Backend,
     ops::{
         common::creation::geomspace_preprocess_start_step,
         cuda::cuda_utils::{compute_kernel_launch_config, load_ptx_and_get_data},
     },
     tensor_base::_Tensor,
-    BoolVector, Cuda, ALIGN,
+    Backend, BoolVector, Cuda, ALIGN,
 };
 use cudarc::driver::{DeviceRepr, LaunchAsync, LaunchConfig};
 use hpt_allocator::CUDA_CACHE;
@@ -57,7 +56,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> TensorCreator
             parent: None,
             layout: Layout::from(res_shape.clone()),
             mem_layout: Arc::new(layout),
-            _backend: Backend::<Cuda>::new(ptr as u64, device, false),
+            _backend: Backend::<Cuda>::new(ptr as u64, device),
         })
     }
 

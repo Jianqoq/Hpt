@@ -1,6 +1,6 @@
-use crate::backend::Backend;
+use crate::Backend;
 use crate::tensor::{DiffTensor, Tensor};
-use crate::{backend::Cpu, tensor_base::_Tensor};
+use crate::{Cpu, tensor_base::_Tensor};
 use half::bf16;
 use half::f16;
 use hpt_allocator::traits::Allocator;
@@ -77,7 +77,7 @@ macro_rules! impl_type_num {
                         parent: None,
                         layout: ly,
                         mem_layout: Arc::new(layout),
-                        _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
+                        _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
                     };
                 }
             }
@@ -121,7 +121,7 @@ macro_rules! impl_type_num {
                         parent: None,
                         layout: ly,
                         mem_layout: Arc::new(layout),
-                        _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
+                        _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
                     };
                 }
             }
@@ -166,7 +166,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
-                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
+                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
                 };
             }
         }
@@ -262,7 +262,7 @@ macro_rules! impl_type_num {
                 parent: None,
                 layout: ly,
                 mem_layout: Arc::new(layout),
-                _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
+                _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
             };
         }
     }
@@ -307,7 +307,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
-                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
+                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
                 };
             }
         }
@@ -352,7 +352,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
-                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
+                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
                 };
             }
         }

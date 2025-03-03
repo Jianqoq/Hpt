@@ -1,4 +1,4 @@
-use crate::backend::Cpu;
+use crate::Cpu;
 use crate::tensor_base::_Tensor;
 use crate::Tensor;
 use hpt_common::error::base::TensorError;

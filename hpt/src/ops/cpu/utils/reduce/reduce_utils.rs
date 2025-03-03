@@ -11,9 +11,9 @@ use hpt_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, Tenso
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::{
-    backend::Cpu,
     ops::common::reduce::{is_keep_fast_dim, rearrange_array},
     tensor_base::_Tensor,
+    Cpu,
 };
 
 pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: usize>(

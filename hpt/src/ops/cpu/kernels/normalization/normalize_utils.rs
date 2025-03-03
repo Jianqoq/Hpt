@@ -11,9 +11,9 @@ use hpt_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo};
 use hpt_types::into_scalar::Cast;
 
 use crate::{
-    backend::Cpu,
     ops::common::reduce::{is_keep_fast_dim, rearrange_array},
     tensor_base::_Tensor,
+    Cpu,
 };
 
 #[derive(Debug, Clone)]

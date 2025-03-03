@@ -1,6 +1,6 @@
 use crate::ops::common::reduce::rearrange_array;
 use crate::ops::cuda::cuda_utils::load_ptx_and_get_data;
-use crate::{backend::Cuda, tensor_base::_Tensor};
+use crate::{tensor_base::_Tensor, Cuda};
 use cudarc::driver::DeviceRepr;
 use cudarc::driver::LaunchAsync;
 use hpt_common::error::base::TensorError;

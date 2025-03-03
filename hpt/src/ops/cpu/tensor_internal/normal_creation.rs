@@ -1,10 +1,8 @@
 use std::{panic::Location, sync::Arc};
 
 use crate::{
-    backend::{Backend, Cpu},
-    ops::common::creation::geomspace_preprocess_start_step,
-    tensor_base::_Tensor,
-    BoolVector, ALIGN,
+    ops::common::creation::geomspace_preprocess_start_step, tensor_base::_Tensor, Backend,
+    BoolVector, Cpu, ALIGN,
 };
 use hpt_allocator::{traits::Allocator, CACHE};
 use hpt_common::error::memory::MemoryError;
@@ -53,7 +51,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
             parent: None,
             layout: Layout::from(res_shape.clone()),
             mem_layout: Arc::new(layout),
-            _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
+            _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
         })
     }
 
