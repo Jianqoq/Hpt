@@ -32,10 +32,22 @@ fn test_slice() -> anyhow::Result<()> {
     let a = slice!(a[1:9, 1:9])?.contiguous()?;
     let tch_a = tch_a.slice(1, 1, 9, 1).slice(0, 1, 9, 1).contiguous();
     assert_eq(&a, &tch_a);
-    let a = slice!(a[2:9, 2:9])?.contiguous()?;
-    let tch_a = tch_a.slice(1, 2, 9, 1).slice(0, 2, 9, 1).contiguous();
+    let a = slice!(a[2:9:2, 2:9:2])?.contiguous()?;
+    let tch_a = tch_a.slice(1, 2, 9, 2).slice(0, 2, 9, 2).contiguous();
     assert_eq(&a, &tch_a);
 
+    let tch_a = tch::Tensor::arange(256, (tch::Kind::Int, tch::Device::Cpu)).reshape(&[4, 4, 4, 4]);
+    let a: Tensor<i32> = Tensor::<i32>::arange(0, 256)?.reshape(&[4, 4, 4, 4])?;
+
+    let a = slice!(a[1:2, 1:3, ..])?.contiguous()?;
+    let tch_a = tch_a.slice(0, 1, 2, 1).slice(1, 1, 3, 1).contiguous();
+    assert_eq(&a, &tch_a);
+    let a = slice!(a[0:1, .., 1:3])?.contiguous()?;
+    let tch_a = tch_a
+        .slice(0, 0, 1, 1)
+        .slice(3, 1, 3, 1)
+        .contiguous();
+    assert_eq(&a, &tch_a);
     Ok(())
 }
 
