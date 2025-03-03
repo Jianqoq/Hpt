@@ -14,7 +14,7 @@ A new tensor with input tensors stacked horizontally.
 
 ## Examples:
 ```rust
-use hpt::{ShapeManipulate, Tensor, TensorError};
+use hpt::{Concat, Tensor, TensorError, ShapeManipulate};
 fn main() -> Result<(), TensorError> {
     // With 2D tensors
     let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2])?;
@@ -24,7 +24,7 @@ fn main() -> Result<(), TensorError> {
     // [[5, 6],
     //  [7, 8]]
 
-    let c = Tensor::hstack(vec![&a, &b])?;
+    let c = Tensor::hstack(vec![a.clone(), b.clone()])?;
     // [[1, 2, 5, 6],
     //  [3, 4, 7, 8]]
     println!("{}", c);
@@ -32,20 +32,20 @@ fn main() -> Result<(), TensorError> {
     // With 1D tensors
     let d = Tensor::<f32>::new(&[1.0, 2.0]);
     let e = Tensor::<f32>::new(&[3.0, 4.0]);
-    let f = Tensor::hstack(vec![&d, &e])?;
+    let f = Tensor::hstack(vec![d.clone(), e.clone()])?;
     // [1, 2, 3, 4]
     println!("{}", f);
 
     // With scalars (0D tensors)
     let g = Tensor::<f32>::new(&[1.0]);
     let h = Tensor::<f32>::new(&[2.0]);
-    let i = Tensor::hstack(vec![&g, &h])?;
+    let i = Tensor::hstack(vec![g.clone(), h.clone()])?;
     // [1, 2]
     println!("{}", i);
 
     // Will raise an error if heights don't match for 2D tensors
     let j = Tensor::<f32>::new(&[1.0, 2.0, 3.0]).reshape(&[3, 1])?;
-    assert!(Tensor::hstack(vec![&a, &j]).is_err());
+    assert!(Tensor::hstack(vec![a.clone(), j.clone()]).is_err());
 
     Ok(())
 }

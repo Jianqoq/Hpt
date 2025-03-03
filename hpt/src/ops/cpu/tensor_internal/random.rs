@@ -1,4 +1,6 @@
-use crate::{backend::Cpu, tensor_base::_Tensor};
+use crate::{tensor_base::_Tensor, Cpu};
+use hpt_allocator::traits::Allocator;
+use hpt_allocator::traits::AllocatorOutputRetrive;
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_traits::{
     random::Random,
@@ -12,7 +14,7 @@ use rand_distr::{
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-impl<T, const DEVICE: usize> Random for _Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, A> Random for _Tensor<T, Cpu, DEVICE, A>
 where
     T: CommonBounds + SampleUniform + num::Float + rand_distr::num_traits::FloatConst,
     <T as SampleUniform>::Sampler: Sync,
@@ -21,11 +23,13 @@ where
     Exp1: Distribution<T>,
     OpenClosed01: Distribution<T>,
     Standard: Distribution<T>,
+    A: Allocator,
+    A::Output: AllocatorOutputRetrive,
 {
     type Meta = T;
     fn randn<S: Into<Shape>>(shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(res_shape)?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)?;
         let normal = Normal::new(T::from(0.0).unwrap(), T::from(1.0).unwrap())?;
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::thread_rng(),
@@ -47,7 +51,7 @@ where
         high: Self::Meta,
     ) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(res_shape)?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)?;
         let normal = Uniform::new(low, high);
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::thread_rng(),
@@ -65,7 +69,7 @@ where
 
     fn beta<S: Into<Shape>>(a: Self::Meta, b: Self::Meta, shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(res_shape)?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)?;
         let normal = rand_distr::Beta::new(a, b)?;
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::thread_rng(),
@@ -83,7 +87,7 @@ where
 
     fn chisquare<S: Into<Shape>>(df: Self::Meta, shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(res_shape)?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)?;
         let normal = rand_distr::ChiSquared::new(df)?;
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::thread_rng(),
@@ -101,7 +105,7 @@ where
 
     fn exponential<S: Into<Shape>>(lambda: Self::Meta, shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(res_shape)?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)?;
         let normal = rand_distr::Exp::new(lambda)?;
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::thread_rng(),
@@ -123,7 +127,7 @@ where
         shape: S,
     ) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(res_shape)?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)?;
         let normal = rand_distr::Gamma::new(gamma_shape, scale)?;
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::thread_rng(),
@@ -145,7 +149,7 @@ where
         shape: S,
     ) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(res_shape)?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)?;
         let normal = rand_distr::Gumbel::new(mu, beta)?;
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::thread_rng(),
@@ -167,7 +171,7 @@ where
         shape: S,
     ) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(res_shape)?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)?;
         let normal = rand_distr::LogNormal::new(mean, std)?;
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::thread_rng(),
@@ -189,7 +193,7 @@ where
         shape: S,
     ) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(res_shape)?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)?;
         let normal = NormalInverseGaussian::new(mean, std)?;
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::thread_rng(),
@@ -210,7 +214,7 @@ where
         shape: S,
     ) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(res_shape)?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)?;
         let pareto = rand_distr::Pareto::new(a, pareto_shape)?;
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::thread_rng(),
@@ -227,7 +231,7 @@ where
 
     fn poisson<S: Into<Shape>>(lambda: Self::Meta, shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(res_shape)?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)?;
         let poisson = rand_distr::Poisson::new(lambda)?;
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::thread_rng(),
@@ -248,7 +252,7 @@ where
         shape: S,
     ) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(res_shape)?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)?;
         let weibull = rand_distr::Weibull::new(a, b)?;
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::thread_rng(),
@@ -265,7 +269,7 @@ where
 
     fn zipf<S: Into<Shape>>(n: u64, a: Self::Meta, shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(res_shape)?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)?;
         let zipf = rand_distr::Zipf::new(n, a)?;
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::thread_rng(),
@@ -287,7 +291,7 @@ where
         shape: S,
     ) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(res_shape)?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)?;
         let triangular = rand_distr::Triangular::new(low, high, mode)?;
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::thread_rng(),
@@ -313,7 +317,7 @@ where
         bool: Cast<T>,
     {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(res_shape)?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)?;
         let bernoulli = rand_distr::Bernoulli::new(p.cast())?;
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::thread_rng(),
@@ -325,9 +329,11 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> RandomInt for _Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, A> RandomInt for _Tensor<T, Cpu, DEVICE, A>
 where
     T: CommonBounds + SampleUniform,
+    A: Allocator,
+    A::Output: AllocatorOutputRetrive,
 {
     type Meta = T;
     fn randint<S: Into<Shape>>(
@@ -339,7 +345,7 @@ where
         <T as SampleUniform>::Sampler: Sync,
     {
         let res_shape = Shape::from(shape.into());
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(res_shape)?;
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)?;
         let normal = Uniform::new(low, high);
         ret.as_raw_mut().into_par_iter().for_each_init(
             || rand::thread_rng(),

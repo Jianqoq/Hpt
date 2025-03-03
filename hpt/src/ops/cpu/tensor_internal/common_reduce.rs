@@ -4,10 +4,9 @@ use crate::ops::cpu::tensor_internal::float_out_unary::FloatBinaryType;
 use crate::ops::cpu::utils::reduce::reduce::{reduce, reduce2, reduce3};
 use crate::tensor_base::_Tensor;
 use crate::{BoolVector, Cpu};
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::axis::axis::{process_axes, Axis};
 use hpt_common::error::base::TensorError;
-use hpt_iterator::iterator_traits::ParStridedIteratorSimd;
-use hpt_iterator::TensorIterator;
 use hpt_traits::{
     CommonBounds, EvalReduce, FloatReduce, NormalEvalReduce, NormalReduce, TensorInfo,
 };
@@ -21,7 +20,11 @@ use hpt_types::{
     vectors::traits::SimdSelect,
 };
 
-impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for _Tensor<T, Cpu, DEVICE> {
+impl<T: CommonBounds, const DEVICE: usize, A> NormalReduce<T> for _Tensor<T, Cpu, DEVICE, A>
+where
+    A: Allocator + 'static + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
+{
     type Output = Self;
 
     fn sum<S: Into<Axis>>(
@@ -251,12 +254,14 @@ impl<T: CommonBounds, const DEVICE: usize> NormalReduce<T> for _Tensor<T, Cpu, D
     }
 }
 
-impl<T, const DEVICE: usize> EvalReduce for _Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> EvalReduce for _Tensor<T, Cpu, DEVICE, Al>
 where
     T: CommonBounds + Eval<Output = bool> + Cast<bool>,
     T::Vec: IntoVec<BoolVector>,
+    Al: Allocator + 'static + Send + Sync,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type BoolOutput = _Tensor<bool, Cpu, DEVICE>;
+    type BoolOutput = _Tensor<bool, Cpu, DEVICE, Al>;
     fn all<S: Into<Axis>>(
         &self,
         axis: S,
@@ -306,11 +311,13 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> NormalEvalReduce<T> for _Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> NormalEvalReduce<T> for _Tensor<T, Cpu, DEVICE, Al>
 where
     T: CommonBounds + Eval<Output = bool> + Cast<bool>,
     T::Vec: Eval,
     <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
+    Al: Allocator + 'static + Send + Sync,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Output = Self;
 
@@ -476,7 +483,7 @@ where
     // }
 }
 
-impl<T, const DEVICE: usize> FloatReduce<T> for _Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> FloatReduce<T> for _Tensor<T, Cpu, DEVICE, Al>
 where
     T: FloatOutBinary + CommonBounds + Cast<FloatBinaryType<T>>,
     FloatBinaryType<T>: CommonBounds + FloatOutUnary<Output = FloatBinaryType<T>>,
@@ -497,15 +504,17 @@ where
         <<T as TypeCommon>::Vec as FloatOutUnary>::Output,
         Output = <FloatBinaryType<T> as TypeCommon>::Vec,
     >,
+    Al: Allocator + 'static + Send + Sync,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<FloatBinaryType<T>, Cpu, DEVICE>;
+    type Output = _Tensor<FloatBinaryType<T>, Cpu, DEVICE, Al>;
 
     #[track_caller]
     fn mean<S: Into<Axis>>(
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError> {
+    ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         let reduce_size: FloatBinaryType<T> = (axes
             .iter()
@@ -536,7 +545,7 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError> {
+    ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce3(
             self,
@@ -560,10 +569,12 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError> {
+    ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         let three: FloatBinaryType<T> = (3.0).cast();
         let three_vec = <FloatBinaryType<T> as TypeCommon>::Vec::splat(three);
+        let one_third: FloatBinaryType<T> = (1.0f64 / 3.0f64).cast();
+        let one_third_vec = <FloatBinaryType<T> as TypeCommon>::Vec::splat(one_third);
         let mut res = reduce3(
             self,
             move |a, b| {
@@ -575,7 +586,7 @@ where
                 a._add(pow)
             },
             move |a, b| a._add(b),
-            move |a| a,
+            move |a| a._pow(one_third),
             move |a, b| {
                 let abs = b._abs();
                 let pow = abs._pow(three_vec);
@@ -586,23 +597,13 @@ where
                 let pow = abs._pow(three_vec);
                 a._add(pow)
             },
-            |a| a,
+            move |a| a._pow(one_third_vec),
             &axes,
             FloatBinaryType::<T>::ZERO,
             keep_dims,
             false,
             None,
         )?;
-        let one_third: FloatBinaryType<T> = (1.0f64 / 3.0f64).cast();
-        let one_third_vec = <FloatBinaryType<T> as TypeCommon>::Vec::splat(one_third);
-        res.par_iter_mut_simd().for_each(
-            |x| {
-                *x = x._pow(one_third);
-            },
-            |mut x| {
-                x.write_unaligned(x.read_unaligned()._pow(one_third_vec));
-            },
-        );
         Ok(res)
     }
     #[allow(unused)]
@@ -611,7 +612,7 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> std::result::Result<_Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
+    ) -> std::result::Result<Self::Output, TensorError>
     where
         T: CommonBounds,
     {

@@ -4,7 +4,7 @@
 resize_cuda_lru_cache(new_size: usize, device_id: usize)
 ```
 
-Adjusts the size of the memory cache used by the CPU allocator. This function allows dynamic control over memory caching behavior.
+Adjusts the size of the memory cache used by the GPU allocator. This function allows dynamic control over memory caching behavior.
 
 ## Parameters:
 - `new_size`: `usize`
@@ -12,8 +12,8 @@ Adjusts the size of the memory cache used by the CPU allocator. This function al
   - Must be a non-negative integer
   - Determines how many memory allocations can be cached
 - `device_id`: `usize`
-  - ID of the CPU device
-  - Usually 0 for single CPU systems
+  - ID of the GPU device
+  - Usually 0 for single GPU
 
 ## Behavior
 - When `new_size` >= current size:

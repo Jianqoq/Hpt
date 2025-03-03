@@ -1,7 +1,8 @@
 #![allow(unused)]
 
-use crate::{backend::Cpu, tensor_base::_Tensor, Cuda, CUDA_SEED};
+use crate::{tensor_base::_Tensor, Cpu, Cuda, CUDA_SEED};
 use cudarc::driver::DeviceRepr;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_traits::{
     random::Random,
@@ -16,7 +17,7 @@ use rand_distr::{
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-impl<T, const DEVICE_ID: usize> Random for _Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize, Al> Random for _Tensor<T, Cuda, DEVICE_ID, Al>
 where
     T: CommonBounds
         + SampleUniform
@@ -33,11 +34,13 @@ where
     cudarc::curand::sys::curandGenerator_t: cudarc::curand::result::NormalFill<T>,
     cudarc::curand::sys::curandGenerator_t: cudarc::curand::result::UniformFill<T>,
     cudarc::curand::sys::curandGenerator_t: cudarc::curand::result::LogNormalFill<T>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Meta = T;
     fn randn<S: Into<Shape>>(shape: S) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(res_shape)?;
+        let ret = _Tensor::<T, Cuda, DEVICE_ID, Al>::empty(res_shape)?;
         let rng = cudarc::curand::CudaRng::new(
             CUDA_SEED.load(std::sync::atomic::Ordering::Relaxed),
             ret.device(),
@@ -63,7 +66,7 @@ where
         high: Self::Meta,
     ) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(res_shape)?;
+        let ret = _Tensor::<T, Cuda, DEVICE_ID, Al>::empty(res_shape)?;
         let rng = cudarc::curand::CudaRng::new(
             CUDA_SEED.load(std::sync::atomic::Ordering::Relaxed),
             ret.device(),
@@ -137,7 +140,7 @@ where
         shape: S,
     ) -> Result<Self, TensorError> {
         let res_shape = Shape::from(shape.into());
-        let ret = _Tensor::<T, Cuda, DEVICE_ID>::empty(res_shape)?;
+        let ret = _Tensor::<T, Cuda, DEVICE_ID, Al>::empty(res_shape)?;
         let rng = cudarc::curand::CudaRng::new(
             CUDA_SEED.load(std::sync::atomic::Ordering::Relaxed),
             ret.device(),
@@ -236,9 +239,11 @@ where
     }
 }
 
-impl<T, const DEVICE_ID: usize> RandomInt for _Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize, Al> RandomInt for _Tensor<T, Cuda, DEVICE_ID, Al>
 where
     T: CommonBounds + SampleUniform,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Meta = T;
     fn randint<S: Into<Shape>>(
@@ -256,6 +261,6 @@ where
     where
         <T as SampleUniform>::Sampler: Sync,
     {
-        _Tensor::<T, Cuda, DEVICE_ID>::randint(low, high, self.shape().clone())
+        _Tensor::<T, Cuda, DEVICE_ID, Al>::randint(low, high, self.shape().clone())
     }
 }

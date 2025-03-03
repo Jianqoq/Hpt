@@ -4,6 +4,7 @@ use crate::ops::cuda::cuda_utils::{
 use crate::Cuda;
 use crate::{ops::cuda::cuda_utils::get_include_1, tensor_base::_Tensor};
 use cudarc::driver::{DeviceRepr, LaunchAsync};
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::axis::axis::Axis;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::param::ParamError;
@@ -11,12 +12,17 @@ use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape::Shape;
 use hpt_common::slice;
 use hpt_macros::select;
-use hpt_traits::{CommonBounds, ShapeManipulate, Slice, TensorCreator, TensorInfo, TensorLike};
+use hpt_traits::{
+    CommonBounds, Concat, ShapeManipulate, Slice, TensorCreator, TensorInfo, TensorLike,
+};
 use hpt_types::dtype::CudaType;
 use std::panic::Location;
 
-impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> ShapeManipulate
-    for _Tensor<T, Cuda, DEVICE>
+impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize, Al> ShapeManipulate
+    for _Tensor<T, Cuda, DEVICE, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Meta = T;
     type Output = Self;
@@ -169,6 +175,15 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> ShapeManipula
             |a| a.contiguous(),
         )?)
     }
+}
+
+impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize, Al> Concat
+    for _Tensor<T, Cuda, DEVICE, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
+    type Output = _Tensor<T, Cuda, DEVICE, Al>;
     fn concat(tensors: Vec<Self>, axis: usize, keepdims: bool) -> Result<Self, TensorError>
     where
         T: 'static,
@@ -204,7 +219,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> ShapeManipula
                 new_shape[i] = *x;
             }
         });
-        let new_tensor = _Tensor::<T, Cuda, DEVICE>::empty(&new_shape)?;
+        let new_tensor = _Tensor::<T, Cuda, DEVICE, Al>::empty(&new_shape)?;
         let mut begin = 0;
         let mut res_slices = Vec::with_capacity(length);
         for i in tensors.iter() {
@@ -217,42 +232,42 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> ShapeManipula
         let tensors = tensors
             .iter()
             .map(|x| (*x).clone())
-            .collect::<Vec<_Tensor<T, Cuda, DEVICE>>>();
+            .collect::<Vec<_Tensor<T, Cuda, DEVICE, Al>>>();
 
         let include = get_include_1::<T>();
         let module_name = get_module_name_vec("cc", &tensors);
         let map = compile_kernel(
-            &module_name,
-            &format!(
-                "
-                        {include}
-                        extern \"C\" __global__ void assign({} *out, {} *inp, long long *shape, long long *strides, long long *inp_shape, long long *inp_strides, size_t ndim, size_t size)
-                        {{
-                            size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-                            size_t stride = blockDim.x * gridDim.x;
-                            while (idx < size)
+                &module_name,
+                &format!(
+                    "
+                            {include}
+                            extern \"C\" __global__ void assign({} *out, {} *inp, long long *shape, long long *strides, long long *inp_shape, long long *inp_strides, size_t ndim, size_t size)
                             {{
-                                long inp_amount = idx;
-                                long inp_offset = 0;
-                                long out_offset = 0;
-                                long out_amount = idx;
-                                for (int j = ndim - 1; j >= 0; j--)
+                                size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+                                size_t stride = blockDim.x * gridDim.x;
+                                while (idx < size)
                                 {{
-                                    inp_offset += (inp_amount % inp_shape[j]) * inp_strides[j];
-                                    inp_amount /= inp_shape[j];
-                                    out_offset += (out_amount % shape[j]) * strides[j];
-                                    out_amount /= shape[j];
+                                    long inp_amount = idx;
+                                    long inp_offset = 0;
+                                    long out_offset = 0;
+                                    long out_amount = idx;
+                                    for (int j = ndim - 1; j >= 0; j--)
+                                    {{
+                                        inp_offset += (inp_amount % inp_shape[j]) * inp_strides[j];
+                                        inp_amount /= inp_shape[j];
+                                        out_offset += (out_amount % shape[j]) * strides[j];
+                                        out_amount /= shape[j];
+                                    }}
+                                    out[out_offset] = inp[inp_offset];
+                                    idx += stride;
                                 }}
-                                out[out_offset] = inp[inp_offset];
-                                idx += stride;
-                            }}
-                        }}",
-                T::CUDA_TYPE,
-                T::CUDA_TYPE,
-            ),
-            tensors[0].device(),
-            &["assign"],
-        )?;
+                            }}",
+                    T::CUDA_TYPE,
+                    T::CUDA_TYPE,
+                ),
+                tensors[0].device(),
+                &["assign"],
+            )?;
         let kernel = tensors[0]
             .device()
             .get_func(&module_name, "assign")

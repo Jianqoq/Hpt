@@ -30,13 +30,18 @@ use super::normalize_utils::{
     contiguous_normalize_template, uncontiguous_normalize_template, NormalizePreprocessor,
     UCNormalizePreprocessor,
 };
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 
-impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
+impl<T, const DEVICE: usize, A> _Tensor<T, Cpu, DEVICE, A>
+where
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
+{
     #[track_caller]
     pub fn log_softmax(
         &self,
         axis: i64,
-    ) -> Result<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
+    ) -> Result<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE, A>, TensorError>
     where
         T: CommonBounds
             + Cast<<T as FloatOutUnary>::Output>
@@ -54,20 +59,24 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
             contiguous_log_softmax(
                 self,
                 axis,
-                None::<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>>,
+                None::<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE, A>>,
             )?
         } else {
             uncontiguous_log_softmax(
                 self,
                 axis,
-                None::<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>>,
+                None::<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE, A>>,
             )?
         };
         Ok(res)
     }
 }
 
-impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
+impl<T, const DEVICE: usize, A> Tensor<T, Cpu, DEVICE, A>
+where
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
+{
     /// Applies the logsoftmax function along a specified axis.
     ///
     /// The logsoftmax function normalizes the elements along the specified axis such that they sum to 1.
@@ -91,7 +100,7 @@ impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     pub fn log_softmax(
         &self,
         axis: i64,
-    ) -> Result<Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
+    ) -> Result<Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE, A>, TensorError>
     where
         T: CommonBounds
             + Cast<<T as FloatOutUnary>::Output>
@@ -111,7 +120,11 @@ impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     }
 }
 
-impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
+impl<T, const DEVICE: usize, A> DiffTensor<T, Cpu, DEVICE, A>
+where
+    A: Allocator + Send + Sync + 'static,
+    A::Output: AllocatorOutputRetrive,
+{
     /// Applies the logsoftmax function along a specified axis.
     ///
     /// The logsoftmax function normalizes the elements along the specified axis such that they sum to 1.
@@ -135,7 +148,7 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
     pub fn log_softmax(
         &self,
         axis: i64,
-    ) -> Result<DiffTensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
+    ) -> Result<DiffTensor<<T as FloatOutUnary>::Output, Cpu, DEVICE, A>, TensorError>
     where
         T: CommonBounds
             + Cast<<T as FloatOutUnary>::Output>
@@ -158,7 +171,7 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
             backward: Rc::new(RefCell::new(
-                move |grad: Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>| {
+                move |grad: Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE, A>| {
                     use hpt_traits::NormalReduce;
                     let grad_sum = grad.sum(axis, true)?;
                     let grad = res_clone
@@ -171,7 +184,7 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
                             let grad = g._sub(softmax._mul(gs));
                             *res = grad.cast();
                         })
-                        .collect::<Tensor<T, Cpu, DEVICE>>();
+                        .collect::<Tensor<T, Cpu, DEVICE, A>>();
                     handle_grad(&mut inp, grad, &[])?;
                     Ok(false)
                 },
@@ -181,16 +194,18 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
 }
 
 #[track_caller]
-pub(crate) fn contiguous_log_softmax<T, O, const DEVICE: usize>(
-    a: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn contiguous_log_softmax<T, O, const DEVICE: usize, A>(
+    a: &_Tensor<T, Cpu, DEVICE, A>,
     axis: i64,
-    c: Option<_Tensor<O, Cpu, DEVICE>>,
-) -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+    c: Option<_Tensor<O, Cpu, DEVICE, A>>,
+) -> Result<_Tensor<O, Cpu, DEVICE, A>, TensorError>
 where
     T: CommonBounds + Cast<O> + FloatOutUnary<Output = O> + Cast<O>,
     O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
     T::Vec: FloatOutUnary<Output = O::Vec> + IntoVec<O::Vec>,
     O::Vec: FloatOutBinary<Output = O::Vec> + FloatOutUnary<Output = O::Vec>,
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
 {
     let axis = (if axis < 0 {
         axis + (a.ndim() as i64)
@@ -311,16 +326,18 @@ where
 }
 
 #[track_caller]
-pub(crate) fn uncontiguous_log_softmax<T, O, const DEVICE: usize>(
-    a: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn uncontiguous_log_softmax<T, O, const DEVICE: usize, A>(
+    a: &_Tensor<T, Cpu, DEVICE, A>,
     axis: i64,
-    c: Option<_Tensor<O, Cpu, DEVICE>>,
-) -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+    c: Option<_Tensor<O, Cpu, DEVICE, A>>,
+) -> Result<_Tensor<O, Cpu, DEVICE, A>, TensorError>
 where
     T: CommonBounds + Cast<O> + FloatOutUnary<Output = O>,
     O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
     T::Vec: FloatOutUnary<Output = O::Vec>,
     O::Vec: FloatOutBinary<Output = O::Vec>,
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
 {
     let axis = (if axis < 0 {
         axis + (a.ndim() as i64)

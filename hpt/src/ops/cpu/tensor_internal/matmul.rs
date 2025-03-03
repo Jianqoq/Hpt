@@ -2,6 +2,8 @@ use std::borrow::{Borrow, BorrowMut};
 
 use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
+use hpt_allocator::Cpu;
 use hpt_common::error::{base::TensorError, shape::ShapeError};
 use hpt_common::shape::shape_utils::predict_broadcast_shape;
 use hpt_common::shape::shape_utils::{compare_and_pad_shapes, mt_intervals};
@@ -13,17 +15,19 @@ use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 #[track_caller]
-pub(crate) fn matmul_with_out<A, B, O, Q>(
-    lhs: &_Tensor<A>,
-    rhs: &_Tensor<B>,
+pub(crate) fn matmul_with_out<A, B, O, Q, A2, const DEVICE: usize>(
+    lhs: &_Tensor<A, Cpu, DEVICE, A2>,
+    rhs: &_Tensor<B, Cpu, DEVICE, A2>,
     out: Option<O>,
-) -> std::result::Result<_Tensor<<A as NormalOut<B>>::Output>, TensorError>
+) -> std::result::Result<_Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>, TensorError>
 where
     A: CommonBounds + NormalOut<B> + Cast<<A as NormalOut<B>>::Output>,
     B: CommonBounds + Cast<<A as NormalOut<B>>::Output>,
-    O: Borrow<_Tensor<Q>> + BorrowMut<_Tensor<Q>>,
+    O: Borrow<_Tensor<Q, Cpu, DEVICE, A2>> + BorrowMut<_Tensor<Q, Cpu, DEVICE, A2>>,
     <A as NormalOut<B>>::Output: CommonBounds,
     Q: CommonBounds,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         ShapeError::check_matmul(lhs.shape(), rhs.shape())?;
@@ -35,14 +39,20 @@ where
                 out.borrow_mut().as_raw_mut().par_iter_mut().for_each(|x| {
                     *x = val;
                 });
-                let casted: _Tensor<<A as NormalOut<B>>::Output> =
+                let casted: _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2> =
                     out.borrow().static_cast::<<A as NormalOut<B>>::Output>()?;
                 casted
             } else {
-                _Tensor::<<A as NormalOut<B>>::Output>::empty(vec![lhs.shape()[0], rhs.shape()[1]])?
+                _Tensor::<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>::empty(vec![
+                    lhs.shape()[0],
+                    rhs.shape()[1],
+                ])?
             }
         } else {
-            _Tensor::<<A as NormalOut<B>>::Output>::empty(vec![lhs.shape()[0], rhs.shape()[1]])?
+            _Tensor::<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>::empty(vec![
+                lhs.shape()[0],
+                rhs.shape()[1],
+            ])?
         };
         let new_a = &lhs.try_astype()?;
         let new_b = &rhs.try_astype()?;
@@ -98,10 +108,10 @@ where
                 });
                 out.borrow().static_cast::<<A as NormalOut<B>>::Output>()?
             } else {
-                _Tensor::<<A as NormalOut<B>>::Output>::empty(res_shape)?
+                _Tensor::<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>::empty(res_shape)?
             }
         } else {
-            _Tensor::<<A as NormalOut<B>>::Output>::empty(res_shape)?
+            _Tensor::<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>::empty(res_shape)?
         };
         let a_strides = preprocess_strides(&a_shape, &lhs.strides());
         let b_strides = preprocess_strides(&b_shape, &rhs.strides());
@@ -217,22 +227,29 @@ where
     }
 }
 
-impl<A, B> Matmul<_Tensor<B>> for _Tensor<A>
+impl<A, B, A2, const DEVICE: usize> Matmul<_Tensor<B, Cpu, DEVICE, A2>>
+    for _Tensor<A, Cpu, DEVICE, A2>
 where
     A: CommonBounds + NormalOut<B> + Cast<<A as NormalOut<B>>::Output>,
     B: CommonBounds + Cast<<A as NormalOut<B>>::Output>,
     <A as NormalOut<B>>::Output: CommonBounds,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<<A as NormalOut<B>>::Output>;
+    type Output = _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>;
 
     type OutputMeta = <A as NormalOut<B>>::Output;
 
-    type InplaceOutput = _Tensor<<A as NormalOut<B>>::Output>;
+    type InplaceOutput = _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>;
 
-    fn matmul(&self, rhs: _Tensor<B>) -> Result<Self::Output, TensorError> {
+    fn matmul(&self, rhs: _Tensor<B, Cpu, DEVICE, A2>) -> Result<Self::Output, TensorError> {
         matmul_with_out(self, &rhs, None::<Self::Output>)
     }
-    fn matmul_<U>(&self, rhs: _Tensor<B>, out: U) -> Result<Self::Output, TensorError>
+    fn matmul_<U>(
+        &self,
+        rhs: _Tensor<B, Cpu, DEVICE, A2>,
+        out: U,
+    ) -> Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
     {
@@ -240,23 +257,30 @@ where
     }
 }
 
-impl<A, B> Matmul<&_Tensor<B>> for _Tensor<A>
+impl<A, B, A2, const DEVICE: usize> Matmul<&_Tensor<B, Cpu, DEVICE, A2>>
+    for _Tensor<A, Cpu, DEVICE, A2>
 where
     A: CommonBounds + NormalOut<B> + Cast<<A as NormalOut<B>>::Output>,
     B: CommonBounds + Cast<<A as NormalOut<B>>::Output>,
     <A as NormalOut<B>>::Output: CommonBounds,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<<A as NormalOut<B>>::Output>;
+    type Output = _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>;
 
     type OutputMeta = <A as NormalOut<B>>::Output;
 
-    type InplaceOutput = _Tensor<<A as NormalOut<B>>::Output>;
+    type InplaceOutput = _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>;
 
-    fn matmul(&self, rhs: &_Tensor<B>) -> Result<Self::Output, TensorError> {
+    fn matmul(&self, rhs: &_Tensor<B, Cpu, DEVICE, A2>) -> Result<Self::Output, TensorError> {
         matmul_with_out(self, &rhs, None::<Self::Output>)
     }
 
-    fn matmul_<U>(&self, rhs: &_Tensor<B>, out: U) -> Result<Self::Output, TensorError>
+    fn matmul_<U>(
+        &self,
+        rhs: &_Tensor<B, Cpu, DEVICE, A2>,
+        out: U,
+    ) -> Result<Self::Output, TensorError>
     where
         U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
     {

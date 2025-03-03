@@ -11,18 +11,23 @@ use hpt_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo, Tenso
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::{
-    backend::Cpu,
     ops::common::reduce::{is_keep_fast_dim, rearrange_array},
     tensor_base::_Tensor,
+    Cpu,
 };
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 
-pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: usize>(
-    a: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: usize, Al>(
+    a: &_Tensor<T, Cpu, DEVICE, Al>,
     axes: &[usize],
     init_val: O,
     init_out: bool,
-    c: Option<_Tensor<O, Cpu, DEVICE>>,
-) -> std::result::Result<(_Tensor<T, Cpu, DEVICE>, _Tensor<O, Cpu, DEVICE>), TensorError> {
+    c: Option<_Tensor<O, Cpu, DEVICE, Al>>,
+) -> std::result::Result<(_Tensor<T, Cpu, DEVICE, Al>, _Tensor<O, Cpu, DEVICE, Al>), TensorError>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
     // get permute order, we move to_reduce axes to the end
     let mut transposed_axis = rearrange_array(a.ndim(), axes);
 
@@ -43,26 +48,35 @@ pub(crate) fn reduce_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: usi
         }
         Ok(out.reshape(res_layout.shape())?)
     } else {
-        _Tensor::<O, Cpu, DEVICE>::full(init_val, res_layout.shape())
+        _Tensor::<O, Cpu, DEVICE, Al>::full(init_val, res_layout.shape())
     };
     Ok((a.permute(transposed_axis)?, res?))
 }
 
-pub(crate) fn uncontiguous_reduce_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: usize>(
-    a: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn uncontiguous_reduce_prepare<
+    T: CommonBounds,
+    O: CommonBounds,
+    const DEVICE: usize,
+    Al,
+>(
+    a: &_Tensor<T, Cpu, DEVICE, Al>,
     axes: &[usize],
     init_val: O,
     init_out: bool,
-    c: Option<_Tensor<O, Cpu, DEVICE>>,
+    c: Option<_Tensor<O, Cpu, DEVICE, Al>>,
 ) -> std::result::Result<
     (
         bool,
-        _Tensor<T, Cpu, DEVICE>,
-        _Tensor<O, Cpu, DEVICE>,
+        _Tensor<T, Cpu, DEVICE, Al>,
+        _Tensor<O, Cpu, DEVICE, Al>,
         Vec<usize>,
     ),
     TensorError,
-> {
+>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
     let keep_fast_dim = is_keep_fast_dim(&a.layout.strides(), axes);
     // get permute order, we move to_reduce axes to the end
     let mut transposed_axis = rearrange_array(a.ndim(), axes);
@@ -85,7 +99,8 @@ pub(crate) fn uncontiguous_reduce_prepare<T: CommonBounds, O: CommonBounds, cons
         }
         Ok(out)
     } else {
-        _Tensor::<O, Cpu, DEVICE>::full(init_val, res_layout.shape())?.permute(&res_permute_axes)
+        _Tensor::<O, Cpu, DEVICE, Al>::full(init_val, res_layout.shape())?
+            .permute(&res_permute_axes)
     };
     Ok((
         keep_fast_dim,

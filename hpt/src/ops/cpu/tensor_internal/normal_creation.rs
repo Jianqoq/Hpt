@@ -1,12 +1,12 @@
+use std::marker::PhantomData;
 use std::{panic::Location, sync::Arc};
 
 use crate::{
-    backend::{Backend, Cpu},
-    ops::common::creation::geomspace_preprocess_start_step,
-    tensor_base::_Tensor,
-    BoolVector, ALIGN,
+    ops::common::creation::geomspace_preprocess_start_step, tensor_base::_Tensor, Backend,
+    BoolVector, Cpu, ALIGN,
 };
-use hpt_allocator::{traits::Allocator, CACHE};
+use hpt_allocator::traits::Allocator;
+use hpt_allocator::traits::AllocatorOutputRetrive;
 use hpt_common::error::memory::MemoryError;
 use hpt_common::{
     error::{base::TensorError, shape::ShapeError},
@@ -18,8 +18,13 @@ use hpt_traits::{CommonBounds, TensorCreator, TensorInfo, TensorLike};
 use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
-impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, DEVICE> {
-    type Output = _Tensor<T, Cpu, DEVICE>;
+impl<T, const DEVICE: usize, A> TensorCreator<T> for _Tensor<T, Cpu, DEVICE, A>
+where
+    A: Allocator,
+    A::Output: AllocatorOutputRetrive,
+    T: CommonBounds,
+{
+    type Output = _Tensor<T, Cpu, DEVICE, A>;
     fn empty<S: Into<Shape>>(shape: S) -> Result<Self, TensorError> {
         let _shape = shape.into();
         let res_shape = Shape::from(_shape);
@@ -41,10 +46,9 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
                 location: Location::caller(),
             })
         })?;
-        let ptr = CACHE
-            .lock()
-            .expect("CACHE is poisoned")
-            .allocate(layout, DEVICE)?;
+        let mut allocator = A::new();
+        let allocate_res = allocator.allocate(layout, DEVICE)?;
+        let ptr = allocate_res.get_ptr();
         Ok(_Tensor {
             #[cfg(feature = "bound_check")]
             data: Pointer::new(ptr as *mut T, size as i64),
@@ -53,12 +57,46 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
             parent: None,
             layout: Layout::from(res_shape.clone()),
             mem_layout: Arc::new(layout),
-            _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
+            _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+            phantom: PhantomData,
         })
     }
 
     fn zeros<S: Into<Shape>>(shape: S) -> Result<Self, TensorError> {
-        Self::full(T::ZERO, shape)
+        let _shape = shape.into();
+        let res_shape = Shape::from(_shape);
+        let size = res_shape
+            .iter()
+            .try_fold(1i64, |acc, &num| acc.checked_mul(num).or(Some(i64::MAX)))
+            .unwrap_or(i64::MAX) as usize;
+        let layout = std::alloc::Layout::from_size_align(
+            size.checked_mul(size_of::<T>())
+                .unwrap_or((isize::MAX as usize) - (ALIGN - 1)), // when overflow happened, we use max memory `from_size_align` accept
+            ALIGN,
+        )
+        .map_err(|e| {
+            TensorError::Memory(MemoryError::AllocationFailed {
+                device: "cpu".to_string(),
+                id: DEVICE,
+                size,
+                source: Some(Box::new(e)),
+                location: Location::caller(),
+            })
+        })?;
+        let mut allocator = A::new();
+        let allocate_res = allocator.allocate_zeroed(layout, DEVICE)?;
+        let ptr = allocate_res.get_ptr();
+        Ok(_Tensor {
+            #[cfg(feature = "bound_check")]
+            data: Pointer::new(ptr as *mut T, size as i64),
+            #[cfg(not(feature = "bound_check"))]
+            data: Pointer::new(ptr as *mut T),
+            parent: None,
+            layout: Layout::from(res_shape.clone()),
+            mem_layout: Arc::new(layout),
+            _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+            phantom: PhantomData,
+        })
     }
 
     fn ones<S: Into<Shape>>(shape: S) -> Result<Self, TensorError>
@@ -110,10 +148,10 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
         let size: i64 = end_i64 - start_i64;
         let start: T = start.cast();
         if size <= 0 {
-            return _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![0]));
+            return _Tensor::<T, Cpu, DEVICE, A>::empty(Arc::new(vec![0]));
         }
-        let mut data: _Tensor<T, Cpu, DEVICE> =
-            _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![size]))?;
+        let mut data: _Tensor<T, Cpu, DEVICE, A> =
+            _Tensor::<T, Cpu, DEVICE, A>::empty(Arc::new(vec![size]))?;
 
         data.as_raw_mut()
             .into_par_iter()
@@ -133,7 +171,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
         let end_usize: usize = end.cast();
         let start_usize: usize = start.cast();
         let size = ((end_usize - start_usize) as usize) / (step_float.abs() as usize);
-        let mut data = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![size as i64]))?;
+        let mut data = _Tensor::<T, Cpu, DEVICE, A>::empty(Arc::new(vec![size as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
@@ -145,7 +183,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
 
     fn eye(n: usize, m: usize, k: usize) -> Result<Self, TensorError> {
         let shape = vec![n as i64, m as i64];
-        let mut res = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(shape))?;
+        let mut res = _Tensor::<T, Cpu, DEVICE, A>::empty(Arc::new(shape))?;
         res.as_raw_mut()
             .into_par_iter()
             .enumerate()
@@ -178,7 +216,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
         let step_t: T = step.cast();
         let start_t: T = start.cast();
         let end_t: T = end.cast();
-        let mut data = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![n as i64]))?;
+        let mut data = _Tensor::<T, Cpu, DEVICE, A>::empty(Arc::new(vec![n as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
@@ -213,7 +251,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
             (_end - _start) / n
         };
         let step_t: T = step.cast();
-        let mut data = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![n as i64]))?;
+        let mut data = _Tensor::<T, Cpu, DEVICE, A>::empty(Arc::new(vec![n as i64]))?;
         data.as_raw_mut()
             .into_par_iter()
             .enumerate()
@@ -236,7 +274,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
             geomspace_preprocess_start_step(start_f64, end_f64, n, include_end)?;
         let start_t: T = new_start.cast();
         let step_t: T = step.cast();
-        let mut data = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(vec![n as i64]))?;
+        let mut data = _Tensor::<T, Cpu, DEVICE, A>::empty(Arc::new(vec![n as i64]))?;
         if both_negative {
             data.as_raw_mut()
                 .into_par_iter()
@@ -264,7 +302,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
         u8: Cast<T>,
     {
         let shape = vec![n as i64, m as i64];
-        let mut res = _Tensor::<T, Cpu, DEVICE>::empty(Arc::new(shape))?;
+        let mut res = _Tensor::<T, Cpu, DEVICE, A>::empty(Arc::new(shape))?;
         if low_triangle {
             res.as_raw_mut()
                 .into_par_iter()
@@ -306,13 +344,13 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
             2,
             self.shape().len(),
         )?;
-        let mask: _Tensor<bool, Cpu, DEVICE> = _Tensor::<bool, Cpu, DEVICE>::tri(
+        let mask: _Tensor<bool, Cpu, DEVICE, A> = _Tensor::<bool, Cpu, DEVICE, A>::tri(
             self.shape()[self.shape().len() - 2] as usize,
             self.shape()[self.shape().len() - 1] as usize,
             k,
             true,
         )?;
-        let res: _Tensor<T, Cpu, DEVICE> = self.clone() * mask;
+        let res: _Tensor<T, Cpu, DEVICE, A> = self.clone() * mask;
         Ok(res)
     }
 
@@ -326,13 +364,13 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
             2,
             self.shape().len(),
         )?;
-        let mask: _Tensor<bool, Cpu, DEVICE> = _Tensor::<bool, Cpu, DEVICE>::tri(
+        let mask: _Tensor<bool, Cpu, DEVICE, A> = _Tensor::<bool, Cpu, DEVICE, A>::tri(
             self.shape()[self.shape().len() - 2] as usize,
             self.shape()[self.shape().len() - 1] as usize,
             k,
             false,
         )?;
-        let res: _Tensor<T, Cpu, DEVICE> = self.clone() * mask;
+        let res: _Tensor<T, Cpu, DEVICE, A> = self.clone() * mask;
         Ok(res)
     }
 
@@ -340,6 +378,6 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
     where
         u8: Cast<T>,
     {
-        _Tensor::<T, Cpu, DEVICE>::eye(n, n, 0)
+        _Tensor::<T, Cpu, DEVICE, A>::eye(n, n, 0)
     }
 }

@@ -1,31 +1,35 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    backend::Cpu,
     tensor::{DiffTensor, Tensor},
     tensor_base::_Tensor,
-    BoolVector,
+    BoolVector, Cpu,
 };
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_traits::{CommonBounds, TensorCreator};
 use hpt_types::{dtype::TypeCommon, into_scalar::Cast, type_promote::NormalOut};
 
-impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, DEVICE> {
-    type Output = Tensor<T, Cpu, DEVICE>;
+impl<T: CommonBounds, const DEVICE: usize, Al> TensorCreator<T> for Tensor<T, Cpu, DEVICE, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
+    type Output = Tensor<T, Cpu, DEVICE, Al>;
 
     fn empty<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::empty(shape)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::empty(shape)?.into())
     }
 
     fn zeros<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::zeros(shape)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::zeros(shape)?.into())
     }
 
     fn ones<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError>
     where
         u8: Cast<T>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::ones(shape)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::ones(shape)?.into())
     }
 
     fn empty_like(&self) -> Result<Self::Output, TensorError> {
@@ -44,7 +48,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     }
 
     fn full<S: Into<Shape>>(val: T, shape: S) -> Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::full(val, shape)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::full(val, shape)?.into())
     }
 
     fn full_like(&self, val: T) -> Result<Self::Output, TensorError> {
@@ -56,7 +60,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         usize: Cast<T>,
         U: Cast<i64> + Cast<T> + Copy,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::arange(start, end)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::arange(start, end)?.into())
     }
 
     fn arange_step(start: T, end: T, step: T) -> Result<Self::Output, TensorError>
@@ -64,11 +68,11 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         T: Cast<f64> + Cast<usize>,
         usize: Cast<T>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::arange_step(start, end, step)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::arange_step(start, end, step)?.into())
     }
 
     fn eye(n: usize, m: usize, k: usize) -> Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::eye(n, m, k)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::eye(n, m, k)?.into())
     }
 
     fn linspace<U>(
@@ -82,7 +86,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         usize: Cast<T>,
         f64: Cast<T>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::linspace(start, end, num, include_end)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::linspace(start, end, num, include_end)?.into())
     }
 
     fn logspace(
@@ -97,7 +101,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         usize: Cast<T>,
         f64: Cast<T>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::logspace(start, end, num, include_end, base)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::logspace(start, end, num, include_end, base)?.into())
     }
 
     fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self::Output, TensorError>
@@ -106,14 +110,14 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
         usize: Cast<T>,
         T: Cast<f64>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::geomspace(start, end, n, include_end)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::geomspace(start, end, n, include_end)?.into())
     }
 
     fn tri(n: usize, m: usize, k: i64, low_triangle: bool) -> Result<Self::Output, TensorError>
     where
         u8: Cast<T>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::tri(n, m, k, low_triangle)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::tri(n, m, k, low_triangle)?.into())
     }
 
     fn tril(&self, k: i64) -> Result<Self::Output, TensorError>
@@ -136,15 +140,19 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     where
         u8: Cast<T>,
     {
-        Ok(_Tensor::<T, Cpu, DEVICE>::identity(n)?.into())
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::identity(n)?.into())
     }
 }
 
-impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cpu, DEVICE> {
-    type Output = DiffTensor<T, Cpu, DEVICE>;
+impl<T: CommonBounds, const DEVICE: usize, Al> TensorCreator<T> for DiffTensor<T, Cpu, DEVICE, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
+    type Output = DiffTensor<T, Cpu, DEVICE, Al>;
 
     fn empty<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
-        let ret = Tensor::<T, Cpu, DEVICE>::empty(shape)?;
+        let ret = Tensor::<T, Cpu, DEVICE, Al>::empty(shape)?;
         Ok(DiffTensor {
             inner: ret,
             grad: Rc::new(RefCell::new(None)),
@@ -154,7 +162,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
     }
 
     fn zeros<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
-        let ret = Tensor::<T, Cpu, DEVICE>::zeros(shape)?;
+        let ret = Tensor::<T, Cpu, DEVICE, Al>::zeros(shape)?;
         Ok(DiffTensor {
             inner: ret,
             grad: Rc::new(RefCell::new(None)),
@@ -167,7 +175,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
     where
         u8: Cast<T>,
     {
-        let ret = Tensor::<T, Cpu, DEVICE>::ones(shape)?;
+        let ret = Tensor::<T, Cpu, DEVICE, Al>::ones(shape)?;
         Ok(DiffTensor {
             inner: ret,
             grad: Rc::new(RefCell::new(None)),
@@ -258,7 +266,7 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
     }
 
     fn eye(n: usize, m: usize, k: usize) -> Result<Self::Output, TensorError> {
-        let ret = Tensor::<T, Cpu, DEVICE>::eye(n, m, k)?;
+        let ret = Tensor::<T, Cpu, DEVICE, Al>::eye(n, m, k)?;
         Ok(DiffTensor {
             inner: ret,
             grad: Rc::new(RefCell::new(None)),

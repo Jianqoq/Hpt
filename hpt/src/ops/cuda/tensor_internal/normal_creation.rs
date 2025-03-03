@@ -1,14 +1,14 @@
 use crate::{
-    backend::Backend,
     ops::{
         common::creation::geomspace_preprocess_start_step,
         cuda::cuda_utils::{compute_kernel_launch_config, load_ptx_and_get_data},
     },
     tensor_base::_Tensor,
-    BoolVector, Cuda, ALIGN,
+    Backend, BoolVector, Cuda, ALIGN,
 };
 use cudarc::driver::{DeviceRepr, LaunchAsync, LaunchConfig};
-use hpt_allocator::CUDA_CACHE;
+use hpt_allocator::traits::Allocator;
+use hpt_allocator::traits::AllocatorOutputRetrive;
 use hpt_common::{
     error::{base::TensorError, memory::MemoryError},
     layout::layout::Layout,
@@ -20,8 +20,11 @@ use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
 use hpt_types::{dtype::CudaType, into_scalar::Cast, type_promote::NormalOut};
 use std::{panic::Location, sync::Arc};
 
-impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> TensorCreator<T>
-    for _Tensor<T, Cuda, DEVICE>
+impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize, Al> TensorCreator<T>
+    for _Tensor<T, Cuda, DEVICE, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Output = Self;
     fn empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError> {
@@ -45,10 +48,10 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> TensorCreator
                 location: Location::caller(),
             })
         })?;
-        let (ptr, device) = CUDA_CACHE
-            .lock()
-            .expect("CUDA_CACHE is poisoned")
-            .allocate(layout, DEVICE)?;
+        let mut allocator = Al::new();
+        let allocate_res = allocator.allocate(layout, DEVICE)?;
+        let ptr = allocate_res.get_ptr() as *mut T;
+        let device = allocate_res.get_device();
         Ok(_Tensor {
             #[cfg(feature = "bound_check")]
             data: Pointer::new(ptr as *mut T, size as i64),
@@ -57,17 +60,13 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> TensorCreator
             parent: None,
             layout: Layout::from(res_shape.clone()),
             mem_layout: Arc::new(layout),
-            _backend: Backend::<Cuda>::new(ptr as u64, device, false),
+            _backend: Backend::<Cuda>::new(ptr as u64, device),
+            phantom: std::marker::PhantomData,
         })
     }
 
-    fn zeros<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError> {
-        let empty = Self::empty(shape)?;
-        CUDA_CACHE
-            .lock()
-            .expect("CUDA_CACHE is poisoned")
-            .memset_zeros(empty.ptr().ptr as *mut u8, &empty.mem_layout, DEVICE);
-        Ok(empty)
+    fn zeros<S: Into<Shape>>(_: S) -> std::result::Result<Self, TensorError> {
+        todo!()
     }
 
     fn ones<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError>
@@ -202,7 +201,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> TensorCreator
         let step_t: T = step.cast();
         let start_t: T = start.cast();
         let end_t: T = end.cast();
-        let ret = _Tensor::<T, Cuda, DEVICE>::empty(Arc::new(vec![num as i64]))?;
+        let ret = _Tensor::<T, Cuda, DEVICE, Al>::empty(Arc::new(vec![num as i64]))?;
 
         let (linspace_kernel, reg_info) = load_ptx_and_get_data(
             "creation",
@@ -242,7 +241,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> TensorCreator
             (_end - _start) / n
         };
         let step_t: T = step.cast();
-        let ret = _Tensor::<T, Cuda, DEVICE>::empty(Arc::new(vec![num as i64]))?;
+        let ret = _Tensor::<T, Cuda, DEVICE, Al>::empty(Arc::new(vec![num as i64]))?;
 
         let (logspace_kernel, reg_info) = load_ptx_and_get_data(
             "creation",

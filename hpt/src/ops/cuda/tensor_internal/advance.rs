@@ -16,17 +16,19 @@ use crate::{
     Cuda,
 };
 use cudarc::driver::LaunchAsync;
-
-impl<T: CommonBounds + PartialOrd + DeviceRepr + CudaType, const DEVICE: usize> AdvancedOps
-    for _Tensor<T, Cuda, DEVICE>
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
+impl<T: CommonBounds + PartialOrd + DeviceRepr + CudaType, const DEVICE: usize, Al> AdvancedOps
+    for _Tensor<T, Cuda, DEVICE, Al>
 where
     T: NormalOut<bool, Output = T> + Cast<i64>,
     f64: Cast<T>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Meta = T;
-    type Output = _Tensor<T, Cuda, DEVICE>;
+    type Output = _Tensor<T, Cuda, DEVICE, Al>;
 
-    type IndexOutput = _Tensor<i64, Cuda, DEVICE>;
+    type IndexOutput = _Tensor<i64, Cuda, DEVICE, Al>;
 
     fn pad(&self, pads: &[(i64, i64)], val: Self::Meta) -> Result<Self::Output, TensorError> {
         let res_shape = self
@@ -36,7 +38,7 @@ where
             .map(|(x, (a, b))| x + a + b)
             .collect::<Vec<_>>();
 
-        let res = _Tensor::<T, Cuda, DEVICE>::full(val, &res_shape)?;
+        let res = _Tensor::<T, Cuda, DEVICE, Al>::full(val, &res_shape)?;
         let mut pads = pads.to_vec();
         if pads.len() < self.ndim() {
             pads.resize(self.ndim(), (0, 0));
@@ -120,33 +122,39 @@ where
     }
 }
 
-impl<T: CommonBounds, const DEVICE: usize> Shrinkage<T> for _Tensor<T, Cuda, DEVICE>
+impl<T: CommonBounds, const DEVICE: usize, Al> Shrinkage<T> for _Tensor<T, Cuda, DEVICE, Al>
 where
     T: Cmp<Output = bool> + TypeCommon,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<T, Cuda, DEVICE>;
+    type Output = _Tensor<T, Cuda, DEVICE, Al>;
     fn shrinkage(&self, _: T, _: T) -> Result<Self::Output, TensorError> {
         unimplemented!()
     }
 }
 
-impl<T, const DEVICE: usize> HardMax<T> for _Tensor<T, Cuda, DEVICE>
+impl<T, const DEVICE: usize, Al> HardMax<T> for _Tensor<T, Cuda, DEVICE, Al>
 where
     T: CommonBounds + Cmp<Output = bool>,
     bool: NormalOut<T> + Cast<T>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<T, Cuda, DEVICE>;
+    type Output = _Tensor<T, Cuda, DEVICE, Al>;
     fn hardmax(&self, _: i64) -> Result<Self::Output, TensorError> {
         unimplemented!()
     }
 }
 
-impl<T, const DEVICE: usize> TensorWhere for _Tensor<T, Cuda, DEVICE>
+impl<T, const DEVICE: usize, Al> TensorWhere for _Tensor<T, Cuda, DEVICE, Al>
 where
     T: CommonBounds,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<T, Cuda, DEVICE>;
-    type Condition = _Tensor<bool, Cuda, DEVICE>;
+    type Output = _Tensor<T, Cuda, DEVICE, Al>;
+    type Condition = _Tensor<bool, Cuda, DEVICE, Al>;
     fn tensor_where(
         _: &Self::Condition,
         _: &Self::Output,

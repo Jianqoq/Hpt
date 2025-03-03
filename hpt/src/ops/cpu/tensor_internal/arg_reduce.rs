@@ -8,11 +8,14 @@ use crate::{
     ops::cpu::utils::reduce::reduce::{argmax, argmin},
     tensor_base::_Tensor,
 };
-
-impl<T: CommonBounds + NormalOut<Output = T> + Cmp<T, Output = bool>, const DEVICE: usize>
-    IndexReduce for _Tensor<T, Cpu, DEVICE>
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
+impl<T: CommonBounds + NormalOut<Output = T> + Cmp<T, Output = bool>, const DEVICE: usize, Al>
+    IndexReduce for _Tensor<T, Cpu, DEVICE, Al>
+where
+    Al: Allocator + 'static + Send + Sync,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<i64, Cpu, DEVICE>;
+    type Output = _Tensor<i64, Cpu, DEVICE, Al>;
 
     fn argmax<S: Into<Axis>>(
         &self,

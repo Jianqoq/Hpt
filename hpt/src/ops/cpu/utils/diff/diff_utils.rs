@@ -1,16 +1,19 @@
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, NormalReduce};
 use hpt_types::into_scalar::Cast;
 
 use crate::{tensor::DiffTensor, Cpu, Tensor};
 
-pub(crate) fn handle_grad<T, const DEVICE: usize>(
-    tensor: &mut DiffTensor<T, Cpu, DEVICE>,
-    mut grad: Tensor<T, Cpu, DEVICE>,
+pub(crate) fn handle_grad<T, const DEVICE: usize, A>(
+    tensor: &mut DiffTensor<T, Cpu, DEVICE, A>,
+    mut grad: Tensor<T, Cpu, DEVICE, A>,
     broadcast_axes: &[usize],
 ) -> Result<(), TensorError>
 where
     T: CommonBounds + Cast<T>,
+    A: Allocator + 'static + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
 {
     if !broadcast_axes.is_empty() {
         grad = grad.sum(broadcast_axes, false)?;

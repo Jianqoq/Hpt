@@ -5,24 +5,27 @@ use cudarc::{
     cublas::{CudaBlas, Gemm},
     driver::DeviceRepr,
 };
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, Matmul};
 use hpt_types::dtype::CudaType;
-impl<T, const CUDA_DEVICE: usize> Matmul<Tensor<T, Cuda, CUDA_DEVICE>>
-    for Tensor<T, Cuda, CUDA_DEVICE>
+impl<T, const CUDA_DEVICE: usize, Al> Matmul<Tensor<T, Cuda, CUDA_DEVICE, Al>>
+    for Tensor<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + DeviceRepr + CudaType,
     CudaBlas: Gemm<T>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = Tensor<T, Cuda, CUDA_DEVICE>;
+    type Output = Tensor<T, Cuda, CUDA_DEVICE, Al>;
 
     type OutputMeta = T;
 
-    type InplaceOutput = Tensor<T, Cuda, CUDA_DEVICE>;
+    type InplaceOutput = Tensor<T, Cuda, CUDA_DEVICE, Al>;
 
     fn matmul(
         &self,
-        rhs: Tensor<T, Cuda, CUDA_DEVICE>,
+        rhs: Tensor<T, Cuda, CUDA_DEVICE, Al>,
     ) -> std::result::Result<Self::Output, TensorError> {
         Ok(matmul_with_out(
             self.inner.as_ref(),
@@ -33,7 +36,7 @@ where
     }
     fn matmul_<U>(
         &self,
-        rhs: Tensor<T, Cuda, CUDA_DEVICE>,
+        rhs: Tensor<T, Cuda, CUDA_DEVICE, Al>,
         out: U,
     ) -> std::result::Result<Self::Output, TensorError>
     where
@@ -223,21 +226,23 @@ where
 //     }
 // }
 
-impl<T, const CUDA_DEVICE: usize> Matmul<&Tensor<T, Cuda, CUDA_DEVICE>>
-    for Tensor<T, Cuda, CUDA_DEVICE>
+impl<T, const CUDA_DEVICE: usize, Al> Matmul<&Tensor<T, Cuda, CUDA_DEVICE, Al>>
+    for Tensor<T, Cuda, CUDA_DEVICE, Al>
 where
     T: CommonBounds + DeviceRepr + CudaType,
     CudaBlas: Gemm<T>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = Tensor<T, Cuda, CUDA_DEVICE>;
+    type Output = Tensor<T, Cuda, CUDA_DEVICE, Al>;
 
     type OutputMeta = T;
 
-    type InplaceOutput = Tensor<T, Cuda, CUDA_DEVICE>;
+    type InplaceOutput = Tensor<T, Cuda, CUDA_DEVICE, Al>;
 
     fn matmul(
         &self,
-        rhs: &Tensor<T, Cuda, CUDA_DEVICE>,
+        rhs: &Tensor<T, Cuda, CUDA_DEVICE, Al>,
     ) -> std::result::Result<Self::Output, TensorError> {
         Ok(matmul_with_out(
             self.inner.as_ref(),
@@ -249,7 +254,7 @@ where
 
     fn matmul_<U>(
         &self,
-        rhs: &Tensor<T, Cuda, CUDA_DEVICE>,
+        rhs: &Tensor<T, Cuda, CUDA_DEVICE, Al>,
         out: U,
     ) -> std::result::Result<Self::Output, TensorError>
     where

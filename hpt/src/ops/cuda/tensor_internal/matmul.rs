@@ -3,6 +3,7 @@ use crate::{tensor_base::_Tensor, Cuda};
 use cudarc::cublas::sys::cublasOperation_t;
 use cudarc::cublas::{CudaBlas, Gemm, GemmConfig, StridedBatchedConfig};
 use cudarc::driver::DeviceRepr;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::shape::ShapeError;
 use hpt_common::{
     error::base::TensorError,
@@ -14,23 +15,25 @@ use hpt_types::dtype::CudaType;
 use std::borrow::{Borrow, BorrowMut};
 
 #[track_caller]
-pub(crate) fn matmul_with_out<T, O, const CUDA_DEVICE: usize>(
-    lhs: &_Tensor<T, Cuda, CUDA_DEVICE>,
-    rhs: &_Tensor<T, Cuda, CUDA_DEVICE>,
+pub(crate) fn matmul_with_out<T, O, const CUDA_DEVICE: usize, Al>(
+    lhs: &_Tensor<T, Cuda, CUDA_DEVICE, Al>,
+    rhs: &_Tensor<T, Cuda, CUDA_DEVICE, Al>,
     out: Option<O>,
-) -> std::result::Result<_Tensor<T, Cuda, CUDA_DEVICE>, TensorError>
+) -> std::result::Result<_Tensor<T, Cuda, CUDA_DEVICE, Al>, TensorError>
 where
     T: CommonBounds + DeviceRepr + CudaType,
     CudaBlas: Gemm<T>,
-    O: Borrow<_Tensor<T, Cuda, CUDA_DEVICE>> + BorrowMut<_Tensor<T, Cuda, CUDA_DEVICE>>,
+    O: Borrow<_Tensor<T, Cuda, CUDA_DEVICE, Al>> + BorrowMut<_Tensor<T, Cuda, CUDA_DEVICE, Al>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         ShapeError::check_matmul(lhs.shape(), rhs.shape())?;
-        let res: _Tensor<T, Cuda, CUDA_DEVICE> = if let Some(out) = out {
+        let res: _Tensor<T, Cuda, CUDA_DEVICE, Al> = if let Some(out) = out {
             if out.borrow().size() == ((lhs.shape()[0] * rhs.shape()[1]) as usize)
                 && out.borrow().parent().is_none()
             {
-                let out: _Tensor<T, Cuda, CUDA_DEVICE> = out.borrow().clone();
+                let out: _Tensor<T, Cuda, CUDA_DEVICE, Al> = out.borrow().clone();
                 let mut slice = unsafe {
                     out.device()
                         .upgrade_device_ptr(out.ptr().ptr as u64, out.size())
@@ -40,10 +43,10 @@ where
                 slice.leak();
                 out
             } else {
-                _Tensor::<T, Cuda, CUDA_DEVICE>::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?
+                _Tensor::<T, Cuda, CUDA_DEVICE, Al>::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?
             }
         } else {
-            _Tensor::<T, Cuda, CUDA_DEVICE>::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?
+            _Tensor::<T, Cuda, CUDA_DEVICE, Al>::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?
         };
         let cublas = cudarc::cublas::CudaBlas::new(res.device())?;
         let config = GemmConfig {
@@ -94,7 +97,7 @@ where
         res_shape.push(b_shape[b_shape.len() - 1]);
         let res = if let Some(out) = out {
             if out.borrow().size() == (res_shape.iter().product::<i64>() as usize) {
-                let out: _Tensor<T, Cuda, CUDA_DEVICE> = out.borrow().clone();
+                let out: _Tensor<T, Cuda, CUDA_DEVICE, Al> = out.borrow().clone();
                 let mut slice = unsafe {
                     out.device()
                         .upgrade_device_ptr(out.ptr().ptr as u64, out.size())
@@ -104,10 +107,10 @@ where
                 slice.leak();
                 out
             } else {
-                _Tensor::<T, Cuda, CUDA_DEVICE>::zeros(res_shape)?
+                _Tensor::<T, Cuda, CUDA_DEVICE, Al>::zeros(res_shape)?
             }
         } else {
-            _Tensor::<T, Cuda, CUDA_DEVICE>::zeros(res_shape)?
+            _Tensor::<T, Cuda, CUDA_DEVICE, Al>::zeros(res_shape)?
         };
         let cublas = cudarc::cublas::CudaBlas::new(res.device())?;
         let config = GemmConfig {

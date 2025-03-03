@@ -1,6 +1,7 @@
 use crate::ops::cuda::{cuda_utils::get_module_name_1, utils::unary::unary::uary_fn_with_out_simd};
 use crate::{tensor_base::_Tensor, Cuda};
 use cudarc::driver::DeviceRepr;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, TensorCreator};
 use hpt_types::cuda_types::scalar::Scalar;
@@ -11,11 +12,10 @@ use hpt_types::{
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 use std::ops::{Mul, Sub};
-
 pub(crate) type Simd<T> = <<T as FloatOutBinary>::Output as TypeCommon>::Vec;
 type FBO<T> = <T as FloatOutBinary>::Output;
 
-impl<T, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize, Al> _Tensor<T, Cuda, DEVICE_ID, Al>
 where
     f64: Cast<FBO<T>>,
     T: CommonBounds + FloatOutBinary + DeviceRepr + CudaType,
@@ -33,12 +33,14 @@ where
         + FloatOutUnary<Output = Simd<T>>,
     usize: Cast<FBO<T>>,
     i64: Cast<T>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     #[track_caller]
     pub(crate) fn hamming_window(
         window_length: i64,
         periodic: bool,
-    ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, TensorError> {
+    ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID, Al>, TensorError> {
         Self::__hamming_window(window_length, (0.54).cast(), (0.46).cast(), periodic)
     }
 
@@ -46,7 +48,7 @@ where
     pub(crate) fn hann_window(
         window_length: i64,
         periodic: bool,
-    ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, TensorError> {
+    ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID, Al>, TensorError> {
         Self::__hamming_window(window_length, (0.5).cast(), (0.5).cast(), periodic)
     }
 
@@ -56,14 +58,14 @@ where
         alpha: FBO<T>,
         beta: FBO<T>,
         periodic: bool,
-    ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID>, TensorError> {
+    ) -> std::result::Result<_Tensor<FBO<T>, Cuda, DEVICE_ID, Al>, TensorError> {
         let length_usize = (if periodic {
             window_length
         } else {
             window_length - 1
         }) as usize;
         let length: FBO<T> = length_usize.cast();
-        let ret = _Tensor::<FBO<T>, Cuda, DEVICE_ID>::empty(&[length_usize as i64])?;
+        let ret = _Tensor::<FBO<T>, Cuda, DEVICE_ID, Al>::empty(&[length_usize as i64])?;
         uary_fn_with_out_simd(
             &ret,
             &get_module_name_1("hamming_window", &ret),
@@ -92,7 +94,7 @@ where
                 };
                 Scalar::<FBO<T>>::new(res)
             },
-            None::<_Tensor<FBO<T>, Cuda, DEVICE_ID>>,
+            None::<_Tensor<FBO<T>, Cuda, DEVICE_ID, Al>>,
         )
     }
 
@@ -118,7 +120,7 @@ where
     pub fn blackman_window(
         window_length: i64,
         periodic: bool,
-    ) -> std::result::Result<_Tensor<<T as FloatOutBinary>::Output, Cuda, DEVICE_ID>, TensorError>
+    ) -> std::result::Result<_Tensor<<T as FloatOutBinary>::Output, Cuda, DEVICE_ID, Al>, TensorError>
     where
         T: FloatConst,
         i64: Cast<<T as FloatOutBinary>::Output>,
@@ -130,7 +132,7 @@ where
         };
         let length: <T as FloatOutBinary>::Output = length_usize.cast();
         let ret =
-            _Tensor::<<T as FloatOutBinary>::Output, Cuda, DEVICE_ID>::empty(&[length_usize])?;
+            _Tensor::<<T as FloatOutBinary>::Output, Cuda, DEVICE_ID, Al>::empty(&[length_usize])?;
         uary_fn_with_out_simd(
             &ret,
             &get_module_name_1("blackman_window", &ret),
@@ -167,7 +169,7 @@ where
                 };
                 Scalar::<FBO<T>>::new(res)
             },
-            None::<_Tensor<FBO<T>, Cuda, DEVICE_ID>>,
+            None::<_Tensor<FBO<T>, Cuda, DEVICE_ID, Al>>,
         )
     }
 }

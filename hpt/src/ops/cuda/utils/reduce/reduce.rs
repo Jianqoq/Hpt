@@ -14,6 +14,7 @@ use crate::TensorCreator;
 use cudarc::driver::DeviceRepr;
 use cudarc::driver::LaunchAsync;
 use cudarc::driver::LaunchConfig;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape::Shape;
@@ -58,8 +59,8 @@ fn compute_reduce_launch_config(
 }
 
 #[track_caller]
-pub(crate) fn reduce<T, BufferType, const DEVICE_ID: usize>(
-    a: &_Tensor<T, Cuda, DEVICE_ID>,
+pub(crate) fn reduce<T, BufferType, const DEVICE_ID: usize, Al>(
+    a: &_Tensor<T, Cuda, DEVICE_ID, Al>,
     axes: &[usize],
     init_val: T,
     keepdims: bool,
@@ -74,14 +75,16 @@ pub(crate) fn reduce<T, BufferType, const DEVICE_ID: usize>(
     >,
     module_name: &str,
     op: &str,
-    c: Option<_Tensor<T, Cuda, DEVICE_ID>>,
-) -> std::result::Result<_Tensor<T, Cuda, DEVICE_ID>, TensorError>
+    c: Option<_Tensor<T, Cuda, DEVICE_ID, Al>>,
+) -> std::result::Result<_Tensor<T, Cuda, DEVICE_ID, Al>, TensorError>
 where
     T: CommonBounds + DeviceRepr + CudaType + Cast<f64>,
     BufferType: DeviceRepr,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, T, BufferType, DEVICE_ID>(
+        contiguous_reduce::<T, T, BufferType, DEVICE_ID, Al>(
             a,
             &axes,
             init_val,
@@ -93,7 +96,7 @@ where
             c,
         )
     } else {
-        uncontiguous_reduce::<T, T, BufferType, DEVICE_ID>(
+        uncontiguous_reduce::<T, T, BufferType, DEVICE_ID, Al>(
             a,
             &axes,
             init_val,
@@ -108,8 +111,8 @@ where
 }
 
 #[track_caller]
-pub(crate) fn reduce2<T, O, BufferType, const DEVICE_ID: usize>(
-    a: &_Tensor<T, Cuda, DEVICE_ID>,
+pub(crate) fn reduce2<T, O, BufferType, const DEVICE_ID: usize, Al>(
+    a: &_Tensor<T, Cuda, DEVICE_ID, Al>,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -124,15 +127,17 @@ pub(crate) fn reduce2<T, O, BufferType, const DEVICE_ID: usize>(
     >,
     module_name: &str,
     op: &str,
-    c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
-) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
+    c: Option<_Tensor<O, Cuda, DEVICE_ID, Al>>,
+) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID, Al>, TensorError>
 where
     T: CommonBounds + DeviceRepr + CudaType + Cast<f64>,
     O: CommonBounds + DeviceRepr + CudaType,
     BufferType: DeviceRepr,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, O, BufferType, DEVICE_ID>(
+        contiguous_reduce::<T, O, BufferType, DEVICE_ID, Al>(
             a,
             &axes,
             init_val,
@@ -144,7 +149,7 @@ where
             c,
         )
     } else {
-        uncontiguous_reduce::<T, O, BufferType, DEVICE_ID>(
+        uncontiguous_reduce::<T, O, BufferType, DEVICE_ID, Al>(
             a,
             &axes,
             init_val,
@@ -159,8 +164,8 @@ where
 }
 
 #[track_caller]
-pub(crate) fn reduce3<T, O, BufferType, const DEVICE_ID: usize>(
-    a: &_Tensor<T, Cuda, DEVICE_ID>,
+pub(crate) fn reduce3<T, O, BufferType, const DEVICE_ID: usize, Al>(
+    a: &_Tensor<T, Cuda, DEVICE_ID, Al>,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -175,15 +180,17 @@ pub(crate) fn reduce3<T, O, BufferType, const DEVICE_ID: usize>(
     >,
     module_name: &str,
     op: &str,
-    c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
-) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
+    c: Option<_Tensor<O, Cuda, DEVICE_ID, Al>>,
+) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID, Al>, TensorError>
 where
     T: CommonBounds + DeviceRepr + CudaType + Cast<f64>,
     O: CommonBounds + DeviceRepr + CudaType,
     BufferType: DeviceRepr,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, O, BufferType, DEVICE_ID>(
+        contiguous_reduce::<T, O, BufferType, DEVICE_ID, Al>(
             a,
             &axes,
             init_val,
@@ -195,7 +202,7 @@ where
             c,
         )
     } else {
-        uncontiguous_reduce::<T, O, BufferType, DEVICE_ID>(
+        uncontiguous_reduce::<T, O, BufferType, DEVICE_ID, Al>(
             a,
             &axes,
             init_val,
@@ -221,10 +228,10 @@ fn last_power_of_two(val: usize) -> usize {
     1 << highest_bit
 }
 
-pub(crate) fn fast_all_reduce<T, BufferType, const DEVICE_ID: usize>(
+pub(crate) fn fast_all_reduce<T, BufferType, const DEVICE_ID: usize, Al>(
     module_name: &str,
     op: &str,
-    inp: &_Tensor<T, Cuda, DEVICE_ID>,
+    inp: &_Tensor<T, Cuda, DEVICE_ID, Al>,
     res: CudaSlice,
     meta: &phf::Map<
         usize,
@@ -237,6 +244,8 @@ pub(crate) fn fast_all_reduce<T, BufferType, const DEVICE_ID: usize>(
 ) where
     T: CommonBounds + DeviceRepr + CudaType,
     BufferType: DeviceRepr,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     let (reduce_kernel, _) = load_ptx_and_get_data(
         module_name,
@@ -270,10 +279,10 @@ pub(crate) fn fast_all_reduce<T, BufferType, const DEVICE_ID: usize>(
     .unwrap();
 }
 
-pub(crate) fn slow_all_reduce<T, BufferType, const DEVICE_ID: usize>(
+pub(crate) fn slow_all_reduce<T, BufferType, const DEVICE_ID: usize, Al>(
     module_name: &str,
     op: &str,
-    inp: &_Tensor<T, Cuda, DEVICE_ID>,
+    inp: &_Tensor<T, Cuda, DEVICE_ID, Al>,
     res: CudaSlice,
     meta: &phf::Map<
         usize,
@@ -286,6 +295,8 @@ pub(crate) fn slow_all_reduce<T, BufferType, const DEVICE_ID: usize>(
 ) where
     T: CommonBounds + DeviceRepr + CudaType,
     BufferType: DeviceRepr,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     let (reduce_kernel, _) = load_ptx_and_get_data(
         module_name,
@@ -332,10 +343,10 @@ pub(crate) fn slow_all_reduce<T, BufferType, const DEVICE_ID: usize>(
     .unwrap();
 }
 
-pub(crate) fn not_keep_last_dim<T, O, BufferType, const DEVICE_ID: usize>(
+pub(crate) fn not_keep_last_dim<T, O, BufferType, const DEVICE_ID: usize, Al>(
     inner_loop_size: usize,
-    res: &_Tensor<O, Cuda, DEVICE_ID>,
-    transposed_tensor: &_Tensor<T, Cuda, DEVICE_ID>,
+    res: &_Tensor<O, Cuda, DEVICE_ID, Al>,
+    transposed_tensor: &_Tensor<T, Cuda, DEVICE_ID, Al>,
     new_axes: &[usize],
     module_name: &str,
     op: &str,
@@ -352,6 +363,8 @@ pub(crate) fn not_keep_last_dim<T, O, BufferType, const DEVICE_ID: usize>(
     T: CommonBounds + DeviceRepr + CudaType,
     O: CommonBounds + DeviceRepr + CudaType,
     BufferType: DeviceRepr,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     let perm = (0..transposed_tensor.ndim()).collect::<Vec<_>>();
     let mut right = perm[perm.len() - new_axes.len()..].to_vec();
@@ -556,9 +569,9 @@ pub(crate) fn not_keep_last_dim<T, O, BufferType, const DEVICE_ID: usize>(
     }
 }
 
-pub(crate) fn keep_last_dim<T, O, BufferType, const DEVICE_ID: usize>(
-    res: &_Tensor<O, Cuda, DEVICE_ID>,
-    transposed_tensor: &_Tensor<T, Cuda, DEVICE_ID>,
+pub(crate) fn keep_last_dim<T, O, BufferType, const DEVICE_ID: usize, Al>(
+    res: &_Tensor<O, Cuda, DEVICE_ID, Al>,
+    transposed_tensor: &_Tensor<T, Cuda, DEVICE_ID, Al>,
     reduce_size: usize,
     new_axes: &[usize],
     module_name: &str,
@@ -575,6 +588,8 @@ pub(crate) fn keep_last_dim<T, O, BufferType, const DEVICE_ID: usize>(
     T: CommonBounds + DeviceRepr + CudaType,
     O: CommonBounds + DeviceRepr + CudaType,
     BufferType: DeviceRepr,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     let kernel_name = format!("{op}_fast_dim_no_include_{}", T::STR);
     let (reduce_kernel, _) = load_ptx_and_get_data(
@@ -623,8 +638,8 @@ pub(crate) fn keep_last_dim<T, O, BufferType, const DEVICE_ID: usize>(
 }
 
 #[track_caller]
-pub(crate) fn contiguous_reduce<T, O, BufferType, const DEVICE_ID: usize>(
-    a: &_Tensor<T, Cuda, DEVICE_ID>,
+pub(crate) fn contiguous_reduce<T, O, BufferType, const DEVICE_ID: usize, Al>(
+    a: &_Tensor<T, Cuda, DEVICE_ID, Al>,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -639,12 +654,14 @@ pub(crate) fn contiguous_reduce<T, O, BufferType, const DEVICE_ID: usize>(
     >,
     module_name: &str,
     op: &str,
-    c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
-) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
+    c: Option<_Tensor<O, Cuda, DEVICE_ID, Al>>,
+) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID, Al>, TensorError>
 where
     T: CommonBounds + DeviceRepr + CudaType,
     O: CommonBounds + DeviceRepr + CudaType,
     BufferType: DeviceRepr,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     let max_axis = *axes.iter().max().unwrap();
     let (a, fused_dims) = if max_axis == a.ndim() - 1 {
@@ -663,9 +680,9 @@ where
         keepdims,
         init_out,
         c,
-        |res| fast_all_reduce::<T, O, DEVICE_ID>(module_name, op, &a, res, &meta),
+        |res| fast_all_reduce::<T, O, DEVICE_ID, Al>(module_name, op, &a, res, &meta),
         |inner_loop_size, _, res, transposed_tensor, new_axes| {
-            not_keep_last_dim::<T, O, BufferType, DEVICE_ID>(
+            not_keep_last_dim::<T, O, BufferType, DEVICE_ID, Al>(
                 inner_loop_size,
                 res,
                 transposed_tensor,
@@ -677,7 +694,7 @@ where
             )
         },
         |reduce_size, res, transposed_tensor, new_axes| {
-            keep_last_dim::<T, O, BufferType, DEVICE_ID>(
+            keep_last_dim::<T, O, BufferType, DEVICE_ID, Al>(
                 res,
                 transposed_tensor,
                 reduce_size,
@@ -700,8 +717,8 @@ where
 }
 
 #[track_caller]
-pub(crate) fn uncontiguous_reduce<T, O, BufferType, const DEVICE_ID: usize>(
-    a: &_Tensor<T, Cuda, DEVICE_ID>,
+pub(crate) fn uncontiguous_reduce<T, O, BufferType, const DEVICE_ID: usize, Al>(
+    a: &_Tensor<T, Cuda, DEVICE_ID, Al>,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -716,12 +733,14 @@ pub(crate) fn uncontiguous_reduce<T, O, BufferType, const DEVICE_ID: usize>(
     >,
     module_name: &str,
     op: &str,
-    c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
-) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
+    c: Option<_Tensor<O, Cuda, DEVICE_ID, Al>>,
+) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID, Al>, TensorError>
 where
     T: CommonBounds + DeviceRepr + CudaType + Cast<f64>,
     O: CommonBounds + DeviceRepr + CudaType,
     BufferType: DeviceRepr,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     let strides = a.layout.strides().to_vec();
     let shape = a.shape().to_vec();
@@ -768,12 +787,12 @@ where
         }
         out.reshape(res_layout.shape())?
     } else {
-        let res = _Tensor::<O, Cuda, DEVICE_ID>::empty(res_layout.shape())?;
+        let res = _Tensor::<O, Cuda, DEVICE_ID, Al>::empty(res_layout.shape())?;
         res
     };
     if all_reduce {
         if all_reduce_strides == 1 {
-            fast_all_reduce::<T, BufferType, DEVICE_ID>(
+            fast_all_reduce::<T, BufferType, DEVICE_ID, Al>(
                 module_name,
                 op,
                 a,
@@ -781,7 +800,7 @@ where
                 &meta,
             );
         } else {
-            slow_all_reduce::<T, BufferType, DEVICE_ID>(
+            slow_all_reduce::<T, BufferType, DEVICE_ID, Al>(
                 module_name,
                 op,
                 a,
@@ -791,7 +810,7 @@ where
         }
     } else {
         if last_dim_include {
-            not_keep_last_dim::<T, O, BufferType, DEVICE_ID>(
+            not_keep_last_dim::<T, O, BufferType, DEVICE_ID, Al>(
                 *a.shape().last().unwrap() as usize,
                 &res,
                 &transposed_tensor,
@@ -803,7 +822,7 @@ where
             )
         } else {
             let reduce_size = a.size() / res.size();
-            keep_last_dim::<T, O, BufferType, DEVICE_ID>(
+            keep_last_dim::<T, O, BufferType, DEVICE_ID, Al>(
                 &res,
                 &transposed_tensor,
                 reduce_size,

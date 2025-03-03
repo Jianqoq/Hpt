@@ -1,6 +1,8 @@
-use crate::backend::Cpu;
 use crate::tensor_base::_Tensor;
+use crate::Cpu;
 use crate::Tensor;
+use hpt_allocator::traits::Allocator;
+use hpt_allocator::traits::AllocatorOutputRetrive;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_iterator::iterator_traits::ParStridedIteratorZip;
@@ -44,23 +46,25 @@ use std::borrow::Borrow;
 /// If the vector sizes of the input tensors match and SIMD is enabled, the `f2` function is applied to
 /// perform vectorized operations for faster computation. If not, the scalar function `f` is applied to each element.
 #[track_caller]
-pub(crate) fn binary_fn_with_out_simd<A, B, O, K, F, F2, const DEVICE: usize>(
-    lhs: &_Tensor<A, Cpu, DEVICE>,
-    rhs: &_Tensor<B, Cpu, DEVICE>,
+pub(crate) fn binary_fn_with_out_simd<A, B, O, K, F, F2, const DEVICE: usize, Al>(
+    lhs: &_Tensor<A, Cpu, DEVICE, Al>,
+    rhs: &_Tensor<B, Cpu, DEVICE, Al>,
     f: F,
     f2: F2,
     out: Option<O>,
-) -> std::result::Result<_Tensor<K, Cpu, DEVICE>, TensorError>
+) -> std::result::Result<_Tensor<K, Cpu, DEVICE, Al>, TensorError>
 where
     A: CommonBounds,
     B: CommonBounds,
-    O: Borrow<_Tensor<K, Cpu, DEVICE>>,
+    O: Borrow<_Tensor<K, Cpu, DEVICE, Al>>,
     K: CommonBounds,
     F: Fn(A, B) -> K + Sync + Send + Copy,
     F2: Fn(<A as TypeCommon>::Vec, <B as TypeCommon>::Vec) -> <K as TypeCommon>::Vec
         + Sync
         + Send
         + Copy,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     use hpt_types::traits::*;
     use rayon::slice::{ParallelSlice, ParallelSliceMut};
@@ -69,10 +73,10 @@ where
         let val_vec = <A as TypeCommon>::Vec::splat(val);
         let mut res = if let Some(out) = out {
             ShapeError::check_inplace_out_layout_valid(rhs.shape(), &out.borrow().layout())?;
-            let out: &_Tensor<K, Cpu, DEVICE> = out.borrow();
+            let out: &_Tensor<K, Cpu, DEVICE, Al> = out.borrow();
             out.clone()
         } else {
-            _Tensor::<K, Cpu, DEVICE>::empty(rhs.shape())?
+            _Tensor::<K, Cpu, DEVICE, Al>::empty(rhs.shape())?
         };
         if rhs.is_contiguous() {
             if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
@@ -133,10 +137,10 @@ where
         let val_vec = <B as TypeCommon>::Vec::splat(val);
         let mut res = if let Some(out) = out {
             ShapeError::check_inplace_out_layout_valid(lhs.shape(), &out.borrow().layout())?;
-            let out: &_Tensor<K, Cpu, DEVICE> = out.borrow();
+            let out: &_Tensor<K, Cpu, DEVICE, Al> = out.borrow();
             out.clone()
         } else {
-            _Tensor::<K, Cpu, DEVICE>::empty(lhs.shape())?
+            _Tensor::<K, Cpu, DEVICE, Al>::empty(lhs.shape())?
         };
         if lhs.is_contiguous() {
             if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
@@ -196,10 +200,10 @@ where
         if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
             let mut ret = if let Some(out) = out {
                 ShapeError::check_inplace_out_layout_valid(rhs.shape(), &out.borrow().layout())?;
-                let out: &_Tensor<K, Cpu, DEVICE> = out.borrow();
+                let out: &_Tensor<K, Cpu, DEVICE, Al> = out.borrow();
                 out.clone()
             } else {
-                _Tensor::<K, Cpu, DEVICE>::empty(rhs.shape())?
+                _Tensor::<K, Cpu, DEVICE, Al>::empty(rhs.shape())?
             };
             if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
                 && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
@@ -249,7 +253,7 @@ where
                 .par_iter()
                 .zip(rhs.par_iter())
                 .strided_map(|(res, (x, y))| *res = f(x, y))
-                .collect::<_Tensor<K, Cpu, DEVICE>>();
+                .collect::<_Tensor<K, Cpu, DEVICE, Al>>();
             Ok(ret)
         }
     }
@@ -257,42 +261,44 @@ where
 
 /// Perform binary operation with output tensor
 #[track_caller]
-pub fn binary_with_out<A, B, O, K, F, F2, const DEVICE: usize>(
-    lhs: &Tensor<A, Cpu, DEVICE>,
-    rhs: &Tensor<B, Cpu, DEVICE>,
+pub fn binary_with_out<A, B, O, K, F, F2, const DEVICE: usize, Al>(
+    lhs: &Tensor<A, Cpu, DEVICE, Al>,
+    rhs: &Tensor<B, Cpu, DEVICE, Al>,
     f: F,
     f2: F2,
     out: Option<O>,
-) -> std::result::Result<Tensor<K, Cpu, DEVICE>, TensorError>
+) -> std::result::Result<Tensor<K, Cpu, DEVICE, Al>, TensorError>
 where
     A: CommonBounds,
     B: CommonBounds,
-    O: Borrow<Tensor<K, Cpu, DEVICE>>,
+    O: Borrow<Tensor<K, Cpu, DEVICE, Al>>,
     K: CommonBounds,
     F: Fn(A, B) -> K + Sync + Send + Copy,
     F2: Fn(<A as TypeCommon>::Vec, <B as TypeCommon>::Vec) -> <K as TypeCommon>::Vec
         + Sync
         + Send
         + Copy,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    let out: Option<_Tensor<K, Cpu, DEVICE>> = out.map(|x| x.borrow().inner.as_ref().clone());
+    let out: Option<_Tensor<K, Cpu, DEVICE, Al>> = out.map(|x| x.borrow().inner.as_ref().clone());
     Ok(binary_fn_with_out_simd(lhs.inner.as_ref(), rhs.inner.as_ref(), f, f2, out)?.into())
 }
 
 #[track_caller]
-pub(crate) fn binary_fn_with_out_simd_3<A, B, C, O, K, F, F2, const DEVICE: usize>(
-    a: &_Tensor<A, Cpu, DEVICE>,
-    b: &_Tensor<B, Cpu, DEVICE>,
-    c: &_Tensor<C, Cpu, DEVICE>,
+pub(crate) fn binary_fn_with_out_simd_3<A, B, C, O, K, F, F2, const DEVICE: usize, Al>(
+    a: &_Tensor<A, Cpu, DEVICE, Al>,
+    b: &_Tensor<B, Cpu, DEVICE, Al>,
+    c: &_Tensor<C, Cpu, DEVICE, Al>,
     f: F,
     f2: F2,
     out: Option<O>,
-) -> std::result::Result<_Tensor<K, Cpu, DEVICE>, TensorError>
+) -> std::result::Result<_Tensor<K, Cpu, DEVICE, Al>, TensorError>
 where
     A: CommonBounds,
     B: CommonBounds,
     C: CommonBounds,
-    O: Borrow<_Tensor<K, Cpu, DEVICE>>,
+    O: Borrow<_Tensor<K, Cpu, DEVICE, Al>>,
     K: CommonBounds,
     F: Fn(A, B, C) -> K + Sync + Send + Copy,
     F2: Fn(
@@ -303,16 +309,18 @@ where
         + Sync
         + Send
         + Copy,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     use hpt_types::traits::*;
     use rayon::slice::{ParallelSlice, ParallelSliceMut};
     if b.is_contiguous() && a.is_contiguous() && b.shape() == a.shape() {
         let mut ret = if let Some(out) = out {
             ShapeError::check_inplace_out_layout_valid(b.shape(), &out.borrow().layout())?;
-            let out: &_Tensor<K, Cpu, DEVICE> = out.borrow();
+            let out: &_Tensor<K, Cpu, DEVICE, Al> = out.borrow();
             out.clone()
         } else {
-            _Tensor::<K, Cpu, DEVICE>::empty(b.shape())?
+            _Tensor::<K, Cpu, DEVICE, Al>::empty(b.shape())?
         };
         if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
             && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
@@ -368,7 +376,7 @@ where
             .zip(b.par_iter())
             .zip(c.par_iter())
             .strided_map(|(res, ((x, y), z))| *res = f(x, y, z))
-            .collect::<_Tensor<K, Cpu, DEVICE>>();
+            .collect::<_Tensor<K, Cpu, DEVICE, Al>>();
         Ok(ret)
     }
 }

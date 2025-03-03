@@ -10,9 +10,10 @@ use hpt_types::{
 };
 use std::ops::{Mul, Sub};
 
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 type FBO<T> = <T as FloatOutBinary>::Output;
 
-impl<T, const DEVICE_ID: usize> Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize, Al> Tensor<T, Cuda, DEVICE_ID, Al>
 where
     f64: Cast<FBO<T>>,
     T: CommonBounds + FloatOutBinary + DeviceRepr + CudaType,
@@ -30,6 +31,8 @@ where
         + FloatOutUnary<Output = Simd<T>>,
     usize: Cast<FBO<T>>,
     i64: Cast<T>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     /// Computes the Hamming window for a given window length.
     ///
@@ -41,9 +44,9 @@ where
     pub fn hamming_window(
         window_length: i64,
         periodic: bool,
-    ) -> Result<Tensor<FBO<T>, Cuda, DEVICE_ID>, TensorError> {
+    ) -> Result<Tensor<FBO<T>, Cuda, DEVICE_ID, Al>, TensorError> {
         Ok(Tensor::from(
-            _Tensor::<T, Cuda, DEVICE_ID>::hamming_window(window_length, periodic)?.into(),
+            _Tensor::<T, Cuda, DEVICE_ID, Al>::hamming_window(window_length, periodic)?.into(),
         ))
     }
 
@@ -56,9 +59,9 @@ where
     pub fn hann_window(
         window_length: i64,
         periodic: bool,
-    ) -> Result<Tensor<FBO<T>, Cuda, DEVICE_ID>, TensorError> {
+    ) -> Result<Tensor<FBO<T>, Cuda, DEVICE_ID, Al>, TensorError> {
         Ok(Tensor::from(
-            _Tensor::<T, Cuda, DEVICE_ID>::hann_window(window_length, periodic)?.into(),
+            _Tensor::<T, Cuda, DEVICE_ID, Al>::hann_window(window_length, periodic)?.into(),
         ))
     }
 
@@ -71,11 +74,11 @@ where
     pub fn blackman_window(
         window_length: i64,
         periodic: bool,
-    ) -> Result<Tensor<FBO<T>, Cuda, DEVICE_ID>, TensorError>
+    ) -> Result<Tensor<FBO<T>, Cuda, DEVICE_ID, Al>, TensorError>
     where
         T: FloatConst,
         i64: Cast<FBO<T>>,
     {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::blackman_window(window_length, periodic)?.into())
+        Ok(_Tensor::<T, Cuda, DEVICE_ID, Al>::blackman_window(window_length, periodic)?.into())
     }
 }

@@ -1,3 +1,4 @@
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, NormalUaryOps, TensorLike};
 use hpt_types::{
@@ -10,16 +11,18 @@ use crate::{ops::cpu::utils::unary::unary::unary_fn_with_out, tensor_base::_Tens
 
 pub(crate) type NormalType<T> = <T as NormalOut>::Output;
 
-impl<T, const DEVICE: usize> NormalUaryOps for _Tensor<T, Cpu, DEVICE>
+impl<T, A2, const DEVICE: usize> NormalUaryOps for _Tensor<T, Cpu, DEVICE, A2>
 where
     T: CommonBounds,
     T::Vec: NormalOutUnary,
     T: NormalOutUnary,
-    _Tensor<NormalType<T>, Cpu, DEVICE>: TensorLike<NormalType<T>>,
+    _Tensor<NormalType<T>, Cpu, DEVICE, A2>: TensorLike<NormalType<T>>,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<NormalType<T>, Cpu, DEVICE>;
+    type Output = _Tensor<NormalType<T>, Cpu, DEVICE, A2>;
 
-    type InplaceOutput = _Tensor<NormalType<T>, Cpu, DEVICE>;
+    type InplaceOutput = _Tensor<NormalType<T>, Cpu, DEVICE, A2>;
 
     type OutputMeta = NormalType<T>;
 

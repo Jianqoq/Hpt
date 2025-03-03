@@ -29,13 +29,18 @@ use super::normalize_utils::{
     contiguous_normalize_template, uncontiguous_normalize_template, NormalizePreprocessor,
     UCNormalizePreprocessor,
 };
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 
-impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
+impl<T, const DEVICE: usize, A> _Tensor<T, Cpu, DEVICE, A>
+where
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
+{
     #[track_caller]
     pub fn softmax(
         &self,
         axis: i64,
-    ) -> Result<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
+    ) -> Result<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE, A>, TensorError>
     where
         T: CommonBounds + Cast<<T as FloatOutUnary>::Output> + FloatOutUnary,
         <T as FloatOutUnary>::Output: CommonBounds
@@ -49,20 +54,24 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
             contiguous_softmax(
                 self,
                 axis,
-                None::<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>>,
+                None::<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE, A>>,
             )?
         } else {
             uncontiguous_softmax(
                 self,
                 axis,
-                None::<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>>,
+                None::<_Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE, A>>,
             )?
         };
         Ok(res)
     }
 }
 
-impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
+impl<T, const DEVICE: usize, A> Tensor<T, Cpu, DEVICE, A>
+where
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
+{
     /// Applies the softmax function along a specified axis.
     ///
     /// The softmax function normalizes the elements along the specified axis such that they sum to 1.
@@ -86,7 +95,7 @@ impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     pub fn softmax(
         &self,
         axis: i64,
-    ) -> Result<Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
+    ) -> Result<Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE, A>, TensorError>
     where
         T: CommonBounds + Cast<<T as FloatOutUnary>::Output> + FloatOutUnary,
         <T as FloatOutUnary>::Output: CommonBounds
@@ -102,7 +111,11 @@ impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     }
 }
 
-impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
+impl<T, const DEVICE: usize, A> DiffTensor<T, Cpu, DEVICE, A>
+where
+    A: Allocator + Send + Sync + 'static,
+    A::Output: AllocatorOutputRetrive,
+{
     /// Applies the softmax function along a specified axis.
     ///
     /// The softmax function normalizes the elements along the specified axis such that they sum to 1.
@@ -126,7 +139,7 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
     pub fn softmax(
         &self,
         axis: i64,
-    ) -> Result<DiffTensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>, TensorError>
+    ) -> Result<DiffTensor<<T as FloatOutUnary>::Output, Cpu, DEVICE, A>, TensorError>
     where
         T: CommonBounds + Cast<<T as FloatOutUnary>::Output> + FloatOutUnary,
         <T as FloatOutUnary>::Output: CommonBounds
@@ -145,13 +158,13 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
             backward: Rc::new(RefCell::new(
-                move |mut grad: Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>| {
+                move |mut grad: Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE, A>| {
                     use hpt_traits::NormalReduce;
                     let s_times_grad = grad
                         .par_iter_mut()
                         .zip(res_clone.inner.par_iter())
                         .strided_map(|(res, (g, r))| *res = g._mul(r))
-                        .collect::<Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE>>();
+                        .collect::<Tensor<<T as FloatOutUnary>::Output, Cpu, DEVICE, A>>();
                     let sum = s_times_grad.sum(axis, true)?;
                     let grad = res_clone
                         .inner
@@ -161,7 +174,7 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
                         .strided_map(|(res, ((r, s), g))| {
                             *res = r._mul(g._sub(s)).cast();
                         })
-                        .collect::<Tensor<T, Cpu, DEVICE>>();
+                        .collect::<Tensor<T, Cpu, DEVICE, A>>();
                     handle_grad(&mut inp, grad, &[])?;
                     Ok(false)
                 },
@@ -171,16 +184,18 @@ impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
 }
 
 #[track_caller]
-pub(crate) fn contiguous_softmax<T, O, const DEVICE: usize>(
-    a: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn contiguous_softmax<T, O, const DEVICE: usize, A>(
+    a: &_Tensor<T, Cpu, DEVICE, A>,
     axis: i64,
-    c: Option<_Tensor<O, Cpu, DEVICE>>,
-) -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+    c: Option<_Tensor<O, Cpu, DEVICE, A>>,
+) -> Result<_Tensor<O, Cpu, DEVICE, A>, TensorError>
 where
     T: CommonBounds + Cast<O> + FloatOutUnary<Output = O>,
     O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
     T::Vec: FloatOutUnary<Output = O::Vec>,
     O::Vec: FloatOutBinary<Output = O::Vec>,
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
 {
     let axis = (if axis < 0 {
         axis + (a.ndim() as i64)
@@ -301,16 +316,18 @@ where
 }
 
 #[track_caller]
-pub(crate) fn uncontiguous_softmax<T, O, const DEVICE: usize>(
-    a: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn uncontiguous_softmax<T, O, const DEVICE: usize, A>(
+    a: &_Tensor<T, Cpu, DEVICE, A>,
     axis: i64,
-    c: Option<_Tensor<O, Cpu, DEVICE>>,
-) -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+    c: Option<_Tensor<O, Cpu, DEVICE, A>>,
+) -> Result<_Tensor<O, Cpu, DEVICE, A>, TensorError>
 where
     T: CommonBounds + Cast<O> + FloatOutUnary<Output = O>,
     O: CommonBounds + NormalOut<T, Output = O> + FloatOutUnary<Output = O>,
     T::Vec: FloatOutUnary<Output = O::Vec>,
     O::Vec: FloatOutBinary<Output = O::Vec>,
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
 {
     let axis = (if axis < 0 {
         axis + (a.ndim() as i64)

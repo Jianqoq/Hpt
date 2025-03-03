@@ -4,6 +4,7 @@ use crate::ops::cpu::tensor_internal::float_out_unary::FloatBinaryType;
 use crate::tensor::Tensor;
 use crate::Cuda;
 use cudarc::driver::DeviceRepr;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::axis::axis::Axis;
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, EvalReduce, FloatReduce, NormalEvalReduce, NormalReduce};
@@ -12,8 +13,11 @@ use hpt_types::dtype::CudaType;
 use hpt_types::type_promote::{FloatOutBinary, FloatOutUnary, NormalOut};
 use hpt_types::{into_scalar::Cast, traits::SimdSelect, type_promote::Eval};
 
-impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize> NormalReduce<T>
-    for Tensor<T, Cuda, DEVICE_ID>
+impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize, Al>
+    NormalReduce<T> for Tensor<T, Cuda, DEVICE_ID, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Output = Self;
 
@@ -102,11 +106,13 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
     }
 }
 
-impl<T, const DEVICE_ID: usize> EvalReduce for Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize, Al> EvalReduce for Tensor<T, Cuda, DEVICE_ID, Al>
 where
     T: CommonBounds + Eval<Output = bool> + Cast<bool> + DeviceRepr + CudaType + Cast<f64>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type BoolOutput = Tensor<bool, Cuda, DEVICE_ID>;
+    type BoolOutput = Tensor<bool, Cuda, DEVICE_ID, Al>;
     fn all<S: Into<Axis>>(
         &self,
         axis: S,
@@ -124,12 +130,14 @@ where
     }
 }
 
-impl<T, const DEVICE_ID: usize> NormalEvalReduce<T> for Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize, Al> NormalEvalReduce<T> for Tensor<T, Cuda, DEVICE_ID, Al>
 where
     T: CommonBounds + Eval<Output = bool> + Cast<bool> + DeviceRepr + CudaType + Cast<f64>,
     T::Vec: Eval,
     <T::Vec as Eval>::Output: SimdSelect<T::Vec> + Copy,
     <T::Vec as Eval>::Output: BitAnd<Output = <T::Vec as Eval>::Output>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Output = Self;
 
@@ -162,7 +170,7 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> FloatReduce<T> for Tensor<T, Cuda, DEVICE>
+impl<T, const DEVICE: usize, Al> FloatReduce<T> for Tensor<T, Cuda, DEVICE, Al>
 where
     T: FloatOutBinary + CommonBounds + Cast<FloatBinaryType<T>> + DeviceRepr + CudaType + Cast<f64>,
     FloatBinaryType<T>: CommonBounds + FloatOutUnary<Output = FloatBinaryType<T>>,
@@ -174,8 +182,10 @@ where
     Scalar<FloatBinaryType<T>>: FloatOutBinary<Output = Scalar<FloatBinaryType<T>>>
         + FloatOutUnary<Output = Scalar<FloatBinaryType<T>>>
         + NormalOut<Output = Scalar<FloatBinaryType<T>>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = Tensor<FloatBinaryType<T>, Cuda, DEVICE>;
+    type Output = Tensor<FloatBinaryType<T>, Cuda, DEVICE, Al>;
 
     #[track_caller]
     fn mean<S: Into<Axis>>(

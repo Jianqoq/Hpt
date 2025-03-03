@@ -6,6 +6,7 @@ use crate::ops::cuda::utils::reduce::reduce::{reduce, reduce2, reduce3};
 use crate::tensor_base::_Tensor;
 use crate::Cuda;
 use cudarc::driver::DeviceRepr;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::axis::axis::{process_axes, Axis};
 use hpt_common::error::base::TensorError;
 use hpt_traits::{
@@ -18,8 +19,11 @@ use hpt_types::into_scalar::Cast;
 use hpt_types::traits::SimdSelect;
 use hpt_types::type_promote::{Eval, FloatOutBinary, FloatOutUnary, NormalOut};
 
-impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize> NormalReduce<T>
-    for _Tensor<T, Cuda, DEVICE_ID>
+impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize, Al>
+    NormalReduce<T> for _Tensor<T, Cuda, DEVICE_ID, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Output = Self;
 
@@ -29,7 +33,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
         keep_dims: bool,
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes = process_axes(axes, self.ndim())?;
-        reduce::<T, T, DEVICE_ID>(
+        reduce::<T, T, DEVICE_ID, Al>(
             self,
             &axes,
             T::ZERO,
@@ -53,7 +57,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
         O: BorrowMut<Self::Output>,
     {
         let axes = process_axes(axes, self.ndim())?;
-        reduce::<T, T, DEVICE_ID>(
+        reduce::<T, T, DEVICE_ID, Al>(
             self,
             &axes,
             T::ZERO,
@@ -72,7 +76,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
         keep_dims: bool,
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes = process_axes(axis, self.ndim())?;
-        reduce::<T, T, DEVICE_ID>(
+        reduce::<T, T, DEVICE_ID, Al>(
             self,
             &axes,
             T::ONE,
@@ -91,7 +95,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
         keep_dims: bool,
     ) -> std::result::Result<Self, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce::<T, T, DEVICE_ID>(
+        reduce::<T, T, DEVICE_ID, Al>(
             self,
             &axes,
             T::INF,
@@ -110,7 +114,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
         keep_dims: bool,
     ) -> std::result::Result<Self, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce::<T, T, DEVICE_ID>(
+        reduce::<T, T, DEVICE_ID, Al>(
             self,
             &axes,
             T::NEG_INF,
@@ -129,7 +133,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
         keep_dims: bool,
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce::<T, T, DEVICE_ID>(
+        reduce::<T, T, DEVICE_ID, Al>(
             self,
             &axes,
             T::ZERO,
@@ -148,7 +152,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
         keep_dims: bool,
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce::<T, T, DEVICE_ID>(
+        reduce::<T, T, DEVICE_ID, Al>(
             self,
             &axes,
             T::ZERO,
@@ -162,18 +166,20 @@ impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize
     }
 }
 
-impl<T, const DEVICE_ID: usize> EvalReduce for _Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize, Al> EvalReduce for _Tensor<T, Cuda, DEVICE_ID, Al>
 where
     T: CommonBounds + Eval<Output = bool> + Cast<bool> + DeviceRepr + CudaType + Cast<f64>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type BoolOutput = _Tensor<bool, Cuda, DEVICE_ID>;
+    type BoolOutput = _Tensor<bool, Cuda, DEVICE_ID, Al>;
     fn all<S: Into<Axis>>(
         &self,
         axis: S,
         keep_dims: bool,
     ) -> std::result::Result<Self::BoolOutput, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce2::<T, bool, bool, DEVICE_ID>(
+        reduce2::<T, bool, bool, DEVICE_ID, Al>(
             self,
             &axes,
             true,
@@ -192,7 +198,7 @@ where
         keep_dims: bool,
     ) -> std::result::Result<Self::BoolOutput, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce2::<T, bool, bool, DEVICE_ID>(
+        reduce2::<T, bool, bool, DEVICE_ID, Al>(
             self,
             &axes,
             false,
@@ -206,12 +212,14 @@ where
     }
 }
 
-impl<T, const DEVICE_ID: usize> NormalEvalReduce<T> for _Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize, Al> NormalEvalReduce<T> for _Tensor<T, Cuda, DEVICE_ID, Al>
 where
     T: CommonBounds + Eval<Output = bool> + Cast<bool> + DeviceRepr + CudaType + Cast<f64>,
     T::Vec: Eval,
     <T::Vec as Eval>::Output: SimdSelect<T::Vec> + Copy,
     <T::Vec as Eval>::Output: BitAnd<Output = <T::Vec as Eval>::Output>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Output = Self;
 
@@ -221,7 +229,7 @@ where
         keep_dims: bool,
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes = process_axes(axes, self.ndim())?;
-        reduce::<T, T, DEVICE_ID>(
+        reduce::<T, T, DEVICE_ID, Al>(
             self,
             &axes,
             T::ZERO,
@@ -240,7 +248,7 @@ where
         keep_dims: bool,
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce::<T, T, DEVICE_ID>(
+        reduce::<T, T, DEVICE_ID, Al>(
             self,
             &axes,
             T::ONE,
@@ -264,7 +272,7 @@ where
         O: BorrowMut<Self::Output>,
     {
         let axes = process_axes(axes, self.ndim())?;
-        reduce::<T, T, DEVICE_ID>(
+        reduce::<T, T, DEVICE_ID, Al>(
             self,
             &axes,
             T::ZERO,
@@ -278,7 +286,7 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> FloatReduce<T> for _Tensor<T, Cuda, DEVICE>
+impl<T, const DEVICE: usize, Al> FloatReduce<T> for _Tensor<T, Cuda, DEVICE, Al>
 where
     T: FloatOutBinary + CommonBounds + Cast<FloatBinaryType<T>> + DeviceRepr + CudaType + Cast<f64>,
     FloatBinaryType<T>: CommonBounds + FloatOutUnary<Output = FloatBinaryType<T>>,
@@ -290,8 +298,10 @@ where
     Scalar<FloatBinaryType<T>>: FloatOutBinary<Output = Scalar<FloatBinaryType<T>>>
         + FloatOutUnary<Output = Scalar<FloatBinaryType<T>>>
         + NormalOut<Output = Scalar<FloatBinaryType<T>>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<FloatBinaryType<T>, Cuda, DEVICE>;
+    type Output = _Tensor<FloatBinaryType<T>, Cuda, DEVICE, Al>;
 
     #[track_caller]
     fn mean<S: Into<Axis>>(
@@ -300,7 +310,7 @@ where
         keep_dims: bool,
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce3::<T, FloatBinaryType<T>, FloatBinaryType<T>, DEVICE>(
+        reduce3::<T, FloatBinaryType<T>, FloatBinaryType<T>, DEVICE, Al>(
             self,
             &axes,
             FloatBinaryType::<T>::ZERO,
@@ -319,7 +329,7 @@ where
         keep_dims: bool,
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce3::<T, FloatBinaryType<T>, FloatBinaryType<T>, DEVICE>(
+        reduce3::<T, FloatBinaryType<T>, FloatBinaryType<T>, DEVICE, Al>(
             self,
             &axes,
             FloatBinaryType::<T>::ZERO,
@@ -338,7 +348,7 @@ where
         keep_dims: bool,
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce3::<T, FloatBinaryType<T>, FloatBinaryType<T>, DEVICE>(
+        reduce3::<T, FloatBinaryType<T>, FloatBinaryType<T>, DEVICE, Al>(
             self,
             &axes,
             FloatBinaryType::<T>::ZERO,
@@ -360,7 +370,7 @@ where
         T: CommonBounds,
     {
         let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-        reduce3::<T, FloatBinaryType<T>, FloatBinaryType<T>, DEVICE>(
+        reduce3::<T, FloatBinaryType<T>, FloatBinaryType<T>, DEVICE, Al>(
             self,
             &axes,
             FloatBinaryType::<T>::ZERO,

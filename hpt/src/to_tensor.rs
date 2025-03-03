@@ -1,10 +1,10 @@
-use crate::backend::Backend;
 use crate::tensor::{DiffTensor, Tensor};
-use crate::{backend::Cpu, tensor_base::_Tensor};
+use crate::Backend;
+use crate::{tensor_base::_Tensor, Cpu};
 use half::bf16;
 use half::f16;
 use hpt_allocator::traits::Allocator;
-use hpt_allocator::CACHE;
+use hpt_allocator::traits::AllocatorOutputRetrive;
 use hpt_common::shape::shape::Shape;
 use hpt_common::strides::strides_utils::shape_to_strides;
 use hpt_common::utils::pointer::Pointer;
@@ -13,6 +13,7 @@ use hpt_traits::TensorLike;
 use num::complex::{Complex32, Complex64};
 use std::alloc::Layout;
 use std::cell::RefCell;
+use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -20,15 +21,15 @@ use std::sync::Arc;
 macro_rules! from_scalar {
     ($($t:ident),*) => {
         $(
-            impl<const DEVICE: usize> Into<_Tensor<$t, Cpu, DEVICE>> for $t {
-                fn into(self) -> _Tensor<$t, Cpu, DEVICE> {
-                    let mut ret = _Tensor::<$t, Cpu, DEVICE>::empty(Vec::<i64>::new()).unwrap();
+            impl<const DEVICE: usize, A> Into<_Tensor<$t, Cpu, DEVICE, A>> for $t where A: Allocator, A::Output: AllocatorOutputRetrive {
+                fn into(self) -> _Tensor<$t, Cpu, DEVICE, A> {
+                    let mut ret = _Tensor::<$t, Cpu, DEVICE, A>::empty(Vec::<i64>::new()).unwrap();
                     ret.as_raw_mut()[0] = self;
                     return ret;
                 }
             }
-            impl<const DEVICE: usize> Into<Tensor<$t, Cpu, DEVICE>> for $t {
-                fn into(self) -> Tensor<$t, Cpu, DEVICE> {
+            impl<const DEVICE: usize, A> Into<Tensor<$t, Cpu, DEVICE, A>> for $t where A: Allocator, A::Output: AllocatorOutputRetrive {
+                fn into(self) -> Tensor<$t, Cpu, DEVICE, A> {
                     Tensor {
                         inner: Arc::new(self.into()),
                     }
@@ -51,19 +52,21 @@ macro_rules! impl_type_num {
 
     (vec, $($t:ident),*) => {
         $(
-            impl<const DEVICE: usize> From<Vec<$t>> for _Tensor<$t, Cpu, DEVICE> {
+            impl<const DEVICE: usize, A> From<Vec<$t>> for _Tensor<$t, Cpu, DEVICE, A> where A: Allocator, A::Output: AllocatorOutputRetrive {
                 fn from(data: Vec<$t>) -> Self {
                     let mut ptr = data.as_ptr() as *mut $t;
                     let length = data.len();
                     let res_shape = Shape::from(vec![length as i64]);
                     let layout;
+                    let mut allocator = A::new();
                     if (ptr as usize) % 8 == 0 {
                         let _ = ManuallyDrop::new(data);
                         layout = Layout::from_size_align(length * std::mem::size_of::<$t>(), 8).unwrap();
-                        CACHE.lock().expect("CACHE is poisoned").insert_ptr(ptr as *mut u8, DEVICE);
+                        allocator.insert_ptr(ptr as *mut u8, DEVICE);
                     } else {
                         layout = Layout::from_size_align(length * std::mem::size_of::<$t>(), 8).unwrap();
-                        ptr = CACHE.lock().expect("CACHE is poisoned").allocate(layout, DEVICE).unwrap() as *mut $t;
+                        let allocate_res = allocator.allocate(layout, DEVICE).unwrap();
+                        ptr = allocate_res.get_ptr() as *mut $t;
                         unsafe {
                             std::ptr::copy_nonoverlapping(data.as_ptr(), ptr, length);
                         }
@@ -77,7 +80,8 @@ macro_rules! impl_type_num {
                         parent: None,
                         layout: ly,
                         mem_layout: Arc::new(layout),
-                        _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
+                        _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                        phantom: PhantomData,
                     };
                 }
             }
@@ -91,7 +95,7 @@ macro_rules! impl_type_num {
         )*
     };
     (ndarray, $($generic:ident),*; $($vars:ident),*; $ct:ident, $($t:ident),*) => {
-            impl<$(const $generic: usize), *, const DEVICE: usize> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for _Tensor<$ct, Cpu, DEVICE> {
+            impl<$(const $generic: usize), *, const DEVICE: usize, A> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for _Tensor<$ct, Cpu, DEVICE, A> where A: Allocator, A::Output: AllocatorOutputRetrive {
                 fn from(data: repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
                     let mut vec: Vec<$ct> = Vec::with_capacity(repeate_generic!(operations, *, $($generic), *));
                     let shape = Shape::from(vec![$($generic as i64), *]);
@@ -100,13 +104,15 @@ macro_rules! impl_type_num {
                     let mut ptr = vec.as_mut_ptr();
                     let length = repeate_generic!(mul, $($generic), *);
                     let layout;
+                    let mut allocator = A::new();
                     if (ptr as usize) % 8 == 0 {
                         let _ = ManuallyDrop::new(vec);
                         layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                        CACHE.lock().expect("CACHE is poisoned").insert_ptr(ptr as *mut u8, DEVICE);
+                        allocator.insert_ptr(ptr as *mut u8, DEVICE);
                     } else {
                         layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                        ptr = CACHE.lock().expect("CACHE is poisoned").allocate(layout, DEVICE).unwrap() as *mut $ct;
+                        let allocate_res = allocator.allocate(layout, DEVICE).unwrap();
+                        ptr = allocate_res.get_ptr() as *mut $ct;
                         unsafe {
                             std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                         }
@@ -121,11 +127,12 @@ macro_rules! impl_type_num {
                         parent: None,
                         layout: ly,
                         mem_layout: Arc::new(layout),
-                        _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
+                        _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                        phantom: PhantomData,
                     };
                 }
             }
-            impl<$(const $generic: usize), *, const DEVICE: usize> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct, Cpu, DEVICE> {
+            impl<$(const $generic: usize), *, const DEVICE: usize, A> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct, Cpu, DEVICE, A> where A: Allocator, A::Output: AllocatorOutputRetrive {
                 fn from(data: repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
                     Tensor {
                         inner: Arc::new(data.into()),
@@ -135,7 +142,7 @@ macro_rules! impl_type_num {
             impl_type_num!(ndarray, $($generic), *; $($vars), *; $($t),*);
     };
     (ndarray, $($generic:ident),*; $($vars:ident),*; $ct:ident) => {
-        impl<$(const $generic: usize), *, const DEVICE: usize> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for _Tensor<$ct, Cpu, DEVICE> {
+        impl<$(const $generic: usize), *, const DEVICE: usize, A> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for _Tensor<$ct, Cpu, DEVICE, A> where A: Allocator, A::Output: AllocatorOutputRetrive {
             fn from(data: repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
                 let mut vec: Vec<$ct> = Vec::with_capacity(repeate_generic!(operations, *, $($generic), *));
                 let shape = Shape::from(vec![$($generic as i64), *]);
@@ -144,13 +151,15 @@ macro_rules! impl_type_num {
                 let mut ptr = vec.as_mut_ptr();
                 let length = repeate_generic!(mul, $($generic), *);
                 let layout;
+                let mut allocator = A::new();
                 if (ptr as usize) % 8 == 0 {
                     let _ = ManuallyDrop::new(vec);
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    CACHE.lock().expect("CACHE is poisoned").insert_ptr(ptr as *mut u8, DEVICE);
+                    allocator.insert_ptr(ptr as *mut u8, DEVICE);
                 } else {
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    ptr = CACHE.lock().expect("CACHE is poisoned").allocate(layout, DEVICE).unwrap() as *mut $ct;
+                    let allocate_res = allocator.allocate(layout, DEVICE).unwrap();
+                    ptr = allocate_res.get_ptr() as *mut $ct;
                     unsafe {
                         std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                     }
@@ -166,11 +175,12 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
-                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
+                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                    phantom: PhantomData,
                 };
             }
         }
-        impl<$(const $generic: usize), *, const DEVICE: usize> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct, Cpu, DEVICE> {
+        impl<$(const $generic: usize), *, const DEVICE: usize, A> From<repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct, Cpu, DEVICE, A> where A: Allocator, A::Output: AllocatorOutputRetrive {
             fn from(data: repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
                 Tensor {
                     inner: Arc::new(data.into()),
@@ -187,7 +197,7 @@ macro_rules! impl_type_num {
         $ct:ident,
         $($t:ident),*
     ) => {
-        impl<$(const $generic: usize), *, const DEVICE: usize> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for _Tensor<$ct, Cpu, DEVICE> {
+        impl<$(const $generic: usize), *, const DEVICE: usize, A> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for _Tensor<$ct, Cpu, DEVICE, A> where A: Allocator, A::Output: AllocatorOutputRetrive {
             fn from(data: repeate_generic!(nested_array_type, $($generic), *; $source)) -> Self {
                 let mut vec: Vec<$ct> = Vec::with_capacity(repeate_generic!(operations, *, $($generic), *));
                 let shape = vec![$($generic as i64), *];
@@ -196,13 +206,15 @@ macro_rules! impl_type_num {
                 let mut ptr = vec.as_mut_ptr();
                 let length = repeate_generic!(mul, $($generic), *);
                 let layout;
+                let allocator = A::new();
                 if (ptr as usize) % 8 == 0 {
                     let _ = ManuallyDrop::new(vec);
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    unsafe { CACHE.lock().expect("CACHE is poisoned").insert_ptr(ptr as *mut u8) };
+                    allocator.insert_ptr(ptr as *mut u8);
                 } else {
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    ptr = unsafe { CACHE.lock().expect("CACHE is poisoned").allocate(layout) } as *mut $ct;
+                    let allocate_res = allocator.allocate(layout, DEVICE).unwrap();
+                    ptr = allocate_res.get_ptr() as *mut $ct;
                     unsafe {
                         std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                     }
@@ -218,10 +230,11 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
+                    phantom: PhantomData,
                 };
             }
         }
-        impl<$(const $generic: usize), *, const DEVICE: usize> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for Tensor<$ct, Cpu, DEVICE> {
+        impl<$(const $generic: usize), *, const DEVICE: usize, A> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for Tensor<$ct, Cpu, DEVICE, A> where A: Allocator, A::Output: AllocatorOutputRetrive {
             fn from(data: repeate_generic!(nested_array_type, $($generic), *; $source)) -> Self {
                 Tensor {
                     inner: Arc::new(data.into()),
@@ -231,7 +244,7 @@ macro_rules! impl_type_num {
         impl_type_num!(ndarray_source_target, $source, $($generic), *; $($vars), *; $($t),*);
     };
     (ndarray_source_target, $source:ident, $($generic:ident),*; $($vars:ident),*; $ct:ident) => {
-    impl<$(const $generic: usize), *, const DEVICE: usize> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for _Tensor<$ct, Cpu, DEVICE> {
+    impl<$(const $generic: usize), *, const DEVICE: usize, A> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for _Tensor<$ct, Cpu, DEVICE, A> where A: Allocator, A::Output: AllocatorOutputRetrive {
         fn from(data: repeate_generic!(nested_array_type, $($generic), *; $source)) -> Self {
             let mut vec: Vec<$ct> = Vec::with_capacity(repeate_generic!(operations, *, $($generic), *));
             let shape = Shape::from(vec![$($generic as i64), *]);
@@ -240,13 +253,15 @@ macro_rules! impl_type_num {
             let mut ptr = vec.as_mut_ptr();
             let length = repeate_generic!(mul, $($generic), *);
             let layout;
+            let mut allocator = A::new();
             if (ptr as usize) % 8 == 0 {
                 let _ = ManuallyDrop::new(vec);
                 layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                CACHE.lock().expect("CACHE is poisoned").insert_ptr(ptr as *mut u8, DEVICE);
+                allocator.insert_ptr(ptr as *mut u8, DEVICE);
             } else {
                 layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                ptr = CACHE.lock().expect("CACHE is poisoned").allocate(layout, DEVICE).unwrap() as *mut $ct;
+                let allocate_res = allocator.allocate(layout, DEVICE).unwrap();
+                ptr = allocate_res.get_ptr() as *mut $ct;
                 unsafe {
                     std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                 }
@@ -262,11 +277,12 @@ macro_rules! impl_type_num {
                 parent: None,
                 layout: ly,
                 mem_layout: Arc::new(layout),
-                _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
+                _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                phantom: PhantomData,
             };
         }
     }
-    impl<$(const $generic: usize), *, const DEVICE: usize> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for Tensor<$ct, Cpu, DEVICE> {
+    impl<$(const $generic: usize), *, const DEVICE: usize, A> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for Tensor<$ct, Cpu, DEVICE, A> where A: Allocator, A::Output: AllocatorOutputRetrive {
         fn from(data: repeate_generic!(nested_array_type, $($generic), *; $source)) -> Self {
             Tensor {
                     inner: Arc::new(data.into()),
@@ -276,7 +292,7 @@ macro_rules! impl_type_num {
     };
 
     (ndarray_ref, $($generic:ident),*; $($vars:ident),*; $ct:ident, $($t:ident),*) => {
-        impl<$(const $generic: usize), *, const DEVICE: usize> From<&repeate_generic!(nested_array_type, $($generic), *; $ct)> for _Tensor<$ct, Cpu, DEVICE> {
+        impl<$(const $generic: usize), *, const DEVICE: usize, A> From<&repeate_generic!(nested_array_type, $($generic), *; $ct)> for _Tensor<$ct, Cpu, DEVICE, A> where A: Allocator, A::Output: AllocatorOutputRetrive {
             fn from(data: &repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
                 let mut vec: Vec<$ct> = Vec::with_capacity(repeate_generic!(operations, *, $($generic), *));
                 let shape = Shape::from(vec![$($generic as i64), *]);
@@ -285,13 +301,15 @@ macro_rules! impl_type_num {
                 let mut ptr = vec.as_mut_ptr();
                 let length = repeate_generic!(mul, $($generic), *);
                 let layout;
+                let mut allocator = A::new();
                 if (ptr as usize) % 8 == 0 {
                     let _ = ManuallyDrop::new(vec);
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    CACHE.lock().expect("CACHE is poisoned").insert_ptr(ptr as *mut u8, DEVICE);
+                    allocator.insert_ptr(ptr as *mut u8, DEVICE);
                 } else {
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    ptr = CACHE.lock().expect("CACHE is poisoned").allocate(layout, DEVICE).unwrap() as *mut $ct;
+                    let allocate_res = allocator.allocate(layout, DEVICE).unwrap();
+                    ptr = allocate_res.get_ptr() as *mut $ct;
                     unsafe {
                         std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                     }
@@ -307,11 +325,12 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
-                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
+                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                    phantom: PhantomData,
                 };
             }
         }
-        impl<$(const $generic: usize), *, const DEVICE: usize> From<&repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct, Cpu, DEVICE> {
+        impl<$(const $generic: usize), *, const DEVICE: usize, A> From<&repeate_generic!(nested_array_type, $($generic), *; $ct)> for Tensor<$ct, Cpu, DEVICE, A> where A: Allocator, A::Output: AllocatorOutputRetrive {
             fn from(data: &repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
                 Tensor {
                     inner: Arc::new(data.into()),
@@ -321,7 +340,7 @@ macro_rules! impl_type_num {
         impl_type_num!(ndarray_ref, $($generic), *; $($vars), *; $($t),*);
     };
     (ndarray_ref, $($generic:ident),*; $($vars:ident),*; $ct:ident) => {
-        impl<$(const $generic: usize), *, const DEVICE: usize> From<&repeate_generic!(nested_array_type, $($generic), *; $ct)> for _Tensor<$ct, Cpu, DEVICE> {
+        impl<$(const $generic: usize), *, const DEVICE: usize, A> From<&repeate_generic!(nested_array_type, $($generic), *; $ct)> for _Tensor<$ct, Cpu, DEVICE, A> where A: Allocator, A::Output: AllocatorOutputRetrive {
             fn from(data: &repeate_generic!(nested_array_type, $($generic), *; $ct)) -> Self {
                 let mut vec: Vec<$ct> = Vec::with_capacity(repeate_generic!(operations, *, $($generic), *));
                 let shape = Shape::from(vec![$($generic as i64), *]);
@@ -330,13 +349,15 @@ macro_rules! impl_type_num {
                 let mut ptr = vec.as_mut_ptr();
                 let length = repeate_generic!(mul, $($generic), *);
                 let layout;
+                let mut allocator = A::new();
                 if (ptr as usize) % 8 == 0 {
                     let _ = ManuallyDrop::new(vec);
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    CACHE.lock().expect("CACHE is poisoned").insert_ptr(ptr as *mut u8, DEVICE);
+                    allocator.insert_ptr(ptr as *mut u8, DEVICE);
                 } else {
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    ptr = CACHE.lock().expect("CACHE is poisoned").allocate(layout, DEVICE).unwrap() as *mut $ct;
+                    let allocate_res = allocator.allocate(layout, DEVICE).unwrap();
+                    ptr = allocate_res.get_ptr() as *mut $ct;
                     unsafe {
                         std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
                     }
@@ -352,7 +373,8 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
-                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, false),
+                    _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                    phantom: PhantomData,
                 };
             }
         }
@@ -452,21 +474,27 @@ impl_type_num!(ndarray_source_target, f64, N, M, O, P, Q, R, S; i, j, k, l, m, n
 impl_type_num!(ndarray_source_target, f32, N, M, O, P, Q, R, S, T; i, j, k, l, m, n, o; Complex32);
 impl_type_num!(ndarray_source_target, f64, N, M, O, P, Q, R, S, T; i, j, k, l, m, n, o; Complex64);
 
-impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
+impl<T, const DEVICE: usize, Al> Tensor<T, Cpu, DEVICE, Al>
+where
+    Al: Allocator,
+{
     /// Creates a new tensor from the provided data.
     pub fn new<A>(data: A) -> Self
     where
-        A: Into<Tensor<T, Cpu, DEVICE>>,
+        A: Into<Tensor<T, Cpu, DEVICE, Al>>,
     {
         data.into()
     }
 }
 
-impl<T, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
+impl<T, const DEVICE: usize, Al> DiffTensor<T, Cpu, DEVICE, Al>
+where
+    Al: Allocator,
+{
     /// Creates a new differentiable tensor from the provided data.
     pub fn new<A>(data: A) -> Self
     where
-        A: Into<Tensor<T, Cpu, DEVICE>>,
+        A: Into<Tensor<T, Cpu, DEVICE, Al>>,
     {
         let ret = data.into();
         DiffTensor {

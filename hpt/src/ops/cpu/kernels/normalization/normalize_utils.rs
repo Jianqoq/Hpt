@@ -11,10 +11,11 @@ use hpt_traits::{CommonBounds, ShapeManipulate, TensorCreator, TensorInfo};
 use hpt_types::into_scalar::Cast;
 
 use crate::{
-    backend::Cpu,
     ops::common::reduce::{is_keep_fast_dim, rearrange_array},
     tensor_base::_Tensor,
+    Cpu,
 };
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 
 #[derive(Debug, Clone)]
 pub(crate) struct NormalizePreprocessor<T, U> {
@@ -236,11 +237,15 @@ where
     }
 }
 
-pub(crate) fn normalize_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: usize>(
-    a: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn normalize_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: usize, A>(
+    a: &_Tensor<T, Cpu, DEVICE, A>,
     axis: usize,
-    c: Option<_Tensor<O, Cpu, DEVICE>>,
-) -> std::result::Result<(bool, _Tensor<T, Cpu, DEVICE>, _Tensor<O, Cpu, DEVICE>), TensorError> {
+    c: Option<_Tensor<O, Cpu, DEVICE, A>>,
+) -> std::result::Result<(bool, _Tensor<T, Cpu, DEVICE, A>, _Tensor<O, Cpu, DEVICE, A>), TensorError>
+where
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
+{
     let keep_fast_dim = is_keep_fast_dim(&a.layout.strides(), &[axis]);
     // get permute order, we move to_reduce axes to the end
     let mut transposed_axis = rearrange_array(a.ndim(), &[axis]);
@@ -255,26 +260,28 @@ pub(crate) fn normalize_prepare<T: CommonBounds, O: CommonBounds, const DEVICE: 
         ShapeError::check_inplace_out_layout_valid(a.shape(), out.layout())?;
         Ok(out)
     } else {
-        _Tensor::<O, Cpu, DEVICE>::empty(a.shape())
+        _Tensor::<O, Cpu, DEVICE, A>::empty(a.shape())
     };
     Ok((keep_fast_dim, a.permute(transposed_axis)?, res?))
 }
 
 #[track_caller]
-pub(crate) fn contiguous_normalize_template<T, F1, F2, F3, O, const DEVICE: usize>(
-    a: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn contiguous_normalize_template<T, F1, F2, F3, O, const DEVICE: usize, A>(
+    a: &_Tensor<T, Cpu, DEVICE, A>,
     axis: usize,
-    c: Option<_Tensor<O, Cpu, DEVICE>>,
+    c: Option<_Tensor<O, Cpu, DEVICE, A>>,
     full_reduce: F1,
     nkd: F2,
     kd: F3,
-) -> Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+) -> Result<_Tensor<O, Cpu, DEVICE, A>, TensorError>
 where
     T: CommonBounds + Cast<O>,
     O: CommonBounds,
     F1: Fn(&mut O),
-    F2: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
-    F3: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
+    F2: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE, A>, &_Tensor<T, Cpu, DEVICE, A>),
+    F3: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE, A>, &_Tensor<T, Cpu, DEVICE, A>),
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
 {
     let (keep_fast_dim, transposed_tensor, result) = normalize_prepare(a, axis, c)?;
 
@@ -322,20 +329,22 @@ where
 }
 
 #[track_caller]
-pub(crate) fn uncontiguous_normalize_template<T, F1, F2, F3, O, const DEVICE: usize>(
-    a: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn uncontiguous_normalize_template<T, F1, F2, F3, O, const DEVICE: usize, A>(
+    a: &_Tensor<T, Cpu, DEVICE, A>,
     axis: usize,
-    c: Option<_Tensor<O, Cpu, DEVICE>>,
+    c: Option<_Tensor<O, Cpu, DEVICE, A>>,
     full_reduce: F1,
     nkd: F2,
     kd: F3,
-) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+) -> std::result::Result<_Tensor<O, Cpu, DEVICE, A>, TensorError>
 where
     T: CommonBounds + Cast<O>,
     O: CommonBounds,
     F1: Fn(&mut O),
-    F2: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
-    F3: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE>, &_Tensor<T, Cpu, DEVICE>),
+    F2: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE, A>, &_Tensor<T, Cpu, DEVICE, A>),
+    F3: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE, A>, &_Tensor<T, Cpu, DEVICE, A>),
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
 {
     let (keep_fast_dim, transposed_tensor, result) = normalize_prepare(a, axis, c)?;
 

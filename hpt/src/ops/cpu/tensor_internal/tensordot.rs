@@ -3,20 +3,26 @@ use hpt_traits::{CommonBounds, Matmul, ShapeManipulate, TensorDot, TensorInfo};
 use hpt_types::type_promote::NormalOut;
 
 use crate::tensor_base::_Tensor;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
+use hpt_allocator::Cpu;
 
-impl<A, B> TensorDot<_Tensor<B>> for _Tensor<A>
+impl<A, B, const DEVICE: usize, Al> TensorDot<_Tensor<B, Cpu, DEVICE, Al>>
+    for _Tensor<A, Cpu, DEVICE, Al>
 where
     A: CommonBounds + NormalOut<B>,
     B: CommonBounds,
-    _Tensor<A>: Matmul<_Tensor<B>>,
-    <_Tensor<A> as Matmul<_Tensor<B>>>::Output:
-        ShapeManipulate<Output = <_Tensor<A> as Matmul<_Tensor<B>>>::Output>,
+    _Tensor<A, Cpu, DEVICE, Al>: Matmul<_Tensor<B, Cpu, DEVICE, Al>>,
+    <_Tensor<A, Cpu, DEVICE, Al> as Matmul<_Tensor<B, Cpu, DEVICE, Al>>>::Output: ShapeManipulate<
+        Output = <_Tensor<A, Cpu, DEVICE, Al> as Matmul<_Tensor<B, Cpu, DEVICE, Al>>>::Output,
+    >,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = <_Tensor<A> as Matmul<_Tensor<B>>>::Output;
+    type Output = <_Tensor<A, Cpu, DEVICE, Al> as Matmul<_Tensor<B, Cpu, DEVICE, Al>>>::Output;
 
     fn tensordot<const N: usize>(
         &self,
-        rhs: &_Tensor<B>,
+        rhs: &_Tensor<B, Cpu, DEVICE, Al>,
         axes: ([i64; N], [i64; N]),
     ) -> std::result::Result<Self::Output, TensorError> {
         let mut axes: [Vec<i64>; 2] = [axes.0.to_vec(), axes.1.to_vec()];

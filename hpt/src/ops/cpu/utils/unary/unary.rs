@@ -1,6 +1,7 @@
-use crate::backend::Cpu;
 use crate::tensor_base::_Tensor;
+use crate::Cpu;
 use crate::{Tensor, THREAD_POOL};
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape_utils::mt_intervals;
@@ -17,24 +18,26 @@ use std::borrow::Borrow;
 use threadpool::ThreadPool;
 
 /// Perform unary operation with output tensor
-pub fn unary_fn_with_out<A, O, K, F, F2, const DEVICE: usize>(
-    inp: &_Tensor<A, Cpu, DEVICE>,
+pub fn unary_fn_with_out<A, O, K, F, F2, const DEVICE: usize, A2>(
+    inp: &_Tensor<A, Cpu, DEVICE, A2>,
     f: F,
     f2: F2,
     out: Option<O>,
-) -> std::result::Result<_Tensor<K, Cpu, DEVICE>, TensorError>
+) -> std::result::Result<_Tensor<K, Cpu, DEVICE, A2>, TensorError>
 where
     A: CommonBounds,
     K: CommonBounds,
-    O: Borrow<_Tensor<K, Cpu, DEVICE>>,
+    O: Borrow<_Tensor<K, Cpu, DEVICE, A2>>,
     F: Fn(A::Vec) -> K::Vec + Sync + Send,
     F2: Fn(A) -> K + Sync + Send,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
     let mut ret = if let Some(out) = out {
         ShapeError::check_inplace_out_layout_valid(inp.shape(), &out.borrow().layout())?;
         out.borrow().static_cast()?
     } else {
-        _Tensor::<K, Cpu, DEVICE>::empty(inp.shape())?
+        _Tensor::<K, Cpu, DEVICE, A2>::empty(inp.shape())?
     };
     let ret_size = ret.size();
     if inp.parent().is_some() {
@@ -83,27 +86,33 @@ where
     Ok(ret)
 }
 
-impl<T> _Tensor<T>
+impl<T, A2, const DEVICE: usize> _Tensor<T, Cpu, DEVICE, A2>
 where
     T: CommonBounds + Eval,
     <T as Eval>::Output: CommonBounds,
     T::Vec: Eval<Output = <<T as Eval>::Output as TypeCommon>::Vec>,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
-    pub fn is_inf(&self) -> std::result::Result<_Tensor<<T as Eval>::Output>, TensorError> {
+    pub fn is_inf(
+        &self,
+    ) -> std::result::Result<_Tensor<<T as Eval>::Output, Cpu, DEVICE, A2>, TensorError> {
         unary_fn_with_out(
             self,
             |x| x._is_inf(),
             |x| x._is_inf(),
-            None::<_Tensor<<T as Eval>::Output>>,
+            None::<_Tensor<<T as Eval>::Output, Cpu, DEVICE, A2>>,
         )
     }
 
-    pub fn is_nan(&self) -> std::result::Result<_Tensor<<T as Eval>::Output>, TensorError> {
+    pub fn is_nan(
+        &self,
+    ) -> std::result::Result<_Tensor<<T as Eval>::Output, Cpu, DEVICE, A2>, TensorError> {
         unary_fn_with_out(
             self,
             |x| x._is_nan(),
             |x| x._is_nan(),
-            None::<_Tensor<<T as Eval>::Output>>,
+            None::<_Tensor<<T as Eval>::Output, Cpu, DEVICE, A2>>,
         )
     }
 }
@@ -113,14 +122,17 @@ pub(crate) fn cumulate<
     F: Fn(T, T) -> T + Send + Sync + 'static + Copy,
     A: Into<Option<i64>>,
     const DEVICE: usize,
+    A2,
 >(
-    a: &_Tensor<T, Cpu, DEVICE>,
+    a: &_Tensor<T, Cpu, DEVICE, A2>,
     axis: A,
     init_val: T,
     op: F,
-) -> std::result::Result<_Tensor<T, Cpu, DEVICE>, TensorError>
+) -> std::result::Result<_Tensor<T, Cpu, DEVICE, A2>, TensorError>
 where
     T: NormalOut<T, Output = T>,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
     match axis.into() {
         Some(axis) => {
@@ -217,7 +229,7 @@ where
             Ok(res)
         }
         None => {
-            let mut res = _Tensor::<T, Cpu, DEVICE>::empty(vec![a.size() as i64])?;
+            let mut res = _Tensor::<T, Cpu, DEVICE, A2>::empty(vec![a.size() as i64])?;
             let mut tmp = init_val;
             if a.is_contiguous() {
                 let raw = a.as_raw();
@@ -242,11 +254,13 @@ where
     }
 }
 
-impl<T> Tensor<T>
+impl<T, A2, const DEVICE: usize> Tensor<T, Cpu, DEVICE, A2>
 where
     T: CommonBounds + Eval,
     <T as Eval>::Output: CommonBounds,
     T::Vec: Eval<Output = <<T as Eval>::Output as TypeCommon>::Vec>,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
     /// Checks for infinity (`inf`) values in the tensor.
     ///
@@ -258,7 +272,7 @@ where
     ///
     /// This function returns a `Result` containing a tensor of type `_Tensor<<T as Eval>::Output>`,
     /// where each element is either `1` (if the corresponding element is `inf`) or `0` (if it is not).
-    pub fn is_inf(&self) -> Result<Tensor<<T as Eval>::Output>, TensorError> {
+    pub fn is_inf(&self) -> Result<Tensor<<T as Eval>::Output, Cpu, DEVICE, A2>, TensorError> {
         Ok(self.inner.is_inf()?.into())
     }
 
@@ -272,7 +286,7 @@ where
     ///
     /// This function returns a `Result` containing a tensor of type `_Tensor<<T as Eval>::Output>`,
     /// where each element is either `1` (if the corresponding element is `NaN`) or `0` (if it is not).
-    pub fn is_nan(&self) -> Result<Tensor<<T as Eval>::Output>, TensorError> {
+    pub fn is_nan(&self) -> Result<Tensor<<T as Eval>::Output, Cpu, DEVICE, A2>, TensorError> {
         Ok(self.inner.is_nan()?.into())
     }
 }

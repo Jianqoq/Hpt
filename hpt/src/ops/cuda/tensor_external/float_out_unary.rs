@@ -12,8 +12,9 @@ use crate::{
     ops::cpu::tensor_internal::float_out_unary::FloatUnaryType, tensor::Tensor,
     tensor_base::_Tensor, Cuda,
 };
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 
-impl<T, const DEVICE_ID: usize> FloatUnaryOps for Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize, Al> FloatUnaryOps for Tensor<T, Cuda, DEVICE_ID, Al>
 where
     T: FloatOutUnary + CommonBounds + DeviceRepr + CudaType,
     FloatUnaryType<T>: CommonBounds + DeviceRepr + CudaType,
@@ -21,10 +22,12 @@ where
     T::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,
     <FloatUnaryType<T> as TypeCommon>::Vec: Send + Copy + Sync,
     Scalar<T>: FloatOutUnary<Output = Scalar<FloatUnaryType<T>>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = Tensor<FloatUnaryType<T>, Cuda, DEVICE_ID>;
+    type Output = Tensor<FloatUnaryType<T>, Cuda, DEVICE_ID, Al>;
 
-    type InplaceOutput = Tensor<FloatUnaryType<T>, Cuda, DEVICE_ID>;
+    type InplaceOutput = Tensor<FloatUnaryType<T>, Cuda, DEVICE_ID, Al>;
 
     type OutputMeta = <T as FloatOutUnary>::Output;
 

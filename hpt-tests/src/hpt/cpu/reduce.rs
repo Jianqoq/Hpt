@@ -1,8 +1,8 @@
 #![allow(unused)]
 use core::f64;
 
-use backend::Cpu;
 use duplicate::duplicate_item;
+use hpt::Cpu;
 use hpt::*;
 use hpt_common::slice;
 use rand::Rng;

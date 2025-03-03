@@ -5,16 +5,23 @@ use crate::ops::cpu::utils::diff::diff_utils::handle_grad;
 use crate::tensor::DiffTensor;
 use crate::Cpu;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::{axis::axis::Axis, shape::shape::Shape};
 use hpt_iterator::iterator_traits::ParStridedIteratorZip;
 use hpt_iterator::TensorIterator;
-use hpt_traits::{CommonBounds, NormalReduce, ShapeManipulate, Slice, TensorCreator, TensorInfo};
+use hpt_traits::{
+    CommonBounds, Concat, NormalReduce, ShapeManipulate, Slice, TensorCreator, TensorInfo,
+};
 
-impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for Tensor<T, Cpu, DEVICE> {
+impl<T: CommonBounds, const DEVICE: usize, Al> ShapeManipulate for Tensor<T, Cpu, DEVICE, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
     type Meta = T;
-    type Output = Tensor<T, Cpu, DEVICE>;
+    type Output = Tensor<T, Cpu, DEVICE, Al>;
 
     fn squeeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::squeeze(self.inner.as_ref(), axes)?.into())
@@ -126,57 +133,15 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for Tensor<T, Cpu, DE
     {
         Ok(_Tensor::flatten(self.inner.as_ref(), start, end)?.into())
     }
-
-    fn concat(
-        tensors: Vec<Self>,
-        axis: usize,
-        keepdims: bool,
-    ) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::concat(
-            tensors
-                .into_iter()
-                .map(|x| x.inner.as_ref().clone())
-                .collect(),
-            axis,
-            keepdims,
-        )?
-        .into())
-    }
-
-    fn vstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::vstack(
-            tensors
-                .into_iter()
-                .map(|x| x.inner.as_ref().clone())
-                .collect(),
-        )?
-        .into())
-    }
-
-    fn hstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::hstack(
-            tensors
-                .into_iter()
-                .map(|x| x.inner.as_ref().clone())
-                .collect(),
-        )?
-        .into())
-    }
-
-    fn dstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::dstack(
-            tensors
-                .into_iter()
-                .map(|x| x.inner.as_ref().clone())
-                .collect(),
-        )?
-        .into())
-    }
 }
 
-impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu, DEVICE> {
+impl<T: CommonBounds, const DEVICE: usize, Al> ShapeManipulate for DiffTensor<T, Cpu, DEVICE, Al>
+where
+    Al: Allocator + 'static + Send + Sync,
+    Al::Output: AllocatorOutputRetrive,
+{
     type Meta = T;
-    type Output = DiffTensor<T, Cpu, DEVICE>;
+    type Output = DiffTensor<T, Cpu, DEVICE, Al>;
 
     fn squeeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError> {
         let axes: Axis = axes.into();
@@ -186,7 +151,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let grad = grad.unsqueeze(axes.clone())?;
                 handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
@@ -202,7 +167,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let grad = grad.squeeze(axes.clone())?;
                 handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
@@ -219,7 +184,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let grad = grad.reshape(original_shape.clone())?;
                 handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
@@ -234,7 +199,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let grad = grad.transpose(axis1, axis2)?;
                 handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
@@ -250,7 +215,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let grad = grad.permute_inv(axes.clone())?;
                 handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
@@ -269,7 +234,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let grad = grad.permute(axes.clone())?;
                 handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
@@ -291,7 +256,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let grad = grad.sum(sum_axes.clone(), true)?;
                 handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
@@ -306,7 +271,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let grad = grad.t()?;
                 handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
@@ -321,7 +286,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let grad = grad.mt()?;
                 handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
@@ -337,7 +302,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let grad = grad.flip(axes.clone())?;
                 handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
@@ -352,7 +317,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let grad = grad.fliplr()?;
                 handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
@@ -367,7 +332,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let grad = grad.flipud()?;
                 handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
@@ -409,7 +374,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let grad = grad.sum((axes + 1) as i64, false)?;
                 handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
@@ -449,7 +414,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
                     grad: Rc::new(RefCell::new(None)),
                     out_degree: Rc::new(RefCell::new(0)),
                     backward: if idx == indices_or_sections.len() - 1 {
-                        Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+                        Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                             let taked = lhs.grad.borrow_mut().take();
                             if let Some(taked) = taked {
                                 let mut sliced = taked.inner.slice(&slice)?;
@@ -468,7 +433,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
                             Ok(false)
                         }))
                     } else {
-                        Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+                        Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                             let taked = lhs.grad.borrow_mut().take();
                             if let Some(taked) = taked {
                                 let mut sliced = taked.inner.slice(&slice)?;
@@ -524,7 +489,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let grad = grad.swap_axes(axis1, axis2)?;
                 handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
@@ -543,13 +508,75 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let grad = grad.reshape(original_shape.clone())?;
                 handle_grad(&mut lhs, grad, &[])?;
                 Ok(false)
             })),
         })
     }
+}
+
+impl<T: CommonBounds, const DEVICE: usize, Al> Concat for Tensor<T, Cpu, DEVICE, Al>
+where
+    Al: Allocator + Send + Sync + Clone + 'static,
+    Al::Output: AllocatorOutputRetrive,
+{
+    type Output = Tensor<T, Cpu, DEVICE, Al>;
+
+    fn concat(
+        tensors: Vec<Self>,
+        axis: usize,
+        keepdims: bool,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        Ok(_Tensor::concat(
+            tensors
+                .into_iter()
+                .map(|x| x.inner.as_ref().clone())
+                .collect(),
+            axis,
+            keepdims,
+        )?
+        .into())
+    }
+
+    fn vstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError> {
+        Ok(_Tensor::vstack(
+            tensors
+                .into_iter()
+                .map(|x| x.inner.as_ref().clone())
+                .collect(),
+        )?
+        .into())
+    }
+
+    fn hstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError> {
+        Ok(_Tensor::hstack(
+            tensors
+                .into_iter()
+                .map(|x| x.inner.as_ref().clone())
+                .collect(),
+        )?
+        .into())
+    }
+
+    fn dstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError> {
+        Ok(_Tensor::dstack(
+            tensors
+                .into_iter()
+                .map(|x| x.inner.as_ref().clone())
+                .collect(),
+        )?
+        .into())
+    }
+}
+
+impl<T: CommonBounds, const DEVICE: usize, Al> Concat for DiffTensor<T, Cpu, DEVICE, Al>
+where
+    Al: Allocator + Send + Sync + Clone + 'static,
+    Al::Output: AllocatorOutputRetrive,
+{
+    type Output = DiffTensor<T, Cpu, DEVICE, Al>;
 
     fn concat(
         tensors: Vec<Self>,
@@ -572,7 +599,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let grads = grad.split(&split_sizes, axis as i64)?;
                 for (idx, grad) in grads.into_iter().enumerate() {
                     let mut lhs = tensors[idx].clone();

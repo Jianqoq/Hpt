@@ -258,7 +258,6 @@ pub mod ops {
     }
 }
 
-pub mod backend;
 /// a module that wrap the _Tensor struct
 pub mod tensor;
 /// a module that defines the _Tensor struct
@@ -273,7 +272,6 @@ use ctor::ctor;
 pub use hpt_iterator::iterator_traits::*;
 pub use hpt_iterator::TensorIterator;
 
-pub use crate::backend::*;
 pub use flate2;
 // #[cfg(feature = "codegen")]
 // pub use hpt_codegen::compile;
@@ -281,7 +279,15 @@ pub use flate2;
 // pub use hpt_codegen::fuse_proc_macro;
 pub use hpt_allocator::resize_cpu_lru_cache;
 #[cfg(feature = "cuda")]
-pub use hpt_allocator::resize_cuda_lru_cache;
+mod cuda_exports {
+    pub use hpt_allocator::resize_cuda_lru_cache;
+    pub use hpt_allocator::Cuda;
+}
+#[cfg(feature = "cuda")]
+pub use cuda_exports::*;
+pub use hpt_allocator::{Backend, BackendTy, Buffer, Cpu};
+
+pub use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 pub use hpt_common::{error::base::TensorError, shape::shape::Shape, strides::strides::Strides};
 pub use hpt_dataloader::data_loader::parse_header_compressed;
 pub(crate) use hpt_dataloader::save;
