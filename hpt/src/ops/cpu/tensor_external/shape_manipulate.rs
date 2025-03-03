@@ -426,7 +426,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for DiffTensor<T, Cpu
         let mut slices = Vec::with_capacity(self.inner.ndim());
         let mut tmp = Vec::with_capacity(self.inner.ndim());
         for _ in 0..self.inner.ndim() {
-            tmp.push((0, 0, 0));
+            tmp.push((0, 0x7FFFFFFFFFFFFFFF, 1));
         }
         let mut prev = 0;
         for &i in indices_or_sections.iter() {

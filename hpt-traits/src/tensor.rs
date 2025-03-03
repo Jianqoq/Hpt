@@ -107,23 +107,6 @@ where
     /// the output type of the creator
     type Output;
 
-    /// Creates a tensor from owned data. It is the user responsible to manage the memory life time
-    ///
-    /// # Arguments
-    ///
-    /// * `data` - The owned data.
-    /// * `shape` - The desired shape of the tensor. The type `S` must implement `Into<Shape>`.
-    ///
-    /// # Returns
-    ///
-    /// * A tensor with the specified shape
-    ///
-    /// # Panics
-    ///
-    /// * This function may panic if the data is not aligned
-    #[track_caller]
-    fn from_owned<S: Into<Shape>>(data: &mut [T], shape: S) -> Result<Self::Output, TensorError>;
-
     /// Creates a tensor with uninitialized elements of the specified shape.
     ///
     /// This function allocates memory for a tensor of the given shape, but the values are uninitialized, meaning they may contain random data.

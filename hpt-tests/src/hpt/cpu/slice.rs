@@ -43,10 +43,7 @@ fn test_slice() -> anyhow::Result<()> {
     let tch_a = tch_a.slice(0, 1, 2, 1).slice(1, 1, 3, 1).contiguous();
     assert_eq(&a, &tch_a);
     let a = slice!(a[0:1, .., 1:3])?.contiguous()?;
-    let tch_a = tch_a
-        .slice(0, 0, 1, 1)
-        .slice(3, 1, 3, 1)
-        .contiguous();
+    let tch_a = tch_a.slice(0, 0, 1, 1).slice(3, 1, 3, 1).contiguous();
     assert_eq(&a, &tch_a);
     Ok(())
 }

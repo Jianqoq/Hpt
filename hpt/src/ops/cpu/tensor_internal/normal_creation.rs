@@ -342,39 +342,4 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for _Tensor<T, Cpu, 
     {
         _Tensor::<T, Cpu, DEVICE>::eye(n, n, 0)
     }
-
-    fn from_owned<S: Into<Shape>>(data: &mut [T], shape: S) -> Result<Self::Output, TensorError> {
-        let shape: Shape = shape.into();
-        let size = shape.size() as usize;
-        let ptr = data.as_mut_ptr();
-        if ptr.is_null() {
-            panic!("data is null");
-        } else if (ptr as usize) % ALIGN != 0 {
-            panic!("data is not aligned");
-        }
-        let layout = std::alloc::Layout::from_size_align(
-            size.checked_mul(size_of::<T>())
-                .unwrap_or((isize::MAX as usize) - (ALIGN - 1)), // when overflow happened, we use max memory `from_size_align` accept
-            ALIGN,
-        )
-        .map_err(|e| {
-            TensorError::Memory(MemoryError::AllocationFailed {
-                device: "cpu".to_string(),
-                id: DEVICE,
-                size,
-                source: Some(Box::new(e)),
-                location: Location::caller(),
-            })
-        })?;
-        Ok(Self {
-            #[cfg(feature = "bound_check")]
-            data: Pointer::new(ptr as *mut T, size as i64),
-            #[cfg(not(feature = "bound_check"))]
-            data: Pointer::new(ptr as *mut T),
-            parent: None,
-            layout: Layout::from(shape),
-            mem_layout: Arc::new(layout),
-            _backend: Backend::<Cpu>::new(ptr as u64, DEVICE, true),
-        })
-    }
 }

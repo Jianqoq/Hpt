@@ -472,8 +472,8 @@ where
         },
         |num_threads, inner_loop_size, result| {
             let intervals = mt_intervals_simd(inner_loop_size, num_threads, O::Vec::SIZE);
-            let mut slices = vec![(0, 0, 0); a.ndim()];
-            let mut slices_res = vec![(0, 0, 0); result.ndim()];
+            let mut slices = vec![(0, 0x7FFFFFFFFFFFFFFF, 1); a.ndim()];
+            let mut slices_res = vec![(0, 0x7FFFFFFFFFFFFFFF, 1); result.ndim()];
             let mut sliced_tensors = Vec::with_capacity(num_threads);
             let mut sliced_res = Vec::with_capacity(num_threads);
             assert_eq!(inner_loop_size, result.size());
@@ -686,8 +686,8 @@ where
         },
         move |num_threads, inner_loop_size, ap, result| {
             let intervals = mt_intervals(inner_loop_size, num_threads);
-            let mut slices = vec![(0, 0, 0); ap.ndim()];
-            let mut slices_res = vec![(0, 0, 0); result.ndim()];
+            let mut slices = vec![(0, 0x7FFFFFFFFFFFFFFF, 1); ap.ndim()];
+            let mut slices_res = vec![(0, 0x7FFFFFFFFFFFFFFF, 1); result.ndim()];
             let mut sliced_tensors = Vec::with_capacity(num_threads);
             let mut sliced_res = Vec::with_capacity(num_threads);
             assert_eq!(inner_loop_size, result.size());

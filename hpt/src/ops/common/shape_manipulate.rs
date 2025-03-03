@@ -330,7 +330,7 @@ pub(crate) fn split<T: CommonBounds, B: BackendTy + Buffer + Clone, const DEVICE
     let mut reses = vec![];
     let mut tmp: Vec<(i64, i64, i64)> = Vec::with_capacity(a.layout.ndim());
     for _ in 0..a.layout.ndim() {
-        tmp.push((0, 0, 0));
+        tmp.push((0, 0x7FFFFFFFFFFFFFFF, 1));
     }
     let mut prev = 0;
     for &i in indices_or_sections.iter() {

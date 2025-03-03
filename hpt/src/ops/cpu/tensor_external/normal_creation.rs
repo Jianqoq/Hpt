@@ -138,10 +138,6 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for Tensor<T, Cpu, D
     {
         Ok(_Tensor::<T, Cpu, DEVICE>::identity(n)?.into())
     }
-
-    fn from_owned<S: Into<Shape>>(data: &mut [T], shape: S) -> Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cpu, DEVICE>::from_owned(data, shape)?.into())
-    }
 }
 
 impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cpu, DEVICE> {
@@ -373,16 +369,6 @@ impl<T: CommonBounds, const DEVICE: usize> TensorCreator<T> for DiffTensor<T, Cp
         u8: Cast<T>,
     {
         let ret = Tensor::identity(n)?;
-        Ok(DiffTensor {
-            inner: ret,
-            grad: Rc::new(RefCell::new(None)),
-            out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |_| Ok(true))),
-        })
-    }
-
-    fn from_owned<S: Into<Shape>>(data: &mut [T], shape: S) -> Result<Self::Output, TensorError> {
-        let ret = Tensor::from_owned(data, shape)?;
         Ok(DiffTensor {
             inner: ret,
             grad: Rc::new(RefCell::new(None)),

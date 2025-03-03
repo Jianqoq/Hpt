@@ -210,7 +210,7 @@ impl<T: CommonBounds, const DEVICE: usize> ShapeManipulate for _Tensor<T, Cpu, D
         let mut begin = 0;
         let mut res_slices = Vec::with_capacity(length);
         for i in tensors.iter() {
-            let mut selections = vec![(0, 0, 0); new_shape.len()];
+            let mut selections = vec![(0, 0x7FFFFFFFFFFFFFFF, 1); new_shape.len()];
             selections[axis] = (begin, begin + i.shape()[axis], 1);
             begin += i.shape()[axis];
             let res_tensor = new_tensor.slice(&selections)?;
