@@ -11,6 +11,7 @@ use std::{
 use crate::{
     ptr::SafePtr,
     storage::{CommonStorage, Storage},
+    traits::Allocator,
     CUDA_STORAGE,
 };
 use hashbrown::{HashMap, HashSet};
@@ -39,23 +40,9 @@ pub struct CudaAllocator {
     allocator: HashMap<usize, (Arc<cudarc::driver::CudaDevice>, _Allocator)>,
 }
 
-impl CudaAllocator {
-    /// allocate memory by using lru cache strategy
-    ///
-    /// # Logic
-    ///
-    /// 1. check if the layout is found in the cache
-    ///
-    /// 2. if the layout is found in the cache, pop the memory out, if it return None, there is no available cached memory, we need to allocate new memory
-    ///
-    /// 3. if the layout is not found in the cache, allocate new memory
-    ///
-    /// 4. eventually, if the cache is full, pop the least recently used memory and deallocate the memory
-    pub fn allocate(
-        &mut self,
-        layout: Layout,
-        device_id: usize,
-    ) -> Result<(*mut u8, Arc<cudarc::driver::CudaDevice>), TensorError> {
+impl Allocator for CudaAllocator {
+    type Output = (*mut u8, Arc<cudarc::driver::CudaDevice>);
+    fn allocate(&mut self, layout: Layout, device_id: usize) -> Result<Self::Output, TensorError> {
         if let Some((device, allocator)) = self.allocator.get_mut(&device_id) {
             Ok((
                 allocator.allocate(layout, device_id, device.clone())?,
@@ -76,26 +63,7 @@ impl CudaAllocator {
         }
     }
 
-    pub fn memset_zeros(&mut self, ptr: *mut u8, layout: &Layout, device_id: usize) {
-        if let Some((device, _)) = self.allocator.get_mut(&device_id) {
-            let mut slice = unsafe { device.upgrade_device_ptr::<u8>(ptr as u64, layout.size()) };
-            device.memset_zeros(&mut slice).unwrap();
-            slice.leak();
-        } else {
-            panic!("Allocator for device {} not found", device_id);
-        }
-    }
-
-    /// deallocate memory by using lru cache strategy
-    ///
-    /// # Logic
-    ///
-    /// 1. check if the ptr is found in the storage
-    ///
-    /// 2. if the ptr is found in the storage, decrement the reference count
-    ///
-    /// 3. if the reference count is 0, remove the ptr from the storage, remove the ptr from the allocated set, and insert the ptr into the cache
-    pub fn deallocate(&mut self, ptr: *mut u8, layout: &Layout, device_id: usize) {
+    fn deallocate(&mut self, ptr: *mut u8, layout: &Layout, device_id: usize) {
         if let Some((_, allocator)) = self.allocator.get_mut(&device_id) {
             allocator.deallocate(ptr, layout, device_id);
         } else {
@@ -103,8 +71,7 @@ impl CudaAllocator {
         }
     }
 
-    /// if the ptr is found in the storage, increment the reference count, otherwise insert the ptr into the storage
-    pub fn insert_ptr(&mut self, ptr: *mut u8, device_id: usize) {
+    fn insert_ptr(&mut self, ptr: *mut u8, device_id: usize) {
         if let Some((_, allocator)) = self.allocator.get_mut(&device_id) {
             allocator.insert_ptr(ptr, device_id);
         } else {
@@ -112,10 +79,7 @@ impl CudaAllocator {
         }
     }
 
-    /// clear the cache, deallocate all the memory allocated
-    ///
-    /// this is used when the program exits, it will be called automatically
-    pub fn clear(&mut self) {
+    fn clear(&mut self) {
         for (device, allocator) in self.allocator.values_mut() {
             for (layout, ptrs) in allocator.cache.iter_mut() {
                 for ptr in ptrs.iter() {
@@ -126,10 +90,8 @@ impl CudaAllocator {
             assert_eq!(allocator.allocated.len(), 0);
         }
     }
-}
-
-impl CudaAllocator {
-    pub fn new() -> Self {
+    
+    fn new() -> Self {
         CudaAllocator {
             allocator: HashMap::new(),
         }

@@ -7,7 +7,7 @@ use crate::{
     Backend, BoolVector, Cuda, ALIGN,
 };
 use cudarc::driver::{DeviceRepr, LaunchAsync, LaunchConfig};
-use hpt_allocator::CUDA_CACHE;
+use hpt_allocator::{traits::Allocator, HptAllocator};
 use hpt_common::{
     error::{base::TensorError, memory::MemoryError},
     layout::layout::Layout,
@@ -44,10 +44,8 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> TensorCreator
                 location: Location::caller(),
             })
         })?;
-        let (ptr, device) = CUDA_CACHE
-            .lock()
-            .expect("CUDA_CACHE is poisoned")
-            .allocate(layout, DEVICE)?;
+        let mut allocator = HptAllocator::<Cuda>::new();
+        let (ptr, device) = allocator.allocate(layout, DEVICE)?;
         Ok(_Tensor {
             #[cfg(feature = "bound_check")]
             data: Pointer::new(ptr as *mut T, size as i64),
@@ -60,13 +58,8 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize> TensorCreator
         })
     }
 
-    fn zeros<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError> {
-        let empty = Self::empty(shape)?;
-        CUDA_CACHE
-            .lock()
-            .expect("CUDA_CACHE is poisoned")
-            .memset_zeros(empty.ptr().ptr as *mut u8, &empty.mem_layout, DEVICE);
-        Ok(empty)
+    fn zeros<S: Into<Shape>>(_: S) -> std::result::Result<Self, TensorError> {
+        todo!()
     }
 
     fn ones<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError>

@@ -40,7 +40,8 @@ pub struct CpuAllocator {
 }
 
 impl Allocator for CpuAllocator {
-    fn allocate(&mut self, layout: Layout, device_id: usize) -> Result<*mut u8, TensorError> {
+    type Output = *mut u8;
+    fn allocate(&mut self, layout: Layout, device_id: usize) -> Result<Self::Output, TensorError> {
         if let Some(allocator) = self.allocator.get_mut(&device_id) {
             allocator.allocate(layout, device_id)
         } else {
@@ -89,10 +90,8 @@ impl Allocator for CpuAllocator {
             assert_eq!(allocator.allocated.len(), 0);
         }
     }
-}
-
-impl CpuAllocator {
-    pub fn new() -> Self {
+    
+    fn new() -> Self {
         CpuAllocator {
             allocator: HashMap::new(),
         }

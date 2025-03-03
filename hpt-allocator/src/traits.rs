@@ -4,6 +4,8 @@ use hpt_common::error::base::TensorError;
 
 /// traits for the allocator
 pub trait Allocator {
+    /// the output type of the allocator
+    type Output;
     /// allocate memory by using lru cache strategy
     ///
     /// # Logic
@@ -15,7 +17,7 @@ pub trait Allocator {
     /// 3. if the layout is not found in the cache, allocate new memory
     ///
     /// 4. eventually, if the cache is full, pop the least recently used memory and deallocate the memory
-    fn allocate(&mut self, layout: Layout, device_id: usize) -> Result<*mut u8, TensorError>;
+    fn allocate(&mut self, layout: Layout, device_id: usize) -> Result<Self::Output, TensorError>;
     /// deallocate memory by using lru cache strategy
     ///
     /// # Logic
@@ -32,4 +34,21 @@ pub trait Allocator {
     ///
     /// this is used when the program exits, it will be called automatically
     fn clear(&mut self);
+    /// create a new allocator
+    fn new() -> Self;
+}
+
+/// traits for the allocator output retrive
+pub trait AllocatorOutputRetrive {
+    /// get the pointer from the allocator output
+    fn get_ptr(&self) -> *mut u8;
+    /// get the device from the allocator output
+    #[cfg(feature = "cuda")]
+    fn get_device(&self) -> std::sync::Arc<cudarc::driver::CudaDevice>;
+}
+
+/// traits for the allocator output convert to backend
+pub trait FromAllocatorOutput<T> {
+    /// convert the allocator output to backend
+    fn from_allocator_output(alloc_output: T) -> Self;
 }

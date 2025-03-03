@@ -24,9 +24,6 @@ pub struct Cuda {
     pub cap: usize,
 }
 
-/// Wgpu backend
-pub struct Wgpu;
-
 /// backend of tensor
 ///
 /// this backend stores the pointer of the data memory
