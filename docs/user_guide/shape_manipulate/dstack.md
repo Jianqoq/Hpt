@@ -14,7 +14,7 @@ A new tensor with input tensors stacked along the third axis.
 
 ## Examples:
 ```rust
-use hpt::{Concat, Tensor, TensorError};
+use hpt::{Concat, Tensor, TensorError, ShapeManipulate};
 fn main() -> Result<(), TensorError> {
     // With 3D tensors
     let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2, 1])?;
@@ -24,7 +24,7 @@ fn main() -> Result<(), TensorError> {
     // [[[5], [6]],
     //  [[7], [8]]]
 
-    let c = Tensor::dstack(vec![&a, &b])?;
+    let c = Tensor::dstack(vec![a.clone(), b.clone()])?;
     // [[[1, 5], [2, 6]],
     //  [[3, 7], [4, 8]]]
     println!("{}", c);
@@ -33,7 +33,7 @@ fn main() -> Result<(), TensorError> {
     let d = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2])?;
     // [[1, 2],
     //  [3, 4]]
-    let e = Tensor::dstack(vec![&d, &d])?;
+    let e = Tensor::dstack(vec![d.clone(), d.clone()])?;
     // [[[1, 1], [2, 2]],
     //  [[3, 3], [4, 4]]]
     println!("{}", e);
@@ -41,13 +41,13 @@ fn main() -> Result<(), TensorError> {
     // With 1D tensors (promoted to [1, n, 1])
     let f = Tensor::<f32>::new(&[1.0, 2.0]);
     let g = Tensor::<f32>::new(&[3.0, 4.0]);
-    let h = Tensor::dstack(vec![&f, &g])?;
+    let h = Tensor::dstack(vec![f.clone(), g.clone()])?;
     // [[[1, 3], [2, 4]]]
     println!("{}", h);
 
     // With scalars (promoted to [1, 1, 1])
     let i = Tensor::<f32>::new(&[1.0]);
-    let j = Tensor::dstack(vec![&i, &i])?;
+    let j = Tensor::dstack(vec![i.clone(), i.clone()])?;
     // [[[1, 1]]]
     println!("{}", j);
 

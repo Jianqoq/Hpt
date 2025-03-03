@@ -20,7 +20,7 @@ A new tensor containing all the input tensors concatenated along the specified a
 
 ## Examples:
 ```rust
-use hpt::{Concat, Tensor, TensorError, TensorInfo};
+use hpt::{Concat, Tensor, TensorError, TensorInfo, ShapeManipulate};
 fn main() -> Result<(), TensorError> {
     // Create two 2D tensors
     let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2])?;
@@ -31,7 +31,7 @@ fn main() -> Result<(), TensorError> {
     //  [7, 8]]
 
     // Concatenate along axis 0 (vertically)
-    let c = Tensor::concat(vec![&a, &b], 0, false)?;
+    let c = Tensor::concat(vec![a.clone(), b.clone()], 0, false)?;
     // [[1, 2],
     //  [3, 4],
     //  [5, 6],
@@ -39,19 +39,19 @@ fn main() -> Result<(), TensorError> {
     println!("{}", c);
 
     // Concatenate along axis 1 (horizontally)
-    let d = Tensor::concat(vec![&a, &b], 1, false)?;
+    let d = Tensor::concat(vec![a.clone(), b.clone()], 1, false)?;
     // [[1, 2, 5, 6],
     //  [3, 4, 7, 8]]
     println!("{}", d);
 
     // Concatenate with keepdims=true
-    let e = Tensor::concat(vec![&a, &b], 0, true)?;
+    let e = Tensor::concat(vec![a.clone(), b.clone()], 0, true)?;
     // Shape: [2, 2, 2]
     println!("{}", e.shape());
 
     // Will raise an error if shapes don't match along non-concatenating axes
     let f = Tensor::<f32>::new(&[1.0, 2.0, 3.0]).reshape(&[3, 1])?;
-    assert!(Tensor::concat(vec![&a, &f], 1, false).is_err());
+    assert!(Tensor::concat(vec![a.clone(), f.clone()], 1, false).is_err());
 
     Ok(())
 }

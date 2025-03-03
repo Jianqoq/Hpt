@@ -14,7 +14,7 @@ A new tensor with input tensors stacked vertically.
 
 ## Examples:
 ```rust
-use hpt::{Concat, Tensor, TensorError};
+use hpt::{Concat, Tensor, TensorError, ShapeManipulate};
 fn main() -> Result<(), TensorError> {
     // Create two 2D tensors
     let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0]).reshape(&[1, 3])?;
@@ -23,7 +23,7 @@ fn main() -> Result<(), TensorError> {
     // [[4, 5, 6]]
 
     // Stack vertically
-    let c = Tensor::vstack(vec![&a, &b])?;
+    let c = Tensor::vstack(vec![a.clone(), b.clone()])?;
     // [[1, 2, 3],
     //  [4, 5, 6]]
     println!("{}", c);
@@ -31,13 +31,13 @@ fn main() -> Result<(), TensorError> {
     // Works with 1D tensors too
     let d = Tensor::<f32>::new(&[1.0, 2.0, 3.0]);
     let e = Tensor::<f32>::new(&[4.0, 5.0, 6.0]);
-    let f = Tensor::vstack(vec![&d, &e])?;
+    let f = Tensor::vstack(vec![d.clone(), e.clone()])?;
     // [1, 2, 3, 4, 5, 6]
     println!("{}", f);
 
     // Will raise an error if widths don't match
     let g = Tensor::<f32>::new(&[1.0, 2.0]).reshape(&[1, 2])?;
-    assert!(Tensor::vstack(vec![&a, &g]).is_err());
+    assert!(Tensor::vstack(vec![a.clone(), g.clone()]).is_err());
 
     Ok(())
 }
