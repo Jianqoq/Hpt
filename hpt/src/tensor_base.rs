@@ -1,4 +1,4 @@
-use crate::backend::{Backend, BackendTy, Buffer, Cpu};
+use crate::{Backend, BackendTy, Buffer, Cpu};
 use hpt_allocator::traits::Allocator;
 use hpt_allocator::CACHE;
 #[cfg(feature = "cuda")]

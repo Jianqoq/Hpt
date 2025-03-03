@@ -3,6 +3,7 @@
 #![deny(missing_docs)]
 
 mod allocators;
+mod backend;
 mod ptr;
 mod storage;
 pub(crate) mod utils {
@@ -12,6 +13,8 @@ pub(crate) mod utils {
 }
 /// traits for the allocator
 pub mod traits;
+
+use std::marker::PhantomData;
 
 pub use crate::allocators::cpu::CACHE;
 #[cfg(feature = "cuda")]
@@ -23,6 +26,7 @@ pub use allocators::cuda::resize_cuda_lru_cache;
 pub use storage::cpu::CPU_STORAGE;
 #[cfg(feature = "cuda")]
 pub use storage::cuda::CUDA_STORAGE;
+pub use backend::*;
 use traits::Allocator;
 
 /// program will free all the memory before exit
@@ -33,3 +37,11 @@ fn free_pools() {
     #[cfg(feature = "cuda")]
     CUDA_CACHE.lock().unwrap().clear();
 }
+
+/// Built-in allocator for Hpt
+pub struct HptAllocator<B: BackendTy> {
+    phantom: PhantomData<B>,
+}
+
+
+

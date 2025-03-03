@@ -1,7 +1,7 @@
 #![allow(unused)]
 use core::f64;
 
-use backend::Cpu;
+use hpt::Cpu;
 use duplicate::duplicate_item;
 use hpt::*;
 use hpt_common::slice;
