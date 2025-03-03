@@ -1,8 +1,8 @@
 #![cfg(feature = "cat")]
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
 use hpt::TensorLike;
+use hpt::{Concat, TensorInfo};
 use hpt::{Random, Tensor};
-use hpt::{ShapeManipulate, TensorInfo};
 use std::time::Duration;
 use tch::{Device, Kind, Tensor as TchTensor};
 

@@ -9,6 +9,7 @@ use crate::tensor_base::_Tensor;
 use crate::Cpu;
 use crate::REGNUM;
 use crate::SIMD_WIDTH;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::utils::pointer::Pointer;
@@ -19,18 +20,20 @@ use hpt_types::into_scalar::Cast;
 use hpt_types::vectors::traits::*;
 use rayon::prelude::*;
 
-pub(crate) fn conv2d_group<T: CommonBounds, const DEVICE: usize>(
-    input: &_Tensor<T, Cpu, DEVICE>,
-    kernels: &_Tensor<T, Cpu, DEVICE>,
-    bias: Option<&_Tensor<T, Cpu, DEVICE>>,
+pub(crate) fn conv2d_group<T: CommonBounds, const DEVICE: usize, A>(
+    input: &_Tensor<T, Cpu, DEVICE, A>,
+    kernels: &_Tensor<T, Cpu, DEVICE, A>,
+    bias: Option<&_Tensor<T, Cpu, DEVICE, A>>,
     steps: [i64; 2],
     padding: [(i64, i64); 2],
     dilation: [i64; 2],
     groups: i64,
     activation: Option<fn(T::Vec) -> T::Vec>,
-) -> Result<_Tensor<T, Cpu, DEVICE>, TensorError>
+) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
     bool: Cast<T>,
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
 {
     let img_shape = input.shape();
     ShapeError::check_dim(4, img_shape.len())?;
@@ -78,7 +81,7 @@ where
         .into());
     }
     let activation = activation.unwrap_or(|x| x);
-    let output = _Tensor::<T, Cpu, DEVICE>::empty([batch, out_height, out_width, out_channels])?;
+    let output = _Tensor::<T, Cpu, DEVICE, A>::empty([batch, out_height, out_width, out_channels])?;
     let out = output.ptr();
     let inp = img.ptr();
 

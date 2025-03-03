@@ -14,7 +14,7 @@ A new tensor with input tensors stacked horizontally.
 
 ## Examples:
 ```rust
-use hpt::{ShapeManipulate, Tensor, TensorError};
+use hpt::{Concat, Tensor, TensorError};
 fn main() -> Result<(), TensorError> {
     // With 2D tensors
     let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2])?;

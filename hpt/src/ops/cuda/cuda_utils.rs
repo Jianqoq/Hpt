@@ -4,6 +4,7 @@ use cudarc::{
     driver::{CudaDevice, CudaFunction, LaunchConfig},
     nvrtc::{compile_ptx_with_opts, CompileOptions},
 };
+use hpt_allocator::traits::Allocator;
 use hpt_common::error::{
     base::TensorError, common::CommonError, device::DeviceError, kernel::KernelError,
 };
@@ -337,10 +338,13 @@ pub(crate) fn get_include_1<T: TypeCommon + CudaType>() -> &'static str {
     }
 }
 
-pub(crate) fn get_module_name_1<T: TypeCommon, const CUDA_DEVICE: usize>(
+pub(crate) fn get_module_name_1<T: TypeCommon, const CUDA_DEVICE: usize, Al>(
     header: &str,
-    tensor: &_Tensor<T, Cuda, CUDA_DEVICE>,
-) -> String {
+    tensor: &_Tensor<T, Cuda, CUDA_DEVICE, Al>,
+) -> String
+where
+    Al: Allocator,
+{
     format!(
         "{header}{}{}{}",
         T::STR,
@@ -349,10 +353,13 @@ pub(crate) fn get_module_name_1<T: TypeCommon, const CUDA_DEVICE: usize>(
     )
 }
 
-pub(crate) fn get_module_name_vec<T: TypeCommon, const CUDA_DEVICE: usize>(
+pub(crate) fn get_module_name_vec<T: TypeCommon, const CUDA_DEVICE: usize, Al>(
     header: &str,
-    tensors: &[_Tensor<T, Cuda, CUDA_DEVICE>],
-) -> String {
+    tensors: &[_Tensor<T, Cuda, CUDA_DEVICE, Al>],
+) -> String
+where
+    Al: Allocator,
+{
     let mut string = String::new();
     for i in tensors.iter() {
         string.push_str(&format!(

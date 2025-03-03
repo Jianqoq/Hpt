@@ -6,11 +6,12 @@ use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{tensor_base::_Tensor, Cpu, REGNUM};
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_types::{into_scalar::Cast, traits::VecTrait};
 
 #[track_caller]
-pub(crate) fn pooling_template<T: CommonBounds, O: CommonBounds, const DEVICE: usize>(
-    img: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn pooling_template<T: CommonBounds, O: CommonBounds, const DEVICE: usize, A>(
+    img: &_Tensor<T, Cpu, DEVICE, A>,
     kernels_shape: &Shape,
     steps: [i64; 2],
     padding: [(i64, i64); 2],
@@ -19,7 +20,11 @@ pub(crate) fn pooling_template<T: CommonBounds, O: CommonBounds, const DEVICE: u
     vec_op: impl Fn(T::Vec, T::Vec) -> T::Vec + Send + Sync,
     post_scalar_op: impl Fn(T) -> O + Send + Sync,
     post_vec_op: impl Fn(T::Vec) -> O::Vec + Send + Sync,
-) -> Result<_Tensor<O, Cpu, DEVICE>, TensorError> {
+) -> Result<_Tensor<O, Cpu, DEVICE, A>, TensorError>
+where
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
+{
     ShapeError::check_contiguous(
         "pooling input must be contiguous".to_string(),
         &img.layout(),
@@ -51,7 +56,7 @@ pub(crate) fn pooling_template<T: CommonBounds, O: CommonBounds, const DEVICE: u
         })
         .into());
     }
-    let output = _Tensor::<O, Cpu, DEVICE>::empty([batch, out_height, out_width, in_channels])?;
+    let output = _Tensor::<O, Cpu, DEVICE, A>::empty([batch, out_height, out_width, in_channels])?;
     let out = output.ptr();
     let inp = img.ptr();
 
@@ -203,16 +208,18 @@ pub(crate) fn pooling_template<T: CommonBounds, O: CommonBounds, const DEVICE: u
 }
 
 #[track_caller]
-pub(crate) fn adaptive_pooling_template<T: CommonBounds, O: CommonBounds, const DEVICE: usize>(
+pub(crate) fn adaptive_pooling_template<T: CommonBounds, O: CommonBounds, const DEVICE: usize, A>(
     img: &_Tensor<T, Cpu, DEVICE>,
     output_size: [i64; 2],
     scalar_op: impl Fn(T, T) -> T + Send + Sync,
     vec_op: impl Fn(T::Vec, T::Vec) -> T::Vec + Send + Sync,
     post_scalar_op: impl Fn(T, O) -> O + Send + Sync,
     post_vec_op: impl Fn(T::Vec, O::Vec) -> O::Vec + Send + Sync,
-) -> std::result::Result<_Tensor<O, Cpu, DEVICE>, TensorError>
+) -> std::result::Result<_Tensor<O, Cpu, DEVICE, A>, TensorError>
 where
     i64: Cast<O>,
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
 {
     ShapeError::check_contiguous(
         "pooling input must be contiguous".to_string(),
@@ -239,7 +246,7 @@ where
         }
         .into());
     }
-    let output = _Tensor::<O, Cpu, DEVICE>::empty([batch, out_height, out_width, in_channels])?;
+    let output = _Tensor::<O, Cpu, DEVICE, A>::empty([batch, out_height, out_width, in_channels])?;
     let out = output.ptr();
     let inp = img.ptr();
 

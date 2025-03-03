@@ -287,6 +287,7 @@ mod cuda_exports {
 pub use cuda_exports::*;
 pub use hpt_allocator::{Backend, BackendTy, Buffer, Cpu};
 
+pub use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 pub use hpt_common::{error::base::TensorError, shape::shape::Shape, strides::strides::Strides};
 pub use hpt_dataloader::data_loader::parse_header_compressed;
 pub(crate) use hpt_dataloader::save;

@@ -1,10 +1,10 @@
+use crate::ops::cuda::cuda_slice::CudaSlice;
 use crate::{ops::cuda::utils::reduce::reduce_utils::reduce_prepare, tensor_base::_Tensor, Cuda};
 use cudarc::driver::DeviceRepr;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, ShapeManipulate, TensorInfo};
 use hpt_types::dtype::CudaType;
-
-use crate::ops::cuda::cuda_slice::CudaSlice;
 
 /// Performs a reduction operation on a tensor using customizable functions.
 ///
@@ -149,23 +149,31 @@ use crate::ops::cuda::cuda_slice::CudaSlice;
 ///
 /// This function provides a flexible template for reduction operations on tensors, allowing for optimized implementations of various reduction functions.
 #[track_caller]
-pub(crate) fn contiguous_reduce_template<T, F1, F2, F4, O, const DEVICE_ID: usize>(
-    a: &_Tensor<T, Cuda, DEVICE_ID>,
+pub(crate) fn contiguous_reduce_template<T, F1, F2, F4, O, const DEVICE_ID: usize, Al>(
+    a: &_Tensor<T, Cuda, DEVICE_ID, Al>,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
     init_out: bool,
-    c: Option<_Tensor<O, Cuda, DEVICE_ID>>,
+    c: Option<_Tensor<O, Cuda, DEVICE_ID, Al>>,
     full_reduce: F1,
     nkd: F2,
     kd: F4,
-) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID>, TensorError>
+) -> std::result::Result<_Tensor<O, Cuda, DEVICE_ID, Al>, TensorError>
 where
     T: CommonBounds + DeviceRepr + CudaType,
     O: CommonBounds + DeviceRepr + CudaType,
     F1: Fn(CudaSlice),
-    F2: Fn(usize, usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>, &[usize]),
-    F4: Fn(usize, &_Tensor<O, Cuda, DEVICE_ID>, &_Tensor<T, Cuda, DEVICE_ID>, &[usize]),
+    F2: Fn(
+        usize,
+        usize,
+        &_Tensor<O, Cuda, DEVICE_ID, Al>,
+        &_Tensor<T, Cuda, DEVICE_ID, Al>,
+        &[usize],
+    ),
+    F4: Fn(usize, &_Tensor<O, Cuda, DEVICE_ID, Al>, &_Tensor<T, Cuda, DEVICE_ID, Al>, &[usize]),
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     let mut keep_fast_dim = true;
     for axis in axes.iter() {

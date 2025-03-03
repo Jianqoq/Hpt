@@ -1,16 +1,20 @@
 use crate::Cuda;
 use crate::{tensor::Tensor, tensor_base::_Tensor};
 use cudarc::driver::DeviceRepr;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_common::{axis::axis::Axis, shape::shape::Shape};
-use hpt_traits::{CommonBounds, ShapeManipulate};
+use hpt_traits::{CommonBounds, Concat, ShapeManipulate};
 use hpt_types::dtype::CudaType;
 
-impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> ShapeManipulate
-    for Tensor<T, Cuda, DEVICE_ID>
+impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize, Al> ShapeManipulate
+    for Tensor<T, Cuda, DEVICE, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Meta = T;
-    type Output = Tensor<T, Cuda, DEVICE_ID>;
+    type Output = Tensor<T, Cuda, DEVICE, Al>;
 
     fn squeeze<A: Into<Axis>>(&self, axes: A) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::squeeze(self.inner.as_ref(), axes)?.into())
@@ -119,7 +123,15 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> ShapeManip
     {
         Ok(_Tensor::flatten(self.inner.as_ref(), start, end)?.into())
     }
+}
 
+impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize, Al> Concat
+    for Tensor<T, Cuda, DEVICE, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
+    type Output = Tensor<T, Cuda, DEVICE, Al>;
     fn concat(
         tensors: Vec<Self>,
         axis: usize,

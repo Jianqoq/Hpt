@@ -328,6 +328,10 @@ export default defineUserConfig({
             {
               text: 'custom type',
               link: '/user_guide/custom_type/custom_type.md'
+            }, 
+            {
+              text: 'custom allocator',
+              link: '/user_guide/custom_allocator/custom_allocator.md'
             },
             {
               text: 'slice',

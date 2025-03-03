@@ -10,6 +10,7 @@ use crate::{save, Save};
 use crate::{tensor_base::_Tensor, Tensor, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION};
 #[cfg(feature = "cuda")]
 use cudarc::driver::DeviceRepr;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
 use hpt_dataloader::data_loader::TensorMeta;
@@ -27,9 +28,10 @@ use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
 
-impl<T, const DEVICE: usize> TensorLike<T> for _Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, A> TensorLike<T> for _Tensor<T, Cpu, DEVICE, A>
 where
     T: CommonBounds,
+    A: Allocator,
 {
     fn as_raw(&self) -> &[T] {
         let ptr = self.data.ptr;
@@ -62,7 +64,10 @@ where
 
 macro_rules! impl_tensor_info {
     ($tensor:ty) => {
-        impl<T, const DEVICE: usize> TensorInfo<T> for $tensor {
+        impl<T, const DEVICE: usize, A> TensorInfo<T> for $tensor
+        where
+            A: Allocator,
+        {
             fn ptr(&self) -> Pointer<T> {
                 self.data.clone()
             }
@@ -91,11 +96,15 @@ macro_rules! impl_tensor_info {
     };
 }
 
-impl_tensor_info!(_Tensor<T, Cpu, DEVICE>);
-impl_tensor_info!(&_Tensor<T, Cpu, DEVICE>);
-impl_tensor_info!(&mut _Tensor<T, Cpu, DEVICE>);
+impl_tensor_info!(_Tensor<T, Cpu, DEVICE, A>);
+impl_tensor_info!(&_Tensor<T, Cpu, DEVICE, A>);
+impl_tensor_info!(&mut _Tensor<T, Cpu, DEVICE, A>);
 
-impl<T: CommonBounds, const DEVICE: usize> TensorAlloc for _Tensor<T, Cpu, DEVICE> {
+impl<T: CommonBounds, const DEVICE: usize, A> TensorAlloc for _Tensor<T, Cpu, DEVICE, A>
+where
+    A: Allocator,
+    A::Output: AllocatorOutputRetrive,
+{
     type Meta = T;
     fn _empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError>
     where
@@ -105,17 +114,27 @@ impl<T: CommonBounds, const DEVICE: usize> TensorAlloc for _Tensor<T, Cpu, DEVIC
     }
 }
 
-impl<T: CommonBounds, const DEVICE: usize> TensorIterator<'_, T> for _Tensor<T, Cpu, DEVICE> {}
+impl<'a, T: CommonBounds, const DEVICE: usize, A> TensorIterator<'a, T>
+    for _Tensor<T, Cpu, DEVICE, A>
+where
+    A: Allocator + 'a,
+    A::Output: AllocatorOutputRetrive,
+{
+}
 
-impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
+impl<T: CommonBounds, const DEVICE: usize, A> _Tensor<T, Cpu, DEVICE, A>
+where
+    A: Allocator,
+    A::Output: AllocatorOutputRetrive,
+{
     /// cast the tensor to the new type
-    pub fn astype<U>(&self) -> std::result::Result<_Tensor<U, Cpu, DEVICE>, TensorError>
+    pub fn astype<U>(&self) -> std::result::Result<_Tensor<U, Cpu, DEVICE, A>, TensorError>
     where
         U: CommonBounds,
         T: Cast<U>,
     {
         // Create an empty tensor of the new type with the same shape.
-        let mut ret = _Tensor::<U, Cpu, DEVICE>::empty(self.layout.shape().clone())?;
+        let mut ret = _Tensor::<U, Cpu, DEVICE, A>::empty(self.layout.shape().clone())?;
 
         // Parallel iteration to convert and copy each element to the new tensor.
         ret.as_raw_mut()
@@ -128,7 +147,7 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     }
 
     /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
-    pub fn try_astype<U>(&self) -> Result<_Tensor<U, Cpu, DEVICE>, TensorError>
+    pub fn try_astype<U>(&self) -> Result<_Tensor<U, Cpu, DEVICE, A>, TensorError>
     where
         U: CommonBounds,
         T: Cast<U>,
@@ -141,7 +160,7 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     }
 
     /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
-    pub fn static_cast<Dst>(&self) -> std::result::Result<_Tensor<Dst, Cpu, DEVICE>, TensorError>
+    pub fn static_cast<Dst>(&self) -> std::result::Result<_Tensor<Dst, Cpu, DEVICE, A>, TensorError>
     where
         Dst: CommonBounds,
     {
@@ -161,6 +180,7 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
                         mem_layout: self.mem_layout.clone(),
                         layout: self.layout.clone(),
                         _backend: self._backend.clone(),
+                        phantom: PhantomData,
                     })
                 }
                 None => Ok(_Tensor {
@@ -172,6 +192,7 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
                     mem_layout: self.mem_layout.clone(),
                     layout: self.layout.clone(),
                     _backend: self._backend.clone(),
+                    phantom: PhantomData,
                 }),
             }
         } else {
@@ -180,7 +201,7 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     }
 
     /// check if two tensors are close to each other
-    pub fn allclose<U: CommonBounds>(&self, other: &_Tensor<U, Cpu, DEVICE>) -> bool
+    pub fn allclose<U: CommonBounds>(&self, other: &_Tensor<U, Cpu, DEVICE, A>) -> bool
     where
         T: Cast<f64>,
         U: Cast<f64>,
@@ -202,9 +223,13 @@ impl<T: CommonBounds, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
     }
 }
 
-impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
+impl<T: CommonBounds, const DEVICE: usize, A> Tensor<T, Cpu, DEVICE, A>
+where
+    A: Allocator,
+    A::Output: AllocatorOutputRetrive,
+{
     /// cast the tensor to the new type
-    pub fn astype<U>(&self) -> Result<Tensor<U, Cpu, DEVICE>, TensorError>
+    pub fn astype<U>(&self) -> Result<Tensor<U, Cpu, DEVICE, A>, TensorError>
     where
         U: CommonBounds,
         T: Cast<U>,
@@ -213,7 +238,7 @@ impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     }
 
     /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
-    pub fn try_astype<U>(&self) -> Result<Tensor<U, Cpu, DEVICE>, TensorError>
+    pub fn try_astype<U>(&self) -> Result<Tensor<U, Cpu, DEVICE, A>, TensorError>
     where
         U: CommonBounds,
         T: Cast<U>,
@@ -222,7 +247,7 @@ impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     }
 
     /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
-    pub fn static_cast<Dst>(&self) -> Result<Tensor<Dst, Cpu, DEVICE>, TensorError>
+    pub fn static_cast<Dst>(&self) -> Result<Tensor<Dst, Cpu, DEVICE, A>, TensorError>
     where
         Dst: CommonBounds,
     {
@@ -230,7 +255,7 @@ impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     }
 
     /// check if two tensors are close to each other
-    pub fn allclose<U: CommonBounds>(&self, other: &Tensor<U, Cpu, DEVICE>) -> bool
+    pub fn allclose<U: CommonBounds>(&self, other: &Tensor<U, Cpu, DEVICE, A>) -> bool
     where
         T: Cast<f64>,
         U: Cast<f64>,
@@ -242,11 +267,13 @@ impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     #[cfg(feature = "cuda")]
     pub fn to_cuda<const CUDA_DEVICE: usize>(
         &self,
-    ) -> Result<Tensor<T, Cuda, CUDA_DEVICE>, TensorError>
+    ) -> Result<Tensor<T, Cuda, CUDA_DEVICE, <A as Allocator>::CudaAllocator>, TensorError>
     where
         T: DeviceRepr + CudaType,
     {
-        let data = _Tensor::<T, Cuda, CUDA_DEVICE>::empty(self.shape()).unwrap();
+        let data =
+            _Tensor::<T, Cuda, CUDA_DEVICE, <A as Allocator>::CudaAllocator>::empty(self.shape())
+                .unwrap();
         let device = data.device();
         let mut ptr = unsafe { device.upgrade_device_ptr(data.ptr().ptr as u64, data.size()) };
         data.device()
@@ -257,8 +284,11 @@ impl<T: CommonBounds, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
     }
 }
 
-impl<const N: usize, T: CommonBounds + ToBytes<Bytes = [u8; N]>, const DEVICE: usize> Save
-    for Tensor<T, Cpu, DEVICE>
+impl<const N: usize, T: CommonBounds + ToBytes<Bytes = [u8; N]>, const DEVICE: usize, A> Save
+    for Tensor<T, Cpu, DEVICE, A>
+where
+    A: Allocator,
+    Tensor<T, Cpu, DEVICE, A>: hpt_traits::TensorCreator<T, Output = Tensor<T, Cpu, DEVICE, A>>,
 {
     type Meta = TensorMeta<T, Self>;
     fn __save(
@@ -316,38 +346,51 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> Into<Tensor<T, Cpu, DEVICE>> for _Tensor<T, Cpu, DEVICE> {
-    fn into(self) -> Tensor<T, Cpu, DEVICE> {
+impl<T, const DEVICE: usize, A> Into<Tensor<T, Cpu, DEVICE, A>> for _Tensor<T, Cpu, DEVICE, A>
+where
+    A: Allocator,
+{
+    fn into(self) -> Tensor<T, Cpu, DEVICE, A> {
         Tensor { inner: self.into() }
     }
 }
 
-impl<T, const DEVICE: usize> Into<_Tensor<T, Cpu, DEVICE>> for &_Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, A> Into<_Tensor<T, Cpu, DEVICE, A>> for &_Tensor<T, Cpu, DEVICE, A>
 where
     T: CommonBounds,
+    A: Allocator,
 {
-    fn into(self) -> _Tensor<T, Cpu, DEVICE> {
+    fn into(self) -> _Tensor<T, Cpu, DEVICE, A> {
         _Tensor {
             data: self.data.clone(),
             parent: self.parent.clone(),
             layout: self.layout.clone(),
             mem_layout: self.mem_layout.clone(),
             _backend: self._backend.clone(),
+            phantom: PhantomData,
         }
     }
 }
 
-impl<T, const DEVICE: usize> Into<Tensor<T, Cpu, DEVICE>> for &Tensor<T, Cpu, DEVICE> {
-    fn into(self) -> Tensor<T, Cpu, DEVICE> {
+impl<T, const DEVICE: usize, A> Into<Tensor<T, Cpu, DEVICE, A>> for &Tensor<T, Cpu, DEVICE, A>
+where
+    T: CommonBounds,
+    A: Allocator,
+{
+    fn into(self) -> Tensor<T, Cpu, DEVICE, A> {
         Tensor {
             inner: self.inner.clone(),
         }
     }
 }
 
-impl<'a, T: CommonBounds, const DEVICE: usize> Into<_Tensor<T, Cpu, DEVICE>> for &'a [T] {
-    fn into(self) -> _Tensor<T, Cpu, DEVICE> {
-        let mut ret = _Tensor::<T, Cpu, DEVICE>::empty(vec![self.len() as i64]).unwrap();
+impl<'a, T: CommonBounds, const DEVICE: usize, A> Into<_Tensor<T, Cpu, DEVICE, A>> for &'a [T]
+where
+    A: Allocator,
+    A::Output: AllocatorOutputRetrive,
+{
+    fn into(self) -> _Tensor<T, Cpu, DEVICE, A> {
+        let mut ret = _Tensor::<T, Cpu, DEVICE, A>::empty(vec![self.len() as i64]).unwrap();
         unsafe {
             std::ptr::copy_nonoverlapping(self.as_ptr(), ret.as_raw_mut().as_mut_ptr(), self.len());
         }
@@ -392,12 +435,15 @@ impl<T: Clone, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
 }
 
 #[cfg(feature = "cuda")]
-impl<T: CommonBounds, const CPU_DEVICE: usize, const CUDA_DEVICE: usize>
-    Into<Tensor<T, Cuda, CUDA_DEVICE>> for Tensor<T, Cpu, CPU_DEVICE>
+impl<T: CommonBounds, const CPU_DEVICE: usize, const CUDA_DEVICE: usize, Al>
+    Into<Tensor<T, Cuda, CUDA_DEVICE, <Al as Allocator>::CudaAllocator>>
+    for Tensor<T, Cpu, CPU_DEVICE, Al>
 where
     T: DeviceRepr + CudaType,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    fn into(self) -> Tensor<T, Cuda, CUDA_DEVICE> {
+    fn into(self) -> Tensor<T, Cuda, CUDA_DEVICE, <Al as Allocator>::CudaAllocator> {
         self.to_cuda::<CUDA_DEVICE>()
             .expect("failed to convert cpu tensor to cuda tensor")
     }

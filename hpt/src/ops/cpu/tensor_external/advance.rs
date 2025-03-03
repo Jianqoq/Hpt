@@ -5,6 +5,7 @@ use crate::ops::cpu::utils::diff::diff_utils::handle_grad;
 use crate::tensor::DiffTensor;
 use crate::tensor_base::_Tensor;
 use crate::{Cpu, Tensor};
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_traits::ops::advance::{AdvancedOps, HardMax, Shrinkage};
 use hpt_traits::{CommonBounds, Slice, TensorCreator, TensorInfo, TensorWhere};
@@ -14,15 +15,18 @@ use hpt_types::into_vec::IntoVec;
 use hpt_types::traits::SimdSelect;
 use hpt_types::type_promote::{Cmp, NormalOut, SimdCmp};
 
-impl<T: CommonBounds + PartialOrd, const DEVICE: usize> AdvancedOps for Tensor<T, Cpu, DEVICE>
+impl<T: CommonBounds + PartialOrd, const DEVICE: usize, Al> AdvancedOps
+    for Tensor<T, Cpu, DEVICE, Al>
 where
     T: NormalOut<bool, Output = T> + Cast<i64>,
     f64: Cast<T>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Meta = T;
-    type Output = Tensor<T, Cpu, DEVICE>;
+    type Output = Tensor<T, Cpu, DEVICE, Al>;
 
-    type IndexOutput = Tensor<i64, Cpu, DEVICE>;
+    type IndexOutput = Tensor<i64, Cpu, DEVICE, Al>;
 
     fn pad(&self, pads: &[(i64, i64)], val: Self::Meta) -> Result<Self::Output, TensorError> {
         Ok(self.inner.pad(pads, val)?.into())
@@ -81,15 +85,18 @@ where
     }
 }
 
-impl<T: CommonBounds + PartialOrd, const DEVICE: usize> AdvancedOps for DiffTensor<T, Cpu, DEVICE>
+impl<T: CommonBounds + PartialOrd, const DEVICE: usize, Al> AdvancedOps
+    for DiffTensor<T, Cpu, DEVICE, Al>
 where
     T: NormalOut<bool, Output = T> + Cast<i64>,
     f64: Cast<T>,
+    Al: Allocator + Send + Sync + 'static,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Meta = T;
-    type Output = DiffTensor<T, Cpu, DEVICE>;
+    type Output = DiffTensor<T, Cpu, DEVICE, Al>;
 
-    type IndexOutput = Tensor<i64, Cpu, DEVICE>;
+    type IndexOutput = Tensor<i64, Cpu, DEVICE, Al>;
 
     fn pad(&self, pads: &[(i64, i64)], val: Self::Meta) -> Result<Self::Output, TensorError> {
         let padded = self.inner.pad(pads, val)?;
@@ -99,7 +106,7 @@ where
             inner: padded,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(move |mut grad: Tensor<T, Cpu, DEVICE>| {
+            backward: Rc::new(RefCell::new(move |mut grad: Tensor<T, Cpu, DEVICE, Al>| {
                 let mut ranges = Vec::with_capacity(pads.len());
 
                 for (dim, (pad_before, pad_after)) in pads.iter().enumerate() {
@@ -127,8 +134,8 @@ where
                 inner: values,
                 grad: Rc::new(RefCell::new(None)),
                 out_degree: Rc::new(RefCell::new(0)),
-                backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE>| {
-                    let full_grad = Tensor::<T, Cpu, DEVICE>::zeros(lhs.inner.shape())?;
+                backward: Rc::new(RefCell::new(move |grad: Tensor<T, Cpu, DEVICE, Al>| {
+                    let full_grad = Tensor::<T, Cpu, DEVICE, Al>::zeros(lhs.inner.shape())?;
                     full_grad.scatter(&indices, dim, &grad)?;
                     handle_grad(&mut lhs, full_grad, &[])?;
                     Ok(false)
@@ -169,43 +176,49 @@ where
     }
 }
 
-impl<T: CommonBounds, const DEVICE: usize> Shrinkage<T> for Tensor<T, Cpu, DEVICE>
+impl<T: CommonBounds, const DEVICE: usize, Al> Shrinkage<T> for Tensor<T, Cpu, DEVICE, Al>
 where
     T: Cmp<Output = bool> + TypeCommon,
     T::Vec: SimdCmp,
     <T::Vec as SimdCmp>::Output: SimdSelect<T::Vec>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = Tensor<T, Cpu, DEVICE>;
+    type Output = Tensor<T, Cpu, DEVICE, Al>;
     fn shrinkage(&self, bias: T, lambda: T) -> Result<Self::Output, TensorError> {
         Ok(self.inner.shrinkage(bias, lambda)?.into())
     }
 }
 
-impl<T, const DEVICE: usize> HardMax<T> for Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> HardMax<T> for Tensor<T, Cpu, DEVICE, Al>
 where
     T: CommonBounds + Cmp<Output = bool>,
     <T as TypeCommon>::Vec: SimdCmp,
     <T::Vec as SimdCmp>::Output: IntoVec<T::Vec>,
     bool: NormalOut<T> + Cast<T>,
+    Al: Allocator + Send + Sync + 'static,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = Tensor<T, Cpu, DEVICE>;
+    type Output = Tensor<T, Cpu, DEVICE, Al>;
     fn hardmax(&self, axis: i64) -> Result<Self::Output, TensorError> {
         Ok(self.inner.hardmax(axis)?.into())
     }
 }
 
-impl<T, const DEVICE: usize> TensorWhere for Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> TensorWhere for Tensor<T, Cpu, DEVICE, Al>
 where
     T: CommonBounds,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = Tensor<T, Cpu, DEVICE>;
-    type Condition = Tensor<bool, Cpu, DEVICE>;
+    type Output = Tensor<T, Cpu, DEVICE, Al>;
+    type Condition = Tensor<bool, Cpu, DEVICE, Al>;
     fn tensor_where(
         condition: &Self::Condition,
         x: &Self::Output,
         y: &Self::Output,
     ) -> Result<Self::Output, TensorError> {
-        let res = _Tensor::<T, Cpu, DEVICE>::tensor_where(
+        let res = _Tensor::<T, Cpu, DEVICE, Al>::tensor_where(
             condition.inner.as_ref(),
             x.inner.as_ref(),
             y.inner.as_ref(),

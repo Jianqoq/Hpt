@@ -9,6 +9,7 @@ use crate::tensor_base::_Tensor;
 use crate::Cpu;
 use crate::Tensor;
 use crate::REGNUM;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::utils::pointer::Pointer;
@@ -22,13 +23,15 @@ use hpt_types::type_promote::NormalOut;
 use hpt_types::vectors::traits::*;
 use rayon::prelude::*;
 
-impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, A> _Tensor<T, Cpu, DEVICE, A>
 where
     T: CommonBounds + Cast<T> + NormalOut<Output = T>,
     T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
     T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
     T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
     bool: Cast<T>,
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
 {
     /// Performs a 2D convolution operation on the input tensor.
     ///
@@ -51,18 +54,18 @@ where
     #[track_caller]
     pub fn batchnorm_conv2d(
         &self,
-        kernels: &_Tensor<T, Cpu, DEVICE>,
-        mean: &_Tensor<T, Cpu, DEVICE>,
-        var: &_Tensor<T, Cpu, DEVICE>,
-        gamma: &_Tensor<T, Cpu, DEVICE>,
-        beta: &_Tensor<T, Cpu, DEVICE>,
-        bias: Option<&_Tensor<T, Cpu, DEVICE>>,
+        kernels: &_Tensor<T, Cpu, DEVICE, A>,
+        mean: &_Tensor<T, Cpu, DEVICE, A>,
+        var: &_Tensor<T, Cpu, DEVICE, A>,
+        gamma: &_Tensor<T, Cpu, DEVICE, A>,
+        beta: &_Tensor<T, Cpu, DEVICE, A>,
+        bias: Option<&_Tensor<T, Cpu, DEVICE, A>>,
         eps: T,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         activation: Option<fn(T::Vec) -> T::Vec>,
-    ) -> std::result::Result<_Tensor<T, Cpu, DEVICE>, TensorError> {
+    ) -> std::result::Result<_Tensor<T, Cpu, DEVICE, A>, TensorError> {
         ShapeError::check_contiguous(
             "BatchNormConv2d requires input tensor to be contiguous. ".to_string(),
             self.layout(),
@@ -134,7 +137,7 @@ where
         }
         let activation = activation.unwrap_or(|x| x);
         let output =
-            _Tensor::<T, Cpu, DEVICE>::empty([batch, out_height, out_width, out_channels])?;
+            _Tensor::<T, Cpu, DEVICE, A>::empty([batch, out_height, out_width, out_channels])?;
         let out = output.ptr();
         let inp = img.ptr();
 

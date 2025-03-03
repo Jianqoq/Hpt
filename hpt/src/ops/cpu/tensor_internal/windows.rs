@@ -1,3 +1,4 @@
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, TensorCreator, TensorLike, WindowOps};
 use hpt_types::{
@@ -17,7 +18,7 @@ use crate::{tensor_base::_Tensor, Cpu};
 pub(crate) type Simd<T> = <<T as FloatOutBinary>::Output as TypeCommon>::Vec;
 type FBO<T> = <T as FloatOutBinary>::Output;
 
-impl<T, const DEVICE: usize> WindowOps for _Tensor<T, Cpu, DEVICE>
+impl<T, A2, const DEVICE: usize> WindowOps for _Tensor<T, Cpu, DEVICE, A2>
 where
     f64: Cast<FBO<T>>,
     T: CommonBounds + FloatOutBinary,
@@ -33,8 +34,10 @@ where
         + FloatOutUnary<Output = Simd<T>>,
     usize: Cast<FBO<T>>,
     i64: Cast<T>,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<FBO<T>, Cpu, DEVICE>;
+    type Output = _Tensor<FBO<T>, Cpu, DEVICE, A2>;
     type Meta = T;
 
     #[track_caller]
@@ -63,7 +66,7 @@ where
         };
         let length: <T as FloatOutBinary>::Output = length_usize.cast();
         let mut ret =
-            _Tensor::<<T as FloatOutBinary>::Output, Cpu, DEVICE>::empty(&[length_usize])?;
+            _Tensor::<<T as FloatOutBinary>::Output, Cpu, DEVICE, A2>::empty(&[length_usize])?;
         ret.as_raw_mut()
             .par_iter_mut()
             .enumerate()
@@ -78,12 +81,12 @@ where
 }
 
 #[track_caller]
-fn __hamming_window<T, const DEVICE: usize>(
+fn __hamming_window<T, A2, const DEVICE: usize>(
     window_length: i64,
     alpha: FBO<T>,
     beta: FBO<T>,
     periodic: bool,
-) -> Result<_Tensor<FBO<T>, Cpu, DEVICE>, TensorError>
+) -> Result<_Tensor<FBO<T>, Cpu, DEVICE, A2>, TensorError>
 where
     f64: Cast<FBO<T>>,
     T: CommonBounds + FloatOutBinary,
@@ -99,6 +102,8 @@ where
         + FloatOutUnary<Output = Simd<T>>,
     usize: Cast<FBO<T>>,
     i64: Cast<T>,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
     let length_usize = (if periodic {
         window_length
@@ -106,7 +111,7 @@ where
         window_length - 1
     }) as usize;
     let length: FBO<T> = length_usize.cast();
-    let mut ret = _Tensor::<FBO<T>, Cpu, DEVICE>::empty(&[length_usize as i64])?;
+    let mut ret = _Tensor::<FBO<T>, Cpu, DEVICE, A2>::empty(&[length_usize as i64])?;
     let mut chunk_exact = ret.as_raw_mut().par_chunks_exact_mut(Simd::<T>::SIZE);
     let two_pi = Simd::<T>::splat(FBO::<T>::TWOPI);
     let length_vec = Simd::<T>::splat(length);

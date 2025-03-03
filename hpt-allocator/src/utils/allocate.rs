@@ -70,6 +70,7 @@ pub(crate) fn allocate_helper(
     allocated: &mut HashSet<SafePtr>,
     storage: &mut HashMap<usize, CommonStorage>,
     allocate_fn: impl Fn() -> *mut u8,
+    zero_fn: impl Fn(*mut u8, std::alloc::Layout),
     deallocate_fn: impl Fn(*mut u8, std::alloc::Layout),
     layout: std::alloc::Layout,
     device_id: usize,
@@ -79,6 +80,7 @@ pub(crate) fn allocate_helper(
     {
         // try pop the memory out, if it return None, there is no available cached memory, we need to allocate new memory
         if let Some(safe_ptr) = ptr.pop() {
+            zero_fn(safe_ptr.ptr, layout);
             safe_ptr.ptr
         } else {
             allocate_mem(

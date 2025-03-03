@@ -5,6 +5,7 @@ use crate::ops::cuda::cuda_utils::get_module_name_1;
 use crate::Cpu;
 use crate::{tensor_base::_Tensor, Cuda, Tensor};
 use cudarc::driver::{CudaDevice, DeviceRepr, LaunchAsync};
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
 use hpt_dataloader::data_loader::TensorMeta;
@@ -21,9 +22,11 @@ use crate::ops::cuda::utils::unary::unary::uary_fn_with_out_simd;
 
 use super::cuda_utils::load_ptx_and_get_data;
 
-impl<T, const DEVICE_ID: usize> TensorLike<T> for _Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize, A> TensorLike<T> for _Tensor<T, Cuda, DEVICE_ID, A>
 where
     T: CommonBounds + DeviceRepr + CudaType,
+    A: Allocator,
+    A::Output: AllocatorOutputRetrive,
 {
     fn as_raw(&self) -> &[T] {
         unimplemented!()
@@ -59,9 +62,11 @@ where
     }
 }
 
-impl<T, const DEVICE_ID: usize> TensorLike<T> for Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize, Al> TensorLike<T> for Tensor<T, Cuda, DEVICE_ID, Al>
 where
     T: CommonBounds + DeviceRepr + CudaType,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     fn as_raw(&self) -> &[T] {
         unimplemented!()
@@ -76,9 +81,10 @@ where
     }
 }
 
-impl<T, const DEVICE_ID: usize> TensorInfo<T> for _Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize, Al> TensorInfo<T> for _Tensor<T, Cuda, DEVICE_ID, Al>
 where
     T: CommonBounds,
+    Al: Allocator,
 {
     fn ptr(&self) -> Pointer<T> {
         self.data.clone()
@@ -106,9 +112,10 @@ where
     }
 }
 
-impl<T, const DEVICE_ID: usize> TensorInfo<T> for &_Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize, Al> TensorInfo<T> for &_Tensor<T, Cuda, DEVICE_ID, Al>
 where
     T: CommonBounds,
+    Al: Allocator,
 {
     fn ptr(&self) -> Pointer<T> {
         self.data.clone()
@@ -143,8 +150,11 @@ where
     }
 }
 
-impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> TensorAlloc
-    for _Tensor<T, Cuda, DEVICE_ID>
+impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize, Al> TensorAlloc
+    for _Tensor<T, Cuda, DEVICE_ID, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Meta = T;
     fn _empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError>
@@ -155,9 +165,14 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> TensorAllo
     }
 }
 
-impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> _Tensor<T, Cuda, DEVICE_ID> {
+impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize, Al>
+    _Tensor<T, Cuda, DEVICE_ID, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
     /// cast the tensor to the new type
-    pub fn astype<U>(&self) -> std::result::Result<_Tensor<U, Cuda, DEVICE_ID>, TensorError>
+    pub fn astype<U>(&self) -> std::result::Result<_Tensor<U, Cuda, DEVICE_ID, Al>, TensorError>
     where
         U: CommonBounds + DeviceRepr + CudaType,
         Scalar<T>: Cast<Scalar<U>>,
@@ -166,7 +181,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> _Tensor<T,
             self,
             &get_module_name_1("astype", self),
             |out, x| out.assign(x.cast()),
-            None::<_Tensor<U, Cuda, DEVICE_ID>>,
+            None::<_Tensor<U, Cuda, DEVICE_ID, Al>>,
         )
     }
 
@@ -194,11 +209,15 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> _Tensor<T,
 
     pub fn to_cpu<const CPU_DEVICE: usize>(
         &self,
-    ) -> std::result::Result<Tensor<T, Cpu, CPU_DEVICE>, TensorError>
+    ) -> std::result::Result<Tensor<T, Cpu, CPU_DEVICE, <Al as Allocator>::CpuAllocator>, TensorError>
     where
         T: DeviceRepr,
+        <Al as Allocator>::CpuAllocator: Allocator,
+        <<Al as Allocator>::CpuAllocator as Allocator>::Output: AllocatorOutputRetrive,
     {
-        let mut data = _Tensor::<T, Cpu, CPU_DEVICE>::empty(self.layout.shape().clone())?;
+        let mut data = _Tensor::<T, Cpu, CPU_DEVICE, <Al as Allocator>::CpuAllocator>::empty(
+            self.layout.shape().clone(),
+        )?;
         let device = self.device();
         if !self.is_contiguous() || self.parent().is_some() {
             let a = self.contiguous()?;
@@ -267,11 +286,16 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> _Tensor<T,
     }
 }
 
-impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> Tensor<T, Cuda, DEVICE_ID> {
+impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize, Al>
+    Tensor<T, Cuda, DEVICE_ID, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
     /// copy the data from the cuda tensor to the cpu tensor
     pub fn to_cpu<const CPU_DEVICE: usize>(
         &self,
-    ) -> Result<Tensor<T, Cpu, CPU_DEVICE>, TensorError> {
+    ) -> Result<Tensor<T, Cpu, CPU_DEVICE, <Al as Allocator>::CpuAllocator>, TensorError> {
         Ok(self.inner.as_ref().to_cpu()?.into())
     }
     /// get the device of the tensor
@@ -286,7 +310,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> Tensor<T, 
     // }
 
     /// cast the tensor to the new type
-    pub fn astype<U>(&self) -> Result<Tensor<U, Cuda, DEVICE_ID>, TensorError>
+    pub fn astype<U>(&self) -> Result<Tensor<U, Cuda, DEVICE_ID, Al>, TensorError>
     where
         U: CommonBounds + DeviceRepr + CudaType,
         Scalar<T>: Cast<Scalar<U>>,
@@ -321,9 +345,11 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> Tensor<T, 
     // }
 }
 
-impl<T, const DEVICE_ID: usize> std::fmt::Display for _Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize, Al> std::fmt::Display for _Tensor<T, Cuda, DEVICE_ID, Al>
 where
     T: CommonBounds + DeviceRepr + Cast<f64> + CudaType,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let cpu_data = self
@@ -333,23 +359,33 @@ where
     }
 }
 
-impl<T, const DEVICE_ID: usize> std::fmt::Display for Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE_ID: usize, Al> std::fmt::Display for Tensor<T, Cuda, DEVICE_ID, Al>
 where
     T: CommonBounds + DeviceRepr + Cast<f64> + CudaType,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.inner.as_ref())
     }
 }
 
-impl<T, const DEVICE_ID: usize> Into<Tensor<T, Cuda, DEVICE_ID>> for _Tensor<T, Cuda, DEVICE_ID> {
-    fn into(self) -> Tensor<T, Cuda, DEVICE_ID> {
+impl<T, const DEVICE_ID: usize, Al> Into<Tensor<T, Cuda, DEVICE_ID, Al>>
+    for _Tensor<T, Cuda, DEVICE_ID, Al>
+where
+    Al: Allocator,
+{
+    fn into(self) -> Tensor<T, Cuda, DEVICE_ID, Al> {
         Tensor { inner: self.into() }
     }
 }
 
-impl<T, const DEVICE_ID: usize> Into<Tensor<T, Cuda, DEVICE_ID>> for &Tensor<T, Cuda, DEVICE_ID> {
-    fn into(self) -> Tensor<T, Cuda, DEVICE_ID> {
+impl<T, const DEVICE_ID: usize, Al> Into<Tensor<T, Cuda, DEVICE_ID, Al>>
+    for &Tensor<T, Cuda, DEVICE_ID, Al>
+where
+    Al: Allocator,
+{
+    fn into(self) -> Tensor<T, Cuda, DEVICE_ID, Al> {
         Tensor {
             inner: self.inner.clone(),
         }
@@ -359,7 +395,11 @@ impl<
         const N: usize,
         T: CommonBounds + ToBytes<Bytes = [u8; N]> + DeviceRepr + CudaType,
         const DEVICE: usize,
-    > Save for Tensor<T, Cuda, DEVICE>
+        Al,
+    > Save for Tensor<T, Cuda, DEVICE, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Meta = TensorMeta<T, Self>;
     fn __save(
@@ -371,10 +411,10 @@ impl<
         endian: Endian,
         level: u32,
     ) -> std::io::Result<Self::Meta> {
-        let cpu_data: Tensor<T, Cpu> = data
+        let cpu_data: Tensor<T, Cpu, 0, <Al as Allocator>::CpuAllocator> = data
             .to_cpu::<0>()
             .expect("failed to convert cuda tensor to cpu tensor");
-        let meta = Tensor::<T, Cpu>::__save(
+        let meta = Tensor::<T, Cpu, 0, <Al as Allocator>::CpuAllocator>::__save(
             &cpu_data,
             file,
             len_so_far,

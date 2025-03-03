@@ -4,6 +4,7 @@ use crate::{
     Cuda,
 };
 use cudarc::driver::DeviceRepr;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, NormalUaryOps, TensorLike};
 use hpt_types::type_promote::{NormalOut, NormalOutUnary};
@@ -12,16 +13,18 @@ use std::borrow::BorrowMut;
 
 pub(crate) type NormalType<T> = <T as NormalOut>::Output;
 
-impl<T, const DEVICE: usize> NormalUaryOps for _Tensor<T, Cuda, DEVICE>
+impl<T, const DEVICE: usize, Al> NormalUaryOps for _Tensor<T, Cuda, DEVICE, Al>
 where
     T: CommonBounds + DeviceRepr + CudaType + NormalOutUnary,
     T::Vec: NormalOutUnary,
-    _Tensor<NormalType<T>, Cuda, DEVICE>: TensorLike<NormalType<T>>,
+    _Tensor<NormalType<T>, Cuda, DEVICE, Al>: TensorLike<NormalType<T>>,
     Scalar<T>: NormalOutUnary + NormalOut<Output = Scalar<NormalType<T>>>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<NormalType<T>, Cuda, DEVICE>;
+    type Output = _Tensor<NormalType<T>, Cuda, DEVICE, Al>;
 
-    type InplaceOutput = _Tensor<NormalType<T>, Cuda, DEVICE>;
+    type InplaceOutput = _Tensor<NormalType<T>, Cuda, DEVICE, Al>;
 
     type OutputMeta = NormalType<T>;
 

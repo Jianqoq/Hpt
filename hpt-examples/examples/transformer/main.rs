@@ -6,7 +6,7 @@ use hpt::{
     ParStridedIteratorZip, Random, RandomInt, ShapeManipulate, Slice, Tensor, TensorCreator,
     TensorError, TensorIterator, TypeCommon, VecTrait,
 };
-use hpt::{Eval, TensorInfo};
+use hpt::{Concat, Eval, TensorInfo};
 use rayon::iter::ParallelIterator;
 
 type F32Vec = <f32 as TypeCommon>::Vec;

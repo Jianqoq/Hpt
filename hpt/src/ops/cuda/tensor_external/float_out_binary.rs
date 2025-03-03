@@ -1,20 +1,22 @@
+use crate::{ops::cpu::tensor_internal::float_out_unary::FloatBinaryType, Cuda, Tensor};
 use cudarc::driver::DeviceRepr;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_traits::{CommonBounds, FloatBinOps};
 use hpt_types::{cuda_types::scalar::Scalar, dtype::CudaType, type_promote::FloatOutBinary};
 
-use crate::{ops::cpu::tensor_internal::float_out_unary::FloatBinaryType, Cuda, Tensor};
-
-impl<T, const DEVICE: usize> FloatBinOps for Tensor<T, Cuda, DEVICE>
+impl<T, const DEVICE: usize, Al> FloatBinOps for Tensor<T, Cuda, DEVICE, Al>
 where
     T: CommonBounds + DeviceRepr + CudaType + FloatOutBinary,
     Scalar<T>: FloatOutBinary<Output = Scalar<FloatBinaryType<T>>>,
     FloatBinaryType<T>: CommonBounds + DeviceRepr + CudaType,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = Tensor<FloatBinaryType<T>, Cuda, DEVICE>;
+    type Output = Tensor<FloatBinaryType<T>, Cuda, DEVICE, Al>;
 
     type OutputMeta = FloatBinaryType<T>;
 
-    type InplaceOutput = Tensor<FloatBinaryType<T>, Cuda, DEVICE>;
+    type InplaceOutput = Tensor<FloatBinaryType<T>, Cuda, DEVICE, Al>;
 
     fn hypot(
         &self,

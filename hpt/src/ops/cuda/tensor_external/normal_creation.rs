@@ -1,31 +1,35 @@
 use crate::{tensor_base::_Tensor, BoolVector, Cuda, Tensor};
 use cudarc::driver::DeviceRepr;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_traits::{CommonBounds, TensorCreator, TensorInfo};
 use hpt_types::{dtype::CudaType, into_scalar::Cast, type_promote::NormalOut};
 
-impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> TensorCreator<T>
-    for Tensor<T, Cuda, DEVICE_ID>
+impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize, Al> TensorCreator<T>
+    for Tensor<T, Cuda, DEVICE, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = Tensor<T, Cuda, DEVICE_ID>;
+    type Output = Tensor<T, Cuda, DEVICE, Al>;
 
     fn empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::empty(shape)?.into())
+        Ok(_Tensor::<T, Cuda, DEVICE, Al>::empty(shape)?.into())
     }
 
     fn zeros<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::zeros(shape)?.into())
+        Ok(_Tensor::<T, Cuda, DEVICE, Al>::zeros(shape)?.into())
     }
 
     fn ones<S: Into<Shape>>(shape: S) -> std::result::Result<Self::Output, TensorError>
     where
         u8: Cast<T>,
     {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::ones(shape)?.into())
+        Ok(_Tensor::<T, Cuda, DEVICE, Al>::ones(shape)?.into())
     }
 
     fn empty_like(&self) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::empty(self.inner.as_ref().shape())?.into())
+        Ok(_Tensor::<T, Cuda, DEVICE, Al>::empty(self.inner.as_ref().shape())?.into())
     }
 
     fn zeros_like(&self) -> std::result::Result<Self::Output, TensorError> {
@@ -40,7 +44,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> TensorCrea
     }
 
     fn full<S: Into<Shape>>(val: T, shape: S) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::full(val, shape)?.into())
+        Ok(_Tensor::<T, Cuda, DEVICE, Al>::full(val, shape)?.into())
     }
 
     fn full_like(&self, val: T) -> std::result::Result<Self::Output, TensorError> {
@@ -52,7 +56,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> TensorCrea
         usize: Cast<T>,
         U: Cast<i64> + Cast<T> + Copy,
     {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::arange(start, end)?.into())
+        Ok(_Tensor::<T, Cuda, DEVICE, Al>::arange(start, end)?.into())
     }
 
     fn arange_step(start: T, end: T, step: T) -> std::result::Result<Self::Output, TensorError>
@@ -60,11 +64,11 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> TensorCrea
         T: Cast<f64> + Cast<usize>,
         usize: Cast<T>,
     {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::arange_step(start, end, step)?.into())
+        Ok(_Tensor::<T, Cuda, DEVICE, Al>::arange_step(start, end, step)?.into())
     }
 
     fn eye(n: usize, m: usize, k: usize) -> std::result::Result<Self::Output, TensorError> {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::eye(n, m, k)?.into())
+        Ok(_Tensor::<T, Cuda, DEVICE, Al>::eye(n, m, k)?.into())
     }
 
     fn linspace<U>(
@@ -78,7 +82,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> TensorCrea
         usize: Cast<T>,
         f64: Cast<T>,
     {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::linspace(start, end, num, include_end)?.into())
+        Ok(_Tensor::<T, Cuda, DEVICE, Al>::linspace(start, end, num, include_end)?.into())
     }
 
     fn logspace(
@@ -93,7 +97,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> TensorCrea
         usize: Cast<T>,
         f64: Cast<T>,
     {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::logspace(start, end, num, include_end, base)?.into())
+        Ok(_Tensor::<T, Cuda, DEVICE, Al>::logspace(start, end, num, include_end, base)?.into())
     }
 
     fn geomspace(
@@ -107,7 +111,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> TensorCrea
         usize: Cast<T>,
         T: Cast<f64>,
     {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::geomspace(start, end, n, include_end)?.into())
+        Ok(_Tensor::<T, Cuda, DEVICE, Al>::geomspace(start, end, n, include_end)?.into())
     }
 
     fn tri(
@@ -119,7 +123,7 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> TensorCrea
     where
         u8: Cast<T>,
     {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::tri(n, m, k, low_triangle)?.into())
+        Ok(_Tensor::<T, Cuda, DEVICE, Al>::tri(n, m, k, low_triangle)?.into())
     }
 
     fn tril(&self, k: i64) -> std::result::Result<Self::Output, TensorError>
@@ -142,6 +146,6 @@ impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE_ID: usize> TensorCrea
     where
         u8: Cast<T>,
     {
-        Ok(_Tensor::<T, Cuda, DEVICE_ID>::eye(n, n, 0)?.into())
+        Ok(_Tensor::<T, Cuda, DEVICE, Al>::eye(n, n, 0)?.into())
     }
 }

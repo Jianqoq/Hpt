@@ -5,6 +5,7 @@ use crate::{
     Cuda,
 };
 use cudarc::driver::DeviceRepr;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, NormalUaryOps, TensorLike};
 use hpt_types::dtype::CudaType;
@@ -13,18 +14,20 @@ use hpt_types::{
     into_scalar::Cast,
     type_promote::{NormalOut, NormalOutUnary},
 };
-impl<T, const DEVICE_ID: usize> NormalUaryOps for Tensor<T, Cuda, DEVICE_ID>
+impl<T, const DEVICE: usize, Al> NormalUaryOps for Tensor<T, Cuda, DEVICE, Al>
 where
     T: CommonBounds + Cast<T> + DeviceRepr + CudaType,
     NormalType<T>: CommonBounds + CudaType,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
     T::Vec: NormalOutUnary,
     T: NormalOutUnary,
-    _Tensor<NormalType<T>, Cuda, DEVICE_ID>: TensorLike<NormalType<T>>,
+    _Tensor<NormalType<T>, Cuda, DEVICE, Al>: TensorLike<NormalType<T>>,
     Scalar<T>: NormalOutUnary + NormalOut<Output = Scalar<NormalType<T>>>,
 {
-    type Output = Tensor<NormalType<T>, Cuda, DEVICE_ID>;
+    type Output = Tensor<NormalType<T>, Cuda, DEVICE, Al>;
 
-    type InplaceOutput = Tensor<NormalType<T>, Cuda, DEVICE_ID>;
+    type InplaceOutput = Tensor<NormalType<T>, Cuda, DEVICE, Al>;
 
     type OutputMeta = NormalType<T>;
 

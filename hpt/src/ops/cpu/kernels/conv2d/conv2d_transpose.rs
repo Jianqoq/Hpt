@@ -3,6 +3,7 @@ use crate::ops::cpu::kernels::conv_transpose::{
 };
 use crate::tensor_base::_Tensor;
 use crate::Cpu;
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_traits::CommonBounds;
@@ -13,16 +14,18 @@ use hpt_types::vectors::traits::*;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 #[track_caller]
-pub(crate) fn conv2d_transpose<T: CommonBounds, const DEVICE: usize>(
-    input: &_Tensor<T, Cpu, DEVICE>,
-    kernels: &_Tensor<T, Cpu, DEVICE>,
+pub(crate) fn conv2d_transpose<T: CommonBounds, const DEVICE: usize, A>(
+    input: &_Tensor<T, Cpu, DEVICE, A>,
+    kernels: &_Tensor<T, Cpu, DEVICE, A>,
     steps: [i64; 2],
     padding: [(i64, i64); 2],
     output_padding: [i64; 2],
     dilation: [i64; 2],
-) -> Result<_Tensor<T, Cpu, DEVICE>, TensorError>
+) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
     bool: Cast<T>,
+    A: Allocator,
+    A::Output: AllocatorOutputRetrive,
 {
     ShapeError::check_contiguous(
         "conv2d_transpose input must be contiguous".to_string(),
@@ -59,7 +62,7 @@ where
         + output_padding[0];
     let out_width =
         (inp_width - 1) * step_width - (pw_start + pw_end) + dw * (kw - 1) + 1 + output_padding[1];
-    let res = _Tensor::<T, Cpu, DEVICE>::zeros([batch, out_height, out_width, in_channel])?;
+    let res = _Tensor::<T, Cpu, DEVICE, A>::zeros([batch, out_height, out_width, in_channel])?;
     let out = res.ptr();
     let inp = input.ptr();
 

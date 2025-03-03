@@ -1,5 +1,6 @@
 use std::borrow::BorrowMut;
 
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_iterator::iterator_traits::{ParStridedIteratorSimd, ParStridedIteratorSimdZip};
 use hpt_iterator::TensorIterator;
@@ -17,16 +18,18 @@ use crate::{ops::cpu::utils::unary::unary::unary_fn_with_out, tensor_base::_Tens
 pub(crate) type FloatUnaryType<T> = <T as FloatOutUnary>::Output;
 pub(crate) type FloatBinaryType<T> = <T as FloatOutBinary>::Output;
 
-impl<T, const DEVICE: usize> FloatUnaryOps for _Tensor<T, Cpu, DEVICE>
+impl<T, A2, const DEVICE: usize> FloatUnaryOps for _Tensor<T, Cpu, DEVICE, A2>
 where
     T: FloatOutUnary + CommonBounds,
     FloatUnaryType<T>: CommonBounds,
     f64: Cast<<T as FloatOutUnary>::Output>,
     T::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<FloatUnaryType<T>, Cpu, DEVICE>;
+    type Output = _Tensor<FloatUnaryType<T>, Cpu, DEVICE, A2>;
 
-    type InplaceOutput = _Tensor<FloatUnaryType<T>, Cpu, DEVICE>;
+    type InplaceOutput = _Tensor<FloatUnaryType<T>, Cpu, DEVICE, A2>;
 
     type OutputMeta = FloatUnaryType<T>;
 
@@ -50,8 +53,8 @@ where
 
     fn sincos(&self) -> std::result::Result<(Self::Output, Self::Output), TensorError> {
         use hpt_traits::TensorInfo;
-        let mut res1 = _Tensor::<FloatUnaryType<T>, Cpu, DEVICE>::empty(self.shape())?;
-        let mut res2 = _Tensor::<FloatUnaryType<T>, Cpu, DEVICE>::empty(self.shape())?;
+        let mut res1 = _Tensor::<FloatUnaryType<T>, Cpu, DEVICE, A2>::empty(self.shape())?;
+        let mut res2 = _Tensor::<FloatUnaryType<T>, Cpu, DEVICE, A2>::empty(self.shape())?;
         res1.par_iter_mut_simd()
             .zip(res2.par_iter_mut_simd())
             .zip(self.par_iter_simd())

@@ -1,5 +1,5 @@
 use hpt::{
-    select, FloatOutUnary, Matmul, NormalBinOps, ParStridedIteratorSimdZip, Random,
+    select, Concat, FloatOutUnary, Matmul, NormalBinOps, ParStridedIteratorSimdZip, Random,
     ShapeManipulate, Slice, Tensor, TensorCreator, TensorError, TensorInfo, TensorIterator,
 };
 

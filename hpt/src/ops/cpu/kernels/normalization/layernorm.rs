@@ -1,6 +1,7 @@
 use std::borrow::BorrowMut;
 
 use crate::{tensor_base::_Tensor, Cpu, Tensor};
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::{
     error::base::TensorError,
     shape::{shape::Shape, shape_utils::mt_intervals},
@@ -17,15 +18,19 @@ use hpt_types::{
 };
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
-impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
+impl<T, const DEVICE: usize, A> _Tensor<T, Cpu, DEVICE, A>
+where
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
+{
     #[track_caller]
     pub fn layernorm<S>(
         &self,
         normalized_shape: S,
-        gamma: Option<&_Tensor<<T as FloatOutBinary>::Output, Cpu, DEVICE>>,
-        beta: Option<&_Tensor<<T as FloatOutBinary>::Output, Cpu, DEVICE>>,
+        gamma: Option<&_Tensor<<T as FloatOutBinary>::Output, Cpu, DEVICE, A>>,
+        beta: Option<&_Tensor<<T as FloatOutBinary>::Output, Cpu, DEVICE, A>>,
         eps: T,
-    ) -> std::result::Result<_Tensor<<T as FloatOutBinary>::Output, Cpu, DEVICE>, TensorError>
+    ) -> std::result::Result<_Tensor<<T as FloatOutBinary>::Output, Cpu, DEVICE, A>, TensorError>
     where
         T: CommonBounds
             + Cast<<T as FloatOutBinary>::Output>
@@ -53,7 +58,8 @@ impl<T, const DEVICE: usize> _Tensor<T, Cpu, DEVICE> {
             }
             axes.push(i);
         }
-        let mut res = _Tensor::<<T as FloatOutBinary>::Output, Cpu, DEVICE>::empty(self.shape())?;
+        let mut res =
+            _Tensor::<<T as FloatOutBinary>::Output, Cpu, DEVICE, A>::empty(self.shape())?;
         let res_layout = self.layout.reduce(axes, false)?;
         let inner_loop_size = *self.shape().last().unwrap() as usize;
         let outer_loop_size = self.size() / inner_loop_size;
@@ -231,16 +237,20 @@ fn update_prg3<T, O>(
     }
 }
 
-impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE> {
+impl<T, const DEVICE: usize, A> Tensor<T, Cpu, DEVICE, A>
+where
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
+{
     /// LayerNorm
     #[track_caller]
     pub fn layernorm<S>(
         &self,
         normalized_shape: S,
-        gamma: Option<&Tensor<<T as FloatOutBinary>::Output, Cpu, DEVICE>>,
-        beta: Option<&Tensor<<T as FloatOutBinary>::Output, Cpu, DEVICE>>,
+        gamma: Option<&Tensor<<T as FloatOutBinary>::Output, Cpu, DEVICE, A>>,
+        beta: Option<&Tensor<<T as FloatOutBinary>::Output, Cpu, DEVICE, A>>,
         eps: T,
-    ) -> Result<Tensor<<T as FloatOutBinary>::Output, Cpu, DEVICE>, TensorError>
+    ) -> Result<Tensor<<T as FloatOutBinary>::Output, Cpu, DEVICE, A>, TensorError>
     where
         T: CommonBounds
             + Cast<<T as FloatOutBinary>::Output>

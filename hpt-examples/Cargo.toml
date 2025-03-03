@@ -7,11 +7,11 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 serde = "1.0.217"
 rayon = "1.8.0"
-hpt = { path = "../hpt", features = ["track_caller"] }
+hpt = { path = "../hpt", features = ["track_caller", "cuda"] }
 anyhow = "1.0.40"
 mimalloc = "0.1.43"
-candle-core = { version = "0.8.2", features = ["mkl"] }
-candle-nn = "0.8.2"
+# candle-core = { version = "0.8.2", features = ["mkl"] }
+# candle-nn = "0.8.2"
 serde_json = "1.0"
 safetensors = "0.5.0"
 
