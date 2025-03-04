@@ -25,7 +25,6 @@ where
 {
     type RHS = _Tensor<C, Cpu, DEVICE, A>;
     type Output = _Tensor<bool, Cpu, DEVICE, A>;
-    type BoolVector = BoolVector;
 
     fn tensor_neq<D>(&self, rhs: D) -> Result<Self::Output, TensorError>
     where
