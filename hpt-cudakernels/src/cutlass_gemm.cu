@@ -1,83 +1,63 @@
-#include "cutlass/cutlass/gemm/device/gemm.h"
-#include "cutlass/cutlass/numeric_types.h"
-#include "cutlass/cutlass/layout/matrix.h"
+#include <cuda.h>
+#include <cublas_v2.h>
+#include <stdlib.h>
+#include <cute/tensor.hpp>
 
-template <typename T>
-struct CutlassTypes
+void gen_rand_data(float *data, int n);
+
+template <int kTileM, int kTileN, int kTileK, typename TiledMMA>
+__device__ void gemm_simple(float *Cptr, const float *Aptr, const float *Bptr, int m, int n, int k)
 {
-    using ElementA = T;
-    using ElementB = T;
-    using ElementC = T;
-    using ElementAccum = float;
-    using LayoutA = cutlass::layout::RowMajor;
-    using LayoutB = cutlass::layout::RowMajor;
-    using LayoutC = cutlass::layout::RowMajor;
 
-#if __CUDA_ARCH__ >= 800
-    using ArchTag = cutlass::arch::Sm80;
-#elif __CUDA_ARCH__ >= 750
-    using ArchTag = cutlass::arch::Sm75;
-#elif __CUDA_ARCH__ >= 700
-    using ArchTag = cutlass::arch::Sm70;
-#else
-    using ArchTag = cutlass::arch::Sm70;
-#endif
+    using namespace cute;
 
-    using GemmConfig = typename cutlass::gemm::device::DefaultGemmConfiguration<
-        cutlass::arch::OpClassSimt,
-        ArchTag,
-        ElementA,
-        ElementB,
-        ElementC,
-        ElementAccum>;
+    Tensor A = make_tensor(make_gmem_ptr(Aptr), make_shape(m, k), make_stride(k, Int<1>{}));
+    Tensor B = make_tensor(make_gmem_ptr(Bptr), make_shape(n, k), make_stride(k, Int<1>{}));
+    Tensor C = make_tensor(make_gmem_ptr(Cptr), make_shape(m, n), make_stride(n, Int<1>{}));
 
-    using GemmOp = cutlass::gemm::device::Gemm<
-        ElementA,
-        LayoutA,
-        ElementB,
-        LayoutB,
-        ElementC,
-        LayoutC,
-        ElementAccum,
-        GemmConfig>;
-};
+    int ix = blockIdx.x;
+    int iy = blockIdx.y;
 
-extern "C" void cutlass_gemm_f32(
-    const float *A,
-    const float *B,
-    float *C,
-    int M,
-    int N,
-    int K,
-    int batch_size)
+    Tensor gA = local_tile(A, make_tile(Int<kTileM>{}, Int<kTileK>{}), make_coord(iy, _));
+    Tensor gB = local_tile(B, make_tile(Int<kTileN>{}, Int<kTileK>{}), make_coord(ix, _));
+    Tensor gC = local_tile(C, make_tile(Int<kTileM>{}, Int<kTileN>{}), make_coord(iy, ix));
+    //  gA(kTileM, kTileK, num_tile_k)
+    //  gB(kTileN, kTileK, num_tile_k)
+    //  gC(kTileM, kTileN)
+
+    TiledMMA tiled_mma;
+    auto thr_mma = tiled_mma.get_slice(threadIdx.x);
+    auto tAgA = thr_mma.partition_A(gA); // (MMA, MMA_M, MMA_K, num_tile_k)
+    auto tBgB = thr_mma.partition_B(gB); // (MMA, MMA_N, MMA_K, num_tile_k)
+    auto tCgC = thr_mma.partition_C(gC); // (MMA, MMA_M, MMA_N)
+
+    auto tArA = thr_mma.partition_fragment_A(gA(_, _, 0)); // (MMA, MMA_M, MMA_K)
+    auto tBrB = thr_mma.partition_fragment_B(gB(_, _, 0)); // (MMA, MMA_N, MMA_K)
+    auto tCrC = thr_mma.partition_fragment_C(gC(_, _));    // (MMA, MMA_M, MMA_N)
+
+    clear(tCrC);
+
+    int num_tile_k = size<2>(gA);
+#pragma unroll 1
+    for (int itile = 0; itile < num_tile_k; ++itile)
+    {
+        cute::copy(tAgA(_, _, _, itile), tArA);
+        cute::copy(tBgB(_, _, _, itile), tBrB);
+
+        cute::gemm(tiled_mma, tCrC, tArA, tBrB, tCrC);
+    }
+
+    cute::copy(tCrC, tCgC);
+}
+
+extern "C" __global__ void gemm_simple_kernel(float *Cptr, const float *Aptr, const float *Bptr, int m, int n, int k)
 {
-    using Config = CutlassTypes<float>;
-    using Gemm = typename Config::GemmOp;
-
-    Gemm::Arguments args({M, N, K},
-                         {A, K},
-                         {B, N},
-                         {C, N},
-                         {C, N},
-                         {1.0f, 0.0f});
-
-    Gemm gemm_op;
-
-    cutlass::Status status = gemm_op.can_implement(args);
-    if (status != cutlass::Status::kSuccess)
-    {
-        return;
-    }
-
-    status = gemm_op.initialize(args);
-    if (status != cutlass::Status::kSuccess)
-    {
-        return;
-    }
-
-    status = gemm_op();
-    if (status != cutlass::Status::kSuccess)
-    {
-        return;
-    }
+    using namespace cute;
+    using mma_op = SM80_16x8x16_F16F16F16F16_TN;
+    using mma_traits = MMA_Traits<mma_op>;
+    using mma_atom = MMA_Atom<mma_traits>;
+    using MMA = decltype(make_tiled_mma(mma_atom{},
+                                        make_layout(Shape<_2, _2, _1>{}),
+                                        make_layout(Shape<_1, _2, _1>{})));
+    gemm_simple<16, 16, 16, MMA>(Cptr, Aptr, Bptr, m, n, k);
 }
