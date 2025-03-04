@@ -308,6 +308,7 @@ pub use hpt_types::type_promote::{
 pub use hpt_types::vectors::*;
 pub use serde;
 pub use tensor::Tensor;
+pub use half::{f16, bf16};
 
 use std::{cell::RefCell, sync::atomic::AtomicUsize};
 thread_local! {
