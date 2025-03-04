@@ -16,8 +16,6 @@ use crate::{
 impl<T, const DEVICE: usize> FloatOutPooling for _Tensor<T, Cpu, DEVICE>
 where
     T: CommonBounds
-        + Cast<T>
-        + NormalOut<Output = T>
         + FloatOutBinary<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
     <T as FloatOutBinary>::Output:
         CommonBounds + FloatOutBinary<Output = <T as FloatOutBinary>::Output>,

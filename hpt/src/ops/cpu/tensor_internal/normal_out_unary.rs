@@ -15,7 +15,6 @@ impl<T, A2, const DEVICE: usize> NormalUaryOps for _Tensor<T, Cpu, DEVICE, A2>
 where
     T: CommonBounds,
     T::Vec: NormalOutUnary,
-    T: NormalOutUnary,
     _Tensor<NormalType<T>, Cpu, DEVICE, A2>: TensorLike<NormalType<T>>,
     A2: Allocator,
     A2::Output: AllocatorOutputRetrive,
