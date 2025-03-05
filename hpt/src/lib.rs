@@ -287,6 +287,7 @@ mod cuda_exports {
 pub use cuda_exports::*;
 pub use hpt_allocator::{Backend, BackendTy, Buffer, Cpu};
 
+pub use half::{bf16, f16};
 pub use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 pub use hpt_common::{error::base::TensorError, shape::shape::Shape, strides::strides::Strides};
 pub use hpt_dataloader::data_loader::parse_header_compressed;
@@ -308,7 +309,6 @@ pub use hpt_types::type_promote::{
 pub use hpt_types::vectors::*;
 pub use serde;
 pub use tensor::Tensor;
-pub use half::{f16, bf16};
 
 use std::{cell::RefCell, sync::atomic::AtomicUsize};
 thread_local! {

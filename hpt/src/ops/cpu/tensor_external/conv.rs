@@ -1,6 +1,10 @@
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_traits::{ops::conv::Conv, CommonBounds, ConvBatchNorm};
-use hpt_types::{into_scalar::Cast, traits::VecTrait, type_promote::{FloatOutBinary, FloatOutUnary, NormalOut}};
+use hpt_types::{
+    into_scalar::Cast,
+    traits::VecTrait,
+    type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
+};
 
 use crate::{Cpu, Tensor};
 

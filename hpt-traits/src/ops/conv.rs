@@ -49,9 +49,7 @@ pub trait Conv<T: CommonBounds> {
         output_padding: [i64; 2],
         dilation: [i64; 2],
     ) -> Result<Self::Output, TensorError>;
-
 }
-
 
 /// trait for conv operations with batch normalization
 pub trait ConvBatchNorm<T: CommonBounds> {
@@ -74,7 +72,6 @@ pub trait ConvBatchNorm<T: CommonBounds> {
         activation: Option<fn(T::Vec) -> T::Vec>,
     ) -> Result<Self::Output, TensorError>;
 }
-
 
 /// trait for differentiable conv operations
 pub trait ConvDiff<T: CommonBounds> {

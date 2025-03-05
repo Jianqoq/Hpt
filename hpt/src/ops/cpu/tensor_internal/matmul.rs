@@ -14,7 +14,8 @@ use hpt_types::dtype::TypeCommon;
 use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
-type MatmulOutput<A, B, const DEVICE: usize, A2> = _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>;
+type MatmulOutput<A, B, const DEVICE: usize, A2> =
+    _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>;
 
 #[track_caller]
 pub(crate) fn matmul_with_out<A, B, O, Q, A2, const DEVICE: usize>(
@@ -45,16 +46,10 @@ where
                     out.borrow().static_cast::<<A as NormalOut<B>>::Output>()?;
                 casted
             } else {
-                MatmulOutput::<A, B, DEVICE, A2>::empty(vec![
-                    lhs.shape()[0],
-                    rhs.shape()[1],
-                ])?
+                MatmulOutput::<A, B, DEVICE, A2>::empty(vec![lhs.shape()[0], rhs.shape()[1]])?
             }
         } else {
-            MatmulOutput::<A, B, DEVICE, A2>::empty(vec![
-                lhs.shape()[0],
-                rhs.shape()[1],
-            ])?
+            MatmulOutput::<A, B, DEVICE, A2>::empty(vec![lhs.shape()[0], rhs.shape()[1]])?
         };
         let new_a = &lhs.try_astype()?;
         let new_b = &rhs.try_astype()?;

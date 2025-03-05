@@ -1,7 +1,7 @@
 #![allow(unused)]
+use hpt::ConvBatchNorm;
 use hpt::ShapeManipulate;
 use hpt::TensorLike;
-use hpt::ConvBatchNorm;
 use hpt::{set_display_elements, set_num_threads, CommonBounds, TensorInfo};
 use hpt::{Tensor, TensorCreator};
 use hpt_types::into_scalar::Cast;
