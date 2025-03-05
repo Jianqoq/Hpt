@@ -19,9 +19,9 @@ use hpt_types::into_scalar::Cast;
 use hpt_types::traits::SimdSelect;
 use hpt_types::type_promote::{Eval, FloatOutBinary, FloatOutUnary, NormalOut};
 
-impl<T: CommonBounds + DeviceRepr + CudaType + Cast<f64>, const DEVICE_ID: usize, Al>
-    NormalReduce<T> for _Tensor<T, Cuda, DEVICE_ID, Al>
+impl<T, const DEVICE_ID: usize, Al> NormalReduce<T> for _Tensor<T, Cuda, DEVICE_ID, Al>
 where
+    T: CommonBounds + DeviceRepr + CudaType + Cast<f64>,
     Al: Allocator,
     Al::Output: AllocatorOutputRetrive,
 {

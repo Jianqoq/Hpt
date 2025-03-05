@@ -66,6 +66,7 @@
         "stdexcept": "cpp",
         "system_error": "cpp",
         "xfacet": "cpp",
-        "xlocinfo": "cpp"
+        "xlocinfo": "cpp",
+        "random": "cpp"
     },
 }

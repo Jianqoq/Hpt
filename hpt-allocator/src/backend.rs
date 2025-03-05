@@ -35,6 +35,16 @@ pub struct Backend<B> {
     pub _backend: B,
 }
 
+impl<B: BackendTy> std::fmt::Debug for Backend<B> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match B::ID {
+            0 => f.debug_struct("cpu").finish(),
+            1 => f.debug_struct("cuda").finish(),
+            _ => f.debug_struct("unknown").finish(),
+        }
+    }
+}
+
 impl Clone for Cpu {
     fn clone(&self) -> Self {
         if let Ok(mut storage) = crate::CPU_STORAGE.lock() {

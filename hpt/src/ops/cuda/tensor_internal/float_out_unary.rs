@@ -10,7 +10,7 @@ use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, FloatUnaryOps};
 use hpt_types::{cuda_types::scalar::Scalar, dtype::CudaType};
-use hpt_types::{dtype::TypeCommon, into_scalar::Cast, type_promote::FloatOutUnary};
+use hpt_types::{into_scalar::Cast, type_promote::FloatOutUnary};
 
 pub(crate) type FloatUnaryType<T> = <T as FloatOutUnary>::Output;
 
@@ -19,7 +19,6 @@ where
     T: FloatOutUnary + CommonBounds + DeviceRepr + CudaType,
     FloatUnaryType<T>: CommonBounds + DeviceRepr + CudaType,
     f64: Cast<<T as FloatOutUnary>::Output>,
-    T::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,
     Scalar<T>: FloatOutUnary<Output = Scalar<FloatUnaryType<T>>>,
     Al: Allocator,
     Al::Output: AllocatorOutputRetrive,

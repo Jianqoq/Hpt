@@ -1,19 +1,17 @@
 use std::{
     borrow::{Borrow, BorrowMut},
-    fmt::{Debug, Display},
     rc::Rc,
-    sync::{atomic::Ordering, Arc},
+    sync::Arc,
 };
 
-use crate::{tensor_base::_Tensor, BackendTy, Buffer, Cpu, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION};
+use crate::{tensor_base::_Tensor, BackendTy, Buffer, Cpu};
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::{
     error::base::TensorError, layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer,
 };
 use hpt_dataloader::{CPUTensorCreator, DataLoader};
-use hpt_display::display;
 use hpt_iterator::TensorIterator;
-use hpt_traits::tensor::{CommonBounds, TensorAlloc, TensorCreator, TensorInfo, TensorLike};
+use hpt_traits::tensor::{CommonBounds, TensorCreator, TensorInfo, TensorLike};
 use hpt_types::into_scalar::Cast;
 
 /// `Tensor` is alias of N-dimensional array.
@@ -121,46 +119,6 @@ impl_tensor_info!(Tensor<T, B, DEVICE, A>);
 impl_tensor_info!(&Tensor<T, B, DEVICE, A>);
 impl_tensor_info!(&mut Tensor<T, B, DEVICE, A>);
 
-impl<T: CommonBounds, const DEVICE: usize, Al> TensorAlloc for Tensor<T, Cpu, DEVICE, Al>
-where
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
-{
-    type Meta = T;
-    fn _empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError>
-    where
-        Self: Sized,
-    {
-        <Self as TensorCreator<T>>::empty(shape)
-    }
-}
-
-impl<T, const DEVICE: usize, Al> Display for Tensor<T, Cpu, DEVICE, Al>
-where
-    T: CommonBounds + Cast<f64>,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
-        let lr_element_size = DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed);
-        display(self, f, lr_element_size, precision, false)
-    }
-}
-
-impl<T, const DEVICE: usize, Al> Debug for Tensor<T, Cpu, DEVICE, Al>
-where
-    T: CommonBounds + Cast<f64>,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
-        let lr_element_size = DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed);
-        display(self, f, lr_element_size, precision, false)
-    }
-}
-
 impl<T, B: BackendTy + Buffer, const DEVICE_ID: usize, A> Borrow<_Tensor<T, B, DEVICE_ID, A>>
     for Tensor<T, B, DEVICE_ID, A>
 where
@@ -239,5 +197,23 @@ where
     type Output = Tensor<T, Cpu, DEVICE, A>;
     fn empty<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
         <Tensor<T, Cpu, DEVICE, A> as TensorCreator<T>>::empty(shape)
+    }
+}
+
+impl<T, B: BackendTy + Buffer, const DEVICE: usize, Al> std::fmt::Debug for Tensor<T, B, DEVICE, Al>
+where
+    T: CommonBounds + Cast<f64>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Tensor")
+            .field("data", &self.inner.data)
+            .field("shape", &self.shape())
+            .field("strides", &self.strides())
+            .field("parent", &self.parent())
+            .field("align", &self.inner.mem_layout.align())
+            .field("backend", &self.inner._backend)
+            .finish()
     }
 }
