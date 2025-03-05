@@ -16,7 +16,6 @@ pub(crate) type NormalType<T> = <T as NormalOut>::Output;
 impl<T, const DEVICE: usize, Al> NormalUaryOps for _Tensor<T, Cuda, DEVICE, Al>
 where
     T: CommonBounds + DeviceRepr + CudaType + NormalOutUnary,
-    T::Vec: NormalOutUnary,
     _Tensor<NormalType<T>, Cuda, DEVICE, Al>: TensorLike<NormalType<T>>,
     Scalar<T>: NormalOutUnary + NormalOut<Output = Scalar<NormalType<T>>>,
     Al: Allocator,

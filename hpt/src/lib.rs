@@ -287,6 +287,7 @@ mod cuda_exports {
 pub use cuda_exports::*;
 pub use hpt_allocator::{Backend, BackendTy, Buffer, Cpu};
 
+pub use half::{bf16, f16};
 pub use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 pub use hpt_common::{error::base::TensorError, shape::shape::Shape, strides::strides::Strides};
 pub use hpt_dataloader::data_loader::parse_header_compressed;
@@ -395,17 +396,7 @@ type BoolVector = simd::_256bit::boolx32::boolx32;
 ))]
 type BoolVector = simd::_128bit::boolx16::boolx16;
 
-#[cfg(target_feature = "avx2")]
-const SIMD_WIDTH: usize = 256;
-#[cfg(any(target_feature = "avx512f"))]
-const SIMD_WIDTH: usize = 512;
-#[cfg(any(
-    all(not(target_feature = "avx2"), target_feature = "sse"),
-    target_arch = "arm",
-    target_arch = "aarch64",
-    target_feature = "neon"
-))]
-const SIMD_WIDTH: usize = 128;
+const SIMD_WIDTH: usize = <f32 as TypeCommon>::Vec::SIZE * std::mem::size_of::<f32>() * 8;
 
 #[cfg(feature = "cuda")]
 const CUDA_SEED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(2621654116416541);

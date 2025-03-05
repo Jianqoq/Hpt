@@ -10,8 +10,6 @@ pub trait TensorCmp<T: CommonBounds, C: CommonBounds> {
     type RHS;
     /// output tensor type, normally a boolean tensor
     type Output;
-    /// a boolean simd vector
-    type BoolVector;
 
     /// check if two tensors are equal, return a bool tensor
     ///

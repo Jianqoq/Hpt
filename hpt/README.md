@@ -28,7 +28,7 @@ Hpt is a high performance N-dimensional array library. It is being highly optimi
 Hpt is in early stage, bugs and wrong calculation results are expected
 
 # Cargo Features
-- `cuda`: enable cuda support
+- `cuda`: enable cuda support, since hpt is using `cutlass` as its backend for gemm and convolution, see the requirement [here](https://github.com/NVIDIA/cutlass?tab=readme-ov-file#compatibility), you don't need cmake, only the compiler and CUDA Toolkit version correct.
 - `bound_check`: enable bound check, this is experimental and will reduce performance.
 - `normal_promote`: auto type promote. There may be more type promote feature in the future.
 

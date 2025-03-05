@@ -12,7 +12,7 @@ use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 
 impl<T, const DEVICE: usize, Al> FloatUnaryOps for Tensor<T, Cpu, DEVICE, Al>
 where
-    T: FloatOutUnary + CommonBounds,
+    T: CommonBounds,
     FloatUnaryType<T>: CommonBounds,
     f64: Cast<<T as FloatOutUnary>::Output>,
     T::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,

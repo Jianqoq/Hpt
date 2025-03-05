@@ -483,27 +483,22 @@ where
     // }
 }
 
+type FloatBinaryTypeVec<T> = <FloatBinaryType<T> as TypeCommon>::Vec;
+
 impl<T, const DEVICE: usize, Al> FloatReduce<T> for _Tensor<T, Cpu, DEVICE, Al>
 where
-    T: FloatOutBinary + CommonBounds + Cast<FloatBinaryType<T>>,
-    FloatBinaryType<T>: CommonBounds + FloatOutUnary<Output = FloatBinaryType<T>>,
-    <FloatBinaryType<T> as TypeCommon>::Vec: NormalOut<T::Vec, Output = <FloatBinaryType<T> as TypeCommon>::Vec>
-        + FloatOutUnary<Output = <FloatBinaryType<T> as TypeCommon>::Vec>
-        + NormalOut<
-            <FloatBinaryType<T> as TypeCommon>::Vec,
-            Output = <FloatBinaryType<T> as TypeCommon>::Vec,
-        >,
-    f64: Cast<FloatBinaryType<T>>,
-    FloatBinaryType<T>: NormalOut<T, Output = FloatBinaryType<T>>
+    T: CommonBounds + Cast<FloatBinaryType<T>>,
+    T::Vec: NormalOut<FloatBinaryTypeVec<T>, Output = FloatBinaryTypeVec<T>>,
+
+    FloatBinaryType<T>: CommonBounds
+        + FloatOutUnary<Output = FloatBinaryType<T>>
+        + NormalOut<T, Output = FloatBinaryType<T>>
         + NormalOut<<T as FloatOutUnary>::Output, Output = FloatBinaryType<T>>,
-    T::Vec: NormalOut<
-        <FloatBinaryType<T> as TypeCommon>::Vec,
-        Output = <FloatBinaryType<T> as TypeCommon>::Vec,
-    >,
-    <FloatBinaryType<T> as TypeCommon>::Vec: NormalOut<
-        <<T as TypeCommon>::Vec as FloatOutUnary>::Output,
-        Output = <FloatBinaryType<T> as TypeCommon>::Vec,
-    >,
+    FloatBinaryTypeVec<T>: NormalOut<T::Vec, Output = FloatBinaryTypeVec<T>>
+        + FloatOutUnary<Output = FloatBinaryTypeVec<T>>
+        + NormalOut<<<T as TypeCommon>::Vec as FloatOutUnary>::Output, Output = FloatBinaryTypeVec<T>>,
+
+    f64: Cast<FloatBinaryType<T>>,
     Al: Allocator + 'static + Send + Sync,
     Al::Output: AllocatorOutputRetrive,
 {
@@ -521,7 +516,7 @@ where
             .fold(1, |acc, &x| acc * (self.shape()[x] as usize))
             as f64)
             .cast();
-        let reduce_vec = <FloatBinaryType<T> as TypeCommon>::Vec::splat(reduce_size);
+        let reduce_vec = FloatBinaryTypeVec::<T>::splat(reduce_size);
         reduce3(
             self,
             |a, b| a._add(b),
@@ -572,9 +567,9 @@ where
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         let three: FloatBinaryType<T> = (3.0).cast();
-        let three_vec = <FloatBinaryType<T> as TypeCommon>::Vec::splat(three);
+        let three_vec = FloatBinaryTypeVec::<T>::splat(three);
         let one_third: FloatBinaryType<T> = (1.0f64 / 3.0f64).cast();
-        let one_third_vec = <FloatBinaryType<T> as TypeCommon>::Vec::splat(one_third);
+        let one_third_vec = FloatBinaryTypeVec::<T>::splat(one_third);
         let mut res = reduce3(
             self,
             move |a, b| {

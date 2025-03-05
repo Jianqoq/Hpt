@@ -185,7 +185,7 @@ fn find_h_files(dir: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
         let entry = entry?;
         let path = entry.path().to_owned();
         if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-            if ext == "cuh" || ext == "h" {
+            if ext == "cuh" || ext == "h" || ext == "hpp" {
                 h_files.push(path);
             }
         }
@@ -230,9 +230,11 @@ fn compile_cu(cu_file: &Path, out_dir: &Path, caps: &[u32]) -> Result<Vec<String
         }
         let mut cmd = Command::new("nvcc");
         cmd.arg("-ptx")
+            .arg("-std=c++17")
             .arg("-O3")
             .arg("-allow-unsupported-compiler")
             .arg("--extended-lambda")
+            .arg("-Isrc/cutlass")
             .arg(cu_file.to_str().unwrap())
             .arg("-o")
             .arg(obj_file.to_str().unwrap())

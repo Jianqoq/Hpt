@@ -20,12 +20,9 @@ struct ArgResult<T> {
 }
 unsafe impl<T: DeviceRepr> DeviceRepr for ArgResult<T> {}
 
-impl<
-        T: CommonBounds + NormalOut<Output = T> + Cmp + DeviceRepr + CudaType + Cast<i64>,
-        const DEVICE_ID: usize,
-        Al,
-    > IndexReduce for _Tensor<T, Cuda, DEVICE_ID, Al>
+impl<T, const DEVICE_ID: usize, Al> IndexReduce for _Tensor<T, Cuda, DEVICE_ID, Al>
 where
+    T: CommonBounds + NormalOut<Output = T> + Cmp + DeviceRepr + CudaType + Cast<i64>,
     Al: Allocator,
     Al::Output: AllocatorOutputRetrive,
 {

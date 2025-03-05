@@ -1,4 +1,5 @@
 #![allow(unused)]
+use hpt::ConvBatchNorm;
 use hpt::ShapeManipulate;
 use hpt::TensorLike;
 use hpt::{set_display_elements, set_num_threads, CommonBounds, TensorInfo};

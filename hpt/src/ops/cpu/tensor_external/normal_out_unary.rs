@@ -7,13 +7,13 @@ use crate::{
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, NormalUaryOps, TensorLike};
-use hpt_types::{into_scalar::Cast, type_promote::NormalOutUnary};
+use hpt_types::type_promote::NormalOutUnary;
+
 impl<T, const DEVICE: usize, Al> NormalUaryOps for Tensor<T, Cpu, DEVICE, Al>
 where
-    T: CommonBounds + Cast<T>,
+    T: CommonBounds,
     NormalType<T>: CommonBounds,
     T::Vec: NormalOutUnary,
-    T: NormalOutUnary,
     _Tensor<NormalType<T>, Cpu, DEVICE, Al>: TensorLike<NormalType<T>>,
     Al: Allocator,
     Al::Output: AllocatorOutputRetrive,

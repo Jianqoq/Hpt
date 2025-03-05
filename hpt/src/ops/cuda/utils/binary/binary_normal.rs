@@ -21,29 +21,6 @@ use crate::ops::cuda::cuda_utils::get_include_1;
 
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 
-/// Performs a binary operation on two tensors with optional SIMD optimization and an output tensor.
-///
-/// This method applies a binary function element-wise on two tensors (`lhs` and `rhs`) and returns
-/// a new tensor with the result. Optionally, SIMD (Single Instruction, Multiple Data) can be used
-/// for vectorized operations if the sizes of the underlying data vectors align. Additionally,
-/// the user can provide an output tensor to store the result, allowing in-place computations
-/// and reducing memory allocations.
-///
-/// # Arguments
-///
-/// * `lhs` - A reference to the left-hand side tensor involved in the binary operation.
-/// * `rhs` - A reference to the right-hand side tensor involved in the binary operation.
-/// * `f` - A binary function applied to elements of the tensors during the operation. This function
-///   is used when SIMD is not applicable.
-/// * `f2` - A binary function that operates on vectorized data (SIMD). This function is used when
-///   SIMD is applicable.
-/// * `out` - An optional output tensor that, if provided, will store the result of the operation.
-///   If not provided, a new tensor will be created to hold the result.
-///
-/// # Returns
-///
-/// Returns a `Result` containing a new tensor with the result of the binary operation. If any error occurs
-/// (e.g., shape mismatch or allocation issues), an `anyhow::Result` with an error message is returned.
 #[track_caller]
 pub(crate) fn binary_fn_with_out_simd<A, B, O, K, F, const CUDA_DEVICE: usize, Al>(
     op_name: &str,

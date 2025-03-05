@@ -419,6 +419,33 @@ impl<T: CommonBounds, const DEVICE: usize> FromSafeTensors for Tensor<T, Cpu, DE
     }
 }
 
+impl<T: CommonBounds, const DEVICE: usize, Al> TensorAlloc for Tensor<T, Cpu, DEVICE, Al>
+where
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
+    type Meta = T;
+    fn _empty<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError>
+    where
+        Self: Sized,
+    {
+        <Self as TensorCreator<T>>::empty(shape)
+    }
+}
+
+impl<T, const DEVICE: usize, Al> Display for Tensor<T, Cpu, DEVICE, Al>
+where
+    T: CommonBounds + Cast<f64>,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
+        let lr_element_size = DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed);
+        display(self, f, lr_element_size, precision, false)
+    }
+}
+
 impl<T: Clone, const DEVICE: usize> DiffTensor<T, Cpu, DEVICE> {
     /// Backward the gradient of the tensor
     pub fn backward(&mut self, grad: Tensor<T, Cpu, DEVICE>) -> Result<(), TensorError> {

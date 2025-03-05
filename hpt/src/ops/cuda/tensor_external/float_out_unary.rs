@@ -19,7 +19,6 @@ where
     T: FloatOutUnary + CommonBounds + DeviceRepr + CudaType,
     FloatUnaryType<T>: CommonBounds + DeviceRepr + CudaType,
     f64: Cast<<T as FloatOutUnary>::Output>,
-    T::Vec: FloatOutUnary<Output = <FloatUnaryType<T> as TypeCommon>::Vec>,
     <FloatUnaryType<T> as TypeCommon>::Vec: Send + Copy + Sync,
     Scalar<T>: FloatOutUnary<Output = Scalar<FloatUnaryType<T>>>,
     Al: Allocator,

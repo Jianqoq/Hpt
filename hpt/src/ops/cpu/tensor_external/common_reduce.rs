@@ -1,17 +1,11 @@
 use crate::tensor::Tensor;
-use crate::BoolVector;
+use crate::tensor_base::_Tensor;
 use crate::{ops::cpu::tensor_internal::float_out_unary::FloatBinaryType, Cpu};
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::axis::axis::Axis;
 use hpt_common::error::base::TensorError;
 use hpt_traits::{CommonBounds, EvalReduce, FloatReduce, NormalEvalReduce, NormalReduce};
-use hpt_types::into_vec::IntoVec;
-use hpt_types::{
-    dtype::TypeCommon,
-    into_scalar::Cast,
-    type_promote::{Eval, FloatOutBinary, FloatOutUnary, NormalOut},
-    vectors::traits::SimdSelect,
-};
+use hpt_types::{into_scalar::Cast, type_promote::Eval, vectors::traits::SimdSelect};
 use std::borrow::BorrowMut;
 
 impl<T: CommonBounds, const DEVICE: usize, Al> NormalReduce<T> for Tensor<T, Cpu, DEVICE, Al>
@@ -122,12 +116,14 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> EvalReduce for Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> EvalReduce for Tensor<T, Cpu, DEVICE, Al>
 where
-    T: CommonBounds + Eval<Output = bool> + Cast<bool>,
-    T::Vec: IntoVec<BoolVector>,
+    Al: Allocator + Send + Sync + 'static,
+    Al::Output: AllocatorOutputRetrive,
+    T: CommonBounds,
+    _Tensor<T, Cpu, DEVICE, Al>: EvalReduce<BoolOutput = _Tensor<bool, Cpu, DEVICE, Al>>,
 {
-    type BoolOutput = Tensor<bool, Cpu, DEVICE>;
+    type BoolOutput = Tensor<bool, Cpu, DEVICE, Al>;
     fn all<S: Into<Axis>>(
         &self,
         axis: S,
@@ -145,11 +141,13 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> NormalEvalReduce<T> for Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> NormalEvalReduce<T> for Tensor<T, Cpu, DEVICE, Al>
 where
     T: CommonBounds + Eval<Output = bool> + Cast<bool>,
     T::Vec: Eval,
     <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
+    Al: Allocator + Send + Sync + 'static,
+    Al::Output: AllocatorOutputRetrive,
 {
     type Output = Self;
 
@@ -186,41 +184,18 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> FloatReduce<T> for Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, Al> FloatReduce<T> for Tensor<T, Cpu, DEVICE, Al>
 where
-    T: FloatOutBinary + CommonBounds + Cast<<T as FloatOutBinary>::Output>,
-    <T as FloatOutBinary>::Output:
-        CommonBounds + FloatOutUnary<Output = <T as FloatOutBinary>::Output>,
-    <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<T::Vec, Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
-        + FloatOutUnary<Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec>
-        + NormalOut<
-            <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-        >,
-    f64: Cast<<T as FloatOutBinary>::Output>,
-    <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>
-        + NormalOut<<T as FloatOutUnary>::Output, Output = <T as FloatOutBinary>::Output>,
-    T::Vec: NormalOut<
-        <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-        Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-    >,
-    <<T as FloatOutBinary>::Output as TypeCommon>::Vec: NormalOut<
-        <<T as TypeCommon>::Vec as FloatOutUnary>::Output,
-        Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-    >,
+    T: CommonBounds,
+    _Tensor<T, Cpu, DEVICE, Al>:
+        FloatReduce<T, Output = _Tensor<FloatBinaryType<T>, Cpu, DEVICE, Al>>,
+    Al: Allocator + Send + Sync + 'static,
+    Al::Output: AllocatorOutputRetrive,
 {
-    type Output = Tensor<FloatBinaryType<T>, Cpu, DEVICE>;
+    type Output = Tensor<FloatBinaryType<T>, Cpu, DEVICE, Al>;
 
     #[track_caller]
-    fn mean<S: Into<Axis>>(
-        &self,
-        axis: S,
-        keep_dims: bool,
-    ) -> Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
-    where
-        f64: Cast<<T as FloatOutBinary>::Output>,
-        <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
-    {
+    fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError> {
         Ok(self.inner.mean(axis, keep_dims)?.into())
     }
 
@@ -230,11 +205,7 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
-    where
-        T: NormalOut,
-        <T as FloatOutBinary>::Output: NormalOut<T, Output = <T as FloatOutBinary>::Output>,
-    {
+    ) -> Result<Self::Output, TensorError> {
         Ok(self.inner.reducel2(axis, keep_dims)?.into())
     }
 
@@ -244,15 +215,7 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
-    where
-        f64: Cast<<T as FloatOutBinary>::Output>,
-        <T as FloatOutBinary>::Output: TypeCommon,
-        T::Vec: NormalOut<
-            <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-        >,
-    {
+    ) -> Result<Self::Output, TensorError> {
         Ok(self.inner.reducel3(axis, keep_dims)?.into())
     }
 
@@ -262,10 +225,7 @@ where
         &self,
         axis: S,
         keep_dims: bool,
-    ) -> Result<Tensor<FloatBinaryType<T>, Cpu, DEVICE>, TensorError>
-    where
-        T: CommonBounds,
-    {
+    ) -> Result<Self::Output, TensorError> {
         Ok(self.inner.logsumexp(axis, keep_dims)?.into())
     }
 }

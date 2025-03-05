@@ -1,5 +1,10 @@
-use hpt_traits::{ops::conv::Conv, CommonBounds};
-use hpt_types::{into_scalar::Cast, traits::VecTrait, type_promote::NormalOut};
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
+use hpt_traits::{ops::conv::Conv, CommonBounds, ConvBatchNorm};
+use hpt_types::{
+    into_scalar::Cast,
+    traits::VecTrait,
+    type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
+};
 
 use crate::{Cpu, Tensor};
 
@@ -95,6 +100,49 @@ where
                 padding,
                 output_padding,
                 dilation,
+            )?
+            .into())
+    }
+}
+
+impl<T, const DEVICE: usize, A> ConvBatchNorm<T> for Tensor<T, Cpu, DEVICE, A>
+where
+    T: CommonBounds,
+    T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
+    T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
+    bool: Cast<T>,
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
+{
+    type Output = Tensor<T, Cpu, DEVICE, A>;
+    fn batchnorm_conv2d(
+        &self,
+        kernels: &Self::Output,
+        mean: &Self::Output,
+        var: &Self::Output,
+        gamma: &Self::Output,
+        beta: &Self::Output,
+        bias: Option<&Self::Output>,
+        eps: T,
+        steps: [i64; 2],
+        padding: [(i64, i64); 2],
+        dilation: [i64; 2],
+        activation: Option<fn(<T>::Vec) -> <T>::Vec>,
+    ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
+        Ok(self
+            .inner
+            .batchnorm_conv2d(
+                kernels.inner.as_ref(),
+                mean.inner.as_ref(),
+                var.inner.as_ref(),
+                gamma.inner.as_ref(),
+                beta.inner.as_ref(),
+                bias.map(|b| b.inner.as_ref()),
+                eps,
+                steps,
+                padding,
+                dilation,
+                activation,
             )?
             .into())
     }
