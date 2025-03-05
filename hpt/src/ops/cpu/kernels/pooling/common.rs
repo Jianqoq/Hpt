@@ -209,7 +209,7 @@ where
 
 #[track_caller]
 pub(crate) fn adaptive_pooling_template<T: CommonBounds, O: CommonBounds, const DEVICE: usize, A>(
-    img: &_Tensor<T, Cpu, DEVICE>,
+    img: &_Tensor<T, Cpu, DEVICE, A>,
     output_size: [i64; 2],
     scalar_op: impl Fn(T, T) -> T + Send + Sync,
     vec_op: impl Fn(T::Vec, T::Vec) -> T::Vec + Send + Sync,

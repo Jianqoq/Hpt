@@ -53,8 +53,8 @@ where
 
     fn sincos(&self) -> std::result::Result<(Self::Output, Self::Output), TensorError> {
         use hpt_traits::TensorInfo;
-        let mut res1 = _Tensor::<FloatUnaryType<T>, Cpu, DEVICE, A2>::empty(self.shape())?;
-        let mut res2 = _Tensor::<FloatUnaryType<T>, Cpu, DEVICE, A2>::empty(self.shape())?;
+        let mut res1 = Self::InplaceOutput::empty(self.shape())?;
+        let mut res2 = Self::InplaceOutput::empty(self.shape())?;
         res1.par_iter_mut_simd()
             .zip(res2.par_iter_mut_simd())
             .zip(self.par_iter_simd())
@@ -354,8 +354,8 @@ where
         unary_fn_with_out(self, |x| x._log10(), |x| x._log10(), Some(out))
     }
 
-    fn celu(&self, alpha: FloatUnaryType<T>) -> std::result::Result<Self::Output, TensorError> {
-        let alpha_vec = <FloatUnaryType<T> as TypeCommon>::Vec::splat(alpha);
+    fn celu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
+        let alpha_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(alpha);
         unary_fn_with_out(
             self,
             move |x| x._celu(alpha_vec),
@@ -366,13 +366,13 @@ where
 
     fn celu_<U>(
         &self,
-        alpha: FloatUnaryType<T>,
+        alpha: Self::OutputMeta,
         out: U,
     ) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        let alpha_vec = <FloatUnaryType<T> as TypeCommon>::Vec::splat(alpha);
+        let alpha_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(alpha);
         unary_fn_with_out(self, |x| x._celu(alpha_vec), |x| x._celu(alpha), Some(out))
     }
 
@@ -392,8 +392,8 @@ where
         unary_fn_with_out(self, |x| x._sigmoid(), |x| x._sigmoid(), Some(out))
     }
 
-    fn elu(&self, alpha: FloatUnaryType<T>) -> std::result::Result<Self::Output, TensorError> {
-        let alpha_vec = <FloatUnaryType<T> as TypeCommon>::Vec::splat(alpha);
+    fn elu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
+        let alpha_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(alpha);
         unary_fn_with_out(
             self,
             |x| x._elu(alpha_vec),
@@ -404,13 +404,13 @@ where
 
     fn elu_<U>(
         &self,
-        alpha: FloatUnaryType<T>,
+        alpha: Self::OutputMeta,
         out: U,
     ) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        let alpha_vec = <FloatUnaryType<T> as TypeCommon>::Vec::splat(alpha);
+        let alpha_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(alpha);
         unary_fn_with_out(self, |x| x._elu(alpha_vec), |x| x._elu(alpha), Some(out))
     }
 
@@ -447,8 +447,8 @@ where
         let gamma = gamma.into();
         let alpha = alpha.unwrap_or((1.6732632423543772848170429916717).cast());
         let gamma = gamma.unwrap_or((1.0507009873554804934193349852946).cast());
-        let alpha_vec = <FloatUnaryType<T> as TypeCommon>::Vec::splat(alpha);
-        let gamma_vec = <FloatUnaryType<T> as TypeCommon>::Vec::splat(gamma);
+        let alpha_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(alpha);
+        let gamma_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(gamma);
         unary_fn_with_out(
             self,
             |x| x._selu(alpha_vec, gamma_vec),
@@ -459,8 +459,8 @@ where
 
     fn selu_<U>(
         &self,
-        alpha: Option<FloatUnaryType<T>>,
-        gamma: Option<FloatUnaryType<T>>,
+        alpha: Option<Self::OutputMeta>,
+        gamma: Option<Self::OutputMeta>,
         out: U,
     ) -> std::result::Result<Self::Output, TensorError>
     where
@@ -468,8 +468,8 @@ where
     {
         let alpha = alpha.unwrap_or((1.6732632423543772848170429916717).cast());
         let gamma = gamma.unwrap_or((1.0507009873554804934193349852946).cast());
-        let alpha_vec = <FloatUnaryType<T> as TypeCommon>::Vec::splat(alpha);
-        let gamma_vec = <FloatUnaryType<T> as TypeCommon>::Vec::splat(gamma);
+        let alpha_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(alpha);
+        let gamma_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(gamma);
         unary_fn_with_out(
             self,
             |x| x._selu(alpha_vec, gamma_vec),

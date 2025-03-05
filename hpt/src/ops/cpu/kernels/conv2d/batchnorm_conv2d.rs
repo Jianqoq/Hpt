@@ -7,7 +7,6 @@ use crate::ops::cpu::kernels::batch_norm_conv::Params;
 use crate::ops::cpu::kernels::batch_norm_conv::PartialParams;
 use crate::tensor_base::_Tensor;
 use crate::Cpu;
-use crate::Tensor;
 use crate::REGNUM;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
@@ -19,365 +18,342 @@ use hpt_traits::TensorInfo;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::FloatOutBinary;
 use hpt_types::type_promote::FloatOutUnary;
-use hpt_types::type_promote::NormalOut;
 use hpt_types::vectors::traits::*;
 use rayon::prelude::*;
 
-impl<T, const DEVICE: usize, A> _Tensor<T, Cpu, DEVICE, A>
+#[track_caller]
+pub(crate) fn batchnorm_conv2d<T, const DEVICE: usize, A>(
+    inp: &_Tensor<T, Cpu, DEVICE, A>,
+    kernels: &_Tensor<T, Cpu, DEVICE, A>,
+    mean: &_Tensor<T, Cpu, DEVICE, A>,
+    var: &_Tensor<T, Cpu, DEVICE, A>,
+    gamma: &_Tensor<T, Cpu, DEVICE, A>,
+    beta: &_Tensor<T, Cpu, DEVICE, A>,
+    bias: Option<&_Tensor<T, Cpu, DEVICE, A>>,
+    eps: T,
+    steps: [i64; 2],
+    padding: [(i64, i64); 2],
+    dilation: [i64; 2],
+    activation: Option<fn(T::Vec) -> T::Vec>,
+) -> std::result::Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
-    T: CommonBounds + Cast<T> + NormalOut<Output = T>,
-    T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
+    T: CommonBounds,
     T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
     T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
     bool: Cast<T>,
     A: Allocator + Send + Sync,
     A::Output: AllocatorOutputRetrive,
 {
-    /// Performs a 2D convolution operation on the input tensor.
-    ///
-    /// This method applies a 2D convolution operation on the tensor using the specified kernel,
-    /// strides (steps), padding, and dilation factors.
-    ///
-    /// # Arguments
-    ///
-    /// * `kernels` - A reference to the tensor representing the convolution kernels (filters).
-    ///   The size of the kernel tensor determines the spatial dimensions of the convolution operation.
-    /// * `steps` - A 2-element array specifying the stride (step size) of the convolution along the height and width dimensions.
-    /// * `padding` - A 2-element array of tuples representing the padding for the height and width dimensions.
-    ///   Each tuple specifies the amount of padding added before and after the data along the respective axis.
-    /// * `dilation` - A 2-element array specifying the dilation factor for the convolution along the height and width dimensions.
-    ///   Dilation allows the kernel to be applied to inputs with gaps, increasing the receptive field of the kernel.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing the output tensor after applying the 2D convolution operation.
-    #[track_caller]
-    pub fn batchnorm_conv2d(
-        &self,
-        kernels: &_Tensor<T, Cpu, DEVICE, A>,
-        mean: &_Tensor<T, Cpu, DEVICE, A>,
-        var: &_Tensor<T, Cpu, DEVICE, A>,
-        gamma: &_Tensor<T, Cpu, DEVICE, A>,
-        beta: &_Tensor<T, Cpu, DEVICE, A>,
-        bias: Option<&_Tensor<T, Cpu, DEVICE, A>>,
-        eps: T,
-        steps: [i64; 2],
-        padding: [(i64, i64); 2],
-        dilation: [i64; 2],
-        activation: Option<fn(T::Vec) -> T::Vec>,
-    ) -> std::result::Result<_Tensor<T, Cpu, DEVICE, A>, TensorError> {
+    ShapeError::check_contiguous(
+        "BatchNormConv2d requires input tensor to be contiguous. ".to_string(),
+        inp.layout(),
+    )?;
+    ShapeError::check_contiguous(
+        "BatchNormConv2d requires kernel tensor to be contiguous. ".to_string(),
+        kernels.layout(),
+    )?;
+    if let Some(bias) = bias {
         ShapeError::check_contiguous(
-            "BatchNormConv2d requires input tensor to be contiguous. ".to_string(),
-            self.layout(),
+            "BatchNormConv2d requires bias tensor to be contiguous. ".to_string(),
+            bias.layout(),
         )?;
-        ShapeError::check_contiguous(
-            "BatchNormConv2d requires kernel tensor to be contiguous. ".to_string(),
-            kernels.layout(),
-        )?;
-        if let Some(bias) = bias {
-            ShapeError::check_contiguous(
-                "BatchNormConv2d requires bias tensor to be contiguous. ".to_string(),
-                bias.layout(),
-            )?;
+    }
+    ShapeError::check_contiguous(
+        "BatchNormConv2d requires mean tensor to be contiguous. ".to_string(),
+        mean.layout(),
+    )?;
+    ShapeError::check_contiguous(
+        "BatchNormConv2d requires var tensor to be contiguous. ".to_string(),
+        var.layout(),
+    )?;
+    ShapeError::check_contiguous(
+        "BatchNormConv2d requires gamma tensor to be contiguous. ".to_string(),
+        gamma.layout(),
+    )?;
+    ShapeError::check_contiguous(
+        "BatchNormConv2d requires beta tensor to be contiguous. ".to_string(),
+        beta.layout(),
+    )?;
+    let img_shape = inp.shape();
+    ShapeError::check_dim(4, img_shape.len())?;
+    let batch = img_shape[0];
+    let img_height = img_shape[1];
+    let img_width = img_shape[2];
+    let img_channels = img_shape[3];
+    let kernel_shape = kernels.shape();
+    let kh = kernel_shape[0];
+    let kw = kernel_shape[1];
+    let in_channels = kernel_shape[2];
+    let out_channels = kernel_shape[3];
+    if in_channels != img_channels {
+        return Err(ShapeError::ConvError {
+            message: format!(
+                "kernel in_channel {} not match input in_channel {}",
+                in_channels, img_channels
+            ),
+            location: core::panic::Location::caller(),
         }
-        ShapeError::check_contiguous(
-            "BatchNormConv2d requires mean tensor to be contiguous. ".to_string(),
-            mean.layout(),
-        )?;
-        ShapeError::check_contiguous(
-            "BatchNormConv2d requires var tensor to be contiguous. ".to_string(),
-            var.layout(),
-        )?;
-        ShapeError::check_contiguous(
-            "BatchNormConv2d requires gamma tensor to be contiguous. ".to_string(),
-            gamma.layout(),
-        )?;
-        ShapeError::check_contiguous(
-            "BatchNormConv2d requires beta tensor to be contiguous. ".to_string(),
-            beta.layout(),
-        )?;
-        let img_shape = self.shape();
-        ShapeError::check_dim(4, img_shape.len())?;
-        let batch = img_shape[0];
-        let img_height = img_shape[1];
-        let img_width = img_shape[2];
-        let img_channels = img_shape[3];
-        let kernel_shape = kernels.shape();
-        let kh = kernel_shape[0];
-        let kw = kernel_shape[1];
-        let in_channels = kernel_shape[2];
-        let out_channels = kernel_shape[3];
-        if in_channels != img_channels {
-            return Err(ShapeError::ConvError {
-                message: format!(
-                    "kernel in_channel {} not match input in_channel {}",
-                    in_channels, img_channels
-                ),
-                location: core::panic::Location::caller(),
-            }
-            .into());
+        .into());
+    }
+    let (step_width, step_height) = (steps[0], steps[1]);
+    let ((ph_start, ph_end), (pw_start, pw_end)) = (padding[0], padding[1]);
+    let (dh, dw) = (dilation[0], dilation[1]);
+
+    let out_height = (img_height + ph_start + ph_end - dh * (kh - 1) - 1) / step_height + 1;
+    let out_width = (img_width + pw_start + pw_end - dw * (kw - 1) - 1) / step_width + 1;
+    let img = inp.clone();
+    if out_height <= 0 || out_width <= 0 {
+        return Err(ShapeError::ConvError {
+            message: if out_height <= 0 {
+                "output height <= 0".to_string()
+            } else {
+                "output width <= 0".to_string()
+            },
+            location: core::panic::Location::caller(),
         }
-        let (step_width, step_height) = (steps[0], steps[1]);
-        let ((ph_start, ph_end), (pw_start, pw_end)) = (padding[0], padding[1]);
-        let (dh, dw) = (dilation[0], dilation[1]);
+        .into());
+    }
+    let activation = activation.unwrap_or(|x| x);
+    let output = _Tensor::<T, Cpu, DEVICE, A>::empty([batch, out_height, out_width, out_channels])?;
+    let out = output.ptr();
+    let inp = img.ptr();
 
-        let out_height = (img_height + ph_start + ph_end - dh * (kh - 1) - 1) / step_height + 1;
-        let out_width = (img_width + pw_start + pw_end - dw * (kw - 1) - 1) / step_width + 1;
-        let img = self.clone();
-        if out_height <= 0 || out_width <= 0 {
-            return Err(ShapeError::ConvError {
-                message: if out_height <= 0 {
-                    "output height <= 0".to_string()
-                } else {
-                    "output width <= 0".to_string()
-                },
-                location: core::panic::Location::caller(),
-            }
-            .into());
-        }
-        let activation = activation.unwrap_or(|x| x);
-        let output =
-            _Tensor::<T, Cpu, DEVICE, A>::empty([batch, out_height, out_width, out_channels])?;
-        let out = output.ptr();
-        let inp = img.ptr();
+    let osb = output.strides()[0]; // batch
+    let osh = output.strides()[1]; // height
+    let osw = output.strides()[2]; // width
 
-        let osb = output.strides()[0]; // batch
-        let osh = output.strides()[1]; // height
-        let osw = output.strides()[2]; // width
+    let isb = img.strides()[0]; // batch
+    let ish = img.strides()[1]; // height
+    let isw = img.strides()[2]; // width
 
-        let isb = img.strides()[0]; // batch
-        let ish = img.strides()[1]; // height
-        let isw = img.strides()[2]; // width
+    let ks0 = kernels.strides()[0]; // kernel_height
+    let ks1 = kernels.strides()[1]; // kernel_width
+    let ks2 = kernels.strides()[2]; // in_channels
 
-        let ks0 = kernels.strides()[0]; // kernel_height
-        let ks1 = kernels.strides()[1]; // kernel_width
-        let ks2 = kernels.strides()[2]; // in_channels
+    let oh_block = (3).min(out_height).max(1);
 
-        let oh_block = (3).min(out_height).max(1);
+    let cache = Cache::<T>::new();
 
-        let cache = Cache::<T>::new();
+    let mut oc_nvec = cache.l1_line_size / T::Vec::SIZE;
+    let mut ow_block = predict_ow_block(oc_nvec);
 
-        let mut oc_nvec = cache.l1_line_size / T::Vec::SIZE;
-        let mut ow_block = predict_ow_block(oc_nvec);
+    let params = kernel_params::<T>(
+        out_channels as usize,
+        in_channels as usize,
+        ow_block,
+        oc_nvec,
+        oh_block as usize,
+        [kh as usize, kw as usize],
+        cache,
+    );
+    let (ic_nvec, jb) = params;
+    // retrieve micro kernels start
 
-        let params = kernel_params::<T>(
-            out_channels as usize,
-            in_channels as usize,
-            ow_block,
-            oc_nvec,
-            oh_block as usize,
-            [kh as usize, kw as usize],
-            cache,
-        );
-        let (ic_nvec, jb) = params;
-        // retrieve micro kernels start
+    let full_oc_kernel = conv2d_full_oc_kernel_dispatch([kh, kw], &mut oc_nvec, &mut ow_block);
+    let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
+    let full_oc_kernel_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
+        [kh, kw],
+        &mut oc_nvec,
+        &mut ((out_width as usize) % ow_block),
+    );
+    let partial_oc_kernel = remain_oc_kernel_dispatch::<T>([kh, kw], &mut ow_block);
+    assert_eq!(ow_block, partial_oc_kernel.ow_block);
+    let partial_oc_kernel_ow_remain =
+        remain_oc_kernel_dispatch::<T>([kh, kw], &mut ((out_width as usize) % ow_block));
+    let full_oc_kernel_fn_1_oc =
+        conv2d_full_oc_kernel_dispatch::<T>([kh, kw], &mut 1, &mut ow_block);
+    let full_oc_kernel_fn_1_oc_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
+        [kh, kw],
+        &mut 1,
+        &mut ((out_width as usize) % ow_block),
+    );
+    let bias_full_oc_kernel =
+        conv2d_full_oc_bias_kernel_dispatch::<T>([kh, kw], &mut oc_nvec, &mut ow_block);
+    let bias_one_oc_kernel =
+        conv2d_full_oc_bias_kernel_dispatch::<T>([kh, kw], &mut 1, &mut ow_block);
+    let bias_remain_oc_kernel = bn_remain_oc_kernel_dispatch::<T>([kh, kw], &mut ow_block);
+    let bias_full_oc_ow_remain = conv2d_full_oc_bias_kernel_dispatch::<T>(
+        [kh, kw],
+        &mut oc_nvec,
+        &mut ((out_width as usize) % ow_block),
+    );
+    let bias_one_oc_ow_remain = conv2d_full_oc_bias_kernel_dispatch::<T>(
+        [kh, kw],
+        &mut 1,
+        &mut ((out_width as usize) % ow_block),
+    );
+    let bias_partial_oc_ow_remain =
+        bn_remain_oc_kernel_dispatch::<T>([kh, kw], &mut ((out_width as usize) % ow_block));
 
-        let full_oc_kernel = conv2d_full_oc_kernel_dispatch([kh, kw], &mut oc_nvec, &mut ow_block);
-        let full_oc_kernel_fn = full_oc_kernel.kernel.clone();
-        let full_oc_kernel_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
-            [kh, kw],
-            &mut oc_nvec,
-            &mut ((out_width as usize) % ow_block),
-        );
-        let partial_oc_kernel = remain_oc_kernel_dispatch::<T>([kh, kw], &mut ow_block);
-        assert_eq!(ow_block, partial_oc_kernel.ow_block);
-        let partial_oc_kernel_ow_remain =
-            remain_oc_kernel_dispatch::<T>([kh, kw], &mut ((out_width as usize) % ow_block));
-        let full_oc_kernel_fn_1_oc =
-            conv2d_full_oc_kernel_dispatch::<T>([kh, kw], &mut 1, &mut ow_block);
-        let full_oc_kernel_fn_1_oc_ow_remain = conv2d_full_oc_kernel_dispatch::<T>(
-            [kh, kw],
-            &mut 1,
-            &mut ((out_width as usize) % ow_block),
-        );
-        let bias_full_oc_kernel =
-            conv2d_full_oc_bias_kernel_dispatch::<T>([kh, kw], &mut oc_nvec, &mut ow_block);
-        let bias_one_oc_kernel =
-            conv2d_full_oc_bias_kernel_dispatch::<T>([kh, kw], &mut 1, &mut ow_block);
-        let bias_remain_oc_kernel = bn_remain_oc_kernel_dispatch::<T>([kh, kw], &mut ow_block);
-        let bias_full_oc_ow_remain = conv2d_full_oc_bias_kernel_dispatch::<T>(
-            [kh, kw],
-            &mut oc_nvec,
-            &mut ((out_width as usize) % ow_block),
-        );
-        let bias_one_oc_ow_remain = conv2d_full_oc_bias_kernel_dispatch::<T>(
-            [kh, kw],
-            &mut 1,
-            &mut ((out_width as usize) % ow_block),
-        );
-        let bias_partial_oc_ow_remain =
-            bn_remain_oc_kernel_dispatch::<T>([kh, kw], &mut ((out_width as usize) % ow_block));
+    // retrieve micro kernels end
 
-        // retrieve micro kernels end
+    let num_oh = (out_height + oh_block - 1) / oh_block; // div ceil, i.e. ceiling of out_height / oh_block
+    let outer = batch * num_oh;
 
-        let num_oh = (out_height + oh_block - 1) / oh_block; // div ceil, i.e. ceiling of out_height / oh_block
-        let outer = batch * num_oh;
+    // create new memory space to store the reordered kernel filter
+    let ro_kernel = kernels.empty_like()?;
+    let ro_ptr = ro_kernel.ptr();
 
-        // create new memory space to store the reordered kernel filter
-        let ro_kernel = kernels.empty_like()?;
-        let ro_ptr = ro_kernel.ptr();
+    // reorder the kernel filter, so that when we do convolution, we can simply increment the pointer and get the data, this can significantly reduce cache miss rate and improve performance
+    reorder_kernel(
+        &kernels.ptr(),
+        ro_ptr.clone(),
+        jb,
+        [in_channels as usize, ic_nvec],
+        [out_channels as usize, oc_nvec],
+        [ks0 as usize, ks1 as usize, ks2 as usize],
+        [kh as usize, kw as usize],
+    );
 
-        // reorder the kernel filter, so that when we do convolution, we can simply increment the pointer and get the data, this can significantly reduce cache miss rate and improve performance
-        reorder_kernel(
-            &kernels.ptr(),
-            ro_ptr.clone(),
-            jb,
-            [in_channels as usize, ic_nvec],
-            [out_channels as usize, oc_nvec],
-            [ks0 as usize, ks1 as usize, ks2 as usize],
-            [kh as usize, kw as usize],
-        );
+    let ic_block_size = ic_nvec * T::Vec::SIZE; // in channel block size
+    let oc_block_size = oc_nvec * T::Vec::SIZE; // out channel block size, but this is only caculated based on cache line size, we have another block size `jb`
+    (0..outer).into_par_iter().for_each(|idx| {
+        let mut out = out.clone();
+        let mut kernel = ro_ptr.clone();
+        let b = idx / num_oh;
+        let ll = idx % num_oh;
+        let ll = ll * oh_block;
+        let l_end = (ll + oh_block).min(out_height);
+        for ii in (0..in_channels).step_by(ic_block_size) {
+            let i_end = (ii + (ic_block_size as i64)).min(in_channels);
+            if i_end == in_channels {
+                let bias = bias.map(|x| x.ptr());
+                // out channel has two levels of blocking:
+                // 1. it first blocks by oc_block_size * jb
+                // 2. it then blocks by oc_block_size (cache line size)
+                for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
+                    // make sure jj_end is in the range of out_channels
+                    let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(out_channels);
 
-        let ic_block_size = ic_nvec * T::Vec::SIZE; // in channel block size
-        let oc_block_size = oc_nvec * T::Vec::SIZE; // out channel block size, but this is only caculated based on cache line size, we have another block size `jb`
-        (0..outer).into_par_iter().for_each(|idx| {
-            let mut out = out.clone();
-            let mut kernel = ro_ptr.clone();
-            let b = idx / num_oh;
-            let ll = idx % num_oh;
-            let ll = ll * oh_block;
-            let l_end = (ll + oh_block).min(out_height);
-            for ii in (0..in_channels).step_by(ic_block_size) {
-                let i_end = (ii + (ic_block_size as i64)).min(in_channels);
-                if i_end == in_channels {
-                    let bias = bias.map(|x| x.ptr());
-                    // out channel has two levels of blocking:
-                    // 1. it first blocks by oc_block_size * jb
-                    // 2. it then blocks by oc_block_size (cache line size)
-                    for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
-                        // make sure jj_end is in the range of out_channels
-                        let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(out_channels);
-
-                        // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
-                        let remain = (jj_end - jj) % (oc_block_size as i64);
-                        if remain > 0 {
-                            handle_bias_remain(
-                                [jj, jj_end],
-                                [out_channels, oc_block_size as i64],
-                                [out_width, ow_block as i64],
-                                [ll, l_end],
-                                [ii, i_end],
-                                [kh, kw],
-                                [osb, osh, osw],
-                                [isb, ish, isw],
-                                [step_height, step_width],
-                                [ph_start, pw_start],
-                                [dh, dw],
-                                [img_height, img_width],
-                                b,
-                                remain,
-                                &mut out,
-                                &mut kernel,
-                                &inp,
-                                bias.clone(),
-                                &mean.ptr(),
-                                &var.ptr(),
-                                &gamma.ptr(),
-                                &beta.ptr(),
-                                eps,
-                                activation,
-                                bias_full_oc_kernel,
-                                bias_remain_oc_kernel,
-                                bias_one_oc_kernel,
-                                bias_full_oc_ow_remain,
-                                bias_partial_oc_ow_remain,
-                                bias_one_oc_ow_remain,
-                            );
-                        } else {
-                            handle_bias_normal(
-                                [jj, jj_end],
-                                [out_width, ow_block as i64],
-                                [ll, l_end],
-                                [ii, i_end],
-                                [kh, kw],
-                                [osb, osh, osw],
-                                [isb, ish, isw],
-                                [step_height, step_width],
-                                [ph_start, pw_start],
-                                [dh, dw],
-                                [img_height, img_width],
-                                oc_block_size as i64,
-                                b,
-                                &mut out,
-                                &mut kernel,
-                                &inp,
-                                bias.clone(),
-                                &mean.ptr(),
-                                &var.ptr(),
-                                &gamma.ptr(),
-                                &beta.ptr(),
-                                eps,
-                                activation,
-                                bias_full_oc_kernel,
-                                bias_full_oc_ow_remain,
-                            );
-                        }
+                    // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
+                    let remain = (jj_end - jj) % (oc_block_size as i64);
+                    if remain > 0 {
+                        handle_bias_remain(
+                            [jj, jj_end],
+                            [out_channels, oc_block_size as i64],
+                            [out_width, ow_block as i64],
+                            [ll, l_end],
+                            [ii, i_end],
+                            [kh, kw],
+                            [osb, osh, osw],
+                            [isb, ish, isw],
+                            [step_height, step_width],
+                            [ph_start, pw_start],
+                            [dh, dw],
+                            [img_height, img_width],
+                            b,
+                            remain,
+                            &mut out,
+                            &mut kernel,
+                            &inp,
+                            bias.clone(),
+                            &mean.ptr(),
+                            &var.ptr(),
+                            &gamma.ptr(),
+                            &beta.ptr(),
+                            eps,
+                            activation,
+                            bias_full_oc_kernel,
+                            bias_remain_oc_kernel,
+                            bias_one_oc_kernel,
+                            bias_full_oc_ow_remain,
+                            bias_partial_oc_ow_remain,
+                            bias_one_oc_ow_remain,
+                        );
+                    } else {
+                        handle_bias_normal(
+                            [jj, jj_end],
+                            [out_width, ow_block as i64],
+                            [ll, l_end],
+                            [ii, i_end],
+                            [kh, kw],
+                            [osb, osh, osw],
+                            [isb, ish, isw],
+                            [step_height, step_width],
+                            [ph_start, pw_start],
+                            [dh, dw],
+                            [img_height, img_width],
+                            oc_block_size as i64,
+                            b,
+                            &mut out,
+                            &mut kernel,
+                            &inp,
+                            bias.clone(),
+                            &mean.ptr(),
+                            &var.ptr(),
+                            &gamma.ptr(),
+                            &beta.ptr(),
+                            eps,
+                            activation,
+                            bias_full_oc_kernel,
+                            bias_full_oc_ow_remain,
+                        );
                     }
-                } else {
-                    // out channel has two levels of blocking:
-                    // 1. it first blocks by oc_block_size * jb
-                    // 2. it then blocks by oc_block_size (cache line size)
-                    for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
-                        // make sure jj_end is in the range of out_channels
-                        let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(out_channels);
-                        // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
-                        let remain = (jj_end - jj) % (oc_block_size as i64);
-                        if remain > 0 {
-                            handle_normal_remain(
-                                [jj, jj_end],
-                                [out_channels, oc_block_size as i64],
-                                [out_width, ow_block as i64],
-                                [ll, l_end],
-                                [ii, i_end],
-                                [kh, kw],
-                                [osb, osh, osw],
-                                [isb, ish, isw],
-                                [step_height, step_width],
-                                [ph_start, pw_start],
-                                [dh, dw],
-                                [img_height, img_width],
-                                b,
-                                remain,
-                                &mut out,
-                                &mut kernel,
-                                &inp,
-                                |x| x,
-                                full_oc_kernel_fn,
-                                partial_oc_kernel.kernel,
-                                full_oc_kernel_fn_1_oc.kernel,
-                                full_oc_kernel_ow_remain.kernel,
-                                partial_oc_kernel_ow_remain.kernel,
-                                full_oc_kernel_fn_1_oc_ow_remain.kernel,
-                            );
-                        } else {
-                            handle_normal(
-                                [jj, jj_end],
-                                [out_width, ow_block as i64],
-                                [ll, l_end],
-                                [ii, i_end],
-                                [kh, kw],
-                                [osb, osh, osw],
-                                [isb, ish, isw],
-                                [step_height, step_width],
-                                [ph_start, pw_start],
-                                [dh, dw],
-                                [img_height, img_width],
-                                b,
-                                oc_block_size,
-                                &mut out,
-                                &mut kernel,
-                                &inp,
-                                |x| x,
-                                full_oc_kernel_fn,
-                                full_oc_kernel_ow_remain.kernel,
-                            );
-                        }
+                }
+            } else {
+                // out channel has two levels of blocking:
+                // 1. it first blocks by oc_block_size * jb
+                // 2. it then blocks by oc_block_size (cache line size)
+                for jj in (0..out_channels).step_by(oc_block_size * (jb as usize)) {
+                    // make sure jj_end is in the range of out_channels
+                    let jj_end = (jj + (oc_block_size as i64) * (jb as i64)).min(out_channels);
+                    // calculate the remain part that are less than T::Vec::SIZE * oc_nvec
+                    let remain = (jj_end - jj) % (oc_block_size as i64);
+                    if remain > 0 {
+                        handle_normal_remain(
+                            [jj, jj_end],
+                            [out_channels, oc_block_size as i64],
+                            [out_width, ow_block as i64],
+                            [ll, l_end],
+                            [ii, i_end],
+                            [kh, kw],
+                            [osb, osh, osw],
+                            [isb, ish, isw],
+                            [step_height, step_width],
+                            [ph_start, pw_start],
+                            [dh, dw],
+                            [img_height, img_width],
+                            b,
+                            remain,
+                            &mut out,
+                            &mut kernel,
+                            &inp,
+                            |x| x,
+                            full_oc_kernel_fn,
+                            partial_oc_kernel.kernel,
+                            full_oc_kernel_fn_1_oc.kernel,
+                            full_oc_kernel_ow_remain.kernel,
+                            partial_oc_kernel_ow_remain.kernel,
+                            full_oc_kernel_fn_1_oc_ow_remain.kernel,
+                        );
+                    } else {
+                        handle_normal(
+                            [jj, jj_end],
+                            [out_width, ow_block as i64],
+                            [ll, l_end],
+                            [ii, i_end],
+                            [kh, kw],
+                            [osb, osh, osw],
+                            [isb, ish, isw],
+                            [step_height, step_width],
+                            [ph_start, pw_start],
+                            [dh, dw],
+                            [img_height, img_width],
+                            b,
+                            oc_block_size,
+                            &mut out,
+                            &mut kernel,
+                            &inp,
+                            |x| x,
+                            full_oc_kernel_fn,
+                            full_oc_kernel_ow_remain.kernel,
+                        );
                     }
                 }
             }
-        });
-        Ok(output)
-    }
+        }
+    });
+    Ok(output)
 }
 
 fn reorder_kernel<T: CommonBounds>(
@@ -1400,70 +1376,4 @@ fn handle_normal_remain<T: CommonBounds>(
         partial_oc_ow_remain,
     );
     *kernel += kernel_height * kernel_width * (jj_end - jj_start) * (i_end - ii);
-}
-
-impl<T, const DEVICE: usize> Tensor<T, Cpu, DEVICE>
-where
-    T: CommonBounds + Cast<T> + NormalOut<Output = T>,
-    T::Vec: VecTrait<T>
-        + Copy
-        + Send
-        + Sync
-        + NormalOut<Output = T::Vec>
-        + FloatOutBinary<Output = T::Vec>
-        + FloatOutUnary<Output = T::Vec>,
-    T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
-    bool: Cast<T>,
-{
-    /// Performs a 2D convolution operation on the input tensor.
-    ///
-    /// This method applies a 2D convolution operation on the tensor using the specified kernel,
-    /// strides (steps), padding, and dilation factors.
-    ///
-    /// # Arguments
-    ///
-    /// * `kernels` - A reference to the tensor representing the convolution kernels (filters).
-    ///   The size of the kernel tensor determines the spatial dimensions of the convolution operation.
-    /// * `steps` - A 2-element array specifying the stride (step size) of the convolution along the height and width dimensions.
-    /// * `padding` - A 2-element array of tuples representing the padding for the height and width dimensions.
-    ///   Each tuple specifies the amount of padding added before and after the data along the respective axis.
-    /// * `dilation` - A 2-element array specifying the dilation factor for the convolution along the height and width dimensions.
-    ///   Dilation allows the kernel to be applied to inputs with gaps, increasing the receptive field of the kernel.
-    ///
-    /// # Returns
-    ///
-    /// This function returns a `Result` containing the output tensor after applying the 2D convolution operation.
-    #[track_caller]
-    #[inline(never)]
-    pub fn batchnorm_conv2d(
-        &self,
-        kernels: &Tensor<T, Cpu, DEVICE>,
-        mean: &Tensor<T, Cpu, DEVICE>,
-        var: &Tensor<T, Cpu, DEVICE>,
-        gamma: &Tensor<T, Cpu, DEVICE>,
-        beta: &Tensor<T, Cpu, DEVICE>,
-        bias: Option<&Tensor<T, Cpu, DEVICE>>,
-        eps: T,
-        steps: [i64; 2],
-        padding: [(i64, i64); 2],
-        dilation: [i64; 2],
-        activation: Option<fn(T::Vec) -> T::Vec>,
-    ) -> std::result::Result<Tensor<T, Cpu, DEVICE>, TensorError> {
-        Ok(self
-            .inner
-            .batchnorm_conv2d(
-                &kernels.inner,
-                &mean.inner,
-                &var.inner,
-                &gamma.inner,
-                &beta.inner,
-                bias.map(|b| b.inner.as_ref()),
-                eps,
-                steps,
-                padding,
-                dilation,
-                activation,
-            )?
-            .into())
-    }
 }

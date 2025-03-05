@@ -49,7 +49,32 @@ pub trait Conv<T: CommonBounds> {
         output_padding: [i64; 2],
         dilation: [i64; 2],
     ) -> Result<Self::Output, TensorError>;
+
 }
+
+
+/// trait for conv operations with batch normalization
+pub trait ConvBatchNorm<T: CommonBounds> {
+    /// the output type of the conv operation
+    type Output;
+
+    /// Performs a Conv2d operation with batch normalization.
+    fn batchnorm_conv2d(
+        &self,
+        kernels: &Self::Output,
+        mean: &Self::Output,
+        var: &Self::Output,
+        gamma: &Self::Output,
+        beta: &Self::Output,
+        bias: Option<&Self::Output>,
+        eps: T,
+        steps: [i64; 2],
+        padding: [(i64, i64); 2],
+        dilation: [i64; 2],
+        activation: Option<fn(T::Vec) -> T::Vec>,
+    ) -> Result<Self::Output, TensorError>;
+}
+
 
 /// trait for differentiable conv operations
 pub trait ConvDiff<T: CommonBounds> {

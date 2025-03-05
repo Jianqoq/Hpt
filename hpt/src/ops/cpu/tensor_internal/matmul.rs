@@ -14,12 +14,14 @@ use hpt_types::dtype::TypeCommon;
 use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
+type MatmulOutput<A, B, const DEVICE: usize, A2> = _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>;
+
 #[track_caller]
 pub(crate) fn matmul_with_out<A, B, O, Q, A2, const DEVICE: usize>(
     lhs: &_Tensor<A, Cpu, DEVICE, A2>,
     rhs: &_Tensor<B, Cpu, DEVICE, A2>,
     out: Option<O>,
-) -> std::result::Result<_Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>, TensorError>
+) -> std::result::Result<MatmulOutput<A, B, DEVICE, A2>, TensorError>
 where
     A: CommonBounds + NormalOut<B> + Cast<<A as NormalOut<B>>::Output>,
     B: CommonBounds + Cast<<A as NormalOut<B>>::Output>,
@@ -39,17 +41,17 @@ where
                 out.borrow_mut().as_raw_mut().par_iter_mut().for_each(|x| {
                     *x = val;
                 });
-                let casted: _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2> =
+                let casted: MatmulOutput<A, B, DEVICE, A2> =
                     out.borrow().static_cast::<<A as NormalOut<B>>::Output>()?;
                 casted
             } else {
-                _Tensor::<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>::empty(vec![
+                MatmulOutput::<A, B, DEVICE, A2>::empty(vec![
                     lhs.shape()[0],
                     rhs.shape()[1],
                 ])?
             }
         } else {
-            _Tensor::<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>::empty(vec![
+            MatmulOutput::<A, B, DEVICE, A2>::empty(vec![
                 lhs.shape()[0],
                 rhs.shape()[1],
             ])?
@@ -108,10 +110,10 @@ where
                 });
                 out.borrow().static_cast::<<A as NormalOut<B>>::Output>()?
             } else {
-                _Tensor::<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>::empty(res_shape)?
+                MatmulOutput::<A, B, DEVICE, A2>::empty(res_shape)?
             }
         } else {
-            _Tensor::<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>::empty(res_shape)?
+            MatmulOutput::<A, B, DEVICE, A2>::empty(res_shape)?
         };
         let a_strides = preprocess_strides(&a_shape, &lhs.strides());
         let b_strides = preprocess_strides(&b_shape, &rhs.strides());
@@ -236,11 +238,11 @@ where
     A2: Allocator,
     A2::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>;
+    type Output = MatmulOutput<A, B, DEVICE, A2>;
 
     type OutputMeta = <A as NormalOut<B>>::Output;
 
-    type InplaceOutput = _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>;
+    type InplaceOutput = MatmulOutput<A, B, DEVICE, A2>;
 
     fn matmul(&self, rhs: _Tensor<B, Cpu, DEVICE, A2>) -> Result<Self::Output, TensorError> {
         matmul_with_out(self, &rhs, None::<Self::Output>)
@@ -266,11 +268,11 @@ where
     A2: Allocator,
     A2::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>;
+    type Output = MatmulOutput<A, B, DEVICE, A2>;
 
     type OutputMeta = <A as NormalOut<B>>::Output;
 
-    type InplaceOutput = _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>;
+    type InplaceOutput = MatmulOutput<A, B, DEVICE, A2>;
 
     fn matmul(&self, rhs: &_Tensor<B, Cpu, DEVICE, A2>) -> Result<Self::Output, TensorError> {
         matmul_with_out(self, &rhs, None::<Self::Output>)

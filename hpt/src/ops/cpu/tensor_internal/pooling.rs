@@ -12,26 +12,23 @@ use crate::{
     tensor_base::_Tensor,
     Cpu,
 };
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 
-impl<T, const DEVICE: usize> FloatOutPooling for _Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, A> FloatOutPooling for _Tensor<T, Cpu, DEVICE, A>
 where
     T: CommonBounds
         + FloatOutBinary<<T as FloatOutBinary>::Output, Output = <T as FloatOutBinary>::Output>,
-    <T as FloatOutBinary>::Output:
-        CommonBounds + FloatOutBinary<Output = <T as FloatOutBinary>::Output>,
-    T::Vec: VecTrait<T>
-        + Copy
-        + Send
-        + Sync
-        + NormalOut<Output = T::Vec>
-        + FloatOutBinary<
-            <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-            Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
-        >,
+    <T as FloatOutBinary>::Output: CommonBounds,
+    T::Vec: FloatOutBinary<
+        <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+        Output = <<T as FloatOutBinary>::Output as TypeCommon>::Vec,
+    >,
     bool: Cast<T>,
     i64: Cast<<T as FloatOutBinary>::Output>,
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<<T as FloatOutBinary>::Output, Cpu, DEVICE>;
+    type Output = _Tensor<<T as FloatOutBinary>::Output, Cpu, DEVICE, A>;
     #[track_caller]
     fn avgpool2d<S: Into<Shape>>(
         &self,
@@ -72,14 +69,15 @@ where
     }
 }
 
-impl<T, const DEVICE: usize> NormalPooling for _Tensor<T, Cpu, DEVICE>
+impl<T, const DEVICE: usize, A> NormalPooling for _Tensor<T, Cpu, DEVICE, A>
 where
-    T: CommonBounds + Cast<T> + NormalOut<Output = T>,
-    T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
+    T: CommonBounds,
     bool: Cast<T>,
     i64: Cast<T>,
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<T, Cpu, DEVICE>;
+    type Output = _Tensor<T, Cpu, DEVICE, A>;
     #[track_caller]
     fn maxpool2d<S: Into<Shape>>(
         &self,
@@ -87,7 +85,7 @@ where
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-    ) -> std::result::Result<_Tensor<T, Cpu, DEVICE>, TensorError> {
+    ) -> std::result::Result<Self::Output, TensorError> {
         pooling_template(
             self,
             &kernels_shape.into(),
@@ -105,7 +103,7 @@ where
     fn adaptive_maxpool2d(
         &self,
         output_size: [i64; 2],
-    ) -> std::result::Result<_Tensor<T, Cpu, DEVICE>, TensorError> {
+    ) -> std::result::Result<Self::Output, TensorError> {
         adaptive_pooling_template(
             self,
             output_size,
