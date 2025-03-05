@@ -1,4 +1,4 @@
-# conv2d
+# batchnorm_conv2d
 ```rust
 fn batchnorm_conv2d(
         x: &Tensor<T>,

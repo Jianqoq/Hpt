@@ -1,4 +1,4 @@
-# conv2d
+# conv2d_group
 ```rust
 fn conv2d_group(
         x: &Tensor<T>,
