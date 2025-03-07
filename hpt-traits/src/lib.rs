@@ -26,6 +26,8 @@ pub mod ops {
     pub mod uary;
     /// A module contains window operations
     pub mod windows;
+    /// A module contains normalization operations
+    pub mod normalization;
 }
 /// A module contains random number generation operations
 pub mod random;
@@ -42,6 +44,7 @@ pub use ops::pooling::*;
 pub use ops::slice::*;
 pub use ops::uary::*;
 pub use ops::windows::*;
+pub use ops::normalization::*;
 pub use random::*;
 pub use shape_manipulate::*;
 pub use tensor::*;

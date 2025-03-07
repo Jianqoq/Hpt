@@ -8,7 +8,7 @@ use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape_utils::mt_intervals;
 use hpt_common::Pointer;
-use hpt_iterator::iterator_traits::{ParStridedIteratorSimdZip, ParStridedIteratorZip};
+use hpt_iterator::iterator_traits::ParStridedIteratorZip;
 use hpt_iterator::TensorIterator;
 use hpt_traits::ops::advance::{AdvancedOps, HardMax, Shrinkage};
 use hpt_traits::{
@@ -19,8 +19,6 @@ use hpt_types::into_scalar::Cast;
 use hpt_types::into_vec::IntoVec;
 use hpt_types::traits::{SimdSelect, VecTrait};
 use hpt_types::type_promote::{Cmp, NormalOut, NormalOutUnary, SimdCmp};
-use rand_distr::Distribution;
-use rayon::iter::ParallelIterator;
 
 impl<T: CommonBounds + PartialOrd, const DEVICE: usize, Al> AdvancedOps
     for _Tensor<T, Cpu, DEVICE, Al>
@@ -504,23 +502,6 @@ where
 
     //     Ok(res)
     // }
-
-    fn dropout(&self, rate: f64) -> Result<Self::Output, TensorError> {
-        let mut ret = _Tensor::<T, Cpu, DEVICE, Al>::empty(self.shape())?;
-        let bernoli = rand_distr::Bernoulli::new(rate)
-            .expect("Failed to create Bernoulli distribution for dropout");
-        let scale: T = (1.0 / (1.0 - rate)).cast();
-        ret.par_iter_mut_simd()
-            .zip(self.par_iter_simd())
-            .for_each_init(
-                || rand::thread_rng(),
-                |rng, (ret, val)| {
-                    let mask = bernoli.sample(rng);
-                    *ret = val._mul(mask)._mul(scale);
-                },
-            );
-        Ok(ret)
-    }
 
     // fn gather_elements(
     //     &self,

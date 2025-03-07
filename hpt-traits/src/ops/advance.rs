@@ -26,10 +26,6 @@ pub trait AdvancedOps {
         true_val: Self::Meta,
         false_val: Self::Meta,
     ) -> Result<Self::Output, TensorError>;
-    /// Gather the tensor
-    // fn gather(&self, indices: &Self::IndexOutput, axis: i64) -> Result<Self::Output, TensorError>;
-    /// Dropout the tensor
-    fn dropout(&self, rate: f64) -> Result<Self::Output, TensorError>;
     /// Gather elements the tensor
     // fn gather_elements(
     //     &self,

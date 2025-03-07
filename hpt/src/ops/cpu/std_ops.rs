@@ -11,18 +11,22 @@ use hpt_allocator::traits::AllocatorOutputRetrive;
 use hpt_common::shape::shape_utils::get_broadcast_axes_from;
 use hpt_iterator::iterator_traits::ParStridedIteratorZip;
 use hpt_iterator::TensorIterator;
-use hpt_traits::tensor::{CommonBounds, TensorInfo};
+use hpt_traits::tensor::{ CommonBounds, TensorInfo };
 use hpt_traits::NormalUaryOps;
 use hpt_traits::TensorLike;
 use hpt_types::dtype::TypeCommon;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::{
-    BitWiseOut, FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary,
+    BitWiseOut,
+    FloatOutBinary,
+    FloatOutUnary,
+    NormalOut,
+    NormalOutUnary,
 };
-use num::complex::{Complex32, Complex64};
+use num::complex::{ Complex32, Complex64 };
 use rayon::iter::ParallelIterator;
 use std::cell::RefCell;
-use std::ops::{Neg, Not};
+use std::ops::{ Neg, Not };
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -35,17 +39,17 @@ use std::sync::Arc;
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<U>,
-    U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
-    T::Vec: NormalOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + NormalOut<U>,
+        U: CommonBounds,
+        <T as NormalOut<U>>::Output: CommonBounds,
+        <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
+        T::Vec: NormalOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -55,9 +59,8 @@ where
             &rhs,
             |x, y| x._add(y),
             |x, y| x._add(y),
-            None::<Self::Output>,
-        )
-        .unwrap();
+            None::<Self::Output>
+        ).unwrap();
     }
 }
 
@@ -70,17 +73,17 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<U>,
-    U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
-    T::Vec: NormalOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + NormalOut<U>,
+        U: CommonBounds,
+        <T as NormalOut<U>>::Output: CommonBounds,
+        <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
+        T::Vec: NormalOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -122,17 +125,18 @@ where
     [Tensor]    [half::bf16][Tensor]    [std::ops::Add];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Add];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<rhs_type>,
-    <T as NormalOut<rhs_type>>::Output: CommonBounds,
-    <T as NormalOut<rhs_type>>::Output: Cast<<T as NormalOut<rhs_type>>::Output>,
-    T::Vec: NormalOut<
-        <rhs_type as TypeCommon>::Vec,
-        Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type>
+    for lhs_type<T, Cpu, DEVICE, A>
+    where
+        T: CommonBounds + NormalOut<rhs_type>,
+        <T as NormalOut<rhs_type>>::Output: CommonBounds,
+        <T as NormalOut<rhs_type>>::Output: Cast<<T as NormalOut<rhs_type>>::Output>,
+        T::Vec: NormalOut<
+            <rhs_type as TypeCommon>::Vec,
+            Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as NormalOut<rhs_type>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -175,18 +179,18 @@ where
     [Tensor]    [half::bf16][Tensor]    [std::ops::Add];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Add];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>> for lhs_type
-where
-    T: CommonBounds,
-    lhs_type: NormalOut<T>,
-    <lhs_type as NormalOut<T>>::Output: CommonBounds,
-    <lhs_type as NormalOut<T>>::Output: Cast<<T as NormalOut<T>>::Output>,
-    <lhs_type as TypeCommon>::Vec: NormalOut<
-        <T as TypeCommon>::Vec,
-        Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>>
+    for lhs_type
+    where
+        T: CommonBounds,
+        lhs_type: NormalOut<T>,
+        <lhs_type as NormalOut<T>>::Output: CommonBounds,
+        <lhs_type as TypeCommon>::Vec: NormalOut<
+            <T as TypeCommon>::Vec,
+            Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<lhs_type as NormalOut<T>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -205,18 +209,17 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<U>,
-    U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
-    T::Vec: NormalOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    <T as NormalOut<U>>::Output: Cast<T> + Cast<U>,
-    A: Allocator + 'static + Send + Sync,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + NormalOut<U>,
+        U: CommonBounds,
+        <T as NormalOut<U>>::Output: CommonBounds,
+        T::Vec: NormalOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
+        >,
+        <T as NormalOut<U>>::Output: Cast<T> + Cast<U>,
+        A: Allocator + 'static + Send + Sync,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -224,25 +227,27 @@ where
         *self.out_degree.borrow_mut() += 1;
         *rhs.out_degree.borrow_mut() += 1;
         let res = self.inner.clone().add(rhs.inner.clone());
-        let lhs_broadcast_axes =
-            get_broadcast_axes_from(self.inner.shape(), res.shape()).expect("broadcast failed");
-        let rhs_broadcast_axes =
-            get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect("broadcast failed");
+        let lhs_broadcast_axes = get_broadcast_axes_from(self.inner.shape(), res.shape()).expect(
+            "broadcast failed"
+        );
+        let rhs_broadcast_axes = get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect(
+            "broadcast failed"
+        );
         let mut lhs = self.clone();
         let mut rhs = rhs.clone();
         DiffTensor {
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(
-                move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>| {
+            backward: Rc::new(
+                RefCell::new(move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>| {
                     let lhs_grad = grad.try_astype::<T>()?;
                     let rhs_grad = grad.try_astype::<U>()?;
                     handle_grad(&mut lhs, lhs_grad, &lhs_broadcast_axes)?;
                     handle_grad(&mut rhs, rhs_grad, &rhs_broadcast_axes)?;
                     Ok(false)
-                },
-            )),
+                })
+            ),
         }
     }
 }
@@ -256,17 +261,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<U>,
-    U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
-    T::Vec: NormalOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + NormalOut<U>,
+        U: CommonBounds,
+        <T as NormalOut<U>>::Output: CommonBounds,
+        T::Vec: NormalOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -276,9 +280,8 @@ where
             &rhs,
             |x, y| x._sub(y),
             |x, y| x._sub(y),
-            None::<Self::Output>,
-        )
-        .unwrap();
+            None::<Self::Output>
+        ).unwrap();
     }
 }
 
@@ -291,17 +294,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<U>,
-    U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
-    T::Vec: NormalOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + NormalOut<U>,
+        U: CommonBounds,
+        <T as NormalOut<U>>::Output: CommonBounds,
+        T::Vec: NormalOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -343,17 +345,17 @@ where
     [Tensor]    [half::bf16][Tensor]    [std::ops::Sub];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Sub];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<rhs_type>,
-    <T as NormalOut<rhs_type>>::Output: CommonBounds,
-    <T as NormalOut<rhs_type>>::Output: Cast<<T as NormalOut<rhs_type>>::Output>,
-    T::Vec: NormalOut<
-        <rhs_type as TypeCommon>::Vec,
-        Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type>
+    for lhs_type<T, Cpu, DEVICE, A>
+    where
+        T: CommonBounds + NormalOut<rhs_type>,
+        <T as NormalOut<rhs_type>>::Output: CommonBounds,
+        T::Vec: NormalOut<
+            <rhs_type as TypeCommon>::Vec,
+            Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as NormalOut<rhs_type>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -396,18 +398,18 @@ where
     [Tensor]    [half::bf16][Tensor]    [std::ops::Sub];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Sub];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>> for lhs_type
-where
-    T: CommonBounds,
-    lhs_type: NormalOut<T>,
-    <lhs_type as NormalOut<T>>::Output: CommonBounds,
-    <lhs_type as NormalOut<T>>::Output: Cast<<T as NormalOut<T>>::Output>,
-    <lhs_type as TypeCommon>::Vec: NormalOut<
-        <T as TypeCommon>::Vec,
-        Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>>
+    for lhs_type
+    where
+        T: CommonBounds,
+        lhs_type: NormalOut<T>,
+        <lhs_type as NormalOut<T>>::Output: CommonBounds,
+        <lhs_type as TypeCommon>::Vec: NormalOut<
+            <T as TypeCommon>::Vec,
+            Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<lhs_type as NormalOut<T>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -426,19 +428,18 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<U>,
-    U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
-    T::Vec: NormalOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    <T as NormalOut<U>>::Output: Cast<T> + Cast<U>,
-    Tensor<T, Cpu, DEVICE, A>: Neg<Output = Tensor<T, Cpu, DEVICE, A>>,
-    A: Allocator + 'static + Send + Sync,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + NormalOut<U>,
+        U: CommonBounds,
+        <T as NormalOut<U>>::Output: CommonBounds,
+        T::Vec: NormalOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
+        >,
+        <T as NormalOut<U>>::Output: Cast<T> + Cast<U>,
+        Tensor<T, Cpu, DEVICE, A>: Neg<Output = Tensor<T, Cpu, DEVICE, A>>,
+        A: Allocator + 'static + Send + Sync,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -446,25 +447,27 @@ where
         *self.out_degree.borrow_mut() += 1;
         *rhs.out_degree.borrow_mut() += 1;
         let res = self.inner.clone().sub(rhs.inner.clone());
-        let lhs_broadcast_axes =
-            get_broadcast_axes_from(self.inner.shape(), res.shape()).expect("broadcast failed");
-        let rhs_broadcast_axes =
-            get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect("broadcast failed");
+        let lhs_broadcast_axes = get_broadcast_axes_from(self.inner.shape(), res.shape()).expect(
+            "broadcast failed"
+        );
+        let rhs_broadcast_axes = get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect(
+            "broadcast failed"
+        );
         let mut lhs = self.clone();
         let mut rhs = rhs.clone();
         DiffTensor {
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(
-                move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>| {
+            backward: Rc::new(
+                RefCell::new(move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>| {
                     let lhs_grad = -grad.try_astype::<T>()?;
                     let rhs_grad = grad.try_astype::<U>()?;
                     handle_grad(&mut lhs, lhs_grad, &lhs_broadcast_axes)?;
                     handle_grad(&mut rhs, rhs_grad, &rhs_broadcast_axes)?;
                     Ok(false)
-                },
-            )),
+                })
+            ),
         }
     }
 }
@@ -478,17 +481,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + FloatOutBinary<U>,
-    U: CommonBounds,
-    <T as FloatOutBinary<U>>::Output: CommonBounds,
-    <T as FloatOutBinary<U>>::Output: Cast<<T as FloatOutBinary<U>>::Output>,
-    T::Vec: FloatOutBinary<
-        <U as TypeCommon>::Vec,
-        Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + FloatOutBinary<U>,
+        U: CommonBounds,
+        <T as FloatOutBinary<U>>::Output: CommonBounds,
+        T::Vec: FloatOutBinary<
+            <U as TypeCommon>::Vec,
+            Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as FloatOutBinary<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -498,9 +500,8 @@ where
             &rhs,
             |x, y| x._div(y),
             |x, y| x._div(y),
-            None::<Self::Output>,
-        )
-        .unwrap();
+            None::<Self::Output>
+        ).unwrap();
     }
 }
 
@@ -513,17 +514,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + FloatOutBinary<U>,
-    U: CommonBounds,
-    <T as FloatOutBinary<U>>::Output: CommonBounds,
-    <T as FloatOutBinary<U>>::Output: Cast<<T as FloatOutBinary<U>>::Output>,
-    T::Vec: FloatOutBinary<
-        <U as TypeCommon>::Vec,
-        Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + FloatOutBinary<U>,
+        U: CommonBounds,
+        <T as FloatOutBinary<U>>::Output: CommonBounds,
+        T::Vec: FloatOutBinary<
+            <U as TypeCommon>::Vec,
+            Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as FloatOutBinary<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -565,17 +565,17 @@ where
     [Tensor]    [half::bf16][Tensor]    [std::ops::Div];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Div];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + FloatOutBinary<rhs_type>,
-    <T as FloatOutBinary<rhs_type>>::Output: CommonBounds,
-    <T as FloatOutBinary<rhs_type>>::Output: Cast<<T as FloatOutBinary<rhs_type>>::Output>,
-    T::Vec: FloatOutBinary<
-        <rhs_type as TypeCommon>::Vec,
-        Output = <<T as FloatOutBinary<rhs_type>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type>
+    for lhs_type<T, Cpu, DEVICE, A>
+    where
+        T: CommonBounds + FloatOutBinary<rhs_type>,
+        <T as FloatOutBinary<rhs_type>>::Output: CommonBounds,
+        T::Vec: FloatOutBinary<
+            <rhs_type as TypeCommon>::Vec,
+            Output = <<T as FloatOutBinary<rhs_type>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as FloatOutBinary<rhs_type>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -618,18 +618,18 @@ where
     [Tensor]    [half::bf16][Tensor]    [std::ops::Div];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Div];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>> for lhs_type
-where
-    T: CommonBounds,
-    lhs_type: FloatOutBinary<T>,
-    <lhs_type as FloatOutBinary<T>>::Output: CommonBounds,
-    <lhs_type as FloatOutBinary<T>>::Output: Cast<<T as FloatOutBinary<T>>::Output>,
-    <lhs_type as TypeCommon>::Vec: FloatOutBinary<
-        <T as TypeCommon>::Vec,
-        Output = <<lhs_type as FloatOutBinary<T>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>>
+    for lhs_type
+    where
+        T: CommonBounds,
+        lhs_type: FloatOutBinary<T>,
+        <lhs_type as FloatOutBinary<T>>::Output: CommonBounds,
+        <lhs_type as TypeCommon>::Vec: FloatOutBinary<
+            <T as TypeCommon>::Vec,
+            Output = <<lhs_type as FloatOutBinary<T>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<lhs_type as FloatOutBinary<T>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -652,20 +652,18 @@ impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
         T: CommonBounds + FloatOutBinary<U>,
         U: CommonBounds,
         <T as FloatOutBinary<U>>::Output: CommonBounds + Cast<U>,
-        <T as FloatOutBinary<U>>::Output: Cast<<T as FloatOutBinary<U>>::Output> +
-            FloatOutBinary<U>,
+        <T as FloatOutBinary<U>>::Output: FloatOutBinary<U>,
         T::Vec: FloatOutBinary<
             <U as TypeCommon>::Vec,
             Output = <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec
         >,
-        <<T as FloatOutBinary<U>>::Output as FloatOutBinary<U>>::Output: CommonBounds +
-            Cast<T>,
+        <<T as FloatOutBinary<U>>::Output as FloatOutBinary<U>>::Output: CommonBounds + Cast<T>,
         <<T as FloatOutBinary<U>>::Output as TypeCommon>::Vec: FloatOutBinary<
             <U as TypeCommon>::Vec,
             Output = <<<T as FloatOutBinary<U>>::Output as FloatOutBinary<U>>::Output as TypeCommon>::Vec
         >,
         A: Allocator + 'static + Send + Sync,
-        A::Output: AllocatorOutputRetrive,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as FloatOutBinary<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -728,17 +726,16 @@ impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<U>,
-    U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
-    T::Vec: NormalOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + NormalOut<U>,
+        U: CommonBounds,
+        <T as NormalOut<U>>::Output: CommonBounds,
+        T::Vec: NormalOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -748,9 +745,8 @@ where
             &rhs,
             |x, y| x._mul(y),
             |x, y| x._mul(y),
-            None::<Self::Output>,
-        )
-        .unwrap();
+            None::<Self::Output>
+        ).unwrap();
     }
 }
 
@@ -763,17 +759,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<U>,
-    U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
-    T::Vec: NormalOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + NormalOut<U>,
+        U: CommonBounds,
+        <T as NormalOut<U>>::Output: CommonBounds,
+        T::Vec: NormalOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -815,17 +810,17 @@ where
     [Tensor]    [half::bf16][Tensor]    [std::ops::Mul];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Mul];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<rhs_type>,
-    <T as NormalOut<rhs_type>>::Output: CommonBounds,
-    <T as NormalOut<rhs_type>>::Output: Cast<<T as NormalOut<rhs_type>>::Output>,
-    T::Vec: NormalOut<
-        <rhs_type as TypeCommon>::Vec,
-        Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type>
+    for lhs_type<T, Cpu, DEVICE, A>
+    where
+        T: CommonBounds + NormalOut<rhs_type>,
+        <T as NormalOut<rhs_type>>::Output: CommonBounds,
+        T::Vec: NormalOut<
+            <rhs_type as TypeCommon>::Vec,
+            Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as NormalOut<rhs_type>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -868,18 +863,19 @@ where
     [Tensor]    [half::bf16][Tensor]    [std::ops::Mul];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Mul];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>> for lhs_type
-where
-    T: CommonBounds,
-    lhs_type: NormalOut<T>,
-    <lhs_type as NormalOut<T>>::Output: CommonBounds,
-    <lhs_type as NormalOut<T>>::Output: Cast<<T as NormalOut<T>>::Output>,
-    <lhs_type as TypeCommon>::Vec: NormalOut<
-        <T as TypeCommon>::Vec,
-        Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>>
+    for lhs_type
+    where
+        T: CommonBounds,
+        lhs_type: NormalOut<T>,
+        <lhs_type as NormalOut<T>>::Output: CommonBounds,
+        <lhs_type as NormalOut<T>>::Output: Cast<<T as NormalOut<T>>::Output>,
+        <lhs_type as TypeCommon>::Vec: NormalOut<
+            <T as TypeCommon>::Vec,
+            Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<lhs_type as NormalOut<T>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -898,28 +894,27 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<U>,
-    U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
-    T::Vec: NormalOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    <T as NormalOut<U>>::Output: Cast<T> + Cast<U> + NormalOut<U> + NormalOut<T>,
-    <<T as NormalOut<U>>::Output as NormalOut<U>>::Output: CommonBounds + Cast<T>,
-    <<T as NormalOut<U>>::Output as NormalOut<T>>::Output: CommonBounds + Cast<U>,
-    <<T as NormalOut<U>>::Output as TypeCommon>::Vec: NormalOut<
-        <U as TypeCommon>::Vec,
-        Output = <<<T as NormalOut<U>>::Output as NormalOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    <<T as NormalOut<U>>::Output as TypeCommon>::Vec: NormalOut<
-        <T as TypeCommon>::Vec,
-        Output = <<<T as NormalOut<U>>::Output as NormalOut<T>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator + 'static + Send + Sync,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + NormalOut<U>,
+        U: CommonBounds,
+        <T as NormalOut<U>>::Output: CommonBounds,
+        T::Vec: NormalOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
+        >,
+        <T as NormalOut<U>>::Output: Cast<T> + Cast<U> + NormalOut<U> + NormalOut<T>,
+        <<T as NormalOut<U>>::Output as NormalOut<U>>::Output: CommonBounds + Cast<T>,
+        <<T as NormalOut<U>>::Output as NormalOut<T>>::Output: CommonBounds + Cast<U>,
+        <<T as NormalOut<U>>::Output as TypeCommon>::Vec: NormalOut<
+            <U as TypeCommon>::Vec,
+            Output = <<<T as NormalOut<U>>::Output as NormalOut<U>>::Output as TypeCommon>::Vec
+        >,
+        <<T as NormalOut<U>>::Output as TypeCommon>::Vec: NormalOut<
+            <T as TypeCommon>::Vec,
+            Output = <<<T as NormalOut<U>>::Output as NormalOut<T>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator + 'static + Send + Sync,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -927,25 +922,27 @@ where
         *self.out_degree.borrow_mut() += 1;
         *rhs.out_degree.borrow_mut() += 1;
         let res = self.inner.clone().mul(rhs.inner.clone());
-        let lhs_broadcast_axes =
-            get_broadcast_axes_from(self.inner.shape(), res.shape()).expect("broadcast failed");
-        let rhs_broadcast_axes =
-            get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect("broadcast failed");
+        let lhs_broadcast_axes = get_broadcast_axes_from(self.inner.shape(), res.shape()).expect(
+            "broadcast failed"
+        );
+        let rhs_broadcast_axes = get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect(
+            "broadcast failed"
+        );
         let mut lhs = self.clone();
         let mut rhs = rhs.clone();
         DiffTensor {
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(
-                move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>| {
+            backward: Rc::new(
+                RefCell::new(move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>| {
                     let lhs_grad = (grad.clone() * rhs.inner.clone()).try_astype::<T>()?;
                     let rhs_grad = (grad.clone() * lhs.inner.clone()).try_astype::<U>()?;
                     handle_grad(&mut lhs, lhs_grad, &lhs_broadcast_axes)?;
                     handle_grad(&mut rhs, rhs_grad, &rhs_broadcast_axes)?;
                     Ok(false)
-                },
-            )),
+                })
+            ),
         }
     }
 }
@@ -959,17 +956,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<U>,
-    U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
-    T::Vec: NormalOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + NormalOut<U>,
+        U: CommonBounds,
+        <T as NormalOut<U>>::Output: CommonBounds,
+        T::Vec: NormalOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -979,9 +975,8 @@ where
             &rhs,
             |x, y| x._rem(y),
             |x, y| x._rem(y),
-            None::<Self::Output>,
-        )
-        .unwrap();
+            None::<Self::Output>
+        ).unwrap();
     }
 }
 
@@ -994,17 +989,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<U>,
-    U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds,
-    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
-    T::Vec: NormalOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + NormalOut<U>,
+        U: CommonBounds,
+        <T as NormalOut<U>>::Output: CommonBounds,
+        T::Vec: NormalOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1046,17 +1040,17 @@ where
     [Tensor]    [half::bf16][Tensor]    [std::ops::Rem];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Rem];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<rhs_type>,
-    <T as NormalOut<rhs_type>>::Output: CommonBounds,
-    <T as NormalOut<rhs_type>>::Output: Cast<<T as NormalOut<rhs_type>>::Output>,
-    T::Vec: NormalOut<
-        <rhs_type as TypeCommon>::Vec,
-        Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type>
+    for lhs_type<T, Cpu, DEVICE, A>
+    where
+        T: CommonBounds + NormalOut<rhs_type>,
+        <T as NormalOut<rhs_type>>::Output: CommonBounds,
+        T::Vec: NormalOut<
+            <rhs_type as TypeCommon>::Vec,
+            Output = <<T as NormalOut<rhs_type>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as NormalOut<rhs_type>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1099,18 +1093,19 @@ where
     [Tensor]    [half::bf16][Tensor]    [std::ops::Rem];
     [&Tensor]   [half::bf16][Tensor]    [std::ops::Rem];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>> for lhs_type
-where
-    T: CommonBounds,
-    lhs_type: NormalOut<T>,
-    <lhs_type as NormalOut<T>>::Output: CommonBounds,
-    <lhs_type as NormalOut<T>>::Output: Cast<<T as NormalOut<T>>::Output>,
-    <lhs_type as TypeCommon>::Vec: NormalOut<
-        <T as TypeCommon>::Vec,
-        Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>>
+    for lhs_type
+    where
+        T: CommonBounds,
+        lhs_type: NormalOut<T>,
+        <lhs_type as NormalOut<T>>::Output: CommonBounds,
+        <lhs_type as NormalOut<T>>::Output: Cast<<T as NormalOut<T>>::Output>,
+        <lhs_type as TypeCommon>::Vec: NormalOut<
+            <T as TypeCommon>::Vec,
+            Output = <<lhs_type as NormalOut<T>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<lhs_type as NormalOut<T>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1129,23 +1124,21 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<U>,
-    U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds + Cast<T> + FloatOutBinary<U>,
-    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
-    T::Vec: NormalOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    <<T as NormalOut<U>>::Output as FloatOutBinary<U>>::Output: CommonBounds + NormalOutUnary,
-    <T as NormalOut<U>>::Output:
-        NormalOut<<<T as NormalOut<U>>::Output as FloatOutBinary<U>>::Output>,
-    <<T as NormalOut<U>>::Output as NormalOut<
-        <<T as NormalOut<U>>::Output as FloatOutBinary<U>>::Output,
-    >>::Output: FloatOutUnary + CommonBounds + Cast<U>,
-    A: Allocator + 'static + Send + Sync,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + NormalOut<U>,
+        U: CommonBounds,
+        <T as NormalOut<U>>::Output: CommonBounds + Cast<T> + FloatOutBinary<U>,
+        T::Vec: NormalOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as NormalOut<U>>::Output as TypeCommon>::Vec
+        >,
+        <<T as NormalOut<U>>::Output as FloatOutBinary<U>>::Output: CommonBounds + NormalOutUnary,
+        <T as NormalOut<U>>::Output: NormalOut<<<T as NormalOut<U>>::Output as FloatOutBinary<U>>::Output>,
+        <<T as NormalOut<U>>::Output as NormalOut<<<T as NormalOut<U>>::Output as FloatOutBinary<U>>::Output>>::Output: FloatOutUnary +
+            CommonBounds +
+            Cast<U>,
+        A: Allocator + 'static + Send + Sync,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1153,22 +1146,23 @@ where
         *self.out_degree.borrow_mut() += 1;
         *rhs.out_degree.borrow_mut() += 1;
         let res = self.inner.clone().rem(rhs.inner.clone());
-        let lhs_broadcast_axes =
-            get_broadcast_axes_from(self.inner.shape(), res.shape()).expect("broadcast failed");
-        let rhs_broadcast_axes =
-            get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect("broadcast failed");
+        let lhs_broadcast_axes = get_broadcast_axes_from(self.inner.shape(), res.shape()).expect(
+            "broadcast failed"
+        );
+        let rhs_broadcast_axes = get_broadcast_axes_from(rhs.inner.shape(), res.shape()).expect(
+            "broadcast failed"
+        );
         let mut lhs = self.clone();
         let mut rhs = rhs.clone();
         DiffTensor {
             inner: res,
             grad: Rc::new(RefCell::new(None)),
             out_degree: Rc::new(RefCell::new(0)),
-            backward: Rc::new(RefCell::new(
-                move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>| {
+            backward: Rc::new(
+                RefCell::new(move |grad: Tensor<<T as NormalOut<U>>::Output, Cpu, DEVICE, A>| {
                     handle_grad(&mut lhs, grad.try_astype::<T>()?, &lhs_broadcast_axes)?;
 
-                    let rhs_grad: _Tensor<U, Cpu, DEVICE, A> = grad
-                        .inner
+                    let rhs_grad: _Tensor<U, Cpu, DEVICE, A> = grad.inner
                         .par_iter()
                         .zip(rhs.inner.inner.par_iter())
                         .strided_map(|(res, (x, y))| {
@@ -1180,8 +1174,8 @@ where
 
                     handle_grad(&mut rhs, rhs_grad.into(), &rhs_broadcast_axes)?;
                     Ok(false)
-                },
-            )),
+                })
+            ),
         }
     }
 }
@@ -1195,17 +1189,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + BitWiseOut<U>,
-    U: CommonBounds,
-    <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
-    T::Vec: BitWiseOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + BitWiseOut<U>,
+        U: CommonBounds,
+        <T as BitWiseOut<U>>::Output: CommonBounds,
+        T::Vec: BitWiseOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1215,9 +1208,8 @@ where
             &rhs,
             |x, y| x._bitand(y),
             |x, y| x._bitand(y),
-            None::<Self::Output>,
-        )
-        .unwrap();
+            None::<Self::Output>
+        ).unwrap();
     }
 }
 
@@ -1230,17 +1222,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + BitWiseOut<U>,
-    U: CommonBounds,
-    <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
-    T::Vec: BitWiseOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + BitWiseOut<U>,
+        U: CommonBounds,
+        <T as BitWiseOut<U>>::Output: CommonBounds,
+        T::Vec: BitWiseOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1270,17 +1261,17 @@ where
     [Tensor]    [u64]       [Tensor]    [std::ops::BitAnd];
     [&Tensor]   [u64]       [Tensor]    [std::ops::BitAnd];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + BitWiseOut<rhs_type>,
-    <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
-    <T as BitWiseOut<rhs_type>>::Output: Cast<<T as BitWiseOut<rhs_type>>::Output>,
-    T::Vec: BitWiseOut<
-        <rhs_type as TypeCommon>::Vec,
-        Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type>
+    for lhs_type<T, Cpu, DEVICE, A>
+    where
+        T: CommonBounds + BitWiseOut<rhs_type>,
+        <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
+        T::Vec: BitWiseOut<
+            <rhs_type as TypeCommon>::Vec,
+            Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1311,18 +1302,18 @@ where
     [Tensor]    [u64]       [Tensor]    [std::ops::BitAnd];
     [&Tensor]   [u64]       [Tensor]    [std::ops::BitAnd];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>> for lhs_type
-where
-    T: CommonBounds,
-    lhs_type: BitWiseOut<T>,
-    <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
-    <lhs_type as BitWiseOut<T>>::Output: Cast<<lhs_type as BitWiseOut<T>>::Output>,
-    <lhs_type as TypeCommon>::Vec: BitWiseOut<
-        <T as TypeCommon>::Vec,
-        Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>>
+    for lhs_type
+    where
+        T: CommonBounds,
+        lhs_type: BitWiseOut<T>,
+        <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
+        <lhs_type as TypeCommon>::Vec: BitWiseOut<
+            <T as TypeCommon>::Vec,
+            Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1341,17 +1332,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + BitWiseOut<U>,
-    U: CommonBounds,
-    <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
-    T::Vec: BitWiseOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + BitWiseOut<U>,
+        U: CommonBounds,
+        <T as BitWiseOut<U>>::Output: CommonBounds,
+        T::Vec: BitWiseOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1361,9 +1351,8 @@ where
             &rhs,
             |x, y| x._bitor(y),
             |x, y| x._bitor(y),
-            None::<Self::Output>,
-        )
-        .unwrap();
+            None::<Self::Output>
+        ).unwrap();
     }
 }
 
@@ -1376,17 +1365,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + BitWiseOut<U>,
-    U: CommonBounds,
-    <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
-    T::Vec: BitWiseOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + BitWiseOut<U>,
+        U: CommonBounds,
+        <T as BitWiseOut<U>>::Output: CommonBounds,
+        T::Vec: BitWiseOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1416,17 +1404,17 @@ where
     [Tensor]    [u64]       [Tensor]    [std::ops::BitOr];
     [&Tensor]   [u64]       [Tensor]    [std::ops::BitOr];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + BitWiseOut<rhs_type>,
-    <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
-    <T as BitWiseOut<rhs_type>>::Output: Cast<<T as BitWiseOut<rhs_type>>::Output>,
-    T::Vec: BitWiseOut<
-        <rhs_type as TypeCommon>::Vec,
-        Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type>
+    for lhs_type<T, Cpu, DEVICE, A>
+    where
+        T: CommonBounds + BitWiseOut<rhs_type>,
+        <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
+        T::Vec: BitWiseOut<
+            <rhs_type as TypeCommon>::Vec,
+            Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1457,18 +1445,18 @@ where
     [Tensor]    [u64]       [Tensor]    [std::ops::BitOr];
     [&Tensor]   [u64]       [Tensor]    [std::ops::BitOr];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>> for lhs_type
-where
-    T: CommonBounds,
-    lhs_type: BitWiseOut<T>,
-    <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
-    <lhs_type as BitWiseOut<T>>::Output: Cast<<lhs_type as BitWiseOut<T>>::Output>,
-    <lhs_type as TypeCommon>::Vec: BitWiseOut<
-        <T as TypeCommon>::Vec,
-        Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>>
+    for lhs_type
+    where
+        T: CommonBounds,
+        lhs_type: BitWiseOut<T>,
+        <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
+        <lhs_type as TypeCommon>::Vec: BitWiseOut<
+            <T as TypeCommon>::Vec,
+            Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1487,17 +1475,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + BitWiseOut<U>,
-    U: CommonBounds,
-    <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
-    T::Vec: BitWiseOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + BitWiseOut<U>,
+        U: CommonBounds,
+        <T as BitWiseOut<U>>::Output: CommonBounds,
+        T::Vec: BitWiseOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1507,9 +1494,8 @@ where
             &rhs,
             |x, y| x._bitxor(y),
             |x, y| x._bitxor(y),
-            None::<Self::Output>,
-        )
-        .unwrap();
+            None::<Self::Output>
+        ).unwrap();
     }
 }
 
@@ -1522,17 +1508,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + BitWiseOut<U>,
-    U: CommonBounds,
-    <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
-    T::Vec: BitWiseOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + BitWiseOut<U>,
+        U: CommonBounds,
+        <T as BitWiseOut<U>>::Output: CommonBounds,
+        T::Vec: BitWiseOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1562,17 +1547,17 @@ where
     [Tensor]    [u64]       [Tensor]    [std::ops::BitXor];
     [&Tensor]   [u64]       [Tensor]    [std::ops::BitXor];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + BitWiseOut<rhs_type>,
-    <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
-    <T as BitWiseOut<rhs_type>>::Output: Cast<<T as BitWiseOut<rhs_type>>::Output>,
-    T::Vec: BitWiseOut<
-        <rhs_type as TypeCommon>::Vec,
-        Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type>
+    for lhs_type<T, Cpu, DEVICE, A>
+    where
+        T: CommonBounds + BitWiseOut<rhs_type>,
+        <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
+        T::Vec: BitWiseOut<
+            <rhs_type as TypeCommon>::Vec,
+            Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1603,18 +1588,18 @@ where
     [Tensor]    [u64]       [Tensor]    [std::ops::BitXor];
     [&Tensor]   [u64]       [Tensor]    [std::ops::BitXor];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>> for lhs_type
-where
-    T: CommonBounds,
-    lhs_type: BitWiseOut<T>,
-    <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
-    <lhs_type as BitWiseOut<T>>::Output: Cast<<lhs_type as BitWiseOut<T>>::Output>,
-    <lhs_type as TypeCommon>::Vec: BitWiseOut<
-        <T as TypeCommon>::Vec,
-        Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>>
+    for lhs_type
+    where
+        T: CommonBounds,
+        lhs_type: BitWiseOut<T>,
+        <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
+        <lhs_type as TypeCommon>::Vec: BitWiseOut<
+            <T as TypeCommon>::Vec,
+            Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1633,17 +1618,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + BitWiseOut<U>,
-    U: CommonBounds,
-    <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
-    T::Vec: BitWiseOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + BitWiseOut<U>,
+        U: CommonBounds,
+        <T as BitWiseOut<U>>::Output: CommonBounds,
+        T::Vec: BitWiseOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1653,9 +1637,8 @@ where
             &rhs,
             |x, y| x._shl(y),
             |x, y| x._shl(y),
-            None::<Self::Output>,
-        )
-        .unwrap();
+            None::<Self::Output>
+        ).unwrap();
     }
 }
 
@@ -1668,17 +1651,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + BitWiseOut<U>,
-    U: CommonBounds,
-    <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
-    T::Vec: BitWiseOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + BitWiseOut<U>,
+        U: CommonBounds,
+        <T as BitWiseOut<U>>::Output: CommonBounds,
+        T::Vec: BitWiseOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1708,17 +1690,17 @@ where
     [Tensor]    [u64]       [Tensor]    [std::ops::Shl];
     [&Tensor]   [u64]       [Tensor]    [std::ops::Shl];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + BitWiseOut<rhs_type>,
-    <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
-    <T as BitWiseOut<rhs_type>>::Output: Cast<<T as BitWiseOut<rhs_type>>::Output>,
-    T::Vec: BitWiseOut<
-        <rhs_type as TypeCommon>::Vec,
-        Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type>
+    for lhs_type<T, Cpu, DEVICE, A>
+    where
+        T: CommonBounds + BitWiseOut<rhs_type>,
+        <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
+        T::Vec: BitWiseOut<
+            <rhs_type as TypeCommon>::Vec,
+            Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1749,18 +1731,18 @@ where
     [Tensor]    [u64]       [Tensor]    [std::ops::Shl];
     [&Tensor]   [u64]       [Tensor]    [std::ops::Shl];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>> for lhs_type
-where
-    T: CommonBounds,
-    lhs_type: BitWiseOut<T>,
-    <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
-    <lhs_type as BitWiseOut<T>>::Output: Cast<<lhs_type as BitWiseOut<T>>::Output>,
-    <lhs_type as TypeCommon>::Vec: BitWiseOut<
-        <T as TypeCommon>::Vec,
-        Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>>
+    for lhs_type
+    where
+        T: CommonBounds,
+        lhs_type: BitWiseOut<T>,
+        <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
+        <lhs_type as TypeCommon>::Vec: BitWiseOut<
+            <T as TypeCommon>::Vec,
+            Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1779,17 +1761,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + BitWiseOut<U>,
-    U: CommonBounds,
-    <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
-    T::Vec: BitWiseOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + BitWiseOut<U>,
+        U: CommonBounds,
+        <T as BitWiseOut<U>>::Output: CommonBounds,
+        T::Vec: BitWiseOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1799,9 +1780,8 @@ where
             &rhs,
             |x, y| x._shr(y),
             |x, y| x._shr(y),
-            None::<Self::Output>,
-        )
-        .unwrap();
+            None::<Self::Output>
+        ).unwrap();
     }
 }
 
@@ -1814,17 +1794,16 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + BitWiseOut<U>,
-    U: CommonBounds,
-    <T as BitWiseOut<U>>::Output: CommonBounds,
-    <T as BitWiseOut<U>>::Output: Cast<<T as BitWiseOut<U>>::Output>,
-    T::Vec: BitWiseOut<
-        <U as TypeCommon>::Vec,
-        Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + BitWiseOut<U>,
+        U: CommonBounds,
+        <T as BitWiseOut<U>>::Output: CommonBounds,
+        T::Vec: BitWiseOut<
+            <U as TypeCommon>::Vec,
+            Output = <<T as BitWiseOut<U>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1854,17 +1833,17 @@ where
     [Tensor]    [u64]       [Tensor]    [std::ops::Shr];
     [&Tensor]   [u64]       [Tensor]    [std::ops::Shr];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type> for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + BitWiseOut<rhs_type>,
-    <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
-    <T as BitWiseOut<rhs_type>>::Output: Cast<<T as BitWiseOut<rhs_type>>::Output>,
-    T::Vec: BitWiseOut<
-        <rhs_type as TypeCommon>::Vec,
-        Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type>
+    for lhs_type<T, Cpu, DEVICE, A>
+    where
+        T: CommonBounds + BitWiseOut<rhs_type>,
+        <T as BitWiseOut<rhs_type>>::Output: CommonBounds,
+        T::Vec: BitWiseOut<
+            <rhs_type as TypeCommon>::Vec,
+            Output = <<T as BitWiseOut<rhs_type>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<T as BitWiseOut<rhs_type>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1895,18 +1874,18 @@ where
     [Tensor]    [u64]       [Tensor]    [std::ops::Shr];
     [&Tensor]   [u64]       [Tensor]    [std::ops::Shr];
 )]
-impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>> for lhs_type
-where
-    T: CommonBounds,
-    lhs_type: BitWiseOut<T>,
-    <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
-    <lhs_type as BitWiseOut<T>>::Output: Cast<<lhs_type as BitWiseOut<T>>::Output>,
-    <lhs_type as TypeCommon>::Vec: BitWiseOut<
-        <T as TypeCommon>::Vec,
-        Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec,
-    >,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, A> trait_name<rhs_type<T, Cpu, DEVICE, A>>
+    for lhs_type
+    where
+        T: CommonBounds,
+        lhs_type: BitWiseOut<T>,
+        <lhs_type as BitWiseOut<T>>::Output: CommonBounds,
+        <lhs_type as TypeCommon>::Vec: BitWiseOut<
+            <T as TypeCommon>::Vec,
+            Output = <<lhs_type as BitWiseOut<T>>::Output as TypeCommon>::Vec
+        >,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     type Output = out_type<<lhs_type as BitWiseOut<T>>::Output, Cpu, DEVICE, A>;
     #[track_caller]
@@ -1929,19 +1908,20 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<U>,
-    U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds + Cast<T>,
-    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + NormalOut<U>,
+        U: CommonBounds,
+        <T as NormalOut<U>>::Output: CommonBounds + Cast<T>,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     #[track_caller]
     fn trait_method(&mut self, rhs: rhs_type<U, Cpu, DEVICE, A>) {
-        self.par_iter_mut().zip(rhs.par_iter()).for_each(|(x, y)| {
-            *x = x.op(y).cast();
-        });
+        self.par_iter_mut()
+            .zip(rhs.par_iter())
+            .for_each(|(x, y)| {
+                *x = x.op(y).cast();
+            });
     }
 }
 
@@ -1958,13 +1938,12 @@ where
 )]
 impl<T, U, const DEVICE: usize, A> trait_name<rhs_type<U, Cpu, DEVICE, A>>
     for lhs_type<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + NormalOut<U>,
-    U: CommonBounds,
-    <T as NormalOut<U>>::Output: CommonBounds + Cast<T>,
-    <T as NormalOut<U>>::Output: Cast<<T as NormalOut<U>>::Output>,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + NormalOut<U>,
+        U: CommonBounds,
+        <T as NormalOut<U>>::Output: CommonBounds + Cast<T>,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     #[track_caller]
     fn trait_method(&mut self, rhs: rhs_type<U, Cpu, DEVICE, A>) {
@@ -1974,11 +1953,11 @@ where
 
 impl<T, U, const DEVICE: usize, A> PartialEq<_Tensor<U, Cpu, DEVICE, A>>
     for _Tensor<T, Cpu, DEVICE, A>
-where
-    T: CommonBounds + Cast<f64>,
-    U: CommonBounds + Cast<f64>,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + Cast<f64>,
+        U: CommonBounds + Cast<f64>,
+        A: Allocator,
+        A::Output: AllocatorOutputRetrive
 {
     fn eq(&self, other: &_Tensor<U, Cpu, DEVICE, A>) -> bool {
         if self.size() != other.size() {
@@ -1991,13 +1970,14 @@ where
     }
 }
 
-impl<T, const DEVICE: usize, Al> Not for _Tensor<T, Cpu, DEVICE, Al>
-where
-    T: BitWiseOut<T> + CommonBounds,
-    <T as BitWiseOut>::Output: CommonBounds,
-    T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, Al> Not
+    for _Tensor<T, Cpu, DEVICE, Al>
+    where
+        T: BitWiseOut<T> + CommonBounds,
+        <T as BitWiseOut>::Output: CommonBounds,
+        T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>,
+        Al: Allocator,
+        Al::Output: AllocatorOutputRetrive
 {
     type Output = _Tensor<<T as BitWiseOut<T>>::Output, Cpu, DEVICE, Al>;
     #[track_caller]
@@ -2007,19 +1987,19 @@ where
             &lhs,
             |x| x._not(),
             |x| x._not(),
-            None::<_Tensor<<T as BitWiseOut<T>>::Output, Cpu, DEVICE, Al>>,
-        )
-        .unwrap()
+            None::<_Tensor<<T as BitWiseOut<T>>::Output, Cpu, DEVICE, Al>>
+        ).unwrap()
     }
 }
 
-impl<T, const DEVICE: usize, Al> Not for &_Tensor<T, Cpu, DEVICE, Al>
-where
-    T: BitWiseOut<T> + CommonBounds,
-    <T as BitWiseOut>::Output: CommonBounds,
-    T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, Al> Not
+    for &_Tensor<T, Cpu, DEVICE, Al>
+    where
+        T: BitWiseOut<T> + CommonBounds,
+        <T as BitWiseOut>::Output: CommonBounds,
+        T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>,
+        Al: Allocator,
+        Al::Output: AllocatorOutputRetrive
 {
     type Output = _Tensor<<T as BitWiseOut<T>>::Output, Cpu, DEVICE, Al>;
     #[track_caller]
@@ -2029,20 +2009,18 @@ where
             &lhs,
             |x| x._not(),
             |x| x._not(),
-            None::<_Tensor<<T as BitWiseOut<T>>::Output, Cpu, DEVICE, Al>>,
-        )
-        .unwrap()
+            None::<_Tensor<<T as BitWiseOut<T>>::Output, Cpu, DEVICE, Al>>
+        ).unwrap()
     }
 }
 
-impl<T, const DEVICE: usize, Al> Neg for _Tensor<T, Cpu, DEVICE, Al>
-where
-    T: CommonBounds,
-    T::Vec: NormalOutUnary,
-    T: NormalOutUnary,
-    _Tensor<NormalType<T>, Cpu, DEVICE, Al>: TensorLike<NormalType<T>>,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, Al> Neg
+    for _Tensor<T, Cpu, DEVICE, Al>
+    where
+        T: CommonBounds,
+        _Tensor<NormalType<T>, Cpu, DEVICE, Al>: TensorLike<NormalType<T>>,
+        Al: Allocator,
+        Al::Output: AllocatorOutputRetrive
 {
     type Output = _Tensor<NormalType<T>, Cpu, DEVICE, Al>;
     #[track_caller]
@@ -2051,14 +2029,13 @@ where
     }
 }
 
-impl<T, const DEVICE: usize, Al> Neg for &_Tensor<T, Cpu, DEVICE, Al>
-where
-    T: CommonBounds,
-    T::Vec: NormalOutUnary,
-    T: NormalOutUnary,
-    _Tensor<NormalType<T>, Cpu, DEVICE, Al>: TensorLike<NormalType<T>>,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, Al> Neg
+    for &_Tensor<T, Cpu, DEVICE, Al>
+    where
+        T: CommonBounds,
+        _Tensor<NormalType<T>, Cpu, DEVICE, Al>: TensorLike<NormalType<T>>,
+        Al: Allocator,
+        Al::Output: AllocatorOutputRetrive
 {
     type Output = _Tensor<NormalType<T>, Cpu, DEVICE, Al>;
     #[track_caller]
@@ -2069,11 +2046,11 @@ where
 
 impl<T, U, const DEVICE: usize, Al> PartialEq<Tensor<U, Cpu, DEVICE, Al>>
     for Tensor<T, Cpu, DEVICE, Al>
-where
-    T: CommonBounds + Cast<f64>,
-    U: CommonBounds + Cast<f64>,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
+    where
+        T: CommonBounds + Cast<f64>,
+        U: CommonBounds + Cast<f64>,
+        Al: Allocator,
+        Al::Output: AllocatorOutputRetrive
 {
     fn eq(&self, other: &Tensor<U, Cpu, DEVICE, Al>) -> bool {
         if self.size() != other.size() {
@@ -2086,13 +2063,14 @@ where
     }
 }
 
-impl<T, const DEVICE: usize, Al> Not for Tensor<T, Cpu, DEVICE, Al>
-where
-    T: BitWiseOut<T> + CommonBounds,
-    <T as BitWiseOut>::Output: CommonBounds,
-    T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, Al> Not
+    for Tensor<T, Cpu, DEVICE, Al>
+    where
+        T: BitWiseOut<T> + CommonBounds,
+        <T as BitWiseOut>::Output: CommonBounds,
+        T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>,
+        Al: Allocator,
+        Al::Output: AllocatorOutputRetrive
 {
     type Output = Tensor<<T as BitWiseOut<T>>::Output, Cpu, DEVICE, Al>;
     #[track_caller]
@@ -2101,13 +2079,14 @@ where
     }
 }
 
-impl<T, const DEVICE: usize, Al> Not for &Tensor<T, Cpu, DEVICE, Al>
-where
-    T: BitWiseOut<T> + CommonBounds,
-    <T as BitWiseOut>::Output: CommonBounds,
-    T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, Al> Not
+    for &Tensor<T, Cpu, DEVICE, Al>
+    where
+        T: BitWiseOut<T> + CommonBounds,
+        <T as BitWiseOut>::Output: CommonBounds,
+        T::Vec: BitWiseOut<T::Vec, Output = <<T as BitWiseOut>::Output as TypeCommon>::Vec>,
+        Al: Allocator,
+        Al::Output: AllocatorOutputRetrive
 {
     type Output = Tensor<<T as BitWiseOut<T>>::Output, Cpu, DEVICE, Al>;
     #[track_caller]
@@ -2116,38 +2095,32 @@ where
     }
 }
 
-impl<T, const DEVICE: usize, Al> Neg for Tensor<T, Cpu, DEVICE, Al>
-where
-    T: CommonBounds,
-    T::Vec: NormalOutUnary,
-    T: NormalOutUnary,
-    Tensor<NormalType<T>, Cpu, DEVICE, Al>: TensorLike<NormalType<T>>,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, Al> Neg
+    for Tensor<T, Cpu, DEVICE, Al>
+    where
+        T: CommonBounds,
+        Tensor<NormalType<T>, Cpu, DEVICE, Al>: TensorLike<NormalType<T>>,
+        Al: Allocator,
+        Al::Output: AllocatorOutputRetrive
 {
     type Output = Tensor<NormalType<T>, Cpu, DEVICE, Al>;
     #[track_caller]
     fn neg(self) -> Self::Output {
-        <_Tensor<T, Cpu, DEVICE, Al> as NormalUaryOps>::neg(self.inner.as_ref())
-            .unwrap()
-            .into()
+        <_Tensor<T, Cpu, DEVICE, Al> as NormalUaryOps>::neg(self.inner.as_ref()).unwrap().into()
     }
 }
 
-impl<T, const DEVICE: usize, Al> Neg for &Tensor<T, Cpu, DEVICE, Al>
-where
-    T: CommonBounds,
-    T::Vec: NormalOutUnary,
-    T: NormalOutUnary,
-    Tensor<NormalType<T>, Cpu, DEVICE, Al>: TensorLike<NormalType<T>>,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
+impl<T, const DEVICE: usize, Al> Neg
+    for &Tensor<T, Cpu, DEVICE, Al>
+    where
+        T: CommonBounds,
+        Tensor<NormalType<T>, Cpu, DEVICE, Al>: TensorLike<NormalType<T>>,
+        Al: Allocator,
+        Al::Output: AllocatorOutputRetrive
 {
     type Output = Tensor<NormalType<T>, Cpu, DEVICE, Al>;
     #[track_caller]
     fn neg(self) -> Self::Output {
-        <_Tensor<T, Cpu, DEVICE, Al> as NormalUaryOps>::neg(self.inner.as_ref())
-            .unwrap()
-            .into()
+        <_Tensor<T, Cpu, DEVICE, Al> as NormalUaryOps>::neg(self.inner.as_ref()).unwrap().into()
     }
 }
