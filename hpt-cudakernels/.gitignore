@@ -27,5 +27,10 @@ docs/.vuepress/.cache/
 docs/.vuepress/.temp/
 docs/.vuepress/dist/
 
+./build.rs
+
 cutlass_gemm.cu
 cutlass
+test_cute.cu
+gemm
+matmul.cu
