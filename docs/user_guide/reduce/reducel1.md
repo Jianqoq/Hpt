@@ -26,7 +26,7 @@ Tensor with type `T`
 
 ## Examples:
 ```rust
-use hpt::{FloatReduce, Tensor, TensorError};
+use hpt::{ops::FloatReduce, Tensor, error::TensorError};
 
 fn main() -> Result<(), TensorError> {
     // L1 norm over dimension 0

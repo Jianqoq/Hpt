@@ -17,16 +17,20 @@ Tensor with type `T`
 
 ## Examples:
 ```rust
-use hpt::{Tensor, TensorError, RegularizationOps, TensorCreator};
+use hpt::{
+    error::TensorError,
+    ops::{RegularizationOps, TensorCreator},
+    Tensor,
+};
 
 fn main() -> Result<(), TensorError> {
     // Create a tensor filled with ones
     let x = Tensor::<f32>::ones(&[3, 4])?;
-    
+
     // Apply dropout with 0.5 probability
     let dropped = x.dropout(0.5)?;
     println!("After dropout:\n{}", dropped);
-    
+
     Ok(())
 }
 ```

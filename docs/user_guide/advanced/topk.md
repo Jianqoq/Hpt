@@ -28,20 +28,20 @@ A tuple of two tensors:
 
 ## Examples:
 ```rust
-use hpt::{Tensor, TensorError, AdvancedOps};
+use hpt::{error::TensorError, ops::AdvancedOps, Tensor};
 
 fn main() -> Result<(), TensorError> {
     let x = Tensor::<f64>::new(&[5., 2., 8., 1., 9., 3.]);
-    
+
     // Get top 3 largest values and their indices
     let (indices, values) = x.topk(3, 0, true, true)?;
-    println!("Top 3 values: {}", values);    // [9., 8., 5.]
-    println!("Their indices: {}", indices);   // [4, 2, 0]
-    
+    println!("Top 3 values: {}", values); // [9., 8., 5.]
+    println!("Their indices: {}", indices); // [4, 2, 0]
+
     // Get top 2 smallest values, unsorted
     let (indices, values) = x.topk(2, 0, false, false)?;
-    println!("Bottom 2 values: {}", values);  // Values might be in any order
-    
+    println!("Bottom 2 values: {}", values); // Values might be in any order
+
     Ok(())
 }
 ```

@@ -216,7 +216,8 @@ where
         step: Self::Meta,
     ) -> Result<Self::Output, TensorError>
     where
-        Self::Meta: Cast<f64> + Cast<usize>,
+        Self::Meta: Cast<f64> + Cast<f64>,
+        f64: Cast<Self::Meta>,
         usize: Cast<Self::Meta>;
 
     /// Creates a 2D identity matrix with ones on a diagonal and zeros elsewhere.

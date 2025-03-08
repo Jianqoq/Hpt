@@ -41,14 +41,6 @@ pub trait AdvancedOps {
     ) -> Result<Self::Output, TensorError>;
 }
 
-/// A trait for shrinkage
-pub trait Shrinkage<T> {
-    /// The type of the output tensor
-    type Output;
-    /// Shrinkage the tensor
-    fn shrinkage(&self, bias: T, lambda: T) -> Result<Self::Output, TensorError>;
-}
-
 /// A trait for hardmax
 pub trait HardMax<T> {
     /// The type of the output tensor

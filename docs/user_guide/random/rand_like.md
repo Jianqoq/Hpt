@@ -17,7 +17,7 @@ same as `rand` but the shape will be based on `x`.
 Tensor with type `T`
 ## Examples:
 ```rust
-use hpt::{Random, Tensor, TensorError};
+use hpt::{error::TensorError, ops::Random, Tensor};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::rand([10, 10], 0.0, 10.0)?;

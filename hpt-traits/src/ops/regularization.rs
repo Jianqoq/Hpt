@@ -17,4 +17,13 @@ pub trait RegularizationOps {
         f64: Cast<Self::OutputMeta>,
         bool: Cast<Self::OutputMeta>,
         Self::OutputMeta: NormalOut<bool, Output = Self::OutputMeta>;
+
+    /// Applies the shrinkage function to the input tensor. The shrinkage function is a soft thresholding operator commonly used in signal processing and optimization algorithms, defined as:
+    ///
+    /// sign(x - bias) * max(abs(x - bias) - lambda, 0)
+    fn shrinkage(
+        &self,
+        bias: Self::OutputMeta,
+        lambda: Self::OutputMeta,
+    ) -> Result<Self::Output, TensorError>;
 }

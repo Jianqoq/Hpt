@@ -3,13 +3,13 @@ use hpt_common::error::base::TensorError;
 use hpt_cudakernels::PAD;
 use hpt_traits::{
     ops::{
-        advance::{AdvancedOps, HardMax, Shrinkage, TensorWhere},
+        advance::{AdvancedOps, HardMax, TensorWhere},
         creation::TensorCreator,
     },
     tensor::{CommonBounds, TensorInfo},
 };
 use hpt_types::{
-    dtype::{CudaType, TypeCommon},
+    dtype::CudaType,
     into_scalar::Cast,
     type_promote::{Cmp, NormalOut},
 };
@@ -118,18 +118,6 @@ where
         _: i64,
         _: &Self::Output,
     ) -> Result<Self::Output, TensorError> {
-        unimplemented!()
-    }
-}
-
-impl<T: CommonBounds, const DEVICE: usize, Al> Shrinkage<T> for _Tensor<T, Cuda, DEVICE, Al>
-where
-    T: Cmp<Output = bool> + TypeCommon,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
-{
-    type Output = _Tensor<T, Cuda, DEVICE, Al>;
-    fn shrinkage(&self, _: T, _: T) -> Result<Self::Output, TensorError> {
         unimplemented!()
     }
 }

@@ -65,7 +65,8 @@ where
 
     fn arange_step(start: T, end: T, step: T) -> std::result::Result<Self::Output, TensorError>
     where
-        T: Cast<f64> + Cast<usize>,
+        T: Cast<f64> + Cast<f64>,
+        f64: Cast<T>,
         usize: Cast<T>,
     {
         Ok(_Tensor::<T, Cuda, DEVICE, Al>::arange_step(start, end, step)?.into())

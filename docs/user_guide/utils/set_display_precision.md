@@ -13,7 +13,7 @@ Controls how many decimal places are shown when displaying tensor values.
 
 ## Examples
 ```rust
-use hpt::{set_display_precision, Cpu, Tensor, TensorError};
+use hpt::{backend::Cpu, error::TensorError, utils::set_display_precision, Tensor};
 
 fn main() -> Result<(), TensorError> {
     // Set precision to 3 decimal places

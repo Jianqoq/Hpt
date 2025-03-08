@@ -9,13 +9,21 @@ use hpt_traits::{
     ops::regularization::RegularizationOps,
     tensor::{CommonBounds, TensorInfo},
 };
-use hpt_types::into_scalar::Cast;
+use hpt_types::{traits::VecTrait, type_promote::NormalOut};
+use hpt_types::{
+    dtype::TypeCommon,
+    into_scalar::Cast,
+    traits::SimdSelect,
+    type_promote::{Cmp, NormalOutUnary, SimdCmp},
+};
 use rand_distr::Distribution;
 use rayon::iter::ParallelIterator;
 
 impl<T, const DEVICE: usize, A> RegularizationOps for _Tensor<T, Cpu, DEVICE, A>
 where
-    T: CommonBounds,
+    T: CommonBounds + Cmp<Output = bool>,
+    T::Vec: SimdCmp,
+    <T::Vec as SimdCmp>::Output: SimdSelect<T::Vec>,
     A: Allocator + Send + Sync,
     A::Output: AllocatorOutputRetrive,
 {
@@ -43,5 +51,40 @@ where
                 },
             );
         Ok(ret)
+    }
+
+    fn shrinkage(
+        &self,
+        bias: Self::OutputMeta,
+        lambda: Self::OutputMeta,
+    ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
+        let lambda_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(lambda);
+        let neg_lambda = lambda._neg();
+        let neg_lambda_vec = lambda_vec._neg();
+        let bias_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(bias);
+
+        Ok(self
+            .par_iter_simd()
+            .strided_map_simd(
+                |(x, y)| {
+                    *x = if y._gt(lambda) {
+                        y._sub(bias)
+                    } else if y._lt(neg_lambda) {
+                        y._add(bias)
+                    } else {
+                        T::ZERO
+                    };
+                },
+                |(x, y)| {
+                    let gt_mask = y._gt(lambda_vec);
+                    let lt_mask = y._lt(neg_lambda_vec);
+                    let sub_bias = y._sub(bias_vec);
+                    let add_bias = y._add(bias_vec);
+                    let zero = T::Vec::splat(T::ZERO);
+                    let res = gt_mask.select(sub_bias, zero);
+                    x.write_unaligned(lt_mask.select(add_bias, res));
+                },
+            )
+            .collect())
     }
 }

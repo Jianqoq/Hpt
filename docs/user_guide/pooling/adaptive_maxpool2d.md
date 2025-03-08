@@ -17,7 +17,12 @@ Tensor with type `T`
 
 ## Examples:
 ```rust
-use hpt::{NormalPooling, Random, Tensor, TensorError, TensorInfo};
+use hpt::{
+    common::TensorInfo,
+    error::TensorError,
+    ops::{NormalPooling, Random},
+    Tensor,
+};
 
 fn main() -> Result<(), TensorError> {
     // [batch_size, height, width, channels]
@@ -27,10 +32,10 @@ fn main() -> Result<(), TensorError> {
     let output = input.adaptive_maxpool2d([16, 16])?;
 
     println!("Output shape: {:?}", output.shape()); // [1, 16, 16, 16]
-    
+
     // Resize to a different output size
     let output2 = input.adaptive_maxpool2d([8, 8])?;
-    
+
     println!("Output2 shape: {:?}", output2.shape()); // [1, 8, 8, 16]
     Ok(())
 }

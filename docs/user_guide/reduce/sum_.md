@@ -32,7 +32,7 @@ Tensor with type `T`
 
 ## Examples:
 ```rust
-use hpt::{NormalReduce, Tensor, TensorError};
+use hpt::{ops::NormalReduce, Tensor, error::TensorError};
 
 fn main() -> Result<(), TensorError> {
     // Sum over dimension 0

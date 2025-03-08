@@ -20,7 +20,7 @@ Tensor with type `T` containing random values from the log-normal distribution.
 
 ## Examples:
 ```rust
-use hpt::{Random, Tensor, TensorError};
+use hpt::{error::TensorError, ops::Random, Tensor};
 
 fn main() -> Result<(), TensorError> {
     // Create a 10x10 tensor with log-normal distribution (μ=0.0, σ=1.0)

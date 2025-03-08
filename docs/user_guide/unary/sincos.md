@@ -12,7 +12,7 @@ Tuple of two tensors (sine, cosine) with type `C`
 
 ## Examples:
 ```rust
-use hpt::{FloatUnaryOps, Tensor, TensorError};
+use hpt::{ops::FloatUnaryOps, Tensor, error::TensorError};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new([10.0]);

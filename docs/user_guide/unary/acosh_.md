@@ -13,6 +13,7 @@ Inverse hyperbolic cosine with out
 Tensor with type `C`
 ## Examples:
 ```rust
+use hpt::{common::TensorInfo, error::TensorError, ops::FloatUnaryOps, Tensor};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new([-10.0]);

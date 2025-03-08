@@ -13,19 +13,19 @@ Controls how many elements are shown for left handside and right handside for ea
 
 ## Examples
 ```rust
-use hpt::{set_display_elements, Cpu, Tensor, TensorError};
+use hpt::{backend::Cpu, error::TensorError, utils::set_display_elements, Tensor};
 
 fn main() -> Result<(), TensorError> {
     let tensor = Tensor::<i32, Cpu>::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-    
+
     // Set to show 2 elements from each end
     set_display_elements(2);
     println!("{}", tensor); // Output: [1  2 ... 9 10 ]
-    
+
     // Set to show 3 elements from each end
     set_display_elements(3);
     println!("{}", tensor); // Output: [1 2  3 ... 8 9 10 ]
-    
+
     Ok(())
 }
 ```

@@ -11,7 +11,7 @@ use hpt_common::shape::shape_utils::mt_intervals;
 use hpt_common::Pointer;
 use hpt_iterator::iterator_traits::ParStridedIteratorZip;
 use hpt_iterator::TensorIterator;
-use hpt_traits::ops::advance::{AdvancedOps, HardMax, Shrinkage, TensorWhere};
+use hpt_traits::ops::advance::{AdvancedOps, HardMax, TensorWhere};
 use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::ops::reduce::NormalReduce;
 use hpt_traits::ops::shape_manipulate::ShapeManipulate;
@@ -19,8 +19,7 @@ use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::dtype::TypeCommon;
 use hpt_types::into_scalar::Cast;
 use hpt_types::into_vec::IntoVec;
-use hpt_types::traits::{SimdSelect, VecTrait};
-use hpt_types::type_promote::{Cmp, NormalOut, NormalOutUnary, SimdCmp};
+use hpt_types::type_promote::{Cmp, NormalOut, SimdCmp};
 
 impl<T: CommonBounds + PartialOrd, const DEVICE: usize, Al> AdvancedOps
     for _Tensor<T, Cpu, DEVICE, Al>
@@ -681,47 +680,6 @@ where
         }
 
         Ok(result)
-    }
-}
-
-impl<T: CommonBounds, const DEVICE: usize, Al> Shrinkage<T> for _Tensor<T, Cpu, DEVICE, Al>
-where
-    T: Cmp<Output = bool> + TypeCommon,
-    T::Vec: SimdCmp,
-    <T::Vec as SimdCmp>::Output: SimdSelect<T::Vec>,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
-{
-    type Output = _Tensor<T, Cpu, DEVICE, Al>;
-    fn shrinkage(&self, bias: T, lambda: T) -> Result<Self::Output, TensorError> {
-        let lambda_vec = T::Vec::splat(lambda);
-        let neg_lambda = lambda._neg();
-        let neg_lambda_vec = lambda_vec._neg();
-        let bias_vec = T::Vec::splat(bias);
-
-        Ok(self
-            .par_iter_simd()
-            .strided_map_simd(
-                |(x, y)| {
-                    *x = if y._gt(lambda) {
-                        y._sub(bias)
-                    } else if y._lt(neg_lambda) {
-                        y._add(bias)
-                    } else {
-                        T::ZERO
-                    };
-                },
-                |(x, y)| {
-                    let gt_mask = y._gt(lambda_vec);
-                    let lt_mask = y._lt(neg_lambda_vec);
-                    let sub_bias = y._sub(bias_vec);
-                    let add_bias = y._add(bias_vec);
-                    let zero = T::Vec::splat(T::ZERO);
-                    let res = gt_mask.select(sub_bias, zero);
-                    x.write_unaligned(lt_mask.select(add_bias, res));
-                },
-            )
-            .collect())
     }
 }
 

@@ -167,13 +167,18 @@ where
 
     fn arange_step(start: T, end: T, step: T) -> Result<Self, TensorError>
     where
-        T: Cast<f64> + Cast<usize>,
+        T: Cast<f64> + Cast<f64>,
+        f64: Cast<T>,
         usize: Cast<T>,
     {
         let step_float: f64 = step.cast();
-        let end_usize: usize = end.cast();
-        let start_usize: usize = start.cast();
-        let size = ((end_usize - start_usize) as usize) / (step_float.abs() as usize);
+        let end_float: f64 = end.cast();
+        let start_float: f64 = start.cast();
+        let size = if step_float > 0.0 {
+            ((end_float - start_float) / step_float).floor() as i64 + 1
+        } else {
+            ((start_float - end_float) / (-step_float)).floor() as i64 + 1
+        };
         let mut data = Self::empty(Arc::new(vec![size as i64]))?;
         data.as_raw_mut()
             .into_par_iter()

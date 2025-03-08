@@ -14,7 +14,12 @@ A new tensor with its last two dimensions transposed.
 
 ## Examples:
 ```rust
-use hpt::{ShapeManipulate, Tensor, TensorCreator, TensorError, TensorInfo};
+use hpt::{
+    common::TensorInfo,
+    error::TensorError,
+    ops::{ShapeManipulate, TensorCreator},
+    Tensor,
+};
 fn main() -> Result<(), TensorError> {
     // 2D tensor example
     let a = Tensor::<f32>::zeros(&[2, 3])?;

@@ -17,11 +17,13 @@ A new tensor with the same shape as input, where all elements below the k-th dia
 
 ## Examples:
 ```rust
-use hpt::{Tensor, TensorError, ShapeManipulate, TensorCreator};
+use hpt::{
+    error::TensorError,
+    ops::{ShapeManipulate, TensorCreator},
+    Tensor,
+};
 fn main() -> Result<(), TensorError> {
-    let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 
-                                4.0, 5.0, 6.0,
-                                7.0, 8.0, 9.0]).reshape(&[3, 3])?;
+    let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]).reshape(&[3, 3])?;
     // Main diagonal (k=0)
     let b = a.triu(0)?;
     println!("{}", b);

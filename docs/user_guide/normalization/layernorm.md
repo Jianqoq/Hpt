@@ -24,7 +24,12 @@ A new tensor with the same shape as input with type `C`
 
 ## Examples:
 ```rust
-use hpt::{NormalizationOps, Random, Tensor, TensorCreator, TensorError, TensorInfo};
+use hpt::{
+    common::TensorInfo,
+    error::TensorError,
+    ops::{NormalizationOps, Random, TensorCreator},
+    Tensor,
+};
 
 fn main() -> Result<(), TensorError> {
     // Create a 2x3x4 tensor

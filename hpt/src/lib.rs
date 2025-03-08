@@ -369,6 +369,7 @@ pub mod alloc {
 pub mod iter {
     pub use hpt_iterator::iterator_traits::*;
     pub use hpt_iterator::TensorIterator;
+    pub use rayon;
 }
 
 /// type related module

@@ -19,7 +19,8 @@ A `ParStridedMap` iterator
 
 ## Examples:
 ```rust
-use hpt::*;
+use hpt::Tensor;
+use hpt::iter::TensorIterator;
 
 fn main() -> anyhow::Result<()> {
     let x = Tensor::<f64>::new(&[1f64, 2., 3.]);

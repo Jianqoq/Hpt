@@ -28,7 +28,7 @@ A 1-D tensor of logarithmically spaced values.
 
 ## Examples:
 ```rust
-use hpt::{Tensor, TensorError, TensorCreator};
+use hpt::{error::TensorError, ops::TensorCreator, Tensor};
 fn main() -> Result<(), TensorError> {
     // Create 4 points from 10^0 to 10^3
     let a = Tensor::<f32>::logspace(0.0, 3.0, 4, true, 10.0)?;

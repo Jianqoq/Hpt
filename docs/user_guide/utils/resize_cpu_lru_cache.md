@@ -25,15 +25,15 @@ Adjusts the size of the memory cache used by the CPU allocator. This function al
 
 ## Examples
 ```rust
-use hpt::{resize_cpu_lru_cache, TensorError};
+use hpt::{error::TensorError, utils::resize_cpu_lru_cache};
 
 fn main() -> Result<(), TensorError> {
     // Increase cache size to 1000 entries
     resize_cpu_lru_cache(1000, 0);
-    
+
     // Reduce cache size to free memory
     resize_cpu_lru_cache(100, 0);
-    
+
     Ok(())
 }
 ```

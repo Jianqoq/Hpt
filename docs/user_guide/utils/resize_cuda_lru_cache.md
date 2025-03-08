@@ -25,7 +25,7 @@ Adjusts the size of the memory cache used by the GPU allocator. This function al
 
 ## Examples
 ```rust
-use hpt::{resize_cuda_lru_cache, TensorError};
+use hpt::{error::TensorError, utils::resize_cuda_lru_cache};
 
 fn main() -> Result<(), TensorError> {
     // Increase cache size to 1000 entries

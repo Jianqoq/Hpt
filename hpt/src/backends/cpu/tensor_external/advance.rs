@@ -8,14 +8,13 @@ use crate::Tensor;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_allocator::Cpu;
 use hpt_common::error::base::TensorError;
-use hpt_traits::ops::advance::{AdvancedOps, HardMax, Shrinkage, TensorWhere};
+use hpt_traits::ops::advance::{AdvancedOps, HardMax, TensorWhere};
 use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::ops::slice::Slice;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::dtype::TypeCommon;
 use hpt_types::into_scalar::Cast;
 use hpt_types::into_vec::IntoVec;
-use hpt_types::traits::SimdSelect;
 use hpt_types::type_promote::{Cmp, NormalOut, SimdCmp};
 
 impl<T: CommonBounds + PartialOrd, const DEVICE: usize, Al> AdvancedOps
@@ -145,20 +144,6 @@ where
         _: &Self::Output,
     ) -> Result<Self::Output, TensorError> {
         unimplemented!()
-    }
-}
-
-impl<T: CommonBounds, const DEVICE: usize, Al> Shrinkage<T> for Tensor<T, Cpu, DEVICE, Al>
-where
-    T: Cmp<Output = bool> + TypeCommon,
-    T::Vec: SimdCmp,
-    <T::Vec as SimdCmp>::Output: SimdSelect<T::Vec>,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
-{
-    type Output = Tensor<T, Cpu, DEVICE, Al>;
-    fn shrinkage(&self, bias: T, lambda: T) -> Result<Self::Output, TensorError> {
-        Ok(self.inner.shrinkage(bias, lambda)?.into())
     }
 }
 

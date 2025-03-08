@@ -68,7 +68,8 @@ where
 
     fn arange_step(start: T, end: T, step: T) -> Result<Self::Output, TensorError>
     where
-        T: Cast<f64> + Cast<usize>,
+        T: Cast<f64> + Cast<f64>,
+        f64: Cast<T>,
         usize: Cast<T>,
     {
         Ok(_Tensor::<T, Cpu, DEVICE, Al>::arange_step(start, end, step)?.into())
@@ -257,7 +258,8 @@ where
 
     fn arange_step(start: T, end: T, step: T) -> Result<Self::Output, TensorError>
     where
-        T: Cast<f64> + Cast<usize>,
+        T: Cast<f64> + Cast<f64>,
+        f64: Cast<T>,
         usize: Cast<T>,
     {
         let ret = Tensor::<T, Cpu, DEVICE, Al>::arange_step(start, end, step)?;

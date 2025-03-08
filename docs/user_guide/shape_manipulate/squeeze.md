@@ -20,7 +20,12 @@ A new tensor with the specified single-dimensional entries removed.
 
 ## Examples:
 ```rust
-use hpt::{ShapeManipulate, Tensor, TensorCreator, TensorError, TensorInfo};
+use hpt::{
+    common::TensorInfo,
+    error::TensorError,
+    ops::{ShapeManipulate, TensorCreator},
+    Tensor,
+};
 fn main() -> Result<(), TensorError> {
     // Create a tensor with shape [1, 3, 1, 4]
     let a = Tensor::<f32>::zeros(&[1, 3, 1, 4])?;
@@ -34,7 +39,6 @@ fn main() -> Result<(), TensorError> {
 
     Ok(())
 }
-
 ```
 ## Backend Support
 | Backend | Supported |

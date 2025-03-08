@@ -17,7 +17,12 @@ Tensor with type `C`
 
 ## Examples:
 ```rust
-use hpt::{FloatOutPooling, Random, Tensor, TensorError, TensorInfo};
+use hpt::{
+    common::TensorInfo,
+    error::TensorError,
+    ops::{FloatOutPooling, Random},
+    Tensor,
+};
 
 fn main() -> Result<(), TensorError> {
     // [batch_size, height, width, channels]
@@ -27,10 +32,10 @@ fn main() -> Result<(), TensorError> {
     let output = input.adaptive_avgpool2d([16, 16])?;
 
     println!("Output shape: {:?}", output.shape()); // [1, 16, 16, 16]
-    
+
     // Resize to a different output size
     let output2 = input.adaptive_avgpool2d([8, 8])?;
-    
+
     println!("Output2 shape: {:?}", output2.shape()); // [1, 8, 8, 16]
     Ok(())
 }

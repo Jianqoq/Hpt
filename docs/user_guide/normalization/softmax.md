@@ -17,16 +17,16 @@ A new tensor with the same shape as input with type `C`
 
 ## Examples:
 ```rust
-use hpt::{Tensor, TensorError, NormalizationOps};
+use hpt::{error::TensorError, ops::NormalizationOps, Tensor};
 
 fn main() -> Result<(), TensorError> {
     // Create a 2x3 tensor
     let x = Tensor::<f32>::new(&[[-1.0, 0.0, 1.0], [2.0, 3.0, 4.0]]);
-    
+
     // Apply softmax along dimension 1 (columns)
     let result = x.softmax(1)?;
     println!("Softmax result:\n{}", result);
-    
+
     Ok(())
 }
 ```

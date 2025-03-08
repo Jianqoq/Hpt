@@ -20,7 +20,12 @@ A new tensor with the specified axes transposed.
 
 ## Examples:
 ```rust
-use hpt::{ShapeManipulate, Tensor, TensorCreator, TensorError, TensorInfo};
+use hpt::{
+    common::TensorInfo,
+    error::TensorError,
+    ops::{ShapeManipulate, TensorCreator},
+    Tensor,
+};
 fn main() -> Result<(), TensorError> {
     // Create a tensor with shape [2, 4]
     let a = Tensor::<f32>::zeros(&[2, 4])?;

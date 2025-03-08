@@ -13,7 +13,7 @@ Calculate absolute of input with out
 Tensor with type `T`
 ## Examples:
 ```rust
-use hpt::{NormalUaryOps, Tensor, TensorError, TensorInfo};
+use hpt::{common::TensorInfo, error::TensorError, ops::NormalUaryOps, Tensor};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new([-10.0]);
@@ -22,6 +22,7 @@ fn main() -> Result<(), TensorError> {
     assert_eq!(a.ptr().ptr as u64, b.ptr().ptr as u64);
     Ok(())
 }
+
 ```
 ## Backend Support
 | Backend | Supported |

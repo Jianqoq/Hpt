@@ -17,7 +17,7 @@ Create a Tensor with values drawn from a beta distribution with parameters `alph
 Tensor with type `T`
 ## Examples:
 ```rust
-use hpt::{Random, Tensor, TensorError};
+use hpt::{error::TensorError, ops::Random, Tensor};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::beta(2.0, 5.0, &[10, 10])?;

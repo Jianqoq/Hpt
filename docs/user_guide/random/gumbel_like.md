@@ -20,7 +20,7 @@ Tensor with type `T` containing random values from the Gumbel distribution.
 
 ## Examples:
 ```rust
-use hpt::{Random, Tensor, TensorError};
+use hpt::{error::TensorError, ops::Random, Tensor};
 
 fn main() -> Result<(), TensorError> {
     // Create an initial tensor
