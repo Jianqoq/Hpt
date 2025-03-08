@@ -1,5 +1,6 @@
 use crate::backend::Cpu;
 use crate::ops::ShapeManipulate;
+use crate::slice;
 use crate::tensor_base::_Tensor;
 use hpt_allocator::traits::Allocator;
 use hpt_allocator::traits::AllocatorOutputRetrive;
@@ -7,9 +8,7 @@ use hpt_common::error::param::ParamError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::prg_update::next_sub1;
 use hpt_common::shape::shape_utils::mt_intervals;
-use hpt_common::slice;
 use hpt_common::{axis::axis::Axis, error::base::TensorError, shape::shape::Shape};
-use hpt_macros::select;
 use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::ops::shape_manipulate::Concat;
 use hpt_traits::ops::slice::Slice;

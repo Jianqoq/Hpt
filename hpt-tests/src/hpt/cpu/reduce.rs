@@ -4,8 +4,8 @@ use core::f64;
 use duplicate::duplicate_item;
 use hpt::common::TensorInfo;
 use hpt::ops::*;
+use hpt::slice;
 use hpt::{backend::Cpu, common::cpu::TensorLike};
-use hpt_common::slice;
 use rand::Rng;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,

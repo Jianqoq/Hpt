@@ -435,12 +435,13 @@ pub mod buitin_templates {
 
 /// module for utils, like set_num_threads, set_seed, etc.
 pub mod utils {
+    #[cfg(feature = "cuda")]
+    use crate::CUDA_SEED;
+    use crate::{DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION, THREAD_POOL};
     pub use hpt_allocator::resize_cpu_lru_cache;
     #[cfg(feature = "cuda")]
     pub use hpt_allocator::resize_cuda_lru_cache;
     pub use hpt_macros::select;
-
-    use crate::{CUDA_SEED, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION, THREAD_POOL};
 
     /// Get the global number of threads
     pub fn get_num_threads() -> usize {
