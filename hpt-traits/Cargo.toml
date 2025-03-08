@@ -1,6 +1,6 @@
 [package]
 name = "hpt-traits"
-version = "0.0.17"
+version = "0.0.18"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "An internal library defines tensor operator traits for hpt"

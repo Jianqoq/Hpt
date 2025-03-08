@@ -1,6 +1,6 @@
 [package]
 name = "hpt-iterator"
-version = "0.0.17"
+version = "0.0.18"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "An internal library implements iterator for hpt"
@@ -9,7 +9,7 @@ repository = "https://github.com/Jianqoq/Hpt"
 
 [dependencies]
 hpt-common = { path = "../hpt-common", version = "0.0.17" }
-hpt-traits = { path = "../hpt-traits", version = "0.0.17" }
+hpt-traits = { path = "../hpt-traits", version = "0.0.18" }
 hpt-types = { path = "../hpt-types", version = "0.0.17" }
 rayon = "1.10.0"
 

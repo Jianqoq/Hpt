@@ -159,6 +159,27 @@ export default defineUserConfig({
               ]
             },
             {
+              text: "conv",
+              collapsible: true,
+              children: [
+                { text: 'batchnorm_conv2d', link: '/user_guide/conv/batchnorm_conv2d.md' },
+                { text: 'conv2d_group', link: '/user_guide/conv/conv2d_group.md' },
+                { text: 'conv2d_transpose', link: '/user_guide/conv/conv2d_transpose.md' },
+                { text: 'conv2d', link: '/user_guide/conv/conv2d.md' },
+                { text: 'dwconv2d', link: '/user_guide/conv/dwconv2d.md' },
+              ]
+            },
+            {
+              text: "pooling",
+              collapsible: true,
+              children: [
+                { text: 'maxpool2d', link: '/user_guide/pooling/maxpool2d.md' },
+                { text: 'avgpool2d', link: '/user_guide/pooling/avgpool2d.md' },
+                { text: 'adaptive_maxpool2d', link: '/user_guide/pooling/adaptive_maxpool2d.md' },
+                { text: 'adaptive_avgpool2d', link: '/user_guide/pooling/adaptive_avgpool2d.md' },
+              ]
+            },
+            {
               text: 'compare',
               collapsible: true,
               children: [
