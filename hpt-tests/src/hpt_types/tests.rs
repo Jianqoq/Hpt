@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use hpt::{FloatOutUnary, NormalOut, NormalOutUnary};
+use hpt::types::math::{FloatOutUnary, NormalOut, NormalOutUnary};
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::BitWiseOut2;
 use hpt_types::{dtype::TypeCommon, traits::VecTrait};

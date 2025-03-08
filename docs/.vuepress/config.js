@@ -174,14 +174,22 @@ export default defineUserConfig({
               text: 'advanced',
               collapsible: true,
               children: [
-                { text: 'dropout', link: '/user_guide/advanced/dropout.md' },
-                // { text: 'gather', link: '/user_guide/advanced/gather.md' },
                 { text: 'scatter', link: '/user_guide/advanced/scatter.md' },
                 { text: 'shrinkage', link: '/user_guide/advanced/shrinkage.md' },
                 { text: 'hardmax', link: '/user_guide/advanced/hardmax.md' },
                 { text: 'tensor_where', link: '/user_guide/advanced/tensor_where.md' },
                 { text: 'topk', link: '/user_guide/advanced/topk.md' },
                 { text: 'onehot', link: '/user_guide/advanced/onehot.md' },
+              ]
+            },
+            {
+              text: 'normalization',
+              collapsible: true,
+              children: [
+                { text: 'dropout', link: '/user_guide/normalization/dropout.md' },
+                { text: 'log_softmax', link: '/user_guide/normalization/log_softmax.md' },
+                { text: 'layernorm', link: '/user_guide/normalization/layernorm.md' },
+                { text: 'softmax', link: '/user_guide/normalization/softmax.md' },
               ]
             },
             {

@@ -1,10 +1,8 @@
 #![allow(unused_imports)]
-use hpt::set_display_elements;
-use hpt::AdvancedOps;
-use hpt::ShapeManipulate;
-use hpt::TensorInfo;
-use hpt::TensorLike;
-use hpt::{set_num_threads, Tensor, TensorCreator};
+use hpt::common::cpu::TensorLike;
+use hpt::common::TensorInfo;
+use hpt::ops::*;
+use hpt::Tensor;
 use hpt_common::slice;
 use hpt_macros::select;
 use rand::Rng;

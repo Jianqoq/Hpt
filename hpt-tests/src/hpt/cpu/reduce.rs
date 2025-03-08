@@ -2,8 +2,9 @@
 use core::f64;
 
 use duplicate::duplicate_item;
-use hpt::Cpu;
-use hpt::*;
+use hpt::common::TensorInfo;
+use hpt::ops::*;
+use hpt::{backend::Cpu, common::cpu::TensorLike};
 use hpt_common::slice;
 use rand::Rng;
 use rayon::iter::{
@@ -12,7 +13,7 @@ use rayon::iter::{
 use tch::Tensor;
 
 #[track_caller]
-fn assert_eq(a: &hpt::tensor::Tensor<i64>, b: &Tensor) {
+fn assert_eq(a: &hpt::Tensor<i64>, b: &Tensor) {
     let raw = a.as_raw();
     if a.size() != b.size().into_iter().product::<i64>() as usize {
         println!("a size {:?}", a.shape());
@@ -33,7 +34,7 @@ fn assert_eq(a: &hpt::tensor::Tensor<i64>, b: &Tensor) {
 }
 
 #[track_caller]
-fn assert_eq_bool(a: &hpt::tensor::Tensor<bool>, b: &Tensor) {
+fn assert_eq_bool(a: &hpt::Tensor<bool>, b: &Tensor) {
     let raw = a.as_raw();
     let tch_raw = unsafe { core::slice::from_raw_parts(b.data_ptr() as *const bool, a.size()) };
     let caller = core::panic::Location::caller();
@@ -46,7 +47,7 @@ fn assert_eq_bool(a: &hpt::tensor::Tensor<bool>, b: &Tensor) {
 
 #[allow(unused)]
 #[track_caller]
-fn assert_eq_f64(b: &hpt::tensor::Tensor<f64>, a: &Tensor) {
+fn assert_eq_f64(b: &hpt::Tensor<f64>, a: &Tensor) {
     let a_raw = if b.strides().contains(&0) {
         let size = b
             .shape()
@@ -77,7 +78,7 @@ fn assert_eq_f64(b: &hpt::tensor::Tensor<f64>, a: &Tensor) {
 
 #[allow(unused)]
 #[track_caller]
-fn assert_eq_f64_10(b: &hpt::tensor::Tensor<f64>, a: &Tensor) {
+fn assert_eq_f64_10(b: &hpt::Tensor<f64>, a: &Tensor) {
     let a_raw = if b.strides().contains(&0) {
         let size = b
             .shape()
@@ -109,8 +110,8 @@ fn assert_eq_f64_10(b: &hpt::tensor::Tensor<f64>, a: &Tensor) {
 fn common_input<const N: usize>(
     end: i64,
     shape: [i64; N],
-) -> anyhow::Result<(hpt::tensor::Tensor<i64, Cpu>, Tensor)> {
-    let a = hpt::tensor::Tensor::<i64, Cpu>::arange(0, end)?.reshape(&shape)?;
+) -> anyhow::Result<(hpt::Tensor<i64, Cpu>, Tensor)> {
+    let a = hpt::Tensor::<i64, Cpu>::arange(0, end)?.reshape(&shape)?;
     let tch_a = Tensor::arange(end, (tch::Kind::Int64, tch::Device::Cpu)).reshape(&shape);
     Ok((a, tch_a))
 }
@@ -118,9 +119,9 @@ fn common_input<const N: usize>(
 fn common_input_f64<const N: usize>(
     end: i64,
     shape: [i64; N],
-) -> anyhow::Result<(hpt::tensor::Tensor<f64, Cpu>, Tensor)> {
+) -> anyhow::Result<(hpt::Tensor<f64, Cpu>, Tensor)> {
     let tch_a = Tensor::randn(&shape, (tch::Kind::Double, tch::Device::Cpu)).reshape(&shape);
-    let mut a = hpt::tensor::Tensor::<f64, Cpu>::empty(&shape)?;
+    let mut a = hpt::Tensor::<f64, Cpu>::empty(&shape)?;
     let a_size = a.size();
     let raw_mut = a.as_raw_mut();
     let tch_raw = unsafe { core::slice::from_raw_parts_mut(tch_a.data_ptr() as *mut f64, a_size) };

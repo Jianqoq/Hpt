@@ -1,9 +1,11 @@
 #![allow(unused_imports)]
-use hpt::ShapeManipulate;
-use hpt::TensorInfo;
-use hpt::TensorLike;
-use hpt::WindowOps;
-use hpt::{Tensor, TensorCreator};
+use hpt::common::cpu::TensorLike;
+use hpt::common::TensorInfo;
+use hpt::ops::Contiguous;
+use hpt::ops::ShapeManipulate;
+use hpt::ops::TensorCreator;
+use hpt::ops::WindowOps;
+use hpt::Tensor;
 use hpt_common::slice;
 use hpt_macros::select;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};

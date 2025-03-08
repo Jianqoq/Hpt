@@ -25,6 +25,7 @@ pub mod par_strided_simd {
     use hpt_types::vectors::traits::VecTrait;
     use std::sync::Arc;
 
+    use crate::{CommonBounds, TensorInfo};
     use hpt_common::{
         axis::axis::Axis,
         layout::layout::Layout,
@@ -35,7 +36,6 @@ pub mod par_strided_simd {
         utils::pointer::Pointer,
         utils::simd_ref::MutVec,
     };
-    use hpt_traits::{CommonBounds, TensorInfo};
     use rayon::iter::{
         plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},
         ParallelIterator,

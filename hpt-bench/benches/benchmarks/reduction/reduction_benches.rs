@@ -1,8 +1,8 @@
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
-use hpt::NormalReduce;
-use hpt::TensorInfo;
-use hpt::TensorLike;
-use hpt::{Random, Tensor};
+use hpt::common::cpu::TensorLike;
+use hpt::common::TensorInfo;
+use hpt::ops::*;
+use hpt::Tensor;
 use std::time::Duration;
 use tch::{Device, Kind, Tensor as TchTensor};
 
@@ -25,7 +25,7 @@ macro_rules! reduction_bench_mark {
         paste::paste! {
             #[cfg(any(feature = $name, feature = "reduction"))]
             fn [<$name _benchmark>](c: &mut Criterion) {
-                hpt::set_num_threads(num_cpus::get_physical());
+                hpt::utils::set_num_threads(num_cpus::get_physical());
                 tch::set_num_threads(num_cpus::get_physical() as i32);
                 let shapes = $shapes;
                 let axes = $axes;
@@ -35,7 +35,7 @@ macro_rules! reduction_bench_mark {
                 for idx in 0..shapes.len() {
                     let shape = shapes[idx];
                     let a = black_box(TchTensor::randn(shape, (Kind::Float, Device::Cuda(0))));
-                    let a2 = black_box(Tensor::<f32, hpt::Cuda>::randn(shape).unwrap());
+                    let a2 = black_box(Tensor::<f32, hpt::backend::Cuda>::randn(shape).unwrap());
                     for (i, axis) in axes.iter().enumerate() {
                         group.bench_with_input(
                             BenchmarkId::new("torch", format!("tch {}.{}", idx, i)),

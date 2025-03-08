@@ -1,15 +1,15 @@
 #![allow(unused)]
-use hpt::set_num_threads;
-use hpt::ShapeManipulate;
-use hpt::TensorLike;
-use hpt::{CommonBounds, FloatOutPooling, TensorInfo};
-use hpt::{Tensor, TensorCreator};
+use super::assert_utils::assert_f64;
+use hpt::common::cpu::TensorLike;
+use hpt::common::TensorInfo;
+use hpt::{
+    ops::{Contiguous, FloatOutPooling, ShapeManipulate, TensorCreator},
+    Tensor,
+};
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
 use rand::Rng;
 use tch;
-
-use super::assert_utils::assert_f64;
 
 fn common_input(
     [batch, in_channel, kernel_height, kernel_width, height, width]: [i64; 6],

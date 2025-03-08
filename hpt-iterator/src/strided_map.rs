@@ -1,6 +1,7 @@
 use crate::iterator_traits::StridedIterator;
 use crate::{iterator_traits::IterGetSet, strided_map_mut::StridedMapMut};
-use hpt_traits::tensor::{CommonBounds, TensorAlloc, TensorInfo};
+use hpt_traits::ops::creation::TensorCreator;
+use hpt_traits::tensor::{CommonBounds, TensorInfo};
 
 /// A module for strided map simd iterator.
 pub mod strided_map_simd {
@@ -8,7 +9,8 @@ pub mod strided_map_simd {
     use crate::{
         iterator_traits::IterGetSetSimd, strided_map_mut::strided_map_mut_simd::StridedMapMutSimd,
     };
-    use hpt_traits::{CommonBounds, TensorAlloc, TensorInfo};
+    use crate::{CommonBounds, TensorInfo};
+    use hpt_traits::ops::creation::TensorCreator;
     use hpt_types::dtype::TypeCommon;
 
     /// # StridedMapSimd
@@ -45,16 +47,18 @@ pub mod strided_map_simd {
         pub fn collect<U>(self) -> U
         where
             F: Fn(T) -> U::Meta + Sync + Send + 'a,
-            F2: Fn(<I as IterGetSetSimd>::SimdItem) -> <<U as TensorAlloc>::Meta as TypeCommon>::Vec
+            F2: Fn(
+                    <I as IterGetSetSimd>::SimdItem,
+                ) -> <<U as TensorCreator>::Meta as TypeCommon>::Vec
                 + Sync
                 + Send
                 + 'a,
-            U: Clone + TensorInfo<U::Meta> + TensorAlloc,
+            U: Clone + TensorInfo<U::Meta> + TensorCreator<Output = U>,
             <I as IterGetSetSimd>::Item: Send,
-            <U as TensorAlloc>::Meta: CommonBounds,
-            <<U as TensorAlloc>::Meta as TypeCommon>::Vec: Send,
+            <U as TensorCreator>::Meta: CommonBounds,
+            <<U as TensorCreator>::Meta as TypeCommon>::Vec: Send,
         {
-            let res = U::_empty(self.iter.shape().clone()).unwrap();
+            let res = U::empty(self.iter.shape().clone()).unwrap();
             let strided_mut = StridedMapMutSimd::new(res.clone());
             let zip = strided_mut.zip(self.iter);
             zip.for_each(
@@ -105,11 +109,11 @@ impl<'a, I: 'a + IterGetSet<Item = T>, T: 'a, F> StridedMap<'a, I, T, F> {
     pub fn collect<U>(self) -> U
     where
         F: Fn(T) -> U::Meta + Sync + Send + 'a,
-        U: Clone + TensorInfo<U::Meta> + TensorAlloc,
+        U: Clone + TensorInfo<U::Meta> + TensorCreator<Output = U>,
         <I as IterGetSet>::Item: Send,
-        <U as TensorAlloc>::Meta: CommonBounds,
+        <U as TensorCreator>::Meta: CommonBounds,
     {
-        let res = U::_empty(self.iter.shape().clone()).unwrap();
+        let res = U::empty(self.iter.shape().clone()).unwrap();
         let strided_mut = StridedMapMut::new(res.clone());
         let zip = strided_mut.zip(self.iter);
         zip.for_each(|(x, y)| {

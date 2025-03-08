@@ -1,6 +1,5 @@
 use anyhow::Result;
-use hpt_traits::CommonBounds;
-use hpt_traits::TensorInfo;
+use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use num::traits::FromBytes;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;

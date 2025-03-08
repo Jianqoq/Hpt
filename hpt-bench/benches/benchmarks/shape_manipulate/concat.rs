@@ -1,13 +1,14 @@
 #![cfg(feature = "cat")]
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
-use hpt::TensorLike;
-use hpt::{Concat, TensorInfo};
-use hpt::{Random, Tensor};
+use hpt::common::cpu::TensorLike;
+use hpt::common::TensorInfo;
+use hpt::ops::*;
+use hpt::Tensor;
 use std::time::Duration;
 use tch::{Device, Kind, Tensor as TchTensor};
 
 fn concat_benchmark(c: &mut Criterion) {
-    hpt::set_num_threads(num_cpus::get_physical());
+    hpt::utils::set_num_threads(num_cpus::get_physical());
     tch::set_num_threads(num_cpus::get_physical() as i32);
     let axes = [0, 1, 2];
 

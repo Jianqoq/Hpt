@@ -1,13 +1,13 @@
 #![allow(unused)]
 
-use hpt::{Cpu, Tensor, TensorCreator, TensorError};
+use hpt::{backend::Cpu, error::TensorError, ops::TensorCreator, Tensor};
 
 #[derive(Clone)]
 struct CustomCpuAllocator;
 #[derive(Clone)]
 struct CustomCudaAllocator;
 
-impl hpt::Allocator for CustomCpuAllocator {
+impl hpt::alloc::Allocator for CustomCpuAllocator {
     type Output = *mut u8;
 
     type CpuAllocator = CustomCpuAllocator;
@@ -58,7 +58,7 @@ impl hpt::Allocator for CustomCpuAllocator {
     }
 }
 
-impl hpt::Allocator for CustomCudaAllocator {
+impl hpt::alloc::Allocator for CustomCudaAllocator {
     type Output = *mut u8;
 
     type CpuAllocator = CustomCpuAllocator;

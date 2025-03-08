@@ -1,5 +1,8 @@
 #![allow(unused_imports)]
-use hpt::*;
+use hpt::common::cpu::TensorLike;
+use hpt::common::TensorInfo;
+use hpt::ops::*;
+use hpt::Tensor;
 use hpt_common::slice;
 use hpt_macros::select;
 use rand::Rng;

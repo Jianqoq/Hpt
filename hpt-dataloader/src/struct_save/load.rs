@@ -7,7 +7,7 @@ use std::{
 
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
 use hpt_common::shape::shape::Shape;
-use hpt_traits::{CommonBounds, TensorInfo};
+use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use num::traits::FromBytes;
 
 use crate::{

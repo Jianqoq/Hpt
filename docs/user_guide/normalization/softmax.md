@@ -1,34 +1,36 @@
-# dropout
+# softmax
 ```rust
-dropout(
+softmax(
     x: &Tensor<T>,
-    rate: f64
-) -> Result<Tensor<T>, TensorError>
+    dim: i64
+) -> Result<Tensor<C>, TensorError>
 ```
-Randomly zeroes some of the elements of the input tensor with probability `rate` using samples from a Bernoulli distribution. Each element is zeroed independently.
+Applies the softmax function to the input tensor along the specified dimension. The softmax function normalizes the input to a probability distribution, such that each element is in the range [0, 1] and all elements sum to 1.
 
 ## Parameters:
 `x`: Input tensor.
 
-`rate`: Probability of an element to be zeroed. The value must be between 0 and 1.
+`dim`: The dimension along which to apply the softmax.
 
 ## Returns:
-A new tensor with the same shape as input, where some elements are set to zero.
+A new tensor with the same shape as input with type `C`
 
 ## Examples:
 ```rust
-use hpt::{Tensor, TensorCreator, TensorError, AdvancedOps};
+use hpt::{Tensor, TensorError, NormalizationOps};
 
 fn main() -> Result<(), TensorError> {
-    let x = Tensor::<f32>::ones(&[3, 4])?;
+    // Create a 2x3 tensor
+    let x = Tensor::<f32>::new(&[[-1.0, 0.0, 1.0], [2.0, 3.0, 4.0]]);
     
-    // Apply dropout with 0.5 probability
-    let dropped = x.dropout(0.5)?;
-    println!("After dropout:\n{}", dropped);
+    // Apply softmax along dimension 1 (columns)
+    let result = x.softmax(1)?;
+    println!("Softmax result:\n{}", result);
     
     Ok(())
 }
 ```
+
 ## Backend Support
 | Backend | Supported |
 |---------|-----------|

@@ -2,7 +2,7 @@
 
 #![deny(missing_docs)]
 
-use hpt_traits::{CommonBounds, TensorInfo};
+use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use par_strided::{par_strided_simd::ParStridedSimd, ParStrided};
 use par_strided_mut::{par_strided_map_mut_simd::ParStridedMutSimd, ParStridedMut};
 use strided::{strided_simd::StridedSimd, Strided};

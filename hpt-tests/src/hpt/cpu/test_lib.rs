@@ -1,6 +1,9 @@
 #![allow(unused_imports)]
-use hpt::{get_num_threads, set_display_elements, set_num_threads, ShapeManipulate};
-use hpt::{set_display_precision, tensor::Tensor, TensorCreator};
+use hpt::common::cpu::TensorLike;
+use hpt::common::TensorInfo;
+use hpt::ops::*;
+use hpt::utils::*;
+use hpt::Tensor;
 
 #[test]
 fn test_set_global_display_precision() -> anyhow::Result<()> {

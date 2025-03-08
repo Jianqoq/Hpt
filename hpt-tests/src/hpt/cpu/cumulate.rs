@@ -3,10 +3,13 @@
 use std::i64;
 
 use duplicate::duplicate_item;
-use hpt::ShapeManipulate;
-use hpt::TensorInfo;
-use hpt::TensorLike;
-use hpt::{CumulativeOps, RandomInt, Tensor, TensorCreator};
+use hpt::common::cpu::TensorLike;
+use hpt::common::TensorInfo;
+use hpt::ops::Contiguous;
+use hpt::ops::CumulativeOps;
+use hpt::ops::ShapeManipulate;
+use hpt::ops::TensorCreator;
+use hpt::Tensor;
 use hpt_common::slice;
 use hpt_macros::select;
 use rand::Rng;

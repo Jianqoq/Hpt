@@ -3,8 +3,14 @@
 use std::ops::{Index, IndexMut};
 
 use hpt::{
-    Cast, FloatOutBinary, FloatOutUnary, IntoVec, NormalOut, NormalOutUnary, ShapeManipulate,
-    Tensor, TensorCreator, TypeCommon, VecTrait,
+    ops::{ShapeManipulate, TensorCreator},
+    types::{
+        cast::{Cast, IntoVec},
+        math::{FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary},
+        vectors::traits::VecTrait,
+        TypeCommon,
+    },
+    Tensor,
 };
 
 #[derive(Debug, Clone, Copy)]

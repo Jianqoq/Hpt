@@ -1,4 +1,4 @@
-use hpt_traits::CommonBounds;
+use hpt_traits::tensor::CommonBounds;
 use hpt_types::into_scalar::Cast;
 
 pub(crate) fn format_float<T: CommonBounds + Cast<f64>>(val: T, precision: usize) -> String {

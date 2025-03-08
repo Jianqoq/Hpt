@@ -2,11 +2,9 @@
 #![deny(missing_docs)]
 
 /// a module contains all the Tensor operations. include the CPU and GPU operations
-pub mod ops {
+pub(crate) mod backends {
     /// a module contains all the CPU operations
-    pub mod cpu {
-        /// a module defines affine_grid operation
-        pub mod affine_grid;
+    pub(crate) mod cpu {
         pub(crate) mod utils {
             pub(crate) mod reduce {
                 pub(crate) mod reduce;
@@ -24,140 +22,142 @@ pub mod ops {
             }
         }
         /// a module defines all the std::ops operations
-        pub mod std_ops;
+        pub(crate) mod std_ops;
         /// a module defines all the kernels
         pub(crate) mod kernels {
             /// a module defines reduce kernels
-            pub mod argreduce_kernels;
+            pub(crate) mod argreduce_kernels;
             /// a module defines the batchnorm conv2d kernels
-            pub mod batch_norm_conv;
+            pub(crate) mod batch_norm_conv;
             /// a module defines the conv2d kernels
-            pub mod conv;
+            pub(crate) mod conv;
             /// a module defines the dwconv2d kernels
-            pub mod conv_group;
+            pub(crate) mod conv_group;
             /// a module defines the conv transpose kernels
-            pub mod conv_transpose;
+            pub(crate) mod conv_transpose;
             /// a module defines the dwconv2d kernels
-            pub mod dwconv;
-            /// a module defines the logsoftmax kernels
-            pub mod logsoftmax;
+            pub(crate) mod dwconv;
             /// a module defines the lp_pool2d kernels
-            pub mod lp_pool_kernels;
+            pub(crate) mod lp_pool_kernels;
             /// a module defines the reduce kernels
-            pub mod reduce;
+            pub(crate) mod reduce;
             /// a module defines the softmax kernels
-            pub mod softmax;
+            pub(crate) mod softmax;
             /// a module contains all the pooling operations
-            pub mod pooling {
+            pub(crate) mod pooling {
                 /// a module contains all the common pooling operations
-                pub mod common;
+                pub(crate) mod common;
             }
             /// a module defines normalization operations
-            pub mod normalization {
-                /// a module defines layernorm
-                pub mod layernorm;
+            pub(crate) mod normalization {
                 /// a module defines log_softmax
-                pub mod log_softmax;
+                pub(crate) mod log_softmax;
+                /// a module defines the logsoftmax kernels
+                pub(crate) mod logsoftmax;
                 /// a module defines softmax utils
-                pub mod normalize_utils;
+                pub(crate) mod normalize_utils;
                 /// a module defines softmax
-                pub mod softmax;
+                pub(crate) mod softmax;
             }
             /// a module defines conv2d operation
-            pub mod conv2d {
+            pub(crate) mod conv2d {
                 /// a module defines batchnorm_conv2d operation
-                pub mod batchnorm_conv2d;
+                pub(crate) mod batchnorm_conv2d;
                 /// a module defines conv2d operation
-                pub mod conv2d;
+                pub(crate) mod conv2d;
                 /// a module defines conv2d_group operation
-                pub mod conv2d_group;
+                pub(crate) mod conv2d_group;
                 /// a module defines conv2d_transpose operation
-                pub mod conv2d_transpose;
+                pub(crate) mod conv2d_transpose;
                 /// a module defines dwconv2d operation
-                pub mod dwconv2d;
+                pub(crate) mod dwconv2d;
             }
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
-        pub mod tensor_external {
+        pub(crate) mod tensor_external {
             /// a module that contains all the advance operations
-            pub mod advance;
+            pub(crate) mod advance;
             /// a module that contains all the arg reduce functions
-            pub mod arg_reduce;
+            pub(crate) mod arg_reduce;
             /// a module defines all normal binary operation
-            pub mod binary;
+            pub(crate) mod binary;
             /// a module that contains all the tensor compare functions
-            pub mod cmp;
+            pub(crate) mod cmp;
             /// a module that contains all the common reduce functions
-            pub mod common_reduce;
+            pub(crate) mod common_reduce;
             /// a module that contains all the conv functions
-            pub mod conv;
+            pub(crate) mod conv;
             /// a module that contains all the cumulative operations
-            pub mod cumulative;
+            pub(crate) mod cumulative;
             /// a module that contains all fft operations
-            pub mod fft;
+            pub(crate) mod fft;
             /// a module that contains all the float out binary operations
-            pub mod float_out_binary;
+            pub(crate) mod float_out_binary;
             /// a module that contains all the unary operations that has floating type output
-            pub mod float_out_unary;
+            pub(crate) mod float_out_unary;
             /// a module that contains matrix multiplication operations
-            pub mod matmul;
+            pub(crate) mod matmul;
             /// a module that contains all normal methods to create a tensor
-            pub mod normal_creation;
+            pub(crate) mod normal_creation;
             /// a module that contains all the unary operations that has self type output
-            pub mod normal_out_unary;
-            /// a module that contains all the pooling functions
-            pub mod pooling;
-            /// a module that contains all the random number generate functions
-            pub mod random;
-            /// a module that contains all the shape manipulation functions
-            pub mod shape_manipulate;
-            /// a module that contains all the slice functions
-            pub mod slice;
-            /// a module that contains all the tensordot functions
-            pub mod tensordot;
-            /// a module that contains all the windows creation functions
-            pub mod windows;
+            pub(crate) mod normal_out_unary;
             /// a module that contains all the normalization functions
-            pub mod normalization;
+            pub(crate) mod normalization;
+            /// a module that contains all the pooling functions
+            pub(crate) mod pooling;
+            /// a module that contains all the random number generate functions
+            pub(crate) mod random;
+            /// a module that contains all the regularization functions
+            pub(crate) mod regularization;
+            /// a module that contains all the shape manipulation functions
+            pub(crate) mod shape_manipulate;
+            /// a module that contains all the slice functions
+            pub(crate) mod slice;
+            /// a module that contains all the tensordot functions
+            pub(crate) mod tensordot;
+            /// a module that contains all the windows creation functions
+            pub(crate) mod windows;
         }
         /// a module that contains all the functions only for the internal user (we may have diff tensor (differentiable tensor) in the future)
         pub(crate) mod tensor_internal {
             /// a module that contains all the advance operations
-            pub mod advance;
+            pub(crate) mod advance;
             /// a module that contains all the arg reduce functions
-            pub mod arg_reduce;
+            pub(crate) mod arg_reduce;
             /// a module that contains all the tensor compare functions
-            pub mod cmp;
+            pub(crate) mod cmp;
             /// a module that contains all the common reduce functions
-            pub mod common_reduce;
+            pub(crate) mod common_reduce;
             /// a module that contains all the conv functions
-            pub mod conv;
+            pub(crate) mod conv;
             /// a module that contains all the cumulative operations
-            pub mod cumulative;
+            pub(crate) mod cumulative;
             /// a module that contains all fft operations
-            pub mod fft;
+            pub(crate) mod fft;
             /// a module that contains all the float out binary operations
-            pub mod float_out_binary;
+            pub(crate) mod float_out_binary;
             /// a module that contains all the unary operations that has floating type output
-            pub mod float_out_unary;
+            pub(crate) mod float_out_unary;
             /// a module that contains matrix multiplication operations
-            pub mod matmul;
+            pub(crate) mod matmul;
             /// a module that contains all normal methods to create a tensor
-            pub mod normal_creation;
+            pub(crate) mod normal_creation;
             /// a module that contains all the unary operations that has self type output
-            pub mod normal_out_unary;
-            /// a module that contains all the pooling functions
-            pub mod pooling;
-            /// a module that contains all the random number generate functions
-            pub mod random;
-            /// a module that contains all the shape manipulation functions
-            pub mod shape_manipulate;
-            /// a module that contains all the tensordot functions
-            pub mod tensordot;
-            /// a module that contains all the windows creation functions
-            pub mod windows;
+            pub(crate) mod normal_out_unary;
             /// a module that contains all the normalization functions
-            pub mod normalization;
+            pub(crate) mod normalization;
+            /// a module that contains all the pooling functions
+            pub(crate) mod pooling;
+            /// a module that contains all the random number generate functions
+            pub(crate) mod random;
+            /// a module that contains all the regularization functions
+            pub(crate) mod regularization;
+            /// a module that contains all the shape manipulation functions
+            pub(crate) mod shape_manipulate;
+            /// a module that contains all the tensordot functions
+            pub(crate) mod tensordot;
+            /// a module that contains all the windows creation functions
+            pub(crate) mod windows;
         }
 
         /// a module contains cpu L1, L2, L3 cache helper
@@ -199,7 +199,7 @@ pub mod ops {
             /// a module contains cuda tensor windows impls
             pub(crate) mod windows;
         }
-        pub mod tensor_external {
+        pub(crate) mod tensor_external {
             /// a module contains cuda tensor arg reduce impls
             pub(crate) mod arg_reduce;
             /// a module contains cuda tensor cmp impls
@@ -248,110 +248,29 @@ pub mod ops {
     }
 
     /// a module contains all the common ops
-    pub mod common {
+    pub(crate) mod common {
         /// a module contains all the functions to help create a tensor
-        pub mod creation;
+        pub(crate) mod creation;
         /// a module contains fast divmod ops
-        pub mod divmod;
+        pub(crate) mod divmod;
         /// a module contains reduce utils
-        pub mod reduce;
+        pub(crate) mod reduce;
         /// a module contains all the shape manipulation ops
-        pub mod shape_manipulate;
+        pub(crate) mod shape_manipulate;
         /// a module contains slice op
-        pub mod slice;
+        pub(crate) mod slice;
     }
 }
 
-/// a module that wrap the _Tensor struct
-pub mod tensor;
-/// a module that defines the _Tensor struct
-pub mod tensor_base;
-/// a module that contains the implementation of the `Into` trait for the `_Tensor` struct.
-///
-/// # Note
-/// for this library's developer, not necessary need to know how they works
-pub mod to_tensor;
-pub use crate::ops::cpu::utils::binary::binary_normal::binary_with_out;
-use ctor::ctor;
-pub use hpt_iterator::iterator_traits::*;
-pub use hpt_iterator::TensorIterator;
-
-pub use flate2;
-// #[cfg(feature = "codegen")]
-// pub use hpt_codegen::compile;
-// #[cfg(feature = "codegen")]
-// pub use hpt_codegen::fuse_proc_macro;
-pub use hpt_allocator::resize_cpu_lru_cache;
-#[cfg(feature = "cuda")]
-mod cuda_exports {
-    pub use hpt_allocator::resize_cuda_lru_cache;
-    pub use hpt_allocator::Cuda;
-}
-#[cfg(feature = "cuda")]
-pub use cuda_exports::*;
-pub use hpt_allocator::{Backend, BackendTy, Buffer, Cpu};
-
-pub use half::{bf16, f16};
-pub use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
-pub use hpt_common::{error::base::TensorError, shape::shape::Shape, strides::strides::Strides};
-pub use hpt_dataloader::data_loader::parse_header_compressed;
-pub(crate) use hpt_dataloader::save;
-pub use hpt_dataloader::{
-    CompressionAlgo, DataLoader, Endian, FromSafeTensors, Load, MetaLoad, Save, TensorLoader,
-    TensorSaver,
-};
-pub use hpt_macros::{select, Load, Save};
-pub use hpt_traits::*;
-pub use hpt_types::dtype::TypeCommon;
-pub use hpt_types::into_scalar::Cast;
-pub use hpt_types::into_vec::IntoVec;
-pub use hpt_types::traits::VecTrait;
-pub use hpt_types::type_promote::{
-    BitWiseOut, Eval, FloatOutBinary, FloatOutBinaryPromote, FloatOutUnary, FloatOutUnaryPromote,
-    NormalOut, NormalOutPromote, NormalOutUnary,
-};
-pub use hpt_types::vectors::*;
-pub use serde;
-pub use tensor::Tensor;
+pub(crate) mod tensor;
+pub(crate) mod tensor_base;
+pub(crate) mod to_tensor;
 
 use std::{cell::RefCell, sync::atomic::AtomicUsize};
 thread_local! {
     static THREAD_POOL: RefCell<threadpool::ThreadPool> = RefCell::new(
         threadpool::ThreadPool::new(num_cpus::get_physical())
     );
-}
-
-/// Set the Tensor display precision
-pub fn set_display_precision(precision: usize) {
-    DISPLAY_PRECISION.store(precision, std::sync::atomic::Ordering::Relaxed);
-}
-
-/// Set the left and right elements to display for each dimension
-pub fn set_display_elements(lr_elements: usize) {
-    DISPLAY_LR_ELEMENTS.store(lr_elements, std::sync::atomic::Ordering::Relaxed);
-}
-
-/// Set the global number of threads
-///
-/// # Note
-/// Rayon only allows the number of threads to be set once, so the rayon thread pool won't have any effect if it's called more than once.
-pub fn set_num_threads(num_threads: usize) {
-    THREAD_POOL.with(|x| {
-        x.borrow_mut().set_num_threads(num_threads);
-    });
-    match rayon::ThreadPoolBuilder::new()
-        .num_threads(num_threads)
-        .stack_size(4 * 1024 * 1024)
-        .build_global()
-    {
-        Ok(_) => {}
-        Err(_) => {}
-    }
-}
-
-/// Get the global number of threads
-pub fn get_num_threads() -> usize {
-    THREAD_POOL.with(|x| x.borrow().max_count())
 }
 
 static DISPLAY_PRECISION: AtomicUsize = AtomicUsize::new(4);
@@ -372,6 +291,7 @@ pub(crate) mod cuda_compiled {
     > = Lazy::new(|| Mutex::new(HashMap::new()));
 }
 
+use ctor::ctor;
 #[ctor]
 fn init() {
     THREAD_POOL.with(|x| {
@@ -394,30 +314,179 @@ use hpt_types::arch_simd as simd;
 type BoolVector = simd::_256bit::boolx32::boolx32;
 #[cfg(any(
     all(not(target_feature = "avx2"), target_feature = "sse"),
-    target_arch = "arm",
-    target_arch = "aarch64",
     target_feature = "neon"
 ))]
 type BoolVector = simd::_128bit::boolx16::boolx16;
 
-const SIMD_WIDTH: usize = <f32 as TypeCommon>::Vec::SIZE * std::mem::size_of::<f32>() * 8;
+use hpt_types::traits::VecTrait;
+const SIMD_WIDTH: usize =
+    <f32 as hpt_types::dtype::TypeCommon>::Vec::SIZE * std::mem::size_of::<f32>() * 8;
 
 #[cfg(feature = "cuda")]
 const CUDA_SEED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(2621654116416541);
 
-#[allow(unused)]
-/// Set the seed for random number generation
-pub fn set_seed<B: BackendTy>(seed: u64) {
-    match B::ID {
-        0 => {
-            panic!("CPU backend does not support setting seed");
+/// this module contains all the operators for the Tensor
+pub mod ops {
+    pub use hpt_traits::ops::advance::*;
+    pub use hpt_traits::ops::binary::*;
+    pub use hpt_traits::ops::cmp::*;
+    pub use hpt_traits::ops::conv::*;
+    pub use hpt_traits::ops::creation::*;
+    pub use hpt_traits::ops::cumulative::*;
+    pub use hpt_traits::ops::fft::*;
+    pub use hpt_traits::ops::normalization::*;
+    pub use hpt_traits::ops::pooling::*;
+    pub use hpt_traits::ops::random::*;
+    pub use hpt_traits::ops::reduce::*;
+    pub use hpt_traits::ops::regularization::*;
+    pub use hpt_traits::ops::shape_manipulate::*;
+    pub use hpt_traits::ops::slice::*;
+    pub use hpt_traits::ops::unary::*;
+    pub use hpt_traits::ops::windows::*;
+}
+
+/// module for error handling
+pub mod error {
+    pub use hpt_common::error::base::TensorError;
+}
+
+/// module for common utils like shape and strides
+pub mod common {
+    pub use hpt_common::{shape::shape::Shape, strides::strides::Strides};
+    pub use hpt_traits::tensor::{CommonBounds, TensorInfo};
+    /// common utils for cpu
+    pub mod cpu {
+        pub use hpt_traits::tensor::TensorLike;
+    }
+}
+
+/// module for memory allocation
+pub mod alloc {
+    pub use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
+}
+
+/// module for tensor iterator
+pub mod iter {
+    pub use hpt_iterator::iterator_traits::*;
+    pub use hpt_iterator::TensorIterator;
+}
+
+/// type related module
+pub mod types {
+    pub use half::{bf16, f16};
+    /// module contains vector types and traits
+    pub mod vectors {
+        pub use hpt_types::vectors::*;
+        /// module contains vector traits
+        pub mod traits {
+            pub use hpt_types::traits::VecTrait;
         }
-        #[cfg(feature = "cuda")]
-        1 => {
-            CUDA_SEED.store(seed, std::sync::atomic::Ordering::Relaxed);
+    }
+    /// module contains cast traits, perform type conversion
+    pub mod cast {
+        pub use hpt_types::into_scalar::Cast;
+        pub use hpt_types::into_vec::IntoVec;
+    }
+    /// module contains math traits for scalar and vector, all the methods will auto promote the type
+    pub mod math {
+        pub use hpt_types::type_promote::{
+            BitWiseOut, Eval, FloatOutBinary, FloatOutBinaryPromote, FloatOutUnary,
+            FloatOutUnaryPromote, NormalOut, NormalOutPromote, NormalOutUnary,
+        };
+    }
+    /// module contains type common traits
+    pub use hpt_types::dtype::TypeCommon;
+}
+
+/// reexport serde
+pub mod serialize {
+    pub use serde;
+}
+
+pub use hpt_dataloader::{Load, Save};
+pub use hpt_macros::{Load, Save};
+
+/// module for save and load
+pub mod save_load {
+    pub use flate2;
+    pub use hpt_dataloader::data_loader::parse_header_compressed;
+    pub use hpt_dataloader::{
+        save, CompressionAlgo, DataLoader, Endian, FromSafeTensors, MetaLoad, TensorLoader,
+        TensorSaver,
+    };
+}
+
+/// module for backend
+pub mod backend {
+    pub use hpt_allocator::Cpu;
+    #[cfg(feature = "cuda")]
+    pub use hpt_allocator::Cuda;
+
+    pub use hpt_allocator::{BackendTy, Buffer};
+}
+
+/// module for buitin templates
+pub mod buitin_templates {
+    /// module for cpu buitin templates
+    pub mod cpu {
+        pub use crate::backends::cpu::utils::binary::binary_normal::binary_with_out;
+    }
+}
+
+/// module for utils, like set_num_threads, set_seed, etc.
+pub mod utils {
+    pub use hpt_allocator::resize_cpu_lru_cache;
+    #[cfg(feature = "cuda")]
+    pub use hpt_allocator::resize_cuda_lru_cache;
+    pub use hpt_macros::select;
+
+    use crate::{CUDA_SEED, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION, THREAD_POOL};
+
+    /// Get the global number of threads
+    pub fn get_num_threads() -> usize {
+        THREAD_POOL.with(|x| x.borrow().max_count())
+    }
+    /// Set the Tensor display precision
+    pub fn set_display_precision(precision: usize) {
+        DISPLAY_PRECISION.store(precision, std::sync::atomic::Ordering::Relaxed);
+    }
+    /// Set the left and right elements to display for each dimension
+    pub fn set_display_elements(lr_elements: usize) {
+        DISPLAY_LR_ELEMENTS.store(lr_elements, std::sync::atomic::Ordering::Relaxed);
+    }
+    #[allow(unused)]
+    /// Set the seed for random number generation
+    pub fn set_seed<B: crate::backend::BackendTy>(seed: u64) {
+        match B::ID {
+            0 => {
+                panic!("CPU backend does not support setting seed");
+            }
+            #[cfg(feature = "cuda")]
+            1 => {
+                CUDA_SEED.store(seed, std::sync::atomic::Ordering::Relaxed);
+            }
+            _ => {
+                panic!("Unsupported backend {:?}", B::ID);
+            }
         }
-        _ => {
-            panic!("Unsupported backend {:?}", B::ID);
+    }
+    /// Set the global number of threads
+    ///
+    /// # Note
+    /// Rayon only allows the number of threads to be set once, so the rayon thread pool won't have any effect if it's called more than once.
+    pub fn set_num_threads(num_threads: usize) {
+        THREAD_POOL.with(|x| {
+            x.borrow_mut().set_num_threads(num_threads);
+        });
+        match rayon::ThreadPoolBuilder::new()
+            .num_threads(num_threads)
+            .stack_size(4 * 1024 * 1024)
+            .build_global()
+        {
+            Ok(_) => {}
+            Err(_) => {}
         }
     }
 }
+
+pub use tensor::Tensor;
