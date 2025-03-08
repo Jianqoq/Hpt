@@ -1,4 +1,11 @@
 #![allow(unused_imports)]
+use super::assert_utils::assert_f64;
+use hpt::common::cpu::TensorLike;
+use hpt::common::TensorInfo;
+use hpt::ops::Matmul;
+use hpt::ops::ShapeManipulate;
+use hpt::ops::TensorCmp;
+use hpt::ops::TensorCreator;
 use hpt::*;
 use hpt_common::slice;
 use hpt_macros::select;
@@ -6,8 +13,6 @@ use rand::Rng;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::ops::*;
 use tch::Tensor as TchTensor;
-
-use super::assert_utils::assert_f64;
 
 #[allow(unused)]
 fn assert_eq(b: &Tensor<f64>, a: &TchTensor) {

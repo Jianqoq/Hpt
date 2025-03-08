@@ -20,7 +20,7 @@ Tensor with type `T` containing random values from the Zipf distribution.
 
 ## Examples:
 ```rust
-use hpt::{Random, Tensor, TensorError};
+use hpt::{error::TensorError, ops::Random, Tensor};
 
 fn main() -> Result<(), TensorError> {
     // Create a 10x10 tensor with Zipf distribution (N=1000, s=2.0)

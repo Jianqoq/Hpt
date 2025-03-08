@@ -26,7 +26,7 @@ Tensor with type `i64` containing the indices of maximum values
 
 ## Examples:
 ```rust
-use hpt::{IndexReduce, Tensor, TensorError};
+use hpt::{ops::IndexReduce, Tensor, error::TensorError};
 
 fn main() -> Result<(), TensorError> {
     // Max over dimension 0

@@ -20,12 +20,12 @@ Tensor with type `C`
 
 ## Examples:
 ```rust
-use hpt::{FloatBinaryOps, Tensor, TensorError};
+use hpt::{error::TensorError, ops::NormalBinOps, Tensor};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new([2.0]);
     let b = Tensor::<f32>::new([3.0]);
-    let c = a.mul_(&b, &a)?;
+    let c = a.mul_(&b, &mut a.clone())?;
     println!("{}", c);
     Ok(())
 }

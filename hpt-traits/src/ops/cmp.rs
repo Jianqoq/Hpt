@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use hpt_common::error::base::TensorError;
 
-use crate::CommonBounds;
+use crate::tensor::CommonBounds;
 
 /// A trait for tensor comparison operations
 pub trait TensorCmp<T: CommonBounds, C: CommonBounds> {

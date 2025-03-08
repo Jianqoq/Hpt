@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use hpt::{FloatOutUnary, NormalOut, NormalOutUnary};
+use hpt::types::math::{FloatOutUnary, NormalOut, NormalOutUnary};
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::BitWiseOut2;
 use hpt_types::{dtype::TypeCommon, traits::VecTrait};
@@ -1004,7 +1004,7 @@ fn test_convert_bf16_to_f32() {
             1000,
             -1e5..=1e5,
             "f64::mul_add",
-            mul_add,
+            __mul_add,
             __mul_add
         );
 

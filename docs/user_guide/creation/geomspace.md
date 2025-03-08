@@ -25,7 +25,7 @@ A 1-D tensor of geometrically spaced values.
 
 ## Examples:
 ```rust
-use hpt::{Tensor, TensorError, TensorCreator};
+use hpt::{error::TensorError, ops::TensorCreator, Tensor};
 fn main() -> Result<(), TensorError> {
     // Create 4 points from 1 to 1000
     let a = Tensor::<f32>::geomspace(1.0, 1000.0, 4, true)?;

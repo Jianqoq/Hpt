@@ -23,7 +23,7 @@ A 1-D tensor of evenly spaced values.
 
 ## Examples:
 ```rust
-use hpt::{Tensor, TensorError, TensorCreator};
+use hpt::{error::TensorError, ops::TensorCreator, Tensor};
 fn main() -> Result<(), TensorError> {
     // Create 5 evenly spaced values from 0 to 1 (inclusive)
     let a = Tensor::<f32>::linspace(0.0, 1.0, 5, true)?;

@@ -13,8 +13,8 @@ pub mod simd_imports {
         iterator_traits::{IterGetSetSimd, StridedIteratorSimd, StridedSimdIteratorZip},
         strided::strided_simd::StridedSimd,
     };
+    use crate::{CommonBounds, TensorInfo};
     use hpt_common::shape::shape::Shape;
-    use hpt_traits::{CommonBounds, TensorInfo};
     use hpt_types::dtype::TypeCommon;
     use hpt_types::vectors::traits::VecTrait;
     use std::sync::Arc;

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, io::Write};
 
 use hpt_common::{shape::shape::Shape, strides::strides::Strides};
-use hpt_traits::{CommonBounds, TensorInfo};
+use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use num::traits::{FromBytes, ToBytes};
 use serde::{Deserialize, Serialize};
 

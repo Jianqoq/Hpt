@@ -15,7 +15,9 @@ x: Tensor to iterate
 
 ## Examples:
 ```rust
-use hpt::*;
+use hpt::Tensor;
+use hpt::iter::TensorIterator;
+use hpt::iter::rayon::iter::ParallelIterator;
 
 fn main() -> anyhow::Result<()> {
     let mut x = Tensor::<f64>::new(&[1f64, 2., 3.]);

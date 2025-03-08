@@ -26,7 +26,9 @@ A `ParStridedMapSimd` iterator
 
 ## Examples:
 ```rust
-use hpt::*;
+use hpt::Tensor;
+use hpt::iter::TensorIterator;
+use hpt::types::math::FloatOutUnary;
 
 fn main() -> anyhow::Result<()> {
     let x = Tensor::<f64>::new(&[1f64, 2., 3.]);

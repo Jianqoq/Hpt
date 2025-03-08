@@ -1,8 +1,8 @@
 #[test]
 fn onehot() -> anyhow::Result<()> {
-    use hpt::AdvancedOps;
-    use hpt::TensorCreator;
-    use hpt::TensorLike;
+    use hpt::common::cpu::TensorLike;
+    use hpt::ops::AdvancedOps;
+    use hpt::ops::TensorCreator;
     use rand::Rng;
     let mut rng = rand::thread_rng();
     for _ in 0..100 {

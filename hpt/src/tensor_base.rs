@@ -1,4 +1,4 @@
-use crate::{Backend, BackendTy, Buffer, Cpu};
+use crate::backend::{BackendTy, Buffer, Cpu};
 use hpt_allocator::{traits::Allocator, HptAllocator};
 use hpt_common::{layout::layout::Layout, utils::pointer::Pointer};
 use std::marker::PhantomData;
@@ -23,7 +23,7 @@ where
     pub(crate) parent: Option<Pointer<T>>,
     pub(crate) layout: Layout,
     pub(crate) mem_layout: Arc<std::alloc::Layout>,
-    pub(crate) _backend: Backend<B>,
+    pub(crate) _backend: hpt_allocator::Backend<B>,
     pub(crate) phantom: PhantomData<A>,
 }
 

@@ -1,6 +1,6 @@
 use hpt_common::error::base::TensorError;
 
-use crate::CommonBounds;
+use crate::tensor::CommonBounds;
 
 /// trait for conv operations
 pub trait Conv<T: CommonBounds> {

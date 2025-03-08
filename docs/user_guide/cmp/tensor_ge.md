@@ -17,7 +17,7 @@ Tensor with type `bool`
 
 ## Examples:
 ```rust
-use hpt::{TensorCmp, Tensor, TensorError};
+use hpt::{ops::TensorCmp, Tensor, error::TensorError};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new([2.0, 2.0, 2.0]);

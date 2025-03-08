@@ -17,8 +17,8 @@ pub mod par_strided_map_mut_simd {
         iterator_traits::{IterGetSetSimd, ParStridedIteratorSimd, ParStridedIteratorSimdZip},
         par_strided::par_strided_simd::ParStridedSimd,
     };
+    use crate::{CommonBounds, TensorInfo};
     use hpt_common::{shape::shape::Shape, utils::pointer::Pointer, utils::simd_ref::MutVec};
-    use hpt_traits::{CommonBounds, TensorInfo};
     use hpt_types::dtype::TypeCommon;
     use hpt_types::traits::VecTrait;
     use rayon::iter::{

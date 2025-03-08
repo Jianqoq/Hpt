@@ -16,7 +16,12 @@ Tuple of two tensors (sine, cosine) with type `C`
 
 ## Examples:
 ```rust
-use hpt::{FloatUnaryOps, Tensor, TensorCreator, TensorError, TensorInfo};
+use hpt::{
+    common::TensorInfo,
+    error::TensorError,
+    ops::{FloatUnaryOps, TensorCreator},
+    Tensor,
+};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new([10.0]);
@@ -28,6 +33,7 @@ fn main() -> Result<(), TensorError> {
     assert_eq!(cos.ptr().ptr as u64, cos_out.ptr().ptr as u64);
     Ok(())
 }
+
 ```
 ## Backend Support
 | Backend | Supported |

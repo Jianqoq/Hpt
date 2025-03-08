@@ -23,13 +23,17 @@ A new tensor with scattered values.
 
 ## Examples:
 ```rust
-use hpt::{Tensor, TensorCreator, TensorError, AdvancedOps};
+use hpt::{
+    error::TensorError,
+    ops::{AdvancedOps, TensorCreator},
+    Tensor,
+};
 
 fn main() -> Result<(), TensorError> {
-    let x = Tensor::<f64>::zeros(&[3, 5])?;  // base tensor
+    let x = Tensor::<f64>::zeros(&[3, 5])?; // base tensor
     let src = Tensor::<f64>::new(&[1., 2., 3.]);
     let indices = Tensor::<i64>::new(&[0, 2, 4]);
-    
+
     let result = x.scatter(&indices, 1, &src)?;
     println!("After scatter:\n{}", result);
     Ok(())

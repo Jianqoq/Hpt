@@ -1,17 +1,18 @@
 #![allow(unused)]
-use hpt::ConvBatchNorm;
-use hpt::ShapeManipulate;
-use hpt::TensorLike;
-use hpt::{set_display_elements, set_num_threads, CommonBounds, TensorInfo};
-use hpt::{Tensor, TensorCreator};
+use super::assert_utils::assert_f32;
+use super::assert_utils::assert_f64;
+use hpt::common::cpu::TensorLike;
+use hpt::common::TensorInfo;
+use hpt::ops::Contiguous;
+use hpt::ops::ConvBatchNorm;
+use hpt::ops::ShapeManipulate;
+use hpt::ops::TensorCreator;
+use hpt::Tensor;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
 use hpt_types::type_promote::NormalOutUnary;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use tch;
-
-use super::assert_utils::assert_f32;
-use super::assert_utils::assert_f64;
 
 fn common_input(
     [batch, out_channel, in_channel, kernel_height, kernel_width, height, width]: [i64; 7],

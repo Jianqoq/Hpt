@@ -23,7 +23,7 @@ A 2-D tensor of shape [n, m] with ones in the specified triangular region.
 
 ## Examples:
 ```rust
-use hpt::{Tensor, TensorError, TensorCreator};
+use hpt::{error::TensorError, ops::TensorCreator, Tensor};
 fn main() -> Result<(), TensorError> {
     // Lower triangular matrix (k=0)
     let a = Tensor::<f32>::tri(3, 3, 0, true)?;

@@ -27,7 +27,12 @@ Tensor with type `T`
 
 ## Examples:
 ```rust
-use hpt::{Conv, Random, Tensor, TensorError, TensorInfo};
+use hpt::{
+    common::TensorInfo,
+    error::TensorError,
+    ops::{Conv, Random},
+    Tensor,
+};
 
 fn main() -> Result<(), TensorError> {
     // [batch_size, height, width, in_channels]

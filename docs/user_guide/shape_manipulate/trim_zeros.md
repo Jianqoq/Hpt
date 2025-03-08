@@ -20,7 +20,7 @@ A new tensor with zeros trimmed from the specified ends.
 
 ## Examples:
 ```rust
-use hpt::{ShapeManipulate, Tensor, TensorError};
+use hpt::{ops::ShapeManipulate, Tensor, error::TensorError};
 fn main() -> Result<(), TensorError> {
     // Create a 1D tensor with zeros
     let a = Tensor::<f32>::new(&[0.0, 0.0, 1.0, 2.0, 3.0, 0.0, 0.0]);

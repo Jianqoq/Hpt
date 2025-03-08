@@ -1,5 +1,8 @@
 use hpt_common::shape::shape::Shape;
-use hpt_traits::tensor::{CommonBounds, TensorAlloc, TensorInfo};
+use hpt_traits::{
+    ops::creation::TensorCreator,
+    tensor::{CommonBounds, TensorInfo},
+};
 use rayon::iter::{plumbing::UnindexedProducer, ParallelIterator};
 
 use crate::{
@@ -10,8 +13,9 @@ use crate::{
 
 /// A module for parallel strided map iterator.
 pub mod par_strided_map_simd {
+    use crate::{CommonBounds, TensorInfo};
     use hpt_common::utils::simd_ref::MutVec;
-    use hpt_traits::{CommonBounds, TensorAlloc, TensorInfo};
+    use hpt_traits::ops::creation::TensorCreator;
     use hpt_types::dtype::TypeCommon;
     use rayon::iter::{plumbing::UnindexedProducer, ParallelIterator};
 
@@ -74,21 +78,24 @@ pub mod par_strided_map_simd {
         /// A new tensor of type `U` containing the results of the map operation.
         pub fn collect<U>(self) -> U
         where
-            F: Fn((&mut <U as TensorAlloc>::Meta, <I as IterGetSetSimd>::Item)) + Sync + Send + 'a,
-            U: Clone + TensorInfo<U::Meta> + TensorAlloc,
+            F: Fn((&mut <U as TensorCreator>::Meta, <I as IterGetSetSimd>::Item))
+                + Sync
+                + Send
+                + 'a,
+            U: Clone + TensorInfo<U::Meta> + TensorCreator<Output = U>,
             <I as IterGetSetSimd>::Item: Send,
-            <U as TensorAlloc>::Meta: CommonBounds,
+            <U as TensorCreator>::Meta: CommonBounds,
             F2: Send
                 + Sync
                 + Copy
                 + Fn(
                     (
-                        MutVec<'_, <<U as TensorAlloc>::Meta as TypeCommon>::Vec>,
+                        MutVec<'_, <<U as TensorCreator>::Meta as TypeCommon>::Vec>,
                         <I as IterGetSetSimd>::SimdItem,
                     ),
                 ),
         {
-            let res = U::_empty(self.iter.shape().clone()).unwrap();
+            let res = U::empty(self.iter.shape().clone()).unwrap();
             let par_strided = ParStridedMutSimd::new(res.clone());
             let zip = par_strided.zip(self.iter);
             let with_simd = WithSimd {
@@ -146,11 +153,11 @@ impl<
     pub fn collect<U>(self) -> U
     where
         F: Fn((&mut U::Meta, T)) + Sync + Send,
-        U: Clone + TensorInfo<U::Meta> + TensorAlloc,
+        U: Clone + TensorInfo<U::Meta> + TensorCreator<Output = U>,
         <I as IterGetSet>::Item: Send,
-        <U as TensorAlloc>::Meta: CommonBounds,
+        <U as TensorCreator>::Meta: CommonBounds,
     {
-        let res = U::_empty(self.iter.shape().clone()).unwrap();
+        let res = U::empty(self.iter.shape().clone()).unwrap();
         let strided_mut = ParStridedMapMut::new(res.clone());
         let zip = strided_mut.zip(self.iter);
         zip.for_each(|(x, y)| {

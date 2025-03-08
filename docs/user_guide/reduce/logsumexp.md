@@ -26,7 +26,7 @@ Tensor with type `C`
 
 ## Examples:
 ```rust
-use hpt::{NormalReduce, Tensor, TensorError};
+use hpt::{ops::NormalReduce, Tensor, error::TensorError};
 
 fn main() -> Result<(), TensorError> {
     // LogSumExp over dimension 0

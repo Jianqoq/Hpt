@@ -26,10 +26,6 @@ pub trait AdvancedOps {
         true_val: Self::Meta,
         false_val: Self::Meta,
     ) -> Result<Self::Output, TensorError>;
-    /// Gather the tensor
-    // fn gather(&self, indices: &Self::IndexOutput, axis: i64) -> Result<Self::Output, TensorError>;
-    /// Dropout the tensor
-    fn dropout(&self, rate: f64) -> Result<Self::Output, TensorError>;
     /// Gather elements the tensor
     // fn gather_elements(
     //     &self,
@@ -43,14 +39,6 @@ pub trait AdvancedOps {
         axis: i64,
         src: &Self::Output,
     ) -> Result<Self::Output, TensorError>;
-}
-
-/// A trait for shrinkage
-pub trait Shrinkage<T> {
-    /// The type of the output tensor
-    type Output;
-    /// Shrinkage the tensor
-    fn shrinkage(&self, bias: T, lambda: T) -> Result<Self::Output, TensorError>;
 }
 
 /// A trait for hardmax

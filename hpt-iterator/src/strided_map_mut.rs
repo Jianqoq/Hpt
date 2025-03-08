@@ -13,8 +13,8 @@ use crate::{
 pub mod strided_map_mut_simd {
     use std::sync::Arc;
 
+    use crate::{CommonBounds, TensorInfo};
     use hpt_common::{shape::shape::Shape, strides::strides::Strides};
-    use hpt_traits::{CommonBounds, TensorInfo};
     use hpt_types::dtype::TypeCommon;
 
     use crate::{

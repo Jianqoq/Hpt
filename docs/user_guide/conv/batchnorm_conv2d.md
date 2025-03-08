@@ -47,7 +47,12 @@ Tensor with type `T`
 
 ## Examples:
 ```rust
-use hpt::{ConvBatchNorm, Random, Tensor, TensorError, TensorInfo, TensorCreator};
+use hpt::{
+    common::TensorInfo,
+    error::TensorError,
+    ops::{ConvBatchNorm, Random, TensorCreator},
+    Tensor,
+};
 
 fn main() -> Result<(), TensorError> {
     // [batch_size, height, width, in_channels]
@@ -61,7 +66,7 @@ fn main() -> Result<(), TensorError> {
     let var = Tensor::<f32>::ones([16])?;
     let gamma = Tensor::<f32>::ones([16])?;
     let beta = Tensor::<f32>::zeros([16])?;
-    
+
     // Optional convolution bias
     let bias = Tensor::<f32>::zeros([16])?;
 
@@ -73,11 +78,11 @@ fn main() -> Result<(), TensorError> {
         &gamma,
         &beta,
         Some(&bias),
-        1e-5,              // epsilon
-        [1, 1],            // stride
-        [(1, 1), (1, 1)],  // padding
-        [1, 1],            // dilation
-        None,              // no activation function
+        1e-5,             // epsilon
+        [1, 1],           // stride
+        [(1, 1), (1, 1)], // padding
+        [1, 1],           // dilation
+        None,             // no activation function
     )?;
 
     println!("Output shape: {:?}", output.shape()); // [1, 32, 32, 16]

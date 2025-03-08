@@ -1,5 +1,9 @@
-use hpt::{CompressionAlgo, Endian, Random, Tensor, TensorError, TensorLoader, TensorSaver};
-
+use hpt::{
+    error::TensorError,
+    ops::Random,
+    save_load::{CompressionAlgo, Endian, TensorLoader, TensorSaver},
+    Tensor,
+};
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::randn([10, 10])?;
     let b = Tensor::<f64>::randn([10, 10])?;

@@ -20,7 +20,7 @@ Tensor with type `C`
 
 ## Examples:
 ```rust
-use hpt::{NormalBinOps, Tensor, TensorError};
+use hpt::{ops::NormalBinOps, Tensor, error::TensorError};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::new([2.0]);

@@ -1,12 +1,25 @@
 #![allow(unused)]
 use std::collections::HashMap;
 
+use hpt::iter::TensorIterator;
+use hpt::ops::IndexReduce;
+use hpt::ops::Matmul;
+use hpt::ops::NormalUaryOps;
+use hpt::ops::NormalizationOps;
+use hpt::types::vectors::traits::VecTrait;
 use hpt::{
-    binary_with_out, select, IndexReduce, Matmul, NormalBinOps, NormalOut, NormalUaryOps,
-    ParStridedIteratorZip, Random, RandomInt, ShapeManipulate, Slice, Tensor, TensorCreator,
-    TensorError, TensorIterator, TypeCommon, VecTrait,
+    buitin_templates::cpu::binary_with_out,
+    common::TensorInfo,
+    error::TensorError,
+    iter::ParStridedIteratorZip,
+    ops::{Concat, NormalBinOps, Random, RandomInt, ShapeManipulate, Slice, TensorCreator},
+    types::{
+        math::{Eval, NormalOut},
+        TypeCommon,
+    },
+    utils::select,
+    Tensor,
 };
-use hpt::{Concat, Eval, TensorInfo};
 use rayon::iter::ParallelIterator;
 
 type F32Vec = <f32 as TypeCommon>::Vec;

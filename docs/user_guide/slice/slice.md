@@ -16,7 +16,11 @@ A new Tensor containing the sliced values.
 
 ## Examples:
 ```rust
-use hpt::{ShapeManipulate, Slice, Tensor, TensorCreator, TensorError};
+use hpt::{
+    error::TensorError,
+    ops::{ShapeManipulate, Slice, TensorCreator},
+    Tensor,
+};
 
 fn main() -> Result<(), TensorError> {
     let a = Tensor::<f32>::arange(0, 16)?.reshape(&[4, 4])?;

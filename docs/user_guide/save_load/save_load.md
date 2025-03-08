@@ -27,15 +27,15 @@ saver.save()?;
 Final code will be
 
 ```rust
-use hpt::{Random, Tensor, TensorSaver};
+use hpt::{ops::Random, save_load::TensorSaver, Tensor};
 fn main() -> anyhow::Result<()> {
     let a = Tensor::<f32>::randn([1, 100, 100, 100])?;
     let saver = TensorSaver::new("path/to/save/file");
     let saver = saver.push(
         "a",
         a,
-        hpt::CompressionAlgo::Gzip,
-        hpt::Endian::Little,
+        hpt::save_load::CompressionAlgo::Gzip,
+        hpt::save_load::Endian::Little,
         9,
     );
     saver.save()?;

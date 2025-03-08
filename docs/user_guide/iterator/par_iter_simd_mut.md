@@ -21,17 +21,22 @@ x: Tensor to iterate
 
 ## Examples:
 ```rust
-use hpt::*;
+use hpt::iter::{ParStridedIteratorSimd, TensorIterator};
+use hpt::types::math::FloatOutUnary;
+use hpt::Tensor;
 
 fn main() -> anyhow::Result<()> {
     let mut x = Tensor::<f64>::new(&[1f64, 2., 3.]);
 
-    x.par_iter_mut_simd().for_each(|x|{
-        *x = x.sin();
-    },|x|{
-        let val = x.read_unaligned();
-        x.write_unaligned(val._sin());
-    });
+    x.par_iter_mut_simd().for_each(
+        |x| {
+            *x = x.sin();
+        },
+        |x| {
+            let val = x.read_unaligned();
+            x.write_unaligned(val._sin());
+        },
+    );
 
     println!("{}", x);
     Ok(())

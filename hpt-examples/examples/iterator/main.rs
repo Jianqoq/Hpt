@@ -1,6 +1,8 @@
 use hpt::{
-    ParStridedIteratorSimdZip, ParStridedIteratorZip, Random, Tensor, TensorCreator, TensorError,
-    TensorIterator,
+    error::TensorError,
+    iter::{ParStridedIteratorSimdZip, ParStridedIteratorZip, TensorIterator},
+    ops::{Random, TensorCreator},
+    Tensor,
 };
 use rayon::iter::ParallelIterator;
 

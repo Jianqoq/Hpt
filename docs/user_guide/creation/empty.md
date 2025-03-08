@@ -21,7 +21,7 @@ A new uninitialized tensor with the specified shape.
 
 ## Examples:
 ```rust
-use hpt::{Tensor, TensorCreator, TensorError, TensorInfo};
+use hpt::{common::TensorInfo, error::TensorError, ops::TensorCreator, Tensor};
 fn main() -> Result<(), TensorError> {
     // Create an empty 2D tensor
     let a = Tensor::<f32>::empty(&[2, 3])?;

@@ -1,6 +1,11 @@
 use hpt::{
-    select, Concat, FloatOutUnary, Matmul, NormalBinOps, ParStridedIteratorSimdZip, Random,
-    ShapeManipulate, Slice, Tensor, TensorCreator, TensorError, TensorInfo, TensorIterator,
+    common::TensorInfo,
+    error::TensorError,
+    iter::{ParStridedIteratorSimdZip, TensorIterator},
+    ops::{Concat, Matmul, NormalBinOps, Random, ShapeManipulate, Slice, TensorCreator},
+    types::math::FloatOutUnary,
+    utils::select,
+    Tensor,
 };
 
 struct LSTM {

@@ -15,8 +15,8 @@ use crate::{
 pub mod par_strided_map_mut_simd {
     use std::sync::Arc;
 
+    use crate::{CommonBounds, TensorInfo};
     use hpt_common::{shape::shape::Shape, strides::strides::Strides, utils::simd_ref::MutVec};
-    use hpt_traits::{CommonBounds, TensorInfo};
     use hpt_types::dtype::TypeCommon;
     use rayon::iter::{
         plumbing::{bridge_unindexed, Folder, UnindexedConsumer, UnindexedProducer},

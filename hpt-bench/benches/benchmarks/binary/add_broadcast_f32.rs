@@ -2,14 +2,14 @@ use std::time::Duration;
 
 use candle_core::Tensor as CandleTensor;
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
-use hpt::{Random, Tensor as HptTensor};
+use hpt::{ops::Random, Tensor as HptTensor};
 use ndarray::{Array, Zip};
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use tch::{Device, Kind, Tensor as TchTensor};
 
 fn add_f32_benchmark(c: &mut Criterion) {
-    hpt::set_num_threads(num_cpus::get_physical());
+    hpt::utils::set_num_threads(num_cpus::get_physical());
     tch::set_num_threads(num_cpus::get_physical() as i32);
     let shapes = [[100, 100, 100, 100]];
 

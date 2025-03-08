@@ -67,6 +67,8 @@
         "system_error": "cpp",
         "xfacet": "cpp",
         "xlocinfo": "cpp",
-        "random": "cpp"
+        "random": "cpp",
+        "algorithm": "cpp",
+        "complex": "cpp"
     },
 }

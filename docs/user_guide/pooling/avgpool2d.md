@@ -31,7 +31,12 @@ Tensor with type `C`
 
 ## Examples:
 ```rust
-use hpt::{FloatOutPooling, Random, Tensor, TensorError, TensorInfo};
+use hpt::{
+    common::TensorInfo,
+    error::TensorError,
+    ops::{FloatOutPooling, Random},
+    Tensor,
+};
 
 fn main() -> Result<(), TensorError> {
     // [batch_size, height, width, channels]

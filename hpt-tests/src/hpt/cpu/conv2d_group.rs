@@ -1,9 +1,11 @@
 #![allow(unused)]
-use hpt::ShapeManipulate;
-use hpt::TensorLike;
-use hpt::TypeCommon;
-use hpt::{set_display_elements, set_num_threads, CommonBounds, TensorInfo};
-use hpt::{Conv, Tensor, TensorCreator};
+use hpt::common::cpu::TensorLike;
+use hpt::common::TensorInfo;
+use hpt::ops::Contiguous;
+use hpt::ops::Conv;
+use hpt::ops::ShapeManipulate;
+use hpt::ops::TensorCreator;
+use hpt::Tensor;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
 use rand::Rng;

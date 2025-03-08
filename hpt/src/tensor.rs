@@ -4,14 +4,20 @@ use std::{
     sync::Arc,
 };
 
-use crate::{tensor_base::_Tensor, BackendTy, Buffer, Cpu};
-use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
+use crate::tensor_base::_Tensor;
+use hpt_allocator::{
+    traits::{Allocator, AllocatorOutputRetrive},
+    BackendTy, Buffer, Cpu,
+};
 use hpt_common::{
     error::base::TensorError, layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer,
 };
 use hpt_dataloader::{CPUTensorCreator, DataLoader};
 use hpt_iterator::TensorIterator;
-use hpt_traits::tensor::{CommonBounds, TensorCreator, TensorInfo, TensorLike};
+use hpt_traits::{
+    ops::creation::TensorCreator,
+    tensor::{CommonBounds, TensorInfo, TensorLike},
+};
 use hpt_types::into_scalar::Cast;
 
 /// `Tensor` is alias of N-dimensional array.
@@ -57,10 +63,6 @@ where
         let slice =
             unsafe { std::slice::from_raw_parts_mut(self.inner.ptr().ptr as *mut T, self.size()) };
         slice
-    }
-
-    fn contiguous(&self) -> std::result::Result<Self, TensorError> {
-        Ok(_Tensor::contiguous(self.inner.as_ref())?.into())
     }
 }
 
@@ -192,11 +194,11 @@ impl<T: CommonBounds, B: BackendTy + Buffer, const DEVICE: usize, A> CPUTensorCr
     for Tensor<T, B, DEVICE, A>
 where
     A: Allocator,
-    Tensor<T, Cpu, DEVICE, A>: hpt_traits::TensorCreator<T, Output = Tensor<T, Cpu, DEVICE, A>>,
+    Tensor<T, Cpu, DEVICE, A>: TensorCreator<Output = Tensor<T, Cpu, DEVICE, A>>,
 {
     type Output = Tensor<T, Cpu, DEVICE, A>;
     fn empty<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
-        <Tensor<T, Cpu, DEVICE, A> as TensorCreator<T>>::empty(shape)
+        <Tensor<T, Cpu, DEVICE, A> as TensorCreator>::empty(shape)
     }
 }
 

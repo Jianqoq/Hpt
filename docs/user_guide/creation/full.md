@@ -24,7 +24,7 @@ A new tensor of the specified shape, filled with the given value.
 
 ## Examples:
 ```rust
-use hpt::{Tensor, TensorError, TensorCreator};
+use hpt::{error::TensorError, ops::TensorCreator, Tensor};
 fn main() -> Result<(), TensorError> {
     // Create a 2D tensor filled with 5.0
     let a = Tensor::<f32>::full(5.0, &[2, 3])?;

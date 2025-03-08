@@ -17,7 +17,7 @@ A new tensor of the same shape containing the cumulative product.
 
 ## Examples:
 ```rust
-use hpt::{CumulativeOps, Tensor, TensorError};
+use hpt::{error::TensorError, ops::CumulativeOps, Tensor};
 
 fn main() -> Result<(), TensorError> {
     // 1D tensor

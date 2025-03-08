@@ -14,7 +14,12 @@ A new uninitialized tensor with the same shape as the input tensor.
 
 ## Examples:
 ```rust
-use hpt::{ShapeManipulate, Tensor, TensorCreator, TensorError, TensorInfo};
+use hpt::{
+    common::TensorInfo,
+    error::TensorError,
+    ops::{ShapeManipulate, TensorCreator},
+    Tensor,
+};
 fn main() -> Result<(), TensorError> {
     // Create a tensor
     let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0]).reshape(&[3, 1])?;

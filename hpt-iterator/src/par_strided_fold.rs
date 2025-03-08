@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use hpt_traits::CommonBounds;
+use crate::CommonBounds;
 use rayon::iter::{
     plumbing::{bridge_unindexed, UnindexedConsumer, UnindexedProducer},
     ParallelIterator,

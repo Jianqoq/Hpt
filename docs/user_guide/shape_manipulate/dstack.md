@@ -14,7 +14,11 @@ A new tensor with input tensors stacked along the third axis.
 
 ## Examples:
 ```rust
-use hpt::{Concat, Tensor, TensorError, ShapeManipulate};
+use hpt::{
+    error::TensorError,
+    ops::{Concat, ShapeManipulate},
+    Tensor,
+};
 fn main() -> Result<(), TensorError> {
     // With 3D tensors
     let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2, 1])?;

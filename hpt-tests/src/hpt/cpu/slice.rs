@@ -1,6 +1,9 @@
 #![allow(unused)]
-use hpt::*;
-use hpt_common::slice;
+use hpt::common::cpu::TensorLike;
+use hpt::common::TensorInfo;
+use hpt::ops::*;
+use hpt::slice;
+use hpt::Tensor;
 use hpt_macros::select;
 
 #[allow(unused)]
