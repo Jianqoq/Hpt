@@ -12,6 +12,8 @@ Cargo.lock
 *.model
 *.xml
 
+.vscode/
+
 resnet.safetensor
 resnet_inp
 
