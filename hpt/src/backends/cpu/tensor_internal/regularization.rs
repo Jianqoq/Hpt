@@ -9,13 +9,13 @@ use hpt_traits::{
     ops::regularization::RegularizationOps,
     tensor::{CommonBounds, TensorInfo},
 };
-use hpt_types::{traits::VecTrait, type_promote::NormalOut};
 use hpt_types::{
     dtype::TypeCommon,
     into_scalar::Cast,
     traits::SimdSelect,
     type_promote::{Cmp, NormalOutUnary, SimdCmp},
 };
+use hpt_types::{traits::VecTrait, type_promote::NormalOut};
 use rand_distr::Distribution;
 use rayon::iter::ParallelIterator;
 
