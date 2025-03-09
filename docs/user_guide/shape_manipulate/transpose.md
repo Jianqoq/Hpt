@@ -30,10 +30,10 @@ fn main() -> Result<(), TensorError> {
     // Create a tensor with shape [2, 4]
     let a = Tensor::<f32>::zeros(&[2, 4])?;
 
-    let b = a.transpose(0, 1)?; // shape becomes [4, 2]
+    let b = a.transpose(0, 1)?; // shape becomes [2, 4]
     println!("{}", b.shape());
 
-    let c = a.transpose(1, 0)?; // shape becomes [2, 4]
+    let c = a.transpose(1, 0)?; // shape becomes [4, 2]
     println!("{}", c.shape());
 
     Ok(())

@@ -261,21 +261,9 @@ pub(crate) mod backends {
         pub(crate) mod slice;
     }
 }
-
 pub(crate) mod tensor;
 pub(crate) mod tensor_base;
 pub(crate) mod to_tensor;
-
-use std::{cell::RefCell, sync::atomic::AtomicUsize};
-thread_local! {
-    static THREAD_POOL: RefCell<threadpool::ThreadPool> = RefCell::new(
-        threadpool::ThreadPool::new(num_cpus::get_physical())
-    );
-}
-
-static DISPLAY_PRECISION: AtomicUsize = AtomicUsize::new(4);
-static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
-
 #[cfg(feature = "cuda")]
 pub(crate) mod cuda_compiled {
     use std::{
@@ -290,41 +278,6 @@ pub(crate) mod cuda_compiled {
         Mutex<HashMap<usize, HashMap<String, Arc<HashMap<String, RegisterInfo>>>>>,
     > = Lazy::new(|| Mutex::new(HashMap::new()));
 }
-
-use ctor::ctor;
-#[ctor]
-fn init() {
-    THREAD_POOL.with(|x| {
-        x.borrow_mut().set_num_threads(num_cpus::get_physical());
-    });
-}
-
-static ALIGN: usize = 64;
-
-#[cfg(target_feature = "avx2")]
-pub(crate) const REGNUM: usize = 16;
-#[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
-pub(crate) const REGNUM: usize = 8;
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-pub(crate) const REGNUM: usize = 32;
-
-use hpt_types::arch_simd as simd;
-
-#[cfg(target_feature = "avx2")]
-type BoolVector = simd::_256bit::boolx32::boolx32;
-#[cfg(any(
-    all(not(target_feature = "avx2"), target_feature = "sse"),
-    target_feature = "neon"
-))]
-type BoolVector = simd::_128bit::boolx16::boolx16;
-
-use hpt_types::traits::VecTrait;
-const SIMD_WIDTH: usize =
-    <f32 as hpt_types::dtype::TypeCommon>::Vec::SIZE * std::mem::size_of::<f32>() * 8;
-
-#[cfg(feature = "cuda")]
-const CUDA_SEED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(2621654116416541);
-
 /// this module contains all the operators for the Tensor
 pub mod ops {
     pub use hpt_traits::ops::advance::*;
@@ -491,4 +444,45 @@ pub mod utils {
     }
 }
 
+use ctor::ctor;
+use hpt_types::arch_simd as simd;
+use hpt_types::traits::VecTrait;
+use std::{cell::RefCell, sync::atomic::AtomicUsize};
 pub use tensor::Tensor;
+
+#[ctor]
+fn init() {
+    THREAD_POOL.with(|x| {
+        x.borrow_mut().set_num_threads(num_cpus::get_physical());
+    });
+}
+
+thread_local! {
+    static THREAD_POOL: RefCell<threadpool::ThreadPool> = RefCell::new(
+        threadpool::ThreadPool::new(num_cpus::get_physical())
+    );
+}
+static DISPLAY_PRECISION: AtomicUsize = AtomicUsize::new(4);
+static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
+static ALIGN: usize = 64;
+
+#[cfg(target_feature = "avx2")]
+pub(crate) const REGNUM: usize = 16;
+#[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
+pub(crate) const REGNUM: usize = 8;
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+pub(crate) const REGNUM: usize = 32;
+
+#[cfg(target_feature = "avx2")]
+type BoolVector = simd::_256bit::boolx32::boolx32;
+#[cfg(any(
+    all(not(target_feature = "avx2"), target_feature = "sse"),
+    target_feature = "neon"
+))]
+type BoolVector = simd::_128bit::boolx16::boolx16;
+
+const SIMD_WIDTH: usize =
+    <f32 as hpt_types::dtype::TypeCommon>::Vec::SIZE * std::mem::size_of::<f32>() * 8;
+
+#[cfg(feature = "cuda")]
+const CUDA_SEED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(2621654116416541);

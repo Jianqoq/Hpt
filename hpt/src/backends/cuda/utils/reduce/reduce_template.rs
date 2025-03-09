@@ -1,3 +1,6 @@
+use crate::backends::common::reduce::{
+    get_fast_dim_size, get_new_reduce_axes, get_new_shape, is_keep_fast_dim, split_groups_by_axes,
+};
 use crate::backends::cuda::cuda_slice::CudaSlice;
 use crate::{
     backend::Cuda, backends::cuda::utils::reduce::reduce_utils::reduce_prepare,
@@ -37,46 +40,16 @@ where
     Al: Allocator,
     Al::Output: AllocatorOutputRetrive,
 {
-    let mut keep_fast_dim = true;
-    for axis in axes.iter() {
-        if a.strides()[*axis] == 1 {
-            keep_fast_dim = false;
-            break;
-        }
-    }
-    let mut fused_dims: Vec<usize> = vec![];
-    let (a, axes) = if !keep_fast_dim {
-        if a.ndim() == 1 {
-            (a.clone(), axes.to_vec())
-        } else {
-            let mut consec_axes = vec![];
-            let mut new_axes = axes.to_vec();
-            let mut max = a.ndim() - 1;
-            let mut last_removed = max;
-            while max > 0 {
-                if !axes.contains(&max) {
-                    break;
-                } else {
-                    consec_axes.push(max);
-                    let removed = new_axes.remove(new_axes.iter().position(|&x| x == max).unwrap());
-                    last_removed = removed;
-                }
-                max -= 1;
-            }
-            new_axes.push(last_removed);
-            fused_dims.extend(consec_axes.iter());
-            let mut new_shape = a.shape().to_vec();
-            let mut prod = 1;
-            for dim in fused_dims.iter() {
-                prod *= new_shape[*dim];
-                new_shape.remove(*dim);
-            }
-            new_shape.push(prod);
-            (a.reshape(&new_shape)?, new_axes)
-        }
-    } else {
-        (a.clone(), axes.to_vec())
-    };
+    let groups = a.layout.coalesce_dims();
+    let new_groups = split_groups_by_axes(&groups, axes);
+    let new_shape = get_new_shape(&new_groups, a.shape());
+    let original_ptr = a.ptr();
+    let a = a.reshape(&new_shape)?;
+    let new_ptr = a.ptr();
+    assert_eq!(original_ptr.ptr, new_ptr.ptr);
+    let axes = get_new_reduce_axes(new_groups, axes);
+    let keep_fast_dim = is_keep_fast_dim(a.strides(), &axes);
+
     let (transposed_tensor, result) = reduce_prepare(&a, &axes, init_val, init_out, c)?;
 
     let a_last_stride = if keep_fast_dim {
@@ -88,13 +61,9 @@ where
     if a.ndim() == axes.len() {
         full_reduce(result.cuda_slice());
     } else {
-        let inner_loop_size = (if keep_fast_dim {
-            transposed_tensor.shape()[a.ndim() - axes.len() - 1]
-        } else {
-            transposed_tensor.shape()[a.ndim() - 1]
-        }) as usize;
         let a_size = a.size();
         if !keep_fast_dim {
+            let inner_loop_size = get_fast_dim_size(&a.shape(), &a.strides(), &axes) as usize;
             let outer_loop_size = a_size / inner_loop_size;
             let inner_loop_size_2 = outer_loop_size / result.size();
             nkd(

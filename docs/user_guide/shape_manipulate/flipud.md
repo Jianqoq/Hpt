@@ -14,7 +14,7 @@ A new tensor with elements reversed along axis 0 (up/down flip).
 
 ## Examples:
 ```rust
-use hpt::{ops::ShapeManipulate, Tensor, error::TensorError, common::TensorInfo};
+use hpt::{ops::ShapeManipulate, Tensor, error::TensorError};
 fn main() -> Result<(), TensorError> {
     // Create a 2D tensor
     let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).reshape(&[2, 3])?;
@@ -26,12 +26,6 @@ fn main() -> Result<(), TensorError> {
     // [[4, 5, 6],
     //  [1, 2, 3]]
     println!("{}", b);
-
-    // Works with 1D tensor too
-    let c = Tensor::<f32>::new(&[1.0, 2.0, 3.0]).reshape(&[3])?;
-    let d = c.flipud()?;
-    // [3, 2, 1]
-    println!("{}", d);
 
     Ok(())
 }

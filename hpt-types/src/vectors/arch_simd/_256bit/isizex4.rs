@@ -346,6 +346,11 @@ impl FloatOutBinary2 for ISizeVEC {
     fn __hypot(self, _: Self) -> Self {
         panic!("Hypot operation is not supported for i32");
     }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
 }
 
 impl NormalOut2 for ISizeVEC {
@@ -367,11 +372,6 @@ impl NormalOut2 for ISizeVEC {
     #[inline(always)]
     fn __mul(self, rhs: Self) -> Self {
         self * rhs
-    }
-
-    #[inline(always)]
-    fn __pow(self, rhs: Self) -> Self {
-        self.pow(rhs)
     }
 
     #[inline(always)]

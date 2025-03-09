@@ -60,18 +60,6 @@ macro_rules! impl_bin_ops {
         {
             binary_fn_with_out_simd(self, &rhs, |a, b| a._rem(b), |a, b| a._rem(b), Some(out))
         }
-        #[track_caller]
-        fn pow(&self, rhs: $($rhs)*) -> std::result::Result<Self::Output, TensorError>
-        {
-            binary_fn_with_out_simd(self, &rhs, |a, b| a._pow(b), |a, b| a._pow(b), None::<Self::Output>)
-        }
-        #[track_caller]
-        fn pow_<U>(&self, rhs: $($rhs)*, out: U) -> std::result::Result<Self::Output, TensorError>
-            where
-                U: BorrowMut<Self::InplaceOutput>
-        {
-            binary_fn_with_out_simd(self, &rhs, |a, b| a._pow(b), |a, b| a._pow(b), Some(out))
-        }
     }
     };
 }
@@ -148,19 +136,6 @@ macro_rules! impl_bin_ops_basic {
                 U: BorrowMut<Self::InplaceOutput>
         {
             Ok(self.inner.rem_(rhs.inner.as_ref(), out.borrow_mut().inner.as_ref().clone())?.into())
-        }
-        #[track_caller]
-        #[inline]
-        fn pow(&self, rhs: $($rhs)*) -> std::result::Result<Self::Output, TensorError> {
-            Ok(self.inner.pow(rhs.inner.as_ref())?.into())
-        }
-        #[track_caller]
-        #[inline]
-        fn pow_<U>(&self, rhs: $($rhs)*, mut out: U) -> std::result::Result<Self::Output, TensorError>
-            where
-                U: BorrowMut<Self::InplaceOutput>
-        {
-            Ok(self.inner.pow_(rhs.inner.as_ref(), out.borrow_mut().inner.as_ref().clone())?.into())
         }
     }
     };

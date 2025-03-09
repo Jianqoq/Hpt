@@ -48,6 +48,9 @@ pub fn impl_float_out_binary() -> TokenStream {
                         fn _hypot(self, rhs: #rhs_dtype) -> Self::Output {
                             self.__hypot(rhs)
                         }
+                        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
+                            self.__pow(rhs)
+                        }
                     }
                 }
             } else {
@@ -69,6 +72,11 @@ pub fn impl_float_out_binary() -> TokenStream {
                             let lhs_scalar: Self::Output = self.cast();
                             let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__hypot(rhs_scalar)
+                        }
+                        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
+                            lhs_scalar.__pow(rhs_scalar)
                         }
                     }
                 }
@@ -127,6 +135,9 @@ pub fn impl_cuda_float_out_binary() -> TokenStream {
                         fn _hypot(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
                             self.__hypot(rhs)
                         }
+                        fn _pow(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            self.__pow(rhs)
+                        }
                     }
                 }
             } else {
@@ -148,6 +159,11 @@ pub fn impl_cuda_float_out_binary() -> TokenStream {
                             let lhs_scalar: Self::Output = self.cast();
                             let rhs_scalar: Self::Output = rhs.cast();
                             lhs_scalar.__hypot(rhs_scalar)
+                        }
+                        fn _pow(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
+                            let lhs_scalar: Self::Output = self.cast();
+                            let rhs_scalar: Self::Output = rhs.cast();
+                            lhs_scalar.__pow(rhs_scalar)
                         }
                     }
                 }

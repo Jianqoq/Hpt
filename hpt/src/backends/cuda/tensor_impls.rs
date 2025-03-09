@@ -315,6 +315,22 @@ where
         }
     }
 }
+impl<T, const DEVICE_ID: usize, Al> Into<_Tensor<T, Cuda, DEVICE_ID, Al>>
+    for &_Tensor<T, Cuda, DEVICE_ID, Al>
+where
+    Al: Allocator,
+{
+    fn into(self) -> _Tensor<T, Cuda, DEVICE_ID, Al> {
+        _Tensor {
+            data: self.data.clone(),
+            parent: self.parent.clone(),
+            layout: self.layout.clone(),
+            mem_layout: self.mem_layout.clone(),
+            _backend: self._backend.clone(),
+            phantom: std::marker::PhantomData,
+        }
+    }
+}
 impl<
         const N: usize,
         T: CommonBounds + ToBytes<Bytes = [u8; N]> + DeviceRepr + CudaType,

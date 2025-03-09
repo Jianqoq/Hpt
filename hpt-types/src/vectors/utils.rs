@@ -83,22 +83,23 @@ pub fn array_vec_sum<T: TypeCommon + NormalOut<T, Output = T> + Copy>(array: &[T
 pub fn array_vec_reduce<T: TypeCommon + NormalOut<T, Output = T> + Copy>(
     array: &[T],
     init: T,
-    vec_op: impl Fn(T::Vec, T::Vec) -> T::Vec,
-    scalar_op: impl Fn(T, T) -> T,
-    vec_reduce_op: impl Fn(T, T) -> T,
+    scalar_preop: impl Fn(T) -> T,
+    scalar_cumulate: impl Fn(T, T) -> T,
+    vec_preop: impl Fn(T::Vec) -> T::Vec,
+    vec_cumulate: impl Fn(T::Vec, T::Vec) -> T::Vec,
 ) -> T {
     let remain = array.len() % T::Vec::SIZE;
     let vecs = array as *const _ as *const T::Vec;
     let mut red_vec = T::Vec::splat(init);
     for i in 0..array.len() / T::Vec::SIZE {
-        red_vec = vec_op(red_vec, unsafe { vecs.add(i).read_unaligned() });
+        red_vec = vec_cumulate(red_vec, vec_preop(unsafe { vecs.add(i).read_unaligned() }));
     }
     let mut red = init;
     for i in array.iter().skip(array.len() - remain) {
-        red = scalar_op(red, *i);
+        red = scalar_cumulate(red, scalar_preop(*i));
     }
     for i in 0..T::Vec::SIZE {
-        red = vec_reduce_op(red, red_vec.extract(i));
+        red = scalar_cumulate(red, red_vec.extract(i));
     }
     red
 }

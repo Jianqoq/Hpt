@@ -14,6 +14,10 @@ impl FloatOutBinary2 for f32 {
     fn __hypot(self, rhs: Self) -> Self {
         self.hypot(rhs)
     }
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.powf(rhs)
+    }
 }
 
 impl NormalOut2 for f32 {
@@ -38,11 +42,6 @@ impl NormalOut2 for f32 {
     #[inline(always)]
     fn __mul(self, rhs: Self) -> Self {
         self * rhs
-    }
-
-    #[inline(always)]
-    fn __pow(self, rhs: Self) -> Self {
-        self.powf(rhs)
     }
 
     #[inline(always)]

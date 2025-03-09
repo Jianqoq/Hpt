@@ -26,7 +26,7 @@ Tensor with type `T`
 
 ## Examples:
 ```rust
-use hpt::{ops::NormalReduce, Tensor, error::TensorError};
+use hpt::{ops::NormalEvalReduce, Tensor, error::TensorError};
 
 fn main() -> Result<(), TensorError> {
     // NaN sum over dimension 0

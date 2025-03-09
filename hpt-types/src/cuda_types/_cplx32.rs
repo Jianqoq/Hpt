@@ -20,6 +20,11 @@ impl FloatOutBinary2 for Scalar<Complex32> {
     fn __hypot(self, _: Self) -> Self {
         panic!("Hypotenuse operation is not well-defined for complex numbers")
     }
+
+    #[inline(always)]
+    fn __pow(self, _: Self) -> Self {
+        panic!("Power operation is not supported for complex numbers")
+    }
 }
 
 impl NormalOut2 for Scalar<Complex32> {
@@ -44,11 +49,6 @@ impl NormalOut2 for Scalar<Complex32> {
     #[inline(always)]
     fn __mul(self, rhs: Self) -> Self {
         Scalar::new(format!("cuCmulf({}, {})", self.val, rhs.val))
-    }
-
-    #[inline(always)]
-    fn __pow(self, _: Self) -> Self {
-        panic!("Power operation is not supported for complex numbers")
     }
 
     #[inline(always)]

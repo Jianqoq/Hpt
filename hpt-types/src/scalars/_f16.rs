@@ -20,6 +20,10 @@ impl FloatOutBinary2 for half::f16 {
     fn __hypot(self, rhs: Self) -> Self {
         self.hypot(rhs)
     }
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.powf(rhs)
+    }
 }
 
 impl NormalOut2 for half::f16 {
@@ -41,11 +45,6 @@ impl NormalOut2 for half::f16 {
     #[inline(always)]
     fn __mul(self, rhs: Self) -> Self {
         self * rhs
-    }
-
-    #[inline(always)]
-    fn __pow(self, rhs: Self) -> Self {
-        self.powf(rhs)
     }
 
     #[inline(always)]

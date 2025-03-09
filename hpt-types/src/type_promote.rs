@@ -51,6 +51,8 @@ pub trait FloatOutBinary<RHS = Self> {
     fn _log(self, base: RHS) -> Self::Output;
     /// perform hypot(x, y)
     fn _hypot(self, rhs: RHS) -> Self::Output;
+    /// perform a<sup>b</sup>
+    fn _pow(self, rhs: RHS) -> Self::Output;
 }
 
 /// this trait is used to perform type promotion for float out binary operations
@@ -67,6 +69,8 @@ pub trait FloatOutBinary2 {
     fn __log(self, base: Self) -> Self;
     /// perform hypot(x, y)
     fn __hypot(self, rhs: Self) -> Self;
+    /// perform a<sup>b</sup>
+    fn __pow(self, rhs: Self) -> Self;
 }
 
 float_out_binary!();
@@ -87,8 +91,6 @@ pub trait NormalOut<RHS = Self> {
     fn _mul_add(self, a: RHS, b: RHS) -> Self::Output;
     /// perform a * b
     fn _mul(self, rhs: RHS) -> Self::Output;
-    /// perform a<sup>b</sup>
-    fn _pow(self, rhs: RHS) -> Self::Output;
     /// perform a % b
     fn _rem(self, rhs: RHS) -> Self::Output;
     /// perform max(x, y)
@@ -110,8 +112,6 @@ pub trait NormalOut2 {
     fn __mul_add(self, a: Self, b: Self) -> Self;
     /// perform a * b
     fn __mul(self, rhs: Self) -> Self;
-    /// perform a<sup>b</sup>
-    fn __pow(self, rhs: Self) -> Self;
     /// perform a % b
     fn __rem(self, rhs: Self) -> Self;
     /// perform max(x, y)

@@ -38,13 +38,13 @@ fn main() -> Result<(), TensorError> {
     // Sum over dimension 0
     let a = Tensor::<f32>::new([10.0]);
     let b = Tensor::<f32>::new([0.0]);
-    let c = a.sum_([0], false, false, &b)?;
+    let c = a.sum_([0], false, false, &mut b.clone())?;
     println!("{}", c); // [10.]
 
     // Sum over multiple dimensions with keepdim=true
     let d = Tensor::<f32>::new([[1.0, 2.0], [3.0, 4.0]]);
     let e = Tensor::<f32>::new([[0.0]]);
-    let f = d.sum_([0, 1], true, false, &e)?;
+    let f = d.sum_([0, 1], true, false, &mut e.clone())?;
     println!("{}", f); // [[10.]]
     Ok(())
 }

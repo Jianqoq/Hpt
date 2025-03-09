@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 
 use crate::backend::Cpu;
-use crate::backends::cpu::utils::reduce::reduce::{reduce, reduce2, reduce3};
+use crate::backends::cpu::utils::reduce::reduce::{reduce, reduce_with_post};
 use crate::tensor_base::_Tensor;
 use crate::BoolVector;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
@@ -37,8 +37,11 @@ where
         let axes = process_axes(axes, self.ndim())?;
         reduce(
             self,
+            |a| a,
+            |a| a,
             |a, b| a._add(b),
-            |a, b| a._add(b),
+            |a| a,
+            |a| a,
             |a, b| a._add(b),
             &axes,
             T::ZERO,
@@ -61,8 +64,11 @@ where
         let axes = process_axes(axes, self.ndim())?;
         reduce(
             self,
+            |a| a,
+            |a| a,
             |a, b| a._add(b),
-            |a, b| a._add(b),
+            |a| a,
+            |a| a,
             |a, b| a._add(b),
             &axes,
             T::ZERO,
@@ -72,26 +78,6 @@ where
         )
     }
 
-    // fn sum_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool
-    // ) -> anyhow::Result<Self::Output> {
-    //     let axes = process_axes(axes, self.ndim())?;
-    //     reduce(
-    //         self,
-    //         |a, b| a._add(b),
-    //         |a, b| a._add(b),
-    //         |a, b| a._add(b),
-    //         &axes,
-    //         init_val,
-    //         keep_dims,
-    //         false,
-    //         None
-    //     )
-    // }
-
     fn prod<S: Into<Axis>>(
         &self,
         axis: S,
@@ -100,8 +86,11 @@ where
         let axes = process_axes(axis, self.ndim())?;
         reduce(
             self,
+            |a| a,
+            |a| a,
             |a, b| a._mul(b),
-            |a, b| a._mul(b),
+            |a| a,
+            |a| a,
             |a, b| a._mul(b),
             &axes,
             T::ONE,
@@ -111,26 +100,6 @@ where
         )
     }
 
-    // fn prod_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool
-    // ) -> anyhow::Result<Self::Output> {
-    //     let axes = process_axes(axes, self.ndim())?;
-    //     reduce(
-    //         self,
-    //         |a, b| a._mul(b),
-    //         |a, b| a._mul(b),
-    //         |a, b| a._mul(b),
-    //         &axes,
-    //         init_val,
-    //         keep_dims,
-    //         false,
-    //         None
-    //     )
-    // }
-
     fn min<S: Into<Axis>>(
         &self,
         axis: S,
@@ -139,8 +108,11 @@ where
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
+            |a| a,
+            |a| a,
             |a, b| a._min(b),
-            |a, b| a._min(b),
+            |a| a,
+            |a| a,
             |a, b| a._min(b),
             &axes,
             T::INF,
@@ -150,26 +122,6 @@ where
         )
     }
 
-    // fn min_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool
-    // ) -> anyhow::Result<Self> {
-    //     let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-    //     reduce(
-    //         self,
-    //         |a, b| a._min(b),
-    //         |a, b| a._min(b),
-    //         |a, b| a._min(b),
-    //         &axes,
-    //         init_val,
-    //         keep_dims,
-    //         false,
-    //         None
-    //     )
-    // }
-
     fn max<S: Into<Axis>>(
         &self,
         axis: S,
@@ -178,8 +130,11 @@ where
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
+            |a| a,
+            |a| a,
             |a, b| a._max(b),
-            |a, b| a._max(b),
+            |a| a,
+            |a| a,
             |a, b| a._max(b),
             &axes,
             T::NEG_INF,
@@ -189,26 +144,6 @@ where
         )
     }
 
-    // fn max_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool
-    // ) -> anyhow::Result<Self> {
-    //     let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-    //     reduce(
-    //         self,
-    //         |a, b| a._max(b),
-    //         |a, b| a._max(b),
-    //         |a, b| a._max(b),
-    //         &axes,
-    //         init_val,
-    //         keep_dims,
-    //         false,
-    //         None
-    //     )
-    // }
-
     fn reducel1<S: Into<Axis>>(
         &self,
         axis: S,
@@ -217,15 +152,12 @@ where
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
-            |a, b| {
-                let b_abs = b._abs();
-                a._add(b_abs)
-            },
-            |a, b| {
-                let b_abs = b._abs();
-                a._add(b_abs)
-            },
-            |a, b| a._add(b._abs()),
+            |a| a._abs(),
+            |a| a._abs(),
+            |a, b| a._add(b),
+            |a| a._abs(),
+            |a| a._abs(),
+            |a, b| a._add(b),
             &axes,
             T::ZERO,
             keep_dims,
@@ -240,13 +172,14 @@ where
         keep_dims: bool,
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce2(
+        reduce(
             self,
-            |a, b| a._add(b._square()),
-            |a, b| a._add(b._square()),
+            |a| a._square(),
+            |a| a._square(),
             |a, b| a._add(b),
-            |a, b| a._add(b._square()),
-            |a, b| a._add(b._square()),
+            |a| a._square(),
+            |a| a._square(),
+            |a, b| a._add(b),
             &axes,
             T::ZERO,
             keep_dims,
@@ -270,16 +203,14 @@ where
         keep_dims: bool,
     ) -> std::result::Result<Self::BoolOutput, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce2(
+        reduce(
             self,
-            |a, b| b._is_true() & a,
-            |a, b| b._is_true() & a,
-            |a, b| b & a,
-            |a, b| {
-                let mask: BoolVector = b.into_vec();
-                mask & a
-            },
-            |a, b| b & a,
+            |a| a._is_true(),
+            |a| a,
+            |a, b| a & b,
+            |a| a.into_vec(),
+            |a| a,
+            |a, b| a & b,
             &axes,
             true,
             keep_dims,
@@ -294,16 +225,14 @@ where
         keep_dims: bool,
     ) -> std::result::Result<Self::BoolOutput, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce2(
+        reduce(
             self,
-            |a, b| b._is_true() | a,
-            |a, b| b._is_true() | a,
-            |a, b| b | a,
-            |a, b| {
-                let mask: BoolVector = b.into_vec();
-                mask | a
-            },
-            |a, b| b | a,
+            |a| a._is_true(),
+            |a| a,
+            |a, b| a | b,
+            |a| a.into_vec(),
+            |a| a,
+            |a, b| a | b,
             &axes,
             false,
             keep_dims,
@@ -331,24 +260,12 @@ where
         let axes = process_axes(axes, self.ndim())?;
         reduce(
             self,
-            |a, b| {
-                if b._is_nan() {
-                    a
-                } else {
-                    b._add(a)
-                }
-            },
-            |a, b| {
-                if b._is_nan() {
-                    a
-                } else {
-                    b._add(a)
-                }
-            },
-            |a, b| {
-                let mask = b._is_nan();
-                mask.select(a, b._add(a))
-            },
+            |a| if a._is_nan() { T::ZERO } else { a },
+            |a| if a._is_nan() { T::ZERO } else { a },
+            |a, b| a._add(b),
+            |a| a._is_nan().select(T::Vec::splat(T::ZERO), a),
+            |a| a._is_nan().select(T::Vec::splat(T::ZERO), a),
+            |a, b| a._add(b),
             &axes,
             T::ZERO,
             keep_dims,
@@ -370,24 +287,12 @@ where
         let axes = process_axes(axes, self.ndim())?;
         reduce(
             self,
-            |a, b| {
-                if b._is_nan() {
-                    a
-                } else {
-                    b._add(a)
-                }
-            },
-            |a, b| {
-                if b._is_nan() {
-                    a
-                } else {
-                    b._add(a)
-                }
-            },
-            |a, b| {
-                let mask = b._is_nan();
-                mask.select(a, b._add(a))
-            },
+            |a| if a._is_nan() { T::ZERO } else { a },
+            |a| if a._is_nan() { T::ZERO } else { a },
+            |a, b| a._add(b),
+            |a| a._is_nan().select(T::Vec::splat(T::ZERO), a),
+            |a| a._is_nan().select(T::Vec::splat(T::ZERO), a),
+            |a, b| a._add(b),
             &axes,
             T::ZERO,
             keep_dims,
@@ -395,33 +300,6 @@ where
             Some(out.borrow().clone()),
         )
     }
-
-    // fn nansum_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool
-    // ) -> anyhow::Result<Self::Output> {
-    //     let axes = process_axes(axes, self.ndim())?;
-    //     reduce(
-    //         self,
-    //         |a, b| {
-    //             if b._is_nan() { a } else { b._add(a) }
-    //         },
-    //         |a, b| {
-    //             if b._is_nan() { a } else { b._add(a) }
-    //         },
-    //         |a, b| {
-    //             let mask = b._is_nan();
-    //             mask.select(a, b._add(a))
-    //         },
-    //         &axes,
-    //         init_val,
-    //         keep_dims,
-    //         false,
-    //         None
-    //     )
-    // }
 
     fn nanprod<S: Into<Axis>>(
         &self,
@@ -431,24 +309,12 @@ where
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
         reduce(
             self,
-            |a, b| {
-                if b._is_nan() {
-                    a
-                } else {
-                    b._mul(a)
-                }
-            },
-            |a, b| {
-                if b._is_nan() {
-                    a
-                } else {
-                    b._mul(a)
-                }
-            },
-            |a, b| {
-                let mask = b._is_nan();
-                mask.select(a, b._mul(a))
-            },
+            |a| if a._is_nan() { T::ONE } else { a },
+            |a| if a._is_nan() { T::ONE } else { a },
+            |a, b| a._mul(b),
+            |a| a._is_nan().select(T::Vec::splat(T::ONE), a),
+            |a| a._is_nan().select(T::Vec::splat(T::ONE), a),
+            |a, b| a._mul(b),
             &axes,
             T::ONE,
             keep_dims,
@@ -456,33 +322,6 @@ where
             None,
         )
     }
-
-    // fn nanprod_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool
-    // ) -> anyhow::Result<Self::Output> {
-    //     let axes: Vec<usize> = process_axes(axes, self.ndim())?;
-    //     reduce(
-    //         self,
-    //         |a, b| {
-    //             if b._is_nan() { a } else { b._mul(a) }
-    //         },
-    //         |a, b| {
-    //             if b._is_nan() { a } else { b._mul(a) }
-    //         },
-    //         |a, b| {
-    //             let mask = b._is_nan();
-    //             mask.select(a, b._mul(a))
-    //         },
-    //         &axes,
-    //         init_val,
-    //         keep_dims,
-    //         false,
-    //         None
-    //     )
-    // }
 }
 
 type FloatBinaryTypeVec<T> = <FloatBinaryType<T> as TypeCommon>::Vec;
@@ -490,7 +329,8 @@ type FloatBinaryTypeVec<T> = <FloatBinaryType<T> as TypeCommon>::Vec;
 impl<T, const DEVICE: usize, Al> FloatReduce<T> for _Tensor<T, Cpu, DEVICE, Al>
 where
     T: CommonBounds + Cast<FloatBinaryType<T>>,
-    T::Vec: NormalOut<FloatBinaryTypeVec<T>, Output = FloatBinaryTypeVec<T>>,
+    T::Vec: NormalOut<FloatBinaryTypeVec<T>, Output = FloatBinaryTypeVec<T>>
+        + IntoVec<FloatBinaryTypeVec<T>>,
 
     FloatBinaryType<T>: CommonBounds
         + FloatOutUnary<Output = FloatBinaryType<T>>
@@ -503,6 +343,8 @@ where
     f64: Cast<FloatBinaryType<T>>,
     Al: Allocator + 'static + Send + Sync,
     Al::Output: AllocatorOutputRetrive,
+
+    <T as FloatOutUnary>::Output: std::fmt::Debug,
 {
     type Output = _Tensor<FloatBinaryType<T>, Cpu, DEVICE, Al>;
 
@@ -519,13 +361,14 @@ where
             as f64)
             .cast();
         let reduce_vec = FloatBinaryTypeVec::<T>::splat(reduce_size);
-        reduce3(
+        reduce_with_post(
             self,
-            |a, b| a._add(b),
-            |a, b| a._add(b),
+            |a| a.cast(),
+            |a| a,
             |a, b| a._add(b),
             move |a| a._div(reduce_size),
-            |a, b| a._add(b),
+            |a| a.into_vec(),
+            |a| a,
             |a, b| a._add(b),
             move |a| a._div(reduce_vec),
             &axes,
@@ -544,15 +387,22 @@ where
         keep_dims: bool,
     ) -> std::result::Result<Self::Output, TensorError> {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce3(
+        reduce_with_post(
             self,
-            |a, b| a._add(b._square()),
-            |a, b| a._add(b._square()),
+            |a| {
+                let casted_a: FloatBinaryType<T> = a.cast();
+                casted_a._square()
+            },
+            |a| a._square(),
             |a, b| a._add(b),
             move |a| a._sqrt(),
-            |a, b| a._add(b._square()),
-            |a, b| a._add(b._square()),
-            |a| a._sqrt(),
+            |a| {
+                let casted_a: FloatBinaryTypeVec<T> = a.into_vec();
+                casted_a._square()
+            },
+            |a| a._square(),
+            |a, b| a._add(b),
+            move |a| a._sqrt(),
             &axes,
             FloatBinaryType::<T>::ZERO,
             keep_dims,
@@ -572,28 +422,21 @@ where
         let three_vec = FloatBinaryTypeVec::<T>::splat(three);
         let one_third: FloatBinaryType<T> = (1.0f64 / 3.0f64).cast();
         let one_third_vec = FloatBinaryTypeVec::<T>::splat(one_third);
-        let mut res = reduce3(
+        let mut res = reduce_with_post(
             self,
-            move |a, b| {
-                let pow = b._abs()._pow(three);
-                a._add(pow)
+            move |a| {
+                let cast_abs_a: FloatBinaryType<T> = a._abs().cast();
+                cast_abs_a._pow(three)
             },
-            move |a, b| {
-                let pow = b._abs()._pow(three);
-                a._add(pow)
-            },
-            move |a, b| a._add(b),
+            move |a| a._abs()._pow(three),
+            |a, b| a._add(b),
             move |a| a._pow(one_third),
-            move |a, b| {
-                let abs = b._abs();
-                let pow = abs._pow(three_vec);
-                a._add(pow)
+            move |a| {
+                let cast_abs_a: FloatBinaryTypeVec<T> = a._abs().into_vec();
+                cast_abs_a._pow(three_vec)
             },
-            move |a, b| {
-                let abs = b._abs();
-                let pow = abs._pow(three_vec);
-                a._add(pow)
-            },
+            move |a| a._abs()._pow(three_vec),
+            |a, b| a._add(b),
             move |a| a._pow(one_third_vec),
             &axes,
             FloatBinaryType::<T>::ZERO,
@@ -614,24 +457,22 @@ where
         T: CommonBounds,
     {
         let axes: Vec<usize> = process_axes(axis, self.ndim())?;
-        reduce3(
+        reduce_with_post(
             self,
-            |acc, b| {
-                let exp = b._exp();
-                acc._add(exp)
+            |a| {
+                let casted_a: FloatBinaryType<T> = a.cast();
+                casted_a._exp()
             },
-            |acc, b| {
-                let exp = b._exp();
-                acc._add(exp)
+            |a| a._exp(),
+            |a, b| a._add(b),
+            |a| a._ln(),
+            |a| {
+                let casted_a: FloatBinaryTypeVec<T> = a.into_vec();
+                casted_a._exp()
             },
-            |acc, b| {
-                let exp = b._exp();
-                acc._add(exp)
-            },
-            move |a| a._ln(),
-            |a, b| a._add(b._exp()),
-            |a, b| a._add(b._exp()),
-            move |a| a._ln(),
+            |a| a._exp(),
+            |a, b| a._add(b),
+            |a| a._ln(),
             &axes,
             FloatBinaryType::<T>::ZERO,
             keep_dims,

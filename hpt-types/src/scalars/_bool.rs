@@ -15,6 +15,11 @@ impl FloatOutBinary2 for bool {
     fn __hypot(self, _: Self) -> Self {
         panic!("Hypot operation is not supported for boolean type")
     }
+
+    #[inline(always)]
+    fn __pow(self, _: Self) -> Self {
+        panic!("Power operation is not supported for boolean type")
+    }
 }
 
 impl NormalOut2 for bool {
@@ -36,11 +41,6 @@ impl NormalOut2 for bool {
     #[inline(always)]
     fn __mul(self, rhs: Self) -> Self {
         self && rhs
-    }
-
-    #[inline(always)]
-    fn __pow(self, _: Self) -> Self {
-        panic!("Power operation is not supported for boolean type")
     }
 
     #[inline(always)]

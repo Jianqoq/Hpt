@@ -12,7 +12,7 @@ min(
     keepdim: bool
 ) -> Result<Tensor<T>, TensorError>
 ```
-Compute the minimum of elements along the specified dimensions
+Find the minimum of element along the specified dimensions
 
 ## Parameters:
 `x`: Input tensor

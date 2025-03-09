@@ -341,4 +341,39 @@ impl Layout {
         }
         true
     }
+
+    /// # Internal Function
+    ///
+    /// coalesce the dimensions of a layout
+    ///
+    /// # Returns
+    ///
+    /// * `Vec<Vec<usize>>` - the coalesced dimensions
+    pub fn coalesce_dims(&self) -> Vec<Vec<usize>> {
+        let shape = &self.shape;
+        let strides = &self.strides;
+        let mut groups = vec![vec![shape.len() - 1]];
+        let mut current_stride = strides[shape.len() - 1];
+        let mut current_size = shape[shape.len() - 1];
+
+        for i in (0..shape.len() - 1).rev() {
+            let expected_stride = current_stride * current_size;
+
+            if strides[i] == expected_stride {
+                groups.last_mut().unwrap().push(i);
+            } else {
+                groups.push(vec![i]);
+            }
+
+            current_stride = strides[i];
+            current_size = shape[i];
+        }
+
+        for group in groups.iter_mut() {
+            group.reverse();
+        }
+        groups.reverse();
+
+        groups
+    }
 }

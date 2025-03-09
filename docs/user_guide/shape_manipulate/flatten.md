@@ -20,13 +20,14 @@ A new tensor with the specified dimensions flattened into one.
 
 ## Examples:
 ```rust
-use hpt::{ops::ShapeManipulate, Tensor, error::TensorError};
+use hpt::{error::TensorError, ops::ShapeManipulate, Tensor};
 fn main() -> Result<(), TensorError> {
     // Create a 3D tensor with shape [2, 3, 2]
-    let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0,
-                                7.0, 8.0, 9.0, 10.0, 11.0, 12.0])
-                                .reshape(&[2, 3, 2])?;
-    
+    let a = Tensor::<f32>::new(&[
+        1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+    ])
+    .reshape(&[2, 3, 2])?;
+
     // Flatten all dimensions (default behavior)
     let b = a.flatten(None, None)?;
     // Shape: [12]

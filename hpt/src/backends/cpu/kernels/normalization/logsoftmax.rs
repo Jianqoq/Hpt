@@ -228,8 +228,9 @@ pub(crate) fn contiguous_dim_include<T, O>(
             let max = array_vec_reduce(
                 inp_arr,
                 T::NEG_INF,
+                |x| x,
                 |x, y| x._max(y),
-                |x, y| x._max(y),
+                |x| x,
                 |x, y| x._max(y),
             );
             let max_vec = T::Vec::splat(max);
@@ -282,8 +283,9 @@ pub(crate) fn contiguous_dim_include<T, O>(
             let max = array_vec_reduce(
                 inp_arr,
                 T::NEG_INF,
+                |x| x,
                 |x, y| x._max(y),
-                |x, y| x._max(y),
+                |x| x,
                 |x, y| x._max(y),
             );
 
@@ -294,7 +296,6 @@ pub(crate) fn contiguous_dim_include<T, O>(
                 sum = sum._add(val._exp());
             }
             let log_sum = sum._ln();
-            println!("log_sum: {:?}", log_sum);
             let sum_vec = O::Vec::splat(log_sum);
             for i in 0..(inner_loop_size as usize) / T::Vec::SIZE {
                 unsafe {

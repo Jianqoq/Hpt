@@ -52,9 +52,6 @@ pub fn impl_simd_normal_out() -> TokenStream {
                         fn _mul(self, rhs: #rhs_simd) -> Self::Output {
                             self.__mul(rhs)
                         }
-                        fn _pow(self, rhs: #rhs_simd) -> Self::Output {
-                            self.__pow(rhs)
-                        }
                         fn _max(self, rhs: #rhs_simd) -> Self::Output {
                             self.__max(rhs)
                         }
@@ -90,11 +87,6 @@ pub fn impl_simd_normal_out() -> TokenStream {
                             let x: Self::Output = self.into_vec();
                             let y: Self::Output = rhs.into_vec();
                             x.__mul(y)
-                        }
-                        fn _pow(self, rhs: #rhs_simd) -> Self::Output {
-                            let x: Self::Output = self.into_vec();
-                            let y: Self::Output = rhs.into_vec();
-                            x.__pow(y)
                         }
                         fn _max(self, rhs: #rhs_simd) -> Self::Output {
                             let x: Self::Output = self.into_vec();
@@ -148,9 +140,6 @@ fn impl_unreachable(lhs_dtype: SimdType, rhs_simd: SimdType) -> TokenStream2 {
             fn _mul(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _pow(self, rhs: #rhs_simd) -> Self::Output {
-                unreachable!()
-            }
             fn _rem(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
@@ -185,9 +174,6 @@ fn impl_unreachable_with_rhs_scalar(
                 unreachable!()
             }
             fn _mul(self, rhs: #rhs_scalar_ty) -> Self::Output {
-                unreachable!()
-            }
-            fn _pow(self, rhs: #rhs_scalar_ty) -> Self::Output {
                 unreachable!()
             }
             fn _rem(self, rhs: #rhs_scalar_ty) -> Self::Output {
@@ -261,10 +247,6 @@ pub fn impl_simd_normal_out_with_rhs_scalar() -> TokenStream {
                             let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs);
                             self.__mul(rhs)
                         }
-                        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
-                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs);
-                            self.__pow(rhs)
-                        }
                         fn _max(self, rhs: #rhs_dtype) -> Self::Output {
                             let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs);
                             self.__max(rhs)
@@ -307,11 +289,6 @@ pub fn impl_simd_normal_out_with_rhs_scalar() -> TokenStream {
                             let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
                             let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.cast());
                             lhs.__mul(rhs)
-                        }
-                        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
-                            let rhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(rhs.cast());
-                            lhs.__pow(rhs)
                         }
                         fn _max(self, rhs: #rhs_dtype) -> Self::Output {
                             let lhs: <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output = self.into_vec();
@@ -403,10 +380,6 @@ pub fn impl_simd_normal_out_with_lhs_scalar() -> TokenStream {
                             let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self);
                             lhs.__mul(rhs)
                         }
-                        fn _pow(self, rhs: #rhs_simd) -> Self::Output {
-                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self);
-                            lhs.__pow(rhs)
-                        }
                         fn _max(self, rhs: #rhs_simd) -> Self::Output {
                             let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self);
                             lhs.__max(rhs)
@@ -444,10 +417,6 @@ pub fn impl_simd_normal_out_with_lhs_scalar() -> TokenStream {
                         fn _mul(self, rhs: #rhs_simd) -> Self::Output {
                             let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.cast());
                             lhs.__mul(rhs.into_vec())
-                        }
-                        fn _pow(self, rhs: #rhs_simd) -> Self::Output {
-                            let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.cast());
-                            lhs.__pow(rhs.into_vec())
                         }
                         fn _max(self, rhs: #rhs_simd) -> Self::Output {
                             let lhs = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output::splat(self.cast());
@@ -497,9 +466,6 @@ fn impl_unreachable_lhs_scalar(
                 unreachable!()
             }
             fn _mul(self, rhs: #rhs_simd) -> Self::Output {
-                unreachable!()
-            }
-            fn _pow(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
             fn _rem(self, rhs: #rhs_simd) -> Self::Output {

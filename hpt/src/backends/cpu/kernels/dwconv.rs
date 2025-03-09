@@ -587,7 +587,7 @@ where
 
     let kernel_fn = kernels.get(map_oc).map(|x| x.get(map_kb)).flatten();
 
-    // println!("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc, map_kb);
+    // !("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc, map_kb);
 
     kernel_fn.cloned().map(|kernel| ConvKernel::new(kernel))
 }
@@ -671,7 +671,7 @@ where
         ConvPartialKernel::new(micro_kernel_5_1, 5),
     ];
 
-    // println!("picked iconv2d_remain_microkernel_{} at {}", kb, map_kb(kb));
+    // !("picked iconv2d_remain_microkernel_{} at {}", kb, map_kb(kb));
     let map_kb = map_kb(*kb);
     *kb = map_kb + 1;
 
@@ -710,7 +710,7 @@ where
         bias_micro_kernel_5_1,
     ];
 
-    // println!("picked iconv2d_remain_microkernel_{} at {}", kb, map_kb(kb));
+    // !("picked iconv2d_remain_microkernel_{} at {}", kb, map_kb(kb));
     let map_kb = map_kb(*kb);
     *kb = map_kb + 1;
 

@@ -345,6 +345,19 @@ impl FloatOutBinary2 for u8x32 {
     fn __hypot(self, _: Self) -> Self {
         panic!("Hypot operation is not supported for u8x32");
     }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        unsafe {
+            let arr: [u8; 32] = std::mem::transmute(self.0);
+            let arr2: [u8; 32] = std::mem::transmute(rhs.0);
+            let mut arr3: [u8; 32] = [0; 32];
+            for i in 0..32 {
+                arr3[i] = arr[i].pow(arr2[i] as u32);
+            }
+            u8x32(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+        }
+    }
 }
 
 impl NormalOut2 for u8x32 {
@@ -366,11 +379,6 @@ impl NormalOut2 for u8x32 {
     #[inline(always)]
     fn __mul(self, rhs: Self) -> Self {
         self * rhs
-    }
-
-    #[inline(always)]
-    fn __pow(self, rhs: Self) -> Self {
-        self.pow(rhs)
     }
 
     #[inline(always)]

@@ -10,41 +10,33 @@ where
     /// The output tensor type.
     type Output;
 
-    /// Returns the indices of the maximum values along the specified axis.
+    /// Return the indices of the maximum values along the specified dimensions
     ///
-    /// The `argmax` function computes the index of the maximum value along the given axis for each slice of the tensor.
+    /// ## Parameters:
+    /// `dim`: Dimension to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to compute the index of the maximum value.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the indices of the maximum values.
-    ///
-    /// # See Also
-    ///
-    /// - [`argmin`]: Returns the indices of the minimum values along the specified axis.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new([10.0, 3.0, 2.0]);
+    /// let r = a.argmax(0, true)?; // [0]
+    /// ```
     #[track_caller]
     fn argmax<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError>;
 
-    /// Returns the indices of the minimum values along the specified axis.
+    /// Return the indices of the minimum values along the specified dimensions
     ///
-    /// The `argmin` function computes the index of the minimum value along the given axis for each slice of the tensor.
+    /// ## Parameters:
+    /// `dim`: Dimension to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to compute the index of the minimum value.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the indices of the minimum values.
-    ///
-    /// # See Also
-    ///
-    /// - [`argmax`]: Returns the indices of the maximum values along the specified axis.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new([10.0, 3.0, 2.0]);
+    /// let r = a.argmin(0, true)?; // [2]
+    /// ```
     #[track_caller]
     fn argmin<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError>;
 }
@@ -56,40 +48,38 @@ where
 {
     /// The output tensor type.
     type Output;
-
-    /// Computes the sum of the elements along the specified axis.
+    /// Compute the sum of elements along the specified dimensions
     ///
-    /// The `sum` function computes the sum of elements along the specified axis of the tensor.
+    /// ## Parameters:
+    /// `dims`: Dimensions to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to sum the elements.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements along the specified axis.
-    ///
-    /// # See Also
-    ///
-    /// - [`nansum`]: Computes the sum while ignoring NaN values.
+    /// ## Example:
+    /// ```rust
+    /// let c = Tensor::<f32>::new([[1.0, 2.0], [3.0, 4.0]]);
+    /// let d = c.sum([0, 1], true)?; // [[10.]]
+    /// ```
     #[track_caller]
     fn sum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError>;
 
-    /// Computes the sum of the elements along the specified axis, storing the result in a pre-allocated tensor.
+    /// Compute the sum of elements along the specified dimensions with specified output tensor
     ///
-    /// The `sum_` function computes the sum of elements along the specified axis, and optionally initializes an output tensor to store the result.
+    /// ## Parameters:
+    /// `dims`: Dimensions to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to sum the elements.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    /// - `init_out`: Whether to initialize the output tensor.
-    /// - `out`: The tensor in which to store the result.
+    /// `init_out`: init the out data before doing computation   
     ///
-    /// # Returns
+    /// `out`: The output tensor
     ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements, with the result stored in the specified output tensor.
+    /// ## Example:
+    /// ```rust
+    /// let d = Tensor::<f32>::new([[1.0, 2.0], [3.0, 4.0]]);
+    /// let e = Tensor::<f32>::new([[0.0]]);
+    /// let f = d.sum_([0, 1], true, false, &mut e.clone())?; // [[10.]]
+    /// ```
     #[track_caller]
     fn sum_<S: Into<Axis>, O>(
         &self,
@@ -101,159 +91,63 @@ where
     where
         O: BorrowMut<Self::Output>;
 
-    // /// Computes the sum of the elements along the specified axis, with an initial value.
-    // ///
-    // /// The `sum_with_init` function computes the sum of elements along the specified axes, starting from a given initial value.
-    // ///
-    // /// # Parameters
-    // ///
-    // /// - `init_val`: The initial value to start the summation.
-    // /// - `axes`: The axes along which to sum the elements.
-    // /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    // ///
-    // /// # Returns
-    // ///
-    // /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements along the specified axes.
-    // #[track_caller]
-    // fn sum_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool,
-    // ) -> anyhow::Result<Self::Output>;
-
-    /// Computes the product of the elements along the specified axis.
+    /// Compute the product of elements along the specified dimensions
     ///
-    /// The `prod` function computes the product of elements along the specified axis of the tensor.
+    /// ## Parameters:
+    /// `dims`: Dimensions to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to compute the product.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements along the specified axis.
-    ///
-    /// # See Also
-    ///
-    /// - [`nanprod`]: Computes the product while ignoring NaN values.
+    /// ## Example:
+    /// ```rust
+    /// let c = Tensor::<f32>::new([[1.0, 2.0], [3.0, 4.0]]);
+    /// let d = c.prod([0, 1], true)?; // [[24.]]
+    /// ```
     #[track_caller]
     fn prod<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError>;
 
-    // /// Computes the product of the elements along the specified axis, with an initial value.
-    // ///
-    // /// The `prod_with_init` function computes the product of elements along the specified axes, starting from a given initial value.
-    // ///
-    // /// # Parameters
-    // ///
-    // /// - `init_val`: The initial value to start the product computation.
-    // /// - `axes`: The axes along which to compute the product.
-    // /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    // ///
-    // /// # Returns
-    // ///
-    // /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements along the specified axes.
-    // #[track_caller]
-    // fn prod_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool,
-    // ) -> anyhow::Result<Self::Output>;
-
-    /// Computes the minimum value along the specified axis.
+    /// Find the minimum of element along the specified dimensions
     ///
-    /// The `min` function returns the minimum value of the elements along the specified axis of the tensor.
+    /// ## Parameters:
+    /// `dims`: Dimensions to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to compute the minimum value.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self>`: A tensor containing the minimum values along the specified axis.
-    ///
-    /// # See Also
-    ///
-    /// - [`max`]: Computes the maximum value along the specified axis.
+    /// ## Example:
+    /// ```rust
+    /// let c = Tensor::<f32>::new([[1.0, 2.0], [3.0, 4.0]]);
+    /// let d = c.min([0, 1], true)?; // [[1.]]
+    /// ```
     #[track_caller]
     fn min<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError>;
 
-    // /// Computes the minimum value along the specified axis, with an initial value.
-    // ///
-    // /// The `min_with_init` function computes the minimum value along the specified axes, starting from a given initial value.
-    // ///
-    // /// # Parameters
-    // ///
-    // /// - `init_val`: The initial value to compare against.
-    // /// - `axes`: The axes along which to compute the minimum value.
-    // /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    // ///
-    // /// # Returns
-    // ///
-    // /// - `anyhow::Result<Self>`: A tensor containing the minimum values along the specified axes.
-    // #[track_caller]
-    // fn min_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool,
-    // ) -> anyhow::Result<Self>;
-
-    /// Computes the maximum value along the specified axis.
+    /// Find the maximum of element along the specified dimensions
     ///
-    /// The `max` function returns the maximum value of the elements along the specified axis of the tensor.
+    /// ## Parameters:
+    /// `dims`: Dimensions to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to compute the maximum value.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self>`: A tensor containing the maximum values along the specified axis.
-    ///
-    /// # See Also
-    ///
-    /// - [`min`]: Computes the minimum value along the specified axis.
+    /// ## Example:
+    /// ```rust
+    /// let c = Tensor::<f32>::new([[1.0, 2.0], [3.0, 4.0]]);
+    /// let d = c.max([0, 1], true)?; // [[4.]]
+    /// ```
     #[track_caller]
     fn max<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError>;
 
-    // /// Computes the maximum value along the specified axis, with an initial value.
-    // ///
-    // /// The `max_with_init` function computes the maximum value along the specified axes, starting from a given initial value.
-    // ///
-    // /// # Parameters
-    // ///
-    // /// - `init_val`: The initial value to compare against.
-    // /// - `axes`: The axes along which to compute the maximum value.
-    // /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    // ///
-    // /// # Returns
-    // ///
-    // /// - `anyhow::Result<Self>`: A tensor containing the maximum values along the specified axes.
-    // #[track_caller]
-    // fn max_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool,
-    // ) -> anyhow::Result<Self>;
-
-    /// Reduces the tensor along the specified axis using the L1 norm (sum of absolute values).
+    /// Compute the L1 norm along the specified dimensions
     ///
-    /// The `reducel1` function computes the L1 norm (sum of absolute values) along the specified axis of the tensor.
+    /// ## Parameters:
+    /// `dims`: Dimensions to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to reduce the tensor.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor with the L1 norm computed along the specified axis.
+    /// ## Example:
+    /// ```rust
+    /// let c = Tensor::<f32>::new([[-1.0, 2.0], [-3.0, 4.0]]);
+    /// let d = c.reducel1([0, 1], true)?; // |-1| + |2| + |-3| + |4| = 10
+    /// ```
     #[track_caller]
     fn reducel1<S: Into<Axis>>(
         &self,
@@ -261,18 +155,18 @@ where
         keep_dims: bool,
     ) -> Result<Self::Output, TensorError>;
 
-    /// Computes the sum of the squares of the elements along the specified axis.
+    /// Compute the sum of squares of elements along the specified dimensions
     ///
-    /// The `sum_square` function computes the sum of the squares of the elements along the specified axis of the tensor.
+    /// ## Parameters:
+    /// `dims`: Dimensions to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to sum the squares.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of squares of elements along the specified axis.
+    /// ## Example:
+    /// ```rust
+    /// let c = Tensor::<f32>::new([[1.0, 2.0], [3.0, 4.0]]);
+    /// let d = c.sum_square([0, 1], true)?; // [[30.]]  // 1^2 + 2^2 + 3^2 + 4^2 = 30
+    /// ```
     #[track_caller]
     fn sum_square<S: Into<Axis>>(
         &self,
@@ -285,42 +179,34 @@ where
 pub trait EvalReduce {
     /// The boolean tensor type.
     type BoolOutput;
-    /// Returns `true` if all elements along the specified axis evaluate to `true`.
+    /// Test if all elements are true along the specified dimensions
     ///
-    /// The `all` function checks whether all elements along the specified axis evaluate to `true`.
+    /// ## Parameters:
+    /// `dims`: Dimensions to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to check.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::BoolOutput>`: A boolean tensor indicating whether all elements evaluate to `true`.
-    ///
-    /// # See Also
-    ///
-    /// - [`any`]: Returns `true` if any element along the specified axis evaluates to `true`.
+    /// ## Example:
+    /// ```rust
+    /// let c = Tensor::<f32>::new([[1.0, 2.0], [3.0, 4.0]]);
+    /// let d = c.all([0, 1], true)?; // [[true]]
+    /// ```
     #[track_caller]
     fn all<S: Into<Axis>>(&self, axis: S, keep_dims: bool)
         -> Result<Self::BoolOutput, TensorError>;
 
-    /// Returns `true` if any element along the specified axis evaluates to `true`.
+    /// Test if any elements are true along the specified dimensions
     ///
-    /// The `any` function checks whether any element along the specified axis evaluates to `true`.
+    /// ## Parameters:
+    /// `dims`: Dimensions to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to check.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::BoolOutput>`: A boolean tensor indicating whether any element evaluates to `true`.
-    ///
-    /// # See Also
-    ///
-    /// - [`all`]: Returns `true` if all elements along the specified axis evaluate to `true`.
+    /// ## Example:
+    /// ```rust
+    /// let c = Tensor::<f32>::new([[1.0, 2.0], [3.0, 4.0]]);
+    /// let d = c.any([0, 1], true)?; // [[true]]
+    /// ```
     #[track_caller]
     fn any<S: Into<Axis>>(&self, axis: S, keep_dims: bool)
         -> Result<Self::BoolOutput, TensorError>;
@@ -330,34 +216,38 @@ pub trait EvalReduce {
 pub trait NormalEvalReduce<T> {
     /// the output tensor type.
     type Output;
-    /// Computes the sum of the elements along the specified axis, ignoring NaN values.
+    /// Compute the sum of elements along the specified dimensions, treating NaNs as zero
     ///
-    /// The `nansum` function computes the sum of elements along the specified axis, while ignoring NaN values in the tensor.
+    /// ## Parameters:
+    /// `dims`: Dimensions to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to sum the elements.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements, ignoring NaN values.
+    /// ## Example:
+    /// ```rust
+    /// let c = Tensor::<f32>::new([[1.0, f32::NAN], [3.0, 4.0]]);
+    /// let d = c.nansum([0, 1], true)?; // [[8.]]
+    /// ```
     #[track_caller]
     fn nansum<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError>;
 
-    /// Computes the sum of the elements along the specified axis, with an initial value, ignoring NaN values.
+    /// Compute the sum of elements along the specified dimensions, treating NaNs as zero with out with specified output tensor
     ///
-    /// The `nansum_with_init` function computes the sum of elements along the specified axes, starting from a given initial value and ignoring NaN values.
+    /// ## Parameters:
+    /// `dims`: Dimensions to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `init_val`: The initial value to start the summation.
-    /// - `axes`: The axes along which to sum the elements.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
+    /// `init_out`: init the out data before doing computation   
     ///
-    /// # Returns
+    /// `out`: The output tensor
     ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements, ignoring NaN values.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new([1.0, f32::NAN, 3.0]);
+    /// let mut out = Tensor::<f32>::new([0.0]);
+    /// let mut b = a.nansum_([0], false, false, &mut out)?; // [4.]
+    /// ```
     #[track_caller]
     fn nansum_<S: Into<Axis>, O>(
         &self,
@@ -368,63 +258,22 @@ pub trait NormalEvalReduce<T> {
     ) -> Result<Self::Output, TensorError>
     where
         O: BorrowMut<Self::Output>;
-    // /// Computes the sum of the elements along the specified axis, with an initial value, ignoring NaN values.
-    // ///
-    // /// The `nansum_with_init` function computes the sum of elements along the specified axes, starting from a given initial value and ignoring NaN values.
-    // ///
-    // /// # Parameters
-    // ///
-    // /// - `init_val`: The initial value to start the summation.
-    // /// - `axes`: The axes along which to sum the elements.
-    // /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    // ///
-    // /// # Returns
-    // ///
-    // /// - `anyhow::Result<Self::Output>`: A tensor containing the sum of elements, ignoring NaN values.
-    // #[track_caller]
-    // fn nansum_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool,
-    // ) -> anyhow::Result<Self::Output>;
 
-    /// Computes the product of the elements along the specified axis, ignoring NaN values.
+    /// Compute the product of elements along the specified dimensions, treating NaNs as one
     ///
-    /// The `nanprod` function computes the product of elements along the specified axis, while ignoring NaN values in the tensor.
+    /// ## Parameters:
+    /// `dims`: Dimensions to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to compute the product.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements, ignoring NaN values.
+    /// ## Example:
+    /// ```rust
+    /// let c = Tensor::<f32>::new([[1.0, f32::NAN], [3.0, 4.0]]);
+    /// let d = c.nanprod([0, 1], true)?; // [[12.]]
+    /// ```
     #[track_caller]
     fn nanprod<S: Into<Axis>>(&self, axis: S, keep_dims: bool)
         -> Result<Self::Output, TensorError>;
-
-    // /// Computes the product of the elements along the specified axis, with an initial value, ignoring NaN values.
-    // ///
-    // /// The `nanprod_with_init` function computes the product of elements along the specified axes, starting from a given initial value and ignoring NaN values.
-    // ///
-    // /// # Parameters
-    // ///
-    // /// - `init_val`: The initial value to start the product computation.
-    // /// - `axes`: The axes along which to compute the product.
-    // /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    // ///
-    // /// # Returns
-    // ///
-    // /// - `anyhow::Result<Self::Output>`: A tensor containing the product of elements, ignoring NaN values.
-    // #[track_caller]
-    // fn nanprod_with_init<S: Into<Axis>>(
-    //     &self,
-    //     init_val: T,
-    //     axes: S,
-    //     keep_dims: bool,
-    // ) -> anyhow::Result<Self::Output>;
 }
 
 /// A trait for tensor reduction operations, the output must be a floating-point tensor.
@@ -435,33 +284,33 @@ where
     /// The output tensor type.
     type Output;
 
-    /// Computes the mean of the elements along the specified axis.
+    /// Compute the mean of elements along the specified dimensions
     ///
-    /// The `mean` function calculates the mean of the elements along the specified axis of the tensor.
+    /// ## Parameters:
+    /// `dims`: Dimensions to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to compute the mean.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the mean values along the specified axis.
+    /// ## Example:
+    /// ```rust
+    /// let c = Tensor::<f32>::new([[1.0, 2.0], [3.0, 4.0]]);
+    /// let d = c.mean([0, 1], true)?; // [[2.5]]
+    /// ```
     #[track_caller]
     fn mean<S: Into<Axis>>(&self, axis: S, keep_dims: bool) -> Result<Self::Output, TensorError>;
 
-    /// Reduces the tensor along the specified axis using the L2 norm (Euclidean norm).
+    /// Compute the L2 norm (Euclidean norm) along the specified dimensions
     ///
-    /// The `reducel2` function computes the L2 norm (Euclidean norm) along the specified axis of the tensor.
+    /// ## Parameters:
+    /// `dims`: Dimensions to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to reduce the tensor.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor with the L2 norm computed along the specified axis.
+    /// ## Example:
+    /// ```rust
+    /// let c = Tensor::<f32>::new([[1.0, 2.0], [2.0, 3.0]]);
+    /// let d = c.reducel2([0, 1], true)?; // sqrt(1^2 + 2^2 + 2^2 + 3^2) ≈ 4.24
+    /// ```
     #[track_caller]
     fn reducel2<S: Into<Axis>>(
         &self,
@@ -469,18 +318,18 @@ where
         keep_dims: bool,
     ) -> Result<Self::Output, TensorError>;
 
-    /// Reduces the tensor along the specified axis using the L3 norm.
+    /// Compute the L3 norm (Euclidean norm) along the specified dimensions
     ///
-    /// The `reducel3` function computes the L3 norm along the specified axis of the tensor.
+    /// ## Parameters:
+    /// `dims`: Dimensions to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to reduce the tensor.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor with the L3 norm computed along the specified axis.
+    /// ## Example:
+    /// ```rust
+    /// let c = Tensor::<f32>::new([[1.0, 2.0], [2.0, 3.0]]);
+    /// let d = c.reducel3([0, 1], true)?; // [[3.5303]]
+    /// ```
     #[track_caller]
     fn reducel3<S: Into<Axis>>(
         &self,
@@ -488,19 +337,18 @@ where
         keep_dims: bool,
     ) -> Result<Self::Output, TensorError>;
 
-    /// Computes the logarithm of the sum of exponentials of the elements along the specified axis.
+    /// Compute `log(sum(exp(x_i)))` along the specified dimensions.
     ///
-    /// The `logsumexp` function calculates the logarithm of the sum of exponentials of the elements along the specified axis,
-    /// which is useful for numerical stability in certain operations.
+    /// ## Parameters:
+    /// `dims`: Dimensions to reduce over
     ///
-    /// # Parameters
+    /// `keepdim`: Whether to keep the reduced dimensions with length 1
     ///
-    /// - `axis`: The axis along which to compute the logarithm of the sum of exponentials.
-    /// - `keep_dims`: Whether to retain the reduced dimensions in the result.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<Self::Output>`: A tensor containing the log-sum-exp values along the specified axis.
+    /// ## Example:
+    /// ```rust
+    /// let c = Tensor::<f32>::new([[1.0, 2.0], [3.0, 4.0]]);
+    /// let d = c.logsumexp([0, 1], true)?; // [[4.4401898]]
+    /// ```
     #[track_caller]
     fn logsumexp<S: Into<Axis>>(
         &self,

@@ -12,7 +12,7 @@ logsumexp(
     keepdim: bool
 ) -> Result<Tensor<C>, TensorError>
 ```
-Compute $\log(\sum_{i} \exp(x_i))$ along the specified dimensions. This function is numerically more stable than computing the log of sum of exponentials directly.
+Compute $\log(\sum_{i} \exp(x_i))$ along the specified dimensions.
 
 ## Parameters:
 `x`: Input tensor
@@ -26,7 +26,7 @@ Tensor with type `C`
 
 ## Examples:
 ```rust
-use hpt::{ops::NormalReduce, Tensor, error::TensorError};
+use hpt::{ops::FloatReduce, Tensor, error::TensorError};
 
 fn main() -> Result<(), TensorError> {
     // LogSumExp over dimension 0

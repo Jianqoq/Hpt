@@ -236,6 +236,10 @@ impl FloatOutBinary for CustomType {
     fn _hypot(self, rhs: Self) -> Self::Output {
         todo!()
     }
+
+    fn _pow(self, rhs: Self) -> Self::Output {
+        todo!()
+    }
 }
 
 impl NormalOut for CustomType {
@@ -254,10 +258,6 @@ impl NormalOut for CustomType {
     }
 
     fn _mul(self, rhs: Self) -> Self::Output {
-        todo!()
-    }
-
-    fn _pow(self, rhs: Self) -> Self::Output {
         todo!()
     }
 
@@ -525,6 +525,10 @@ impl FloatOutBinary for CustomTypeVec {
     fn _hypot(self, rhs: Self) -> Self::Output {
         todo!()
     }
+
+    fn _pow(self, rhs: Self) -> Self::Output {
+        todo!()
+    }
 }
 
 impl NormalOut for CustomTypeVec {
@@ -543,10 +547,6 @@ impl NormalOut for CustomTypeVec {
     }
 
     fn _mul(self, rhs: Self) -> Self::Output {
-        todo!()
-    }
-
-    fn _pow(self, rhs: Self) -> Self::Output {
         todo!()
     }
 

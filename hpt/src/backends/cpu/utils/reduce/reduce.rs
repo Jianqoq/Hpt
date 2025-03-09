@@ -221,45 +221,14 @@ use crate::backends::cpu::kernels::reduce::{
 };
 
 #[track_caller]
-pub(crate) fn reduce<T, F, F2, F3, const DEVICE: usize, A>(
-    a: &_Tensor<T, Cpu, DEVICE, A>,
-    op: F,
-    op_no_cast: F2,
-    vec_op: F3,
-    axes: &[usize],
-    init_val: T,
-    keepdims: bool,
-    init_out: bool,
-    c: Option<_Tensor<T, Cpu, DEVICE, A>>,
-) -> std::result::Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
-where
-    T: CommonBounds + Cast<T>,
-    F: Fn(T, T) -> T + Sync + Send + 'static + Copy,
-    F2: Fn(T, T) -> T + Sync + Send + 'static + Copy,
-    F3: Fn(T::Vec, T::Vec) -> T::Vec + Sync + Send + 'static + Copy,
-    A: Allocator + Send + Sync,
-    A::Output: AllocatorOutputRetrive,
-{
-    if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<_, _, _, _, fn(T) -> T, _, _, fn(T::Vec) -> T::Vec, T, DEVICE, A>(
-            a, op, op_no_cast, op, None, vec_op, vec_op, None, &axes, init_val, keepdims, init_out,
-            c,
-        )
-    } else {
-        uncontiguous_reduce::<_, _, _, fn(T) -> T, _, fn(T::Vec) -> T::Vec, T, DEVICE, A>(
-            a, op, op, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
-        )
-    }
-}
-
-#[track_caller]
-pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O, const DEVICE: usize, Al>(
+pub(crate) fn reduce<T, F, F2, F3, F4, F5, F6, O, const DEVICE: usize, Al>(
     a: &_Tensor<T, Cpu, DEVICE, Al>,
-    op: F,
-    op_no_cast: F2,
-    op2: F3,
-    vec_op: F4,
-    vec_op2: F5,
+    preop: F,
+    preop_no_cast: F2,
+    cumulate: F3,
+    vec_preop: F4,
+    vec_preop_no_cast: F5,
+    vec_cumulate: F6,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -268,11 +237,12 @@ pub(crate) fn reduce2<T, F, F2, F3, F4, F5, O, const DEVICE: usize, Al>(
 ) -> std::result::Result<_Tensor<O, Cpu, DEVICE, Al>, TensorError>
 where
     T: CommonBounds + Cast<O>,
-    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
-    F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+    F: Fn(T) -> O + Sync + Send + 'static + Copy,
+    F2: Fn(O) -> O + Sync + Send + 'static + Copy,
     F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
-    F4: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-    F5: Fn(O::Vec, O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    F4: Fn(T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    F6: Fn(O::Vec, O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
     O: CommonBounds,
     T::Vec: Copy,
     O::Vec: Copy,
@@ -280,27 +250,48 @@ where
     Al::Output: AllocatorOutputRetrive,
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, F, F2, F3, fn(O) -> O, _, _, fn(O::Vec) -> O::Vec, O, DEVICE, Al>(
-            a, op, op_no_cast, op2, None, vec_op, vec_op2, None, &axes, init_val, keepdims,
-            init_out, c,
+        contiguous_reduce(
+            a,
+            preop,
+            preop_no_cast,
+            cumulate,
+            None::<fn(O) -> O>,
+            vec_preop,
+            vec_preop_no_cast,
+            vec_cumulate,
+            None::<fn(O::Vec) -> O::Vec>,
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            c,
         )
     } else {
-        uncontiguous_reduce::<T, F, F3, fn(O) -> O, _, fn(O::Vec) -> O::Vec, O, DEVICE, Al>(
-            a, op, op2, None, vec_op, None, &axes, init_val, keepdims, init_out, c,
+        uncontiguous_reduce(
+            a,
+            preop,
+            cumulate,
+            None::<fn(O) -> O>,
+            &axes,
+            init_val,
+            keepdims,
+            init_out,
+            c,
         )
     }
 }
 
 #[track_caller]
-pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: usize, Al>(
+pub(crate) fn reduce_with_post<T, F, F2, F3, F4, F5, F6, F7, F8, O, const DEVICE: usize, Al>(
     a: &_Tensor<T, Cpu, DEVICE, Al>,
-    op: F,
-    op_no_cast: F2,
-    op2: F3,
-    op3: F4,
-    vec_op: F5,
-    vec_op2: F6,
-    op5: F7,
+    preop: F,
+    preop_no_cast: F2,
+    cumulate: F3,
+    postop: F4,
+    vec_preop: F5,
+    vec_preop_no_cast: F6,
+    vec_cumulate: F7,
+    vec_postop: F8,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -309,28 +300,30 @@ pub(crate) fn reduce3<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: usize, Al>(
 ) -> std::result::Result<_Tensor<O, Cpu, DEVICE, Al>, TensorError>
 where
     T: CommonBounds + Cast<O>,
-    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
-    F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+    F: Fn(T) -> O + Sync + Send + 'static + Copy,
+    F2: Fn(O) -> O + Sync + Send + 'static + Copy,
     F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
     F4: Fn(O) -> O + Sync + Send + 'static + Copy,
-    F5: Fn(O::Vec, T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-    F6: Fn(O::Vec, O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
-    F7: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    F5: Fn(T::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    F6: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    F7: Fn(O::Vec, O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    F8: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
     O: CommonBounds,
     O::Vec: Copy,
     Al: Allocator + Send + Sync,
     Al::Output: AllocatorOutputRetrive,
 {
     if a.is_contiguous() && a.parent().is_none() {
-        contiguous_reduce::<T, F, F2, F3, F4, F5, F6, F7, O, DEVICE, Al>(
+        contiguous_reduce(
             a,
-            op,
-            op_no_cast,
-            op2,
-            Some(op3),
-            vec_op,
-            vec_op2,
-            Some(op5),
+            preop,
+            preop_no_cast,
+            cumulate,
+            Some(postop),
+            vec_preop,
+            vec_preop_no_cast,
+            vec_cumulate,
+            Some(vec_postop),
             &axes,
             init_val,
             keepdims,
@@ -338,13 +331,11 @@ where
             c,
         )
     } else {
-        uncontiguous_reduce::<T, F, F3, F4, F5, F7, O, DEVICE, Al>(
+        uncontiguous_reduce(
             a,
-            op,
-            op2,
-            Some(op3),
-            vec_op,
-            Some(op5),
+            preop,
+            cumulate,
+            Some(postop),
             &axes,
             init_val,
             keepdims,
@@ -373,15 +364,16 @@ register_reduction_one_axis!(
 );
 
 #[track_caller]
-pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: usize, A>(
+pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, F8, O, const DEVICE: usize, A>(
     a: &_Tensor<T, Cpu, DEVICE, A>,
-    op: F,
-    op_no_cast: F2,
-    op2: F3,
-    op3: Option<F4>,
-    vec_op: F5,
-    vec_op2: F6,
-    vec_post: Option<F7>,
+    preop: F,
+    preop_no_cast: F2,
+    cumulate: F3,
+    postop: Option<F4>,
+    vec_preop: F5,
+    vec_preop_no_cast: F6,
+    vec_cumulate: F7,
+    vec_postop: Option<F8>,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -391,28 +383,20 @@ pub(crate) fn contiguous_reduce<T, F, F2, F3, F4, F5, F6, F7, O, const DEVICE: u
 where
     T: CommonBounds + Cast<O>,
     O: CommonBounds,
-    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
-    F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
+    F: Fn(T) -> O + Sync + Send + 'static + Copy,
+    F2: Fn(O) -> O + Sync + Send + 'static + Copy,
     F3: Fn(O, O) -> O + Sync + Send + 'static + Copy,
     F4: Fn(O) -> O + Sync + Send + 'static + Copy,
-    F5: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
-    F6: Fn(O::Vec, O::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
-    F7: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
+    F5: Fn(T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
+    F6: Fn(O::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
+    F7: Fn(O::Vec, O::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
+    F8: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
     T::Vec: Copy,
     O::Vec: Copy,
     A: Allocator + Send + Sync,
     A::Output: AllocatorOutputRetrive,
 {
-    let max_axis = *axes.iter().max().unwrap();
-    let (a, fused_dims) = if max_axis == a.ndim() - 1 {
-        (a.clone(), vec![])
-    } else {
-        let prod = a.shape()[max_axis + 1..].iter().product::<i64>();
-        let new_shape: Vec<i64> = a.shape()[..=max_axis].to_vec();
-        let mut new_shape = new_shape;
-        new_shape.push(prod);
-        (a.reshape(&new_shape)?, a.shape()[max_axis + 1..].to_vec())
-    };
+    let res_shape = a.layout.reduce(axes, keepdims)?.shape().clone();
     let res = contiguous_reduce_template(
         &a,
         axes,
@@ -425,12 +409,12 @@ where
             let raw = unsafe { std::slice::from_raw_parts_mut(ptr.ptr, a.size() as usize) };
             let val = raw
                 .par_iter()
-                .fold(|| init_val, |acc, &x| op(acc, x))
-                .reduce(|| init_val, |a, b| op2(a, b));
-            if let Some(op3) = op3 {
-                *res = op3(op2(val, *res));
+                .fold(|| init_val, |acc, &x| cumulate(acc, preop(x)))
+                .reduce(|| init_val, |a, b| cumulate(a, b));
+            if let Some(postop) = postop {
+                *res = postop(val);
             } else {
-                *res = op2(val, *res);
+                *res = val;
             }
         },
         |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
@@ -445,7 +429,7 @@ where
                 transposed_tensor.shape().clone(),
                 result.shape().clone(),
             );
-            iterators.into_par_iter().for_each(|mut iterator| {
+            iterators.into_iter().for_each(|mut iterator| {
                 let result_ptr_c = iterator.res_ptrs.clone();
                 let a_data_ptr = iterator.ptrs.clone();
                 let current_size = iterator.end - iterator.start;
@@ -462,10 +446,11 @@ where
                         &iterator.a_shape,
                         &mut iterator.prg,
                         shape_len,
-                        op_no_cast,
-                        op2,
-                        vec_op2,
-                        op3,
+                        preop_no_cast,
+                        cumulate,
+                        vec_preop_no_cast,
+                        vec_cumulate,
+                        postop,
                     );
                 } else {
                     contiguous_reduce_dim_include(
@@ -478,13 +463,14 @@ where
                         &iterator.a_shape,
                         &mut iterator.prg,
                         shape_len,
-                        op,
-                        op3,
+                        preop,
+                        cumulate,
+                        postop,
                     );
                 }
             });
         },
-        |num_threads, inner_loop_size, result| {
+        |num_threads, inner_loop_size, result, a| {
             let intervals = mt_intervals_simd(inner_loop_size, num_threads, O::Vec::SIZE);
             let mut slices = vec![(0, 0x7FFFFFFFFFFFFFFF, 1); a.ndim()];
             let mut slices_res = vec![(0, 0x7FFFFFFFFFFFFFFF, 1); result.ndim()];
@@ -520,10 +506,12 @@ where
                             inp.strides().inner(),
                             inp.shape().inner(),
                             O::Vec::SIZE as isize,
-                            op,
-                            vec_op,
-                            op3,
-                            vec_post,
+                            preop,
+                            cumulate,
+                            postop,
+                            vec_preop,
+                            vec_cumulate,
+                            vec_postop,
                         );
                     } else {
                         fast_reduce_no_simd(
@@ -533,8 +521,9 @@ where
                             res_ptr,
                             inp.strides().inner(),
                             inp.shape().inner(),
-                            op,
-                            op3,
+                            preop,
+                            cumulate,
+                            postop,
                         );
                     }
                 });
@@ -578,10 +567,12 @@ where
                         &mut prg1,
                         &mut prg2,
                         shape_len,
-                        op,
-                        op3,
-                        vec_op,
-                        vec_post,
+                        preop,
+                        cumulate,
+                        postop,
+                        vec_preop,
+                        vec_cumulate,
+                        vec_postop,
                     );
                 } else {
                     reduce_dim_not_include(
@@ -595,32 +586,23 @@ where
                         &mut prg1,
                         &mut prg2,
                         shape_len,
-                        op,
-                        op3,
+                        preop,
+                        cumulate,
+                        postop,
                     );
                 }
             });
         },
     )?;
-    if !fused_dims.is_empty() {
-        let res_shape = res.shape().clone();
-        let mut new_shape = res_shape.clone();
-        new_shape.pop();
-        new_shape.extend(fused_dims.iter());
-        res.reshape(&new_shape)
-    } else {
-        Ok(res)
-    }
+    res.reshape(res_shape)
 }
 
 #[track_caller]
-pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE: usize, Al>(
+pub(crate) fn uncontiguous_reduce<T, F, F2, F3, O, const DEVICE: usize, Al>(
     a: &_Tensor<T, Cpu, DEVICE, Al>,
-    op: F,
-    op2: F2,
-    op3: Option<F3>,
-    _: F4,
-    _: Option<F5>,
+    preop: F,
+    cumulate: F2,
+    postop: Option<F3>,
     axes: &[usize],
     init_val: O,
     keepdims: bool,
@@ -630,11 +612,9 @@ pub(crate) fn uncontiguous_reduce<T, F, F2, F3, F4, F5, O, const DEVICE: usize, 
 where
     T: CommonBounds + Cast<O>,
     O: CommonBounds,
-    F: Fn(O, T) -> O + Sync + Send + 'static + Copy,
+    F: Fn(T) -> O + Sync + Send + 'static + Copy,
     F2: Fn(O, O) -> O + Sync + Send + 'static + Copy,
     F3: Fn(O) -> O + Sync + Send + 'static + Copy,
-    F4: Fn(O::Vec, T::Vec) -> O::Vec + 'static + Copy + Send + std::marker::Sync,
-    F5: Fn(O::Vec) -> O::Vec + Sync + Send + 'static + Copy,
     T::Vec: Copy,
     O::Vec: Copy,
     Al: Allocator + Send + Sync,
@@ -650,12 +630,12 @@ where
         move |res| {
             let val = a
                 .par_iter()
-                .par_strided_fold(init_val, |acc, x| op(acc, x))
-                .reduce(|| init_val, |a, b| op2(a, b));
-            if let Some(op3) = op3 {
-                *res = op3(op2(val, *res));
+                .par_strided_fold(init_val, |acc, x| cumulate(acc, preop(x)))
+                .reduce(|| init_val, |a, b| cumulate(a, b));
+            if let Some(postop) = postop {
+                *res = postop(val);
             } else {
-                *res = op2(val, *res);
+                *res = val;
             }
         },
         move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
@@ -695,8 +675,9 @@ where
                     &res_shape,
                     shape_len,
                     a_last_stride as isize,
-                    op,
-                    op3,
+                    preop,
+                    cumulate,
+                    postop,
                 );
             });
         },
@@ -721,11 +702,11 @@ where
                 .zip(sliced_res.into_par_iter())
                 .for_each(move |(inp, mut res)| {
                     res.iter_mut().zip(inp.iter()).for_each(|(x, y)| {
-                        *x = op(*x, y);
+                        *x = cumulate(*x, preop(y));
                     });
-                    if let Some(op3) = op3 {
+                    if let Some(postop) = postop {
                         res.iter_mut().for_each(|x| {
-                            *x = op3(*x);
+                            *x = postop(*x);
                         });
                     }
                 });
@@ -770,8 +751,9 @@ where
                     shape_len,
                     a_last_stride as isize,
                     res_last_strides as isize,
-                    op,
-                    op3,
+                    preop,
+                    cumulate,
+                    postop,
                 );
             });
         },

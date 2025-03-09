@@ -1,5 +1,11 @@
 use crate::{
-    backends::cpu::utils::reduce::reduce_utils::{reduce_prepare, uncontiguous_reduce_prepare},
+    backends::{
+        common::reduce::{
+            get_fast_dim_size, get_new_reduce_axes, get_new_shape, is_keep_fast_dim,
+            split_groups_by_axes,
+        },
+        cpu::utils::reduce::reduce_utils::{reduce_prepare, uncontiguous_reduce_prepare},
+    },
     tensor_base::_Tensor,
 };
 use hpt_allocator::{
@@ -173,49 +179,21 @@ where
     O: CommonBounds,
     F1: Fn(&mut O),
     F2: Fn(usize, usize, usize, &_Tensor<O, Cpu, DEVICE, A>, &_Tensor<T, Cpu, DEVICE, A>),
-    F3: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE, A>),
+    F3: Fn(usize, usize, &_Tensor<O, Cpu, DEVICE, A>, &_Tensor<T, Cpu, DEVICE, A>),
     F4: Fn(usize, usize, usize, usize, &_Tensor<O, Cpu, DEVICE, A>, &_Tensor<T, Cpu, DEVICE, A>),
     A: Allocator,
     A::Output: AllocatorOutputRetrive,
 {
-    let mut keep_fast_dim = true;
-    for axis in axes.iter() {
-        if a.strides()[*axis] == 1 {
-            keep_fast_dim = false;
-            break;
-        }
-    }
-    let mut fused_dims: Vec<usize> = vec![];
-    let (a, axes) = if !keep_fast_dim {
-        let mut consec_axes = vec![];
-        let mut new_axes = axes.to_vec();
-        let mut max = a.ndim() - 1;
-        let mut last_removed = max;
-        while max > 0 {
-            if !axes.contains(&max) {
-                break;
-            } else {
-                consec_axes.push(max);
-                let removed = new_axes.remove(new_axes.iter().position(|&x| x == max).unwrap());
-                last_removed = removed;
-            }
-            max -= 1;
-        }
-        new_axes.push(last_removed);
-        fused_dims.extend(consec_axes.iter());
-        let mut new_shape = a.shape().to_vec();
-        let mut prod = 1;
-        for dim in fused_dims.iter() {
-            prod *= new_shape[*dim];
-            new_shape.remove(*dim);
-        }
-        new_shape.push(prod);
-        (a.reshape(&new_shape)?, new_axes)
-    } else {
-        (a.clone(), axes.to_vec())
-    };
+    let groups = a.layout.coalesce_dims();
+    let new_groups = split_groups_by_axes(&groups, axes);
+    let new_shape = get_new_shape(&new_groups, a.shape());
+    let original_ptr = a.ptr();
+    let a = a.reshape(&new_shape)?;
+    let new_ptr = a.ptr();
+    assert_eq!(original_ptr.ptr, new_ptr.ptr);
+    let axes = get_new_reduce_axes(new_groups, axes);
+    let keep_fast_dim = is_keep_fast_dim(a.strides(), &axes);
     let (transposed_tensor, result) = reduce_prepare(&a, &axes, init_val, init_out, c)?;
-
     let a_last_stride = if keep_fast_dim {
         transposed_tensor.strides()[a.ndim() - axes.len() - 1]
     } else {
@@ -226,9 +204,9 @@ where
     if a.ndim() == axes.len() {
         full_reduce(unsafe { result_data.get_ptr().as_mut().unwrap() });
     } else {
-        let inner_loop_size = *a.shape().last().unwrap() as usize;
         let a_size = a.size();
         if !keep_fast_dim {
+            let inner_loop_size = get_fast_dim_size(&a.shape(), &a.strides(), &axes) as usize;
             let outer_loop_size = a_size / inner_loop_size;
             let inner_loop_size_2 = outer_loop_size / result.size();
             let num_threads = if result.size() < rayon::current_num_threads() {
@@ -244,6 +222,7 @@ where
                 &transposed_tensor,
             );
         } else {
+            let inner_loop_size = *a.shape().last().unwrap() as usize;
             let outer_loop_size = result.size() / inner_loop_size;
             let inner_loop_size_2 = a.size() / result.size();
             if outer_loop_size == 1 {
@@ -252,7 +231,7 @@ where
                 } else {
                     rayon::current_num_threads()
                 };
-                kdo1(num_threads, inner_loop_size, &result);
+                kdo1(num_threads, inner_loop_size, &result, &a);
             } else {
                 let num_threads = if outer_loop_size < rayon::current_num_threads() {
                     outer_loop_size

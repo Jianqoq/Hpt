@@ -36,10 +36,6 @@ pub(crate) fn __impl_normal_out_binary() -> TokenStream {
                     impl NormalOut<#rhs_dtype> for #lhs_dtype {
                         type Output = <Self as NormalOutPromote<#rhs_dtype>>::Output;
                         #[inline(always)]
-                        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
-                            self.__pow(rhs)
-                        }
-                        #[inline(always)]
                         fn _clamp(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
                             self.__clamp(min, max)
                         }
@@ -77,12 +73,6 @@ pub(crate) fn __impl_normal_out_binary() -> TokenStream {
                 quote! {
                     impl NormalOut<#rhs_dtype> for #lhs_dtype {
                         type Output = <Self as NormalOutPromote<#rhs_dtype>>::Output;
-                        #[inline(always)]
-                        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.cast();
-                            let rhs_scalar: Self::Output = rhs.cast();
-                            lhs_scalar.__pow(rhs_scalar)
-                        }
                         #[inline(always)]
                         fn _clamp(self, min: #rhs_dtype, max: #rhs_dtype) -> Self::Output {
                             let lhs_scalar: Self::Output = self.cast();
@@ -178,10 +168,6 @@ pub(crate) fn __impl_cuda_normal_out_binary() -> TokenStream {
                     impl NormalOut<Scalar<#rhs_dtype>> for Scalar<#lhs_dtype> {
                         type Output = <Self as NormalOutPromote<Scalar<#rhs_dtype>>>::Output;
                         #[inline(always)]
-                        fn _pow(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            self.__pow(rhs)
-                        }
-                        #[inline(always)]
                         fn _clamp(self, min: Scalar<#rhs_dtype>, max: Scalar<#rhs_dtype>) -> Self::Output {
                             self.__clamp(min, max)
                         }
@@ -219,12 +205,6 @@ pub(crate) fn __impl_cuda_normal_out_binary() -> TokenStream {
                 quote! {
                     impl NormalOut<Scalar<#rhs_dtype>> for Scalar<#lhs_dtype> {
                         type Output = <Self as NormalOutPromote<Scalar<#rhs_dtype>>>::Output;
-                        #[inline(always)]
-                        fn _pow(self, rhs: Scalar<#rhs_dtype>) -> Self::Output {
-                            let lhs_scalar: Self::Output = self.cast();
-                            let rhs_scalar: Self::Output = rhs.cast();
-                            lhs_scalar.__pow(rhs_scalar)
-                        }
                         #[inline(always)]
                         fn _clamp(self, min: Scalar<#rhs_dtype>, max: Scalar<#rhs_dtype>) -> Self::Output {
                             let lhs_scalar: Self::Output = self.cast();
