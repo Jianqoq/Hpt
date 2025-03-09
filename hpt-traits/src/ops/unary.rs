@@ -242,7 +242,7 @@ pub trait FloatUnaryOps {
     fn sincos_<U, O>(
         &self,
         outs: (U, O),
-    ) -> std::result::Result<(Self::Output, Self::Output), TensorError>
+    ) -> std::result::Result<(Self::InplaceOutput, Self::InplaceOutput), TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
         O: BorrowMut<Self::InplaceOutput>;
