@@ -4,56 +4,98 @@ use hpt_types::{dtype::TypeCommon, type_promote::FloatOutBinary};
 use crate::{backend::Cpu, Tensor};
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 
-type FloatBinaryType<T> = <T as FloatOutBinary>::Output;
+type FloatBinaryType<T, B> = <T as FloatOutBinary<B>>::Output;
 
-impl<T, const DEVICE: usize, Al> FloatBinOps for Tensor<T, Cpu, DEVICE, Al>
+impl<T, B, const DEVICE: usize, Al> FloatBinOps<Tensor<B, Cpu, DEVICE, Al>>
+    for Tensor<T, Cpu, DEVICE, Al>
 where
-    T: FloatOutBinary + CommonBounds,
-    FloatBinaryType<T>: CommonBounds,
-    T::Vec: FloatOutBinary<Output = <FloatBinaryType<T> as TypeCommon>::Vec>,
+    B: CommonBounds,
+    T: FloatOutBinary<B> + CommonBounds,
+    FloatBinaryType<T, B>: CommonBounds,
+    T::Vec: FloatOutBinary<B::Vec, Output = <FloatBinaryType<T, B> as TypeCommon>::Vec>,
     Al: Allocator,
     Al::Output: AllocatorOutputRetrive,
 {
-    type Output = Tensor<FloatBinaryType<T>, Cpu, DEVICE, Al>;
+    type Output = Tensor<FloatBinaryType<T, B>, Cpu, DEVICE, Al>;
 
-    type OutputMeta = FloatBinaryType<T>;
+    type OutputMeta = FloatBinaryType<T, B>;
 
-    type InplaceOutput = Tensor<FloatBinaryType<T>, Cpu, DEVICE, Al>;
+    type InplaceOutput = Tensor<FloatBinaryType<T, B>, Cpu, DEVICE, Al>;
 
-    fn hypot(
+    fn hypot<C>(
         &self,
-        rhs: &Self,
-    ) -> std::result::Result<Self::Output, hpt_common::error::base::TensorError> {
-        Ok(self.inner.as_ref().hypot(rhs.inner.as_ref())?.into())
+        rhs: C,
+    ) -> std::result::Result<Self::Output, hpt_common::error::base::TensorError>
+    where
+        C: Into<Tensor<B, Cpu, DEVICE, Al>>,
+    {
+        Ok(self.inner.as_ref().hypot(rhs.into().inner.as_ref())?.into())
     }
 
-    fn hypot_<U>(
+    fn hypot_<C, U>(
         &self,
-        rhs: &Self,
+        rhs: C,
         mut out: U,
     ) -> std::result::Result<Self::Output, hpt_common::error::base::TensorError>
     where
+        C: Into<Tensor<B, Cpu, DEVICE, Al>>,
         U: std::borrow::BorrowMut<Self::InplaceOutput>,
     {
         Ok(self
             .inner
             .as_ref()
-            .hypot_(rhs.inner.as_ref(), out.borrow_mut().inner.as_ref().clone())?
+            .hypot_(
+                rhs.into().inner.as_ref(),
+                out.borrow_mut().inner.as_ref().clone(),
+            )?
             .into())
     }
 
-    fn div_<U>(
+    fn div_<C, U>(
         &self,
-        rhs: &Self,
+        rhs: C,
         mut out: U,
     ) -> std::result::Result<Self::Output, hpt_common::error::base::TensorError>
     where
+        C: Into<Tensor<B, Cpu, DEVICE, Al>>,
         U: std::borrow::BorrowMut<Self::InplaceOutput>,
     {
         Ok(self
             .inner
             .as_ref()
-            .div_(rhs.inner.as_ref(), out.borrow_mut().inner.as_ref().clone())?
+            .div_(
+                rhs.into().inner.as_ref(),
+                out.borrow_mut().inner.as_ref().clone(),
+            )?
+            .into())
+    }
+
+    fn pow<C>(
+        &self,
+        rhs: C,
+    ) -> std::result::Result<Self::Output, hpt_common::error::base::TensorError>
+    where
+        C: Into<Tensor<B, Cpu, DEVICE, Al>>,
+    {
+        Ok(self.inner.as_ref().pow(rhs.into().inner.as_ref())?.into())
+    }
+
+    fn pow_<C, U>(
+        &self,
+        rhs: C,
+        mut out: U,
+    ) -> std::result::Result<Self::Output, hpt_common::error::base::TensorError>
+    where
+        C: Into<Tensor<B, Cpu, DEVICE, Al>>,
+        U: std::borrow::BorrowMut<Self::InplaceOutput>,
+    {
+        Ok(self
+            .inner
+            .as_ref()
+            .pow_(
+                rhs.into().inner.as_ref(),
+                out.borrow_mut().inner.as_ref().clone(),
+            )?
             .into())
     }
 }

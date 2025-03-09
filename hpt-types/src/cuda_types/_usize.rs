@@ -16,6 +16,11 @@ impl FloatOutBinary2 for Scalar<usize> {
     fn __hypot(self, _: Self) -> Self {
         panic!("Hypot operation is not supported for usize")
     }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        Scalar::new(format!("pow({}, {})", self.val, rhs.val))
+    }
 }
 
 impl NormalOut2 for Scalar<usize> {
@@ -37,11 +42,6 @@ impl NormalOut2 for Scalar<usize> {
     #[inline(always)]
     fn __mul(self, rhs: Self) -> Self {
         Scalar::new(format!("({} * {})", self.val, rhs.val))
-    }
-
-    #[inline(always)]
-    fn __pow(self, rhs: Self) -> Self {
-        Scalar::new(format!("pow({}, {})", self.val, rhs.val))
     }
 
     #[inline(always)]

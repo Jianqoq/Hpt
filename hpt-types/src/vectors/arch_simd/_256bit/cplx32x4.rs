@@ -159,6 +159,17 @@ impl FloatOutBinary2 for cplx32x4 {
     fn __hypot(self, _: Self) -> Self {
         panic!("Hypot operation is not supported for cplx32x4");
     }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        let res = [
+            self[0].__pow(rhs[0]),
+            self[1].__pow(rhs[1]),
+            self[2].__pow(rhs[2]),
+            self[3].__pow(rhs[3]),
+        ];
+        cplx32x4(unsafe { std::mem::transmute(res) })
+    }
 }
 
 impl NormalOut2 for cplx32x4 {
@@ -180,17 +191,6 @@ impl NormalOut2 for cplx32x4 {
     #[inline(always)]
     fn __mul(self, rhs: Self) -> Self {
         self * rhs
-    }
-
-    #[inline(always)]
-    fn __pow(self, rhs: Self) -> Self {
-        let res = [
-            self[0].__pow(rhs[0]),
-            self[1].__pow(rhs[1]),
-            self[2].__pow(rhs[2]),
-            self[3].__pow(rhs[3]),
-        ];
-        cplx32x4(unsafe { std::mem::transmute(res) })
     }
 
     #[inline(always)]

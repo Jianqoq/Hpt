@@ -91,7 +91,8 @@ macro_rules! gen_kernel {
         $res_ptr:ident,
         $vec_size:ident,
         $outer_loop_size:ident,
-        $vec_op:ident,
+        $vec_preop:ident,
+        $vec_cumulate:ident,
         $inp_strides:ident,
         $inp_shape:ident,
         $prg:ident,
@@ -113,7 +114,7 @@ macro_rules! gen_kernel {
                 paste! {
                     $(
                         let [<inp_vec $idx>] = unsafe { T::Vec::from_ptr($inp_ptr.ptr.offset(($idx - 1) * O::Vec::SIZE as isize)) };
-                        [<res_vec $idx>] = $vec_op([<res_vec $idx>], [<inp_vec $idx>]);
+                        [<res_vec $idx>] = $vec_cumulate([<res_vec $idx>], $vec_preop([<inp_vec $idx>]));
                     )*
                 }
                 update_prg(&mut $prg, &mut $inp_ptr, $inp_strides, $inp_shape);
@@ -149,7 +150,7 @@ macro_rules! gen_kernel {
 
 /// case when reduce along all axes except the fastest dimension, this case, inner loop stride is always 1
 #[inline]
-pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
+pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4, F5, F6>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     mut inp_ptr: hpt_common::utils::pointer::Pointer<T>,
@@ -157,17 +158,21 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
     inp_strides: &[i64],
     inp_shape: &[i64],
     vec_size: isize,
-    op: F,
-    vec_op: F2,
-    op_post: Option<F3>,
-    vec_op_post: Option<F4>,
+    preop: F,
+    cumulate: F2,
+    post: Option<F3>,
+    vec_preop: F4,
+    vec_cumulate: F5,
+    vec_post: Option<F6>,
 ) where
     T: CommonBounds,
     O: CommonBounds,
-    F: Fn(O, T) -> O,
-    F2: Fn(O::Vec, T::Vec) -> O::Vec,
+    F: Fn(T) -> O,
+    F2: Fn(O, O) -> O,
     F3: Fn(O) -> O,
-    F4: Fn(O::Vec) -> O::Vec,
+    F4: Fn(T::Vec) -> O::Vec,
+    F5: Fn(O::Vec, O::Vec) -> O::Vec,
+    F6: Fn(O::Vec) -> O::Vec,
 {
     use crate::REGNUM;
 
@@ -188,11 +193,12 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
         res_ptr,
         vec_size,
         outer_loop_size,
-        vec_op,
+        vec_preop,
+        vec_cumulate,
         inp_strides,
         inp_shape,
         prg,
-        vec_op_post,
+        vec_post,
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     );
     #[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
@@ -203,11 +209,12 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
         res_ptr,
         vec_size,
         outer_loop_size,
-        vec_op,
+        vec_preop,
+        vec_cumulate,
         inp_strides,
         inp_shape,
         prg,
-        vec_op_post,
+        vec_post,
         [
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
             25, 26, 27, 28, 29, 30, 31, 32
@@ -221,11 +228,12 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
         res_ptr,
         vec_size,
         outer_loop_size,
-        vec_op,
+        vec_preop,
+        vec_cumulate,
         inp_strides,
         inp_shape,
         prg,
-        vec_op_post,
+        vec_post,
         [1, 2, 3, 4, 5, 6, 7, 8]
     );
     let remain_vec = remain_vec as u32;
@@ -240,46 +248,48 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4>(
         for _ in 0..outer_loop_size {
             for idx in inner..inner_loop_size {
                 let inp = inp_ptr[idx];
-                res_ptr[idx] = op(res_ptr[idx], inp);
+                res_ptr[idx] = cumulate(res_ptr[idx], preop(inp));
             }
             update_prg(&mut prg, &mut inp_ptr, inp_strides, inp_shape);
         }
-        if let Some(op_post) = &op_post {
+        if let Some(post) = &post {
             for i in inner..inner_loop_size {
-                res_ptr[i] = op_post(res_ptr[i]);
+                res_ptr[i] = post(res_ptr[i]);
             }
         }
     }
 }
 
 #[inline]
-pub(crate) fn fast_reduce_no_simd<T, O, F, F2>(
+pub(crate) fn fast_reduce_no_simd<T, O, F, F2, F3>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     mut inp_ptr: hpt_common::utils::pointer::Pointer<T>,
     mut res_ptr: hpt_common::utils::pointer::Pointer<O>,
     inp_strides: &[i64],
     inp_shape: &[i64],
-    op: F,
-    op_post: Option<F2>,
+    preop: F,
+    cumulate: F2,
+    post: Option<F3>,
 ) where
     T: CommonBounds,
     O: CommonBounds,
-    F: Fn(O, T) -> O,
-    F2: Fn(O) -> O,
+    F: Fn(T) -> O,
+    F2: Fn(O, O) -> O,
+    F3: Fn(O) -> O,
 {
     let ndim = inp_strides.len();
     let mut prg = vec![0; ndim]; // intialize loop progress
     for _ in 0..outer_loop_size {
         for idx in 0..inner_loop_size {
             let inp = inp_ptr[idx];
-            res_ptr[idx] = op(res_ptr[idx], inp);
+            res_ptr[idx] = cumulate(res_ptr[idx], preop(inp));
         }
         update_prg(&mut prg, &mut inp_ptr, inp_strides, inp_shape);
     }
-    if let Some(op_post) = op_post {
+    if let Some(post) = post {
         for i in 0..inner_loop_size {
-            res_ptr[i] = op_post(res_ptr[i]);
+            res_ptr[i] = post(res_ptr[i]);
         }
     }
 }
@@ -292,7 +302,8 @@ macro_rules! gen_kernel2 {
         $res_ptr:ident,
         $vec_size:expr,
         $intermediate_size:ident,
-        $vec_op:ident,
+        $vec_preop:ident,
+        $vec_cumulate:ident,
         $inp_strides:ident,
         $inp_shape:ident,
         $prg:ident,
@@ -314,7 +325,7 @@ macro_rules! gen_kernel2 {
                         paste! {
                             $(
                                 let [<inp_vec $idx>] = T::Vec::from_ptr($inp_ptr.ptr.offset(($idx - 1) * O::Vec::SIZE as isize));
-                                [<res_vec $idx>] = $vec_op([<res_vec $idx>], [<inp_vec $idx>]);
+                                [<res_vec $idx>] = $vec_cumulate([<res_vec $idx>], $vec_preop([<inp_vec $idx>]));
                             )*
                         }
                     update_prg2($prg, $shape_len, &mut $inp_ptr, $inp_strides, $inp_shape);
@@ -352,7 +363,8 @@ macro_rules! gen_kernel3 {
         $res_ptr:ident,
         $vec_size:expr,
         $intermediate_size:ident,
-        $vec_op:ident,
+        $vec_preop:ident,
+        $vec_cumulate:ident,
         $inp_strides:ident,
         $inp_shape:ident,
         $prg1:ident,
@@ -370,7 +382,8 @@ macro_rules! gen_kernel3 {
                 $res_ptr,
                 $vec_size,
                 $intermediate_size,
-                $vec_op,
+                $vec_preop,
+                $vec_cumulate,
                 $inp_strides,
                 $inp_shape,
                 $prg1,
@@ -389,7 +402,7 @@ macro_rules! gen_kernel3 {
 
 // case when reduce doesn't contain fastest dim, inner loop stride is always 1
 #[inline]
-pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
+pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4, F5, F6>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     intermediate_size: isize,
@@ -400,17 +413,21 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
     prg1: &mut [i64],
     prg2: &mut [i64],
     shape_len: i64,
-    op: F,
-    op_post: Option<F3>,
-    vec_op: F2,
-    vec_post: Option<F4>,
+    preop: F,
+    cumulate: F2,
+    post: Option<F3>,
+    vec_preop: F4,
+    vec_cumulate: F5,
+    vec_post: Option<F6>,
 ) where
     T: CommonBounds,
     O: CommonBounds,
-    F: Fn(O, T) -> O,
-    F2: Fn(O::Vec, T::Vec) -> O::Vec,
+    F: Fn(T) -> O,
+    F2: Fn(O, O) -> O,
     F3: Fn(O) -> O,
-    F4: Fn(O::Vec) -> O::Vec,
+    F4: Fn(T::Vec) -> O::Vec,
+    F5: Fn(O::Vec, O::Vec) -> O::Vec,
+    F6: Fn(O::Vec) -> O::Vec,
 {
     use std::ops::IndexMut;
 
@@ -434,7 +451,8 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                 res_ptr,
                 O::Vec::SIZE as isize,
                 intermediate_size,
-                vec_op,
+                vec_preop,
+                vec_cumulate,
                 inp_strides,
                 inp_shape,
                 prg1,
@@ -450,7 +468,8 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                 res_ptr,
                 O::Vec::SIZE as isize,
                 intermediate_size,
-                vec_op,
+                vec_preop,
+                vec_cumulate,
                 inp_strides,
                 inp_shape,
                 prg1,
@@ -469,7 +488,8 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                 res_ptr,
                 O::Vec::SIZE as isize,
                 intermediate_size,
-                vec_op,
+                vec_preop,
+                vec_cumulate,
                 inp_strides,
                 inp_shape,
                 prg1,
@@ -519,15 +539,15 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
                 for i in inner..inner_loop_size {
                     let a_val = inp_ptr[i];
                     let mut_ref = unsafe { &mut *res_ptr.ptr.offset(i) };
-                    *mut_ref = op(*mut_ref, a_val);
+                    *mut_ref = cumulate(*mut_ref, preop(a_val));
                 }
                 update_prg2(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
             }
             update_prg3(prg2, shape_len, &mut inp_ptr, inp_strides, inp_shape);
-            if let Some(op_post) = &op_post {
+            if let Some(post) = &post {
                 for i in inner..inner_loop_size {
                     let mut_ref = unsafe { &mut *res_ptr.ptr.offset(i) };
-                    *mut_ref = op_post(*mut_ref);
+                    *mut_ref = post(*mut_ref);
                 }
             }
             res_ptr += inner_loop_size as usize;
@@ -539,7 +559,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4>(
 }
 
 #[inline]
-pub(crate) fn reduce_dim_not_include<T, O, F, F2>(
+pub(crate) fn reduce_dim_not_include<T, O, F, F2, F3>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     intermediate_size: isize,
@@ -550,13 +570,15 @@ pub(crate) fn reduce_dim_not_include<T, O, F, F2>(
     prg1: &mut [i64],
     prg2: &mut [i64],
     shape_len: i64,
-    op: F,
-    op_post: Option<F2>,
+    preop: F,
+    cumulate: F2,
+    post: Option<F3>,
 ) where
     T: CommonBounds,
     O: CommonBounds,
-    F: Fn(O, T) -> O,
-    F2: Fn(O) -> O,
+    F: Fn(T) -> O,
+    F2: Fn(O, O) -> O,
+    F3: Fn(O) -> O,
 {
     for _ in 0..outer_loop_size {
         for _ in 0..intermediate_size {
@@ -564,15 +586,15 @@ pub(crate) fn reduce_dim_not_include<T, O, F, F2>(
                 let a_val = inp_ptr[i];
                 let result_val = res_ptr[i];
                 let mut_ref = unsafe { &mut *res_ptr.ptr.offset(i as isize) };
-                *mut_ref = op(result_val, a_val);
+                *mut_ref = cumulate(result_val, preop(a_val));
             }
             update_prg2(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
         }
         update_prg3(prg2, shape_len, &mut inp_ptr, inp_strides, inp_shape);
-        if let Some(op_post) = &op_post {
+        if let Some(post) = &post {
             for i in 0..inner_loop_size {
                 let mut_ref = unsafe { &mut *res_ptr.ptr.offset(i) };
-                *mut_ref = op_post(*mut_ref);
+                *mut_ref = post(*mut_ref);
             }
         }
         res_ptr += inner_loop_size as usize;
@@ -583,7 +605,7 @@ pub(crate) fn reduce_dim_not_include<T, O, F, F2>(
 }
 
 #[inline]
-pub(crate) fn contiguous_reduce_dim_include_simd<T, F, F2, F3, F4>(
+pub(crate) fn contiguous_reduce_dim_include_simd<T, F, F2, F3, F4, F5>(
     init: T,
     inner_loop_size: isize,
     outer_loop_size: isize,
@@ -594,66 +616,39 @@ pub(crate) fn contiguous_reduce_dim_include_simd<T, F, F2, F3, F4>(
     inp_shape: &[i64],
     prg1: &mut [i64],
     shape_len: i64,
-    op: F,
-    op2: F2,
-    vec_op: F3,
-    op_post: Option<F4>,
+    scalar_preop: F,
+    scalar_cumulate: F2,
+    vec_preop: F3,
+    vec_cumulate: F4,
+    scalar_post: Option<F5>,
 ) where
     T: CommonBounds,
-    F: Fn(T, T) -> T,
+    F: Fn(T) -> T,
     F2: Fn(T, T) -> T,
-    F3: Fn(T::Vec, T::Vec) -> T::Vec,
-    F4: Fn(T) -> T,
+    F3: Fn(T::Vec) -> T::Vec,
+    F4: Fn(T::Vec, T::Vec) -> T::Vec,
+    F5: Fn(T) -> T,
 {
     for _ in 0..outer_loop_size {
+        let mut tmp = init;
         for _ in 0..intermediate_size {
             let inp_arr = unsafe {
                 std::slice::from_raw_parts(inp_ptr.ptr as *const T, inner_loop_size as usize)
             };
-            res_ptr[0isize] = op2(
-                res_ptr[0isize],
-                array_vec_reduce(inp_arr, init, &vec_op, &op, &op2),
+            tmp = scalar_cumulate(
+                tmp,
+                array_vec_reduce(
+                    inp_arr,
+                    init,
+                    &scalar_preop,
+                    &scalar_cumulate,
+                    &vec_preop,
+                    &vec_cumulate,
+                ),
             );
             update_prg3(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
         }
-        if let Some(op_post) = &op_post {
-            let tmp = res_ptr[0isize];
-            let tmp = op_post(tmp);
-            res_ptr[0isize] = tmp;
-        }
-        res_ptr += 1usize;
-    }
-}
-
-#[inline]
-pub(crate) fn contiguous_reduce_dim_include<T, O, F, F2>(
-    inner_loop_size: isize,
-    outer_loop_size: isize,
-    intermediate_size: isize,
-    mut inp_ptr: hpt_common::utils::pointer::Pointer<T>,
-    mut res_ptr: hpt_common::utils::pointer::Pointer<O>,
-    inp_strides: &[i64],
-    inp_shape: &[i64],
-    prg1: &mut [i64],
-    shape_len: i64,
-    op: F,
-    op_post: Option<F2>,
-) where
-    T: CommonBounds,
-    O: CommonBounds,
-    F: Fn(O, T) -> O,
-    F2: Fn(O) -> O,
-{
-    for _ in 0..outer_loop_size {
-        let mut tmp = res_ptr[0isize];
-        for _ in 0..intermediate_size {
-            for i in 0..inner_loop_size as i64 {
-                let a_val = inp_ptr[i];
-                tmp = op(tmp, a_val);
-            }
-            update_prg3(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
-        }
-        if let Some(op_post) = &op_post {
+        if let Some(op_post) = &scalar_post {
             res_ptr[0isize] = op_post(tmp);
         } else {
             res_ptr[0isize] = tmp;
@@ -663,7 +658,46 @@ pub(crate) fn contiguous_reduce_dim_include<T, O, F, F2>(
 }
 
 #[inline]
-pub(crate) fn uncontiguous_reduce_dim_include<T, O, F, F2>(
+pub(crate) fn contiguous_reduce_dim_include<T, O, F, F2, F3>(
+    inner_loop_size: isize,
+    outer_loop_size: isize,
+    intermediate_size: isize,
+    mut inp_ptr: hpt_common::utils::pointer::Pointer<T>,
+    mut res_ptr: hpt_common::utils::pointer::Pointer<O>,
+    inp_strides: &[i64],
+    inp_shape: &[i64],
+    prg1: &mut [i64],
+    shape_len: i64,
+    preop: F,
+    cumulate: F2,
+    postop: Option<F3>,
+) where
+    T: CommonBounds,
+    O: CommonBounds,
+    F: Fn(T) -> O,
+    F2: Fn(O, O) -> O,
+    F3: Fn(O) -> O,
+{
+    for _ in 0..outer_loop_size {
+        let mut tmp = res_ptr[0isize];
+        for _ in 0..intermediate_size {
+            for i in 0..inner_loop_size as i64 {
+                let a_val = inp_ptr[i];
+                tmp = cumulate(tmp, preop(a_val));
+            }
+            update_prg3(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
+        }
+        if let Some(op_post) = &postop {
+            res_ptr[0isize] = op_post(tmp);
+        } else {
+            res_ptr[0isize] = tmp;
+        }
+        res_ptr += 1usize;
+    }
+}
+
+#[inline]
+pub(crate) fn uncontiguous_reduce_dim_include<T, O, F, F2, F3>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     intermediate_size: isize,
@@ -677,25 +711,27 @@ pub(crate) fn uncontiguous_reduce_dim_include<T, O, F, F2>(
     res_shape: &[i64],
     shape_len: i64,
     inp_last_stride: isize,
-    op: F,
-    op_post: Option<F2>,
+    preop: F,
+    cumulate: F2,
+    postop: Option<F3>,
 ) where
     T: CommonBounds,
     O: CommonBounds,
-    F: Fn(O, T) -> O,
-    F2: Fn(O) -> O,
+    F: Fn(T) -> O,
+    F2: Fn(O, O) -> O,
+    F3: Fn(O) -> O,
 {
     for _ in 0..outer_loop_size {
         let mut tmp = res_ptr[0isize];
         for _ in 0..intermediate_size {
             for i in 0..inner_loop_size {
                 let a_val = inp_ptr[i * inp_last_stride];
-                tmp = op(tmp, a_val);
+                tmp = cumulate(tmp, preop(a_val));
             }
             update_prg3(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
         }
-        if let Some(op_post) = &op_post {
-            res_ptr[0isize] = op_post(tmp);
+        if let Some(postop) = &postop {
+            res_ptr[0isize] = postop(tmp);
         } else {
             res_ptr[0isize] = tmp;
         }
@@ -704,7 +740,7 @@ pub(crate) fn uncontiguous_reduce_dim_include<T, O, F, F2>(
 }
 
 #[inline]
-pub(crate) fn uncontiguous_reduce_dim_not_include<T, O, F, F2>(
+pub(crate) fn uncontiguous_reduce_dim_not_include<T, O, F, F2, F3>(
     inner_loop_size: isize,
     outer_loop_size: isize,
     intermediate_size: isize,
@@ -720,27 +756,31 @@ pub(crate) fn uncontiguous_reduce_dim_not_include<T, O, F, F2>(
     shape_len: i64,
     inp_last_stride: isize,
     res_last_strides: isize,
-    op: F,
-    op_post: Option<F2>,
+    preop: F,
+    cumulate: F2,
+    postop: Option<F3>,
 ) where
     T: CommonBounds,
     O: CommonBounds,
-    F: Fn(O, T) -> O,
-    F2: Fn(O) -> O,
+    F: Fn(T) -> O,
+    F2: Fn(O, O) -> O,
+    F3: Fn(O) -> O,
 {
     for _ in 0..outer_loop_size {
         for _ in 0..intermediate_size {
             for i in 0..inner_loop_size {
-                res_ptr[i * res_last_strides] =
-                    op(res_ptr[i * res_last_strides], inp_ptr[i * inp_last_stride]);
+                res_ptr[i * res_last_strides] = cumulate(
+                    res_ptr[i * res_last_strides],
+                    preop(inp_ptr[i * inp_last_stride]),
+                );
             }
             update_prg2(prg1, shape_len, &mut inp_ptr, inp_strides, inp_shape);
         }
         update_prg3(prg2, shape_len, &mut inp_ptr, inp_strides, inp_shape);
-        if let Some(op_post) = &op_post {
+        if let Some(postop) = &postop {
             for i in 0..inner_loop_size {
                 let mut_ref = unsafe { &mut *res_ptr.ptr.offset(i * res_last_strides) };
-                *mut_ref = op_post(*mut_ref);
+                *mut_ref = postop(*mut_ref);
             }
         }
         update_prg(prg3, &mut res_ptr, res_strides, res_shape);

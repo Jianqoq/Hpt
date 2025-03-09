@@ -1,7 +1,7 @@
 # mul_
 ```rust
 mul_(
-    x: &Tensor<A> | Tensor<A> | scalar, 
+    x: Tensor<A>, 
     y: &Tensor<B> | Tensor<B> | scalar,
     out: &mut Tensor<C> | Tensor<C>
 ) -> Result<Tensor<C>, TensorError>

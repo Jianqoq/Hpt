@@ -511,6 +511,22 @@ impl FloatOutBinary2 for u64x2 {
     fn __hypot(self, _: Self) -> Self {
         panic!("Hypotenuse operation is not supported for u64")
     }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        unsafe {
+            let arr: [u64; 2] = std::mem::transmute(self.0);
+            let arr2: [u64; 2] = std::mem::transmute(rhs.0);
+            let mut arr3: [u64; 2] = [0; 2];
+            for i in 0..2 {
+                arr3[i] = arr[i].pow(arr2[i] as u32);
+            }
+            #[cfg(target_arch = "x86_64")]
+            return u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            #[cfg(target_arch = "aarch64")]
+            return u64x2(vld1q_u64(arr3.as_ptr()));
+        }
+    }
 }
 
 impl NormalOut2 for u64x2 {
@@ -532,11 +548,6 @@ impl NormalOut2 for u64x2 {
     #[inline(always)]
     fn __mul(self, rhs: Self) -> Self {
         self * rhs
-    }
-
-    #[inline(always)]
-    fn __pow(self, rhs: Self) -> Self {
-        self.pow(rhs)
     }
 
     #[inline(always)]

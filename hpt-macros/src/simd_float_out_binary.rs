@@ -54,6 +54,9 @@ pub fn impl_simd_binary_out_float() -> TokenStream {
                         fn _hypot(self, rhs: #rhs_simd) -> Self::Output {
                             self.__hypot(rhs)
                         }
+                        fn _pow(self, rhs: #rhs_simd) -> Self::Output {
+                            self.__pow(rhs)
+                        }
                     }
                 }
             } else {
@@ -74,6 +77,11 @@ pub fn impl_simd_binary_out_float() -> TokenStream {
                             let lhs: Self::Output = self.into_vec();
                             let rhs: Self::Output = rhs.into_vec();
                             lhs.__hypot(rhs)
+                        }
+                        fn _pow(self, rhs: #rhs_simd) -> Self::Output {
+                            let lhs: Self::Output = self.into_vec();
+                            let rhs: Self::Output = rhs.into_vec();
+                            lhs.__pow(rhs)
                         }
                     }
                 }
@@ -96,6 +104,9 @@ fn impl_unreachable(lhs_dtype: SimdType, rhs_simd: SimdType) -> TokenStream2 {
                 unreachable!()
             }
             fn _hypot(self, rhs: #rhs_simd) -> Self::Output {
+                unreachable!()
+            }
+            fn _pow(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
         }
@@ -158,6 +169,9 @@ pub fn impl_simd_binary_out_float_lhs_scalar() -> TokenStream {
                         fn _hypot(self, rhs: #rhs_simd) -> Self::Output {
                             Self::Output::splat(self.cast()).__hypot(rhs)
                         }
+                        fn _pow(self, rhs: #rhs_simd) -> Self::Output {
+                            Self::Output::splat(self.cast()).__pow(rhs)
+                        }
                     }
                 }
             } else {
@@ -178,6 +192,11 @@ pub fn impl_simd_binary_out_float_lhs_scalar() -> TokenStream {
                             let lhs: Self::Output = Self::Output::splat(self.cast());
                             let rhs: Self::Output = rhs.into_vec();
                             lhs.__hypot(rhs)
+                        }
+                        fn _pow(self, rhs: #rhs_simd) -> Self::Output {
+                            let lhs: Self::Output = Self::Output::splat(self.cast());
+                            let rhs: Self::Output = rhs.into_vec();
+                            lhs.__pow(rhs)
                         }
                     }
                 }
@@ -204,6 +223,9 @@ fn impl_unreachable_lhs_scalar(
                 unreachable!()
             }
             fn _hypot(self, rhs: #rhs_simd) -> Self::Output {
+                unreachable!()
+            }
+            fn _pow(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
         }
@@ -266,6 +288,9 @@ pub fn impl_simd_binary_out_float_rhs_scalar() -> TokenStream {
                         fn _hypot(self, rhs: #rhs_dtype) -> Self::Output {
                             self.__hypot(Self::Output::splat(rhs.cast()))
                         }
+                        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
+                            self.__pow(Self::Output::splat(rhs.cast()))
+                        }
                     }
                 }
             } else {
@@ -286,6 +311,11 @@ pub fn impl_simd_binary_out_float_rhs_scalar() -> TokenStream {
                             let lhs: Self::Output = self.into_vec();
                             let rhs: Self::Output = Self::Output::splat(rhs.cast());
                             lhs.__hypot(rhs)
+                        }
+                        fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
+                            let lhs: Self::Output = self.into_vec();
+                            let rhs: Self::Output = Self::Output::splat(rhs.cast());
+                            lhs.__pow(rhs)
                         }
                     }
                 }
@@ -312,6 +342,9 @@ fn impl_unreachable_rhs_scalar(
                 unreachable!()
             }
             fn _hypot(self, rhs: #rhs_dtype) -> Self::Output {
+                unreachable!()
+            }
+            fn _pow(self, rhs: #rhs_dtype) -> Self::Output {
                 unreachable!()
             }
         }

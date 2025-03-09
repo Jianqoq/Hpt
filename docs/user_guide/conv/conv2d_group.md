@@ -26,6 +26,8 @@ Performs a grouped 2D convolution operation, which divides input channels into g
 
 `dilation`: Kernel dilation factors as [dilation_height, dilation_width]
 
+`groups`: Number of groups to use
+
 `activation`: Optional activation function applied to the convolution result
 
 ## Returns:

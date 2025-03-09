@@ -6,6 +6,7 @@ use hpt::ops::IndexReduce;
 use hpt::ops::Matmul;
 use hpt::ops::NormalUaryOps;
 use hpt::ops::NormalizationOps;
+use hpt::types::math::FloatOutBinary;
 use hpt::types::vectors::traits::VecTrait;
 use hpt::{
     buitin_templates::cpu::binary_with_out,

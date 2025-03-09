@@ -18,23 +18,24 @@ A 2-D tensor of shape [n, m] with ones on the k-th diagonal.
 
 ## Examples:
 ```rust
-use hpt::{
-    error::TensorError,
-    ops::{ShapeManipulate, TensorCreator},
-    Tensor,
-};
-fn main() -> Result<(), TensorError> {
-    // Create a tensor
-    let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2])?;
-    println!("a: {}", a);
-    // [[1, 2],
-    //  [3, 4]]
+use hpt::{error::TensorError, ops::TensorCreator, Tensor};
 
-    // Create a tensor filled with 7.0 with same shape
-    let b = a.full_like(7.0)?;
-    println!("b: {}", b);
-    // [[7, 7],
-    //  [7, 7]]
+fn main() -> Result<(), TensorError> {
+    // Create a 3x4 matrix with ones on the main diagonal (k=0)
+    let a = Tensor::<f32>::eye(3, 4, 0)?;
+    println!("Main diagonal:\n{}", a);
+    // Output:
+    // [[1, 0, 0, 0],
+    //  [0, 1, 0, 0],
+    //  [0, 0, 1, 0]]
+
+    // Create a 3x4 matrix with ones on the first superdiagonal (k=1)
+    let b = Tensor::<f32>::eye(3, 4, 1)?;
+    println!("First superdiagonal:\n{}", b);
+    // Output:
+    // [[0, 1, 0, 0],
+    //  [0, 0, 1, 0],
+    //  [0, 0, 0, 1]]
 
     Ok(())
 }

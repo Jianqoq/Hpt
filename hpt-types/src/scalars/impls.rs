@@ -20,6 +20,10 @@ macro_rules! impl_int_traits {
             fn __hypot(self, _: Self) -> Self {
                 panic!("Hypot operation is not supported for {}", stringify!($type));
             }
+            #[inline(always)]
+            fn __pow(self, rhs: Self) -> Self {
+                self.pow(rhs as u32)
+            }
         }
 
         impl NormalOut2 for $type {
@@ -41,11 +45,6 @@ macro_rules! impl_int_traits {
             #[inline(always)]
             fn __mul(self, rhs: Self) -> Self {
                 self.wrapping_mul(rhs)
-            }
-
-            #[inline(always)]
-            fn __pow(self, rhs: Self) -> Self {
-                self.pow(rhs as u32)
             }
 
             #[inline(always)]
@@ -212,6 +211,10 @@ macro_rules! impl_complex {
             fn __hypot(self, _: Self) -> Self {
                 panic!("Hypot operation is not supported for complex numbers");
             }
+            #[inline(always)]
+            fn __pow(self, rhs: Self) -> Self {
+                self.powf(rhs.re)
+            }
         }
 
         impl NormalOut2 for Complex<$type> {
@@ -233,11 +236,6 @@ macro_rules! impl_complex {
             #[inline(always)]
             fn __mul(self, rhs: Self) -> Self {
                 self * rhs
-            }
-
-            #[inline(always)]
-            fn __pow(self, rhs: Self) -> Self {
-                self.powf(rhs.re)
             }
 
             #[inline(always)]

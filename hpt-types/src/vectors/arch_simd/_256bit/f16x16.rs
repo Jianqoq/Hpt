@@ -788,6 +788,15 @@ impl FloatOutBinary2 for f16x16 {
         let low_hypot = low.__hypot(low_rhs);
         f16x16::from_2_f32vec([high_hypot, low_hypot])
     }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        let [high, low] = self.to_2_f32vec();
+        let [high_base, low_base] = rhs.to_2_f32vec();
+        let high_pow = high.__pow(high_base);
+        let low_pow = low.__pow(low_base);
+        f16x16::from_2_f32vec([high_pow, low_pow])
+    }
 }
 
 impl NormalOut2 for f16x16 {
@@ -809,15 +818,6 @@ impl NormalOut2 for f16x16 {
     #[inline(always)]
     fn __mul(self, rhs: Self) -> Self {
         self * rhs
-    }
-
-    #[inline(always)]
-    fn __pow(self, rhs: Self) -> Self {
-        let [high, low] = self.to_2_f32vec();
-        let [high_base, low_base] = rhs.to_2_f32vec();
-        let high_pow = high.__pow(high_base);
-        let low_pow = low.__pow(low_base);
-        f16x16::from_2_f32vec([high_pow, low_pow])
     }
 
     #[inline(always)]

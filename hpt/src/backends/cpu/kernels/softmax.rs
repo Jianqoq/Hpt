@@ -228,8 +228,9 @@ pub(crate) fn contiguous_dim_include<T, O>(
             let max = array_vec_reduce(
                 inp_arr,
                 T::NEG_INF,
+                |x| x,
                 |x, y| x._max(y),
-                |x, y| x._max(y),
+                |x| x,
                 |x, y| x._max(y),
             );
             let max_vec = T::Vec::splat(max);
@@ -281,8 +282,9 @@ pub(crate) fn contiguous_dim_include<T, O>(
             let max = array_vec_reduce(
                 inp_arr,
                 T::NEG_INF,
+                |x| x,
                 |x, y| x._max(y),
-                |x, y| x._max(y),
+                |x| x,
                 |x, y| x._max(y),
             );
 

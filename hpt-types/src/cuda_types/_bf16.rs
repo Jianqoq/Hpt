@@ -26,6 +26,15 @@ impl FloatOutBinary2 for Scalar<bf16> {
             rhs.to_f32().val
         ))
     }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        Scalar::new(format!(
+            "__float2bfloat16_rn(powf({}, {}))",
+            self.to_f32().val,
+            rhs.to_f32().val
+        ))
+    }
 }
 
 impl NormalOut2 for Scalar<bf16> {
@@ -47,15 +56,6 @@ impl NormalOut2 for Scalar<bf16> {
     #[inline(always)]
     fn __mul(self, rhs: Self) -> Self {
         Scalar::new(format!("__hmulf({}, {})", self.val, rhs.val))
-    }
-
-    #[inline(always)]
-    fn __pow(self, rhs: Self) -> Self {
-        Scalar::new(format!(
-            "__float2bfloat16_rn(powf({}, {}))",
-            self.to_f32().val,
-            rhs.to_f32().val
-        ))
     }
 
     #[inline(always)]

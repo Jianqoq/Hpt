@@ -10,354 +10,248 @@ where
     /// the output type
     type Output;
 
-    /// Removes dimensions of size 1 from the tensor along the specified axes.
+    /// Remove single-dimensional entries (axes with size 1) from the shape of the tensor at specified positions.
     ///
-    /// this operation reduces the dimensionality of the tensor by "squeezing"
-    /// out the dimensions that have a size of 1. If `axes` are specified, only those axes will be squeezed.
+    /// ## Parameters:
+    /// `axes`: The positions where the single-dimensional entries should be removed.
     ///
-    /// # Arguments
-    ///
-    /// * `axes` - The axis or axes to squeeze. This can be a single axis or a set of axes where the dimension
-    /// should be removed, and the dimension at each axis must be of size 1. The type `A` must implement the `Into<Axis>` trait.
-    ///
-    /// # Returns
-    ///
-    /// * If the operation is successful, it returns the tensor with the specified dimensions removed. If no axes
-    /// are specified, all axes of size 1 will be removed.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the specified axes do not have a dimension of 1 or if the axes are out of bounds.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::zeros(&[1, 3, 1, 4])?;
+    /// let b = a.squeeze(0)?; // shape becomes [3, 1, 4]
+    /// let c = a.squeeze(2)?; // shape becomes [1, 3, 4]
+    /// ```
     #[track_caller]
     fn squeeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Adds a new dimension of size 1 to the tensor at the specified axes.
+    /// Adds a new dimension of size 1 to the tensor at the specified dimention.
     ///
-    /// this operation increases the dimensionality of the tensor by "unsqueezing"
-    /// and introducing new axes of size 1 at the given positions. This is often used to reshape
-    /// tensors for operations that require specific dimensions.
+    /// ## Parameters:
+    /// `axes`: The positions where the single-dimensional entries should be add.
     ///
-    /// # Arguments
-    ///
-    /// * `axes` - The axis or axes at which to add the new dimension. The type `A` must implement the `Into<Axis>` trait.
-    /// Each specified axis must be a valid index in the tensor, and after the operation, the tensor will have a dimension of 1 at those positions.
-    ///
-    /// # Returns
-    ///
-    /// * Returns the tensor with the new dimensions of size 1 added at the specified axes.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the specified axes are out of bounds for the tensor.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::zeros(&[3, 4])?;
+    /// let b = a.unsqueeze(0)?; // shape becomes [1, 3, 4]
+    /// let c = a.unsqueeze(1)?; // shape becomes [3, 1, 4]
+    /// ```
     #[track_caller]
     fn unsqueeze<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Reshapes the tensor into the specified shape without changing its data.
+    /// Gives a new shape to the tensor without changing its data when it is possible.
     ///
-    /// this operation rearranges the elements of the tensor into a new shape,
-    /// as long as the total number of elements remains the same.
-    /// The operation is performed without copying or modifying the underlying data only when the
-    /// dimension to manipulate is contiguous, otherwise, a new Tensor will return.
+    /// ## Parameters:
+    /// `shape`: The new shape. The total number of elements must remain the same.
     ///
-    /// # Arguments
-    ///
-    /// * `shape` - The new shape of the tensor. The type `S` must implement the `Into<Shape>` trait.
-    /// The total number of elements in the new shape must match the total number of elements in the original tensor.
-    ///
-    /// # Returns
-    ///
-    /// * Returns the reshaped tensor if the operation is successful.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the new shape does not match the total number of elements in the original tensor.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::zeros(&[3, 4])?;
+    /// let b = a.reshape(&[2, 6])?;
+    /// let c = a.reshape(&[12])?;
+    /// ```
     #[track_caller]
     fn reshape<S: Into<Shape>>(&self, shape: S) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Swaps two axes of the tensor, effectively transposing the dimensions along the specified axes.
+    /// Swaps two axes of the 2D tensor, returning a view of the tensor with axes transposed.
     ///
-    /// this operation switches the data between the two specified axes, changing the layout
-    /// of the tensor without altering its data. Transposing is commonly used to change the orientation
-    /// of matrices or tensors.
+    /// ## Parameters:
+    /// `axis1`: First axis to be transposed
     ///
-    /// # Arguments
+    /// `axis2`: Second axis to be transposed
     ///
-    /// * `axis1` - The first axis to be swapped. Must be a valid axis index within the tensor.
-    /// * `axis2` - The second axis to be swapped. Must also be a valid axis index within the tensor.
-    ///
-    /// # Returns
-    ///
-    /// * Returns the tensor with the two specified axes transposed.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if either `axis1` or `axis2` are out of bounds or if they are not valid dimensions of the tensor.
-    ///
-    /// # See Also
-    /// - [`permute`]: Rearranges all axes of the tensor according to a given order.
-    /// - [`swap_axes`]: Swaps two specified axes in the tensor (an alias for `transpose`).
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::zeros(&[2, 4])?;
+    /// let b = a.transpose(0, 1)?; // shape becomes [2, 4]
+    /// let c = a.transpose(1, 0)?; // shape becomes [4, 2]
+    /// ```
     #[track_caller]
     fn transpose(&self, axis1: i64, axis2: i64) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Reorders the dimensions of the tensor according to the specified axes.
+    /// Permutes the dimensions of the tensor according to the given axes order.
     ///
-    /// This operation permutes the dimensions of the tensor based on the provided axes,
-    /// effectively changing the layout of the data. Each axis in the tensor is rearranged to follow the
-    /// order specified in the `axes` argument, allowing for flexible reordering of the tensor’s dimensions.
+    /// ## Parameters:
+    /// `axes`: The desired ordering of dimensions. Must be a permutation of [0, 1, ..., n-1] where n is the number of dimensions.
     ///
-    /// # Arguments
-    ///
-    /// * `axes` - A list or sequence of axes that specifies the new order of the dimensions. The type `A` must implement
-    /// the `Into<Axis>` trait. The length of `axes` must match the number of dimensions in the tensor.
-    ///
-    /// # Returns
-    ///
-    /// * The tensor with its dimensions permuted according to the specified `axes`.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the length of `axes` does not match the number of dimensions in the tensor,
-    /// or if any of the axes are out of bounds.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::zeros(&[2, 3, 4])?;
+    /// let b = a.permute(&[2, 0, 1])?; // Permute dimensions to [4, 2, 3]
+    /// let c = a.permute(&[1, 2, 0])?; // Permute dimensions to [3, 4, 2]
+    /// let d = a.permute(&[1, 1, 0]); // This will return an error as [1, 1, 0] is not a valid permutation
+    /// ```
     #[track_caller]
     fn permute<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Reverses the permutation of the dimensions of the tensor according to the specified axes.
+    /// Performs the inverse permutation of dimensions according to the given axes order. This is equivalent to undoing a previous permutation.
     ///
-    /// This operation is the inverse of the `permute` function. It restores the original order of the dimensions
-    /// based on the provided axes, effectively undoing a previous permutation.
+    /// ## Parameters:
+    /// `axes`: The permutation to invert. Must be a permutation of [0, 1, ..., n-1] where n is the number of dimensions.
     ///
-    /// # Arguments
-    ///
-    /// * `axes` - A list or sequence of axes that specifies the inverse order to restore the original layout of the tensor.
-    /// The type `A` must implement the `Into<Axis>` trait. The length of `axes` must match the number of dimensions in the tensor.
-    ///
-    /// # Returns
-    ///
-    /// * The tensor with its dimensions restored to their original order based on the inverse of the specified `axes`.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the length of `axes` does not match the number of dimensions in the tensor,
-    /// or if any of the axes are out of bounds.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::zeros(&[2, 3, 4])?;
+    /// let b = a.permute(&[2, 0, 1])?; // Permute dimensions to [4, 2, 3]
+    /// let c = b.permute_inv(&[2, 0, 1])?; // Apply inverse permutation to get back original shape
+    /// ```
     #[track_caller]
     fn permute_inv<A: Into<Axis>>(&self, axes: A)
         -> std::result::Result<Self::Output, TensorError>;
 
-    /// Expands the tensor to a larger shape without copying data, using broadcasting.
+    /// Expands the tensor to a larger size, replicating the data along specified dimensions.
     ///
-    /// This operation expands the dimensions of the tensor according to the specified shape,
-    /// using broadcasting rules. The expanded tensor will have the same data as the original, but with
-    /// new dimensions where the size of 1 can be expanded to match the target shape. No new memory
-    /// is allocated for the expanded dimensions.
+    /// ## Parameters:
+    /// `shape`: The desired expanded shape. Must be compatible with the input tensor's shape, where each dimension must either be equal to the input dimension or the input dimension must be 1.
     ///
-    /// # Arguments
-    ///
-    /// * `shape` - The target shape to expand the tensor to. The type `S` must implement the `Into<Shape>` trait.
-    /// The specified shape must be compatible with the current shape, following broadcasting rules (i.e., existing
-    /// dimensions of size 1 can be expanded to larger sizes).
-    ///
-    /// # Returns
-    ///
-    /// * The tensor expanded to the specified shape using broadcasting.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the target shape is incompatible with the tensor's current shape,
-    /// or if the dimension to expand is not `1`.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::zeros(&[1, 3, 1])?;
+    /// let b = a.expand(&[2, 3, 4])?;
+    /// ```
     #[track_caller]
     fn expand<S: Into<Shape>>(&self, shape: S) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Returns the transpose of the tensor by swapping the last two dimensions.
+    /// Transposes the tensor by swapping the last two dimensions. For 1D or 2D tensors, this is equivalent to a regular transpose. For higher dimensional tensors, only the last two dimensions are swapped.
     ///
-    /// This operation is typically used for 2D tensors (matrices) but can also be applied to higher-dimensional tensors,
-    /// where it swaps the last two dimensions. It is a shorthand for a specific case of transposition that is often used in
-    /// linear algebra operations.
-    ///
-    /// # Arguments
-    ///
-    /// This function takes no arguments.
-    ///
-    /// # Returns
-    ///
-    /// * The tensor with its last two dimensions transposed.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the tensor has fewer than two dimensions, as transposing the last two dimensions requires
-    /// the tensor to be at least 2D.
+    /// ## Example:
+    /// ```rust
+    /// let c = Tensor::<f32>::zeros(&[2, 3, 4])?;
+    /// let d = c.t()?; // shape becomes [2, 4, 3]
+    /// ```
     #[track_caller]
     fn t(&self) -> std::result::Result<Self::Output, TensorError>;
 
-    /// reverse the dimensions of the tensor.
+    /// Performs a complete transpose by reversing all dimensions of the tensor. This is different from `t()` which only swaps the last two dimensions.
     ///
-    /// This operation transposes a N-dimensional tensor by reversing the order of the dimensions.
-    ///
-    /// # Arguments
-    ///
-    /// This function takes no arguments.
-    ///
-    /// # Returns
-    ///
-    /// * The transposed matrix (2D tensor) where the rows and columns have been swapped.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the tensor is not 2D. It is only valid for matrices.
+    /// ## Example:
+    /// ```rust
+    /// let c = Tensor::<f32>::zeros(&[2, 3, 4])?;
+    /// let d = c.mt()?; // shape becomes [4, 3, 2]
+    /// ```
     #[track_caller]
     fn mt(&self) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Reverses the order of elements along the specified axes of the tensor.
+    /// Reverses the order of elements in the tensor along the specified axes.
     ///
-    /// This operation flips the tensor along the given axes, effectively reversing the order of elements
-    /// along those dimensions. The rest of the tensor remains unchanged.
+    /// ## Parameters:
+    /// `axes`: The axes along which to flip the tensor. Can be a single axis or multiple axes.
     ///
-    /// # Arguments
-    ///
-    /// * `axes` - The axis or axes along which to flip the tensor. The type `A` must implement the `Into<Axis>` trait.
-    ///
-    /// # Returns
-    ///
-    /// * The tensor with elements reversed along the specified axes.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if any of the specified axes are out of bounds for the tensor.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).reshape(&[2, 3])?;
+    /// // [[1, 2, 3],
+    /// //  [4, 5, 6]]
+    /// let b = a.flip(0)?;
+    /// // [[4, 5, 6],
+    /// //  [1, 2, 3]]
+    /// ```
     #[track_caller]
     fn flip<A: Into<Axis>>(&self, axes: A) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Reverses the order of elements along the last dimension (columns) of a 2D tensor (matrix).
+    /// Reverses the order of elements along axis 1 (columns) of the tensor. The tensor must be at least 2-dimensional.
     ///
-    /// This operation flips the tensor from left to right, effectively reversing the order of the elements
-    /// in each row for 2D tensors. For higher-dimensional tensors, this function flips the elements along
-    /// the second-to-last axis.
-    ///
-    /// # Arguments
-    ///
-    /// This function takes no arguments.
-    ///
-    /// # Returns
-    ///
-    /// * The tensor with elements flipped along the last axis for 2D tensors, or along the second-to-last axis
-    ///   for higher-dimensional tensors.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the tensor has fewer than two dimensions.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).reshape(&[2, 3])?;
+    /// // [[1, 2, 3],
+    /// //  [4, 5, 6]]
+    /// let b = a.fliplr()?;
+    /// // [[3, 2, 1],
+    /// //  [6, 5, 4]]
+    /// ```
     #[track_caller]
     fn fliplr(&self) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Reverses the order of elements along the first dimension (rows) of a 2D tensor (matrix).
+    /// Reverses the order of elements along axis 0 (rows) of the tensor. The tensor must be at least 1-dimensional.
     ///
-    /// This operation flips the tensor upside down, effectively reversing the order of the rows in a 2D tensor.
-    /// For higher-dimensional tensors, this function flips the elements along the first axis.
-    ///
-    /// # Arguments
-    ///
-    /// This function takes no arguments.
-    ///
-    /// # Returns
-    ///
-    /// * The tensor with elements flipped along the first axis (rows for 2D tensors).
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the tensor has fewer than one dimension.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).reshape(&[2, 3])?;
+    /// // [[1, 2, 3],
+    /// //  [4, 5, 6]]
+    /// let b = a.flipud()?;
+    /// // [[4, 5, 6],
+    /// //  [1, 2, 3]]
+    /// ```
     #[track_caller]
     fn flipud(&self) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Repeats the tensor along the specified axes according to the given repetition values.
+    /// Constructs a new tensor by repeating the input tensor along specified dimensions.
     ///
-    /// This operation tiles (repeats) the tensor along each axis a specified number of times, effectively
-    /// creating a larger tensor by replicating the original tensor's data. Each dimension is repeated according
-    /// to the corresponding value in `reps`.
+    /// ## Parameters:
+    /// `repeats`: The number of repetitions for each dimension.
+    /// If `repeats` has fewer dimensions than the input tensor, it is padded with 1s. If `repeats` has more dimensions than the input tensor, the input tensor is padded with dimensions of size 1.
     ///
-    /// # Arguments
-    ///
-    /// * `reps` - A sequence that specifies how many times to repeat the tensor along each axis. The type `S` must
-    ///   implement the `Into<Axis>` trait. The length of `reps` must match the number of dimensions in the tensor.
-    ///
-    /// # Returns
-    ///
-    /// * The tensor with its elements repeated along the specified axes, resulting in a tiled version of the original tensor.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the length of `reps` does not match the number of dimensions in the tensor,
-    ///   or if any repetition value is negative.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2])?;
+    /// // [[1, 2],
+    /// //  [3, 4]]
+    /// let b = a.tile(&[2, 1])?;
+    /// // [[1, 2],
+    /// //  [3, 4],
+    /// //  [1, 2],
+    /// //  [3, 4]]
+    /// ```
     #[track_caller]
-    fn tile<S: Into<Axis>>(&self, reps: S) -> std::result::Result<Self::Output, TensorError>;
+    fn tile<S: Into<Axis>>(&self, repeats: S) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Removes leading or trailing zeros from the tensor based on the specified trim mode.
+    /// Removes zeros from the beginning and/or end of a 1-D tensor.
     ///
-    /// This operation trims the tensor by removing zeros from either the start or the end of the tensor,
-    /// or both, depending on the `trim` argument. It is useful for cleaning up tensors where unnecessary
-    /// zero-padding exists.
+    /// ## Parameters:
+    /// `trim`: A string specifying which zeros to remove:
+    /// - 'f': remove leading zeros (from front)
+    /// - 'b': remove trailing zeros (from back)
+    /// - 'fb' or 'bf': remove both leading and trailing zeros
     ///
-    /// # Arguments
-    ///
-    /// * `trim` - A string that specifies how to trim the zeros. Accepted values are:
-    ///   - `"leading"`: Removes zeros from the start of the tensor.
-    ///   - `"trailing"`: Removes zeros from the end of the tensor.
-    ///   - `"both"`: Removes zeros from both the start and the end of the tensor.
-    ///
-    /// # Returns
-    ///
-    /// * The tensor with zeros removed from the specified locations (leading, trailing, or both).
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if `trim` is not one of the accepted values (`"leading"`, `"trailing"`, or `"both"`).
-    ///
-    /// # Requirements
-    ///
-    /// * `Self::Meta` must implement `PartialEq`, as it is used to compare the tensor elements for equality with zero.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new(&[0.0, 0.0, 1.0, 2.0, 3.0, 0.0, 0.0]);
+    /// let b = a.trim_zeros("f")?; // [1, 2, 3, 0, 0]
+    /// let c = a.trim_zeros("b")?; // [0, 0, 1, 2, 3]
+    /// let d = a.trim_zeros("fb")?; // [1, 2, 3]
+    /// ```
     #[track_caller]
     fn trim_zeros(&self, trim: &str) -> std::result::Result<Self::Output, TensorError>
     where
         Self::Meta: PartialEq;
 
-    /// Repeats the elements of the tensor along the specified axis a given number of times.
+    /// Repeats elements of a tensor along a specified axis.
     ///
-    /// This operation creates a new tensor where the elements along the specified axis are repeated `repeats` times,
-    /// effectively increasing the size of that axis while duplicating the data in the original tensor.
+    /// ## Parameters:
+    /// `repeats`: Number of repetitions for each element
     ///
-    /// # Arguments
+    /// `axis`: The axis along which to repeat values. Negative values count from the end
     ///
-    /// * `repeats` - The number of times to repeat each element along the specified axis.
-    /// * `axis` - The axis along which to repeat the elements. Must be a valid axis index for the tensor.
-    ///
-    /// # Returns
-    ///
-    /// * A new tensor where the elements are repeated `repeats` times along the specified `axis`.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the `axis` is out of bounds for the tensor, or if `repeats` is zero.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2])?;
+    /// // [[1, 2],
+    /// //  [3, 4]]
+    /// let b = a.repeat(2, 0)?;
+    /// // [[1, 2],
+    /// //  [1, 2],
+    /// //  [3, 4],
+    /// //  [3, 4]]
+    /// ```
     #[track_caller]
     fn repeat(&self, repeats: usize, axis: i16) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Splits the tensor into multiple sub-tensors along the specified axis.
+    /// Splits a tensor into multiple sub-tensors along a specified axis at given indices.
     ///
-    /// This operation divides the tensor into smaller tensors according to the provided `indices_or_sections`.
-    /// If `indices_or_sections` is a list of indices, the tensor is split at those indices along the given `axis`.
-    /// If it is a single integer, the tensor is split into that many equal parts along the axis. The result is a
-    /// vector of sub-tensors.
+    /// ## Parameters:
+    /// `indices_or_sections`: The indices where the splits should occur
     ///
-    /// # Arguments
+    /// `axis`: The axis along which to split the tensor. Negative values count from the end
     ///
-    /// * `indices_or_sections` - A slice of indices or an integer. If it is a list of indices, the tensor is split at
-    ///   each index along the specified axis. If it is an integer, the tensor is split into that many equal-sized sections.
-    /// * `axis` - The axis along which to split the tensor. Must be a valid axis index for the tensor.
-    ///
-    /// # Returns
-    ///
-    /// * A vector of sub-tensors resulting from the split along the specified axis.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if `axis` is out of bounds for the tensor.
-    /// * It will also panic if the indices in `indices_or_sections` are out of range, or if `indices_or_sections` is an integer
-    ///   that does not evenly divide the tensor along the specified axis.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    /// let splits = a.split(&[2, 4], 0)?;
+    /// // splits[0]: [1, 2]
+    /// // splits[1]: [3, 4]
+    /// // splits[2]: [5, 6]
+    /// ```
     #[track_caller]
     fn split(
         &self,
@@ -365,98 +259,105 @@ where
         axis: i64,
     ) -> std::result::Result<Vec<Self::Output>, TensorError>;
 
-    /// Splits the tensor into multiple sub-tensors along the depth axis (third dimension).
+    /// Splits a tensor into multiple sub-tensors along axis 2 (depth). The tensor must be at least 3-dimensional.
     ///
-    /// This function divides the tensor along its third dimension based on the provided `indices`.
-    /// It is typically used for 3D tensors (or higher).
+    /// ## Parameters:
+    /// `indices`: The indices where the splits should occur along axis 2
     ///
-    /// # Arguments
-    ///
-    /// * `indices` - A slice of indices at which to split the tensor along the depth axis.
-    ///
-    /// # Returns
-    ///
-    /// * A list of sub-tensors split along the depth axis.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the tensor has fewer than 3 dimensions or if any of the indices are out of bounds.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0,
+    ///                             5.0, 6.0, 7.0, 8.0,
+    ///                             9.0, 10.0, 11.0, 12.0,
+    ///                             13.0, 14.0, 15.0, 16.0]).reshape(&[2, 2, 4])?;
+    /// let splits = a.dsplit(&[2])?;
+    /// // splits[0]: shape [2, 2, 2]
+    /// // [[[1, 2],
+    /// //   [5, 6]],
+    /// //  [[9, 10],
+    /// //   [13, 14]]]
+    /// // splits[1]: shape [2, 2, 2]
+    /// // [[[3, 4],
+    /// //   [7, 8]],
+    /// //  [[11, 12],
+    /// //   [15, 16]]]
+    /// ```
     #[track_caller]
     fn dsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self::Output>, TensorError>;
 
-    /// Splits the tensor into multiple sub-tensors along the horizontal axis (second dimension).
+    /// Splits a tensor into multiple sub-tensors horizontally (along axis 1). The tensor must be at least 2-dimensional.
     ///
-    /// This function divides the tensor along its second dimension (columns) based on the provided `indices`.
-    /// It is typically used for 2D tensors (matrices) or higher.
+    /// ## Parameters:
+    /// `indices`: The indices where the splits should occur along axis 1 (columns)
     ///
-    /// # Arguments
-    ///
-    /// * `indices` - A slice of indices at which to split the tensor along the horizontal axis.
-    ///
-    /// # Returns
-    ///
-    /// * A vector of sub-tensors split along the horizontal axis.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the tensor has fewer than 2 dimensions or if any of the indices are out of bounds.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0,
+    ///                             5.0, 6.0, 7.0, 8.0]).reshape(&[2, 4])?;
+    /// let splits = a.hsplit(&[2])?;
+    /// // splits[0]:
+    /// // [[1, 2],
+    /// //  [5, 6]]
+    /// // splits[1]:
+    /// // [[3, 4],
+    /// //  [7, 8]]
+    /// ```
     #[track_caller]
     fn hsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self::Output>, TensorError>;
 
-    /// Splits the tensor into multiple sub-tensors along the vertical axis (first dimension).
+    /// Splits a tensor into multiple sub-tensors vertically (along axis 0). The tensor must be at least 1-dimensional.
     ///
-    /// This function divides the tensor along its first dimension (rows) based on the provided `indices`.
-    /// It is typically used for 2D tensors (matrices) or higher.
+    /// ## Parameters:
+    /// `indices`: The indices where the splits should occur along axis 0 (rows)
     ///
-    /// # Arguments
-    ///
-    /// * `indices` - A slice of indices at which to split the tensor along the vertical axis.
-    ///
-    /// # Returns
-    ///
-    /// * A vector of sub-tensors (`Vec<Output>`) split along the vertical axis.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the tensor has fewer than 2 dimensions or if any of the indices are out of bounds.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new(&[1.0, 2.0,
+    ///                             3.0, 4.0,
+    ///                             5.0, 6.0,
+    ///                             7.0, 8.0]).reshape(&[4, 2])?;
+    /// let splits = a.vsplit(&[2])?;
+    /// // splits[0]:
+    /// // [[1, 2],
+    /// //  [3, 4]]
+    /// // splits[1]:
+    /// // [[5, 6],
+    /// //  [7, 8]]
+    /// ```
     #[track_caller]
     fn vsplit(&self, indices: &[i64]) -> std::result::Result<Vec<Self::Output>, TensorError>;
 
-    /// Swaps two axes of the tensor, effectively transposing the data along the specified axes.
+    /// Interchanges two axes of a tensor. This operation creates a view of the tensor with the specified axes swapped.
     ///
-    /// This operation exchanges the data between `axis1` and `axis2`, rearranging the tensor without allocating new memory.
+    /// ## Parameters:
+    /// `axis1`: First axis to be swapped
     ///
-    /// # Arguments
+    /// `axis2`: Second axis to be swapped
     ///
-    /// * `axis1` - The first axis to be swapped.
-    /// * `axis2` - The second axis to be swapped.
+    /// Both axes can be negative, counting from the end of the dimensions.
     ///
-    /// # Returns
-    ///
-    /// * The tensor with the specified axes swapped.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if either `axis1` or `axis2` are out of bounds.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).reshape(&[2, 3])?;
+    /// let b = a.swap_axes(0, 1)?;
+    /// ```
     #[track_caller]
     fn swap_axes(&self, axis1: i64, axis2: i64) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Flattens a range of dimensions into a single dimension.
+    /// Flattens a contiguous range of dimensions in a tensor into a single dimension.
     ///
-    /// This operation reduces a subset of dimensions in the tensor, starting from `start` to `end`, into a single dimension.
+    /// ## Parameters:
+    /// `start_dim`: Starting dimension to flatten (inclusive). Defaults to 0 if None
     ///
-    /// # Arguments
+    /// `end_dim`: Ending dimension to flatten (inclusive). Defaults to last dimension if None
     ///
-    /// * `start` - The starting axis to begin flattening. Can be `None` to flatten from the first axis.
-    /// * `end` - The ending axis for flattening. Can be `None` to flatten up to the last axis.
-    ///
-    /// # Returns
-    ///
-    /// * The tensor with the specified range of dimensions flattened.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if `start` or `end` are out of bounds or if `start` is greater than `end`.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0,
+    ///                             7.0, 8.0, 9.0, 10.0, 11.0, 12.0]).reshape(&[2, 3, 2])?;
+    /// let b = a.flatten(None, None)?; // Flatten all dimensions (default behavior)
+    /// let c = a.flatten(Some(1), Some(2))?; // Shape: [2, 6]
+    /// ```
     #[track_caller]
     fn flatten<A>(&self, start: A, end: A) -> std::result::Result<Self::Output, TensorError>
     where
@@ -467,24 +368,21 @@ where
 pub trait Concat: Sized {
     /// the output type of concat
     type Output;
-    /// Concatenates multiple tensors along a specified axis.
+    /// Concatenates a sequence of tensors along the specified axis.
     ///
-    /// This operation combines a list of tensors into one, stacking them along the specified `axis`.
-    /// All tensors must have the same shape, except for the size along the concatenating axis.
+    /// ## Parameters:
+    /// `tensors`: Vector of tensors to concatenate
     ///
-    /// # Arguments
+    /// `axis`: The axis along which to concatenate the tensors
     ///
-    /// * `tensors` - A vector of tensors to concatenate. All tensors must have the same shape, except for the size along the concatenating axis.
-    /// * `axis` - The axis along which to concatenate the tensors.
-    /// * `keepdims` - A boolean value indicating whether to keep the dimensionality after concatenation.
+    /// `keepdims`: If true, inserts a new dimension at the concatenation axis, splitting the concatenated dimension into [num_tensors, concatenated_size]
     ///
-    /// # Returns
-    ///
-    /// * The concatenated tensor.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the tensors have incompatible shapes along the specified axis.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2])?;
+    /// let b = Tensor::<f32>::new(&[5.0, 6.0, 7.0, 8.0]).reshape(&[2, 2])?;
+    /// let e = Tensor::concat(vec![a.clone(), b.clone()], 0, true)?; // Shape: [2, 2, 2]
+    /// ```
     #[track_caller]
     fn concat(
         tensors: Vec<Self>,
@@ -492,57 +390,45 @@ pub trait Concat: Sized {
         keepdims: bool,
     ) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Stacks multiple tensors vertically (along the first axis).
+    /// Stacks tensors vertically (along axis 0). This is equivalent to concatenation along the first axis.
     ///
-    /// This function concatenates tensors by stacking them along the first dimension (rows).
+    /// ## Parameters:
+    /// `tensors`: Vector of tensors to stack vertically
     ///
-    /// # Arguments
-    ///
-    /// * `tensors` - A vector of tensors to stack vertically. All tensors must have the same shape except for the first dimension.
-    ///
-    /// # Returns
-    ///
-    /// * The vertically stacked tensor.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the tensors have incompatible shapes along the first dimension.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0]).reshape(&[1, 3])?;
+    /// let b = Tensor::<f32>::new(&[4.0, 5.0, 6.0]).reshape(&[1, 3])?;
+    /// let c = Tensor::vstack(vec![a.clone(), b.clone()])?;
+    /// ```
     #[track_caller]
     fn vstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Stacks multiple tensors horizontally (along the second axis).
+    /// Stacks tensors horizontally (along axis 1 for 2D+ tensors, or axis 0 for 1D tensors).
     ///
-    /// This function concatenates tensors by stacking them along the second dimension (columns).
+    /// ## Parameters:
+    /// `tensors`: Vector of tensors to stack horizontally
     ///
-    /// # Arguments
-    ///
-    /// * `tensors` - A vector of tensors to stack horizontally. All tensors must have the same shape except for the second dimension.
-    ///
-    /// # Returns
-    ///
-    /// * The horizontally stacked tensor.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the tensors have incompatible shapes along the second dimension.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2])?;
+    /// let b = Tensor::<f32>::new(&[5.0, 6.0, 7.0, 8.0]).reshape(&[2, 2])?;
+    /// let c = Tensor::hstack(vec![a.clone(), b.clone()])?;
+    /// ```
     #[track_caller]
     fn hstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError>;
 
-    /// Stacks multiple tensors along the depth axis (third dimension).
+    /// Stacks tensors along the third axis (depth). Input tensors are promoted to 3D if necessary.
     ///
-    /// This function concatenates tensors by stacking them along the third dimension (depth).
+    /// ## Parameters:
+    /// `tensors`: Vector of tensors to stack along depth
     ///
-    /// # Arguments
-    ///
-    /// * `tensors` - A vector of tensors to stack along the depth axis. All tensors must have the same shape except for the third dimension.
-    ///
-    /// # Returns
-    ///
-    /// * The depth-stacked tensor.
-    ///
-    /// # Panics
-    ///
-    /// * This function will panic if the tensors have incompatible shapes along the third dimension.
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0]).reshape(&[2, 2, 1])?;
+    /// let b = Tensor::<f32>::new(&[5.0, 6.0, 7.0, 8.0]).reshape(&[2, 2, 1])?;
+    /// let c = Tensor::dstack(vec![a.clone(), b.clone()])?;
+    /// ```
     #[track_caller]
     fn dstack(tensors: Vec<Self>) -> std::result::Result<Self::Output, TensorError>;
 }

@@ -37,7 +37,6 @@ where
     // sort the transposed axis based on the stride, ordering the axis can increase the cpu cache hitting rate when we do iteration
     transposed_axis[..a.ndim() - axes.len()].sort_by(|x, y| a.strides()[*y].cmp(&a.strides()[*x]));
     transposed_axis[a.ndim() - axes.len()..].sort_by(|x, y| a.strides()[*y].cmp(&a.strides()[*x]));
-
     let res_layout = a.layout.reduce(axes, false)?;
 
     let res = if let Some(mut out) = c {

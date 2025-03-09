@@ -2,10 +2,15 @@ use hpt_common::error::base::TensorError;
 
 /// trait for slicing tensor
 pub trait Slice: Sized {
-    /// Extracts a slice of the tensor based on the provided indices.
+    /// Create a new Tensor by slicing an existing Tensor. Slicing allows you to extract a portion of a tensor using index ranges for each dimension.
     ///
-    /// This method creates a new tensor that represents a slice of the original tensor.
-    /// It slices the tensor according to the specified indices and returns a new tensor
-    /// without copying the underlying data, but instead adjusting the shape and strides.
+    /// ## Parameters:
+    /// `index`: `(start, end, step)`: Select from start to end with step
+    ///
+    /// ## Example:
+    /// ```rust
+    /// let a = Tensor::<f32>::arange(0, 16)?.reshape(&[4, 4])?;
+    /// let b = a.slice(&[(1, 3, 1), (0, 4, 1)])?;
+    /// ```
     fn slice(&self, index: &[(i64, i64, i64)]) -> Result<Self, TensorError>;
 }

@@ -9,16 +9,18 @@ fn conv2d_transpose(
     dilation: [i64; 2],
 ) -> Result<Tensor<T>, TensorError>
 ```
-Performs a 2D convolution operation with support for stride, padding, dilation, and activation functions.
+Performs a transpose 2D convolution operation with support for stride, padding, dilation, and activation functions.
 
 ## Parameters:
 `x`: Input tensor with shape [batch_size, height, width, in_channels]
 
-`kernels`: Transposed convolution kernels tensor with shape [kernel_height, kernel_width, out_channels, in_channels]
+`kernels`: Transposed convolution kernels tensor with shape [kernel_height, kernel_width, in_channels, out_channels]
 
 `steps`: Convolution stride as [step_height, step_width]
 
 `padding`: Padding size as [(padding_top, padding_bottom), (padding_left, padding_right)]
+
+`output_padding`: Padding size on the output
 
 `dilation`: Kernel dilation factors as [dilation_height, dilation_width]
 
@@ -38,7 +40,7 @@ fn main() -> Result<(), TensorError> {
     // [batch_size, height, width, in_channels]
     let input = Tensor::<f32>::randn([1, 16, 16, 32])?;
 
-    // [kernel_height, kernel_width, out_channels, in_channels]
+    // [kernel_height, kernel_width, in_channels, out_channels]
     let kernels = Tensor::<f32>::randn([3, 3, 16, 32])?;
 
     // Perform transposed convolution to upsample the feature map

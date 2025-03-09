@@ -132,6 +132,12 @@ export default defineUserConfig({
                 { text: 'mul_', link: '/user_guide/binary/mul_.md' },
                 { text: 'div', link: '/user_guide/binary/div.md' },
                 { text: 'div_', link: '/user_guide/binary/div_.md' },
+                { text: 'rem', link: '/user_guide/binary/rem.md' },
+                { text: 'rem_', link: '/user_guide/binary/rem_.md' },
+                { text: 'pow', link: '/user_guide/binary/pow.md' },
+                { text: 'pow_', link: '/user_guide/binary/pow_.md' },
+                { text: 'hypot', link: '/user_guide/binary/hypot.md' },
+                { text: 'hypot_', link: '/user_guide/binary/hypot_.md' },
               ]
             },
             {

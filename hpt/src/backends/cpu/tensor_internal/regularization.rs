@@ -59,30 +59,25 @@ where
         lambda: Self::OutputMeta,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         let lambda_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(lambda);
-        let neg_lambda = lambda._neg();
-        let neg_lambda_vec = lambda_vec._neg();
         let bias_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(bias);
 
         Ok(self
             .par_iter_simd()
             .strided_map_simd(
                 |(x, y)| {
-                    *x = if y._gt(lambda) {
-                        y._sub(bias)
-                    } else if y._lt(neg_lambda) {
-                        y._add(bias)
-                    } else {
-                        T::ZERO
-                    };
+                    let shifted = y._sub(bias);
+                    let abs_shifted = shifted._abs();
+                    let thresholded = abs_shifted._sub(lambda)._max(T::ZERO);
+                    *x = shifted._signum()._mul(thresholded);
                 },
                 |(x, y)| {
-                    let gt_mask = y._gt(lambda_vec);
-                    let lt_mask = y._lt(neg_lambda_vec);
-                    let sub_bias = y._sub(bias_vec);
-                    let add_bias = y._add(bias_vec);
-                    let zero = T::Vec::splat(T::ZERO);
-                    let res = gt_mask.select(sub_bias, zero);
-                    x.write_unaligned(lt_mask.select(add_bias, res));
+                    let shifted = y._sub(bias_vec);
+                    let abs_shifted = shifted._abs();
+                    let sign_shifted = shifted._signum();
+
+                    let thresholded = abs_shifted._sub(lambda_vec)._max(T::Vec::splat(T::ZERO));
+
+                    x.write_unaligned(sign_shifted._mul(thresholded));
                 },
             )
             .collect())

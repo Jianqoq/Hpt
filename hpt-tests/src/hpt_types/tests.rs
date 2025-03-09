@@ -2,7 +2,9 @@
 
 use hpt::types::math::{FloatOutUnary, NormalOut, NormalOutUnary};
 use hpt_types::into_scalar::Cast;
+use hpt_types::into_vec::IntoVec;
 use hpt_types::type_promote::BitWiseOut2;
+use hpt_types::type_promote::FloatOutBinary;
 use hpt_types::{dtype::TypeCommon, traits::VecTrait};
 use num_complex::{Complex32, Complex64};
 use rand::distributions::uniform::SampleUniform;
@@ -2017,7 +2019,7 @@ fn test_div_float_nan() {
         }
         macro_rules! test_int_simd_math_2operands {
             ($type: ty, $type_vec: ident) => {
-                test_float_simd_math_2operands!($type, $type_vec::SIZE, -2..=2, 0..=5, 100, |x, y| x.pow(y as u32), |x, y| x._pow(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, -2..=2, 0..=5, 100, |x, y| x.pow(y as u32), |x, y| x.__pow(y));
                 test_float_simd_math_2operands!($type, $type_vec::SIZE, -2..=2, 0..=5, 100, |x, y| x.pow(y as u32), |x, y| x.__pow(y));
                 test_float_simd_math_2operands!($type, $type_vec::SIZE, -63..=63, -2..=2, 100, |x, y| x.max(0) + y * x.min(0), |x, y| x._leaky_relu(y));
                 test_float_simd_math_2operands!($type, $type_vec::SIZE, -63..=63, -2..=2, 100, |x, y| x.max(0) + y * x.min(0), |x, y| x.__leaky_relu(y));
@@ -2032,7 +2034,7 @@ fn test_div_float_nan() {
                 test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=10, 0..=2, 100, |x, y| x << y, |x, y| x._shl(y));
             };
             (unsigned, $type: ty, $type_vec: ident) => {
-                test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=3, 0..=5, 100, |x, y| x.pow(y as u32), |x, y| x._pow(y));
+                test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=3, 0..=5, 100, |x, y| x.pow(y as u32), |x, y| x.__pow(y));
                 test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=3, 0..=5, 100, |x, y| x.pow(y as u32), |x, y| x.__pow(y));
                 test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=63, 0..=2, 100, |x, y| x.max(0) + y * x.min(0), |x, y| x._leaky_relu(y));
                 test_float_simd_math_2operands!($type, $type_vec::SIZE, 0..=63, 0..=2, 100, |x, y| x.max(0) + y * x.min(0), |x, y| x.__leaky_relu(y));

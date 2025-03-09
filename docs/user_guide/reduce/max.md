@@ -12,7 +12,7 @@ max(
     keepdim: bool
 ) -> Result<Tensor<T>, TensorError>
 ```
-Compute the maximum of elements along the specified dimensions
+Find the maximum of element along the specified dimensions
 
 ## Parameters:
 `x`: Input tensor

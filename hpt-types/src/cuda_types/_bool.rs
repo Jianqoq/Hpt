@@ -16,6 +16,11 @@ impl FloatOutBinary2 for Scalar<bool> {
     fn __hypot(self, _: Self) -> Self {
         panic!("Hypotenuse operation is not supported for bool")
     }
+
+    #[inline(always)]
+    fn __pow(self, _: Self) -> Self {
+        panic!("Power operation is not supported for boolean type")
+    }
 }
 
 impl NormalOut2 for Scalar<bool> {
@@ -37,11 +42,6 @@ impl NormalOut2 for Scalar<bool> {
     #[inline(always)]
     fn __mul(self, rhs: Self) -> Self {
         Scalar::new(format!("({} && {})", self.val, rhs.val))
-    }
-
-    #[inline(always)]
-    fn __pow(self, _: Self) -> Self {
-        panic!("Power operation is not supported for boolean type")
     }
 
     #[inline(always)]

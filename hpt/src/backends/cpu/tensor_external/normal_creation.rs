@@ -10,7 +10,11 @@ use hpt_allocator::Cpu;
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
 use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::tensor::CommonBounds;
-use hpt_types::{dtype::TypeCommon, into_scalar::Cast, type_promote::NormalOut};
+use hpt_types::{
+    dtype::TypeCommon,
+    into_scalar::Cast,
+    type_promote::{FloatOutBinary, NormalOut},
+};
 
 impl<T: CommonBounds, const DEVICE: usize, Al> TensorCreator for Tensor<T, Cpu, DEVICE, Al>
 where
@@ -101,7 +105,7 @@ where
         base: T,
     ) -> Result<Self::Output, TensorError>
     where
-        T: Cast<f64> + num::Float + NormalOut<T, Output = T>,
+        T: Cast<f64> + num::Float + FloatOutBinary<T, Output = T>,
         usize: Cast<T>,
         f64: Cast<T>,
     {
@@ -112,7 +116,7 @@ where
     where
         f64: Cast<T>,
         usize: Cast<T>,
-        T: Cast<f64>,
+        T: Cast<f64> + FloatOutBinary<T, Output = T>,
     {
         Ok(_Tensor::<T, Cpu, DEVICE, Al>::geomspace(start, end, n, include_end)?.into())
     }
@@ -309,7 +313,7 @@ where
         base: T,
     ) -> Result<Self::Output, TensorError>
     where
-        T: Cast<f64> + num::Float + NormalOut<T, Output = T>,
+        T: Cast<f64> + num::Float + FloatOutBinary<T, Output = T>,
         usize: Cast<T>,
         f64: Cast<T>,
     {
@@ -326,7 +330,7 @@ where
     where
         f64: Cast<T>,
         usize: Cast<T>,
-        T: Cast<f64>,
+        T: Cast<f64> + FloatOutBinary<T, Output = T>,
     {
         let ret = Tensor::<T, Cpu, DEVICE, Al>::geomspace(start, end, n, include_end)?;
         Ok(DiffTensor {

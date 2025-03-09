@@ -30,8 +30,8 @@ use hpt::{ops::IndexReduce, Tensor, error::TensorError};
 
 fn main() -> Result<(), TensorError> {
     // Max over dimension 0
-    let a = Tensor::<f32>::new([10.0]);
-    let b = a.argmax([0], false)?;
+    let a = Tensor::<f32>::new([10.0, 3.0, 2.0]);
+    let b = a.argmax(0, false)?;
     println!("{}", b); // [0]
     Ok(())
 }

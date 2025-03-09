@@ -29,7 +29,7 @@ pub fn __gen_fast_reduce_simd_helper(stream: TokenStream) -> TokenStream {
         body.extend(
             quote! {
             #i_u32 => {
-                gen_kernel!(1, #i, inp_ptr, res_ptr, vec_size, outer_loop_size, vec_op, inp_strides, inp_shape, prg, vec_op_post, #arr);
+                gen_kernel!(1, #i, inp_ptr, res_ptr, vec_size, outer_loop_size, vec_preop, vec_cumulate, inp_strides, inp_shape, prg, vec_post, #arr);
             }
         }
         );
@@ -104,7 +104,8 @@ pub fn __gen_reduce_dim_not_include_simd_helper(stream: TokenStream) -> TokenStr
                     res_ptr,
                     <O as TypeCommon>::Vec::SIZE as isize,
                     intermediate_size,
-                    vec_op,
+                    vec_preop,
+                    vec_cumulate,
                     inp_strides,
                     inp_shape,
                     prg1,

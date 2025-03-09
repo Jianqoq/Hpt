@@ -9,7 +9,7 @@ reshape(
         | &Vec<i64>
 ) -> Result<Tensor<T>, TensorError>
 ```
-Gives a new shape to the tensor without changing its data.
+Gives a new shape to the tensor without changing its data when it is possible.
 
 ## Parameters:
 `x`: Input tensor

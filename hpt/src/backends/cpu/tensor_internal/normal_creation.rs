@@ -18,6 +18,7 @@ use hpt_common::{
     utils::pointer::Pointer,
 };
 use hpt_traits::tensor::{CommonBounds, TensorInfo, TensorLike};
+use hpt_types::type_promote::FloatOutBinary;
 use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
@@ -246,7 +247,7 @@ where
         base: T,
     ) -> Result<Self, TensorError>
     where
-        T: Cast<f64> + num::Float + NormalOut<T, Output = T>,
+        T: Cast<f64> + num::Float + FloatOutBinary<T, Output = T>,
         usize: Cast<T>,
         f64: Cast<T>,
     {
@@ -273,7 +274,7 @@ where
     where
         f64: Cast<T>,
         usize: Cast<T>,
-        T: Cast<f64>,
+        T: Cast<f64> + FloatOutBinary<T, Output = T>,
     {
         let start_f64: f64 = start.cast();
         let end_f64: f64 = end.cast();

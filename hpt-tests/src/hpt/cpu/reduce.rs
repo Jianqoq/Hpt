@@ -26,7 +26,7 @@ fn assert_eq(a: &hpt::Tensor<i64>, b: &Tensor) {
         )
     };
     let caller = core::panic::Location::caller();
-    raw.par_iter().zip(tch_raw.par_iter()).for_each(|(a, b)| {
+    raw.iter().zip(tch_raw.iter()).for_each(|(a, b)| {
         if a != b {
             panic!("{} != {}, at {}", a, b, caller)
         }

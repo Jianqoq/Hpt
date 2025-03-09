@@ -408,6 +408,22 @@ impl FloatOutBinary2 for i64x4 {
     fn __hypot(self, _: Self) -> Self {
         panic!("Hypot operation is not supported for i64x4");
     }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        unsafe {
+            let arr: [i64; 4] = std::mem::transmute(self.0);
+            let arr2: [i64; 4] = std::mem::transmute(rhs.0);
+            let mut arr3: [i64; 4] = [0; 4];
+            for i in 0..4 {
+                if arr2[i] < 0 {
+                    panic!("Power operation is not supported for negative i64");
+                }
+                arr3[i] = arr[i].pow(arr2[i] as u32);
+            }
+            i64x4(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+        }
+    }
 }
 
 impl NormalOut2 for i64x4 {
@@ -429,11 +445,6 @@ impl NormalOut2 for i64x4 {
     #[inline(always)]
     fn __mul(self, rhs: Self) -> Self {
         self * rhs
-    }
-
-    #[inline(always)]
-    fn __pow(self, rhs: Self) -> Self {
-        self.pow(rhs)
     }
 
     #[inline(always)]

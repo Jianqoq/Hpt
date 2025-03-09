@@ -63,11 +63,7 @@ macro_rules! reduction_bench_mark {
 
 reduction_bench_mark!(
     "sum",
-    [
-        [32, 32, 32],
-        [64, 64, 64],
-        [128, 128, 128],
-    ],
+    [[32, 32, 32], [64, 64, 64], [128, 128, 128],],
     [
         vec![0],
         // vec![1],

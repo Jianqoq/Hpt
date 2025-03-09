@@ -28,17 +28,18 @@ Tensor with type `T`
 
 ## Examples:
 ```rust
-use hpt::{ops::NormalReduce, Tensor, error::TensorError};
+use hpt::{ops::NormalEvalReduce, Tensor, error::TensorError};
 
 fn main() -> Result<(), TensorError> {
     // NaN sum over dimension 0
     let a = Tensor::<f32>::new([1.0, f32::NAN, 3.0]);
-    let b = a.nansum_([0], false, false, &a)?;
+    let mut out = Tensor::<f32>::new([0.0]);
+    let mut b = a.nansum_([0], false, false, &mut out)?;
     println!("{}", b); // [4.]
 
     // NaN sum over multiple dimensions with keepdim=true
     let c = Tensor::<f32>::new([[1.0, f32::NAN], [3.0, 4.0]]);
-    let d = c.nansum_([0, 1], true, false, &a)?;
+    let d = c.nansum_([0, 1], true, true, &mut b)?;
     println!("{}", d); // [[8.]]
     Ok(())
 }

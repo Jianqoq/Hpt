@@ -18,6 +18,11 @@ impl FloatOutBinary2 for Scalar<f64> {
     fn __hypot(self, rhs: Self) -> Self {
         Scalar::new(format!("hypot({}, {})", self.val, rhs.val))
     }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        Scalar::new(format!("pow({}, {})", self.val, rhs.val))
+    }
 }
 
 impl NormalOut2 for Scalar<f64> {
@@ -39,11 +44,6 @@ impl NormalOut2 for Scalar<f64> {
     #[inline(always)]
     fn __mul(self, rhs: Self) -> Self {
         Scalar::new(format!("({} * {})", self.val, rhs.val))
-    }
-
-    #[inline(always)]
-    fn __pow(self, rhs: Self) -> Self {
-        Scalar::new(format!("pow({}, {})", self.val, rhs.val))
     }
 
     #[inline(always)]

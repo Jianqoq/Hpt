@@ -6,7 +6,11 @@ use hpt_traits::{
     ops::creation::TensorCreator,
     tensor::{CommonBounds, TensorInfo},
 };
-use hpt_types::{dtype::CudaType, into_scalar::Cast, type_promote::NormalOut};
+use hpt_types::{
+    dtype::CudaType,
+    into_scalar::Cast,
+    type_promote::{FloatOutBinary, NormalOut},
+};
 
 impl<T: CommonBounds + DeviceRepr + CudaType, const DEVICE: usize, Al> TensorCreator
     for Tensor<T, Cuda, DEVICE, Al>
@@ -98,7 +102,7 @@ where
         base: T,
     ) -> std::result::Result<Self::Output, TensorError>
     where
-        T: Cast<f64> + num::Float + NormalOut<T, Output = T>,
+        T: Cast<f64> + num::Float + FloatOutBinary<T, Output = T>,
         usize: Cast<T>,
         f64: Cast<T>,
     {
@@ -114,7 +118,7 @@ where
     where
         f64: Cast<T>,
         usize: Cast<T>,
-        T: Cast<f64>,
+        T: Cast<f64> + FloatOutBinary<T, Output = T>,
     {
         Ok(_Tensor::<T, Cuda, DEVICE, Al>::geomspace(start, end, n, include_end)?.into())
     }

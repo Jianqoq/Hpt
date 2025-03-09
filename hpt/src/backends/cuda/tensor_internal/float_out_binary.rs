@@ -8,65 +8,106 @@ use crate::{
     tensor_base::_Tensor,
 };
 
-type FloatBinaryType<T> = <T as FloatOutBinary>::Output;
+type FloatBinaryType<T, B> = <T as FloatOutBinary<B>>::Output;
 
-impl<T, const DEVICE: usize, Al> FloatBinOps for _Tensor<T, Cuda, DEVICE, Al>
+impl<T, B, const DEVICE: usize, Al> FloatBinOps<_Tensor<B, Cuda, DEVICE, Al>>
+    for _Tensor<T, Cuda, DEVICE, Al>
 where
-    T: CommonBounds + DeviceRepr + CudaType + FloatOutBinary,
-    Scalar<T>: FloatOutBinary<Output = Scalar<FloatBinaryType<T>>>,
-    FloatBinaryType<T>: CommonBounds + DeviceRepr + CudaType,
+    B: CommonBounds + DeviceRepr + CudaType,
+    T: FloatOutBinary<B> + CommonBounds + DeviceRepr + CudaType,
+    FloatBinaryType<T, B>: CommonBounds + DeviceRepr + CudaType,
+    Scalar<T>: FloatOutBinary<Scalar<B>, Output = Scalar<FloatBinaryType<T, B>>>,
     Al: Allocator,
     Al::Output: AllocatorOutputRetrive,
 {
-    type Output = _Tensor<FloatBinaryType<T>, Cuda, DEVICE, Al>;
+    type Output = _Tensor<FloatBinaryType<T, B>, Cuda, DEVICE, Al>;
 
-    type OutputMeta = FloatBinaryType<T>;
+    type OutputMeta = FloatBinaryType<T, B>;
 
-    type InplaceOutput = _Tensor<FloatBinaryType<T>, Cuda, DEVICE, Al>;
+    type InplaceOutput = _Tensor<FloatBinaryType<T, B>, Cuda, DEVICE, Al>;
 
-    fn hypot(
+    fn hypot<C>(
         &self,
-        rhs: &Self,
-    ) -> std::result::Result<Self::Output, hpt_common::error::base::TensorError> {
+        rhs: C,
+    ) -> std::result::Result<Self::Output, hpt_common::error::base::TensorError>
+    where
+        C: Into<_Tensor<B, Cuda, DEVICE, Al>>,
+    {
         binary_fn_with_out_simd(
             "hypot",
             self,
-            rhs,
+            &rhs.into(),
             |out, a, b| out.assign(a._hypot(b)),
             None::<Self::InplaceOutput>,
         )
     }
 
-    fn hypot_<U>(
+    fn hypot_<C, U>(
         &self,
-        rhs: &Self,
+        rhs: C,
         out: U,
     ) -> std::result::Result<Self::Output, hpt_common::error::base::TensorError>
     where
+        C: Into<_Tensor<B, Cuda, DEVICE, Al>>,
         U: std::borrow::BorrowMut<Self::InplaceOutput>,
     {
         binary_fn_with_out_simd(
             "hypot",
             self,
-            rhs,
+            &rhs.into(),
             |out, a, b| out.assign(a._hypot(b)),
             Some(out),
         )
     }
 
-    fn div_<U>(
+    fn div_<C, U>(
         &self,
-        rhs: &Self,
+        rhs: C,
         out: U,
     ) -> std::result::Result<Self::Output, hpt_common::error::base::TensorError>
     where
+        C: Into<_Tensor<B, Cuda, DEVICE, Al>>,
         U: std::borrow::BorrowMut<Self::InplaceOutput>,
     {
         binary_fn_with_out_simd(
             "div",
             self,
-            rhs,
+            &rhs.into(),
             |out, a, b| out.assign(a._div(b)),
+            Some(out),
+        )
+    }
+
+    fn pow<C>(
+        &self,
+        rhs: C,
+    ) -> std::result::Result<Self::Output, hpt_common::error::base::TensorError>
+    where
+        C: Into<_Tensor<B, Cuda, DEVICE, Al>>,
+    {
+        binary_fn_with_out_simd(
+            "pow",
+            self,
+            &rhs.into(),
+            |out, a, b| out.assign(a._pow(b)),
+            None::<Self::InplaceOutput>,
+        )
+    }
+
+    fn pow_<C, U>(
+        &self,
+        rhs: C,
+        out: U,
+    ) -> std::result::Result<Self::Output, hpt_common::error::base::TensorError>
+    where
+        C: Into<_Tensor<B, Cuda, DEVICE, Al>>,
+        U: std::borrow::BorrowMut<Self::InplaceOutput>,
+    {
+        binary_fn_with_out_simd(
+            "pow",
+            self,
+            &rhs.into(),
+            |out, a, b| out.assign(a._pow(b)),
             Some(out),
         )
     }
