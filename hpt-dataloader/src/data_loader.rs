@@ -1,6 +1,5 @@
 use anyhow::Result;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
-use num::traits::FromBytes;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::marker::PhantomData;
@@ -44,9 +43,9 @@ pub(crate) struct HeaderInfo {
 /// the meta data of the tensor
 #[derive(Serialize, Deserialize)]
 #[must_use]
-pub struct TensorMeta<T: CommonBounds, B: CPUTensorCreator<T>>
+pub struct TensorMeta<T: CommonBounds, B: CPUTensorCreator>
 where
-    <B as CPUTensorCreator<T>>::Output: Clone + TensorInfo<T>,
+    <B as CPUTensorCreator>::Output: Clone + TensorInfo<T>,
 {
     pub begin: usize,
     pub shape: Vec<i64>,
@@ -59,8 +58,10 @@ where
     pub phantom: PhantomData<(T, B)>,
 }
 
-pub fn parse_header_compressed<M: Save>(file: &str) -> anyhow::Result<<M as Save>::Meta> {
-    let mut file = File::open(file)?;
+pub fn parse_header_compressed<M: Save, P: Into<std::path::PathBuf>>(
+    file: P,
+) -> anyhow::Result<<M as Save>::Meta> {
+    let mut file = File::open(file.into())?;
     file.read_exact(&mut [0u8; "FASTTENSOR".len()])?;
     let mut header_infos = [0u8; 20];
     file.read_exact(&mut header_infos)?;
@@ -74,14 +75,14 @@ pub fn parse_header_compressed<M: Save>(file: &str) -> anyhow::Result<<M as Save
     Ok(ret)
 }
 
-impl<T: CommonBounds + FromBytes<Bytes = [u8; N]>, B: CPUTensorCreator<T>, const N: usize> MetaLoad
-    for TensorMeta<T, B>
+impl<T, B: CPUTensorCreator> MetaLoad for TensorMeta<T, B>
 where
-    <B as CPUTensorCreator<T>>::Output: Clone + TensorInfo<T> + Display + Into<B>,
+    T: CommonBounds + bytemuck::AnyBitPattern,
+    <B as CPUTensorCreator>::Output: Clone + TensorInfo<T> + Display + Into<B>,
 {
     type Output = B;
     fn load(&self, file: &mut std::fs::File) -> std::io::Result<Self::Output> {
-        Ok(load::<T, B, N>(file, self)?.into())
+        Ok(load::<T, B>(file, self)?.into())
     }
 }
 

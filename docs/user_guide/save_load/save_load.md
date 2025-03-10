@@ -14,8 +14,7 @@ let a = Tensor::<f32>::randn([1, 100, 100, 100])?;
 let saver = saver.push(
     /*name of the tensor to save*/ "a",
     /*tensor to save*/ a,
-    hpt::CompressionAlgo::Gzip,
-    hpt::Endian::Little,
+    hpt::save_load::CompressionAlgo::Gzip,
     /*compression level*/ 9,
 );
 ```
@@ -35,7 +34,6 @@ fn main() -> anyhow::Result<()> {
         "a",
         a,
         hpt::save_load::CompressionAlgo::Gzip,
-        hpt::save_load::Endian::Little,
         9,
     );
     saver.save()?;
@@ -57,7 +55,7 @@ let loader = TensorLoader::new("path/to/load/file");
 let loaded: std::collections::HashMap<String, Tensor<f32>> = loader
     .push("a", &select![:, 1:-1:2, 3::, :]) // you can use python slice syntax
     .push("b", &[]) // if you don't slice, simply use empty slice
-    .load::<f32, Tensor<f32>, { std::mem::size_of::<f32>() }>()?;
+    .load::<Tensor<f32>>()?;
 ```
 
 3. If your file contains different type of Tensors, load it multiple times.

@@ -8,37 +8,32 @@ use std::{
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
 use hpt_common::shape::shape::Shape;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
-use num::traits::FromBytes;
 
 use crate::{
     data_loader::{parse_header_compressed, TensorMeta},
-    CPUTensorCreator, CompressionAlgo, Endian,
+    CPUTensorCreator, CompressionAlgo,
 };
 
 use super::save::Save;
 
 pub trait Load: Sized + Save {
-    fn load(path: &str) -> std::io::Result<Self>
+    fn load<P: Into<std::path::PathBuf>>(path: P) -> std::io::Result<Self>
     where
         <Self as Save>::Meta: MetaLoad<Output = Self>,
     {
-        let meta = parse_header_compressed::<Self>(path).expect("failed to parse header");
+        let path: std::path::PathBuf = path.into();
+        let meta = parse_header_compressed::<Self, _>(&path).expect("failed to parse header");
         let mut file = File::open(path)?;
         meta.load(&mut file)
     }
 }
 
-pub(crate) fn load<
-    'a,
-    T: CommonBounds + FromBytes<Bytes = [u8; N]>,
-    B: CPUTensorCreator<T>,
-    const N: usize,
->(
+pub(crate) fn load<'a, T: CommonBounds + bytemuck::AnyBitPattern, B: CPUTensorCreator>(
     file: &mut File,
     meta: &TensorMeta<T, B>,
-) -> std::io::Result<<B as CPUTensorCreator<T>>::Output>
+) -> std::io::Result<<B as CPUTensorCreator>::Output>
 where
-    <B as CPUTensorCreator<T>>::Output: Clone + TensorInfo<T> + Display,
+    <B as CPUTensorCreator>::Output: Clone + TensorInfo<T> + Display,
 {
     if meta.dtype != T::STR {
         return Err(std::io::Error::new(
@@ -63,8 +58,6 @@ where
     let mut res: &mut [T] =
         unsafe { std::slice::from_raw_parts_mut(tensor.ptr().ptr, tensor.size()) };
 
-    let pack = get_pack_closure::<T, N>(meta.endian);
-
     let mut res_idx = 0;
     for (_, idx, compressed_len, current_block_mem_size) in meta.indices.iter() {
         let uncompressed_data = uncompress_data(
@@ -76,8 +69,7 @@ where
         )?;
         for idx in (0..uncompressed_data.len()).step_by(std::mem::size_of::<T>()) {
             let val = &uncompressed_data[idx..idx + std::mem::size_of::<T>()];
-            let data = pack(val);
-            res[res_idx] = data;
+            res[res_idx] = *bytemuck::from_bytes(val);
             res_idx += 1;
         }
     }
@@ -113,16 +105,6 @@ fn uncompress_data(
         }
     }
     Ok(uncompressed_data)
-}
-
-fn get_pack_closure<T: CommonBounds + FromBytes<Bytes = [u8; N]>, const N: usize>(
-    endian: Endian,
-) -> impl Fn(&[u8]) -> T {
-    match endian {
-        Endian::Little => |val: &[u8]| T::from_le_bytes(val.try_into().unwrap()),
-        Endian::Big => |val: &[u8]| T::from_be_bytes(val.try_into().unwrap()),
-        Endian::Native => |val: &[u8]| T::from_ne_bytes(val.try_into().unwrap()),
-    }
 }
 
 pub trait MetaLoad: Sized {

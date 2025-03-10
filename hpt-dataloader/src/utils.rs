@@ -1,21 +1,11 @@
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
 
-pub(crate) fn create_file(path: std::path::PathBuf, ext: &str) -> std::io::Result<std::fs::File> {
-    if let Some(extension) = path.extension() {
-        if extension == ext {
-            std::fs::File::create(path)
-        } else {
-            std::fs::File::create(format!("{}.{ext}", path.to_str().unwrap()))
-        }
-    } else {
-        std::fs::File::create(format!("{}.{ext}", path.to_str().unwrap()))
-    }
-}
-
 /// A trait defines empty function for Tensor that will allocate memory on CPU.
-pub trait CPUTensorCreator<T> {
+pub trait CPUTensorCreator {
     /// the output type of the creator
     type Output;
+    /// the meta type of the tensor
+    type Meta;
 
     /// Creates a tensor with uninitialized elements of the specified shape.
     ///
@@ -34,4 +24,12 @@ pub trait CPUTensorCreator<T> {
     /// * This function may panic if the requested shape is invalid or too large for available memory.
     #[track_caller]
     fn empty<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError>;
+}
+
+/// A trait defines conversion to DataLoader
+pub trait ToDataLoader {
+    /// the output type of the conversion
+    type Output;
+    /// convert to DataLoader
+    fn to_dataloader(self) -> Self::Output;
 }

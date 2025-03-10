@@ -16,21 +16,19 @@ pub trait Save {
         len_so_far: &mut usize,
         global_cnt: &mut usize,
         compression_algo: CompressionAlgo,
-        endian: Endian,
         level: u32,
     ) -> std::io::Result<Self::Meta>;
-    fn save(&self, path: &str) -> std::io::Result<()>
+    fn save<P: Into<std::path::PathBuf>>(&self, path: P) -> std::io::Result<()>
     where
         <Self as Save>::Meta: serde::Serialize,
     {
-        let mut file = std::fs::File::create(path)?;
+        let mut file = std::fs::File::create(path.into())?;
         let meta = <Self as Save>::__save(
             &self,
             &mut file,
             &mut 0,
             &mut 0,
             CompressionAlgo::NoCompression,
-            Endian::Native,
             9,
         )?;
         let serialized = serde_json::to_string(&meta)?;
@@ -327,7 +325,6 @@ macro_rules! impl_save {
                 _: &mut usize,
                 _: &mut usize,
                 _: CompressionAlgo,
-                _: Endian,
                 _: u32,
             ) -> std::io::Result<Self> {
                 Ok(data.clone())
@@ -360,7 +357,6 @@ impl<T> Save for PhantomData<T> {
         _: &mut usize,
         _: &mut usize,
         _: CompressionAlgo,
-        _: Endian,
         _: u32,
     ) -> std::io::Result<Self> {
         Ok(*data)
@@ -375,7 +371,6 @@ impl<T: Save> Save for Option<T> {
         len: &mut usize,
         global_cnt: &mut usize,
         compression_algo: CompressionAlgo,
-        endian: Endian,
         level: u32,
     ) -> std::io::Result<Self::Meta> {
         match data {
@@ -385,7 +380,6 @@ impl<T: Save> Save for Option<T> {
                 len,
                 global_cnt,
                 compression_algo,
-                endian,
                 level,
             )?)),
             None => Ok(None),
@@ -401,7 +395,6 @@ impl<T: Save> Save for Vec<T> {
         len: &mut usize,
         global_cnt: &mut usize,
         compression_algo: CompressionAlgo,
-        endian: Endian,
         level: u32,
     ) -> std::io::Result<Self::Meta> {
         let mut res = Vec::with_capacity(data.len());
@@ -412,7 +405,6 @@ impl<T: Save> Save for Vec<T> {
                 len,
                 global_cnt,
                 compression_algo,
-                endian,
                 level,
             )?);
         }
@@ -431,7 +423,6 @@ where
         len: &mut usize,
         global_cnt: &mut usize,
         compression_algo: CompressionAlgo,
-        endian: Endian,
         level: u32,
     ) -> std::io::Result<Self::Meta> {
         let mut arr: [std::mem::MaybeUninit<T::Meta>; N] =
@@ -444,7 +435,6 @@ where
                 len,
                 global_cnt,
                 compression_algo,
-                endian,
                 level,
             )?);
         }

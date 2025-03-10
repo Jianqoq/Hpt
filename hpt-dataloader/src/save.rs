@@ -1,7 +1,6 @@
 use std::io::{Seek, Write};
 
 use crate::compression_trait::{CompressionAlgo, DataLoaderTrait, Meta};
-use crate::utils::create_file;
 use crate::Endian;
 use crate::{compression_trait::CompressionTrait, CHUNK_BUFF};
 use flate2::write::{DeflateEncoder, GzEncoder, ZlibEncoder};
@@ -92,7 +91,7 @@ pub fn save(path: std::path::PathBuf, mut to_saves: Vec<Meta>) -> std::io::Resul
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).expect("Failed to create directory");
     }
-    let mut file = create_file(path, "ftz")?;
+    let mut file = std::fs::File::create(path)?;
     // write FASTTENSOR Magic Header, FASTTENSORHPLACEHOLD is a place holder for the location to the real header
     // real header is at the end of the file.
     // For Example: FASTTENSOR210123456789{"a": {"begin": 0, "name": "a", "shape": [1, 2, 3], ...}, ...}

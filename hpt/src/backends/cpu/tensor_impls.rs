@@ -12,6 +12,7 @@ use hpt_allocator::Cuda;
 use hpt_common::error::base::TensorError;
 use hpt_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
 use hpt_dataloader::data_loader::TensorMeta;
+use hpt_dataloader::utils::ToDataLoader;
 use hpt_dataloader::{CompressionAlgo, DataLoader, Endian, FromSafeTensors, Meta, Save};
 use hpt_display::display;
 use hpt_iterator::iterator_traits::ParStridedIteratorZip;
@@ -22,7 +23,6 @@ use hpt_traits::tensor::{CommonBounds, TensorLike};
 #[cfg(feature = "cuda")]
 use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
-use num::traits::ToBytes;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
@@ -265,10 +265,10 @@ where
     }
 }
 
-impl<const N: usize, T: CommonBounds + ToBytes<Bytes = [u8; N]>, const DEVICE: usize, A> Save
-    for Tensor<T, Cpu, DEVICE, A>
+impl<T, const DEVICE: usize, A> Save for Tensor<T, Cpu, DEVICE, A>
 where
-    A: Allocator,
+    T: CommonBounds + bytemuck::NoUninit + bytemuck::Pod,
+    A: Allocator + 'static,
     Tensor<T, Cpu, DEVICE, A>:
         hpt_traits::ops::creation::TensorCreator<Output = Tensor<T, Cpu, DEVICE, A>>,
 {
@@ -279,14 +279,13 @@ where
         len_so_far: &mut usize,
         global_cnt: &mut usize,
         compression_algo: CompressionAlgo,
-        endian: Endian,
         level: u32,
     ) -> std::io::Result<Self::Meta> {
-        let data_loader: DataLoader<T> = data.clone().into();
+        let data_loader: DataLoader<T, Self> = data.clone().to_dataloader();
         let meta = Meta {
             name: "".to_string(),
             compression_algo,
-            endian,
+            endian: Endian::Native,
             data_saver: Box::new(data_loader),
             compression_level: level,
         };
@@ -441,5 +440,20 @@ where
     fn into(self) -> Tensor<T, Cuda, CUDA_DEVICE, <Al as Allocator>::CudaAllocator> {
         self.to_cuda::<CUDA_DEVICE>()
             .expect("failed to convert cpu tensor to cuda tensor")
+    }
+}
+
+impl<T, const DEVICE_ID: usize, A> ToDataLoader for Tensor<T, Cpu, DEVICE_ID, A>
+where
+    T: CommonBounds,
+    A: Allocator,
+{
+    type Output = DataLoader<T, Tensor<T, Cpu, DEVICE_ID, A>>;
+    fn to_dataloader(self) -> Self::Output {
+        DataLoader::new(
+            self.inner.layout.shape().clone(),
+            self.inner.layout.strides().clone(),
+            self,
+        )
     }
 }

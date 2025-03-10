@@ -12,7 +12,7 @@ use hpt_allocator::{
 use hpt_common::{
     error::base::TensorError, layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer,
 };
-use hpt_dataloader::{CPUTensorCreator, DataLoader};
+use hpt_dataloader::CPUTensorCreator;
 use hpt_iterator::TensorIterator;
 use hpt_traits::{
     ops::creation::TensorCreator,
@@ -176,29 +176,18 @@ where
     }
 }
 
-impl<T, const DEVICE_ID: usize, A> From<Tensor<T, Cpu, DEVICE_ID, A>> for DataLoader<T>
+impl<T, B, const DEVICE: usize, A> CPUTensorCreator for Tensor<T, B, DEVICE, A>
 where
-    T: CommonBounds,
+    T: CommonBounds + bytemuck::AnyBitPattern,
+    B: BackendTy + Buffer,
     A: Allocator,
+    Tensor<T, Cpu, DEVICE, A::CpuAllocator>:
+        TensorCreator<Output = Tensor<T, Cpu, DEVICE, A::CpuAllocator>>,
 {
-    fn from(value: Tensor<T, Cpu, DEVICE_ID, A>) -> Self {
-        DataLoader::new(
-            value.inner.layout.shape().clone(),
-            value.inner.layout.strides().clone(),
-            value.inner.data.ptr,
-        )
-    }
-}
-
-impl<T: CommonBounds, B: BackendTy + Buffer, const DEVICE: usize, A> CPUTensorCreator<T>
-    for Tensor<T, B, DEVICE, A>
-where
-    A: Allocator,
-    Tensor<T, Cpu, DEVICE, A>: TensorCreator<Output = Tensor<T, Cpu, DEVICE, A>>,
-{
-    type Output = Tensor<T, Cpu, DEVICE, A>;
+    type Output = Tensor<T, Cpu, DEVICE, A::CpuAllocator>;
+    type Meta = T;
     fn empty<S: Into<Shape>>(shape: S) -> Result<Self::Output, TensorError> {
-        <Tensor<T, Cpu, DEVICE, A> as TensorCreator>::empty(shape)
+        <Tensor<T, Cpu, DEVICE, A::CpuAllocator> as TensorCreator>::empty(shape)
     }
 }
 

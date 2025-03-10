@@ -2,13 +2,13 @@ use std::{collections::HashMap, io::Write};
 
 use hpt_common::{shape::shape::Shape, strides::strides::Strides};
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
-use num::traits::{FromBytes, ToBytes};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     data_loader::{Endian, HeaderInfo},
     load::load_compressed_slice,
     save::save,
+    utils::ToDataLoader,
     CPUTensorCreator,
 };
 
@@ -54,25 +54,33 @@ pub trait DataLoaderTrait {
     fn mem_size(&self) -> usize;
 }
 
-pub struct DataLoader<T> {
+pub struct DataLoader<T, B> {
     pub(crate) shape: Shape,
     pub(crate) strides: Strides,
+    #[allow(dead_code)]
+    pub(crate) tensor: B, // this is just used to let rust hold the data not to drop
     pub(crate) data: *const T,
 }
 
-impl<T> DataLoader<T> {
-    pub fn new(shape: Shape, strides: Strides, data: *const T) -> Self {
+impl<T, B> DataLoader<T, B>
+where
+    B: TensorInfo<T>,
+{
+    pub fn new(shape: Shape, strides: Strides, tensor: B) -> Self {
+        let ptr = tensor.ptr();
         Self {
             shape,
             strides,
-            data,
+            tensor,
+            data: ptr.ptr as *const T,
         }
     }
 }
 
-impl<T, const N: usize> DataLoaderTrait for DataLoader<T>
+impl<B, T> DataLoaderTrait for DataLoader<T, B>
 where
-    T: CommonBounds + ToBytes<Bytes = [u8; N]>,
+    B: TensorInfo<T>,
+    T: CommonBounds + bytemuck::NoUninit,
 {
     fn shape(&self) -> &Shape {
         &self.shape
@@ -96,17 +104,17 @@ where
 
     fn fill_ne_bytes_slice(&self, offset: isize, writer: &mut [u8]) {
         let val = unsafe { self.data.offset(offset).read() };
-        writer.copy_from_slice(&val.to_ne_bytes());
+        writer.copy_from_slice(bytemuck::bytes_of(&val));
     }
 
     fn fill_be_bytes_slice(&self, offset: isize, writer: &mut [u8]) {
         let val = unsafe { self.data.offset(offset).read() };
-        writer.copy_from_slice(&val.to_be_bytes());
+        writer.copy_from_slice(bytemuck::bytes_of(&val));
     }
 
     fn fill_le_bytes_slice(&self, offset: isize, writer: &mut [u8]) {
         let val = unsafe { self.data.offset(offset).read() };
-        writer.copy_from_slice(&val.to_le_bytes());
+        writer.copy_from_slice(bytemuck::bytes_of(&val));
     }
 
     fn dtype(&self) -> &'static str {
@@ -143,23 +151,23 @@ impl TensorSaver {
         }
     }
 
-    pub fn push<
-        const N: usize,
-        T: ToBytes<Bytes = [u8; N]> + CommonBounds,
-        A: Into<DataLoader<T>>,
-    >(
+    pub fn push<T, A>(
         mut self,
         name: &str,
         tensor: A,
         compression_algo: CompressionAlgo,
-        endian: Endian,
         compression_level: u32,
-    ) -> Self {
-        let data_loader = tensor.into();
+    ) -> Self
+    where
+        T: CommonBounds + bytemuck::NoUninit,
+        A: TensorInfo<T> + 'static + ToDataLoader,
+        <A as ToDataLoader>::Output: DataLoaderTrait,
+    {
+        let data_loader = tensor.to_dataloader();
         let meta = Meta {
             name: name.to_string(),
             compression_algo,
-            endian,
+            endian: Endian::Native,
             data_saver: Box::new(data_loader),
             compression_level,
         };
@@ -201,13 +209,13 @@ impl TensorLoader {
         self
     }
 
-    pub fn load<T, B, const N: usize>(self) -> std::io::Result<HashMap<String, B>>
+    pub fn load<B>(self) -> std::io::Result<HashMap<String, B>>
     where
-        T: CommonBounds + FromBytes<Bytes = [u8; N]>,
-        B: CPUTensorCreator<T>,
-        <B as CPUTensorCreator<T>>::Output: Into<B> + TensorInfo<T>,
+        B: CPUTensorCreator,
+        <B as CPUTensorCreator>::Output: Into<B> + TensorInfo<<B as CPUTensorCreator>::Meta>,
+        <B as CPUTensorCreator>::Meta: CommonBounds + bytemuck::AnyBitPattern,
     {
-        let res = load_compressed_slice::<T, B, N>(
+        let res = load_compressed_slice::<B>(
             self.file_path.to_str().unwrap().into(),
             self.to_loads.expect("no tensors to load"),
         )
@@ -215,15 +223,15 @@ impl TensorLoader {
         Ok(res)
     }
 
-    pub fn load_all<T, B, const N: usize>(self) -> std::io::Result<HashMap<String, B>>
+    pub fn load_all<B>(self) -> std::io::Result<HashMap<String, B>>
     where
-        T: CommonBounds + FromBytes<Bytes = [u8; N]>,
-        B: CPUTensorCreator<T>,
-        <B as CPUTensorCreator<T>>::Output: Into<B> + TensorInfo<T>,
+        B: CPUTensorCreator,
+        <B as CPUTensorCreator>::Output: Into<B> + TensorInfo<<B as CPUTensorCreator>::Meta>,
+        <B as CPUTensorCreator>::Meta: CommonBounds + bytemuck::AnyBitPattern,
     {
         let res = HeaderInfo::parse_header_compressed(self.file_path.to_str().unwrap().into())
             .expect("failed to parse header");
-        let res = load_compressed_slice::<T, B, N>(
+        let res = load_compressed_slice::<B>(
             self.file_path.to_str().unwrap().into(),
             res.into_values().map(|x| (x.name, vec![])).collect(),
         )

@@ -1,7 +1,7 @@
 use hpt::{
     error::TensorError,
     ops::Random,
-    save_load::{CompressionAlgo, Endian, TensorLoader, TensorSaver},
+    save_load::{CompressionAlgo, TensorLoader, TensorSaver},
     Tensor,
 };
 fn main() -> Result<(), TensorError> {
@@ -13,9 +13,9 @@ fn main() -> Result<(), TensorError> {
     let saver = TensorSaver::new("f.ftz");
 
     saver
-        .push("a", a, CompressionAlgo::Gzip, Endian::Native, 9)
-        .push("b", b, CompressionAlgo::Gzip, Endian::Native, 9)
-        .push("c", c, CompressionAlgo::Gzip, Endian::Native, 9)
+        .push("a", a, CompressionAlgo::Gzip, 9)
+        .push("b", b, CompressionAlgo::Gzip, 9)
+        .push("c", c, CompressionAlgo::Gzip, 9)
         .save()
         .expect("save failed");
 
@@ -30,7 +30,7 @@ fn main() -> Result<(), TensorError> {
     let res = loader
         .push("b", &[])
         .push("c", &[])
-        .load::<f64, Tensor<f64>, { std::mem::size_of::<f64>() }>()
+        .load::<Tensor<f64>>()
         .expect("load failed");
 
     println!("{:?}", res);

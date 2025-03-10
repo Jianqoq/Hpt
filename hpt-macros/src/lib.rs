@@ -864,14 +864,12 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
     };
 
     let mut compressions = vec![];
-    let mut endians = vec![];
     let mut compress_levels = vec![];
 
     let meta_fields = fields
         .iter()
         .map(|f| {
             let mut compression_algo = None;
-            let mut endian = None;
             let mut level = None;
 
             for attr in &f.attrs {
@@ -893,15 +891,6 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
                                 syn::Error::new(value.span(), format!("Invalid level: {}", e))
                             })?;
                             level = Some(quote!(#tmp));
-                        } else if meta.path.is_ident("endian") {
-                            let value: syn::LitStr = meta.value()?.parse()?;
-                            let tmp = match value.value().as_str() {
-                                "native" => quote!(Native),
-                                "little" => quote!(Little),
-                                "big" => quote!(Big),
-                                _ => panic!("Unsupported endianness, supported: native, little, big"),
-                            };
-                            endian = Some(quote!(hpt::Endian::#tmp));
                         }
                         Ok(())
                     })
@@ -909,7 +898,6 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
                 }
             }
             compressions.push(compression_algo);
-            endians.push(endian);
             compress_levels.push(level);
             let name = &f.ident;
             let ty = &f.ty;
@@ -924,15 +912,14 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
         let ty = &f.ty;
         let ident = format_ident!("field_{}", idx);
         let compression_algo = compressions[idx].clone().unwrap_or(quote!(compression_algo));
-        let endian = endians[idx].clone().unwrap_or(quote!(endian));
         let level = compress_levels[idx].clone().unwrap_or(quote!(level));
         if let Some(name) = name {
             quote! {
-                let #ident = <#ty as Save>::__save(&data.#name, file, len_so_far, global_cnt, #compression_algo, #endian, #level)?;
+                let #ident = <#ty as Save>::__save(&data.#name, file, len_so_far, global_cnt, #compression_algo, #level)?;
             }
         } else {
             quote! {
-                let #ident = <#ty as Save>::__save(&data.#idx, file, len_so_far, global_cnt, #compression_algo, #endian, #level)?;
+                let #ident = <#ty as Save>::__save(&data.#idx, file, len_so_far, global_cnt, #compression_algo, #level)?;
             }
         }
     });
@@ -959,7 +946,6 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
                 len_so_far: &mut usize,
                 global_cnt: &mut usize,
                 compression_algo: hpt::save_load::CompressionAlgo,
-                endian: hpt::save_load::Endian,
                 level: u32,
             ) -> std::io::Result<Self::Meta> {
                 #(#call_save)*
@@ -1020,9 +1006,10 @@ pub fn impl_load(input: TokenStream) -> TokenStream {
             }
         }
         impl #impl_generics hpt::Load for #name #ty_generics #where_clause {
-            fn load(path: &str) -> std::io::Result<Self> {
+            fn load<P: Into<std::path::PathBuf>>(path: P) -> std::io::Result<Self> {
                 use hpt::save_load::MetaLoad;
-                let meta = hpt::save_load::parse_header_compressed::<Self>(path).expect(format!("failed to parse header for {}", stringify!(#name)).as_str());
+                let path: std::path::PathBuf = path.into();
+                let meta = hpt::save_load::parse_header_compressed::<Self, _>(&path).expect(format!("failed to parse header for {}", stringify!(#name)).as_str());
                 let mut file = std::fs::File::open(path)?;
                 meta.load(&mut file)
             }

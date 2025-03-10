@@ -1775,3 +1775,23 @@ where
         lhs.inner.as_ref().shr(rhs.inner.as_ref()).into()
     }
 }
+
+impl<T, U, const DEVICE: usize, Al> PartialEq<Tensor<U, Cuda, DEVICE, Al>>
+    for Tensor<T, Cuda, DEVICE, Al>
+where
+    T: CommonBounds + Cast<f64> + CudaType + DeviceRepr,
+    U: CommonBounds + Cast<f64> + CudaType + DeviceRepr,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
+    fn eq(&self, other: &Tensor<U, Cuda, DEVICE, Al>) -> bool {
+        use hpt_traits::tensor::TensorInfo;
+        if self.size() != other.size() {
+            return false;
+        }
+        if self.shape() != other.shape() {
+            return false;
+        }
+        self.allclose(other)
+    }
+}

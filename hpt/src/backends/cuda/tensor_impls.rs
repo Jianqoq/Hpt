@@ -9,13 +9,13 @@ use hpt_allocator::{Cpu, Cuda};
 use hpt_common::error::base::TensorError;
 use hpt_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
 use hpt_dataloader::data_loader::TensorMeta;
-use hpt_dataloader::{CompressionAlgo, Endian, Save};
+use hpt_dataloader::utils::ToDataLoader;
+use hpt_dataloader::{CompressionAlgo, DataLoader, Endian, Save};
 use hpt_traits::ops::unary::Contiguous;
 use hpt_traits::tensor::{CommonBounds, TensorInfo, TensorLike};
 use hpt_types::cuda_types::scalar::Scalar;
 use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
-use num::traits::ToBytes;
 
 use crate::backends::cuda::utils::unary::unary::uary_fn_with_out_simd;
 use hpt_traits::ops::creation::TensorCreator;
@@ -259,14 +259,19 @@ where
     //     Ok(self.inner.static_cast()?.into())
     // }
 
-    // /// check if two tensors are close to each other
-    // pub fn allclose<U: CommonBounds>(&self, other: &Tensor<U, Cuda>) -> bool
-    // where
-    //     T: Convertor,
-    //     U: Convertor,
-    // {
-    //     self.inner.allclose(&other.inner)
-    // }
+    /// check if two tensors are close to each other
+    pub fn allclose<U: CommonBounds + DeviceRepr + CudaType>(
+        &self,
+        other: &Tensor<U, Cuda, DEVICE_ID, Al>,
+    ) -> bool {
+        let cpu_lhs = self
+            .to_cpu::<0>()
+            .expect("failed to convert cuda tensor to cpu tensor");
+        let cpu_rhs = other
+            .to_cpu::<0>()
+            .expect("failed to convert cuda tensor to cpu tensor");
+        cpu_lhs.allclose(&cpu_rhs)
+    }
 }
 
 impl<T, const DEVICE_ID: usize, Al> std::fmt::Display for _Tensor<T, Cuda, DEVICE_ID, Al>
@@ -331,15 +336,12 @@ where
         }
     }
 }
-impl<
-        const N: usize,
-        T: CommonBounds + ToBytes<Bytes = [u8; N]> + DeviceRepr + CudaType,
-        const DEVICE: usize,
-        Al,
-    > Save for Tensor<T, Cuda, DEVICE, Al>
+impl<T, const DEVICE: usize, Al> Save for Tensor<T, Cuda, DEVICE, Al>
 where
+    T: CommonBounds + bytemuck::NoUninit + DeviceRepr + CudaType + bytemuck::Pod,
     Al: Allocator,
     Al::Output: AllocatorOutputRetrive,
+    <Al as Allocator>::CpuAllocator: 'static,
 {
     type Meta = TensorMeta<T, Self>;
     fn __save(
@@ -348,7 +350,6 @@ where
         len_so_far: &mut usize,
         global_cnt: &mut usize,
         compression_algo: CompressionAlgo,
-        endian: Endian,
         level: u32,
     ) -> std::io::Result<Self::Meta> {
         let cpu_data: Tensor<T, Cpu, 0, <Al as Allocator>::CpuAllocator> = data
@@ -360,7 +361,6 @@ where
             len_so_far,
             global_cnt,
             compression_algo,
-            endian,
             level,
         )?;
         Ok(TensorMeta {
@@ -370,9 +370,27 @@ where
             size: meta.size,
             dtype: meta.dtype,
             compression_algo,
-            endian,
+            endian: Endian::Native,
             indices: meta.indices,
             phantom: std::marker::PhantomData,
         })
+    }
+}
+
+impl<T, const DEVICE_ID: usize, A> ToDataLoader for Tensor<T, Cuda, DEVICE_ID, A>
+where
+    T: CommonBounds + DeviceRepr + CudaType,
+    A: Allocator,
+{
+    type Output = DataLoader<T, Tensor<T, Cpu, 0, A::CpuAllocator>>;
+    fn to_dataloader(self) -> Self::Output {
+        let shape = self.inner.layout.shape().clone();
+        let strides = self.inner.layout.strides().clone();
+        DataLoader::new(
+            shape,
+            strides,
+            self.to_cpu::<0>()
+                .expect("failed to convert cuda tensor to cpu tensor"),
+        )
     }
 }

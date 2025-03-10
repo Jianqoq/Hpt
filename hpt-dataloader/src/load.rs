@@ -4,24 +4,19 @@ use std::{
     io::{Read, Seek},
 };
 
+use crate::{data_loader::HeaderInfo, CPUTensorCreator, CompressionAlgo};
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
 use hpt_common::slice::slice_process;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
-use num::traits::FromBytes;
+use hpt_types::dtype::TypeCommon;
 
-use crate::{data_loader::HeaderInfo, CPUTensorCreator, CompressionAlgo, Endian};
-
-pub(crate) fn load_compressed_slice<
-    'a,
-    T: CommonBounds + FromBytes<Bytes = [u8; N]>,
-    B: CPUTensorCreator<T>,
-    const N: usize,
->(
+pub(crate) fn load_compressed_slice<'a, B: CPUTensorCreator>(
     file_name: &str,
     queries: Vec<(String, Vec<(i64, i64, i64)>)>,
 ) -> anyhow::Result<HashMap<String, B>>
 where
-    <B as CPUTensorCreator<T>>::Output: Into<B> + TensorInfo<T>,
+    <B as CPUTensorCreator>::Output: Into<B> + TensorInfo<<B as CPUTensorCreator>::Meta>,
+    <B as CPUTensorCreator>::Meta: CommonBounds + bytemuck::AnyBitPattern,
 {
     let res = HeaderInfo::parse_header_compressed(file_name)?;
     let mut ret = HashMap::with_capacity(res.len());
@@ -30,11 +25,11 @@ where
         let info = res
             .get(&name)
             .expect(&format!("{} not found in header", name));
-        if info.dtype != T::STR.to_string() {
+        if info.dtype != <B as CPUTensorCreator>::Meta::STR.to_string() {
             return Err(anyhow::anyhow!(
                 "the dtype stored is {}, but the dtype requested is {}",
                 info.dtype,
-                T::STR
+                <B as CPUTensorCreator>::Meta::STR
             ));
         }
 
@@ -45,30 +40,29 @@ where
             info.shape.clone(),
             info.strides.clone(),
             &slices,
-            std::mem::size_of::<T>() as i64,
+            std::mem::size_of::<<B as CPUTensorCreator>::Meta>() as i64,
         )?;
 
         let mut strides = res_strides.clone();
         strides.iter_mut().for_each(|x| {
-            *x /= std::mem::size_of::<T>() as i64;
+            *x /= std::mem::size_of::<<B as CPUTensorCreator>::Meta>() as i64;
         });
 
         // since the shape is scaled with mem_size, we need to scale it back
         let mut shape = res_shape.clone();
         shape.iter_mut().for_each(|x| {
-            *x /= std::mem::size_of::<T>() as i64;
+            *x /= std::mem::size_of::<<B as CPUTensorCreator>::Meta>() as i64;
         });
         // create the tensor
         let tensor = B::empty(&shape)?;
-
         if tensor.size() == 0 {
             ret.insert(name, tensor.into());
             continue;
         }
         let res = unsafe { std::slice::from_raw_parts_mut(tensor.ptr().ptr, tensor.size()) };
-
         // the size of the inner loop
-        let inner_loop_size = (*info.shape.last().unwrap() as usize) * std::mem::size_of::<T>();
+        let inner_loop_size = (*info.shape.last().unwrap() as usize)
+            * std::mem::size_of::<<B as CPUTensorCreator>::Meta>();
 
         // based on the offset, get the start of the row
         let row_idx = offset / (inner_loop_size as i64);
@@ -94,7 +88,6 @@ where
 
         let mut start_idx =
             (local_row_offset * inner_loop_size + (local_col_offset as usize)) as i64;
-        let pack = get_pack_closure::<T, N>(info.endian);
 
         for idx in 0..(outer * inner) as usize {
             if start_idx < 0 {
@@ -133,21 +126,24 @@ where
                     info.compress_algo,
                 )?;
             }
-            let val = &uncompressed_data
-                [start_idx as usize..(start_idx as usize) + std::mem::size_of::<T>()];
-            res[idx] = pack(val);
-
+            let val = &uncompressed_data[start_idx as usize
+                ..(start_idx as usize) + std::mem::size_of::<<B as CPUTensorCreator>::Meta>()];
+            res[idx] = bytemuck::pod_read_unaligned::<B::Meta>(val);
             for j in (0..shape.len()).rev() {
                 if prg[j] < shape[j] - 1 {
                     prg[j] += 1;
-                    start_idx += strides[j] * (std::mem::size_of::<T>() as i64);
+                    start_idx +=
+                        strides[j] * (std::mem::size_of::<<B as CPUTensorCreator>::Meta>() as i64);
                     break;
                 } else {
                     prg[j] = 0;
-                    start_idx -= strides[j] * (shape[j] - 1) * (std::mem::size_of::<T>() as i64);
+                    start_idx -= strides[j]
+                        * (shape[j] - 1)
+                        * (std::mem::size_of::<<B as CPUTensorCreator>::Meta>() as i64);
                 }
             }
         }
+        println!("tensor load finished");
         ret.insert(name, tensor.into());
     }
     Ok(ret)
@@ -182,14 +178,4 @@ fn uncompress_data(
         }
     }
     Ok(uncompressed_data)
-}
-
-fn get_pack_closure<T: CommonBounds + FromBytes<Bytes = [u8; N]>, const N: usize>(
-    endian: Endian,
-) -> impl Fn(&[u8]) -> T {
-    match endian {
-        Endian::Little => |val: &[u8]| T::from_le_bytes(val.try_into().unwrap()),
-        Endian::Big => |val: &[u8]| T::from_be_bytes(val.try_into().unwrap()),
-        Endian::Native => |val: &[u8]| T::from_ne_bytes(val.try_into().unwrap()),
-    }
 }
