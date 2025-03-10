@@ -1,6 +1,6 @@
 [package]
 name = "hpt-display"
-version = "0.0.20"
+version = "0.0.21"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "An internal library for displaying tensors"
@@ -8,8 +8,8 @@ authors = ["JianJian Li <ljj1849532909@gmail.com>"]
 repository = "https://github.com/Jianqoq/Hpt"
 
 [dependencies]
-hpt-traits = { path = "../hpt-traits", version = "0.0.20" }
-hpt-common = { path = "../hpt-common", version = "0.0.20" }
-hpt-types = { path = "../hpt-types", version = "0.0.20" }
+hpt-traits = { path = "../hpt-traits", version = "0.0.21" }
+hpt-common = { path = "../hpt-common", version = "0.0.21" }
+hpt-types = { path = "../hpt-types", version = "0.0.21" }
 anyhow = "1.0.95"
 num-complex = "0.4.6"

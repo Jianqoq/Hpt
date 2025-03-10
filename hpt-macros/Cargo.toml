@@ -1,6 +1,6 @@
 [package]
 name = "hpt-macros"
-version = "0.0.20"
+version = "0.0.21"
 edition = "2021"
 description = "An internal library for generating helper functions for hpt"
 authors = ["JianJian Li <ljj1849532909@gmail.com>"]

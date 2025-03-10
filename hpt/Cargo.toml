@@ -1,7 +1,7 @@
 
 [package]
 name = "hpt"
-version = "0.0.20"
+version = "0.0.21"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["JianJian Li <ljj1849532909@gmail.com>"]
@@ -9,16 +9,16 @@ description = "High Performance Tensor (HPT) - A fast, efficient, and user-frien
 repository = "https://github.com/Jianqoq/Hpt"
 
 [dependencies]
-hpt-types = { path = "../hpt-types", version = "0.0.20" }
-hpt-common = { path = "../hpt-common", version = "0.0.20" }
-hpt-iterator = { path = "../hpt-iterator", version = "0.0.20" }
-hpt-traits = { path = "../hpt-traits", version = "0.0.20" }
-hpt-allocator = { path = "../hpt-allocator", version = "0.0.20" }
-hpt-macros = { path = "../hpt-macros", version = "0.0.20" }
-hpt-display = { path = "../hpt-display", version = "0.0.20" }
+hpt-types = { path = "../hpt-types", version = "0.0.21" }
+hpt-common = { path = "../hpt-common", version = "0.0.21" }
+hpt-iterator = { path = "../hpt-iterator", version = "0.0.21" }
+hpt-traits = { path = "../hpt-traits", version = "0.0.21" }
+hpt-allocator = { path = "../hpt-allocator", version = "0.0.21" }
+hpt-macros = { path = "../hpt-macros", version = "0.0.21" }
+hpt-display = { path = "../hpt-display", version = "0.0.21" }
 hpt-cudakernels = { path = "../hpt-cudakernels", version = "0.0.19", optional = true }
 # hpt-codegen = { path = "../hpt-codegen", version = "0.0.1", optional = true }
-hpt-dataloader = { path = "../hpt-dataloader", version = "0.0.20" }
+hpt-dataloader = { path = "../hpt-dataloader", version = "0.0.21" }
 flate2 = "1.0.28"
 rand_distr = "0.4.3"
 # rustfft = "6.2.0"
