@@ -141,6 +141,12 @@ impl FloatOutBinary2 for cplx64x1 {
         let res = [self[0].__hypot(rhs[0])];
         cplx64x1(unsafe { std::mem::transmute(res) })
     }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        let res = [self[0].__pow(rhs[0])];
+        cplx64x1(unsafe { std::mem::transmute(res) })
+    }
 }
 
 impl NormalOut2 for cplx64x1 {
@@ -162,12 +168,6 @@ impl NormalOut2 for cplx64x1 {
     #[inline(always)]
     fn __mul(self, rhs: Self) -> Self {
         self * rhs
-    }
-
-    #[inline(always)]
-    fn __pow(self, rhs: Self) -> Self {
-        let res = [self[0].__pow(rhs[0])];
-        cplx64x1(unsafe { std::mem::transmute(res) })
     }
 
     #[inline(always)]

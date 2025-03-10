@@ -428,7 +428,11 @@ where
         )
     }
 
-    fn celu(&self, alpha: FloatUnaryType<T>) -> std::result::Result<Self::Output, TensorError> {
+    fn celu<V: Cast<Self::OutputMeta>>(
+        &self,
+        alpha: V,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        let alpha: Self::OutputMeta = alpha.cast();
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("celu", self),
@@ -440,14 +444,12 @@ where
         )
     }
 
-    fn celu_<U>(
-        &self,
-        alpha: FloatUnaryType<T>,
-        out: U,
-    ) -> std::result::Result<Self::Output, TensorError>
+    fn celu_<V, U>(&self, alpha: V, out: U) -> std::result::Result<Self::Output, TensorError>
     where
+        V: Cast<Self::OutputMeta>,
         U: BorrowMut<Self::InplaceOutput>,
     {
+        let alpha: Self::OutputMeta = alpha.cast();
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("celu", self),
@@ -480,7 +482,11 @@ where
         )
     }
 
-    fn elu(&self, alpha: FloatUnaryType<T>) -> std::result::Result<Self::Output, TensorError> {
+    fn elu<V: Cast<Self::OutputMeta>>(
+        &self,
+        alpha: V,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        let alpha: Self::OutputMeta = alpha.cast();
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("elu", self),
@@ -492,14 +498,12 @@ where
         )
     }
 
-    fn elu_<U>(
-        &self,
-        alpha: FloatUnaryType<T>,
-        out: U,
-    ) -> std::result::Result<Self::Output, TensorError>
+    fn elu_<V, U>(&self, alpha: V, out: U) -> std::result::Result<Self::Output, TensorError>
     where
+        V: Cast<Self::OutputMeta>,
         U: BorrowMut<Self::InplaceOutput>,
     {
+        let alpha: Self::OutputMeta = alpha.cast();
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("elu", self),
@@ -541,20 +545,11 @@ where
         )
     }
 
-    fn selu<U>(&self, alpha: U, gamma: U) -> std::result::Result<Self::Output, TensorError>
-    where
-        U: Into<Option<Self::OutputMeta>>,
-    {
-        let alpha = alpha.into();
-        let gamma = gamma.into();
-        let alpha = Scalar::new(format!(
-            "{}",
-            alpha.unwrap_or((1.6732632423543772848170429916717).cast())
-        ));
-        let gamma = Scalar::new(format!(
-            "{}",
-            gamma.unwrap_or((1.0507009873554804934193349852946).cast())
-        ));
+    fn selu(&self) -> std::result::Result<Self::Output, TensorError> {
+        let alpha: Self::OutputMeta = (1.6732632423543772848170429916717).cast();
+        let gamma: Self::OutputMeta = (1.0507009873554804934193349852946).cast();
+        let alpha = Scalar::new(format!("{}", alpha));
+        let gamma = Scalar::new(format!("{}", gamma));
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("selu", self),
@@ -563,23 +558,14 @@ where
         )
     }
 
-    fn selu_<U>(
-        &self,
-        alpha: Option<FloatUnaryType<T>>,
-        gamma: Option<FloatUnaryType<T>>,
-        out: U,
-    ) -> std::result::Result<Self::Output, TensorError>
+    fn selu_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        let alpha = Scalar::new(format!(
-            "{}",
-            alpha.unwrap_or((1.6732632423543772848170429916717).cast())
-        ));
-        let gamma = Scalar::new(format!(
-            "{}",
-            gamma.unwrap_or((1.0507009873554804934193349852946).cast())
-        ));
+        let alpha: Self::OutputMeta = (1.6732632423543772848170429916717).cast();
+        let gamma: Self::OutputMeta = (1.0507009873554804934193349852946).cast();
+        let alpha = Scalar::new(format!("{}", alpha));
+        let gamma = Scalar::new(format!("{}", gamma));
         uary_fn_with_out_simd(
             self,
             &get_module_name_1("selu", self),

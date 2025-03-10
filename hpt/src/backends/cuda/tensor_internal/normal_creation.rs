@@ -229,18 +229,21 @@ where
         Ok(ret)
     }
 
-    fn logspace(
-        start: T,
-        end: T,
+    fn logspace<V: Cast<T>>(
+        start: V,
+        end: V,
         num: usize,
         include_end: bool,
-        base: T,
+        base: V,
     ) -> std::result::Result<Self, TensorError>
     where
         T: Cast<f64> + num::Float + NormalOut<T, Output = T>,
         usize: Cast<T>,
         f64: Cast<T>,
     {
+        let start: T = start.cast();
+        let end: T = end.cast();
+        let base: T = base.cast();
         let _start: f64 = start.cast();
         let _end: f64 = end.cast();
         let n: f64 = num as f64;
@@ -264,9 +267,9 @@ where
         Ok(ret)
     }
 
-    fn geomspace(
-        start: T,
-        end: T,
+    fn geomspace<V: Cast<T>>(
+        start: V,
+        end: V,
         n: usize,
         include_end: bool,
     ) -> std::result::Result<Self, TensorError>
@@ -275,6 +278,8 @@ where
         usize: Cast<T>,
         T: Cast<f64>,
     {
+        let start: T = start.cast();
+        let end: T = end.cast();
         let start_f64: f64 = start.cast();
         let end_f64: f64 = end.cast();
         let both_negative = start_f64 < 0.0 && end_f64 < 0.0;

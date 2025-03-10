@@ -94,12 +94,12 @@ where
         Ok(_Tensor::<T, Cuda, DEVICE, Al>::linspace(start, end, num, include_end)?.into())
     }
 
-    fn logspace(
-        start: T,
-        end: T,
+    fn logspace<V: Cast<T>>(
+        start: V,
+        end: V,
         num: usize,
         include_end: bool,
-        base: T,
+        base: V,
     ) -> std::result::Result<Self::Output, TensorError>
     where
         T: Cast<f64> + num::Float + FloatOutBinary<T, Output = T>,
@@ -109,9 +109,9 @@ where
         Ok(_Tensor::<T, Cuda, DEVICE, Al>::logspace(start, end, num, include_end, base)?.into())
     }
 
-    fn geomspace(
-        start: T,
-        end: T,
+    fn geomspace<V: Cast<T>>(
+        start: V,
+        end: V,
         n: usize,
         include_end: bool,
     ) -> std::result::Result<Self::Output, TensorError>

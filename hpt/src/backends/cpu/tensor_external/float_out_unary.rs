@@ -319,17 +319,17 @@ where
         .into())
     }
 
-    fn celu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
+    fn celu<V: Cast<Self::OutputMeta>>(
+        &self,
+        alpha: V,
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu, DEVICE, Al>::celu(self.inner.as_ref(), alpha)?.into())
     }
 
-    fn celu_<U>(
-        &self,
-        alpha: Self::OutputMeta,
-        mut out: U,
-    ) -> std::result::Result<Self::Output, TensorError>
+    fn celu_<V, U>(&self, alpha: V, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
+        V: Cast<Self::OutputMeta>,
     {
         Ok(_Tensor::<T, Cpu, DEVICE, Al>::celu_(
             self.inner.as_ref(),
@@ -354,17 +354,17 @@ where
         .into())
     }
 
-    fn elu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
+    fn elu<V: Cast<Self::OutputMeta>>(
+        &self,
+        alpha: V,
+    ) -> std::result::Result<Self::Output, TensorError> {
         Ok(_Tensor::<T, Cpu, DEVICE, Al>::elu(self.inner.as_ref(), alpha)?.into())
     }
 
-    fn elu_<U>(
-        &self,
-        alpha: Self::OutputMeta,
-        mut out: U,
-    ) -> std::result::Result<Self::Output, TensorError>
+    fn elu_<V, U>(&self, alpha: V, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
+        V: Cast<Self::OutputMeta>,
     {
         Ok(_Tensor::<T, Cpu, DEVICE, Al>::elu_(
             self.inner.as_ref(),
@@ -393,26 +393,16 @@ where
         .into())
     }
 
-    fn selu<U>(&self, alpha: U, gamma: U) -> std::result::Result<Self::Output, TensorError>
-    where
-        U: Into<Option<Self::OutputMeta>>,
-    {
-        Ok(_Tensor::<T, Cpu, DEVICE, Al>::selu(self.inner.as_ref(), alpha, gamma)?.into())
+    fn selu(&self) -> std::result::Result<Self::Output, TensorError> {
+        Ok(_Tensor::<T, Cpu, DEVICE, Al>::selu(self.inner.as_ref())?.into())
     }
 
-    fn selu_<U>(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        gamma: Option<Self::OutputMeta>,
-        mut out: U,
-    ) -> std::result::Result<Self::Output, TensorError>
+    fn selu_<U>(&self, mut out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
         Ok(_Tensor::<T, Cpu, DEVICE, Al>::selu_(
             self.inner.as_ref(),
-            alpha,
-            gamma,
             out.borrow_mut().inner.as_ref().clone(),
         )?
         .into())
@@ -959,7 +949,11 @@ where
         self.inner.log10_(out)
     }
 
-    fn celu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
+    fn celu<V: Cast<Self::OutputMeta>>(
+        &self,
+        alpha: V,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        let alpha: Self::OutputMeta = alpha.cast();
         let res = self.inner.celu(alpha)?; // Ensure this computes the forward pass of CELU
         *self.out_degree.as_ref().borrow_mut() += 1;
         let mut operand = self.clone();
@@ -992,13 +986,10 @@ where
         })
     }
 
-    fn celu_<U>(
-        &self,
-        alpha: Self::OutputMeta,
-        out: U,
-    ) -> std::result::Result<Self::InplaceOutput, TensorError>
+    fn celu_<V, U>(&self, alpha: V, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
+        V: Cast<Self::OutputMeta>,
     {
         self.inner.celu_(alpha, out)
     }
@@ -1039,7 +1030,11 @@ where
         self.inner.sigmoid_(out)
     }
 
-    fn elu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
+    fn elu<V: Cast<Self::OutputMeta>>(
+        &self,
+        alpha: V,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        let alpha: Self::OutputMeta = alpha.cast();
         let res = self.inner.elu(alpha)?; // Ensure this computes the forward pass of ELU
         *self.out_degree.as_ref().borrow_mut() += 1;
         let mut operand = self.clone();
@@ -1075,13 +1070,10 @@ where
         })
     }
 
-    fn elu_<U>(
-        &self,
-        alpha: Self::OutputMeta,
-        out: U,
-    ) -> std::result::Result<Self::InplaceOutput, TensorError>
+    fn elu_<V, U>(&self, alpha: V, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
+        V: Cast<Self::OutputMeta>,
     {
         self.inner.elu_(alpha, out)
     }
@@ -1151,15 +1143,10 @@ where
         self.inner.gelu_(out)
     }
 
-    fn selu<U>(&self, alpha: U, gamma: U) -> std::result::Result<Self::Output, TensorError>
-    where
-        U: Into<Option<Self::OutputMeta>>,
-    {
-        let alpha = alpha.into();
-        let gamma = gamma.into();
-        let alpha = alpha.unwrap_or((1.6732632423543772848170429916717).cast());
-        let gamma = gamma.unwrap_or((1.0507009873554804934193349852946).cast());
-        let res = self.inner.selu(Some(gamma), Some(alpha))?;
+    fn selu(&self) -> std::result::Result<Self::Output, TensorError> {
+        let alpha: Self::OutputMeta = (1.6732632423543772848170429916717).cast();
+        let gamma: Self::OutputMeta = (1.0507009873554804934193349852946).cast();
+        let res = self.inner.selu()?;
         *self.out_degree.as_ref().borrow_mut() += 1;
         let mut operand = self.clone();
         Ok(DiffTensor {
@@ -1191,16 +1178,11 @@ where
         })
     }
 
-    fn selu_<U>(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        gamma: Option<Self::OutputMeta>,
-        out: U,
-    ) -> std::result::Result<Self::InplaceOutput, TensorError>
+    fn selu_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        self.inner.selu_(gamma, alpha, out)
+        self.inner.selu_(out)
     }
 
     fn hard_sigmoid(&self) -> std::result::Result<Self::Output, TensorError> {

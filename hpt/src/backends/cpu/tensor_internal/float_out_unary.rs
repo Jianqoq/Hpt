@@ -350,7 +350,11 @@ where
         unary_fn_with_out(self, |x| x._log10(), |x| x._log10(), Some(out))
     }
 
-    fn celu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
+    fn celu<V: Cast<Self::OutputMeta>>(
+        &self,
+        alpha: V,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        let alpha: Self::OutputMeta = alpha.cast();
         let alpha_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(alpha);
         unary_fn_with_out(
             self,
@@ -360,14 +364,12 @@ where
         )
     }
 
-    fn celu_<U>(
-        &self,
-        alpha: Self::OutputMeta,
-        out: U,
-    ) -> std::result::Result<Self::Output, TensorError>
+    fn celu_<V, U>(&self, alpha: V, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
+        V: Cast<Self::OutputMeta>,
     {
+        let alpha: Self::OutputMeta = alpha.cast();
         let alpha_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(alpha);
         unary_fn_with_out(self, |x| x._celu(alpha_vec), |x| x._celu(alpha), Some(out))
     }
@@ -388,7 +390,11 @@ where
         unary_fn_with_out(self, |x| x._sigmoid(), |x| x._sigmoid(), Some(out))
     }
 
-    fn elu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError> {
+    fn elu<V: Cast<Self::OutputMeta>>(
+        &self,
+        alpha: V,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        let alpha: Self::OutputMeta = alpha.cast();
         let alpha_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(alpha);
         unary_fn_with_out(
             self,
@@ -398,14 +404,12 @@ where
         )
     }
 
-    fn elu_<U>(
-        &self,
-        alpha: Self::OutputMeta,
-        out: U,
-    ) -> std::result::Result<Self::Output, TensorError>
+    fn elu_<V, U>(&self, alpha: V, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
+        V: Cast<Self::OutputMeta>,
     {
+        let alpha: Self::OutputMeta = alpha.cast();
         let alpha_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(alpha);
         unary_fn_with_out(self, |x| x._elu(alpha_vec), |x| x._elu(alpha), Some(out))
     }
@@ -435,14 +439,9 @@ where
         unary_fn_with_out(self, |x| x._gelu(), |x| x._gelu(), Some(out))
     }
 
-    fn selu<U>(&self, alpha: U, gamma: U) -> std::result::Result<Self::Output, TensorError>
-    where
-        U: Into<Option<Self::OutputMeta>>,
-    {
-        let alpha = alpha.into();
-        let gamma = gamma.into();
-        let alpha = alpha.unwrap_or((1.6732632423543772848170429916717).cast());
-        let gamma = gamma.unwrap_or((1.0507009873554804934193349852946).cast());
+    fn selu(&self) -> std::result::Result<Self::Output, TensorError> {
+        let alpha: Self::OutputMeta = (1.6732632423543772848170429916717).cast();
+        let gamma: Self::OutputMeta = (1.0507009873554804934193349852946).cast();
         let alpha_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(alpha);
         let gamma_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(gamma);
         unary_fn_with_out(
@@ -453,17 +452,12 @@ where
         )
     }
 
-    fn selu_<U>(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        gamma: Option<Self::OutputMeta>,
-        out: U,
-    ) -> std::result::Result<Self::Output, TensorError>
+    fn selu_<U>(&self, out: U) -> std::result::Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
-        let alpha = alpha.unwrap_or((1.6732632423543772848170429916717).cast());
-        let gamma = gamma.unwrap_or((1.0507009873554804934193349852946).cast());
+        let alpha: Self::OutputMeta = (1.6732632423543772848170429916717).cast();
+        let gamma: Self::OutputMeta = (1.0507009873554804934193349852946).cast();
         let alpha_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(alpha);
         let gamma_vec = <Self::OutputMeta as TypeCommon>::Vec::splat(gamma);
         unary_fn_with_out(

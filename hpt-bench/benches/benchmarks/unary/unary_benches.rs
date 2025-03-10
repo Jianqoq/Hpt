@@ -221,7 +221,7 @@ unary_bench_mark!(
         [8192, 2048, 8],
     ],
     selu(),
-    selu(None, None)
+    selu()
 );
 unary_bench_mark!(
     "sigmoid",

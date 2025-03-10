@@ -97,12 +97,12 @@ where
         Ok(_Tensor::<T, Cpu, DEVICE, Al>::linspace(start, end, num, include_end)?.into())
     }
 
-    fn logspace(
-        start: T,
-        end: T,
+    fn logspace<V: Cast<T>>(
+        start: V,
+        end: V,
         num: usize,
         include_end: bool,
-        base: T,
+        base: V,
     ) -> Result<Self::Output, TensorError>
     where
         T: Cast<f64> + num::Float + FloatOutBinary<T, Output = T>,
@@ -112,7 +112,12 @@ where
         Ok(_Tensor::<T, Cpu, DEVICE, Al>::logspace(start, end, num, include_end, base)?.into())
     }
 
-    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self::Output, TensorError>
+    fn geomspace<V: Cast<T>>(
+        start: V,
+        end: V,
+        n: usize,
+        include_end: bool,
+    ) -> Result<Self::Output, TensorError>
     where
         f64: Cast<T>,
         usize: Cast<T>,
@@ -305,12 +310,12 @@ where
         })
     }
 
-    fn logspace(
-        start: T,
-        end: T,
+    fn logspace<V: Cast<T>>(
+        start: V,
+        end: V,
         num: usize,
         include_end: bool,
-        base: T,
+        base: V,
     ) -> Result<Self::Output, TensorError>
     where
         T: Cast<f64> + num::Float + FloatOutBinary<T, Output = T>,
@@ -326,7 +331,12 @@ where
         })
     }
 
-    fn geomspace(start: T, end: T, n: usize, include_end: bool) -> Result<Self::Output, TensorError>
+    fn geomspace<V: Cast<T>>(
+        start: V,
+        end: V,
+        n: usize,
+        include_end: bool,
+    ) -> Result<Self::Output, TensorError>
     where
         f64: Cast<T>,
         usize: Cast<T>,

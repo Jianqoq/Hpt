@@ -243,12 +243,12 @@ where
     /// // [1.0, 3.1623, 10.0, 31.6228]
     /// ```
     #[track_caller]
-    fn logspace(
-        start: Self::Meta,
-        end: Self::Meta,
+    fn logspace<V: Cast<Self::Meta>>(
+        start: V,
+        end: V,
         num: usize,
         include_end: bool,
-        base: Self::Meta,
+        base: V,
     ) -> Result<Self::Output, TensorError>
     where
         Self::Meta: Cast<f64> + num::Float + FloatOutBinary<Self::Meta, Output = Self::Meta>,
@@ -276,9 +276,9 @@ where
     /// // [1.0, 2.3784, 5.6569, 13.4543, 32.0000]
     /// ```
     #[track_caller]
-    fn geomspace(
-        start: Self::Meta,
-        end: Self::Meta,
+    fn geomspace<V: Cast<Self::Meta>>(
+        start: V,
+        end: V,
         n: usize,
         include_end: bool,
     ) -> Result<Self::Output, TensorError>

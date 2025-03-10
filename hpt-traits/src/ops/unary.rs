@@ -1,5 +1,5 @@
 use hpt_common::error::base::TensorError;
-use hpt_types::{dtype::TypeCommon, type_promote::NormalOut};
+use hpt_types::{dtype::TypeCommon, into_scalar::Cast, type_promote::NormalOut};
 use std::borrow::BorrowMut;
 
 use crate::tensor::CommonBounds;
@@ -387,18 +387,22 @@ pub trait FloatUnaryOps {
     /// let b = a.celu(1.0)?;
     /// ```
     #[track_caller]
-    fn celu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError>;
+    fn celu<V: Cast<Self::OutputMeta>>(
+        &self,
+        alpha: V,
+    ) -> std::result::Result<Self::Output, TensorError>;
 
     /// celu method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`celu`]
     #[track_caller]
-    fn celu_<U>(
+    fn celu_<V, U>(
         &self,
-        alpha: Self::OutputMeta,
+        alpha: V,
         out: U,
     ) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
+        V: Cast<Self::OutputMeta>,
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise sigmoid activation function of the tensor.
@@ -427,18 +431,18 @@ pub trait FloatUnaryOps {
     /// let b = a.elu(1.0)?;
     /// ```
     #[track_caller]
-    fn elu(&self, alpha: Self::OutputMeta) -> std::result::Result<Self::Output, TensorError>;
+    fn elu<V: Cast<Self::OutputMeta>>(
+        &self,
+        alpha: V,
+    ) -> std::result::Result<Self::Output, TensorError>;
 
     /// elu method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`elu`]
     #[track_caller]
-    fn elu_<U>(
-        &self,
-        alpha: Self::OutputMeta,
-        out: U,
-    ) -> std::result::Result<Self::InplaceOutput, TensorError>
+    fn elu_<V, U>(&self, alpha: V, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
+        V: Cast<Self::OutputMeta>,
         U: BorrowMut<Self::InplaceOutput>;
 
     /// Computes the element-wise error function (erf) of the tensor.
@@ -481,23 +485,16 @@ pub trait FloatUnaryOps {
     /// # Example
     /// ```rust
     /// let a = Tensor::<f32>::new([10.0]);
-    /// let b = a.selu(1.0, 1.0)?;
+    /// let b = a.selu()?;
     /// ```
     #[track_caller]
-    fn selu<U>(&self, alpha: U, gamma: U) -> std::result::Result<Self::Output, TensorError>
-    where
-        U: Into<Option<Self::OutputMeta>>;
+    fn selu(&self) -> std::result::Result<Self::Output, TensorError>;
 
     /// selu method with output tensor, this method will write the result to the output tensor
     /// # See Also
     /// - [`selu`]
     #[track_caller]
-    fn selu_<U>(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        gamma: Option<Self::OutputMeta>,
-        out: U,
-    ) -> std::result::Result<Self::InplaceOutput, TensorError>
+    fn selu_<U>(&self, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>;
 

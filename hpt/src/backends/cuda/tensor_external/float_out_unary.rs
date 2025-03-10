@@ -314,12 +314,13 @@ where
         .into())
     }
 
-    fn celu(&self, alpha: Self::OutputMeta) -> Result<Self::Output, TensorError> {
+    fn celu<V: Cast<Self::OutputMeta>>(&self, alpha: V) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::celu(self.inner.as_ref(), alpha)?.into())
     }
 
-    fn celu_<U>(&self, alpha: Self::OutputMeta, mut out: U) -> Result<Self::Output, TensorError>
+    fn celu_<V, U>(&self, alpha: V, mut out: U) -> Result<Self::Output, TensorError>
     where
+        V: Cast<Self::OutputMeta>,
         U: BorrowMut<Self::InplaceOutput>,
     {
         Ok(_Tensor::celu_(
@@ -345,12 +346,13 @@ where
         .into())
     }
 
-    fn elu(&self, alpha: Self::OutputMeta) -> Result<Self::Output, TensorError> {
+    fn elu<V: Cast<Self::OutputMeta>>(&self, alpha: V) -> Result<Self::Output, TensorError> {
         Ok(_Tensor::elu(self.inner.as_ref(), alpha)?.into())
     }
 
-    fn elu_<U>(&self, alpha: Self::OutputMeta, mut out: U) -> Result<Self::Output, TensorError>
+    fn elu_<V, U>(&self, alpha: V, mut out: U) -> Result<Self::Output, TensorError>
     where
+        V: Cast<Self::OutputMeta>,
         U: BorrowMut<Self::InplaceOutput>,
     {
         Ok(_Tensor::elu_(
@@ -380,26 +382,16 @@ where
         .into())
     }
 
-    fn selu<U>(&self, alpha: U, gamma: U) -> Result<Self::Output, TensorError>
-    where
-        U: Into<Option<Self::OutputMeta>>,
-    {
-        Ok(_Tensor::selu(self.inner.as_ref(), alpha, gamma)?.into())
+    fn selu(&self) -> Result<Self::Output, TensorError> {
+        Ok(_Tensor::selu(self.inner.as_ref())?.into())
     }
 
-    fn selu_<U>(
-        &self,
-        alpha: Option<Self::OutputMeta>,
-        gamma: Option<Self::OutputMeta>,
-        mut out: U,
-    ) -> Result<Self::Output, TensorError>
+    fn selu_<U>(&self, mut out: U) -> Result<Self::Output, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput>,
     {
         Ok(_Tensor::selu_(
             self.inner.as_ref(),
-            alpha,
-            gamma,
             &mut out.borrow_mut().inner.as_ref().clone(),
         )?
         .into())

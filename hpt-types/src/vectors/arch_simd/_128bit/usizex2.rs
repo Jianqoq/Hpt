@@ -352,6 +352,11 @@ impl FloatOutBinary2 for USizeVEC {
     fn __hypot(self, _: Self) -> Self {
         panic!("Hypotenuse operation is not supported for usize")
     }
+
+    #[inline(always)]
+    fn __pow(self, rhs: Self) -> Self {
+        self.pow(rhs)
+    }
 }
 
 impl NormalOut2 for USizeVEC {
@@ -373,11 +378,6 @@ impl NormalOut2 for USizeVEC {
     #[inline(always)]
     fn __mul(self, rhs: Self) -> Self {
         self * rhs
-    }
-
-    #[inline(always)]
-    fn __pow(self, rhs: Self) -> Self {
-        self.pow(rhs)
     }
 
     #[inline(always)]
