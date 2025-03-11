@@ -69,9 +69,6 @@ pub(crate) fn gemm2d<
     T,
     const MR: usize,
     const NR: usize,
-    const MC: usize,
-    const NC: usize,
-    const KC: usize,
     const NR_DIV_LANE: usize,
 >(
     a: Pointer<T>,
@@ -80,6 +77,9 @@ pub(crate) fn gemm2d<
     m: usize,
     n: usize,
     k: usize,
+    mc: usize,
+    nc: usize,
+    kc: usize,
     lda: i64,
     ldb: i64,
     ldc: i64,
@@ -87,15 +87,15 @@ pub(crate) fn gemm2d<
 ) where
     T: CommonBounds,
 {
-    let num_mr_blocks = (MC + MR - 1) / MR;
-    let num_nr_blocks = (NC + NR - 1) / NR;
+    let num_mr_blocks = (mc + MR - 1) / MR;
+    let num_nr_blocks = (nc + NR - 1) / NR;
     let packed_a_layout = std::alloc::Layout::from_size_align(
-        num_mr_blocks * MR * KC * std::mem::size_of::<T>(),
+        num_mr_blocks * MR * kc * std::mem::size_of::<T>(),
         ALIGN,
     )
     .expect("layout create failed");
     let packed_b_layout = std::alloc::Layout::from_size_align(
-        num_nr_blocks * NR * KC * std::mem::size_of::<T>(),
+        num_nr_blocks * NR * kc * std::mem::size_of::<T>(),
         ALIGN,
     )
     .expect("layout create failed");
@@ -128,8 +128,8 @@ pub(crate) fn gemm2d<
     let buffers = (0..num_threads)
         .map(|_| allocate_buffer())
         .collect::<Vec<_>>();
-    for p in (0..k).step_by(KC) {
-        let pb = min(KC, k - p);
+    for p in (0..k).step_by(kc) {
+        let pb = min(kc, k - p);
 
         buffers
             .par_iter()
@@ -138,9 +138,9 @@ pub(crate) fn gemm2d<
                 let start_block = tid * blocks_per_thread;
                 let end_block = min((tid + 1) * blocks_per_thread, n_blocks);
                 for block in start_block..end_block {
-                    let j = block * NC;
-                    let jb = min(NC, n - j);
-                    pack_b::<T, NR, KC>(
+                    let j = block * nc;
+                    let jb = min(nc, n - j);
+                    pack_b::<T, NR>(
                         b.clone() + (p as i64 * ldb + j as i64),
                         packed_b.clone(),
                         ldb,
@@ -148,9 +148,9 @@ pub(crate) fn gemm2d<
                         pb,
                     );
 
-                    for i in (0..m).step_by(MC) {
-                        let ib = min(MC, m - i);
-                        pack_a::<T, MR, KC>(
+                    for i in (0..m).step_by(mc) {
+                        let ib = min(mc, m - i);
+                        pack_a::<T, MR>(
                             a.clone() + i as i64 * lda + p as i64,
                             packed_a.clone(),
                             lda,
@@ -158,12 +158,13 @@ pub(crate) fn gemm2d<
                             ib,
                             pb,
                         );
-                        micro_kernel::<T, MR, NR, KC, NR_DIV_LANE>(
+                        micro_kernel::<T, MR, NR, NR_DIV_LANE>(
                             packed_a.clone(),
                             packed_b.clone(),
                             out.clone() + i as i64 * ldc + j as i64,
                             ib,
                             jb,
+                            pb,
                             ldc,
                         );
                     }
@@ -179,7 +180,7 @@ pub(crate) fn gemm2d<
     }
 }
 
-pub(crate) fn pack_a<T, const MR: usize, const KC: usize>(
+pub(crate) fn pack_a<T, const MR: usize>(
     a: Pointer<T>,
     mut packed_a: Pointer<T>,
     lda: i64,
@@ -202,16 +203,10 @@ pub(crate) fn pack_a<T, const MR: usize, const KC: usize>(
                 packed_a += 1i64;
             }
         }
-        for _ in kc..KC {
-            for _ in 0..MR {
-                *packed_a = T::ZERO;
-                packed_a += 1i64;
-            }
-        }
     }
 }
 
-pub(crate) fn pack_b<T, const NR: usize, const KC: usize>(
+pub(crate) fn pack_b<T, const NR: usize>(
     b: Pointer<T>,
     mut packed_b: Pointer<T>,
     ldb: i64,
@@ -233,12 +228,6 @@ pub(crate) fn pack_b<T, const NR: usize, const KC: usize>(
                 packed_b += 1i64;
             }
         }
-        for _ in kc..KC {
-            for _ in 0..NR {
-                *packed_b = T::ZERO;
-                packed_b += 1i64;
-            }
-        }
     }
 }
 
@@ -247,7 +236,6 @@ pub(crate) fn micro_kernel<
     T,
     const MR: usize,
     const NR: usize,
-    const KC: usize,
     const NR_DIV_LANE: usize,
 >(
     mut packed_a: Pointer<T>,
@@ -255,6 +243,7 @@ pub(crate) fn micro_kernel<
     mut c: Pointer<T>,
     mc: usize,
     nc: usize,
+    kc: usize,
     ldc: i64,
 ) where
     T: CommonBounds,
@@ -270,7 +259,7 @@ pub(crate) fn micro_kernel<
             let jb = min(NR_DIV_LANE * T::Vec::SIZE, nc - j);
             let mut c_local = [[T::Vec::splat(T::ZERO); NR_DIV_LANE]; MR];
             packed_a = packed_a_cpy.clone();
-            for _ in 0..KC {
+            for _ in 0..kc {
                 let b_vec = unsafe { T::Vec::from_ptr(packed_b.ptr as *const T) };
                 let b_vec1 =
                     unsafe { T::Vec::from_ptr(packed_b.ptr.add(T::Vec::SIZE) as *const T) };
@@ -343,14 +332,17 @@ where
     let ldb = b.shape()[1] as i64;
     let ldc = c.shape()[1] as i64;
     let stride = 1;
-    let _ = gemm_common::cache::kernel_params(m, n, k, 4, 16, std::mem::size_of::<T>());
-    gemm2d::<T, 6, 16, 32, 32, 512, { 16 / 8 }>(
+    let param = gemm_common::cache::kernel_params(m, n, k, 4, 16, std::mem::size_of::<T>());
+    gemm2d::<T, 6, 16, { 16 / 8 }>(
         a.ptr(),
         b.ptr(),
         c.ptr(),
         m,
         n,
         k,
+        param.mc,
+        param.nc,
+        param.kc,
         lda,
         ldb,
         ldc,
