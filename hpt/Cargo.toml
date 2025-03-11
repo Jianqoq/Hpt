@@ -51,6 +51,7 @@ phf = { version = "0.11.3", optional = true }
 serde = {version = "1.0.217", features = ["derive"]}
 safetensors = "0.5.2"
 bytemuck = "1.22.0"
+gemm-common = "0.18.2"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 raw-cpuid = { version = "11.3.0", default-features = false }

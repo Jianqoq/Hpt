@@ -242,6 +242,7 @@ pub(crate) fn pack_b<T, const NR: usize, const KC: usize>(
     }
 }
 
+#[inline(never)]
 pub(crate) fn micro_kernel<
     T,
     const MR: usize,
@@ -251,7 +252,7 @@ pub(crate) fn micro_kernel<
 >(
     mut packed_a: Pointer<T>,
     mut packed_b: Pointer<T>,
-    c: Pointer<T>,
+    mut c: Pointer<T>,
     mc: usize,
     nc: usize,
     ldc: i64,
@@ -260,43 +261,64 @@ pub(crate) fn micro_kernel<
 {
     let packed_b_cpy = packed_b.clone();
     for i in (0..mc).step_by(MR) {
+        let ib = min(MR, mc - i);
+        let full = ib == MR;
         let packed_a_cpy = packed_a.clone();
         packed_b = packed_b_cpy.clone();
 
         for j in (0..nc).step_by(NR) {
+            let jb = min(NR_DIV_LANE * T::Vec::SIZE, nc - j);
             let mut c_local = [[T::Vec::splat(T::ZERO); NR_DIV_LANE]; MR];
             packed_a = packed_a_cpy.clone();
             for _ in 0..KC {
                 let b_vec = unsafe { T::Vec::from_ptr(packed_b.ptr as *const T) };
                 let b_vec1 =
                     unsafe { T::Vec::from_ptr(packed_b.ptr.add(T::Vec::SIZE) as *const T) };
-                let a_vec = T::Vec::splat(packed_a[0i64]);
-                let a_vec1 = T::Vec::splat(packed_a[1i64]);
-                let a_vec2 = T::Vec::splat(packed_a[2i64]);
-                let a_vec3 = T::Vec::splat(packed_a[3i64]);
+                let mut a_vec = T::Vec::splat(packed_a[0i64]);
                 c_local[0][0] = a_vec._mul_add(b_vec, c_local[0][0]);
                 c_local[0][1] = a_vec._mul_add(b_vec1, c_local[0][1]);
-                c_local[1][0] = a_vec1._mul_add(b_vec, c_local[1][0]);
-                c_local[1][1] = a_vec1._mul_add(b_vec1, c_local[1][1]);
-                c_local[2][0] = a_vec2._mul_add(b_vec, c_local[2][0]);
-                c_local[2][1] = a_vec2._mul_add(b_vec1, c_local[2][1]);
-                c_local[3][0] = a_vec3._mul_add(b_vec, c_local[3][0]);
-                c_local[3][1] = a_vec3._mul_add(b_vec1, c_local[3][1]);
+                a_vec = T::Vec::splat(packed_a[1i64]);
+                c_local[1][0] = a_vec._mul_add(b_vec, c_local[1][0]);
+                c_local[1][1] = a_vec._mul_add(b_vec1, c_local[1][1]);
+                a_vec = T::Vec::splat(packed_a[2i64]);
+                c_local[2][0] = a_vec._mul_add(b_vec, c_local[2][0]);
+                c_local[2][1] = a_vec._mul_add(b_vec1, c_local[2][1]);
+                a_vec = T::Vec::splat(packed_a[3i64]);
+                c_local[3][0] = a_vec._mul_add(b_vec, c_local[3][0]);
+                c_local[3][1] = a_vec._mul_add(b_vec1, c_local[3][1]);
+                a_vec = T::Vec::splat(packed_a[4i64]);
+                c_local[4][0] = a_vec._mul_add(b_vec, c_local[4][0]);
+                c_local[4][1] = a_vec._mul_add(b_vec1, c_local[4][1]);
+                a_vec = T::Vec::splat(packed_a[5i64]);
+                c_local[5][0] = a_vec._mul_add(b_vec, c_local[5][0]);
+                c_local[5][1] = a_vec._mul_add(b_vec1, c_local[5][1]);
+
                 packed_b += NR as i64;
                 packed_a += MR as i64;
             }
-            for ii in 0..MR as i64 {
-                for jj in 0..NR_DIV_LANE as i64 {
-                    let res_idx = (i as i64 + ii) * ldc + (j as i64 + jj * T::Vec::SIZE as i64);
-                    let res_ptr = unsafe { c.ptr.offset(res_idx as isize) } as *mut T::Vec;
-                    unsafe {
-                        res_ptr.write_unaligned(
-                            res_ptr
-                                .read_unaligned()
-                                ._add(c_local[ii as usize][jj as usize]),
-                        );
-                    };
+            if full {
+                for ii in 0..MR as i64 {
+                    for jj in 0..NR_DIV_LANE as i64 {
+                        let res_idx = (i as i64 + ii) * ldc + (j as i64 + jj * T::Vec::SIZE as i64);
+                        let res_ptr = unsafe { c.ptr.offset(res_idx as isize) } as *mut T::Vec;
+                        unsafe {
+                            res_ptr.write_unaligned(
+                                res_ptr
+                                    .read_unaligned()
+                                    ._add(c_local[ii as usize][jj as usize]),
+                            );
+                        };
+                    }
                 }
+            } else {
+                // for ii in 0..ib as i64 {
+                //     for jj in 0..1 {
+                //         let res_idx = (i as i64 + ii) * ldc + (j as i64 + jj * T::Vec::SIZE as i64);
+                //         for kk in 0..jb {
+                //             c[res_idx + kk as i64] = c[res_idx + kk as i64]._add(c_local[ii as usize][jj as usize][kk as usize]);
+                //         }
+                //     }
+                // }
             }
         }
     }
@@ -321,7 +343,8 @@ where
     let ldb = b.shape()[1] as i64;
     let ldc = c.shape()[1] as i64;
     let stride = 1;
-    gemm2d::<T, 4, 16, 32, 32, 32, { 16 / 8 }>(
+    let _ = gemm_common::cache::kernel_params(m, n, k, 4, 16, std::mem::size_of::<T>());
+    gemm2d::<T, 6, 16, 32, 32, 512, { 16 / 8 }>(
         a.ptr(),
         b.ptr(),
         c.ptr(),
