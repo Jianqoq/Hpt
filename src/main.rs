@@ -1,21 +1,15 @@
-use hpt::{buitin_templates::cpu::gemm, ops::{TensorCreator, ShapeManipulate, Matmul}, Tensor};
-
-
+use hpt::{Tensor, backend::Cuda};
+use hpt::ops::FloatUnaryOps;
 
 fn main() -> anyhow::Result<()> {
-    let a = Tensor::<f32>::arange(0, 512 * 512)?.reshape(&[512, 512])?;
-    let b = Tensor::<f32>::arange(0, 512 * 512)?.reshape(&[512, 512])?;
-    let now = std::time::Instant::now();
-    for _ in 0..1 {
-        let c = gemm(&a, &b, None)?;
-        println!("{}", c);
-    }
-    println!("{:?}", now.elapsed() / 100);
-    let now = std::time::Instant::now();
-    for _ in 0..1 {
-        let real_res = a.matmul(&b)?;
-        println!("{}", real_res);
-    }
-    println!("{:?}", now.elapsed() / 100);
+    let x = Tensor::<f64>::new(&[1f64, 2., 3.]).to_cuda::<0/*Cuda device id*/>()?;
+    let y = Tensor::<i64>::new(&[4i64, 5, 6]).to_cuda::<0/*Cuda device id*/>()?;
+
+    let result = x + &y; // with `normal_promote` feature enabled, i64 + f64 will output f64
+    println!("{}", result); // [5. 7. 9.]
+
+    // All the available methods are listed in https://jianqoq.github.io/Hpt/user_guide/user_guide.html
+    let result: Tensor<f64, Cuda, 0> = y.sin()?;
+    println!("{}", result); // [-0.7568 -0.9589 -0.2794]
     Ok(())
 }

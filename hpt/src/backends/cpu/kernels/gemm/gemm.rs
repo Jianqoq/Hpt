@@ -1,20 +1,24 @@
+#![allow(unused)]
 use std::cmp::min;
 
+use dyn_stack::DynStack;
+use gemm_common::cache::CACHE_INFO;
+use gemm_common::gemm::CACHELINE_ALIGN;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape::Shape;
 use hpt_common::shape::shape_utils::predict_broadcast_shape;
 use hpt_common::{error::base::TensorError, Pointer};
 use hpt_traits::ops::creation::TensorCreator;
-use hpt_types::type_promote::NormalOut;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::backend::Cpu;
 use crate::tensor_base::_Tensor;
 use crate::{Tensor, ALIGN};
 use hpt_common::shape::shape_utils::compare_and_pad_shapes;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
-use hpt_types::traits::VecTrait;
+
+use super::microkernel_trait::MicroKernel;
 
 pub(crate) fn gemm_prepare<T, const DEVICE: usize, A>(
     lhs: &_Tensor<T, Cpu, DEVICE, A>,
@@ -65,119 +69,104 @@ where
     }
 }
 
-pub(crate) fn gemm2d<
-    T,
-    const MR: usize,
-    const NR: usize,
-    const NR_DIV_LANE: usize,
->(
+thread_local! {
+    pub static L2_SLAB: core::cell::RefCell<dyn_stack::MemBuffer> = core::cell::RefCell::new(dyn_stack::MemBuffer::new(
+        dyn_stack::StackReq::new_aligned::<u8>(CACHE_INFO[1].cache_bytes, CACHELINE_ALIGN)
+    ));
+}
+
+pub(crate) fn gemm2d<T, const MR: usize, const NR: usize, const NR_DIV_LANE: usize>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
     m: usize,
     n: usize,
     k: usize,
-    mc: usize,
-    nc: usize,
-    kc: usize,
     lda: i64,
     ldb: i64,
     ldc: i64,
     stride: i64,
+    kc: usize,
+    mc: usize,
+    nc: usize,
 ) where
-    T: CommonBounds,
+    T: CommonBounds + MicroKernel,
 {
-    let num_mr_blocks = (mc + MR - 1) / MR;
-    let num_nr_blocks = (nc + NR - 1) / NR;
-    let packed_a_layout = std::alloc::Layout::from_size_align(
-        num_mr_blocks * MR * kc * std::mem::size_of::<T>(),
-        ALIGN,
-    )
-    .expect("layout create failed");
-    let packed_b_layout = std::alloc::Layout::from_size_align(
-        num_nr_blocks * NR * kc * std::mem::size_of::<T>(),
-        ALIGN,
-    )
-    .expect("layout create failed");
-    let allocate_buffer = || {
-        let packed_a_origin = unsafe { std::alloc::alloc(packed_a_layout) };
-        let packed_b_origin = unsafe { std::alloc::alloc(packed_b_layout) };
-        if packed_a_origin == std::ptr::null_mut() || packed_b_origin == std::ptr::null_mut() {
-            panic!("alloc failed");
-        }
-        #[cfg(feature = "bound_check")]
-        let packed_a = Pointer::new(
-            packed_a_origin as *mut T,
-            (packed_a_layout.size() / std::mem::size_of::<T>()) as i64,
-        );
-        #[cfg(feature = "bound_check")]
-        let packed_b = Pointer::new(
-            packed_b_origin as *mut T,
-            (packed_b_layout.size() / std::mem::size_of::<T>()) as i64,
-        );
-        #[cfg(not(feature = "bound_check"))]
-        let packed_a = Pointer::new(packed_a_origin as *mut T);
-        #[cfg(not(feature = "bound_check"))]
-        let packed_b = Pointer::new(packed_b_origin as *mut T);
-        (packed_a, packed_b)
-    };
-    let n_blocks = n.div_ceil(NC);
+    // let num_mr_blocks = (mc + MR - 1) / MR;
+    // let packed_a_layout = std::alloc::Layout::from_size_align(
+    //     num_mr_blocks * MR * kc * std::mem::size_of::<T>(),
+    //     ALIGN,
+    // )
+    // .expect("layout create failed");
+    let n_blocks = n.div_ceil(NR);
     let num_threads = n_blocks.min(rayon::current_num_threads());
-    // println!("num_threads: {}", num_threads);
     let blocks_per_thread = n_blocks.div_ceil(num_threads);
-    let buffers = (0..num_threads)
-        .map(|_| allocate_buffer())
-        .collect::<Vec<_>>();
-    for p in (0..k).step_by(kc) {
-        let pb = min(kc, k - p);
+    // let packed_a_origin = unsafe { std::alloc::alloc(packed_a_layout) };
+    // if packed_a_origin == std::ptr::null_mut() {
+    //     panic!("alloc failed");
+    // }
+    // #[cfg(feature = "bound_check")]
+    // let packed_a = Pointer::new(
+    //     packed_a_origin as *mut T,
+    //     (packed_a_layout.size() / std::mem::size_of::<T>()) as i64,
+    // );
+    // #[cfg(not(feature = "bound_check"))]
+    // let packed_a = Pointer::new(packed_a_origin as *mut T);
 
-        buffers
-            .par_iter()
-            .enumerate()
-            .for_each(|(tid, (packed_a, packed_b))| {
-                let start_block = tid * blocks_per_thread;
-                let end_block = min((tid + 1) * blocks_per_thread, n_blocks);
-                for block in start_block..end_block {
-                    let j = block * nc;
-                    let jb = min(nc, n - j);
-                    pack_b::<T, NR>(
-                        b.clone() + (p as i64 * ldb + j as i64),
-                        packed_b.clone(),
-                        ldb,
-                        jb,
-                        pb,
-                    );
-
-                    for i in (0..m).step_by(mc) {
-                        let ib = min(mc, m - i);
-                        pack_a::<T, MR>(
-                            a.clone() + i as i64 * lda + p as i64,
-                            packed_a.clone(),
-                            lda,
-                            stride,
-                            ib,
+    for i in (0..m).step_by(mc) {
+        let ib = min(mc, m - i);
+        for p in (0..k).step_by(kc) {
+            let pb = min(kc, k - p);
+            // pack_a::<T, MR>(
+            //     a.clone() + i as i64 * lda + p as i64,
+            //     packed_a.clone(),
+            //     lda,
+            //     stride,
+            //     ib,
+            //     pb,
+            //     kc,
+            // );
+            (0..num_threads).into_par_iter().for_each(|tid| {
+                L2_SLAB.with(|mem| {
+                    let mut mem = mem.borrow_mut();
+                    let stack = DynStack::new(&mut mem);
+                    let (packed_b_storage, _) = stack.make_aligned_uninit::<T>(NR * kc, ALIGN);
+                    #[cfg(feature = "bound_check")]
+                    let packed_b =
+                        Pointer::new(packed_b_storage.as_mut_ptr() as *mut T, (NR * kc) as i64);
+                    #[cfg(not(feature = "bound_check"))]
+                    let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T);
+                    let start_block = tid * blocks_per_thread;
+                    let end_block = min((tid + 1) * blocks_per_thread, n_blocks);
+                    for block in start_block..end_block {
+                        let j = block * NR;
+                        let jb = min(NR, n - j);
+                        pack_b::<T, NR>(
+                            b.clone() + (p as i64 * ldb + j as i64),
+                            packed_b.clone(),
+                            ldb,
+                            jb,
                             pb,
+                            kc,
                         );
-                        micro_kernel::<T, MR, NR, NR_DIV_LANE>(
-                            packed_a.clone(),
+                        outer_kernel::<T, MR, NR, NR_DIV_LANE>(
+                            a.clone() + i as i64 * lda + p as i64 * stride,
                             packed_b.clone(),
                             out.clone() + i as i64 * ldc + j as i64,
                             ib,
                             jb,
-                            pb,
                             ldc,
+                            lda,
+                            kc,
                         );
                     }
-                }
+                });
             });
-    }
-
-    for (packed_a, packed_b) in buffers {
-        unsafe {
-            std::alloc::dealloc(packed_a.ptr as *mut u8, packed_a_layout);
-            std::alloc::dealloc(packed_b.ptr as *mut u8, packed_b_layout);
         }
     }
+    // unsafe {
+    //     std::alloc::dealloc(packed_a.ptr as *mut u8, packed_a_layout);
+    // }
 }
 
 pub(crate) fn pack_a<T, const MR: usize>(
@@ -186,16 +175,27 @@ pub(crate) fn pack_a<T, const MR: usize>(
     lda: i64,
     stride: i64,
     mc: usize,
+    kb: usize,
     kc: usize,
 ) where
     T: CommonBounds,
 {
     for i in (0..mc).step_by(MR) {
         let mr = MR.min(mc - i);
-        for p in 0..kc as i64 {
+        for p in 0..kb as i64 {
             for ii in 0..mr as i64 {
                 let i = i as i64 + ii;
                 *packed_a = a[i * lda + p * stride];
+                packed_a += 1i64;
+            }
+            for _ in mr..MR {
+                *packed_a = T::ZERO;
+                packed_a += 1i64;
+            }
+        }
+        for _ in kb..kc {
+            for _ in 0..mr as i64 {
+                *packed_a = T::ZERO;
                 packed_a += 1i64;
             }
             for _ in mr..MR {
@@ -211,104 +211,84 @@ pub(crate) fn pack_b<T, const NR: usize>(
     mut packed_b: Pointer<T>,
     ldb: i64,
     nc: usize,
+    kb: usize,
     kc: usize,
 ) where
     T: CommonBounds,
 {
     for j in (0..nc).step_by(NR) {
         let nr = NR.min(nc - j);
-        for p in 0..kc as i64 {
-            for jj in 0..nr as i64 {
-                let j = j as i64 + jj;
-                *packed_b = b[p * ldb + j];
-                packed_b += 1i64;
+        if nr == NR {
+            for p in 0..kb as i64 {
+                let packed_b_vec = packed_b.ptr as *mut [T; NR];
+                unsafe {
+                    *packed_b_vec = (b.ptr.offset((p * ldb) as isize) as *const [T; NR]).read()
+                };
+                packed_b += NR as i64;
             }
-            for _ in nr..NR {
-                *packed_b = T::ZERO;
-                packed_b += 1i64;
+            for _ in kb..kc {
+                for _ in 0..nr as i64 {
+                    let packed_b_vec = packed_b.ptr as *mut [T; NR];
+                    unsafe { *packed_b_vec = [T::ZERO; NR] };
+                    packed_b += NR as i64;
+                }
+            }
+        } else {
+            for p in 0..kb as i64 {
+                for jj in 0..nr as i64 {
+                    let j = j as i64 + jj;
+                    *packed_b = b[p * ldb + j];
+                    packed_b += 1i64;
+                }
+                for _ in nr..NR {
+                    *packed_b = T::ZERO;
+                    packed_b += 1i64;
+                }
+            }
+            for _ in kb..kc {
+                for _ in 0..nr as i64 {
+                    *packed_b = T::ZERO;
+                    packed_b += 1i64;
+                }
+                for _ in nr..NR {
+                    *packed_b = T::ZERO;
+                    packed_b += 1i64;
+                }
             }
         }
     }
 }
 
 #[inline(never)]
-pub(crate) fn micro_kernel<
-    T,
-    const MR: usize,
-    const NR: usize,
-    const NR_DIV_LANE: usize,
->(
-    mut packed_a: Pointer<T>,
+pub(crate) fn outer_kernel<T, const MR: usize, const NR: usize, const NR_DIV_LANE: usize>(
+    packed_a: Pointer<T>,
     mut packed_b: Pointer<T>,
-    mut c: Pointer<T>,
+    c: Pointer<T>,
     mc: usize,
     nc: usize,
-    kc: usize,
     ldc: i64,
+    lda: i64,
+    kc: usize,
 ) where
-    T: CommonBounds,
+    T: CommonBounds + MicroKernel,
 {
     let packed_b_cpy = packed_b.clone();
     for i in (0..mc).step_by(MR) {
         let ib = min(MR, mc - i);
-        let full = ib == MR;
-        let packed_a_cpy = packed_a.clone();
         packed_b = packed_b_cpy.clone();
-
+        let micro_kernel = T::get_kernel(NR_DIV_LANE, ib);
         for j in (0..nc).step_by(NR) {
-            let jb = min(NR_DIV_LANE * T::Vec::SIZE, nc - j);
-            let mut c_local = [[T::Vec::splat(T::ZERO); NR_DIV_LANE]; MR];
-            packed_a = packed_a_cpy.clone();
-            for _ in 0..kc {
-                let b_vec = unsafe { T::Vec::from_ptr(packed_b.ptr as *const T) };
-                let b_vec1 =
-                    unsafe { T::Vec::from_ptr(packed_b.ptr.add(T::Vec::SIZE) as *const T) };
-                let mut a_vec = T::Vec::splat(packed_a[0i64]);
-                c_local[0][0] = a_vec._mul_add(b_vec, c_local[0][0]);
-                c_local[0][1] = a_vec._mul_add(b_vec1, c_local[0][1]);
-                a_vec = T::Vec::splat(packed_a[1i64]);
-                c_local[1][0] = a_vec._mul_add(b_vec, c_local[1][0]);
-                c_local[1][1] = a_vec._mul_add(b_vec1, c_local[1][1]);
-                a_vec = T::Vec::splat(packed_a[2i64]);
-                c_local[2][0] = a_vec._mul_add(b_vec, c_local[2][0]);
-                c_local[2][1] = a_vec._mul_add(b_vec1, c_local[2][1]);
-                a_vec = T::Vec::splat(packed_a[3i64]);
-                c_local[3][0] = a_vec._mul_add(b_vec, c_local[3][0]);
-                c_local[3][1] = a_vec._mul_add(b_vec1, c_local[3][1]);
-                a_vec = T::Vec::splat(packed_a[4i64]);
-                c_local[4][0] = a_vec._mul_add(b_vec, c_local[4][0]);
-                c_local[4][1] = a_vec._mul_add(b_vec1, c_local[4][1]);
-                a_vec = T::Vec::splat(packed_a[5i64]);
-                c_local[5][0] = a_vec._mul_add(b_vec, c_local[5][0]);
-                c_local[5][1] = a_vec._mul_add(b_vec1, c_local[5][1]);
-
-                packed_b += NR as i64;
-                packed_a += MR as i64;
-            }
-            if full {
-                for ii in 0..MR as i64 {
-                    for jj in 0..NR_DIV_LANE as i64 {
-                        let res_idx = (i as i64 + ii) * ldc + (j as i64 + jj * T::Vec::SIZE as i64);
-                        let res_ptr = unsafe { c.ptr.offset(res_idx as isize) } as *mut T::Vec;
-                        unsafe {
-                            res_ptr.write_unaligned(
-                                res_ptr
-                                    .read_unaligned()
-                                    ._add(c_local[ii as usize][jj as usize]),
-                            );
-                        };
-                    }
-                }
-            } else {
-                // for ii in 0..ib as i64 {
-                //     for jj in 0..1 {
-                //         let res_idx = (i as i64 + ii) * ldc + (j as i64 + jj * T::Vec::SIZE as i64);
-                //         for kk in 0..jb {
-                //             c[res_idx + kk as i64] = c[res_idx + kk as i64]._add(c_local[ii as usize][jj as usize][kk as usize]);
-                //         }
-                //     }
-                // }
-            }
+            let jb = min(NR, nc - j);
+            micro_kernel(
+                packed_a.clone() + i as i64 * lda,
+                packed_b.clone(),
+                c.clone() + i as i64 * ldc + j as i64,
+                ldc,
+                lda,
+                kc,
+                jb,
+            );
+            packed_b += NR * kc;
         }
     }
 }
@@ -320,7 +300,7 @@ pub fn gemm<T, const DEVICE: usize, A>(
     out: Option<Tensor<T, Cpu, DEVICE, A>>,
 ) -> Result<Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
-    T: CommonBounds,
+    T: CommonBounds + MicroKernel,
     A: Allocator,
     A::Output: AllocatorOutputRetrive,
 {
@@ -332,7 +312,8 @@ where
     let ldb = b.shape()[1] as i64;
     let ldc = c.shape()[1] as i64;
     let stride = 1;
-    let param = gemm_common::cache::kernel_params(m, n, k, 4, 16, std::mem::size_of::<T>());
+
+    let param = gemm_common::cache::kernel_params(n, m, k, 16, 6, std::mem::size_of::<T>());
     gemm2d::<T, 6, 16, { 16 / 8 }>(
         a.ptr(),
         b.ptr(),
@@ -340,13 +321,13 @@ where
         m,
         n,
         k,
-        param.mc,
-        param.nc,
-        param.kc,
         lda,
         ldb,
         ldc,
         stride,
+        param.kc,
+        param.nc,
+        param.mc,
     );
     Ok(c.into())
 }

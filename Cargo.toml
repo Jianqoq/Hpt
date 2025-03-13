@@ -20,7 +20,7 @@ members = [
     "hpt-dataloader",
     "hpt-codegen",
     "hpt-cudakernels",
-    "hpt-examples",
+    "hpt-examples"
 ]
 
 exclude = [
@@ -28,10 +28,11 @@ exclude = [
     "hpt-tests",
     "hpt-codegen",
     "hpt-examples",
+    "gemm"
 ]
 
 [dependencies]
-hpt = { path = "./hpt", features = ["track_caller"], version = "0.0.21" }
+hpt = { path = "./hpt", features = ["track_caller", "cuda"], version = "0.0.21" }
 # hpt = {version = "0.0.11", features = ["cuda"]}
 anyhow = "1.0.95"
 # candle-core = { version = "0.8.3", features = ["mkl", "cuda"] }
@@ -60,11 +61,11 @@ name = "etensor"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 0
+opt-level = 3
 incremental = true
 debug = true
-# lto = "fat"
-# codegen-units = 1
+lto = "fat"
+codegen-units = 1
 
 [profile.dev]
 opt-level = 0

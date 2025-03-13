@@ -76,6 +76,8 @@ pub(crate) mod backends {
             pub(crate) mod gemm {
                 /// a module implement gemm template
                 pub(crate) mod gemm;
+                pub(crate) mod avx2;
+                pub(crate) mod microkernel_trait;
             }
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)

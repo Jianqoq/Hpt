@@ -285,7 +285,7 @@ mod simd {
     pub use crate::vectors::arch_simd::*;
 }
 
-#[cfg(all(target_arch = "x86_64", target_feature = "avx2",))]
+#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
 pub(crate) mod sleef_types {
     use std::arch::x86_64::*;
     pub(crate) type VDouble = __m256d;
