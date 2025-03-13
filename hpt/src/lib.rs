@@ -74,9 +74,9 @@ pub(crate) mod backends {
             }
             /// a module defines gemm operation for cpu
             pub(crate) mod gemm {
+                pub(crate) mod avx2;
                 /// a module implement gemm template
                 pub(crate) mod gemm;
-                pub(crate) mod avx2;
                 pub(crate) mod microkernel_trait;
             }
         }
@@ -390,8 +390,8 @@ pub mod backend {
 pub mod buitin_templates {
     /// module for cpu buitin templates
     pub mod cpu {
-        pub use crate::backends::cpu::utils::binary::binary_normal::binary_with_out;
         pub use crate::backends::cpu::kernels::gemm::gemm::gemm;
+        pub use crate::backends::cpu::utils::binary::binary_normal::binary_with_out;
     }
 }
 
