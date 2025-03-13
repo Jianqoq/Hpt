@@ -34,8 +34,8 @@ Hpt is in early stage, bugs and wrong calculation results are expected
 
 # Get Start
 ```rust
-use hpt::*;
-
+use hpt::Tensor;
+use hpt::ops::FloatUnaryOps;
 fn main() -> anyhow::Result<()> {
     let x = Tensor::new(&[1f64, 2., 3.]);
     let y = Tensor::new(&[4i64, 5, 6]);
@@ -52,7 +52,8 @@ fn main() -> anyhow::Result<()> {
 
 To use Cuda, enable feature `cuda` (Note that Cuda is in development and not tested)
 ```rust
-use hpt::*;
+use hpt::{Tensor, backend::Cuda};
+use hpt::ops::FloatUnaryOps;
 
 fn main() -> anyhow::Result<()> {
     let x = Tensor::<f64>::new(&[1f64, 2., 3.]).to_cuda::<0/*Cuda device id*/>()?;

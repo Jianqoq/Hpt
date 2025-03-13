@@ -72,6 +72,13 @@ pub(crate) mod backends {
                 /// a module defines dwconv2d operation
                 pub(crate) mod dwconv2d;
             }
+            /// a module defines gemm operation for cpu
+            pub(crate) mod gemm {
+                /// a module implement gemm template
+                pub(crate) mod gemm;
+                pub(crate) mod avx2;
+                pub(crate) mod microkernel_trait;
+            }
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
         pub(crate) mod tensor_external {
@@ -384,6 +391,7 @@ pub mod buitin_templates {
     /// module for cpu buitin templates
     pub mod cpu {
         pub use crate::backends::cpu::utils::binary::binary_normal::binary_with_out;
+        pub use crate::backends::cpu::kernels::gemm::gemm::gemm;
     }
 }
 

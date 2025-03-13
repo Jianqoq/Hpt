@@ -351,8 +351,8 @@ impl<T> AddAssign<i64> for Pointer<T> {
     fn add_assign(&mut self, rhs: i64) {
         #[cfg(feature = "bound_check")]
         {
-            self.len -= rhs as i64;
             assert!(self.len >= 0);
+            self.len -= rhs as i64;
         }
         unsafe {
             self.ptr = self.ptr.offset(rhs as isize);
