@@ -82,4 +82,12 @@ impl MicroKernel for f32 {
         define_micro_kernel!(f32x4x1, f32, 4, 1);
         f32x4x1
     }
+    #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
+    fn get_max_mr() -> usize {
+        1
+    }
+    #[cfg(target_feature = "avx2")]
+    fn get_max_mr() -> usize {
+        6
+    }
 }

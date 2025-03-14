@@ -5,4 +5,6 @@ pub trait MicroKernel: Sized {
         nr: usize,
         mr: usize,
     ) -> fn(Pointer<Self>, Pointer<Self>, Pointer<Self>, i64, i64, usize, usize);
+
+    fn get_max_mr() -> usize;
 }

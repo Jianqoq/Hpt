@@ -74,10 +74,10 @@ pub(crate) mod backends {
             }
             /// a module defines gemm operation for cpu
             pub(crate) mod gemm {
-                pub(crate) mod avx2;
                 /// a module implement gemm template
                 pub(crate) mod gemm;
                 pub(crate) mod microkernel_trait;
+                pub(crate) mod microkernels;
             }
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
@@ -335,6 +335,7 @@ pub mod iter {
 /// type related module
 pub mod types {
     pub use half::{bf16, f16};
+    pub use num::complex::{Complex32, Complex64};
     /// module contains vector types and traits
     pub mod vectors {
         pub use hpt_types::vectors::*;

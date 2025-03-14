@@ -1,22 +1,23 @@
 #![allow(unused)]
 use std::cmp::min;
 
+use crate::backend::Cpu;
+use crate::backends::cpu::cache_utils::cache::Cache;
+use crate::tensor_base::_Tensor;
+use crate::{Tensor, ALIGN};
 use dyn_stack::DynStack;
 use gemm_common::cache::CACHE_INFO;
 use gemm_common::gemm::CACHELINE_ALIGN;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape::Shape;
+use hpt_common::shape::shape_utils::compare_and_pad_shapes;
 use hpt_common::shape::shape_utils::predict_broadcast_shape;
 use hpt_common::{error::base::TensorError, Pointer};
 use hpt_traits::ops::creation::TensorCreator;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
-
-use crate::backend::Cpu;
-use crate::tensor_base::_Tensor;
-use crate::{Tensor, ALIGN};
-use hpt_common::shape::shape_utils::compare_and_pad_shapes;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
+use hpt_types::traits::VecTrait;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use super::microkernel_trait::MicroKernel;
 
@@ -75,7 +76,7 @@ thread_local! {
     ));
 }
 
-pub(crate) fn gemm2d<T, const MR: usize, const NR: usize, const NR_DIV_LANE: usize>(
+pub(crate) fn gemm2d<T>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
@@ -89,6 +90,8 @@ pub(crate) fn gemm2d<T, const MR: usize, const NR: usize, const NR_DIV_LANE: usi
     kc: usize,
     mc: usize,
     nc: usize,
+    nr: usize,
+    mr: usize,
 ) where
     T: CommonBounds + MicroKernel,
 {
@@ -98,7 +101,7 @@ pub(crate) fn gemm2d<T, const MR: usize, const NR: usize, const NR_DIV_LANE: usi
     //     ALIGN,
     // )
     // .expect("layout create failed");
-    let n_blocks = n.div_ceil(NR);
+    let n_blocks = n.div_ceil(nr);
     let num_threads = n_blocks.min(rayon::current_num_threads());
     let blocks_per_thread = n_blocks.div_ceil(num_threads);
     // let packed_a_origin = unsafe { std::alloc::alloc(packed_a_layout) };
@@ -130,31 +133,34 @@ pub(crate) fn gemm2d<T, const MR: usize, const NR: usize, const NR_DIV_LANE: usi
                 L2_SLAB.with(|mem| {
                     let mut mem = mem.borrow_mut();
                     let stack = DynStack::new(&mut mem);
-                    let (packed_b_storage, _) = stack.make_aligned_uninit::<T>(NR * kc, ALIGN);
+                    let (packed_b_storage, _) = stack.make_aligned_uninit::<T>(nr * kc, ALIGN);
                     #[cfg(feature = "bound_check")]
                     let packed_b =
-                        Pointer::new(packed_b_storage.as_mut_ptr() as *mut T, (NR * kc) as i64);
+                        Pointer::new(packed_b_storage.as_mut_ptr() as *mut T, (nr * kc) as i64);
                     #[cfg(not(feature = "bound_check"))]
                     let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T);
                     let start_block = tid * blocks_per_thread;
                     let end_block = min((tid + 1) * blocks_per_thread, n_blocks);
                     for block in start_block..end_block {
-                        let j = block * NR;
-                        let jb = min(NR, n - j);
-                        pack_b::<T, NR>(
+                        let j = block * nr;
+                        let jb = min(nr, n - j);
+                        pack_b::<T>(
                             b.clone() + (p as i64 * ldb + j as i64),
                             packed_b.clone(),
                             ldb,
                             jb,
                             pb,
                             kc,
+                            nr,
                         );
-                        outer_kernel::<T, MR, NR, NR_DIV_LANE>(
+                        outer_kernel::<T>(
                             a.clone() + i as i64 * lda + p as i64 * stride,
                             packed_b.clone(),
                             out.clone() + i as i64 * ldc + j as i64,
                             ib,
                             jb,
+                            mr,
+                            nr,
                             ldc,
                             lda,
                             kc,
@@ -206,51 +212,63 @@ pub(crate) fn pack_a<T, const MR: usize>(
     }
 }
 
-pub(crate) fn pack_b<T, const NR: usize>(
+pub(crate) fn pack_b<T>(
     b: Pointer<T>,
     mut packed_b: Pointer<T>,
     ldb: i64,
     nc: usize,
     kb: usize,
     kc: usize,
+    nr: usize,
 ) where
     T: CommonBounds,
 {
-    for j in (0..nc).step_by(NR) {
-        let nr = NR.min(nc - j);
-        if nr == NR {
+    let nr_div_lane = nr / T::Vec::SIZE;
+    for j in (0..nc).step_by(nr) {
+        let nb = nr.min(nc - j);
+        if nb % T::Vec::SIZE == 0 {
             for p in 0..kb as i64 {
-                let packed_b_vec = packed_b.ptr as *mut [T; NR];
-                unsafe {
-                    *packed_b_vec = (b.ptr.offset((p * ldb) as isize) as *const [T; NR]).read()
-                };
-                packed_b += NR as i64;
+                for i in 0..nr_div_lane {
+                    let packed_b_vec = unsafe { packed_b.ptr.add(i * T::Vec::SIZE) } as *mut T::Vec;
+                    unsafe {
+                        packed_b_vec.write_unaligned(
+                            (b.ptr
+                                .offset((p * ldb) as isize + (i * T::Vec::SIZE) as isize)
+                                as *const T::Vec)
+                                .read_unaligned(),
+                        )
+                    };
+                }
+                packed_b += nb as i64;
             }
             for _ in kb..kc {
-                for _ in 0..nr as i64 {
-                    let packed_b_vec = packed_b.ptr as *mut [T; NR];
-                    unsafe { *packed_b_vec = [T::ZERO; NR] };
-                    packed_b += NR as i64;
+                for _ in 0..nb as i64 {
+                    for i in 0..nr_div_lane {
+                        let packed_b_vec =
+                            unsafe { packed_b.ptr.add(i * T::Vec::SIZE) } as *mut T::Vec;
+                        unsafe { packed_b_vec.write_unaligned(T::Vec::splat(T::ZERO)) };
+                    }
+                    packed_b += nb as i64;
                 }
             }
         } else {
             for p in 0..kb as i64 {
-                for jj in 0..nr as i64 {
+                for jj in 0..nb as i64 {
                     let j = j as i64 + jj;
                     *packed_b = b[p * ldb + j];
                     packed_b += 1i64;
                 }
-                for _ in nr..NR {
+                for _ in nb..nr {
                     *packed_b = T::ZERO;
                     packed_b += 1i64;
                 }
             }
             for _ in kb..kc {
-                for _ in 0..nr as i64 {
+                for _ in 0..nb as i64 {
                     *packed_b = T::ZERO;
                     packed_b += 1i64;
                 }
-                for _ in nr..NR {
+                for _ in nb..nr {
                     *packed_b = T::ZERO;
                     packed_b += 1i64;
                 }
@@ -260,12 +278,14 @@ pub(crate) fn pack_b<T, const NR: usize>(
 }
 
 #[inline(never)]
-pub(crate) fn outer_kernel<T, const MR: usize, const NR: usize, const NR_DIV_LANE: usize>(
+pub(crate) fn outer_kernel<T>(
     packed_a: Pointer<T>,
     mut packed_b: Pointer<T>,
     c: Pointer<T>,
     mc: usize,
     nc: usize,
+    mr: usize,
+    nr: usize,
     ldc: i64,
     lda: i64,
     kc: usize,
@@ -273,12 +293,12 @@ pub(crate) fn outer_kernel<T, const MR: usize, const NR: usize, const NR_DIV_LAN
     T: CommonBounds + MicroKernel,
 {
     let packed_b_cpy = packed_b.clone();
-    for i in (0..mc).step_by(MR) {
-        let ib = min(MR, mc - i);
+    for i in (0..mc).step_by(mr) {
+        let ib = min(mr, mc - i);
         packed_b = packed_b_cpy.clone();
-        let micro_kernel = T::get_kernel(NR_DIV_LANE, ib);
-        for j in (0..nc).step_by(NR) {
-            let jb = min(NR, nc - j);
+        let micro_kernel = T::get_kernel(nr / T::Vec::SIZE, ib);
+        for j in (0..nc).step_by(nr) {
+            let jb = min(nr, nc - j);
             micro_kernel(
                 packed_a.clone() + i as i64 * lda,
                 packed_b.clone(),
@@ -288,7 +308,7 @@ pub(crate) fn outer_kernel<T, const MR: usize, const NR: usize, const NR_DIV_LAN
                 kc,
                 jb,
             );
-            packed_b += NR * kc;
+            packed_b += nr * kc;
         }
     }
 }
@@ -313,8 +333,11 @@ where
     let ldc = c.shape()[1] as i64;
     let stride = 1;
 
-    let param = gemm_common::cache::kernel_params(n, m, k, 16, 6, std::mem::size_of::<T>());
-    gemm2d::<T, 6, 16, { 16 / 8 }>(
+    let cache = Cache::<T>::new();
+    let nr = cache.l1_line_size;
+    let mr = T::get_max_mr();
+    let param = gemm_common::cache::kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>());
+    gemm2d::<T>(
         a.ptr(),
         b.ptr(),
         c.ptr(),
@@ -328,6 +351,8 @@ where
         param.kc,
         param.nc,
         param.mc,
+        nr,
+        T::get_max_mr(),
     );
     Ok(c.into())
 }

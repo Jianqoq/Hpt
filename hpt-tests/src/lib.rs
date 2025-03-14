@@ -13,6 +13,7 @@ pub mod hpt {
         pub mod creation;
         pub mod cumulate;
         pub mod dwconv2d;
+        pub mod fft;
         pub mod gather;
         pub mod maxpool;
         pub mod onehot;
@@ -55,6 +56,10 @@ pub mod hpt_types {
 
 pub mod hpt_dataloader {
     pub mod save_load;
+}
+
+pub(crate) mod utils {
+    pub(crate) mod random_utils;
 }
 
 // pub mod macro_tests {
