@@ -454,6 +454,9 @@ export default defineUserConfig({
             {
               text: 'matmul',
               link: '/benchmarks/matmul.md'
+            }, {
+              text: 'fft',
+              link: '/benchmarks/fft.md'
             },
             {
               text: 'nn',

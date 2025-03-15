@@ -2,7 +2,6 @@ use crate::common::Shape;
 use crate::error::TensorError;
 use crate::tensor_base::_Tensor;
 use crate::ALIGN;
-use crate::THREAD_POOL;
 use hpt_allocator::traits::Allocator;
 use hpt_allocator::traits::AllocatorOutputRetrive;
 use hpt_allocator::Cpu;
@@ -24,6 +23,9 @@ use num::complex::Complex32;
 use num::complex::Complex64;
 use num::Complex;
 use num::FromPrimitive;
+use rayon::iter::IndexedParallelIterator;
+use rayon::iter::IntoParallelIterator;
+use rayon::iter::ParallelIterator;
 use std::ops::Div;
 use std::panic::Location;
 use std::sync::Arc;
@@ -46,7 +48,7 @@ where
         + FloatOutUnary<Output = T>
         + FloatOutBinary<Output = T>,
     Complex<T>: Div<Output = Complex<T>> + CommonBounds,
-    Al: Allocator,
+    Al: Allocator + Send + Sync,
     Al::Output: AllocatorOutputRetrive,
     i64: Cast<T>,
 {
@@ -85,7 +87,8 @@ where
     for (idx, (axis, dim)) in axes.iter().zip(s.iter()).enumerate() {
         // Swap the current axis with the last dimension for easier processing.
         let mut new_axes = (0..self_clone.ndim() as i64).collect::<Vec<i64>>();
-        new_axes.swap(*axis, self_clone.ndim() - 1);
+        new_axes.remove(*axis);
+        new_axes.push(*axis as i64);
 
         let mut new_shape = res.shape().to_vec();
         new_shape[*axis] = *dim;
@@ -112,113 +115,106 @@ where
         let outer_loop_size = new_self.size() as i64 / inner_loop_size;
         let inp_last_stride = new_self.strides()[new_self.ndim() - 1];
         let out_last_stride = transposed_res.strides()[new_self.ndim() - 1];
-        THREAD_POOL.with_borrow_mut(|pool| {
-            unsafe {
-                let num_threads;
-                if outer_loop_size < pool.max_count() as i64 {
-                    num_threads = outer_loop_size as usize;
-                } else {
-                    num_threads = pool.max_count();
+        unsafe {
+            let num_threads = rayon::current_num_threads().min(outer_loop_size as usize);
+            let ndim = new_self.ndim();
+            let mut shape = new_self.shape().to_vec();
+            shape.iter_mut().for_each(|x| {
+                *x -= 1;
+            });
+
+            let intervals = mt_intervals(outer_loop_size as usize, num_threads);
+
+            let mut prgs = Vec::with_capacity(num_threads);
+            let mut ptrs = Vec::with_capacity(num_threads);
+            let mut res_ptrs = Vec::with_capacity(num_threads);
+
+            for i in 0..num_threads {
+                let mut local_ptr = new_self.data.clone();
+                let mut local_res_ptr = transposed_res.data.clone();
+                let mut amount = intervals[i].0 as i64 * inner_loop_size;
+                let mut res_amount = intervals[i].0 as i64 * res_inner_loop_size;
+                let mut current_prg = vec![0; ndim];
+                for j in (0..ndim).rev() {
+                    current_prg[j] = amount % new_self.shape()[j];
+                    local_ptr += current_prg[j] * new_self.strides()[j];
+                    local_res_ptr +=
+                        (res_amount % transposed_res.shape()[j]) * transposed_res.strides()[j];
+                    amount /= new_self.shape()[j];
+                    res_amount /= transposed_res.shape()[j];
                 }
-                let ndim = new_self.ndim();
-                let mut shape = new_self.shape().to_vec();
-                shape.iter_mut().for_each(|x| {
-                    *x -= 1;
-                });
-
-                let intervals = mt_intervals(outer_loop_size as usize, num_threads);
-
-                let mut prgs = Vec::with_capacity(num_threads);
-                let mut ptrs = Vec::with_capacity(num_threads);
-                let mut res_ptrs = Vec::with_capacity(num_threads);
-
-                for i in 0..num_threads {
-                    let mut local_ptr = new_self.data.clone();
-                    let mut local_res_ptr = transposed_res.data.clone();
-                    let mut amount = intervals[i].0 as i64 * inner_loop_size;
-                    let mut res_amount = intervals[i].0 as i64 * res_inner_loop_size;
-                    let mut current_prg = vec![0; ndim];
-                    for j in (0..ndim).rev() {
-                        current_prg[j] = amount % new_self.shape()[j];
-                        local_ptr += current_prg[j] * new_self.strides()[j];
-                        local_res_ptr +=
-                            (res_amount % transposed_res.shape()[j]) * transposed_res.strides()[j];
-                        amount /= new_self.shape()[j];
-                        res_amount /= transposed_res.shape()[j];
-                    }
-                    prgs.push(current_prg);
-                    ptrs.push(local_ptr);
-                    res_ptrs.push(local_res_ptr);
-                }
-                for idx in (0..num_threads).rev() {
-                    let local_shape = shape.clone();
-                    let res_shape = transposed_res.shape().clone();
-                    let mut local_prg = prgs.pop().unwrap();
-                    let mut ptr = ptrs.pop().unwrap();
-                    let mut res_ptr = res_ptrs.pop().unwrap();
-                    let current_size = intervals[idx].1 - intervals[idx].0;
-
+                prgs.push(current_prg);
+                ptrs.push(local_ptr);
+                res_ptrs.push(local_res_ptr);
+            }
+            let local_shape = shape.clone();
+            let res_shape = transposed_res.shape();
+            let trasposed_strides = transposed_res.strides();
+            intervals
+                .into_par_iter()
+                .zip(prgs)
+                .zip(ptrs)
+                .zip(res_ptrs)
+                .for_each(|(((interval, mut local_prg), mut ptr), mut res_ptr)| {
+                    let current_size = interval.1 - interval.0;
                     let planner = rustfft::FftPlanner::<T>::new();
-
                     let inner_fft = init_fft(planner, res_inner_loop_size as usize);
                     let strides = new_self.strides().clone();
-                    let trasposed_strides = transposed_res.strides().clone();
-                    pool.execute(move || {
-                        // Allocate buffer and perform FFT in parallel. (Could be removed? directly use result Tensor as buffer)
-                        let raw_buffer = std::alloc::alloc(
-                            std::alloc::Layout::from_size_align(
-                                (res_inner_loop_size as usize) * std::mem::size_of::<Complex<T>>(),
-                                ALIGN,
-                            )
-                            .unwrap(),
-                        );
-                        let buffer: &mut [Complex<T>] = std::slice::from_raw_parts_mut(
-                            raw_buffer as *mut Complex<T>,
-                            res_inner_loop_size as usize,
-                        );
-                        for _ in 0..current_size {
-                            if res_inner_loop_size > inner_loop_size {
-                                for i in 0..inner_loop_size {
-                                    buffer[i as usize] = ptr[i * inp_last_stride];
-                                }
-                                for i in inner_loop_size..res_inner_loop_size {
-                                    buffer[i as usize] = Complex::<T>::ZERO;
-                                }
-                            } else {
-                                for i in 0..res_inner_loop_size {
-                                    buffer[i as usize] = ptr[i * inp_last_stride];
-                                }
+                    let raw_buffer = std::alloc::alloc(
+                        std::alloc::Layout::from_size_align(
+                            (res_inner_loop_size as usize) * std::mem::size_of::<Complex<T>>(),
+                            ALIGN,
+                        )
+                        .unwrap(),
+                    ) as *mut Complex<T>;
+                    for _ in 0..current_size {
+                        if res_inner_loop_size > inner_loop_size {
+                            for i in 0..inner_loop_size {
+                                raw_buffer
+                                    .offset(i as isize)
+                                    .write(ptr[i * inp_last_stride]);
                             }
-                            inner_fft.process(buffer);
+                            for i in inner_loop_size..res_inner_loop_size {
+                                raw_buffer.offset(i as isize).write(Complex::<T>::ZERO);
+                            }
+                        } else {
                             for i in 0..res_inner_loop_size {
-                                res_ptr[i * out_last_stride] = op(buffer[i as usize], n);
-                            }
-                            for j in (0..ndim - 1).rev() {
-                                if local_prg[j] < local_shape[j] {
-                                    local_prg[j] += 1;
-                                    ptr += strides[j];
-                                    res_ptr += trasposed_strides[j];
-                                    break;
-                                } else {
-                                    local_prg[j] = 0;
-                                    ptr -= strides[j] * local_shape[j];
-                                    res_ptr -= trasposed_strides[j] * (res_shape[j] - 1);
-                                }
+                                raw_buffer
+                                    .offset(i as isize)
+                                    .write(ptr[i * inp_last_stride]);
                             }
                         }
-                        std::alloc::dealloc(
-                            raw_buffer as *mut u8,
-                            std::alloc::Layout::from_size_align(
-                                (res_inner_loop_size as usize) * std::mem::size_of::<T>(),
-                                ALIGN,
-                            )
-                            .unwrap(),
-                        );
-                    });
-                }
-                pool.join();
-            }
-        });
+                        inner_fft.process(std::slice::from_raw_parts_mut(
+                            raw_buffer as *mut Complex<T>,
+                            res_inner_loop_size as usize,
+                        ));
+                        for i in 0..res_inner_loop_size {
+                            res_ptr[i * out_last_stride] =
+                                op(raw_buffer.offset(i as isize).read(), n);
+                        }
+                        for j in (0..ndim - 1).rev() {
+                            if local_prg[j] < local_shape[j] {
+                                local_prg[j] += 1;
+                                ptr += strides[j];
+                                res_ptr += trasposed_strides[j];
+                                break;
+                            } else {
+                                local_prg[j] = 0;
+                                ptr -= strides[j] * local_shape[j];
+                                res_ptr -= trasposed_strides[j] * (res_shape[j] - 1);
+                            }
+                        }
+                    }
+                    std::alloc::dealloc(
+                        raw_buffer as *mut u8,
+                        std::alloc::Layout::from_size_align(
+                            (res_inner_loop_size as usize) * std::mem::size_of::<T>(),
+                            ALIGN,
+                        )
+                        .unwrap(),
+                    );
+                });
+        }
         self_clone = res.clone();
     }
     Ok(res)

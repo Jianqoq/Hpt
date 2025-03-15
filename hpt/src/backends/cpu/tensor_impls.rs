@@ -160,7 +160,7 @@ where
                         parent: Some(new_parent),
                         mem_layout: self.mem_layout.clone(),
                         layout: self.layout.clone(),
-                        _backend: self._backend.clone(),
+                        backend: self.backend.clone(),
                         phantom: PhantomData,
                     })
                 }
@@ -172,7 +172,7 @@ where
                     parent: None,
                     mem_layout: self.mem_layout.clone(),
                     layout: self.layout.clone(),
-                    _backend: self._backend.clone(),
+                    backend: self.backend.clone(),
                     phantom: PhantomData,
                 }),
             }
@@ -347,7 +347,7 @@ where
             parent: self.parent.clone(),
             layout: self.layout.clone(),
             mem_layout: self.mem_layout.clone(),
-            _backend: self._backend.clone(),
+            backend: self.backend.clone(),
             phantom: PhantomData,
         }
     }

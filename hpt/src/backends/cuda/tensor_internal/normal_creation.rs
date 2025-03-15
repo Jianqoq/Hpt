@@ -64,7 +64,7 @@ where
             parent: None,
             layout: Layout::from(res_shape.clone()),
             mem_layout: Arc::new(layout),
-            _backend: Backend::<Cuda>::new(ptr as u64, device),
+            backend: Backend::<Cuda>::new(ptr as u64, device),
             phantom: std::marker::PhantomData,
         })
     }

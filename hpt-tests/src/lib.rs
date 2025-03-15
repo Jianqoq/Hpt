@@ -15,6 +15,7 @@ pub mod hpt {
         pub mod dwconv2d;
         pub mod fft;
         pub mod gather;
+        pub mod matmul;
         pub mod maxpool;
         pub mod onehot;
         pub mod pwconv2d;

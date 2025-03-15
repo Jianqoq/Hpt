@@ -160,7 +160,7 @@ where
         Ok(data.into())
     }
     pub(crate) fn device(&self) -> Arc<CudaDevice> {
-        self._backend._backend.device.clone()
+        self.backend.inner.device.clone()
     }
     pub(crate) fn cuda_slice(&self) -> super::cuda_slice::CudaSlice {
         super::cuda_slice::CudaSlice {
@@ -206,7 +206,7 @@ where
         Ok(res)
     }
     pub(crate) fn device_cap(&self) -> usize {
-        self._backend._backend.cap
+        self.backend.inner.cap
     }
 }
 
@@ -331,7 +331,7 @@ where
             parent: self.parent.clone(),
             layout: self.layout.clone(),
             mem_layout: self.mem_layout.clone(),
-            _backend: self._backend.clone(),
+            backend: self.backend.clone(),
             phantom: std::marker::PhantomData,
         }
     }

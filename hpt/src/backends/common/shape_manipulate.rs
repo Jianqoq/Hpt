@@ -41,7 +41,7 @@ where
             parent: a.parent.clone(),
             mem_layout: a.mem_layout.clone(),
             layout: new_layout,
-            _backend: a._backend.clone(),
+            backend: a.backend.clone(),
             phantom: PhantomData,
         })
     } else {
@@ -162,7 +162,7 @@ where
         layout: permuted_layout,
         parent: a.parent.clone(),
         mem_layout: a.mem_layout.clone(),
-        _backend: a._backend.clone(),
+        backend: a.backend.clone(),
         phantom: PhantomData,
     })
 }
@@ -188,7 +188,7 @@ where
         parent: a.parent.clone(),
         mem_layout: a.mem_layout.clone(),
         layout: Layout::new(res_shape, res_strides),
-        _backend: a._backend.clone(),
+        backend: a.backend.clone(),
         phantom: PhantomData,
     })
 }
@@ -266,7 +266,7 @@ where
             parent: Some(a.data.clone()),
             mem_layout: a.mem_layout.clone(),
             layout: Layout::new(a.layout.shape().clone(), new_strides),
-            _backend: a._backend.clone(),
+            backend: a.backend.clone(),
             phantom: PhantomData,
         })
     } else {
@@ -275,7 +275,7 @@ where
             parent: a.parent.clone(),
             mem_layout: a.mem_layout.clone(),
             layout: Layout::new(a.layout.shape().clone(), new_strides),
-            _backend: a._backend.clone(),
+            backend: a.backend.clone(),
             phantom: PhantomData,
         })
     }
@@ -497,7 +497,7 @@ where
         layout,
         parent: a.parent.clone(),
         mem_layout: a.mem_layout.clone(),
-        _backend: a._backend.clone(),
+        backend: a.backend.clone(),
         phantom: PhantomData,
     })
 }

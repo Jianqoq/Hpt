@@ -21,6 +21,7 @@ ndarray-rand = "0.15.0"
 libm = "0.2.11"
 
 [features]
+fft = []
 maxpool = []
 softmax = []
 hamming = []
@@ -77,6 +78,7 @@ f32 = []
 add = []
 add_broadcast = []
 default = [
+    "fft",
     "maxpool",
     "add_broadcast",
     "add",

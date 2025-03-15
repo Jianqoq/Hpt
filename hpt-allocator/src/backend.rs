@@ -32,7 +32,7 @@ pub struct Cuda {
 #[derive(Clone)]
 pub struct Backend<B> {
     /// the backend of the tensor
-    pub _backend: B,
+    pub inner: B,
 }
 
 impl<B: BackendTy> std::fmt::Debug for Backend<B> {
@@ -63,7 +63,7 @@ impl Backend<Cpu> {
     /// create a new Cpu backend
     pub fn new(address: u64, device_id: usize) -> Self {
         Backend {
-            _backend: Cpu {
+            inner: Cpu {
                 ptr: address,
                 device_id,
             },
@@ -98,7 +98,7 @@ impl Backend<Cuda> {
             cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR,
         ).expect("failed to get compute capability minor when creating cuda backend");
         Backend {
-            _backend: Cuda {
+            inner: Cuda {
                 ptr: address,
                 device,
                 cap: (cap_major * 10 + cap_minor) as usize,

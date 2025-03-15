@@ -28,6 +28,9 @@ pub mod signals {
 pub mod softmax {
     pub mod softmax;
 }
+pub mod fft {
+    pub mod fft;
+}
 
 pub struct GFlops {
     ns: Vec<f64>,
