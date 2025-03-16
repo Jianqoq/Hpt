@@ -20,7 +20,7 @@ members = [
     "hpt-dataloader",
     "hpt-codegen",
     "hpt-cudakernels",
-    "hpt-examples"
+    "hpt-examples",
 ]
 
 exclude = [

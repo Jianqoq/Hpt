@@ -126,8 +126,6 @@ pub(crate) fn gemm2d<T>(
 
     let mut do_lhs_pack = false;
 
-    // in microkernel, lhs_load: mr * kc, rhs_load: nr * kc, dst_load: mr * nr
-    // only pack lhs if TLB is not enough or lhs_col_stride is not 1
     if estimate_tlb_miss(
         mr,
         nr,
@@ -519,7 +517,7 @@ where
         param.kc,
         param.nc,
         param.mc,
-        16,
+        nr,
         T::get_max_mr(),
     );
     Ok(c.into())

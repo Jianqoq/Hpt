@@ -76,7 +76,6 @@ cuda = [
     "hpt-macros/cuda",
 ]
 normal_promote = ["hpt-types/normal_promote"]
-# codegen = ["hpt-codegen"]
 
 [package.metadata.rust-analyzer]
 rustc_private = true

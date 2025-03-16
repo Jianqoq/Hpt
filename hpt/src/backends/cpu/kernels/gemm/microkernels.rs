@@ -17,27 +17,26 @@ macro_rules! define_micro_kernel {
             first_kiter: bool,
         ) {
             #[inline(always)]
-            fn mma(mut a: Pointer<f32>, mut b: Pointer<f32>, lda: i64, kc: usize, ks: i64) -> [[<f32 as TypeCommon>::Vec; 2]; 6] {
-                let mut c_local = [[<f32 as TypeCommon>::Vec::splat(<f32>::ZERO); 2]; 6];
+            fn mma(mut a: Pointer<$T>, mut b: Pointer<$T>, lda: i64, kc: usize, ks: i64) -> [[<$T as TypeCommon>::Vec; $nr]; $mr] {
+                let mut c_local = [[<$T as TypeCommon>::Vec::splat(<$T>::ZERO); $nr]; $mr];
                 for _ in 0..kc {
                     seq!(NR in 0..$nr {
-                        let b_vec~NR = unsafe {
-                            *(b.ptr.add(NR * <f32 as TypeCommon>::Vec::SIZE)
-                                as *const <f32 as TypeCommon>::Vec)
-                        };
-
+                            let b_vec~NR = unsafe {
+                                *(b.ptr.add(NR * <$T as TypeCommon>::Vec::SIZE)
+                                    as *const <$T as TypeCommon>::Vec)
+                            };
                         }
                     );
                     #[allow(unused_mut)]
                     let mut a_vec;
                     seq!(MR in 0..$mr {
-                            a_vec = <f32 as TypeCommon>::Vec::splat(a[MR as i64 * lda]);
+                            a_vec = <$T as TypeCommon>::Vec::splat(a[MR as i64 * lda]);
                             seq!(NR in 0..$nr {
                                 c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
                             });
                         }
                     );
-                    b += $nr * <f32 as TypeCommon>::Vec::SIZE as i64;
+                    b += $nr * <$T as TypeCommon>::Vec::SIZE as i64;
                     a += ks;
                 }
                 c_local
@@ -106,7 +105,7 @@ macro_rules! define_micro_kernel {
 }
 
 impl MicroKernel for f32 {
-    #[cfg(target_feature = "avx2")]
+    // #[cfg(target_feature = "avx2")]
     fn get_kernel(
         _: usize,
         mr: usize,
@@ -120,14 +119,14 @@ impl MicroKernel for f32 {
 
         [f32x2x1, f32x2x2, f32x2x3, f32x2x4, f32x2x5, f32x2x6][mr - 1]
     }
-    #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
-    fn get_kernel(
-        _: usize,
-        _: usize,
-    ) -> fn(Pointer<Self>, Pointer<Self>, Pointer<Self>, i64, i64, usize, usize, i64, bool) {
-        define_micro_kernel!(f32x4x1, f32, 4, 1);
-        f32x4x1
-    }
+    // #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
+    // fn get_kernel(
+    //     _: usize,
+    //     _: usize,
+    // ) -> fn(Pointer<Self>, Pointer<Self>, Pointer<Self>, i64, i64, usize, usize, i64, bool) {
+    //     define_micro_kernel!(f32x4x1, f32, 4, 1);
+    //     f32x4x1
+    // }
     #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
     fn get_max_mr() -> usize {
         1
