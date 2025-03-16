@@ -20,7 +20,7 @@ use super::assert_utils::assert_f64;
 #[test]
 fn test() -> anyhow::Result<()> {
     let mut rng = rand::thread_rng();
-    for i in 0..100 {
+    for i in 0..1000 {
         let m = rng.gen_range(1..=512);
         let n = rng.gen_range(1..=512);
         let k = rng.gen_range(1..=512);

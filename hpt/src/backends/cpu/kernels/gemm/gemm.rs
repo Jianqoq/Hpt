@@ -1,4 +1,3 @@
-#![allow(unused)]
 use std::cmp::min;
 use std::sync::atomic::AtomicUsize;
 
@@ -23,7 +22,6 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use super::microkernel_trait::MicroKernel;
 
 pub static TLB_L1_SIZE: AtomicUsize = AtomicUsize::new(64);
-pub static TLB_L2_SIZE: AtomicUsize = AtomicUsize::new(8);
 
 fn estimate_tlb_miss(
     mr: usize,
@@ -38,7 +36,7 @@ fn estimate_tlb_miss(
     let dst_memory = mr * nr * element_size;
     let total_memory = lhs_memory + rhs_memory + dst_memory;
 
-    let pages_needed = (total_memory + page_size - 1) / page_size;
+    let pages_needed = total_memory.div_ceil(page_size);
 
     pages_needed > tlb_entries
 }
@@ -99,7 +97,6 @@ thread_local! {
 }
 
 pub(crate) fn gemm2d<T>(
-    cache: Cache<T>,
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
@@ -113,7 +110,7 @@ pub(crate) fn gemm2d<T>(
     rhs_col_stride: i64,
     kc: usize,
     mc: usize,
-    nc: usize,
+    _nc: usize,
     nr: usize,
     mr: usize,
 ) where
@@ -138,7 +135,8 @@ pub(crate) fn gemm2d<T>(
         std::mem::size_of::<T>(),
         TLB_L1_SIZE.load(std::sync::atomic::Ordering::Relaxed),
         4096,
-    ) || lhs_col_stride != 1
+    ) || (lhs_col_stride == 1 && n > 128 * nr)
+        || lhs_col_stride != 1
     {
         do_lhs_pack = true;
     }
@@ -152,6 +150,7 @@ pub(crate) fn gemm2d<T>(
         ALIGN,
     )
     .expect("layout create failed");
+    let mb_per_thread = num_mr_blocks.div_ceil(num_threads);
 
     let packed_a = if do_lhs_pack {
         let a_buffer = unsafe { std::alloc::alloc(packed_a_layout) };
@@ -180,6 +179,9 @@ pub(crate) fn gemm2d<T>(
             p: usize,
             ib: usize,
             pb: usize,
+            tid: usize,
+            mb_per_thread: usize,
+            num_mr_blocks: usize,
         ) where
             T: CommonBounds,
         {
@@ -192,10 +194,14 @@ pub(crate) fn gemm2d<T>(
                 pb,
                 kc,
                 mr,
+                tid,
+                mb_per_thread,
+                num_mr_blocks,
             );
         }
         pack::<T>
     } else {
+        #[allow(unused)]
         #[inline(always)]
         fn pack<T>(
             a: Pointer<T>,
@@ -208,6 +214,9 @@ pub(crate) fn gemm2d<T>(
             ib: usize,
             pb: usize,
             mr: usize,
+            tid: usize,
+            mb_per_thread: usize,
+            num_mr_blocks: usize,
         ) where
             T: CommonBounds,
         {
@@ -217,32 +226,41 @@ pub(crate) fn gemm2d<T>(
 
     let packed_a_ptr = packed_a.ptr as *mut T;
 
-    for i in (0..m).step_by(mc) {
-        let ib = min(mc, m - i);
-        for p in (0..k).step_by(kc) {
-            let pb = min(kc, k - p);
-            pack_a_fn(
-                a.clone(),
-                packed_a.clone(),
-                lda,
-                lhs_col_stride,
-                kc,
-                mr,
-                i,
-                p,
-                ib,
-                pb,
-            );
-            (0..num_threads).into_par_iter().for_each(|tid| {
-                L2_SLAB.with(|mem| {
-                    let mut mem = mem.borrow_mut();
-                    let stack = DynStack::new(&mut mem);
-                    let (packed_b_storage, _) = stack.make_aligned_uninit::<T>(nr * kc, ALIGN);
-                    #[cfg(feature = "bound_check")]
-                    let packed_b =
-                        Pointer::new(packed_b_storage.as_mut_ptr() as *mut T, (nr * kc) as i64);
-                    #[cfg(not(feature = "bound_check"))]
-                    let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T);
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(num_threads));
+
+    (0..num_threads).into_par_iter().for_each(|tid| {
+        L2_SLAB.with(|mem| {
+            let mut mem = mem.borrow_mut();
+            let stack = DynStack::new(&mut mem);
+            let (packed_b_storage, _) = stack.make_aligned_uninit::<T>(nr * kc, ALIGN);
+            #[cfg(feature = "bound_check")]
+            let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T, (nr * kc) as i64);
+            #[cfg(not(feature = "bound_check"))]
+            let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T);
+
+            for i in (0..m).step_by(mc) {
+                let ib = min(mc, m - i);
+                for p in (0..k).step_by(kc) {
+                    let pb = min(kc, k - p);
+
+                    pack_a_fn(
+                        a.clone(),
+                        packed_a.clone(),
+                        lda,
+                        lhs_col_stride,
+                        kc,
+                        mr,
+                        i,
+                        p,
+                        ib,
+                        pb,
+                        tid,
+                        mb_per_thread,
+                        num_mr_blocks,
+                    );
+
+                    barrier.wait();
+
                     let start_block = tid * blocks_per_thread;
                     let end_block = min((tid + 1) * blocks_per_thread, n_blocks);
                     for block in start_block..end_block {
@@ -274,12 +292,16 @@ pub(crate) fn gemm2d<T>(
                             lda,
                             kc,
                             do_lhs_pack,
+                            p == 0,
                         );
                     }
-                });
-            });
-        }
-    }
+
+                    barrier.wait();
+                }
+            }
+        });
+    });
+
     if do_lhs_pack {
         unsafe {
             std::alloc::dealloc(packed_a_ptr as *mut u8, packed_a_layout);
@@ -296,15 +318,27 @@ pub(crate) fn pack_a<T>(
     kb: usize,
     kc: usize,
     mr: usize,
+    tid: usize,
+    mb_per_thread: usize,
+    num_mr_blocks: usize,
 ) where
     T: CommonBounds,
 {
-    for i in (0..mc).step_by(mr) {
+    let start_block = tid * mb_per_thread;
+    let end_block = std::cmp::min((tid + 1) * mb_per_thread, num_mr_blocks);
+    if start_block >= num_mr_blocks {
+        return;
+    }
+    let start_i = start_block * mr;
+    let end_i = std::cmp::min(end_block * mr, mc);
+    let offset = start_block * mr * kc;
+    packed_a += offset as i64;
+    for i in (start_i..end_i).step_by(mr) {
         let mb = mr.min(mc - i);
         for p in 0..kb as i64 {
             for ii in 0..mb as i64 {
-                let i = i as i64 + ii;
-                *packed_a = a[i * lda + p * stride];
+                let row = i as i64 + ii;
+                *packed_a = a[row * lda + p * stride];
                 packed_a += 1i64;
             }
         }
@@ -315,6 +349,22 @@ pub(crate) fn pack_a<T>(
             }
         }
     }
+    // for i in (0..mc).step_by(mr) {
+    //     let mb = mr.min(mc - i);
+    //     for p in 0..kb as i64 {
+    //         for ii in 0..mb as i64 {
+    //             let i = i as i64 + ii;
+    //             *packed_a = a[i * lda + p * stride];
+    //             packed_a += 1i64;
+    //         }
+    //     }
+    //     for _ in kb..kc {
+    //         for _ in 0..mb as i64 {
+    //             *packed_a = T::ZERO;
+    //             packed_a += 1i64;
+    //         }
+    //     }
+    // }
 }
 
 pub(crate) fn pack_b<T>(
@@ -396,6 +446,7 @@ pub(crate) fn outer_kernel<T>(
     lda: i64,
     kc: usize,
     do_lhs_pack: bool,
+    first_kiter: bool,
 ) where
     T: CommonBounds + MicroKernel,
 {
@@ -404,18 +455,31 @@ pub(crate) fn outer_kernel<T>(
         let ib = min(mr, mc - i);
         packed_b = packed_b_cpy.clone();
         let micro_kernel = T::get_kernel(nr / T::Vec::SIZE, ib);
-        let offset = i as i64 * lda * !do_lhs_pack as i64
-            + do_lhs_pack as i64 * kc as i64 * mr as i64 * idx as i64;
-        micro_kernel(
-            packed_a.clone() + offset,
-            packed_b.clone(),
-            c.clone() + i as i64 * ldc,
-            ldc,
-            lda,
-            kc,
-            nc,
-            do_lhs_pack,
-        );
+        if do_lhs_pack {
+            micro_kernel(
+                packed_a.clone() + kc as i64 * mr as i64 * idx as i64,
+                packed_b.clone(),
+                c.clone() + i as i64 * ldc,
+                ldc,
+                1,
+                kc,
+                nc,
+                ib as i64,
+                first_kiter,
+            );
+        } else {
+            micro_kernel(
+                packed_a.clone() + i as i64 * lda,
+                packed_b.clone(),
+                c.clone() + i as i64 * ldc,
+                ldc,
+                lda,
+                kc,
+                nc,
+                1,
+                first_kiter,
+            );
+        }
         packed_b += nr * kc;
     }
 }
@@ -441,7 +505,6 @@ where
     let mr = T::get_max_mr();
     let param = gemm_common::cache::kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>());
     gemm2d::<T>(
-        cache,
         a.ptr(),
         b.ptr(),
         c.ptr(),
@@ -456,7 +519,7 @@ where
         param.kc,
         param.nc,
         param.mc,
-        nr,
+        16,
         T::get_max_mr(),
     );
     Ok(c.into())
