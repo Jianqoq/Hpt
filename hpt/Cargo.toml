@@ -18,7 +18,7 @@ hpt-macros = { path = "../hpt-macros", version = "0.0.21" }
 hpt-display = { path = "../hpt-display", version = "0.0.21" }
 hpt-dataloader = { path = "../hpt-dataloader", version = "0.0.21" }
 hpt-cudakernels = { path = "../hpt-cudakernels", version = "0.0.19", optional = true }
-gemm = { version = "0.18.2", features = ["rayon"] }
+gemm = { path = "../gemm/gemm", version = "0.18.2" }
 dyn-stack = "0.13.0"
 flate2 = "1.0.28"
 rand_distr = "0.4.3"

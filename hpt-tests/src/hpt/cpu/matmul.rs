@@ -24,10 +24,11 @@ fn test() -> anyhow::Result<()> {
         let m = rng.gen_range(1..=512);
         let n = rng.gen_range(1..=512);
         let k = rng.gen_range(1..=512);
+        println!("{} {} {}", m, n, k);
         let a = Tensor::<f32>::arange(0, m * k)?.reshape(&[m, k])?;
         let b = Tensor::<f32>::arange(0, k * n)?.reshape(&[k, n])?;
         let c = a.matmul(&b)?;
-        let c2 = gemm(&a, &b, None)?;
+        let c2 = gemm(&a, &b, None, 1)?;
         assert!(c.allclose(&c2));
     }
     Ok(())

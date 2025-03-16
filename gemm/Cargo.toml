@@ -1,0 +1,27 @@
+[package]
+name = "gemm-main"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+once_cell = { version = "1.18", default-features = false }
+seq-macro = "0.3"
+paste = "1.0"
+raw-cpuid = { version = "11.2", default-features = false }
+sysctl = "0.6.0"
+dyn-stack = { version = "0.13", default-features = false, features = ["alloc"] }
+num-traits = { version = "0.2", default-features = false }
+num-complex = { version = "0.4", default-features = false }
+rayon = "1"
+half = { version = "2.3", default-features = false, features = ["num-traits", "bytemuck"] }
+
+[profile.dev]
+opt-level = 3
+debug = true
+debug-assertions = true
+overflow-checks = true
+lto = false
+panic = 'unwind'
+incremental = true
+codegen-units = 256
+rpath = false

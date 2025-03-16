@@ -11,13 +11,13 @@ use gemm_common::gemm::CACHELINE_ALIGN;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape::Shape;
-use hpt_common::shape::shape_utils::compare_and_pad_shapes;
 use hpt_common::shape::shape_utils::predict_broadcast_shape;
+use hpt_common::shape::shape_utils::{compare_and_pad_shapes, mt_intervals};
 use hpt_common::{error::base::TensorError, Pointer};
 use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::traits::VecTrait;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use super::microkernel_trait::MicroKernel;
 
@@ -60,7 +60,7 @@ where
             )?;
             Ok(out)
         } else {
-            _Tensor::<T, Cpu, DEVICE, A>::zeros(vec![lhs.shape()[0], rhs.shape()[1]])
+            _Tensor::<T, Cpu, DEVICE, A>::empty(vec![lhs.shape()[0], rhs.shape()[1]])
         };
         res
     } else {
@@ -84,7 +84,7 @@ where
             ShapeError::check_inplace_out_layout_valid(&Shape::from(&res_shape), &out.layout())?;
             Ok(out)
         } else {
-            _Tensor::<T, Cpu, DEVICE, A>::zeros(res_shape)
+            _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)
         };
         res
     }
@@ -110,9 +110,10 @@ pub(crate) fn gemm2d<T>(
     rhs_col_stride: i64,
     kc: usize,
     mc: usize,
-    _nc: usize,
+    nc: usize,
     nr: usize,
     mr: usize,
+    num_threads: usize,
 ) where
     T: CommonBounds + MicroKernel,
 {
@@ -139,9 +140,8 @@ pub(crate) fn gemm2d<T>(
         do_lhs_pack = true;
     }
 
-    let n_blocks = n.div_ceil(nr);
-    let num_threads = n_blocks.min(rayon::current_num_threads());
-    let blocks_per_thread = n_blocks.div_ceil(num_threads);
+    let n_blocks = nc.div_ceil(nr);
+    let m_blocks = mc.div_ceil(mr);
     let num_mr_blocks = (mc + mr - 1) / mr;
     let packed_a_layout = std::alloc::Layout::from_size_align(
         num_mr_blocks * mr * kc * std::mem::size_of::<T>(),
@@ -164,106 +164,43 @@ pub(crate) fn gemm2d<T>(
         a.clone()
     };
 
-    let pack_a_fn = if do_lhs_pack {
-        #[inline(always)]
-        fn pack<T>(
-            a: Pointer<T>,
-            packed_a: Pointer<T>,
-            lda: i64,
-            stride: i64,
-            kc: usize,
-            mr: usize,
-            i: usize,
-            p: usize,
-            ib: usize,
-            pb: usize,
-            tid: usize,
-            mb_per_thread: usize,
-            num_mr_blocks: usize,
-        ) where
-            T: CommonBounds,
-        {
-            pack_a::<T>(
-                a + i as i64 * lda + p as i64 * stride,
-                packed_a,
-                lda,
-                stride,
-                ib,
-                pb,
-                kc,
-                mr,
-                tid,
-                mb_per_thread,
-                num_mr_blocks,
-            );
-        }
-        pack::<T>
-    } else {
-        #[allow(unused)]
-        #[inline(always)]
-        fn pack<T>(
-            a: Pointer<T>,
-            packed_a: Pointer<T>,
-            lda: i64,
-            stride: i64,
-            kc: usize,
-            i: usize,
-            p: usize,
-            ib: usize,
-            pb: usize,
-            mr: usize,
-            tid: usize,
-            mb_per_thread: usize,
-            num_mr_blocks: usize,
-        ) where
-            T: CommonBounds,
-        {
-        }
-        pack::<T>
-    };
-
     let packed_a_ptr = packed_a.ptr as *mut T;
 
-    let barrier = std::sync::Arc::new(std::sync::Barrier::new(num_threads));
-
+    // let barrier = std::sync::Arc::new(std::sync::Barrier::new(num_threads));
     (0..num_threads).into_par_iter().for_each(|tid| {
         L2_SLAB.with(|mem| {
             let mut mem = mem.borrow_mut();
             let stack = DynStack::new(&mut mem);
-            let (packed_b_storage, _) = stack.make_aligned_uninit::<T>(nr * kc, ALIGN);
+            let (packed_b_storage, _) = stack.make_aligned_uninit::<T>(nc * kc, ALIGN);
             #[cfg(feature = "bound_check")]
-            let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T, (nr * kc) as i64);
+            let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T, (nc * kc) as i64);
             #[cfg(not(feature = "bound_check"))]
             let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T);
-
-            for i in (0..m).step_by(mc) {
+            let mut i = 0;
+            while i < m {
                 let ib = min(mc, m - i);
-                for p in (0..k).step_by(kc) {
+                let mut p = 0;
+                while p < k {
                     let pb = min(kc, k - p);
+                    if do_lhs_pack {
+                        pack_a::<T>(
+                            a.clone() + i as i64 * lda + p as i64 * lhs_col_stride,
+                            packed_a.clone(),
+                            lda,
+                            lhs_col_stride,
+                            ib,
+                            pb,
+                            kc,
+                            mr,
+                            tid,
+                            mb_per_thread,
+                            num_mr_blocks,
+                        );
+                        // barrier.wait();
+                    }
 
-                    pack_a_fn(
-                        a.clone(),
-                        packed_a.clone(),
-                        lda,
-                        lhs_col_stride,
-                        kc,
-                        mr,
-                        i,
-                        p,
-                        ib,
-                        pb,
-                        tid,
-                        mb_per_thread,
-                        num_mr_blocks,
-                    );
-
-                    barrier.wait();
-
-                    let start_block = tid * blocks_per_thread;
-                    let end_block = min((tid + 1) * blocks_per_thread, n_blocks);
-                    for block in start_block..end_block {
-                        let j = block * nr;
-                        let jb = min(nr, n - j);
+                    for j in (0..n).step_by(nc) {
+                        let jb = min(nc, n - j);
                         pack_b::<T>(
                             b.clone() + (p as i64 * ldb + j as i64),
                             packed_b.clone(),
@@ -293,9 +230,9 @@ pub(crate) fn gemm2d<T>(
                             p == 0,
                         );
                     }
-
-                    barrier.wait();
+                    p += kc;
                 }
+                i += mc;
             }
         });
     });
@@ -385,10 +322,10 @@ pub(crate) fn pack_b<T>(
                 for i in 0..nr_div_lane {
                     let packed_b_vec = unsafe { packed_b.ptr.add(i * T::Vec::SIZE) } as *mut T::Vec;
                     unsafe {
-                        packed_b_vec.write_unaligned(
-                            (b.ptr
-                                .offset((p * ldb) as isize + (i * T::Vec::SIZE) as isize)
-                                as *const T::Vec)
+                        packed_b_vec.write(
+                            (b.ptr.offset(
+                                (p * ldb) as isize + (i * T::Vec::SIZE) as isize + j as isize,
+                            ) as *const T::Vec)
                                 .read_unaligned(),
                         )
                     };
@@ -400,7 +337,7 @@ pub(crate) fn pack_b<T>(
                     for i in 0..nr_div_lane {
                         let packed_b_vec =
                             unsafe { packed_b.ptr.add(i * T::Vec::SIZE) } as *mut T::Vec;
-                        unsafe { packed_b_vec.write_unaligned(T::Vec::splat(T::ZERO)) };
+                        unsafe { packed_b_vec.write(T::Vec::splat(T::ZERO)) };
                     }
                     packed_b += nb as i64;
                 }
@@ -434,7 +371,7 @@ pub(crate) fn pack_b<T>(
 #[inline(never)]
 pub(crate) fn outer_kernel<T>(
     packed_a: Pointer<T>,
-    mut packed_b: Pointer<T>,
+    packed_b: Pointer<T>,
     c: Pointer<T>,
     mc: usize,
     nc: usize,
@@ -448,37 +385,37 @@ pub(crate) fn outer_kernel<T>(
 ) where
     T: CommonBounds + MicroKernel,
 {
-    let packed_b_cpy = packed_b.clone();
     for (idx, i) in (0..mc).step_by(mr).enumerate() {
         let ib = min(mr, mc - i);
-        packed_b = packed_b_cpy.clone();
         let micro_kernel = T::get_kernel(nr / T::Vec::SIZE, ib);
-        if do_lhs_pack {
-            micro_kernel(
-                packed_a.clone() + kc as i64 * mr as i64 * idx as i64,
-                packed_b.clone(),
-                c.clone() + i as i64 * ldc,
-                ldc,
-                1,
-                kc,
-                nc,
-                ib as i64,
-                first_kiter,
-            );
-        } else {
-            micro_kernel(
-                packed_a.clone() + i as i64 * lda,
-                packed_b.clone(),
-                c.clone() + i as i64 * ldc,
-                ldc,
-                lda,
-                kc,
-                nc,
-                1,
-                first_kiter,
-            );
+        for j in (0..nc).step_by(nr) {
+            let jb = min(nr, nc - j);
+            if do_lhs_pack {
+                micro_kernel(
+                    packed_a.clone() + kc as i64 * mr as i64 * idx as i64,
+                    packed_b.clone() + j as i64 * kc as i64,
+                    c.clone() + i as i64 * ldc + j as i64,
+                    ldc,
+                    1,
+                    kc,
+                    jb,
+                    ib as i64,
+                    first_kiter,
+                );
+            } else {
+                micro_kernel(
+                    packed_a.clone() + i as i64 * lda,
+                    packed_b.clone() + j as i64 * kc as i64,
+                    c.clone() + i as i64 * ldc + j as i64,
+                    ldc,
+                    lda,
+                    kc,
+                    jb,
+                    1,
+                    first_kiter,
+                );
+            }
         }
-        packed_b += nr * kc;
     }
 }
 
@@ -487,6 +424,7 @@ pub fn gemm<T, const DEVICE: usize, A>(
     a: &Tensor<T, Cpu, DEVICE, A>,
     b: &Tensor<T, Cpu, DEVICE, A>,
     out: Option<Tensor<T, Cpu, DEVICE, A>>,
+    num_threads: usize,
 ) -> Result<Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
     T: CommonBounds + MicroKernel,
@@ -519,6 +457,7 @@ where
         param.mc,
         nr,
         T::get_max_mr(),
+        num_threads,
     );
     Ok(c.into())
 }

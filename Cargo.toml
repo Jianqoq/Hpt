@@ -21,6 +21,7 @@ members = [
     "hpt-codegen",
     "hpt-cudakernels",
     "hpt-examples",
+    "gemm/gemm"
 ]
 
 exclude = [
@@ -28,7 +29,7 @@ exclude = [
     "hpt-tests",
     "hpt-codegen",
     "hpt-examples",
-    "gemm"
+    "gemm/gemm"
 ]
 
 [dependencies]
@@ -56,16 +57,28 @@ anyhow = "1.0.95"
 # sysinfo = "0.33.1"
 # base64 = "0.22.1"
 
+[workspace.dependencies]
+once_cell = { version = "1.18", default-features = false }
+seq-macro = "0.3"
+paste = "1.0"
+raw-cpuid = { version = "11.2", default-features = false }
+sysctl = "0.6.0"
+dyn-stack = { version = "0.13", default-features = false, features = ["alloc"] }
+num-traits = { version = "0.2", default-features = false }
+num-complex = { version = "0.4", default-features = false }
+rayon = "1"
+half = { version = "2.3", default-features = false, features = ["num-traits", "bytemuck"] }
+
 [[bin]]
 name = "etensor"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 3
+opt-level = 0
 incremental = true
 debug = true
-lto = "fat"
-codegen-units = 1
+# lto = "fat"
+# codegen-units = 1
 
 [profile.dev]
 opt-level = 0
