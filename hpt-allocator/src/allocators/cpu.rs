@@ -1,5 +1,6 @@
 use std::{
     alloc::Layout,
+    collections::{HashMap, HashSet},
     num::NonZeroUsize,
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -12,7 +13,6 @@ use crate::{
     storage::{cpu::CPU_STORAGE, CommonStorage, Storage},
     traits::Allocator,
 };
-use hashbrown::{HashMap, HashSet};
 use hpt_common::error::base::TensorError;
 use lru::LruCache;
 use once_cell::sync::Lazy;

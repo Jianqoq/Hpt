@@ -13,7 +13,7 @@ use hpt_types::dtype::TypeCommon;
 pub(crate) fn load_compressed_slice<'a, B: CPUTensorCreator>(
     file_name: &str,
     queries: Vec<(String, Vec<(i64, i64, i64)>)>,
-) -> anyhow::Result<HashMap<String, B>>
+) -> Result<HashMap<String, B>, Box<dyn std::error::Error>>
 where
     <B as CPUTensorCreator>::Output: Into<B> + TensorInfo<<B as CPUTensorCreator>::Meta>,
     <B as CPUTensorCreator>::Meta: CommonBounds + bytemuck::AnyBitPattern,
@@ -26,11 +26,14 @@ where
             .get(&name)
             .expect(&format!("{} not found in header", name));
         if info.dtype != <B as CPUTensorCreator>::Meta::STR.to_string() {
-            return Err(anyhow::anyhow!(
-                "the dtype stored is {}, but the dtype requested is {}",
-                info.dtype,
-                <B as CPUTensorCreator>::Meta::STR
-            ));
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "the dtype stored is {}, but the dtype requested is {}",
+                    info.dtype,
+                    <B as CPUTensorCreator>::Meta::STR
+                ),
+            )));
         }
 
         let chunk_size: usize = info.indices[0].3; // since the chunk size is the same for all the indices, except the last one, we can use the first one to get the chunk size

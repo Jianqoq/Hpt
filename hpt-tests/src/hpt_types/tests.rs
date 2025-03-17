@@ -7,7 +7,7 @@ use hpt_types::type_promote::BitWiseOut2;
 use hpt_types::type_promote::FloatOutBinary;
 use hpt_types::{dtype::TypeCommon, traits::VecTrait};
 use num_complex::{Complex32, Complex64};
-use rand::distributions::uniform::SampleUniform;
+use rand::distr::uniform::SampleUniform;
 
 type F32Vec = <f32 as TypeCommon>::Vec;
 type F16Vec = <half::f16 as TypeCommon>::Vec;
@@ -102,7 +102,7 @@ pub(crate) fn gen_input<T: TypeCommon + SampleUniform + std::cmp::PartialOrd>(
     range: core::ops::RangeInclusive<T>,
 ) -> T {
     use rand::Rng;
-    rng.gen_range(range)
+    rng.random_range(range)
 }
 
 pub(crate) fn gen_vector_random<
@@ -120,7 +120,7 @@ pub(crate) fn gen_vector_random<
 }
 
 pub(crate) fn f32_to_f16_test(range: core::ops::RangeInclusive<f32>, repeats: usize, msg: &str) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..repeats {
         let input = gen_vector_random::<f32, { F32Vec::SIZE * 2 }>(&mut rng, range.clone());
         f32_to_f16(
@@ -143,7 +143,7 @@ pub(crate) fn f16_to_f32_test(
     repeats: usize,
     msg: &str,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..repeats {
         let input = gen_vector_random::<half::f16, { F16Vec::SIZE }>(&mut rng, range.clone());
         f16_to_f32(
@@ -165,7 +165,7 @@ pub(crate) fn f16_to_f32_test(
 }
 
 pub(crate) fn f32_to_bf16_test(range: core::ops::RangeInclusive<f32>, repeats: usize, msg: &str) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..repeats {
         let input = gen_vector_random::<f32, { F32Vec::SIZE * 2 }>(&mut rng, range.clone());
         f32_to_bf16(
@@ -188,7 +188,7 @@ pub(crate) fn bf16_to_f32_test(
     repeats: usize,
     msg: &str,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..repeats {
         let input = gen_vector_random::<half::bf16, { Bf16Vec::SIZE }>(&mut rng, range.clone());
         bf16_to_f32(
@@ -289,7 +289,7 @@ pub(crate) fn test_computes_2operands<
     op: impl Fn(T::Vec, T::Vec) -> T::Vec,
     msg: &str,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..repeats {
         let input = gen_vector_random::<T, N>(&mut rng, range.clone());
         let input2 = gen_vector_random::<T, N>(&mut rng, range.clone());
@@ -321,7 +321,7 @@ pub(crate) fn test_computes_2operands_float<
     assert_op: impl Fn(T, T) -> bool,
     msg: &str,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..repeats {
         let input = gen_vector_random::<T, N>(&mut rng, lhs_range.clone());
         let input2 = gen_vector_random::<T, N>(&mut rng, rhs_range.clone());
@@ -355,7 +355,7 @@ pub(crate) fn test_computes_2operands_int<
     op: impl Fn(T::Vec, T::Vec) -> T::Vec,
     msg: &str,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..repeats {
         let input = gen_vector_random::<T, N>(&mut rng, lhs_range.clone());
         let input2 = gen_vector_random::<T, N>(&mut rng, rhs_range.clone());
@@ -388,7 +388,7 @@ pub(crate) fn test_computes_2operands_int_scalar<
     op2: impl Fn(T, T) -> T,
     msg: &str,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..repeats {
         let input = gen_input(&mut rng, lhs_range.clone());
         let input2 = gen_input(&mut rng, rhs_range.clone());
@@ -414,7 +414,7 @@ pub(crate) fn test_computes_2operands_float_scalar<
     assert_op: impl Fn(T, T) -> bool,
     msg: &str,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..repeats {
         let input = gen_input(&mut rng, lhs_range.clone());
         let input2 = gen_input(&mut rng, rhs_range.clone());
@@ -440,7 +440,7 @@ pub(crate) fn test_computes_1operands_float<
     assert_op: impl Fn(T, T) -> bool,
     msg: &str,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..repeats {
         let input = gen_vector_random::<T, N>(&mut rng, range.clone());
         let vec = unsafe { T::Vec::from_ptr(input.as_ptr()) };
@@ -471,7 +471,7 @@ pub(crate) fn test_computes_1operands_int<
     op: impl Fn(T::Vec) -> T::Vec,
     msg: &str,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..repeats {
         let input = gen_vector_random::<T, N>(&mut rng, range.clone());
         let vec = unsafe { T::Vec::from_ptr(input.as_ptr()) };
@@ -501,7 +501,7 @@ pub(crate) fn test_computes_1operands_int_scalar<
     op2: impl Fn(T) -> T,
     msg: &str,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..repeats {
         let input = gen_input(&mut rng, range.clone());
         let res = op2(input);
@@ -525,7 +525,7 @@ pub(crate) fn test_computes_3operands<
     op: impl Fn(T::Vec, T::Vec, T::Vec) -> T::Vec,
     msg: &str,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..repeats {
         let input = gen_vector_random::<T, N>(&mut rng, range.clone());
         let input2 = gen_vector_random::<T, N>(&mut rng, range.clone());
@@ -811,7 +811,6 @@ fn test_convert_bf16_to_f32() {
         test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, i16::MIN..=i16::MAX, "i16::add", wrapping_add, __add);
         test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, i32::MIN..=i32::MAX, "i32::add", wrapping_add, __add);
         test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, i64::MIN..=i64::MAX, "i64::add", wrapping_add, __add);
-        test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, isize::MIN..=isize::MAX, "isize::add", wrapping_add, __add);
         test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, u8::MIN..=u8::MAX, "u8::add", wrapping_add, __add);
         test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, u16::MIN..=u16::MAX, "u16::add", wrapping_add, __add);
         test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, u32::MIN..=u32::MAX, "u32::add", wrapping_add, __add);
@@ -835,7 +834,6 @@ fn test_convert_bf16_to_f32() {
         test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, i16::MIN..=i16::MAX, "i16::sub", wrapping_sub, __sub);
         test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, i32::MIN..=i32::MAX, "i32::sub", wrapping_sub, __sub);
         test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, i64::MIN..=i64::MAX, "i64::sub", wrapping_sub, __sub);
-        test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, isize::MIN..=isize::MAX, "isize::sub", wrapping_sub, __sub);
         test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, u8::MIN..=u8::MAX, "u8::sub", wrapping_sub, __sub);
         test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, u16::MIN..=u16::MAX, "u16::sub", wrapping_sub, __sub);
         test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, u32::MIN..=u32::MAX, "u32::sub", wrapping_sub, __sub);
@@ -859,7 +857,6 @@ fn test_convert_bf16_to_f32() {
         test_computes_2operands_for_type!(i16, { I16Vec::SIZE }, 1000, 100..=100, "i16::mul", wrapping_mul, __mul);
         test_computes_2operands_for_type!(i32, { I32Vec::SIZE }, 1000, 1000..=1000, "i32::mul", wrapping_mul, __mul);
         test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, 1000..=1000, "i64::mul", wrapping_mul, __mul);
-        test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, 1000..=1000, "isize::mul", wrapping_mul, __mul);
         test_computes_2operands_for_type!(u8, { U8Vec::SIZE }, 1000, 10..=10, "u8::mul", wrapping_mul, __mul);
         test_computes_2operands_for_type!(u16, { U16Vec::SIZE }, 1000, 100..=100, "u16::mul", wrapping_mul, __mul);
         test_computes_2operands_for_type!(u32, { U32Vec::SIZE }, 1000, 1000..=1000, "u32::mul", wrapping_mul, __mul);
@@ -915,15 +912,6 @@ fn test_convert_bf16_to_f32() {
             1000,
             1000..=1000,
             "i64::mul_add",
-            mul_add,
-            __mul_add
-        );
-        test_computes_3operands_for_type!(
-            isize,
-            { IsizeVec::SIZE },
-            1000,
-            1000..=1000,
-            "isize::mul_add",
             mul_add,
             __mul_add
         );
@@ -1054,15 +1042,6 @@ fn test_div() {
         __div
     );
     test_computes_2operands_for_type!(
-        isize,
-        { IsizeVec::SIZE },
-        1000,
-        1..=isize::MAX,
-        "isize::div",
-        wrapping_div,
-        __div
-    );
-    test_computes_2operands_for_type!(
         u8,
         { U8Vec::SIZE },
         1000,
@@ -1174,11 +1153,6 @@ fn test_div_i32_0() {
 #[test]
 fn test_div_i64_0() {
     test_computes_2operands_for_type!(i64, { I64Vec::SIZE }, 1000, 0..=0, "i64::div", wrapping_div, /);
-}
-#[should_panic(expected = "division by zero")]
-#[test]
-fn test_div_isize_0() {
-    test_computes_2operands_for_type!(isize, { IsizeVec::SIZE }, 1000, 0..=0, "isize::div", wrapping_div, /);
 }
 #[should_panic(expected = "division by zero")]
 #[test]
@@ -1857,7 +1831,6 @@ fn test_div_float_nan() {
         test_int_simd_template!(i16, I16Vec, 100);
         test_int_simd_template!(i32, I32Vec, 100);
         test_int_simd_template!(i64, I64Vec, 100);
-        test_int_simd_template!(isize, IsizeVec, 100);
         test_int_simd_template!(unsigned, u8, U8Vec, 100);
         test_int_simd_template!(unsigned, u16, U16Vec, 100);
         test_int_simd_template!(unsigned, u32, U32Vec, 100);
@@ -1911,7 +1884,6 @@ fn test_div_float_nan() {
         test_int_simd_template!(i16, 100);
         test_int_simd_template!(i32, 100);
         test_int_simd_template!(i64, 100);
-        test_int_simd_template!(isize, 100);
         test_int_simd_template!(unsigned, u8, 100);
         test_int_simd_template!(unsigned, u16, 100);
         test_int_simd_template!(unsigned, u32, 100);
@@ -2056,7 +2028,6 @@ fn test_div_float_nan() {
         test_int_simd_math_2operands!(i16, I16Vec);
         test_int_simd_math_2operands!(i32, I32Vec);
         test_int_simd_math_2operands!(i64, I64Vec);
-        test_int_simd_math_2operands!(isize, IsizeVec);
         test_int_simd_math_2operands!(unsigned, u8, U8Vec);
         test_int_simd_math_2operands!(unsigned, u16, U16Vec);
         test_int_simd_math_2operands!(unsigned, u32, U32Vec);
@@ -2118,7 +2089,6 @@ fn test_div_float_nan() {
         test_int_simd_math_2operands!(i16, I16Vec);
         test_int_simd_math_2operands!(i32, I32Vec);
         test_int_simd_math_2operands!(i64, I64Vec);
-        test_int_simd_math_2operands!(isize, IsizeVec);
         test_int_simd_math_2operands!(unsigned, u8, U8Vec);
         test_int_simd_math_2operands!(unsigned, u16, U16Vec);
         test_int_simd_math_2operands!(unsigned, u32, U32Vec);

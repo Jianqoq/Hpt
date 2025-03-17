@@ -1,4 +1,5 @@
-use hashbrown::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
+
 use lru::LruCache;
 
 use crate::{

@@ -64,18 +64,18 @@ fn assert_eq(b: &hpt::Tensor<Complex64>, a: &Tensor) {
 
 #[test]
 fn fftn_test() -> anyhow::Result<()> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..100 {
-        let ndim = rng.gen_range(1..=3);
+        let ndim = rng.random_range(1..=3);
         let shape = (0..ndim)
-            .map(|_| rng.gen_range(1..=32))
+            .map(|_| rng.random_range(1..=32))
             .collect::<Vec<i64>>();
         let (a, tch_a) = common_input(shape.as_slice())?;
         let combinations = generate_all_combinations(&(0..ndim).collect::<Vec<_>>());
         for axes in combinations {
             let s = axes
                 .iter()
-                .map(|i| rng.gen_range(1..=32))
+                .map(|i| rng.random_range(1..=32))
                 .collect::<Vec<i64>>();
             let res = a.fftn(&s, axes.as_slice(), Some("backward"))?;
             let tch_res = tch_a
@@ -99,18 +99,18 @@ fn fftn_test() -> anyhow::Result<()> {
 
 #[test]
 fn ifftn_test() -> anyhow::Result<()> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..100 {
-        let ndim = rng.gen_range(1..=3);
+        let ndim = rng.random_range(1..=3);
         let shape = (0..ndim)
-            .map(|_| rng.gen_range(1..=32))
+            .map(|_| rng.random_range(1..=32))
             .collect::<Vec<i64>>();
         let (a, tch_a) = common_input(shape.as_slice())?;
         let combinations = generate_all_combinations(&(0..ndim).collect::<Vec<_>>());
         for axes in combinations {
             let s = axes
                 .iter()
-                .map(|i| rng.gen_range(1..=32))
+                .map(|i| rng.random_range(1..=32))
                 .collect::<Vec<i64>>();
             let res = a.ifftn(&s, axes.as_slice(), Some("backward"))?;
             let tch_res = tch_a

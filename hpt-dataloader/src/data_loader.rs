@@ -1,4 +1,3 @@
-use anyhow::Result;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -60,7 +59,7 @@ where
 
 pub fn parse_header_compressed<M: Save, P: Into<std::path::PathBuf>>(
     file: P,
-) -> anyhow::Result<<M as Save>::Meta> {
+) -> Result<<M as Save>::Meta, Box<dyn std::error::Error>> {
     let mut file = File::open(file.into())?;
     file.read_exact(&mut [0u8; "FASTTENSOR".len()])?;
     let mut header_infos = [0u8; 20];
@@ -87,7 +86,7 @@ where
 }
 
 impl HeaderInfo {
-    pub(crate) fn parse_header_compressed(file: &str) -> Result<HashMap<String, HeaderInfo>> {
+    pub(crate) fn parse_header_compressed(file: &str) -> Result<HashMap<String, HeaderInfo>, Box<dyn std::error::Error>> {
         let mut file = File::open(file)?;
         file.read_exact(&mut [0u8; "FASTTENSOR".len()])?;
         let mut header_infos = [0u8; 20];

@@ -8,11 +8,10 @@ repository = "https://github.com/Jianqoq/Hpt"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-syn = { version = "2.0.98", features = ["full"] }
-quote = "1.0.38"
-regex = "1.11.1"
-proc-macro2 = { version = "1.0.86", features = ["span-locations"] }
-anyhow = "1.0.95"
+syn = { workspace = true }
+quote = { workspace = true }
+regex = { workspace = true }
+proc-macro2 = { workspace = true }
 
 [features]
 cuda = []

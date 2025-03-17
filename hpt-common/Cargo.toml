@@ -9,21 +9,10 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 hpt-types = { path = "../hpt-types", version = "0.0.21" }
-anyhow = "1.0.95"
-thiserror = "1.0.63"
-serde = { version = "1.0", features = ["derive", "rc"] }
-cudarc = { version = "0.13.4", optional = true, features = [
-    "std",
-    "cublas",
-    "cublaslt",
-    "curand",
-    "driver",
-    "nvrtc",
-    "f16",
-    "cuda-version-from-build-system",
-    "dynamic-linking",
-], default-features = false }
-rand_distr = "0.4.3"
+thiserror = { workspace = true }
+serde = { workspace = true }
+cudarc = { workspace = true, optional = true }
+rand_distr = { workspace = true }
 
 [features]
 track_caller = []

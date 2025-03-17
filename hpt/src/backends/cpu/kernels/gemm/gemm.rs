@@ -96,8 +96,57 @@ thread_local! {
     ));
 }
 
+fn calculate_jobs(n: usize, nc: usize, mr: usize, nr: usize, ib: usize) -> usize {
+    let mut jobs = 0;
+    for j in (0..n).step_by(nc) {
+        let jb = min(nc, n - j);
+        for _ in (0..ib).step_by(mr) {
+            for _ in (0..jb).step_by(nr) {
+                jobs += 1;
+            }
+        }
+    }
+    jobs
+}
+
+fn calculate_prg(
+    n: usize,
+    nc: usize,
+    mr: usize,
+    nr: usize,
+    ib: usize,
+    prg: [usize; 3],
+    mut start: usize,
+    end: usize,
+) -> [usize; 3] {
+    let mut ret = prg;
+    let j_start = prg[0] * nc;
+    let mut i_start = prg[1] * mr;
+    let mut jj_start = prg[2] * nr;
+    for j in (j_start..n).step_by(nc) {
+        let jb = min(nc, n - j);
+        for _ in (i_start..ib).step_by(mr) {
+            for _ in (jj_start..jb).step_by(nr) {
+                ret[2] += 1;
+                start += 1;
+                if start >= end {
+                    return ret;
+                }
+            }
+            ret[1] += 1;
+            ret[2] = 0;
+            jj_start = 0;
+        }
+        ret[0] += 1;
+        ret[1] = 0;
+        ret[2] = 0;
+        i_start = 0;
+    }
+    ret
+}
+
 #[allow(unused_labels)]
-pub(crate) fn gemm2d<T>(
+pub(crate) fn gemm_template<T>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
@@ -116,7 +165,7 @@ pub(crate) fn gemm2d<T>(
     mr: usize,
     num_threads: usize,
 ) where
-    T: CommonBounds + MicroKernel,
+    T: CommonBounds + MicroKernel + PartialEq,
 {
     assert_eq!(
         nr % T::Vec::SIZE,
@@ -125,6 +174,8 @@ pub(crate) fn gemm2d<T>(
         T::Vec::SIZE,
         T::STR
     );
+    assert_eq!(nc % nr, 0, "nc must be a multiple of nr");
+    assert_eq!(mc % mr, 0, "mc must be a multiple of mr");
 
     let mut do_lhs_pack = false;
 
@@ -141,13 +192,8 @@ pub(crate) fn gemm2d<T>(
         do_lhs_pack = true;
     }
 
-    let m_blocks = mc.div_ceil(mr);
-    let n_blocks = nc.div_ceil(nr);
-    let num_nc = n.div_ceil(nc);
-    let total_jobs = num_nc * m_blocks * n_blocks;
-    let min_jobs_per_thread = total_jobs / num_threads;
-
     let num_mr_blocks = (mc + mr - 1) / mr;
+    let num_nr_blocks = (nc + nr - 1) / nr;
     let packed_a_layout = std::alloc::Layout::from_size_align(
         num_mr_blocks * mr * kc * std::mem::size_of::<T>(),
         ALIGN,
@@ -173,162 +219,144 @@ pub(crate) fn gemm2d<T>(
 
     let barrier = std::sync::Arc::new(std::sync::Barrier::new(num_threads));
 
-    let shape = [
-        (0..n).step_by(nc).count(),
-        (0..mc).step_by(mr).count(),
-        (0..nc).step_by(nr).count(),
-    ];
     let mut prgs = vec![[0, 0, 0]; num_threads];
-    let intervals = mt_intervals(total_jobs, num_threads);
-    for tid in 0..num_threads {
-        let mut start = intervals[tid].0;
-        let mut prg = [0, 0, 0];
-        for j in (0..3).rev() {
-            prg[j] = start % shape[j];
-            start /= shape[j];
-            prgs[tid] = prg;
-        }
-    }
-    prgs.push([shape[0], 0, 0]);
-    let mut prgs_start_end = vec![([0, 0, 0], [0, 0, 0]); num_threads];
-    for tid in 0..num_threads {
-        prgs_start_end[tid] = (prgs[tid], prgs[tid + 1]);
-    }
-    // println!("prgs_start_end: {:?}", prgs_start_end);
+    let mc_jobs = calculate_jobs(n, nc, mr, nr, mc);
+    let mc_rem_jobs = calculate_jobs(n, nc, mr, nr, m % mc);
+    let intervals = mt_intervals(mc_jobs, num_threads);
+    let mc_rem_intervals = mt_intervals(mc_rem_jobs, num_threads);
 
+    let mut prg = [0, 0, 0];
+    for tid in 0..num_threads {
+        let (start, end) = intervals[tid];
+        prgs[tid] = prg;
+        prg = calculate_prg(n, nc, mr, nr, mc, prg, start, end);
+    }
+    let mut rem_prgs = vec![[0, 0, 0]; num_threads];
+    let mut rem_prg = [0, 0, 0];
+    for tid in 0..num_threads {
+        let (start, end) = mc_rem_intervals[tid];
+        rem_prgs[tid] = rem_prg;
+        rem_prg = calculate_prg(n, nc, mr, nr, m % mc, rem_prg, start, end);
+    }
     (0..num_threads)
         .into_par_iter()
-        .zip(prgs_start_end.into_par_iter())
-        .for_each(|(tid, (prg, end_prg))| {
-            L2_SLAB.with(|mem| {
-                let mut mem = mem.borrow_mut();
-                let stack = DynStack::new(&mut mem);
-                let (packed_b_storage, _) = stack.make_aligned_uninit::<T>(nc * kc, ALIGN);
-                #[cfg(feature = "bound_check")]
-                let packed_b =
-                    Pointer::new(packed_b_storage.as_mut_ptr() as *mut T, (nc * kc) as i64);
-                #[cfg(not(feature = "bound_check"))]
-                let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T);
-                let mut i = 0;
-                while i < m {
-                    let ib = min(mc, m - i);
-                    let mut p = 0;
-                    while p < k {
-                        let first_kiter = p == 0;
-                        let pb = min(kc, k - p);
-                        if do_lhs_pack {
-                            pack_a::<T>(
-                                a.clone() + i as i64 * lda + p as i64 * lhs_col_stride,
-                                packed_a.clone(),
-                                lda,
-                                lhs_col_stride,
-                                ib,
-                                pb,
-                                kc,
-                                mr,
-                                tid,
-                                mb_per_thread,
-                                num_mr_blocks,
-                            );
-                            barrier.wait();
-                        }
+        .zip(prgs)
+        .zip(rem_prgs)
+        .zip(intervals)
+        .zip(mc_rem_intervals)
+        .for_each(
+            |((((tid, prg), rem_prg), (start, end)), (start_rem, end_rem))| {
+                L2_SLAB.with(|mem| {
+                    let mut mem = mem.borrow_mut();
+                    let stack = DynStack::new(&mut mem);
+                    let (packed_b_storage, _) =
+                        stack.make_aligned_uninit::<T>(num_nr_blocks * nr * kc, ALIGN);
+                    #[cfg(feature = "bound_check")]
+                    let packed_b = Pointer::new(
+                        packed_b_storage.as_mut_ptr() as *mut T,
+                        (num_nr_blocks * nr * kc) as i64,
+                    );
+                    #[cfg(not(feature = "bound_check"))]
+                    let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T);
+                    let mut i = 0;
+                    while i < m {
+                        let ib = min(mc, m - i);
+                        let use_prg = if ib == mc { prg } else { rem_prg };
+                        let use_start = if ib == mc { start } else { start_rem };
+                        let use_end = if ib == mc { end } else { end_rem };
+                        let j_start = use_prg[0] * nc;
+                        let mut p = 0;
+                        while p < k {
+                            let first_kiter = p == 0;
+                            let pb = min(kc, k - p);
+                            if do_lhs_pack {
+                                pack_a::<T>(
+                                    a.clone() + i as i64 * lda + p as i64 * lhs_col_stride,
+                                    packed_a.clone(),
+                                    lda,
+                                    lhs_col_stride,
+                                    ib,
+                                    pb,
+                                    kc,
+                                    mr,
+                                    tid,
+                                    mb_per_thread,
+                                    num_mr_blocks,
+                                );
+                                barrier.wait();
+                            }
 
-                        let mut prg_tracker = prg;
-                        let mut j = prg[0] * nc;
-                        'outer: while j < n {
-                            if prg_tracker[0] >= end_prg[0] {
-                                break 'outer;
-                            }
-                            let jb = min(nc, n - j);
-                            let c = out.clone() + i as i64 * ldc + j as i64;
-                            pack_b::<T>(
-                                b.clone() + (p as i64 * ldb + j as i64),
-                                packed_b.clone(),
-                                ldb,
-                                rhs_col_stride,
-                                jb,
-                                pb,
-                                kc,
-                                nr,
-                            );
-                            let packed_a = if do_lhs_pack {
-                                packed_a.clone()
-                            } else {
-                                a.clone() + (i as i64 * lda + p as i64 * lhs_col_stride)
-                            };
-                            let mut i = if prg_tracker[0] == prg[0] {
-                                prg[1] * mr
-                            } else {
-                                0
-                            };
-                            let mut idx = 0;
-                            'middle: while i < ib {
-                                if prg_tracker[0] == end_prg[0] && prg_tracker[1] >= end_prg[1] {
-                                    break 'outer;
-                                }
-                                let ib = min(mr, ib - i);
-                                let micro_kernel = <T>::get_kernel(nr / <T>::Vec::SIZE, ib);
-                                let mut jj = if prg_tracker[0] == prg[0] && prg_tracker[1] == prg[1]
-                                {
-                                    prg[2] * nr
+                            let mut job_count = use_start;
+                            let mut i_start = use_prg[1] * mr;
+                            let mut jj_start = use_prg[2] * nr;
+                            'outer: for j in (j_start..n).step_by(nc) {
+                                let jb = min(nc, n - j);
+                                let c = out.clone() + i as i64 * ldc + j as i64;
+                                pack_b::<T>(
+                                    b.clone() + (p as i64 * ldb + j as i64),
+                                    packed_b.clone(),
+                                    ldb,
+                                    rhs_col_stride,
+                                    jb,
+                                    pb,
+                                    kc,
+                                    nr,
+                                );
+                                let packed_a = if do_lhs_pack {
+                                    packed_a.clone()
                                 } else {
-                                    0
+                                    a.clone() + (i as i64 * lda + p as i64 * lhs_col_stride)
                                 };
-                                'inner: while jj < jb {
-                                    if prg_tracker[0] == end_prg[0]
-                                        && prg_tracker[1] == end_prg[1]
-                                        && prg_tracker[2] >= end_prg[2]
-                                    {
-                                        break 'outer;
+                                for i in (i_start..ib).step_by(mr) {
+                                    let mb = min(mr, ib - i);
+                                    let micro_kernel = <T>::get_kernel(nr / <T>::Vec::SIZE, mb);
+
+                                    for jj in (jj_start..jb).step_by(nr) {
+                                        let jjb = min(nr, jb - jj);
+                                        if do_lhs_pack {
+                                            micro_kernel(
+                                                packed_a.clone() + kc as i64 * i as i64,
+                                                packed_b.clone() + jj as i64 * kc as i64,
+                                                c.clone() + i as i64 * ldc + jj as i64,
+                                                ldc,
+                                                1,
+                                                kc,
+                                                jjb,
+                                                mb as i64,
+                                                first_kiter,
+                                            );
+                                        } else {
+                                            micro_kernel(
+                                                packed_a.clone() + i as i64 * lda,
+                                                packed_b.clone() + jj as i64 * kc as i64,
+                                                c.clone() + i as i64 * ldc + jj as i64,
+                                                ldc,
+                                                lda,
+                                                kc,
+                                                jjb,
+                                                1,
+                                                first_kiter,
+                                            );
+                                        }
+                                        job_count += 1;
+                                        if job_count >= use_end {
+                                            break 'outer;
+                                        }
                                     }
-                                    let jb = min(nr, jb - jj);
-                                    if do_lhs_pack {
-                                        micro_kernel(
-                                            packed_a.clone() + kc as i64 * mr as i64 * idx as i64,
-                                            packed_b.clone() + jj as i64 * kc as i64,
-                                            c.clone() + i as i64 * ldc + jj as i64,
-                                            ldc,
-                                            1,
-                                            kc,
-                                            jb,
-                                            ib as i64,
-                                            first_kiter,
-                                        );
-                                    } else {
-                                        micro_kernel(
-                                            packed_a.clone() + i as i64 * lda,
-                                            packed_b.clone() + jj as i64 * kc as i64,
-                                            c.clone() + i as i64 * ldc + jj as i64,
-                                            ldc,
-                                            lda,
-                                            kc,
-                                            jb,
-                                            1,
-                                            first_kiter,
-                                        );
-                                    }
-                                    jj += nr;
-                                    prg_tracker[2] += 1;
+                                    jj_start = 0;
                                 }
-                                i += mr;
-                                idx += 1;
-                                prg_tracker[1] += 1;
-                                prg_tracker[2] = 0;
+                                i_start = 0;
                             }
-                            j += nc;
-                            prg_tracker[0] += 1;
-                            prg_tracker[1] = 0;
-                            prg_tracker[2] = 0;
+                            p += kc;
+                            if p < k {
+                                barrier.wait();
+                            }
                         }
-                        p += kc;
-                        if p < k {
-                            barrier.wait();
-                        }
+                        i += mc;
                     }
-                    i += mc;
-                }
-            });
-        });
+                });
+            },
+        );
 
     if do_lhs_pack {
         unsafe {
@@ -423,17 +451,14 @@ pub(crate) fn pack_b<T>(
                         )
                     };
                 }
-                packed_b += nb as i64;
+                packed_b += nr as i64;
             }
             for _ in kb..kc {
-                for _ in 0..nb as i64 {
-                    for i in 0..nr_div_lane {
-                        let packed_b_vec =
-                            unsafe { packed_b.ptr.add(i * T::Vec::SIZE) } as *mut T::Vec;
-                        unsafe { packed_b_vec.write(T::Vec::splat(T::ZERO)) };
-                    }
-                    packed_b += nb as i64;
+                for i in 0..nr_div_lane {
+                    let packed_b_vec = unsafe { packed_b.ptr.add(i * T::Vec::SIZE) } as *mut T::Vec;
+                    unsafe { packed_b_vec.write(T::Vec::splat(T::ZERO)) };
                 }
+                packed_b += nr as i64;
             }
         } else {
             for p in 0..kb as i64 {
@@ -461,57 +486,6 @@ pub(crate) fn pack_b<T>(
     }
 }
 
-#[inline(never)]
-pub(crate) fn outer_kernel<T>(
-    packed_a: Pointer<T>,
-    packed_b: Pointer<T>,
-    c: Pointer<T>,
-    mc: usize,
-    nc: usize,
-    mr: usize,
-    nr: usize,
-    ldc: i64,
-    lda: i64,
-    kc: usize,
-    do_lhs_pack: bool,
-    first_kiter: bool,
-) where
-    T: CommonBounds + MicroKernel,
-{
-    for (idx, i) in (0..mc).step_by(mr).enumerate() {
-        let ib = min(mr, mc - i);
-        let micro_kernel = T::get_kernel(nr / T::Vec::SIZE, ib);
-        for j in (0..nc).step_by(nr) {
-            let jb = min(nr, nc - j);
-            if do_lhs_pack {
-                micro_kernel(
-                    packed_a.clone() + kc as i64 * mr as i64 * idx as i64,
-                    packed_b.clone() + j as i64 * kc as i64,
-                    c.clone() + i as i64 * ldc + j as i64,
-                    ldc,
-                    1,
-                    kc,
-                    jb,
-                    ib as i64,
-                    first_kiter,
-                );
-            } else {
-                micro_kernel(
-                    packed_a.clone() + i as i64 * lda,
-                    packed_b.clone() + j as i64 * kc as i64,
-                    c.clone() + i as i64 * ldc + j as i64,
-                    ldc,
-                    lda,
-                    kc,
-                    jb,
-                    1,
-                    first_kiter,
-                );
-            }
-        }
-    }
-}
-
 /// gemm
 pub fn gemm<T, const DEVICE: usize, A>(
     a: &Tensor<T, Cpu, DEVICE, A>,
@@ -520,7 +494,7 @@ pub fn gemm<T, const DEVICE: usize, A>(
     num_threads: usize,
 ) -> Result<Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
-    T: CommonBounds + MicroKernel,
+    T: CommonBounds + MicroKernel + PartialEq,
     A: Allocator,
     A::Output: AllocatorOutputRetrive,
 {
@@ -533,7 +507,7 @@ where
     let nr = cache.l1_line_size;
     let mr = T::get_max_mr();
     let param = gemm_common::cache::kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>());
-    gemm2d::<T>(
+    gemm_template::<T>(
         a.ptr(),
         b.ptr(),
         c.ptr(),

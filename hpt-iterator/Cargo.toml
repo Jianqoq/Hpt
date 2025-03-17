@@ -11,7 +11,7 @@ repository = "https://github.com/Jianqoq/Hpt"
 hpt-common = { path = "../hpt-common", version = "0.0.21" }
 hpt-traits = { path = "../hpt-traits", version = "0.0.21" }
 hpt-types = { path = "../hpt-types", version = "0.0.21" }
-rayon = "1.10.0"
+rayon = { workspace = true }
 
 [features]
 track_caller = []

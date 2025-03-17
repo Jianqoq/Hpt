@@ -9,25 +9,22 @@ license = "MIT OR Apache-2.0"
 hpt-macros = { path = "../hpt-macros" }
 hpt-common = { path = "../hpt-common" }
 hpt = { path = "../hpt", features = ["track_caller", "bound_check"] }
-# hpt-codegen = { path = "../hpt-codegen" }
 hpt-types = { path = "../hpt-types" }
-serde_json = "1"
-tch = { version = "0.17.0", features = ["download-libtorch"] }
-anyhow = "1.0.75"
-rayon = { version = "1.10.0", default-features = false }
-paste = "1.0.15"
-candle-core = "0.7.2"
-macrotest = "1.0.13"
-rand = "0.8.5"
-num-traits = "0.2.19"
-num-complex = "0.4"
-libm = "0.2.11"
-duplicate = "2.0.0"
-half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }
+serde_json = { workspace = true }
+tch = { workspace = true }
+anyhow = { workspace = true }
+rayon = { workspace = true }
+paste = { workspace = true }
+candle-core = { workspace = true }
+rand = { workspace = true }
+num-traits = { workspace = true }
+num-complex = { workspace = true }
+libm = { workspace = true }
+duplicate = { workspace = true }
+half = { workspace = true }
 
 [features]
 cuda = ["hpt/cuda"]
-# default = ["cuda"]
 
 [profile.dev]
 opt-level = 0

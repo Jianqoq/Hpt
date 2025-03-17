@@ -1,6 +1,5 @@
-use std::sync::Mutex;
+use std::{collections::HashMap, sync::Mutex};
 
-use hashbrown::HashMap;
 use once_cell::sync::Lazy;
 
 use crate::storage::CommonStorage;

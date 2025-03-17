@@ -2,7 +2,7 @@
 ```rust
 zipf_like(
     x: &Tensor<T>,
-    n: u64,
+    n: T,
     s: T
 ) -> Result<Tensor<T>, TensorError>
 ```
@@ -27,7 +27,7 @@ fn main() -> Result<(), TensorError> {
     let x = Tensor::<f32>::randn(&[10, 10])?;
     
     // Create a new tensor with same shape as x but with Zipf distribution
-    let z = x.zipf_like(1000, 2.0)?;
+    let z = x.zipf_like(1000.0, 2.0)?;
     println!("{}", z);
     Ok(())
 }

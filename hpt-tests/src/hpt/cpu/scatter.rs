@@ -27,9 +27,9 @@ fn assert_eq(b: &Tensor<f32>, a: &tch::Tensor) {
 
 #[test]
 fn test_basic_scatter() -> anyhow::Result<()> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..100 {
-        let ndim = rng.gen_range(1..=3);
+        let ndim = rng.random_range(1..=3);
         let shape = (0..ndim).map(|_| 10).collect::<Vec<_>>();
 
         let tch_src = tch::Tensor::randn(&shape, (tch::Kind::Float, tch::Device::Cpu));

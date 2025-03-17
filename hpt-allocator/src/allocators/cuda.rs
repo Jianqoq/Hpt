@@ -1,5 +1,6 @@
 use std::{
     alloc::Layout,
+    collections::{HashMap, HashSet},
     num::NonZeroUsize,
     panic::Location,
     sync::{
@@ -14,7 +15,6 @@ use crate::{
     traits::Allocator,
     CUDA_STORAGE,
 };
-use hashbrown::{HashMap, HashSet};
 use hpt_common::error::base::TensorError;
 use lru::LruCache;
 use once_cell::sync::Lazy;

@@ -8,22 +8,11 @@ authors = ["JianJian Li <ljj1849532909@gmail.com>"]
 repository = "https://github.com/Jianqoq/Hpt"
 
 [dependencies]
-lru = "0.13.0"
-once_cell = "1.20.3"
-lazy_static = "1.5.0"
-hashbrown = "0.14.3"
-ctor = "0.3.1"
-cudarc = { version = "0.13.4", optional = true, features = [
-    "std",
-    "cublas",
-    "cublaslt",
-    "curand",
-    "driver",
-    "nvrtc",
-    "f16",
-    "cuda-version-from-build-system",
-    "dynamic-linking",
-], default-features = false }
+lru = { workspace = true }
+once_cell = { workspace = true }
+lazy_static = { workspace = true }
+ctor = { workspace = true }
+cudarc = { workspace = true, optional = true }
 hpt-common = { path = "../hpt-common", version = "0.0.21" }
 
 [features]

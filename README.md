@@ -14,14 +14,10 @@ Hpt is a high performance N-dimensional array library. It is being highly optimi
 - Auto efficient parallel processing for CPU-intensive operations.
 #### Broadcasting
 - Automatic shape broadcasting for element-wise operations, similar to NumPy.
-#### Type Safe
-- Strong type system ensures correctness at compile time, preventing runtime errors.
-#### Zero-Copy
-- Minimizes memory overhead with zero-copy operations and efficient data sharing.
 #### Auto Type Promote
 - Allows auto type promote when compute with different types.
-#### Custom Type
-- Allows user to define their own data type for calculation (CPU support only).
+#### Customizable
+- Allows user to define their own data type for calculation (CPU support only) and allocator for memory allocation (All Backends).
 
 # Note
 
@@ -114,6 +110,4 @@ at your option.
 
 # Contribution
 
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
-dual licensed as above, without any additional terms or conditions.
+Contribution are wellcome, please check https://jianqoq.github.io/Hpt/dev_guide/dev_guide.html for more detail

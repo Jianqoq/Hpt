@@ -12,13 +12,12 @@ syn = { version = "2.0.82", default-features = false, features = [
     "visit-mut",
     "extra-traits"
 ] }
-quote = "1.0.36"
-regex = "1.11.0"
-proc-macro2 = { version = "1.0.86", features = ["span-locations"] }
-prettyplease = "=0.2.25"
-anyhow = "1.0.75"
-petgraph = "0.6.5"
-thiserror = "2.0.4"
+quote = { workspace = true }
+regex = { workspace = true }
+proc-macro2 = { workspace = true }
+petgraph = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
 
 [lib]
 proc-macro = true

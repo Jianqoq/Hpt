@@ -8,15 +8,15 @@ repository = "https://github.com/Jianqoq/Hpt"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-phf = { version = "0.11.3", default-features = false }
+phf = { workspace = true }
 
 [build-dependencies]
-phf = { version = "0.11.3", default-features = false }
-phf_codegen = "0.11.3"
-regex = "1.11.1"
-walkdir = "2.5.0"
-rayon = "1.10.0"
-num_cpus = "1.16.0"
+phf = { workspace = true }
+phf_codegen = { workspace = true }
+regex = { workspace = true }
+walkdir = { workspace = true }
+rayon = { workspace = true }
+num_cpus = { workspace = true }
 
 [lib]
 path = "src/lib.rs"
