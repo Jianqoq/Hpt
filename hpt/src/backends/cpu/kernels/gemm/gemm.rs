@@ -96,6 +96,7 @@ thread_local! {
     ));
 }
 
+#[allow(unused_labels)]
 pub(crate) fn gemm2d<T>(
     a: Pointer<T>,
     b: Pointer<T>,
@@ -140,8 +141,12 @@ pub(crate) fn gemm2d<T>(
         do_lhs_pack = true;
     }
 
+    let m_blocks = mc.div_ceil(mr);
+    let n_blocks = nc.div_ceil(nr);
     let num_nc = n.div_ceil(nc);
-    let intervals = mt_intervals(num_nc, num_threads);
+    let total_jobs = num_nc * m_blocks * n_blocks;
+    let min_jobs_per_thread = total_jobs / num_threads;
+
     let num_mr_blocks = (mc + mr - 1) / mr;
     let packed_a_layout = std::alloc::Layout::from_size_align(
         num_mr_blocks * mr * kc * std::mem::size_of::<T>(),
@@ -167,10 +172,34 @@ pub(crate) fn gemm2d<T>(
     let packed_a_ptr = packed_a.ptr as *mut T;
 
     let barrier = std::sync::Arc::new(std::sync::Barrier::new(num_threads));
-    intervals
+
+    let shape = [
+        (0..n).step_by(nc).count(),
+        (0..mc).step_by(mr).count(),
+        (0..nc).step_by(nr).count(),
+    ];
+    let mut prgs = vec![[0, 0, 0]; num_threads];
+    let intervals = mt_intervals(total_jobs, num_threads);
+    for tid in 0..num_threads {
+        let mut start = intervals[tid].0;
+        let mut prg = [0, 0, 0];
+        for j in (0..3).rev() {
+            prg[j] = start % shape[j];
+            start /= shape[j];
+            prgs[tid] = prg;
+        }
+    }
+    prgs.push([shape[0], 0, 0]);
+    let mut prgs_start_end = vec![([0, 0, 0], [0, 0, 0]); num_threads];
+    for tid in 0..num_threads {
+        prgs_start_end[tid] = (prgs[tid], prgs[tid + 1]);
+    }
+    // println!("prgs_start_end: {:?}", prgs_start_end);
+
+    (0..num_threads)
         .into_par_iter()
-        .enumerate()
-        .for_each(|(tid, (start, end))| {
+        .zip(prgs_start_end.into_par_iter())
+        .for_each(|(tid, (prg, end_prg))| {
             L2_SLAB.with(|mem| {
                 let mut mem = mem.borrow_mut();
                 let stack = DynStack::new(&mut mem);
@@ -204,8 +233,12 @@ pub(crate) fn gemm2d<T>(
                             barrier.wait();
                         }
 
-                        for j in start..end {
-                            let j = j * nc;
+                        let mut prg_tracker = prg;
+                        let mut j = prg[0] * nc;
+                        'outer: while j < n {
+                            if prg_tracker[0] >= end_prg[0] {
+                                break 'outer;
+                            }
                             let jb = min(nc, n - j);
                             let c = out.clone() + i as i64 * ldc + j as i64;
                             pack_b::<T>(
@@ -223,16 +256,37 @@ pub(crate) fn gemm2d<T>(
                             } else {
                                 a.clone() + (i as i64 * lda + p as i64 * lhs_col_stride)
                             };
-                            for (idx, i) in (0..ib).step_by(mr).enumerate() {
+                            let mut i = if prg_tracker[0] == prg[0] {
+                                prg[1] * mr
+                            } else {
+                                0
+                            };
+                            let mut idx = 0;
+                            'middle: while i < ib {
+                                if prg_tracker[0] == end_prg[0] && prg_tracker[1] >= end_prg[1] {
+                                    break 'outer;
+                                }
                                 let ib = min(mr, ib - i);
                                 let micro_kernel = <T>::get_kernel(nr / <T>::Vec::SIZE, ib);
-                                for j in (0..jb).step_by(nr) {
-                                    let jb = min(nr, jb - j);
+                                let mut jj = if prg_tracker[0] == prg[0] && prg_tracker[1] == prg[1]
+                                {
+                                    prg[2] * nr
+                                } else {
+                                    0
+                                };
+                                'inner: while jj < jb {
+                                    if prg_tracker[0] == end_prg[0]
+                                        && prg_tracker[1] == end_prg[1]
+                                        && prg_tracker[2] >= end_prg[2]
+                                    {
+                                        break 'outer;
+                                    }
+                                    let jb = min(nr, jb - jj);
                                     if do_lhs_pack {
                                         micro_kernel(
                                             packed_a.clone() + kc as i64 * mr as i64 * idx as i64,
-                                            packed_b.clone() + j as i64 * kc as i64,
-                                            c.clone() + i as i64 * ldc + j as i64,
+                                            packed_b.clone() + jj as i64 * kc as i64,
+                                            c.clone() + i as i64 * ldc + jj as i64,
                                             ldc,
                                             1,
                                             kc,
@@ -243,8 +297,8 @@ pub(crate) fn gemm2d<T>(
                                     } else {
                                         micro_kernel(
                                             packed_a.clone() + i as i64 * lda,
-                                            packed_b.clone() + j as i64 * kc as i64,
-                                            c.clone() + i as i64 * ldc + j as i64,
+                                            packed_b.clone() + jj as i64 * kc as i64,
+                                            c.clone() + i as i64 * ldc + jj as i64,
                                             ldc,
                                             lda,
                                             kc,
@@ -253,8 +307,18 @@ pub(crate) fn gemm2d<T>(
                                             first_kiter,
                                         );
                                     }
+                                    jj += nr;
+                                    prg_tracker[2] += 1;
                                 }
+                                i += mr;
+                                idx += 1;
+                                prg_tracker[1] += 1;
+                                prg_tracker[2] = 0;
                             }
+                            j += nc;
+                            prg_tracker[0] += 1;
+                            prg_tracker[1] = 0;
+                            prg_tracker[2] = 0;
                         }
                         p += kc;
                         if p < k {
