@@ -140,8 +140,8 @@ pub(crate) fn gemm2d<T>(
         do_lhs_pack = true;
     }
 
-    let n_blocks = nc.div_ceil(nr);
-    let m_blocks = mc.div_ceil(mr);
+    let num_nc = n.div_ceil(nc);
+    let intervals = mt_intervals(num_nc, num_threads);
     let num_mr_blocks = (mc + mr - 1) / mr;
     let packed_a_layout = std::alloc::Layout::from_size_align(
         num_mr_blocks * mr * kc * std::mem::size_of::<T>(),
@@ -166,76 +166,105 @@ pub(crate) fn gemm2d<T>(
 
     let packed_a_ptr = packed_a.ptr as *mut T;
 
-    // let barrier = std::sync::Arc::new(std::sync::Barrier::new(num_threads));
-    (0..num_threads).into_par_iter().for_each(|tid| {
-        L2_SLAB.with(|mem| {
-            let mut mem = mem.borrow_mut();
-            let stack = DynStack::new(&mut mem);
-            let (packed_b_storage, _) = stack.make_aligned_uninit::<T>(nc * kc, ALIGN);
-            #[cfg(feature = "bound_check")]
-            let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T, (nc * kc) as i64);
-            #[cfg(not(feature = "bound_check"))]
-            let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T);
-            let mut i = 0;
-            while i < m {
-                let ib = min(mc, m - i);
-                let mut p = 0;
-                while p < k {
-                    let pb = min(kc, k - p);
-                    if do_lhs_pack {
-                        pack_a::<T>(
-                            a.clone() + i as i64 * lda + p as i64 * lhs_col_stride,
-                            packed_a.clone(),
-                            lda,
-                            lhs_col_stride,
-                            ib,
-                            pb,
-                            kc,
-                            mr,
-                            tid,
-                            mb_per_thread,
-                            num_mr_blocks,
-                        );
-                        // barrier.wait();
-                    }
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(num_threads));
+    intervals
+        .into_par_iter()
+        .enumerate()
+        .for_each(|(tid, (start, end))| {
+            L2_SLAB.with(|mem| {
+                let mut mem = mem.borrow_mut();
+                let stack = DynStack::new(&mut mem);
+                let (packed_b_storage, _) = stack.make_aligned_uninit::<T>(nc * kc, ALIGN);
+                #[cfg(feature = "bound_check")]
+                let packed_b =
+                    Pointer::new(packed_b_storage.as_mut_ptr() as *mut T, (nc * kc) as i64);
+                #[cfg(not(feature = "bound_check"))]
+                let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T);
+                let mut i = 0;
+                while i < m {
+                    let ib = min(mc, m - i);
+                    let mut p = 0;
+                    while p < k {
+                        let first_kiter = p == 0;
+                        let pb = min(kc, k - p);
+                        if do_lhs_pack {
+                            pack_a::<T>(
+                                a.clone() + i as i64 * lda + p as i64 * lhs_col_stride,
+                                packed_a.clone(),
+                                lda,
+                                lhs_col_stride,
+                                ib,
+                                pb,
+                                kc,
+                                mr,
+                                tid,
+                                mb_per_thread,
+                                num_mr_blocks,
+                            );
+                            barrier.wait();
+                        }
 
-                    for j in (0..n).step_by(nc) {
-                        let jb = min(nc, n - j);
-                        pack_b::<T>(
-                            b.clone() + (p as i64 * ldb + j as i64),
-                            packed_b.clone(),
-                            ldb,
-                            rhs_col_stride,
-                            jb,
-                            pb,
-                            kc,
-                            nr,
-                        );
-                        outer_kernel::<T>(
-                            if do_lhs_pack {
+                        for j in start..end {
+                            let j = j * nc;
+                            let jb = min(nc, n - j);
+                            let c = out.clone() + i as i64 * ldc + j as i64;
+                            pack_b::<T>(
+                                b.clone() + (p as i64 * ldb + j as i64),
+                                packed_b.clone(),
+                                ldb,
+                                rhs_col_stride,
+                                jb,
+                                pb,
+                                kc,
+                                nr,
+                            );
+                            let packed_a = if do_lhs_pack {
                                 packed_a.clone()
                             } else {
                                 a.clone() + (i as i64 * lda + p as i64 * lhs_col_stride)
-                            },
-                            packed_b.clone(),
-                            out.clone() + i as i64 * ldc + j as i64,
-                            ib,
-                            jb,
-                            mr,
-                            nr,
-                            ldc,
-                            lda,
-                            kc,
-                            do_lhs_pack,
-                            p == 0,
-                        );
+                            };
+                            for (idx, i) in (0..ib).step_by(mr).enumerate() {
+                                let ib = min(mr, ib - i);
+                                let micro_kernel = <T>::get_kernel(nr / <T>::Vec::SIZE, ib);
+                                for j in (0..jb).step_by(nr) {
+                                    let jb = min(nr, jb - j);
+                                    if do_lhs_pack {
+                                        micro_kernel(
+                                            packed_a.clone() + kc as i64 * mr as i64 * idx as i64,
+                                            packed_b.clone() + j as i64 * kc as i64,
+                                            c.clone() + i as i64 * ldc + j as i64,
+                                            ldc,
+                                            1,
+                                            kc,
+                                            jb,
+                                            ib as i64,
+                                            first_kiter,
+                                        );
+                                    } else {
+                                        micro_kernel(
+                                            packed_a.clone() + i as i64 * lda,
+                                            packed_b.clone() + j as i64 * kc as i64,
+                                            c.clone() + i as i64 * ldc + j as i64,
+                                            ldc,
+                                            lda,
+                                            kc,
+                                            jb,
+                                            1,
+                                            first_kiter,
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        p += kc;
+                        if p < k {
+                            barrier.wait();
+                        }
                     }
-                    p += kc;
+                    i += mc;
                 }
-                i += mc;
-            }
+            });
         });
-    });
 
     if do_lhs_pack {
         unsafe {
