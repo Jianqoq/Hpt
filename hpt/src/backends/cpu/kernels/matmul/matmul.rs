@@ -202,7 +202,7 @@ pub fn matmul_template<T>(
                                                 lda,
                                                 kc,
                                                 jjb,
-                                                1,
+                                                lhs_col_stride,
                                                 first_kiter,
                                             );
                                         }
