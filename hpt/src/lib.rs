@@ -74,8 +74,9 @@ pub(crate) mod backends {
             }
             /// a module defines gemm operation for cpu
             pub(crate) mod matmul {
-                /// a module implement gemm template
+                pub(crate) mod common;
                 pub(crate) mod matmul;
+                pub(crate) mod matmul_mixed_precision;
                 pub(crate) mod microkernel_trait;
                 pub(crate) mod microkernels;
             }

@@ -1,7 +1,7 @@
 # dstack
 ```rust
 dstack(
-    tensors: Vec<&Tensor<T>>
+    tensors: Vec<Tensor<T>>
 ) -> Result<Tensor<T>, TensorError>
 ```
 Stacks tensors along the third axis (depth). Input tensors are promoted to 3D if necessary.

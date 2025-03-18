@@ -19,13 +19,17 @@ use hpt_traits::tensor::CommonBounds;
 /// ```rust
 /// define_matmul_micro_kernel!(x2x6, 2, 6); // nr: 2, mr: 6
 /// ```
-pub trait MatmulMicroKernel: Sized + CommonBounds {
+pub trait MatmulMicroKernel
+where
+    Self: CommonBounds + Sized,
+{
     fn get_kernel(
-        #[allow(unused_variables)] nr: usize,
+        nr: usize,
         mr: usize,
     ) -> fn(Pointer<Self>, Pointer<Self>, Pointer<Self>, i64, i64, usize, usize, i64, bool) {
         #[cfg(target_feature = "avx2")]
         {
+            assert_eq!(nr, 2);
             // avx2 has 16 registers, each has 256 bits, assume cache line size is 512 bits
             define_matmul_micro_kernel!(x2x1, 2, 1);
             define_matmul_micro_kernel!(x2x2, 2, 2);
@@ -37,6 +41,7 @@ pub trait MatmulMicroKernel: Sized + CommonBounds {
         }
         #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
         {
+            assert_eq!(nr, 4);
             // sse has 16 registers, each has 128 bits, assume cache line size is 512 bits
             define_matmul_micro_kernel!(x4x1, 4, 1);
             define_matmul_micro_kernel!(x4x2, 4, 2);
@@ -56,6 +61,36 @@ pub trait MatmulMicroKernel: Sized + CommonBounds {
         {
             unimplemented!()
         }
+    }
+
+    #[allow(unused_variables)]
+    fn get_mixed_precision_kernel<MixedType>(
+        nr: usize,
+        mr: usize,
+    ) -> fn(
+        Pointer<MixedType>,
+        Pointer<MixedType>,
+        Pointer<Self>,
+        i64,
+        i64,
+        usize,
+        usize,
+        i64,
+        bool,
+        fn(*const MixedType::Vec) -> Self::Vec,
+        fn(MixedType) -> Self,
+    )
+    where
+        MixedType: CommonBounds,
+    {
+        unimplemented!("mixed precision kernel is required for user to implement")
+    }
+
+    fn get_max_mixed_precision_mr() -> usize {
+        unimplemented!()
+    }
+    fn get_max_mixed_precision_nr() -> usize {
+        unimplemented!()
     }
 
     fn get_max_mr() -> usize {

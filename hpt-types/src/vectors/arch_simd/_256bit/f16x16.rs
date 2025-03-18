@@ -92,43 +92,10 @@ impl f16x16 {
                 let f32x4_2 = _mm256_cvtph_ps(_mm_loadu_si128(raw_f16.as_ptr().add(8) as *const _));
                 std::mem::transmute([f32x4_1, f32x4_2])
             }
-            #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
-            {
-                use std::arch::aarch64::{float32x4_t, uint16x4_t};
-                use std::arch::asm;
-                use std::mem::MaybeUninit;
-                let mut low_f32x4 = MaybeUninit::<uint16x4_t>::uninit();
-                let mut high_f32x4 = MaybeUninit::<uint16x4_t>::uninit();
-                std::ptr::copy_nonoverlapping(self.0.as_ptr(), low_f32x4.as_mut_ptr().cast(), 4);
-                std::ptr::copy_nonoverlapping(
-                    self.0.as_ptr().add(4),
-                    high_f32x4.as_mut_ptr().cast(),
-                    4,
-                );
-                let res0: float32x4_t;
-                let res1: float32x4_t;
-                asm!(
-                    "fcvtl {0:v}.4s, {1:v}.4h",
-                    out(vreg) res0,
-                    in(vreg) low_f32x4.assume_init(),
-                    options(pure, nomem, nostack)
-                );
-                asm!(
-                    "fcvtl {0:v}.4s, {1:v}.4h",
-                    out(vreg) res1,
-                    in(vreg) high_f32x4.assume_init(),
-                    options(pure, nomem, nostack)
-                );
-
-                std::mem::transmute([res0, res1])
-            }
-            #[cfg(not(any(
-                all(
-                    target_feature = "f16c",
-                    target_arch = "x86_64",
-                    target_feature = "avx2"
-                ),
-                all(target_feature = "neon", target_arch = "aarch64")
+            #[cfg(not(all(
+                target_feature = "f16c",
+                target_arch = "x86_64",
+                target_feature = "avx2"
             )))]
             {
                 let mut result = [[0f32; 8]; 2];

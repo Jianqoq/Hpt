@@ -141,7 +141,9 @@ where
     }
 
     /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
-    pub fn static_cast<Dst>(&self) -> std::result::Result<_Tensor<Dst, Cpu, DEVICE, A>, TensorError>
+    pub(crate) fn static_cast<Dst>(
+        &self,
+    ) -> std::result::Result<_Tensor<Dst, Cpu, DEVICE, A>, TensorError>
     where
         Dst: CommonBounds,
     {

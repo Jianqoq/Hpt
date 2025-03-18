@@ -150,12 +150,12 @@ impl<T: CommonBounds> Cache<T> {
             l3_sets = l3 / l3_associativity / l3_line_size;
         }
         Self {
-            l1: l1 / T::BIT_SIZE,
-            l2: l2 / T::BIT_SIZE,
-            l3: l3 / T::BIT_SIZE,
-            l1_line_size: l1_line_size / T::BIT_SIZE,
-            l2_line_size: l2_line_size / T::BIT_SIZE,
-            l3_line_size: l3_line_size / T::BIT_SIZE,
+            l1: l1 / T::BYTE_SIZE,
+            l2: l2 / T::BYTE_SIZE,
+            l3: l3 / T::BYTE_SIZE,
+            l1_line_size: l1_line_size / T::BYTE_SIZE,
+            l2_line_size: l2_line_size / T::BYTE_SIZE,
+            l3_line_size: l3_line_size / T::BYTE_SIZE,
             l1_associativity,
             l2_associativity,
             l3_associativity,

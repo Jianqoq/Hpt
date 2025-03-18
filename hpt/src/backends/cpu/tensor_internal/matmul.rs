@@ -1,6 +1,9 @@
 use std::borrow::{Borrow, BorrowMut};
 
 use crate::backends::cpu::kernels::matmul::matmul::{matmul, matmul_template_no_block_info};
+use crate::backends::cpu::kernels::matmul::matmul_mixed_precision::{
+    bf16_matmul, f16_matmul, matmul_mixed_precision_template_no_block_info,
+};
 use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
@@ -14,6 +17,9 @@ use hpt_common::strides::strides_utils::preprocess_strides;
 use hpt_traits::ops::binary::Matmul;
 use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
+use hpt_types::dtype::TypeCommon;
+use hpt_types::into_scalar::Cast;
+use hpt_types::traits::VecTrait;
 
 #[track_caller]
 pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
@@ -28,12 +34,40 @@ where
     A2::Output: AllocatorOutputRetrive,
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
-        matmul(
-            lhs,
-            rhs,
-            out.map(|mut x| x.borrow_mut().clone()),
-            rayon::current_num_threads(),
-        )
+        if T::STR == "f16" {
+            let res = f16_matmul(
+                &lhs.static_cast::<half::f16>()?,
+                &rhs.static_cast::<half::f16>()?,
+                out.map(|mut x| {
+                    x.borrow_mut()
+                        .clone()
+                        .static_cast::<half::f16>()
+                        .expect("static_cast f16 failed")
+                }),
+                rayon::current_num_threads(),
+            )?;
+            Ok(res.static_cast::<T>()?)
+        } else if T::STR == "bf16" {
+            let res = bf16_matmul(
+                &lhs.static_cast::<half::bf16>()?,
+                &rhs.static_cast::<half::bf16>()?,
+                out.map(|mut x| {
+                    x.borrow_mut()
+                        .clone()
+                        .static_cast::<half::bf16>()
+                        .expect("static_cast bf16 failed")
+                }),
+                rayon::current_num_threads(),
+            )?;
+            Ok(res.static_cast::<T>()?)
+        } else {
+            matmul(
+                lhs,
+                rhs,
+                out.map(|mut x| x.borrow_mut().clone()),
+                rayon::current_num_threads(),
+            )
+        }
     } else {
         let (longer_shape, padded_short_shape) = compare_and_pad_shapes(&lhs.shape(), &rhs.shape());
         let a_shape;
@@ -125,22 +159,103 @@ where
                 let shape = iterate_shape.clone();
                 let __a_strides = a_strides.clone();
                 let __b_strides = b_strides.clone();
+                type F32Vec = <f32 as TypeCommon>::Vec;
+                type F16Vec = <half::f16 as TypeCommon>::Vec;
+                type BF16Vec = <half::bf16 as TypeCommon>::Vec;
                 pool.execute(move || {
                     for _ in 0..current_size {
-                        matmul_template_no_block_info(
-                            a_ptr.clone(),
-                            b_ptr.clone(),
-                            res_ptr.clone(),
-                            m,
-                            n,
-                            k,
-                            lhs_rs,
-                            rhs_rs,
-                            dst_cs,
-                            lhs_cs,
-                            rhs_cs,
-                            threads,
-                        );
+                        match T::STR {
+                            "f16" => {
+                                matmul_mixed_precision_template_no_block_info::<half::f16, f32>(
+                                    a_ptr.clone().cast::<half::f16>(),
+                                    b_ptr.clone().cast::<half::f16>(),
+                                    res_ptr.clone().cast::<half::f16>(),
+                                    m,
+                                    n,
+                                    k,
+                                    lhs_rs,
+                                    rhs_rs,
+                                    dst_cs,
+                                    lhs_cs,
+                                    rhs_cs,
+                                    threads,
+                                    |packed_b, b, i| unsafe {
+                                        let packed_b_vec0 = packed_b.add(i * 2);
+                                        let packed_b_vec1 = packed_b.add(i * 2 + 1);
+                                        let b_vec = b.add(i).read_unaligned();
+                                        let val_f32 = b_vec.to_2_f32vec();
+                                        packed_b_vec0.write(val_f32[0]);
+                                        packed_b_vec1.write(val_f32[1]);
+                                    },
+                                    |packed_b, i| unsafe {
+                                        let packed_b_vec0 = packed_b.add(i * 2);
+                                        let packed_b_vec1 = packed_b.add(i * 2 + 1);
+                                        packed_b_vec0.write(F32Vec::splat(0.0));
+                                        packed_b_vec1.write(F32Vec::splat(0.0));
+                                    },
+                                    |val| val.cast(),
+                                    |val| {
+                                        let vec0 = unsafe { val.read() };
+                                        let vec1 = unsafe { val.add(1).read() };
+                                        F16Vec::from_2_f32vec([vec0, vec1])
+                                    },
+                                    |val| val.cast(),
+                                );
+                            }
+                            "bf16" => {
+                                matmul_mixed_precision_template_no_block_info::<half::bf16, f32>(
+                                    a_ptr.clone().cast::<half::bf16>(),
+                                    b_ptr.clone().cast::<half::bf16>(),
+                                    res_ptr.clone().cast::<half::bf16>(),
+                                    m,
+                                    n,
+                                    k,
+                                    lhs_rs,
+                                    rhs_rs,
+                                    dst_cs,
+                                    lhs_cs,
+                                    rhs_cs,
+                                    threads,
+                                    |packed_b, b, i| unsafe {
+                                        let packed_b_vec0 = packed_b.add(i * 2);
+                                        let packed_b_vec1 = packed_b.add(i * 2 + 1);
+                                        let b_vec = b.add(i).read_unaligned();
+                                        let val_f32 = b_vec.to_2_f32vec();
+                                        packed_b_vec0.write(val_f32[0]);
+                                        packed_b_vec1.write(val_f32[1]);
+                                    },
+                                    |packed_b, i| unsafe {
+                                        let packed_b_vec0 = packed_b.add(i * 2);
+                                        let packed_b_vec1 = packed_b.add(i * 2 + 1);
+                                        packed_b_vec0.write(F32Vec::splat(0.0));
+                                        packed_b_vec1.write(F32Vec::splat(0.0));
+                                    },
+                                    |val| val.cast(),
+                                    |val| {
+                                        let vec0 = unsafe { val.read() };
+                                        let vec1 = unsafe { val.add(1).read() };
+                                        BF16Vec::from_2_f32vec([vec0, vec1])
+                                    },
+                                    |val| val.cast(),
+                                );
+                            }
+                            _ => {
+                                matmul_template_no_block_info(
+                                    a_ptr.clone(),
+                                    b_ptr.clone(),
+                                    res_ptr.clone(),
+                                    m,
+                                    n,
+                                    k,
+                                    lhs_rs,
+                                    rhs_rs,
+                                    dst_cs,
+                                    lhs_cs,
+                                    rhs_cs,
+                                    threads,
+                                );
+                            }
+                        }
                         res_ptr.add(res_inner_matrix_size);
                         for j in 0..shape.len() {
                             if prg[j] < shape[j] {

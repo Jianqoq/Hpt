@@ -1,143 +1,19 @@
 use crate::backend::Cpu;
+use crate::backends::cpu::kernels::matmul::common::{calculate_jobs, calculate_prgs, L2_SLAB};
 use crate::tensor_base::_Tensor;
 use crate::ALIGN;
 use dyn_stack::DynStack;
 use gemm_common::cache::{DivCeil, KernelParams, CACHE_INFO};
-use gemm_common::gemm::CACHELINE_ALIGN;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
-use hpt_common::error::shape::ShapeError;
-use hpt_common::shape::shape::Shape;
-use hpt_common::shape::shape_utils::predict_broadcast_shape;
-use hpt_common::shape::shape_utils::{compare_and_pad_shapes, mt_intervals};
+use hpt_common::shape::shape_utils::mt_intervals;
 use hpt_common::{error::base::TensorError, Pointer};
-use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::traits::VecTrait;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use std::cmp::min;
 
+use super::common::matmul_prepare;
 use super::microkernel_trait::MatmulMicroKernel;
-
-pub(crate) fn matmul_prepare<T, const DEVICE: usize, A>(
-    lhs: &_Tensor<T, Cpu, DEVICE, A>,
-    rhs: &_Tensor<T, Cpu, DEVICE, A>,
-    out: Option<_Tensor<T, Cpu, DEVICE, A>>,
-) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
-where
-    T: CommonBounds,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
-{
-    if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
-        ShapeError::check_matmul(lhs.shape(), rhs.shape())?;
-        let res = if let Some(out) = out {
-            ShapeError::check_inplace_out_layout_valid(
-                &Shape::from([lhs.shape()[0], rhs.shape()[1]]),
-                &out.layout(),
-            )?;
-            Ok(out)
-        } else {
-            _Tensor::<T, Cpu, DEVICE, A>::empty(vec![lhs.shape()[0], rhs.shape()[1]])
-        };
-        res
-    } else {
-        let (longer_shape, padded_short_shape) = compare_and_pad_shapes(&lhs.shape(), &rhs.shape());
-        let a_shape;
-        let b_shape;
-        if lhs.shape().len() > rhs.shape().len() {
-            a_shape = longer_shape;
-            b_shape = padded_short_shape;
-        } else {
-            a_shape = padded_short_shape;
-            b_shape = longer_shape;
-        }
-        ShapeError::check_matmul(lhs.shape(), rhs.shape())?;
-        let mut res_shape =
-            predict_broadcast_shape(&a_shape[..a_shape.len() - 2], &b_shape[..b_shape.len() - 2])?
-                .to_vec();
-        res_shape.push(a_shape[a_shape.len() - 2]);
-        res_shape.push(b_shape[b_shape.len() - 1]);
-        let res = if let Some(out) = out {
-            ShapeError::check_inplace_out_layout_valid(&Shape::from(&res_shape), &out.layout())?;
-            Ok(out)
-        } else {
-            _Tensor::<T, Cpu, DEVICE, A>::empty(res_shape)
-        };
-        res
-    }
-}
-
-thread_local! {
-    pub static L2_SLAB: core::cell::RefCell<dyn_stack::MemBuffer> = core::cell::RefCell::new(dyn_stack::MemBuffer::new(
-        dyn_stack::StackReq::new_aligned::<u8>(CACHE_INFO[1].cache_bytes, CACHELINE_ALIGN)
-    ));
-}
-
-fn calculate_jobs(n: usize, nc: usize, mr: usize, nr: usize, ib: usize) -> usize {
-    let mut jobs = 0;
-    for j in (0..n).step_by(nc) {
-        let jb = min(nc, n - j);
-        for _ in (0..ib).step_by(mr) {
-            for _ in (0..jb).step_by(nr) {
-                jobs += 1;
-            }
-        }
-    }
-    jobs
-}
-
-fn calculate_prg(
-    n: usize,
-    nc: usize,
-    mr: usize,
-    nr: usize,
-    ib: usize,
-    prg: [usize; 3],
-    mut start: usize,
-    end: usize,
-) -> [usize; 3] {
-    let mut ret = prg;
-    let j_start = prg[0] * nc;
-    let mut i_start = prg[1] * mr;
-    let mut jj_start = prg[2] * nr;
-    for j in (j_start..n).step_by(nc) {
-        let jb = min(nc, n - j);
-        for _ in (i_start..ib).step_by(mr) {
-            for _ in (jj_start..jb).step_by(nr) {
-                ret[2] += 1;
-                start += 1;
-                if start >= end {
-                    return ret;
-                }
-            }
-            ret[1] += 1;
-            ret[2] = 0;
-            jj_start = 0;
-        }
-        ret[0] += 1;
-        ret[1] = 0;
-        ret[2] = 0;
-        i_start = 0;
-    }
-    ret
-}
-
-fn calculate_prgs(
-    n: usize,
-    nc: usize,
-    mr: usize,
-    nr: usize,
-    ib: usize,
-    intervals: &[(usize, usize)],
-) -> Vec<[usize; 3]> {
-    let mut prgs = vec![[0, 0, 0]; intervals.len()];
-    let mut prg = [0, 0, 0];
-    for (tid, (start, end)) in intervals.iter().enumerate() {
-        prgs[tid] = prg;
-        prg = calculate_prg(n, nc, mr, nr, ib, prg, *start, *end);
-    }
-    prgs
-}
 
 /// single batch matmul template
 ///
@@ -160,6 +36,7 @@ fn calculate_prgs(
 /// * `nr`: n register block size
 /// * `mr`: m register block size
 /// * `num_threads`: number of threads
+#[inline]
 pub fn matmul_template<T>(
     a: Pointer<T>,
     b: Pointer<T>,
@@ -372,6 +249,7 @@ pub fn matmul_template<T>(
 /// * `lhs_col_stride`: `lhs.strides[a.ndim() - 1]`
 /// * `rhs_col_stride`: `rhs.strides[b.ndim() - 1]`
 /// * `num_threads`: number of threads
+#[inline]
 pub fn matmul_template_no_block_info<T>(
     a: Pointer<T>,
     b: Pointer<T>,
@@ -388,8 +266,7 @@ pub fn matmul_template_no_block_info<T>(
 ) where
     T: CommonBounds + MatmulMicroKernel,
 {
-    let nr = CACHE_INFO[0].cache_line_bytes / std::mem::size_of::<T>();
-    let nr = nr.min(T::get_max_nr() * T::Vec::SIZE);
+    let nr = T::get_max_nr() * T::Vec::SIZE;
     let mr = T::get_max_mr().min(m);
     let param = if m <= 64 && n <= 64 {
         // skip expensive kernel_params call for small sizes
@@ -420,11 +297,12 @@ pub fn matmul_template_no_block_info<T>(
         param.nc,
         param.mc,
         nr,
-        T::get_max_mr(),
+        mr,
         num_threads,
     );
 }
 
+#[inline]
 pub(crate) fn pack_a<T>(
     a: Pointer<T>,
     mut packed_a: Pointer<T>,
@@ -483,6 +361,7 @@ pub(crate) fn pack_a<T>(
     // }
 }
 
+#[inline]
 pub(crate) fn pack_b<T>(
     b: Pointer<T>,
     mut packed_b: Pointer<T>,
@@ -562,24 +441,7 @@ where
     let m = a.shape()[0] as usize;
     let n = b.shape()[1] as usize;
     let k = a.shape()[1] as usize;
-
-    let nr = CACHE_INFO[0].cache_line_bytes / std::mem::size_of::<T>();
-    let nr = nr.min(T::get_max_nr() * T::Vec::SIZE);
-    let mr = T::get_max_mr().min(m);
-    let param = if m <= 64 && n <= 64 {
-        // skip expensive kernel_params call for small sizes
-        let kc = k.min(512);
-        let alloc = CACHE_INFO[1].cache_bytes / core::mem::size_of::<T>();
-        let nc = (alloc / kc) / nr * nr;
-        KernelParams {
-            kc,
-            mc: m.msrv_next_multiple_of(mr),
-            nc,
-        }
-    } else {
-        gemm_common::cache::kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>())
-    };
-    matmul_template::<T>(
+    matmul_template_no_block_info::<T>(
         a.ptr(),
         b.ptr(),
         c.ptr(),
@@ -591,11 +453,6 @@ where
         c.shape()[c.ndim() - 1] as i64,
         a.strides()[a.ndim() - 1],
         b.strides()[b.ndim() - 1],
-        param.kc,
-        param.nc,
-        param.mc,
-        nr,
-        T::get_max_mr(),
         num_threads,
     );
     Ok(c.into())

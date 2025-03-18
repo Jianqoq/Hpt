@@ -305,7 +305,7 @@ impl TypeCommon for CustomType {
 
     const STR: &'static str = "CustomType";
 
-    const BIT_SIZE: usize = 8 * std::mem::size_of::<CustomType>();
+    const BYTE_SIZE: usize = 8 * std::mem::size_of::<CustomType>();
 
     type Vec = CustomTypeVec;
 }

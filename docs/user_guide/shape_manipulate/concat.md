@@ -1,7 +1,7 @@
 # concat
 ```rust
 concat(
-    tensors: Vec<&Tensor<T>>,
+    tensors: Vec<Tensor<T>>,
     axis: usize,
     keepdims: bool
 ) -> Result<Tensor<T>, TensorError>

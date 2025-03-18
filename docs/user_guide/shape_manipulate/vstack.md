@@ -1,7 +1,7 @@
 # vstack
 ```rust
 vstack(
-    tensors: Vec<&Tensor<T>>
+    tensors: Vec<Tensor<T>>
 ) -> Result<Tensor<T>, TensorError>
 ```
 Stacks tensors vertically (along axis 0). This is equivalent to concatenation along the first axis.
