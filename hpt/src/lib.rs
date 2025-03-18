@@ -73,9 +73,9 @@ pub(crate) mod backends {
                 pub(crate) mod dwconv2d;
             }
             /// a module defines gemm operation for cpu
-            pub(crate) mod gemm {
+            pub(crate) mod matmul {
                 /// a module implement gemm template
-                pub(crate) mod gemm;
+                pub(crate) mod matmul;
                 pub(crate) mod microkernel_trait;
                 pub(crate) mod microkernels;
             }
@@ -102,6 +102,8 @@ pub(crate) mod backends {
             pub(crate) mod float_out_binary;
             /// a module that contains all the unary operations that has floating type output
             pub(crate) mod float_out_unary;
+            /// a module that contains all the gemm functions
+            pub(crate) mod gemm;
             /// a module that contains matrix multiplication operations
             pub(crate) mod matmul;
             /// a module that contains all normal methods to create a tensor
@@ -145,6 +147,8 @@ pub(crate) mod backends {
             pub(crate) mod float_out_binary;
             /// a module that contains all the unary operations that has floating type output
             pub(crate) mod float_out_unary;
+            /// a module that contains all the gemm functions
+            pub(crate) mod gemm;
             /// a module that contains matrix multiplication operations
             pub(crate) mod matmul;
             /// a module that contains all normal methods to create a tensor
@@ -312,7 +316,7 @@ pub mod error {
 
 /// module for common utils like shape and strides
 pub mod common {
-    pub use hpt_common::{shape::shape::Shape, strides::strides::Strides};
+    pub use hpt_common::{shape::shape::Shape, strides::strides::Strides, Pointer};
     pub use hpt_traits::tensor::{CommonBounds, TensorInfo};
     /// common utils for cpu
     pub mod cpu {
@@ -361,7 +365,8 @@ pub mod types {
 }
 
 /// reexport serde
-pub mod serialize {
+pub mod re_exports {
+    pub use seq_macro;
     pub use serde;
 }
 
@@ -391,7 +396,7 @@ pub mod backend {
 pub mod buitin_templates {
     /// module for cpu buitin templates
     pub mod cpu {
-        pub use crate::backends::cpu::kernels::gemm::gemm::gemm;
+        pub use crate::backends::cpu::kernels::matmul::matmul::matmul_template;
         pub use crate::backends::cpu::utils::binary::binary_normal::binary_with_out;
     }
 }

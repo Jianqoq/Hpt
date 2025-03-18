@@ -29,7 +29,9 @@ fn test() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     for _ in 0..100 {
         let ndim = rng.random_range(1..=3);
-        let shape = (0..ndim).map(|_| rng.random_range(1..=10)).collect::<Vec<_>>();
+        let shape = (0..ndim)
+            .map(|_| rng.random_range(1..=10))
+            .collect::<Vec<_>>();
         let tch_a = tch::Tensor::randn(&shape, (tch::Kind::Float, tch::Device::Cpu));
         let mut a = Tensor::<f32>::empty(&shape)?;
         a.as_raw_mut().copy_from_slice(unsafe {
@@ -51,7 +53,9 @@ fn test_uncontiguous() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     for _ in 0..1000 {
         let ndim = rng.random_range(1..=5);
-        let shape = (0..ndim).map(|_| rng.random_range(1..=10)).collect::<Vec<_>>();
+        let shape = (0..ndim)
+            .map(|_| rng.random_range(1..=10))
+            .collect::<Vec<_>>();
         let tch_a = tch::Tensor::randn(&shape, (tch::Kind::Float, tch::Device::Cpu));
         let mut a = Tensor::<f32>::empty(&shape)?;
         a.as_raw_mut().copy_from_slice(unsafe {
@@ -75,7 +79,9 @@ fn test_2dim_uncontiguous_sub_tensor() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     let ndim = 5;
     for _ in 0..1000 {
-        let shape = (0..ndim).map(|_| rng.random_range(1..=10)).collect::<Vec<_>>();
+        let shape = (0..ndim)
+            .map(|_| rng.random_range(1..=10))
+            .collect::<Vec<_>>();
         let tch_a = tch::Tensor::randn(&shape, (tch::Kind::Float, tch::Device::Cpu));
         let mut a = Tensor::<f32>::empty(&shape)?;
         a.as_raw_mut().copy_from_slice(unsafe {

@@ -259,6 +259,9 @@ impl From<BernoulliError> for TensorError {
 impl From<rand_distr::uniform::Error> for TensorError {
     #[track_caller]
     fn from(source: rand_distr::uniform::Error) -> Self {
-        Self::Random(RandomError::Uniform { source, location: Location::caller() })
+        Self::Random(RandomError::Uniform {
+            source,
+            location: Location::caller(),
+        })
     }
 }

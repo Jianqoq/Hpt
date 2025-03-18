@@ -7,7 +7,9 @@ fn onehot() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     for _ in 0..100 {
         let ndim = rng.random_range(1..=3);
-        let shape = (0..ndim).map(|_| rng.random_range(1..=5)).collect::<Vec<_>>();
+        let shape = (0..ndim)
+            .map(|_| rng.random_range(1..=5))
+            .collect::<Vec<_>>();
         let depth = rng.random_range(1..=5);
         let tch_input =
             tch::Tensor::randint_low(0, depth, &shape, (tch::Kind::Int64, tch::Device::Cpu));

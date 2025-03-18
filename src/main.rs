@@ -1,25 +1,21 @@
 use hpt::{
-    buitin_templates::cpu::gemm, ops::{Matmul, TensorCreator}, Tensor
+    error::TensorError,
+    ops::{Gemm, TensorCreator},
+    Tensor,
 };
-fn main() -> anyhow::Result<()> {
-    let m = 512 * 1;
-    let n = 512 * 1;
-    let k = 512 * 1;
-    // let a = Tensor::<f32>::arange(0, m * k)?.reshape(&[m, k])?;
-    // let b = Tensor::<f32>::arange(0, k * n)?.reshape(&[k, n])?;
-    let a = Tensor::<f32>::ones(&[m, k])?;
-    let b = Tensor::<f32>::ones(&[k, n])?;
-    // println!("a: {}", a);
-    // println!("b: {}", b);
-    let now = std::time::Instant::now();
-    for _ in 0..1000 {
-        let c = gemm(&a, &b, None, 16)?;
-    }
-    println!("{:?}", now.elapsed() / 1000);
-    let now = std::time::Instant::now();
-    for _ in 0..1000 {
-        let real_res = a.matmul(&b)?;
-    }
-    println!("{:?}", now.elapsed() / 1000);
+
+fn main() -> Result<(), TensorError> {
+    // 2D matrix multiplication
+    let a = Tensor::<f64>::new(&[[1., 2.], [3., 4.]]);
+    let b = Tensor::<f64>::new(&[[5., 6.], [7., 8.]]);
+    let c = a.gemm(&b, 0.0, 1.0, false, false, false)?;
+    println!("2D result:\n{}", c);
+
+    // 3D batch matrix multiplication
+    let d = Tensor::<f64>::ones(&[2, 2, 3])?; // 2 matrices of shape 2x3
+    let e = Tensor::<f64>::ones(&[2, 3, 2])?; // 2 matrices of shape 3x2
+    let f = d.gemm(&e, 0.0, 1.0, false, false, false)?; // 2 matrices of shape 2x2
+    println!("3D result:\n{}", f);
+
     Ok(())
 }

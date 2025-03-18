@@ -9,8 +9,8 @@ use hpt_traits::{
 use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
 use rand_distr::{
-    uniform::SampleUniform, Distribution, Exp1, Open01, OpenClosed01, StandardUniform,
-    StandardNormal,
+    uniform::SampleUniform, Distribution, Exp1, Open01, OpenClosed01, StandardNormal,
+    StandardUniform,
 };
 
 impl<T, const DEVICE_ID: usize, Al> Random for Tensor<T, Cuda, DEVICE_ID, Al>

@@ -86,7 +86,9 @@ where
 }
 
 impl HeaderInfo {
-    pub(crate) fn parse_header_compressed(file: &str) -> Result<HashMap<String, HeaderInfo>, Box<dyn std::error::Error>> {
+    pub(crate) fn parse_header_compressed(
+        file: &str,
+    ) -> Result<HashMap<String, HeaderInfo>, Box<dyn std::error::Error>> {
         let mut file = File::open(file)?;
         file.read_exact(&mut [0u8; "FASTTENSOR".len()])?;
         let mut header_infos = [0u8; 20];

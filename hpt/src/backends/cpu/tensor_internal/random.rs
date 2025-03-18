@@ -11,7 +11,7 @@ use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::into_scalar::Cast;
 use rand_distr::{
     uniform::SampleUniform, Distribution, Exp1, Normal, NormalInverseGaussian, Open01,
-    OpenClosed01, StandardUniform, StandardNormal, Uniform,
+    OpenClosed01, StandardNormal, StandardUniform, Uniform,
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 

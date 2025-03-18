@@ -1,12 +1,8 @@
-use std::cmp::min;
-use std::sync::atomic::AtomicUsize;
-
 use crate::backend::Cpu;
-use crate::backends::cpu::cache_utils::cache::Cache;
 use crate::tensor_base::_Tensor;
-use crate::{Tensor, ALIGN};
+use crate::ALIGN;
 use dyn_stack::DynStack;
-use gemm_common::cache::CACHE_INFO;
+use gemm_common::cache::{DivCeil, KernelParams, CACHE_INFO};
 use gemm_common::gemm::CACHELINE_ALIGN;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::shape::ShapeError;
@@ -18,30 +14,11 @@ use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::traits::VecTrait;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use std::cmp::min;
 
-use super::microkernel_trait::MicroKernel;
+use super::microkernel_trait::MatmulMicroKernel;
 
-pub static TLB_L1_SIZE: AtomicUsize = AtomicUsize::new(64);
-
-fn estimate_tlb_miss(
-    mr: usize,
-    nr: usize,
-    kc: usize,
-    element_size: usize,
-    tlb_entries: usize,
-    page_size: usize,
-) -> bool {
-    let lhs_memory = mr * kc * element_size;
-    let rhs_memory = nr * kc * element_size;
-    let dst_memory = mr * nr * element_size;
-    let total_memory = lhs_memory + rhs_memory + dst_memory;
-
-    let pages_needed = total_memory.div_ceil(page_size);
-
-    pages_needed > tlb_entries
-}
-
-pub(crate) fn gemm_prepare<T, const DEVICE: usize, A>(
+pub(crate) fn matmul_prepare<T, const DEVICE: usize, A>(
     lhs: &_Tensor<T, Cpu, DEVICE, A>,
     rhs: &_Tensor<T, Cpu, DEVICE, A>,
     out: Option<_Tensor<T, Cpu, DEVICE, A>>,
@@ -145,8 +122,45 @@ fn calculate_prg(
     ret
 }
 
-#[allow(unused_labels)]
-pub(crate) fn gemm_template<T>(
+fn calculate_prgs(
+    n: usize,
+    nc: usize,
+    mr: usize,
+    nr: usize,
+    ib: usize,
+    intervals: &[(usize, usize)],
+) -> Vec<[usize; 3]> {
+    let mut prgs = vec![[0, 0, 0]; intervals.len()];
+    let mut prg = [0, 0, 0];
+    for (tid, (start, end)) in intervals.iter().enumerate() {
+        prgs[tid] = prg;
+        prg = calculate_prg(n, nc, mr, nr, ib, prg, *start, *end);
+    }
+    prgs
+}
+
+/// single batch matmul template
+///
+/// # Arguments
+///
+/// * `a`: lhs shape `(m, k)`
+/// * `b`: rhs shape `(k, n)`
+/// * `out`: output shape `(m, n)`
+/// * `m`: rows of lhs
+/// * `n`: cols of rhs
+/// * `k`: cols of lhs
+/// * `lda`: `lhs.strides[a.ndim() - 2]`
+/// * `ldb`: `rhs.strides[r.ndim() - 2]`
+/// * `ldc`: `out.shape[out.ndim() - 1]`
+/// * `lhs_col_stride`: `lhs.strides[a.ndim() - 1]`
+/// * `rhs_col_stride`: `rhs.strides[b.ndim() - 1]`
+/// * `kc`: k block size
+/// * `mc`: m block size
+/// * `nc`: n block size
+/// * `nr`: n register block size
+/// * `mr`: m register block size
+/// * `num_threads`: number of threads
+pub fn matmul_template<T>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
@@ -163,9 +177,9 @@ pub(crate) fn gemm_template<T>(
     nc: usize,
     nr: usize,
     mr: usize,
-    num_threads: usize,
+    mut num_threads: usize,
 ) where
-    T: CommonBounds + MicroKernel + PartialEq,
+    T: CommonBounds + MatmulMicroKernel,
 {
     assert_eq!(
         nr % T::Vec::SIZE,
@@ -174,21 +188,10 @@ pub(crate) fn gemm_template<T>(
         T::Vec::SIZE,
         T::STR
     );
-    assert_eq!(nc % nr, 0, "nc must be a multiple of nr");
-    assert_eq!(mc % mr, 0, "mc must be a multiple of mr");
 
     let mut do_lhs_pack = false;
 
-    if estimate_tlb_miss(
-        mr,
-        nr,
-        kc,
-        std::mem::size_of::<T>(),
-        TLB_L1_SIZE.load(std::sync::atomic::Ordering::Relaxed),
-        4096,
-    ) || (lhs_col_stride == 1 && n > 128 * nr)
-        || lhs_col_stride != 1
-    {
+    if (lhs_col_stride == 1 && n > 128 * nr) || lhs_col_stride != 1 {
         do_lhs_pack = true;
     }
 
@@ -199,7 +202,6 @@ pub(crate) fn gemm_template<T>(
         ALIGN,
     )
     .expect("layout create failed");
-    let mb_per_thread = num_mr_blocks.div_ceil(num_threads);
 
     let packed_a = if do_lhs_pack {
         let a_buffer = unsafe { std::alloc::alloc(packed_a_layout) };
@@ -217,27 +219,16 @@ pub(crate) fn gemm_template<T>(
 
     let packed_a_ptr = packed_a.ptr as *mut T;
 
-    let barrier = std::sync::Arc::new(std::sync::Barrier::new(num_threads));
-
-    let mut prgs = vec![[0, 0, 0]; num_threads];
     let mc_jobs = calculate_jobs(n, nc, mr, nr, mc);
     let mc_rem_jobs = calculate_jobs(n, nc, mr, nr, m % mc);
+    num_threads = num_threads.min(mc_jobs);
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(num_threads));
+    let mb_per_thread = num_mr_blocks.div_ceil(num_threads);
     let intervals = mt_intervals(mc_jobs, num_threads);
     let mc_rem_intervals = mt_intervals(mc_rem_jobs, num_threads);
 
-    let mut prg = [0, 0, 0];
-    for tid in 0..num_threads {
-        let (start, end) = intervals[tid];
-        prgs[tid] = prg;
-        prg = calculate_prg(n, nc, mr, nr, mc, prg, start, end);
-    }
-    let mut rem_prgs = vec![[0, 0, 0]; num_threads];
-    let mut rem_prg = [0, 0, 0];
-    for tid in 0..num_threads {
-        let (start, end) = mc_rem_intervals[tid];
-        rem_prgs[tid] = rem_prg;
-        rem_prg = calculate_prg(n, nc, mr, nr, m % mc, rem_prg, start, end);
-    }
+    let prgs = calculate_prgs(n, nc, mr, nr, mc, &intervals);
+    let rem_prgs = calculate_prgs(n, nc, mr, nr, m % mc, &mc_rem_intervals);
     (0..num_threads)
         .into_par_iter()
         .zip(prgs)
@@ -365,6 +356,75 @@ pub(crate) fn gemm_template<T>(
     }
 }
 
+/// single batch matmul template no block info
+///
+/// # Arguments
+///
+/// * `a`: lhs shape `(m, k)`
+/// * `b`: rhs shape `(k, n)`
+/// * `out`: output shape `(m, n)`
+/// * `m`: rows of lhs
+/// * `n`: cols of rhs
+/// * `k`: cols of lhs
+/// * `lda`: `lhs.strides[a.ndim() - 2]`
+/// * `ldb`: `rhs.strides[r.ndim() - 2]`
+/// * `ldc`: `out.shape[out.ndim() - 1]`
+/// * `lhs_col_stride`: `lhs.strides[a.ndim() - 1]`
+/// * `rhs_col_stride`: `rhs.strides[b.ndim() - 1]`
+/// * `num_threads`: number of threads
+pub fn matmul_template_no_block_info<T>(
+    a: Pointer<T>,
+    b: Pointer<T>,
+    out: Pointer<T>,
+    m: usize,
+    n: usize,
+    k: usize,
+    lda: i64,
+    ldb: i64,
+    ldc: i64,
+    lhs_col_stride: i64,
+    rhs_col_stride: i64,
+    num_threads: usize,
+) where
+    T: CommonBounds + MatmulMicroKernel,
+{
+    let nr = CACHE_INFO[0].cache_line_bytes / std::mem::size_of::<T>();
+    let nr = nr.min(T::get_max_nr() * T::Vec::SIZE);
+    let mr = T::get_max_mr().min(m);
+    let param = if m <= 64 && n <= 64 {
+        // skip expensive kernel_params call for small sizes
+        let kc = k.min(512);
+        let alloc = CACHE_INFO[1].cache_bytes / core::mem::size_of::<T>();
+        let nc = (alloc / kc) / nr * nr;
+        KernelParams {
+            kc,
+            mc: m.msrv_next_multiple_of(mr),
+            nc,
+        }
+    } else {
+        gemm_common::cache::kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>())
+    };
+    matmul_template::<T>(
+        a,
+        b,
+        out,
+        m,
+        n,
+        k,
+        lda,
+        ldb,
+        ldc,
+        lhs_col_stride,
+        rhs_col_stride,
+        param.kc,
+        param.nc,
+        param.mc,
+        nr,
+        T::get_max_mr(),
+        num_threads,
+    );
+}
+
 pub(crate) fn pack_a<T>(
     a: Pointer<T>,
     mut packed_a: Pointer<T>,
@@ -486,28 +546,40 @@ pub(crate) fn pack_b<T>(
     }
 }
 
-/// gemm
-pub fn gemm<T, const DEVICE: usize, A>(
-    a: &Tensor<T, Cpu, DEVICE, A>,
-    b: &Tensor<T, Cpu, DEVICE, A>,
-    out: Option<Tensor<T, Cpu, DEVICE, A>>,
+/// matmul
+pub(crate) fn matmul<T, const DEVICE: usize, A>(
+    a: &_Tensor<T, Cpu, DEVICE, A>,
+    b: &_Tensor<T, Cpu, DEVICE, A>,
+    out: Option<_Tensor<T, Cpu, DEVICE, A>>,
     num_threads: usize,
-) -> Result<Tensor<T, Cpu, DEVICE, A>, TensorError>
+) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
-    T: CommonBounds + MicroKernel + PartialEq,
+    T: CommonBounds + MatmulMicroKernel,
     A: Allocator,
     A::Output: AllocatorOutputRetrive,
 {
-    let c = gemm_prepare(&a.inner, &b.inner, out.map(|t| t.inner.as_ref().clone()))?;
+    let c = matmul_prepare(&a, &b, out)?;
     let m = a.shape()[0] as usize;
     let n = b.shape()[1] as usize;
     let k = a.shape()[1] as usize;
 
-    let cache = Cache::<T>::new();
-    let nr = cache.l1_line_size;
-    let mr = T::get_max_mr();
-    let param = gemm_common::cache::kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>());
-    gemm_template::<T>(
+    let nr = CACHE_INFO[0].cache_line_bytes / std::mem::size_of::<T>();
+    let nr = nr.min(T::get_max_nr() * T::Vec::SIZE);
+    let mr = T::get_max_mr().min(m);
+    let param = if m <= 64 && n <= 64 {
+        // skip expensive kernel_params call for small sizes
+        let kc = k.min(512);
+        let alloc = CACHE_INFO[1].cache_bytes / core::mem::size_of::<T>();
+        let nc = (alloc / kc) / nr * nr;
+        KernelParams {
+            kc,
+            mc: m.msrv_next_multiple_of(mr),
+            nc,
+        }
+    } else {
+        gemm_common::cache::kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>())
+    };
+    matmul_template::<T>(
         a.ptr(),
         b.ptr(),
         c.ptr(),
@@ -516,7 +588,7 @@ where
         k,
         a.strides()[a.ndim() - 2],
         b.strides()[b.ndim() - 2],
-        c.shape()[1] as i64,
+        c.shape()[c.ndim() - 1] as i64,
         a.strides()[a.ndim() - 1],
         b.strides()[b.ndim() - 1],
         param.kc,

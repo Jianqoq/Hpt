@@ -11,7 +11,8 @@ use hpt_traits::ops::random::{Random, RandomInt};
 use hpt_traits::tensor::CommonBounds;
 use hpt_types::into_scalar::Cast;
 use rand_distr::{
-    uniform::SampleUniform, Distribution, Exp1, Open01, OpenClosed01, StandardUniform, StandardNormal,
+    uniform::SampleUniform, Distribution, Exp1, Open01, OpenClosed01, StandardNormal,
+    StandardUniform,
 };
 
 impl<T, const DEVICE: usize, Al> Random for Tensor<T, Cpu, DEVICE, Al>

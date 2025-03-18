@@ -146,7 +146,9 @@ fn fn_name() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     for _ in 0..100 {
         let len = rng.random_range(1..=3);
-        let shape = (1..=len).map(|_| rng.random_range(1..=10)).collect::<Vec<_>>();
+        let shape = (1..=len)
+            .map(|_| rng.random_range(1..=10))
+            .collect::<Vec<_>>();
         let ((tch_a, tch_b), (a, b)) = input_method(&shape, &shape)?;
         let c = hpt_op;
         let tch_c = tch_a.tch_op(&tch_b);
@@ -178,7 +180,9 @@ fn fn_name() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     for _ in 0..100 {
         let len = rng.random_range(2..=4);
-        let mut shape = (1..=len).map(|_| rng.random_range(1..=10)).collect::<Vec<_>>();
+        let mut shape = (1..=len)
+            .map(|_| rng.random_range(1..=10))
+            .collect::<Vec<_>>();
         let mut shape2 = shape.clone();
         shape2[0] = 1;
         let ((tch_a, tch_b), (a, b)) = input_method(&shape, &shape2)?;
@@ -264,7 +268,9 @@ fn fn_name() -> anyhow::Result<()> {
 fn fn_name() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     for _ in 0..100 {
-        let shape = (1..=3).map(|_| rng.random_range(1..=10)).collect::<Vec<_>>();
+        let shape = (1..=3)
+            .map(|_| rng.random_range(1..=10))
+            .collect::<Vec<_>>();
         let ((tch_a, tch_b), (a, b)) = input_method(&shape, &shape)?;
         let tch_a = tch_a.permute(&[2, 1, 0][..]);
         let a = a.permute([2, 1, 0])?;
@@ -343,7 +349,9 @@ fn fn_name() -> anyhow::Result<()> {
 fn fn_name() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     for _ in 0..100 {
-        let shape = (1..=3).map(|_| rng.random_range(1..=10)).collect::<Vec<_>>();
+        let shape = (1..=3)
+            .map(|_| rng.random_range(1..=10))
+            .collect::<Vec<_>>();
         let ((tch_a, _), (a, _)) = input_method(&shape, &shape)?;
         let c = a.clone().hpt_op(scalar);
         let tch_c = tch_a.shallow_clone().tch_op(&TchTensor::from(scalar));
@@ -372,7 +380,9 @@ fn fn_name() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     for _ in 0..100 {
         let len = rng.random_range(2..=4);
-        let mut shape = (1..=len).map(|_| rng.random_range(1..=10)).collect::<Vec<_>>();
+        let mut shape = (1..=len)
+            .map(|_| rng.random_range(1..=10))
+            .collect::<Vec<_>>();
         let mut shape2 = shape.clone();
         shape2[0] = 1;
         let ((tch_a, _), (a, _)) = input_method(&shape, &shape2)?;
@@ -448,7 +458,9 @@ fn fn_name() -> anyhow::Result<()> {
 fn fn_name() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     for _ in 0..100 {
-        let shape = (1..=3).map(|_| rng.random_range(1..=10)).collect::<Vec<_>>();
+        let shape = (1..=3)
+            .map(|_| rng.random_range(1..=10))
+            .collect::<Vec<_>>();
         let ((tch_a, _), (a, _)) = input_method(&shape, &shape)?;
         let tch_a = tch_a.permute(&[2, 1, 0][..]);
         let a = a.permute([2, 1, 0])?;

@@ -1,37 +1,20 @@
 use std::time::Duration;
 
 use candle_core::Tensor as CandleTensor;
-use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
+use criterion::{black_box, BenchmarkId, Criterion};
+use hpt::buitin_templates::cpu::matmul;
 use hpt::ops::*;
 use hpt::Tensor;
 use tch::{Device, Kind, Tensor as TchTensor};
 
-fn matmul_f32_benchmark(c: &mut Criterion) {
-    hpt::utils::set_num_threads(num_cpus::get_physical());
-    tch::set_num_threads(num_cpus::get_physical() as i32);
-
-    let shapes = [
-        [10, 4096, 2],
-        [10, 4096, 4],
-        [10, 4096, 8],
-        [10, 4096, 16],
-        [10, 4096, 32],
-        [10, 4096, 64],
-        [10, 4096, 128],
-        [10, 4096, 256],
-        [10, 4096, 512],
-        [10, 4096, 1024],
-        // [10, 2, 4096],
-        // [10, 4, 4096],
-        // [10, 8, 4096],
-        // [10, 16, 4096],
-        // [10, 32, 4096],
-        // [10, 64, 4096],
-        // [10, 128, 4096],
-        // [10, 256, 4096],
-        // [10, 512, 4096],
-        // [10, 1024, 4096],
-    ];
+fn matmul_f32_benchmark(c: &mut Criterion<crate::benchmarks::Timer>) {
+    let num_threads = num_cpus::get_physical();
+    hpt::utils::set_num_threads(num_threads);
+    tch::set_num_threads(num_threads as i32);
+    let mut ns = vec![];
+    for i in 1..=80 {
+        ns.push(64 * i);
+    }
 
     let mut group = c.benchmark_group("matmul f16 Benchmarks");
     group
@@ -39,16 +22,16 @@ fn matmul_f32_benchmark(c: &mut Criterion) {
         .measurement_time(Duration::new(3, 0))
         .sample_size(10);
 
-    for idx in 0..shapes.len() {
-        let a = black_box(TchTensor::randn(shapes[idx], (Kind::Float, Device::Cpu)));
-        let c = black_box(TchTensor::randn(shapes[idx], (Kind::Float, Device::Cpu)));
-        let a2 = black_box(Tensor::<f32>::randn(shapes[idx]).unwrap());
-        let c2 = black_box(Tensor::<f32>::randn(shapes[idx]).unwrap());
+    for n in ns {
+        // let a = black_box(TchTensor::randn([n, n], (Kind::Float, Device::Cpu)));
+        // let c = black_box(TchTensor::randn([n, n], (Kind::Float, Device::Cpu)));
+        // let a2 = black_box(Tensor::<f32>::randn([n, n]).unwrap());
+        // let c2 = black_box(Tensor::<f32>::randn([n, n]).unwrap());
         let a3 = black_box(
             CandleTensor::randn(
                 0f32,
                 1f32,
-                shapes[idx]
+                [n, n]
                     .into_iter()
                     .map(|x| x as usize)
                     .collect::<Vec<usize>>(),
@@ -60,7 +43,7 @@ fn matmul_f32_benchmark(c: &mut Criterion) {
             CandleTensor::randn(
                 0f32,
                 1f32,
-                shapes[idx]
+                [n, n]
                     .into_iter()
                     .map(|x| x as usize)
                     .collect::<Vec<usize>>(),
@@ -68,18 +51,26 @@ fn matmul_f32_benchmark(c: &mut Criterion) {
             )
             .unwrap(),
         );
-        group.bench_with_input(BenchmarkId::new("hpt", idx), &idx, |b, _| {
-            b.iter(|| a2.matmul(c2.t().unwrap()).unwrap());
-        });
-        group.bench_with_input(BenchmarkId::new("torch", idx), &idx, |b, _| {
-            b.iter(|| a.matmul(&c.transpose(1, 2)));
-        });
-        group.bench_with_input(BenchmarkId::new("candle", idx), &idx, |b, _| {
-            b.iter(|| a3.matmul(&c3.t().unwrap()).unwrap());
+        // group.bench_with_input(BenchmarkId::new("hpt", n), &n, |b, _| {
+        //     b.iter(|| a2.matmul(&c2).unwrap());
+        // });
+        // group.bench_with_input(BenchmarkId::new("torch", n), &n, |b, _| {
+        //     b.iter(|| a.matmul(&c));
+        // });
+        // group.bench_with_input(BenchmarkId::new("hpt(builtin)", n), &n, |b, _| {
+        //     b.iter(|| gemm(&a2, &c2, None, num_threads).unwrap());
+        // });
+        group.bench_with_input(BenchmarkId::new("candle(mkl)", n), &n, |b, _| {
+            b.iter(|| a3.matmul(&c3));
         });
     }
 
     group.finish();
 }
 
-criterion_group!(matmul_f32_benches, matmul_f32_benchmark);
+pub fn matmul_f32_benches() {
+    let criterion: criterion::Criterion<_> =
+        (criterion::Criterion::default()).configure_from_args();
+    let mut criterion = criterion.with_measurement(crate::benchmarks::Timer);
+    matmul_f32_benchmark(&mut criterion);
+}

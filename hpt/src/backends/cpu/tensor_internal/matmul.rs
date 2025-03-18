@@ -1,84 +1,39 @@
 use std::borrow::{Borrow, BorrowMut};
 
+use crate::backends::cpu::kernels::matmul::matmul::{matmul, matmul_template_no_block_info};
+use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_allocator::Cpu;
 use hpt_common::error::{base::TensorError, shape::ShapeError};
+use hpt_common::shape::shape::Shape;
 use hpt_common::shape::shape_utils::predict_broadcast_shape;
 use hpt_common::shape::shape_utils::{compare_and_pad_shapes, mt_intervals};
 use hpt_common::strides::strides_utils::preprocess_strides;
 use hpt_traits::ops::binary::Matmul;
 use hpt_traits::ops::creation::TensorCreator;
-use hpt_traits::tensor::TensorLike;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
-use hpt_types::dtype::TypeCommon;
-use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
-use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
-
-type MatmulOutput<A, B, const DEVICE: usize, A2> =
-    _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>;
 
 #[track_caller]
-pub(crate) fn matmul_with_out<A, B, O, Q, A2, const DEVICE: usize>(
-    lhs: &_Tensor<A, Cpu, DEVICE, A2>,
-    rhs: &_Tensor<B, Cpu, DEVICE, A2>,
+pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
+    lhs: &_Tensor<T, Cpu, DEVICE, A2>,
+    rhs: &_Tensor<T, Cpu, DEVICE, A2>,
     out: Option<O>,
-) -> std::result::Result<MatmulOutput<A, B, DEVICE, A2>, TensorError>
+) -> std::result::Result<_Tensor<T, Cpu, DEVICE, A2>, TensorError>
 where
-    A: CommonBounds + NormalOut<B> + Cast<<A as NormalOut<B>>::Output>,
-    B: CommonBounds + Cast<<A as NormalOut<B>>::Output>,
-    O: Borrow<_Tensor<Q, Cpu, DEVICE, A2>> + BorrowMut<_Tensor<Q, Cpu, DEVICE, A2>>,
-    <A as NormalOut<B>>::Output: CommonBounds,
-    Q: CommonBounds,
+    T: CommonBounds + MatmulMicroKernel,
+    O: BorrowMut<_Tensor<T, Cpu, DEVICE, A2>>,
     A2: Allocator,
     A2::Output: AllocatorOutputRetrive,
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
-        ShapeError::check_matmul(lhs.shape(), rhs.shape())?;
-        let res = if let Some(mut out) = out {
-            if out.borrow().size() == ((lhs.shape()[0] * rhs.shape()[1]) as usize)
-                && out.borrow().parent().is_none()
-            {
-                let val = Q::ZERO;
-                out.borrow_mut().as_raw_mut().par_iter_mut().for_each(|x| {
-                    *x = val;
-                });
-                let casted: MatmulOutput<A, B, DEVICE, A2> =
-                    out.borrow().static_cast::<<A as NormalOut<B>>::Output>()?;
-                casted
-            } else {
-                MatmulOutput::<A, B, DEVICE, A2>::empty(vec![lhs.shape()[0], rhs.shape()[1]])?
-            }
-        } else {
-            MatmulOutput::<A, B, DEVICE, A2>::empty(vec![lhs.shape()[0], rhs.shape()[1]])?
-        };
-        let new_a = &lhs.try_astype()?;
-        let new_b = &rhs.try_astype()?;
-        unsafe {
-            gemm::gemm(
-                lhs.shape()[0] as usize,
-                rhs.shape()[1] as usize,
-                rhs.shape()[0] as usize,
-                res.data.ptr,
-                res.strides()[1] as isize,
-                res.strides()[0] as isize,
-                false,
-                new_a.data.ptr,
-                new_a.strides()[1] as isize,
-                new_a.strides()[0] as isize,
-                new_b.data.ptr,
-                new_b.strides()[1] as isize,
-                new_b.strides()[0] as isize,
-                <A as NormalOut<B>>::Output::ZERO,
-                <A as NormalOut<B>>::Output::ONE,
-                false,
-                false,
-                false,
-                gemm::Parallelism::Rayon(rayon::current_num_threads()),
-            );
-        }
-        Ok(res)
+        matmul(
+            lhs,
+            rhs,
+            out.map(|mut x| x.borrow_mut().clone()),
+            rayon::current_num_threads(),
+        )
     } else {
         let (longer_shape, padded_short_shape) = compare_and_pad_shapes(&lhs.shape(), &rhs.shape());
         let a_shape;
@@ -97,20 +52,12 @@ where
         let mut iterate_shape = res_shape.clone();
         res_shape.push(a_shape[a_shape.len() - 2]);
         res_shape.push(b_shape[b_shape.len() - 1]);
-        let new_a = &lhs.try_astype::<<A as NormalOut<B>>::Output>()?;
-        let new_b = &rhs.try_astype::<<A as NormalOut<B>>::Output>()?;
         let res = if let Some(mut out) = out {
-            if out.borrow().size() == (res_shape.iter().product::<i64>() as usize) {
-                let val = Q::ZERO;
-                out.borrow_mut().as_raw_mut().par_iter_mut().for_each(|x| {
-                    *x = val;
-                });
-                out.borrow().static_cast::<<A as NormalOut<B>>::Output>()?
-            } else {
-                MatmulOutput::<A, B, DEVICE, A2>::empty(res_shape)?
-            }
+            let out: _Tensor<T, Cpu, DEVICE, A2> = out.borrow_mut().clone();
+            ShapeError::check_inplace_out_layout_valid(&Shape::from(&res_shape), &out.layout())?;
+            out
         } else {
-            MatmulOutput::<A, B, DEVICE, A2>::empty(res_shape)?
+            _Tensor::<T, Cpu, DEVICE, A2>::empty(res_shape)?
         };
         let a_strides = preprocess_strides(&a_shape, &lhs.strides());
         let b_strides = preprocess_strides(&b_shape, &rhs.strides());
@@ -120,8 +67,8 @@ where
         iterate_shape.iter_mut().for_each(|x| {
             *x -= 1;
         });
-        let mut a_ptr = new_a.data.clone();
-        let mut b_ptr = new_b.data.clone();
+        let mut a_ptr = lhs.data.clone();
+        let mut b_ptr = rhs.data.clone();
         let mut res_ptr = res.data.clone();
         let num_threads = if len < rayon::current_num_threads() {
             len
@@ -155,14 +102,13 @@ where
             amount += end - start;
             a_ptrs.push(a_ptr);
             b_ptrs.push(b_ptr);
-            a_ptr = new_a.data.clone();
-            b_ptr = new_b.data.clone();
+            a_ptr = lhs.data.clone();
+            b_ptr = rhs.data.clone();
             prgs.push(prg);
         }
         let lhs_cs = lhs.strides()[lhs.strides().len() - 1];
         let lhs_rs = lhs.strides()[lhs.strides().len() - 2];
         let dst_cs = res.strides()[res.strides().len() - 1];
-        let dst_rs = res.strides()[res.strides().len() - 2];
         let rhs_cs = rhs.strides()[rhs.strides().len() - 1];
         let rhs_rs = rhs.strides()[rhs.strides().len() - 2];
         let m = a_shape[a_shape.len() - 2] as usize;
@@ -181,40 +127,31 @@ where
                 let __b_strides = b_strides.clone();
                 pool.execute(move || {
                     for _ in 0..current_size {
-                        unsafe {
-                            gemm::gemm(
-                                m,
-                                n,
-                                k,
-                                res_ptr.ptr,
-                                dst_cs as isize,
-                                dst_rs as isize,
-                                false,
-                                a_ptr.ptr,
-                                lhs_cs as isize,
-                                lhs_rs as isize,
-                                b_ptr.ptr,
-                                rhs_cs as isize,
-                                rhs_rs as isize,
-                                <A as NormalOut<B>>::Output::ZERO,
-                                <A as NormalOut<B>>::Output::ONE,
-                                false,
-                                false,
-                                false,
-                                gemm::Parallelism::Rayon(threads),
-                            );
-                            res_ptr.add(res_inner_matrix_size);
-                            for j in 0..shape.len() {
-                                if prg[j] < shape[j] {
-                                    prg[j] += 1;
-                                    a_ptr.offset(__a_strides[j]);
-                                    b_ptr.offset(__b_strides[j]);
-                                    break;
-                                } else {
-                                    prg[j] = 0;
-                                    a_ptr.offset(-__a_strides[j] * shape[j]);
-                                    b_ptr.offset(-__b_strides[j] * shape[j]);
-                                }
+                        matmul_template_no_block_info(
+                            a_ptr.clone(),
+                            b_ptr.clone(),
+                            res_ptr.clone(),
+                            m,
+                            n,
+                            k,
+                            lhs_rs,
+                            rhs_rs,
+                            dst_cs,
+                            lhs_cs,
+                            rhs_cs,
+                            threads,
+                        );
+                        res_ptr.add(res_inner_matrix_size);
+                        for j in 0..shape.len() {
+                            if prg[j] < shape[j] {
+                                prg[j] += 1;
+                                a_ptr.offset(__a_strides[j]);
+                                b_ptr.offset(__b_strides[j]);
+                                break;
+                            } else {
+                                prg[j] = 0;
+                                a_ptr.offset(-__a_strides[j] * shape[j]);
+                                b_ptr.offset(-__b_strides[j] * shape[j]);
                             }
                         }
                     }
@@ -226,27 +163,24 @@ where
     }
 }
 
-impl<A, B, A2, const DEVICE: usize> Matmul<_Tensor<B, Cpu, DEVICE, A2>>
-    for _Tensor<A, Cpu, DEVICE, A2>
+impl<T, A2, const DEVICE: usize> Matmul<_Tensor<T, Cpu, DEVICE, A2>> for _Tensor<T, Cpu, DEVICE, A2>
 where
-    A: CommonBounds + NormalOut<B> + Cast<<A as NormalOut<B>>::Output>,
-    B: CommonBounds + Cast<<A as NormalOut<B>>::Output>,
-    <A as NormalOut<B>>::Output: CommonBounds,
+    T: CommonBounds + MatmulMicroKernel,
     A2: Allocator,
     A2::Output: AllocatorOutputRetrive,
 {
-    type Output = MatmulOutput<A, B, DEVICE, A2>;
+    type Output = _Tensor<T, Cpu, DEVICE, A2>;
 
-    type OutputMeta = <A as NormalOut<B>>::Output;
+    type OutputMeta = T;
 
-    type InplaceOutput = MatmulOutput<A, B, DEVICE, A2>;
+    type InplaceOutput = _Tensor<T, Cpu, DEVICE, A2>;
 
-    fn matmul(&self, rhs: _Tensor<B, Cpu, DEVICE, A2>) -> Result<Self::Output, TensorError> {
+    fn matmul(&self, rhs: _Tensor<T, Cpu, DEVICE, A2>) -> Result<Self::Output, TensorError> {
         matmul_with_out(self, &rhs, None::<Self::Output>)
     }
     fn matmul_<U>(
         &self,
-        rhs: _Tensor<B, Cpu, DEVICE, A2>,
+        rhs: _Tensor<T, Cpu, DEVICE, A2>,
         out: U,
     ) -> Result<Self::Output, TensorError>
     where
@@ -256,28 +190,26 @@ where
     }
 }
 
-impl<A, B, A2, const DEVICE: usize> Matmul<&_Tensor<B, Cpu, DEVICE, A2>>
-    for _Tensor<A, Cpu, DEVICE, A2>
+impl<T, A2, const DEVICE: usize> Matmul<&_Tensor<T, Cpu, DEVICE, A2>>
+    for _Tensor<T, Cpu, DEVICE, A2>
 where
-    A: CommonBounds + NormalOut<B> + Cast<<A as NormalOut<B>>::Output>,
-    B: CommonBounds + Cast<<A as NormalOut<B>>::Output>,
-    <A as NormalOut<B>>::Output: CommonBounds,
+    T: CommonBounds + MatmulMicroKernel,
     A2: Allocator,
     A2::Output: AllocatorOutputRetrive,
 {
-    type Output = MatmulOutput<A, B, DEVICE, A2>;
+    type Output = _Tensor<T, Cpu, DEVICE, A2>;
 
-    type OutputMeta = <A as NormalOut<B>>::Output;
+    type OutputMeta = T;
 
-    type InplaceOutput = MatmulOutput<A, B, DEVICE, A2>;
+    type InplaceOutput = _Tensor<T, Cpu, DEVICE, A2>;
 
-    fn matmul(&self, rhs: &_Tensor<B, Cpu, DEVICE, A2>) -> Result<Self::Output, TensorError> {
+    fn matmul(&self, rhs: &_Tensor<T, Cpu, DEVICE, A2>) -> Result<Self::Output, TensorError> {
         matmul_with_out(self, &rhs, None::<Self::Output>)
     }
 
     fn matmul_<U>(
         &self,
-        rhs: &_Tensor<B, Cpu, DEVICE, A2>,
+        rhs: &_Tensor<T, Cpu, DEVICE, A2>,
         out: U,
     ) -> Result<Self::Output, TensorError>
     where

@@ -1,5 +1,5 @@
 #![allow(unused)]
-use hpt::buitin_templates::cpu::gemm;
+use hpt::buitin_templates::cpu::matmul;
 use hpt::common::cpu::TensorLike;
 use hpt::common::TensorInfo;
 use hpt::ops::Contiguous;
@@ -28,7 +28,7 @@ fn test() -> anyhow::Result<()> {
         let a = Tensor::<f32>::arange(0, m * k)?.reshape(&[m, k])?;
         let b = Tensor::<f32>::arange(0, k * n)?.reshape(&[k, n])?;
         let c = a.matmul(&b)?;
-        let c2 = gemm(&a, &b, None, 16)?;
+        let c2 = matmul(&a, &b, None, 16)?;
         assert!(c.allclose(&c2));
     }
     Ok(())

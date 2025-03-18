@@ -1,4 +1,7 @@
-use std::{collections::{HashMap, HashSet}, panic::Location};
+use std::{
+    collections::{HashMap, HashSet},
+    panic::Location,
+};
 
 use hpt_common::error::{base::TensorError, memory::MemoryError};
 use lru::LruCache;
