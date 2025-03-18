@@ -131,3 +131,23 @@
 }
 ```
 :::
+
+# Compilation config
+```cargo
+[profile.release]
+opt-level = 3
+incremental = true
+debug = false
+lto = "fat"
+codegen-units = 1
+```
+
+# Running Threads
+`10`
+
+# Device specification
+`CPU`: 12th Gen Intel(R) Core(TM) i5-12600K   3.69 GHz
+
+`RAM`: G.SKILL Trident Z Royal Series (Intel XMP) DDR4 64GB
+
+`System`: Windows 11 Pro 23H2

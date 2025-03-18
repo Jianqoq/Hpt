@@ -1,4 +1,4 @@
-use candle_core::Tensor as CandleTensor;
+// use candle_core::Tensor as CandleTensor;
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
 use half::f16;
 use hpt::common::cpu::TensorLike;

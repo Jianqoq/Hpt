@@ -4,7 +4,7 @@ use candle_core::Tensor as CandleTensor;
 use criterion::{black_box, BenchmarkId, Criterion};
 use hpt::ops::*;
 use hpt::Tensor;
-use tch::{Device, Kind, Tensor as TchTensor};
+// use tch::{Device, Kind, Tensor as TchTensor};
 
 fn matmul_f32_benchmark(c: &mut Criterion<crate::benchmarks::Timer>) {
     let num_threads = num_cpus::get_physical();
