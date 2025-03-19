@@ -21,7 +21,7 @@ use crate::{
 };
 use helper::vabs_vd_vd;
 
-#[cfg(target_arch = "aarch64")]
+#[cfg(target_feature = "neon")]
 use std::arch::aarch64::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -34,7 +34,7 @@ use super::i64x2::i64x2;
 #[repr(C, align(16))]
 pub struct f64x2(
     #[cfg(target_arch = "x86_64")] pub(crate) __m128d,
-    #[cfg(target_arch = "aarch64")] pub(crate) float64x2_t,
+    #[cfg(target_feature = "neon")] pub(crate) float64x2_t,
 );
 
 #[allow(non_camel_case_types)]
@@ -48,7 +48,7 @@ impl PartialEq for f64x2 {
             let cmp = _mm_cmpeq_pd(self.0, other.0);
             _mm_movemask_pd(cmp) == -1
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             let cmp = vceqq_f64(self.0, other.0);
             vgetq_lane_u64(cmp, 0) == u64::MAX && vgetq_lane_u64(cmp, 1) == u64::MAX
@@ -63,7 +63,7 @@ impl Default for f64x2 {
         unsafe {
             f64x2(_mm_setzero_pd())
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             f64x2(vdupq_n_f64(0.0))
         }
@@ -82,7 +82,7 @@ impl VecTrait<f64> for f64x2 {
                 _mm_loadu_pd(slice.as_ptr()),
             );
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             self.0 = vld1q_f64(slice.as_ptr());
         }
@@ -112,7 +112,7 @@ impl VecTrait<f64> for f64x2 {
         unsafe {
             _mm_cvtsd_f64(_mm_hadd_pd(self.0, self.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             vaddvq_f64(self.0)
         }
@@ -123,7 +123,7 @@ impl VecTrait<f64> for f64x2 {
         unsafe {
             f64x2(_mm_set1_pd(val))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             f64x2(vdupq_n_f64(val))
         }
@@ -134,9 +134,17 @@ impl VecTrait<f64> for f64x2 {
         unsafe {
             f64x2(_mm_loadu_pd(ptr))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             f64x2(vld1q_f64(ptr))
+        }
+    }
+    #[inline(always)]
+    #[cfg(target_feature = "neon")]
+    fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
+        unsafe {
+            let val = Self::splat(a[LANE as usize]);
+            Self(vfmaq_f64(b.0, self.0, val.0))
         }
     }
 }
@@ -154,7 +162,7 @@ impl f64x2 {
         unsafe {
             f64x2(_mm_cmpunord_pd(self.0, self.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             // vceqq_f64 returns true (all bits set) if values are equal
             // NaN compared with itself always returns false
@@ -176,7 +184,7 @@ impl SimdCompare for f64x2 {
             let mask = _mm_movemask_pd(cmp);
             i64x2(_mm_set1_epi64x(if mask == 3 { -1 } else { 0 }))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             let cmp = vceqq_f64(self.0, other.0);
             i64x2(vreinterpretq_s64_u64(cmp))
@@ -190,7 +198,7 @@ impl SimdCompare for f64x2 {
             let cmp = _mm_cmpneq_pd(self.0, other.0);
             i64x2(_mm_castpd_si128(cmp))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             let cmp = vceqq_f64(self.0, other.0);
             i64x2(vreinterpretq_s64_u64(vceqzq_u64(cmp)))
@@ -204,7 +212,7 @@ impl SimdCompare for f64x2 {
             let cmp = _mm_cmplt_pd(self.0, other.0);
             i64x2(_mm_castpd_si128(cmp))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             let cmp = vcltq_f64(self.0, other.0);
             i64x2(vreinterpretq_s64_u64(cmp))
@@ -218,7 +226,7 @@ impl SimdCompare for f64x2 {
             let cmp = _mm_cmple_pd(self.0, other.0);
             i64x2(_mm_castpd_si128(cmp))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             let cmp = vcleq_f64(self.0, other.0);
             i64x2(vreinterpretq_s64_u64(cmp))
@@ -232,7 +240,7 @@ impl SimdCompare for f64x2 {
             let cmp = _mm_cmpgt_pd(self.0, other.0);
             i64x2(_mm_castpd_si128(cmp))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             let cmp = vcgtq_f64(self.0, other.0);
             i64x2(vreinterpretq_s64_u64(cmp))
@@ -246,7 +254,7 @@ impl SimdCompare for f64x2 {
             let cmp = _mm_cmpge_pd(self.0, other.0);
             i64x2(_mm_castpd_si128(cmp))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             let cmp = vcgeq_f64(self.0, other.0);
             i64x2(vreinterpretq_s64_u64(cmp))
@@ -265,7 +273,7 @@ impl SimdSelect<f64x2> for i64x2 {
                 std::mem::transmute(self.0),
             ))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             f64x2(vbslq_f64(
                 vreinterpretq_u64_s64(self.0),
@@ -284,7 +292,7 @@ impl std::ops::Add for f64x2 {
         unsafe {
             f64x2(_mm_add_pd(self.0, rhs.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             f64x2(vaddq_f64(self.0, rhs.0))
         }
@@ -298,7 +306,7 @@ impl std::ops::Sub for f64x2 {
         unsafe {
             f64x2(_mm_sub_pd(self.0, rhs.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             f64x2(vsubq_f64(self.0, rhs.0))
         }
@@ -312,7 +320,7 @@ impl std::ops::Mul for f64x2 {
         unsafe {
             f64x2(_mm_mul_pd(self.0, rhs.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             f64x2(vmulq_f64(self.0, rhs.0))
         }
@@ -326,7 +334,7 @@ impl std::ops::Div for f64x2 {
         unsafe {
             f64x2(_mm_div_pd(self.0, rhs.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             f64x2(vdivq_f64(self.0, rhs.0))
         }
@@ -343,7 +351,7 @@ impl std::ops::Rem for f64x2 {
             let result = [x[0] % y[0], x[1] % y[1]];
             f64x2(_mm_loadu_pd(result.as_ptr()))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             let x: [f64; 2] = std::mem::transmute(self.0);
             let y: [f64; 2] = std::mem::transmute(rhs.0);
@@ -360,7 +368,7 @@ impl std::ops::Neg for f64x2 {
         unsafe {
             f64x2(_mm_xor_pd(self.0, _mm_set1_pd(-0.0)))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             f64x2(vnegq_f64(self.0))
         }
@@ -406,7 +414,7 @@ impl SimdMath<f64> for f64x2 {
         unsafe {
             f64x2(_mm_sub_pd(_mm_setzero_pd(), self.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             f64x2(vnegq_f64(self.0))
         }
@@ -428,7 +436,7 @@ impl SimdMath<f64> for f64x2 {
             let lt = _mm_cmplt_pd(self.0, zero);
             f64x2(_mm_or_pd(_mm_and_pd(gt, ones), _mm_and_pd(lt, neg_ones)))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             let zero = vdupq_n_f64(0.0);
             let ones = vdupq_n_f64(1.0);
@@ -597,7 +605,7 @@ impl SimdMath<f64> for f64x2 {
         unsafe {
             f64x2(_mm_div_pd(_mm_set1_pd(1.0), self.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             use crate::simd::sleef::arch::helper_aarch64::vrec_vd_vd;
             f64x2(vrec_vd_vd(self.0))
@@ -616,7 +624,7 @@ impl SimdMath<f64> for f64x2 {
     #[inline(always)]
     fn elu(self, alpha: Self) -> Self {
         let mask = self.simd_gt(Self::splat(0.0));
-        mask.select(self, alpha * (self.expm1()))
+        mask.select(self, alpha * self.expm1())
     }
 
     #[inline(always)]
@@ -680,7 +688,7 @@ impl VecConvertor for f64x2 {
             }
             super::i64x2::i64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             let arr: [f64; 2] = std::mem::transmute(self.0);
             let mut result = [0i64; 2];
@@ -701,7 +709,7 @@ impl VecConvertor for f64x2 {
             }
             super::u64x2::u64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             let arr: [f64; 2] = std::mem::transmute(self.0);
             let mut result = [0u64; 2];
@@ -865,7 +873,7 @@ impl Eval2 for f64x2 {
     #[inline(always)]
     fn __is_inf(&self) -> Self::Output {
         let i: i64x2 = unsafe { std::mem::transmute(self.0) };
-        let sign_mask = i64x2::splat(-(0x8000_0000_0000_0000i64));
+        let sign_mask = i64x2::splat(-0x8000_0000_0000_0000i64);
         let inf_mask = i64x2::splat(0x7ff0_0000_0000_0000);
         let frac_mask = i64x2::splat(0x000f_ffff_ffff_ffff);
 

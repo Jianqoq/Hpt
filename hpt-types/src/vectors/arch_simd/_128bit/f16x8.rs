@@ -1,4 +1,4 @@
-use crate::convertion::{Convertor, VecConvertor};
+use crate::convertion::VecConvertor;
 use crate::traits::{SimdMath, SimdSelect, VecTrait};
 use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
 use crate::vectors::arch_simd::_128bit::f32x4::f32x4;
@@ -7,9 +7,15 @@ use crate::vectors::arch_simd::_128bit::u16x8::u16x8;
 use crate::traits::SimdCompare;
 
 use super::i16x8::i16x8;
+#[cfg(target_feature = "neon")]
+use std::arch::aarch64::uint16x8_t;
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+
+#[allow(non_camel_case_types)]
+#[cfg(target_feature = "neon")]
+type float16x8_t = uint16x8_t;
 
 /// a vector of 8 f16 values
 #[allow(non_camel_case_types)]
@@ -29,12 +35,31 @@ impl VecTrait<half::f16> for f16x8 {
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
-        let [x0, x1] = self.to_2_f32vec();
-        let [a0, a1] = a.to_2_f32vec();
-        let [b0, b1] = b.to_2_f32vec();
-        let res0 = x0.mul_add(a0, b0);
-        let res1 = x1.mul_add(a1, b1);
-        from_2_f32vec([res0, res1])
+        #[cfg(target_arch = "x86_64")]
+        {
+            let [x0, x1] = self.to_2_f32vec();
+            let [a0, a1] = a.to_2_f32vec();
+            let [b0, b1] = b.to_2_f32vec();
+            let res0 = x0.mul_add(a0, b0);
+            let res1 = x1.mul_add(a1, b1);
+            from_2_f32vec([res0, res1])
+        }
+        #[cfg(target_feature = "neon")]
+        {
+            unsafe {
+                let mut b: float16x8_t = std::mem::transmute(b);
+                let a: float16x8_t = std::mem::transmute(a);
+                let s: float16x8_t = std::mem::transmute(self);
+                std::arch::asm!(
+                    "fmla {0:v}.8h, {1:v}.8h, {2:v}.8h",
+                    inout(vreg) b,
+                    in(vreg) a,
+                    in(vreg) s,
+                    options(pure, nomem, nostack)
+                );
+                std::mem::transmute(b)
+            }
+        }
     }
     #[inline(always)]
     fn sum(&self) -> half::f16 {
@@ -51,6 +76,67 @@ impl VecTrait<half::f16> for f16x8 {
             result[i] = unsafe { *ptr.add(i) };
         }
         f16x8(result)
+    }
+    #[inline(always)]
+    #[cfg(target_feature = "neon")]
+    fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
+        unsafe {
+            let a: float16x8_t = std::mem::transmute(a);
+            let mut b: float16x8_t = std::mem::transmute(b);
+            let c: float16x8_t = std::mem::transmute(self);
+            match LANE {
+                0 => std::arch::asm!(
+                    "fmla {0:v}.8h, {1:v}.8h, {2:v}.h[0]",
+                    inout(vreg) b,
+                    in(vreg) a,
+                    in(vreg_low16) c,
+                    options(pure, nomem, nostack)),
+                1 => std::arch::asm!(
+                    "fmla {0:v}.8h, {1:v}.8h, {2:v}.h[1]",
+                    inout(vreg) b,
+                    in(vreg) a,
+                    in(vreg_low16) c,
+                    options(pure, nomem, nostack)),
+                2 => std::arch::asm!(
+                    "fmla {0:v}.8h, {1:v}.8h, {2:v}.h[2]",
+                    inout(vreg) b,
+                    in(vreg) a,
+                    in(vreg_low16) c,
+                    options(pure, nomem, nostack)),
+                3 => std::arch::asm!(
+                    "fmla {0:v}.8h, {1:v}.8h, {2:v}.h[3]",
+                    inout(vreg) b,
+                    in(vreg) a,
+                    in(vreg_low16) c,
+                    options(pure, nomem, nostack)),
+                4 => std::arch::asm!(
+                    "fmla {0:v}.8h, {1:v}.8h, {2:v}.h[4]",
+                    inout(vreg) b,
+                    in(vreg) a,
+                    in(vreg_low16) c,
+                    options(pure, nomem, nostack)),
+                5 => std::arch::asm!(
+                    "fmla {0:v}.8h, {1:v}.8h, {2:v}.h[5]",
+                    inout(vreg) b,
+                    in(vreg) a,
+                    in(vreg_low16) c,
+                    options(pure, nomem, nostack)),
+                6 => std::arch::asm!(
+                    "fmla {0:v}.8h, {1:v}.8h, {2:v}.h[6]",
+                    inout(vreg) b,
+                    in(vreg) a,
+                    in(vreg_low16) c,
+                    options(pure, nomem, nostack)),
+                7 => std::arch::asm!(
+                    "fmla {0:v}.8h, {1:v}.8h, {2:v}.h[7]",
+                    inout(vreg) b,
+                    in(vreg) a,
+                    in(vreg_low16) c,
+                    options(pure, nomem, nostack)),
+                _ => unreachable!(),
+            }
+            std::mem::transmute(b)
+        }
     }
 }
 
@@ -75,7 +161,7 @@ impl f16x8 {
                 let f32x4_2 = _mm_cvtph_ps(_mm_loadu_si64(raw_f16.as_ptr().add(4) as *const _));
                 std::mem::transmute([f32x4_1, f32x4_2])
             }
-            #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
+            #[cfg(target_feature = "neon")]
             {
                 use std::arch::aarch64::{float32x4_t, vld1_s16};
 
@@ -181,11 +267,30 @@ impl std::ops::Add for f16x8 {
 
     #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
-        let [x0, x1] = self.to_2_f32vec();
-        let [y0, y1] = rhs.to_2_f32vec();
-        let low_add = x0 + y0;
-        let high_add = x1 + y1;
-        f16x8::from_2_f32vec([low_add, high_add])
+        #[cfg(target_arch = "x86_64")]
+        {
+            let [x0, x1] = self.to_2_f32vec();
+            let [y0, y1] = rhs.to_2_f32vec();
+            let low_add = x0 + y0;
+            let high_add = x1 + y1;
+            f16x8::from_2_f32vec([low_add, high_add])
+        }
+        #[cfg(target_feature = "neon")]
+        {
+            unsafe {
+                let a: float16x8_t = std::mem::transmute(self);
+                let b: float16x8_t = std::mem::transmute(rhs);
+                let c: float16x8_t;
+                std::arch::asm!(
+                    "fadd {0:v}.8h, {1:v}.8h, {2:v}.8h",
+                    out(vreg) c,
+                    in(vreg) a,
+                    in(vreg) b,
+                    options(pure, nomem, nostack)
+                );
+                std::mem::transmute(c)
+            }
+        }
     }
 }
 
@@ -194,11 +299,30 @@ impl std::ops::Sub for f16x8 {
 
     #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
-        let [x0, x1] = self.to_2_f32vec();
-        let [y0, y1] = rhs.to_2_f32vec();
-        let low_sub = x0 - y0;
-        let high_sub = x1 - y1;
-        f16x8::from_2_f32vec([low_sub, high_sub])
+        #[cfg(target_arch = "x86_64")]
+        {
+            let [x0, x1] = self.to_2_f32vec();
+            let [y0, y1] = rhs.to_2_f32vec();
+            let low_sub = x0 - y0;
+            let high_sub = x1 - y1;
+            f16x8::from_2_f32vec([low_sub, high_sub])
+        }
+        #[cfg(target_feature = "neon")]
+        {
+            unsafe {
+                let a: float16x8_t = std::mem::transmute(self);
+                let b: float16x8_t = std::mem::transmute(rhs);
+                let c: float16x8_t;
+                std::arch::asm!(
+                    "fsub {0:v}.8h, {1:v}.8h, {2:v}.8h",
+                    out(vreg) c,
+                    in(vreg) a,
+                    in(vreg) b,
+                    options(pure, nomem, nostack)
+                );
+                std::mem::transmute(c)
+            }
+        }
     }
 }
 
@@ -207,11 +331,30 @@ impl std::ops::Mul for f16x8 {
 
     #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
-        let [x0, x1] = self.to_2_f32vec();
-        let [y0, y1] = rhs.to_2_f32vec();
-        let low_mul = x0 * y0;
-        let high_mul = x1 * y1;
-        f16x8::from_2_f32vec([low_mul, high_mul])
+        #[cfg(target_arch = "x86_64")]
+        {
+            let [x0, x1] = self.to_2_f32vec();
+            let [y0, y1] = rhs.to_2_f32vec();
+            let low_mul = x0 * y0;
+            let high_mul = x1 * y1;
+            f16x8::from_2_f32vec([low_mul, high_mul])
+        }
+        #[cfg(target_feature = "neon")]
+        {
+            unsafe {
+                let a: float16x8_t = std::mem::transmute(self);
+                let b: float16x8_t = std::mem::transmute(rhs);
+                let c: float16x8_t;
+                std::arch::asm!(
+                    "fmul {0:v}.8h, {1:v}.8h, {2:v}.8h",
+                    out(vreg) c,
+                    in(vreg) a,
+                    in(vreg) b,
+                    options(pure, nomem, nostack)
+                );
+                std::mem::transmute(c)
+            }
+        }
     }
 }
 
@@ -254,6 +397,7 @@ impl std::ops::Neg for f16x8 {
 
 /// fallback to convert f32 to f16
 #[inline(always)]
+#[cfg(target_arch = "x86_64")]
 pub(crate) fn from_2_f32vec(val: [f32x4; 2]) -> f16x8 {
     #[cfg(all(target_feature = "f16c", target_arch = "x86_64"))]
     unsafe {
@@ -267,6 +411,7 @@ pub(crate) fn from_2_f32vec(val: [f32x4; 2]) -> f16x8 {
         all(target_feature = "neon", target_arch = "aarch64")
     )))]
     {
+        use crate::convertion::Convertor;
         let mut result = [half::f16::ZERO; 8];
         for i in 0..4 {
             result[i] = val[0][i].to_f16();

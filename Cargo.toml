@@ -26,10 +26,10 @@ exclude = ["hpt-bench", "hpt-tests", "hpt-codegen", "hpt-examples"]
 
 [dependencies]
 hpt = { path = "./hpt", features = [
-    "track_caller",
-    "cuda",
+    "track_caller"
 ], version = "0.0.21" }
 anyhow = { workspace = true }
+rand = { workspace = true }
 
 [workspace.dependencies]
 once_cell = { version = "1.21.1", default-features = false }
@@ -98,7 +98,7 @@ path = "src/main.rs"
 [profile.release]
 opt-level = 3
 incremental = true
-debug = false
+debug = true
 lto = "fat"
 codegen-units = 1
 

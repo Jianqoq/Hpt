@@ -80,6 +80,11 @@ impl VecTrait<usize> for usizex2 {
             Self(unsafe { USizeBase::from_ptr(ptr as *const u32) })
         }
     }
+    #[inline(always)]
+    #[cfg(target_feature = "neon")]
+    fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
+        Self(self.0.mul_add_lane::<LANE>(a.0, b.0))
+    }
 }
 
 impl USizeVEC {

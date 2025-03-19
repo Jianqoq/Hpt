@@ -1,23 +1,25 @@
+use std::arch::aarch64::vld1q_s16_x4;
+
+use hpt::types::f16;
 use hpt::{
     ops::{Gemm, Matmul, TensorCreator},
-    types::f16,
+    utils::resize_cpu_lru_cache,
     Tensor,
 };
 fn main() -> anyhow::Result<()> {
-    let n = 614;
-    let m = 611;
-    let k = 1490;
-    let a = Tensor::<f16>::ones(&[n, k])?;
-    let b = Tensor::<f16>::ones(&[k, m])?;
+    let m = 512 * 4;
+    let n = 512 * 4;
+    let k = 512 * 4;
+    let a = Tensor::<f16>::ones(&[m, k])?;
+    let b = Tensor::<f16>::ones(&[k, n])?;
     let now = std::time::Instant::now();
-    for _ in 0..1 {
-        let res = a.matmul(&b)?;
-        println!("{}", res);
+    for _ in 0..100 {
+        let c = a.matmul(&b)?;
     }
     println!("{:?}", now.elapsed() / 100);
     let now = std::time::Instant::now();
-    for _ in 0..1 {
-        let res = a.gemm(
+    for _ in 0..100 {
+        let c2 = a.gemm(
             &b,
             f16::from_f32(0.0),
             f16::from_f32(1.0),
@@ -25,7 +27,6 @@ fn main() -> anyhow::Result<()> {
             false,
             false,
         )?;
-        println!("{}", res);
     }
     println!("{:?}", now.elapsed() / 100);
 

@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 tch = { workspace = true }
-hpt = { path = "../hpt", features = ["cuda"] }
+hpt = { path = "../hpt" }
 criterion = { workspace = true }
 half = { workspace = true }
 gnuplot = { workspace = true }

@@ -263,7 +263,7 @@ pub fn matmul_mixed_precision_template_no_block_info<T, IM>(
 {
     let nr = T::get_max_mixed_precision_nr() * T::Vec::SIZE;
     let mr = T::get_max_mixed_precision_mr().min(m);
-    let param = if m <= 64 && n <= 64 {
+    let mut param = if m <= 64 && n <= 64 {
         // skip expensive kernel_params call for small sizes
         let kc = k.min(512);
         let alloc = CACHE_INFO[1].cache_bytes / core::mem::size_of::<T>();
@@ -276,6 +276,12 @@ pub fn matmul_mixed_precision_template_no_block_info<T, IM>(
     } else {
         gemm_common::cache::kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>())
     };
+    if param.mc == 0 {
+        param.mc = m.msrv_next_multiple_of(mr);
+    }
+    if param.nc == 0 {
+        param.nc = m.msrv_next_multiple_of(nr);
+    }
     matmul_mixed_precision_template::<T, IM>(
         a,
         b,

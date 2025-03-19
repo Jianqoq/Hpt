@@ -66,7 +66,10 @@ pub fn matmul_template<T>(
         T::STR
     );
 
+    #[cfg(not(target_feature = "neon"))]
     let mut do_lhs_pack = false;
+    #[cfg(target_feature = "neon")]
+    let mut do_lhs_pack = true;
 
     if (lhs_col_stride == 1 && n > 128 * nr) || lhs_col_stride != 1 {
         do_lhs_pack = true;
@@ -268,7 +271,7 @@ pub fn matmul_template_no_block_info<T>(
 {
     let nr = T::get_max_nr() * T::Vec::SIZE;
     let mr = T::get_max_mr().min(m);
-    let param = if m <= 64 && n <= 64 {
+    let mut param = if m <= 64 && n <= 64 {
         // skip expensive kernel_params call for small sizes
         let kc = k.min(512);
         let alloc = CACHE_INFO[1].cache_bytes / core::mem::size_of::<T>();
@@ -281,6 +284,12 @@ pub fn matmul_template_no_block_info<T>(
     } else {
         gemm_common::cache::kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>())
     };
+    if param.nc == 0 {
+        param.nc = m.msrv_next_multiple_of(nr);
+    }
+    if param.mc == 0 {
+        param.mc = m.msrv_next_multiple_of(mr);
+    }
     matmul_template::<T>(
         a,
         b,

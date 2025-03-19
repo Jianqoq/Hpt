@@ -35,18 +35,30 @@ where
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         if T::STR == "f16" {
-            let res = f16_matmul(
-                &lhs.static_cast::<half::f16>()?,
-                &rhs.static_cast::<half::f16>()?,
-                out.map(|mut x| {
-                    x.borrow_mut()
-                        .clone()
-                        .static_cast::<half::f16>()
-                        .expect("static_cast f16 failed")
-                }),
-                rayon::current_num_threads(),
-            )?;
-            Ok(res.static_cast::<T>()?)
+            #[cfg(target_feature = "neon")]
+            {
+                matmul(
+                    lhs,
+                    rhs,
+                    out.map(|mut x| x.borrow_mut().clone()),
+                    rayon::current_num_threads(),
+                )
+            }
+            #[cfg(not(target_feature = "neon"))]
+            {
+                let res = f16_matmul(
+                    &lhs.static_cast::<half::f16>()?,
+                    &rhs.static_cast::<half::f16>()?,
+                    out.map(|mut x| {
+                        x.borrow_mut()
+                            .clone()
+                            .static_cast::<half::f16>()
+                            .expect("static_cast f16 failed")
+                    }),
+                    rayon::current_num_threads(),
+                )?;
+                Ok(res.static_cast::<T>()?)
+            }
         } else if T::STR == "bf16" {
             let res = bf16_matmul(
                 &lhs.static_cast::<half::bf16>()?,

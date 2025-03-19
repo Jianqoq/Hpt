@@ -1,4 +1,3 @@
-use crate::define_matmul_micro_kernel;
 use hpt_common::Pointer;
 use hpt_traits::tensor::CommonBounds;
 
@@ -23,6 +22,7 @@ pub trait MatmulMicroKernel
 where
     Self: CommonBounds + Sized,
 {
+    #[allow(unused_variables)]
     fn get_kernel(
         nr: usize,
         mr: usize,
@@ -50,7 +50,6 @@ where
         }
         #[cfg(target_feature = "neon")]
         {
-            // neon has 32 registers, each has 128 bits, assume cache line size is 1024 bits
             unimplemented!()
         }
         #[cfg(all(
@@ -104,7 +103,7 @@ where
         }
         #[cfg(target_feature = "neon")]
         {
-            unimplemented!()
+            6
         }
         #[cfg(all(
             not(target_feature = "avx2"),
@@ -126,7 +125,7 @@ where
         }
         #[cfg(target_feature = "neon")]
         {
-            unimplemented!()
+            4
         }
         #[cfg(all(
             not(target_feature = "avx2"),
