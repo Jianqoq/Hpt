@@ -1,9 +1,6 @@
-use std::arch::aarch64::vld1q_s16_x4;
-
 use hpt::types::f16;
 use hpt::{
     ops::{Gemm, Matmul, TensorCreator},
-    utils::resize_cpu_lru_cache,
     Tensor,
 };
 fn main() -> anyhow::Result<()> {

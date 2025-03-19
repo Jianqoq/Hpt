@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 use std::time::Duration;
 
 use candle_core::Tensor as CandleTensor;

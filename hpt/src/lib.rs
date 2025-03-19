@@ -79,6 +79,8 @@ pub(crate) mod backends {
                 pub(crate) mod matmul_mixed_precision;
                 pub(crate) mod microkernel_trait;
                 pub(crate) mod microkernels;
+                pub(crate) mod f16_microkernels;
+                pub(crate) mod f32_microkernels;
             }
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)

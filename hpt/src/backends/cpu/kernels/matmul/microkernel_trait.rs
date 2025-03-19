@@ -29,6 +29,7 @@ where
     ) -> fn(Pointer<Self>, Pointer<Self>, Pointer<Self>, i64, i64, usize, usize, i64, bool) {
         #[cfg(target_feature = "avx2")]
         {
+            use crate::define_matmul_micro_kernel;
             assert_eq!(nr, 2);
             // avx2 has 16 registers, each has 256 bits, assume cache line size is 512 bits
             define_matmul_micro_kernel!(x2x1, 2, 1);
@@ -41,6 +42,7 @@ where
         }
         #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
         {
+            use crate::define_matmul_micro_kernel;
             assert_eq!(nr, 4);
             // sse has 16 registers, each has 128 bits, assume cache line size is 512 bits
             define_matmul_micro_kernel!(x4x1, 4, 1);
