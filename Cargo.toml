@@ -1,6 +1,6 @@
 [package]
 name = "hpt-workspace"
-version = "0.0.22"
+version = "0.0.23"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 
@@ -25,7 +25,7 @@ members = [
 exclude = ["hpt-bench", "hpt-tests", "hpt-codegen", "hpt-examples"]
 
 [dependencies]
-hpt = { path = "./hpt", features = ["track_caller"], version = "0.0.21" }
+hpt = { path = "./hpt", features = ["track_caller"], version = "0.0.23" }
 anyhow = { workspace = true }
 rand = { workspace = true }
 
