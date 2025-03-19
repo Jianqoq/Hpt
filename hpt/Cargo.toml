@@ -1,7 +1,7 @@
 
 [package]
 name = "hpt"
-version = "0.0.23"
+version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["JianJian Li <ljj1849532909@gmail.com>"]
@@ -9,15 +9,15 @@ description = "High Performance Tensor (HPT) - A fast, efficient, and user-frien
 repository = "https://github.com/Jianqoq/Hpt"
 
 [dependencies]
-hpt-types = { path = "../hpt-types", version = "0.0.23" }
-hpt-common = { path = "../hpt-common", version = "0.0.23" }
-hpt-iterator = { path = "../hpt-iterator", version = "0.0.23" }
-hpt-traits = { path = "../hpt-traits", version = "0.0.23" }
-hpt-allocator = { path = "../hpt-allocator", version = "0.0.23" }
-hpt-macros = { path = "../hpt-macros", version = "0.0.23" }
-hpt-display = { path = "../hpt-display", version = "0.0.23" }
-hpt-dataloader = { path = "../hpt-dataloader", version = "0.0.23" }
-hpt-cudakernels = { path = "../hpt-cudakernels", version = "0.0.23", optional = true }
+hpt-types = { path = "../hpt-types", version = "0.1.0" }
+hpt-common = { path = "../hpt-common", version = "0.1.0" }
+hpt-iterator = { path = "../hpt-iterator", version = "0.1.0" }
+hpt-traits = { path = "../hpt-traits", version = "0.1.0" }
+hpt-allocator = { path = "../hpt-allocator", version = "0.1.0" }
+hpt-macros = { path = "../hpt-macros", version = "0.1.0" }
+hpt-display = { path = "../hpt-display", version = "0.1.0" }
+hpt-dataloader = { path = "../hpt-dataloader", version = "0.1.0" }
+hpt-cudakernels = { path = "../hpt-cudakernels", version = "0.1.0", optional = true }
 gemm = { workspace = true }
 dyn-stack = { workspace = true }
 flate2 = { workspace = true }

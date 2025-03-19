@@ -1,13 +1,13 @@
 [package]
 name = "hpt-examples"
-version = "0.0.23"
+version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
 serde = { workspace = true }
 rayon = { workspace = true }
-hpt = { path = "../hpt", features = ["track_caller", "cuda"] }
+hpt = { path = "../hpt", features = ["track_caller"] }
 anyhow = "1.0.40"
 mimalloc = "0.1.43"
 # candle-core = { version = "0.8.2", features = ["mkl"] }
