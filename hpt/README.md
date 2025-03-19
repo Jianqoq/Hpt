@@ -1,6 +1,6 @@
 # HPT
 [![Crates.io](https://img.shields.io/crates/v/hpt.svg)](https://crates.io/crates/hpt)
-[![Discord](https://img.shields.io/discord/Hpt)](https://discord.gg/P4dfeUsSD4)
+[![Discord](https://dcbadge.vercel.app/api/server/1352024976143683664)](https://discord.gg/P4dfeUsSD4)
 
 Hpt is a high performance N-dimensional array library. It is being highly optimized and is designed to be easy to use. Most of the operators are implemented based on Onnx operator list. Hence, you can use it to build most of the deep learning models.
 
