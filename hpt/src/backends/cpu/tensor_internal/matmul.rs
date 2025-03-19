@@ -1,23 +1,22 @@
-use std::borrow::{ Borrow, BorrowMut };
+use std::borrow::{Borrow, BorrowMut};
 
-use crate::backends::cpu::kernels::matmul::matmul::{ matmul, matmul_template_no_block_info };
+use crate::backends::cpu::kernels::matmul::matmul::{matmul, matmul_template_no_block_info};
 use crate::backends::cpu::kernels::matmul::matmul_mixed_precision::{
-    bf16_matmul,
-    matmul_mixed_precision_template_no_block_info,
+    bf16_matmul, matmul_mixed_precision_template_no_block_info,
 };
 use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 use crate::tensor_base::_Tensor;
 use crate::THREAD_POOL;
-use hpt_allocator::traits::{ Allocator, AllocatorOutputRetrive };
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_allocator::Cpu;
-use hpt_common::error::{ base::TensorError, shape::ShapeError };
+use hpt_common::error::{base::TensorError, shape::ShapeError};
 use hpt_common::shape::shape::Shape;
 use hpt_common::shape::shape_utils::predict_broadcast_shape;
-use hpt_common::shape::shape_utils::{ compare_and_pad_shapes, mt_intervals };
+use hpt_common::shape::shape_utils::{compare_and_pad_shapes, mt_intervals};
 use hpt_common::strides::strides_utils::preprocess_strides;
 use hpt_traits::ops::binary::Matmul;
 use hpt_traits::ops::creation::TensorCreator;
-use hpt_traits::tensor::{ CommonBounds, TensorInfo };
+use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::dtype::TypeCommon;
 use hpt_types::into_scalar::Cast;
 use hpt_types::traits::VecTrait;
@@ -26,24 +25,27 @@ use hpt_types::traits::VecTrait;
 pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
     lhs: &_Tensor<T, Cpu, DEVICE, A2>,
     rhs: &_Tensor<T, Cpu, DEVICE, A2>,
-    out: Option<O>
-)
-    -> std::result::Result<_Tensor<T, Cpu, DEVICE, A2>, TensorError>
-    where
-        T: CommonBounds + MatmulMicroKernel,
-        O: BorrowMut<_Tensor<T, Cpu, DEVICE, A2>>,
-        A2: Allocator,
-        A2::Output: AllocatorOutputRetrive
+    out: Option<O>,
+) -> std::result::Result<_Tensor<T, Cpu, DEVICE, A2>, TensorError>
+where
+    T: CommonBounds + MatmulMicroKernel,
+    O: BorrowMut<_Tensor<T, Cpu, DEVICE, A2>>,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         if T::STR == "f16" {
-            #[cfg(all(target_feature = "neon", target_arch = "aarch64", target_feature = "fp16"))]
+            #[cfg(all(
+                target_feature = "neon",
+                target_arch = "aarch64",
+                target_feature = "fp16"
+            ))]
             {
                 matmul(
                     lhs,
                     rhs,
                     out.map(|mut x| x.borrow_mut().clone()),
-                    rayon::current_num_threads()
+                    rayon::current_num_threads(),
                 )
             }
             #[cfg(not(target_feature = "neon"))]
@@ -58,7 +60,7 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                             .static_cast::<half::f16>()
                             .expect("static_cast f16 failed")
                     }),
-                    rayon::current_num_threads()
+                    rayon::current_num_threads(),
                 )?;
                 Ok(res.static_cast::<T>()?)
             }
@@ -72,7 +74,7 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                         .static_cast::<half::bf16>()
                         .expect("static_cast bf16 failed")
                 }),
-                rayon::current_num_threads()
+                rayon::current_num_threads(),
             )?;
             Ok(res.static_cast::<T>()?)
         } else {
@@ -80,7 +82,7 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                 lhs,
                 rhs,
                 out.map(|mut x| x.borrow_mut().clone()),
-                rayon::current_num_threads()
+                rayon::current_num_threads(),
             )
         }
     } else {
@@ -95,10 +97,9 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
             b_shape = longer_shape;
         }
         ShapeError::check_matmul(lhs.shape(), rhs.shape())?;
-        let mut res_shape = predict_broadcast_shape(
-            &a_shape[..a_shape.len() - 2],
-            &b_shape[..b_shape.len() - 2]
-        )?.to_vec();
+        let mut res_shape =
+            predict_broadcast_shape(&a_shape[..a_shape.len() - 2], &b_shape[..b_shape.len() - 2])?
+                .to_vec();
         let mut iterate_shape = res_shape.clone();
         res_shape.push(a_shape[a_shape.len() - 2]);
         res_shape.push(b_shape[b_shape.len() - 1]);
@@ -112,9 +113,8 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
         let a_strides = preprocess_strides(&a_shape, &lhs.strides());
         let b_strides = preprocess_strides(&b_shape, &rhs.strides());
         let len = iterate_shape.iter().fold(1, |acc, x| acc * (*x as usize));
-        let res_inner_matrix_size =
-            (res.shape()[res.shape().len() - 2] as usize) *
-            (res.shape()[res.shape().len() - 1] as usize);
+        let res_inner_matrix_size = (res.shape()[res.shape().len() - 2] as usize)
+            * (res.shape()[res.shape().len() - 1] as usize);
         iterate_shape.iter_mut().for_each(|x| {
             *x -= 1;
         });
@@ -128,9 +128,7 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
         };
         let mut num_threads_each: Vec<usize> = if len < rayon::current_num_threads() {
             let vec = mt_intervals(rayon::current_num_threads(), len);
-            vec.iter()
-                .map(|x| x.1 - x.0)
-                .collect::<Vec<usize>>()
+            vec.iter().map(|x| x.1 - x.0).collect::<Vec<usize>>()
         } else {
             vec![1; rayon::current_num_threads()]
         };
@@ -218,7 +216,7 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                                         let vec1 = unsafe { val.add(1).read() };
                                         F16Vec::from_2_f32vec([vec0, vec1])
                                     },
-                                    |val| val.cast()
+                                    |val| val.cast(),
                                 );
                             }
                             "bf16" => {
@@ -255,7 +253,7 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                                         let vec1 = unsafe { val.add(1).read() };
                                         BF16Vec::from_2_f32vec([vec0, vec1])
                                     },
-                                    |val| val.cast()
+                                    |val| val.cast(),
                                 );
                             }
                             _ => {
@@ -271,7 +269,7 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                                     dst_cs,
                                     lhs_cs,
                                     rhs_cs,
-                                    threads
+                                    threads,
                                 );
                             }
                         }
@@ -297,9 +295,11 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
     }
 }
 
-impl<T, A2, const DEVICE: usize> Matmul<_Tensor<T, Cpu, DEVICE, A2>>
-    for _Tensor<T, Cpu, DEVICE, A2>
-    where T: CommonBounds + MatmulMicroKernel, A2: Allocator, A2::Output: AllocatorOutputRetrive
+impl<T, A2, const DEVICE: usize> Matmul<_Tensor<T, Cpu, DEVICE, A2>> for _Tensor<T, Cpu, DEVICE, A2>
+where
+    T: CommonBounds + MatmulMicroKernel,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
     type Output = _Tensor<T, Cpu, DEVICE, A2>;
 
@@ -313,9 +313,10 @@ impl<T, A2, const DEVICE: usize> Matmul<_Tensor<T, Cpu, DEVICE, A2>>
     fn matmul_<U>(
         &self,
         rhs: _Tensor<T, Cpu, DEVICE, A2>,
-        out: U
+        out: U,
     ) -> Result<Self::Output, TensorError>
-        where U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>
+    where
+        U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
     {
         matmul_with_out(self, &rhs, Some(out))
     }
@@ -323,7 +324,10 @@ impl<T, A2, const DEVICE: usize> Matmul<_Tensor<T, Cpu, DEVICE, A2>>
 
 impl<T, A2, const DEVICE: usize> Matmul<&_Tensor<T, Cpu, DEVICE, A2>>
     for _Tensor<T, Cpu, DEVICE, A2>
-    where T: CommonBounds + MatmulMicroKernel, A2: Allocator, A2::Output: AllocatorOutputRetrive
+where
+    T: CommonBounds + MatmulMicroKernel,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
     type Output = _Tensor<T, Cpu, DEVICE, A2>;
 
@@ -338,9 +342,10 @@ impl<T, A2, const DEVICE: usize> Matmul<&_Tensor<T, Cpu, DEVICE, A2>>
     fn matmul_<U>(
         &self,
         rhs: &_Tensor<T, Cpu, DEVICE, A2>,
-        out: U
+        out: U,
     ) -> Result<Self::Output, TensorError>
-        where U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>
+    where
+        U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
     {
         matmul_with_out(self, rhs, Some(out))
     }

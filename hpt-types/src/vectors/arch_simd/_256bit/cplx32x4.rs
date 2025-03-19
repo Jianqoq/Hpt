@@ -21,8 +21,12 @@ impl VecTrait<Complex32> for cplx32x4 {
     const SIZE: usize = 4;
     type Base = Complex32;
     #[inline(always)]
-    fn mul_add(self, _: Self, _: Self) -> Self {
-        todo!()
+    fn mul_add(mut self, a: Self, b: Self) -> Self {
+        self.0[0] = self.0[0] * a.0[0] + b.0[0];
+        self.0[1] = self.0[1] * a.0[1] + b.0[1];
+        self.0[2] = self.0[2] * a.0[2] + b.0[2];
+        self.0[3] = self.0[3] * a.0[3] + b.0[3];
+        self
     }
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[Complex32]) {

@@ -7,7 +7,7 @@ use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 impl MatmulMicroKernel for crate::types::f16 {
     fn get_kernel(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
         hpt_common::Pointer<Self>,
         hpt_common::Pointer<Self>,
@@ -17,7 +17,7 @@ impl MatmulMicroKernel for crate::types::f16 {
         usize,
         usize,
         i64,
-        bool
+        bool,
     ) {
         use crate::define_matmul_micro_kernel;
         use crate::define_neon_matmul_micro_kernel;
@@ -40,21 +40,22 @@ impl MatmulMicroKernel for crate::types::f16 {
     }
     fn get_mixed_precision_kernel<MixedType>(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
-            hpt_common::Pointer<MixedType>,
-            hpt_common::Pointer<MixedType>,
-            hpt_common::Pointer<Self>,
-            i64,
-            i64,
-            usize,
-            usize,
-            i64,
-            bool,
-            fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
-            fn(MixedType) -> Self
-        )
-        where MixedType: CommonBounds
+        hpt_common::Pointer<MixedType>,
+        hpt_common::Pointer<MixedType>,
+        hpt_common::Pointer<Self>,
+        i64,
+        i64,
+        usize,
+        usize,
+        i64,
+        bool,
+        fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
+        fn(MixedType) -> Self,
+    )
+    where
+        MixedType: CommonBounds,
     {
         const {
             assert!(MixedType::BYTE_SIZE == 4);
@@ -82,21 +83,22 @@ impl MatmulMicroKernel for crate::types::f16 {
 impl MatmulMicroKernel for crate::types::f16 {
     fn get_mixed_precision_kernel<MixedType>(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
-            hpt_common::Pointer<MixedType>,
-            hpt_common::Pointer<MixedType>,
-            hpt_common::Pointer<Self>,
-            i64,
-            i64,
-            usize,
-            usize,
-            i64,
-            bool,
-            fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
-            fn(MixedType) -> Self
-        )
-        where MixedType: CommonBounds
+        hpt_common::Pointer<MixedType>,
+        hpt_common::Pointer<MixedType>,
+        hpt_common::Pointer<Self>,
+        i64,
+        i64,
+        usize,
+        usize,
+        i64,
+        bool,
+        fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
+        fn(MixedType) -> Self,
+    )
+    where
+        MixedType: CommonBounds,
     {
         const { assert!(MixedType::BYTE_SIZE == 4) };
         use crate::define_mixed_precision_matmul_micro_kernel;
@@ -123,21 +125,22 @@ impl MatmulMicroKernel for crate::types::f16 {
 impl MatmulMicroKernel for crate::types::f16 {
     fn get_mixed_precision_kernel<MixedType>(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
-            hpt_common::Pointer<MixedType>,
-            hpt_common::Pointer<MixedType>,
-            hpt_common::Pointer<Self>,
-            i64,
-            i64,
-            usize,
-            usize,
-            i64,
-            bool,
-            fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
-            fn(MixedType) -> Self
-        )
-        where MixedType: CommonBounds
+        hpt_common::Pointer<MixedType>,
+        hpt_common::Pointer<MixedType>,
+        hpt_common::Pointer<Self>,
+        i64,
+        i64,
+        usize,
+        usize,
+        i64,
+        bool,
+        fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
+        fn(MixedType) -> Self,
+    )
+    where
+        MixedType: CommonBounds,
     {
         const {
             assert!(MixedType::BYTE_SIZE == 4);

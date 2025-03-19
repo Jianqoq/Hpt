@@ -5,7 +5,7 @@
 /// * `$name`: The name of the function
 /// * `$nr`: The number of registers to use for the columns of B
 /// * `$mr`: The number of rows of C to accumulate in registers
-/// 
+///
 /// Total registers = ($mr + 1) * $nr + 1
 ///
 /// # Example

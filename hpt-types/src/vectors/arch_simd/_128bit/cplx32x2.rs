@@ -46,7 +46,7 @@ impl VecTrait<Complex32> for cplx32x2 {
         cplx32x2(result)
     }
     #[inline(always)]
-    #[cfg(target_feature = "neon")]
+    #[cfg(target_arch = "aarch64")]
     fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
         let val = Self::splat(a[LANE as usize]);
         self.mul_add(val, b)

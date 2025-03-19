@@ -10,7 +10,7 @@ use super::u32x4::u32x4;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[cfg(target_feature = "neon")]
+#[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::*;
 
 /// a vector of 8 bf16 values
@@ -57,13 +57,11 @@ impl VecTrait<half::bf16> for bf16x8 {
         }
         bf16x8(result)
     }
+    #[cfg(target_arch = "aarch64")]
     #[inline(always)]
     fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
-        #[cfg(target_feature = "neon")]
-        {
-            let val = Self::splat(a[LANE as usize]);
-            self.mul_add(val, b)
-        }
+        let val = Self::splat(a[LANE as usize]);
+        self.mul_add(val, b)
     }
 }
 
@@ -101,7 +99,7 @@ impl bf16x8 {
                 f32x4(std::mem::transmute(res_high.0)),
             ]
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             let vec: u16x8 = std::mem::transmute(*self);
 
@@ -173,7 +171,7 @@ impl bf16x8 {
                 let final_result = nan_mask.select(nan_result, round_result);
                 #[cfg(target_arch = "x86_64")]
                 return _mm_packus_epi32(final_result.0, _mm_setzero_si128()); // 打包为 16 位
-                #[cfg(target_feature = "neon")]
+                #[cfg(target_arch = "aarch64")]
                 {
                     vmovn_u32(final_result.0)
                 }
@@ -183,7 +181,7 @@ impl bf16x8 {
             let low = conv(val[1]);
             #[cfg(target_arch = "x86_64")]
             let result = _mm_unpacklo_epi64(high, low);
-            #[cfg(target_feature = "neon")]
+            #[cfg(target_arch = "aarch64")]
             let result = vcombine_u16(high, low);
             std::mem::transmute(result)
         }
@@ -335,7 +333,7 @@ impl VecConvertor for bf16x8 {
             let packed = _mm_packs_epi32(i0, i1);
             super::i16x8::i16x8(packed)
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             let [x0, x1]: [f32x4; 2] = std::mem::transmute(self.to_2_f32vec());
             let i0 = vcvtq_s32_f32(x0.0);
@@ -353,7 +351,7 @@ impl VecConvertor for bf16x8 {
             let packed = _mm_packus_epi32(i0, i1);
             super::u16x8::u16x8(packed)
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             let [x0, x1]: [f32x4; 2] = std::mem::transmute(self.to_2_f32vec());
             let i0 = vcvtq_u32_f32(x0.0);

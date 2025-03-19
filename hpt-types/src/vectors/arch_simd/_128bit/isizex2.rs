@@ -80,7 +80,7 @@ impl VecTrait<isize> for ISizeVEC {
             Self(unsafe { ISizeBase::from_ptr(ptr as *const i32) })
         }
     }
-    #[cfg(target_feature = "neon")]
+    #[cfg(target_arch = "aarch64")]
     #[inline(always)]
     fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
         Self(self.0.mul_add_lane::<LANE>(a.0, b.0))

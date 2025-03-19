@@ -7,7 +7,7 @@ use crate::{
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[cfg(target_feature = "neon")]
+#[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::*;
 
 use super::i64x2::i64x2;
@@ -18,7 +18,7 @@ use super::i64x2::i64x2;
 #[repr(C, align(16))]
 pub struct u64x2(
     #[cfg(target_arch = "x86_64")] pub(crate) __m128i,
-    #[cfg(target_feature = "neon")] pub(crate) uint64x2_t,
+    #[cfg(target_arch = "aarch64")] pub(crate) uint64x2_t,
 );
 
 #[allow(non_camel_case_types)]
@@ -32,7 +32,7 @@ impl PartialEq for u64x2 {
             let cmp = _mm_cmpeq_epi64(self.0, other.0);
             _mm_movemask_epi8(cmp) == -1
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             let cmp = vceqq_u64(self.0, other.0);
             vgetq_lane_u64(cmp, 0) == 0xffffffffffffffff
@@ -48,7 +48,7 @@ impl Default for u64x2 {
         unsafe {
             u64x2(_mm_setzero_si128())
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             u64x2(vdupq_n_u64(0))
         }
@@ -67,7 +67,7 @@ impl VecTrait<u64> for u64x2 {
                 _mm_loadu_si128(slice.as_ptr() as *const __m128i),
             )
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             self.0 = vld1q_u64(slice.as_ptr());
         }
@@ -84,7 +84,7 @@ impl VecTrait<u64> for u64x2 {
             }
             #[cfg(target_arch = "x86_64")]
             return u64x2(_mm_loadu_si128(arr4.as_ptr() as *const __m128i));
-            #[cfg(target_feature = "neon")]
+            #[cfg(target_arch = "aarch64")]
             return u64x2(vld1q_u64(arr4.as_ptr()));
         }
     }
@@ -95,7 +95,7 @@ impl VecTrait<u64> for u64x2 {
             let arr: [u64; 2] = std::mem::transmute(self.0);
             arr.iter().sum()
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             vaddvq_u64(self.0)
         }
@@ -106,7 +106,7 @@ impl VecTrait<u64> for u64x2 {
         unsafe {
             u64x2(_mm_set1_epi64x(val as i64))
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             u64x2(vdupq_n_u64(val))
         }
@@ -117,13 +117,13 @@ impl VecTrait<u64> for u64x2 {
         unsafe {
             u64x2(_mm_loadu_si128(ptr as *const __m128i))
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             u64x2(vld1q_u64(ptr))
         }
     }
     #[inline(always)]
-    #[cfg(target_feature = "neon")]
+    #[cfg(target_arch = "aarch64")]
     fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
         let val = Self::splat(a[LANE as usize]);
         self.mul_add(val, b)
@@ -203,7 +203,7 @@ impl SimdSelect<u64x2> for u64x2 {
         unsafe {
             u64x2(_mm_blendv_epi8(false_val.0, true_val.0, self.0))
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             u64x2(vbslq_u64(self.0, true_val.0, false_val.0))
         }
@@ -218,7 +218,7 @@ impl std::ops::Add for u64x2 {
         unsafe {
             u64x2(_mm_add_epi64(self.0, rhs.0))
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             u64x2(vaddq_u64(self.0, rhs.0))
         }
@@ -232,7 +232,7 @@ impl std::ops::Sub for u64x2 {
         unsafe {
             u64x2(_mm_sub_epi64(self.0, rhs.0))
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             u64x2(vsubq_u64(self.0, rhs.0))
         }
@@ -251,7 +251,7 @@ impl std::ops::Mul for u64x2 {
             }
             #[cfg(target_arch = "x86_64")]
             return u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
-            #[cfg(target_feature = "neon")]
+            #[cfg(target_arch = "aarch64")]
             return u64x2(vld1q_u64(arr3.as_ptr()));
         }
     }
@@ -270,7 +270,7 @@ impl std::ops::Div for u64x2 {
             }
             #[cfg(target_arch = "x86_64")]
             return u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
-            #[cfg(target_feature = "neon")]
+            #[cfg(target_arch = "aarch64")]
             return u64x2(vld1q_u64(arr3.as_ptr()));
         }
     }
@@ -288,7 +288,7 @@ impl std::ops::Rem for u64x2 {
             }
             #[cfg(target_arch = "x86_64")]
             return u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
-            #[cfg(target_feature = "neon")]
+            #[cfg(target_arch = "aarch64")]
             return u64x2(vld1q_u64(arr3.as_ptr()));
         }
     }
@@ -301,7 +301,7 @@ impl std::ops::BitAnd for u64x2 {
         unsafe {
             u64x2(_mm_and_si128(self.0, rhs.0))
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             u64x2(vandq_u64(self.0, rhs.0))
         }
@@ -315,7 +315,7 @@ impl std::ops::BitOr for u64x2 {
         unsafe {
             u64x2(_mm_or_si128(self.0, rhs.0))
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             u64x2(vorrq_u64(self.0, rhs.0))
         }
@@ -329,7 +329,7 @@ impl std::ops::BitXor for u64x2 {
         unsafe {
             u64x2(_mm_xor_si128(self.0, rhs.0))
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             u64x2(veorq_u64(self.0, rhs.0))
         }
@@ -343,7 +343,7 @@ impl std::ops::Not for u64x2 {
         unsafe {
             u64x2(_mm_xor_si128(self.0, _mm_set1_epi64x(-1)))
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             u64x2(veorq_u64(self.0, vdupq_n_u64(0xffffffffffffffff)))
         }
@@ -363,7 +363,7 @@ impl std::ops::Shl for u64x2 {
             }
             u64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             u64x2(vshlq_u64(self.0, vreinterpretq_s64_u64(rhs.0)))
         }
@@ -382,7 +382,7 @@ impl std::ops::Shr for u64x2 {
             }
             #[cfg(target_arch = "x86_64")]
             return u64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i));
-            #[cfg(target_feature = "neon")]
+            #[cfg(target_arch = "aarch64")]
             return u64x2(vld1q_u64(result.as_ptr()));
         }
     }
@@ -399,7 +399,7 @@ impl SimdMath<u64> for u64x2 {
             }
             #[cfg(target_arch = "x86_64")]
             return u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
-            #[cfg(target_feature = "neon")]
+            #[cfg(target_arch = "aarch64")]
             return u64x2(vld1q_u64(arr3.as_ptr()));
         }
     }
@@ -414,7 +414,7 @@ impl SimdMath<u64> for u64x2 {
             }
             #[cfg(target_arch = "x86_64")]
             return u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
-            #[cfg(target_feature = "neon")]
+            #[cfg(target_arch = "aarch64")]
             return u64x2(vld1q_u64(arr3.as_ptr()));
         }
     }
@@ -457,7 +457,7 @@ impl SimdMath<u64> for u64x2 {
             }
             #[cfg(target_arch = "x86_64")]
             return u64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i));
-            #[cfg(target_feature = "neon")]
+            #[cfg(target_arch = "aarch64")]
             return u64x2(vld1q_u64(result.as_ptr()));
         }
     }
@@ -486,7 +486,7 @@ impl VecConvertor for u64x2 {
             }
             #[cfg(target_arch = "x86_64")]
             return super::f64x2::f64x2(_mm_loadu_pd(result.as_ptr()));
-            #[cfg(target_feature = "neon")]
+            #[cfg(target_arch = "aarch64")]
             return super::f64x2::f64x2(vld1q_f64(result.as_ptr()));
         }
     }
@@ -529,7 +529,7 @@ impl FloatOutBinary2 for u64x2 {
             }
             #[cfg(target_arch = "x86_64")]
             return u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
-            #[cfg(target_feature = "neon")]
+            #[cfg(target_arch = "aarch64")]
             return u64x2(vld1q_u64(arr3.as_ptr()));
         }
     }
@@ -653,7 +653,7 @@ impl Eval2 for u64x2 {
             let eq = _mm_cmpeq_epi64(self.0, _mm_setzero_si128());
             i64x2(_mm_xor_si128(eq, _mm_set1_epi64x(-1)))
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(target_arch = "aarch64")]
         unsafe {
             i64x2(veorq_s64(
                 vreinterpretq_s64_u64(vceqq_u64(self.0, vdupq_n_u64(0))),

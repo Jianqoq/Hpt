@@ -4,7 +4,7 @@ use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 impl MatmulMicroKernel for u16 {
     fn get_kernel(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
         hpt_common::Pointer<Self>,
         hpt_common::Pointer<Self>,
@@ -14,7 +14,7 @@ impl MatmulMicroKernel for u16 {
         usize,
         usize,
         i64,
-        bool
+        bool,
     ) {
         use crate::define_matmul_micro_kernel;
         use crate::define_neon_matmul_micro_kernel;

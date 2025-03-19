@@ -42,7 +42,7 @@ impl VecTrait<bool> for boolx16 {
         }
         boolx16(result)
     }
-    #[cfg(target_feature = "neon")]
+    #[cfg(target_arch = "aarch64")]
     #[inline(always)]
     fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
         let val = Self::splat(a[LANE as usize]);

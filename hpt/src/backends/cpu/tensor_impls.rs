@@ -128,7 +128,7 @@ where
     }
 
     /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
-    pub fn try_astype<U>(&self) -> Result<_Tensor<U, Cpu, DEVICE, A>, TensorError>
+    pub(crate) fn try_astype<U>(&self) -> Result<_Tensor<U, Cpu, DEVICE, A>, TensorError>
     where
         U: CommonBounds,
         T: Cast<U>,
