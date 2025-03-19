@@ -184,7 +184,12 @@ where
     }
 
     /// check if two tensors are close to each other
-    pub fn allclose<U: CommonBounds>(&self, other: &_Tensor<U, Cpu, DEVICE, A>) -> bool
+    pub fn allclose<U: CommonBounds>(
+        &self,
+        other: &_Tensor<U, Cpu, DEVICE, A>,
+        rtol: f64,
+        atol: f64,
+    ) -> bool
     where
         T: Cast<f64>,
         U: Cast<f64>,
@@ -197,9 +202,15 @@ where
             |acc, (a, b)| {
                 let a_val: f64 = a.cast();
                 let b_val: f64 = b.cast();
-                let abs_diff: f64 = (a_val - b_val).abs();
-                let torlerance: f64 = 1.0e-8 + 1.0e-5 * b_val.abs();
-                acc && abs_diff <= torlerance
+                if a_val.is_nan() && b_val.is_nan() {
+                    return acc;
+                }
+                if a_val.is_infinite() && b_val.is_infinite() {
+                    return acc && a_val.is_sign_positive() == b_val.is_sign_positive();
+                }
+                let tolerance = atol + rtol * b_val.abs();
+                let abs_diff = (a_val - b_val).abs();
+                acc && abs_diff <= tolerance
             },
         );
         folder.reduce(|| true, |a, b| a && b)
@@ -238,12 +249,17 @@ where
     }
 
     /// check if two tensors are close to each other
-    pub fn allclose<U: CommonBounds>(&self, other: &Tensor<U, Cpu, DEVICE, A>) -> bool
+    pub fn allclose<U: CommonBounds>(
+        &self,
+        other: &Tensor<U, Cpu, DEVICE, A>,
+        rtol: f64,
+        atol: f64,
+    ) -> bool
     where
         T: Cast<f64>,
         U: Cast<f64>,
     {
-        self.inner.allclose(&other.inner)
+        self.inner.allclose(&other.inner, rtol, atol)
     }
 
     /// convert the tensor from cpu to the cuda tensor

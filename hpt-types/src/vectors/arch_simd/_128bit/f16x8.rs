@@ -82,7 +82,7 @@ impl VecTrait<half::f16> for f16x8 {
         f16x8(result)
     }
     #[inline(always)]
-    #[cfg(target_arch = "aarch64")]
+    #[cfg(target_feature = "neon")]
     fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
         #[cfg(all(target_feature = "neon", target_feature = "fp16"))]
         unsafe {
@@ -273,7 +273,7 @@ impl std::ops::Add for f16x8 {
             let high_add = x1 + y1;
             f16x8::from_2_f32vec([low_add, high_add])
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         {
             unsafe {
                 let a: float16x8_t = std::mem::transmute(self);
@@ -305,7 +305,7 @@ impl std::ops::Sub for f16x8 {
             let high_sub = x1 - y1;
             f16x8::from_2_f32vec([low_sub, high_sub])
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         {
             unsafe {
                 let a: float16x8_t = std::mem::transmute(self);
@@ -337,7 +337,7 @@ impl std::ops::Mul for f16x8 {
             let high_mul = x1 * y1;
             f16x8::from_2_f32vec([low_mul, high_mul])
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         {
             unsafe {
                 let a: float16x8_t = std::mem::transmute(self);

@@ -178,48 +178,48 @@ macro_rules! define_neon_matmul_micro_kernel {
                             let res = vld1q_f32(data);
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 1]) = transmute(res);
                             to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE);
-                            let res = vld1q_f32_x4(data);
+                            let res = vld1q_f32_x4(data.add(<f32 as TypeCommon>::Vec::SIZE));
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                         }
                         6 => {
                             let res = vld1q_f32_x2(data);
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 2]) = transmute(res);
                             to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 2);
-                            let res = vld1q_f32_x4(data);
+                            let res = vld1q_f32_x4(data.add(<f32 as TypeCommon>::Vec::SIZE * 2));
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                         }
                         7 => {
                             let res = vld1q_f32_x3(data);
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 3]) = transmute(res);
                             to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 3);
-                            let res = vld1q_f32_x4(data);
+                            let res = vld1q_f32_x4(data.add(<f32 as TypeCommon>::Vec::SIZE * 3));
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                         }
                         8 => {
                             let res = vld1q_f32_x4(data);
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                             to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
-                            let res = vld1q_f32_x4(data);
+                            let res = vld1q_f32_x4(data.add(<f32 as TypeCommon>::Vec::SIZE * 4));
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                         }
                         9 => {
                             let res = vld1q_f32_x4(data);
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                             to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
-                            let res = vld1q_f32_x4(data);
+                            let res = vld1q_f32_x4(data.add(<f32 as TypeCommon>::Vec::SIZE * 4));
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                             to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
-                            let res = vld1q_f32(data);
+                            let res = vld1q_f32(data.add(<f32 as TypeCommon>::Vec::SIZE * 8));
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 1]) = transmute(res);
                         }
                         10 => {
                             let res = vld1q_f32_x4(data);
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                             to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
-                            let res = vld1q_f32_x4(data);
+                            let res = vld1q_f32_x4(data.add(<f32 as TypeCommon>::Vec::SIZE * 4));
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                             to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
-                            let res = vld1q_f32_x2(data);
+                            let res = vld1q_f32_x2(data.add(<f32 as TypeCommon>::Vec::SIZE * 8));
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 2]) = transmute(res);
                         }
                         _ => { unreachable!() }
@@ -492,48 +492,48 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
                             let res = vld1q_f32(data);
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 1]) = transmute(res);
                             to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE);
-                            let res = vld1q_f32_x4(data);
+                            let res = vld1q_f32_x4(data.add(<f32 as TypeCommon>::Vec::SIZE));
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                         }
                         6 => {
                             let res = vld1q_f32_x2(data);
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 2]) = transmute(res);
                             to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 2);
-                            let res = vld1q_f32_x4(data);
+                            let res = vld1q_f32_x4(data.add(<f32 as TypeCommon>::Vec::SIZE * 2));
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                         }
                         7 => {
                             let res = vld1q_f32_x3(data);
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 3]) = transmute(res);
                             to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 3);
-                            let res = vld1q_f32_x4(data);
+                            let res = vld1q_f32_x4(data.add(<f32 as TypeCommon>::Vec::SIZE * 3));
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                         }
                         8 => {
                             let res = vld1q_f32_x4(data);
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                             to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
-                            let res = vld1q_f32_x4(data);
+                            let res = vld1q_f32_x4(data.add(<f32 as TypeCommon>::Vec::SIZE * 4));
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                         }
                         9 => {
                             let res = vld1q_f32_x4(data);
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                             to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
-                            let res = vld1q_f32_x4(data);
+                            let res = vld1q_f32_x4(data.add(<f32 as TypeCommon>::Vec::SIZE * 4));
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                             to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
-                            let res = vld1q_f32(data);
+                            let res = vld1q_f32(data.add(<f32 as TypeCommon>::Vec::SIZE * 8));
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 1]) = transmute(res);
                         }
                         10 => {
                             let res = vld1q_f32_x4(data);
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                             to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
-                            let res = vld1q_f32_x4(data);
+                            let res = vld1q_f32_x4(data.add(<f32 as TypeCommon>::Vec::SIZE * 4));
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                             to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
-                            let res = vld1q_f32_x2(data);
+                            let res = vld1q_f32_x2(data.add(<f32 as TypeCommon>::Vec::SIZE * 8));
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 2]) = transmute(res);
                         }
                         _ => { unreachable!() }
