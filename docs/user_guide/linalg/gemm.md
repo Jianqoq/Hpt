@@ -16,6 +16,8 @@ Perform general matrix multiplication of two tensors. The behavior depends on th
 - If either tensor is ND (N > 2), it is treated as a stack of matrices
 - Broadcasting is applied to match dimensions
 
+Unlike `matmul` method, gemm only supports `f16`, `f32`, `f64`, `Complex32`, `Complex64`.
+
 ## Parameters:
 `a`: First input tensor.
 

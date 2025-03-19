@@ -11,6 +11,8 @@ Perform matrix multiplication of two tensors. The behavior depends on the dimens
 - If either tensor is ND (N > 2), it is treated as a stack of matrices
 - Broadcasting is applied to match dimensions
 
+Matmul supports more data type than `gemm` method.
+
 ## Parameters:
 `a`: First input tensor.
 

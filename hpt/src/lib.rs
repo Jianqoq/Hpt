@@ -27,18 +27,6 @@ pub(crate) mod backends {
         pub(crate) mod kernels {
             /// a module defines reduce kernels
             pub(crate) mod argreduce_kernels;
-            /// a module defines the batchnorm conv2d kernels
-            pub(crate) mod batch_norm_conv;
-            /// a module defines the conv2d kernels
-            pub(crate) mod conv;
-            /// a module defines the dwconv2d kernels
-            pub(crate) mod conv_group;
-            /// a module defines the conv transpose kernels
-            pub(crate) mod conv_transpose;
-            /// a module defines the dwconv2d kernels
-            pub(crate) mod dwconv;
-            /// a module defines the lp_pool2d kernels
-            pub(crate) mod lp_pool_kernels;
             /// a module defines the reduce kernels
             pub(crate) mod reduce;
             /// a module defines the softmax kernels
@@ -71,6 +59,13 @@ pub(crate) mod backends {
                 pub(crate) mod conv2d_transpose;
                 /// a module defines dwconv2d operation
                 pub(crate) mod dwconv2d;
+                pub(crate) mod micro_kernels {
+                    pub(crate) mod batch_norm_conv;
+                    pub(crate) mod conv;
+                    pub(crate) mod conv_group;
+                    pub(crate) mod conv_transpose;
+                    pub(crate) mod dwconv;
+                }
             }
             /// a module defines gemm operation for cpu
             pub(crate) mod matmul {

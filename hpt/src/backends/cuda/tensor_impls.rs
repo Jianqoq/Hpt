@@ -270,7 +270,7 @@ where
         let cpu_rhs = other
             .to_cpu::<0>()
             .expect("failed to convert cuda tensor to cpu tensor");
-        cpu_lhs.allclose(&cpu_rhs)
+        cpu_lhs.allclose(&cpu_rhs, 1.0e-5, 1.0e-5)
     }
 }
 
