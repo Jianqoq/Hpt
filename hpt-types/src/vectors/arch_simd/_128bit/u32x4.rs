@@ -77,7 +77,7 @@ impl VecTrait<u32> for u32x4 {
         }
         #[cfg(target_feature = "neon")]
         unsafe {
-            u32x4(vaddq_u32(self.0, vmulq_u32(a.0, b.0)))
+            Self(vmlaq_u32(b.0, self.0, a.0))
         }
     }
     #[inline(always)]

@@ -1,6 +1,6 @@
 use crate::convertion::VecConvertor;
-use crate::traits::{SimdMath, SimdSelect, VecTrait};
-use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
+use crate::traits::{ SimdMath, SimdSelect, VecTrait };
+use crate::type_promote::{ Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2 };
 use crate::vectors::arch_simd::_128bit::f32x4::f32x4;
 use crate::vectors::arch_simd::_128bit::u16x8::u16x8;
 
@@ -44,7 +44,7 @@ impl VecTrait<half::f16> for f16x8 {
             let res1 = x1.mul_add(a1, b1);
             from_2_f32vec([res0, res1])
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(all(target_feature = "neon", target_arch = "aarch64", target_feature = "fp16"))]
         {
             unsafe {
                 let mut b: float16x8_t = std::mem::transmute(b);
@@ -85,49 +85,57 @@ impl VecTrait<half::f16> for f16x8 {
             let mut b: float16x8_t = std::mem::transmute(b);
             let c: float16x8_t = std::mem::transmute(self);
             match LANE {
-                0 => std::arch::asm!(
+                0 =>
+                    std::arch::asm!(
                     "fmla {0:v}.8h, {1:v}.8h, {2:v}.h[0]",
                     inout(vreg) b,
                     in(vreg) a,
                     in(vreg_low16) c,
                     options(pure, nomem, nostack)),
-                1 => std::arch::asm!(
+                1 =>
+                    std::arch::asm!(
                     "fmla {0:v}.8h, {1:v}.8h, {2:v}.h[1]",
                     inout(vreg) b,
                     in(vreg) a,
                     in(vreg_low16) c,
                     options(pure, nomem, nostack)),
-                2 => std::arch::asm!(
+                2 =>
+                    std::arch::asm!(
                     "fmla {0:v}.8h, {1:v}.8h, {2:v}.h[2]",
                     inout(vreg) b,
                     in(vreg) a,
                     in(vreg_low16) c,
                     options(pure, nomem, nostack)),
-                3 => std::arch::asm!(
+                3 =>
+                    std::arch::asm!(
                     "fmla {0:v}.8h, {1:v}.8h, {2:v}.h[3]",
                     inout(vreg) b,
                     in(vreg) a,
                     in(vreg_low16) c,
                     options(pure, nomem, nostack)),
-                4 => std::arch::asm!(
+                4 =>
+                    std::arch::asm!(
                     "fmla {0:v}.8h, {1:v}.8h, {2:v}.h[4]",
                     inout(vreg) b,
                     in(vreg) a,
                     in(vreg_low16) c,
                     options(pure, nomem, nostack)),
-                5 => std::arch::asm!(
+                5 =>
+                    std::arch::asm!(
                     "fmla {0:v}.8h, {1:v}.8h, {2:v}.h[5]",
                     inout(vreg) b,
                     in(vreg) a,
                     in(vreg_low16) c,
                     options(pure, nomem, nostack)),
-                6 => std::arch::asm!(
+                6 =>
+                    std::arch::asm!(
                     "fmla {0:v}.8h, {1:v}.8h, {2:v}.h[6]",
                     inout(vreg) b,
                     in(vreg) a,
                     in(vreg_low16) c,
                     options(pure, nomem, nostack)),
-                7 => std::arch::asm!(
+                7 =>
+                    std::arch::asm!(
                     "fmla {0:v}.8h, {1:v}.8h, {2:v}.h[7]",
                     inout(vreg) b,
                     in(vreg) a,
@@ -155,15 +163,15 @@ impl f16x8 {
         unsafe {
             #[cfg(target_feature = "f16c")]
             {
-                use std::arch::x86_64::{_mm_cvtph_ps, _mm_loadu_si64};
+                use std::arch::x86_64::{ _mm_cvtph_ps, _mm_loadu_si64 };
                 let raw_f16: [u16; 8] = std::mem::transmute(self.0);
                 let f32x4_1 = _mm_cvtph_ps(_mm_loadu_si64(raw_f16.as_ptr() as *const _));
                 let f32x4_2 = _mm_cvtph_ps(_mm_loadu_si64(raw_f16.as_ptr().add(4) as *const _));
                 std::mem::transmute([f32x4_1, f32x4_2])
             }
-            #[cfg(target_feature = "neon")]
+            #[cfg(all(target_feature = "neon", target_arch = "aarch64", target_feature = "fp16"))]
             {
-                use std::arch::aarch64::{float32x4_t, vld1_s16};
+                use std::arch::aarch64::{ float32x4_t, vld1_s16 };
 
                 let low = vld1_s16(self.0.as_ptr() as *const _);
                 let high = vld1_s16(self.0.as_ptr().add(4) as *const _);
@@ -183,17 +191,6 @@ impl f16x8 {
                 );
 
                 std::mem::transmute([res0, res1])
-            }
-            #[cfg(all(
-                not(target_feature = "f16c"),
-                not(all(target_feature = "neon", target_arch = "aarch64"))
-            ))]
-            {
-                let mut result = [0f32; 8];
-                for i in 0..8 {
-                    result[i] = self.0[i].to_f32();
-                }
-                std::mem::transmute(result)
             }
         }
     }
@@ -406,10 +403,7 @@ pub(crate) fn from_2_f32vec(val: [f32x4; 2]) -> f16x8 {
         let result = _mm_unpacklo_epi64(f16_high, f16_low);
         f16x8(std::mem::transmute(result))
     }
-    #[cfg(not(all(
-        target_feature = "f16c",
-        all(target_feature = "neon", target_arch = "aarch64")
-    )))]
+    #[cfg(not(all(target_feature = "f16c", all(target_feature = "neon", target_arch = "aarch64"))))]
     {
         use crate::convertion::Convertor;
         let mut result = [half::f16::ZERO; 8];
@@ -725,10 +719,7 @@ impl SimdMath<half::f16> for f16x8 {
         let [high, low] = self.to_2_f32vec();
         let (high_sin, high_cos) = high.sincos();
         let (low_sin, low_cos) = low.sincos();
-        (
-            Self::from_2_f32vec([high_sin, low_sin]),
-            Self::from_2_f32vec([high_cos, low_cos]),
-        )
+        (Self::from_2_f32vec([high_sin, low_sin]), Self::from_2_f32vec([high_cos, low_cos]))
     }
     #[inline(always)]
     fn atan2(self, other: Self) -> Self {
@@ -986,8 +977,8 @@ impl NormalOutUnary2 for f16x8 {
 
     #[inline(always)]
     fn __leaky_relu(self, alpha: Self) -> Self {
-        self.max(f16x8::splat(half::f16::from_f32_const(0.0)))
-            + alpha * self.min(f16x8::splat(half::f16::from_f32_const(0.0)))
+        self.max(f16x8::splat(half::f16::from_f32_const(0.0))) +
+            alpha * self.min(f16x8::splat(half::f16::from_f32_const(0.0)))
     }
 
     #[inline(always)]
@@ -1052,7 +1043,7 @@ impl Eval2 for f16x8 {
 
         let result = is_inf.select(
             is_neg.select(i16x8::splat(-1), i16x8::splat(1)),
-            i16x8::splat(0),
+            i16x8::splat(0)
         );
 
         result

@@ -84,8 +84,7 @@ impl VecTrait<u8> for u8x16 {
         }
         #[cfg(target_feature = "neon")]
         unsafe {
-            let mul = vmulq_u8(a.0, b.0);
-            u8x16(vaddq_u8(self.0, mul))
+            Self(vmlaq_u8(b.0, self.0, a.0))
         }
     }
     #[inline(always)]

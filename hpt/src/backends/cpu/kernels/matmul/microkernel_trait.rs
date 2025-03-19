@@ -1,23 +1,7 @@
 use hpt_common::Pointer;
 use hpt_traits::tensor::CommonBounds;
 
-/// register usage:
-///
-/// in `mma`: `C`: nr * mr, `A`: 1: `B`: nr
-///
-/// in `store`: 1 (reuse register used at `A` in mma)
-///
-/// `total register will use`: nr * (mr + 1).
-///
-/// Use this info to define microkernels, try not to exceed the register limit.
-///
-/// Try to let `nr * bits_register_can_hold = L1 cache line size`
-///
-/// # Example
-///
-/// ```rust
-/// define_matmul_micro_kernel!(x2x6, 2, 6); // nr: 2, mr: 6
-/// ```
+/// A trait for microkernels of matrix multiplication
 pub trait MatmulMicroKernel
 where
     Self: CommonBounds + Sized,
@@ -52,7 +36,11 @@ where
         }
         #[cfg(target_feature = "neon")]
         {
-            unimplemented!()
+            use crate::define_matmul_micro_kernel;
+            assert_eq!(nr, 8);
+            define_matmul_micro_kernel!(x8x1, 8, 1);
+            define_matmul_micro_kernel!(x8x2, 8, 2);
+            return [x8x1, x8x2][mr - 1];
         }
         #[cfg(all(
             not(target_feature = "avx2"),
@@ -105,7 +93,7 @@ where
         }
         #[cfg(target_feature = "neon")]
         {
-            6
+            2
         }
         #[cfg(all(
             not(target_feature = "avx2"),
@@ -127,7 +115,7 @@ where
         }
         #[cfg(target_feature = "neon")]
         {
-            4
+            8
         }
         #[cfg(all(
             not(target_feature = "avx2"),

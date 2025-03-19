@@ -1,10 +1,10 @@
-use super::microkernel_trait::MatmulMicroKernel;
+use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 
-impl MatmulMicroKernel for f32 {
-    #[cfg(target_feature = "neon")]
+#[cfg(target_feature = "neon")]
+impl MatmulMicroKernel for u32 {
     fn get_kernel(
         nr: usize,
-        mr: usize,
+        mr: usize
     ) -> fn(
         hpt_common::Pointer<Self>,
         hpt_common::Pointer<Self>,
@@ -14,7 +14,7 @@ impl MatmulMicroKernel for f32 {
         usize,
         usize,
         i64,
-        bool,
+        bool
     ) {
         use crate::define_matmul_micro_kernel;
         use crate::define_neon_matmul_micro_kernel;
@@ -25,12 +25,13 @@ impl MatmulMicroKernel for f32 {
         define_neon_matmul_micro_kernel!(x4x4, 4, 4);
         [x4x1, x4x2, x4x3, x4x4][mr - 1]
     }
-    #[cfg(target_feature = "neon")]
     fn get_max_mr() -> usize {
         4
     }
-    #[cfg(target_feature = "neon")]
     fn get_max_nr() -> usize {
         4
     }
 }
+
+#[cfg(not(target_feature = "neon"))]
+impl MatmulMicroKernel for u32 {}

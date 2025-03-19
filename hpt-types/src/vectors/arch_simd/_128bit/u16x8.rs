@@ -78,7 +78,7 @@ impl VecTrait<u16> for u16x8 {
         }
         #[cfg(target_feature = "neon")]
         unsafe {
-            u16x8(vaddq_u16(self.0, vmulq_u16(a.0, b.0)))
+            Self(vmlaq_u16(b.0, self.0, a.0))
         }
     }
     #[inline(always)]

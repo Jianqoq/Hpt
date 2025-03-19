@@ -77,8 +77,7 @@ impl VecTrait<i32> for i32x4 {
         }
         #[cfg(target_feature = "neon")]
         unsafe {
-            let mul = vmulq_s32(a.0, b.0);
-            i32x4(vaddq_s32(self.0, mul))
+            Self(vmlaq_s32(b.0, self.0, a.0))
         }
     }
     #[inline(always)]

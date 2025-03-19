@@ -2,22 +2,46 @@
 use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
 #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
 use crate::arch_simd::sleef::arch::helper_avx2 as helper;
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "sse",
-    not(target_feature = "avx2")
-))]
+#[cfg(all(target_arch = "x86_64", target_feature = "sse", not(target_feature = "avx2")))]
 use crate::arch_simd::sleef::arch::helper_sse as helper;
 use crate::{
     arch_simd::sleef::libm::sleefsimddp::{
-        xacos_u1, xacosh, xasin_u1, xasinh, xatan2_u1, xatan_u1, xatanh, xcbrt_u1, xcos_u1, xcosh,
-        xerf_u1, xexp, xexp10, xexp2, xexpm1, xfmax, xfmin, xhypot_u05, xlog10, xlog1p, xlog2,
-        xlog_u1, xpow, xround, xsin_u1, xsincos_u1, xsinh, xsqrt_u05, xtan_u1, xtanh, xtrunc,
+        xacos_u1,
+        xacosh,
+        xasin_u1,
+        xasinh,
+        xatan2_u1,
+        xatan_u1,
+        xatanh,
+        xcbrt_u1,
+        xcos_u1,
+        xcosh,
+        xerf_u1,
+        xexp,
+        xexp10,
+        xexp2,
+        xexpm1,
+        xfmax,
+        xfmin,
+        xhypot_u05,
+        xlog10,
+        xlog1p,
+        xlog2,
+        xlog_u1,
+        xpow,
+        xround,
+        xsin_u1,
+        xsincos_u1,
+        xsinh,
+        xsqrt_u05,
+        xtan_u1,
+        xtanh,
+        xtrunc,
     },
     convertion::VecConvertor,
-    simd::sleef::libm::sleefsimddp::{xceil, xcopysign, xfloor},
-    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
-    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    simd::sleef::libm::sleefsimddp::{ xceil, xcopysign, xfloor },
+    traits::{ SimdCompare, SimdMath, SimdSelect, VecTrait },
+    type_promote::{ Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2 },
 };
 use helper::vabs_vd_vd;
 
@@ -77,10 +101,7 @@ impl VecTrait<f64> for f64x2 {
     fn copy_from_slice(&mut self, slice: &[f64]) {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            _mm_storeu_pd(
-                &mut self.0 as *mut _ as *mut f64,
-                _mm_loadu_pd(slice.as_ptr()),
-            );
+            _mm_storeu_pd(&mut self.0 as *mut _ as *mut f64, _mm_loadu_pd(slice.as_ptr()));
         }
         #[cfg(target_feature = "neon")]
         unsafe {
@@ -97,11 +118,7 @@ impl VecTrait<f64> for f64x2 {
         unsafe {
             f64x2(_mm_fmadd_pd(self.0, a.0, b.0))
         }
-        #[cfg(all(target_arch = "aarch64", not(target_feature = "fma")))]
-        unsafe {
-            f64x2(vmlaq_f64(b.0, self.0, a.0))
-        }
-        #[cfg(all(target_arch = "aarch64", target_feature = "fma"))]
+        #[cfg(target_feature = "neon")]
         unsafe {
             f64x2(vfmaq_f64(b.0, self.0, a.0))
         }
@@ -142,10 +159,7 @@ impl VecTrait<f64> for f64x2 {
     #[inline(always)]
     #[cfg(target_feature = "neon")]
     fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
-        unsafe {
-            let val = Self::splat(a[LANE as usize]);
-            Self(vfmaq_f64(b.0, self.0, val.0))
-        }
+        unsafe { Self(vfmaq_laneq_f64::<LANE>(b.0, self.0, a.0)) }
     }
 }
 
@@ -267,19 +281,11 @@ impl SimdSelect<f64x2> for i64x2 {
     fn select(&self, true_val: f64x2, false_val: f64x2) -> f64x2 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            f64x2(_mm_blendv_pd(
-                false_val.0,
-                true_val.0,
-                std::mem::transmute(self.0),
-            ))
+            f64x2(_mm_blendv_pd(false_val.0, true_val.0, std::mem::transmute(self.0)))
         }
         #[cfg(target_feature = "neon")]
         unsafe {
-            f64x2(vbslq_f64(
-                vreinterpretq_u64_s64(self.0),
-                true_val.0,
-                false_val.0,
-            ))
+            f64x2(vbslq_f64(vreinterpretq_u64_s64(self.0), true_val.0, false_val.0))
         }
     }
 }
@@ -882,9 +888,6 @@ impl Eval2 for f64x2 {
         let is_inf = exp.simd_eq(inf_mask) & frac.simd_eq(i64x2::splat(0));
         let is_neg = (i & sign_mask).simd_ne(i64x2::splat(0));
 
-        is_inf.select(
-            is_neg.select(i64x2::splat(-1), i64x2::splat(1)),
-            i64x2::splat(0),
-        )
+        is_inf.select(is_neg.select(i64x2::splat(-1), i64x2::splat(1)), i64x2::splat(0))
     }
 }

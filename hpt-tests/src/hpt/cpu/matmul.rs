@@ -26,8 +26,8 @@ fn test() -> anyhow::Result<()> {
         let n = rng.random_range(1..=512 * 4);
         let k = rng.random_range(1..=512 * 4);
         println!("{i}: {} {} {}", m, n, k);
-        let a = Tensor::<f32>::ones(&[m, k])?;
-        let b = Tensor::<f32>::ones(&[k, n])?;
+        let a = Tensor::<f64>::ones(&[m, k])?;
+        let b = Tensor::<f64>::ones(&[k, n])?;
         let c = a.matmul(&b)?;
         let c2 = a.gemm(&b, 0.0, 1.0, false, false, false)?;
         assert!(c.allclose(&c2));

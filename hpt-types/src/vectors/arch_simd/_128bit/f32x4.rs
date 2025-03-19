@@ -97,9 +97,14 @@ impl VecTrait<f32> for f32x4 {
         unsafe {
             f32x4(_mm_fmadd_ps(self.0, a.0, b.0))
         }
-        #[cfg(target_feature = "neon")]
+        #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
         unsafe {
             f32x4(vfmaq_f32(b.0, self.0, a.0))
+        }
+        #[cfg(all(target_arch = "arm", target_feature = "neon"))]
+        unsafe {
+            let mul = vmulq_f32(self.0, a.0);
+            f32x4(vaddq_f32(mul, b.0))
         }
     }
     #[inline(always)]

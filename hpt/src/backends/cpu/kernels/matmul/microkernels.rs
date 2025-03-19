@@ -1,13 +1,12 @@
-use super::microkernel_trait::MatmulMicroKernel;
-
 /// Define Matmul Micro Kernel function
 ///
 /// # Arguments
 ///
 /// * `$name`: The name of the function
-/// * `T`: The type of the elements in the matrix
 /// * `$nr`: The number of registers to use for the columns of B
 /// * `$mr`: The number of rows of C to accumulate in registers
+/// 
+/// Total registers = ($mr + 1) * $nr + 1
 ///
 /// # Example
 ///
@@ -120,13 +119,12 @@ macro_rules! define_matmul_micro_kernel {
     };
 }
 
-/// Define Matmul Micro Kernel function
+/// Define Matmul Micro Kernel function for NEON
 ///
 /// # Arguments
 ///
 /// * `$name`: The name of the function
-/// * `T`: The type of the elements in the matrix
-/// * `$nr`: The value must less than or equal to 4
+/// * `$nr`: The value must less than or equal to 10
 /// * `$mr`: must equal to vector size
 ///
 /// Total registers = ($mr + 1) * $nr + 1
@@ -156,7 +154,7 @@ macro_rules! define_neon_matmul_micro_kernel {
             use $crate::common::Pointer;
             use $crate::types::math::NormalOut;
             use $crate::types::TypeCommon;
-            fn load_vec_neon<const NR: usize>(data: *const f32, to_write: *mut f32) {
+            fn load_vec_neon<const NR: usize>(data: *const f32, mut to_write: *mut f32) {
                 use std::{arch::aarch64::*, mem::transmute};
                 unsafe {
                     match NR {
@@ -175,6 +173,54 @@ macro_rules! define_neon_matmul_micro_kernel {
                         4 => {
                             let res = vld1q_f32_x4(data);
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                        }
+                        5 => {
+                            let res = vld1q_f32(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 1]) = transmute(res);
+                            to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE);
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                        }
+                        6 => {
+                            let res = vld1q_f32_x2(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 2]) = transmute(res);
+                            to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 2);
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                        }
+                        7 => {
+                            let res = vld1q_f32_x3(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 3]) = transmute(res);
+                            to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 3);
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                        }
+                        8 => {
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                            to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                        }
+                        9 => {
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                            to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                            to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
+                            let res = vld1q_f32(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 1]) = transmute(res);
+                        }
+                        10 => {
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                            to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                            to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
+                            let res = vld1q_f32_x2(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 2]) = transmute(res);
                         }
                         _ => { unreachable!() }
                     }
@@ -270,7 +316,6 @@ macro_rules! define_neon_matmul_micro_kernel {
 /// # Arguments
 ///
 /// * `$name`: The name of the function
-/// * `T`: The type of the elements in the matrix
 /// * `$nr`: The number of registers to use for the columns of B
 /// * `$mr`: The number of rows of C to accumulate in registers
 ///
@@ -394,10 +439,9 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
 /// # Arguments
 ///
 /// * `$name`: The name of the function
-/// * `T`: The type of the elements in the matrix
 /// * `$nr`: The number of registers to use for the columns of B
 /// * `$mr`: must equal to vector size
-/// * `$nr2`: must less than or equal to 4
+/// * `$nr2`: must less than or equal to 10
 ///
 /// Total registers = $nr2 * ($mr + 1) + 1
 ///
@@ -416,7 +460,7 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
             b: $crate::common::Pointer<IM>,
             c: $crate::common::Pointer<T>,
             ldc: i64,
-            lda: i64,
+            _lda: i64,
             kc: usize,
             jb: usize,
             ks: i64,
@@ -424,7 +468,7 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
             vec_cast_back: fn(*const IM::Vec) -> T::Vec,
             cast_back: fn(IM) -> T,
         ) {
-            fn load_vec_neon<const NR: usize>(data: *const f32, to_write: *mut f32) {
+            fn load_vec_neon<const NR: usize>(data: *const f32, mut to_write: *mut f32) {
                 use std::{arch::aarch64::*, mem::transmute};
                 unsafe {
                     match NR {
@@ -444,6 +488,54 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
                             let res = vld1q_f32_x4(data);
                             *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
                         }
+                        5 => {
+                            let res = vld1q_f32(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 1]) = transmute(res);
+                            to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE);
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                        }
+                        6 => {
+                            let res = vld1q_f32_x2(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 2]) = transmute(res);
+                            to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 2);
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                        }
+                        7 => {
+                            let res = vld1q_f32_x3(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 3]) = transmute(res);
+                            to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 3);
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                        }
+                        8 => {
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                            to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                        }
+                        9 => {
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                            to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                            to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
+                            let res = vld1q_f32(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 1]) = transmute(res);
+                        }
+                        10 => {
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                            to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
+                            let res = vld1q_f32_x4(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 4]) = transmute(res);
+                            to_write = to_write.add(<f32 as TypeCommon>::Vec::SIZE * 4);
+                            let res = vld1q_f32_x2(data);
+                            *(to_write as *mut [<f32 as TypeCommon>::Vec; 2]) = transmute(res);
+                        }
                         _ => { unreachable!() }
                     }
                 }
@@ -452,9 +544,10 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
             use $crate::common::Pointer;
             use $crate::types::math::NormalOut;
             #[inline(always)]
-            fn mma<T: $crate::common::CommonBounds>(mut a: Pointer<T>, mut b: Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as $crate::types::TypeCommon>::Vec; $nr2]; $mr] {
+            fn mma<T: $crate::common::CommonBounds>(mut a: Pointer<T>, mut b: Pointer<T>, kc: usize, ks: i64) -> [[<T as $crate::types::TypeCommon>::Vec; $nr2]; $mr] {
                 let mut c_local = [[<T as $crate::types::TypeCommon>::Vec::splat(<T>::ZERO); $nr2]; $mr];
                 for _ in 0..kc {
+                    let mut b_vec = [<T as $crate::types::TypeCommon>::Vec::splat(<T>::ZERO); $nr2];
                     load_vec_neon::<$nr2>(b.ptr as *const f32, b_vec.as_mut_ptr() as *mut f32);
 
                     #[allow(unused_mut)]
@@ -474,7 +567,7 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
                 c_local
             }
 
-            let c_local = mma(a, b, lda, kc, ks);
+            let c_local = mma(a, b, kc, ks);
             if jb == $nr * <T as $crate::types::TypeCommon>::Vec::SIZE {
                 if first_kiter {
                     $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
@@ -535,19 +628,3 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
         }
     };
 }
-
-impl MatmulMicroKernel for bool {}
-impl MatmulMicroKernel for i8 {}
-impl MatmulMicroKernel for i16 {}
-impl MatmulMicroKernel for i32 {}
-impl MatmulMicroKernel for i64 {}
-impl MatmulMicroKernel for u8 {}
-impl MatmulMicroKernel for u16 {}
-impl MatmulMicroKernel for u32 {}
-impl MatmulMicroKernel for u64 {}
-impl MatmulMicroKernel for f64 {}
-impl MatmulMicroKernel for usize {}
-impl MatmulMicroKernel for isize {}
-impl MatmulMicroKernel for crate::types::bf16 {}
-impl MatmulMicroKernel for crate::types::Complex32 {}
-impl MatmulMicroKernel for crate::types::Complex64 {}

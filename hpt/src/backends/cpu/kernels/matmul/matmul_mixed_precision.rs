@@ -308,6 +308,7 @@ pub fn matmul_mixed_precision_template_no_block_info<T, IM>(
     );
 }
 
+#[allow(unused)]
 pub(crate) fn f16_matmul<const DEVICE: usize, A>(
     a: &_Tensor<half::f16, Cpu, DEVICE, A>,
     b: &_Tensor<half::f16, Cpu, DEVICE, A>,

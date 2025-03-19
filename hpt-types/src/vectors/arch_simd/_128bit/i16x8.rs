@@ -76,7 +76,7 @@ impl VecTrait<i16> for i16x8 {
         }
         #[cfg(target_feature = "neon")]
         unsafe {
-            i16x8(vmlaq_s16(self.0, a.0, b.0))
+            Self(vmlaq_s16(b.0, self.0, a.0))
         }
     }
     #[inline(always)]
