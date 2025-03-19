@@ -87,7 +87,7 @@ candle-core = { version = "0.8.4", features = ["mkl"] }
 candle-nn = "0.8.4"
 gnuplot = "0.0.45"
 criterion = { version = "0.5.1", features = ["html_reports"] }
-tch = "0.17.0"
+tch = {version = "0.17.0", features = ["download-libtorch"]}
 
 [[bin]]
 name = "hpt-workspace"
