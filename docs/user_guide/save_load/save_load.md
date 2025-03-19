@@ -82,9 +82,9 @@ pub struct Linear {
 ```rust
 #[derive(Save, Load)]
 pub struct Linear {
-    #[compress(algo = "gzip", level = "9", endian = "little")]
+    #[compress(algo = "gzip", level = "9")]
     weight: Tensor<f32>,
-    #[compress(algo = "zlib", level = "5", endian = "big")]
+    #[compress(algo = "zlib", level = "5")]
     bias: Tensor<f32>,
 }
 ```

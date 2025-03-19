@@ -1,7 +1,7 @@
 # zipf
 ```rust
 zipf(
-    n: u64,
+    n: T,
     s: T,
     shape: &[i64] | &Vec<i64> | &[i64; _]
 ) -> Result<Tensor<T>, TensorError>
@@ -24,7 +24,7 @@ use hpt::{error::TensorError, ops::Random, Tensor};
 
 fn main() -> Result<(), TensorError> {
     // Create a 10x10 tensor with Zipf distribution (N=1000, s=2.0)
-    let a = Tensor::<f32>::zipf(1000, 2.0, &[10, 10])?;
+    let a = Tensor::<f32>::zipf(1000.0, 2.0, &[10, 10])?;
     println!("{}", a);
     Ok(())
 }

@@ -1,4 +1,4 @@
-use crate::backends::cpu::kernels::conv_transpose::{
+use crate::backends::cpu::kernels::conv2d::micro_kernels::conv_transpose::{
     full_oc_kernel_dispatch, remain_ic_kernel_dispatch, Params, PartialParams,
 };
 use crate::tensor_base::_Tensor;

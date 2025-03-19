@@ -101,5 +101,8 @@ fn main() {
     #[cfg(feature = "hamming")]
     benchmarks::signals::hamming_window::benches();
 
+    #[cfg(feature = "fft")]
+    benchmarks::fft::fft::fft_benches();
+
     Criterion::default().configure_from_args().final_summary();
 }

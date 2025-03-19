@@ -44,13 +44,13 @@ fn assert_eq(a: &Tensor<f64>, b: &tch::Tensor) -> anyhow::Result<()> {
 
 #[test]
 fn test_case0() -> anyhow::Result<()> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..100 {
-        let batch = rng.gen_range(1..=4);
-        let channel = rng.gen_range(1..=16);
-        let height = rng.gen_range(8..=32);
-        let width = rng.gen_range(8..=32);
+        let batch = rng.random_range(1..=4);
+        let channel = rng.random_range(1..=16);
+        let height = rng.random_range(8..=32);
+        let width = rng.random_range(8..=32);
         let (a, tch_a) = common_input([batch, channel, height, width])?;
         assert_eq(&a, &tch_a)?;
     }

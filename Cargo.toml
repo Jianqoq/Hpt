@@ -1,6 +1,5 @@
-
 [package]
-name = "e_tensor"
+name = "hpt-workspace"
 version = "0.0.22"
 edition = "2021"
 license = "MIT OR Apache-2.0"
@@ -20,52 +19,86 @@ members = [
     "hpt-dataloader",
     "hpt-codegen",
     "hpt-cudakernels",
-    "hpt-examples"
+    "hpt-examples",
 ]
 
-exclude = [
-    "hpt-bench",
-    "hpt-tests",
-    "hpt-codegen",
-    "hpt-examples",
-    "gemm"
-]
+exclude = ["hpt-bench", "hpt-tests", "hpt-codegen", "hpt-examples"]
 
 [dependencies]
 hpt = { path = "./hpt", features = ["track_caller"], version = "0.0.21" }
-# hpt = {version = "0.0.11", features = ["cuda"]}
-anyhow = "1.0.95"
-# candle-core = { version = "0.8.3", features = ["mkl", "cuda"] }
-# candle-kernels = "0.8.3"
-# candle-nn = "0.8.2"
-# [dev-dependencies]
-# hpt-common = { path = "./hpt-common" }
-# anyhow = "1.0.40"
-# half = "2.4.1"
-# tch = { version = "0.17.0", features = ["download-libtorch"] }
-# rayon = "1.8.0"
-# cache-size = "0.7.0"
-# rust_xlsxwriter = "=0.25.0"
-# num-complex = "0.4"
-# regex = "1.11.1"
-# num = "0.4"
-# serde = "1.0.217"
-# serde_json = "1.0"
-# safetensors = "0.5.0"
-# memmap2 = "0.9.0"
-# sysinfo = "0.33.1"
-# base64 = "0.22.1"
+anyhow = { workspace = true }
+rand = { workspace = true }
+
+[workspace.dependencies]
+once_cell = { version = "1.21.1", default-features = false }
+ctor = "0.4.1"
+seq-macro = "0.3.6"
+paste = "1.0.15"
+cache-size = "0.7.0"
+duplicate = "2.0.0"
+lazy_static = "1.5.0"
+threadpool = "1.8.1"
+raw-cpuid = { version = "11.2", default-features = false }
+dyn-stack = { version = "0.13", default-features = false, features = ["alloc"] }
+num-traits = "0.2.19"
+num-complex = "0.4.6"
+rayon = "1.10.0"
+half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }
+serde = { version = "1.0.219", features = ["derive", "rc"] }
+libm = "0.2.11"
+rand_distr = "0.5.1"
+num = "0.4.3"
+syn = { version = "2.0.100", features = ["full"] }
+quote = "1.0.40"
+regex = "1.11.1"
+bytemuck = "1.22.0"
+proc-macro2 = { version = "1.0.94", features = ["span-locations"] }
+safetensors = "0.5.3"
+flate2 = "1.1.0"
+indicatif = "0.17.11"
+serde_json = "1.0.140"
+zip = "2.4.0"
+thiserror = "2.0.12"
+petgraph = "0.7.1"
+cudarc = { version = "0.13.4", default-features = false, features = [
+    "std",
+    "cublas",
+    "cublaslt",
+    "curand",
+    "driver",
+    "nvrtc",
+    "f16",
+    "cuda-version-from-build-system",
+    "dynamic-linking",
+] }
+anyhow = "1.0.97"
+lru = "0.13.0"
+num_cpus = "1.16.0"
+walkdir = "2.5.0"
+phf_codegen = "0.11.3"
+phf = "0.11.3"
+rustfft = "6.2.0"
+gemm = { version = "0.18.2", features = ["rayon"] }
+gemm-common = "0.18.2"
+rand = "0.9.0"
+ndarray-rand = "0.15.0"
+ndarray = { version = "0.16.1", features = ["rayon"] }
+candle-core = { version = "0.8.4", features = ["mkl"] }
+candle-nn = "0.8.4"
+gnuplot = "0.0.45"
+criterion = { version = "0.5.1", features = ["html_reports"] }
+tch = "0.17.0"
 
 [[bin]]
-name = "etensor"
+name = "hpt-workspace"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 3
+opt-level = 0
 incremental = true
 debug = true
-lto = "fat"
-codegen-units = 1
+# lto = "fat"
+# codegen-units = 1
 
 [profile.dev]
 opt-level = 0

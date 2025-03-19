@@ -10,7 +10,7 @@ fn test_save_load_single() -> anyhow::Result<()> {
     let d = Tensor::<f32>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]).astype::<bf16>()?;
 
     let tmp_dir = std::env::temp_dir();
-    let tmp_file = tmp_dir.join("test_saver");
+    let tmp_file = tmp_dir.join("single_test_saver");
     let saver = TensorSaver::new(&tmp_file);
     saver
         .push("a", a.clone(), CompressionAlgo::Zlib, 1)
@@ -66,7 +66,7 @@ fn test_save_load_struct() -> anyhow::Result<()> {
     let test_struct = TestStruct { a, b, c, d };
 
     let tmp_dir = std::env::temp_dir();
-    let tmp_file = tmp_dir.join("test_saver");
+    let tmp_file = tmp_dir.join("struct_test_saver");
 
     test_struct.save(&tmp_file)?;
 

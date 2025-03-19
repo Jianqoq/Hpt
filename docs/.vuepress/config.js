@@ -238,6 +238,7 @@ export default defineUserConfig({
               collapsible: true,
               children: [
                 { text: 'matmul', link: '/user_guide/linalg/matmul.md' },
+                { text: 'gemm', link: '/user_guide/linalg/gemm.md' },
                 { text: 'tensordot', link: '/user_guide/linalg/tensordot.md' },
               ]
             },
@@ -454,6 +455,9 @@ export default defineUserConfig({
             {
               text: 'matmul',
               link: '/benchmarks/matmul.md'
+            }, {
+              text: 'fft',
+              link: '/benchmarks/fft.md'
             },
             {
               text: 'nn',

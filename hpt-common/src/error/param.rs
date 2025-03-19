@@ -21,6 +21,14 @@ pub enum ParamError {
         /// Location where error occurred
         location: &'static Location<'static>,
     },
+    /// Error that occurs when FFT norm parameter is invalid
+    #[error("Invalid FFT norm parameter: must be one of 'backward', 'forward', 'ortho', got {value} at {location}")]
+    InvalidFFTNormParam {
+        /// Invalid FFT norm value
+        value: String,
+        /// Location where error occurred
+        location: &'static Location<'static>,
+    },
 }
 
 impl ParamError {

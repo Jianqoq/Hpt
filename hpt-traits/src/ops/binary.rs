@@ -251,6 +251,108 @@ where
         U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;
 }
 
+/// A trait for gemm operations on tensors.
+pub trait Gemm<RHS = Self>
+where
+    <<Self as Gemm<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync,
+{
+    /// The output tensor type.
+    type Output;
+    /// The output tensor data type.
+    type OutputMeta: CommonBounds;
+    /// The inplace output tensor type.
+    type InplaceOutput;
+
+    /// Perform gemm (general matrix multiplication) of two tensors. The behavior depends on the dimensions of the input tensors:
+    ///
+    /// - If both tensors are 2D, they are multiplied as matrices
+    /// - If either tensor is ND (N > 2), it is treated as a stack of matrices
+    /// - Broadcasting is applied to match dimensions
+    ///
+    /// ## Parameters:
+    /// `rhs`: The right-hand side tensor.
+    ///
+    /// `alpha`: Scaling factor for the matrix product (A @ B)
+    ///
+    /// `beta`: Scaling factor for the existing values in output matrix C
+    ///
+    /// `conj_dst`: Whether to conjugate C before scaling with beta
+    ///
+    /// `conj_lhs`: Whether to conjugate A before multiplication
+    ///
+    /// `conj_rhs`: Whether to conjugate B before multiplication
+    ///
+    /// ## Example:
+    /// ```rust
+    /// // 2D matrix multiplication
+    /// let a = Tensor::<f64>::new(&[[1., 2.], [3., 4.]]);
+    /// let b = Tensor::<f64>::new(&[[5., 6.], [7., 8.]]);
+    /// let c = a.gemm(&b, 0.0, 1.0, false, false, false)?;
+    /// println!("2D result:\n{}", c);
+    ///
+    /// // 3D batch matrix multiplication
+    /// let d = Tensor::<f64>::ones(&[2, 2, 3])?; // 2 matrices of shape 2x3
+    /// let e = Tensor::<f64>::ones(&[2, 3, 2])?; // 2 matrices of shape 3x2
+    /// let f = d.gemm(&e, 0.0, 1.0, false, false, false)?; // 2 matrices of shape 2x2
+    /// println!("3D result:\n{}", f);
+    /// ```
+    #[track_caller]
+    fn gemm(
+        &self,
+        rhs: RHS,
+        alpha: Self::OutputMeta,
+        beta: Self::OutputMeta,
+        conj_dst: bool,
+        conj_lhs: bool,
+        conj_rhs: bool,
+    ) -> std::result::Result<Self::Output, TensorError>;
+
+    /// gemm (general matrix multiplication) with specified output tensor
+    ///
+    /// ## Parameters:
+    /// `rhs`: The right-hand side tensor.
+    ///
+    /// `alpha`: Scaling factor for the matrix product (A @ B)
+    ///
+    /// `beta`: Scaling factor for the existing values in output matrix C
+    ///
+    /// `conj_dst`: Whether to conjugate C before scaling with beta
+    ///
+    /// `conj_lhs`: Whether to conjugate A before multiplication
+    ///
+    /// `conj_rhs`: Whether to conjugate B before multiplication
+    ///
+    /// `out`: The output tensor.
+    ///
+    /// ## Example:
+    /// ```rust
+    /// // 2D matrix multiplication
+    /// let a = Tensor::<f64>::new(&[[1., 2.], [3., 4.]]);
+    /// let b = Tensor::<f64>::new(&[[5., 6.], [7., 8.]]);
+    /// let c = a.gemm_(&b, 0.0, 1.0, false, false, false, &mut a.clone())?;
+    /// println!("2D result:\n{}", c);
+    ///
+    /// // 3D batch matrix multiplication
+    /// let d = Tensor::<f64>::ones(&[2, 2, 3])?; // 2 matrices of shape 2x3
+    /// let e = Tensor::<f64>::ones(&[2, 3, 2])?; // 2 matrices of shape 3x2
+    /// let f = d.gemm_(&e, 0.0, 1.0, false, false, false, &mut d.clone())?; // 2 matrices of shape 2x2
+    /// println!("3D result:\n{}", f);
+    /// ```
+    #[track_caller]
+    fn gemm_<U>(
+        &self,
+        rhs: RHS,
+        alpha: Self::OutputMeta,
+        beta: Self::OutputMeta,
+        conj_dst: bool,
+        conj_lhs: bool,
+        conj_rhs: bool,
+        out: U,
+    ) -> std::result::Result<Self::InplaceOutput, TensorError>
+    where
+        U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;
+}
+
 /// A trait for tensor dot operations on tensors.
 pub trait TensorDot<RHS = Self> {
     /// The output tensor type.

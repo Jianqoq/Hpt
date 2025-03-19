@@ -1,7 +1,7 @@
 # hstack
 ```rust
 hstack(
-    tensors: Vec<&Tensor<T>>
+    tensors: Vec<Tensor<T>>
 ) -> Result<Tensor<T>, TensorError>
 ```
 Stacks tensors horizontally (along axis 1 for 2D+ tensors, or axis 0 for 1D tensors).

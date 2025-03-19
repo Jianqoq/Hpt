@@ -1,5 +1,6 @@
-use candle_core::Tensor as CandleTensor;
+// use candle_core::Tensor as CandleTensor;
 use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
+use half::f16;
 use hpt::common::cpu::TensorLike;
 use hpt::common::TensorInfo;
 use hpt::ops::*;
@@ -68,38 +69,38 @@ fn conv2d_benchmark(c: &mut Criterion) {
         .sample_size(10);
     for idx in 0..shapes.len() {
         let (inp_shape, [in_channels, out_channels]) = shapes[idx];
-        let a = black_box(TchTensor::randn(inp_shape, (Kind::Float, Device::Cpu)));
+        let a = black_box(TchTensor::randn(inp_shape, (Kind::Half, Device::Cpu)));
         let a_kernel = black_box(TchTensor::randn(
             [out_channels, in_channels, 3, 3],
-            (Kind::Float, Device::Cpu),
+            (Kind::Half, Device::Cpu),
         ));
         let a2 = black_box(
-            Tensor::<f32>::randn([inp_shape[0], inp_shape[2], inp_shape[3], inp_shape[1]]).unwrap(),
+            Tensor::<f16>::randn([inp_shape[0], inp_shape[2], inp_shape[3], inp_shape[1]]).unwrap(),
         );
-        let a2_kernel = black_box(Tensor::<f32>::randn([3, 3, in_channels, out_channels]).unwrap());
-        let a3 = black_box(
-            CandleTensor::randn(
-                0f32,
-                1f32,
-                &[
-                    inp_shape[0] as usize,
-                    inp_shape[1] as usize,
-                    inp_shape[2] as usize,
-                    inp_shape[3] as usize,
-                ],
-                &candle_core::Device::Cpu,
-            )
-            .unwrap(),
-        );
-        let a3_kernel = black_box(
-            CandleTensor::randn(
-                0f32,
-                1f32,
-                &[out_channels as usize, in_channels as usize, 3, 3],
-                &candle_core::Device::Cpu,
-            )
-            .unwrap(),
-        );
+        let a2_kernel = black_box(Tensor::<f16>::randn([3, 3, in_channels, out_channels]).unwrap());
+        // let a3 = black_box(
+        //     CandleTensor::randn(
+        //         0f32,
+        //         1f32,
+        //         &[
+        //             inp_shape[0] as usize,
+        //             inp_shape[1] as usize,
+        //             inp_shape[2] as usize,
+        //             inp_shape[3] as usize,
+        //         ],
+        //         &candle_core::Device::Cpu,
+        //     )
+        //     .unwrap(),
+        // );
+        // let a3_kernel = black_box(
+        //     CandleTensor::randn(
+        //         0f32,
+        //         1f32,
+        //         &[out_channels as usize, in_channels as usize, 3, 3],
+        //         &candle_core::Device::Cpu,
+        //     )
+        //     .unwrap(),
+        // );
         group.bench_with_input(
             BenchmarkId::new("torch", format!("tch {}", idx)),
             &shapes[idx],
@@ -117,13 +118,13 @@ fn conv2d_benchmark(c: &mut Criterion) {
                 });
             },
         );
-        group.bench_with_input(
-            BenchmarkId::new("candle", format!("candle {}", idx)),
-            &shapes[idx],
-            |b, _| {
-                b.iter(|| a3.conv2d(&a3_kernel, 0, 1, 1, 1).unwrap());
-            },
-        );
+        // group.bench_with_input(
+        //     BenchmarkId::new("candle", format!("candle {}", idx)),
+        //     &shapes[idx],
+        //     |b, _| {
+        //         b.iter(|| a3.conv2d(&a3_kernel, 0, 1, 1, 1).unwrap());
+        //     },
+        // );
     }
     group.finish();
 }

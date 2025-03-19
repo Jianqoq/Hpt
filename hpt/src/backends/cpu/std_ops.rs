@@ -1944,7 +1944,7 @@ where
         if self.shape() != other.shape() {
             return false;
         }
-        self.allclose(other)
+        self.allclose(other, 1.0e-5, 1.0e-5)
     }
 }
 
@@ -2035,7 +2035,7 @@ where
         if self.shape() != other.shape() {
             return false;
         }
-        self.allclose(other)
+        self.allclose(other, 1.0e-5, 1.0e-5)
     }
 }
 

@@ -44,7 +44,7 @@ where
         ret.par_iter_mut_simd()
             .zip(self.par_iter_simd())
             .for_each_init(
-                || rand::thread_rng(),
+                || rand::rng(),
                 |rng, (ret, val)| {
                     let mask: Self::OutputMeta = bernoli.sample(rng).cast();
                     *ret = val._mul(mask)._mul(scale);

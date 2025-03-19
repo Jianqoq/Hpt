@@ -39,13 +39,13 @@ fn assert_eq(b: &Tensor<i64>, a: &tch::Tensor) {
 )]
 #[test]
 fn func() -> anyhow::Result<()> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..100 {
-        let len = rng.gen_range(1..3);
+        let len = rng.random_range(1..3);
         let mut shape = Vec::with_capacity(len);
         for _ in 0..len {
-            shape.push(rng.gen_range(1..10));
+            shape.push(rng.random_range(1..10));
         }
         let tch_a = tch::Tensor::randint_low(
             i64::MIN,
@@ -58,7 +58,7 @@ fn func() -> anyhow::Result<()> {
             std::slice::from_raw_parts(tch_a.data_ptr() as *mut i64, tch_a.numel())
         });
 
-        let dim = rng.gen_range(0..len) as i64;
+        let dim = rng.random_range(0..len) as i64;
         let b = a.hpt_method(dim)?;
         let tch_b = tch_a.tch_method(dim, tch::Kind::Int64);
         assert_eq(&b, &tch_b);

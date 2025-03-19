@@ -35,7 +35,7 @@ where
             parent: Some(x.data.clone()),
             mem_layout: x.mem_layout.clone(),
             layout,
-            _backend: x._backend.clone(),
+            backend: x.backend.clone(),
             phantom: PhantomData,
         }
     } else {
@@ -45,7 +45,7 @@ where
             parent: x.parent.clone(),
             mem_layout: x.mem_layout.clone(),
             layout,
-            _backend: x._backend.clone(),
+            backend: x.backend.clone(),
             phantom: PhantomData,
         }
     }

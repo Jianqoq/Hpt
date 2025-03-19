@@ -419,10 +419,10 @@ where
     ///
     /// ## Example:
     /// ```rust
-    /// let a = Tensor::<f32>::zipf(1000, 2.0, &[10, 10])?;
+    /// let a = Tensor::<f32>::zipf(1000.0, 2.0, &[10, 10])?;
     /// ```
     #[track_caller]
-    fn zipf<S: Into<Shape>>(n: u64, a: Self::Meta, shape: S) -> Result<Self, TensorError>;
+    fn zipf<S: Into<Shape>>(n: Self::Meta, a: Self::Meta, shape: S) -> Result<Self, TensorError>;
 
     /// Same as `zipf` but the shape will be based on `x`.
     /// Creates a Tensor with values drawn from a Zipf distribution with specified number of elements and exponent parameter.
@@ -435,10 +435,10 @@ where
     /// ## Example:
     /// ```rust
     /// let x = Tensor::<f32>::randn(&[10, 10])?;
-    /// let z = x.zipf_like(1000, 2.0)?; // shape: [10, 10]
+    /// let z = x.zipf_like(1000.0, 2.0)?; // shape: [10, 10]
     /// ```
     #[track_caller]
-    fn zipf_like(&self, n: u64, a: Self::Meta) -> Result<Self, TensorError>;
+    fn zipf_like(&self, n: Self::Meta, a: Self::Meta) -> Result<Self, TensorError>;
 
     /// Create a Tensor with values drawn from a triangular distribution.
     /// The triangular distribution is a continuous probability distribution with a lower limit `low`, upper limit `high`, and mode `mode`. It forms a triangular shape in its probability density function.

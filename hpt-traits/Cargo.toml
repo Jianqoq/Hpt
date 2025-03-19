@@ -10,9 +10,8 @@ repository = "https://github.com/Jianqoq/Hpt"
 [dependencies]
 hpt-common = { path = "../hpt-common", version = "0.0.21" }
 hpt-types = { path = "../hpt-types", version = "0.0.21" }
-anyhow = "1.0.95"
-num = "0.4"
-rand_distr = "0.4.3"
+num = { workspace = true }
+rand_distr = { workspace = true }
 
 [features]
 track_caller = []

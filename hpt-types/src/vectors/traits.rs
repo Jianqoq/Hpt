@@ -55,6 +55,9 @@ pub trait VecTrait<T: Copy> {
     ///
     /// This function is unsafe because it can cause undefined behavior if the pointer is invalid or the data len is less than the vector size
     unsafe fn from_ptr(ptr: *const T) -> Self;
+    /// mul add lane
+    #[cfg(target_feature = "neon")]
+    fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self;
 }
 
 /// a trait to select value from two vectors

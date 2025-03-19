@@ -1,4 +1,3 @@
-use anyhow::Result;
 use hpt_common::utils::pointer::Pointer;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::into_scalar::Cast;
@@ -19,8 +18,7 @@ fn main_loop_push_str<U, T>(
     prg: &mut Vec<i64>,
     shape: &Vec<i64>,
     mut ptr: Pointer<T>,
-) -> Result<()>
-where
+) where
     U: TensorInfo<T>,
     T: CommonBounds + Cast<f64>,
 {
@@ -94,7 +92,6 @@ where
             }
         }
     }
-    Ok(())
 }
 
 /// # Internal Function
@@ -109,8 +106,7 @@ fn main_loop_get_width<U, T>(
     prg: &mut Vec<i64>,
     shape: &Vec<i64>,
     mut ptr: Pointer<T>,
-) -> Result<()>
-where
+) where
     U: TensorInfo<T>,
     T: CommonBounds + Cast<f64>,
 {
@@ -164,7 +160,6 @@ where
             }
         }
     }
-    Ok(())
 }
 
 /// Display a tensor.
@@ -223,8 +218,7 @@ where
                 &mut prg,
                 &shape,
                 ptr.clone(),
-            )
-            .unwrap();
+            );
             main_loop_push_str(
                 &tensor,
                 lr_elements_size,
@@ -236,8 +230,7 @@ where
                 &mut prg,
                 &shape,
                 ptr.clone(),
-            )
-            .unwrap();
+            );
         }
         let shape_str = tensor
             .shape()

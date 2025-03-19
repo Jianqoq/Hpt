@@ -39,6 +39,12 @@ impl VecTrait<Complex64> for cplx64x1 {
     unsafe fn from_ptr(ptr: *const Complex64) -> Self {
         cplx64x1([unsafe { *ptr }])
     }
+    #[inline(always)]
+    #[cfg(target_feature = "neon")]
+    fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
+        let val = Self::splat(a[LANE as usize]);
+        self.mul_add(val, b)
+    }
 }
 
 impl cplx64x1 {

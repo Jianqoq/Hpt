@@ -18,7 +18,7 @@ use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
 use rand_distr::{
     uniform::SampleUniform, Distribution, Exp1, Normal, NormalInverseGaussian, Open01,
-    OpenClosed01, Standard, StandardNormal, Uniform,
+    OpenClosed01, StandardNormal, StandardUniform, Uniform,
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
@@ -35,7 +35,7 @@ where
     Open01: Distribution<T>,
     Exp1: Distribution<T>,
     OpenClosed01: Distribution<T>,
-    Standard: Distribution<T>,
+    StandardUniform: Distribution<T>,
     cudarc::curand::sys::curandGenerator_t: cudarc::curand::result::NormalFill<T>,
     cudarc::curand::sys::curandGenerator_t: cudarc::curand::result::UniformFill<T>,
     cudarc::curand::sys::curandGenerator_t: cudarc::curand::result::LogNormalFill<T>,
@@ -209,11 +209,11 @@ where
         _Tensor::weibull(a, b, self.shape().clone())
     }
 
-    fn zipf<S: Into<Shape>>(n: u64, a: Self::Meta, shape: S) -> Result<Self, TensorError> {
+    fn zipf<S: Into<Shape>>(n: Self::Meta, a: Self::Meta, shape: S) -> Result<Self, TensorError> {
         unimplemented!()
     }
 
-    fn zipf_like(&self, n: u64, a: Self::Meta) -> Result<Self, TensorError> {
+    fn zipf_like(&self, n: Self::Meta, a: Self::Meta) -> Result<Self, TensorError> {
         _Tensor::zipf(n, a, self.shape().clone())
     }
 

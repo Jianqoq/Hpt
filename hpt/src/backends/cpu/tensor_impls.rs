@@ -128,7 +128,7 @@ where
     }
 
     /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
-    pub fn try_astype<U>(&self) -> Result<_Tensor<U, Cpu, DEVICE, A>, TensorError>
+    pub(crate) fn try_astype<U>(&self) -> Result<_Tensor<U, Cpu, DEVICE, A>, TensorError>
     where
         U: CommonBounds,
         T: Cast<U>,
@@ -141,7 +141,9 @@ where
     }
 
     /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
-    pub fn static_cast<Dst>(&self) -> std::result::Result<_Tensor<Dst, Cpu, DEVICE, A>, TensorError>
+    pub(crate) fn static_cast<Dst>(
+        &self,
+    ) -> std::result::Result<_Tensor<Dst, Cpu, DEVICE, A>, TensorError>
     where
         Dst: CommonBounds,
     {
@@ -160,7 +162,7 @@ where
                         parent: Some(new_parent),
                         mem_layout: self.mem_layout.clone(),
                         layout: self.layout.clone(),
-                        _backend: self._backend.clone(),
+                        backend: self.backend.clone(),
                         phantom: PhantomData,
                     })
                 }
@@ -172,7 +174,7 @@ where
                     parent: None,
                     mem_layout: self.mem_layout.clone(),
                     layout: self.layout.clone(),
-                    _backend: self._backend.clone(),
+                    backend: self.backend.clone(),
                     phantom: PhantomData,
                 }),
             }
@@ -182,7 +184,12 @@ where
     }
 
     /// check if two tensors are close to each other
-    pub fn allclose<U: CommonBounds>(&self, other: &_Tensor<U, Cpu, DEVICE, A>) -> bool
+    pub fn allclose<U: CommonBounds>(
+        &self,
+        other: &_Tensor<U, Cpu, DEVICE, A>,
+        rtol: f64,
+        atol: f64,
+    ) -> bool
     where
         T: Cast<f64>,
         U: Cast<f64>,
@@ -195,9 +202,15 @@ where
             |acc, (a, b)| {
                 let a_val: f64 = a.cast();
                 let b_val: f64 = b.cast();
-                let abs_diff: f64 = (a_val - b_val).abs();
-                let torlerance: f64 = 1.0e-8 + 1.0e-5 * b_val.abs();
-                acc && abs_diff <= torlerance
+                if a_val.is_nan() && b_val.is_nan() {
+                    return acc;
+                }
+                if a_val.is_infinite() && b_val.is_infinite() {
+                    return acc && a_val.is_sign_positive() == b_val.is_sign_positive();
+                }
+                let tolerance = atol + rtol * b_val.abs();
+                let abs_diff = (a_val - b_val).abs();
+                acc && abs_diff <= tolerance
             },
         );
         folder.reduce(|| true, |a, b| a && b)
@@ -236,12 +249,17 @@ where
     }
 
     /// check if two tensors are close to each other
-    pub fn allclose<U: CommonBounds>(&self, other: &Tensor<U, Cpu, DEVICE, A>) -> bool
+    pub fn allclose<U: CommonBounds>(
+        &self,
+        other: &Tensor<U, Cpu, DEVICE, A>,
+        rtol: f64,
+        atol: f64,
+    ) -> bool
     where
         T: Cast<f64>,
         U: Cast<f64>,
     {
-        self.inner.allclose(&other.inner)
+        self.inner.allclose(&other.inner, rtol, atol)
     }
 
     /// convert the tensor from cpu to the cuda tensor
@@ -347,7 +365,7 @@ where
             parent: self.parent.clone(),
             layout: self.layout.clone(),
             mem_layout: self.mem_layout.clone(),
-            _backend: self._backend.clone(),
+            backend: self.backend.clone(),
             phantom: PhantomData,
         }
     }

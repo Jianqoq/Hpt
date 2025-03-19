@@ -4,10 +4,10 @@ fn test_gather() -> anyhow::Result<()> {
     // use hpt::TensorCreator;
     // use hpt::TensorLike;
     // use rand::Rng;
-    // let mut rng = rand::thread_rng();
-    // let ndim = rng.gen_range(1..=3);
+    // let mut rng = rand::rng();
+    // let ndim = rng.random_range(1..=3);
     // for _ in 0..100 {
-    //     let dim_size = rng.gen_range(2..=8);
+    //     let dim_size = rng.random_range(2..=8);
     //     let shape = (0..ndim).map(|_| dim_size).collect::<Vec<_>>();
     //     let input = tch::Tensor::randn(&shape, (tch::Kind::Float, tch::Device::Cpu));
     //     let mut hpt_input = hpt::Tensor::<f32>::empty(&shape)?;

@@ -62,7 +62,7 @@ where
             parent: None,
             layout: Layout::from(res_shape.clone()),
             mem_layout: Arc::new(layout),
-            _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+            backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
             phantom: PhantomData,
         })
     }
@@ -99,7 +99,7 @@ where
             parent: None,
             layout: Layout::from(res_shape.clone()),
             mem_layout: Arc::new(layout),
-            _backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+            backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
             phantom: PhantomData,
         })
     }

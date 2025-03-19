@@ -1,11 +1,11 @@
 use crate::backend::Cpu;
 use crate::backends::cpu::cache_utils::cache::Cache;
-use crate::backends::cpu::kernels::batch_norm_conv::bn_remain_oc_kernel_dispatch;
-use crate::backends::cpu::kernels::batch_norm_conv::conv2d_full_oc_bias_kernel_dispatch;
-use crate::backends::cpu::kernels::batch_norm_conv::conv2d_full_oc_kernel_dispatch;
-use crate::backends::cpu::kernels::batch_norm_conv::remain_oc_kernel_dispatch;
-use crate::backends::cpu::kernels::batch_norm_conv::Params;
-use crate::backends::cpu::kernels::batch_norm_conv::PartialParams;
+use crate::backends::cpu::kernels::conv2d::micro_kernels::batch_norm_conv::bn_remain_oc_kernel_dispatch;
+use crate::backends::cpu::kernels::conv2d::micro_kernels::batch_norm_conv::conv2d_full_oc_bias_kernel_dispatch;
+use crate::backends::cpu::kernels::conv2d::micro_kernels::batch_norm_conv::conv2d_full_oc_kernel_dispatch;
+use crate::backends::cpu::kernels::conv2d::micro_kernels::batch_norm_conv::remain_oc_kernel_dispatch;
+use crate::backends::cpu::kernels::conv2d::micro_kernels::batch_norm_conv::Params;
+use crate::backends::cpu::kernels::conv2d::micro_kernels::batch_norm_conv::PartialParams;
 use crate::tensor_base::_Tensor;
 use crate::REGNUM;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};

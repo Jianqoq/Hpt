@@ -2,7 +2,7 @@ pub mod cpu;
 #[cfg(feature = "cuda")]
 pub mod cuda;
 
-use hashbrown::HashMap;
+use std::collections::HashMap;
 
 use crate::ptr::SafePtr;
 

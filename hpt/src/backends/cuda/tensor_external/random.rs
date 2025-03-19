@@ -9,7 +9,8 @@ use hpt_traits::{
 use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
 use rand_distr::{
-    uniform::SampleUniform, Distribution, Exp1, Open01, OpenClosed01, Standard, StandardNormal,
+    uniform::SampleUniform, Distribution, Exp1, Open01, OpenClosed01, StandardNormal,
+    StandardUniform,
 };
 
 impl<T, const DEVICE_ID: usize, Al> Random for Tensor<T, Cuda, DEVICE_ID, Al>
@@ -25,7 +26,7 @@ where
     Open01: Distribution<T>,
     Exp1: Distribution<T>,
     OpenClosed01: Distribution<T>,
-    Standard: Distribution<T>,
+    StandardUniform: Distribution<T>,
     cudarc::curand::sys::curandGenerator_t: cudarc::curand::result::NormalFill<T>,
     cudarc::curand::sys::curandGenerator_t: cudarc::curand::result::UniformFill<T>,
     cudarc::curand::sys::curandGenerator_t: cudarc::curand::result::LogNormalFill<T>,
@@ -177,11 +178,11 @@ where
         Ok(_Tensor::<T, Cuda, DEVICE_ID, Al>::weibull_like(self.inner.as_ref(), a, b)?.into())
     }
 
-    fn zipf<S: Into<Shape>>(n: u64, a: Self::Meta, shape: S) -> Result<Self, TensorError> {
+    fn zipf<S: Into<Shape>>(n: Self::Meta, a: Self::Meta, shape: S) -> Result<Self, TensorError> {
         Ok(_Tensor::<T, Cuda, DEVICE_ID, Al>::zipf(n, a, shape)?.into())
     }
 
-    fn zipf_like(&self, n: u64, a: Self::Meta) -> Result<Self, TensorError> {
+    fn zipf_like(&self, n: Self::Meta, a: Self::Meta) -> Result<Self, TensorError> {
         Ok(_Tensor::<T, Cuda, DEVICE_ID, Al>::zipf_like(self.inner.as_ref(), n, a)?.into())
     }
 

@@ -43,16 +43,16 @@ fn common_input(end: i64, shape: &[i64]) -> anyhow::Result<(hpt::Tensor<f64>, Te
 )]
 #[test]
 fn func() -> anyhow::Result<()> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..100 {
-        let len = rng.gen_range(1..3);
+        let len = rng.random_range(1..3);
         let mut shape = Vec::with_capacity(len);
         for _ in 0..len {
-            shape.push(rng.gen_range(1..10));
+            shape.push(rng.random_range(1..10));
         }
         let (a, tch_a) = common_input(shape.iter().product::<i64>(), &shape)?;
 
-        let dim = rng.gen_range(0..len) as i64;
+        let dim = rng.random_range(0..len) as i64;
         let res = a.hpt_method(dim)?;
         let tch_res = tch_a.tch_method(dim, tch::Kind::Double);
         assert_eq_f64(&res, &tch_res);
@@ -62,16 +62,16 @@ fn func() -> anyhow::Result<()> {
 
 #[test]
 fn test_layernorm() -> anyhow::Result<()> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..1000 {
-        let len = rng.gen_range(1..3);
+        let len = rng.random_range(1..3);
         let mut shape = Vec::with_capacity(len);
         for _ in 0..len {
-            shape.push(rng.gen_range(1..10));
+            shape.push(rng.random_range(1..10));
         }
         let (a, tch_a) = common_input(shape.iter().product::<i64>(), &shape)?;
 
-        let to_normalize_dims = rng.gen_range(1..=len);
+        let to_normalize_dims = rng.random_range(1..=len);
         let mut shape = a.shape().iter().rev();
         let mut normalized_shape = vec![0; to_normalize_dims];
         for i in (0..to_normalize_dims).rev() {

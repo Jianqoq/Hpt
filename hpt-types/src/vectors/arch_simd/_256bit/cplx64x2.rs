@@ -21,8 +21,10 @@ impl VecTrait<Complex64> for cplx64x2 {
     const SIZE: usize = 2;
     type Base = Complex64;
     #[inline(always)]
-    fn mul_add(self, _: Self, _: Self) -> Self {
-        todo!()
+    fn mul_add(mut self, a: Self, b: Self) -> Self {
+        self.0[0] = self.0[0] * a.0[0] + b.0[0];
+        self.0[1] = self.0[1] * a.0[1] + b.0[1];
+        self
     }
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[Complex64]) {

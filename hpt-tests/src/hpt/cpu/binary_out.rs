@@ -323,49 +323,6 @@ test_binarys!(add, add, add_, common_input, assert_eq, ?);
 test_binarys!(sub, sub, sub_, common_input, assert_eq, ?);
 test_binarys!(mul, mul, mul_, common_input, assert_eq, ?);
 test_binarys!(rem, fmod_tensor, rem_, common_input, assert_eq, ?);
-// test_binarys!(div, div, div_, common_input, assert_eq);
-// test_binarys!(
-//     bitand,
-//     bitwise_and_tensor,
-//     bitand,
-//     common_input_i64,
-//     assert_eq_i64
-// );
-// test_binarys!(
-//     bitor,
-//     bitwise_or_tensor,
-//     bitor,
-//     common_input_i64,
-//     assert_eq_i64
-// );
-// test_binarys!(
-//     bitxor,
-//     bitwise_xor_tensor,
-//     bitxor,
-//     common_input_i64,
-//     assert_eq_i64
-// );
-// test_binarys!(
-//     shl,
-//     bitwise_left_shift,
-//     shl,
-//     common_input_i64,
-//     no_assert_i64
-// );
-// test_binarys!(
-//     shr,
-//     bitwise_right_shift,
-//     shr,
-//     common_input_i64,
-//     no_assert_i64
-// );
-// test_binarys!(eq, eq_tensor, tensor_eq, common_input, assert_eq_bool, ?);
-// test_binarys!(ne, ne_tensor, tensor_neq, common_input, assert_eq_bool, ?);
-// test_binarys!(lt, lt_tensor, tensor_lt, common_input, assert_eq_bool, ?);
-// test_binarys!(le, le_tensor, tensor_le, common_input, assert_eq_bool, ?);
-// test_binarys!(gt, gt_tensor, tensor_gt, common_input, assert_eq_bool, ?);
-// test_binarys!(ge, ge_tensor, tensor_ge, common_input, assert_eq_bool, ?);
-test_binarys!(matmul, matmul, matmul_, common_input, assert_eq_10, ?);
 test_binarys_scalar!(add_scalar, add, add_, 1.0, f64, common_input, assert_eq, ?);
 
 #[test]

@@ -1,5 +1,6 @@
 use std::{
     alloc::Layout,
+    collections::{HashMap, HashSet},
     num::NonZeroUsize,
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -12,7 +13,6 @@ use crate::{
     storage::{cpu::CPU_STORAGE, CommonStorage, Storage},
     traits::Allocator,
 };
-use hashbrown::{HashMap, HashSet};
 use hpt_common::error::base::TensorError;
 use lru::LruCache;
 use once_cell::sync::Lazy;
@@ -222,9 +222,14 @@ pub fn resize_cpu_lru_cache(new_size: usize, device_id: usize) {
                 new_size,
             );
         } else {
-            panic!("device {} not found in cpu allocator", device_id);
+            let allocator = _Allocator {
+                cache: LruCache::new(NonZeroUsize::new(new_size).unwrap()),
+                allocated: HashSet::new(),
+            };
+            cache.allocator.insert(device_id, allocator);
         }
     } else {
         panic!("Failed to lock CACHE");
     }
+    CPU_LRU_CACHE_SIZE.store(new_size, Ordering::Relaxed);
 }

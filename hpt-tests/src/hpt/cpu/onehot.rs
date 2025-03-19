@@ -4,11 +4,13 @@ fn onehot() -> anyhow::Result<()> {
     use hpt::ops::AdvancedOps;
     use hpt::ops::TensorCreator;
     use rand::Rng;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..100 {
-        let ndim = rng.gen_range(1..=3);
-        let shape = (0..ndim).map(|_| rng.gen_range(1..=5)).collect::<Vec<_>>();
-        let depth = rng.gen_range(1..=5);
+        let ndim = rng.random_range(1..=3);
+        let shape = (0..ndim)
+            .map(|_| rng.random_range(1..=5))
+            .collect::<Vec<_>>();
+        let depth = rng.random_range(1..=5);
         let tch_input =
             tch::Tensor::randint_low(0, depth, &shape, (tch::Kind::Int64, tch::Device::Cpu));
         let mut input = hpt::Tensor::<i64>::empty(&shape)?;

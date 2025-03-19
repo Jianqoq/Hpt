@@ -114,21 +114,17 @@ impl bf16x16 {
                     (x & u32x8::splat(0x7FFF_FFFFu32)).simd_gt(u32x8::splat(0x7F80_0000u32));
                 let shifted = x >> u32x8::splat(16);
 
-                // NaN 处理
                 let nan_result = shifted | u32x8::splat(0x0040u32);
 
-                // 舍入检查
                 let round_bit = u32x8::splat(0x00008000u32);
                 let rs_mask = (x & round_bit).simd_ne(u32x8::splat(0))
                     & (x & (u32x8::splat(3) * round_bit - u32x8::splat(1)))
                         .simd_ne(u32x8::splat(0));
 
-                // 舍入处理
                 let round_result = shifted + rs_mask.select(u32x8::splat(1), u32x8::splat(0));
 
-                // 最终选择
                 let final_result = nan_mask.select(nan_result, round_result);
-                _mm256_packus_epi32(final_result.0, _mm256_setzero_si256()) // 打包为 16 位
+                _mm256_packus_epi32(final_result.0, _mm256_setzero_si256())
             }
             let high = conv(val[0]);
             let low = conv(val[1]);
@@ -184,7 +180,7 @@ impl SimdCompare for bf16x16 {
             let other_ptr = &other.0 as *const _ as *const __m256i;
             let a = _mm256_loadu_si256(self_ptr);
             let b = _mm256_loadu_si256(other_ptr);
-            let lt = _mm256_cmpgt_epi16(b, a); // 交换 a 和 b
+            let lt = _mm256_cmpgt_epi16(b, a);
             let eq = _mm256_cmpeq_epi16(a, b);
             i16x16(_mm256_or_si256(lt, eq))
         }

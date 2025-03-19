@@ -27,18 +27,6 @@ pub(crate) mod backends {
         pub(crate) mod kernels {
             /// a module defines reduce kernels
             pub(crate) mod argreduce_kernels;
-            /// a module defines the batchnorm conv2d kernels
-            pub(crate) mod batch_norm_conv;
-            /// a module defines the conv2d kernels
-            pub(crate) mod conv;
-            /// a module defines the dwconv2d kernels
-            pub(crate) mod conv_group;
-            /// a module defines the conv transpose kernels
-            pub(crate) mod conv_transpose;
-            /// a module defines the dwconv2d kernels
-            pub(crate) mod dwconv;
-            /// a module defines the lp_pool2d kernels
-            pub(crate) mod lp_pool_kernels;
             /// a module defines the reduce kernels
             pub(crate) mod reduce;
             /// a module defines the softmax kernels
@@ -71,13 +59,40 @@ pub(crate) mod backends {
                 pub(crate) mod conv2d_transpose;
                 /// a module defines dwconv2d operation
                 pub(crate) mod dwconv2d;
+                pub(crate) mod micro_kernels {
+                    pub(crate) mod batch_norm_conv;
+                    pub(crate) mod conv;
+                    pub(crate) mod conv_group;
+                    pub(crate) mod conv_transpose;
+                    pub(crate) mod dwconv;
+                }
             }
             /// a module defines gemm operation for cpu
-            pub(crate) mod gemm {
-                pub(crate) mod avx2;
-                /// a module implement gemm template
-                pub(crate) mod gemm;
+            pub(crate) mod matmul {
+                pub(crate) mod common;
+                pub(crate) mod matmul;
+                pub(crate) mod matmul_mixed_precision;
                 pub(crate) mod microkernel_trait;
+                pub(crate) mod microkernels;
+                pub(crate) mod type_kernels {
+                    pub(crate) mod bf16_microkernels;
+                    pub(crate) mod bool_microkernels;
+                    pub(crate) mod complex32_microkernels;
+                    pub(crate) mod complex64_microkernels;
+                    pub(crate) mod f16_microkernels;
+                    pub(crate) mod f32_microkernels;
+                    pub(crate) mod f64_microkernels;
+                    pub(crate) mod i16_microkernels;
+                    pub(crate) mod i32_microkernels;
+                    pub(crate) mod i64_microkernels;
+                    pub(crate) mod i8_microkernels;
+                    pub(crate) mod isize_microkernels;
+                    pub(crate) mod u16_microkernels;
+                    pub(crate) mod u32_microkernels;
+                    pub(crate) mod u64_microkernels;
+                    pub(crate) mod u8_microkernels;
+                    pub(crate) mod usize_microkernels;
+                }
             }
         }
         /// a module that contains all the functions expose for the external user (we may have diff tensor (differentiable tensor) in the future)
@@ -102,6 +117,8 @@ pub(crate) mod backends {
             pub(crate) mod float_out_binary;
             /// a module that contains all the unary operations that has floating type output
             pub(crate) mod float_out_unary;
+            /// a module that contains all the gemm functions
+            pub(crate) mod gemm;
             /// a module that contains matrix multiplication operations
             pub(crate) mod matmul;
             /// a module that contains all normal methods to create a tensor
@@ -145,6 +162,8 @@ pub(crate) mod backends {
             pub(crate) mod float_out_binary;
             /// a module that contains all the unary operations that has floating type output
             pub(crate) mod float_out_unary;
+            /// a module that contains all the gemm functions
+            pub(crate) mod gemm;
             /// a module that contains matrix multiplication operations
             pub(crate) mod matmul;
             /// a module that contains all normal methods to create a tensor
@@ -312,7 +331,7 @@ pub mod error {
 
 /// module for common utils like shape and strides
 pub mod common {
-    pub use hpt_common::{shape::shape::Shape, strides::strides::Strides};
+    pub use hpt_common::{shape::shape::Shape, strides::strides::Strides, Pointer};
     pub use hpt_traits::tensor::{CommonBounds, TensorInfo};
     /// common utils for cpu
     pub mod cpu {
@@ -335,6 +354,7 @@ pub mod iter {
 /// type related module
 pub mod types {
     pub use half::{bf16, f16};
+    pub use num::complex::{Complex32, Complex64};
     /// module contains vector types and traits
     pub mod vectors {
         pub use hpt_types::vectors::*;
@@ -360,7 +380,8 @@ pub mod types {
 }
 
 /// reexport serde
-pub mod serialize {
+pub mod re_exports {
+    pub use seq_macro;
     pub use serde;
 }
 
@@ -390,7 +411,7 @@ pub mod backend {
 pub mod buitin_templates {
     /// module for cpu buitin templates
     pub mod cpu {
-        pub use crate::backends::cpu::kernels::gemm::gemm::gemm;
+        pub use crate::backends::cpu::kernels::matmul::matmul::matmul_template;
         pub use crate::backends::cpu::utils::binary::binary_normal::binary_with_out;
     }
 }

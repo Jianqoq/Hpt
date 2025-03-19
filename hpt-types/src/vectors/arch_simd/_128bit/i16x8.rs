@@ -29,12 +29,12 @@ impl PartialEq for i16x8 {
         #[cfg(target_arch = "x86_64")]
         unsafe {
             let cmp = _mm_cmpeq_epi16(self.0, other.0);
-            _mm_movemask_epi8(cmp) == 0xFFFF
+            _mm_movemask_epi8(cmp) == 0xffff
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             let cmp = vceqq_s16(self.0, other.0);
-            vmaxvq_u16(cmp) == 0xFFFF && vminvq_u16(cmp) == 0xFFFF
+            vmaxvq_u16(cmp) == 0xffff && vminvq_u16(cmp) == 0xffff
         }
     }
 }
@@ -45,7 +45,7 @@ impl Default for i16x8 {
         unsafe {
             i16x8(_mm_setzero_si128())
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vdupq_n_s16(0))
         }
@@ -63,7 +63,7 @@ impl VecTrait<i16> for i16x8 {
                 _mm_loadu_si128(slice.as_ptr() as *const __m128i),
             )
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             self.0 = vld1q_s16(slice.as_ptr());
         }
@@ -74,9 +74,9 @@ impl VecTrait<i16> for i16x8 {
         unsafe {
             i16x8(_mm_add_epi16(self.0, _mm_mullo_epi16(a.0, b.0)))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
-            i16x8(vaddq_s16(self.0, vmulq_s16(a.0, b.0)))
+            Self(vmlaq_s16(b.0, self.0, a.0))
         }
     }
     #[inline(always)]
@@ -92,7 +92,7 @@ impl VecTrait<i16> for i16x8 {
         unsafe {
             i16x8(_mm_set1_epi16(val))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vdupq_n_s16(val))
         }
@@ -103,10 +103,15 @@ impl VecTrait<i16> for i16x8 {
         unsafe {
             i16x8(_mm_loadu_si128(ptr as *const __m128i))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vld1q_s16(ptr))
         }
+    }
+    #[inline(always)]
+    #[cfg(target_feature = "neon")]
+    fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
+        Self(unsafe { vmlaq_laneq_s16::<LANE>(b.0, self.0, a.0) })
     }
 }
 
@@ -125,7 +130,7 @@ impl SimdCompare for i16x8 {
         unsafe {
             i16x8(_mm_cmpeq_epi16(self.0, other.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vreinterpretq_s16_u16(vceqq_s16(self.0, other.0)))
         }
@@ -137,7 +142,7 @@ impl SimdCompare for i16x8 {
             let eq = _mm_cmpeq_epi16(self.0, other.0);
             i16x8(_mm_xor_si128(eq, _mm_set1_epi16(-1)))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             let eq = vceqq_s16(self.0, other.0);
             i16x8(vmvnq_s16(vreinterpretq_s16_u16(eq)))
@@ -149,7 +154,7 @@ impl SimdCompare for i16x8 {
         unsafe {
             i16x8(_mm_cmplt_epi16(self.0, other.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vreinterpretq_s16_u16(vcltq_s16(self.0, other.0)))
         }
@@ -162,7 +167,7 @@ impl SimdCompare for i16x8 {
             let eq = _mm_cmpeq_epi16(self.0, other.0);
             i16x8(_mm_or_si128(lt, eq))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             let lt = vcltq_s16(self.0, other.0);
             let eq = vceqq_s16(self.0, other.0);
@@ -175,7 +180,7 @@ impl SimdCompare for i16x8 {
         unsafe {
             i16x8(_mm_cmpgt_epi16(self.0, other.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vreinterpretq_s16_u16(vcgtq_s16(self.0, other.0)))
         }
@@ -188,7 +193,7 @@ impl SimdCompare for i16x8 {
             let eq = _mm_cmpeq_epi16(self.0, other.0);
             i16x8(_mm_or_si128(gt, eq))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             let gt = vcgtq_s16(self.0, other.0);
             let eq = vceqq_s16(self.0, other.0);
@@ -204,7 +209,7 @@ impl SimdSelect<i16x8> for crate::vectors::arch_simd::_128bit::i16x8::i16x8 {
         unsafe {
             i16x8(_mm_blendv_epi8(false_val.0, true_val.0, self.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vbslq_s16(
                 vreinterpretq_u16_s16(self.0),
@@ -223,7 +228,7 @@ impl std::ops::Add for i16x8 {
         unsafe {
             i16x8(_mm_add_epi16(self.0, rhs.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vaddq_s16(self.0, rhs.0))
         }
@@ -237,7 +242,7 @@ impl std::ops::Sub for i16x8 {
         unsafe {
             i16x8(_mm_sub_epi16(self.0, rhs.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vsubq_s16(self.0, rhs.0))
         }
@@ -251,7 +256,7 @@ impl std::ops::Mul for i16x8 {
         unsafe {
             i16x8(_mm_mullo_epi16(self.0, rhs.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vmulq_s16(self.0, rhs.0))
         }
@@ -271,7 +276,7 @@ impl std::ops::Div for i16x8 {
             }
             #[cfg(target_arch = "x86_64")]
             return i16x8(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
-            #[cfg(target_arch = "aarch64")]
+            #[cfg(target_feature = "neon")]
             return i16x8(vld1q_s16(arr3.as_ptr()));
         }
     }
@@ -289,7 +294,7 @@ impl std::ops::Rem for i16x8 {
             }
             #[cfg(target_arch = "x86_64")]
             return i16x8(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
-            #[cfg(target_arch = "aarch64")]
+            #[cfg(target_feature = "neon")]
             return i16x8(vld1q_s16(arr3.as_ptr()));
         }
     }
@@ -302,7 +307,7 @@ impl std::ops::Neg for i16x8 {
         unsafe {
             i16x8(_mm_sign_epi16(self.0, _mm_set1_epi16(-1)))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vnegq_s16(self.0))
         }
@@ -316,7 +321,7 @@ impl std::ops::BitAnd for i16x8 {
         unsafe {
             i16x8(_mm_and_si128(self.0, rhs.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vandq_s16(self.0, rhs.0))
         }
@@ -330,7 +335,7 @@ impl std::ops::BitOr for i16x8 {
         unsafe {
             i16x8(_mm_or_si128(self.0, rhs.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vorrq_s16(self.0, rhs.0))
         }
@@ -344,7 +349,7 @@ impl std::ops::BitXor for i16x8 {
         unsafe {
             i16x8(_mm_xor_si128(self.0, rhs.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(veorq_s16(self.0, rhs.0))
         }
@@ -358,7 +363,7 @@ impl std::ops::Not for i16x8 {
         unsafe {
             i16x8(_mm_xor_si128(self.0, _mm_set1_epi16(-1)))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vmvnq_s16(self.0))
         }
@@ -378,7 +383,7 @@ impl std::ops::Shl for i16x8 {
             }
             i16x8(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vshlq_s16(self.0, rhs.0))
         }
@@ -398,10 +403,10 @@ impl std::ops::Shr for i16x8 {
             }
             #[cfg(target_arch = "x86_64")]
             return i16x8(_mm_loadu_si128(result.as_ptr() as *const __m128i));
-            #[cfg(target_arch = "aarch64")]
+            #[cfg(target_feature = "neon")]
             return i16x8(vld1q_s16(result.as_ptr()));
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vshlq_s16(self.0, vnegq_s16(rhs.0)))
         }
@@ -415,7 +420,7 @@ impl SimdMath<i16> for i16x8 {
         unsafe {
             i16x8(_mm_max_epi16(self.0, other.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vmaxq_s16(self.0, other.0))
         }
@@ -426,7 +431,7 @@ impl SimdMath<i16> for i16x8 {
         unsafe {
             i16x8(_mm_min_epi16(self.0, other.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vminq_s16(self.0, other.0))
         }
@@ -450,7 +455,7 @@ impl SimdMath<i16> for i16x8 {
             }
             #[cfg(target_arch = "x86_64")]
             return i16x8(_mm_loadu_si128(result.as_ptr() as *const __m128i));
-            #[cfg(target_arch = "aarch64")]
+            #[cfg(target_feature = "neon")]
             return i16x8(vld1q_s16(result.as_ptr()));
         }
     }
@@ -476,7 +481,7 @@ impl SimdMath<i16> for i16x8 {
         unsafe {
             i16x8(_mm_abs_epi16(self.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vabsq_s16(self.0))
         }
@@ -550,7 +555,7 @@ impl FloatOutBinary2 for i16x8 {
             }
             #[cfg(target_arch = "x86_64")]
             return i16x8(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
-            #[cfg(target_arch = "aarch64")]
+            #[cfg(target_feature = "neon")]
             return i16x8(vld1q_s16(arr3.as_ptr()));
         }
     }
@@ -610,7 +615,7 @@ impl NormalOutUnary2 for i16x8 {
         unsafe {
             i16x8(_mm_abs_epi16(self.0))
         }
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             i16x8(vabsq_s16(self.0))
         }
@@ -682,7 +687,7 @@ impl Eval2 for i16x8 {
             Self(result)
         }
 
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(target_feature = "neon")]
         unsafe {
             let neq = vmvnq_s16(vreinterpretq_s16_u16(vceqq_s16(self.0, vdupq_n_s16(0))));
             i16x8(vandq_s16(neq, vdupq_n_s16(1)))

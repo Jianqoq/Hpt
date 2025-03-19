@@ -204,7 +204,7 @@ where
             .field("strides", &self.strides())
             .field("parent", &self.parent())
             .field("align", &self.inner.mem_layout.align())
-            .field("backend", &self.inner._backend)
+            .field("backend", &self.inner.backend)
             .finish()
     }
 }

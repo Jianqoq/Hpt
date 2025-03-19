@@ -116,6 +116,14 @@ pub enum RandomError {
         /// Location where error occurred
         location: &'static Location<'static>,
     },
+    /// Uniform distribution error
+    #[error("Uniform distribution error: {source} at {location}")]
+    Uniform {
+        /// Uniform distribution error
+        source: rand_distr::uniform::Error,
+        /// Location where error occurred
+        location: &'static Location<'static>,
+    },
 }
 
 impl From<BetaError> for TensorError {
@@ -242,6 +250,16 @@ impl From<BernoulliError> for TensorError {
     #[track_caller]
     fn from(source: BernoulliError) -> Self {
         Self::Random(RandomError::Bernoulli {
+            source,
+            location: Location::caller(),
+        })
+    }
+}
+
+impl From<rand_distr::uniform::Error> for TensorError {
+    #[track_caller]
+    fn from(source: rand_distr::uniform::Error) -> Self {
+        Self::Random(RandomError::Uniform {
             source,
             location: Location::caller(),
         })

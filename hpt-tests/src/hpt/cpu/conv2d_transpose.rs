@@ -206,14 +206,14 @@ fn assert_eq_bias_pad_relu6(
 
 #[test]
 fn test() -> anyhow::Result<()> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for i in 0..1000 {
-        let in_channel = rng.gen_range(1..=32);
-        let out_channel = rng.gen_range(1..=32);
-        let kernel_height = rng.gen_range(1..=5);
-        let kernel_width = rng.gen_range(1..=5);
-        let height = rng.gen_range(10..=32);
-        let width = rng.gen_range(10..=32);
+        let in_channel = rng.random_range(1..=32);
+        let out_channel = rng.random_range(1..=32);
+        let kernel_height = rng.random_range(1..=5);
+        let kernel_width = rng.random_range(1..=5);
+        let height = rng.random_range(10..=32);
+        let width = rng.random_range(10..=32);
         let (kernel, a, tch_kernel, tch_a) = common_input([
             in_channel,
             out_channel,

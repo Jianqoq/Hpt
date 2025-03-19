@@ -933,8 +933,8 @@ pub fn impl_save(input: TokenStream) -> TokenStream {
     });
 
     let expanded = quote! {
-        #[derive(hpt::serialize::serde::Deserialize, hpt::serialize::serde::Serialize)]
-        #[serde(crate = "hpt::serialize::serde")]
+        #[derive(hpt::re_exports::serde::Deserialize, hpt::re_exports::serde::Serialize)]
+        #[serde(crate = "hpt::re_exports::serde")]
         #visibility struct #meta_name #ty_generics #where_clause  {
             #(#meta_fields,)*
         }

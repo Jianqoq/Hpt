@@ -97,14 +97,14 @@ pub(crate) fn logsoftmax_dim_not_include<T, O>(
 {
     let buffer = unsafe {
         std::alloc::alloc(
-            std::alloc::Layout::from_size_align((inner_loop_size as usize) * T::BIT_SIZE, ALIGN)
+            std::alloc::Layout::from_size_align((inner_loop_size as usize) * T::BYTE_SIZE, ALIGN)
                 .unwrap(),
         )
     };
     let max_buffer = buffer as *mut T;
     let buffer2 = unsafe {
         std::alloc::alloc_zeroed(
-            std::alloc::Layout::from_size_align((inner_loop_size as usize) * O::BIT_SIZE, ALIGN)
+            std::alloc::Layout::from_size_align((inner_loop_size as usize) * O::BYTE_SIZE, ALIGN)
                 .unwrap(),
         )
     };
@@ -385,14 +385,14 @@ pub(crate) fn uncontiguous_logsoftmax_dim_not_include<T, O>(
 {
     let buffer = unsafe {
         std::alloc::alloc(
-            std::alloc::Layout::from_size_align((inner_loop_size as usize) * T::BIT_SIZE, ALIGN)
+            std::alloc::Layout::from_size_align((inner_loop_size as usize) * T::BYTE_SIZE, ALIGN)
                 .unwrap(),
         )
     };
     let max_buffer = buffer as *mut T;
     let buffer2 = unsafe {
         std::alloc::alloc_zeroed(
-            std::alloc::Layout::from_size_align((inner_loop_size as usize) * O::BIT_SIZE, ALIGN)
+            std::alloc::Layout::from_size_align((inner_loop_size as usize) * O::BYTE_SIZE, ALIGN)
                 .unwrap(),
         )
     };

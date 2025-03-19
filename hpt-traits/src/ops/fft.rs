@@ -1,5 +1,6 @@
-use anyhow::Result;
 use hpt_common::axis::axis::Axis;
+use hpt_common::error::base::TensorError;
+use hpt_common::shape::shape::Shape;
 
 /// A trait for Fast Fourier Transform (FFT) operations.
 pub trait FFTOps
@@ -14,22 +15,8 @@ where
     /// # Parameters
     ///
     /// - `axis`: The axis along which to compute the FFT.
-    ///
-    /// # Returns
-    ///
-    /// - `anyhow::Result<_Tensor<ComplexType<T>>>`: A tensor of complex numbers representing the frequency components.
-    ///
-    /// # Notes
-    ///
-    /// - **Fourier Transform**: Converts time-domain signals to frequency-domain signals.
-    /// - **Axis Specification**: The FFT is computed along the specified axis.
-    ///
-    /// # See Also
-    ///
-    /// - [`ifft`]: Computes the inverse FFT of the tensor.
-    /// - [`fft2`]: Computes the 2D FFT of the tensor.
     #[track_caller]
-    fn fft(&self, axis: i64) -> Result<Self>;
+    fn fft(&self, n: usize, axis: i64, norm: Option<&str>) -> Result<Self, TensorError>;
 
     /// Computes the inverse Fast Fourier Transform (IFFT) of the tensor along a specified axis.
     ///
@@ -54,7 +41,7 @@ where
     /// - [`fft`]: Computes the FFT of the tensor.
     /// - [`ifft2`]: Computes the 2D inverse FFT of the tensor.
     #[track_caller]
-    fn ifft(&self, axis: i64) -> Result<Self>;
+    fn ifft(&self, n: usize, axis: i64, norm: Option<&str>) -> Result<Self, TensorError>;
 
     /// Computes the 2D Fast Fourier Transform (FFT2) of the tensor.
     ///
@@ -75,7 +62,13 @@ where
     /// - [`ifft2`]: Computes the 2D inverse FFT of the tensor.
     /// - [`fft`]: Computes the 1D FFT of the tensor.
     #[track_caller]
-    fn fft2(&self, axis1: i64, axis2: i64) -> Result<Self>;
+    fn fft2<S: Into<Shape>>(
+        &self,
+        s: S,
+        axis1: i64,
+        axis2: i64,
+        norm: Option<&str>,
+    ) -> Result<Self, TensorError>;
 
     /// Computes the 2D inverse Fast Fourier Transform (IFFT2) of the tensor.
     ///
@@ -96,7 +89,13 @@ where
     /// - [`fft2`]: Computes the 2D FFT of the tensor.
     /// - [`ifft`]: Computes the 1D inverse FFT of the tensor.
     #[track_caller]
-    fn ifft2(&self, axis1: i64, axis2: i64) -> Result<Self>;
+    fn ifft2<S: Into<Shape>>(
+        &self,
+        s: S,
+        axis1: i64,
+        axis2: i64,
+        norm: Option<&str>,
+    ) -> Result<Self, TensorError>;
 
     /// Computes the N-dimensional Fast Fourier Transform (FFTN) of the tensor.
     ///
@@ -117,7 +116,12 @@ where
     /// - [`ifftn`]: Computes the N-dimensional inverse FFT of the tensor.
     /// - [`fft2`]: Computes the 2D FFT of the tensor.
     #[track_caller]
-    fn fftn<A: Into<Axis>>(&self, axes: A) -> Result<Self>;
+    fn fftn<A: Into<Axis>, S: Into<Shape>>(
+        &self,
+        s: S,
+        axes: A,
+        norm: Option<&str>,
+    ) -> Result<Self, TensorError>;
 
     /// Computes the N-dimensional inverse Fast Fourier Transform (IFFTN) of the tensor.
     ///
@@ -138,5 +142,10 @@ where
     /// - [`fftn`]: Computes the N-dimensional FFT of the tensor.
     /// - [`ifft2`]: Computes the 2D inverse FFT of the tensor.
     #[track_caller]
-    fn ifftn<A: Into<Axis>>(&self, axes: A) -> Result<Self>;
+    fn ifftn<A: Into<Axis>, S: Into<Shape>>(
+        &self,
+        s: S,
+        axes: A,
+        norm: Option<&str>,
+    ) -> Result<Self, TensorError>;
 }

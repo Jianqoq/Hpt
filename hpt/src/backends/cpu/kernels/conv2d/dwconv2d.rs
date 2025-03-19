@@ -1,10 +1,10 @@
 use crate::backends::cpu::cache_utils::cache::Cache;
-use crate::backends::cpu::kernels::dwconv::bias_remain_oc_kernel_dispatch;
-use crate::backends::cpu::kernels::dwconv::conv2d_full_oc_bias_kernel_dispatch;
-use crate::backends::cpu::kernels::dwconv::conv2d_full_oc_kernel_dispatch;
-use crate::backends::cpu::kernels::dwconv::remain_oc_kernel_dispatch;
-use crate::backends::cpu::kernels::dwconv::Params;
-use crate::backends::cpu::kernels::dwconv::PartialParams;
+use crate::backends::cpu::kernels::conv2d::micro_kernels::dwconv::bias_remain_oc_kernel_dispatch;
+use crate::backends::cpu::kernels::conv2d::micro_kernels::dwconv::conv2d_full_oc_bias_kernel_dispatch;
+use crate::backends::cpu::kernels::conv2d::micro_kernels::dwconv::conv2d_full_oc_kernel_dispatch;
+use crate::backends::cpu::kernels::conv2d::micro_kernels::dwconv::remain_oc_kernel_dispatch;
+use crate::backends::cpu::kernels::conv2d::micro_kernels::dwconv::Params;
+use crate::backends::cpu::kernels::conv2d::micro_kernels::dwconv::PartialParams;
 use crate::tensor_base::_Tensor;
 use crate::REGNUM;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};

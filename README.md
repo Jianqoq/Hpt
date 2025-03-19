@@ -1,5 +1,6 @@
 # HPT
 [![Crates.io](https://img.shields.io/crates/v/hpt.svg)](https://crates.io/crates/hpt)
+[![Discord](https://img.shields.io/discord/Hpt)](https://discord.gg/P4dfeUsSD4)
 
 Hpt is a high performance N-dimensional array library. It is being highly optimized and is designed to be easy to use. Most of the operators are implemented based on Onnx operator list. Hence, you can use it to build most of the deep learning models.
 
@@ -14,18 +15,14 @@ Hpt is a high performance N-dimensional array library. It is being highly optimi
 - Auto efficient parallel processing for CPU-intensive operations.
 #### Broadcasting
 - Automatic shape broadcasting for element-wise operations, similar to NumPy.
-#### Type Safe
-- Strong type system ensures correctness at compile time, preventing runtime errors.
-#### Zero-Copy
-- Minimizes memory overhead with zero-copy operations and efficient data sharing.
 #### Auto Type Promote
 - Allows auto type promote when compute with different types.
-#### Custom Type
-- Allows user to define their own data type for calculation (CPU support only).
+#### Customizable
+- Allows user to define their own data type for calculation (CPU support only) and allocator for memory allocation (All Backends).
 
 # Note
 
-Hpt is in early stage, bugs and wrong calculation results are expected
+Hpt is in early stage, bugs and wrong calculation results may happen, API may change.
 
 # Cargo Features
 - `cuda`: enable cuda support.
@@ -114,6 +111,4 @@ at your option.
 
 # Contribution
 
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
-dual licensed as above, without any additional terms or conditions.
+Contribution are wellcome, please check https://jianqoq.github.io/Hpt/dev_guide/dev_guide.html for more detail

@@ -23,7 +23,7 @@ where
     pub(crate) parent: Option<Pointer<T>>,
     pub(crate) layout: Layout,
     pub(crate) mem_layout: Arc<std::alloc::Layout>,
-    pub(crate) _backend: hpt_allocator::Backend<B>,
+    pub(crate) backend: hpt_allocator::Backend<B>,
     pub(crate) phantom: PhantomData<A>,
 }
 
@@ -35,7 +35,7 @@ where
     fn drop(&mut self) {
         let mut allocator = A::new();
         allocator.deallocate(
-            self._backend._backend.get_ptr() as *mut u8,
+            self.backend.inner.get_ptr() as *mut u8,
             &self.mem_layout,
             DEVICE_ID,
         );

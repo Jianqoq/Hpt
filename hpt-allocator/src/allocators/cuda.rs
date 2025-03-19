@@ -1,5 +1,6 @@
 use std::{
     alloc::Layout,
+    collections::{HashMap, HashSet},
     num::NonZeroUsize,
     panic::Location,
     sync::{
@@ -14,7 +15,6 @@ use crate::{
     traits::Allocator,
     CUDA_STORAGE,
 };
-use hashbrown::{HashMap, HashSet};
 use hpt_common::error::base::TensorError;
 use lru::LruCache;
 use once_cell::sync::Lazy;
@@ -287,9 +287,17 @@ pub fn resize_cuda_lru_cache(new_size: usize, device_id: usize) {
                 new_size,
             );
         } else {
-            panic!("device {} not found in cuda allocator", device_id);
+            let allocator = _Allocator {
+                cache: LruCache::new(NonZeroUsize::new(new_size).unwrap()),
+                allocated: HashSet::new(),
+            };
+            let device = cudarc::driver::CudaDevice::new(device_id).unwrap();
+            cache
+                .allocator
+                .insert(device_id, (device.clone(), allocator));
         }
     } else {
         panic!("Failed to lock CUDA_CACHE");
     }
+    CUDA_LRU_CACHE_SIZE.store(new_size, Ordering::Relaxed);
 }

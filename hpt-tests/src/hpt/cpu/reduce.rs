@@ -13,25 +13,7 @@ use rayon::iter::{
 };
 use tch::Tensor;
 
-fn generate_all_combinations(arr: &[usize]) -> Vec<Vec<i64>> {
-    let n = arr.len();
-    let total_combinations = 1 << n;
-    let mut result = Vec::with_capacity(total_combinations);
-
-    for i in 0..total_combinations {
-        let mut combination = Vec::new();
-        for j in 0..n {
-            if (i & (1 << j)) != 0 {
-                combination.push(arr[j] as i64);
-            }
-        }
-        if combination.len() > 0 {
-            result.push(combination);
-        }
-    }
-
-    result
-}
+use crate::utils::random_utils::generate_all_combinations;
 
 #[track_caller]
 fn assert_eq(a: &hpt::Tensor<i64>, b: &Tensor) {
@@ -156,11 +138,11 @@ fn common_input_f64(end: i64, shape: &[i64]) -> anyhow::Result<(hpt::Tensor<f64,
 )]
 #[test]
 fn func() -> anyhow::Result<()> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..100 {
-        let ndim = rng.gen_range(1..=3);
+        let ndim = rng.random_range(1..=3);
         let shape = (0..ndim)
-            .map(|_| rng.gen_range(1..=32))
+            .map(|_| rng.random_range(1..=32))
             .collect::<Vec<i64>>();
         let (a, tch_a) = common_input(shape.iter().product(), shape.as_slice())?;
         let combinations = generate_all_combinations(&(0..ndim).collect::<Vec<_>>());
@@ -182,11 +164,11 @@ fn func() -> anyhow::Result<()> {
 )]
 #[test]
 fn func() -> anyhow::Result<()> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for idx in 0..100 {
-        let ndim = rng.gen_range(1..=3usize);
+        let ndim = rng.random_range(1..=3usize);
         let shape = (0..ndim)
-            .map(|_| rng.gen_range(1..=32))
+            .map(|_| rng.random_range(1..=32))
             .collect::<Vec<i64>>();
         let (a, tch_a) = common_input(shape.iter().product(), shape.as_slice())?;
         let mut axes = (0..ndim).map(|i| i as i64).collect::<Vec<_>>();
@@ -210,43 +192,43 @@ fn func() -> anyhow::Result<()> {
 )]
 #[test]
 fn func() -> anyhow::Result<()> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..100 {
         let shape = [
-            rng.gen_range(1..32),
-            rng.gen_range(1..32),
-            rng.gen_range(1..32),
+            rng.random_range(1..32),
+            rng.random_range(1..32),
+            rng.random_range(1..32),
         ];
         let (a, tch_a) = common_input(shape.iter().product(), &shape)?;
         let dim0_max = if shape[0] > 1 {
-            rng.gen_range(1..shape[0])
+            rng.random_range(1..shape[0])
         } else {
             1
         };
         let dim0_min = if dim0_max > 0 {
-            rng.gen_range(0..dim0_max)
+            rng.random_range(0..dim0_max)
         } else {
             0
         };
 
         let dim1_max = if shape[1] > 1 {
-            rng.gen_range(1..shape[1])
+            rng.random_range(1..shape[1])
         } else {
             1
         };
         let dim1_min = if dim1_max > 0 {
-            rng.gen_range(0..dim1_max)
+            rng.random_range(0..dim1_max)
         } else {
             0
         };
 
         let dim2_max = if shape[2] > 1 {
-            rng.gen_range(1..shape[2])
+            rng.random_range(1..shape[2])
         } else {
             1
         };
         let dim2_min = if dim2_max > 0 {
-            rng.gen_range(0..dim2_max)
+            rng.random_range(0..dim2_max)
         } else {
             0
         };
@@ -288,60 +270,60 @@ fn func() -> anyhow::Result<()> {
 )]
 #[test]
 fn func() -> anyhow::Result<()> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..100 {
         let shape = [
-            rng.gen_range(1..32),
-            rng.gen_range(1..32),
-            rng.gen_range(1..32),
+            rng.random_range(1..32),
+            rng.random_range(1..32),
+            rng.random_range(1..32),
         ];
         let (a, tch_a) = common_input(shape.iter().product(), &shape)?;
         let dim0_max = if shape[0] > 1 {
-            rng.gen_range(1..shape[0])
+            rng.random_range(1..shape[0])
         } else {
             1
         };
         let dim0_min = if dim0_max > 0 {
-            rng.gen_range(0..dim0_max)
+            rng.random_range(0..dim0_max)
         } else {
             0
         };
         let dim0_step = if dim0_max > dim0_min {
-            rng.gen_range(1..=(dim0_max - dim0_min).min(2))
+            rng.random_range(1..=(dim0_max - dim0_min).min(2))
         } else {
             1
         };
 
         let dim1_max = if shape[1] > 1 {
-            rng.gen_range(1..shape[1])
+            rng.random_range(1..shape[1])
         } else {
             1
         };
         let dim1_min = if dim1_max > 0 {
-            rng.gen_range(0..dim1_max)
+            rng.random_range(0..dim1_max)
         } else {
             0
         };
 
         let dim1_step = if dim1_max > dim1_min {
-            rng.gen_range(1..=(dim1_max - dim1_min).min(2))
+            rng.random_range(1..=(dim1_max - dim1_min).min(2))
         } else {
             1
         };
 
         let dim2_max = if shape[2] > 1 {
-            rng.gen_range(1..shape[2])
+            rng.random_range(1..shape[2])
         } else {
             1
         };
         let dim2_min = if dim2_max > 0 {
-            rng.gen_range(0..dim2_max)
+            rng.random_range(0..dim2_max)
         } else {
             0
         };
 
         let dim2_step = if dim2_max > dim2_min {
-            rng.gen_range(1..=(dim2_max - dim2_min).min(2))
+            rng.random_range(1..=(dim2_max - dim2_min).min(2))
         } else {
             1
         };
