@@ -35,8 +35,10 @@ impl NormalOut2 for f64 {
     fn __mul_add(self, a: Self, b: Self) -> Self {
         #[cfg(target_feature = "fma")]
         return self.mul_add(a, b);
-        #[cfg(not(target_feature = "fma"))]
+        #[cfg(all(not(target_feature = "fma"), target_arch = "x86_64"))]
         return std::hint::black_box((self * a) + b);
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        return self.mul_add(a, b);
     }
 
     #[inline(always)]
