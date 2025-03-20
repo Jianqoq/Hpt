@@ -70,7 +70,39 @@ fn test() -> anyhow::Result<()> {
         let n = rng.random_range(1..=512);
         let k = rng.random_range(1..=512);
         let a = Tensor::<f32>::randn(&[m, k])?;
-        let b = Tensor::<f32>::randn(&[k, n])?;
+        let b = Tensor::<f32>::randn(&[n, k])?.t()?;
+        let c = a.matmul(&b)?;
+        let c2 = a.gemm(&b, 0.0, 1.0, false, false, false)?;
+        assert!(c.allclose(&c2, 1.0e-3, 1.0e-3));
+    }
+    Ok(())
+}
+
+#[test]
+fn test_t() -> anyhow::Result<()> {
+    let mut rng = rand::rng();
+    for i in 0..100 {
+        let m = rng.random_range(1..=512);
+        let n = rng.random_range(1..=512);
+        let k = rng.random_range(1..=512);
+        let a = Tensor::<f32>::randn(&[m, k])?;
+        let b = Tensor::<f32>::randn(&[n, k])?.t()?;
+        let c = a.matmul(&b)?;
+        let c2 = a.gemm(&b, 0.0, 1.0, false, false, false)?;
+        assert!(c.allclose(&c2, 1.0e-3, 1.0e-3));
+    }
+    Ok(())
+}
+
+#[test]
+fn test_t_t() -> anyhow::Result<()> {
+    let mut rng = rand::rng();
+    for i in 0..100 {
+        let m = rng.random_range(1..=512);
+        let n = rng.random_range(1..=512);
+        let k = rng.random_range(1..=512);
+        let a = Tensor::<f32>::randn(&[k, m])?.t()?;
+        let b = Tensor::<f32>::randn(&[n, k])?.t()?;
         let c = a.matmul(&b)?;
         let c2 = a.gemm(&b, 0.0, 1.0, false, false, false)?;
         assert!(c.allclose(&c2, 1.0e-3, 1.0e-3));
