@@ -106,7 +106,6 @@ pub fn matmul_template<T>(
     let mb_per_thread = num_mr_blocks.div_ceil(num_threads);
     let intervals = mt_intervals(mc_jobs, num_threads);
     let mc_rem_intervals = mt_intervals(mc_rem_jobs, num_threads);
-
     let prgs = calculate_prgs(n, nc, mr, nr, mc, &intervals);
     let rem_prgs = calculate_prgs(n, nc, mr, nr, m % mc, &mc_rem_intervals);
     (0..num_threads)
@@ -164,7 +163,7 @@ pub fn matmul_template<T>(
                                 let jb = min(nc, n - j);
                                 let c = out.clone() + i as i64 * ldc + j as i64;
                                 pack_b::<T>(
-                                    b.clone() + (p as i64 * ldb + j as i64),
+                                    b.clone() + (p as i64 * ldb + j as i64 * rhs_col_stride),
                                     packed_b.clone(),
                                     ldb,
                                     rhs_col_stride,
@@ -352,22 +351,6 @@ pub(crate) fn pack_a<T>(
             }
         }
     }
-    // for i in (0..mc).step_by(mr) {
-    //     let mb = mr.min(mc - i);
-    //     for p in 0..kb as i64 {
-    //         for ii in 0..mb as i64 {
-    //             let i = i as i64 + ii;
-    //             *packed_a = a[i * lda + p * stride];
-    //             packed_a += 1i64;
-    //         }
-    //     }
-    //     for _ in kb..kc {
-    //         for _ in 0..mb as i64 {
-    //             *packed_a = T::ZERO;
-    //             packed_a += 1i64;
-    //         }
-    //     }
-    // }
 }
 
 #[inline]
@@ -421,11 +404,7 @@ pub(crate) fn pack_b<T>(
                 }
             }
             for _ in kb..kc {
-                for _ in 0..nb as i64 {
-                    *packed_b = T::ZERO;
-                    packed_b += 1i64;
-                }
-                for _ in nb..nr {
+                for _ in 0..nr as i64 {
                     *packed_b = T::ZERO;
                     packed_b += 1i64;
                 }
