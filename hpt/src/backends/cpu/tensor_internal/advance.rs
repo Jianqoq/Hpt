@@ -647,6 +647,15 @@ where
         axis: i64,
         src: &Self::Output,
     ) -> Result<Self::Output, TensorError> {
+        ShapeError::check_size_gt(src.size() as i64, indices.size() as i64)?;
+        ShapeError::check_contiguous(
+            "scatter requires src to be contiguous".to_string(),
+            src.layout(),
+        )?;
+        ShapeError::check_contiguous(
+            "scatter requires self to be contiguous".to_string(),
+            self.layout(),
+        )?;
         let axis = if axis < 0 {
             self.ndim() as i64 + axis
         } else {
@@ -657,27 +666,34 @@ where
         let ndim = self.ndim();
         let shape = self.shape();
 
-        let mut position = vec![0; ndim];
-        for i in 0..indices.size() as i64 {
-            let mut tmp = i;
+        let indices_ptr = indices.ptr();
+        let src_ptr = src.ptr();
+        let res_ptr = result.ptr();
+        let res_strides = result.strides();
+
+        // scatter must be done in serial, because the indices may have same value
+        (0..indices.size()).into_iter().for_each(|i| {
+            let mut res_ptr = res_ptr.clone();
+            let mut position = vec![0; ndim];
+            let mut tmp = i as i64;
             for d in (0..ndim).rev() {
                 position[d] = tmp % shape[d];
                 tmp /= shape[d];
             }
 
-            let target_idx = indices.ptr()[i] as i64;
-            let src_val = src.ptr()[i];
+            let target_idx = indices_ptr[i] as i64;
+            let src_val = src_ptr[i];
 
             let mut target_offset = 0i64;
             for d in 0..ndim {
                 if d == axis {
-                    target_offset += target_idx * result.strides()[d];
+                    target_offset += target_idx * res_strides[d];
                 } else {
-                    target_offset += position[d] * result.strides()[d];
+                    target_offset += position[d] * res_strides[d];
                 }
             }
-            result.ptr()[target_offset] = src_val;
-        }
+            res_ptr[target_offset] = src_val;
+        });
 
         Ok(result)
     }

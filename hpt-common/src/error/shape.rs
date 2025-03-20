@@ -7,13 +7,11 @@ use crate::{shape::shape::Shape, strides::strides::Strides};
 /// Errors related to tensor shapes and dimensions
 #[derive(Debug, Error)]
 pub enum ShapeError {
-    /// Error that occurs when the size of two tensors does not match
-    #[error("Size mismatch: expected {expected}, got {actual} at {location}")]
-    SizeMismatch {
-        /// Expected size
-        expected: i64,
-        /// Actual size
-        actual: i64,
+    /// Error that occurs when there is size problem
+    #[error("InvalidSize: {message} at {location}")]
+    InvalidSize {
+        /// Message describing the size mismatch
+        message: String,
         /// Location where the error occurred
         location: &'static Location<'static>,
     },
@@ -241,9 +239,20 @@ impl ShapeError {
     #[track_caller]
     pub fn check_size_match(expected: i64, actual: i64) -> Result<(), Self> {
         if expected != actual {
-            return Err(Self::SizeMismatch {
-                expected,
-                actual,
+            return Err(Self::InvalidSize {
+                message: format!("expected {}, got {}", expected, actual),
+                location: Location::caller(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Check if the size of two tensors match
+    #[track_caller]
+    pub fn check_size_gt(expected: i64, actual: i64) -> Result<(), Self> {
+        if expected > actual {
+            return Err(Self::InvalidSize {
+                message: format!("expected size greater than {}, got {}", expected, actual),
                 location: Location::caller(),
             });
         }
