@@ -38,7 +38,6 @@ impl VecTrait<i8> for i8x32 {
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
-        #[cfg(target_arch = "x86_64")]
         unsafe {
             let mut res = [0i8; 32];
             let x: [i8; 32] = std::mem::transmute(self.0);

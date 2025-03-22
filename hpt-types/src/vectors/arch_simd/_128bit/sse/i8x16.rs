@@ -145,7 +145,7 @@ impl std::ops::Div for i8x16 {
                 assert!(b[i] != 0, "division by zero");
                 result[i] = a[i] / b[i];
             }
-            return i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
     }
 }
@@ -160,7 +160,7 @@ impl std::ops::Rem for i8x16 {
             for i in 0..16 {
                 result[i] = a[i] % b[i];
             }
-            return i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
     }
 }
@@ -289,7 +289,7 @@ impl SimdMath<i8> for i8x16 {
             for i in 0..16 {
                 result[i] = a[i].pow(b[i] as u32);
             }
-            return i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
     }
     #[inline(always)]
@@ -326,7 +326,7 @@ impl FloatOutBinary2 for i8x16 {
                 }
                 result[i] = a[i].pow(b[i] as u32);
             }
-            return i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            i8x16(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
     }
 }

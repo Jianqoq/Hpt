@@ -688,11 +688,9 @@ impl Eval2 for f16x8 {
 
         let is_neg = (i & sign_mask).simd_ne(u16x8::splat(0));
 
-        let result = is_inf.select(
+        is_inf.select(
             is_neg.select(i16x8::splat(-1), i16x8::splat(1)),
             i16x8::splat(0),
-        );
-
-        result
+        )
     }
 }

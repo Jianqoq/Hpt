@@ -24,9 +24,8 @@ impl VecTrait<half::bf16> for bf16x8 {
 
         let res0 = x0.mul_add(a0, b0);
         let res1 = x1.mul_add(a1, b1);
-        let result = bf16x8::from_2_f32vec([res0, res1]);
 
-        result
+        bf16x8::from_2_f32vec([res0, res1])
     }
     #[inline(always)]
     fn sum(&self) -> half::bf16 {

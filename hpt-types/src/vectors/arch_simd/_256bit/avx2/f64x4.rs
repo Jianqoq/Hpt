@@ -55,11 +55,11 @@ impl VecTrait<f64> for f64x4 {
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
-        #[cfg(all(target_arch = "x86_64", not(target_feature = "fma")))]
+        #[cfg(not(target_feature = "fma"))]
         unsafe {
             f64x4(_mm256_add_pd(_mm256_mul_pd(self.0, a.0), b.0))
         }
-        #[cfg(all(target_arch = "x86_64", target_feature = "fma"))]
+        #[cfg(target_feature = "fma")]
         unsafe {
             f64x4(_mm256_fmadd_pd(self.0, a.0, b.0))
         }
@@ -226,7 +226,6 @@ impl SimdMath<f64> for f64x4 {
     }
     #[inline(always)]
     fn signum(self) -> Self {
-        #[cfg(target_arch = "x86_64")]
         unsafe {
             let zero = _mm256_set1_pd(0.0);
             let ones = _mm256_set1_pd(1.0);

@@ -299,9 +299,9 @@ impl MatmulMicroKernel for crate::types::bf16 {
     }
 
     fn get_max_mixed_precision_nr() -> usize {
-        1
+        2
     }
     fn get_max_mixed_precision_mr() -> usize {
-        6
+        3
     }
 }

@@ -1,7 +1,7 @@
 use crate::{
     convertion::VecConvertor,
     traits::{SimdMath, SimdSelect, VecTrait},
-    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    type_promote::{Eval2, FloatOutBinary2},
 };
 
 use std::arch::x86_64::*;
@@ -105,7 +105,7 @@ impl std::ops::Div for u32x4 {
                 assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
-            return u32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            u32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
         }
     }
 }
@@ -120,7 +120,7 @@ impl std::ops::Rem for u32x4 {
             for i in 0..4 {
                 arr3[i] = arr[i] % arr2[i];
             }
-            return u32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            u32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
         }
     }
 }
@@ -178,7 +178,7 @@ impl std::ops::Shr for u32x4 {
             for i in 0..4 {
                 result[i] = a[i].wrapping_shr(b[i] as u32);
             }
-            return u32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            u32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
     }
 }
@@ -229,7 +229,7 @@ impl SimdMath<u32> for u32x4 {
             for i in 0..4 {
                 result[i] = a[i].pow(b[i] as u32);
             }
-            return u32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            u32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
     }
     #[inline(always)]
@@ -255,7 +255,7 @@ impl VecConvertor for u32x4 {
             for i in 0..4 {
                 result[i] = arr[i] as f32;
             }
-            return f32x4(_mm_loadu_ps(result.as_ptr()));
+            f32x4(_mm_loadu_ps(result.as_ptr()))
         }
     }
     #[inline(always)]
@@ -295,7 +295,7 @@ impl FloatOutBinary2 for u32x4 {
             for i in 0..4 {
                 arr3[i] = arr[i].pow(arr2[i] as u32);
             }
-            return u32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            u32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
         }
     }
 }

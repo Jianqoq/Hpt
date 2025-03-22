@@ -3,7 +3,6 @@ use crate::{
     type_promote::{Eval2, FloatOutBinary2},
 };
 
-#[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
 use crate::simd::_256bit::i16x16;

@@ -45,7 +45,7 @@ impl SimdCompare for boolx16 {
     fn simd_lt(self, rhs: Self) -> i8x16 {
         let mut res = [0i8; 16];
         for i in 0..16 {
-            res[i] = if self.0[i] < rhs.0[i] { -1 } else { 0 };
+            res[i] = if !self.0[i] & rhs.0[i] { -1 } else { 0 };
         }
         i8x16(unsafe { std::mem::transmute(res) })
     }
@@ -61,7 +61,7 @@ impl SimdCompare for boolx16 {
     fn simd_gt(self, rhs: Self) -> i8x16 {
         let mut res = [0i8; 16];
         for i in 0..16 {
-            res[i] = if self.0[i] > rhs.0[i] { -1 } else { 0 };
+            res[i] = if self.0[i] & !rhs.0[i] { -1 } else { 0 };
         }
         i8x16(unsafe { std::mem::transmute(res) })
     }
