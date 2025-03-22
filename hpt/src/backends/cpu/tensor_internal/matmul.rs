@@ -46,12 +46,28 @@ where
                     target_feature = "fp16"
                 ))]
                 {
-                    matmul(
-                        lhs,
-                        rhs,
-                        out.map(|mut x| x.borrow_mut().clone()),
-                        rayon::current_num_threads(),
-                    )
+                    if T::STR == "bf16" {
+                        use crate::backends::cpu::kernels::matmul::matmul_mixed_precision::bf16_matmul;
+                        let res = bf16_matmul(
+                            &lhs.static_cast::<half::bf16>()?,
+                            &rhs.static_cast::<half::bf16>()?,
+                            out.map(|mut x| {
+                                x.borrow_mut()
+                                    .clone()
+                                    .static_cast::<half::bf16>()
+                                    .expect("static_cast bf16 failed")
+                            }),
+                            rayon::current_num_threads(),
+                        )?;
+                        Ok(res.static_cast::<T>()?)
+                    } else {
+                        matmul(
+                            lhs,
+                            rhs,
+                            out.map(|mut x| x.borrow_mut().clone()),
+                            rayon::current_num_threads(),
+                        )
+                    }
                 }
                 #[cfg(not(all(
                     target_feature = "neon",
@@ -106,14 +122,34 @@ where
                     target_feature = "fp16"
                 ))]
                 {
-                    matmul_post(
-                        lhs,
-                        rhs,
-                        out.map(|mut x| x.borrow_mut().clone()),
-                        post_op,
-                        post_op_vec,
-                        rayon::current_num_threads(),
-                    )
+                    if T::STR == "bf16" {
+                        use crate::backends::cpu::kernels::matmul::matmul_mp_post::bf16_matmul_post;
+                        let post_op = unsafe { std::mem::transmute(post_op) };
+                        let post_op_vec = unsafe { std::mem::transmute(post_op_vec) };
+                        let res = bf16_matmul_post(
+                            &lhs.static_cast::<half::bf16>()?,
+                            &rhs.static_cast::<half::bf16>()?,
+                            out.map(|mut x| {
+                                x.borrow_mut()
+                                    .clone()
+                                    .static_cast::<half::bf16>()
+                                    .expect("static_cast bf16 failed")
+                            }),
+                            post_op,
+                            post_op_vec,
+                            rayon::current_num_threads(),
+                        )?;
+                        Ok(res.static_cast::<T>()?)
+                    } else {
+                        matmul_post(
+                            lhs,
+                            rhs,
+                            out.map(|mut x| x.borrow_mut().clone()),
+                            post_op,
+                            post_op_vec,
+                            rayon::current_num_threads(),
+                        )
+                    }
                 }
                 #[cfg(not(all(
                     target_feature = "neon",
