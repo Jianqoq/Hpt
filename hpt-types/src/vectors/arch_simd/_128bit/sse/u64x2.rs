@@ -1,7 +1,7 @@
 use crate::{
     convertion::VecConvertor,
     traits::{SimdMath, SimdSelect, VecTrait},
-    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    type_promote::{Eval2, FloatOutBinary2},
 };
 
 use std::arch::x86_64::*;
@@ -53,7 +53,7 @@ impl VecTrait<u64> for u64x2 {
             for i in 0..2 {
                 arr4[i] = arr[i] * arr2[i] + arr3[i];
             }
-            return u64x2(_mm_loadu_si128(arr4.as_ptr() as *const __m128i));
+            u64x2(_mm_loadu_si128(arr4.as_ptr() as *const __m128i))
         }
     }
     #[inline(always)]
@@ -105,7 +105,7 @@ impl std::ops::Mul for u64x2 {
             for i in 0..2 {
                 arr3[i] = arr[i].wrapping_mul(arr2[i]);
             }
-            return u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
         }
     }
 }
@@ -121,7 +121,7 @@ impl std::ops::Div for u64x2 {
                 assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
-            return u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
         }
     }
 }
@@ -136,7 +136,7 @@ impl std::ops::Rem for u64x2 {
             for i in 0..2 {
                 arr3[i] = arr[i] % arr2[i];
             }
-            return u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
         }
     }
 }
@@ -194,7 +194,7 @@ impl std::ops::Shr for u64x2 {
             for i in 0..2 {
                 result[i] = a[i].wrapping_shr(b[i] as u32);
             }
-            return u64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            u64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
     }
 }
@@ -208,7 +208,7 @@ impl SimdMath<u64> for u64x2 {
             for i in 0..2 {
                 arr3[i] = arr[i].max(arr2[i]);
             }
-            return u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
         }
     }
     #[inline(always)]
@@ -220,7 +220,7 @@ impl SimdMath<u64> for u64x2 {
             for i in 0..2 {
                 arr3[i] = arr[i].min(arr2[i]);
             }
-            return u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
         }
     }
     #[inline(always)]
@@ -260,7 +260,7 @@ impl SimdMath<u64> for u64x2 {
             for i in 0..2 {
                 result[i] = a[i].pow(b[i] as u32);
             }
-            return u64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            u64x2(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
     }
     #[inline(always)]
@@ -286,7 +286,7 @@ impl VecConvertor for u64x2 {
             for i in 0..2 {
                 result[i] = arr[i] as f64;
             }
-            return f64x2(_mm_loadu_pd(result.as_ptr()));
+            f64x2(_mm_loadu_pd(result.as_ptr()))
         }
     }
     #[inline(always)]
@@ -326,7 +326,7 @@ impl FloatOutBinary2 for u64x2 {
             for i in 0..2 {
                 arr3[i] = arr[i].pow(arr2[i] as u32);
             }
-            return u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            u64x2(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
         }
     }
 }

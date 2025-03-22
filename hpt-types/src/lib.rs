@@ -121,7 +121,7 @@ pub mod vectors {
             };
         }
         /// A module defines a set of 256-bit vector types
-        #[cfg(target_feature = "avx2")]
+        #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
         pub mod _256bit {
             pub(crate) mod common {
                 pub(crate) mod bf16x16;

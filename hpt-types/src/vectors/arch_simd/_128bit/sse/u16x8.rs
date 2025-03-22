@@ -1,6 +1,6 @@
 use crate::{
-    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
-    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    traits::{SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2},
 };
 
 use std::arch::x86_64::*;
@@ -98,7 +98,7 @@ impl std::ops::Div for u16x8 {
                 assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
-            return u16x8(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            u16x8(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
         }
     }
 }
@@ -113,7 +113,7 @@ impl std::ops::Rem for u16x8 {
             for i in 0..8 {
                 arr3[i] = arr[i] % arr2[i];
             }
-            return u16x8(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            u16x8(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
         }
     }
 }
@@ -172,7 +172,7 @@ impl std::ops::Shr for u16x8 {
             for i in 0..8 {
                 result[i] = a[i].wrapping_shr(b[i] as u32);
             }
-            return u16x8(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            u16x8(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
     }
 }
@@ -223,7 +223,7 @@ impl SimdMath<u16> for u16x8 {
             for i in 0..8 {
                 result[i] = a[i].pow(b[i] as u32);
             }
-            return u16x8(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            u16x8(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
     }
     #[inline(always)]
@@ -257,7 +257,7 @@ impl FloatOutBinary2 for u16x8 {
             for i in 0..8 {
                 arr3[i] = arr[i].pow(arr2[i] as u32);
             }
-            return u16x8(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            u16x8(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
         }
     }
 }

@@ -138,7 +138,7 @@ impl std::ops::Div for i32x4 {
                 assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
-            return i32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            i32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
         }
     }
 }
@@ -153,7 +153,7 @@ impl std::ops::Rem for i32x4 {
             for i in 0..4 {
                 arr3[i] = arr[i] % arr2[i];
             }
-            return i32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            i32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
         }
     }
 }
@@ -204,7 +204,7 @@ impl std::ops::Shl for i32x4 {
             for i in 0..4 {
                 result[i] = a[i].wrapping_shl(b[i] as u32);
             }
-            return i32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            i32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
     }
 }
@@ -219,7 +219,7 @@ impl std::ops::Shr for i32x4 {
             for i in 0..4 {
                 result[i] = a[i].wrapping_shr(b[i] as u32);
             }
-            return i32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            i32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
     }
 }
@@ -282,7 +282,7 @@ impl SimdMath<i32> for i32x4 {
             for i in 0..4 {
                 result[i] = a[i].pow(b[i] as u32);
             }
-            return i32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i));
+            i32x4(_mm_loadu_si128(result.as_ptr() as *const __m128i))
         }
     }
     #[inline(always)]
@@ -344,7 +344,7 @@ impl FloatOutBinary2 for i32x4 {
                 }
                 arr3[i] = arr[i].pow(arr2[i] as u32);
             }
-            return i32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i));
+            i32x4(_mm_loadu_si128(arr3.as_ptr() as *const __m128i))
         }
     }
 }

@@ -42,7 +42,7 @@ impl PartialEq for f32x4 {
 impl Default for f32x4 {
     #[inline(always)]
     fn default() -> Self {
-        return unsafe { f32x4(_mm_setzero_ps()) };
+        unsafe { f32x4(_mm_setzero_ps()) }
     }
 }
 

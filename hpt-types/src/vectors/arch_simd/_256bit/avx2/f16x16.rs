@@ -10,7 +10,7 @@ impl f16x16 {
     #[inline(always)]
     pub fn to_2_f32vec(self) -> [f32x8; 2] {
         unsafe {
-            #[cfg(all(target_feature = "f16c", target_arch = "x86_64"))]
+            #[cfg(target_feature = "f16c")]
             {
                 use std::arch::x86_64::*;
                 let raw_f16: [u16; 16] = std::mem::transmute(self.0);
@@ -18,7 +18,7 @@ impl f16x16 {
                 let f32x4_2 = _mm256_cvtph_ps(_mm_loadu_si128(raw_f16.as_ptr().add(8) as *const _));
                 std::mem::transmute([f32x4_1, f32x4_2])
             }
-            #[cfg(not(all(target_feature = "f16c", target_arch = "x86_64")))]
+            #[cfg(not(target_feature = "f16c"))]
             {
                 let mut result = [[0f32; 8]; 2];
                 for i in 0..8 {
@@ -34,7 +34,7 @@ impl f16x16 {
     #[inline(always)]
     pub fn from_2_f32vec(val: [f32x8; 2]) -> Self {
         unsafe {
-            #[cfg(all(target_feature = "f16c", target_arch = "x86_64"))]
+            #[cfg(target_feature = "f16c")]
             {
                 use std::arch::x86_64::*;
                 let f16_low = _mm256_cvtps_ph(val[0].0, _MM_FROUND_TO_NEAREST_INT);
@@ -44,7 +44,7 @@ impl f16x16 {
 
                 std::mem::transmute(result)
             }
-            #[cfg(not(all(target_feature = "f16c", target_arch = "x86_64")))]
+            #[cfg(not(target_feature = "f16c"))]
             {
                 let arr: [[f32; 8]; 2] = std::mem::transmute(val);
                 let mut result = [0u16; 16];
@@ -61,13 +61,13 @@ impl f16x16 {
 #[inline(always)]
 pub(crate) fn f32x8_to_f16x8(val: f32x8) -> [u16; 8] {
     unsafe {
-        #[cfg(all(target_feature = "f16c", target_arch = "x86_64"))]
+        #[cfg(target_feature = "f16c")]
         {
             use std::arch::x86_64::*;
             let f16_bits = _mm256_cvtps_ph(val.0, _MM_FROUND_TO_NEAREST_INT);
             std::mem::transmute(f16_bits)
         }
-        #[cfg(not(all(target_feature = "f16c", target_arch = "x86_64")))]
+        #[cfg(not(target_feature = "f16c"))]
         {
             let arr: [f32; 8] = std::mem::transmute(val);
             let mut result = [0u16; 8];
@@ -90,7 +90,7 @@ impl VecConvertor for f16x16 {
                 let i0 = _mm256_cvtps_epi32(x0.0);
                 let i1 = _mm256_cvtps_epi32(x1.0);
                 let packed = _mm256_packs_epi32(i0, i1);
-                return super::i16x16::i16x16(packed);
+                return i16x16(packed);
             }
         }
         #[cfg(not(target_feature = "f16c"))]
