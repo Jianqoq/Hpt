@@ -1,16 +1,11 @@
 use crate::{
-    convertion::VecConvertor,
     traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
-    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    type_promote::{Eval2, FloatOutBinary2, NormalOutUnary2},
 };
 
 use std::arch::aarch64::*;
 
 use crate::vectors::arch_simd::_128bit::i16x8;
-use crate::vectors::arch_simd::_128bit::u16x8;
-
-#[allow(non_camel_case_types)]
-pub(crate) type i16_promote = i16x8;
 
 impl PartialEq for i16x8 {
     #[inline(always)]

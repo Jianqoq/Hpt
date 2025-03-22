@@ -1,12 +1,9 @@
 use crate::convertion::VecConvertor;
-use crate::traits::{SimdMath, SimdSelect, VecTrait};
-use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
+use crate::traits::VecTrait;
+use crate::vectors::arch_simd::_128bit::common::f16x8::f16x8;
 use crate::vectors::arch_simd::_128bit::f32x4;
+use crate::vectors::arch_simd::_128bit::i16x8;
 use crate::vectors::arch_simd::_128bit::u16x8;
-
-use crate::traits::SimdCompare;
-
-use super::i16x8::i16x8;
 use std::arch::aarch64::uint16x8_t;
 
 #[allow(non_camel_case_types)]
@@ -21,25 +18,28 @@ impl VecTrait<half::f16> for f16x8 {
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
-        #[cfg(all(
-            target_feature = "neon",
-            target_arch = "aarch64",
-            target_feature = "fp16"
-        ))]
-        {
-            unsafe {
-                let mut b: float16x8_t = std::mem::transmute(b);
-                let a: float16x8_t = std::mem::transmute(a);
-                let s: float16x8_t = std::mem::transmute(self);
-                std::arch::asm!(
-                    "fmla {0:v}.8h, {1:v}.8h, {2:v}.8h",
-                    inout(vreg) b,
-                    in(vreg) a,
-                    in(vreg) s,
-                    options(pure, nomem, nostack)
-                );
-                std::mem::transmute(b)
+        #[cfg(target_feature = "fp16")]
+        unsafe {
+            let mut b: float16x8_t = std::mem::transmute(b);
+            let a: float16x8_t = std::mem::transmute(a);
+            let s: float16x8_t = std::mem::transmute(self);
+            std::arch::asm!(
+                "fmla {0:v}.8h, {1:v}.8h, {2:v}.8h",
+                inout(vreg) b,
+                in(vreg) a,
+                in(vreg) s,
+                options(pure, nomem, nostack)
+            );
+            std::mem::transmute(b)
+        }
+        #[cfg(not(target_feature = "fp16"))]
+        unsafe {
+            use num_traits::Float;
+            let mut res = [half::f16::ZERO; 8];
+            for i in 0..8 {
+                res[i] = self.0[i].mul_add(a.0[i], b.0[i]);
             }
+            std::mem::transmute(res)
         }
     }
     #[inline(always)]
@@ -60,7 +60,7 @@ impl VecTrait<half::f16> for f16x8 {
     }
     #[inline(always)]
     fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
-        #[cfg(all(target_feature = "neon", target_feature = "fp16"))]
+        #[cfg(target_feature = "fp16")]
         unsafe {
             let a: float16x8_t = std::mem::transmute(a);
             let mut b: float16x8_t = std::mem::transmute(b);
@@ -118,6 +118,15 @@ impl VecTrait<half::f16> for f16x8 {
             }
             std::mem::transmute(b)
         }
+        #[cfg(not(target_feature = "fp16"))]
+        unsafe {
+            use num_traits::Float;
+            let mut res = [half::f16::ZERO; 8];
+            for i in 0..8 {
+                res[i] = self.0[i].mul_add(a.0[LANE as usize], b.0[i]);
+            }
+            std::mem::transmute(res)
+        }
     }
 }
 
@@ -126,11 +135,7 @@ impl f16x8 {
     #[inline(always)]
     pub fn to_2_f32vec(self) -> [f32x4; 2] {
         unsafe {
-            #[cfg(all(
-                target_feature = "neon",
-                target_arch = "aarch64",
-                target_feature = "fp16"
-            ))]
+            #[cfg(target_feature = "fp16")]
             {
                 use std::arch::aarch64::{float32x4_t, vld1_s16};
 
@@ -153,12 +158,7 @@ impl f16x8 {
 
                 std::mem::transmute([res0, res1])
             }
-            #[cfg(not(target_feature = "f16c"))]
-            #[cfg(not(all(
-                target_feature = "neon",
-                target_arch = "aarch64",
-                target_feature = "fp16"
-            )))]
+            #[cfg(not(target_feature = "fp16"))]
             {
                 let mut res = [0f32; 4];
                 for i in 0..4 {
@@ -177,9 +177,7 @@ impl f16x8 {
     #[inline(always)]
     pub fn from_2_f32vec(val: [f32x4; 2]) -> Self {
         unsafe {
-            #[cfg(target_arch = "aarch64")]
             #[cfg(target_feature = "fp16")]
-            #[cfg(target_feature = "neon")]
             {
                 let mut res: float16x8_t;
                 std::arch::asm!(
@@ -191,9 +189,7 @@ impl f16x8 {
                 );
                 std::mem::transmute(res)
             }
-            #[cfg(not(all(target_feature = "f16c", target_arch = "x86_64")))]
-            #[cfg(not(all(target_feature = "fp16", target_arch = "aarch64")))]
-            #[cfg(not(target_feature = "neon"))]
+            #[cfg(not(target_feature = "fp16"))]
             {
                 let arr: [[f32; 4]; 2] = std::mem::transmute(val);
                 let mut result = [0u16; 8];
@@ -212,6 +208,7 @@ impl std::ops::Add for f16x8 {
 
     #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
+        #[cfg(target_feature = "fp16")]
         unsafe {
             let a: float16x8_t = std::mem::transmute(self);
             let b: float16x8_t = std::mem::transmute(rhs);
@@ -225,6 +222,14 @@ impl std::ops::Add for f16x8 {
             );
             std::mem::transmute(c)
         }
+        #[cfg(not(target_feature = "fp16"))]
+        unsafe {
+            let mut res = [half::f16::ZERO; 8];
+            for i in 0..8 {
+                res[i] = self.0[i] + rhs.0[i];
+            }
+            std::mem::transmute(res)
+        }
     }
 }
 
@@ -233,6 +238,7 @@ impl std::ops::Sub for f16x8 {
 
     #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
+        #[cfg(target_feature = "fp16")]
         unsafe {
             let a: float16x8_t = std::mem::transmute(self);
             let b: float16x8_t = std::mem::transmute(rhs);
@@ -246,6 +252,14 @@ impl std::ops::Sub for f16x8 {
             );
             std::mem::transmute(c)
         }
+        #[cfg(not(target_feature = "fp16"))]
+        unsafe {
+            let mut res = [half::f16::ZERO; 8];
+            for i in 0..8 {
+                res[i] = self.0[i] - rhs.0[i];
+            }
+            std::mem::transmute(res)
+        }
     }
 }
 
@@ -254,6 +268,7 @@ impl std::ops::Mul for f16x8 {
 
     #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
+        #[cfg(target_feature = "fp16")]
         unsafe {
             let a: float16x8_t = std::mem::transmute(self);
             let b: float16x8_t = std::mem::transmute(rhs);
@@ -267,17 +282,65 @@ impl std::ops::Mul for f16x8 {
             );
             std::mem::transmute(c)
         }
+        #[cfg(not(target_feature = "fp16"))]
+        unsafe {
+            let mut res = [half::f16::ZERO; 8];
+            for i in 0..8 {
+                res[i] = self.0[i] * rhs.0[i];
+            }
+            std::mem::transmute(res)
+        }
     }
 }
 
 impl VecConvertor for f16x8 {
     #[inline(always)]
-    fn to_i16(self) -> super::i16x8::i16x8 {
-        unimplemented!()
+    fn to_i16(self) -> i16x8 {
+        #[cfg(target_feature = "fp16")]
+        unsafe {
+            use std::arch::aarch64::int16x8_t;
+            let mut result: int16x8_t;
+            let a: float16x8_t = std::mem::transmute(self);
+            std::arch::asm!(
+                "fcvtzs {0:v}.8h, {1:v}.8h",
+                out(vreg) result,
+                in(vreg) a,
+            );
+            std::mem::transmute(result)
+        }
+        #[cfg(not(target_feature = "fp16"))]
+        unsafe {
+            use crate::convertion::Convertor;
+            let mut res = [0i16; 8];
+            for i in 0..8 {
+                res[i] = self.0[i].to_i16();
+            }
+            std::mem::transmute(res)
+        }
     }
     #[inline(always)]
-    fn to_u16(self) -> super::u16x8::u16x8 {
-        unimplemented!()
+    fn to_u16(self) -> u16x8 {
+        #[cfg(target_feature = "fp16")]
+        unsafe {
+            use std::arch::aarch64::int16x8_t;
+            let mut result: int16x8_t;
+            let a: float16x8_t = std::mem::transmute(self);
+            std::arch::asm!(
+                "fcvtzu {0:v}.8h, {1:v}.8h",
+                out(vreg) result,
+                in(vreg) a,
+            );
+            std::mem::transmute(result)
+        }
+        #[cfg(not(target_feature = "fp16"))]
+        unsafe {
+            use crate::convertion::Convertor;
+            let mut res = [0u16; 8];
+            for i in 0..8 {
+                res[i] = self.0[i].to_u16();
+            }
+            std::mem::transmute(res)
+        }
     }
     #[inline(always)]
     fn to_f16(self) -> f16x8 {

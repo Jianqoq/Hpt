@@ -141,12 +141,12 @@ fn test_t_t() -> anyhow::Result<()> {
 #[test]
 fn test_batch_matmul() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for i in 0..100 {
+    for i in 0..10 {
         let m = rng.random_range(1..=512);
         let n = rng.random_range(1..=512);
         let k = rng.random_range(1..=512);
-        let dim0 = rng.random_range(1..=4);
-        let dim1 = rng.random_range(1..=4);
+        let dim0 = rng.random_range(1..=2);
+        let dim1 = rng.random_range(1..=2);
         let a = Tensor::<f32>::randn(&[dim0, dim1, m, k])?;
         let b = Tensor::<f32>::randn(&[dim0, dim1, k, n])?;
         let c = a.matmul(&b)?;

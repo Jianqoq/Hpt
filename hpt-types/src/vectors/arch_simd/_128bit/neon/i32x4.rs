@@ -1,11 +1,17 @@
 use crate::{
     convertion::VecConvertor,
     traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
-    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    type_promote::{Eval2, FloatOutBinary2, NormalOutUnary2},
 };
 use std::arch::aarch64::*;
 
+use crate::vectors::arch_simd::_128bit::f32x4;
+use crate::vectors::arch_simd::_128bit::i32x4;
+#[cfg(target_pointer_width = "32")]
+use crate::vectors::arch_simd::_128bit::isizex2;
 use crate::vectors::arch_simd::_128bit::u32x4;
+#[cfg(target_pointer_width = "32")]
+use crate::vectors::arch_simd::_128bit::usizex2;
 
 impl PartialEq for i32x4 {
     #[inline(always)]
@@ -315,17 +321,17 @@ impl VecConvertor for i32x4 {
         unsafe { std::mem::transmute(self) }
     }
     #[inline(always)]
-    fn to_f32(self) -> super::f32x4::f32x4 {
-        unsafe { super::f32x4::f32x4(vcvtq_f32_s32(self.0)) }
+    fn to_f32(self) -> f32x4 {
+        unsafe { f32x4(vcvtq_f32_s32(self.0)) }
     }
     #[cfg(target_pointer_width = "32")]
     #[inline(always)]
-    fn to_isize(self) -> super::isizex2::isizex2 {
+    fn to_isize(self) -> isizex2 {
         unsafe { std::mem::transmute(self) }
     }
     #[cfg(target_pointer_width = "32")]
     #[inline(always)]
-    fn to_usize(self) -> super::usizex2::usizex2 {
+    fn to_usize(self) -> usizex2 {
         unsafe { std::mem::transmute(self) }
     }
 }

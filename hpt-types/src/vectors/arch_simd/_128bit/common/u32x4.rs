@@ -1,7 +1,6 @@
 use crate::{
-    convertion::VecConvertor,
-    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
-    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    traits::{SimdCompare, SimdMath, VecTrait},
+    type_promote::{NormalOut2, NormalOutUnary2},
 };
 
 #[cfg(target_arch = "aarch64")]

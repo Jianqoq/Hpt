@@ -240,7 +240,7 @@ impl ShapeError {
     pub fn check_size_match(expected: i64, actual: i64) -> Result<(), Self> {
         if expected != actual {
             return Err(Self::InvalidSize {
-                message: format!("expected {}, got {}", expected, actual),
+                message: format!("Size mismatch: expected {}, got {}", expected, actual),
                 location: Location::caller(),
             });
         }

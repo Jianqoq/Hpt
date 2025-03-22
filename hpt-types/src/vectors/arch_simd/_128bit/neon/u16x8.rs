@@ -1,12 +1,10 @@
 use crate::{
-    convertion::VecConvertor,
-    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
-    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    traits::{SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2},
 };
 
 use std::arch::aarch64::*;
 
-use crate::vectors::arch_simd::_128bit::bf16x8;
 use crate::vectors::arch_simd::_128bit::i16x8;
 use crate::vectors::arch_simd::_128bit::u16x8;
 

@@ -1,14 +1,14 @@
-use crate::arch_simd::_128bit::u16x8::u16x8;
-use crate::convertion::VecConvertor;
-use crate::traits::{SimdCompare, SimdMath, SimdSelect};
-use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
-use crate::{traits::VecTrait, vectors::arch_simd::_128bit::f32x4::f32x4};
-
-use crate::arch_simd::_128bit::common::bf16x8;
-use crate::arch_simd::_128bit::i16x8::i16x8;
-use crate::arch_simd::_128bit::u32x4::u32x4;
-
 use std::arch::aarch64::*;
+
+use crate::convertion::VecConvertor;
+use crate::traits::{SimdCompare, SimdSelect};
+use crate::{traits::VecTrait, vectors::arch_simd::_128bit::f32x4};
+
+use crate::arch_simd::_128bit::common::bf16x8::bf16x8;
+use crate::arch_simd::_128bit::f16x8;
+use crate::arch_simd::_128bit::i16x8;
+use crate::arch_simd::_128bit::u16x8;
+use crate::arch_simd::_128bit::u32x4;
 
 impl VecTrait<half::bf16> for bf16x8 {
     const SIZE: usize = 8;
@@ -137,25 +137,25 @@ impl VecConvertor for bf16x8 {
         self
     }
     #[inline(always)]
-    fn to_f16(self) -> super::f16x8::f16x8 {
+    fn to_f16(self) -> f16x8 {
         unsafe { std::mem::transmute(self) }
     }
     #[inline(always)]
-    fn to_i16(self) -> super::i16x8::i16x8 {
+    fn to_i16(self) -> i16x8 {
         unsafe {
             let [x0, x1]: [f32x4; 2] = std::mem::transmute(self.to_2_f32vec());
             let i0 = vcvtq_s32_f32(x0.0);
             let i1 = vcvtq_s32_f32(x1.0);
-            super::i16x8::i16x8(vqmovn_high_s32(vqmovn_s32(i0), i1))
+            i16x8(vqmovn_high_s32(vqmovn_s32(i0), i1))
         }
     }
     #[inline(always)]
-    fn to_u16(self) -> super::u16x8::u16x8 {
+    fn to_u16(self) -> u16x8 {
         unsafe {
             let [x0, x1]: [f32x4; 2] = std::mem::transmute(self.to_2_f32vec());
             let i0 = vcvtq_u32_f32(x0.0);
             let i1 = vcvtq_u32_f32(x1.0);
-            super::u16x8::u16x8(vqmovn_high_u32(vqmovn_u32(i0), i1))
+            u16x8(vqmovn_high_u32(vqmovn_u32(i0), i1))
         }
     }
 }

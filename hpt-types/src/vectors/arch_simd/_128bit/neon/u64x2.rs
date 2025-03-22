@@ -1,20 +1,18 @@
 use crate::{
     convertion::VecConvertor,
-    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
-    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    traits::{SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2},
 };
 
 use std::arch::aarch64::*;
 
+use crate::vectors::arch_simd::_128bit::f64x2;
 use crate::vectors::arch_simd::_128bit::i64x2;
 #[cfg(target_pointer_width = "64")]
 use crate::vectors::arch_simd::_128bit::isizex2;
 use crate::vectors::arch_simd::_128bit::u64x2;
 #[cfg(target_pointer_width = "64")]
 use crate::vectors::arch_simd::_128bit::usizex2;
-
-#[allow(non_camel_case_types)]
-pub(crate) type u64_promote = u64x2;
 
 impl PartialEq for u64x2 {
     #[inline(always)]
@@ -273,14 +271,14 @@ impl VecConvertor for u64x2 {
         unsafe { std::mem::transmute(self) }
     }
     #[inline(always)]
-    fn to_f64(self) -> super::f64x2::f64x2 {
+    fn to_f64(self) -> f64x2 {
         unsafe {
             let arr: [u64; 2] = std::mem::transmute(self.0);
             let mut result = [0.0f64; 2];
             for i in 0..2 {
                 result[i] = arr[i] as f64;
             }
-            return super::f64x2::f64x2(vld1q_f64(result.as_ptr()));
+            return f64x2(vld1q_f64(result.as_ptr()));
         }
     }
     #[inline(always)]

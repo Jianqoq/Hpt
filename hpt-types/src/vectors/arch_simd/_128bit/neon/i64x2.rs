@@ -1,7 +1,7 @@
 use crate::{
     convertion::VecConvertor,
     traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
-    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    type_promote::{Eval2, FloatOutBinary2},
 };
 
 use std::arch::aarch64::*;
@@ -341,12 +341,12 @@ impl VecConvertor for i64x2 {
     }
     #[cfg(target_pointer_width = "64")]
     #[inline(always)]
-    fn to_isize(self) -> super::isizex2::isizex2 {
+    fn to_isize(self) -> isizex2 {
         unsafe { std::mem::transmute(self) }
     }
     #[cfg(target_pointer_width = "64")]
     #[inline(always)]
-    fn to_usize(self) -> super::usizex2::usizex2 {
+    fn to_usize(self) -> usizex2 {
         unsafe { std::mem::transmute(self) }
     }
 }

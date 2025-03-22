@@ -1,10 +1,4 @@
-use crate::convertion::VecConvertor;
-use crate::traits::SimdCompare;
 use crate::traits::VecTrait;
-use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
-use crate::vectors::arch_simd::_128bit::u8x16::u8x16;
-
-use super::i8x16::i8x16;
 use crate::vectors::arch_simd::_128bit::common::boolx16::boolx16;
 
 impl VecTrait<bool> for boolx16 {

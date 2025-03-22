@@ -79,6 +79,7 @@ pub mod vectors {
             }
 
             #[cfg(target_feature = "neon")]
+            #[cfg(target_arch = "aarch64")]
             pub(crate) mod neon {
                 pub(crate) mod bf16x8;
                 pub(crate) mod boolx16;

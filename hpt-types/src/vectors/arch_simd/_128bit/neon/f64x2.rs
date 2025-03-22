@@ -8,7 +8,6 @@ use crate::{
     convertion::VecConvertor,
     simd::sleef::libm::sleefsimddp::{xceil, xcopysign, xfloor},
     traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
-    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
 use helper::vabs_vd_vd;
 
@@ -18,6 +17,7 @@ use crate::vectors::arch_simd::_128bit::f64x2;
 use crate::vectors::arch_simd::_128bit::i64x2;
 #[cfg(target_pointer_width = "64")]
 use crate::vectors::arch_simd::_128bit::isizex2;
+use crate::vectors::arch_simd::_128bit::u64x2;
 #[cfg(target_pointer_width = "64")]
 use crate::vectors::arch_simd::_128bit::usizex2;
 

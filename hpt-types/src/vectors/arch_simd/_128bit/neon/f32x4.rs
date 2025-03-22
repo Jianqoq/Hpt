@@ -1,7 +1,7 @@
 use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
 use crate::simd::sleef::arch::helper_aarch64::{visnan_vo_vf, vneg_vf_vf};
 use crate::simd::sleef::libm::sleefsimdsp::{xceilf, xcopysignf, xfloorf};
-use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
+use crate::type_promote::Eval2;
 
 use crate::arch_simd::sleef::libm::sleefsimdsp::{
     xacosf_u1, xacoshf, xasinf_u1, xasinhf, xatan2f_u1, xatanf_u1, xatanhf, xcbrtf_u1, xcosf_u1,
@@ -20,7 +20,6 @@ use crate::vectors::arch_simd::_128bit::f32x4;
 use crate::vectors::arch_simd::_128bit::i32x4;
 #[cfg(target_pointer_width = "32")]
 use crate::vectors::arch_simd::_128bit::isizex2;
-use crate::vectors::arch_simd::_128bit::u32x4;
 #[cfg(target_pointer_width = "32")]
 use crate::vectors::arch_simd::_128bit::usizex2;
 
@@ -466,138 +465,6 @@ impl VecConvertor for f32x4 {
     #[inline(always)]
     fn to_f32(self) -> f32x4 {
         self
-    }
-}
-
-impl FloatOutBinary2 for f32x4 {
-    #[inline(always)]
-    fn __div(self, rhs: Self) -> Self {
-        self / rhs
-    }
-
-    #[inline(always)]
-    fn __log(self, base: Self) -> Self {
-        let res = [
-            self[0].log(base[0]),
-            self[1].log(base[1]),
-            self[2].log(base[2]),
-            self[3].log(base[3]),
-        ];
-        f32x4(unsafe { std::mem::transmute(res) })
-    }
-
-    #[inline(always)]
-    fn __hypot(self, rhs: Self) -> Self {
-        self.hypot(rhs)
-    }
-
-    #[inline(always)]
-    fn __pow(self, rhs: Self) -> Self {
-        self.pow(rhs)
-    }
-}
-
-impl NormalOut2 for f32x4 {
-    #[inline(always)]
-    fn __add(self, rhs: Self) -> Self {
-        self + rhs
-    }
-
-    #[inline(always)]
-    fn __sub(self, rhs: Self) -> Self {
-        self - rhs
-    }
-
-    #[inline(always)]
-    fn __mul_add(self, a: Self, b: Self) -> Self {
-        self.mul_add(a, b)
-    }
-
-    #[inline(always)]
-    fn __mul(self, rhs: Self) -> Self {
-        self * rhs
-    }
-
-    #[inline(always)]
-    fn __rem(self, rhs: Self) -> Self {
-        self % rhs
-    }
-
-    #[inline(always)]
-    fn __max(self, rhs: Self) -> Self {
-        self.max(rhs)
-    }
-
-    #[inline(always)]
-    fn __min(self, rhs: Self) -> Self {
-        self.min(rhs)
-    }
-
-    #[inline(always)]
-    fn __clamp(self, min: Self, max: Self) -> Self {
-        self.max(min).min(max)
-    }
-}
-
-impl NormalOutUnary2 for f32x4 {
-    #[inline(always)]
-    fn __square(self) -> Self {
-        self * self
-    }
-
-    #[inline(always)]
-    fn __abs(self) -> Self {
-        self.abs()
-    }
-
-    #[inline(always)]
-    fn __ceil(self) -> Self {
-        self.ceil()
-    }
-
-    #[inline(always)]
-    fn __floor(self) -> Self {
-        self.floor()
-    }
-
-    #[inline(always)]
-    fn __neg(self) -> Self {
-        -self
-    }
-
-    #[inline(always)]
-    fn __round(self) -> Self {
-        self.round()
-    }
-
-    #[inline(always)]
-    fn __signum(self) -> Self {
-        self.signum()
-    }
-
-    #[inline(always)]
-    fn __trunc(self) -> Self {
-        self.trunc()
-    }
-
-    #[inline(always)]
-    fn __leaky_relu(self, alpha: Self) -> Self {
-        self.max(f32x4::splat(0.0)) + alpha * self.min(f32x4::splat(0.0))
-    }
-
-    #[inline(always)]
-    fn __relu(self) -> Self {
-        self.relu()
-    }
-
-    #[inline(always)]
-    fn __relu6(self) -> Self {
-        self.relu6()
-    }
-
-    #[inline(always)]
-    fn __copysign(self, rhs: Self) -> Self {
-        self.copysign(rhs)
     }
 }
 

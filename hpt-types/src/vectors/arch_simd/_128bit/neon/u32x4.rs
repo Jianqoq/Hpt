@@ -1,7 +1,7 @@
 use crate::{
     convertion::VecConvertor,
-    traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
-    type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
+    traits::{SimdMath, SimdSelect, VecTrait},
+    type_promote::{Eval2, FloatOutBinary2},
 };
 
 use std::arch::aarch64::*;
@@ -247,24 +247,24 @@ impl VecConvertor for u32x4 {
         unsafe { std::mem::transmute(self) }
     }
     #[inline(always)]
-    fn to_f32(self) -> super::f32x4::f32x4 {
+    fn to_f32(self) -> f32x4 {
         unsafe {
             let arr: [u32; 4] = std::mem::transmute(self.0);
             let mut result = [0.0f32; 4];
             for i in 0..4 {
                 result[i] = arr[i] as f32;
             }
-            return super::f32x4::f32x4(vld1q_f32(result.as_ptr()));
+            return f32x4(vld1q_f32(result.as_ptr()));
         }
     }
     #[inline(always)]
     #[cfg(target_pointer_width = "32")]
-    fn to_usize(self) -> super::usizex2::usizex2 {
+    fn to_usize(self) -> usizex2 {
         unsafe { std::mem::transmute(self) }
     }
     #[inline(always)]
     #[cfg(target_pointer_width = "32")]
-    fn to_isize(self) -> super::isizex2::isizex2 {
+    fn to_isize(self) -> isizex2 {
         unsafe { std::mem::transmute(self) }
     }
 }
