@@ -162,7 +162,7 @@ pub(crate) unsafe fn vround2_vd_vd(d: VDouble) -> VDouble {
     );
 
     x = vsel_vd_vo_vd_vd(
-        veq_vo_vd_vd(d, vcast_vd_d(0.49999999999999994449)),
+        veq_vo_vd_vd(d, vcast_vd_d(0.499_999_999_999_999_94)),
         vcast_vd_d(0.0),
         x,
     );
@@ -209,7 +209,7 @@ pub(crate) unsafe fn vilogbk_vi_vd(d: VDouble) -> VInt {
         vand_vi_vi_vi, vcast_vi_i, vcast_vo32_vo64, vcastu_vi_vm, vsel_vi_vo_vi_vi, vsrl_vi_vi_i,
         vsub_vi_vi_vi,
     };
-    let o = vlt_vo_vd_vd(d, vcast_vd_d(4.9090934652977266e-91));
+    let o = vlt_vo_vd_vd(d, vcast_vd_d(4.909_093_465_297_727e-91));
     let d = vsel_vd_vo_vd_vd(o, vmul_vd_vd_vd(vcast_vd_d(2.037035976334486e90), d), d);
     let mut q = vcastu_vi_vm(vreinterpret_vm_vd(d));
     q = vand_vi_vi_vi(q, vcast_vi_i((((1u32 << 12) - 1) << 20) as i32));

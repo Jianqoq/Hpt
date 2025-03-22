@@ -438,7 +438,7 @@ where
         k,
         a.strides()[a.ndim() - 2],
         b.strides()[b.ndim() - 2],
-        c.shape()[c.ndim() - 1] as i64,
+        c.strides()[c.ndim() - 2] as i64,
         a.strides()[a.ndim() - 1],
         b.strides()[b.ndim() - 1],
         num_threads,

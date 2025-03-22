@@ -1,11 +1,13 @@
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 use crate::backends::common::divmod::FastDivmod;
 use crate::backends::cuda::cuda_utils::get_module_name_1;
+use crate::ALIGN;
 use crate::{tensor_base::_Tensor, Tensor};
 use cudarc::driver::{CudaDevice, DeviceRepr};
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
-use hpt_allocator::{Cpu, Cuda};
+use hpt_allocator::{Backend, Cpu, Cuda};
 use hpt_common::error::base::TensorError;
 use hpt_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
 use hpt_dataloader::data_loader::TensorMeta;
@@ -95,6 +97,35 @@ where
     Al: Allocator,
     Al::Output: AllocatorOutputRetrive,
 {
+    pub unsafe fn from_raw<S: Into<Shape>>(data: *mut T, shape: S) -> Result<Self, TensorError> {
+        let shape = shape.into();
+        assert_ne!(data, std::ptr::null_mut(), "data is null");
+        assert_eq!(
+            data as usize % ALIGN,
+            0,
+            "data is not aligned, it must be aligned to {}",
+            ALIGN
+        );
+        let device = cudarc::driver::CudaDevice::new(DEVICE_ID)?;
+        Ok(Self {
+            #[cfg(feature = "bound_check")]
+            data: Pointer::new(data, shape.size()),
+            #[cfg(not(feature = "bound_check"))]
+            data: Pointer::new(data),
+            parent: None,
+            layout: Layout::from(&shape),
+            mem_layout: Arc::new(
+                std::alloc::Layout::from_size_align(
+                    (shape.size() as usize) * std::mem::size_of::<T>(),
+                    ALIGN,
+                )
+                .unwrap(),
+            ),
+            backend: Backend::<Cuda>::new(data as u64, device, false),
+            phantom: PhantomData,
+        })
+    }
+
     /// cast the tensor to the new type
     pub fn astype<U>(&self) -> std::result::Result<_Tensor<U, Cuda, DEVICE_ID, Al>, TensorError>
     where
@@ -216,6 +247,20 @@ where
     Al: Allocator,
     Al::Output: AllocatorOutputRetrive,
 {
+    /// create a new tensor from a raw pointer and a shape
+    ///
+    /// # Safety
+    ///
+    /// - The pointer must be valid for the lifetime of the tensor.
+    /// - The pointer must be aligned and properly sized.
+    /// - The shape must be valid.
+    ///
+    /// # Note
+    ///
+    /// It is the user's responsibility to manage the lifetime of the data. Hpt won't drop the data even if the tensor is dropped.
+    pub unsafe fn from_raw<S: Into<Shape>>(data: *mut T, shape: S) -> Result<Self, TensorError> {
+        Ok(_Tensor::<T, Cuda, DEVICE_ID, Al>::from_raw(data, shape)?.into())
+    }
     /// copy the data from the cuda tensor to the cpu tensor
     pub fn to_cpu<const CPU_DEVICE: usize>(
         &self,

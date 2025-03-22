@@ -4,7 +4,6 @@ use hpt::common::TensorInfo;
 use hpt::ops::*;
 use hpt::slice;
 use hpt::Tensor;
-use hpt_macros::select;
 
 #[allow(unused)]
 fn assert_eq(b: &Tensor<i32>, a: &tch::Tensor) {

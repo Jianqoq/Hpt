@@ -64,13 +64,47 @@ where
             parent: None,
             layout: Layout::from(res_shape.clone()),
             mem_layout: Arc::new(layout),
-            backend: Backend::<Cuda>::new(ptr as u64, device),
+            backend: Backend::<Cuda>::new(ptr as u64, device, true),
             phantom: std::marker::PhantomData,
         })
     }
 
-    fn zeros<S: Into<Shape>>(_: S) -> std::result::Result<Self, TensorError> {
-        todo!()
+    fn zeros<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError> {
+        let _shape = shape.into();
+        let res_shape = Shape::from(_shape);
+        let size = res_shape
+            .iter()
+            .try_fold(1i64, |acc, &num| acc.checked_mul(num).or(Some(i64::MAX)))
+            .unwrap_or(i64::MAX) as usize;
+        let layout = std::alloc::Layout::from_size_align(
+            size.checked_mul(size_of::<T>())
+                .unwrap_or((isize::MAX as usize) - (ALIGN - 1)), // when overflow happened, we use max memory `from_size_align` accept
+            ALIGN,
+        )
+        .map_err(|e| {
+            TensorError::Memory(MemoryError::AllocationFailed {
+                device: "cuda".to_string(),
+                id: DEVICE,
+                size,
+                source: Some(Box::new(e)),
+                location: Location::caller(),
+            })
+        })?;
+        let mut allocator = Al::new();
+        let allocate_res = allocator.allocate_zeroed(layout, DEVICE)?;
+        let ptr = allocate_res.get_ptr() as *mut T;
+        let device = allocate_res.get_device();
+        Ok(_Tensor {
+            #[cfg(feature = "bound_check")]
+            data: Pointer::new(ptr as *mut T, size as i64),
+            #[cfg(not(feature = "bound_check"))]
+            data: Pointer::new(ptr as *mut T),
+            parent: None,
+            layout: Layout::from(res_shape.clone()),
+            mem_layout: Arc::new(layout),
+            backend: Backend::<Cuda>::new(ptr as u64, device, true),
+            phantom: std::marker::PhantomData,
+        })
     }
 
     fn ones<S: Into<Shape>>(shape: S) -> std::result::Result<Self, TensorError>

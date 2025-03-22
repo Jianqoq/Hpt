@@ -6,7 +6,6 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-hpt-macros = { path = "../hpt-macros" }
 hpt-common = { path = "../hpt-common" }
 hpt = { path = "../hpt", features = ["track_caller", "bound_check"] }
 hpt-types = { path = "../hpt-types" }
@@ -25,6 +24,7 @@ half = { workspace = true }
 
 [features]
 cuda = ["hpt/cuda"]
+# default = ["cuda"]
 
 [profile.dev]
 opt-level = 0

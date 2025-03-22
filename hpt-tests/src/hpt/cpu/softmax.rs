@@ -4,7 +4,6 @@ use hpt::common::cpu::TensorLike;
 use hpt::common::TensorInfo;
 use hpt::ops::*;
 use hpt_common::slice;
-use hpt_macros::select;
 use rand::Rng;
 use tch::Tensor;
 

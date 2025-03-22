@@ -1,11 +1,13 @@
 #![allow(unused)]
-use core::f64;
-
 use backend::Cpu;
+use core::f64;
 use duplicate::duplicate_item;
-use hpt::*;
+use hpt::common::cpu::TensorLike;
+use hpt::common::TensorInfo;
+use hpt::ops::TensorCreator;
+use hpt::ops::*;
+use hpt::{backend::Cuda, *};
 use hpt_common::slice;
-use hpt_common::slice::Slice;
 use rand::Rng;
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
@@ -13,7 +15,7 @@ use rayon::iter::{
 use tch::Tensor;
 
 #[track_caller]
-fn assert_eq(a: &hpt::tensor::Tensor<i64, Cuda>, b: &Tensor) {
+fn assert_eq(a: &hpt::Tensor<i64, Cuda>, b: &Tensor) {
     let a_cpu = a.to_cpu::<0>().expect("Failed to convert to cpu");
     let raw = a_cpu.as_raw();
     if a_cpu.size() != b.size().into_iter().product::<i64>() as usize {
@@ -35,7 +37,7 @@ fn assert_eq(a: &hpt::tensor::Tensor<i64, Cuda>, b: &Tensor) {
 }
 
 #[track_caller]
-fn assert_eq_bool(a: &hpt::tensor::Tensor<bool, Cuda>, b: &Tensor) {
+fn assert_eq_bool(a: &hpt::Tensor<bool, Cuda>, b: &Tensor) {
     let a_cpu = a.to_cpu::<0>().expect("Failed to convert to cpu");
     let raw = a_cpu.as_raw();
     let tch_raw = unsafe { core::slice::from_raw_parts(b.data_ptr() as *const bool, a_cpu.size()) };
@@ -49,7 +51,7 @@ fn assert_eq_bool(a: &hpt::tensor::Tensor<bool, Cuda>, b: &Tensor) {
 
 #[allow(unused)]
 #[track_caller]
-fn assert_eq_f64(b: &hpt::tensor::Tensor<f64, Cuda>, a: &Tensor) {
+fn assert_eq_f64(b: &hpt::Tensor<f64, Cuda>, a: &Tensor) {
     let b_cpu = b.to_cpu::<0>().expect("Failed to convert to cpu");
     let a_raw = if b_cpu.strides().contains(&0) {
         let size = b_cpu
@@ -84,7 +86,7 @@ fn assert_eq_f64(b: &hpt::tensor::Tensor<f64, Cuda>, a: &Tensor) {
 
 #[allow(unused)]
 #[track_caller]
-fn assert_eq_f64_10(b: &hpt::tensor::Tensor<f64, Cuda>, a: &Tensor) {
+fn assert_eq_f64_10(b: &hpt::Tensor<f64, Cuda>, a: &Tensor) {
     let b_cpu = b.to_cpu::<0>().expect("Failed to convert to cpu");
     let a_raw = if b.strides().contains(&0) {
         let size = b
@@ -117,8 +119,8 @@ fn assert_eq_f64_10(b: &hpt::tensor::Tensor<f64, Cuda>, a: &Tensor) {
 fn common_input<const N: usize>(
     end: i64,
     shape: [i64; N],
-) -> anyhow::Result<(hpt::tensor::Tensor<i64, Cuda>, Tensor)> {
-    let mut a = hpt::tensor::Tensor::<i64, Cpu>::empty(&shape)?;
+) -> anyhow::Result<(hpt::Tensor<i64, Cuda>, Tensor)> {
+    let mut a = hpt::Tensor::<i64, Cpu>::empty(&shape)?;
     let tch_a = Tensor::randint_low(-1000, 1000, &shape, (tch::Kind::Int64, tch::Device::Cpu));
     let size = a.size();
     let raw_mut = a.as_raw_mut();
@@ -135,9 +137,9 @@ fn common_input<const N: usize>(
 fn common_input_f64<const N: usize>(
     end: i64,
     shape: [i64; N],
-) -> anyhow::Result<(hpt::tensor::Tensor<f64, Cuda>, Tensor)> {
+) -> anyhow::Result<(hpt::Tensor<f64, Cuda>, Tensor)> {
     let tch_a = Tensor::randn(&shape, (tch::Kind::Double, tch::Device::Cpu)).reshape(&shape);
-    let mut a = hpt::tensor::Tensor::<f64, Cpu>::empty(&shape)?;
+    let mut a = hpt::Tensor::<f64, Cpu>::empty(&shape)?;
     let a_size = a.size();
     let raw_mut = a.as_raw_mut();
     let tch_raw = unsafe { core::slice::from_raw_parts_mut(tch_a.data_ptr() as *mut f64, a_size) };

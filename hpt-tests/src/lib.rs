@@ -14,6 +14,7 @@ pub mod hpt {
         pub mod cumulate;
         pub mod dwconv2d;
         pub mod fft;
+        pub mod from_raw;
         pub mod gather;
         pub mod matmul;
         pub mod maxpool;
@@ -33,6 +34,8 @@ pub mod hpt {
         pub mod assert_utils;
         pub mod binary;
         pub mod creation;
+        pub mod from_raw;
+        pub mod matmul;
         pub mod reduce;
         pub mod unary;
     }

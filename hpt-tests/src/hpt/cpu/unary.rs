@@ -4,7 +4,6 @@ use hpt::common::TensorInfo;
 use hpt::ops::*;
 use hpt::slice;
 use hpt::Tensor;
-use hpt_macros::select;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 #[allow(unused)]
 fn assert_eq(b: &Tensor<f64>, a: &tch::Tensor) {

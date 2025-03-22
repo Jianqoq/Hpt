@@ -1,12 +1,10 @@
 #![allow(unused_imports)]
-use hpt::Cuda;
-use hpt::ShapeManipulate;
-use hpt::TensorInfo;
-use hpt::TensorLike;
-use hpt::{Tensor, TensorCreator};
+use hpt::backend::Cuda;
+use hpt::common::cpu::TensorLike;
+use hpt::common::TensorInfo;
+use hpt::ops::TensorCreator;
+use hpt::Tensor;
 use hpt_common::slice;
-use hpt_common::slice::Slice;
-use hpt_macros::select;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 #[allow(unused)]

@@ -143,7 +143,10 @@ unsafe fn rempi(a: VDouble) -> DDI {
 
     x = ddmul_vd2_vd2_vd2(
         x,
-        vcast_vd2_d_d(3.141592653589793116 * 2.0, 1.2246467991473532072e-16 * 2.0),
+        vcast_vd2_d_d(
+            3.141_592_653_589_793 * 2.0,
+            1.224_646_799_147_353_2e-16 * 2.0,
+        ),
     );
 
     let o = vlt_vo_vd_vd(vabs_vd_vd(a), vcast_vd_d(0.7));
@@ -160,7 +163,7 @@ unsafe fn rempi(a: VDouble) -> DDI {
 pub(crate) unsafe fn xsin_u1(d: VDouble) -> VDouble {
     let mut u: VDouble;
     let mut s: VDouble2;
-    let t: VDouble2;
+
     let mut x: VDouble2;
     let mut ql: VInt;
 
@@ -210,11 +213,11 @@ pub(crate) unsafe fn xsin_u1(d: VDouble) -> VDouble {
 
             let mut t = vcast_vd2_vd_vd(
                 vmulsign_vd_vd_vd(
-                    vcast_vd_d(-3.141592653589793116 * 0.5),
+                    vcast_vd_d(-3.141_592_653_589_793 * 0.5),
                     vd2getx_vd_vd2(ddigetdd_vd2_ddi(ddi)),
                 ),
                 vmulsign_vd_vd_vd(
-                    vcast_vd_d(-1.2246467991473532072e-16 * 0.5),
+                    vcast_vd_d(-1.224_646_799_147_353_2e-16 * 0.5),
                     vd2getx_vd_vd2(ddigetdd_vd2_ddi(ddi)),
                 ),
             );
@@ -237,7 +240,7 @@ pub(crate) unsafe fn xsin_u1(d: VDouble) -> VDouble {
         }
     }
 
-    t = x;
+    let t: VDouble2 = x;
     s = ddsqu_vd2_vd2(x);
 
     let s2 = vmul_vd_vd_vd(vd2getx_vd_vd2(s), vd2getx_vd_vd2(s));
@@ -247,25 +250,21 @@ pub(crate) unsafe fn xsin_u1(d: VDouble) -> VDouble {
         vd2getx_vd_vd2(s),
         s2,
         s4,
-        2.72052416138529567917983e-15,
-        -7.6429259411395447190023e-13,
-        1.60589370117277896211623e-10,
-        -2.5052106814843123359368e-08,
-        2.75573192104428224777379e-06,
-        -0.000198412698412046454654947,
+        2.720_524_161_385_295_7e-15,
+        -7.642_925_941_139_545e-13,
+        1.605_893_701_172_779e-10,
+        -2.505_210_681_484_312_3e-8,
+        2.755_731_921_044_282_2e-6,
+        -0.000_198_412_698_412_046_45,
     );
 
-    u = vmla_vd_vd_vd_vd(
-        u,
-        vd2getx_vd_vd2(s),
-        vcast_vd_d(0.00833333333333318056201922),
-    );
+    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(s), vcast_vd_d(0.008_333_333_333_333_18));
 
     x = ddadd_vd2_vd_vd2(
         vcast_vd_d(1.0),
         ddmul_vd2_vd2_vd2(
             ddadd_vd2_vd_vd(
-                vcast_vd_d(-0.166666666666666657414808),
+                vcast_vd_d(-0.166_666_666_666_666_66),
                 vmul_vd_vd_vd(u, vd2getx_vd_vd2(s)),
             ),
             s,
@@ -291,7 +290,7 @@ pub(crate) unsafe fn xsin_u1(d: VDouble) -> VDouble {
 pub(crate) unsafe fn xcos_u1(d: VDouble) -> VDouble {
     let mut u: VDouble;
     let mut s: VDouble2;
-    let t: VDouble2;
+
     let mut x: VDouble2;
     let mut ql: VInt;
 
@@ -359,8 +358,8 @@ pub(crate) unsafe fn xcos_u1(d: VDouble) -> VDouble {
             );
 
             let mut t = vcast_vd2_vd_vd(
-                vmulsign_vd_vd_vd(vcast_vd_d(-3.141592653589793116 * 0.5), y),
-                vmulsign_vd_vd_vd(vcast_vd_d(-1.2246467991473532072e-16 * 0.5), y),
+                vmulsign_vd_vd_vd(vcast_vd_d(-3.141_592_653_589_793 * 0.5), y),
+                vmulsign_vd_vd_vd(vcast_vd_d(-1.224_646_799_147_353_2e-16 * 0.5), y),
             );
 
             t = ddadd2_vd2_vd2_vd2(ddigetdd_vd2_ddi(ddi), t);
@@ -381,7 +380,7 @@ pub(crate) unsafe fn xcos_u1(d: VDouble) -> VDouble {
         }
     }
 
-    t = x;
+    let t: VDouble2 = x;
     s = ddsqu_vd2_vd2(x);
 
     let s2 = vmul_vd_vd_vd(vd2getx_vd_vd2(s), vd2getx_vd_vd2(s));
@@ -391,25 +390,21 @@ pub(crate) unsafe fn xcos_u1(d: VDouble) -> VDouble {
         vd2getx_vd_vd2(s),
         s2,
         s4,
-        2.72052416138529567917983e-15,
-        -7.6429259411395447190023e-13,
-        1.60589370117277896211623e-10,
-        -2.5052106814843123359368e-08,
-        2.75573192104428224777379e-06,
-        -0.000198412698412046454654947,
+        2.720_524_161_385_295_7e-15,
+        -7.642_925_941_139_545e-13,
+        1.605_893_701_172_779e-10,
+        -2.505_210_681_484_312_3e-8,
+        2.755_731_921_044_282_2e-6,
+        -0.000_198_412_698_412_046_45,
     );
 
-    u = vmla_vd_vd_vd_vd(
-        u,
-        vd2getx_vd_vd2(s),
-        vcast_vd_d(0.00833333333333318056201922),
-    );
+    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(s), vcast_vd_d(0.008_333_333_333_333_18));
 
     x = ddadd_vd2_vd_vd2(
         vcast_vd_d(1.0),
         ddmul_vd2_vd2_vd2(
             ddadd_vd2_vd_vd(
-                vcast_vd_d(-0.166666666666666657414808),
+                vcast_vd_d(-0.166_666_666_666_666_66),
                 vmul_vd_vd_vd(u, vd2getx_vd_vd2(s)),
             ),
             s,
@@ -436,10 +431,10 @@ pub(crate) unsafe fn xsincos_u1(d: VDouble) -> VDouble2 {
     let mut o: Vopmask;
     let mut u: VDouble;
     let mut rx: VDouble;
-    let ry: VDouble;
+
     let mut r: VDouble2;
     let mut s: VDouble2;
-    let t: VDouble2;
+
     let mut x: VDouble2;
     let mut ql: VInt;
 
@@ -493,35 +488,19 @@ pub(crate) unsafe fn xsincos_u1(d: VDouble) -> VDouble2 {
         }
     }
 
-    t = s;
+    let t: VDouble2 = s;
     s = vd2setx_vd2_vd2_vd(s, ddsqu_vd_vd2(s));
 
-    u = vcast_vd_d(1.58938307283228937328511e-10);
+    u = vcast_vd_d(1.589_383_072_832_289_5e-10);
+    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(s), vcast_vd_d(-2.505_069_435_025_398e-8));
+    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(s), vcast_vd_d(2.755_731_317_768_463_6e-6));
     u = vmla_vd_vd_vd_vd(
         u,
         vd2getx_vd_vd2(s),
-        vcast_vd_d(-2.50506943502539773349318e-08),
+        vcast_vd_d(-0.000_198_412_698_278_911_77),
     );
-    u = vmla_vd_vd_vd_vd(
-        u,
-        vd2getx_vd_vd2(s),
-        vcast_vd_d(2.75573131776846360512547e-06),
-    );
-    u = vmla_vd_vd_vd_vd(
-        u,
-        vd2getx_vd_vd2(s),
-        vcast_vd_d(-0.000198412698278911770864914),
-    );
-    u = vmla_vd_vd_vd_vd(
-        u,
-        vd2getx_vd_vd2(s),
-        vcast_vd_d(0.0083333333333191845961746),
-    );
-    u = vmla_vd_vd_vd_vd(
-        u,
-        vd2getx_vd_vd2(s),
-        vcast_vd_d(-0.166666666666666130709393),
-    );
+    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(s), vcast_vd_d(0.008_333_333_333_319_185));
+    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(s), vcast_vd_d(-0.166_666_666_666_666_13));
 
     u = vmul_vd_vd_vd(u, vmul_vd_vd_vd(vd2getx_vd_vd2(s), vd2getx_vd_vd2(t)));
 
@@ -530,36 +509,24 @@ pub(crate) unsafe fn xsincos_u1(d: VDouble) -> VDouble2 {
 
     rx = vsel_vd_vo_vd_vd(visnegzero_vo_vd(d), vcast_vd_d(-0.0), rx);
 
-    u = vcast_vd_d(-1.13615350239097429531523e-11);
+    u = vcast_vd_d(-1.136_153_502_390_974_4e-11);
+    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(s), vcast_vd_d(2.087_574_712_070_400_6e-9));
     u = vmla_vd_vd_vd_vd(
         u,
         vd2getx_vd_vd2(s),
-        vcast_vd_d(2.08757471207040055479366e-09),
+        vcast_vd_d(-2.755_731_440_288_475_5e-7),
     );
+    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(s), vcast_vd_d(2.480_158_728_900_018_5e-5));
     u = vmla_vd_vd_vd_vd(
         u,
         vd2getx_vd_vd2(s),
-        vcast_vd_d(-2.75573144028847567498567e-07),
+        vcast_vd_d(-0.001_388_888_888_887_140_1),
     );
-    u = vmla_vd_vd_vd_vd(
-        u,
-        vd2getx_vd_vd2(s),
-        vcast_vd_d(2.48015872890001867311915e-05),
-    );
-    u = vmla_vd_vd_vd_vd(
-        u,
-        vd2getx_vd_vd2(s),
-        vcast_vd_d(-0.00138888888888714019282329),
-    );
-    u = vmla_vd_vd_vd_vd(
-        u,
-        vd2getx_vd_vd2(s),
-        vcast_vd_d(0.0416666666666665519592062),
-    );
+    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(s), vcast_vd_d(0.041_666_666_666_666_55));
     u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(s), vcast_vd_d(-0.5));
 
     x = ddadd_vd2_vd_vd2(vcast_vd_d(1.0), ddmul_vd2_vd_vd(vd2getx_vd_vd2(s), u));
-    ry = vadd_vd_vd_vd(vd2getx_vd_vd2(x), vd2gety_vd_vd2(x));
+    let ry: VDouble = vadd_vd_vd_vd(vd2getx_vd_vd2(x), vd2gety_vd_vd2(x));
 
     o = vcast_vo64_vo32(veq_vo_vi_vi(
         vand_vi_vi_vi(ql, vcast_vi_i(1)),
@@ -598,9 +565,9 @@ pub(crate) unsafe fn xsincos_u1(d: VDouble) -> VDouble2 {
 pub(crate) unsafe fn xtan_u1(d: VDouble) -> VDouble {
     let mut u: VDouble;
     let mut s: VDouble2;
-    let t: VDouble2;
+
     let mut x: VDouble2;
-    let y: VDouble2;
+
     let mut o: Vopmask;
     let mut ql: VInt;
 
@@ -662,7 +629,7 @@ pub(crate) unsafe fn xtan_u1(d: VDouble) -> VDouble {
         }
     }
 
-    t = ddscale_vd2_vd2_vd(s, vcast_vd_d(0.5));
+    let t: VDouble2 = ddscale_vd2_vd2_vd(s, vcast_vd_d(0.5));
     s = ddsqu_vd2_vd2(t);
 
     let s2 = vmul_vd_vd_vd(vd2getx_vd_vd2(s), vd2getx_vd_vd2(s));
@@ -672,20 +639,20 @@ pub(crate) unsafe fn xtan_u1(d: VDouble) -> VDouble {
         vd2getx_vd_vd2(s),
         s2,
         s4,
-        0.3245098826639276316e-3,
-        0.5619219738114323735e-3,
-        0.1460781502402784494e-2,
-        0.3591611540792499519e-2,
-        0.8863268409563113126e-2,
-        0.2186948728185535498e-1,
-        0.5396825399517272970e-1,
-        0.1333333333330500581e+0,
+        3.245_098_826_639_276_3e-4,
+        5.619_219_738_114_324e-4,
+        1.460_781_502_402_784_5e-3,
+        3.591_611_540_792_499_5e-3,
+        8.863_268_409_563_113e-3,
+        2.186_948_728_185_535_5e-2,
+        5.396_825_399_517_273e-2,
+        1.333_333_333_330_500_6e-1,
     );
 
-    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(s), vcast_vd_d(0.3333333333333343695e+0));
+    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(s), vcast_vd_d(3.333_333_333_333_343_7e-1));
     x = ddadd_vd2_vd2_vd2(t, ddmul_vd2_vd2_vd(ddmul_vd2_vd2_vd2(s, t), u));
 
-    y = ddadd_vd2_vd_vd2(vcast_vd_d(-1.0), ddsqu_vd2_vd2(x));
+    let y: VDouble2 = ddadd_vd2_vd_vd2(vcast_vd_d(-1.0), ddsqu_vd2_vd2(x));
     x = ddscale_vd2_vd2_vd(x, vcast_vd_d(-2.0));
 
     o = vcast_vo64_vo32(veq_vo_vi_vi(
@@ -746,42 +713,34 @@ pub(crate) unsafe fn atan2k_u1(y: VDouble2, x: VDouble2) -> VDouble2 {
         t2,
         t4,
         t8,
-        1.06298484191448746607415e-05,
-        -0.000125620649967286867384336,
-        0.00070557664296393412389774,
-        -0.00251865614498713360352999,
-        0.00646262899036991172313504,
-        -0.0128281333663399031014274,
-        0.0208024799924145797902497,
-        -0.0289002344784740315686289,
-        0.0359785005035104590853656,
-        -0.041848579703592507506027,
-        0.0470843011653283988193763,
-        -0.0524914210588448421068719,
-        0.0587946590969581003860434,
-        -0.0666620884778795497194182,
-        0.0769225330296203768654095,
-        -0.0909090442773387574781907,
+        1.062_984_841_914_487_5e-5,
+        -0.000_125_620_649_967_286_87,
+        0.000_705_576_642_963_934_1,
+        -0.002_518_656_144_987_133_6,
+        0.006_462_628_990_369_912,
+        -0.012_828_133_366_339_903,
+        0.020_802_479_992_414_58,
+        -0.028_900_234_478_474_03,
+        0.035_978_500_503_510_46,
+        -0.041_848_579_703_592_51,
+        0.047_084_301_165_328_4,
+        -0.052_491_421_058_844_84,
+        0.058_794_659_096_958_1,
+        -0.066_662_088_477_879_55,
+        0.076_922_533_029_620_38,
+        -0.090_909_044_277_338_76,
     );
 
-    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(t), vcast_vd_d(0.111111108376896236538123));
-    u = vmla_vd_vd_vd_vd(
-        u,
-        vd2getx_vd_vd2(t),
-        vcast_vd_d(-0.142857142756268568062339),
-    );
-    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(t), vcast_vd_d(0.199999999997977351284817));
-    u = vmla_vd_vd_vd_vd(
-        u,
-        vd2getx_vd_vd2(t),
-        vcast_vd_d(-0.333333333333317605173818),
-    );
+    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(t), vcast_vd_d(0.111_111_108_376_896_24));
+    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(t), vcast_vd_d(-0.142_857_142_756_268_57));
+    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(t), vcast_vd_d(0.199_999_999_997_977_35));
+    u = vmla_vd_vd_vd_vd(u, vd2getx_vd_vd2(t), vcast_vd_d(-0.333_333_333_333_317_6));
 
     t = ddadd_vd2_vd2_vd2(s, ddmul_vd2_vd2_vd(ddmul_vd2_vd2_vd2(s, t), u));
 
     t = ddadd_vd2_vd2_vd2(
         ddmul_vd2_vd2_vd(
-            vcast_vd2_d_d(1.570796326794896557998982, 6.12323399573676603586882e-17),
+            vcast_vd2_d_d(1.570_796_326_794_896_6, 6.123_233_995_736_766e-17),
             vcast_vd_vi(q),
         ),
         t,
@@ -803,7 +762,7 @@ pub(crate) unsafe fn visinf2_vd_vd_vd(d: VDouble, m: VDouble) -> VDouble {
 
 #[inline(always)]
 pub(crate) unsafe fn xatan2_u1(y: VDouble, x: VDouble) -> VDouble {
-    let o = vlt_vo_vd_vd(vabs_vd_vd(x), vcast_vd_d(5.5626846462680083984e-309));
+    let o = vlt_vo_vd_vd(vabs_vd_vd(x), vcast_vd_d(5.562_684_646_268_01e-309));
     let x = vsel_vd_vo_vd_vd(o, vmul_vd_vd_vd(x, vcast_vd_d((1u64 << 53) as f64)), x);
     let y = vsel_vd_vo_vd_vd(o, vmul_vd_vd_vd(y, vcast_vd_d((1u64 << 53) as f64)), y);
 
@@ -886,25 +845,28 @@ pub(crate) unsafe fn xasin_u1(d: VDouble) -> VDouble {
         x4,
         x8,
         x16,
-        0.3161587650653934628e-1,
-        -0.1581918243329996643e-1,
-        0.1929045477267910674e-1,
-        0.6606077476277170610e-2,
-        0.1215360525577377331e-1,
-        0.1388715184501609218e-1,
-        0.1735956991223614604e-1,
-        0.2237176181932048341e-1,
-        0.3038195928038132237e-1,
-        0.4464285681377102438e-1,
-        0.7500000000378581611e-1,
-        0.1666666666666497543e+0,
+        3.161_587_650_653_934_6e-2,
+        -1.581_918_243_329_996_6e-2,
+        1.929_045_477_267_910_7e-2,
+        6.606_077_476_277_171e-3,
+        1.215_360_525_577_377_3e-2,
+        1.388_715_184_501_609_2e-2,
+        1.735_956_991_223_614_6e-2,
+        2.237_176_181_932_048_3e-2,
+        3.038_195_928_038_132_2e-2,
+        4.464_285_681_377_102_4e-2,
+        7.500_000_000_378_582e-2,
+        1.666_666_666_666_497_5e-1,
     );
 
     u = vmul_vd_vd_vd(u, vmul_vd_vd_vd(x2, vd2getx_vd_vd2(x)));
 
     let y = ddsub_vd2_vd2_vd(
         ddsub_vd2_vd2_vd2(
-            vcast_vd2_d_d(3.141592653589793116 / 4.0, 1.2246467991473532072e-16 / 4.0),
+            vcast_vd2_d_d(
+                3.141_592_653_589_793 / 4.0,
+                1.224_646_799_147_353_2e-16 / 4.0,
+            ),
             x,
         ),
         u,
@@ -957,24 +919,27 @@ pub(crate) unsafe fn xacos_u1(d: VDouble) -> VDouble {
         x4,
         x8,
         x16,
-        0.3161587650653934628e-1,
-        -0.1581918243329996643e-1,
-        0.1929045477267910674e-1,
-        0.6606077476277170610e-2,
-        0.1215360525577377331e-1,
-        0.1388715184501609218e-1,
-        0.1735956991223614604e-1,
-        0.2237176181932048341e-1,
-        0.3038195928038132237e-1,
-        0.4464285681377102438e-1,
-        0.7500000000378581611e-1,
-        0.1666666666666497543e+0,
+        3.161_587_650_653_934_6e-2,
+        -1.581_918_243_329_996_6e-2,
+        1.929_045_477_267_910_7e-2,
+        6.606_077_476_277_171e-3,
+        1.215_360_525_577_377_3e-2,
+        1.388_715_184_501_609_2e-2,
+        1.735_956_991_223_614_6e-2,
+        2.237_176_181_932_048_3e-2,
+        3.038_195_928_038_132_2e-2,
+        4.464_285_681_377_102_4e-2,
+        7.500_000_000_378_582e-2,
+        1.666_666_666_666_497_5e-1,
     );
 
     u = vmul_vd_vd_vd(u, vmul_vd_vd_vd(x2, vd2getx_vd_vd2(x)));
 
     let mut y = ddsub_vd2_vd2_vd2(
-        vcast_vd2_d_d(3.141592653589793116 / 2.0, 1.2246467991473532072e-16 / 2.0),
+        vcast_vd2_d_d(
+            3.141_592_653_589_793 / 2.0,
+            1.224_646_799_147_353_2e-16 / 2.0,
+        ),
         ddadd_vd2_vd_vd(
             vmulsign_vd_vd_vd(vd2getx_vd_vd2(x), d),
             vmulsign_vd_vd_vd(u, d),
@@ -987,7 +952,7 @@ pub(crate) unsafe fn xacos_u1(d: VDouble) -> VDouble {
     y = vsel_vd2_vo_vd2_vd2(
         vandnot_vo_vo_vo(o, vlt_vo_vd_vd(d, vcast_vd_d(0.0))),
         ddsub_vd2_vd2_vd2(
-            vcast_vd2_d_d(3.141592653589793116, 1.2246467991473532072e-16),
+            vcast_vd2_d_d(3.141_592_653_589_793, 1.224_646_799_147_353_2e-16),
             y,
         ),
         y,
@@ -1005,17 +970,13 @@ pub(crate) unsafe fn xatan_u1(d: VDouble) -> VDouble {
 
     let mut r = vadd_vd_vd_vd(vd2getx_vd_vd2(d2), vd2gety_vd_vd2(d2));
 
-    r = vsel_vd_vo_vd_vd(visinf_vo_vd(d), vcast_vd_d(1.570796326794896557998982), r);
+    r = vsel_vd_vo_vd_vd(visinf_vo_vd(d), vcast_vd_d(1.570_796_326_794_896_6), r);
 
     vmulsign_vd_vd_vd(r, d)
 }
 
 #[inline(always)]
 pub(crate) unsafe fn xlog_u1(d: VDouble) -> VDouble {
-    let x: VDouble2;
-    let t: VDouble;
-    let x2: VDouble;
-
     #[cfg(not(target_feature = "avx512f"))]
     let (m, e) = {
         let o = vlt_vo_vd_vd(d, vcast_vd_d(SLEEF_DBL_MIN));
@@ -1038,30 +999,30 @@ pub(crate) unsafe fn xlog_u1(d: VDouble) -> VDouble {
         (m, e)
     };
 
-    x = dddiv_vd2_vd2_vd2(
+    let x: VDouble2 = dddiv_vd2_vd2_vd2(
         ddadd2_vd2_vd_vd(vcast_vd_d(-1.0), m),
         ddadd2_vd2_vd_vd(vcast_vd_d(1.0), m),
     );
-    x2 = vmul_vd_vd_vd(vd2getx_vd_vd2(x), vd2getx_vd_vd2(x));
+    let x2: VDouble = vmul_vd_vd_vd(vd2getx_vd_vd2(x), vd2getx_vd_vd2(x));
 
     let x4 = vmul_vd_vd_vd(x2, x2);
     let x8 = vmul_vd_vd_vd(x4, x4);
-    t = poly7d(
+    let t: VDouble = poly7d(
         x2,
         x4,
         x8,
-        0.1532076988502701353e+0,
-        0.1525629051003428716e+0,
-        0.1818605932937785996e+0,
-        0.2222214519839380009e+0,
-        0.2857142932794299317e+0,
-        0.3999999999635251990e+0,
-        0.6666666666667333541e+0,
+        1.532_076_988_502_701_4e-1,
+        1.525_629_051_003_428_7e-1,
+        1.818_605_932_937_786e-1,
+        2.222_214_519_839_38e-1,
+        2.857_142_932_794_299_3e-1,
+        3.999_999_999_635_252e-1,
+        6.666_666_666_667_334e-1,
     );
 
     #[cfg(not(target_feature = "avx512f"))]
     let mut s = ddmul_vd2_vd2_vd(
-        vcast_vd2_d_d(0.693147180559945286226764, 2.319046813846299558417771e-17),
+        vcast_vd2_d_d(0.693_147_180_559_945_3, 2.319_046_813_846_299_6e-17),
         vcast_vd_vi(e),
     );
 
@@ -1109,35 +1070,32 @@ pub(crate) unsafe fn xcbrt_u1(d: VDouble) -> VDouble {
     let mut x: VDouble;
     let mut y: VDouble;
     let mut z: VDouble;
-    let t: VDouble;
+
     let mut q2 = vcast_vd2_d_d(1.0, 0.0);
     let mut u: VDouble2;
     let mut v: VDouble2;
-    let e: VInt;
-    let qu: VInt;
-    let re: VInt;
 
     #[cfg(target_feature = "avx512f")]
     let s = d;
 
-    e = vadd_vi_vi_vi(vilogbk_vi_vd(vabs_vd_vd(d)), vcast_vi_i(1));
+    let e: VInt = vadd_vi_vi_vi(vilogbk_vi_vd(vabs_vd_vd(d)), vcast_vi_i(1));
     let mut d = vldexp2_vd_vd_vi(d, vneg_vi_vi(e));
 
-    t = vadd_vd_vd_vd(vcast_vd_vi(e), vcast_vd_d(6144.0));
-    qu = vtruncate_vi_vd(vmul_vd_vd_vd(t, vcast_vd_d(1.0 / 3.0)));
-    re = vtruncate_vi_vd(vsub_vd_vd_vd(
+    let t: VDouble = vadd_vd_vd_vd(vcast_vd_vi(e), vcast_vd_d(6144.0));
+    let qu: VInt = vtruncate_vi_vd(vmul_vd_vd_vd(t, vcast_vd_d(1.0 / 3.0)));
+    let re: VInt = vtruncate_vi_vd(vsub_vd_vd_vd(
         t,
         vmul_vd_vd_vd(vcast_vd_vi(qu), vcast_vd_d(3.0)),
     ));
 
     q2 = vsel_vd2_vo_vd2_vd2(
         vcast_vo64_vo32(veq_vo_vi_vi(re, vcast_vi_i(1))),
-        vcast_vd2_d_d(1.2599210498948731907, -2.5899333753005069177e-17),
+        vcast_vd2_d_d(1.259_921_049_894_873_2, -2.589_933_375_300_507e-17),
         q2,
     );
     q2 = vsel_vd2_vo_vd2_vd2(
         vcast_vo64_vo32(veq_vo_vi_vi(re, vcast_vi_i(2))),
-        vcast_vd2_d_d(1.5874010519681995834, -1.0869008194197822986e-16),
+        vcast_vd2_d_d(1.587_401_051_968_199_6, -1.086_900_819_419_782_3e-16),
         q2,
     );
 
@@ -1147,12 +1105,12 @@ pub(crate) unsafe fn xcbrt_u1(d: VDouble) -> VDouble {
     );
     d = vabs_vd_vd(d);
 
-    x = vcast_vd_d(-0.640245898480692909870982);
-    x = vmla_vd_vd_vd_vd(x, d, vcast_vd_d(2.96155103020039511818595));
-    x = vmla_vd_vd_vd_vd(x, d, vcast_vd_d(-5.73353060922947843636166));
-    x = vmla_vd_vd_vd_vd(x, d, vcast_vd_d(6.03990368989458747961407));
-    x = vmla_vd_vd_vd_vd(x, d, vcast_vd_d(-3.85841935510444988821632));
-    x = vmla_vd_vd_vd_vd(x, d, vcast_vd_d(2.2307275302496609725722));
+    x = vcast_vd_d(-0.640_245_898_480_692_9);
+    x = vmla_vd_vd_vd_vd(x, d, vcast_vd_d(2.961_551_030_200_395));
+    x = vmla_vd_vd_vd_vd(x, d, vcast_vd_d(-5.733_530_609_229_478));
+    x = vmla_vd_vd_vd_vd(x, d, vcast_vd_d(6.039_903_689_894_587_5));
+    x = vmla_vd_vd_vd_vd(x, d, vcast_vd_d(-3.858_419_355_104_45));
+    x = vmla_vd_vd_vd_vd(x, d, vcast_vd_d(2.230_727_530_249_661));
 
     y = vmul_vd_vd_vd(x, x);
     y = vmul_vd_vd_vd(y, y);
@@ -1259,19 +1217,19 @@ pub(crate) unsafe fn xexp(d: VDouble) -> VDouble {
             s2,
             s4,
             s8,
-            2.08860621107283687536341e-09,
-            2.51112930892876518610661e-08,
-            2.75573911234900471893338e-07,
-            2.75572362911928827629423e-06,
-            2.4801587159235472998791e-05,
-            0.000198412698960509205564975,
-            0.00138888888889774492207962,
-            0.00833333333331652721664984,
-            0.0416666666666665047591422,
-            0.166666666666666851703837,
+            2.088_606_211_072_837e-9,
+            2.511_129_308_928_765_2e-8,
+            2.755_739_112_349_004_7e-7,
+            2.755_723_629_119_288_3e-6,
+            2.480_158_715_923_547_3e-5,
+            0.000_198_412_698_960_509_2,
+            0.001_388_888_888_897_745,
+            0.008_333_333_333_316_527,
+            0.041_666_666_666_666_505,
+            0.166_666_666_666_666_85,
         );
 
-        u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.5000000000000000000e+0));
+        u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(5e-1));
         u = vadd_vd_vd_vd(vcast_vd_d(1.0), vmla_vd_vd_vd_vd(vmul_vd_vd_vd(s, s), u, s));
     }
 
@@ -1290,9 +1248,8 @@ pub(crate) unsafe fn xexp(d: VDouble) -> VDouble {
 #[inline(always)]
 unsafe fn logk(d: VDouble) -> VDouble2 {
     let mut x: VDouble2;
-    let x2: VDouble2;
+
     let mut s: VDouble2;
-    let t: VDouble;
 
     #[cfg(not(target_feature = "avx512f"))]
     let (m, e) = {
@@ -1320,33 +1277,33 @@ unsafe fn logk(d: VDouble) -> VDouble2 {
         ddadd2_vd2_vd_vd(vcast_vd_d(-1.0), m),
         ddadd2_vd2_vd_vd(vcast_vd_d(1.0), m),
     );
-    x2 = ddsqu_vd2_vd2(x);
+    let x2: VDouble2 = ddsqu_vd2_vd2(x);
 
     let x4 = vmul_vd_vd_vd(vd2getx_vd_vd2(x2), vd2getx_vd_vd2(x2));
     let x8 = vmul_vd_vd_vd(x4, x4);
     let x16 = vmul_vd_vd_vd(x8, x8);
-    t = poly9d(
+    let t: VDouble = poly9d(
         vd2getx_vd_vd2(x2),
         x4,
         x8,
         x16,
-        0.116255524079935043668677,
-        0.103239680901072952701192,
-        0.117754809412463995466069,
-        0.13332981086846273921509,
-        0.153846227114512262845736,
-        0.181818180850050775676507,
-        0.222222222230083560345903,
-        0.285714285714249172087875,
-        0.400000000000000077715612,
+        0.116_255_524_079_935_04,
+        0.103_239_680_901_072_95,
+        0.117_754_809_412_464,
+        0.133_329_810_868_462_74,
+        0.153_846_227_114_512_26,
+        0.181_818_180_850_050_78,
+        0.222_222_222_230_083_56,
+        0.285_714_285_714_249_17,
+        0.400_000_000_000_000_1,
     );
 
-    let c = vcast_vd2_d_d(0.666666666666666629659233, 3.80554962542412056336616e-17);
+    let c = vcast_vd2_d_d(0.666_666_666_666_666_6, 3.805_549_625_424_120_6e-17);
 
     #[cfg(not(target_feature = "avx512f"))]
     {
         s = ddmul_vd2_vd2_vd(
-            vcast_vd2_d_d(0.693147180559945286226764, 2.319046813846299558417771e-17),
+            vcast_vd2_d_d(0.693_147_180_559_945_3, 2.319_046_813_846_299_6e-17),
             vcast_vd_vi(e),
         );
     }
@@ -1393,16 +1350,16 @@ unsafe fn expk(d: VDouble2) -> VDouble {
         s2,
         s4,
         s8,
-        2.51069683420950419527139e-08,
-        2.76286166770270649116855e-07,
-        2.75572496725023574143864e-06,
-        2.48014973989819794114153e-05,
-        0.000198412698809069797676111,
-        0.0013888888939977128960529,
-        0.00833333333332371417601081,
-        0.0416666666665409524128449,
-        0.166666666666666740681535,
-        0.500000000000000999200722,
+        2.510_696_834_209_504_2e-8,
+        2.762_861_667_702_706_5e-7,
+        2.755_724_967_250_235_7e-6,
+        2.480_149_739_898_198e-5,
+        0.000_198_412_698_809_069_8,
+        0.001_388_888_893_997_713,
+        0.008_333_333_333_323_714,
+        0.041_666_666_666_540_95,
+        0.166_666_666_666_666_74,
+        0.500_000_000_000_001,
     );
 
     t = ddadd_vd2_vd_vd2(vcast_vd_d(1.0), s);
@@ -1511,21 +1468,21 @@ unsafe fn expk2(d: VDouble2) -> VDouble2 {
         vd2getx_vd_vd2(s2),
         vd2getx_vd_vd2(s4),
         s8,
-        0.1602472219709932072e-9,
-        0.2092255183563157007e-8,
-        0.2505230023782644465e-7,
-        0.2755724800902135303e-6,
-        0.2755731892386044373e-5,
-        0.2480158735605815065e-4,
-        0.1984126984148071858e-3,
-        0.1388888888886763255e-2,
-        0.8333333333333347095e-2,
-        0.4166666666666669905e-1,
+        1.602_472_219_709_932e-10,
+        2.092_255_183_563_157e-9,
+        2.505_230_023_782_644_5e-8,
+        2.755_724_800_902_135_3e-7,
+        2.755_731_892_386_044_4e-6,
+        2.480_158_735_605_815e-5,
+        1.984_126_984_148_071_9e-4,
+        1.388_888_888_886_763_3e-3,
+        8.333_333_333_333_347e-3,
+        4.166_666_666_666_67e-2,
     );
 
     t = ddadd_vd2_vd_vd2(
         vcast_vd_d(0.5),
-        ddmul_vd2_vd2_vd(s, vcast_vd_d(0.1666666666666666574e+0)),
+        ddmul_vd2_vd2_vd(s, vcast_vd_d(1.666_666_666_666_666_6e-1)),
     );
     t = ddadd_vd2_vd_vd2(vcast_vd_d(1.0), ddmul_vd2_vd2_vd2(t, s));
     t = ddadd_vd2_vd_vd2(vcast_vd_d(1.0), ddmul_vd2_vd2_vd2(t, s));
@@ -1638,24 +1595,21 @@ pub(crate) unsafe fn xtanh(x: VDouble) -> VDouble {
 
 #[inline(always)]
 unsafe fn logk2(d: VDouble2) -> VDouble2 {
-    let x: VDouble2;
-    let x2: VDouble2;
-    let m: VDouble2;
     let mut s: VDouble2;
     let mut t: VDouble;
 
     let e = vilogbk_vi_vd(vmul_vd_vd_vd(vd2getx_vd_vd2(d), vcast_vd_d(1.0 / 0.75)));
 
-    m = vd2setxy_vd2_vd_vd(
+    let m: VDouble2 = vd2setxy_vd2_vd_vd(
         vldexp2_vd_vd_vi(vd2getx_vd_vd2(d), vneg_vi_vi(e)),
         vldexp2_vd_vd_vi(vd2gety_vd_vd2(d), vneg_vi_vi(e)),
     );
 
-    x = dddiv_vd2_vd2_vd2(
+    let x: VDouble2 = dddiv_vd2_vd2_vd2(
         ddadd2_vd2_vd2_vd(m, vcast_vd_d(-1.0)),
         ddadd2_vd2_vd2_vd(m, vcast_vd_d(1.0)),
     );
-    x2 = ddsqu_vd2_vd2(x);
+    let x2: VDouble2 = ddsqu_vd2_vd2(x);
 
     let x4 = vmul_vd_vd_vd(vd2getx_vd_vd2(x2), vd2getx_vd_vd2(x2));
     let x8 = vmul_vd_vd_vd(x4, x4);
@@ -1663,22 +1617,18 @@ unsafe fn logk2(d: VDouble2) -> VDouble2 {
         vd2getx_vd_vd2(x2),
         x4,
         x8,
-        0.13860436390467167910856,
-        0.131699838841615374240845,
-        0.153914168346271945653214,
-        0.181816523941564611721589,
-        0.22222224632662035403996,
-        0.285714285511134091777308,
-        0.400000000000914013309483,
+        0.138_604_363_904_671_68,
+        0.131_699_838_841_615_37,
+        0.153_914_168_346_271_95,
+        0.181_816_523_941_564_6,
+        0.222_222_246_326_620_35,
+        0.285_714_285_511_134_1,
+        0.400_000_000_000_914,
     );
-    t = vmla_vd_vd_vd_vd(
-        t,
-        vd2getx_vd_vd2(x2),
-        vcast_vd_d(0.666666666666664853302393),
-    );
+    t = vmla_vd_vd_vd_vd(t, vd2getx_vd_vd2(x2), vcast_vd_d(0.666_666_666_666_664_9));
 
     s = ddmul_vd2_vd2_vd(
-        vcast_vd2_d_d(0.693147180559945286226764, 2.319046813846299558417771e-17),
+        vcast_vd2_d_d(0.693_147_180_559_945_3, 2.319_046_813_846_299_6e-17),
         vcast_vd_vi(e),
     );
     s = ddadd_vd2_vd2_vd2(s, ddscale_vd2_vd2_vd(x, vcast_vd_d(2.0)));
@@ -1802,19 +1752,19 @@ pub(crate) unsafe fn xexp2(d: VDouble) -> VDouble {
         s2,
         s4,
         s8,
-        0.4434359082926529454e-9,
-        0.7073164598085707425e-8,
-        0.1017819260921760451e-6,
-        0.1321543872511327615e-5,
-        0.1525273353517584730e-4,
-        0.1540353045101147808e-3,
-        0.1333355814670499073e-2,
-        0.9618129107597600536e-2,
-        0.5550410866482046596e-1,
-        0.2402265069591012214e+0,
+        4.434_359_082_926_529_5e-10,
+        7.073_164_598_085_707_4e-9,
+        1.017_819_260_921_760_5e-7,
+        1.321_543_872_511_327_6e-6,
+        1.525_273_353_517_584_7e-5,
+        1.540_353_045_101_147_8e-4,
+        1.333_355_814_670_499e-3,
+        9.618_129_107_597_6e-3,
+        5.550_410_866_482_046_6e-2,
+        2.402_265_069_591_012_2e-1,
     );
 
-    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.6931471805599452862e+0));
+    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(6.931_471_805_599_453e-1));
 
     #[cfg(target_feature = "fma")]
     {
@@ -1853,17 +1803,17 @@ pub(crate) unsafe fn xexp10(d: VDouble) -> VDouble {
     let mut s = vmla_vd_vd_vd_vd(u, vcast_vd_d(-L10_U), d);
     s = vmla_vd_vd_vd_vd(u, vcast_vd_d(-L10_L), s);
 
-    let mut u = vcast_vd_d(0.2411463498334267652e-3);
-    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.1157488415217187375e-2));
-    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.5013975546789733659e-2));
-    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.1959762320720533080e-1));
-    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.6808936399446784138e-1));
-    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.2069958494722676234e+0));
-    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.5393829292058536229e+0));
-    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.1171255148908541655e+1));
-    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.2034678592293432953e+1));
-    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.2650949055239205876e+1));
-    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(0.2302585092994045901e+1));
+    let mut u = vcast_vd_d(2.411_463_498_334_267_7e-4);
+    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(1.157_488_415_217_187_4e-3));
+    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(5.013_975_546_789_734e-3));
+    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(1.959_762_320_720_533e-2));
+    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(6.808_936_399_446_784e-2));
+    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(2.069_958_494_722_676_2e-1));
+    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(5.393_829_292_058_536e-1));
+    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(1.171_255_148_908_541_7));
+    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(2.034_678_592_293_433));
+    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(2.650_949_055_239_206));
+    u = vmla_vd_vd_vd_vd(u, s, vcast_vd_d(2.302_585_092_994_046));
 
     #[cfg(target_feature = "fma")]
     {
@@ -1881,7 +1831,7 @@ pub(crate) unsafe fn xexp10(d: VDouble) -> VDouble {
     u = vldexp2_vd_vd_vi(u, q);
 
     u = vsel_vd_vo_vd_vd(
-        vgt_vo_vd_vd(d, vcast_vd_d(308.25471555991671)),
+        vgt_vo_vd_vd(d, vcast_vd_d(308.254_715_559_916_7)),
         vcast_vd_d(f64::INFINITY),
         u,
     );
@@ -1899,13 +1849,13 @@ pub(crate) unsafe fn xexpm1(a: VDouble) -> VDouble {
     let mut x = vadd_vd_vd_vd(vd2getx_vd_vd2(d), vd2gety_vd_vd2(d));
 
     x = vsel_vd_vo_vd_vd(
-        vgt_vo_vd_vd(a, vcast_vd_d(709.782712893383996732223)),
+        vgt_vo_vd_vd(a, vcast_vd_d(709.782_712_893_384)),
         vcast_vd_d(f64::INFINITY),
         x,
     );
 
     x = vsel_vd_vo_vd_vd(
-        vlt_vo_vd_vd(a, vcast_vd_d(-36.736800569677101399113302437)),
+        vlt_vo_vd_vd(a, vcast_vd_d(-36.736_800_569_677_1)),
         vcast_vd_d(-1.0),
         x,
     );
@@ -1917,10 +1867,6 @@ pub(crate) unsafe fn xexpm1(a: VDouble) -> VDouble {
 
 #[inline(always)]
 pub(crate) unsafe fn xlog10(d: VDouble) -> VDouble {
-    let x: VDouble2;
-    let t: VDouble;
-    let x2: VDouble;
-
     #[cfg(not(target_feature = "avx512f"))]
     let (m, e) = {
         let o = vlt_vo_vd_vd(d, vcast_vd_d(SLEEF_DBL_MIN));
@@ -1939,30 +1885,30 @@ pub(crate) unsafe fn xlog10(d: VDouble) -> VDouble {
         (m, e)
     };
 
-    x = dddiv_vd2_vd2_vd2(
+    let x: VDouble2 = dddiv_vd2_vd2_vd2(
         ddadd2_vd2_vd_vd(vcast_vd_d(-1.0), m),
         ddadd2_vd2_vd_vd(vcast_vd_d(1.0), m),
     );
-    x2 = vmul_vd_vd_vd(vd2getx_vd_vd2(x), vd2getx_vd_vd2(x));
+    let x2: VDouble = vmul_vd_vd_vd(vd2getx_vd_vd2(x), vd2getx_vd_vd2(x));
 
     let x4 = vmul_vd_vd_vd(x2, x2);
     let x8 = vmul_vd_vd_vd(x4, x4);
-    t = poly7d(
+    let t: VDouble = poly7d(
         x2,
         x4,
         x8,
-        0.6653725819576758460e-1,
-        0.6625722782820833712e-1,
-        0.7898105214313944078e-1,
-        0.9650955035715275132e-1,
-        0.1240841409721444993e+0,
-        0.1737177927454605086e+0,
-        0.2895296546021972617e+0,
+        6.653_725_819_576_758e-2,
+        6.625_722_782_820_834e-2,
+        7.898_105_214_313_944e-2,
+        9.650_955_035_715_275e-2,
+        1.240_841_409_721_445e-1,
+        1.737_177_927_454_605e-1,
+        2.895_296_546_021_972_6e-1,
     );
 
     #[cfg(not(target_feature = "avx512f"))]
     let mut s = ddmul_vd2_vd2_vd(
-        vcast_vd2_d_d(0.30102999566398119802, -2.803728127785170339e-18),
+        vcast_vd2_d_d(0.301_029_995_663_981_2, -2.803_728_127_785_170_4e-18),
         vcast_vd_vi(e),
     );
 
@@ -1976,7 +1922,7 @@ pub(crate) unsafe fn xlog10(d: VDouble) -> VDouble {
         s,
         ddmul_vd2_vd2_vd2(
             x,
-            vcast_vd2_d_d(0.86858896380650363334, 1.1430059694096389311e-17),
+            vcast_vd2_d_d(0.868_588_963_806_503_6, 1.143_005_969_409_638_9e-17),
         ),
     );
     s = ddadd_vd2_vd2_vd(s, vmul_vd_vd_vd(vmul_vd_vd_vd(x2, vd2getx_vd_vd2(x)), t));
@@ -2013,10 +1959,6 @@ pub(crate) unsafe fn xlog10(d: VDouble) -> VDouble {
 
 #[inline(always)]
 pub(crate) unsafe fn xlog2(d: VDouble) -> VDouble {
-    let x: VDouble2;
-    let t: VDouble;
-    let x2: VDouble;
-
     #[cfg(not(target_feature = "avx512f"))]
     let (m, e) = {
         let o = vlt_vo_vd_vd(d, vcast_vd_d(SLEEF_DBL_MIN));
@@ -2035,25 +1977,25 @@ pub(crate) unsafe fn xlog2(d: VDouble) -> VDouble {
         (m, e)
     };
 
-    x = dddiv_vd2_vd2_vd2(
+    let x: VDouble2 = dddiv_vd2_vd2_vd2(
         ddadd2_vd2_vd_vd(vcast_vd_d(-1.0), m),
         ddadd2_vd2_vd_vd(vcast_vd_d(1.0), m),
     );
-    x2 = vmul_vd_vd_vd(vd2getx_vd_vd2(x), vd2getx_vd_vd2(x));
+    let x2: VDouble = vmul_vd_vd_vd(vd2getx_vd_vd2(x), vd2getx_vd_vd2(x));
 
     let x4 = vmul_vd_vd_vd(x2, x2);
     let x8 = vmul_vd_vd_vd(x4, x4);
-    t = poly7d(
+    let t: VDouble = poly7d(
         x2,
         x4,
         x8,
-        0.2211941750456081490e+0,
-        0.2200768693152277689e+0,
-        0.2623708057488514656e+0,
-        0.3205977477944495502e+0,
-        0.4121985945485324709e+0,
-        0.5770780162997058982e+0,
-        0.96179669392608091449,
+        2.211_941_750_456_081_5e-1,
+        2.200_768_693_152_277_7e-1,
+        2.623_708_057_488_514_7e-1,
+        3.205_977_477_944_495_5e-1,
+        4.121_985_945_485_324_7e-1,
+        5.770_780_162_997_059e-1,
+        0.961_796_693_926_080_9,
     );
 
     #[cfg(not(target_feature = "avx512f"))]
@@ -2061,7 +2003,7 @@ pub(crate) unsafe fn xlog2(d: VDouble) -> VDouble {
         vcast_vd_vi(e),
         ddmul_vd2_vd2_vd2(
             x,
-            vcast_vd2_d_d(2.885390081777926774, 6.0561604995516736434e-18),
+            vcast_vd2_d_d(2.885_390_081_777_926_8, 6.056_160_499_551_674e-18),
         ),
     );
 
@@ -2108,10 +2050,6 @@ pub(crate) unsafe fn xlog2(d: VDouble) -> VDouble {
 
 #[inline(always)]
 pub(crate) unsafe fn xlog1p(d: VDouble) -> VDouble {
-    let x: VDouble2;
-    let t: VDouble;
-    let x2: VDouble;
-
     let dp1 = vadd_vd_vd_vd(d, vcast_vd_d(1.0));
 
     #[cfg(not(target_feature = "avx512f"))]
@@ -2123,7 +2061,7 @@ pub(crate) unsafe fn xlog1p(d: VDouble) -> VDouble {
         let m = vmla_vd_vd_vd_vd(d, t, vsub_vd_vd_vd(t, vcast_vd_d(1.0)));
         e = vsel_vi_vo_vi_vi(vcast_vo32_vo64(o), vsub_vi_vi_vi(e, vcast_vi_i(64)), e);
         let s = ddmul_vd2_vd2_vd(
-            vcast_vd2_d_d(0.693147180559945286226764, 2.319046813846299558417771e-17),
+            vcast_vd2_d_d(0.693_147_180_559_945_3, 2.319_046_813_846_299_6e-17),
             vcast_vd_vi(e),
         );
         (m, s)
@@ -2142,25 +2080,25 @@ pub(crate) unsafe fn xlog1p(d: VDouble) -> VDouble {
         (m, s)
     };
 
-    x = dddiv_vd2_vd2_vd2(
+    let x: VDouble2 = dddiv_vd2_vd2_vd2(
         vcast_vd2_vd_vd(m, vcast_vd_d(0.0)),
         ddadd_vd2_vd_vd(vcast_vd_d(2.0), m),
     );
-    x2 = vmul_vd_vd_vd(vd2getx_vd_vd2(x), vd2getx_vd_vd2(x));
+    let x2: VDouble = vmul_vd_vd_vd(vd2getx_vd_vd2(x), vd2getx_vd_vd2(x));
 
     let x4 = vmul_vd_vd_vd(x2, x2);
     let x8 = vmul_vd_vd_vd(x4, x4);
-    t = poly7d(
+    let t: VDouble = poly7d(
         x2,
         x4,
         x8,
-        0.1532076988502701353e+0,
-        0.1525629051003428716e+0,
-        0.1818605932937785996e+0,
-        0.2222214519839380009e+0,
-        0.2857142932794299317e+0,
-        0.3999999999635251990e+0,
-        0.6666666666667333541e+0,
+        1.532_076_988_502_701_4e-1,
+        1.525_629_051_003_428_7e-1,
+        1.818_605_932_937_786e-1,
+        2.222_214_519_839_38e-1,
+        2.857_142_932_794_299_3e-1,
+        3.999_999_999_635_252e-1,
+        6.666_666_666_667_334e-1,
     );
 
     let mut s = ddadd_vd2_vd2_vd2(s, ddscale_vd2_vd2_vd(x, vcast_vd_d(2.0)));
@@ -2263,11 +2201,19 @@ pub(crate) unsafe fn xsqrt_u05(d: VDouble) -> VDouble {
 
         o = vlt_vo_vd_vd(d, vcast_vd_d(8.636168555094445E-78));
         d = vsel_vd_vo_vd_vd(o, vmul_vd_vd_vd(d, vcast_vd_d(1.157920892373162E77)), d);
-        q = vsel_vd_vo_vd_vd(o, vcast_vd_d(2.9387358770557188E-39 * 0.5), vcast_vd_d(0.5));
+        q = vsel_vd_vo_vd_vd(
+            o,
+            vcast_vd_d(2.938_735_877_055_719E-39 * 0.5),
+            vcast_vd_d(0.5),
+        );
 
-        o = vgt_vo_vd_vd(d, vcast_vd_d(1.3407807929942597e+154));
-        d = vsel_vd_vo_vd_vd(o, vmul_vd_vd_vd(d, vcast_vd_d(7.4583407312002070e-155)), d);
-        q = vsel_vd_vo_vd_vd(o, vcast_vd_d(1.1579208923731620e+77 * 0.5), q);
+        o = vgt_vo_vd_vd(d, vcast_vd_d(1.340_780_792_994_259_7e154));
+        d = vsel_vd_vo_vd_vd(
+            o,
+            vmul_vd_vd_vd(d, vcast_vd_d(7.458_340_731_200_207e-155)),
+            d,
+        );
+        q = vsel_vd_vo_vd_vd(o, vcast_vd_d(1.157_920_892_373_162e77 * 0.5), q);
 
         let mut x = vreinterpret_vd_vm(vsub64_vm_vm_vm(
             vcast_vm_i_i(0x5fe6ec86, 0),
@@ -2356,35 +2302,35 @@ pub(crate) unsafe fn xerf_u1(a: VDouble) -> VDouble {
             x4,
             x8,
             x16,
-            -0.2083271002525222097e-14,
-            0.7151909970790897009e-13,
-            -0.1162238220110999364e-11,
-            0.1186474230821585259e-10,
-            -0.8499973178354613440e-10,
-            0.4507647462598841629e-9,
-            -0.1808044474288848915e-8,
-            0.5435081826716212389e-8,
-            -0.1143939895758628484e-7,
-            0.1215442362680889243e-7,
-            0.1669878756181250355e-7,
-            -0.9808074602255194288e-7,
-            0.1389000557865837204e-6,
-            0.2945514529987331866e-6,
-            -0.1842918273003998283e-5,
-            0.3417987836115362136e-5,
-            0.3860236356493129101e-5,
-            -0.3309403072749947546e-4,
-            0.1060862922597579532e-3,
-            0.2323253155213076174e-3,
-            0.1490149719145544729e-3,
+            -2.083_271_002_525_222e-15,
+            7.151_909_970_790_897e-14,
+            -1.162_238_220_110_999_4e-12,
+            1.186_474_230_821_585_3e-11,
+            -8.499_973_178_354_613e-11,
+            4.507_647_462_598_841_6e-10,
+            -1.808_044_474_288_849e-9,
+            5.435_081_826_716_212e-9,
+            -1.143_939_895_758_628_5e-8,
+            1.215_442_362_680_889_2e-8,
+            1.669_878_756_181_250_4e-8,
+            -9.808_074_602_255_194e-8,
+            1.389_000_557_865_837_2e-7,
+            2.945_514_529_987_332e-7,
+            -1.842_918_273_003_998_3e-6,
+            3.417_987_836_115_362e-6,
+            3.860_236_356_493_129e-6,
+            -3.309_403_072_749_947_5e-5,
+            1.060_862_922_597_579_5e-4,
+            2.323_253_155_213_076_2e-4,
+            1.490_149_719_145_544_7e-4,
         );
 
         t2 = poly4dd(
             x,
             t,
-            vcast_vd2_d_d(0.0092877958392275604405, 7.9287559463961107493e-19),
-            vcast_vd2_d_d(0.042275531758784692937, 1.3785226620501016138e-19),
-            vcast_vd2_d_d(0.07052369794346953491, 9.5846628070792092842e-19),
+            vcast_vd2_d_d(0.009_287_795_839_227_56, 7.928_755_946_396_111e-19),
+            vcast_vd2_d_d(0.042_275_531_758_784_69, 1.378_522_662_050_101_5e-19),
+            vcast_vd2_d_d(0.070_523_697_943_469_53, 9.584_662_807_079_21e-19),
         );
 
         t2 = ddadd_vd2_vd_vd2(vcast_vd_d(1.0), ddmul_vd2_vd2_vd(t2, x));
@@ -2400,27 +2346,47 @@ pub(crate) unsafe fn xerf_u1(a: VDouble) -> VDouble {
             x4,
             x8,
             x16,
-            vsel_vd_vo_d_d(o25, -0.2083271002525222097e-14, -0.4024015130752621932e-18),
-            vsel_vd_vo_d_d(o25, 0.7151909970790897009e-13, 0.3847193332817048172e-16),
-            vsel_vd_vo_d_d(o25, -0.1162238220110999364e-11, -0.1749316241455644088e-14),
-            vsel_vd_vo_d_d(o25, 0.1186474230821585259e-10, 0.5029618322872872715e-13),
-            vsel_vd_vo_d_d(o25, -0.8499973178354613440e-10, -0.1025221466851463164e-11),
-            vsel_vd_vo_d_d(o25, 0.4507647462598841629e-9, 0.1573695559331945583e-10),
-            vsel_vd_vo_d_d(o25, -0.1808044474288848915e-8, -0.1884658558040203709e-9),
-            vsel_vd_vo_d_d(o25, 0.5435081826716212389e-8, 0.1798167853032159309e-8),
-            vsel_vd_vo_d_d(o25, -0.1143939895758628484e-7, -0.1380745342355033142e-7),
-            vsel_vd_vo_d_d(o25, 0.1215442362680889243e-7, 0.8525705726469103499e-7),
-            vsel_vd_vo_d_d(o25, 0.1669878756181250355e-7, -0.4160448058101303405e-6),
-            vsel_vd_vo_d_d(o25, -0.9808074602255194288e-7, 0.1517272660008588485e-5),
-            vsel_vd_vo_d_d(o25, 0.1389000557865837204e-6, -0.3341634127317201697e-5),
-            vsel_vd_vo_d_d(o25, 0.2945514529987331866e-6, -0.2515023395879724513e-5),
-            vsel_vd_vo_d_d(o25, -0.1842918273003998283e-5, 0.6539731269664907554e-4),
-            vsel_vd_vo_d_d(o25, 0.3417987836115362136e-5, -0.3551065097428388658e-3),
-            vsel_vd_vo_d_d(o25, 0.3860236356493129101e-5, 0.1210736097958368864e-2),
-            vsel_vd_vo_d_d(o25, -0.3309403072749947546e-4, -0.2605566912579998680e-2),
-            vsel_vd_vo_d_d(o25, 0.1060862922597579532e-3, 0.1252823202436093193e-2),
-            vsel_vd_vo_d_d(o25, 0.2323253155213076174e-3, 0.1820191395263313222e-1),
-            vsel_vd_vo_d_d(o25, 0.1490149719145544729e-3, -0.1021557155453465954e+0),
+            vsel_vd_vo_d_d(o25, -2.083_271_002_525_222e-15, -4.024_015_130_752_622e-19),
+            vsel_vd_vo_d_d(o25, 7.151_909_970_790_897e-14, 3.847_193_332_817_048e-17),
+            vsel_vd_vo_d_d(
+                o25,
+                -1.162_238_220_110_999_4e-12,
+                -1.749_316_241_455_644e-15,
+            ),
+            vsel_vd_vo_d_d(o25, 1.186_474_230_821_585_3e-11, 5.029_618_322_872_873e-14),
+            vsel_vd_vo_d_d(
+                o25,
+                -8.499_973_178_354_613e-11,
+                -1.025_221_466_851_463_2e-12,
+            ),
+            vsel_vd_vo_d_d(
+                o25,
+                4.507_647_462_598_841_6e-10,
+                1.573_695_559_331_945_6e-11,
+            ),
+            vsel_vd_vo_d_d(o25, -1.808_044_474_288_849e-9, -1.884_658_558_040_203_7e-10),
+            vsel_vd_vo_d_d(o25, 5.435_081_826_716_212e-9, 1.798_167_853_032_159_3e-9),
+            vsel_vd_vo_d_d(
+                o25,
+                -1.143_939_895_758_628_5e-8,
+                -1.380_745_342_355_033_1e-8,
+            ),
+            vsel_vd_vo_d_d(o25, 1.215_442_362_680_889_2e-8, 8.525_705_726_469_103e-8),
+            vsel_vd_vo_d_d(o25, 1.669_878_756_181_250_4e-8, -4.160_448_058_101_303_4e-7),
+            vsel_vd_vo_d_d(o25, -9.808_074_602_255_194e-8, 1.517_272_660_008_588_5e-6),
+            vsel_vd_vo_d_d(o25, 1.389_000_557_865_837_2e-7, -3.341_634_127_317_201_7e-6),
+            vsel_vd_vo_d_d(o25, 2.945_514_529_987_332e-7, -2.515_023_395_879_724_5e-6),
+            vsel_vd_vo_d_d(o25, -1.842_918_273_003_998_3e-6, 6.539_731_269_664_908e-5),
+            vsel_vd_vo_d_d(o25, 3.417_987_836_115_362e-6, -3.551_065_097_428_388_7e-4),
+            vsel_vd_vo_d_d(o25, 3.860_236_356_493_129e-6, 1.210_736_097_958_368_9e-3),
+            vsel_vd_vo_d_d(
+                o25,
+                -3.309_403_072_749_947_5e-5,
+                -2.605_566_912_579_998_7e-3,
+            ),
+            vsel_vd_vo_d_d(o25, 1.060_862_922_597_579_5e-4, 1.252_823_202_436_093_2e-3),
+            vsel_vd_vo_d_d(o25, 2.323_253_155_213_076_2e-4, 1.820_191_395_263_313_2e-2),
+            vsel_vd_vo_d_d(o25, 1.490_149_719_145_544_7e-4, -1.021_557_155_453_466e-1),
         );
 
         t2 = poly4dd(
@@ -2428,18 +2394,18 @@ pub(crate) unsafe fn xerf_u1(a: VDouble) -> VDouble {
             t,
             vsel_vd2_vo_vd2_vd2(
                 o25,
-                vcast_vd2_d_d(0.0092877958392275604405, 7.9287559463961107493e-19),
-                vcast_vd2_d_d(-0.63691044383641748361, -2.4249477526539431839e-17),
+                vcast_vd2_d_d(0.009_287_795_839_227_56, 7.928_755_946_396_111e-19),
+                vcast_vd2_d_d(-0.636_910_443_836_417_5, -2.424_947_752_653_943_3e-17),
             ),
             vsel_vd2_vo_vd2_vd2(
                 o25,
-                vcast_vd2_d_d(0.042275531758784692937, 1.3785226620501016138e-19),
-                vcast_vd2_d_d(-1.1282926061803961737, -6.2970338860410996505e-17),
+                vcast_vd2_d_d(0.042_275_531_758_784_69, 1.378_522_662_050_101_5e-19),
+                vcast_vd2_d_d(-1.128_292_606_180_396_2, -6.297_033_886_041_1e-17),
             ),
             vsel_vd2_vo_vd2_vd2(
                 o25,
-                vcast_vd2_d_d(0.07052369794346953491, 9.5846628070792092842e-19),
-                vcast_vd2_d_d(-1.2261313785184804967e-05, -5.5329707514490107044e-22),
+                vcast_vd2_d_d(0.070_523_697_943_469_53, 9.584_662_807_079_21e-19),
+                vcast_vd2_d_d(-1.226_131_378_518_480_5e-5, -5.532_970_751_449_011e-22),
             ),
         );
 
@@ -2457,7 +2423,7 @@ pub(crate) unsafe fn xerf_u1(a: VDouble) -> VDouble {
     let mut z = vneg_vd_vd(vadd_vd_vd_vd(vd2getx_vd_vd2(t2), vd2gety_vd_vd2(t2)));
     z = vsel_vd_vo_vd_vd(
         vlt_vo_vd_vd(x, vcast_vd_d(1e-8)),
-        vmul_vd_vd_vd(x, vcast_vd_d(1.12837916709551262756245475959)),
+        vmul_vd_vd_vd(x, vcast_vd_d(1.128_379_167_095_512_6)),
         z,
     );
     z = vsel_vd_vo_vd_vd(vge_vo_vd_vd(x, vcast_vd_d(6.0)), vcast_vd_d(1.0), z);

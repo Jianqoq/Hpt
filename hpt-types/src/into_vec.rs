@@ -8,7 +8,7 @@ pub trait IntoVec<T> {
 mod into_vec {
     use super::IntoVec;
     use crate::convertion::VecConvertor;
-    use crate::simd::_256bit::*;
+    use crate::simd::_256bit::common::*;
     use hpt_macros::impl_into_vec;
     impl_into_vec!();
 }
@@ -20,7 +20,7 @@ mod into_vec {
 mod into_vec {
     use super::IntoVec;
     use crate::convertion::VecConvertor;
-    use crate::simd::_128bit::*;
+    use crate::simd::_128bit::common::*;
     use hpt_macros::impl_into_vec;
     impl_into_vec!();
 }

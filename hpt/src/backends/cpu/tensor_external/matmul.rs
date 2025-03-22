@@ -6,7 +6,10 @@ use std::{
 
 use hpt_common::error::base::TensorError;
 use hpt_traits::{
-    ops::{binary::Matmul, shape_manipulate::ShapeManipulate},
+    ops::{
+        binary::{Matmul, MatmulPost},
+        shape_manipulate::ShapeManipulate,
+    },
     tensor::CommonBounds,
 };
 
@@ -126,5 +129,97 @@ where
         U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
     {
         self.inner.matmul_(&rhs.inner, out)
+    }
+}
+
+impl<T, A, const DEVICE: usize> MatmulPost<Tensor<T, Cpu, DEVICE, A>> for Tensor<T, Cpu, DEVICE, A>
+where
+    T: CommonBounds + MatmulMicroKernel,
+    A: Allocator,
+    A::Output: AllocatorOutputRetrive,
+{
+    type Output = Tensor<T, Cpu, DEVICE, A>;
+
+    type OutputMeta = T;
+
+    type InplaceOutput = Tensor<T, Cpu, DEVICE, A>;
+
+    fn matmul_post(
+        &self,
+        rhs: Tensor<T, Cpu, DEVICE, A>,
+        post_op: fn(T) -> T,
+        post_op_vec: fn(T::Vec) -> T::Vec,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        Ok(self
+            .inner
+            .matmul_post(rhs.inner.as_ref(), post_op, post_op_vec)?
+            .into())
+    }
+
+    fn matmul_post_<U>(
+        &self,
+        rhs: Tensor<T, Cpu, DEVICE, A>,
+        post_op: fn(T) -> T,
+        post_op_vec: fn(T::Vec) -> T::Vec,
+        mut out: U,
+    ) -> std::result::Result<Self::InplaceOutput, TensorError>
+    where
+        U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
+    {
+        Ok(self
+            .inner
+            .matmul_post_(
+                rhs.inner.as_ref(),
+                post_op,
+                post_op_vec,
+                out.borrow_mut().inner.as_ref().clone(),
+            )?
+            .into())
+    }
+}
+
+impl<T, A, const DEVICE: usize> MatmulPost<&Tensor<T, Cpu, DEVICE, A>> for Tensor<T, Cpu, DEVICE, A>
+where
+    T: CommonBounds + MatmulMicroKernel,
+    A: Allocator,
+    A::Output: AllocatorOutputRetrive,
+{
+    type Output = Tensor<T, Cpu, DEVICE, A>;
+
+    type OutputMeta = T;
+
+    type InplaceOutput = Tensor<T, Cpu, DEVICE, A>;
+
+    fn matmul_post(
+        &self,
+        rhs: &Tensor<T, Cpu, DEVICE, A>,
+        post_op: fn(T) -> T,
+        post_op_vec: fn(T::Vec) -> T::Vec,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        Ok(self
+            .inner
+            .matmul_post(rhs.inner.as_ref(), post_op, post_op_vec)?
+            .into())
+    }
+
+    fn matmul_post_<U>(
+        &self,
+        rhs: &Tensor<T, Cpu, DEVICE, A>,
+        post_op: fn(T) -> T,
+        post_op_vec: fn(T::Vec) -> T::Vec,
+        mut out: U,
+    ) -> std::result::Result<Self::InplaceOutput, TensorError>
+    where
+        U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
+    {
+        Ok(self
+            .inner
+            .matmul_post_(
+                rhs.inner.as_ref(),
+                post_op,
+                post_op_vec,
+                out.borrow_mut().inner.as_ref().clone(),
+            )?
+            .into())
     }
 }

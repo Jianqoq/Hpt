@@ -1759,7 +1759,7 @@ where
         return binary_fn_with_out_simd(
             &self,
             &rhs,
-            |x, y| x._shr(y),
+            |x: T, y: U| x._shr(y),
             |x, y| x._shr(y),
             None::<Self::Output>,
         )

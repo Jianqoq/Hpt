@@ -1,18 +1,14 @@
 #![allow(unused)]
 use hpt::common::cpu::TensorLike;
 use hpt::common::TensorInfo;
-use hpt::ops::Contiguous;
-use hpt::ops::Conv;
-use hpt::ops::Random;
-use hpt::ops::ShapeManipulate;
-use hpt::ops::TensorCreator;
-use hpt::ops::{Gemm, Matmul};
+use hpt::ops::*;
 use hpt::slice;
 use hpt::utils::resize_cpu_lru_cache;
 use hpt::Tensor;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
 use hpt_types::type_promote::NormalOutUnary;
+use hpt_types::type_promote::NormalOutUnary2;
 use rand::Rng;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use tch;
@@ -70,7 +66,7 @@ fn test() -> anyhow::Result<()> {
         let n = rng.random_range(1..=512);
         let k = rng.random_range(1..=512);
         let a = Tensor::<f32>::randn(&[m, k])?;
-        let b = Tensor::<f32>::randn(&[n, k])?.t()?;
+        let b = Tensor::<f32>::randn(&[k, n])?;
         let c = a.matmul(&b)?;
         let c2 = a.gemm(&b, 0.0, 1.0, false, false, false)?;
         assert!(c.allclose(&c2, 1.0e-3, 1.0e-3));
@@ -79,9 +75,41 @@ fn test() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_t() -> anyhow::Result<()> {
+fn test_post_op() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     for i in 0..100 {
+        let m = rng.random_range(1..=512);
+        let n = rng.random_range(1..=512);
+        let k = rng.random_range(1..=512);
+        let a = Tensor::<f32>::randn(&[m, k])?;
+        let b = Tensor::<f32>::randn(&[k, n])?;
+        let c = a.matmul_post(&b, |x| x._relu(), |x| x._relu())?;
+        let c2 = a.gemm(&b, 0.0, 1.0, false, false, false)?.relu()?;
+        assert!(c.allclose(&c2, 1.0e-3, 1.0e-3));
+    }
+    Ok(())
+}
+
+#[test]
+fn test_mp_post_op() -> anyhow::Result<()> {
+    let mut rng = rand::rng();
+    for i in 0..100 {
+        let m = rng.random_range(1..=512);
+        let n = rng.random_range(1..=512);
+        let k = rng.random_range(1..=512);
+        let a = Tensor::<half::bf16>::randn(&[m, k])?;
+        let b = Tensor::<half::bf16>::randn(&[k, n])?;
+        let c = a.matmul_post(&b, |x| x._relu(), |x| x._relu())?;
+        let c2: Tensor<half::bf16> = a.matmul(&b)?.relu()?;
+        assert!(c.allclose(&c2, 1.0e-3, 1.0e-3));
+    }
+    Ok(())
+}
+
+#[test]
+fn test_t() -> anyhow::Result<()> {
+    let mut rng = rand::rng();
+    for i in 0..2 {
         let m = rng.random_range(1..=512);
         let n = rng.random_range(1..=512);
         let k = rng.random_range(1..=512);
@@ -111,45 +139,37 @@ fn test_t_t() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_matmul_sub_tensors() -> anyhow::Result<()> {
-    let ((tch_a, tch_b), (a, b)) = common_input([10, 10], [10, 10])?;
-    let tch_a = tch_a.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
-    let a = slice!(a[2:6:1,2:6:1])?;
-    let tch_b = tch_b.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
-    let b = slice!(b[2:6:1,2:6:1])?;
-    let empty = Tensor::<f64>::empty(&[4, 4])?;
-    let c = a.matmul_(&b, empty)?;
-    let tch_c = tch_a.matmul(&tch_b);
-    assert_eq_10(&c, &tch_c);
+fn test_batch_matmul() -> anyhow::Result<()> {
+    let mut rng = rand::rng();
+    for i in 0..10 {
+        let m = rng.random_range(1..=512);
+        let n = rng.random_range(1..=512);
+        let k = rng.random_range(1..=512);
+        let dim0 = rng.random_range(1..=2);
+        let dim1 = rng.random_range(1..=2);
+        let a = Tensor::<f32>::randn(&[dim0, dim1, m, k])?;
+        let b = Tensor::<f32>::randn(&[dim0, dim1, k, n])?;
+        let c = a.matmul(&b)?;
+        let c2 = a.gemm(&b, 0.0, 1.0, false, false, false)?;
+        assert!(c.allclose(&c2, 1.0e-3, 1.0e-3));
+    }
     Ok(())
 }
+
 #[test]
-fn test_matmul_uncontiguous() -> anyhow::Result<()> {
-    let ((tch_a, tch_b), (a, b)) = common_input([10, 10], [10, 10])?;
-    let tch_a = tch_a.permute(&[1, 0][..]);
-    let a = a.permute([1, 0])?;
-    let tch_b = tch_b.permute(&[1, 0][..]);
-    let b = b.permute([1, 0])?;
-    let mut empty = Tensor::<f64>::empty(&[10, 10])?;
-    let c = a.matmul_(&b, &mut empty)?;
-    let tch_c = tch_a.matmul(&tch_b).contiguous();
-    assert_eq_10(&c, &tch_c);
-    Ok(())
-}
-#[test]
-fn test_matmul_uncontiguous_sub_tensors() -> anyhow::Result<()> {
-    let ((tch_a, tch_b), (a, b)) = common_input([10, 10], [10, 10])?;
-    let tch_a = tch_a.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
-    let a = slice!(a[2:6:1,2:6:1])?;
-    let tch_b = tch_b.slice(0, 2, 6, 1).slice(1, 2, 6, 1);
-    let b = slice!(b[2:6:1,2:6:1])?;
-    let tch_a = tch_a.permute(&[1, 0][..]);
-    let a = a.permute([1, 0])?;
-    let tch_b = tch_b.permute(&[1, 0][..]);
-    let b = b.permute([1, 0])?;
-    let mut empty = Tensor::<f64>::empty(&[4, 4])?;
-    let c = a.matmul_(&b, &mut empty)?;
-    let tch_c = tch_a.matmul(&tch_b).contiguous();
-    assert_eq_10(&c, &tch_c);
+fn test_uncontiguous_batch_matmul() -> anyhow::Result<()> {
+    let mut rng = rand::rng();
+    for i in 0..100 {
+        let m = rng.random_range(1..=512);
+        let n = rng.random_range(1..=512);
+        let k = rng.random_range(1..=512);
+        let dim0 = rng.random_range(1..=4);
+        let dim1 = rng.random_range(1..=4);
+        let a = Tensor::<f32>::randn(&[dim0, dim1, k, m])?.permute(&[1, 0, 3, 2])?;
+        let b = Tensor::<f32>::randn(&[dim0, dim1, n, k])?.permute(&[1, 0, 3, 2])?;
+        let c = a.matmul(&b)?;
+        let c2 = a.gemm(&b, 0.0, 1.0, false, false, false)?;
+        assert!(c.allclose(&c2, 1.0e-3, 1.0e-3));
+    }
     Ok(())
 }

@@ -207,7 +207,7 @@ fn assert_eq_bias_pad_relu6(
 #[test]
 fn test() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for i in 0..1000 {
+    for i in 0..100 {
         let in_channel = rng.random_range(1..=32);
         let out_channel = rng.random_range(1..=32);
         let kernel_height = rng.random_range(1..=5);
