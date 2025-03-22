@@ -72,6 +72,8 @@ pub(crate) mod backends {
                 pub(crate) mod common;
                 pub(crate) mod matmul;
                 pub(crate) mod matmul_mixed_precision;
+                pub(crate) mod matmul_mp_post;
+                pub(crate) mod matmul_post;
                 pub(crate) mod microkernel_trait;
                 pub(crate) mod microkernels;
                 pub(crate) mod type_kernels {

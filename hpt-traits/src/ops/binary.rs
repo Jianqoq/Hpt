@@ -251,6 +251,89 @@ where
         U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;
 }
 
+/// A trait for matrix multiplication operations on tensors with post-operation.
+pub trait MatmulPost<RHS = Self>
+where
+    <<Self as MatmulPost<RHS>>::OutputMeta as TypeCommon>::Vec: Send + Sync,
+{
+    /// The output tensor type.
+    type Output;
+    /// The output tensor data type.
+    type OutputMeta: CommonBounds;
+    /// The inplace output tensor type.
+    type InplaceOutput;
+
+    /// Same as `matmul` but will perform post operation before writing final result to the memory.
+    ///
+    /// ## Parameters:
+    /// `rhs`: The right-hand side tensor.
+    ///
+    /// `post_op`: post operation function that takes scalar `T` as input and returns scalar `T`
+    ///
+    /// `post_op_vec`: post operation function that takes simd vector `T::Simd` as input and returns simd vector `T::Simd`
+    ///
+    /// ## Example:
+    /// ```rust
+    /// // 2D matrix multiplication
+    /// let a = Tensor::<f64>::new(&[[1., 2.], [3., 4.]]);
+    /// let b = Tensor::<f64>::new(&[[5., 6.], [7., 8.]]);
+    /// let c = a.matmul_post(&b, |x| x._relu(), |x| x._relu())?;
+    /// println!("2D result:\n{}", c);
+    ///
+    /// // 3D batch matrix multiplication
+    /// let d = Tensor::<f64>::ones(&[2, 2, 3])?; // 2 matrices of shape 2x3
+    /// let e = Tensor::<f64>::ones(&[2, 3, 2])?; // 2 matrices of shape 3x2
+    /// let f = d.matmul_post(&e, |x| x._relu(), |x| x._relu())?; // 2 matrices of shape 2x2
+    /// println!("3D result:\n{}", f);
+    /// ```
+    #[track_caller]
+    fn matmul_post(
+        &self,
+        rhs: RHS,
+        post_op: fn(Self::OutputMeta) -> Self::OutputMeta,
+        post_op_vec: fn(
+            <<Self as MatmulPost<RHS>>::OutputMeta as TypeCommon>::Vec,
+        ) -> <<Self as MatmulPost<RHS>>::OutputMeta as TypeCommon>::Vec,
+    ) -> std::result::Result<Self::Output, TensorError>;
+
+    /// matrix multiplication with specified output tensor and post operation
+    ///
+    /// ## Parameters:
+    /// `rhs`: The right-hand side tensor.
+    ///
+    /// `out`: The output tensor.
+    ///
+    /// `post_op`: post operation function that takes scalar `T` as input and returns scalar `T`
+    ///
+    /// `post_op_vec`: post operation function that takes simd vector `T::Simd` as input and returns simd vector `T::Simd`
+    ///
+    /// ## Example:
+    /// ```rust
+    /// // 2D matrix multiplication
+    /// let a = Tensor::<f64>::new(&[[1., 2.], [3., 4.]]);
+    /// let b = Tensor::<f64>::new(&[[5., 6.], [7., 8.]]);
+    /// let c = a.matmul_post_(&b, &mut a.clone(), |x| x._relu(), |x| x._relu())?;
+    /// println!("2D result:\n{}", c);
+    ///
+    /// // 3D batch matrix multiplication
+    /// let d = Tensor::<f64>::ones(&[2, 2, 3])?; // 2 matrices of shape 2x3
+    /// let e = Tensor::<f64>::ones(&[2, 3, 2])?; // 2 matrices of shape 3x2
+    /// let f = d.matmul_post_(&e, &mut d.clone(), |x| x._relu(), |x| x._relu())?; // 2 matrices of shape 2x2
+    /// println!("3D result:\n{}", f);
+    /// ```
+    #[track_caller]
+    fn matmul_post_<U>(
+        &self,
+        rhs: RHS,
+        post_op: fn(Self::OutputMeta) -> Self::OutputMeta,
+        post_op_vec: fn(
+            <<Self as MatmulPost<RHS>>::OutputMeta as TypeCommon>::Vec,
+        ) -> <<Self as MatmulPost<RHS>>::OutputMeta as TypeCommon>::Vec,
+        out: U,
+    ) -> std::result::Result<Self::InplaceOutput, TensorError>
+    where
+        U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;
+}
 /// A trait for gemm operations on tensors.
 pub trait Gemm<RHS = Self>
 where

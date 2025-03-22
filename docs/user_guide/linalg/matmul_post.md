@@ -1,3 +1,28 @@
+# matmul_post
+```rust
+matmul_post(
+    a: &Tensor<T>,
+    b: &Tensor<T> | Tensor<T>,
+    post_op: fn(T) -> T,
+    post_op_vec: fn(T::Simd) -> T::Simd,
+) -> Result<Tensor<T>, TensorError>
+```
+Same as `matmul` but will perform post operation before writing final result to the memory.
+
+## Parameters:
+`a`: First input tensor.
+
+`b`: Second input tensor.
+
+`post_op`: post operation function that takes scalar `T`
+
+`post_op_vec`: post operation function that takes simd vector `T::Simd`
+
+## Returns:
+A new Tensor containing the result of matrix multiplication and post operation
+
+## Examples:
+```rust
 use hpt::{
     error::TensorError,
     ops::{MatmulPost, TensorCreator},
@@ -20,3 +45,9 @@ fn main() -> Result<(), TensorError> {
 
     Ok(())
 }
+```
+## Backend Support
+| Backend | Supported |
+|---------|-----------|
+| CPU     | ✅         |
+| Cuda    | ❌        |
