@@ -503,12 +503,12 @@ pub(crate) const REGNUM: usize = 8;
 pub(crate) const REGNUM: usize = 32;
 
 #[cfg(target_feature = "avx2")]
-type BoolVector = simd::_256bit::boolx32::boolx32;
+type BoolVector = simd::_256bit::boolx32;
 #[cfg(any(
     all(not(target_feature = "avx2"), target_feature = "sse"),
     target_feature = "neon"
 ))]
-type BoolVector = simd::_128bit::boolx16::boolx16;
+type BoolVector = simd::_128bit::boolx16;
 
 const SIMD_WIDTH: usize =
     <f32 as hpt_types::dtype::TypeCommon>::Vec::SIZE * std::mem::size_of::<f32>() * 8;

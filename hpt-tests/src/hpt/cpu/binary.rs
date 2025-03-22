@@ -8,7 +8,6 @@ use hpt::ops::TensorCmp;
 use hpt::ops::TensorCreator;
 use hpt::*;
 use hpt_common::slice;
-use hpt_macros::select;
 use rand::Rng;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::ops::*;

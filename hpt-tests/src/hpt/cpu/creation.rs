@@ -7,7 +7,6 @@ use hpt::ops::TensorCreator;
 use hpt::ops::WindowOps;
 use hpt::Tensor;
 use hpt_common::slice;
-use hpt_macros::select;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use super::assert_utils::assert_f64;

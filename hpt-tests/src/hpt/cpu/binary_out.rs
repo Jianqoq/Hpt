@@ -7,7 +7,6 @@ use hpt::ops::ShapeManipulate;
 use hpt::ops::TensorCreator;
 use hpt::*;
 use hpt_common::slice;
-use hpt_macros::select;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::ops::*;
 use tch::Tensor as TchTensor;

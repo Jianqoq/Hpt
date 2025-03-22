@@ -1,7 +1,7 @@
 use crate::{backend::Cuda, tensor_base::_Tensor};
 use cudarc::cublas::sys::cublasOperation_t;
 use cudarc::cublas::{CudaBlas, Gemm, GemmConfig, StridedBatchedConfig};
-use cudarc::driver::DeviceRepr;
+use cudarc::driver::{CudaSlice, DeviceRepr};
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::shape::ShapeError;
 use hpt_common::{
@@ -12,6 +12,26 @@ use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::dtype::CudaType;
 use std::borrow::{Borrow, BorrowMut};
+
+pub(crate) fn gemm_input_transpose<T: CudaType>(
+    m: usize,
+    n: usize,
+    dst_rs: isize,
+    lhs: CudaSlice<T>,
+    lhs_rs: isize,
+    rhs: CudaSlice<T>,
+    rhs_rs: isize,
+) -> (
+    usize,
+    usize,
+    isize,
+    CudaSlice<T>,
+    isize,
+    CudaSlice<T>,
+    isize,
+) {
+    (n, m, dst_rs, rhs, rhs_rs, lhs, lhs_rs)
+}
 
 #[track_caller]
 pub(crate) fn matmul_with_out<T, O, const CUDA_DEVICE: usize, Al>(
@@ -42,24 +62,13 @@ where
                 slice.leak();
                 out
             } else {
-                _Tensor::<T, Cuda, CUDA_DEVICE, Al>::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?
+                _Tensor::<T, Cuda, CUDA_DEVICE, Al>::empty(vec![lhs.shape()[0], rhs.shape()[1]])?
             }
         } else {
-            _Tensor::<T, Cuda, CUDA_DEVICE, Al>::zeros(vec![lhs.shape()[0], rhs.shape()[1]])?
+            _Tensor::<T, Cuda, CUDA_DEVICE, Al>::empty(vec![lhs.shape()[0], rhs.shape()[1]])?
         };
         let cublas = cudarc::cublas::CudaBlas::new(res.device())?;
-        let config = GemmConfig {
-            transa: cublasOperation_t::CUBLAS_OP_N,
-            transb: cublasOperation_t::CUBLAS_OP_N,
-            m: lhs.shape()[0] as i32,
-            n: rhs.shape()[1] as i32,
-            k: lhs.shape()[1] as i32,
-            alpha: T::ONE,
-            lda: lhs.shape()[0] as i32,
-            ldb: rhs.shape()[1] as i32,
-            beta: T::ZERO,
-            ldc: res.shape()[1] as i32,
-        };
+        let k = lhs.shape()[1] as i32;
         let mut slice = unsafe {
             res.device()
                 .upgrade_device_ptr::<T>(res.ptr().ptr as u64, res.size())
@@ -71,6 +80,27 @@ where
         let b_slice = unsafe {
             rhs.device()
                 .upgrade_device_ptr::<T>(rhs.ptr().ptr as u64, rhs.size())
+        };
+        let (m, n, dst_cs, a_slice, lhs_cs, b_slice, rhs_cs) = gemm_input_transpose(
+            lhs.shape()[0] as usize,
+            rhs.shape()[1] as usize,
+            res.strides()[0] as isize,
+            a_slice,
+            lhs.strides()[0] as isize,
+            b_slice,
+            rhs.strides()[0] as isize,
+        );
+        let config = GemmConfig {
+            transa: cublasOperation_t::CUBLAS_OP_N,
+            transb: cublasOperation_t::CUBLAS_OP_N,
+            m: m as i32,
+            n: n as i32,
+            k: k as i32,
+            alpha: T::ONE,
+            lda: lhs_cs as i32,
+            ldb: rhs_cs as i32,
+            beta: T::ZERO,
+            ldc: dst_cs as i32,
         };
         unsafe { cublas.gemm(config, &a_slice, &b_slice, &mut slice)? };
         slice.leak();
@@ -106,10 +136,10 @@ where
                 slice.leak();
                 out
             } else {
-                _Tensor::<T, Cuda, CUDA_DEVICE, Al>::zeros(res_shape)?
+                _Tensor::<T, Cuda, CUDA_DEVICE, Al>::empty(res_shape)?
             }
         } else {
-            _Tensor::<T, Cuda, CUDA_DEVICE, Al>::zeros(res_shape)?
+            _Tensor::<T, Cuda, CUDA_DEVICE, Al>::empty(res_shape)?
         };
         let cublas = cudarc::cublas::CudaBlas::new(res.device())?;
         let config = GemmConfig {

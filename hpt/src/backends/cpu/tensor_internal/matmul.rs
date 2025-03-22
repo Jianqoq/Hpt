@@ -121,11 +121,7 @@ where
         let mut a_ptr = lhs.data.clone();
         let mut b_ptr = rhs.data.clone();
         let mut res_ptr = res.data.clone();
-        let num_threads = if len < rayon::current_num_threads() {
-            len
-        } else {
-            rayon::current_num_threads()
-        };
+        let num_threads = len.min(rayon::current_num_threads());
         let mut num_threads_each: Vec<usize> = if len < rayon::current_num_threads() {
             let vec = mt_intervals(rayon::current_num_threads(), len);
             vec.iter().map(|x| x.1 - x.0).collect::<Vec<usize>>()
@@ -159,7 +155,7 @@ where
         }
         let lhs_cs = lhs.strides()[lhs.strides().len() - 1];
         let lhs_rs = lhs.strides()[lhs.strides().len() - 2];
-        let dst_cs = res.strides()[res.strides().len() - 1];
+        let dst_cs = res.strides()[res.strides().len() - 2];
         let rhs_cs = rhs.strides()[rhs.strides().len() - 1];
         let rhs_rs = rhs.strides()[rhs.strides().len() - 2];
         let m = a_shape[a_shape.len() - 2] as usize;

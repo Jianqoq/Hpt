@@ -1,4 +1,4 @@
-use hpt::{Cuda, Tensor};
+use hpt::{backend::Cuda, Tensor};
 
 pub(crate) fn assert_f64(
     a: f64,

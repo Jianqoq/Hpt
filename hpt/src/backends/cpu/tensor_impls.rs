@@ -1,14 +1,16 @@
 use std::marker::PhantomData;
+use std::sync::Arc;
 use std::{fmt::Display, sync::atomic::Ordering};
 
 use crate::tensor::DiffTensor;
+use crate::ALIGN;
 use crate::{tensor_base::_Tensor, Tensor, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION};
 #[cfg(feature = "cuda")]
 use cudarc::driver::DeviceRepr;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
-use hpt_allocator::Cpu;
 #[cfg(feature = "cuda")]
 use hpt_allocator::Cuda;
+use hpt_allocator::{Backend, Cpu};
 use hpt_common::error::base::TensorError;
 use hpt_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
 use hpt_dataloader::data_loader::TensorMeta;
@@ -108,8 +110,47 @@ where
     A: Allocator,
     A::Output: AllocatorOutputRetrive,
 {
+    /// create a new tensor from a raw pointer and a shape
+    ///
+    /// # Safety
+    ///
+    /// - The pointer must be valid for the lifetime of the tensor.
+    /// - The pointer must be aligned and properly sized.
+    /// - The shape must be valid.
+    ///
+    /// # Note
+    ///
+    /// It is the user's responsibility to manage the lifetime of the data. Hpt won't drop the data even if the tensor is dropped.
+    pub unsafe fn from_raw<S: Into<Shape>>(data: *mut T, shape: S) -> Result<Self, TensorError> {
+        let shape = shape.into();
+        assert_ne!(data, std::ptr::null_mut(), "data is null");
+        assert_eq!(
+            data as usize % ALIGN,
+            0,
+            "data is not aligned, it must be aligned to {}",
+            ALIGN
+        );
+        Ok(Self {
+            #[cfg(feature = "bound_check")]
+            data: Pointer::new(data, shape.size()),
+            #[cfg(not(feature = "bound_check"))]
+            data: Pointer::new(data),
+            parent: None,
+            layout: Layout::from(&shape),
+            mem_layout: Arc::new(
+                std::alloc::Layout::from_size_align(
+                    (shape.size() as usize) * std::mem::size_of::<T>(),
+                    ALIGN,
+                )
+                .unwrap(),
+            ),
+            backend: Backend::<Cpu>::new(data as u64, DEVICE, false),
+            phantom: PhantomData,
+        })
+    }
+
     /// cast the tensor to the new type
-    pub fn astype<U>(&self) -> std::result::Result<_Tensor<U, Cpu, DEVICE, A>, TensorError>
+    pub(crate) fn astype<U>(&self) -> std::result::Result<_Tensor<U, Cpu, DEVICE, A>, TensorError>
     where
         U: CommonBounds,
         T: Cast<U>,
@@ -222,6 +263,20 @@ where
     A: Allocator,
     A::Output: AllocatorOutputRetrive,
 {
+    /// create a new tensor from a raw pointer and a shape
+    ///
+    /// # Safety
+    ///
+    /// - The pointer must be valid for the lifetime of the tensor.
+    /// - The pointer must be aligned and properly sized.
+    /// - The shape must be valid.
+    ///
+    /// # Note
+    ///
+    /// It is the user's responsibility to manage the lifetime of the data. Hpt won't drop the data even if the tensor is dropped.
+    pub unsafe fn from_raw<S: Into<Shape>>(data: *mut T, shape: S) -> Result<Self, TensorError> {
+        Ok(_Tensor::<T, Cpu, DEVICE, A>::from_raw(data, shape)?.into())
+    }
     /// cast the tensor to the new type
     pub fn astype<U>(&self) -> Result<Tensor<U, Cpu, DEVICE, A>, TensorError>
     where

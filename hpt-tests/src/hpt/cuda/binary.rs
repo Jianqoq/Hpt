@@ -1,21 +1,16 @@
 #![allow(unused_imports)]
-use hpt::Cuda;
-use hpt::Matmul;
-use hpt::Random;
-use hpt::ShapeManipulate;
-use hpt::TensorCmp;
-use hpt::TensorInfo;
-use hpt::TensorLike;
-use hpt::{Tensor, TensorCreator};
+use super::assert_utils::assert_f64;
+use hpt::common::cpu::TensorLike;
+use hpt::common::TensorInfo;
+use hpt::ops::TensorCreator;
+use hpt::ops::*;
+use hpt::slice;
+use hpt::{backend::Cuda, Tensor};
 use hpt_common::slice;
-use hpt_common::slice::Slice;
-use hpt_macros::select;
 use rand::Rng;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::ops::*;
 use tch::Tensor as TchTensor;
-
-use super::assert_utils::assert_f64;
 
 #[allow(unused)]
 fn assert_eq(b: &Tensor<f64, Cuda>, a: &TchTensor) {

@@ -1063,7 +1063,7 @@ pub(crate) unsafe fn vscatter2_v_p_i_i_vd(ptr: *mut f64, offset: i32, step: i32,
         _mm256_extractf128_pd(v, 0),
     );
     _mm_store_pd(
-        ptr.add(((offset + step * 1) as usize) * 2).cast(),
+        ptr.add(((offset + step) as usize) * 2).cast(),
         _mm256_extractf128_pd(v, 1),
     );
 }
@@ -1075,7 +1075,7 @@ pub(crate) unsafe fn vsscatter2_v_p_i_i_vd(ptr: *mut f64, offset: i32, step: i32
         _mm256_extractf128_pd(v, 0),
     );
     _mm_stream_pd(
-        ptr.add(((offset + step * 1) as usize) * 2).cast(),
+        ptr.add(((offset + step) as usize) * 2).cast(),
         _mm256_extractf128_pd(v, 1),
     );
 }
@@ -1103,7 +1103,7 @@ pub(crate) unsafe fn vscatter2_v_p_i_i_vf(ptr: *mut f32, offset: i32, step: i32,
         _mm_castsi128_pd(_mm_castps_si128(_mm256_extractf128_ps(v, 0))),
     );
     _mm_storeh_pd(
-        ptr.add(((offset + step * 1) as usize) * 2).cast(),
+        ptr.add(((offset + step) as usize) * 2).cast(),
         _mm_castsi128_pd(_mm_castps_si128(_mm256_extractf128_ps(v, 0))),
     );
     _mm_storel_pd(

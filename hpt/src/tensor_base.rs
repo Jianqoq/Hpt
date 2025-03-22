@@ -33,11 +33,13 @@ where
     A: Allocator,
 {
     fn drop(&mut self) {
-        let mut allocator = A::new();
-        allocator.deallocate(
-            self.backend.inner.get_ptr() as *mut u8,
-            &self.mem_layout,
-            DEVICE_ID,
-        );
+        if self.backend.should_drop() {
+            let mut allocator = A::new();
+            allocator.deallocate(
+                self.backend.inner.get_ptr() as *mut u8,
+                &self.mem_layout,
+                DEVICE_ID,
+            );
+        }
     }
 }

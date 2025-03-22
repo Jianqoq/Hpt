@@ -33,6 +33,15 @@ pub struct Cuda {
 pub struct Backend<B> {
     /// the backend of the tensor
     pub inner: B,
+    /// should drop the data, the data comes from the user
+    pub should_drop: bool,
+}
+
+impl<B: BackendTy> Backend<B> {
+    /// get the should drop flag
+    pub fn should_drop(&self) -> bool {
+        self.should_drop
+    }
 }
 
 impl<B: BackendTy> std::fmt::Debug for Backend<B> {
@@ -61,12 +70,13 @@ impl Clone for Cpu {
 
 impl Backend<Cpu> {
     /// create a new Cpu backend
-    pub fn new(address: u64, device_id: usize) -> Self {
+    pub fn new(address: u64, device_id: usize, should_drop: bool) -> Self {
         Backend {
             inner: Cpu {
                 ptr: address,
                 device_id,
             },
+            should_drop,
         }
     }
 }
@@ -90,7 +100,7 @@ impl Clone for Cuda {
 #[cfg(feature = "cuda")]
 impl Backend<Cuda> {
     /// create a new Cuda backend
-    pub fn new(address: u64, device: Arc<cudarc::driver::CudaDevice>) -> Self {
+    pub fn new(address: u64, device: Arc<cudarc::driver::CudaDevice>, should_drop: bool) -> Self {
         let cap_major = device.attribute(
             cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR,
         ).expect("failed to get compute capability major when creating cuda backend");
@@ -103,6 +113,7 @@ impl Backend<Cuda> {
                 device,
                 cap: (cap_major * 10 + cap_minor) as usize,
             },
+            should_drop,
         }
     }
 }

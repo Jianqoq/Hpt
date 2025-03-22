@@ -25,7 +25,7 @@ members = [
 exclude = ["hpt-bench", "hpt-tests", "hpt-codegen", "hpt-examples"]
 
 [dependencies]
-hpt = { path = "./hpt", features = ["track_caller"], version = "0.0.21" }
+hpt = { path = "./hpt", features = ["track_caller", "cuda"], version = "0.0.21" }
 anyhow = { workspace = true }
 rand = { workspace = true }
 
@@ -65,11 +65,11 @@ cudarc = { version = "0.13.4", default-features = false, features = [
     "cublas",
     "cublaslt",
     "curand",
+    "cudnn",
     "driver",
     "nvrtc",
     "f16",
     "cuda-version-from-build-system",
-    "dynamic-linking",
 ] }
 anyhow = "1.0.97"
 lru = "0.13.0"
@@ -87,7 +87,7 @@ candle-core = { version = "0.8.4", features = ["mkl"] }
 candle-nn = "0.8.4"
 gnuplot = "0.0.45"
 criterion = { version = "0.5.1", features = ["html_reports"] }
-tch = {version = "0.17.0", features = ["download-libtorch"]}
+tch = { version = "0.17.0", features = ["download-libtorch"] }
 
 [[bin]]
 name = "hpt-workspace"

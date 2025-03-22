@@ -1,15 +1,9 @@
 #![allow(unused_imports)]
-use hpt::AdvancedOps;
-use hpt::Cuda;
-use hpt::FloatUnaryOps;
-use hpt::NormalUaryOps;
-use hpt::ShapeManipulate;
-use hpt::TensorInfo;
-use hpt::TensorLike;
-use hpt::{Tensor, TensorCreator};
-use hpt_common::slice;
-use hpt_common::slice::Slice;
-use hpt_macros::select;
+use hpt::common::cpu::TensorLike;
+use hpt::common::TensorInfo;
+use hpt::ops::*;
+use hpt::slice;
+use hpt::{backend::Cuda, Tensor};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 #[allow(unused)]
 fn assert_eq(b: &Tensor<f64, Cuda>, a: &tch::Tensor) {
@@ -166,8 +160,8 @@ test_unarys!(
 test_unarys!(mish, [1000], assert_eq, mish(), mish());
 test_unarys_out!(mish_, [1000], assert_eq, mish(), mish_());
 test_unarys!(relu, [1000], assert_eq, relu(), relu());
-test_unarys!(selu, [1000], assert_eq, selu(), selu(None, None));
-test_unarys_out!(selu_, [1000], assert_eq, selu(), selu_(None, None));
+test_unarys!(selu, [1000], assert_eq, selu(), selu());
+test_unarys_out!(selu_, [1000], assert_eq, selu(), selu_());
 test_unarys!(softplus, [1000], assert_eq, softplus(), softplus());
 test_unarys!(round, [1000], assert_eq, round(), round());
 test_unarys!(clip, [1000], assert_eq, clamp(0.0, 1.0), clamp(0.0, 1.0));

@@ -33,4 +33,6 @@ cutlass_gemm.cu
 cutlass
 test_cute.cu
 gemm
+gemm.cu
 matmul.cu
+matmul

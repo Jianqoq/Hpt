@@ -81,7 +81,7 @@ macro_rules! impl_type_num {
                         parent: None,
                         layout: ly,
                         mem_layout: Arc::new(layout),
-                        backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                        backend: Backend::<Cpu>::new(ptr as u64, DEVICE, true),
                         phantom: PhantomData,
                     };
                 }
@@ -128,7 +128,7 @@ macro_rules! impl_type_num {
                         parent: None,
                         layout: ly,
                         mem_layout: Arc::new(layout),
-                        backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                        backend: Backend::<Cpu>::new(ptr as u64, DEVICE, true),
                         phantom: PhantomData,
                     };
                 }
@@ -176,7 +176,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
-                    backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                    backend: Backend::<Cpu>::new(ptr as u64, DEVICE, true),
                     phantom: PhantomData,
                 };
             }
@@ -198,43 +198,6 @@ macro_rules! impl_type_num {
         $ct:ident,
         $($t:ident),*
     ) => {
-        impl<$(const $generic: usize), *, const DEVICE: usize, A> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for _Tensor<$ct, Cpu, DEVICE, A> where A: Allocator, A::Output: AllocatorOutputRetrive {
-            fn from(data: repeate_generic!(nested_array_type, $($generic), *; $source)) -> Self {
-                let mut vec: Vec<$ct> = Vec::with_capacity(repeate_generic!(operations, *, $($generic), *));
-                let shape = vec![$($generic as i64), *];
-
-                repeate_generic!(iterate, data; vec; $($vars), *).for_each(|element| vec.push(element.into()));
-                let mut ptr = vec.as_mut_ptr();
-                let length = repeate_generic!(mul, $($generic), *);
-                let layout;
-                let allocator = A::new();
-                if (ptr as usize) % 8 == 0 {
-                    let _ = ManuallyDrop::new(vec);
-                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    allocator.insert_ptr(ptr as *mut u8);
-                } else {
-                    layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
-                    let allocate_res = allocator.allocate(layout, DEVICE).unwrap();
-                    ptr = allocate_res.get_ptr() as *mut $ct;
-                    unsafe {
-                        std::ptr::copy_nonoverlapping(vec.as_ptr(), ptr, vec.len());
-                    }
-                }
-                let strides = shape_to_strides(&shape);
-
-                let ly = hpt_common::layout::Layout::new(shape.into(), strides);
-                return _Tensor {
-                    #[cfg(not(feature = "bound_check"))]
-                    data: Pointer::new(ptr),
-                    #[cfg(feature = "bound_check")]
-                    data: Pointer::new(ptr, ly.clone()),
-                    parent: None,
-                    layout: ly,
-                    mem_layout: Arc::new(layout),
-                    phantom: PhantomData,
-                };
-            }
-        }
         impl<$(const $generic: usize), *, const DEVICE: usize, A> From<repeate_generic!(nested_array_type, $($generic), *; $source)> for Tensor<$ct, Cpu, DEVICE, A> where A: Allocator, A::Output: AllocatorOutputRetrive {
             fn from(data: repeate_generic!(nested_array_type, $($generic), *; $source)) -> Self {
                 Tensor {
@@ -278,7 +241,7 @@ macro_rules! impl_type_num {
                 parent: None,
                 layout: ly,
                 mem_layout: Arc::new(layout),
-                backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                backend: Backend::<Cpu>::new(ptr as u64, DEVICE, true),
                 phantom: PhantomData,
             };
         }
@@ -326,7 +289,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
-                    backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                    backend: Backend::<Cpu>::new(ptr as u64, DEVICE, true),
                     phantom: PhantomData,
                 };
             }
@@ -374,7 +337,7 @@ macro_rules! impl_type_num {
                     parent: None,
                     layout: ly,
                     mem_layout: Arc::new(layout),
-                    backend: Backend::<Cpu>::new(ptr as u64, DEVICE),
+                    backend: Backend::<Cpu>::new(ptr as u64, DEVICE, true),
                     phantom: PhantomData,
                 };
             }

@@ -58,78 +58,111 @@ pub mod vectors {
             target_feature = "neon"
         ))]
         pub mod _128bit {
-            /// A module defines a set of 128-bit vector types for bf16
-            pub mod bf16x8;
-            /// A module defines a set of 128-bit vector types for bool
-            pub mod boolx16;
-            /// A module defines a set of 128-bit vector types for cplx32
-            pub mod cplx32x2;
-            /// A module defines a set of 128-bit vector types for cplx64
-            pub mod cplx64x1;
-            /// A module defines a set of 128-bit vector types for f16
-            pub mod f16x8;
-            /// A module defines a set of 128-bit vector types for f32
-            pub mod f32x4;
-            /// A module defines a set of 128-bit vector types for f64
-            pub mod f64x2;
-            /// A module defines a set of 128-bit vector types for i16
-            pub mod i16x8;
-            /// A module defines a set of 128-bit vector types for i32
-            pub mod i32x4;
-            /// A module defines a set of 128-bit vector types for i64
-            pub mod i64x2;
-            /// A module defines a set of 128-bit vector types for i8
-            pub mod i8x16;
-            /// A module defines a set of 128-bit vector types for isize
-            pub mod isizex2;
-            /// A module defines a set of 128-bit vector types for u16
-            pub mod u16x8;
-            /// A module defines a set of 128-bit vector types for u32
-            pub mod u32x4;
-            /// A module defines a set of 128-bit vector types for u64
-            pub mod u64x2;
-            /// A module defines a set of 128-bit vector types for u8
-            pub mod u8x16;
-            /// A module defines a set of 128-bit vector types for usize
-            pub mod usizex2;
+            pub(crate) mod common {
+                pub(crate) mod bf16x8;
+                pub(crate) mod boolx16;
+                pub(crate) mod cplx32x2;
+                pub(crate) mod cplx64x1;
+                pub(crate) mod f16x8;
+                pub(crate) mod f32x4;
+                pub(crate) mod f64x2;
+                pub(crate) mod i16x8;
+                pub(crate) mod i32x4;
+                pub(crate) mod i64x2;
+                pub(crate) mod i8x16;
+                pub(crate) mod isizex2;
+                pub(crate) mod u16x8;
+                pub(crate) mod u32x4;
+                pub(crate) mod u64x2;
+                pub(crate) mod u8x16;
+                pub(crate) mod usizex2;
+            }
+
+            #[cfg(target_feature = "neon")]
+            pub(crate) mod neon {
+                pub(crate) mod bf16x8;
+                pub(crate) mod boolx16;
+                pub(crate) mod f16x8;
+                pub(crate) mod f32x4;
+                pub(crate) mod f64x2;
+                pub(crate) mod i16x8;
+                pub(crate) mod i32x4;
+                pub(crate) mod i64x2;
+                pub(crate) mod i8x16;
+                pub(crate) mod u16x8;
+                pub(crate) mod u32x4;
+                pub(crate) mod u64x2;
+                pub(crate) mod u8x16;
+            }
+
+            #[cfg(all(target_arch = "x86_64", target_feature = "sse"))]
+            pub(crate) mod sse {
+                pub(crate) mod bf16x8;
+                pub(crate) mod boolx16;
+                pub(crate) mod f16x8;
+                pub(crate) mod f32x4;
+                pub(crate) mod f64x2;
+                pub(crate) mod i16x8;
+                pub(crate) mod i32x4;
+                pub(crate) mod i64x2;
+                pub(crate) mod i8x16;
+                pub(crate) mod u16x8;
+                pub(crate) mod u32x4;
+                pub(crate) mod u64x2;
+                pub(crate) mod u8x16;
+            }
+
+            pub use crate::arch_simd::_128bit::common::{
+                bf16x8::bf16x8, boolx16::boolx16, cplx32x2::cplx32x2, cplx64x1::cplx64x1,
+                f16x8::f16x8, f32x4::f32x4, f64x2::f64x2, i16x8::i16x8, i32x4::i32x4, i64x2::i64x2,
+                i8x16::i8x16, isizex2::isizex2, u16x8::u16x8, u32x4::u32x4, u64x2::u64x2,
+                u8x16::u8x16, usizex2::usizex2,
+            };
         }
         /// A module defines a set of 256-bit vector types
         #[cfg(target_feature = "avx2")]
         pub mod _256bit {
-            /// A module defines a set of 256-bit vector types for bf16
-            pub mod bf16x16;
-            /// A module defines a set of 256-bit vector types for bool
-            pub mod boolx32;
-            /// A module defines a set of 256-bit vector types for cplx32
-            pub mod cplx32x4;
-            /// A module defines a set of 256-bit vector types for cplx64
-            pub mod cplx64x2;
-            /// A module defines a set of 256-bit vector types for f16
-            pub mod f16x16;
-            /// A module defines a set of 256-bit vector types for f32
-            pub mod f32x8;
-            /// A module defines a set of 256-bit vector types for f64
-            pub mod f64x4;
-            /// A module defines a set of 256-bit vector types for i16
-            pub mod i16x16;
-            /// A module defines a set of 256-bit vector types for i32
-            pub mod i32x8;
-            /// A module defines a set of 256-bit vector types for i64
-            pub mod i64x4;
-            /// A module defines a set of 256-bit vector types for i8
-            pub mod i8x32;
-            /// A module defines a set of 256-bit vector types for isize
-            pub mod isizex4;
-            /// A module defines a set of 256-bit vector types for u16
-            pub mod u16x16;
-            /// A module defines a set of 256-bit vector types for u32
-            pub mod u32x8;
-            /// A module defines a set of 256-bit vector types for u64
-            pub mod u64x4;
-            /// A module defines a set of 256-bit vector types for u8
-            pub mod u8x32;
-            /// A module defines a set of 256-bit vector types for usize
-            pub mod usizex4;
+            pub(crate) mod common {
+                pub(crate) mod bf16x16;
+                pub(crate) mod boolx32;
+                pub(crate) mod cplx32x4;
+                pub(crate) mod cplx64x2;
+                pub(crate) mod f16x16;
+                pub(crate) mod f32x8;
+                pub(crate) mod f64x4;
+                pub(crate) mod i16x16;
+                pub(crate) mod i32x8;
+                pub(crate) mod i64x4;
+                pub(crate) mod i8x32;
+                pub(crate) mod isizex4;
+                pub(crate) mod u16x16;
+                pub(crate) mod u32x8;
+                pub(crate) mod u64x4;
+                pub(crate) mod u8x32;
+                pub(crate) mod usizex4;
+            }
+            #[cfg(target_feature = "avx2")]
+            pub(crate) mod avx2 {
+                pub(crate) mod bf16x16;
+                pub(crate) mod f16x16;
+                pub(crate) mod f32x8;
+                pub(crate) mod f64x4;
+                pub(crate) mod i16x16;
+                pub(crate) mod i32x8;
+                pub(crate) mod i64x4;
+                pub(crate) mod i8x32;
+                pub(crate) mod u16x16;
+                pub(crate) mod u32x8;
+                pub(crate) mod u64x4;
+                pub(crate) mod u8x32;
+            }
+
+            pub use crate::arch_simd::_256bit::common::{
+                bf16x16::bf16x16, boolx32::boolx32, cplx32x4::cplx32x4, cplx64x2::cplx64x2,
+                f16x16::f16x16, f32x8::f32x8, f64x4::f64x4, i16x16::i16x16, i32x8::i32x8,
+                i64x4::i64x4, i8x32::i8x32, isizex4::isizex4, u16x16::u16x16, u32x8::u32x8,
+                u64x4::u64x4, u8x32::u8x32, usizex4::usizex4,
+            };
         }
 
         // This file contains code ported from SLEEF (https://github.com/shibatch/sleef)
@@ -164,6 +197,9 @@ pub mod vectors {
         // This Rust port is additionally licensed under Apache-2.0 OR MIT
         // See repository root for details
         /// A module defines a set of vector types for sleef
+        #[allow(clippy::approx_constant)]
+        #[allow(clippy::excessive_precision)]
+        #[allow(clippy::unreadable_literal)]
         pub mod sleef {
             /// A module defines a set of vector types for table
             pub mod table;
@@ -213,14 +249,14 @@ pub mod vectors {
     #[cfg(target_feature = "avx2")]
     pub(crate) mod vector_promote {
         #[cfg(target_pointer_width = "64")]
-        pub(crate) use crate::vectors::arch_simd::_256bit::isizex4::isize_promote;
+        pub(crate) use crate::vectors::arch_simd::_256bit::common::isizex4::isize_promote;
         #[cfg(target_pointer_width = "32")]
-        pub(crate) use crate::vectors::arch_simd::_256bit::isizex8::isize_promote;
+        pub(crate) use crate::vectors::arch_simd::_256bit::common::isizex8::isize_promote;
         #[cfg(target_pointer_width = "64")]
-        pub(crate) use crate::vectors::arch_simd::_256bit::usizex4::usize_promote;
+        pub(crate) use crate::vectors::arch_simd::_256bit::common::usizex4::usize_promote;
         #[cfg(target_pointer_width = "32")]
-        pub(crate) use crate::vectors::arch_simd::_256bit::usizex8::usize_promote;
-        pub(crate) use crate::vectors::arch_simd::_256bit::{
+        pub(crate) use crate::vectors::arch_simd::_256bit::common::usizex8::usize_promote;
+        pub(crate) use crate::vectors::arch_simd::_256bit::common::{
             bf16x16::bf16_promote, boolx32::bool_promote, cplx32x4::Complex32_promote,
             cplx64x2::Complex64_promote, f16x16::f16_promote, f32x8::f32_promote,
             f64x4::f64_promote, i16x16::i16_promote, i32x8::i32_promote, i64x4::i64_promote,
@@ -236,14 +272,14 @@ pub mod vectors {
     ))]
     pub(crate) mod vector_promote {
         #[cfg(target_pointer_width = "64")]
-        pub(crate) use crate::vectors::arch_simd::_128bit::isizex2::isize_promote;
+        pub(crate) use crate::vectors::arch_simd::_128bit::common::isizex2::isize_promote;
         #[cfg(target_pointer_width = "32")]
-        pub(crate) use crate::vectors::arch_simd::_128bit::isizex4::isize_promote;
+        pub(crate) use crate::vectors::arch_simd::_128bit::common::isizex4::isize_promote;
         #[cfg(target_pointer_width = "64")]
-        pub(crate) use crate::vectors::arch_simd::_128bit::usizex2::usize_promote;
+        pub(crate) use crate::vectors::arch_simd::_128bit::common::usizex2::usize_promote;
         #[cfg(target_pointer_width = "32")]
-        pub(crate) use crate::vectors::arch_simd::_128bit::usizex4::usize_promote;
-        pub(crate) use crate::vectors::arch_simd::_128bit::{
+        pub(crate) use crate::vectors::arch_simd::_128bit::common::usizex4::usize_promote;
+        pub(crate) use crate::vectors::arch_simd::_128bit::common::{
             bf16x8::bf16_promote, boolx16::bool_promote, cplx32x2::Complex32_promote,
             cplx64x1::Complex64_promote, f16x8::f16_promote, f32x4::f32_promote,
             f64x2::f64_promote, i16x8::i16_promote, i32x4::i32_promote, i64x2::i64_promote,
