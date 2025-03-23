@@ -1,3 +1,4 @@
+use crate::backends::common::conv::cal_conv2d_output_shape;
 use crate::backends::cpu::cache_utils::cache::Cache;
 use crate::backends::cpu::kernels::conv2d::micro_kernels::conv::bias_remain_oc_kernel_dispatch;
 use crate::backends::cpu::kernels::conv2d::micro_kernels::conv::conv2d_full_oc_bias_kernel_dispatch;
@@ -72,8 +73,15 @@ where
     let ((ph_start, ph_end), (pw_start, pw_end)) = (padding[0], padding[1]);
     let (dh, dw) = (dilation[0], dilation[1]);
 
-    let out_height = (img_height + ph_start + ph_end - dh * (kh - 1) - 1) / step_height + 1;
-    let out_width = (img_width + pw_start + pw_end - dw * (kw - 1) - 1) / step_width + 1;
+    let (out_height, out_width) = cal_conv2d_output_shape(
+        img_height,
+        img_width,
+        kh,
+        kw,
+        &[(ph_start, ph_end), (pw_start, pw_end)],
+        &[step_height, step_width],
+        &[dh, dw],
+    );
     let img = input.clone();
     if out_height <= 0 || out_width <= 0 {
         return Err(ShapeError::ConvError {

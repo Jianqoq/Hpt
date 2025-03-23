@@ -70,6 +70,7 @@ cudarc = { version = "0.13.4", default-features = false, features = [
     "nvrtc",
     "f16",
     "cuda-version-from-build-system",
+    "dynamic-linking"
 ] }
 anyhow = "1.0.97"
 lru = "0.13.0"

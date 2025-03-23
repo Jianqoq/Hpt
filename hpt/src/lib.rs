@@ -210,6 +210,8 @@ pub(crate) mod backends {
             pub(crate) mod arg_reduce;
             /// a module contains cuda tensor common reduce impls
             pub(crate) mod common_reduce;
+            /// a module contains cuda tensor conv impls
+            pub(crate) mod conv2d;
             /// a module contains cuda tensor float out binary impls
             pub(crate) mod float_out_binary;
             /// a module contains cuda tensor float out unary impls
@@ -234,10 +236,14 @@ pub(crate) mod backends {
             pub(crate) mod cmp;
             /// a module contains cuda tensor common reduce impls
             pub(crate) mod common_reduce;
+            /// a module contains cuda tensor conv2d impls
+            pub(crate) mod conv2d;
             /// a module contains cuda tensor float out binary impls
             pub(crate) mod float_out_binary;
             /// a module contains cuda tensor float out unary impls
             pub(crate) mod float_out_unary;
+            /// a module contains cuda tensor gemm impls
+            pub(crate) mod gemm;
             /// a module contains cuda tensor matmul impls
             pub(crate) mod matmul;
             /// a module contains cuda tensor normal creation impls
@@ -277,6 +283,8 @@ pub(crate) mod backends {
 
     /// a module contains all the common ops
     pub(crate) mod common {
+        /// a module contains conv utils
+        pub(crate) mod conv;
         /// a module contains all the functions to help create a tensor
         pub(crate) mod creation;
         /// a module contains fast divmod ops
@@ -478,7 +486,11 @@ pub mod utils {
 use ctor::ctor;
 use hpt_types::arch_simd as simd;
 use hpt_types::traits::VecTrait;
-use std::{cell::RefCell, sync::atomic::AtomicUsize};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    sync::{atomic::AtomicUsize, Arc},
+};
 pub use tensor::Tensor;
 
 #[ctor]
@@ -517,3 +529,13 @@ const SIMD_WIDTH: usize =
 
 #[cfg(feature = "cuda")]
 const CUDA_SEED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(2621654116416541);
+
+#[cfg(feature = "cuda")]
+thread_local! {
+    static CUDNN: RefCell<HashMap<usize, Arc<cudarc::cudnn::Cudnn>>> = HashMap::new().into();
+}
+
+#[cfg(feature = "cuda")]
+thread_local! {
+    static CUBLAS: RefCell<HashMap<usize, Arc<cudarc::cublas::CudaBlas>>> = HashMap::new().into();
+}

@@ -33,6 +33,7 @@ pub mod hpt {
     pub mod cuda {
         pub mod assert_utils;
         pub mod binary;
+        pub mod conv2d;
         pub mod creation;
         pub mod from_raw;
         pub mod matmul;

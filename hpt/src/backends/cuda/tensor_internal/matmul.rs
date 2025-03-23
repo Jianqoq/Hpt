@@ -1,3 +1,4 @@
+use crate::CUBLAS;
 use crate::{backend::Cuda, tensor_base::_Tensor};
 use cudarc::cublas::sys::cublasOperation_t;
 use cudarc::cublas::{CudaBlas, Gemm, GemmConfig, StridedBatchedConfig};
@@ -13,6 +14,7 @@ use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::dtype::{CudaType, TypeCommon};
 use std::borrow::{Borrow, BorrowMut};
+use std::sync::Arc;
 
 pub(crate) fn compute_op_and_cs(strides: &Strides, shape: &Shape) -> (cublasOperation_t, i64) {
     let ndim = strides.len();
@@ -51,6 +53,8 @@ pub(crate) fn compute_gemm_config<T: CudaType + TypeCommon>(
     res_shape: &Shape,
     lhs: CudaSlice<T>,
     rhs: CudaSlice<T>,
+    alpha: T,
+    beta: T,
 ) -> (GemmConfig<T>, CudaSlice<T>, CudaSlice<T>) {
     let (lhs_op, lhs_cs) = compute_op_and_cs(lhs_strides, lhs_shape);
     let (rhs_op, rhs_cs) = compute_op_and_cs(rhs_strides, rhs_shape);
@@ -84,10 +88,10 @@ pub(crate) fn compute_gemm_config<T: CudaType + TypeCommon>(
         m: m as i32,
         n: n as i32,
         k: lhs_shape[ndim - 1] as i32,
-        alpha: T::ONE,
+        alpha,
         lda: lhs_cs as i32,
         ldb: rhs_cs as i32,
-        beta: T::ZERO,
+        beta,
         ldc: dst_cs as i32,
     };
     (config, lhs, rhs)
@@ -114,9 +118,11 @@ pub(crate) fn gemm_input_transpose<T: CudaType>(
 }
 
 #[track_caller]
-pub(crate) fn matmul_with_out<T, O, const CUDA_DEVICE: usize, Al>(
+pub(crate) fn gemm_with_out<T, O, const CUDA_DEVICE: usize, Al>(
     lhs: &_Tensor<T, Cuda, CUDA_DEVICE, Al>,
     rhs: &_Tensor<T, Cuda, CUDA_DEVICE, Al>,
+    alpha: T,
+    beta: T,
     out: Option<O>,
 ) -> std::result::Result<_Tensor<T, Cuda, CUDA_DEVICE, Al>, TensorError>
 where
@@ -126,6 +132,14 @@ where
     Al: Allocator,
     Al::Output: AllocatorOutputRetrive,
 {
+    let res_device = lhs.device();
+    let cublas = CUBLAS.with(move |x| {
+        let mut borrowed = x.borrow_mut();
+        let cublas = borrowed
+            .entry(CUDA_DEVICE)
+            .or_insert_with(|| Arc::new(CudaBlas::new(res_device).unwrap()));
+        cublas.clone()
+    });
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         ShapeError::check_matmul(lhs.shape(), rhs.shape())?;
         let res: _Tensor<T, Cuda, CUDA_DEVICE, Al> = if let Some(out) = out {
@@ -147,8 +161,6 @@ where
         } else {
             _Tensor::<T, Cuda, CUDA_DEVICE, Al>::empty(vec![lhs.shape()[0], rhs.shape()[1]])?
         };
-        let cublas = cudarc::cublas::CudaBlas::new(res.device())?;
-        // let k = lhs.shape()[1] as i32;
         let mut slice = unsafe {
             res.device()
                 .upgrade_device_ptr::<T>(res.ptr().ptr as u64, res.size())
@@ -169,6 +181,8 @@ where
             &res.shape(),
             a_slice,
             b_slice,
+            alpha,
+            beta,
         );
         unsafe { cublas.gemm(config, &a_slice, &b_slice, &mut slice)? };
         slice.leak();
@@ -221,7 +235,6 @@ where
         } else {
             _Tensor::<T, Cuda, CUDA_DEVICE, Al>::empty(res_shape)?
         };
-        let cublas = cudarc::cublas::CudaBlas::new(res.device())?;
         let mut slice = unsafe {
             res.device()
                 .upgrade_device_ptr(res.ptr().ptr as u64, res.size())
@@ -242,6 +255,8 @@ where
             &res.shape(),
             a_slice,
             b_slice,
+            alpha,
+            beta,
         );
         let a_layout = Layout::new(&a_shape, &a_strides);
         let b_layout = Layout::new(&b_shape, &b_strides);

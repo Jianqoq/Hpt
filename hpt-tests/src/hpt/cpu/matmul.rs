@@ -75,6 +75,29 @@ fn test() -> anyhow::Result<()> {
 }
 
 #[test]
+fn test_special_shape() -> anyhow::Result<()> {
+    let mut rng = rand::rng();
+    let shapes = [
+        [1, 1, 1],
+        [1, 1, 128],
+        [1, 128, 1],
+        [1, 128, 128],
+        [128, 1, 1],
+        [128, 1, 128],
+        [128, 128, 1],
+        [128, 128, 128],
+    ];
+    for [m, n, k] in shapes {
+        let a = Tensor::<f32>::randn(&[m, k])?;
+        let b = Tensor::<f32>::randn(&[k, n])?;
+        let c = a.gemm(&b, 0.0, 1.0, false, false, false)?;
+        let c2 = a.matmul(&b)?;
+        assert!(c.allclose(&c2, 1.0e-3, 1.0e-3));
+    }
+    Ok(())
+}
+
+#[test]
 fn test_post_op() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     for i in 0..100 {
@@ -123,6 +146,29 @@ fn test_t() -> anyhow::Result<()> {
 }
 
 #[test]
+fn test_t_special_shape() -> anyhow::Result<()> {
+    let mut rng = rand::rng();
+    let shapes = [
+        [1, 1, 1],
+        [1, 1, 128],
+        [1, 128, 1],
+        [1, 128, 128],
+        [128, 1, 1],
+        [128, 1, 128],
+        [128, 128, 1],
+        [128, 128, 128],
+    ];
+    for [m, n, k] in shapes {
+        let a = Tensor::<f32>::randn(&[m, k])?;
+        let b = Tensor::<f32>::randn(&[n, k])?;
+        let c = a.gemm(&b.t()?, 0.0, 1.0, false, false, false)?;
+        let c2 = a.matmul(&b.t()?)?;
+        assert!(c.allclose(&c2, 1.0e-3, 1.0e-3));
+    }
+    Ok(())
+}
+
+#[test]
 fn test_t_t() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     for i in 0..100 {
@@ -133,6 +179,29 @@ fn test_t_t() -> anyhow::Result<()> {
         let b = Tensor::<f32>::randn(&[n, k])?.t()?;
         let c = a.matmul(&b)?;
         let c2 = a.gemm(&b, 0.0, 1.0, false, false, false)?;
+        assert!(c.allclose(&c2, 1.0e-3, 1.0e-3));
+    }
+    Ok(())
+}
+
+#[test]
+fn test_t_t_special_shape() -> anyhow::Result<()> {
+    let mut rng = rand::rng();
+    let shapes = [
+        [1, 1, 1],
+        [1, 1, 128],
+        [1, 128, 1],
+        [1, 128, 128],
+        [128, 1, 1],
+        [128, 1, 128],
+        [128, 128, 1],
+        [128, 128, 128],
+    ];
+    for [m, n, k] in shapes {
+        let a = Tensor::<f32>::randn(&[k, m])?;
+        let b = Tensor::<f32>::randn(&[n, k])?;
+        let c = a.t()?.gemm(&b.t()?, 0.0, 1.0, false, false, false)?;
+        let c2 = a.t()?.matmul(&b.t()?)?;
         assert!(c.allclose(&c2, 1.0e-3, 1.0e-3));
     }
     Ok(())
