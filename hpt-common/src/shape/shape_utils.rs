@@ -266,6 +266,34 @@ pub fn compare_and_pad_shapes(a_shape: &[i64], b_shape: &[i64]) -> (Vec<i64>, Ve
     (longer.to_vec(), padded_shorter)
 }
 
+/// pad shape and strides to the shortter one, this is used for prepareing for matmul broadcast.
+///
+/// possibly we can make it works in more generic cases not only matmul
+pub fn compare_and_pad_shapes_strides(
+    a_shape: &[i64],
+    b_shape: &[i64],
+    a_strides: &[i64],
+    b_strides: &[i64],
+) -> (Vec<i64>, Vec<i64>, Vec<i64>, Vec<i64>) {
+    let len_diff = i64::abs((a_shape.len() as i64) - (b_shape.len() as i64)) as usize;
+    let (longer, shorter, longer_strides, shorter_strides) = if a_shape.len() > b_shape.len() {
+        (a_shape, b_shape, a_strides, b_strides)
+    } else {
+        (b_shape, a_shape, b_strides, a_strides)
+    };
+
+    let mut padded_shorter = vec![1; len_diff];
+    let mut padded_shorter_strides = vec![0; len_diff];
+    padded_shorter.extend_from_slice(shorter);
+    padded_shorter_strides.extend_from_slice(shorter_strides);
+    (
+        longer.to_vec(),
+        padded_shorter,
+        longer_strides.to_vec(),
+        padded_shorter_strides,
+    )
+}
+
 /// Predicts the broadcasted shape resulting from broadcasting two arrays.
 ///
 /// The `predict_broadcast_shape` function computes the resulting shape when two arrays with shapes

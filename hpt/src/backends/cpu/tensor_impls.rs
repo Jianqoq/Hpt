@@ -325,14 +325,23 @@ where
     where
         T: DeviceRepr + CudaType,
     {
+        use hpt_traits::ops::unary::Contiguous;
+
         let data =
             _Tensor::<T, Cuda, CUDA_DEVICE, <A as Allocator>::CudaAllocator>::empty(self.shape())
                 .unwrap();
         let device = data.device();
         let mut ptr = unsafe { device.upgrade_device_ptr(data.ptr().ptr as u64, data.size()) };
-        data.device()
-            .htod_sync_copy_into(self.as_raw(), &mut ptr)
-            .unwrap();
+        if self.is_contiguous() && self.parent().is_none() {
+            data.device()
+                .htod_sync_copy_into(self.as_raw(), &mut ptr)
+                .unwrap();
+        } else {
+            let a = self.contiguous()?;
+            data.device()
+                .htod_sync_copy_into(a.as_raw(), &mut ptr)
+                .unwrap();
+        }
         ptr.leak();
         Ok(data.into())
     }
