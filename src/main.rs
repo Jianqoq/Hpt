@@ -1,5 +1,8 @@
 use hpt::{
-    backend::Cuda, error::TensorError, ops::{Matmul, TensorCreator}, Tensor
+    backend::Cuda,
+    error::TensorError,
+    ops::{Matmul, TensorCreator},
+    Tensor,
 };
 
 fn main() -> Result<(), TensorError> {
