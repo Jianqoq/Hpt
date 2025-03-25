@@ -1,6 +1,6 @@
 [package]
 name = "hpt-traits"
-version = "0.0.21"
+version = "0.0.23"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "An internal library defines tensor operator traits for hpt"
@@ -8,8 +8,8 @@ authors = ["JianJian Li <ljj1849532909@gmail.com>"]
 repository = "https://github.com/Jianqoq/Hpt"
 
 [dependencies]
-hpt-common = { path = "../hpt-common", version = "0.0.21" }
-hpt-types = { path = "../hpt-types", version = "0.0.21" }
+hpt-common = { path = "../hpt-common", version = "0.0.23" }
+hpt-types = { path = "../hpt-types", version = "0.0.23" }
 num = { workspace = true }
 rand_distr = { workspace = true }
 
