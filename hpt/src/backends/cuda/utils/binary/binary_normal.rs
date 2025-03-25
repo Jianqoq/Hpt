@@ -1,5 +1,8 @@
 use crate::backends::cuda::cuda_utils::compile_kernel;
 use crate::backends::cuda::cuda_utils::compute_kernel_launch_config;
+use crate::backends::cuda::cuda_utils::get_fast_divmod;
+use crate::backends::cuda::cuda_utils::get_slice_i32;
+use crate::backends::cuda::cuda_utils::load_ptx_and_get_data;
 use crate::tensor_base::_Tensor;
 use cudarc::driver::DeviceRepr;
 use cudarc::driver::LaunchAsync;
@@ -7,6 +10,7 @@ use hpt_allocator::Cuda;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape::Shape;
+use hpt_cudakernels::RegisterInfo;
 use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
@@ -358,6 +362,182 @@ where
             let reg_info = map.get("binop").expect("func_name not found");
             let cfg = compute_kernel_launch_config(res.device(), reg_info, res.size());
             unsafe { kernel.launch(cfg, (out_slice, lhs_slice, rhs_slice)) }?;
+            Ok(res)
+        }
+    }
+}
+
+#[track_caller]
+pub(crate) fn binary_fn_precompiled<A, B, O, K, const CUDA_DEVICE: usize, Al>(
+    lhs: &_Tensor<A, Cuda, CUDA_DEVICE, Al>,
+    rhs: &_Tensor<B, Cuda, CUDA_DEVICE, Al>,
+    op_name: &str,
+    meta: &phf::Map<
+        usize,
+        (
+            &'static str,
+            &'static phf::Map<&'static str, RegisterInfo>,
+            &'static [&str],
+        ),
+    >,
+    out: Option<O>,
+) -> Result<_Tensor<K, Cuda, CUDA_DEVICE, Al>, TensorError>
+where
+    A: CommonBounds + DeviceRepr + CudaType,
+    B: CommonBounds + DeviceRepr + CudaType,
+    O: BorrowMut<_Tensor<K, Cuda, CUDA_DEVICE, Al>>,
+    K: CommonBounds + DeviceRepr + CudaType,
+    Al: Allocator,
+    Al::Output: AllocatorOutputRetrive,
+{
+    if lhs.size() == 1 {
+        let val = lhs.to_cpu::<0>()?.as_raw()[0];
+        let res = extract_out::<B, K, O, CUDA_DEVICE, Al>(rhs.shape(), out)?;
+        if rhs.is_contiguous() {
+            let (kernel, reg_info) = load_ptx_and_get_data(
+                op_name,
+                &format!("{op_name}_{}_{}_contiguous_lhs_scalar", A::STR, B::STR),
+                res.device(),
+                res.device_cap(),
+                meta,
+            )?;
+            let cfg = compute_kernel_launch_config(res.device(), &reg_info, res.size());
+            unsafe {
+                kernel.launch(
+                    cfg,
+                    (res.cuda_slice(), val, rhs.cuda_slice(), res.size() as i32),
+                )
+            }?;
+        } else {
+            let (kernel, reg_info) = load_ptx_and_get_data(
+                op_name,
+                &format!("{op_name}_{}_{}_uncontiguous_lhs_scalar", A::STR, B::STR),
+                res.device(),
+                res.device_cap(),
+                meta,
+            )?;
+            let cfg = compute_kernel_launch_config(res.device(), &reg_info, res.size());
+            let rhs_fast_divmod = rhs.cuda_divmod()?;
+            let rhs_strides = rhs.cuda_strides_i32()?;
+            unsafe {
+                kernel.launch(
+                    cfg,
+                    (
+                        res.cuda_slice(),
+                        val,
+                        rhs.cuda_slice(),
+                        &rhs_fast_divmod,
+                        &rhs_strides,
+                        rhs.ndim() as i32,
+                        res.size() as i32,
+                    ),
+                )
+            }?;
+        }
+        Ok(res)
+    } else if rhs.size() == 1 {
+        let val = rhs.to_cpu::<0>()?.as_raw()[0];
+        let res = extract_out::<A, K, O, CUDA_DEVICE, Al>(lhs.shape(), out)?;
+        if lhs.is_contiguous() {
+            let (kernel, reg_info) = load_ptx_and_get_data(
+                op_name,
+                &format!("{op_name}_{}_{}_contiguous_rhs_scalar", A::STR, B::STR),
+                res.device(),
+                res.device_cap(),
+                meta,
+            )?;
+            let cfg = compute_kernel_launch_config(res.device(), &reg_info, res.size());
+            unsafe {
+                kernel.launch(
+                    cfg,
+                    (res.cuda_slice(), lhs.cuda_slice(), val, res.size() as i32),
+                )
+            }?;
+        } else {
+            let (kernel, reg_info) = load_ptx_and_get_data(
+                op_name,
+                &format!("{op_name}_{}_{}_uncontiguous_rhs_scalar", A::STR, B::STR),
+                res.device(),
+                res.device_cap(),
+                meta,
+            )?;
+            let cfg = compute_kernel_launch_config(res.device(), &reg_info, res.size());
+            let lhs_fast_divmod = lhs.cuda_divmod()?;
+            let lhs_strides = lhs.cuda_strides_i32()?;
+            unsafe {
+                kernel.launch(
+                    cfg,
+                    (
+                        res.cuda_slice(),
+                        lhs.cuda_slice(),
+                        val,
+                        &lhs_fast_divmod,
+                        &lhs_strides,
+                        lhs.ndim() as i32,
+                        res.size() as i32,
+                    ),
+                )
+            }?;
+        }
+        Ok(res)
+    } else {
+        if rhs.is_contiguous() && lhs.is_contiguous() && rhs.shape() == lhs.shape() {
+            let res = extract_out::<B, K, O, CUDA_DEVICE, Al>(rhs.shape(), out)?;
+            let (kernel, reg_info) = load_ptx_and_get_data(
+                op_name,
+                &format!("{op_name}_{}_{}_contiguous", A::STR, B::STR),
+                res.device(),
+                res.device_cap(),
+                meta,
+            )?;
+            let cfg = compute_kernel_launch_config(res.device(), &reg_info, res.size());
+            unsafe {
+                kernel.launch(
+                    cfg,
+                    (
+                        res.cuda_slice(),
+                        lhs.cuda_slice(),
+                        rhs.cuda_slice(),
+                        res.size() as i32,
+                    ),
+                )
+            }?;
+            Ok(res)
+        } else {
+            let res_layout = lhs.layout.broadcast(&rhs.layout)?;
+            let lhs_broadcast_layout = lhs.layout.to_broadcast_layout(res_layout.shape())?;
+            let rhs_broadcast_layout = rhs.layout.to_broadcast_layout(res_layout.shape())?;
+            let res = extract_out::<K, K, O, CUDA_DEVICE, Al>(res_layout.shape(), out)?;
+            let (kernel, reg_info) = load_ptx_and_get_data(
+                op_name,
+                &format!("{op_name}_{}_{}_uncontiguous", A::STR, B::STR),
+                res.device(),
+                res.device_cap(),
+                meta,
+            )?;
+            let cfg = compute_kernel_launch_config(res.device(), &reg_info, res.size());
+
+            let lhs_fast_divmod = get_fast_divmod(lhs_broadcast_layout.shape(), res.device())?;
+            let lhs_strides = get_slice_i32(lhs_broadcast_layout.strides(), res.device())?;
+            let rhs_fast_divmod = get_fast_divmod(rhs_broadcast_layout.shape(), res.device())?;
+            let rhs_strides = get_slice_i32(rhs_broadcast_layout.strides(), res.device())?;
+            unsafe {
+                kernel.launch(
+                    cfg,
+                    (
+                        res.cuda_slice(),
+                        lhs.cuda_slice(),
+                        &lhs_fast_divmod,
+                        &lhs_strides,
+                        rhs.cuda_slice(),
+                        &rhs_fast_divmod,
+                        &rhs_strides,
+                        lhs_broadcast_layout.ndim() as i32,
+                        rhs_broadcast_layout.ndim() as i32,
+                        res.size() as i32,
+                    ),
+                )
+            }?;
             Ok(res)
         }
     }

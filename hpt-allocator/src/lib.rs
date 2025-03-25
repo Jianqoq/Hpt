@@ -69,8 +69,17 @@ impl Allocator for HptAllocator<Cpu> {
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         CACHE.lock().unwrap().allocate_zeroed(layout, device_id)
     }
-    fn deallocate(&mut self, ptr: *mut u8, layout: &std::alloc::Layout, device_id: usize) {
-        CACHE.lock().unwrap().deallocate(ptr, layout, device_id);
+    fn deallocate(
+        &mut self,
+        ptr: *mut u8,
+        layout: &std::alloc::Layout,
+        should_drop: bool,
+        device_id: usize,
+    ) {
+        CACHE
+            .lock()
+            .unwrap()
+            .deallocate(ptr, layout, should_drop, device_id);
     }
 
     fn insert_ptr(&mut self, ptr: *mut u8, device_id: usize) {
@@ -85,6 +94,10 @@ impl Allocator for HptAllocator<Cpu> {
         HptAllocator {
             phantom: PhantomData,
         }
+    }
+
+    fn forget(&mut self, ptr: *mut u8, device_id: usize) {
+        CACHE.lock().unwrap().forget(ptr, device_id);
     }
 }
 
@@ -113,11 +126,17 @@ impl Allocator for HptAllocator<Cuda> {
             .allocate_zeroed(layout, device_id)
     }
 
-    fn deallocate(&mut self, ptr: *mut u8, layout: &std::alloc::Layout, device_id: usize) {
+    fn deallocate(
+        &mut self,
+        ptr: *mut u8,
+        layout: &std::alloc::Layout,
+        should_drop: bool,
+        device_id: usize,
+    ) {
         CUDA_CACHE
             .lock()
             .unwrap()
-            .deallocate(ptr, layout, device_id);
+            .deallocate(ptr, layout, should_drop, device_id);
     }
 
     fn insert_ptr(&mut self, ptr: *mut u8, device_id: usize) {
@@ -132,6 +151,10 @@ impl Allocator for HptAllocator<Cuda> {
         HptAllocator {
             phantom: PhantomData,
         }
+    }
+
+    fn forget(&mut self, ptr: *mut u8, device_id: usize) {
+        CUDA_CACHE.lock().unwrap().forget(ptr, device_id);
     }
 }
 

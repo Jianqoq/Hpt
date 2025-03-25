@@ -93,10 +93,13 @@ impl Allocator for CudaAllocator {
         }
     }
 
-    fn deallocate(&mut self, ptr: *mut u8, layout: &Layout, device_id: usize) {
+    fn deallocate(&mut self, ptr: *mut u8, layout: &Layout, should_drop: bool, device_id: usize) {
         if let Some((_, allocator)) = self.allocator.get_mut(&device_id) {
-            allocator.deallocate(ptr, layout, device_id);
+            allocator.deallocate(ptr, layout, should_drop, device_id);
         } else {
+            if !should_drop {
+                return;
+            }
             panic!("Allocator for device {} not found", device_id);
         }
     }
@@ -110,20 +113,35 @@ impl Allocator for CudaAllocator {
     }
 
     fn clear(&mut self) {
-        for (device, allocator) in self.allocator.values_mut() {
-            for (layout, ptrs) in allocator.cache.iter_mut() {
-                for ptr in ptrs.iter() {
-                    unsafe { device.upgrade_device_ptr::<u8>(ptr.ptr as u64, layout.size()) };
+        if let Ok(mut storage) = CUDA_STORAGE.lock() {
+            for (device, allocator) in self.allocator.values_mut() {
+                for (layout, ptrs) in allocator.cache.iter_mut() {
+                    for ptr in ptrs.iter() {
+                        storage
+                            .get_mut(&device.ordinal())
+                            .unwrap()
+                            .decrement_ref(SafePtr { ptr: ptr.ptr });
+                        unsafe { device.upgrade_device_ptr::<u8>(ptr.ptr as u64, layout.size()) };
+                    }
                 }
+                allocator.cache.clear();
+                assert_eq!(allocator.allocated.len(), 0);
+                assert_eq!(storage[&device.ordinal()].storage.len(), 0);
             }
-            allocator.cache.clear();
-            assert_eq!(allocator.allocated.len(), 0);
         }
     }
 
     fn new() -> Self {
         CudaAllocator {
             allocator: HashMap::new(),
+        }
+    }
+
+    fn forget(&mut self, ptr: *mut u8, device_id: usize) {
+        if let Some((_, allocator)) = self.allocator.get_mut(&device_id) {
+            if allocator.allocated.get(&SafePtr { ptr }).is_some() {
+                allocator.allocated.remove(&SafePtr { ptr });
+            }
         }
     }
 }
@@ -235,7 +253,7 @@ impl _Allocator {
     /// deallocate memory based on the ptr provided, if the ptr is found in the storage, decrement the reference count
     ///
     /// if the reference count is 0, remove the ptr from the storage, remove the ptr from the allocated set, and insert the ptr into the cache
-    fn deallocate(&mut self, ptr: *mut u8, layout: &Layout, device_id: usize) {
+    fn deallocate(&mut self, ptr: *mut u8, layout: &Layout, should_drop: bool, device_id: usize) {
         if let Ok(mut storage) = CUDA_STORAGE.lock() {
             crate::utils::deallocate::deallocate_helper(
                 &mut self.cache,
@@ -243,6 +261,7 @@ impl _Allocator {
                 &mut storage,
                 layout,
                 ptr,
+                should_drop,
                 device_id,
             );
         } else {

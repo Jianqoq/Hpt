@@ -6,7 +6,7 @@ use hpt_common::error::base::TensorError;
 use hpt_iterator::TensorIterator;
 use hpt_traits::{
     ops::unary::{Contiguous, NormalUaryOps},
-    tensor::{CommonBounds, TensorInfo, TensorLike},
+    tensor::{CommonBounds, TensorLike},
 };
 use hpt_types::{
     traits::VecTrait,
@@ -197,10 +197,6 @@ where
     Al::Output: AllocatorOutputRetrive,
 {
     fn contiguous(&self) -> Result<Self, TensorError> {
-        if self.is_contiguous() {
-            Ok(self.clone())
-        } else {
-            Ok(self.par_iter().strided_map(|(res, x)| *res = x).collect())
-        }
+        Ok(self.par_iter().strided_map(|(res, x)| *res = x).collect())
     }
 }

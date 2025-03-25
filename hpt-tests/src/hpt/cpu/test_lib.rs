@@ -8,9 +8,15 @@ use hpt::Tensor;
 #[test]
 fn test_set_global_display_precision() -> anyhow::Result<()> {
     let a = Tensor::<f32>::new(0.39871234566541987416541651);
-    assert_eq!(a.to_string(), "Tensor(0.3987)\n");
+    assert_eq!(
+        a.to_string(),
+        "Tensor([0.3987], shape=(1), strides=(1), dtype=f32)\n"
+    );
     set_display_precision(8);
-    assert_eq!(a.to_string(), "Tensor(0.39871234)\n");
+    assert_eq!(
+        a.to_string(),
+        "Tensor([0.39871234], shape=(1), strides=(1), dtype=f32)\n"
+    );
     Ok(())
 }
 

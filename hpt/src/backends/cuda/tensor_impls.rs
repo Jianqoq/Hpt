@@ -5,10 +5,11 @@ use crate::backends::common::divmod::FastDivmod;
 use crate::backends::cuda::cuda_utils::get_module_name_1;
 use crate::ALIGN;
 use crate::{tensor_base::_Tensor, Tensor};
-use cudarc::driver::{CudaDevice, DeviceRepr};
+use cudarc::driver::{CudaDevice, CudaSlice, DeviceRepr};
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_allocator::{Backend, Cpu, Cuda};
 use hpt_common::error::base::TensorError;
+use hpt_common::error::common::CommonError;
 use hpt_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
 use hpt_dataloader::data_loader::TensorMeta;
 use hpt_dataloader::utils::ToDataLoader;
@@ -18,9 +19,12 @@ use hpt_traits::tensor::{CommonBounds, TensorInfo, TensorLike};
 use hpt_types::cuda_types::scalar::Scalar;
 use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
+use hpt_types::type_promote::{Cmp, Eval};
 
 use crate::backends::cuda::utils::unary::unary::uary_fn_with_out_simd;
 use hpt_traits::ops::creation::TensorCreator;
+
+use super::cuda_utils::{get_fast_divmod, get_slice_i32};
 
 impl<T, const DEVICE_ID: usize, Al> TensorInfo<T> for _Tensor<T, Cuda, DEVICE_ID, Al>
 where
@@ -97,21 +101,19 @@ where
     Al: Allocator,
     Al::Output: AllocatorOutputRetrive,
 {
-    pub unsafe fn from_raw<S: Into<Shape>>(data: *mut T, shape: S) -> Result<Self, TensorError> {
+    pub unsafe fn from_raw<S: Into<Shape>>(
+        data: CudaSlice<T>,
+        shape: S,
+    ) -> Result<Self, TensorError> {
         let shape = shape.into();
-        assert_ne!(data, std::ptr::null_mut(), "data is null");
-        assert_eq!(
-            data as usize % ALIGN,
-            0,
-            "data is not aligned, it must be aligned to {}",
-            ALIGN
-        );
+        let ptr = data.leak();
         let device = cudarc::driver::CudaDevice::new(DEVICE_ID)?;
+        let backend = Backend::<Cuda>::new(ptr, device, false).clone();
         Ok(Self {
             #[cfg(feature = "bound_check")]
-            data: Pointer::new(data, shape.size()),
+            data: Pointer::new(ptr as *mut T, shape.size()),
             #[cfg(not(feature = "bound_check"))]
-            data: Pointer::new(data),
+            data: Pointer::new(ptr as *mut T),
             parent: None,
             layout: Layout::from(&shape),
             mem_layout: Arc::new(
@@ -121,7 +123,7 @@ where
                 )
                 .unwrap(),
             ),
-            backend: Backend::<Cuda>::new(data as u64, device, false),
+            backend,
             phantom: PhantomData,
         })
     }
@@ -134,33 +136,11 @@ where
     {
         uary_fn_with_out_simd(
             self,
-            &get_module_name_1("astype", self),
+            &get_module_name_1(&format!("astype_{}_{}", T::STR, U::STR), self),
             |out, x| out.assign(x.cast()),
             None::<_Tensor<U, Cuda, DEVICE_ID, Al>>,
         )
     }
-
-    // /// check if two tensors are close to each other
-    // pub fn allclose<U: CommonBounds>(&self, other: &_Tensor<U, Cuda>) -> bool
-    // where
-    //     T: Convertor,
-    //     U: Convertor,
-    // {
-    //     if self.shape() != other.shape() {
-    //         return false;
-    //     }
-    //     let folder = self.par_iter().zip(other.par_iter()).fold(
-    //         || true,
-    //         |acc, (a, b)| {
-    //             let a_val: f64 = a.to_f64();
-    //             let b_val: f64 = b.to_f64();
-    //             let abs_diff: f64 = (a_val - b_val).abs();
-    //             let torlerance: f64 = 1.0e-8 + 1.0e-5 * b_val.abs();
-    //             acc && abs_diff <= torlerance
-    //         },
-    //     );
-    //     folder.reduce(|| true, |a, b| a && b)
-    // }
 
     pub fn to_cpu<const CPU_DEVICE: usize>(
         &self,
@@ -213,28 +193,18 @@ where
     pub(crate) fn cuda_divmod(
         &self,
     ) -> std::result::Result<cudarc::driver::CudaSlice<FastDivmod>, TensorError> {
-        let mut res = vec![];
-        for i in self.shape().iter() {
-            let fast_divmod = FastDivmod::new(*i as i32);
-            res.push(fast_divmod);
-        }
-        let res = self.device().htod_sync_copy(&res)?;
-        Ok(res)
+        get_fast_divmod(self.shape(), self.device())
     }
     #[allow(unused)]
     pub(crate) fn cuda_shape_i32(
         &self,
     ) -> std::result::Result<cudarc::driver::CudaSlice<i32>, TensorError> {
-        let strides = self.shape().iter().map(|x| *x as i32).collect::<Vec<_>>();
-        let res = self.device().htod_sync_copy(&strides)?;
-        Ok(res)
+        get_slice_i32(self.shape(), self.device())
     }
     pub(crate) fn cuda_strides_i32(
         &self,
     ) -> std::result::Result<cudarc::driver::CudaSlice<i32>, TensorError> {
-        let strides = self.strides().iter().map(|x| *x as i32).collect::<Vec<_>>();
-        let res = self.device().htod_sync_copy(&strides)?;
-        Ok(res)
+        get_slice_i32(self.strides(), self.device())
     }
     pub(crate) fn device_cap(&self) -> usize {
         self.backend.inner.cap
@@ -249,6 +219,10 @@ where
 {
     /// create a new tensor from a raw pointer and a shape
     ///
+    /// # Note
+    ///
+    /// It is safer to call forget to get the pointer back because the forget method will track the reference count
+    ///
     /// # Safety
     ///
     /// - The pointer must be valid for the lifetime of the tensor.
@@ -258,7 +232,10 @@ where
     /// # Note
     ///
     /// It is the user's responsibility to manage the lifetime of the data. Hpt won't drop the data even if the tensor is dropped.
-    pub unsafe fn from_raw<S: Into<Shape>>(data: *mut T, shape: S) -> Result<Self, TensorError> {
+    pub unsafe fn from_raw<S: Into<Shape>>(
+        data: CudaSlice<T>,
+        shape: S,
+    ) -> Result<Self, TensorError> {
         Ok(_Tensor::<T, Cuda, DEVICE_ID, Al>::from_raw(data, shape)?.into())
     }
     /// copy the data from the cuda tensor to the cpu tensor
@@ -272,12 +249,6 @@ where
         self.inner.as_ref().device()
     }
 
-    // /// copy the data from the other tensor to this tensor
-    // pub fn assign(&mut self, other: &Tensor<T, Cuda>) {
-    //     let mut mut_self = self.inner.as_ref().clone();
-    //     mut_self.assign(&other.inner.as_ref());
-    // }
-
     /// cast the tensor to the new type
     pub fn astype<U>(&self) -> Result<Tensor<U, Cuda, DEVICE_ID, Al>, TensorError>
     where
@@ -287,35 +258,63 @@ where
         Ok(self.inner.astype()?.into())
     }
 
-    // /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
-    // pub fn try_astype<U>(&self) -> anyhow::Result<Tensor<U, Cuda>>
-    // where
-    //     U: CommonBounds,
-    //     T: Cast<U>,
-    // {
-    //     Ok(self.inner.try_astype()?.into())
-    // }
-
-    // /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
-    // pub fn static_cast<Dst>(&self) -> anyhow::Result<Tensor<Dst, Cuda>>
-    // where
-    //     Dst: CommonBounds,
-    // {
-    //     Ok(self.inner.static_cast()?.into())
-    // }
-
     /// check if two tensors are close to each other
-    pub fn allclose<U: CommonBounds + DeviceRepr + CudaType>(
-        &self,
-        other: &Tensor<U, Cuda, DEVICE_ID, Al>,
-    ) -> bool {
+    pub fn allclose(&self, other: &Tensor<T, Cuda, DEVICE_ID, Al>, rtol: T, atol: T) -> bool
+    where
+        T: Eval<Output = bool> + Cmp<Output = bool>,
+    {
         let cpu_lhs = self
             .to_cpu::<0>()
             .expect("failed to convert cuda tensor to cpu tensor");
         let cpu_rhs = other
             .to_cpu::<0>()
             .expect("failed to convert cuda tensor to cpu tensor");
-        cpu_lhs.allclose(&cpu_rhs, 1.0e-5, 1.0e-5)
+        cpu_lhs.allclose(&cpu_rhs, rtol, atol)
+    }
+
+    /// Forget the tensor, return the raw pointer of the data
+    ///
+    /// # Safety
+    ///
+    /// - The user must ensure the tensor is not used after forgetting
+    pub unsafe fn forget(
+        self,
+    ) -> Result<(cudarc::driver::CudaSlice<u8>, std::alloc::Layout), TensorError> {
+        match Arc::try_unwrap(self.inner) {
+            Ok(mut inner) => {
+                if inner.parent.is_some() {
+                    return Err(CommonError::CantForgetTensor {
+                        msg: "tensor is a view, cannot forget".to_string(),
+                        location: std::panic::Location::caller(),
+                    }
+                    .into());
+                }
+                let mut allocator = Al::new();
+                use hpt_allocator::Buffer;
+                let ret = inner.backend.inner.get_ptr() as *mut u8;
+                allocator.forget(ret, DEVICE_ID);
+                inner.backend.forget();
+                let ret = inner.device().upgrade_device_ptr(ret as u64, inner.size());
+                Ok((ret, *inner.mem_layout.as_ref()))
+            }
+            Err(inner) => {
+                let ref_count = Arc::strong_count(&inner);
+                Err(CommonError::CantForgetTensor {
+                    msg: format!("ref_count: {}", ref_count),
+                    location: std::panic::Location::caller(),
+                }
+                .into())
+            }
+        }
+    }
+
+    /// clone the tensor and return the cloned tensor data
+    pub unsafe fn forget_copy(
+        &self,
+    ) -> Result<(cudarc::driver::CudaSlice<u8>, std::alloc::Layout), TensorError> {
+        let to_forget = self.contiguous()?;
+        let ptr = to_forget.forget()?;
+        Ok(ptr)
     }
 }
 

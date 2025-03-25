@@ -1,6 +1,4 @@
-use crate::type_promote::{
-    BitWiseOut2, Eval2, FloatOutBinary2, FloatOutUnary2, NormalOut2, NormalOutUnary2,
-};
+use crate::type_promote::{Eval2, FloatOutBinary2, FloatOutUnary2, NormalOut2, NormalOutUnary2};
 
 use super::scalar::Scalar;
 impl FloatOutBinary2 for Scalar<f64> {
@@ -135,38 +133,6 @@ impl NormalOutUnary2 for Scalar<f64> {
     #[inline(always)]
     fn __copysign(self, rhs: Self) -> Self {
         Scalar::new(format!("copysign({}, {})", self.val, rhs.val))
-    }
-}
-
-impl BitWiseOut2 for Scalar<f64> {
-    #[inline(always)]
-    fn __bitand(self, _: Self) -> Self {
-        panic!("Bitwise operations are not supported for cuda f64")
-    }
-
-    #[inline(always)]
-    fn __bitor(self, _: Self) -> Self {
-        panic!("Bitwise operations are not supported for cuda f64")
-    }
-
-    #[inline(always)]
-    fn __bitxor(self, _: Self) -> Self {
-        panic!("Bitwise operations are not supported for cuda f64")
-    }
-
-    #[inline(always)]
-    fn __not(self) -> Self {
-        panic!("Bitwise operations are not supported for cuda f64")
-    }
-
-    #[inline(always)]
-    fn __shl(self, _: Self) -> Self {
-        panic!("Shift operations are not supported for cuda f64")
-    }
-
-    #[inline(always)]
-    fn __shr(self, _: Self) -> Self {
-        panic!("Shift operations are not supported for cuda f64")
     }
 }
 

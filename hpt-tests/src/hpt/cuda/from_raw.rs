@@ -7,17 +7,25 @@ fn test_from_raw() {
     let m = 10;
     let n = 10;
     let a = Tensor::<f32, Cuda>::randn(&[m, n]).expect("failed to create tensor");
-    let layout = std::alloc::Layout::from_size_align(m * n * 4, 64).unwrap();
 
-    let raw = unsafe { std::alloc::alloc(layout) };
-    let c = unsafe { Tensor::<f32, Cuda>::from_raw(raw as *mut f32, &[m, n]) }
+    let raw = unsafe {
+        a.device()
+            .alloc(m * n * 4)
+            .expect("failed to alloc raw pointer")
+    };
+
+    let c = unsafe { Tensor::<f32, Cuda>::from_raw(raw, &[m, n]) }
         .expect("failed to create tensor from raw pointer");
 
     let _ = a + c.clone();
 
     let _sliced_c = slice!(c[0, ..]).expect("failed to slice tensor");
 
-    let _ = _sliced_c.reshape(&[5, 2]);
+    let reshaped = _sliced_c
+        .reshape(&[10, 10])
+        .expect("failed to reshape tensor");
 
-    unsafe { std::alloc::dealloc(raw, layout) };
+    drop(reshaped);
+    drop(_sliced_c);
+    let (_, _) = unsafe { c.forget().expect("failed to forget tensor") };
 }

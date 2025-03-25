@@ -1,5 +1,5 @@
 #include "declare_macros.cuh"
-#include "../type_cast.cuh"
+#include "../utils/type_cast.cuh"
 #include "../utils/check_type.cuh"
 
 template <typename T, typename R, unsigned int WarpSize = 32>

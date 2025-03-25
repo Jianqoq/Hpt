@@ -280,7 +280,7 @@ impl FloatOutUnary2 for f32 {
     }
 
     fn __elu(self, alpha: Self) -> Self {
-        self.max(0.0) + alpha * (self.exp() - 1.0).min(0.0)
+        self.max(0.0) + alpha * self.exp_m1().min(0.0)
     }
 
     fn __gelu(self) -> Self {
@@ -288,7 +288,7 @@ impl FloatOutUnary2 for f32 {
     }
 
     fn __selu(self, alpha: Self, scale: Self) -> Self {
-        scale * (self.max(0.0) + alpha * (self.exp() - 1.0).min(0.0))
+        scale * self.__elu(alpha)
     }
 
     fn __hard_sigmoid(self) -> Self {

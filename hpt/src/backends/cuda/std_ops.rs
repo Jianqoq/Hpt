@@ -4,30 +4,32 @@ use crate::tensor_base::_Tensor;
 use crate::Tensor;
 use cudarc::driver::DeviceRepr;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
+use hpt_cudakernels::{ADD, BITAND, BITOR, BITXOR, DIV, MUL, REM, SHL, SHR, SUB};
 use hpt_traits::tensor::CommonBounds;
 use hpt_types::into_scalar::Cast;
+use hpt_types::type_promote::Cmp;
+use hpt_types::type_promote::Eval;
 use hpt_types::type_promote::{BitWiseOut, FloatOutBinary, NormalOut};
 use hpt_types::{cuda_types::scalar::Scalar, dtype::CudaType};
-
 // define add, sub, mul, rem for _Tensor
 #[duplicate::duplicate_item(
     lhs_type      rhs_type   out_type        trait_name   method_name        op;
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Add]    [add]         [_add];
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Sub]    [sub]         [_sub];
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Mul]    [mul]         [_mul];
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Rem]    [rem]         [_rem];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Add]    [add]         [_add];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Sub]    [sub]         [_sub];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Mul]    [mul]         [_mul];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Rem]    [rem]         [_rem];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Add]    [add]         [_add];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Sub]    [sub]         [_sub];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Mul]    [mul]         [_mul];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Rem]    [rem]         [_rem];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Add]    [add]         [_add];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Sub]    [sub]         [_sub];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Mul]    [mul]         [_mul];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Rem]    [rem]         [_rem];
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Add]    [add]         [ADD];
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Sub]    [sub]         [SUB];
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Mul]    [mul]         [MUL];
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Rem]    [rem]         [REM];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Add]    [add]         [ADD];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Sub]    [sub]         [SUB];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Mul]    [mul]         [MUL];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Rem]    [rem]         [REM];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Add]    [add]         [ADD];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Sub]    [sub]         [SUB];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Mul]    [mul]         [MUL];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Rem]    [rem]         [REM];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Add]    [add]         [ADD];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Sub]    [sub]         [SUB];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Mul]    [mul]         [MUL];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Rem]    [rem]         [REM];
 )]
 impl<T, U, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<U, Cuda, CUDA_DEVICE, Al>>
     for lhs_type<T, Cuda, CUDA_DEVICE, Al>
@@ -43,11 +45,11 @@ where
     type Output = out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
-        binary_fn_with_out_simd(
-            stringify!(op),
+        binary_fn_precompiled(
             &self,
             &rhs,
-            |out, x, y| out.assign(x.op(y)),
+            stringify!(method_name),
+            &op,
             None::<out_type<<T as NormalOut<U>>::Output, Cuda, CUDA_DEVICE, Al>>,
         )
         .unwrap()
@@ -615,18 +617,18 @@ where
 // define bitwise for _Tensor
 #[duplicate::duplicate_item(
     lhs_type      rhs_type   out_type         trait_name       method_name         op;
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::BitAnd]    [bitand]        [_bitand];
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::BitOr]     [bitor]         [_bitor];
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::BitXor]    [bitxor]        [_bitxor];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::BitAnd]    [bitand]        [_bitand];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::BitOr]     [bitor]         [_bitor];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::BitXor]    [bitxor]        [_bitxor];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::BitAnd]    [bitand]        [_bitand];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::BitOr]     [bitor]         [_bitor];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::BitXor]    [bitxor]        [_bitxor];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitAnd]    [bitand]        [_bitand];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitOr]     [bitor]         [_bitor];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitXor]    [bitxor]        [_bitxor];
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::BitAnd]    [bitand]        [BITAND];
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::BitOr]     [bitor]         [BITOR];
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::BitXor]    [bitxor]        [BITXOR];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::BitAnd]    [bitand]        [BITAND];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::BitOr]     [bitor]         [BITOR];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::BitXor]    [bitxor]        [BITXOR];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::BitAnd]    [bitand]        [BITAND];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::BitOr]     [bitor]         [BITOR];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::BitXor]    [bitxor]        [BITXOR];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitAnd]    [bitand]        [BITAND];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitOr]     [bitor]         [BITOR];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::BitXor]    [bitxor]        [BITXOR];
 )]
 impl<T, U, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<U, Cuda, CUDA_DEVICE, Al>>
     for lhs_type<T, Cuda, CUDA_DEVICE, Al>
@@ -642,11 +644,11 @@ where
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
-        binary_fn_with_out_simd(
-            stringify!(op),
+        binary_fn_precompiled(
             &self,
             &rhs,
-            |out, x, y| out.assign(x.op(y)),
+            stringify!(method_name),
+            &op,
             None::<out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE, Al>>,
         )
         .unwrap()
@@ -1105,11 +1107,11 @@ where
 
 // define div for _Tensor
 #[duplicate::duplicate_item(
-    lhs_type      rhs_type   out_type         trait_name       method_name   op_string;
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Div]    [div]        [_div];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Div]    [div]        [_div];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Div]    [div]        [_div];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Div]    [div]        [_div];
+    lhs_type      rhs_type   out_type         trait_name     method_name  op;
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Div]    [div]        [DIV];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Div]    [div]        [DIV];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Div]    [div]        [DIV];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Div]    [div]        [DIV];
 )]
 impl<T, U, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<U, Cuda, CUDA_DEVICE, Al>>
     for lhs_type<T, Cuda, CUDA_DEVICE, Al>
@@ -1125,11 +1127,11 @@ where
     type Output = out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
-        binary_fn_with_out_simd(
-            stringify!(op_string),
+        binary_fn_precompiled(
             &self,
             &rhs,
-            |out, x, y| out.assign(x.op_string(y)),
+            stringify!(method_name),
+            &op,
             None::<out_type<<T as FloatOutBinary<U>>::Output, Cuda, CUDA_DEVICE, Al>>,
         )
         .unwrap()
@@ -1270,32 +1272,32 @@ where
 
 // define div for scalar and Tensor
 #[duplicate::duplicate_item(
-    rhs_type   lhs_type     out_type      trait_name     method_name   op_string;
-    [Tensor]    [bool]       [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [i8]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [i16]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [i32]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [i64]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [u8]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [u16]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [u32]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [u64]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [f32]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [f64]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [half::f16]  [Tensor]    [std::ops::Div]    [div]         ["/"];
+    rhs_type   lhs_type     out_type      trait_name     method_name;
+    [Tensor]    [bool]       [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [i8]         [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [i16]        [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [i32]        [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [i64]        [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [u8]         [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [u16]        [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [u32]        [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [u64]        [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [f32]        [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [f64]        [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [half::f16]  [Tensor]    [std::ops::Div]    [div];
 
-    [&Tensor]    [bool]       [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [i8]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [i16]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [i32]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [i64]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [u8]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [u16]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [u32]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [u64]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [f32]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [f64]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Div]    [div]         ["/"];
+    [&Tensor]    [bool]       [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [i8]         [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [i16]        [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [i32]        [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [i64]        [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [u8]         [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [u16]        [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [u32]        [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [u64]        [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [f32]        [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [f64]        [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [half::f16]  [Tensor]    [std::ops::Div]    [div];
 )]
 impl<T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<T, Cuda, CUDA_DEVICE, Al>> for lhs_type
 where
@@ -1322,32 +1324,32 @@ where
 
 // define div for &scalar and Tensor
 #[duplicate::duplicate_item(
-    rhs_type     lhs_type       lhs_type_ident   out_type      trait_name     method_name   op_string;
-    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Div]    [div]         ["/"];
+    rhs_type     lhs_type       lhs_type_ident   out_type      trait_name     method_name;
+    [Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Div]    [div];
+    [Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Div]    [div];
 
-    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Div]    [div]         ["/"];
-    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Div]    [div]         ["/"];
+    [&Tensor]    [&'a bool]        [bool]        [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [&'a i8]          [i8]          [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [&'a i16]         [i16]         [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [&'a i32]         [i32]         [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [&'a i64]         [i64]         [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [&'a u8]          [u8]          [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [&'a u16]         [u16]         [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [&'a u32]         [u32]         [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [&'a u64]         [u64]         [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [&'a f32]         [f32]         [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [&'a f64]         [f64]         [Tensor]    [std::ops::Div]    [div];
+    [&Tensor]    [&'a half::f16]   [half::f16]   [Tensor]    [std::ops::Div]    [div];
 )]
 impl<'a, T, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<T, Cuda, CUDA_DEVICE, Al>>
     for lhs_type
@@ -1375,11 +1377,11 @@ where
 }
 
 #[duplicate::duplicate_item(
-    lhs_type      rhs_type   out_type     trait_name         method_name  op_string;
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Shl]    [shl]        [_shl];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Shl]    [shl]        [_shl];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Shl]    [shl]        [_shl];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Shl]    [shl]        [_shl];
+    lhs_type      rhs_type   out_type     trait_name         method_name  op;
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Shl]    [shl]        [SHL];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Shl]    [shl]        [SHL];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Shl]    [shl]        [SHL];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Shl]    [shl]        [SHL];
 )]
 impl<T, U, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<U, Cuda, CUDA_DEVICE, Al>>
     for lhs_type<T, Cuda, CUDA_DEVICE, Al>
@@ -1395,11 +1397,11 @@ where
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
-        binary_fn_with_out_simd(
-            stringify!(op_string),
+        binary_fn_precompiled(
             &self,
             &rhs,
-            |out, x, y| out.assign(x.op_string(y)),
+            stringify!(method_name),
+            &op,
             None::<out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE, Al>>,
         )
         .unwrap()
@@ -1576,11 +1578,11 @@ where
 }
 
 #[duplicate::duplicate_item(
-    lhs_type      rhs_type   out_type     trait_name         method_name  op_string;
-    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Shr]    [shr]        [_shr];
-    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Shr]    [shr]        [_shr];
-    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Shr]    [shr]        [_shr];
-    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Shr]    [shr]        [_shr];
+    lhs_type      rhs_type   out_type     trait_name         method_name  op;
+    [_Tensor]    [_Tensor]   [_Tensor]    [std::ops::Shr]    [shr]        [SHR];
+    [&_Tensor]   [_Tensor]   [_Tensor]    [std::ops::Shr]    [shr]        [SHR];
+    [&_Tensor]   [&_Tensor]  [_Tensor]    [std::ops::Shr]    [shr]        [SHR];
+    [_Tensor]    [&_Tensor]  [_Tensor]    [std::ops::Shr]    [shr]        [SHR];
 )]
 impl<T, U, const CUDA_DEVICE: usize, Al> trait_name<rhs_type<U, Cuda, CUDA_DEVICE, Al>>
     for lhs_type<T, Cuda, CUDA_DEVICE, Al>
@@ -1596,11 +1598,11 @@ where
     type Output = out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE, Al>;
     #[track_caller]
     fn method_name(self, rhs: rhs_type<U, Cuda, CUDA_DEVICE, Al>) -> Self::Output {
-        binary_fn_with_out_simd(
-            stringify!(op_string),
+        binary_fn_precompiled(
             &self,
             &rhs,
-            |out, x, y| out.assign(x.op_string(y)),
+            stringify!(method_name),
+            &op,
             None::<out_type<<T as BitWiseOut<U>>::Output, Cuda, CUDA_DEVICE, Al>>,
         )
         .unwrap()
@@ -1776,15 +1778,14 @@ where
     }
 }
 
-impl<T, U, const DEVICE: usize, Al> PartialEq<Tensor<U, Cuda, DEVICE, Al>>
+impl<T, const DEVICE: usize, Al> PartialEq<Tensor<T, Cuda, DEVICE, Al>>
     for Tensor<T, Cuda, DEVICE, Al>
 where
-    T: CommonBounds + Cast<f64> + CudaType + DeviceRepr,
-    U: CommonBounds + Cast<f64> + CudaType + DeviceRepr,
+    T: Eval<Output = bool> + Cmp<Output = bool> + CommonBounds + CudaType + DeviceRepr,
     Al: Allocator,
     Al::Output: AllocatorOutputRetrive,
 {
-    fn eq(&self, other: &Tensor<U, Cuda, DEVICE, Al>) -> bool {
+    fn eq(&self, other: &Tensor<T, Cuda, DEVICE, Al>) -> bool {
         use hpt_traits::tensor::TensorInfo;
         if self.size() != other.size() {
             return false;
@@ -1792,6 +1793,6 @@ where
         if self.shape() != other.shape() {
             return false;
         }
-        self.allclose(other)
+        self.allclose(other, T::ZERO, T::ZERO)
     }
 }

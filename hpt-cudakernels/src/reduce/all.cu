@@ -1,5 +1,5 @@
 #include "declare_macros.cuh"
-#include "../type_cast.cuh"
+#include "../utils/type_cast.cuh"
 
 template <typename T, typename R, unsigned int WarpSize = 32>
 class All : public ReduceOp<T, R, WarpSize>

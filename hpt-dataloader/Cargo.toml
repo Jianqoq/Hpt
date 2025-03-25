@@ -1,6 +1,6 @@
 [package]
 name = "hpt-dataloader"
-version = "0.1.0"
+version = "0.0.21"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "An internal library for data loading for hpt"
@@ -11,9 +11,9 @@ repository = "https://github.com/Jianqoq/Hpt"
 zip = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-hpt-traits = { path = "../hpt-traits", version = "0.1.0" }
-hpt-types = { path = "../hpt-types", version = "0.1.0" }
-hpt-common = { path = "../hpt-common", version = "0.1.0" }
+hpt-traits = { path = "../hpt-traits", version = "0.0.21" }
+hpt-types = { path = "../hpt-types", version = "0.0.21" }
+hpt-common = { path = "../hpt-common", version = "0.0.21" }
 indicatif = { workspace = true }
 flate2 = { workspace = true }
 num = { workspace = true }

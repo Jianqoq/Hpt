@@ -24,7 +24,7 @@ macro_rules! from_scalar {
         $(
             impl<const DEVICE: usize, A> Into<_Tensor<$t, Cpu, DEVICE, A>> for $t where A: Allocator, A::Output: AllocatorOutputRetrive {
                 fn into(self) -> _Tensor<$t, Cpu, DEVICE, A> {
-                    let mut ret = _Tensor::<$t, Cpu, DEVICE, A>::empty(Vec::<i64>::new()).unwrap();
+                    let mut ret = _Tensor::<$t, Cpu, DEVICE, A>::empty(vec![1]).unwrap();
                     ret.as_raw_mut()[0] = self;
                     return ret;
                 }

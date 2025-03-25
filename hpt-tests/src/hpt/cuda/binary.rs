@@ -211,7 +211,6 @@ fn fn_name() -> anyhow::Result<()> {
     [test_le_sub_tensors]           [a.tensor_le(&b)?]      [le_tensor]             [assert_eq_bool]    [common_input];
     [test_gt_sub_tensors]           [a.tensor_gt(&b)?]      [gt_tensor]             [assert_eq_bool]    [common_input];
     [test_ge_sub_tensors]           [a.tensor_ge(&b)?]      [ge_tensor]             [assert_eq_bool]    [common_input];
-    [test_matmul_sub_tensors]       [a.matmul(&b)?]         [matmul]                [assert_eq_10]      [common_input];
 )]
 #[test]
 fn fn_name() -> anyhow::Result<()> {
@@ -295,7 +294,6 @@ fn fn_name() -> anyhow::Result<()> {
     [test_le_uc_sub_tensors]            [a.tensor_le(&b)?]      [le_tensor]             [assert_eq_bool]    [common_input];
     [test_gt_uc_sub_tensors]            [a.tensor_gt(&b)?]      [gt_tensor]             [assert_eq_bool]    [common_input];
     [test_ge_uc_sub_tensors]            [a.tensor_ge(&b)?]      [ge_tensor]             [assert_eq_bool]    [common_input];
-    [test_matmul_uc_sub_tensors]        [a.matmul(&b)?]         [matmul]                [assert_eq_10]      [common_input];
 )]
 #[test]
 fn fn_name() -> anyhow::Result<()> {

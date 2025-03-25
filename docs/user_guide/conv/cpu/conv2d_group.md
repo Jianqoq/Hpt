@@ -14,17 +14,17 @@ fn conv2d_group(
 Performs a grouped 2D convolution operation, which divides input channels into groups and performs separate convolutions on each group.
 
 ## Parameters:
-`x`: Input tensor with shape [batch_size, height, width, in_channels]
+`x`: Input tensor with shape `[batch_size, height, width, in_channels]`
 
-`kernels`: Convolution kernels tensor with shape [kernel_height, kernel_width, in_channels/groups, out_channels]
+`kernels`: Convolution kernels tensor with shape `[kernel_height, kernel_width, in_channels/groups, out_channels]`
 
-`bias`: Optional bias tensor with shape [out_channels]
+`bias`: Optional bias tensor with shape `[out_channels]`
 
-`steps`: Convolution stride as [step_height, step_width]
+`steps`: Convolution stride as `[step_height, step_width]`
 
-`padding`: Padding size as [(padding_top, padding_bottom), (padding_left, padding_right)]
+`padding`: Padding size as `[(padding_top, padding_bottom), (padding_left, padding_right)]`
 
-`dilation`: Kernel dilation factors as [dilation_height, dilation_width]
+`dilation`: Kernel dilation factors as `[dilation_height, dilation_width]`
 
 `groups`: Number of groups to use
 
@@ -68,9 +68,3 @@ fn main() -> Result<(), TensorError> {
     Ok(())
 }
 ```
-
-## Backend Support
-| Backend | Supported |
-|---------|-----------|
-| CPU     | ✅         |
-| Cuda    | ❌        |

@@ -51,7 +51,7 @@ impl Storage for CommonStorage {
                 false
             }
         } else {
-            panic!("ptr {:p} not found in cpu storage", ptr.ptr);
+            false
         }
     }
 }
@@ -63,6 +63,9 @@ pub fn clone_storage(ptr: *mut u8, device_id: usize, map: &mut HashMap<usize, Co
     if let Some(storage) = map.get_mut(&device_id) {
         storage.increment_ref(SafePtr { ptr });
     } else {
-        panic!("device {} not found in storage of cpu", device_id);
+        map.insert(device_id, CommonStorage::new());
+        map.get_mut(&device_id)
+            .unwrap()
+            .increment_ref(SafePtr { ptr });
     }
 }

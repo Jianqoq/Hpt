@@ -42,6 +42,11 @@ impl<B: BackendTy> Backend<B> {
     pub fn should_drop(&self) -> bool {
         self.should_drop
     }
+
+    /// forget the backend
+    pub fn forget(&mut self) {
+        self.should_drop = false;
+    }
 }
 
 impl<B: BackendTy> std::fmt::Debug for Backend<B> {

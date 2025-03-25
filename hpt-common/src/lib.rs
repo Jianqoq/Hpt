@@ -33,6 +33,8 @@ pub mod axis {
 
 /// A module defines utilities
 pub mod utils {
+    /// A module defines conv parameters
+    pub mod conv_algos;
     /// A module defines pointer utilities
     pub mod pointer;
     /// this module defines simd vector reference, this force the user to use write unaligned and read unaligned when they use simd iterator

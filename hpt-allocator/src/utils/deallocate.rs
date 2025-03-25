@@ -13,10 +13,11 @@ pub(crate) fn deallocate_helper(
     storage: &mut HashMap<usize, CommonStorage>,
     layout: &std::alloc::Layout,
     ptr: *mut u8,
+    should_drop: bool,
     device_id: usize,
 ) {
     if let Some(storage) = storage.get_mut(&device_id) {
-        if storage.decrement_ref(SafePtr { ptr }) {
+        if storage.decrement_ref(SafePtr { ptr }) && should_drop {
             allocated.remove(&SafePtr { ptr });
             if let Some(ptrs) = cache.get_mut(layout) {
                 ptrs.push(SafePtr { ptr });

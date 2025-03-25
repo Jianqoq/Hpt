@@ -76,8 +76,8 @@
 #define i64_to_u64(x) ((uint64_t)(x))
 #define i64_to_f32(x) ((float)(x))
 #define i64_to_f64(x) ((double)(x))
-#define i64_to_f16(x) __double2half_rn((double)(x))
-#define i64_to_bf16(x) __double2bfloat16_rn((double)(x))
+#define i64_to_f16(x) __double2half((double)(x))
+#define i64_to_bf16(x) __double2bfloat16((double)(x))
 
 #define u8_to_bool(x) ((x) != 0)
 #define u8_to_i8(x) ((int8_t)(x))
@@ -132,8 +132,8 @@
 #define u64_to_u64(x) (x)
 #define u64_to_f32(x) ((float)(x))
 #define u64_to_f64(x) ((double)(x))
-#define u64_to_f16(x) __double2half_rn((double)(x))
-#define u64_to_bf16(x) __double2bfloat16_rn((double)(x))
+#define u64_to_f16(x) __double2half((double)(x))
+#define u64_to_bf16(x) __double2bfloat16((double)(x))
 
 #define f32_to_bool(x) ((x) != 0.0f)
 #define f32_to_i8(x) ((int8_t)(x))
@@ -160,8 +160,8 @@
 #define f64_to_u64(x) ((uint64_t)(x))
 #define f64_to_f32(x) ((float)(x))
 #define f64_to_f64(x) (x)
-#define f64_to_f16(x) __double2half_rn((x))
-#define f64_to_bf16(x) __double2bfloat16_rn((x))
+#define f64_to_f16(x) __double2half((x))
+#define f64_to_bf16(x) __double2bfloat16((x))
 
 #define f16_to_bool(x) (__half2char_rz(x) != 0)
 #define f16_to_i8(x) (__half2char_rz(x))

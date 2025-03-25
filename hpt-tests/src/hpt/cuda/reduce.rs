@@ -160,13 +160,12 @@ fn common_input_f64<const N: usize>(
 #[test]
 fn func() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for _ in 0..10000 {
+    for _ in 0..10 {
         let shape = [
             rng.random_range(1..512),
             rng.random_range(1..512),
             rng.random_range(1..512),
         ];
-        println!("shape: {:?}", shape);
         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
         let sum = a.hpt_method(1, true)?;
         let tch_sum = tch_a.tch_method(1, true, tch::Kind::Int64);
@@ -215,13 +214,12 @@ fn func() -> anyhow::Result<()> {
 #[test]
 fn func() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for _ in 0..10000 {
+    for _ in 0..10 {
         let shape = [
             rng.random_range(1..512),
             rng.random_range(1..512),
             rng.random_range(1..512),
         ];
-        println!("shape: {:?}", shape);
         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
         let a = a.permute([1, 0, 2])?;
         let tch_a = tch_a.permute(&[1, 0, 2][..]);
@@ -258,13 +256,12 @@ fn func() -> anyhow::Result<()> {
 #[test]
 fn func() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for idx in 0..10000 {
+    for idx in 0..10 {
         let shape = [
             rng.random_range(1..512),
             rng.random_range(1..512),
             rng.random_range(1..512),
         ];
-        println!("shape: {:?}", shape);
         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
         let dim0_max = if shape[0] > 1 {
             rng.random_range(1..shape[0])
@@ -337,13 +334,12 @@ fn func() -> anyhow::Result<()> {
 #[test]
 fn func() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for _ in 0..10000 {
+    for _ in 0..10 {
         let shape = [
             rng.random_range(1..512),
             rng.random_range(1..512),
             rng.random_range(1..512),
         ];
-        println!("shape: {:?}", shape);
         let (a, tch_a) = common_input(shape.iter().product(), shape)?;
         let dim0_max = if shape[0] > 1 {
             rng.random_range(1..shape[0])

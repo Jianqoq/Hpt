@@ -12,7 +12,7 @@ impl hpt::alloc::Allocator for CustomCpuAllocator {
 
     type CpuAllocator = CustomCpuAllocator;
 
-    // type CudaAllocator = CustomCudaAllocator;
+    type CudaAllocator = CustomCudaAllocator;
 
     fn allocate(
         &mut self,
@@ -34,7 +34,13 @@ impl hpt::alloc::Allocator for CustomCpuAllocator {
         self.allocate(layout, device_id)
     }
 
-    fn deallocate(&mut self, ptr: *mut u8, layout: &std::alloc::Layout, device_id: usize) {
+    fn deallocate(
+        &mut self,
+        ptr: *mut u8,
+        layout: &std::alloc::Layout,
+        should_drop: bool,
+        device_id: usize,
+    ) {
         assert_eq!(ptr as usize % layout.align(), 0); // you must make sure the memory is aligned
         unsafe {
             std::alloc::dealloc(ptr, *layout);
@@ -56,6 +62,11 @@ impl hpt::alloc::Allocator for CustomCpuAllocator {
     fn new() -> Self {
         Self {}
     }
+
+    /// forget the ptr from the allocator
+    fn forget(&mut self, ptr: *mut u8, device_id: usize) {
+        println!("forget ptr from cpu allocator");
+    }
 }
 
 impl hpt::alloc::Allocator for CustomCudaAllocator {
@@ -63,7 +74,7 @@ impl hpt::alloc::Allocator for CustomCudaAllocator {
 
     type CpuAllocator = CustomCpuAllocator;
 
-    // type CudaAllocator = CustomCudaAllocator;
+    type CudaAllocator = CustomCudaAllocator;
 
     fn allocate(
         &mut self,
@@ -82,7 +93,13 @@ impl hpt::alloc::Allocator for CustomCudaAllocator {
         todo!()
     }
 
-    fn deallocate(&mut self, ptr: *mut u8, layout: &std::alloc::Layout, device_id: usize) {
+    fn deallocate(
+        &mut self,
+        ptr: *mut u8,
+        layout: &std::alloc::Layout,
+        should_drop: bool,
+        device_id: usize,
+    ) {
         // deallocate memory on cuda
         todo!()
     }
@@ -100,6 +117,11 @@ impl hpt::alloc::Allocator for CustomCudaAllocator {
     // create a new allocator
     fn new() -> Self {
         Self {}
+    }
+
+    /// forget the ptr from the allocator
+    fn forget(&mut self, ptr: *mut u8, device_id: usize) {
+        todo!()
     }
 }
 

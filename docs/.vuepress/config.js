@@ -168,11 +168,27 @@ export default defineUserConfig({
               text: "conv",
               collapsible: true,
               children: [
-                { text: 'batchnorm_conv2d', link: '/user_guide/conv/batchnorm_conv2d.md' },
-                { text: 'conv2d_group', link: '/user_guide/conv/conv2d_group.md' },
-                { text: 'conv2d_transpose', link: '/user_guide/conv/conv2d_transpose.md' },
-                { text: 'conv2d', link: '/user_guide/conv/conv2d.md' },
-                { text: 'dwconv2d', link: '/user_guide/conv/dwconv2d.md' },
+                {
+                  text: "cuda",
+                  collapsible: true,
+                  children: [
+                    { text: 'conv2d_group', link: '/user_guide/conv/cuda/conv2d_group.md' },
+                    { text: 'conv2d', link: '/user_guide/conv/cuda/conv2d.md' },
+                    { text: 'dwconv2d', link: '/user_guide/conv/cuda/dwconv2d.md' },
+                    { text: 'batchnorm_conv2d', link: '/user_guide/conv/cuda/batchnorm_conv2d.md' },
+                  ]
+                },
+                {
+                  text: "cpu",
+                  collapsible: true,
+                  children: [
+                    { text: 'batchnorm_conv2d', link: '/user_guide/conv/cpu/batchnorm_conv2d.md' },
+                    { text: 'conv2d_group', link: '/user_guide/conv/cpu/conv2d_group.md' },
+                    { text: 'conv2d_transpose', link: '/user_guide/conv/cpu/conv2d_transpose.md' },
+                    { text: 'conv2d', link: '/user_guide/conv/cpu/conv2d.md' },
+                    { text: 'dwconv2d', link: '/user_guide/conv/cpu/dwconv2d.md' },
+                  ]
+                }
               ]
             },
             {
@@ -224,7 +240,7 @@ export default defineUserConfig({
                 { text: 'cumsum', link: '/user_guide/cumulative/cumsum.md' },
                 { text: 'cumprod', link: '/user_guide/cumulative/cumprod.md' },
               ]
-            }, 
+            },
             {
               text: 'regularization',
               collapsible: true,
@@ -366,6 +382,34 @@ export default defineUserConfig({
                 { text: 'resize_cuda_lru_cache', link: '/user_guide/utils/resize_cuda_lru_cache.md' },
                 { text: 'set_seed', link: '/user_guide/utils/set_seed.md' },
                 { text: "num_threads", link: '/user_guide/utils/num_threads.md' },
+              ]
+            },
+            {
+              text: 'associated methods',
+              collapsible: true,
+              children: [
+                {
+                  text: 'cpu',
+                  collapsible: true,
+                  children: [
+                    { text: 'forget', link: '/user_guide/associated_methods/cpu/forget.md' },
+                    { text: 'forget_copy', link: '/user_guide/associated_methods/cpu/forget_copy.md' },
+                    { text: 'from_raw', link: '/user_guide/associated_methods/cpu/from_raw.md' },
+                    { text: 'to_cuda', link: '/user_guide/associated_methods/cpu/to_cuda.md' },
+                  ]
+                },
+                {
+                  text: 'cuda',
+                  collapsible: true,
+                  children: [
+                    { text: 'forget', link: '/user_guide/associated_methods/cuda/forget.md' },
+                    { text: 'forget_copy', link: '/user_guide/associated_methods/cuda/forget_copy.md' },
+                    { text: 'from_raw', link: '/user_guide/associated_methods/cuda/from_raw.md' },
+                    { text: 'to_cpu', link: '/user_guide/associated_methods/cuda/to_cpu.md' },
+                  ]
+                },
+                { text: 'all_close', link: '/user_guide/associated_methods/all_close.md' },
+                { text: 'astype', link: '/user_guide/associated_methods/as_type.md' },
               ]
             },
             {

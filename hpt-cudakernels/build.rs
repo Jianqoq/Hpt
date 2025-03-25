@@ -195,8 +195,10 @@ fn find_h_files(dir: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
 
 fn compile_cu(cu_file: &Path, out_dir: &Path, caps: &[u32]) -> Result<Vec<String>, String> {
     let mut obj_files = Vec::new();
-    let temp_dir = out_dir.join(format!("tmp_{}", std::process::id()));
-    std::fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
+    let temp_dir = out_dir.join(format!("tmp_{:?}", std::thread::current().id()));
+    if !temp_dir.exists() {
+        std::fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
+    }
     for cap in caps {
         let file_stem = cu_file
             .file_stem()
@@ -229,10 +231,13 @@ fn compile_cu(cu_file: &Path, out_dir: &Path, caps: &[u32]) -> Result<Vec<String
             }
         }
         let mut cmd = Command::new("nvcc");
+        if obj_file.exists() {
+            std::fs::remove_file(&obj_file).expect("Failed to remove existing file");
+        }
         cmd.arg("-ptx")
-            .arg("-std=c++17")
             .arg("-O3")
             .arg("-allow-unsupported-compiler")
+            .arg("--diag-suppress=20054")
             .arg("--extended-lambda")
             .arg("-Isrc/cutlass")
             .arg(cu_file.to_str().unwrap())

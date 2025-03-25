@@ -13,4 +13,13 @@ pub enum CommonError {
         /// Location where the error occurred
         location: &'static Location<'static>,
     },
+
+    /// Error that occurs when trying to forget a tensor that is still in use
+    #[error("Cannot forget tensor: {msg}")]
+    CantForgetTensor {
+        /// Message describing the error
+        msg: String,
+        /// Location where the error occurred
+        location: &'static Location<'static>,
+    },
 }
