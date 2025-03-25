@@ -25,7 +25,7 @@ members = [
 exclude = ["hpt-bench", "hpt-tests", "hpt-codegen", "hpt-examples"]
 
 [dependencies]
-hpt = { path = "./hpt", features = ["track_caller"] }
+hpt = { path = "./hpt", features = ["track_caller", "cuda"] }
 anyhow = { workspace = true }
 rand = { workspace = true }
 ndarray = { workspace = true }
