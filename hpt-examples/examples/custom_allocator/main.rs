@@ -12,7 +12,7 @@ impl hpt::alloc::Allocator for CustomCpuAllocator {
 
     type CpuAllocator = CustomCpuAllocator;
 
-    type CudaAllocator = CustomCudaAllocator;
+    // type CudaAllocator = CustomCudaAllocator;
 
     fn allocate(
         &mut self,
@@ -74,7 +74,7 @@ impl hpt::alloc::Allocator for CustomCudaAllocator {
 
     type CpuAllocator = CustomCpuAllocator;
 
-    type CudaAllocator = CustomCudaAllocator;
+    // type CudaAllocator = CustomCudaAllocator;
 
     fn allocate(
         &mut self,
