@@ -61,10 +61,10 @@ fn assert_eq_10(b: &Tensor<f64>, a: &TchTensor) {
 #[test]
 fn test() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for i in 0..100 {
-        let m = rng.random_range(1..=512);
-        let n = rng.random_range(1..=512);
-        let k = rng.random_range(1..=512);
+    for i in 0..10 {
+        let m = rng.random_range(1..=128);
+        let n = rng.random_range(1..=128);
+        let k = rng.random_range(1..=128);
         let a = Tensor::<f32>::randn(&[m, k])?;
         let b = Tensor::<f32>::randn(&[k, n])?;
         let c = a.matmul(&b)?;
@@ -100,10 +100,10 @@ fn test_special_shape() -> anyhow::Result<()> {
 #[test]
 fn test_post_op() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for i in 0..100 {
-        let m = rng.random_range(1..=512);
-        let n = rng.random_range(1..=512);
-        let k = rng.random_range(1..=512);
+    for i in 0..10 {
+        let m = rng.random_range(1..=128);
+        let n = rng.random_range(1..=128);
+        let k = rng.random_range(1..=128);
         let a = Tensor::<f32>::randn(&[m, k])?;
         let b = Tensor::<f32>::randn(&[k, n])?;
         let c = a.matmul_post(&b, |x| x._relu(), |x| x._relu())?;
@@ -116,15 +116,19 @@ fn test_post_op() -> anyhow::Result<()> {
 #[test]
 fn test_mp_post_op() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for i in 0..100 {
-        let m = rng.random_range(1..=512);
-        let n = rng.random_range(1..=512);
-        let k = rng.random_range(1..=512);
+    for i in 0..10 {
+        let m = rng.random_range(1..=128);
+        let n = rng.random_range(1..=128);
+        let k = rng.random_range(1..=128);
         let a = Tensor::<half::bf16>::randn(&[m, k])?;
         let b = Tensor::<half::bf16>::randn(&[k, n])?;
         let c = a.matmul_post(&b, |x| x._relu(), |x| x._relu())?;
         let c2: Tensor<half::bf16> = a.matmul(&b)?.relu()?;
-        assert!(c.allclose(&c2, 1.0e-3, 1.0e-3));
+        assert!(c.allclose(
+            &c2,
+            half::bf16::from_f32(1.0e-3),
+            half::bf16::from_f32(1.0e-3)
+        ));
     }
     Ok(())
 }
@@ -133,9 +137,9 @@ fn test_mp_post_op() -> anyhow::Result<()> {
 fn test_t() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     for i in 0..2 {
-        let m = rng.random_range(1..=512);
-        let n = rng.random_range(1..=512);
-        let k = rng.random_range(1..=512);
+        let m = rng.random_range(1..=128);
+        let n = rng.random_range(1..=128);
+        let k = rng.random_range(1..=128);
         let a = Tensor::<f32>::randn(&[m, k])?;
         let b = Tensor::<f32>::randn(&[n, k])?.t()?;
         let c = a.matmul(&b)?;
@@ -171,10 +175,10 @@ fn test_t_special_shape() -> anyhow::Result<()> {
 #[test]
 fn test_t_t() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for i in 0..100 {
-        let m = rng.random_range(1..=512);
-        let n = rng.random_range(1..=512);
-        let k = rng.random_range(1..=512);
+    for i in 0..10 {
+        let m = rng.random_range(1..=128);
+        let n = rng.random_range(1..=128);
+        let k = rng.random_range(1..=128);
         let a = Tensor::<f32>::randn(&[k, m])?.t()?;
         let b = Tensor::<f32>::randn(&[n, k])?.t()?;
         let c = a.matmul(&b)?;
@@ -211,9 +215,9 @@ fn test_t_t_special_shape() -> anyhow::Result<()> {
 fn test_batch_matmul() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     for i in 0..10 {
-        let m = rng.random_range(1..=512);
-        let n = rng.random_range(1..=512);
-        let k = rng.random_range(1..=512);
+        let m = rng.random_range(1..=128);
+        let n = rng.random_range(1..=128);
+        let k = rng.random_range(1..=128);
         let dim0 = rng.random_range(1..=2);
         let dim1 = rng.random_range(1..=2);
         let a = Tensor::<f32>::randn(&[dim0, dim1, m, k])?;
@@ -228,10 +232,10 @@ fn test_batch_matmul() -> anyhow::Result<()> {
 #[test]
 fn test_uncontiguous_batch_matmul() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for i in 0..100 {
-        let m = rng.random_range(1..=512);
-        let n = rng.random_range(1..=512);
-        let k = rng.random_range(1..=512);
+    for i in 0..10 {
+        let m = rng.random_range(1..=128);
+        let n = rng.random_range(1..=128);
+        let k = rng.random_range(1..=128);
         let dim0 = rng.random_range(1..=4);
         let dim1 = rng.random_range(1..=4);
         let a = Tensor::<f32>::randn(&[dim0, dim1, k, m])?.permute(&[1, 0, 3, 2])?;

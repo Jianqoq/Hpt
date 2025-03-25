@@ -12,6 +12,7 @@ use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_allocator::Cuda;
 use hpt_allocator::{Backend, Cpu};
 use hpt_common::error::base::TensorError;
+use hpt_common::error::common::CommonError;
 use hpt_common::{layout::layout::Layout, shape::shape::Shape, utils::pointer::Pointer};
 use hpt_dataloader::data_loader::TensorMeta;
 use hpt_dataloader::utils::ToDataLoader;
@@ -20,11 +21,13 @@ use hpt_display::display;
 use hpt_iterator::iterator_traits::ParStridedIteratorZip;
 use hpt_iterator::TensorIterator;
 use hpt_traits::ops::creation::TensorCreator;
+use hpt_traits::ops::unary::Contiguous;
 use hpt_traits::tensor::TensorInfo;
 use hpt_traits::tensor::{CommonBounds, TensorLike};
 #[cfg(feature = "cuda")]
 use hpt_types::dtype::CudaType;
 use hpt_types::into_scalar::Cast;
+use hpt_types::type_promote::{Cmp, Eval};
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
@@ -130,6 +133,7 @@ where
             "data is not aligned, it must be aligned to {}",
             ALIGN
         );
+        let backend = Backend::<Cpu>::new(data as u64, DEVICE, false).clone(); // call clone, it will push the data to storage
         Ok(Self {
             #[cfg(feature = "bound_check")]
             data: Pointer::new(data, shape.size()),
@@ -144,7 +148,7 @@ where
                 )
                 .unwrap(),
             ),
-            backend: Backend::<Cpu>::new(data as u64, DEVICE, false),
+            backend,
             phantom: PhantomData,
         })
     }
@@ -225,15 +229,9 @@ where
     }
 
     /// check if two tensors are close to each other
-    pub fn allclose<U: CommonBounds>(
-        &self,
-        other: &_Tensor<U, Cpu, DEVICE, A>,
-        rtol: f64,
-        atol: f64,
-    ) -> bool
+    pub fn allclose(&self, other: &_Tensor<T, Cpu, DEVICE, A>, rtol: T, atol: T) -> bool
     where
-        T: Cast<f64>,
-        U: Cast<f64>,
+        T: Eval<Output = bool> + Cmp<Output = bool>,
     {
         if self.shape() != other.shape() {
             return false;
@@ -241,17 +239,15 @@ where
         let folder = self.par_iter().zip(other.par_iter()).fold(
             || true,
             |acc, (a, b)| {
-                let a_val: f64 = a.cast();
-                let b_val: f64 = b.cast();
-                if a_val.is_nan() && b_val.is_nan() {
+                if a._is_nan() && b._is_nan() {
                     return acc;
                 }
-                if a_val.is_infinite() && b_val.is_infinite() {
-                    return acc && a_val.is_sign_positive() == b_val.is_sign_positive();
+                if a._is_inf() && b._is_inf() {
+                    return acc && a._signum()._eq(b._signum());
                 }
-                let tolerance = atol + rtol * b_val.abs();
-                let abs_diff = (a_val - b_val).abs();
-                acc && abs_diff <= tolerance
+                let tolerance = atol._add(rtol._mul(b._abs()));
+                let abs_diff = (a._sub(b))._abs();
+                acc && abs_diff._le(tolerance)
             },
         );
         folder.reduce(|| true, |a, b| a && b)
@@ -263,7 +259,11 @@ where
     A: Allocator,
     A::Output: AllocatorOutputRetrive,
 {
-    /// create a new tensor from a raw pointer and a shape
+    /// create a new tensor from a raw pointer and a shape.
+    ///
+    /// # Note
+    ///
+    /// It is safer to call forget to get the pointer back because the forget method will track the reference count
     ///
     /// # Safety
     ///
@@ -287,7 +287,7 @@ where
     }
 
     /// try to cast the tensor to the new type, if the type is the same, return the tensor itself, otherwise return the new tensor
-    pub fn try_astype<U>(&self) -> Result<Tensor<U, Cpu, DEVICE, A>, TensorError>
+    pub(crate) fn try_astype<U>(&self) -> Result<Tensor<U, Cpu, DEVICE, A>, TensorError>
     where
         U: CommonBounds,
         T: Cast<U>,
@@ -295,24 +295,10 @@ where
         Ok(self.inner.try_astype()?.into())
     }
 
-    /// bitcast the tensor to the new type, the user must ensure the size of the new type is the same as the old type
-    pub fn static_cast<Dst>(&self) -> Result<Tensor<Dst, Cpu, DEVICE, A>, TensorError>
-    where
-        Dst: CommonBounds,
-    {
-        Ok(self.inner.static_cast()?.into())
-    }
-
     /// check if two tensors are close to each other
-    pub fn allclose<U: CommonBounds>(
-        &self,
-        other: &Tensor<U, Cpu, DEVICE, A>,
-        rtol: f64,
-        atol: f64,
-    ) -> bool
+    pub fn allclose(&self, other: &Tensor<T, Cpu, DEVICE, A>, rtol: T, atol: T) -> bool
     where
-        T: Cast<f64>,
-        U: Cast<f64>,
+        T: Eval<Output = bool> + Cmp<Output = bool>,
     {
         self.inner.allclose(&other.inner, rtol, atol)
     }
@@ -325,8 +311,6 @@ where
     where
         T: DeviceRepr + CudaType,
     {
-        use hpt_traits::ops::unary::Contiguous;
-
         let data =
             _Tensor::<T, Cuda, CUDA_DEVICE, <A as Allocator>::CudaAllocator>::empty(self.shape())
                 .unwrap();
@@ -344,6 +328,46 @@ where
         }
         ptr.leak();
         Ok(data.into())
+    }
+
+    /// Forget the tensor, return the raw pointer of the data
+    ///
+    /// # Safety
+    ///
+    /// - The user must ensure the tensor is not used after forgetting
+    pub unsafe fn forget(self) -> Result<(*mut u8, std::alloc::Layout), TensorError> {
+        match Arc::try_unwrap(self.inner) {
+            Ok(mut inner) => {
+                if inner.parent.is_some() {
+                    return Err(CommonError::CantForgetTensor {
+                        msg: "tensor is a view, cannot forget".to_string(),
+                        location: std::panic::Location::caller(),
+                    }
+                    .into());
+                }
+                let mut allocator = A::new();
+                use hpt_allocator::Buffer;
+                let ret = inner.backend.inner.get_ptr() as *mut u8;
+                allocator.forget(ret, DEVICE);
+                inner.backend.forget();
+                Ok((ret, *inner.mem_layout.as_ref()))
+            }
+            Err(inner) => {
+                let ref_count = Arc::strong_count(&inner);
+                Err(CommonError::CantForgetTensor {
+                    msg: format!("ref_count: {}", ref_count),
+                    location: std::panic::Location::caller(),
+                }
+                .into())
+            }
+        }
+    }
+
+    /// clone the tensor and return the cloned tensor data
+    pub unsafe fn forget_copy(&self) -> Result<(*mut u8, std::alloc::Layout), TensorError> {
+        let to_forget = self.contiguous()?;
+        let ptr = to_forget.forget()?;
+        Ok(ptr)
     }
 }
 

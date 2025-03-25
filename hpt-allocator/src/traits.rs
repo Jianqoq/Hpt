@@ -40,13 +40,17 @@ pub trait Allocator: Clone {
     /// 2. if the ptr is found in the storage, decrement the reference count
     ///
     /// 3. if the reference count is 0, remove the ptr from the storage, remove the ptr from the allocated set, and insert the ptr into the cache
-    fn deallocate(&mut self, ptr: *mut u8, layout: &Layout, device_id: usize);
+    fn deallocate(&mut self, ptr: *mut u8, layout: &Layout, should_drop: bool, device_id: usize);
     /// if the ptr is found in the storage, increment the reference count, otherwise insert the ptr into the storage
     fn insert_ptr(&mut self, ptr: *mut u8, device_id: usize);
     /// clear the cache, deallocate all the memory allocated
     ///
     /// this is used when the program exits, it will be called automatically
     fn clear(&mut self);
+
+    /// forget the data in the allocator
+    fn forget(&mut self, ptr: *mut u8, device_id: usize);
+
     /// create a new allocator
     fn new() -> Self;
 }

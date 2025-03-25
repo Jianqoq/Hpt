@@ -1,5 +1,8 @@
 #include <cuda_fp16.h>
 #include <cuda_bf16.h>
+#include "utils/type_alias.cuh"
+#include "utils/type_cast.cuh"
+#include "utils/make_vec.cuh"
 
 #define MAKE_VEC4(vec_type, vec_size, value) make_##vec_type##vec_size(value, value, value, value)
 #define MAKE_VEC3(vec_type, vec_size, value) make_##vec_type##vec_size(value, value, value)
@@ -29,19 +32,19 @@
         }                                                                             \
     }
 
-DEFINE_KERNEL(fill_f32, float, float, 4);
-DEFINE_KERNEL(fill_f64, double, double, 4);
+DEFINE_KERNEL(fill_f32, float, f32, 4);
+DEFINE_KERNEL(fill_f64, double, f64, 4);
 
-DEFINE_KERNEL(fill_i8, char, char, 4);
-DEFINE_KERNEL(fill_i16, short, short, 4);
-DEFINE_KERNEL(fill_i32, int, int, 4);
-DEFINE_KERNEL(fill_i64, longlong, long long, 4);
-DEFINE_KERNEL(fill_u8, uchar, unsigned char, 4);
-DEFINE_KERNEL(fill_u16, ushort, unsigned short, 4);
-DEFINE_KERNEL(fill_u32, uint, unsigned int, 4);
-DEFINE_KERNEL(fill_u64, ulonglong, unsigned long long, 4);
-DEFINE_KERNEL(fill_f16, half, half, 2);
-extern "C" __global__ void fill_bf16(__nv_bfloat16 *out, __nv_bfloat16 value, size_t N)
+DEFINE_KERNEL(fill_i8, char, i8, 4);
+DEFINE_KERNEL(fill_i16, short, i16, 4);
+DEFINE_KERNEL(fill_i32, int, i32, 4);
+DEFINE_KERNEL(fill_i64, longlong, i64, 4);
+DEFINE_KERNEL(fill_u8, uchar, u8, 4);
+DEFINE_KERNEL(fill_u16, ushort, u16, 4);
+DEFINE_KERNEL(fill_u32, uint, u32, 4);
+DEFINE_KERNEL(fill_u64, ulonglong, u64, 4);
+DEFINE_KERNEL(fill_f16, half, f16, 2);
+extern "C" __global__ void fill_bf16(bf16 *out, bf16 value, size_t N)
 {
     __nv_bfloat162 *out_vec = (__nv_bfloat162 *)out;
     __nv_bfloat162 value_vec = make_bfloat162(value, value);
@@ -149,7 +152,7 @@ extern "C" __global__ void geomspace_f16(half *out, half base, half start, half 
     }
 };
 
-extern "C" __global__ void geomspace_bf16(__nv_bfloat16 *out, __nv_bfloat16 base, __nv_bfloat16 start, __nv_bfloat16 step, bool neg, size_t n)
+extern "C" __global__ void geomspace_bf16(bf16 *out, bf16 base, bf16 start, bf16 step, bool neg, size_t n)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     size_t stride = blockDim.x * gridDim.x;
@@ -179,18 +182,18 @@ extern "C" __global__ void geomspace_bf16(__nv_bfloat16 *out, __nv_bfloat16 base
     }
 };
 
-DEFINE_GEOMSPACE_KERNEL(geomspace_f32, float, float, 4, 10.0f);
-DEFINE_GEOMSPACE_KERNEL(geomspace_f64, double, double, 4, 10.0);
+DEFINE_GEOMSPACE_KERNEL(geomspace_f32, float, f32, 4, 10.0f);
+DEFINE_GEOMSPACE_KERNEL(geomspace_f64, double, f64, 4, 10.0);
 
-DEFINE_GEOMSPACE_KERNEL_CAST(geomspace_i8, char, char, 4, float, 10.0f);
-DEFINE_GEOMSPACE_KERNEL_CAST(geomspace_i16, short, short, 4, float, 10.0f);
-DEFINE_GEOMSPACE_KERNEL_CAST(geomspace_i32, int, int, 4, float, 10.0f);
-DEFINE_GEOMSPACE_KERNEL_CAST(geomspace_i64, longlong, long long, 4, double, 10.0);
+DEFINE_GEOMSPACE_KERNEL_CAST(geomspace_i8, char, i8, 4, float, 10.0f);
+DEFINE_GEOMSPACE_KERNEL_CAST(geomspace_i16, short, i16, 4, float, 10.0f);
+DEFINE_GEOMSPACE_KERNEL_CAST(geomspace_i32, int, i32, 4, float, 10.0f);
+DEFINE_GEOMSPACE_KERNEL_CAST(geomspace_i64, longlong, i64, 4, double, 10.0);
 
-DEFINE_GEOMSPACE_KERNEL_CAST(geomspace_u8, uchar, unsigned char, 4, float, 10.0f);
-DEFINE_GEOMSPACE_KERNEL_CAST(geomspace_u16, ushort, unsigned short, 4, float, 10.0f);
-DEFINE_GEOMSPACE_KERNEL_CAST(geomspace_u32, uint, unsigned int, 4, float, 10.0f);
-DEFINE_GEOMSPACE_KERNEL_CAST(geomspace_u64, ulonglong, unsigned long long, 4, double, 10.0);
+DEFINE_GEOMSPACE_KERNEL_CAST(geomspace_u8, uchar, u8, 4, float, 10.0f);
+DEFINE_GEOMSPACE_KERNEL_CAST(geomspace_u16, ushort, u16, 4, float, 10.0f);
+DEFINE_GEOMSPACE_KERNEL_CAST(geomspace_u32, uint, u32, 4, float, 10.0f);
+DEFINE_GEOMSPACE_KERNEL_CAST(geomspace_u64, ulonglong, u64, 4, double, 10.0);
 
 #define DEFINE_LINSPACE_KERNEL(func_name, vec_type, type, vec_size)                                              \
     extern "C" __global__ void func_name(type *out, type start, type step, type end, bool include_end, size_t n) \
@@ -280,7 +283,7 @@ extern "C" __global__ void linspace_f16(half *out, half start, half step, half e
         }
     }
 };
-extern "C" __global__ void linspace_bf16(__nv_bfloat16 *out, __nv_bfloat16 start, __nv_bfloat16 step, __nv_bfloat16 end, bool include_end, size_t n)
+extern "C" __global__ void linspace_bf16(bf16 *out, bf16 start, bf16 step, bf16 end, bool include_end, size_t n)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     size_t stride = blockDim.x * gridDim.x;
@@ -373,7 +376,7 @@ DEFINE_LINSPACE_KERNEL(linspace_u64, ulonglong, unsigned long long, 4);
 
 DEFINE_TRIU_KERNEL(triu_bool, bool, true, false);
 DEFINE_TRIU_KERNEL(triu_f16, half, __float2half(1.0f), __float2half(0.0f));
-DEFINE_TRIU_KERNEL(triu_bf16, __nv_bfloat16, __float2bfloat16(1.0f), __float2bfloat16(0.0f));
+DEFINE_TRIU_KERNEL(triu_bf16, bf16, __float2bfloat16(1.0f), __float2bfloat16(0.0f));
 DEFINE_TRIU_KERNEL(triu_f32, float, 1.0f, 0.0f);
 DEFINE_TRIU_KERNEL(triu_f64, double, 1.0, 0.0);
 
@@ -387,120 +390,114 @@ DEFINE_TRIU_KERNEL(triu_u16, unsigned short, 1, 0);
 DEFINE_TRIU_KERNEL(triu_u32, unsigned int, 1, 0);
 DEFINE_TRIU_KERNEL(triu_u64, unsigned long long, 1, 0);
 
-#define ARANGE_MAKE_VEC4(vec_type, vec_size, value) make_##vec_type##vec_size(value, value + step, value + step * 2, value + step * 3)
-#define ARANGE_MAKE_VEC3(vec_type, vec_size, value) make_##vec_type##vec_size(value, value + step, value + step * 2)
-#define ARANGE_MAKE_VEC2(vec_type, vec_size, value) make_##vec_type##vec_size(value, value + step)
-
-#define DEFINE_ARANGE_KERNEL(func_name, vec_type, type, vec_size)                    \
+template <typename T, int vec_size>
+__device__ __forceinline__ void arange(T *out, T start, T step, size_t N)
+{
+    using Vec = typename VectorTrait<T, vec_size>::type;
+    Vec *out_vec = (Vec *)out;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    int N_vec = N / vec_size;
+    for (int i = idx; i < N_vec; i += stride)
+    {
+        T i_vec = cast<int, T>(i * vec_size);
+        T base = start + i_vec * step;
+        if constexpr (vec_size == 2)
+        {
+            Vec value_vec = VecMaker<T>::make(base, base + step);
+            out_vec[i] = value_vec;
+        }
+        else if constexpr (vec_size == 3)
+        {
+            Vec value_vec = VecMaker<T>::make(base, base + step, base + step * 2);
+            out_vec[i] = value_vec;
+        }
+        else if constexpr (vec_size == 4)
+        {
+            Vec value_vec = VecMaker<T>::make(base, base + step, base + step * 2, base + step * 3);
+            out_vec[i] = value_vec;
+        }
+        else
+        {
+            static_assert(false);
+        }
+    }
+    if (idx == 0)
+    {
+        for (int i = N_vec * vec_size; i < N; i++)
+        {
+            out[i] = start + cast<int, T>(i) * step;
+        }
+    }
+};
+#define DEFINE_ARANGE_KERNEL(func_name, type, vec_size)                              \
     extern "C" __global__ void func_name(type *out, type start, type step, size_t N) \
     {                                                                                \
-        vec_type##vec_size *out_vec = (vec_type##vec_size *)out;                     \
-        size_t idx = blockIdx.x * blockDim.x + threadIdx.x;                          \
-        size_t stride = blockDim.x * gridDim.x;                                      \
-        size_t N_vec = N / vec_size;                                                 \
-                                                                                     \
-        for (size_t i = idx; i < N_vec; i += stride)                                 \
-        {                                                                            \
-            type base = start + (i * vec_size) * step;                               \
-            vec_type##vec_size value_vec = ARANGE_MAKE_VEC##vec_size(                \
-                vec_type, vec_size, base);                                           \
-            out_vec[i] = value_vec;                                                  \
-        }                                                                            \
-                                                                                     \
-        if (idx == 0)                                                                \
-        {                                                                            \
-            for (size_t i = N_vec * vec_size; i < N; i++)                            \
-            {                                                                        \
-                out[i] = start + i * step;                                           \
-            }                                                                        \
-        }                                                                            \
+        arange<type, vec_size>(out, start, step, N);                                 \
     }
 
-extern "C" __global__ void arange_f16(half *out, half start, half step, size_t N)
-{
-    half2 *out_vec = (half2 *)out;
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    size_t stride = blockDim.x * gridDim.x;
-    size_t N_vec = N / 2;
-    for (size_t i = idx; i < N_vec; i += stride)
-    {
-#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
-        half base = start + step * __ull2half_rn((i * 2));
-#else
-        half base = start + step * __uint2half_rn((i * 2));
-#endif
-        half2 value_vec = make_half2(base, base + step);
-        out_vec[i] = value_vec;
-    }
-    if (idx == 0)
-    {
-        for (size_t i = N_vec * 2; i < N; i++)
-        {
-#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
-            out[i] = start + __ull2half_rn(i) * step;
-#else
-            out[i] = start + __uint2half_rn(i) * step;
-#endif
-        }
-    }
-};
+DEFINE_ARANGE_KERNEL(arange_f32, f32, 4);
+DEFINE_ARANGE_KERNEL(arange_f64, f64, 4);
 
-extern "C" __global__ void arange_bf16(__nv_bfloat16 *out, __nv_bfloat16 start, __nv_bfloat16 step, size_t N)
-{
-    __nv_bfloat162 *out_vec = (__nv_bfloat162 *)out;
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    size_t stride = blockDim.x * gridDim.x;
-    size_t N_vec = N / 2;
-    for (size_t i = idx; i < N_vec; i += stride)
-    {
-#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
-        __nv_bfloat16 base = start + step * __ull2bfloat16_rn((i * 2));
-#else
-        __nv_bfloat16 base = start + step * __uint2bfloat16_rn((i * 2));
-#endif
-        __nv_bfloat162 value_vec = make_bfloat162(base, base + step);
-        out_vec[i] = value_vec;
-    }
-    if (idx == 0)
-    {
-        for (size_t i = N_vec * 2; i < N; i++)
-        {
-#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
-            out[i] = start + __ull2bfloat16_rn(i) * step;
-#else
-            out[i] = start + __uint2bfloat16_rn(i) * step;
-#endif
-        }
-    }
-};
+DEFINE_ARANGE_KERNEL(arange_f16, half, 2);
+DEFINE_ARANGE_KERNEL(arange_bf16, bf16, 2);
+
+DEFINE_ARANGE_KERNEL(arange_i8, i8, 4);
+DEFINE_ARANGE_KERNEL(arange_i16, i16, 4);
+DEFINE_ARANGE_KERNEL(arange_i32, i32, 4);
+DEFINE_ARANGE_KERNEL(arange_i64, i64, 4);
+
+DEFINE_ARANGE_KERNEL(arange_u8, u8, 4);
+DEFINE_ARANGE_KERNEL(arange_u16, u16, 4);
+DEFINE_ARANGE_KERNEL(arange_u32, u32, 4);
+DEFINE_ARANGE_KERNEL(arange_u64, u64, 4);
 
 extern "C" __global__ void arange_bool(bool *out, bool start, bool step, size_t N)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     size_t stride = blockDim.x * gridDim.x;
 
-    for (size_t i = idx; i < N; i += stride)
-    {
-        if (step)
-        {
+    if (step)
+        for (size_t i = idx; i < N; i += stride)
             out[i] = start ^ (i & 1);
-        }
-        else
-        {
+    else
+        for (size_t i = idx; i < N; i += stride)
             out[i] = start;
-        }
+};
+
+template <typename T>
+__device__ __forceinline__ void eye(T *out, int32_t m, int32_t n, int32_t k, int32_t N)
+{
+    int32_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    for (int32_t i = idx; i < N; i += blockDim.x * gridDim.x)
+    {
+        int32_t row = i / n;
+        int32_t col = i % n;
+        if (col == row + k)
+            out[i] = cast<int32_t, T>(1);
+        else
+            out[i] = cast<int32_t, T>(0);
     }
 };
 
-DEFINE_ARANGE_KERNEL(arange_f32, float, float, 4);
-DEFINE_ARANGE_KERNEL(arange_f64, double, double, 4);
+#define DEFINE_EYE_KERNEL(func_name, type)                                                      \
+    extern "C" __global__ void func_name(type *out, int32_t m, int32_t n, int32_t k, int32_t N) \
+    {                                                                                           \
+        eye<type>(out, m, n, k, N);                                                             \
+    }
 
-DEFINE_ARANGE_KERNEL(arange_i8, char, char, 4);
-DEFINE_ARANGE_KERNEL(arange_i16, short, short, 4);
-DEFINE_ARANGE_KERNEL(arange_i32, int, int, 4);
-DEFINE_ARANGE_KERNEL(arange_i64, longlong, long long, 4);
+DEFINE_EYE_KERNEL(eye_bool, bool);
+DEFINE_EYE_KERNEL(eye_f16, f16);
+DEFINE_EYE_KERNEL(eye_bf16, bf16);
+DEFINE_EYE_KERNEL(eye_f32, f32);
+DEFINE_EYE_KERNEL(eye_f64, f64);
 
-DEFINE_ARANGE_KERNEL(arange_u8, uchar, unsigned char, 4);
-DEFINE_ARANGE_KERNEL(arange_u16, ushort, unsigned short, 4);
-DEFINE_ARANGE_KERNEL(arange_u32, uint, unsigned int, 4);
-DEFINE_ARANGE_KERNEL(arange_u64, ulonglong, unsigned long long, 4);
+DEFINE_EYE_KERNEL(eye_i8, i8);
+DEFINE_EYE_KERNEL(eye_i16, i16);
+DEFINE_EYE_KERNEL(eye_i32, i32);
+DEFINE_EYE_KERNEL(eye_i64, i64);
+
+DEFINE_EYE_KERNEL(eye_u8, u8);
+DEFINE_EYE_KERNEL(eye_u16, u16);
+DEFINE_EYE_KERNEL(eye_u32, u32);
+DEFINE_EYE_KERNEL(eye_u64, u64);

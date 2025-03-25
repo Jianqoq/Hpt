@@ -1,7 +1,7 @@
 use std::{collections::HashMap, panic::Location, sync::Arc};
 
 use cudarc::{
-    driver::{CudaDevice, CudaFunction, LaunchConfig},
+    driver::{CudaDevice, CudaFunction, CudaSlice, LaunchConfig},
     nvrtc::{compile_ptx_with_opts, CompileOptions},
 };
 use hpt_allocator::traits::Allocator;
@@ -12,7 +12,10 @@ use hpt_cudakernels::RegisterInfo;
 use hpt_types::dtype::{CudaType, TypeCommon};
 use regex::Regex;
 
-use crate::{backend::Cuda, cuda_compiled::CUDA_COMPILED, tensor_base::_Tensor};
+use crate::{
+    backend::Cuda, backends::common::divmod::FastDivmod, cuda_compiled::CUDA_COMPILED,
+    tensor_base::_Tensor,
+};
 
 #[track_caller]
 pub(crate) fn compile_kernel(
@@ -378,4 +381,26 @@ pub(crate) fn get_array_str(array: &[i64]) -> String {
         .map(|x| x.to_string())
         .collect::<Vec<_>>()
         .join(",")
+}
+
+pub(crate) fn get_fast_divmod(
+    shape: &[i64],
+    device: Arc<CudaDevice>,
+) -> Result<CudaSlice<FastDivmod>, TensorError> {
+    let mut res = vec![];
+    for i in shape.iter() {
+        let fast_divmod = FastDivmod::new(*i as i32);
+        res.push(fast_divmod);
+    }
+    let res = device.htod_sync_copy(&res)?;
+    Ok(res)
+}
+
+pub(crate) fn get_slice_i32(
+    slice: &[i64],
+    device: Arc<CudaDevice>,
+) -> std::result::Result<cudarc::driver::CudaSlice<i32>, TensorError> {
+    let slice = slice.iter().map(|x| *x as i32).collect::<Vec<_>>();
+    let res = device.htod_sync_copy(&slice)?;
+    Ok(res)
 }

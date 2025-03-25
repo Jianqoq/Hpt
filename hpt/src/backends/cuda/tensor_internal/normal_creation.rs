@@ -218,7 +218,18 @@ where
             &CREATION,
         )?;
         let cfg = compute_kernel_launch_config(ret.device(), &reg_info, ret.size());
-        unsafe { eye_kernel.launch(cfg, (ret.cuda_slice(), n, m, k)) }?;
+        unsafe {
+            eye_kernel.launch(
+                cfg,
+                (
+                    ret.cuda_slice(),
+                    n as i32,
+                    m as i32,
+                    k as i32,
+                    ret.size() as i32,
+                ),
+            )
+        }?;
         Ok(ret)
     }
 

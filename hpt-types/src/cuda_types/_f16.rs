@@ -1,7 +1,5 @@
 use super::{convertion::CudaConvertor, scalar::Scalar};
-use crate::type_promote::{
-    BitWiseOut2, Eval2, FloatOutBinary2, FloatOutUnary2, NormalOut2, NormalOutUnary2,
-};
+use crate::type_promote::{Eval2, FloatOutBinary2, FloatOutUnary2, NormalOut2, NormalOutUnary2};
 use half::f16;
 impl FloatOutBinary2 for Scalar<f16> {
     #[inline(always)]
@@ -156,38 +154,6 @@ impl NormalOutUnary2 for Scalar<f16> {
             "__float2half_rn(copysignf({}, {}))",
             self.val, rhs.val
         ))
-    }
-}
-
-impl BitWiseOut2 for Scalar<f16> {
-    #[inline(always)]
-    fn __bitand(self, _: Self) -> Self {
-        panic!("Bitwise operations are not supported for cuda f16")
-    }
-
-    #[inline(always)]
-    fn __bitor(self, _: Self) -> Self {
-        panic!("Bitwise operations are not supported for cuda f16")
-    }
-
-    #[inline(always)]
-    fn __bitxor(self, _: Self) -> Self {
-        panic!("Bitwise operations are not supported for cuda f16")
-    }
-
-    #[inline(always)]
-    fn __not(self) -> Self {
-        panic!("Bitwise operations are not supported for cuda f16")
-    }
-
-    #[inline(always)]
-    fn __shl(self, _: Self) -> Self {
-        panic!("Shift operations are not supported for cuda f16")
-    }
-
-    #[inline(always)]
-    fn __shr(self, _: Self) -> Self {
-        panic!("Shift operations are not supported for cuda f16")
     }
 }
 

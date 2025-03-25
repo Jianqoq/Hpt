@@ -16,6 +16,8 @@ use hpt_traits::tensor::TensorLike;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::dtype::TypeCommon;
 use hpt_types::into_scalar::Cast;
+use hpt_types::type_promote::Cmp;
+use hpt_types::type_promote::Eval;
 use hpt_types::type_promote::{
     BitWiseOut, FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary,
 };
@@ -1929,22 +1931,20 @@ where
     }
 }
 
-impl<T, U, const DEVICE: usize, A> PartialEq<_Tensor<U, Cpu, DEVICE, A>>
-    for _Tensor<T, Cpu, DEVICE, A>
+impl<T, const DEVICE: usize, A> PartialEq<_Tensor<T, Cpu, DEVICE, A>> for _Tensor<T, Cpu, DEVICE, A>
 where
-    T: CommonBounds + Cast<f64>,
-    U: CommonBounds + Cast<f64>,
+    T: Eval<Output = bool> + Cmp<Output = bool> + CommonBounds,
     A: Allocator,
     A::Output: AllocatorOutputRetrive,
 {
-    fn eq(&self, other: &_Tensor<U, Cpu, DEVICE, A>) -> bool {
+    fn eq(&self, other: &_Tensor<T, Cpu, DEVICE, A>) -> bool {
         if self.size() != other.size() {
             return false;
         }
         if self.shape() != other.shape() {
             return false;
         }
-        self.allclose(other, 1.0e-5, 1.0e-5)
+        self.allclose(other, T::ZERO, T::ZERO)
     }
 }
 
@@ -2020,22 +2020,21 @@ where
     }
 }
 
-impl<T, U, const DEVICE: usize, Al> PartialEq<Tensor<U, Cpu, DEVICE, Al>>
+impl<T, const DEVICE: usize, Al> PartialEq<Tensor<T, Cpu, DEVICE, Al>>
     for Tensor<T, Cpu, DEVICE, Al>
 where
-    T: CommonBounds + Cast<f64>,
-    U: CommonBounds + Cast<f64>,
+    T: Eval<Output = bool> + Cmp<Output = bool> + CommonBounds,
     Al: Allocator,
     Al::Output: AllocatorOutputRetrive,
 {
-    fn eq(&self, other: &Tensor<U, Cpu, DEVICE, Al>) -> bool {
+    fn eq(&self, other: &Tensor<T, Cpu, DEVICE, Al>) -> bool {
         if self.size() != other.size() {
             return false;
         }
         if self.shape() != other.shape() {
             return false;
         }
-        self.allclose(other, 1.0e-5, 1.0e-5)
+        self.allclose(other, T::ZERO, T::ZERO)
     }
 }
 

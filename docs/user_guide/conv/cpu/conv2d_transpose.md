@@ -12,17 +12,17 @@ fn conv2d_transpose(
 Performs a transpose 2D convolution operation with support for stride, padding, dilation, and activation functions.
 
 ## Parameters:
-`x`: Input tensor with shape [batch_size, height, width, in_channels]
+`x`: Input tensor with shape `[batch_size, height, width, in_channels]`
 
-`kernels`: Transposed convolution kernels tensor with shape [kernel_height, kernel_width, in_channels, out_channels]
+`kernels`: Transposed convolution kernels tensor with shape `[kernel_height, kernel_width, in_channels, out_channels]`
 
-`steps`: Convolution stride as [step_height, step_width]
+`steps`: Convolution stride as `[step_height, step_width]`
 
-`padding`: Padding size as [(padding_top, padding_bottom), (padding_left, padding_right)]
+`padding`: Padding size as `[(padding_top, padding_bottom), (padding_left, padding_right)]`
 
 `output_padding`: Padding size on the output
 
-`dilation`: Kernel dilation factors as [dilation_height, dilation_width]
+`dilation`: Kernel dilation factors as `[dilation_height, dilation_width]`
 
 ## Returns:
 Tensor with type `T`

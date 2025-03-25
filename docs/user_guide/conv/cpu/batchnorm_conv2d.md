@@ -18,27 +18,27 @@ fn batchnorm_conv2d(
 Performs a 2D convolution operation followed by batch normalization in a single fused operation for improved performance.
 
 ## Parameters:
-`x`: Input tensor with shape [batch_size, height, width, in_channels]
+`x`: Input tensor with shape `[batch_size, height, width, in_channels]`
 
-`kernels`: Convolution kernels tensor with shape [kernel_height, kernel_width, in_channels, out_channels]
+`kernels`: Convolution kernels tensor with shape `[kernel_height, kernel_width, in_channels, out_channels]`
 
-`mean`: Mean values for batch normalization with shape [out_channels]
+`mean`: Mean values for batch normalization with shape `[out_channels]`
 
-`var`: Variance values for batch normalization with shape [out_channels]
+`var`: Variance values for batch normalization with shape `[out_channels]`
 
-`gamma`: Scale parameter for batch normalization with shape [out_channels]
+`gamma`: Scale parameter for batch normalization with shape `[out_channels]`
 
-`beta`: Shift parameter for batch normalization with shape [out_channels]
+`beta`: Shift parameter for batch normalization with shape `[out_channels]`
 
-`bias`: Optional bias tensor with shape [out_channels]
+`bias`: Optional bias tensor with shape `[out_channels]`
 
 `eps`: Small constant added to the variance for numerical stability
 
-`steps`: Convolution stride as [step_height, step_width]
+`steps`: Convolution stride as `[step_height, step_width]`
 
-`padding`: Padding size as [(padding_top, padding_bottom), (padding_left, padding_right)]
+`padding`: Padding size as `[(padding_top, padding_bottom), (padding_left, padding_right)]`
 
-`dilation`: Kernel dilation factors as [dilation_height, dilation_width]
+`dilation`: Kernel dilation factors as `[dilation_height, dilation_width]`
 
 `activation`: Optional activation function applied to the convolution result
 

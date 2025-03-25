@@ -80,9 +80,9 @@ impl Allocator for CpuAllocator {
         }
     }
 
-    fn deallocate(&mut self, ptr: *mut u8, layout: &Layout, device_id: usize) {
+    fn deallocate(&mut self, ptr: *mut u8, layout: &Layout, should_drop: bool, device_id: usize) {
         if let Some(allocator) = self.allocator.get_mut(&device_id) {
-            allocator.deallocate(ptr, layout, device_id);
+            allocator.deallocate(ptr, layout, should_drop, device_id);
         } else {
             panic!("device {} not found in allocator", device_id);
         }
@@ -118,6 +118,17 @@ impl Allocator for CpuAllocator {
     fn new() -> Self {
         CpuAllocator {
             allocator: HashMap::new(),
+        }
+    }
+
+    /// # Forget
+    ///
+    /// forget the ptr from the storage, remove the ptr from the allocated set
+    fn forget(&mut self, ptr: *mut u8, device_id: usize) {
+        if let Some(allocator) = self.allocator.get_mut(&device_id) {
+            allocator.forget(ptr, device_id);
+        } else {
+            panic!("device {} not found in allocator", device_id);
         }
     }
 }
@@ -174,7 +185,7 @@ impl _Allocator {
     /// deallocate memory based on the ptr provided, if the ptr is found in the storage, decrement the reference count
     ///
     /// if the reference count is 0, remove the ptr from the storage, remove the ptr from the allocated set, and insert the ptr into the cache
-    fn deallocate(&mut self, ptr: *mut u8, layout: &Layout, device_id: usize) {
+    fn deallocate(&mut self, ptr: *mut u8, layout: &Layout, should_drop: bool, device_id: usize) {
         if let Ok(mut storage) = CPU_STORAGE.lock() {
             crate::utils::deallocate::deallocate_helper(
                 &mut self.cache,
@@ -182,6 +193,7 @@ impl _Allocator {
                 &mut storage,
                 layout,
                 ptr,
+                should_drop,
                 device_id,
             );
         } else {
@@ -204,6 +216,17 @@ impl _Allocator {
                 storage.increment_ref(SafePtr { ptr });
                 map.insert(device_id, storage);
             }
+        }
+    }
+
+    /// # Forget
+    ///
+    /// forget the ptr from the storage, remove the ptr from the allocated set
+    fn forget(&mut self, ptr: *mut u8, device_id: usize) {
+        if let Ok(mut storage) = CPU_STORAGE.lock() {
+            crate::utils::forget::forget_helper(&mut self.allocated, &mut storage, ptr, device_id);
+        } else {
+            panic!("Failed to lock CPU_STORAGE");
         }
     }
 }

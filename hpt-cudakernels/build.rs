@@ -230,9 +230,9 @@ fn compile_cu(cu_file: &Path, out_dir: &Path, caps: &[u32]) -> Result<Vec<String
         }
         let mut cmd = Command::new("nvcc");
         cmd.arg("-ptx")
-            .arg("-std=c++17")
             .arg("-O3")
             .arg("-allow-unsupported-compiler")
+            .arg("--diag-suppress=20054")
             .arg("--extended-lambda")
             .arg("-Isrc/cutlass")
             .arg(cu_file.to_str().unwrap())
