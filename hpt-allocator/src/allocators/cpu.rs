@@ -84,6 +84,9 @@ impl Allocator for CpuAllocator {
         if let Some(allocator) = self.allocator.get_mut(&device_id) {
             allocator.deallocate(ptr, layout, should_drop, device_id);
         } else {
+            if !should_drop {
+                return;
+            }
             panic!("device {} not found in allocator", device_id);
         }
     }
@@ -102,16 +105,24 @@ impl Allocator for CpuAllocator {
         }
     }
     fn clear(&mut self) {
-        for (_, allocator) in self.allocator.iter_mut() {
-            for (layout, ptrs) in allocator.cache.iter_mut() {
-                for ptr in ptrs.iter() {
-                    unsafe {
-                        std::alloc::dealloc(ptr.ptr, layout.clone());
+        if let Ok(mut storage) = CPU_STORAGE.lock() {
+            let storage: &mut HashMap<usize, CommonStorage> = &mut storage;
+            for (device_id, allocator) in self.allocator.iter_mut() {
+                for (layout, ptrs) in allocator.cache.iter_mut() {
+                    for ptr in ptrs.iter() {
+                        storage
+                            .get_mut(device_id)
+                            .unwrap()
+                            .decrement_ref(SafePtr { ptr: ptr.ptr });
+                        unsafe {
+                            std::alloc::dealloc(ptr.ptr, layout.clone());
+                        }
                     }
                 }
+                allocator.cache.clear();
+                assert_eq!(allocator.allocated.len(), 0);
+                assert_eq!(storage[device_id].storage.len(), 0);
             }
-            allocator.cache.clear();
-            assert_eq!(allocator.allocated.len(), 0);
         }
     }
 
@@ -125,10 +136,13 @@ impl Allocator for CpuAllocator {
     ///
     /// forget the ptr from the storage, remove the ptr from the allocated set
     fn forget(&mut self, ptr: *mut u8, device_id: usize) {
-        if let Some(allocator) = self.allocator.get_mut(&device_id) {
-            allocator.forget(ptr, device_id);
-        } else {
-            panic!("device {} not found in allocator", device_id);
+        if let Ok(mut storage) = CPU_STORAGE.lock() {
+            crate::utils::forget::forget_helper(&mut storage, ptr, device_id);
+            if let Some(allocator) = self.allocator.get_mut(&device_id) {
+                if allocator.allocated.get(&SafePtr { ptr }).is_some() {
+                    allocator.allocated.remove(&SafePtr { ptr });
+                }
+            }
         }
     }
 }
@@ -216,17 +230,6 @@ impl _Allocator {
                 storage.increment_ref(SafePtr { ptr });
                 map.insert(device_id, storage);
             }
-        }
-    }
-
-    /// # Forget
-    ///
-    /// forget the ptr from the storage, remove the ptr from the allocated set
-    fn forget(&mut self, ptr: *mut u8, device_id: usize) {
-        if let Ok(mut storage) = CPU_STORAGE.lock() {
-            crate::utils::forget::forget_helper(&mut self.allocated, &mut storage, ptr, device_id);
-        } else {
-            panic!("Failed to lock CPU_STORAGE");
         }
     }
 }

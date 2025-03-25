@@ -1,28 +1,37 @@
-# tensor_eq
+# allclose
 ```rust
-tensor_eq(
-    x: &Tensor<A> | Tensor<A>, 
-    y: &Tensor<B> | Tensor<B>
-) -> Result<Tensor<bool>, TensorError>
+fn allclose(&self, other: &Tensor<T>, rtol: T, atol: T) -> bool
 ```
-check if element from x is equal to element from y
+Checks whether two tensors are element-wise equal within a tolerance with the formula `|a - b| <= atol + rtol * |b|`
 
 ## Parameters:
 `x`: First input tensor
 
 `y`: Second input tensor
 
+`rtol`: Relative tolerance - maximum allowed relative difference
+
+`atol`: Absolute tolerance - maximum allowed absolute difference
+
 ## Returns:
-Tensor with type `bool`
+`true` if all elements in both tensors are equal within the specified tolerance, otherwise `false`.
 
 ## Examples:
 ```rust
-use hpt::{ops::TensorCmp, Tensor, error::TensorError};
+use hpt::{Tensor, error::TensorError};
 
 fn main() -> Result<(), TensorError> {
-    let a = Tensor::<f32>::new([2.0, 2.0, 2.0]);
-    let b = a.tensor_eq(&a)?;
-    println!("{}", b); // [true true true]
+    let a = Tensor::<f32>::new([1.0, 2.0, 3.0]);
+    let b = Tensor::<f32>::new([1.0001, 2.0001, 3.0001]);
+    
+    // With small tolerance - returns false
+    let result1 = a.allclose(&b, 1e-5, 1e-5);
+    println!("With small tolerance: {}", result1); // false
+    
+    // With larger tolerance - returns true
+    let result2 = a.allclose(&b, 1e-3, 1e-3);
+    println!("With larger tolerance: {}", result2); // true
+    
     Ok(())
 }
 ```

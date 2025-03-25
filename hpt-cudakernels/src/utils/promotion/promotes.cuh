@@ -13,5 +13,3 @@
 #include "normal_promote/bf16.cuh"
 #include "normal_promote/f32.cuh"
 #include "normal_promote/f64.cuh"
-
-

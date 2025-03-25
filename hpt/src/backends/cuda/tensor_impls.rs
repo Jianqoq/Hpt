@@ -136,33 +136,11 @@ where
     {
         uary_fn_with_out_simd(
             self,
-            &get_module_name_1("astype", self),
+            &get_module_name_1(&format!("astype_{}_{}", T::STR, U::STR), self),
             |out, x| out.assign(x.cast()),
             None::<_Tensor<U, Cuda, DEVICE_ID, Al>>,
         )
     }
-
-    // /// check if two tensors are close to each other
-    // pub fn allclose<U: CommonBounds>(&self, other: &_Tensor<U, Cuda>) -> bool
-    // where
-    //     T: Convertor,
-    //     U: Convertor,
-    // {
-    //     if self.shape() != other.shape() {
-    //         return false;
-    //     }
-    //     let folder = self.par_iter().zip(other.par_iter()).fold(
-    //         || true,
-    //         |acc, (a, b)| {
-    //             let a_val: f64 = a.to_f64();
-    //             let b_val: f64 = b.to_f64();
-    //             let abs_diff: f64 = (a_val - b_val).abs();
-    //             let torlerance: f64 = 1.0e-8 + 1.0e-5 * b_val.abs();
-    //             acc && abs_diff <= torlerance
-    //         },
-    //     );
-    //     folder.reduce(|| true, |a, b| a && b)
-    // }
 
     pub fn to_cpu<const CPU_DEVICE: usize>(
         &self,
@@ -270,12 +248,6 @@ where
     pub fn device(&self) -> Arc<CudaDevice> {
         self.inner.as_ref().device()
     }
-
-    // /// copy the data from the other tensor to this tensor
-    // pub fn assign(&mut self, other: &Tensor<T, Cuda>) {
-    //     let mut mut_self = self.inner.as_ref().clone();
-    //     mut_self.assign(&other.inner.as_ref());
-    // }
 
     /// cast the tensor to the new type
     pub fn astype<U>(&self) -> Result<Tensor<U, Cuda, DEVICE_ID, Al>, TensorError>

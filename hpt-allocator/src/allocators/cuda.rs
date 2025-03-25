@@ -97,6 +97,9 @@ impl Allocator for CudaAllocator {
         if let Some((_, allocator)) = self.allocator.get_mut(&device_id) {
             allocator.deallocate(ptr, layout, should_drop, device_id);
         } else {
+            if !should_drop {
+                return;
+            }
             panic!("Allocator for device {} not found", device_id);
         }
     }
@@ -110,14 +113,21 @@ impl Allocator for CudaAllocator {
     }
 
     fn clear(&mut self) {
-        for (device, allocator) in self.allocator.values_mut() {
-            for (layout, ptrs) in allocator.cache.iter_mut() {
-                for ptr in ptrs.iter() {
-                    unsafe { device.upgrade_device_ptr::<u8>(ptr.ptr as u64, layout.size()) };
+        if let Ok(mut storage) = CUDA_STORAGE.lock() {
+            for (device, allocator) in self.allocator.values_mut() {
+                for (layout, ptrs) in allocator.cache.iter_mut() {
+                    for ptr in ptrs.iter() {
+                        storage
+                            .get_mut(&device.ordinal())
+                            .unwrap()
+                            .decrement_ref(SafePtr { ptr: ptr.ptr });
+                        unsafe { device.upgrade_device_ptr::<u8>(ptr.ptr as u64, layout.size()) };
+                    }
                 }
+                allocator.cache.clear();
+                assert_eq!(allocator.allocated.len(), 0);
+                assert_eq!(storage[&device.ordinal()].storage.len(), 0);
             }
-            allocator.cache.clear();
-            assert_eq!(allocator.allocated.len(), 0);
         }
     }
 
@@ -128,10 +138,13 @@ impl Allocator for CudaAllocator {
     }
 
     fn forget(&mut self, ptr: *mut u8, device_id: usize) {
-        if let Some((_, allocator)) = self.allocator.get_mut(&device_id) {
-            allocator.forget(ptr, device_id);
-        } else {
-            panic!("Allocator for device {} not found", device_id);
+        if let Ok(mut storage) = CUDA_STORAGE.lock() {
+            crate::utils::forget::forget_helper(&mut storage, ptr, device_id);
+            if let Some((_, allocator)) = self.allocator.get_mut(&device_id) {
+                if allocator.allocated.get(&SafePtr { ptr }).is_some() {
+                    allocator.allocated.remove(&SafePtr { ptr });
+                }
+            }
         }
     }
 }
@@ -274,15 +287,6 @@ impl _Allocator {
                 storage.increment_ref(SafePtr { ptr });
                 map.insert(device_id, storage);
             }
-        }
-    }
-
-    /// # Forget
-    ///
-    /// forget the ptr from the storage, remove the ptr from the allocated set, and insert the ptr into the cache
-    fn forget(&mut self, ptr: *mut u8, device_id: usize) {
-        if let Ok(mut storage) = CUDA_STORAGE.lock() {
-            crate::utils::forget::forget_helper(&mut self.allocated, &mut storage, ptr, device_id);
         }
     }
 }

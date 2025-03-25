@@ -391,6 +391,8 @@ pub mod types {
 
 /// reexport serde
 pub mod re_exports {
+    #[cfg(feature = "cuda")]
+    pub use cudarc;
     pub use seq_macro;
     pub use serde;
 }

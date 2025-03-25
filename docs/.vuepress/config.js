@@ -385,6 +385,34 @@ export default defineUserConfig({
               ]
             },
             {
+              text: 'associated methods',
+              collapsible: true,
+              children: [
+                {
+                  text: 'cpu',
+                  collapsible: true,
+                  children: [
+                    { text: 'forget', link: '/user_guide/associated_methods/cpu/forget.md' },
+                    { text: 'forget_copy', link: '/user_guide/associated_methods/cpu/forget_copy.md' },
+                    { text: 'from_raw', link: '/user_guide/associated_methods/cpu/from_raw.md' },
+                    { text: 'to_cuda', link: '/user_guide/associated_methods/cpu/to_cuda.md' },
+                  ]
+                },
+                {
+                  text: 'cuda',
+                  collapsible: true,
+                  children: [
+                    { text: 'forget', link: '/user_guide/associated_methods/cuda/forget.md' },
+                    { text: 'forget_copy', link: '/user_guide/associated_methods/cuda/forget_copy.md' },
+                    { text: 'from_raw', link: '/user_guide/associated_methods/cuda/from_raw.md' },
+                    { text: 'to_cpu', link: '/user_guide/associated_methods/cuda/to_cpu.md' },
+                  ]
+                },
+                { text: 'all_close', link: '/user_guide/associated_methods/all_close.md' },
+                { text: 'astype', link: '/user_guide/associated_methods/as_type.md' },
+              ]
+            },
+            {
               text: 'custom type',
               link: '/user_guide/custom_type/custom_type.md'
             },
