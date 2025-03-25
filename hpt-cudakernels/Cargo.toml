@@ -1,6 +1,6 @@
 [package]
 name = "hpt-cudakernels"
-version = "0.0.23"
+version = "0.1.2"
 edition = "2021"
 description = "A library implements cuda kernels for hpt"
 authors = ["JianJian Li <ljj1849532909@gmail.com>"]
