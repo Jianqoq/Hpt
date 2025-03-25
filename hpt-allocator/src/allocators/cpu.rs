@@ -136,12 +136,9 @@ impl Allocator for CpuAllocator {
     ///
     /// forget the ptr from the storage, remove the ptr from the allocated set
     fn forget(&mut self, ptr: *mut u8, device_id: usize) {
-        if let Ok(mut storage) = CPU_STORAGE.lock() {
-            crate::utils::forget::forget_helper(&mut storage, ptr, device_id);
-            if let Some(allocator) = self.allocator.get_mut(&device_id) {
-                if allocator.allocated.get(&SafePtr { ptr }).is_some() {
-                    allocator.allocated.remove(&SafePtr { ptr });
-                }
+        if let Some(allocator) = self.allocator.get_mut(&device_id) {
+            if allocator.allocated.get(&SafePtr { ptr }).is_some() {
+                allocator.allocated.remove(&SafePtr { ptr });
             }
         }
     }

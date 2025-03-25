@@ -138,12 +138,9 @@ impl Allocator for CudaAllocator {
     }
 
     fn forget(&mut self, ptr: *mut u8, device_id: usize) {
-        if let Ok(mut storage) = CUDA_STORAGE.lock() {
-            crate::utils::forget::forget_helper(&mut storage, ptr, device_id);
-            if let Some((_, allocator)) = self.allocator.get_mut(&device_id) {
-                if allocator.allocated.get(&SafePtr { ptr }).is_some() {
-                    allocator.allocated.remove(&SafePtr { ptr });
-                }
+        if let Some((_, allocator)) = self.allocator.get_mut(&device_id) {
+            if allocator.allocated.get(&SafePtr { ptr }).is_some() {
+                allocator.allocated.remove(&SafePtr { ptr });
             }
         }
     }

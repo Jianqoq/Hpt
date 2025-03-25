@@ -10,7 +10,6 @@ pub(crate) mod utils {
     pub(crate) mod allocate;
     pub(crate) mod cache_resize;
     pub(crate) mod deallocate;
-    pub(crate) mod forget;
 }
 /// traits for the allocator
 pub mod traits;
