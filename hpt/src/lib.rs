@@ -302,16 +302,13 @@ pub(crate) mod tensor_base;
 pub(crate) mod to_tensor;
 #[cfg(feature = "cuda")]
 pub(crate) mod cuda_compiled {
-    use std::{
-        collections::HashMap,
-        sync::{Arc, Mutex},
-    };
+    use std::{ collections::HashMap, sync::{ Arc, Mutex } };
 
     use hpt_cudakernels::RegisterInfo;
     use once_cell::sync::Lazy;
 
     pub(crate) static CUDA_COMPILED: Lazy<
-        Mutex<HashMap<usize, HashMap<String, Arc<HashMap<String, RegisterInfo>>>>>,
+        Mutex<HashMap<usize, HashMap<String, Arc<HashMap<String, RegisterInfo>>>>>
     > = Lazy::new(|| Mutex::new(HashMap::new()));
 }
 /// this module contains all the operators for the Tensor
@@ -341,8 +338,8 @@ pub mod error {
 
 /// module for common utils like shape and strides
 pub mod common {
-    pub use hpt_common::{shape::shape::Shape, strides::strides::Strides, Pointer};
-    pub use hpt_traits::tensor::{CommonBounds, TensorInfo};
+    pub use hpt_common::{ shape::shape::Shape, strides::strides::Strides, Pointer };
+    pub use hpt_traits::tensor::{ CommonBounds, TensorInfo };
     /// common utils for cpu
     pub mod cpu {
         pub use hpt_traits::tensor::TensorLike;
@@ -351,7 +348,7 @@ pub mod common {
 
 /// module for memory allocation
 pub mod alloc {
-    pub use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
+    pub use hpt_allocator::traits::{ Allocator, AllocatorOutputRetrive };
 }
 
 /// module for tensor iterator
@@ -363,8 +360,8 @@ pub mod iter {
 
 /// type related module
 pub mod types {
-    pub use half::{bf16, f16};
-    pub use num::complex::{Complex32, Complex64};
+    pub use half::{ bf16, f16 };
+    pub use num::complex::{ Complex32, Complex64 };
     /// module contains vector types and traits
     pub mod vectors {
         pub use hpt_types::vectors::*;
@@ -381,8 +378,15 @@ pub mod types {
     /// module contains math traits for scalar and vector, all the methods will auto promote the type
     pub mod math {
         pub use hpt_types::type_promote::{
-            BitWiseOut, Eval, FloatOutBinary, FloatOutBinaryPromote, FloatOutUnary,
-            FloatOutUnaryPromote, NormalOut, NormalOutPromote, NormalOutUnary,
+            BitWiseOut,
+            Eval,
+            FloatOutBinary,
+            FloatOutBinaryPromote,
+            FloatOutUnary,
+            FloatOutUnaryPromote,
+            NormalOut,
+            NormalOutPromote,
+            NormalOutUnary,
         };
     }
     /// module contains type common traits
@@ -397,15 +401,21 @@ pub mod re_exports {
     pub use serde;
 }
 
-pub use hpt_dataloader::{Load, Save};
-pub use hpt_macros::{Load, Save};
+pub use hpt_dataloader::{ Load, Save };
+pub use hpt_macros::{ Load, Save };
 
 /// module for save and load
 pub mod save_load {
     pub use flate2;
     pub use hpt_dataloader::data_loader::parse_header_compressed;
     pub use hpt_dataloader::{
-        save, CompressionAlgo, DataLoader, Endian, FromSafeTensors, MetaLoad, TensorLoader,
+        save,
+        CompressionAlgo,
+        DataLoader,
+        Endian,
+        FromSafeTensors,
+        MetaLoad,
+        TensorLoader,
         TensorSaver,
     };
 }
@@ -416,7 +426,7 @@ pub mod backend {
     #[cfg(feature = "cuda")]
     pub use hpt_allocator::Cuda;
 
-    pub use hpt_allocator::{BackendTy, Buffer};
+    pub use hpt_allocator::{ BackendTy, Buffer };
 }
 
 /// module for buitin templates
@@ -432,7 +442,7 @@ pub mod buitin_templates {
 pub mod utils {
     #[cfg(feature = "cuda")]
     use crate::CUDA_SEED;
-    use crate::{DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION, THREAD_POOL};
+    use crate::{ DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION, THREAD_POOL };
     pub use hpt_allocator::resize_cpu_lru_cache;
     #[cfg(feature = "cuda")]
     pub use hpt_allocator::resize_cuda_lru_cache;
@@ -474,10 +484,12 @@ pub mod utils {
         THREAD_POOL.with(|x| {
             x.borrow_mut().set_num_threads(num_threads);
         });
-        match rayon::ThreadPoolBuilder::new()
-            .num_threads(num_threads)
-            .stack_size(4 * 1024 * 1024)
-            .build_global()
+        match
+            rayon::ThreadPoolBuilder
+                ::new()
+                .num_threads(num_threads)
+                .stack_size(4 * 1024 * 1024)
+                .build_global()
         {
             Ok(_) => {}
             Err(_) => {}
@@ -488,11 +500,7 @@ pub mod utils {
 use ctor::ctor;
 use hpt_types::arch_simd as simd;
 use hpt_types::traits::VecTrait;
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    sync::{atomic::AtomicUsize, Arc},
-};
+use std::{ cell::RefCell, sync::atomic::AtomicUsize };
 pub use tensor::Tensor;
 
 #[ctor]
@@ -520,10 +528,7 @@ pub(crate) const REGNUM: usize = 32;
 
 #[cfg(target_feature = "avx2")]
 type BoolVector = simd::_256bit::boolx32;
-#[cfg(any(
-    all(not(target_feature = "avx2"), target_feature = "sse"),
-    target_feature = "neon"
-))]
+#[cfg(any(all(not(target_feature = "avx2"), target_feature = "sse"), target_feature = "neon"))]
 type BoolVector = simd::_128bit::boolx16;
 
 const SIMD_WIDTH: usize =
@@ -534,10 +539,14 @@ const CUDA_SEED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::ne
 
 #[cfg(feature = "cuda")]
 thread_local! {
-    static CUDNN: RefCell<HashMap<usize, Arc<cudarc::cudnn::Cudnn>>> = HashMap::new().into();
+    static CUDNN: RefCell<
+        std::collections::HashMap<usize, std::sync::Arc<cudarc::cudnn::Cudnn>>
+    > = std::collections::HashMap::new().into();
 }
 
 #[cfg(feature = "cuda")]
 thread_local! {
-    static CUBLAS: RefCell<HashMap<usize, Arc<cudarc::cublas::CudaBlas>>> = HashMap::new().into();
+    static CUBLAS: RefCell<
+        std::collections::HashMap<usize, std::sync::Arc<cudarc::cublas::CudaBlas>>
+    > = std::collections::HashMap::new().into();
 }
