@@ -7,6 +7,8 @@
 #include "../utils/fast_divmod.cuh"
 #include "../utils/index_calculator.cuh"
 
+#include "unary_classes.cuh"
+
 template <typename Input, typename Output, typename Op>
 __device__ __forceinline__ void unary_contiguous(Output *out, const Input *in, Output alpha, int32_t n, Op op)
 {
@@ -69,17 +71,6 @@ __device__ __forceinline__ bf16 elu(bf16 a, bf16 alpha)
     f32 res = elu(cast<bf16, f32>(a), cast<bf16, f32>(alpha));
     return cast<f32, bf16>(res);
 }
-
-template <typename Input>
-struct Elu
-{
-    using Output = typename FloatOutUnaryPromote<Input>::Output;
-    __device__ __forceinline__ Output operator()(Input a, Output alpha) const
-    {
-        CHECK_FLOAT_TYPE(Output);
-        return elu(cast<Input, Output>(a), alpha);
-    }
-};
 
 DEFINE_UNARY_KERNEL(elu_f16, f16, FloatOutUnaryPromote, Elu);
 DEFINE_UNARY_KERNEL(elu_bf16, bf16, FloatOutUnaryPromote, Elu);

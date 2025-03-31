@@ -59,6 +59,8 @@ pub trait FloatOutBinary<RHS = Self> {
 pub trait FloatOutBinaryPromote<RHS = Self> {
     /// the output type
     type Output;
+    /// the intermediate type
+    type Intermediate;
 }
 
 /// internal trait for float out binary
@@ -126,6 +128,8 @@ pub trait NormalOut2 {
 pub trait NormalOutPromote<RHS = Self> {
     /// the output type
     type Output;
+    /// the intermediate type
+    type Intermediate;
 }
 
 impl_normal_out_binary!();
@@ -618,6 +622,8 @@ pub trait FloatOutUnary2 {
 pub trait FloatOutUnaryPromote {
     /// the output type
     type Output;
+    /// the intermediate type
+    type Intermediate;
 }
 
 float_out_unary!();

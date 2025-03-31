@@ -1,23 +1,7 @@
 #include "binary_template.cuh"
 #include "../utils/type_alias.cuh"
 #include "../utils/promotion/promotes.cuh"
-
-template <typename LHS, typename RHS>
-struct Div
-{
-    using Output = typename FloatOutBinaryPromote<LHS, RHS>::Output;
-    __device__ __forceinline__ Output operator()(LHS a, RHS b) const
-    {
-        if constexpr (std::is_same_v<Output, bool>)
-        {
-            return a && b;
-        }
-        else
-        {
-            return cast<LHS, Output>(a) / cast<RHS, Output>(b);
-        }
-    }
-};
+#include "binary_classes.cuh"
 
 DEFINE_BINARY_KERNEL(div_i8_bool, i8, bool, Div, FloatOutBinaryPromote);
 DEFINE_BINARY_KERNEL(div_i8_i8, i8, i8, Div, FloatOutBinaryPromote);

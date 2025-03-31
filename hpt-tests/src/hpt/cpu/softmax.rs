@@ -7,31 +7,22 @@ use hpt_common::slice;
 use rand::Rng;
 use tch::Tensor;
 
+use crate::{TestTypes, TCH_TEST_TYPES, TEST_ATOL, TEST_RTOL};
+
 use super::assert_utils::assert_f64;
 
 #[allow(unused)]
 #[track_caller]
-fn assert_eq_f64(hpt_res: &hpt::Tensor<f64>, tch_res: &Tensor) {
-    let a_raw = if hpt_res.strides().contains(&0) {
-        let size = hpt_res
-            .shape()
-            .iter()
-            .zip(hpt_res.strides().iter())
-            .filter(|(sp, s)| **s != 0)
-            .fold(1, |acc, (sp, _)| acc * sp);
-        unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f64, size as usize) }
-    } else {
-        unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f64, hpt_res.size()) }
-    };
-    let b_raw = hpt_res.as_raw();
-    a_raw.iter().zip(b_raw.iter()).for_each(|(a, b)| {
-        assert_f64(*a, *b, 0.05, hpt_res, tch_res);
-    });
+fn assert_eq_f64(hpt_res: &hpt::Tensor<TestTypes>, tch_res: &Tensor) {
+    let tch_res = unsafe {
+        hpt::Tensor::<TestTypes>::from_raw(tch_res.data_ptr() as *mut TestTypes, &hpt_res.shape().to_vec())
+    }.expect("from_raw failed");
+    assert!(hpt_res.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
 }
 
-fn common_input(end: i64, shape: &[i64]) -> anyhow::Result<(hpt::Tensor<f64>, Tensor)> {
-    let a = hpt::Tensor::<f64>::arange(0, end)?.reshape(shape)?;
-    let tch_a = Tensor::arange(end, (tch::Kind::Double, tch::Device::Cpu)).reshape(shape);
+fn common_input(end: i64, shape: &[i64]) -> anyhow::Result<(hpt::Tensor<TestTypes>, Tensor)> {
+    let a = hpt::Tensor::<TestTypes>::arange(0, end)?.reshape(shape)?;
+    let tch_a = Tensor::arange(end, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(shape);
     Ok((a, tch_a))
 }
 
@@ -53,7 +44,7 @@ fn func() -> anyhow::Result<()> {
 
         let dim = rng.random_range(0..len) as i64;
         let res = a.hpt_method(dim)?;
-        let tch_res = tch_a.tch_method(dim, tch::Kind::Double);
+        let tch_res = tch_a.tch_method(dim, TCH_TEST_TYPES);
         assert_eq_f64(&res, &tch_res);
     }
     Ok(())

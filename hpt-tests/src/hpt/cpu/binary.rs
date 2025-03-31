@@ -1,4 +1,9 @@
 #![allow(unused_imports)]
+use crate::TestTypes;
+use crate::TCH_TEST_TYPES;
+use crate::TEST_ATOL;
+use crate::TEST_RTOL;
+use hpt::types::TypeCommon;
 use super::assert_utils::assert_f64;
 use hpt::common::cpu::TensorLike;
 use hpt::common::TensorInfo;
@@ -14,66 +19,58 @@ use std::ops::*;
 use tch::Tensor as TchTensor;
 
 #[allow(unused)]
-fn assert_eq(b: &Tensor<f64>, a: &TchTensor) {
-    let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
-    let b_raw = b.as_raw();
-    let tolerance = 2.5e-16;
-
-    for i in 0..b.size() {
-        assert_f64(a_raw[i], b_raw[i], 0.05, b, a);
-    }
+fn assert_eq(b: &Tensor<TestTypes>, a: &TchTensor) -> anyhow::Result<()> {
+    let tch_res = unsafe {
+        Tensor::<TestTypes>::from_raw(a.data_ptr() as *mut TestTypes, &b.shape().to_vec())
+    }?;
+    assert!(b.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
+    Ok(())
 }
 
 #[allow(unused)]
-fn assert_eq_10(b: &Tensor<f64>, a: &TchTensor) {
-    let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f64, b.size()) };
-    let b_raw = b.as_raw();
-
-    for i in 0..b.size() {
-        assert_f64(a_raw[i], b_raw[i], 0.10, b, a);
-    }
-}
-
-#[allow(unused)]
-fn assert_eq_i64(b: &Tensor<i64>, a: &TchTensor) {
+fn assert_eq_i64(b: &Tensor<i64>, a: &TchTensor) -> anyhow::Result<()> {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
     let b_raw = b.as_raw();
     a_raw
         .par_iter()
         .zip(b_raw.par_iter())
         .for_each(|(a, b)| assert_eq!(a, b));
+    Ok(())
 }
 
 #[allow(unused)]
-fn assert_eq_bool(b: &Tensor<bool>, a: &TchTensor) {
+fn assert_eq_bool(b: &Tensor<bool>, a: &TchTensor) -> anyhow::Result<()> {
     let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const bool, b.size()) };
     let b_raw = b.as_raw();
     a_raw
         .par_iter()
         .zip(b_raw.par_iter())
         .for_each(|(a, b)| assert_eq!(a, b));
+    Ok(())
 }
 
 #[allow(unused)]
-fn no_assert_i64(b: &Tensor<i64>, a: &TchTensor) {}
+fn no_assert_i64(b: &Tensor<i64>, a: &TchTensor) -> anyhow::Result<()> {
+    Ok(())
+}
 
 #[allow(unused)]
 fn common_input(
     lhs_shape: &[i64],
     rhs_shape: &[i64],
-) -> anyhow::Result<((TchTensor, TchTensor), (Tensor<f64>, Tensor<f64>))> {
-    let tch_a = TchTensor::randn(lhs_shape, (tch::Kind::Double, tch::Device::Cpu));
-    let mut a = Tensor::<f64>::empty(lhs_shape)?;
+) -> anyhow::Result<((TchTensor, TchTensor), (Tensor<TestTypes>, Tensor<TestTypes>))> {
+    let tch_a = TchTensor::randn(lhs_shape, (TCH_TEST_TYPES, tch::Device::Cpu));
+    let mut a = Tensor::<TestTypes>::empty(lhs_shape)?;
     let a_size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
-        std::slice::from_raw_parts(tch_a.data_ptr() as *const f64, a_size)
+        std::slice::from_raw_parts(tch_a.data_ptr() as *const TestTypes, a_size)
     });
 
-    let tch_b = TchTensor::randn(rhs_shape, (tch::Kind::Double, tch::Device::Cpu));
-    let mut b = Tensor::<f64>::empty(rhs_shape)?;
+    let tch_b = TchTensor::randn(rhs_shape, (TCH_TEST_TYPES, tch::Device::Cpu));
+    let mut b = Tensor::<TestTypes>::empty(rhs_shape)?;
     let b_size = b.size();
     b.as_raw_mut().copy_from_slice(unsafe {
-        std::slice::from_raw_parts(tch_b.data_ptr() as *const f64, b_size)
+        std::slice::from_raw_parts(tch_b.data_ptr() as *const TestTypes, b_size)
     });
 
     Ok(((tch_a, tch_b), (a, b)))
@@ -138,7 +135,7 @@ fn fn_name() -> anyhow::Result<()> {
         let ((tch_a, tch_b), (a, b)) = input_method(&shape, &shape)?;
         let c = hpt_op;
         let tch_c = tch_a.tch_op(&tch_b);
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
     }
     Ok(())
 }
@@ -174,13 +171,13 @@ fn fn_name() -> anyhow::Result<()> {
         let ((tch_a, tch_b), (a, b)) = input_method(&shape, &shape2)?;
         let c = hpt_op;
         let tch_c = tch_a.tch_op(&tch_b);
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
         shape[1] = 1;
         shape2[0] = 1;
         let ((tch_a, tch_b), (a, b)) = input_method(&shape, &shape2)?;
         let c = hpt_op;
         let tch_c = tch_a.tch_op(&tch_b);
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
     }
     Ok(())
 }
@@ -202,7 +199,7 @@ fn fn_name() -> anyhow::Result<()> {
     [test_le_sub_tensors]           [a.tensor_le(&b)?]      [le_tensor]             [assert_eq_bool]    [common_input];
     [test_gt_sub_tensors]           [a.tensor_gt(&b)?]      [gt_tensor]             [assert_eq_bool]    [common_input];
     [test_ge_sub_tensors]           [a.tensor_ge(&b)?]      [ge_tensor]             [assert_eq_bool]    [common_input];
-    [test_matmul_sub_tensors]       [a.matmul(&b)?]         [matmul]                [assert_eq_10]      [common_input];
+    [test_matmul_sub_tensors]       [a.matmul(&b)?]         [matmul]                [assert_eq]         [common_input];
 )]
 #[test]
 fn fn_name() -> anyhow::Result<()> {
@@ -227,7 +224,7 @@ fn fn_name() -> anyhow::Result<()> {
         let b = slice!(b[start:end:step,start:end:step,start:end:step])?;
         let c = hpt_op;
         let tch_c = tch_a.tch_op(&tch_b);
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
     }
     Ok(())
 }
@@ -264,7 +261,7 @@ fn fn_name() -> anyhow::Result<()> {
         let b = b.permute([2, 1, 0])?;
         let c = hpt_op;
         let tch_c = tch_a.tch_op(&tch_b).contiguous();
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
     }
     Ok(())
 }
@@ -286,7 +283,7 @@ fn fn_name() -> anyhow::Result<()> {
     [test_le_uc_sub_tensors]            [a.tensor_le(&b)?]      [le_tensor]             [assert_eq_bool]    [common_input];
     [test_gt_uc_sub_tensors]            [a.tensor_gt(&b)?]      [gt_tensor]             [assert_eq_bool]    [common_input];
     [test_ge_uc_sub_tensors]            [a.tensor_ge(&b)?]      [ge_tensor]             [assert_eq_bool]    [common_input];
-    [test_matmul_uc_sub_tensors]        [a.matmul(&b)?]         [matmul]                [assert_eq_10]      [common_input];
+    [test_matmul_uc_sub_tensors]        [a.matmul(&b)?]         [matmul]                [assert_eq]      [common_input];
 )]
 #[test]
 fn fn_name() -> anyhow::Result<()> {
@@ -314,17 +311,17 @@ fn fn_name() -> anyhow::Result<()> {
         let b = b.permute([2, 1, 0])?;
         let c = hpt_op;
         let tch_c = tch_a.tch_op(&tch_b).contiguous();
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
     }
     Ok(())
 }
 
 #[duplicate::duplicate_item(
     fn_name                  scalar    hpt_op       tch_op                  assert_method       input_method;
-    [test_add_scalar]        [1.0]     [add]        [add]                   [assert_eq]         [common_input];
-    [test_sub_scalar]        [1.0]     [sub]        [sub]                   [assert_eq]         [common_input];
-    [test_mul_scalar]        [1.0]     [mul]        [mul]                   [assert_eq]         [common_input];
-    [test_div_scalar]        [1.0]     [div]        [div]                   [assert_eq]         [common_input];
+    [test_add_scalar]        [<TestTypes>::ONE]     [add]        [add]                   [assert_eq]         [common_input];
+    [test_sub_scalar]        [<TestTypes>::ONE]     [sub]        [sub]                   [assert_eq]         [common_input];
+    [test_mul_scalar]        [<TestTypes>::ONE]     [mul]        [mul]                   [assert_eq]         [common_input];
+    [test_div_scalar]        [<TestTypes>::ONE]     [div]        [div]                   [assert_eq]         [common_input];
     [test_bitand_scalar]     [1]       [bitand]     [bitwise_and_tensor]    [assert_eq_i64]     [common_input_i64];
     [test_bitor_scalar]      [1]       [bitor]      [bitwise_or_tensor]     [assert_eq_i64]     [common_input_i64];
     [test_bitxor_scalar]     [1]       [bitxor]     [bitwise_xor_tensor]    [assert_eq_i64]     [common_input_i64];
@@ -341,20 +338,20 @@ fn fn_name() -> anyhow::Result<()> {
         let ((tch_a, _), (a, _)) = input_method(&shape, &shape)?;
         let c = a.clone().hpt_op(scalar);
         let tch_c = tch_a.shallow_clone().tch_op(&TchTensor::from(scalar));
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
         let c = scalar.hpt_op(&a);
         let tch_c = TchTensor::from(scalar).tch_op(&tch_a);
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
     }
     Ok(())
 }
 
 #[duplicate::duplicate_item(
               fn_name                  scalar    hpt_op         tch_op                  assert_method       input_method;
-    [test_add_scalar_broadcast]        [1.0]     [add]          [add]                   [assert_eq]         [common_input];
-    [test_sub_scalar_broadcast]        [1.0]     [sub]          [sub]                   [assert_eq]         [common_input];
-    [test_mul_scalar_broadcast]        [1.0]     [mul]          [mul]                   [assert_eq]         [common_input];
-    [test_div_scalar_broadcast]        [1.0]     [div]          [div]                   [assert_eq]         [common_input];
+    [test_add_scalar_broadcast]        [<TestTypes>::ONE]     [add]          [add]                   [assert_eq]         [common_input];
+    [test_sub_scalar_broadcast]        [<TestTypes>::ONE]     [sub]          [sub]                   [assert_eq]         [common_input];
+    [test_mul_scalar_broadcast]        [<TestTypes>::ONE]     [mul]          [mul]                   [assert_eq]         [common_input];
+    [test_div_scalar_broadcast]        [<TestTypes>::ONE]     [div]          [div]                   [assert_eq]         [common_input];
     [test_bitand_scalar_broadcast]     [1]       [bitand]       [bitwise_and_tensor]    [assert_eq_i64]     [common_input_i64];
     [test_bitor_scalar_broadcast]      [1]       [bitor]        [bitwise_or_tensor]     [assert_eq_i64]     [common_input_i64];
     [test_bitxor_scalar_broadcast]     [1]       [bitxor]       [bitwise_xor_tensor]    [assert_eq_i64]     [common_input_i64];
@@ -374,29 +371,29 @@ fn fn_name() -> anyhow::Result<()> {
         let ((tch_a, _), (a, _)) = input_method(&shape, &shape2)?;
         let c = a.clone().add(scalar);
         let tch_c = tch_a.shallow_clone().add(&TchTensor::from(scalar));
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
         let c = scalar.hpt_op(&a);
         let tch_c = TchTensor::from(scalar).tch_op(&tch_a);
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
         shape[1] = 1;
         shape2[0] = 1;
         let ((tch_a, _), (a, _)) = input_method(&shape, &shape2)?;
         let c = a.clone().hpt_op(scalar);
         let tch_c = tch_a.shallow_clone().tch_op(&TchTensor::from(scalar));
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
         let c = scalar.hpt_op(&a);
         let tch_c = TchTensor::from(scalar).tch_op(&tch_a);
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
     }
     Ok(())
 }
 
 #[duplicate::duplicate_item(
     fn_name                              scalar    hpt_op       tch_op                  assert_method       input_method;
-    [test_add_scalar_sub_tensors]        [1.0]     [add]        [add]                   [assert_eq]         [common_input];
-    [test_sub_scalar_sub_tensors]        [1.0]     [sub]        [sub]                   [assert_eq]         [common_input];
-    [test_mul_scalar_sub_tensors]        [1.0]     [mul]        [mul]                   [assert_eq]         [common_input];
-    [test_div_scalar_sub_tensors]        [1.0]     [div]        [div]                   [assert_eq]         [common_input];
+    [test_add_scalar_sub_tensors]        [<TestTypes>::ONE]     [add]        [add]                   [assert_eq]         [common_input];
+    [test_sub_scalar_sub_tensors]        [<TestTypes>::ONE]     [sub]        [sub]                   [assert_eq]         [common_input];
+    [test_mul_scalar_sub_tensors]        [<TestTypes>::ONE]     [mul]        [mul]                   [assert_eq]         [common_input];
+    [test_div_scalar_sub_tensors]        [<TestTypes>::ONE]     [div]        [div]                   [assert_eq]         [common_input];
     [test_bitand_scalar_sub_tensors]     [1]       [bitand]     [bitwise_and_tensor]    [assert_eq_i64]     [common_input_i64];
     [test_bitor_scalar_sub_tensors]      [1]       [bitor]      [bitwise_or_tensor]     [assert_eq_i64]     [common_input_i64];
     [test_bitxor_scalar_sub_tensors]     [1]       [bitxor]     [bitwise_xor_tensor]    [assert_eq_i64]     [common_input_i64];
@@ -420,20 +417,20 @@ fn fn_name() -> anyhow::Result<()> {
         let a = slice!(a[start:end:step,start:end:step,start:end:step])?;
         let c = a.clone().hpt_op(scalar);
         let tch_c = tch_a.shallow_clone().tch_op(&TchTensor::from(scalar));
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
         let c = scalar.hpt_op(&a);
         let tch_c = TchTensor::from(scalar).tch_op(&tch_a);
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
     }
     Ok(())
 }
 
 #[duplicate::duplicate_item(
     fn_name                     scalar    hpt_op        tch_op                  assert_method       input_method;
-    [test_add_scalar_uc]        [1.0]     [add]         [add]                   [assert_eq]         [common_input];
-    [test_sub_scalar_uc]        [1.0]     [sub]         [sub]                   [assert_eq]         [common_input];
-    [test_mul_scalar_uc]        [1.0]     [mul]         [mul]                   [assert_eq]         [common_input];
-    [test_div_scalar_uc]        [1.0]     [div]         [div]                   [assert_eq]         [common_input];
+    [test_add_scalar_uc]        [<TestTypes>::ONE]     [add]         [add]                   [assert_eq]         [common_input];
+    [test_sub_scalar_uc]        [<TestTypes>::ONE]     [sub]         [sub]                   [assert_eq]         [common_input];
+    [test_mul_scalar_uc]        [<TestTypes>::ONE]     [mul]         [mul]                   [assert_eq]         [common_input];
+    [test_div_scalar_uc]        [<TestTypes>::ONE]     [div]         [div]                   [assert_eq]         [common_input];
     [test_bitand_scalar_uc]     [1]       [bitand]      [bitwise_and_tensor]    [assert_eq_i64]     [common_input_i64];
     [test_bitor_scalar_uc]      [1]       [bitor]       [bitwise_or_tensor]     [assert_eq_i64]     [common_input_i64];
     [test_bitxor_scalar_uc]     [1]       [bitxor]      [bitwise_xor_tensor]    [assert_eq_i64]     [common_input_i64];
@@ -455,20 +452,20 @@ fn fn_name() -> anyhow::Result<()> {
             .shallow_clone()
             .tch_op(&TchTensor::from(scalar))
             .contiguous();
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
         let c = scalar.hpt_op(&a);
         let tch_c = TchTensor::from(scalar).tch_op(&tch_a).contiguous();
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
     }
     Ok(())
 }
 
 #[duplicate::duplicate_item(
     fn_name                             scalar    hpt_op        tch_op                  assert_method       input_method;
-[test_add_scalar_uc_sub_tensors]        [1.0]     [add]         [add]                   [assert_eq]         [common_input];
-[test_sub_scalar_uc_sub_tensors]        [1.0]     [sub]         [sub]                   [assert_eq]         [common_input];
-[test_mul_scalar_uc_sub_tensors]        [1.0]     [mul]         [mul]                   [assert_eq]         [common_input];
-[test_div_scalar_uc_sub_tensors]        [1.0]     [div]         [div]                   [assert_eq]         [common_input];
+[test_add_scalar_uc_sub_tensors]        [<TestTypes>::ONE]     [add]         [add]                   [assert_eq]         [common_input];
+[test_sub_scalar_uc_sub_tensors]        [<TestTypes>::ONE]     [sub]         [sub]                   [assert_eq]         [common_input];
+[test_mul_scalar_uc_sub_tensors]        [<TestTypes>::ONE]     [mul]         [mul]                   [assert_eq]         [common_input];
+[test_div_scalar_uc_sub_tensors]        [<TestTypes>::ONE]     [div]         [div]                   [assert_eq]         [common_input];
 [test_bitand_scalar_uc_sub_tensors]     [1]       [bitand]      [bitwise_and_tensor]    [assert_eq_i64]     [common_input_i64];
 [test_bitor_scalar_uc_sub_tensors]      [1]       [bitor]       [bitwise_or_tensor]     [assert_eq_i64]     [common_input_i64];
 [test_bitxor_scalar_uc_sub_tensors]     [1]       [bitxor]      [bitwise_xor_tensor]    [assert_eq_i64]     [common_input_i64];
@@ -497,10 +494,10 @@ fn fn_name() -> anyhow::Result<()> {
             .shallow_clone()
             .tch_op(&TchTensor::from(scalar))
             .contiguous();
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
         let c = scalar.hpt_op(&a);
         let tch_c = TchTensor::from(scalar).tch_op(&tch_a).contiguous();
-        assert_method(&c, &tch_c);
+        assert_method(&c, &tch_c)?;
     }
     Ok(())
 }
@@ -510,7 +507,7 @@ fn test_batch_matmul() -> anyhow::Result<()> {
     let ((tch_a, tch_b), (a, b)) = common_input(&[13, 13, 13], &[13, 13, 13])?;
     let c = a.matmul(&b)?;
     let tch_c = tch_a.matmul(&tch_b);
-    assert_eq(&c, &tch_c);
+    assert_eq(&c, &tch_c)?;
     Ok(())
 }
 

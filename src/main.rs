@@ -1,22 +1,21 @@
-use hpt::{
-    backend::Cuda,
-    error::TensorError,
-    ops::{Matmul, TensorCreator},
-    Tensor,
-};
-
+use hpt::backend::Cuda;
+use hpt::ops::*;
+use hpt::utils::{set_display_elements, set_seed};
+use hpt::{error::TensorError, Tensor};
+use hpt::types::f16;
 fn main() -> Result<(), TensorError> {
+    set_display_elements(3);
+    set_seed::<Cuda>(1024);
     // 2D matrix multiplication
-    let a = Tensor::<f64>::new(&[[1., 2.], [3., 4.]]).to_cuda::<0>()?;
-    let b = Tensor::<f64>::new(&[[5., 6.], [7., 8.]]).to_cuda::<0>()?;
-    let c = a.matmul(&b)?;
-    println!("2D result:\n{}", c);
-
-    // 3D batch matrix multiplication
-    let d = Tensor::<f64, Cuda>::ones(&[2, 2, 3])?; // 2 matrices of shape 2x3
-    let e = Tensor::<f64, Cuda>::ones(&[2, 3, 2])?; // 2 matrices of shape 3x2
-    let f = d.matmul(&e)?; // 2 matrices of shape 2x2
-    println!("3D result:\n{}", f);
+    let a = Tensor::<f32, Cuda>::randn([65536, 1024])?.astype::<f16>()?;
+    // let a_cpu = a.to_cpu::<0>()?;
+    // println!("{}", a);
+    for _ in 0..10 {
+        let b = a.layernorm([1024], None, None, f16::from_f32(1e-5))?;
+        // let b_cpu = a_cpu.layernorm([1024], None, None, 1e-5)?;
+        // println!("{}", b);
+        // println!("{}", b_cpu);
+    }
 
     Ok(())
 }

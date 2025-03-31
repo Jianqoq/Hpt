@@ -2,25 +2,7 @@
 #include "../utils/type_alias.cuh"
 #include "../utils/promotion/promotes.cuh"
 #include "../utils/check_type.cuh"
-
-template <typename Input>
-struct Gelu
-{
-    using Output = typename FloatOutUnaryPromote<Input>::Output;
-    __device__ __forceinline__ Output operator()(Input a) const
-    {
-        CHECK_FLOAT_TYPE(Output);
-        if constexpr (std::is_same_v<Input, f16> || std::is_same_v<Input, bf16> || std::is_same_v<Output, f16> || std::is_same_v<Output, bf16> || std::is_same_v<Output, f32> || std::is_same_v<Input, f32>)
-        {
-            f32 x = cast<Input, f32>(a);
-            return cast<f32, Output>(0.5f * x * (erff(x * 0.707106781186547524400844362104849039f) + 1.0f));
-        }
-        else
-        {
-            return 0.5 * a * (erf(a * 0.707106781186547524400844362104849039) + 1.0);
-        }
-    }
-};
+#include "unary_classes.cuh"
 
 DEFINE_UNARY_KERNEL(gelu_f16, f16, FloatOutUnaryPromote, Gelu);
 DEFINE_UNARY_KERNEL(gelu_bf16, bf16, FloatOutUnaryPromote, Gelu);

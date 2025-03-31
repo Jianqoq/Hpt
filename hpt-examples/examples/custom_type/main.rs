@@ -6,7 +6,7 @@ use hpt::{
     ops::{ShapeManipulate, TensorCreator},
     types::{
         cast::{Cast, IntoVec},
-        math::{FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary},
+        math::{FloatOutBinary, FloatOutBinaryPromote, FloatOutUnary, FloatOutUnaryPromote, NormalOut, NormalOutPromote, NormalOutUnary},
         vectors::traits::VecTrait,
         TypeCommon,
     },
@@ -623,6 +623,21 @@ impl Cast<f64> for CustomType {
     fn cast(self) -> f64 {
         self.value as f64
     }
+}
+
+impl NormalOutPromote for CustomType {
+    type Output = f64;
+    type Intermediate = f64;
+}
+
+impl FloatOutUnaryPromote for CustomType {
+    type Output = f64;
+    type Intermediate = f64;
+}
+
+impl FloatOutBinaryPromote for CustomType {
+    type Output = f64;
+    type Intermediate = f64;
 }
 
 fn main() -> anyhow::Result<()> {

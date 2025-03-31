@@ -38,6 +38,9 @@ where
             .iter()
             .try_fold(1i64, |acc, &num| acc.checked_mul(num).or(Some(i64::MAX)))
             .unwrap_or(i64::MAX) as usize;
+        if size > i32::MAX as usize {
+            panic!("size should not greater than i32::MAX for cuda");
+        }
         let layout = std::alloc::Layout::from_size_align(
             size.checked_mul(size_of::<T>())
                 .unwrap_or((isize::MAX as usize) - (ALIGN - 1)), // when overflow happened, we use max memory `from_size_align` accept
@@ -76,6 +79,9 @@ where
             .iter()
             .try_fold(1i64, |acc, &num| acc.checked_mul(num).or(Some(i64::MAX)))
             .unwrap_or(i64::MAX) as usize;
+        if size > i32::MAX as usize {
+            panic!("size should not greater than i32::MAX for cuda");
+        }
         let layout = std::alloc::Layout::from_size_align(
             size.checked_mul(size_of::<T>())
                 .unwrap_or((isize::MAX as usize) - (ALIGN - 1)), // when overflow happened, we use max memory `from_size_align` accept

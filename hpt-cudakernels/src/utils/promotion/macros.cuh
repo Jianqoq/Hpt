@@ -11,25 +11,28 @@ struct FloatOutBinaryPromote;
 template <typename IN>
 struct FloatOutUnaryPromote;
 
-#define NORMAL_PROMOTE(LHS, RHS, OUT) \
-    template <>                       \
-    struct NormalOutPromote<LHS, RHS> \
-    {                                 \
-        using Output = OUT;           \
+#define NORMAL_PROMOTE(LHS, RHS, OUT, INTERMEDIATE) \
+    template <>                                     \
+    struct NormalOutPromote<LHS, RHS>               \
+    {                                               \
+        using Output = OUT;                         \
+        using Intermediate = INTERMEDIATE;          \
     };
 
-#define FLOAT_OUT_BINARY_PROMOTE(LHS, RHS, OUT) \
-    template <>                                 \
-    struct FloatOutBinaryPromote<LHS, RHS>      \
-    {                                           \
-        using Output = OUT;                     \
+#define FLOAT_OUT_BINARY_PROMOTE(LHS, RHS, OUT, INTERMEDIATE) \
+    template <>                                               \
+    struct FloatOutBinaryPromote<LHS, RHS>                    \
+    {                                                         \
+        using Output = OUT;                                   \
+        using Intermediate = INTERMEDIATE;                    \
     };
 
-#define FLOAT_OUT_UNARY_PROMOTE(IN, OUT) \
-    template <>                          \
-    struct FloatOutUnaryPromote<IN>      \
-    {                                    \
-        using Output = OUT;              \
+#define FLOAT_OUT_UNARY_PROMOTE(IN, OUT, INTERMEDIATE) \
+    template <>                                        \
+    struct FloatOutUnaryPromote<IN>                    \
+    {                                                  \
+        using Output = OUT;                            \
+        using Intermediate = INTERMEDIATE;             \
     };
 
 #define impl_float_out_binary_promote FLOAT_OUT_BINARY_PROMOTE

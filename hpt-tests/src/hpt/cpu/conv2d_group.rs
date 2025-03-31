@@ -12,12 +12,16 @@ use rand::Rng;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use tch;
 
+use crate::TestTypes;
+use crate::TCH_TEST_TYPES;
+use crate::TEST_ATOL;
+use crate::TEST_RTOL;
+
 use super::assert_utils::assert_f64;
-type Type = f64;
 
 fn common_input(
     [batch, out_channel, in_channel, kernel_height, kernel_width, height, width, groups]: [i64; 8],
-) -> anyhow::Result<(Tensor<Type>, Tensor<Type>, tch::Tensor, tch::Tensor)> {
+) -> anyhow::Result<(Tensor<TestTypes>, Tensor<TestTypes>, tch::Tensor, tch::Tensor)> {
     let tch_kernel = tch::Tensor::randn(
         [
             out_channel,
@@ -25,9 +29,9 @@ fn common_input(
             kernel_height,
             kernel_width,
         ],
-        (tch::Kind::Double, tch::Device::Cpu),
+        (TCH_TEST_TYPES, tch::Device::Cpu),
     );
-    let mut kernel = Tensor::<Type>::empty([
+    let mut kernel = Tensor::<TestTypes>::empty([
         out_channel,
         in_channel / groups,
         kernel_height,
@@ -35,17 +39,17 @@ fn common_input(
     ])?;
     let size = kernel.size();
     kernel.as_raw_mut().copy_from_slice(unsafe {
-        std::slice::from_raw_parts(tch_kernel.data_ptr() as *const Type, size)
+        std::slice::from_raw_parts(tch_kernel.data_ptr() as *const TestTypes, size)
     });
 
     let tch_a = tch::Tensor::randn(
         [batch, in_channel, height, width],
-        (tch::Kind::Double, tch::Device::Cpu),
+        (TCH_TEST_TYPES, tch::Device::Cpu),
     );
-    let mut a = Tensor::<Type>::empty([batch, in_channel, height, width])?;
+    let mut a = Tensor::<TestTypes>::empty([batch, in_channel, height, width])?;
     let size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
-        std::slice::from_raw_parts(tch_a.data_ptr() as *const Type, size)
+        std::slice::from_raw_parts(tch_a.data_ptr() as *const TestTypes, size)
     });
 
     Ok((
@@ -58,8 +62,8 @@ fn common_input(
 
 #[track_caller]
 fn assert_eq(
-    a: &Tensor<Type>,
-    a_kernel: &Tensor<Type>,
+    a: &Tensor<TestTypes>,
+    a_kernel: &Tensor<TestTypes>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor,
     groups: i64,
@@ -84,18 +88,17 @@ fn assert_eq(
         &[1, 1],
         groups,
     );
-    let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const Type, res.size()) };
-    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        assert_f64(*a, *b, 0.05, &res, &tch_res).expect("assert_f64 failed");
-    });
+    let tch_res = unsafe {
+        Tensor::<TestTypes>::from_raw(tch_res.data_ptr() as *mut TestTypes, &res.shape().to_vec())
+    }?;
+    assert!(res.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
     Ok(())
 }
 
 #[track_caller]
 fn assert_eq_pad(
-    a: &Tensor<Type>,
-    a_kernel: &Tensor<Type>,
+    a: &Tensor<TestTypes>,
+    a_kernel: &Tensor<TestTypes>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor,
     groups: i64,
@@ -120,27 +123,26 @@ fn assert_eq_pad(
         &[1, 1],
         groups,
     );
-    let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const Type, res.size()) };
-    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        assert_f64(*a, *b, 0.05, &res, &tch_res).expect("assert_f64 failed");
-    });
+    let tch_res = unsafe {
+        Tensor::<TestTypes>::from_raw(tch_res.data_ptr() as *mut TestTypes, &res.shape().to_vec())
+    }?;
+    assert!(res.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
     Ok(())
 }
 
 #[track_caller]
 fn assert_eq_bias(
-    a: &Tensor<Type>,
-    a_kernel: &Tensor<Type>,
+    a: &Tensor<TestTypes>,
+    a_kernel: &Tensor<TestTypes>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor,
     groups: i64,
 ) -> anyhow::Result<()> {
-    let tch_bias = tch::Tensor::randn(b_kernel.size()[0], (tch::Kind::Double, tch::Device::Cpu));
-    let mut bias = Tensor::<Type>::empty([*a_kernel.shape().last().unwrap()])?;
+    let tch_bias = tch::Tensor::randn(b_kernel.size()[0], (TCH_TEST_TYPES, tch::Device::Cpu));
+    let mut bias = Tensor::<TestTypes>::empty([*a_kernel.shape().last().unwrap()])?;
     let size = bias.size();
     bias.as_raw_mut().copy_from_slice(unsafe {
-        std::slice::from_raw_parts(tch_bias.data_ptr() as *const Type, size)
+        std::slice::from_raw_parts(tch_bias.data_ptr() as *const TestTypes, size)
     });
     let res = a
         .conv2d_group(
@@ -155,27 +157,26 @@ fn assert_eq_bias(
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.conv2d(&b_kernel, Some(tch_bias), &[1, 1], &[0, 0], &[1, 1], groups);
-    let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const Type, res.size()) };
-    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        assert_f64(*a, *b, 0.05, &res, &tch_res).expect("assert_f64 failed");
-    });
+    let tch_res = unsafe {
+        Tensor::<TestTypes>::from_raw(tch_res.data_ptr() as *mut TestTypes, &res.shape().to_vec())
+    }?;
+    assert!(res.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
     Ok(())
 }
 
 #[track_caller]
 fn assert_eq_bias_pad(
-    a: &Tensor<Type>,
-    a_kernel: &Tensor<Type>,
+    a: &Tensor<TestTypes>,
+    a_kernel: &Tensor<TestTypes>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor,
     groups: i64,
 ) -> anyhow::Result<()> {
-    let tch_bias = tch::Tensor::randn(b_kernel.size()[0], (tch::Kind::Double, tch::Device::Cpu));
-    let mut bias = Tensor::<Type>::empty([*a_kernel.shape().last().unwrap()])?;
+    let tch_bias = tch::Tensor::randn(b_kernel.size()[0], (TCH_TEST_TYPES, tch::Device::Cpu));
+    let mut bias = Tensor::<TestTypes>::empty([*a_kernel.shape().last().unwrap()])?;
     let size = bias.size();
     bias.as_raw_mut().copy_from_slice(unsafe {
-        std::slice::from_raw_parts(tch_bias.data_ptr() as *const Type, size)
+        std::slice::from_raw_parts(tch_bias.data_ptr() as *const TestTypes, size)
     });
     let res = a
         .conv2d_group(
@@ -190,27 +191,26 @@ fn assert_eq_bias_pad(
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.conv2d(&b_kernel, Some(tch_bias), &[1, 1], &[2, 2], &[1, 1], groups);
-    let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const Type, res.size()) };
-    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        assert_f64(*a, *b, 0.05, &res, &tch_res).expect("assert_f64 failed");
-    });
+    let tch_res = unsafe {
+        Tensor::<TestTypes>::from_raw(tch_res.data_ptr() as *mut TestTypes, &res.shape().to_vec())
+    }?;
+    assert!(res.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
     Ok(())
 }
 
 #[track_caller]
 fn assert_eq_bias_pad_relu(
-    a: &Tensor<Type>,
-    a_kernel: &Tensor<Type>,
+    a: &Tensor<TestTypes>,
+    a_kernel: &Tensor<TestTypes>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor,
     groups: i64,
 ) -> anyhow::Result<()> {
-    let tch_bias = tch::Tensor::randn(b_kernel.size()[0], (tch::Kind::Double, tch::Device::Cpu));
-    let mut bias = Tensor::<Type>::empty([*a_kernel.shape().last().unwrap()])?;
+    let tch_bias = tch::Tensor::randn(b_kernel.size()[0], (TCH_TEST_TYPES, tch::Device::Cpu));
+    let mut bias = Tensor::<TestTypes>::empty([*a_kernel.shape().last().unwrap()])?;
     let size = bias.size();
     bias.as_raw_mut().copy_from_slice(unsafe {
-        std::slice::from_raw_parts(tch_bias.data_ptr() as *const Type, size)
+        std::slice::from_raw_parts(tch_bias.data_ptr() as *const TestTypes, size)
     });
     let res = a
         .conv2d_group(
@@ -225,11 +225,10 @@ fn assert_eq_bias_pad_relu(
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.conv2d(&b_kernel, Some(tch_bias), &[1, 1], &[2, 2], &[1, 1], groups);
-    let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const Type, res.size()) };
-    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        assert_f64(*a, *b, 0.05, &res, &tch_res).expect("assert_f64 failed");
-    });
+    let tch_res = unsafe {
+        Tensor::<TestTypes>::from_raw(tch_res.data_ptr() as *mut TestTypes, &res.shape().to_vec())
+    }?;
+    assert!(res.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
     Ok(())
 }
 

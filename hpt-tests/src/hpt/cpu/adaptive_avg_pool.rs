@@ -1,4 +1,9 @@
 #![allow(unused)]
+use crate::TestTypes;
+use crate::TCH_TEST_TYPES;
+use crate::TEST_ATOL;
+use crate::TEST_RTOL;
+
 use super::assert_utils::assert_f64;
 use hpt::common::cpu::TensorLike;
 use hpt::common::TensorInfo;
@@ -12,31 +17,30 @@ use rand::Rng;
 use tch;
 fn common_input(
     [batch, in_channel, height, width]: [i64; 4],
-) -> anyhow::Result<(Tensor<f64>, tch::Tensor)> {
-    let a = Tensor::<f64>::arange(0, batch * in_channel * height * width)?
+) -> anyhow::Result<(Tensor<TestTypes>, tch::Tensor)> {
+    let a = Tensor::<TestTypes>::arange(0, batch * in_channel * height * width)?
         .reshape([batch, in_channel, height, width])?
         .permute([0, 2, 3, 1])?
         .contiguous()?;
     let tch_a = tch::Tensor::arange(
         batch * in_channel * height * width,
-        (tch::Kind::Double, tch::Device::Cpu),
+        (TCH_TEST_TYPES, tch::Device::Cpu),
     )
     .reshape(&[batch, in_channel, height, width]);
     Ok((a, tch_a))
 }
 
 #[track_caller]
-fn assert_eq(a: &Tensor<f64>, b: &tch::Tensor) -> anyhow::Result<()> {
+fn assert_eq(a: &Tensor<TestTypes>, b: &tch::Tensor) -> anyhow::Result<()> {
     let res = a
         .adaptive_avgpool2d([2, 2])?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.adaptive_avg_pool2d([2, 2]);
-    let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f64, res.size()) };
-    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        assert_f64(*a, *b, 0.05, &res, &tch_res);
-    });
+    let tch_res = unsafe {
+        Tensor::<TestTypes>::from_raw(tch_res.data_ptr() as *mut TestTypes, &res.shape().to_vec())
+    }?;
+    assert!(res.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
     Ok(())
 }
 

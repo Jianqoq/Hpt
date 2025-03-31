@@ -1,3 +1,8 @@
+pub(crate) type TestTypes = f32;
+static TCH_TEST_TYPES: tch::Kind = tch::Kind::Float;
+static TEST_RTOL: TestTypes = 1e-3;
+static TEST_ATOL: TestTypes = 1e-3;
+
 pub mod hpt {
     pub mod cpu {
         pub mod adaptive_avg_pool;
@@ -42,6 +47,7 @@ pub mod hpt {
         pub mod matmul;
         pub mod reduce;
         pub mod unary;
+        pub mod normalization;
     }
 }
 

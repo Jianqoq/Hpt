@@ -2,28 +2,7 @@
 #include "../utils/type_alias.cuh"
 #include "../utils/promotion/promotes.cuh"
 #include "../utils/check_type.cuh"
-
-template <typename Input>
-struct HardSigmoid
-{
-    using Output = typename FloatOutUnaryPromote<Input>::Output;
-    __device__ __forceinline__ Output operator()(Input a) const
-    {
-        CHECK_FLOAT_TYPE(Output);
-        if constexpr (std::is_same_v<Input, f16> || std::is_same_v<Input, bf16> || std::is_same_v<Output, f16> || std::is_same_v<Output, bf16>)
-        {
-            f32 x = cast<Input, f32>(a);
-            constexpr f32 v = 1.0 / 6.0;
-            return cast<f32, Output>(max(min(x * v + 0.5f, 1.0f), 0.0f));
-        }
-        else
-        {
-            Output x = cast<Input, Output>(a);
-            constexpr Output v = 1.0 / 6.0;
-            return max(min(x * v + 0.5, 1.0), 0.0);
-        }
-    }
-};
+#include "unary_classes.cuh"
 
 DEFINE_UNARY_KERNEL(hard_sigmoid_f16, f16, FloatOutUnaryPromote, HardSigmoid);
 DEFINE_UNARY_KERNEL(hard_sigmoid_bf16, bf16, FloatOutUnaryPromote, HardSigmoid);
