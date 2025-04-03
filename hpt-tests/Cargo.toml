@@ -1,13 +1,13 @@
 
 [package]
 name = "hpt-tests"
-version = "0.0.22"
+version = "0.1.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
 hpt-common = { path = "../hpt-common" }
-hpt = { path = "../hpt", features = ["track_caller", "bound_check"] }
+hpt = { path = "../hpt", features = ["track_caller", "bound_check", "cuda"] }
 hpt-types = { path = "../hpt-types" }
 serde_json = { workspace = true }
 tch = { workspace = true }
@@ -24,7 +24,7 @@ half = { workspace = true }
 
 [features]
 cuda = ["hpt/cuda"]
-# default = ["cuda"]
+default = ["cuda"]
 
 [profile.dev]
 opt-level = 0

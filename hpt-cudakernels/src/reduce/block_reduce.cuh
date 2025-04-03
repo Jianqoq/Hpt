@@ -1,4 +1,5 @@
 #pragma once
+#include "../utils/fast_divmod.cuh"
 
 template <uint32_t WarpSize = 32>
 struct Block1D

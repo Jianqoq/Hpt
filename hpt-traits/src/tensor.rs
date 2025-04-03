@@ -4,7 +4,10 @@ use hpt_common::{
 use hpt_types::{
     dtype::TypeCommon,
     into_scalar::Cast,
-    type_promote::{FloatOutBinary, FloatOutUnary, NormalOut, NormalOutUnary},
+    type_promote::{
+        FloatOutBinary, FloatOutBinaryPromote, FloatOutUnary, FloatOutUnaryPromote, NormalOut,
+        NormalOutPromote, NormalOutUnary,
+    },
 };
 use std::fmt::Debug;
 use std::fmt::Display;
@@ -100,6 +103,9 @@ where
             Output = <Self as FloatOutBinary<Self>>::Output,
         >
         + NormalOutUnary
+        + FloatOutUnaryPromote
+        + FloatOutBinaryPromote
+        + NormalOutPromote
         + Cast<f64>,
 {
 }
@@ -129,6 +135,9 @@ where
             Output = <Self as FloatOutBinary<Self>>::Output,
         >
         + NormalOutUnary
+        + FloatOutUnaryPromote
+        + FloatOutBinaryPromote
+        + NormalOutPromote
         + Cast<f64>,
 {
 }

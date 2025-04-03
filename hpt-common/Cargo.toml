@@ -1,6 +1,6 @@
 [package]
 name = "hpt-common"
-version = "0.0.21"
+version = "0.1.2"
 edition = "2021"
 description = "An internal library for common utilities for hpt"
 authors = ["JianJian Li <ljj1849532909@gmail.com>"]
@@ -8,7 +8,7 @@ repository = "https://github.com/Jianqoq/Hpt"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-hpt-types = { path = "../hpt-types", version = "0.0.21" }
+hpt-types = { path = "../hpt-types", version = "0.1.1" }
 thiserror = { workspace = true }
 serde = { workspace = true }
 cudarc = { workspace = true, optional = true }

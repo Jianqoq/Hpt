@@ -2,24 +2,8 @@
 #include "../utils/type_alias.cuh"
 #include "../utils/promotion/promotes.cuh"
 #include "../utils/check_type.cuh"
+#include "unary_classes.cuh"
 
-template <typename Input>
-struct Erf
-{
-    using Output = typename FloatOutUnaryPromote<Input>::Output;
-    __device__ __forceinline__ Output operator()(Input a) const
-    {
-        CHECK_FLOAT_TYPE(Output);
-        if constexpr (std::is_same_v<Input, f16> || std::is_same_v<Input, bf16>)
-        {
-            return cast<f32, Output>(erff(cast<Input, f32>(a)));
-        }
-        else
-        {
-            return erf(cast<Input, Output>(a));
-        }
-    }
-};
 
 DEFINE_UNARY_KERNEL(erf_f16, f16, FloatOutUnaryPromote, Erf);
 DEFINE_UNARY_KERNEL(erf_bf16, bf16, FloatOutUnaryPromote, Erf);

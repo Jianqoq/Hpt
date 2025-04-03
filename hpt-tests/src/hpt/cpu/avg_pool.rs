@@ -1,4 +1,6 @@
 #![allow(unused)]
+use crate::{TestTypes, TCH_TEST_TYPES, TEST_ATOL, TEST_RTOL};
+
 use super::assert_utils::assert_f64;
 use hpt::common::cpu::TensorLike;
 use hpt::common::TensorInfo;
@@ -13,22 +15,22 @@ use tch;
 
 fn common_input(
     [batch, in_channel, kernel_height, kernel_width, height, width]: [i64; 6],
-) -> anyhow::Result<(Tensor<f64>, Tensor<f64>, tch::Tensor, tch::Tensor)> {
-    let kernel = Tensor::<f64>::arange(0, kernel_height * kernel_width)?
+) -> anyhow::Result<(Tensor<TestTypes>, Tensor<TestTypes>, tch::Tensor, tch::Tensor)> {
+    let kernel = Tensor::<TestTypes>::arange(0, kernel_height * kernel_width)?
         .reshape([kernel_height, kernel_width])?;
-    let a = Tensor::<f64>::arange(0, batch * in_channel * height * width)?
+    let a = Tensor::<TestTypes>::arange(0, batch * in_channel * height * width)?
         .reshape([batch, in_channel, height, width])?
         .permute([0, 2, 3, 1])?
         .contiguous()?;
 
     let tch_kernel = tch::Tensor::arange(
         kernel_height * kernel_width,
-        (tch::Kind::Double, tch::Device::Cpu),
+        (TCH_TEST_TYPES, tch::Device::Cpu),
     )
     .reshape(&[kernel_height, kernel_width]);
     let tch_a = tch::Tensor::arange(
         batch * in_channel * height * width,
-        (tch::Kind::Double, tch::Device::Cpu),
+        (TCH_TEST_TYPES, tch::Device::Cpu),
     )
     .reshape(&[batch, in_channel, height, width]);
     Ok((kernel, a, tch_kernel, tch_a))
@@ -36,8 +38,8 @@ fn common_input(
 
 #[track_caller]
 fn assert_eq(
-    a: &Tensor<f64>,
-    a_kernel: &Tensor<f64>,
+    a: &Tensor<TestTypes>,
+    a_kernel: &Tensor<TestTypes>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
@@ -46,18 +48,17 @@ fn assert_eq(
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.avg_pool2d(&b_kernel.size(), &[1, 1], &[0, 0], false, true, None);
-    let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f64, res.size()) };
-    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        assert_f64(*a, *b, 0.05, &res, &tch_res);
-    });
+    let tch_res = unsafe {
+        Tensor::<TestTypes>::from_raw(tch_res.data_ptr() as *mut TestTypes, &res.shape().to_vec())
+    }?;
+    assert!(res.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
     Ok(())
 }
 
 #[track_caller]
 fn assert_eq_pad(
-    a: &Tensor<f64>,
-    a_kernel: &Tensor<f64>,
+    a: &Tensor<TestTypes>,
+    a_kernel: &Tensor<TestTypes>,
     b: &tch::Tensor,
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
@@ -66,11 +67,10 @@ fn assert_eq_pad(
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.avg_pool2d(&b_kernel.size(), &[1, 1], &[2, 2], false, true, None);
-    let res_slice = res.as_raw();
-    let res2 = unsafe { std::slice::from_raw_parts(tch_res.data_ptr() as *const f64, res.size()) };
-    res_slice.iter().zip(res2.iter()).for_each(|(a, b)| {
-        assert_f64(*a, *b, 0.05, &res, &tch_res);
-    });
+    let tch_res = unsafe {
+        Tensor::<TestTypes>::from_raw(tch_res.data_ptr() as *mut TestTypes, &res.shape().to_vec())
+    }?;
+    assert!(res.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
     Ok(())
 }
 

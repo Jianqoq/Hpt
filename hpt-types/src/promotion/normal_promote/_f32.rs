@@ -10,53 +10,53 @@ use crate::{
 };
 use half::{bf16, f16};
 use num_complex::{Complex32, Complex64};
-impl_float_out_binary_promote!(f32, bool, f32);
-impl_float_out_binary_promote!(f32, i8, f32);
-impl_float_out_binary_promote!(f32, i16, f32);
-impl_float_out_binary_promote!(f32, i32, f32);
-impl_float_out_binary_promote!(f32, i64, f64);
+impl_float_out_binary_promote!(f32, bool, f32, f32);
+impl_float_out_binary_promote!(f32, i8, f32, f32);
+impl_float_out_binary_promote!(f32, i16, f32, f32);
+impl_float_out_binary_promote!(f32, i32, f32, f32);
+impl_float_out_binary_promote!(f32, i64, f64, f64);
 #[cfg(target_pointer_width = "64")]
-impl_float_out_binary_promote!(f32, isize, f64);
+impl_float_out_binary_promote!(f32, isize, f64, f64);
 #[cfg(target_pointer_width = "32")]
-impl_float_out_binary_promote!(f32, isize, f32);
-impl_float_out_binary_promote!(f32, u8, f32);
-impl_float_out_binary_promote!(f32, u16, f32);
-impl_float_out_binary_promote!(f32, u32, f32);
-impl_float_out_binary_promote!(f32, u64, f64);
+impl_float_out_binary_promote!(f32, isize, f32, f32);
+impl_float_out_binary_promote!(f32, u8, f32, f32);
+impl_float_out_binary_promote!(f32, u16, f32, f32);
+impl_float_out_binary_promote!(f32, u32, f32, f32);
+impl_float_out_binary_promote!(f32, u64, f64, f64);
 #[cfg(target_pointer_width = "64")]
-impl_float_out_binary_promote!(f32, usize, f64);
+impl_float_out_binary_promote!(f32, usize, f64, f64);
 #[cfg(target_pointer_width = "32")]
-impl_float_out_binary_promote!(f32, usize, f32);
-impl_float_out_binary_promote!(f32, f16, f32);
-impl_float_out_binary_promote!(f32, bf16, f32);
-impl_float_out_binary_promote!(f32, f32, f32);
-impl_float_out_binary_promote!(f32, f64, f64);
-impl_float_out_binary_promote!(f32, Complex32, Complex32);
-impl_float_out_binary_promote!(f32, Complex64, Complex64);
+impl_float_out_binary_promote!(f32, usize, f32, f32);
+impl_float_out_binary_promote!(f32, f16, f32, f32);
+impl_float_out_binary_promote!(f32, bf16, f32, f32);
+impl_float_out_binary_promote!(f32, f32, f32, f32);
+impl_float_out_binary_promote!(f32, f64, f64, f64);
+impl_float_out_binary_promote!(f32, Complex32, Complex32, Complex32);
+impl_float_out_binary_promote!(f32, Complex64, Complex64, Complex64);
 
-impl_normal_out_promote!(f32, bool, f32);
-impl_normal_out_promote!(f32, i8, f32);
-impl_normal_out_promote!(f32, i16, f32);
-impl_normal_out_promote!(f32, i32, f32);
-impl_normal_out_promote!(f32, i64, f64);
+impl_normal_out_promote!(f32, bool, f32, f32);
+impl_normal_out_promote!(f32, i8, f32, f32);
+impl_normal_out_promote!(f32, i16, f32, f32);
+impl_normal_out_promote!(f32, i32, f32, f32);
+impl_normal_out_promote!(f32, i64, f64, f64);
 #[cfg(target_pointer_width = "64")]
-impl_normal_out_promote!(f32, isize, f64);
+impl_normal_out_promote!(f32, isize, f64, f64);
 #[cfg(target_pointer_width = "32")]
-impl_normal_out_promote!(f32, isize, f32);
-impl_normal_out_promote!(f32, u8, f32);
-impl_normal_out_promote!(f32, u16, f32);
-impl_normal_out_promote!(f32, u32, f32);
-impl_normal_out_promote!(f32, u64, f64);
+impl_normal_out_promote!(f32, isize, f32, f32);
+impl_normal_out_promote!(f32, u8, f32, f32);
+impl_normal_out_promote!(f32, u16, f32, f32);
+impl_normal_out_promote!(f32, u32, f32, f32);
+impl_normal_out_promote!(f32, u64, f64, f64);
 #[cfg(target_pointer_width = "64")]
-impl_normal_out_promote!(f32, usize, f64);
+impl_normal_out_promote!(f32, usize, f64, f64);
 #[cfg(target_pointer_width = "32")]
-impl_normal_out_promote!(f32, usize, f32);
-impl_normal_out_promote!(f32, f16, f32);
-impl_normal_out_promote!(f32, bf16, f32);
-impl_normal_out_promote!(f32, f32, f32);
-impl_normal_out_promote!(f32, f64, f64);
-impl_normal_out_promote!(f32, Complex32, Complex32);
-impl_normal_out_promote!(f32, Complex64, Complex64);
+impl_normal_out_promote!(f32, usize, f32, f32);
+impl_normal_out_promote!(f32, f16, f32, f32);
+impl_normal_out_promote!(f32, bf16, f32, f32);
+impl_normal_out_promote!(f32, f32, f32, f32);
+impl_normal_out_promote!(f32, f64, f64, f64);
+impl_normal_out_promote!(f32, Complex32, Complex32, Complex32);
+impl_normal_out_promote!(f32, Complex64, Complex64, Complex64);
 
 impl_simd_cmp_promote!(f32, bool, i32);
 impl_simd_cmp_promote!(f32, i8, i32);
@@ -80,4 +80,4 @@ impl_simd_cmp_promote!(f32, bf16, i16);
 impl_simd_cmp_promote!(f32, f32, i32);
 impl_simd_cmp_promote!(f32, f64, i64);
 
-impl_float_out_unary_promote!(f32, f32);
+impl_float_out_unary_promote!(f32, f32, f32);

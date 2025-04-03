@@ -196,40 +196,34 @@ fn count_registers(ptx: &str) -> HashMap<String, RegisterInfo> {
     reg_counts
 }
 
-pub(crate) fn align_to_warp(threads: usize, warp_size: usize) -> usize {
-    threads / warp_size * warp_size
-}
-
 pub(crate) fn compute_kernel_launch_config(
     device: Arc<CudaDevice>,
-    reg_info: &RegisterInfo,
+    _: &RegisterInfo,
     size: usize,
 ) -> LaunchConfig {
-    use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_MULTIPROCESSOR;
-    use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK;
-    use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_WARP_SIZE;
 
-    let max_regs_per_sm = device
-        .attribute(CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_MULTIPROCESSOR)
-        .expect("failed to get max registers per sm");
-    let warp_size = device
-        .attribute(CU_DEVICE_ATTRIBUTE_WARP_SIZE)
-        .expect("failed to get warp size");
-    let max_threads_per_block = device
-        .attribute(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK)
-        .expect("failed to get max threads per block");
-    let total_reg_used = reg_info.b32 + reg_info.b64 * 2;
-    let max_threads_per_sm = max_regs_per_sm as usize / total_reg_used;
-    let aligned_threads = align_to_warp(max_threads_per_sm, warp_size as usize)
-        .min(max_threads_per_block as usize)
-        .max(warp_size as usize);
+    use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT;
+    let sm_count = device
+        .attribute(CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)
+        .expect("failed to get sm count") as usize;
+
+    let mut block_size = if size > 1_000_000 { 256 } else { 128 };
+
+    let mut grid_size = compute_num_blocks(device, size, block_size, 32);
+
+    while grid_size < sm_count && block_size > 32 {
+        block_size = (block_size / 2).max(32);
+
+        grid_size = size.div_ceil(block_size);
+
+        if block_size == 32 {
+            break;
+        }
+    }
+
     LaunchConfig {
-        block_dim: (aligned_threads as u32, 1, 1),
-        grid_dim: (
-            (size as u32 + aligned_threads as u32 - 1) / aligned_threads as u32,
-            1,
-            1,
-        ),
+        block_dim: (block_size as u32, 1, 1),
+        grid_dim: (grid_size as u32, 1, 1),
         shared_mem_bytes: 0,
     }
 }

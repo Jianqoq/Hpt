@@ -1,9 +1,10 @@
 use crate::backend::Cuda;
 use crate::backends::cuda::cuda_utils::{
-    compile_kernel, compute_kernel_launch_config, get_array_str, load_ptx_and_get_data,
+    check_launch_config, compile_kernel, compute_kernel_launch_config, compute_num_blocks,
+    get_array_str, load_ptx_and_get_data,
 };
 use crate::tensor_base::_Tensor;
-use cudarc::driver::{DeviceRepr, LaunchAsync};
+use cudarc::driver::{DeviceRepr, LaunchAsync, LaunchConfig};
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
@@ -15,6 +16,23 @@ use hpt_types::dtype::CudaType;
 use std::borrow::BorrowMut;
 
 use crate::backends::cuda::cuda_utils::get_include_1;
+
+pub(crate) fn calculate_block_size(kernel: &cudarc::driver::CudaFunction) -> u32 {
+    let factors = [1, 2, 4, 8, 16];
+    let mut max_active_blocks = 0;
+    let mut best_factor = 0;
+    for factor in factors {
+        let size = 32 * factor;
+        let max = kernel
+            .occupancy_max_active_blocks_per_multiprocessor(size, 0, None)
+            .expect("occupancy failed");
+        if max >= max_active_blocks {
+            max_active_blocks = max;
+            best_factor = factor;
+        }
+    }
+    best_factor * 32
+}
 
 pub(crate) fn uary_fn_with_out_simd<A, O, K, F, const DEVICE_ID: usize, Al>(
     inp: &_Tensor<A, Cuda, DEVICE_ID, Al>,
@@ -39,15 +57,15 @@ where
     let a_include = get_include_1::<A>();
     let k_include = get_include_1::<K>();
     let code = if inp.is_contiguous() && !inp.parent().is_some() {
-        let scalar_a = Scalar::<A>::new("inp[idx]".to_string());
-        let scalar_k = Scalar::<K>::new("out[idx]".to_string());
+        let scalar_a = Scalar::<A>::new("inp[i]".to_string());
+        let scalar_k = Scalar::<K>::new("out[i]".to_string());
         format!(
             "
         {a_include}
         {k_include}
         extern \"C\" __global__ void unary(const {}* inp, {}* out, int size) {{
             int idx = blockIdx.x * blockDim.x + threadIdx.x;
-            if (idx < size) {{
+            for (int i = idx; i < size; i += blockDim.x * gridDim.x) {{
                 {};
             }}
         }}
@@ -60,7 +78,7 @@ where
         let shape_str = get_array_str(inp.shape());
         let strides_str = get_array_str(inp.strides());
         let scalar_a = Scalar::<A>::new("inp[offset]".to_string());
-        let scalar_k = Scalar::<K>::new("out[idx]".to_string());
+        let scalar_k = Scalar::<K>::new("out[i]".to_string());
         format!(
             "
         {a_include}
@@ -69,8 +87,8 @@ where
         __constant__ long long strides[] = {{{}}};
         extern \"C\" __global__ void unary(const {}* inp, {}* out, int size) {{
             int idx = blockIdx.x * blockDim.x + threadIdx.x;
-            if (idx < size) {{
-                long amount = idx;
+            for (int i = idx; i < size; i += blockDim.x * gridDim.x) {{
+                long amount = i;
                 long offset = 0;
                 #pragma unroll
                 for (int j = {} - 1; j >= 0; j--)
@@ -128,14 +146,26 @@ where
         _Tensor::<K, Cuda, DEVICE_ID, Al>::empty(inp.shape())?
     };
     if inp.is_contiguous() && !inp.parent().is_some() {
-        let (kernel, reg_info) = load_ptx_and_get_data(
+        let (kernel, _) = load_ptx_and_get_data(
             op,
             &format!("{op}_{}_contiguous", A::STR),
             ret.device(),
             ret.device_cap(),
             meta,
         )?;
-        let cfg = compute_kernel_launch_config(ret.device(), &reg_info, ret.size());
+        let block_size = calculate_block_size(&kernel);
+        let grid_size = compute_num_blocks(
+            ret.device(),
+            ret.size().div_ceil(4),
+            block_size as usize,
+            32,
+        );
+        let cfg = LaunchConfig {
+            block_dim: (block_size as u32, 1, 1),
+            grid_dim: (grid_size.min(u32::MAX as usize) as u32, 1, 1),
+            shared_mem_bytes: 0,
+        };
+        check_launch_config(ret.device(), &cfg)?;
         unsafe { kernel.launch(cfg, (ret.cuda_slice(), inp.cuda_slice(), ret.size() as i32)) }?;
     } else {
         let (kernel, reg_info) = load_ptx_and_get_data(
