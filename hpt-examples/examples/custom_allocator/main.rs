@@ -12,6 +12,7 @@ impl hpt::alloc::Allocator for CustomCpuAllocator {
 
     type CpuAllocator = CustomCpuAllocator;
 
+    #[cfg(feature = "cuda")]
     type CudaAllocator = CustomCudaAllocator;
 
     fn allocate(
@@ -74,6 +75,7 @@ impl hpt::alloc::Allocator for CustomCudaAllocator {
 
     type CpuAllocator = CustomCpuAllocator;
 
+    #[cfg(feature = "cuda")]
     type CudaAllocator = CustomCudaAllocator;
 
     fn allocate(

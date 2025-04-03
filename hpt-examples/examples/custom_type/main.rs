@@ -611,6 +611,11 @@ impl VecTrait<CustomType> for CustomTypeVec {
     unsafe fn from_ptr(ptr: *const CustomType) -> Self {
         todo!()
     }
+
+    #[cfg(target_feature = "neon")]
+    fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
+        todo!()
+    }
 }
 
 impl Cast<CustomType> for usize {
