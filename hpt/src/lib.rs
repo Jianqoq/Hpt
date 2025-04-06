@@ -216,26 +216,28 @@ pub(crate) mod backends {
             pub(crate) mod float_out_binary;
             /// a module contains cuda tensor float out unary impls
             pub(crate) mod float_out_unary;
+            /// a module contains cuda tensor layernorm impls
+            pub(crate) mod layernorm;
             /// a module contains cuda matmul impls
             pub(crate) mod matmul;
             /// a module contains cuda tensor normal creation impls
             pub(crate) mod normal_creation;
             /// a module contains cuda tensor normal out unary impls
             pub(crate) mod normal_out_unary;
-            /// a module contains cuda tensor shape manipulation impls
-            pub(crate) mod shape_manipulate;
-            /// a module contains cuda tensor windows impls
-            pub(crate) mod windows;
-            /// a module contains cuda tensor softmax impls
-            pub(crate) mod softmax;
             /// a module contains cuda tensor normalization impls
             pub(crate) mod normalization;
-            /// a module contains cuda tensor layernorm impls
-            pub(crate) mod layernorm;
+            /// a module contains cuda tensor shape manipulation impls
+            pub(crate) mod shape_manipulate;
+            /// a module contains cuda tensor softmax impls
+            pub(crate) mod softmax;
+            /// a module contains cuda tensor windows impls
+            pub(crate) mod windows;
         }
         pub(crate) mod tensor_external {
             /// a module contains cuda tensor arg reduce impls
             pub(crate) mod arg_reduce;
+            /// a module that contains inplace binary operations
+            pub(crate) mod binary;
             /// a module contains cuda tensor cmp impls
             pub(crate) mod cmp;
             /// a module contains cuda tensor common reduce impls
@@ -254,14 +256,14 @@ pub(crate) mod backends {
             pub(crate) mod normal_creation;
             /// a module contains cuda tensor normal out unary impls
             pub(crate) mod normal_out_unary;
+            /// a module contains cuda tensor normalization impls
+            pub(crate) mod normalization;
             /// a module contains cuda tensor random impls
             pub(crate) mod random;
             /// a module contains cuda tensor shape manipulation impls
             pub(crate) mod shape_manipulate;
             /// a module contains cuda tensor windows impls
             pub(crate) mod windows;
-            /// a module contains cuda tensor normalization impls
-            pub(crate) mod normalization;
         }
         pub(crate) mod utils {
             pub(crate) mod reduce {

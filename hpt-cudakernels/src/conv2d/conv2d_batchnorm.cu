@@ -7,9 +7,8 @@
 template <typename T, typename Intermediate>
 __device__ __forceinline__ void batchnorm_forward(T *input, T *gamma, T *beta, T *mean, T *var, T eps, size_t size, size_t channels)
 {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
     Intermediate eps_casted = cast<T, Intermediate>(eps);
-    for (size_t i = 0; i < size; i += blockDim.x * gridDim.x)
+    for (size_t idx = blockIdx.x * blockDim.x + threadIdx.x; idx < size; idx += blockDim.x * gridDim.x)
     {
         int c = idx % channels;
         Intermediate var_casted = cast<T, Intermediate>(var[c]);

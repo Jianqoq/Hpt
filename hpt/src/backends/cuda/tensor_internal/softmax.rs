@@ -86,6 +86,7 @@ pub(crate) fn contiguous_softmax<T, O, const DEVICE: usize, A>(
     a: &_Tensor<T, Cuda, DEVICE, A>,
     axis: i64,
     c: Option<_Tensor<O, Cuda, DEVICE, A>>,
+    is_log_softmax: bool,
 ) -> Result<_Tensor<O, Cuda, DEVICE, A>, TensorError>
 where
     T: CommonBounds + Cast<O> + FloatOutUnary<Output = O> + CudaType + DeviceRepr,
@@ -108,13 +109,18 @@ where
     let outer_loop_size = transposed_tensor.shape()[..a.ndim() - 1]
         .iter()
         .product::<i64>();
+    let op_name = if is_log_softmax {
+        "logsoftmax"
+    } else {
+        "softmax"
+    };
     if inner_loop_size <= 1024 {
         let (kernel, _) = load_ptx_and_get_data(
-            "softmax",
+            op_name,
             &if a_last_stride == 1 {
-                format!("{}_softmax_warp", T::STR)
+                format!("{}_{op_name}_warp", T::STR)
             } else {
-                format!("{}_softmax_warp_uncontiguous", T::STR)
+                format!("{}_{op_name}_warp_uncontiguous", T::STR)
             },
             res.device(),
             res.device_cap(),
@@ -180,11 +186,11 @@ where
         }
     } else if inner_loop_size <= 1024 * 4 {
         let (kernel, _) = load_ptx_and_get_data(
-            "softmax",
+            op_name,
             &if a_last_stride == 1 {
-                format!("{}_softmax_block", T::STR)
+                format!("{}_{op_name}_block", T::STR)
             } else {
-                format!("{}_softmax_block_uncontiguous", T::STR)
+                format!("{}_{op_name}_block_uncontiguous", T::STR)
             },
             res.device(),
             res.device_cap(),
@@ -245,11 +251,11 @@ where
         }
     } else {
         let (kernel, _) = load_ptx_and_get_data(
-            "softmax",
+            op_name,
             &if a_last_stride == 1 {
-                format!("{}_softmax_block_large", T::STR)
+                format!("{}_{op_name}_block_large", T::STR)
             } else {
-                format!("{}_softmax_block_large_uncontiguous", T::STR)
+                format!("{}_{op_name}_block_large_uncontiguous", T::STR)
             },
             res.device(),
             res.device_cap(),
@@ -330,6 +336,7 @@ pub(crate) fn uncontiguous_softmax<T, O, const DEVICE: usize, A>(
     a: &_Tensor<T, Cuda, DEVICE, A>,
     axis: i64,
     c: Option<_Tensor<O, Cuda, DEVICE, A>>,
+    is_log_softmax: bool,
 ) -> Result<_Tensor<O, Cuda, DEVICE, A>, TensorError>
 where
     T: CommonBounds + Cast<O> + FloatOutUnary<Output = O> + CudaType + DeviceRepr,
@@ -352,10 +359,15 @@ where
     let outer_loop_size = transposed_tensor.shape()[..a.ndim() - 1]
         .iter()
         .product::<i64>();
+    let op_name = if is_log_softmax {
+        "logsoftmax"
+    } else {
+        "softmax"
+    };
     if inner_loop_size <= 1024 {
         let (kernel, _) = load_ptx_and_get_data(
-            "softmax",
-            &format!("{}_softmax_warp_uncontiguous", T::STR),
+            op_name,
+            &format!("{}_{op_name}_warp_uncontiguous", T::STR),
             res.device(),
             res.device_cap(),
             &SOFTMAX,
@@ -392,8 +404,8 @@ where
         }
     } else if inner_loop_size <= 1024 * 4 {
         let (kernel, _) = load_ptx_and_get_data(
-            "softmax",
-            &format!("{}_softmax_block_uncontiguous", T::STR),
+            op_name,
+            &format!("{}_{op_name}_block_uncontiguous", T::STR),
             res.device(),
             res.device_cap(),
             &SOFTMAX,
@@ -428,8 +440,8 @@ where
         }
     } else {
         let (kernel, _) = load_ptx_and_get_data(
-            "softmax",
-            &format!("{}_softmax_block_large_uncontiguous", T::STR),
+            op_name,
+            &format!("{}_{op_name}_block_large_uncontiguous", T::STR),
             res.device(),
             res.device_cap(),
             &SOFTMAX,

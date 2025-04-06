@@ -33,6 +33,8 @@ fn common_input(end: i64, shape: &[i64]) -> anyhow::Result<(hpt::Tensor<TestType
 #[duplicate_item(
     func                    hpt_method      tch_method;
     [test_softmax]          [softmax]       [softmax];
+    [test_log_softmax]      [log_softmax]   [log_softmax];
+
 )]
 #[test]
 fn func() -> anyhow::Result<()> {

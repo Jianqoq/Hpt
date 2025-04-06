@@ -378,7 +378,7 @@ where
         algo: Option<ConvAlgo>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         let conv_res = self.conv2d(kernels, bias, steps, padding, dilation, algo)?;
-        let (eye_kernel, reg_info) = load_ptx_and_get_data(
+        let (kernel, reg_info) = load_ptx_and_get_data(
             "conv2d_batchnorm",
             &format!("batchnorm_forward_{}", T::STR),
             conv_res.device(),
@@ -392,9 +392,9 @@ where
         let mean_slice = mean.cuda_slice();
         let var_slice = var.cuda_slice();
         let size = conv_res.size();
-        let channels = conv_res.shape()[3];
+        let channels = conv_res.shape()[3] as usize;
         unsafe {
-            eye_kernel.launch(
+            kernel.launch(
                 cfg,
                 (
                     in_out,

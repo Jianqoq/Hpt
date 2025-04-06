@@ -17,8 +17,8 @@ use hpt_types::{
 
 use crate::tensor_base::_Tensor;
 
+use super::layernorm::layernorm;
 use super::softmax::{contiguous_softmax, uncontiguous_softmax};
-use super::layernorm::contiguous_layernorm;
 type FloatBinaryType<T> = <T as FloatOutBinary>::Output;
 
 impl<T, const DEVICE: usize, A> NormalizationOps for _Tensor<T, Cuda, DEVICE, A>
@@ -57,7 +57,7 @@ where
         usize: Cast<Self::OutputMeta>,
     {
         let normalized_shape: Shape = normalized_shape.into();
-        contiguous_layernorm(
+        layernorm(
             self,
             gamma,
             beta,
@@ -69,14 +69,19 @@ where
 
     fn softmax(&self, axis: i64) -> Result<Self::Output, TensorError> {
         let res = if self.is_contiguous() && self.parent().is_none() {
-            contiguous_softmax(self, axis, None::<Self::Output>)?
+            contiguous_softmax(self, axis, None::<Self::Output>, false)?
         } else {
-            uncontiguous_softmax(self, axis, None::<Self::Output>)?
+            uncontiguous_softmax(self, axis, None::<Self::Output>, false)?
         };
         Ok(res)
     }
 
     fn log_softmax(&self, axis: i64) -> Result<Self::Output, TensorError> {
-        unimplemented!()
+        let res = if self.is_contiguous() && self.parent().is_none() {
+            contiguous_softmax(self, axis, None::<Self::Output>, true)?
+        } else {
+            uncontiguous_softmax(self, axis, None::<Self::Output>, true)?
+        };
+        Ok(res)
     }
 }

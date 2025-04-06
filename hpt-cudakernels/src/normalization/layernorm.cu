@@ -3,6 +3,7 @@
 #include "../unary/unary_classes.cuh"
 #include "../binary/binary_classes.cuh"
 #include "../utils/index_calculator.cuh"
+#include "../utils/make_vec.cuh"
 #include <stdio.h>
 
 // https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/cuda/PersistentSoftmax.cuh
@@ -12,6 +13,16 @@ __device__ __forceinline__ int log2_ceil(int value)
     while ((1 << log2_value) < value)
         ++log2_value;
     return log2_value;
+}
+
+__device__ __forceinline__ int ceil_div(int numerator, int denominator)
+{
+    return (numerator + denominator - 1) / denominator;
+}
+
+__device__ __forceinline__ int prev_multiple_of(int value, int multiple)
+{
+    return (value / multiple) * multiple;
 }
 
 // https://zhuanlan.zhihu.com/p/408474710
@@ -69,18 +80,76 @@ __inline__ __device__ void WelfordWarpAllReduce(T thread_mean, T thread_m2, T th
     *count = __shfl_sync(0xffffffff, *count, 0, thread_group_width);
 }
 
-// each warp compute a row of layernorm
-template <typename T, typename Output, typename Intermediate, i32 log2_num_elements, i32 WarpSize, bool divisible>
-__device__ __forceinline__ void layernorm_warp(
+// https://github.com/Oneflow-Inc/oneflow/blob/master/oneflow/core/cuda/layer_norm.cuh
+template <typename T, int kWarpSize>
+__inline__ __device__ void WelfordBlockAllReduce(T thread_mean, T thread_m2, T thread_count,
+                                                 T *result_mean, T *result_m2, T *result_count)
+{
+    __shared__ T mean_shared[kWarpSize];
+    __shared__ T m2_shared[kWarpSize];
+    __shared__ T count_shared[kWarpSize];
+    __shared__ T mean_result_broadcast;
+    __shared__ T m2_result_broadcast;
+    __shared__ T count_result_broadcast;
+    const int lid = threadIdx.x % kWarpSize;
+    const int wid = threadIdx.x / kWarpSize;
+    T warp_mean = Sum<T>::identity();
+    T warp_m2 = Sum<T>::identity();
+    T warp_count = Sum<T>::identity();
+    WelfordWarpReduce<T, kWarpSize>(thread_mean, thread_m2, thread_count, &warp_mean, &warp_m2, &warp_count);
+    __syncthreads();
+    if (lid == 0)
+    {
+        mean_shared[wid] = warp_mean;
+        m2_shared[wid] = warp_m2;
+        count_shared[wid] = warp_count;
+    }
+    __syncthreads();
+    if (wid == 0)
+    {
+        if (threadIdx.x < blockDim.x / kWarpSize)
+        {
+            warp_mean = mean_shared[lid];
+            warp_m2 = m2_shared[lid];
+            warp_count = count_shared[lid];
+        }
+        else
+        {
+            warp_mean = Sum<T>::identity();
+            warp_m2 = Sum<T>::identity();
+            warp_count = Sum<T>::identity();
+        }
+        __syncwarp();
+        T block_mean = Sum<T>::identity();
+        T block_m2 = Sum<T>::identity();
+        T block_count = Sum<T>::identity();
+        WelfordWarpReduce<T, kWarpSize>(warp_mean, warp_m2, warp_count, &block_mean, &block_m2, &block_count);
+        if (lid == 0)
+        {
+            mean_result_broadcast = block_mean;
+            m2_result_broadcast = block_m2;
+            count_result_broadcast = block_count;
+        }
+    }
+    __syncthreads();
+    *result_mean = mean_result_broadcast;
+    *result_m2 = m2_result_broadcast;
+    *result_count = count_result_broadcast;
+}
+
+// each warp compute a row of layernorm, cols is multiple of WarpSize
+template <typename T, typename Output, typename Intermediate, i32 num_elements, i32 WarpSize, bool has_rem = false>
+__device__ __forceinline__ void layernorm_warp_multiple_of_warp_size(
     T *input,
     Output *output,
     Output eps,
     i32 rows,
     i32 cols)
 {
-    Exp<Intermediate> exp;
+    using InpVec = VecMaker<T>::Vec4;
+    using IntermediateVec = VecMaker<Intermediate>::Vec4;
+
     Div<Intermediate, Intermediate> div;
-    Sqrt<Intermediate> sqrt;
     Rsqrt<Intermediate> rsqrt;
     i32 row_idx = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -88,8 +157,9 @@ __device__ __forceinline__ void layernorm_warp(
     T *input_ptr = input;
     T *output_ptr = output;
 
-    constexpr i32 cs = 1 << log2_num_elements;
-    constexpr i32 num_elements = (cs + WarpSize - 1) / WarpSize;
+    constexpr i32 vec_size = 4;
+
+    constexpr i32 n_vec = num_elements / vec_size;
     for (i32 row = row_idx; row < rows; row += blockDim.y * gridDim.y)
     {
         input_ptr = input + row * cols;
@@ -99,19 +169,25 @@ __device__ __forceinline__ void layernorm_warp(
         Intermediate m2 = Sum<Intermediate>::identity();
         Intermediate local_elements[num_elements];
 
-        for (i32 c = 0; c < num_elements; c++)
+        for (i32 c = 0; c < n_vec; c++)
         {
-            i32 col = threadIdx.x + c * blockDim.x;
-            if constexpr (!divisible)
+            i32 col = (threadIdx.x + c * blockDim.x) * vec_size;
+            InpVec inp_vec = VecMaker<T>::make<vec_size>(input_ptr + col);
+            local_elements[c * vec_size] = cast<T, Intermediate>(inp_vec.x);
+            local_elements[c * vec_size + 1] = cast<T, Intermediate>(inp_vec.y);
+            local_elements[c * vec_size + 2] = cast<T, Intermediate>(inp_vec.z);
+            local_elements[c * vec_size + 3] = cast<T, Intermediate>(inp_vec.w);
+            welford_update(&count, &mean, &m2, local_elements[c * vec_size]);
+            welford_update(&count, &mean, &m2, local_elements[c * vec_size + 1]);
+            welford_update(&count, &mean, &m2, local_elements[c * vec_size + 2]);
+            welford_update(&count, &mean, &m2, local_elements[c * vec_size + 3]);
+        }
+        if constexpr (has_rem)
+        {
+            constexpr i32 rem = num_elements % vec_size;
+            for (int c = num_elements - rem; c < num_elements; c++)
             {
-                if (col < cols)
-                {
-                    local_elements[c] = cast<T, Intermediate>(input_ptr[col]);
-                    welford_update(&count, &mean, &m2, local_elements[c]);
-                }
-            }
-            else
-            {
+                i32 col = threadIdx.x + c * blockDim.x;
                 local_elements[c] = cast<T, Intermediate>(input_ptr[col]);
                 welford_update(&count, &mean, &m2, local_elements[c]);
             }
@@ -120,95 +196,258 @@ __device__ __forceinline__ void layernorm_warp(
 
         Intermediate variance = div(m2, count);
         Intermediate inv_std = rsqrt(variance + eps_intermediate);
-#pragma unroll
-        for (i32 c = 0; c < num_elements; c++)
+
+        for (i32 c = 0; c < n_vec; c++)
         {
-            i32 col = threadIdx.x + c * blockDim.x;
-            if constexpr (!divisible)
+            i32 col = (threadIdx.x + c * blockDim.x) * vec_size;
+            output_ptr[col] = cast<Intermediate, Output>((local_elements[c * vec_size] - mean) * inv_std);
+            output_ptr[col + 1] = cast<Intermediate, Output>((local_elements[c * vec_size + 1] - mean) * inv_std);
+            output_ptr[col + 2] = cast<Intermediate, Output>((local_elements[c * vec_size + 2] - mean) * inv_std);
+            output_ptr[col + 3] = cast<Intermediate, Output>((local_elements[c * vec_size + 3] - mean) * inv_std);
+        }
+        if constexpr (has_rem)
+        {
+            constexpr i32 rem = num_elements % vec_size;
+            for (int c = num_elements - rem; c < num_elements; c++)
             {
-                if (col < cols)
-                {
-                    output_ptr[col] = cast<Intermediate, Output>((local_elements[c] - mean) * inv_std);
-                }
-            }
-            else
-            {
+                i32 col = threadIdx.x + c * blockDim.x;
                 output_ptr[col] = cast<Intermediate, Output>((local_elements[c] - mean) * inv_std);
             }
         }
     }
 }
 
-// each block compute a row of layernorm
-template <typename T, typename Output, typename Intermediate, i32 BlockSize, i32 WarpSize = 32>
-__device__ __forceinline__ void layernorm_block(
+// each warp compute a row of layernorm
+template <typename T, typename Output, typename Intermediate, i32 num_elements, i32 WarpSize>
+__device__ __forceinline__ void layernorm_warp(
     T *input,
     Output *output,
     Output eps,
     i32 rows,
-    i32 cols,
-    Intermediate *shared_inp)
+    i32 cols)
 {
-    Exp<Intermediate> exp;
-    Div<Intermediate, Intermediate> div;
-    __shared__ Intermediate max_smem[WarpSize];
-    __shared__ Intermediate shared_max;
-    __shared__ Intermediate shared_sum;
-    __shared__ Intermediate shared_sum_exp_x[WarpSize];
+    using InpVec = VecMaker<T>::Vec3;
+    using IntermediateVec = VecMaker<Intermediate>::Vec3;
+    constexpr i32 vec_size = 3;
 
+    Div<Intermediate, Intermediate> div;
+    Rsqrt<Intermediate> rsqrt;
     i32 row_idx = blockIdx.y * blockDim.y + threadIdx.y;
+
+    Intermediate eps_intermediate = cast<Output, Intermediate>(eps);
     T *input_ptr = input;
-    Output *output_ptr = output;
+    T *output_ptr = output;
+
+    i32 n_elements = prev_multiple_of(cols, WarpSize) / WarpSize;
+    i32 n_vec = n_elements / vec_size;
+    i32 rem = n_vec * vec_size;
     for (i32 row = row_idx; row < rows; row += blockDim.y * gridDim.y)
     {
-        Intermediate max_val = TypeUtils<Intermediate>::limit_min();
         input_ptr = input + row * cols;
         output_ptr = output + row * cols;
-        for (i32 col = threadIdx.x; col < cols; col += blockDim.x)
-        {
-            Intermediate inp = cast<T, Intermediate>(input_ptr[col]);
-            shared_inp[col] = inp;
-            max_val = Max<Intermediate>::combine(max_val, inp);
-        }
-        max_val = blockReduce<Intermediate, Max<Intermediate, WarpSize>, Max<Intermediate, BlockSize / WarpSize>, WarpSize, Block2D<WarpSize>>(max_val, max_smem);
-        if (threadIdx.x == 0)
-            shared_max = max_val;
-        __syncthreads();
-        Intermediate sum_exp_x = Sum<Intermediate>::identity();
+        Intermediate mean = Sum<Intermediate>::identity();
+        Intermediate count = Sum<Intermediate>::identity();
+        Intermediate m2 = Sum<Intermediate>::identity();
+        Intermediate local_elements[num_elements];
 
-        for (int col = threadIdx.x; col < cols; col += blockDim.x)
+        i32 c;
+        for (c = 0; c < n_vec; c++)
         {
-            Intermediate exp_x = exp(shared_inp[col] - shared_max);
-            sum_exp_x = Sum<Intermediate>::combine(sum_exp_x, exp_x);
-            shared_inp[col] = exp_x;
+            i32 col = (threadIdx.x + c * blockDim.x) * vec_size;
+            InpVec inp_vec = VecMaker<T>::make<vec_size>(input_ptr + col);
+            local_elements[c * vec_size] = cast<T, Intermediate>(inp_vec.x);
+            local_elements[c * vec_size + 1] = cast<T, Intermediate>(inp_vec.y);
+            local_elements[c * vec_size + 2] = cast<T, Intermediate>(inp_vec.z);
+            welford_update(&count, &mean, &m2, local_elements[c * vec_size]);
+            welford_update(&count, &mean, &m2, local_elements[c * vec_size + 1]);
+            welford_update(&count, &mean, &m2, local_elements[c * vec_size + 2]);
         }
-        sum_exp_x = blockReduce<Intermediate, Sum<Intermediate>, Sum<Intermediate, BlockSize / WarpSize>, WarpSize, Block2D<WarpSize>>(sum_exp_x, shared_sum_exp_x);
-        if (threadIdx.x == 0)
-            shared_sum = sum_exp_x;
-        __syncthreads();
-
-        for (int col = threadIdx.x; col < cols; col += blockDim.x)
+        for (int col = rem + threadIdx.x; col < cols; col += blockDim.x, c++)
         {
-            Intermediate exp_x = shared_inp[col];
-            output_ptr[col] = cast<Intermediate, Output>(div(exp_x, shared_sum));
+            local_elements[c] = cast<T, Intermediate>(input_ptr[col]);
+            welford_update(&count, &mean, &m2, local_elements[c]);
+        }
+        WelfordWarpAllReduce(mean, m2, count, &mean, &m2, &count);
+
+        Intermediate variance = div(m2, count);
+        Intermediate inv_std = rsqrt(variance + eps_intermediate);
+
+        for (c = 0; c < n_vec; c++)
+        {
+            i32 col = (threadIdx.x + c * blockDim.x) * vec_size;
+            output_ptr[col] = cast<Intermediate, Output>((local_elements[c * vec_size] - mean) * inv_std);
+            output_ptr[col + 1] = cast<Intermediate, Output>((local_elements[c * vec_size + 1] - mean) * inv_std);
+            output_ptr[col + 2] = cast<Intermediate, Output>((local_elements[c * vec_size + 2] - mean) * inv_std);
+        }
+        for (int col = rem + threadIdx.x; col < cols; col += blockDim.x, c++)
+        {
+            output_ptr[col] = cast<Intermediate, Output>((local_elements[c] - mean) * inv_std);
         }
     }
 }
 
-// each block compute a row of softmax
-template <typename T, typename Output, typename Intermediate, uint32_t BlockSize, uint32_t WarpSize = 32>
-__device__ __forceinline__ void layernorm_block_large(
+// each warp compute a row of layernorm, cols is multiple of WarpSize
+template <typename T, typename Output, typename Intermediate, i32 num_elements, i32 WarpSize, bool has_rem = false>
+__device__ __forceinline__ void layernorm_block_multiple_of_128(
     T *input,
     Output *output,
-    Intermediate eps,
-    Output *buffer,
+    Output eps,
     i32 rows,
     i32 cols)
 {
-    __shared__ T max_smem[WarpSize];
-    T max_val = TypeUtils<T>::limit_min();
-    __shared__ T shared_max;
-    __shared__ Output shared_sum;
+    using InpVec = VecMaker<T>::Vec4;
+    using IntermediateVec = VecMaker<Intermediate>::Vec4;
+
+    Div<Intermediate, Intermediate> div;
+    Rsqrt<Intermediate> rsqrt;
+    i32 row_idx = blockIdx.y * blockDim.y + threadIdx.y;
+
+    Intermediate eps_intermediate = cast<Output, Intermediate>(eps);
+    T *input_ptr = input;
+    T *output_ptr = output;
+
+    constexpr i32 vec_size = 4;
+
+    constexpr i32 n_vec = num_elements / vec_size;
+    for (i32 row = row_idx; row < rows; row += blockDim.y * gridDim.y)
+    {
+        input_ptr = input + row * cols;
+        output_ptr = output + row * cols;
+        Intermediate mean = Sum<Intermediate>::identity();
+        Intermediate count = Sum<Intermediate>::identity();
+        Intermediate m2 = Sum<Intermediate>::identity();
+        Intermediate local_elements[num_elements];
+
+        for (i32 c = 0; c < n_vec; c++)
+        {
+            i32 col = (threadIdx.x + c * blockDim.x) * vec_size;
+            InpVec inp_vec = VecMaker<T>::make<vec_size>(input_ptr + col);
+            local_elements[c * vec_size] = cast<T, Intermediate>(inp_vec.x);
+            local_elements[c * vec_size + 1] = cast<T, Intermediate>(inp_vec.y);
+            local_elements[c * vec_size + 2] = cast<T, Intermediate>(inp_vec.z);
+            local_elements[c * vec_size + 3] = cast<T, Intermediate>(inp_vec.w);
+            welford_update(&count, &mean, &m2, local_elements[c * vec_size]);
+            welford_update(&count, &mean, &m2, local_elements[c * vec_size + 1]);
+            welford_update(&count, &mean, &m2, local_elements[c * vec_size + 2]);
+            welford_update(&count, &mean, &m2, local_elements[c * vec_size + 3]);
+        }
+        if constexpr (has_rem)
+        {
+            constexpr i32 rem = num_elements % vec_size;
+            for (int c = num_elements - rem; c < num_elements; c++)
+            {
+                i32 col = threadIdx.x + c * blockDim.x;
+                local_elements[c] = cast<T, Intermediate>(input_ptr[col]);
+                welford_update(&count, &mean, &m2, local_elements[c]);
+            }
+        }
+        WelfordBlockAllReduce<Intermediate, WarpSize>(mean, m2, count, &mean, &m2, &count);
+
+        Intermediate variance = div(m2, count);
+        Intermediate inv_std = rsqrt(variance + eps_intermediate);
+
+        for (i32 c = 0; c < n_vec; c++)
+        {
+            i32 col = (threadIdx.x + c * blockDim.x) * vec_size;
+            output_ptr[col] = cast<Intermediate, Output>((local_elements[c * vec_size] - mean) * inv_std);
+            output_ptr[col + 1] = cast<Intermediate, Output>((local_elements[c * vec_size + 1] - mean) * inv_std);
+            output_ptr[col + 2] = cast<Intermediate, Output>((local_elements[c * vec_size + 2] - mean) * inv_std);
+            output_ptr[col + 3] = cast<Intermediate, Output>((local_elements[c * vec_size + 3] - mean) * inv_std);
+        }
+        if constexpr (has_rem)
+        {
+            constexpr i32 rem = num_elements % vec_size;
+            for (int c = num_elements - rem; c < num_elements; c++)
+            {
+                i32 col = threadIdx.x + c * blockDim.x;
+                output_ptr[col] = cast<Intermediate, Output>((local_elements[c] - mean) * inv_std);
+            }
+        }
+    }
+}
+
+// each warp compute a row of layernorm
+template <typename T, typename Output, typename Intermediate, i32 num_elements, i32 WarpSize>
+__device__ __forceinline__ void layernorm_block_128(
+    T *input,
+    Output *output,
+    Output eps,
+    i32 rows,
+    i32 cols)
+{
+    using InpVec = VecMaker<T>::Vec3;
+    using IntermediateVec = VecMaker<Intermediate>::Vec3;
+    constexpr i32 vec_size = 3;
+
+    Div<Intermediate, Intermediate> div;
+    Rsqrt<Intermediate> rsqrt;
+    i32 row_idx = blockIdx.y * blockDim.y + threadIdx.y;
+
+    Intermediate eps_intermediate = cast<Output, Intermediate>(eps);
+    T *input_ptr = input;
+    T *output_ptr = output;
+
+    i32 n_elements = prev_multiple_of(cols, 128) / 128;
+    i32 n_vec = n_elements / vec_size;
+    i32 rem = n_vec * vec_size;
+    for (i32 row = row_idx; row < rows; row += blockDim.y * gridDim.y)
+    {
+        input_ptr = input + row * cols;
+        output_ptr = output + row * cols;
+        Intermediate mean = Sum<Intermediate>::identity();
+        Intermediate count = Sum<Intermediate>::identity();
+        Intermediate m2 = Sum<Intermediate>::identity();
+        Intermediate local_elements[num_elements];
+
+        i32 c;
+        for (c = 0; c < n_vec; c++)
+        {
+            i32 col = (threadIdx.x + c * blockDim.x) * vec_size;
+            InpVec inp_vec = VecMaker<T>::make<vec_size>(input_ptr + col);
+            local_elements[c * vec_size] = cast<T, Intermediate>(inp_vec.x);
+            local_elements[c * vec_size + 1] = cast<T, Intermediate>(inp_vec.y);
+            local_elements[c * vec_size + 2] = cast<T, Intermediate>(inp_vec.z);
+            welford_update(&count, &mean, &m2, local_elements[c * vec_size]);
+            welford_update(&count, &mean, &m2, local_elements[c * vec_size + 1]);
+            welford_update(&count, &mean, &m2, local_elements[c * vec_size + 2]);
+        }
+        for (int col = rem + threadIdx.x; col < cols; col += blockDim.x, c++)
+        {
+            local_elements[c] = cast<T, Intermediate>(input_ptr[col]);
+            welford_update(&count, &mean, &m2, local_elements[c]);
+        }
+        WelfordBlockAllReduce<Intermediate, WarpSize>(mean, m2, count, &mean, &m2, &count);
+
+        Intermediate variance = div(m2, count);
+        Intermediate inv_std = rsqrt(variance + eps_intermediate);
+
+        for (c = 0; c < n_vec; c++)
+        {
+            i32 col = (threadIdx.x + c * blockDim.x) * vec_size;
+            output_ptr[col] = cast<Intermediate, Output>((local_elements[c * vec_size] - mean) * inv_std);
+            output_ptr[col + 1] = cast<Intermediate, Output>((local_elements[c * vec_size + 1] - mean) * inv_std);
+            output_ptr[col + 2] = cast<Intermediate, Output>((local_elements[c * vec_size + 2] - mean) * inv_std);
+        }
+        for (int col = rem + threadIdx.x; col < cols; col += blockDim.x, c++)
+        {
+            output_ptr[col] = cast<Intermediate, Output>((local_elements[c] - mean) * inv_std);
+        }
+    }
+}
+
+// each block compute a row of layernorm
+template <typename T, typename Output, typename Intermediate, i32 WarpSize = 32>
+__device__ __forceinline__ void layernorm_block_large(
+    T *input,
+    Output *output,
+    Output eps,
+    i32 rows,
+    i32 cols)
+{
+    Div<Intermediate, Intermediate> div;
+    Rsqrt<Intermediate> rsqrt;
+    Intermediate eps_intermediate = cast<Output, Intermediate>(eps);
+
     i32 row_idx = blockIdx.y * blockDim.y + threadIdx.y;
     T *input_ptr = input;
     Output *output_ptr = output;
@@ -216,81 +455,140 @@ __device__ __forceinline__ void layernorm_block_large(
     {
         input_ptr = input + row * cols;
         output_ptr = output + row * cols;
-        for (int col = threadIdx.x; col < cols; col += blockDim.x)
+        Intermediate mean = Sum<Intermediate>::identity();
+        Intermediate count = Sum<Intermediate>::identity();
+        Intermediate m2 = Sum<Intermediate>::identity();
+        for (i32 col = threadIdx.x; col < cols; col += blockDim.x)
         {
-            max_val = Max<T>::combine(max_val, input_ptr[col]);
+            Intermediate inp = cast<T, Intermediate>(input_ptr[col]);
+            welford_update(&count, &mean, &m2, inp);
         }
-        max_val = blockReduce<T, Max<T, WarpSize>, Max<T, BlockSize / WarpSize>, WarpSize, Block2D<WarpSize>>(max_val, max_smem);
-        if (threadIdx.x == 0)
-            shared_max = max_val;
-        __syncthreads();
-        Output sum_exp_x = Sum<Output>::identity();
+        WelfordBlockAllReduce<Intermediate, WarpSize>(mean, m2, count, &mean, &m2, &count);
 
-        __shared__ Output shared_sum_exp_x[WarpSize];
-        for (int col = threadIdx.x; col < cols; col += blockDim.x)
-        {
-            Output exp_x = Exp<T>()(input_ptr[col] - shared_max);
-            sum_exp_x = Sum<Output>::combine(sum_exp_x, exp_x);
-            buffer[col] = exp_x;
-        }
-        sum_exp_x = blockReduce<Output, Sum<Output>, Sum<Output, BlockSize / WarpSize>, WarpSize, Block2D<WarpSize>>(sum_exp_x, shared_sum_exp_x);
-        if (threadIdx.x == 0)
-            shared_sum = sum_exp_x;
-        __syncthreads();
+        Intermediate variance = div(m2, count);
+        Intermediate inv_std = rsqrt(variance + eps_intermediate);
 
-        for (int col = threadIdx.x; col < cols; col += blockDim.x)
+        for (i32 col = threadIdx.x; col < cols; col += blockDim.x)
         {
-            Output exp_x = buffer[col];
-            output_ptr[col] = Div<Output, Output>()(exp_x, shared_sum);
+            Intermediate inp = cast<T, Intermediate>(input_ptr[col]);
+            output_ptr[col] = cast<Intermediate, Output>((inp - mean) * inv_std);
         }
     }
 }
 
-#define LayernormWarpContiguousCase(T, TOutput, TIntermediate, log2_num_elements, warp_size)                                \
-    case log2_num_elements:                                                                                                 \
-        if ((1 << log2_num_elements) % warp_size == 0)                                                                      \
-        {                                                                                                                   \
-            layernorm_warp<T, TOutput, TIntermediate, log2_num_elements, warp_size, true>(input, output, eps, rows, cols);  \
-        }                                                                                                                   \
-        else                                                                                                                \
-        {                                                                                                                   \
-            layernorm_warp<T, TOutput, TIntermediate, log2_num_elements, warp_size, false>(input, output, eps, rows, cols); \
-        }                                                                                                                   \
+#define LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, TOutput, TIntermediate, num, warp_size)                                                        \
+    case num:                                                                                                                              \
+        if (cols % 32 == 0)                                                                                                                \
+        {                                                                                                                                  \
+            layernorm_warp_multiple_of_warp_size<T, TOutput, TIntermediate, num, warp_size, num % 4 == 0>(input, output, eps, rows, cols); \
+        }                                                                                                                                  \
+        else                                                                                                                               \
+        {                                                                                                                                  \
+            layernorm_warp<T, TOutput, TIntermediate, num, warp_size>(input, output, eps, rows, cols);                                     \
+        }                                                                                                                                  \
         break;
 
-#define DECLARE_LAYERNORM_KERNEL(T)                                                                                                                                            \
-    using T##Output = FloatOutUnaryPromote<T>::Output;                                                                                                                         \
-    using T##Intermediate = FloatOutUnaryPromote<T>::Intermediate;                                                                                                             \
-    extern "C" __global__ void T##_layernorm_warp(T *input, T##Output *output, T##Output eps, i32 rows, i32 cols)                                                              \
-    {                                                                                                                                                                          \
-        switch (log2_ceil(cols))                                                                                                                                               \
-        {                                                                                                                                                                      \
-            LayernormWarpContiguousCase(T, T##Output, T##Intermediate, 10, 32);                                                                                                \
-            LayernormWarpContiguousCase(T, T##Output, T##Intermediate, 9, 32);                                                                                                 \
-            LayernormWarpContiguousCase(T, T##Output, T##Intermediate, 8, 32);                                                                                                 \
-            LayernormWarpContiguousCase(T, T##Output, T##Intermediate, 7, 32);                                                                                                 \
-            LayernormWarpContiguousCase(T, T##Output, T##Intermediate, 6, 32);                                                                                                 \
-            LayernormWarpContiguousCase(T, T##Output, T##Intermediate, 5, 32);                                                                                                 \
-            LayernormWarpContiguousCase(T, T##Output, T##Intermediate, 4, 32);                                                                                                 \
-            LayernormWarpContiguousCase(T, T##Output, T##Intermediate, 3, 32);                                                                                                 \
-            LayernormWarpContiguousCase(T, T##Output, T##Intermediate, 2, 32);                                                                                                 \
-            LayernormWarpContiguousCase(T, T##Output, T##Intermediate, 1, 32);                                                                                                 \
-            LayernormWarpContiguousCase(T, T##Output, T##Intermediate, 0, 32);                                                                                                 \
-        default:                                                                                                                                                               \
-            break;                                                                                                                                                             \
-        }                                                                                                                                                                      \
-    }                                                                                                                                                                          \
-    extern "C" __global__ void T##_layernorm_block(T *input, T##Output *output, T##Output *gamma, T##Output *beta, T##Output eps, i32 rows, i32 cols)                          \
-    {                                                                                                                                                                          \
-        extern __shared__ T##Intermediate shared_inp_##T##_block[];                                                                                                            \
-        layernorm_block<T, T##Output, T##Intermediate, 1024, 32>(input, output, eps, rows, cols, shared_inp_##T##_block + threadIdx.y * cols);                                 \
-    }                                                                                                                                                                          \
-    extern "C" __global__ void T##_layernorm_block_large(T *input, T##Output *output, T##Output *gamma, T##Output *beta, T##Output eps, T##Output *buffer, i32 rows, i32 cols) \
-    {                                                                                                                                                                          \
-        layernorm_block_large<T, T##Output, T##Intermediate, 1024, 32>(input, output, eps, buffer, rows, cols);                                                                \
+#define LAYER_NORM_MULTIPLE_OF_128(T, TOutput, TIntermediate, num, warp_size)                                                         \
+    case num:                                                                                                                         \
+        if (cols % 128 == 0)                                                                                                          \
+        {                                                                                                                             \
+            layernorm_block_multiple_of_128<T, TOutput, TIntermediate, num, warp_size, num % 4 == 0>(input, output, eps, rows, cols); \
+        }                                                                                                                             \
+        else                                                                                                                          \
+        {                                                                                                                             \
+            layernorm_block_128<T, TOutput, TIntermediate, num, warp_size>(input, output, eps, rows, cols);                           \
+        }                                                                                                                             \
+        break;
+
+#define DECLARE_LAYERNORM_KERNEL(T)                                                                                      \
+    using T##Output = FloatOutUnaryPromote<T>::Output;                                                                   \
+    using T##Intermediate = FloatOutUnaryPromote<T>::Intermediate;                                                       \
+    extern "C" __global__ void T##_layernorm_warp(T *input, T##Output *output, T##Output eps, i32 rows, i32 cols)        \
+    {                                                                                                                    \
+        switch (ceil_div(cols, 32))                                                                                      \
+        {                                                                                                                \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 1, 32)                                       \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 2, 32)                                       \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 3, 32)                                       \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 4, 32)                                       \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 5, 32)                                       \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 6, 32)                                       \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 7, 32)                                       \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 8, 32)                                       \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 9, 32)                                       \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 10, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 11, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 12, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 13, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 14, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 15, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 16, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 17, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 18, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 19, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 20, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 21, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 22, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 23, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 24, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 25, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 26, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 27, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 28, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 29, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 30, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 31, 32)                                      \
+            LAYER_NORM_MULTIPLE_OF_WARP_SIZE(T, T##Output, T##Intermediate, 32, 32)                                      \
+        default:                                                                                                         \
+            break;                                                                                                       \
+        }                                                                                                                \
+    }                                                                                                                    \
+    extern "C" __global__ void T##_layernorm_block(T *input, T##Output *output, T##Output eps, i32 rows, i32 cols)       \
+    {                                                                                                                    \
+        switch (ceil_div(cols, 128))                                                                                     \
+        {                                                                                                                \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 1, 32)                                             \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 2, 32)                                             \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 3, 32)                                             \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 4, 32)                                             \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 5, 32)                                             \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 6, 32)                                             \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 7, 32)                                             \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 8, 32)                                             \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 9, 32)                                             \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 10, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 11, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 12, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 13, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 14, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 15, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 16, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 17, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 18, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 19, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 20, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 21, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 22, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 23, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 24, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 25, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 26, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 27, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 28, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 29, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 30, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 31, 32)                                            \
+            LAYER_NORM_MULTIPLE_OF_128(T, T##Output, T##Intermediate, 32, 32)                                            \
+        default:                                                                                                         \
+            break;                                                                                                       \
+        }                                                                                                                \
+    }                                                                                                                    \
+    extern "C" __global__ void T##_layernorm_block_large(T *input, T##Output *output, T##Output eps, i32 rows, i32 cols) \
+    {                                                                                                                    \
+        layernorm_block_large<T, T##Output, T##Intermediate, 32>(input, output, eps, rows, cols);                        \
     }
 
-// DECLARE_LAYERNORM_KERNEL(bf16);
+DECLARE_LAYERNORM_KERNEL(bf16);
 DECLARE_LAYERNORM_KERNEL(f16);
 DECLARE_LAYERNORM_KERNEL(f32);
-// DECLARE_LAYERNORM_KERNEL(f64);
+DECLARE_LAYERNORM_KERNEL(f64);

@@ -65,6 +65,6 @@ where
     }
 
     fn log_softmax(&self, axis: i64) -> Result<Self::Output, TensorError> {
-        unimplemented!()
+        Ok(self.inner.as_ref().log_softmax(axis)?.into())
     }
 }

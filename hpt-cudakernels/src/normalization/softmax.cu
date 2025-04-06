@@ -76,9 +76,9 @@ __device__ __forceinline__ void softmax_warp(
 #pragma unroll
         for (i32 c = 0; c < num_elements; c++)
         {
+            i32 col = threadIdx.x + c * blockDim.x;
             if constexpr (!divisible)
             {
-                i32 col = threadIdx.x + c * blockDim.x;
                 if constexpr (log_softmax)
                     local_elements[c] = (col < cols) ? local_elements[c] - max_val : Sum<Intermediate>::identity();
                 else
@@ -92,7 +92,10 @@ __device__ __forceinline__ void softmax_warp(
                     local_elements[c] = exp(local_elements[c] - max_val);
             }
             if constexpr (log_softmax)
-                sum = Sum<Intermediate>::combine(sum, exp(local_elements[c]));
+            {
+                if (col < cols)
+                    sum = Sum<Intermediate>::combine(sum, exp(local_elements[c]));
+            }
             else
                 sum = Sum<Intermediate>::combine(sum, local_elements[c]);
         }
@@ -192,7 +195,10 @@ __device__ __forceinline__ void softmax_block(
                 x = exp(shared_inp[col] - shared_max);
             shared_inp[col] = x;
             if constexpr (log_softmax)
-                sum = Sum<Intermediate>::combine(sum, exp(x));
+            {
+                if (col < cols)
+                    sum = Sum<Intermediate>::combine(sum, exp(x));
+            }
             else
                 sum = Sum<Intermediate>::combine(sum, x);
         }
@@ -314,7 +320,7 @@ __device__ __forceinline__ void softmax_block_large(
 
 #define SoftmaxWarpContiguousCase(T, TOutput, TIntermediate, log2_num_elements, warp_size)                                 \
     case log2_num_elements:                                                                                                \
-        if ((1 << log2_num_elements) % warp_size == 0)                                                                     \
+        if (cols % warp_size == 0)                                                                                         \
         {                                                                                                                  \
             softmax_warp<T, TOutput, TIntermediate, true, log2_num_elements, warp_size, true>(input, output, rows, cols);  \
         }                                                                                                                  \
@@ -326,7 +332,7 @@ __device__ __forceinline__ void softmax_block_large(
 
 #define SoftmaxWarpUnContiguousCase(T, TOutput, TIntermediate, log2_num_elements, warp_size)                                                                                                                                        \
     case log2_num_elements:                                                                                                                                                                                                         \
-        if ((1 << log2_num_elements) % warp_size == 0)                                                                                                                                                                              \
+        if (cols % warp_size == 0)                                                                                                                                                                                                  \
         {                                                                                                                                                                                                                           \
             softmax_warp<T, TOutput, TIntermediate, false, log2_num_elements, warp_size, true>(input, output, rows, cols, divmod, strides, ndim, strides[ndim - 1], out_divmod, out_strides, out_ndim, out_strides[out_ndim - 1]);  \
         }                                                                                                                                                                                                                           \
@@ -412,7 +418,7 @@ DECLARE_SOFTMAX_KERNEL(f64);
 
 #define LogSoftmaxWarpContiguousCase(T, TOutput, TIntermediate, log2_num_elements, warp_size)                                    \
     case log2_num_elements:                                                                                                      \
-        if ((1 << log2_num_elements) % warp_size == 0)                                                                           \
+        if (cols % warp_size == 0)                                                                                               \
         {                                                                                                                        \
             softmax_warp<T, TOutput, TIntermediate, true, log2_num_elements, warp_size, true, true>(input, output, rows, cols);  \
         }                                                                                                                        \
@@ -424,7 +430,7 @@ DECLARE_SOFTMAX_KERNEL(f64);
 
 #define LogSoftmaxWarpUnContiguousCase(T, TOutput, TIntermediate, log2_num_elements, warp_size)                                                                                                                                           \
     case log2_num_elements:                                                                                                                                                                                                               \
-        if ((1 << log2_num_elements) % warp_size == 0)                                                                                                                                                                                    \
+        if (cols % warp_size == 0)                                                                                                                                                                                                        \
         {                                                                                                                                                                                                                                 \
             softmax_warp<T, TOutput, TIntermediate, false, log2_num_elements, warp_size, true, true>(input, output, rows, cols, divmod, strides, ndim, strides[ndim - 1], out_divmod, out_strides, out_ndim, out_strides[out_ndim - 1]);  \
         }                                                                                                                                                                                                                                 \
