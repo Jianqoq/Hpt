@@ -1,4 +1,4 @@
-use hpt::backend::Cuda;
+
 use hpt::ops::*;
 use hpt::types::f16;
 use hpt::utils::{set_display_elements, set_seed};
