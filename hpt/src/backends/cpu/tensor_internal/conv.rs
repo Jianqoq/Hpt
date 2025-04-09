@@ -9,8 +9,7 @@ use hpt_types::{
 
 use crate::{
     backends::cpu::kernels::conv2d::{
-        batchnorm_conv2d::batchnorm_conv2d, conv2d::conv2d, conv2d_group::conv2d_group,
-        conv2d_transpose::conv2d_transpose, dwconv2d::dwconv2d,
+        batchnorm_conv2d::batchnorm_conv2d, conv2d::conv2d, conv2d_group::conv2d_group, conv2d_new, conv2d_transpose::conv2d_transpose, dwconv2d::dwconv2d
     },
     tensor_base::_Tensor,
 };
@@ -37,7 +36,7 @@ where
         dilation: [i64; 2],
         activation: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
-        conv2d(self, kernels, bias, steps, padding, dilation, activation)
+        conv2d_new::conv2d(self, kernels, bias, steps, padding, dilation, activation)
     }
 
     fn conv2d_group(

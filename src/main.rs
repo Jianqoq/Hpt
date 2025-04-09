@@ -4,18 +4,20 @@ use hpt::types::f16;
 use hpt::utils::{set_display_elements, set_seed};
 use hpt::{error::TensorError, Tensor};
 fn main() -> Result<(), TensorError> {
-    let cols = 13;
-    set_display_elements(3);
-    set_seed::<Cuda>(1024);
-    // 2D matrix multiplication
-    let a = Tensor::<f32, Cuda>::randn([1, cols])?.astype::<f16>()?;
-    let a_cpu = a.to_cpu::<0>()?;
-    for _ in 0..1 {
-        let b = a.log_softmax(1)?;
-        let b_cpu = a_cpu.log_softmax(1)?;
-        println!("{}", b);
-        println!("{}", b_cpu);
-    }
-
+    let batch = 1;
+    let in_channel = 3;
+    let out_channel = 3;
+    let height = 4;
+    let width = 4;
+    let kernel_height = 3;
+    let kernel_width = 3;
+    let a = Tensor::<f32>::arange(0, batch * in_channel * height * width)?
+        .reshape([batch, height, width, in_channel])?;
+    let kernel = Tensor::<f32>::arange(0, out_channel * in_channel * kernel_height * kernel_width)?
+        .reshape([kernel_height, kernel_width, in_channel, out_channel])?;
+    let b = a.conv2d(&kernel, None, [1, 1], [(0, 0), (0, 0)], [1, 1], None)?;
+    let b_group = a.conv2d_group(&kernel, None, [1, 1], [(0, 0), (0, 0)], [1, 1], 1, None)?;
+    println!("{}", b);
+    println!("{}", b_group);
     Ok(())
 }

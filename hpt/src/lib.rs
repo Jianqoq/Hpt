@@ -66,6 +66,7 @@ pub(crate) mod backends {
                     pub(crate) mod conv_transpose;
                     pub(crate) mod dwconv;
                 }
+                pub(crate) mod conv2d_new;
             }
             /// a module defines gemm operation for cpu
             pub(crate) mod matmul {
@@ -232,6 +233,8 @@ pub(crate) mod backends {
             pub(crate) mod softmax;
             /// a module contains cuda tensor windows impls
             pub(crate) mod windows;
+            /// a module contains cuda tensor pooling impls
+            pub(crate) mod pooling;
         }
         pub(crate) mod tensor_external {
             /// a module contains cuda tensor arg reduce impls
