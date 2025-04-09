@@ -1,14 +1,13 @@
 use crate::backends::common::conv::cal_conv2d_output_shape;
 use crate::backends::cpu::cache_utils::cache::Cache;
-use crate::backends::cpu::kernels::conv2d::micro_kernels::conv::bias_remain_oc_kernel_dispatch;
-use crate::backends::cpu::kernels::conv2d::micro_kernels::conv::conv2d_full_oc_bias_kernel_dispatch;
-use crate::backends::cpu::kernels::conv2d::micro_kernels::conv::conv2d_full_oc_kernel_dispatch;
-use crate::backends::cpu::kernels::conv2d::micro_kernels::conv::remain_oc_kernel_dispatch;
 use crate::backends::cpu::kernels::conv2d::micro_kernels::conv::Params;
 use crate::backends::cpu::kernels::conv2d::micro_kernels::conv::PartialParams;
 use crate::tensor_base::_Tensor;
 use crate::ALIGN;
 use crate::REGNUM;
+use gemm_common::cache::DivCeil;
+use gemm_common::cache::KernelParams;
+use gemm_common::cache::CACHE_INFO;
 use hpt_allocator::traits::{ Allocator, AllocatorOutputRetrive };
 use hpt_allocator::Cpu;
 use hpt_common::error::base::TensorError;
@@ -230,13 +229,43 @@ pub(crate) fn conv2d<T: CommonBounds, const DEVICE: usize, A>(
     // let ic_block_size = ic_nvec * T::Vec::SIZE; // in channel block size
     // let oc_block_size = oc_nvec * T::Vec::SIZE; // out channel block size, but this is only caculated based on cache line size, we have another block size `jb`
 
-    let kc = 1; // any
-    let ic = 1; // any
-    let oc = 1; // multiple of or
-    let kr = 1; // any
-    let or = 1; // multiple of T::Vec::SIZE
+    let kc: i64 = 1; // any
+    let ic: i64 = 1; // any
+    let oc: i64 = 1; // multiple of or
+    let kr: i64 = 1; // any
+    let or: i64 = 1; // multiple of T::Vec::SIZE
     let inp_ptr = input.ptr();
     let kernel_ptr = kernels.ptr();
+    let nr = (or as usize) * T::Vec::SIZE;
+    let mr = (1).min(kr as usize);
+    let mut param = if in_channels <= 64 && out_channels <= 64 {
+        // skip expensive kernel_params call for small sizes
+        let kc = in_channels.min(512);
+        let alloc = CACHE_INFO[1].cache_bytes / core::mem::size_of::<T>();
+        let nc = (alloc / (kc as usize) / (nr as usize)) * (nr as usize);
+        KernelParams {
+            kc: kc as usize,
+            mc: (out_width as usize).msrv_next_multiple_of(mr as usize),
+            nc,
+        }
+    } else {
+        gemm_common::cache::kernel_params(
+            out_channels as usize,
+            out_width as usize,
+            in_channels as usize,
+            nr as usize,
+            mr as usize,
+            std::mem::size_of::<T>()
+        )
+    };
+    if param.nc == 0 {
+        param.nc = (out_width as usize).msrv_next_multiple_of(nr as usize);
+    }
+    if param.mc == 0 {
+        param.mc = (out_width as usize).msrv_next_multiple_of(mr as usize);
+    }
+    println!("param: {:?}", param);
+    println!("mr: {}, nr: {}", mr, nr);
     (0..outer).into_par_iter().for_each(|idx| {
         let kernel = kernel_ptr.clone();
         let b = idx / out_height;
@@ -244,14 +273,29 @@ pub(crate) fn conv2d<T: CommonBounds, const DEVICE: usize, A>(
 
         let inp = inp_ptr.clone() + b * isb + ll * step_height * ish;
         let mut out = out.clone() + b * osb + ll * osh;
-        let packed_a_size = kh * kw * ic * kc * std::mem::size_of::<T>() as i64;
+        let packed_a_size = kh * kw * ic * kc * (std::mem::size_of::<T>() as i64);
         let packed_inp_raw = (unsafe {
-            std::alloc::alloc(std::alloc::Layout::from_size_align(packed_a_size as usize, ALIGN).unwrap())
+            std::alloc::alloc(
+                std::alloc::Layout::from_size_align(packed_a_size as usize, ALIGN).unwrap()
+            )
         }) as *mut T;
         #[cfg(feature = "bound_check")]
         let mut packed_inp = Pointer::new(packed_inp_raw, packed_a_size);
         #[cfg(not(feature = "bound_check"))]
         let mut packed_inp = Pointer::new(packed_inp_raw);
+
+        fn pack_kernel<T: CommonBounds>(packed_kernel: Pointer<T>, kernel: Pointer<T>) {
+            for n in 0..kh {
+                for m in 0..kw {
+                    for ii in 0..icb {
+                        for nr in 0..ocr {
+                            kernel[n * ks0 + m * ks1 + (i + ii) * ks2 + jj + j + nr];
+                        }
+                    }
+                }
+            }
+        }
+
         for k in (0..out_width).step_by(kc as usize) {
             let owb = kc.min(out_width - k);
             for i in (0..in_channels).step_by(ic as usize) {
@@ -264,9 +308,14 @@ pub(crate) fn conv2d<T: CommonBounds, const DEVICE: usize, A>(
                         for m in 0..kw {
                             for ii in 0..icb {
                                 for mr in 0..owr {
-                                    packed_inp[idx as usize] = inp[
-                                        n * ish + ((kk + k + mr) * step_width + m) * isw + i + ii
-                                    ];
+                                    let in_x = (kk + k + mr) * step_width + m - pw_start;
+                                    if in_x >= 0 && in_x < img_width {
+                                        packed_inp[idx as usize] = inp[
+                                            n * ish + in_x * isw + i + ii
+                                        ];
+                                    } else {
+                                        packed_inp[idx as usize] = T::ZERO;
+                                    }
                                     idx += 1;
                                 }
                             }
@@ -281,7 +330,7 @@ pub(crate) fn conv2d<T: CommonBounds, const DEVICE: usize, A>(
                         let owr = kr.min(owb - kk);
                         for jj in (0..ocb).step_by(or as usize) {
                             let ocr = or.min(ocb - jj);
-                            
+
                             let mut idx = 0;
                             for n in 0..kh {
                                 for m in 0..kw {
