@@ -67,6 +67,40 @@ where
     }
 
     #[allow(unused_variables)]
+    fn get_kernel_with_padding(
+        nr: usize,
+        mr: usize,
+    ) -> fn(
+        Pointer<Self>,
+        Pointer<Self>,
+        Pointer<Self>,
+        i64,
+        i64,
+        &mut i64,
+        [i64; 3],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        bool,
+    ) {
+        {
+            use crate::conv2d_micro_kernel_with_padding;
+            assert_eq!(nr, 2);
+            // avx2 has 16 registers, each has 256 bits, assume cache line size is 512 bits
+            conv2d_micro_kernel_with_padding!(x2x1, 2, 1);
+            conv2d_micro_kernel_with_padding!(x2x2, 2, 2);
+            conv2d_micro_kernel_with_padding!(x2x3, 2, 3);
+            conv2d_micro_kernel_with_padding!(x2x4, 2, 4);
+            conv2d_micro_kernel_with_padding!(x2x5, 2, 5);
+            conv2d_micro_kernel_with_padding!(x2x6, 2, 6);
+            return [x2x1, x2x2, x2x3, x2x4, x2x5, x2x6][mr - 1];
+        }
+    }
+
+    #[allow(unused_variables)]
     fn get_kernel_with_post_op<F: Fn(Self) -> Self, G: Fn(Self::Vec) -> Self::Vec>(
         nr: usize,
         mr: usize,
@@ -150,7 +184,7 @@ where
     fn get_max_mr() -> usize {
         #[cfg(target_feature = "avx2")]
         {
-            6
+            5
         }
         #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
         {
