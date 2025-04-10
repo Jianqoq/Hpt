@@ -25,7 +25,7 @@ members = [
 exclude = ["hpt-bench", "hpt-tests", "hpt-codegen", "hpt-examples"]
 
 [dependencies]
-hpt = { path = "./hpt", features = ["track_caller"] }
+hpt = { path = "./hpt", features = ["track_caller", "bound_check"] }
 anyhow = { workspace = true }
 rand = { workspace = true }
 ndarray = { workspace = true }
@@ -96,11 +96,11 @@ name = "hpt-workspace"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 3
+opt-level = 0
 incremental = true
 debug = true
-lto = "fat"
-codegen-units = 1
+# lto = "fat"
+# codegen-units = 1
 
 [profile.dev]
 opt-level = 0

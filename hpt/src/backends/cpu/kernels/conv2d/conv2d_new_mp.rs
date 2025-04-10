@@ -1,24 +1,21 @@
 use crate::backends::common::conv::cal_conv2d_output_shape;
 use crate::tensor_base::_Tensor;
-use crate::ALIGN;
-use gemm_common::cache::DivCeil;
-use gemm_common::cache::KernelParams;
-use gemm_common::cache::CACHE_INFO;
 use hpt_allocator::traits::{ Allocator, AllocatorOutputRetrive };
 use hpt_allocator::Cpu;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
-use hpt_common::utils::pointer::Pointer;
 use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
-use hpt_types::dtype::TypeCommon;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOutPromote;
 use hpt_types::vectors::traits::*;
 use rayon::prelude::*;
 
 use super::microkernel_trait::Conv2dMicroKernel;
+use super::utils::calculate_kernel_params;
+use super::utils::create_packed_kernel;
+use super::utils::pack_kernel_mp;
 
 pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A>(
     input: &_Tensor<T, Cpu, DEVICE, A>,
@@ -26,8 +23,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
     bias: Option<&_Tensor<T, Cpu, DEVICE, A>>,
     steps: [i64; 2],
     padding: [(i64, i64); 2],
-    dilation: [i64; 2],
-    activation: Option<fn(T::Vec) -> T::Vec>
+    dilation: [i64; 2]
 )
     -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
     where
@@ -103,7 +99,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
             }).into()
         );
     }
-    let output = _Tensor::<T, Cpu, DEVICE, A>::zeros([batch, out_height, out_width, out_channels])?;
+    let output = _Tensor::<T, Cpu, DEVICE, A>::empty([batch, out_height, out_width, out_channels])?;
     let out = output.ptr();
 
     let osb = output.strides()[0]; // batch
@@ -124,108 +120,21 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
     let kernel_ptr = kernels.ptr();
     let nr = T::get_max_mixed_precision_nr() * T::Vec::SIZE;
     let mr = T::get_max_mixed_precision_mr().min(out_width as usize);
-    let mut param = if in_channels <= 64 && out_channels <= 64 {
-        // skip expensive kernel_params call for small sizes
-        let kc = in_channels.min(512);
-        let alloc = CACHE_INFO[1].cache_bytes / core::mem::size_of::<T>();
-        let nc = (alloc / (kc as usize) / (nr as usize)) * (nr as usize);
-        KernelParams {
-            kc: kc as usize,
-            mc: (out_width as usize).msrv_next_multiple_of(mr as usize),
-            nc,
-        }
-    } else {
-        gemm_common::cache::kernel_params(
-            out_channels as usize,
-            out_width as usize,
-            in_channels as usize,
-            nr as usize,
-            mr as usize,
-            std::mem::size_of::<T>()
-        )
-    };
-    if param.nc == 0 {
-        param.nc = (out_channels as usize).msrv_next_multiple_of(nr as usize);
-    }
-    if param.mc == 0 {
-        param.mc = (out_width as usize).msrv_next_multiple_of(mr as usize);
-    }
+    let param = calculate_kernel_params::<T>(in_channels, out_channels, out_width, mr, nr);
 
     let kc: i64 = param.nc as i64;
     let ic: i64 = param.kc as i64;
     let oc: i64 = param.mc as i64;
-    // println!("kc: {}, ic: {}, nr: {}, oc: {}", kc, ic, nr, oc);
-    let packed_kernel_size =
-        kh *
-        kw *
-        in_channels *
-        ((out_channels as usize).div_ceil(oc as usize) as i64) *
-        ((oc as usize).div_ceil(nr as usize) as i64) *
-        (nr as i64) *
-        (std::mem::size_of::<T>() as i64);
-
-    let packed_kernel_raw = unsafe {
-        std::alloc::alloc(
-            std::alloc::Layout::from_size_align(packed_kernel_size as usize, ALIGN).unwrap()
-        )
-    };
-    // println!("kc: {}, ic: {}, oc: {}", kc, ic, oc);
-
-    fn pack_kernel<T: CommonBounds>(
-        mut packed_kernel: Pointer<<T as NormalOutPromote>::Intermediate>,
-        kernel: Pointer<T>,
-        in_channels: i64,
-        out_channels: i64,
-        ic: i64,
-        oc: i64,
-        or: i64,
-        [kh, kw]: [i64; 2],
-        [ks0, ks1, ks2]: [i64; 3]
-    )
-        where
-            T: Cast<<T as NormalOutPromote>::Intermediate>,
-            <T as NormalOutPromote>::Intermediate: CommonBounds
-    {
-        let mut idx: i64 = 0;
-        for i in (0..in_channels).step_by(ic as usize) {
-            let icb = ic.min(in_channels - i);
-            for j in (0..out_channels).step_by(oc as usize) {
-                let ocb = oc.min(out_channels - j);
-                for jj in (0..ocb).step_by(or as usize) {
-                    let ocr = or.min(ocb - jj);
-                    for n in 0..kh {
-                        for m in 0..kw {
-                            for ii in 0..icb {
-                                for nr in 0..ocr {
-                                    packed_kernel[idx] =
-                                        kernel[
-                                            n * ks0 + m * ks1 + (i + ii) * ks2 + jj + j + nr
-                                        ].cast();
-                                    idx += 1;
-                                }
-                                for _ in ocr..or {
-                                    packed_kernel[idx] =
-                                        <T as NormalOutPromote>::Intermediate::ZERO;
-                                    idx += 1;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    #[cfg(feature = "bound_check")]
-    let packed_kernel = Pointer::new(
-        packed_kernel_raw as *mut <T as NormalOutPromote>::Intermediate,
-        packed_kernel_size / (std::mem::size_of::<<T as NormalOutPromote>::Intermediate>() as i64)
-    );
-    #[cfg(not(feature = "bound_check"))]
-    let packed_kernel = Pointer::new(
-        packed_kernel_raw as *mut <T as NormalOutPromote>::Intermediate
-    );
-    pack_kernel(
+    let (packed_kernel, packed_kernel_layout) =
+        create_packed_kernel::<<T as NormalOutPromote>::Intermediate>(
+            kh,
+            kw,
+            in_channels,
+            out_channels,
+            oc,
+            nr as i64
+        );
+    pack_kernel_mp(
         packed_kernel,
         kernel_ptr,
         in_channels,
@@ -236,6 +145,12 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
         [kh, kw],
         [ks0, ks1, ks2]
     );
+
+    let get_kernel = if ph_start == 0 && pw_start == 0 && ph_end == 0 && pw_end == 0 {
+        T::get_mixed_precision_kernel
+    } else {
+        T::get_mixed_precision_kernel_with_padding
+    };
 
     (0..outer).into_par_iter().for_each(|idx| {
         let kernel = packed_kernel;
@@ -256,10 +171,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
                     let kernel_idx_1 = kernel_idx;
                     for kk in (0..owb).step_by(mr as usize) {
                         let owr = (mr as i64).min(owb - kk);
-                        let micro_kernel = T::get_mixed_precision_kernel(
-                            nr / <T>::Vec::SIZE,
-                            owr as usize
-                        );
+                        let micro_kernel = get_kernel(nr / <T>::Vec::SIZE, owr as usize);
                         kernel_idx = kernel_idx_1;
                         for jj in (0..ocb).step_by(nr as usize) {
                             let ocr = (nr as i64).min(ocb - jj);
@@ -289,10 +201,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
     });
 
     unsafe {
-        std::alloc::dealloc(
-            packed_kernel_raw as *mut _,
-            std::alloc::Layout::from_size_align(packed_kernel_size as usize, ALIGN).unwrap()
-        );
+        std::alloc::dealloc(packed_kernel.ptr as *mut _, packed_kernel_layout);
     }
     Ok(output)
 }

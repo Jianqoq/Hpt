@@ -33,13 +33,12 @@ impl Conv2dMicroKernel for crate::types::f16 {
             assert!(MixedType::BYTE_SIZE == 4);
         }
         use crate::conv2d_mixed_precision_micro_kernel;
-        use crate::conv2d_mixed_precision_neon_micro_kernel;
         assert_eq!(nr, 2);
         // neon has 32 registers, each has 128 bits, assume cache line size is 1024 bits
         conv2d_mixed_precision_micro_kernel!(x2x1, 2, 1, 4);
         conv2d_mixed_precision_micro_kernel!(x2x2, 2, 2, 4);
         conv2d_mixed_precision_micro_kernel!(x2x3, 2, 3, 4);
-        conv2d_mixed_precision_neon_micro_kernel!(x2x4, 2, 4, 4);
+        conv2d_mixed_precision_micro_kernel!(x2x4, 2, 4, 4);
         [x2x1, x2x2, x2x3, x2x4][mr - 1]
     }
     fn get_mixed_precision_kernel_with_post_op<

@@ -43,8 +43,7 @@ pub trait Conv<T: CommonBounds> {
         bias: Option<&Self::Output>,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
-        dilation: [i64; 2],
-        activation: Option<fn(T::Vec) -> T::Vec>,
+        dilation: [i64; 2]
     ) -> Result<Self::Output, TensorError>;
 
     /// Performs a grouped 2D convolution operation, which divides input channels into groups and performs separate convolutions on each group.

@@ -28,7 +28,6 @@ where
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        activation: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         Ok(self
             .inner
@@ -38,7 +37,6 @@ where
                 steps,
                 padding,
                 dilation,
-                activation,
             )?
             .into())
     }

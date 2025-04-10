@@ -89,6 +89,7 @@ pub(crate) mod backends {
                 pub(crate) mod conv2d_new_mp;
                 pub(crate) mod conv2d_micro_kernels_new;
                 pub(crate) mod microkernel_trait;
+                pub(crate) mod utils;
             }
             /// a module defines gemm operation for cpu
             pub(crate) mod matmul {
