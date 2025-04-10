@@ -284,7 +284,7 @@ pub fn matmul_template_no_block_info<T>(
         gemm_common::cache::kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>())
     };
     if param.nc == 0 {
-        param.nc = m.msrv_next_multiple_of(nr);
+        param.nc = n.msrv_next_multiple_of(nr);
     }
     if param.mc == 0 {
         param.mc = m.msrv_next_multiple_of(mr);

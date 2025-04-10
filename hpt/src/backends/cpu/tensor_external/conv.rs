@@ -9,10 +9,11 @@ use hpt_types::{
 };
 
 use crate::Tensor;
+use crate::backends::cpu::kernels::conv2d::microkernel_trait::Conv2dMicroKernel;
 
 impl<T, const DEVICE: usize> Conv<T> for Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + Cast<T> + NormalOut<Output = T>,
+    T: CommonBounds + Cast<T> + NormalOut<Output = T> + Conv2dMicroKernel,
     T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
     bool: Cast<T>,
 {

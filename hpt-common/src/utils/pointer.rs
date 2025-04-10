@@ -7,23 +7,13 @@ use std::{
 /// This is for wrapping raw pointers to make them safe for multithreading
 ///
 /// This is for internal use only
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Pointer<T> {
     /// raw pointer
     pub ptr: *mut T,
     /// len of the pointer, it is used when the `bound_check` feature is enabled
     #[cfg(feature = "bound_check")]
     pub len: i64,
-}
-
-impl<T> Clone for Pointer<T> {
-    fn clone(&self) -> Self {
-        Self {
-            ptr: self.ptr.clone(),
-            #[cfg(feature = "bound_check")]
-            len: self.len.clone(),
-        }
-    }
 }
 
 impl<T> Pointer<T> {

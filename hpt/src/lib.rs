@@ -66,7 +66,13 @@ pub(crate) mod backends {
                     pub(crate) mod conv_transpose;
                     pub(crate) mod dwconv;
                 }
+                pub(crate) mod type_kernels {
+                    pub(crate) mod f32_microkernels;
+                    pub(crate) mod f64_microkernels;
+                }
                 pub(crate) mod conv2d_new;
+                pub(crate) mod conv2d_micro_kernels_new;
+                pub(crate) mod microkernel_trait;
             }
             /// a module defines gemm operation for cpu
             pub(crate) mod matmul {

@@ -364,7 +364,7 @@ where
         }
     }
 }
-impl<T, const DEVICE_ID: usize, Al> Into<_Tensor<T, Cuda, DEVICE_ID, Al>>
+impl<T: CommonBounds, const DEVICE_ID: usize, Al> Into<_Tensor<T, Cuda, DEVICE_ID, Al>>
     for &_Tensor<T, Cuda, DEVICE_ID, Al>
 where
     Al: Allocator,

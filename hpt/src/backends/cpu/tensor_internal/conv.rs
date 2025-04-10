@@ -9,7 +9,9 @@ use hpt_types::{
 
 use crate::{
     backends::cpu::kernels::conv2d::{
-        batchnorm_conv2d::batchnorm_conv2d, conv2d::conv2d, conv2d_group::conv2d_group, conv2d_new, conv2d_transpose::conv2d_transpose, dwconv2d::dwconv2d
+        batchnorm_conv2d::batchnorm_conv2d, conv2d::conv2d, conv2d_group::conv2d_group, conv2d_new,
+        conv2d_transpose::conv2d_transpose, dwconv2d::dwconv2d,
+        microkernel_trait::Conv2dMicroKernel,
     },
     tensor_base::_Tensor,
 };
@@ -20,7 +22,7 @@ use hpt_allocator::{
 
 impl<T, const DEVICE: usize, Al> Conv<T> for _Tensor<T, Cpu, DEVICE, Al>
 where
-    T: CommonBounds,
+    T: CommonBounds + Conv2dMicroKernel,
     bool: Cast<T>,
     Al: Allocator + Send + Sync,
     Al::Output: AllocatorOutputRetrive,
