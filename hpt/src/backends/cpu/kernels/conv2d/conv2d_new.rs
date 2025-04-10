@@ -1,10 +1,6 @@
 use crate::backends::common::conv::cal_conv2d_output_shape;
-use crate::backends::cpu::cache_utils::cache::Cache;
-use crate::backends::cpu::kernels::conv2d::micro_kernels::conv::Params;
-use crate::backends::cpu::kernels::conv2d::micro_kernels::conv::PartialParams;
 use crate::tensor_base::_Tensor;
 use crate::ALIGN;
-use crate::REGNUM;
 use gemm_common::cache::DivCeil;
 use gemm_common::cache::KernelParams;
 use gemm_common::cache::CACHE_INFO;
@@ -16,9 +12,7 @@ use hpt_common::utils::pointer::Pointer;
 use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
-use hpt_types::dtype::TypeCommon;
 use hpt_types::into_scalar::Cast;
-use hpt_types::type_promote::NormalOut;
 use hpt_types::vectors::traits::*;
 use rayon::prelude::*;
 

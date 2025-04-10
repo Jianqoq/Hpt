@@ -6,8 +6,8 @@ fn main() -> Result<(), TensorError> {
     let batch = 1;
     let in_channel = 256;
     let out_channel = 256;
-    let height = 32;
-    let width = 32;
+    let height = 16;
+    let width = 16;
     let kernel_height = 3;
     let kernel_width = 3;
     // let a = Tensor::<f32>::arange(0, batch * in_channel * height * width)?

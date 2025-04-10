@@ -9,7 +9,7 @@ use hpt_types::{
 
 use crate::{
     backends::cpu::kernels::conv2d::{
-        batchnorm_conv2d::batchnorm_conv2d, conv2d::conv2d, conv2d_group::conv2d_group, conv2d_new,
+        batchnorm_conv2d::batchnorm_conv2d, conv2d_group::conv2d_group, conv2d_new,
         conv2d_transpose::conv2d_transpose, dwconv2d::dwconv2d,
         microkernel_trait::Conv2dMicroKernel,
     },
