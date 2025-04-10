@@ -9,9 +9,9 @@ macro_rules! conv2d_micro_kernel {
             icb: i64,
             osw: i64,
             kernel_idx: &mut i64,
-            [k, j, _]: [i64; 3],
+            [k, j, l]: [i64; 3],
             [kh, kw]: [i64; 2],
-            [_, step_width]: [i64; 2],
+            [step_height, step_width]: [i64; 2],
             _: [i64; 2],
             _: [i64; 2],
             [ish, isw]: [i64; 2],
@@ -46,6 +46,7 @@ macro_rules! conv2d_micro_kernel {
                 c_local
             };
             for n in 0..kh {
+                let in_y = l * step_height + n;
                 for m in 0..kw {
                     for ii in 0..icb {
                         let kernel = unsafe { kernel.ptr.add(*kernel_idx as usize) };
@@ -59,7 +60,8 @@ macro_rules! conv2d_micro_kernel {
                         #[allow(unused_mut)]
                         let mut a_vec;
                         $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
-                            a_vec = <T as $crate::types::TypeCommon>::Vec::splat(inp[n * ish + ((k + MR) * step_width + m) * isw + ii]);
+                            let in_x = (k + MR) * step_width + m;
+                            a_vec = <T as $crate::types::TypeCommon>::Vec::splat(inp[in_y * ish + in_x * isw + ii]);
                             $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
                                 c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
                             });
@@ -501,7 +503,7 @@ macro_rules! conv2d_micro_kernel_with_padding {
                             let mut a_vec;
                             $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
                                 let in_x = (k + MR) * step_width + m - pw_start;
-                                a_vec = <T as $crate::types::TypeCommon>::Vec::splat(inp[n * ish + in_x * isw + ii]);
+                                a_vec = <T as $crate::types::TypeCommon>::Vec::splat(inp[in_y * ish + in_x * isw + ii]);
                                 $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
                                     c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
                                 });
@@ -523,13 +525,12 @@ macro_rules! conv2d_micro_kernel_with_padding {
                             let mut a_vec;
                             $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
                                 let in_x = (k + MR) * step_width + m - pw_start;
-                                if in_x < 0 || in_x >= img_width {
-                                    continue;
+                                if in_x >= 0 && in_x < img_width {
+                                    a_vec = <T as $crate::types::TypeCommon>::Vec::splat(inp[in_y * ish + in_x * isw + ii]);
+                                    $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
+                                        c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
+                                    });
                                 }
-                                a_vec = <T as $crate::types::TypeCommon>::Vec::splat(inp[n * ish + in_x * isw + ii]);
-                                $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
-                                    c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
-                                });
                                 }
                             );
                             *kernel_idx += $nr * T::Vec::SIZE as i64;

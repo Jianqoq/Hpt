@@ -3,7 +3,7 @@ use hpt::types::{bf16, f16};
 use hpt::utils::{set_display_elements, set_seed};
 use hpt::{error::TensorError, Tensor};
 fn main() -> Result<(), TensorError> {
-    let test_times = 1;
+    let test_times = 10;
     const N: i64 = 256;
     let batch = 1;
     let in_channel = N;
@@ -33,7 +33,7 @@ fn main() -> Result<(), TensorError> {
     }
     println!("conv2d_group time: {:?}", now.elapsed() / test_times);
     assert!(test_a.allclose(&test_b, 1e-3, 1e-3));
-    // println!("b: {}", b);
-    // println!("b_group: {}", b_group);
+    println!("b: {}", test_a);
+    println!("b_group: {}", test_b);
     Ok(())
 }

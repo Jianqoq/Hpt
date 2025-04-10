@@ -139,7 +139,8 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
         [ks0, ks1, ks2]
     );
 
-    let get_kernel = if ph_start == 0 && pw_start == 0 && ph_end == 0 && pw_end == 0 {
+    let need_pad = ph_start != 0 || pw_start != 0 || ph_end != 0 || pw_end != 0;
+    let get_kernel = if !need_pad {
         T::get_kernel
     } else {
         T::get_kernel_with_padding
@@ -150,7 +151,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
         let b = idx / out_height;
         let ll = idx % out_height;
 
-        let inp = inp_ptr.clone() + b * isb + ll * step_height * ish;
+        let inp = inp_ptr.clone() + b * isb;
         let out = out.clone() + b * osb + ll * osh;
 
         for k in (0..out_width).step_by(kc as usize) {
