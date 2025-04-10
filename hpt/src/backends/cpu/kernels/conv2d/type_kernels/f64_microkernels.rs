@@ -11,16 +11,21 @@ impl Conv2dMicroKernel for f64 {
         hpt_common::Pointer<Self>,
         i64,
         i64,
-        usize,
-        usize,
-        i64,
+        &mut i64,
+        [i64; 3],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
         bool,
     ) {
-        use crate::define_matmul_micro_kernel;
-        use crate::define_neon_matmul_micro_kernel;
+        use crate::conv2d_micro_kernel;
+        use crate::conv2d_neon_micro_kernel;
         assert_eq!(nr, 8);
-        define_matmul_micro_kernel!(x8x1, 8, 1);
-        define_neon_matmul_micro_kernel!(x8x2, 8, 2);
+        conv2d_micro_kernel!(x8x1, 8, 1);
+        conv2d_neon_micro_kernel!(x8x2, 8, 2);
         [x8x1, x8x2][mr - 1]
     }
     fn get_kernel_with_post_op<F: Fn(Self) -> Self, G: Fn(Self::Vec) -> Self::Vec>(
@@ -40,12 +45,7 @@ impl Conv2dMicroKernel for f64 {
         F,
         G,
     ) {
-        use crate::define_neon_post_op_matmul_micro_kernel;
-        use crate::define_post_op_matmul_micro_kernel;
-        assert_eq!(nr, 8);
-        define_post_op_matmul_micro_kernel!(x8x1, 8, 1);
-        define_neon_post_op_matmul_micro_kernel!(x8x2, 8, 2);
-        [x8x1, x8x2][mr - 1]
+        unimplemented!()
     }
     fn get_max_mr() -> usize {
         2

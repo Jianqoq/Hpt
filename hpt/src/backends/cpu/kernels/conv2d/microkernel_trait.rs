@@ -25,7 +25,7 @@ where
         [i64; 2],
         bool,
     ) {
-        // #[cfg(target_feature = "avx2")]
+        #[cfg(target_feature = "avx2")]
         {
             use crate::conv2d_micro_kernel;
             assert_eq!(nr, 2);
@@ -48,22 +48,26 @@ where
         //     conv2d_micro_kernel!(x4x3, 4, 3);
         //     return [x4x1, x4x2, x4x3][mr - 1];
         // }
-        // #[cfg(target_feature = "neon")]
-        // {
-        //     use crate::conv2d_micro_kernel;
-        //     assert_eq!(nr, 8);
-        //     conv2d_micro_kernel!(x8x1, 8, 1);
-        //     conv2d_micro_kernel!(x8x2, 8, 2);
-        //     return [x8x1, x8x2][mr - 1];
-        // }
-        // #[cfg(all(
-        //     not(target_feature = "avx2"),
-        //     not(target_feature = "sse"),
-        //     not(target_feature = "neon")
-        // ))]
-        // {
-        //     unimplemented!()
-        // }
+        #[cfg(target_feature = "neon")]
+        {
+            use crate::conv2d_micro_kernel;
+            assert_eq!(nr, 4);
+            conv2d_micro_kernel!(x4x1, 4, 1);
+            conv2d_micro_kernel!(x4x2, 4, 2);
+            conv2d_micro_kernel!(x4x3, 4, 3);
+            conv2d_micro_kernel!(x4x4, 4, 4);
+            conv2d_micro_kernel!(x4x5, 4, 5);
+            conv2d_micro_kernel!(x4x6, 4, 6);
+            return [x4x1, x4x2, x4x3, x4x4, x4x5, x4x6][mr - 1];
+        }
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
+        {
+            unimplemented!()
+        }
     }
 
     #[allow(unused_variables)]
@@ -126,16 +130,21 @@ where
         nr: usize,
         mr: usize,
     ) -> fn(
-        Pointer<MixedType>,
-        Pointer<MixedType>,
-        Pointer<Self>,
+        hpt_common::Pointer<Self>,
+        hpt_common::Pointer<MixedType>,
+        hpt_common::Pointer<Self>,
         i64,
         i64,
-        usize,
-        usize,
-        i64,
+        &mut i64,
+        [i64; 3],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
         bool,
-        fn(*const MixedType::Vec) -> Self::Vec,
+        fn(Self) -> MixedType,
         fn(MixedType) -> Self,
     )
     where
@@ -192,7 +201,7 @@ where
         }
         #[cfg(target_feature = "neon")]
         {
-            2
+            6
         }
         #[cfg(all(
             not(target_feature = "avx2"),
@@ -214,7 +223,7 @@ where
         }
         #[cfg(target_feature = "neon")]
         {
-            8
+            4
         }
         #[cfg(all(
             not(target_feature = "avx2"),

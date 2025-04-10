@@ -713,7 +713,6 @@ where
     }
 
     let kernel_fn = kernels.get(map_oc).map(|x| x.get(map_kb)).flatten();
-
     // !("picked iconv2d_microkernel_{}x{} at {}{}", kb, oc, map_oc, map_kb);
 
     kernel_fn

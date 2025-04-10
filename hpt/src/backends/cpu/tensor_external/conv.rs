@@ -2,6 +2,7 @@ use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_allocator::Cpu;
 use hpt_traits::ops::conv::ConvBatchNorm;
 use hpt_traits::{ops::conv::Conv, tensor::CommonBounds};
+use hpt_types::type_promote::NormalOutPromote;
 use hpt_types::{
     into_scalar::Cast,
     traits::VecTrait,
@@ -13,7 +14,8 @@ use crate::backends::cpu::kernels::conv2d::microkernel_trait::Conv2dMicroKernel;
 
 impl<T, const DEVICE: usize> Conv<T> for Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + Cast<T> + NormalOut<Output = T> + Conv2dMicroKernel,
+    T: CommonBounds + Cast<T> + NormalOut<Output = T> + Conv2dMicroKernel + Cast<<T as NormalOutPromote>::Intermediate>,
+    <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
     T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
     bool: Cast<T>,
 {

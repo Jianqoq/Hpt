@@ -4,14 +4,12 @@ use hpt_traits::{
 };
 use hpt_types::{
     into_scalar::Cast,
-    type_promote::{FloatOutBinary, FloatOutUnary},
+    type_promote::{FloatOutBinary, FloatOutUnary, NormalOutPromote},
 };
 
 use crate::{
     backends::cpu::kernels::conv2d::{
-        batchnorm_conv2d::batchnorm_conv2d, conv2d_group::conv2d_group, conv2d_new,
-        conv2d_transpose::conv2d_transpose, dwconv2d::dwconv2d,
-        microkernel_trait::Conv2dMicroKernel,
+        batchnorm_conv2d::batchnorm_conv2d, conv2d_group::conv2d_group, conv2d_new, conv2d_new_mp, conv2d_transpose::conv2d_transpose, dwconv2d::dwconv2d, microkernel_trait::Conv2dMicroKernel
     },
     tensor_base::_Tensor,
 };
@@ -22,7 +20,8 @@ use hpt_allocator::{
 
 impl<T, const DEVICE: usize, Al> Conv<T> for _Tensor<T, Cpu, DEVICE, Al>
 where
-    T: CommonBounds + Conv2dMicroKernel,
+    T: CommonBounds + Conv2dMicroKernel + Cast<<T as NormalOutPromote>::Intermediate>,
+    <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
     bool: Cast<T>,
     Al: Allocator + Send + Sync,
     Al::Output: AllocatorOutputRetrive,
@@ -38,7 +37,11 @@ where
         dilation: [i64; 2],
         activation: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
-        conv2d_new::conv2d(self, kernels, bias, steps, padding, dilation, activation)
+        if T::STR == "f16" && !cfg!(target_feature = "neon") {
+            conv2d_new_mp::conv2d(self, kernels, bias, steps, padding, dilation, activation)
+        } else {
+            conv2d_new::conv2d(self, kernels, bias, steps, padding, dilation, activation)
+        }
     }
 
     fn conv2d_group(
