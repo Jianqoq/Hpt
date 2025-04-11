@@ -110,7 +110,7 @@ where
 
 impl<T, const DEVICE: usize, A> ConvBatchNorm<T> for Tensor<T, Cpu, DEVICE, A>
 where
-    T: CommonBounds,
+    T: CommonBounds + Conv2dMicroKernel,
     T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
     T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
     bool: Cast<T>,

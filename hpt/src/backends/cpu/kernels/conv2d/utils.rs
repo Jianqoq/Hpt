@@ -18,6 +18,7 @@ pub(crate) fn pack_kernel<T: CommonBounds>(
     [ks0, ks1, ks2]: [i64; 3]
 ) {
     let mut idx: i64 = 0;
+    
     for i in (0..in_channels).step_by(ic as usize) {
         let icb = ic.min(in_channels - i);
         for j in (0..out_channels).step_by(oc as usize) {

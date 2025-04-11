@@ -60,7 +60,6 @@ pub(crate) mod backends {
                 /// a module defines dwconv2d operation
                 pub(crate) mod dwconv2d;
                 pub(crate) mod micro_kernels {
-                    pub(crate) mod batch_norm_conv;
                     pub(crate) mod conv;
                     pub(crate) mod conv_group;
                     pub(crate) mod conv_transpose;
@@ -85,7 +84,6 @@ pub(crate) mod backends {
                     pub(crate) mod u8_microkernels;
                     pub(crate) mod usize_microkernels;
                 }
-                pub(crate) mod conv2d_new;
                 pub(crate) mod conv2d_new_mp;
                 pub(crate) mod conv2d_micro_kernels_new;
                 pub(crate) mod microkernel_trait;

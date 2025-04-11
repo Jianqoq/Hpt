@@ -8,7 +8,7 @@ use crate::{
     backends::cpu::kernels::conv2d::{
         batchnorm_conv2d::batchnorm_conv2d,
         conv2d_group::conv2d_group,
-        conv2d_new,
+        conv2d,
         conv2d_new_mp,
         conv2d_transpose::conv2d_transpose,
         dwconv2d::dwconv2d,
@@ -42,7 +42,7 @@ impl<T, const DEVICE: usize, Al> Conv<T>
         } else if T::STR == "f16" && !cfg!(target_feature = "neon") {
             conv2d_new_mp::conv2d(self, kernels, bias, steps, padding, dilation)
         } else {
-            conv2d_new::conv2d(self, kernels, bias, steps, padding, dilation)
+            conv2d::conv2d(self, kernels, bias, steps, padding, dilation)
         }
     }
 
@@ -86,7 +86,7 @@ impl<T, const DEVICE: usize, Al> Conv<T>
 impl<T, const DEVICE: usize, A> ConvBatchNorm<T>
     for _Tensor<T, Cpu, DEVICE, A>
     where
-        T: CommonBounds,
+        T: CommonBounds + Conv2dMicroKernel,
         T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
         T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
         bool: Cast<T>,
@@ -120,7 +120,6 @@ impl<T, const DEVICE: usize, A> ConvBatchNorm<T>
             steps,
             padding,
             dilation,
-            activation
         )
     }
 }
