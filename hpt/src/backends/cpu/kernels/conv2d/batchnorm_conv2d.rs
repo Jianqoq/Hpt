@@ -39,39 +39,6 @@ where
     A: Allocator + Send + Sync,
     A::Output: AllocatorOutputRetrive,
 {
-    ShapeError::check_contiguous(
-        "BatchNormConv2d requires input tensor to be contiguous. ".to_string(),
-        input.layout(),
-    )?;
-    ShapeError::check_contiguous(
-        "BatchNormConv2d requires kernel tensor to be contiguous. ".to_string(),
-        kernels.layout(),
-    )?;
-    if let Some(bias) = bias {
-        ShapeError::check_contiguous(
-            "BatchNormConv2d requires bias tensor to be contiguous. ".to_string(),
-            bias.layout(),
-        )?;
-    }
-    ShapeError::check_contiguous(
-        "BatchNormConv2d requires mean tensor to be contiguous. ".to_string(),
-        mean.layout(),
-    )?;
-    ShapeError::check_contiguous(
-        "BatchNormConv2d requires var tensor to be contiguous. ".to_string(),
-        var.layout(),
-    )?;
-    ShapeError::check_contiguous(
-        "BatchNormConv2d requires gamma tensor to be contiguous. ".to_string(),
-        gamma.layout(),
-    )?;
-    ShapeError::check_contiguous(
-        "BatchNormConv2d requires beta tensor to be contiguous. ".to_string(),
-        beta.layout(),
-    )?;
-    let img_shape = input.shape();
-    ShapeError::check_dim(4, img_shape.len())?;
-
     let mut conv_res = conv2d(input, kernels, bias, steps, padding, dilation)?;
     let eps_vec = T::Vec::splat(eps);
     if let Some(bias) = bias {

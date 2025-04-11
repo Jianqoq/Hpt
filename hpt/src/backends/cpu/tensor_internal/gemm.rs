@@ -11,6 +11,7 @@ use hpt_common::shape::shape_utils::{compare_and_pad_shapes, mt_intervals};
 use hpt_common::strides::strides_utils::preprocess_strides;
 use hpt_traits::ops::binary::Gemm;
 use hpt_traits::ops::creation::TensorCreator;
+use hpt_traits::ops::shape_manipulate::ShapeManipulate;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
 
@@ -44,7 +45,7 @@ where
             let out: _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2> =
                 out.borrow_mut().clone();
             ShapeError::check_inplace_out_layout_valid(&Shape::from(&res_shape), &out.layout())?;
-            out
+            out.reshape(&res_shape)?
         } else {
             _Tensor::<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>::empty(res_shape)?
         };
@@ -98,7 +99,7 @@ where
             let out: _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2> =
                 out.borrow_mut().clone();
             ShapeError::check_inplace_out_layout_valid(&Shape::from(&res_shape), &out.layout())?;
-            out
+            out.reshape(&res_shape)?
         } else {
             _Tensor::<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>::empty(res_shape)?
         };

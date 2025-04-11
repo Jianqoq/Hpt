@@ -15,6 +15,7 @@ use super::microkernel_trait::Conv2dMicroKernel;
 use super::utils::calculate_kernel_params;
 use super::utils::create_packed_kernel;
 use super::utils::pack_kernel;
+use super::{conv2d_direct, conv2d_img2col};
 
 pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A>(
     input: &_Tensor<T, Cpu, DEVICE, A>,
@@ -77,7 +78,6 @@ where
         &[step_height, step_width],
         &[dh, dw],
     );
-    let img = input.clone();
     if out_height <= 0 || out_width <= 0 {
         return Err((ShapeError::ConvError {
             message: if out_height <= 0 {
@@ -90,98 +90,41 @@ where
         .into());
     }
     let output = _Tensor::<T, Cpu, DEVICE, A>::empty([batch, out_height, out_width, out_channels])?;
-    let out = output.ptr();
-
-    let osb = output.strides()[0]; // batch
-    let osh = output.strides()[1]; // height
-    let osw = output.strides()[2]; // width
-
-    let isb = img.strides()[0]; // batch
-    let ish = img.strides()[1]; // height
-    let isw = img.strides()[2]; // width
-
-    let ks0 = kernels.strides()[0]; // kernel_height
-    let ks1 = kernels.strides()[1]; // kernel_width
-    let ks2 = kernels.strides()[2]; // in_channels
-
-    let outer = batch * out_height;
-
-    let inp_ptr = input.ptr();
-    let kernel_ptr = kernels.ptr();
-    let nr = T::get_max_nr() * T::Vec::SIZE;
-    let mr = T::get_max_mr().min(out_width as usize);
-    let param = calculate_kernel_params::<T>(in_channels, out_channels, out_width, mr, nr);
-    let kc: i64 = param.nc as i64;
-    let ic: i64 = param.kc as i64;
-    let oc: i64 = param.mc as i64;
-    let (packed_kernel, packed_kernel_layout) =
-        create_packed_kernel::<T>(kh, kw, in_channels, out_channels, oc, nr as i64);
-    pack_kernel(
-        packed_kernel,
-        kernel_ptr,
-        in_channels,
-        out_channels,
-        ic,
-        oc,
-        nr as i64,
-        [kh, kw],
-        [ks0, ks1, ks2],
-    );
-    let need_pad = ph_start != 0 || pw_start != 0 || ph_end != 0 || pw_end != 0;
-    let get_kernel = if !need_pad {
-        T::get_kernel
+    let img2col_buffer_size = kh * kw * in_channels * out_height * out_width;
+    let direct_buffer_size = kh * kw * in_channels * out_channels;
+    if img2col_buffer_size < direct_buffer_size {
+        conv2d_img2col::conv2d(
+            input,
+            kernels,
+            bias,
+            steps,
+            padding,
+            dilation,
+            batch,
+            img_height,
+            img_width,
+            img_channels,
+            out_channels,
+            kh,
+            kw,
+            output,
+        )
     } else {
-        T::get_kernel_with_padding
-    };
-
-    (0..outer).into_par_iter().for_each(|idx| {
-        let kernel = packed_kernel;
-        let b = idx / out_height;
-        let ll = idx % out_height;
-
-        let inp = inp_ptr.clone() + b * isb;
-        let out = out.clone() + b * osb + ll * osh;
-
-        for k in (0..out_width).step_by(kc as usize) {
-            let owb = kc.min(out_width - k);
-            let mut kernel_idx: i64 = 0;
-            for i in (0..in_channels).step_by(ic as usize) {
-                let icb = ic.min(in_channels - i);
-                for j in (0..out_channels).step_by(oc as usize) {
-                    let ocb = oc.min(out_channels - j);
-
-                    let kernel_idx_1 = kernel_idx;
-                    for kk in (0..owb).step_by(mr as usize) {
-                        let owr = (mr as i64).min(owb - kk);
-                        let micro_kernel = get_kernel(nr / <T>::Vec::SIZE, owr as usize);
-                        kernel_idx = kernel_idx_1;
-                        for jj in (0..ocb).step_by(nr as usize) {
-                            let ocr = (nr as i64).min(ocb - jj);
-                            micro_kernel(
-                                inp + i,
-                                kernel,
-                                out,
-                                icb,
-                                osw,
-                                &mut kernel_idx,
-                                [kk + k, jj + j, ll],
-                                [kh, kw],
-                                [step_height, step_width],
-                                [ph_start, pw_start],
-                                [img_height, img_width],
-                                [ish, isw],
-                                [owr, ocr],
-                                i == 0,
-                            );
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    unsafe {
-        std::alloc::dealloc(packed_kernel.ptr as *mut _, packed_kernel_layout);
+        conv2d_direct::conv2d(
+            input,
+            kernels,
+            bias,
+            steps,
+            padding,
+            dilation,
+            batch,
+            img_height,
+            img_width,
+            img_channels,
+            out_channels,
+            kh,
+            kw,
+            output,
+        )
     }
-    Ok(output)
 }

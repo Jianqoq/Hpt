@@ -725,14 +725,14 @@ fn create_resnet() -> anyhow::Result<ResNet> {
 
 impl ResNet {
     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-        // let x = self.bn_conv1.forward(&x, |x| x._relu())?;
-        // let x = self.max_pool1.forward(&x)?;
-        // let x = self.layer1.forward(&x)?;
-        // let x = self.layer2.forward(&x)?;
-        // let x = self.layer3.forward(&x)?;
+        let x = self.bn_conv1.forward(&x, |x| x._relu())?;
+        let x = self.max_pool1.forward(&x)?;
+        let x = self.layer1.forward(&x)?;
+        let x = self.layer2.forward(&x)?;
+        let x = self.layer3.forward(&x)?;
         let x = self.layer4.forward(&x)?;
-        // let x = self.avg_pool.forward(&x)?;
-        // let x = self.fc.forward(&x)?;
+        let x = self.avg_pool.forward(&x)?;
+        let x = self.fc.forward(&x)?;
         Ok(x)
     }
 }
@@ -745,19 +745,20 @@ fn main() -> anyhow::Result<()> {
     // let resnet = ResNet::load("resnet.model")?;
     let mut size = vec![];
     let mut time = vec![];
-    let i = 10;
-    let inp = Tensor::<f32>::randn([1, 24, 24, 256])?;
-    let now = std::time::Instant::now();
-    for _ in 0..10 {
-        resnet.forward(&inp)?;
+    for i in 0..30 {
+        let inp = Tensor::<f32>::randn([1, 64 + 32 * i, 64 + 32 * i, 3])?;
+        let now = std::time::Instant::now();
+        for _ in 0..10 {
+            resnet.forward(&inp)?;
+        }
+        size.push(64 + 32 * i);
+        time.push((now.elapsed() / 10).as_secs_f32() * 1000.0);
+        println!(
+            "size: {:?}, time: {:?}",
+            size.last().unwrap(),
+            time.last().unwrap()
+        );
     }
-    size.push(64 + 32 * i);
-    time.push((now.elapsed() / 10).as_secs_f32() * 1000.0);
-    println!(
-        "size: {:?}, time: {:?}",
-        size.last().unwrap(),
-        time.last().unwrap()
-    );
     println!("size: {:?}", size);
     println!("time: {:?}", time);
     Ok(())

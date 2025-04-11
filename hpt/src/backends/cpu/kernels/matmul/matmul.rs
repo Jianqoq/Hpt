@@ -96,7 +96,7 @@ pub fn matmul_template<T>(
     } else {
         a.clone()
     };
-
+    // println!("nc: {}, kc: {}, mc: {}", nc, kc, mc);
     let packed_a_ptr = packed_a.ptr as *mut T;
 
     let mc_jobs = calculate_jobs(n, nc, mr, nr, mc);

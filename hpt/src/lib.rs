@@ -25,39 +25,24 @@ pub(crate) mod backends {
         pub(crate) mod std_ops;
         /// a module defines all the kernels
         pub(crate) mod kernels {
-            /// a module defines reduce kernels
             pub(crate) mod argreduce_kernels;
-            /// a module defines the reduce kernels
             pub(crate) mod reduce;
-            /// a module defines the softmax kernels
             pub(crate) mod softmax;
-            /// a module contains all the pooling operations
             pub(crate) mod pooling {
-                /// a module contains all the common pooling operations
                 pub(crate) mod common;
             }
-            /// a module defines normalization operations
             pub(crate) mod normalization {
-                /// a module defines log_softmax
                 pub(crate) mod log_softmax;
-                /// a module defines the logsoftmax kernels
                 pub(crate) mod logsoftmax;
-                /// a module defines softmax utils
                 pub(crate) mod normalize_utils;
-                /// a module defines softmax
                 pub(crate) mod softmax;
             }
-            /// a module defines conv2d operation
             pub(crate) mod conv2d {
-                /// a module defines batchnorm_conv2d operation
                 pub(crate) mod batchnorm_conv2d;
-                /// a module defines conv2d operation
                 pub(crate) mod conv2d;
-                /// a module defines conv2d_group operation
+                pub(crate) mod conv2d_direct;
                 pub(crate) mod conv2d_group;
-                /// a module defines conv2d_transpose operation
                 pub(crate) mod conv2d_transpose;
-                /// a module defines dwconv2d operation
                 pub(crate) mod dwconv2d;
                 pub(crate) mod micro_kernels {
                     pub(crate) mod conv;
@@ -84,8 +69,9 @@ pub(crate) mod backends {
                     pub(crate) mod u8_microkernels;
                     pub(crate) mod usize_microkernels;
                 }
-                pub(crate) mod conv2d_new_mp;
+                pub(crate) mod conv2d_img2col;
                 pub(crate) mod conv2d_micro_kernels_new;
+                pub(crate) mod conv2d_new_mp;
                 pub(crate) mod microkernel_trait;
                 pub(crate) mod utils;
             }
@@ -248,14 +234,14 @@ pub(crate) mod backends {
             pub(crate) mod normal_out_unary;
             /// a module contains cuda tensor normalization impls
             pub(crate) mod normalization;
+            /// a module contains cuda tensor pooling impls
+            pub(crate) mod pooling;
             /// a module contains cuda tensor shape manipulation impls
             pub(crate) mod shape_manipulate;
             /// a module contains cuda tensor softmax impls
             pub(crate) mod softmax;
             /// a module contains cuda tensor windows impls
             pub(crate) mod windows;
-            /// a module contains cuda tensor pooling impls
-            pub(crate) mod pooling;
         }
         pub(crate) mod tensor_external {
             /// a module contains cuda tensor arg reduce impls
