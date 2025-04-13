@@ -100,6 +100,42 @@ impl bf16x8 {
         }
     }
 
+    /// convert to f32x4
+    #[inline(always)]
+    pub fn high_to_f32vec(&self) -> f32x4 {
+        unsafe {
+            let vec: u16x8 = std::mem::transmute(*self);
+
+            // Split into low and high parts
+            let vec_low_16 = vget_low_u16(vec.0);
+
+            // Widen to 32-bit
+            let vec_low = vshll_n_u16(vec_low_16, 0);
+
+            // Create masks and compare
+            let mask = vdupq_n_u32(0x7fff);
+            let threshold = vdupq_n_u32(0x7f80);
+            let t = vdupq_n_u32(0x0040);
+            let sixteen = vreinterpretq_s32_u32(vdupq_n_u32(16));
+
+            // Compare and create masks
+            let mask_low = vcgtq_u32(vandq_u32(vec_low, mask), threshold);
+
+            // Create true and false results
+            let true_low = vreinterpretq_u32_s32(vshlq_s32(
+                vreinterpretq_s32_u32(vorrq_u32(vec_low, t)),
+                sixteen,
+            ));
+            let false_low =
+                vreinterpretq_u32_s32(vshlq_s32(vreinterpretq_s32_u32(vec_low), sixteen));
+
+            // Select based on mask
+            let res_low = vbslq_u32(mask_low, true_low, false_low);
+
+            f32x4(vreinterpretq_f32_u32(res_low))
+        }
+    }
+
     /// convert from 2 f32x4
     #[inline(always)]
     pub fn from_2_f32vec(val: [f32x4; 2]) -> Self {

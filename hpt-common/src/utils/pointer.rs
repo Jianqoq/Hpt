@@ -17,6 +17,14 @@ pub struct Pointer<T> {
 }
 
 impl<T> Pointer<T> {
+    /// return a slice of the pointer
+    ///
+    /// # Returns
+    /// `&[T]`
+    #[cfg(feature = "bound_check")]
+    pub fn as_slice(&self) -> &[T] {
+        unsafe { std::slice::from_raw_parts(self.ptr, self.len as usize) }
+    }
     /// cast the pointer to a new type
     ///
     /// # Arguments

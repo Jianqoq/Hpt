@@ -3,6 +3,7 @@ use hpt_common::Pointer;
 use hpt_traits::tensor::CommonBounds;
 use hpt_types::dtype::TypeCommon;
 use hpt_types::{into_scalar::Cast, type_promote::NormalOutPromote};
+use num::integer::gcd;
 
 use crate::ALIGN;
 
@@ -201,7 +202,8 @@ pub(crate) fn create_packed_input_img2col<T: CommonBounds>(
     out_height: i64,
     out_width: i64,
 ) -> (Pointer<T>, std::alloc::Layout) {
-    let packed_size = kh * kw * in_channels * out_height * out_width * std::mem::size_of::<T>() as i64;
+    let packed_size =
+        kh * kw * in_channels * out_height * out_width * std::mem::size_of::<T>() as i64;
 
     let layout = std::alloc::Layout::from_size_align(packed_size as usize, ALIGN).unwrap();
     let buffer = unsafe { std::alloc::alloc(layout) };

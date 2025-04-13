@@ -6,7 +6,7 @@ use crate::simd::_256bit::f16x16;
 use crate::simd::_256bit::i16x16;
 
 impl f16x16 {
-    /// convert to Self
+    /// convert to [f32x8; 2]
     #[inline(always)]
     pub fn to_2_f32vec(self) -> [f32x8; 2] {
         unsafe {
@@ -24,6 +24,28 @@ impl f16x16 {
                 for i in 0..8 {
                     result[0][i] = self.0[i].to_f32();
                     result[1][i] = self.0[i + 8].to_f32();
+                }
+                std::mem::transmute(result)
+            }
+        }
+    }
+
+    /// convert to f32x8
+    #[inline(always)]
+    pub fn high_to_f32vec(self) -> f32x8 {
+        unsafe {
+            #[cfg(target_feature = "f16c")]
+            {
+                use std::arch::x86_64::*;
+                let raw_f16: [u16; 16] = std::mem::transmute(self.0);
+                let f32x4_1 = _mm256_cvtph_ps(_mm_loadu_si128(raw_f16.as_ptr() as *const _));
+                std::mem::transmute(f32x4_1)
+            }
+            #[cfg(not(target_feature = "f16c"))]
+            {
+                let mut result = [0f32; 8];
+                for i in 0..8 {
+                    result[i] = self.0[i].to_f32();
                 }
                 std::mem::transmute(result)
             }

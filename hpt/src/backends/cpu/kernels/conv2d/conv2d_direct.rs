@@ -66,8 +66,9 @@ where
     let mr = T::get_max_mr().min(out_width as usize);
     let param = calculate_kernel_params::<T>(in_channels, out_channels, out_width, mr, nr);
     let kc: i64 = param.nc as i64;
-    let ic: i64 = param.kc as i64;
+    let ic: i64 = 16 as i64;
     let oc: i64 = param.mc as i64;
+    // println!("kc: {}, ic: {}, oc: {}", kc, ic, oc);
     let (packed_kernel, packed_kernel_layout) =
         create_packed_kernel::<T>(kh, kw, in_channels, out_channels, oc, nr as i64);
     pack_kernel(

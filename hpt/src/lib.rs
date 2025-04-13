@@ -84,6 +84,7 @@ pub(crate) mod backends {
                 pub(crate) mod matmul_post;
                 pub(crate) mod microkernel_trait;
                 pub(crate) mod microkernels;
+                pub(crate) mod utils;
                 pub(crate) mod type_kernels {
                     pub(crate) mod bf16_microkernels;
                     pub(crate) mod bool_microkernels;

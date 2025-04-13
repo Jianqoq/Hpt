@@ -16,12 +16,14 @@ use hpt_common::shape::shape::Shape;
 use hpt_common::shape::shape_utils::predict_broadcast_shape;
 use hpt_common::shape::shape_utils::{compare_and_pad_shapes, mt_intervals};
 use hpt_common::strides::strides_utils::preprocess_strides;
+use hpt_common::Pointer;
 use hpt_traits::ops::binary::{Matmul, MatmulPost};
 use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::dtype::TypeCommon;
 use hpt_types::into_scalar::Cast;
 use hpt_types::traits::VecTrait;
+use hpt_types::type_promote::NormalOutPromote;
 
 #[track_caller]
 pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
@@ -299,12 +301,38 @@ where
                 type F32Vec = <f32 as TypeCommon>::Vec;
                 type F16Vec = <half::f16 as TypeCommon>::Vec;
                 type BF16Vec = <half::bf16 as TypeCommon>::Vec;
+
+                let buffer = match T::STR {
+                    "f16" => {
+                        type IM = <half::f16 as NormalOutPromote>::Intermediate;
+                        let buffer = _Tensor::<IM, Cpu, DEVICE, A2>::empty(&[m, n])
+                            .expect("empty f16 buffer failed");
+                        buffer.ptr().cast::<u8>()
+                    }
+                    "bf16" => {
+                        type IM = <half::bf16 as NormalOutPromote>::Intermediate;
+                        let buffer = _Tensor::<IM, Cpu, DEVICE, A2>::empty(&[m, n])
+                            .expect("empty bf16 buffer failed");
+                        buffer.ptr().cast::<u8>()
+                    }
+                    _ => {
+                        #[cfg(feature = "bound_check")]
+                        {
+                            Pointer::<u8>::new(std::ptr::null_mut(), 0)
+                        }
+                        #[cfg(not(feature = "bound_check"))]
+                        {
+                            Pointer::<u8>::new(std::ptr::null_mut())
+                        }
+                    }
+                };
+
                 pool.execute(move || {
                     for _ in 0..current_size {
                         match T::STR {
                             "f16" => {
                                 if let (Some(post_op), Some(post_op_vec)) = (post_op, post_op_vec) {
-                                    matmul_mp_post_template_no_block_info::<half::f16, f32>(
+                                    matmul_mp_post_template_no_block_info::<half::f16>(
                                         a_ptr.clone().cast::<half::f16>(),
                                         b_ptr.clone().cast::<half::f16>(),
                                         res_ptr.clone().cast::<half::f16>(),
@@ -318,12 +346,15 @@ where
                                         rhs_cs,
                                         threads,
                                         |packed_b, b, i| unsafe {
+                                            let b = b.add(i * <half::f16 as TypeCommon>::Vec::SIZE);
                                             let packed_b_vec0 = packed_b.add(i * 2);
-                                            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                                            let b_vec = b.add(i).read_unaligned();
-                                            let val_f32 = b_vec.to_2_f32vec();
-                                            packed_b_vec0.write(val_f32[0]);
-                                            packed_b_vec1.write(val_f32[1]);
+                                            let mut f16_vec =
+                                                F16Vec::splat(half::f16::from_f32_const(0.0));
+                                            for j in 0..F32Vec::SIZE {
+                                                f16_vec[j] = *b.add(j);
+                                            }
+                                            let val_f32 = f16_vec.high_to_f32vec();
+                                            packed_b_vec0.write(val_f32);
                                         },
                                         |packed_b, i| unsafe {
                                             let packed_b_vec0 = packed_b.add(i * 2);
@@ -342,10 +373,13 @@ where
                                         unsafe { std::mem::transmute(post_op_vec) },
                                     );
                                 } else {
-                                    matmul_mixed_precision_template_no_block_info::<half::f16, f32>(
+                                    matmul_mixed_precision_template_no_block_info::<half::f16>(
                                         a_ptr.clone().cast::<half::f16>(),
                                         b_ptr.clone().cast::<half::f16>(),
                                         res_ptr.clone().cast::<half::f16>(),
+                                        buffer
+                                            .cast::<<half::f16 as NormalOutPromote>::Intermediate>(
+                                            ),
                                         m,
                                         n,
                                         k,
@@ -356,12 +390,15 @@ where
                                         rhs_cs,
                                         threads,
                                         |packed_b, b, i| unsafe {
+                                            let b = b.add(i * <half::f16 as TypeCommon>::Vec::SIZE);
                                             let packed_b_vec0 = packed_b.add(i * 2);
-                                            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                                            let b_vec = b.add(i).read_unaligned();
-                                            let val_f32 = b_vec.to_2_f32vec();
-                                            packed_b_vec0.write(val_f32[0]);
-                                            packed_b_vec1.write(val_f32[1]);
+                                            let mut f16_vec =
+                                                F16Vec::splat(half::f16::from_f32_const(0.0));
+                                            for j in 0..F32Vec::SIZE {
+                                                f16_vec[j] = *b.add(j);
+                                            }
+                                            let val_f32 = f16_vec.high_to_f32vec();
+                                            packed_b_vec0.write(val_f32);
                                         },
                                         |packed_b, i| unsafe {
                                             let packed_b_vec0 = packed_b.add(i * 2);
@@ -381,7 +418,7 @@ where
                             }
                             "bf16" => {
                                 if let (Some(post_op), Some(post_op_vec)) = (post_op, post_op_vec) {
-                                    matmul_mp_post_template_no_block_info::<half::bf16, f32>(
+                                    matmul_mp_post_template_no_block_info::<half::bf16>(
                                         a_ptr.clone().cast::<half::bf16>(),
                                         b_ptr.clone().cast::<half::bf16>(),
                                         res_ptr.clone().cast::<half::bf16>(),
@@ -395,12 +432,16 @@ where
                                         rhs_cs,
                                         threads,
                                         |packed_b, b, i| unsafe {
+                                            let b =
+                                                b.add(i * <half::bf16 as TypeCommon>::Vec::SIZE);
                                             let packed_b_vec0 = packed_b.add(i * 2);
-                                            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                                            let b_vec = b.add(i).read_unaligned();
-                                            let val_f32 = b_vec.to_2_f32vec();
-                                            packed_b_vec0.write(val_f32[0]);
-                                            packed_b_vec1.write(val_f32[1]);
+                                            let mut f16_vec =
+                                                BF16Vec::splat(half::bf16::from_f32_const(0.0));
+                                            for j in 0..F32Vec::SIZE {
+                                                f16_vec[j] = *b.add(j);
+                                            }
+                                            let val_f32 = f16_vec.high_to_f32vec();
+                                            packed_b_vec0.write(val_f32);
                                         },
                                         |packed_b, i| unsafe {
                                             let packed_b_vec0 = packed_b.add(i * 2);
@@ -419,10 +460,13 @@ where
                                         unsafe { std::mem::transmute(post_op_vec) },
                                     );
                                 } else {
-                                    matmul_mixed_precision_template_no_block_info::<half::bf16, f32>(
+                                    matmul_mixed_precision_template_no_block_info::<half::bf16>(
                                         a_ptr.clone().cast::<half::bf16>(),
                                         b_ptr.clone().cast::<half::bf16>(),
                                         res_ptr.clone().cast::<half::bf16>(),
+                                        buffer
+                                            .cast::<<half::bf16 as NormalOutPromote>::Intermediate>(
+                                            ),
                                         m,
                                         n,
                                         k,
@@ -433,12 +477,16 @@ where
                                         rhs_cs,
                                         threads,
                                         |packed_b, b, i| unsafe {
+                                            let b =
+                                                b.add(i * <half::bf16 as TypeCommon>::Vec::SIZE);
                                             let packed_b_vec0 = packed_b.add(i * 2);
-                                            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                                            let b_vec = b.add(i).read_unaligned();
-                                            let val_f32 = b_vec.to_2_f32vec();
-                                            packed_b_vec0.write(val_f32[0]);
-                                            packed_b_vec1.write(val_f32[1]);
+                                            let mut f16_vec =
+                                                BF16Vec::splat(half::bf16::from_f32_const(0.0));
+                                            for j in 0..F32Vec::SIZE {
+                                                f16_vec[j] = *b.add(j);
+                                            }
+                                            let val_f32 = f16_vec.high_to_f32vec();
+                                            packed_b_vec0.write(val_f32);
                                         },
                                         |packed_b, i| unsafe {
                                             let packed_b_vec0 = packed_b.add(i * 2);

@@ -77,6 +77,33 @@ impl f16x8 {
         }
     }
 
+    /// convert to f32x4
+    #[inline(always)]
+    pub fn high_to_f32vec(self) -> f32x4 {
+        unsafe {
+            #[cfg(target_feature = "f16c")]
+            {
+                use std::arch::x86_64::{_mm_cvtph_ps, _mm_loadu_si64};
+                let raw_f16: [u16; 8] = std::mem::transmute(self.0);
+                let f32x4_1 = _mm_cvtph_ps(_mm_loadu_si64(raw_f16.as_ptr() as *const _));
+                std::mem::transmute(f32x4_1)
+            }
+            #[cfg(not(target_feature = "f16c"))]
+            #[cfg(not(all(
+                target_feature = "neon",
+                target_arch = "aarch64",
+                target_feature = "fp16"
+            )))]
+            {
+                let mut res = [0f32; 4];
+                for i in 0..4 {
+                    res[i] = self.0[i].to_f32();
+                }
+                std::mem::transmute(res)
+            }
+        }
+    }
+
     /// convert from 2 f32x4
     #[inline(always)]
     pub fn from_2_f32vec(val: [f32x4; 2]) -> Self {
