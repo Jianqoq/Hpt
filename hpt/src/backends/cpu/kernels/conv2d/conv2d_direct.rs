@@ -72,9 +72,9 @@ where
         nr,
         [kh as usize, kw as usize],
     );
-    let kc: i64 = param.nc as i64;
+    let oc: i64 = param.nc as i64;
     let ic: i64 = param.kc as i64;
-    let oc: i64 = param.mc as i64;
+    let kc: i64 = param.mc as i64;
     // println!("kc: {}, ic: {}, oc: {}", kc, ic, oc);
     let buffer =
         create_packed_kernel::<T, DEVICE, A>(kh, kw, in_channels, out_channels, oc, nr as i64)?;
