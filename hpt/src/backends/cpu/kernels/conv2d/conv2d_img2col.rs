@@ -1,4 +1,5 @@
 use crate::backends::common::conv::cal_conv2d_output_shape;
+use crate::backends::cpu::kernels::conv2d::utils::handle_post;
 use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 use crate::backends::cpu::tensor_internal::matmul::matmul_with_out;
 use crate::tensor_base::_Tensor;
@@ -9,7 +10,6 @@ use hpt_common::shape::shape::Shape;
 use hpt_traits::ops::shape_manipulate::ShapeManipulate;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
-use hpt_types::into_scalar::Cast;
 
 use super::microkernel_trait::Conv2dMicroKernel;
 use super::utils::create_packed_input_img2col;
@@ -29,11 +29,12 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
     out_channels: i64,
     kh: i64,
     kw: i64,
+    post_scalar: Option<fn(T) -> T>,
+    post_vec: Option<fn(T::Vec) -> T::Vec>,
     output: _Tensor<T, Cpu, DEVICE, A>,
 ) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
     T: MatmulMicroKernel,
-    i64: Cast<T>,
     A: Allocator + Send + Sync,
     A::Output: AllocatorOutputRetrive,
 {
@@ -84,7 +85,7 @@ where
     }?;
 
     let output_shape = output.shape().clone();
-    let res = matmul_with_out(
+    let mut res = matmul_with_out(
         &buffer_tensor,
         &kernels.reshape(&[kh * kw * in_channels, out_channels])?,
         Some(output),
@@ -92,6 +93,8 @@ where
         None,
     )?
     .reshape(output_shape)?;
+
+    handle_post(&mut res, bias, post_scalar, post_vec)?;
 
     unsafe {
         std::alloc::dealloc(input_buffer.ptr as *mut _, input_buffer_layout);

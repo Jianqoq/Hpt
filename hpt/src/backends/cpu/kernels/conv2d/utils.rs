@@ -1,15 +1,19 @@
-use gemm_common::cache::{DivCeil, KernelParams, CACHE_INFO};
-use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
+use gemm_common::cache::{ DivCeil, KernelParams, CACHE_INFO };
+use hpt_allocator::traits::{ Allocator, AllocatorOutputRetrive };
 use hpt_allocator::Cpu;
 use hpt_common::error::base::TensorError;
 use hpt_common::Pointer;
+use hpt_traits::ops::binary::NormalBinOps;
 use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::tensor::CommonBounds;
 use hpt_types::dtype::TypeCommon;
-use hpt_types::{into_scalar::Cast, type_promote::NormalOutPromote};
+use hpt_types::type_promote::NormalOut;
+use hpt_types::{ into_scalar::Cast, type_promote::NormalOutPromote };
 use num::integer::gcd;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{ IntoParallelRefIterator, ParallelIterator };
 
+use crate::backends::cpu::utils::binary::binary_normal::binary_fn_with_out_simd;
+use crate::backends::cpu::utils::unary::unary::unary_fn_with_out;
 use crate::tensor_base::_Tensor;
 use crate::ALIGN;
 
@@ -26,7 +30,7 @@ pub(crate) fn img2col_nhwc<T: CommonBounds>(
     [kh, kw]: [i64; 2],
     [stride_h, stride_w]: [i64; 2],
     [pad_h, pad_w]: [i64; 2],
-    [dilation_h, dilation_w]: [i64; 2],
+    [dilation_h, dilation_w]: [i64; 2]
 ) {
     let mut buffer_idx: i64 = 0;
     let h_stride = in_strides[1];
@@ -68,10 +72,10 @@ pub(crate) fn pack_kernel<T: CommonBounds>(
     oc: i64,
     or: i64,
     [kh, kw]: [i64; 2],
-    [ks0, ks1, ks2]: [i64; 3],
+    [ks0, ks1, ks2]: [i64; 3]
 ) {
     use hpt_types::traits::VecTrait;
-    let num_vec = or / T::Vec::SIZE as i64;
+    let num_vec = or / (T::Vec::SIZE as i64);
     fn calculate_block_size(icb: i64, ocb: i64, or: i64, kh: i64, kw: i64) -> i64 {
         let mut size = 0;
         for jj in (0..ocb).step_by(or as usize) {
@@ -105,18 +109,18 @@ pub(crate) fn pack_kernel<T: CommonBounds>(
                     for m in 0..kw {
                         for ii in 0..icb {
                             unsafe {
-                                let ptr = kernel
-                                    .ptr
-                                    .offset((n * ks0 + m * ks1 + (i + ii) * ks2 + jj + j) as isize)
-                                    as *const T::Vec;
-                                let packed_ptr =
-                                    packed_kernel.ptr.offset(local_idx as isize) as *mut T::Vec;
+                                let ptr = kernel.ptr.offset(
+                                    (n * ks0 + m * ks1 + (i + ii) * ks2 + jj + j) as isize
+                                ) as *const T::Vec;
+                                let packed_ptr = packed_kernel.ptr.offset(
+                                    local_idx as isize
+                                ) as *mut T::Vec;
                                 for nr in 0..num_vec {
                                     packed_ptr
                                         .offset(nr as isize)
                                         .write_unaligned(ptr.offset(nr as isize).read_unaligned());
                                 }
-                                local_idx += num_vec * T::Vec::SIZE as i64;
+                                local_idx += num_vec * (T::Vec::SIZE as i64);
                             }
                         }
                     }
@@ -126,8 +130,9 @@ pub(crate) fn pack_kernel<T: CommonBounds>(
                     for m in 0..kw {
                         for ii in 0..icb {
                             for nr in 0..ocr {
-                                packed_kernel[local_idx] =
-                                    kernel[n * ks0 + m * ks1 + (i + ii) * ks2 + jj + j + nr];
+                                packed_kernel[local_idx] = kernel[
+                                    n * ks0 + m * ks1 + (i + ii) * ks2 + jj + j + nr
+                                ];
                                 local_idx += 1;
                             }
                             for _ in ocr..or {
@@ -200,10 +205,11 @@ pub(crate) fn pack_kernel_mp<T: CommonBounds>(
     oc: i64,
     or: i64,
     [kh, kw]: [i64; 2],
-    [ks0, ks1, ks2]: [i64; 3],
-) where
-    T: Cast<<T as NormalOutPromote>::Intermediate>,
-    <T as NormalOutPromote>::Intermediate: CommonBounds,
+    [ks0, ks1, ks2]: [i64; 3]
+)
+    where
+        T: Cast<<T as NormalOutPromote>::Intermediate>,
+        <T as NormalOutPromote>::Intermediate: CommonBounds
 {
     let mut idx: i64 = 0;
     for i in (0..in_channels).step_by(ic as usize) {
@@ -238,7 +244,7 @@ pub(crate) fn calculate_kernel_params<T: CommonBounds>(
     out_width: i64,
     mr: usize,
     nr: usize,
-    [kh, kw]: [usize; 2],
+    [kh, kw]: [usize; 2]
 ) -> KernelParams {
     let mut param = kernel_params(
         out_channels as usize,
@@ -247,7 +253,7 @@ pub(crate) fn calculate_kernel_params<T: CommonBounds>(
         nr,
         mr,
         std::mem::size_of::<T>(),
-        [kh, kw],
+        [kh, kw]
     );
     if param.nc == 0 {
         param.nc = (out_channels as usize).msrv_next_multiple_of(nr);
@@ -265,18 +271,18 @@ pub(crate) fn create_packed_kernel<T: CommonBounds, const DEVICE: usize, A>(
     in_channels: i64,
     out_channels: i64,
     oc: i64,
-    nr: i64,
-) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
-where
-    A: Allocator + Send + Sync,
-    A::Output: AllocatorOutputRetrive,
+    nr: i64
+)
+    -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
+    where A: Allocator + Send + Sync, A::Output: AllocatorOutputRetrive
 {
-    let packed_kernel_size = kh
-        * kw
-        * in_channels
-        * ((out_channels as usize).div_ceil(oc as usize) as i64)
-        * ((oc as usize).div_ceil(nr as usize) as i64)
-        * (nr as i64);
+    let packed_kernel_size =
+        kh *
+        kw *
+        in_channels *
+        ((out_channels as usize).div_ceil(oc as usize) as i64) *
+        ((oc as usize).div_ceil(nr as usize) as i64) *
+        (nr as i64);
 
     let buffer = _Tensor::<T, Cpu, DEVICE, A>::empty(&[packed_kernel_size as usize])?;
 
@@ -289,17 +295,17 @@ pub(crate) fn create_packed_input_img2col<T: CommonBounds>(
     kw: i64,
     in_channels: i64,
     out_height: i64,
-    out_width: i64,
+    out_width: i64
 ) -> (Pointer<T>, std::alloc::Layout) {
     let packed_size =
-        batch * kh * kw * in_channels * out_height * out_width * std::mem::size_of::<T>() as i64;
+        batch * kh * kw * in_channels * out_height * out_width * (std::mem::size_of::<T>() as i64);
 
     let layout = std::alloc::Layout::from_size_align(packed_size as usize, ALIGN).unwrap();
     let buffer = unsafe { std::alloc::alloc(layout) };
     #[cfg(feature = "bound_check")]
     let buffer_ptr = Pointer::new(
         buffer as *mut T,
-        packed_size / (std::mem::size_of::<T>() as i64),
+        packed_size / (std::mem::size_of::<T>() as i64)
     );
     #[cfg(not(feature = "bound_check"))]
     let buffer_ptr = Pointer::new(buffer as *mut T);
@@ -314,10 +320,10 @@ pub(crate) fn kernel_params(
     nr: usize,
     mr: usize,
     sizeof: usize,
-    [kh, kw]: [usize; 2],
+    _: [usize; 2]
 ) -> KernelParams {
     fn round_down(a: usize, b: usize) -> usize {
-        a / b * b
+        (a / b) * b
     }
     if n == 0 || m == 0 || k == 0 {
         return KernelParams {
@@ -347,10 +353,7 @@ pub(crate) fn kernel_params(
     let c_lhs =
         (mr * (kc_0 * sizeof).next_multiple_of(l1_line_bytes)) / (l1_line_bytes * l1_n_sets);
     let kc_multiplier = l1_assoc / (c_rhs + c_lhs);
-    let auto_kc = (kc_0 * kc_multiplier.max(1))
-        .next_power_of_two()
-        .max(512)
-        .min(k);
+    let auto_kc = (kc_0 * kc_multiplier.max(1)).next_power_of_two().max(512).min(k);
     let k_iter = k.div_ceil(auto_kc);
     let auto_kc = k.div_ceil(k_iter);
 
@@ -396,4 +399,37 @@ pub(crate) fn kernel_params(
         mc: auto_mc,
         nc: auto_nc,
     }
+}
+
+pub(crate) fn handle_post<T: CommonBounds, const DEVICE: usize, A>(
+    output: &mut _Tensor<T, Cpu, DEVICE, A>,
+    bias: Option<&_Tensor<T, Cpu, DEVICE, A>>,
+    post_scalar: Option<fn(T) -> T>,
+    post_vec: Option<fn(T::Vec) -> T::Vec>
+)
+    -> Result<(), TensorError>
+    where A: Allocator, A::Output: AllocatorOutputRetrive
+{
+    match (bias, post_scalar, post_vec) {
+        (None, None, None) => {}
+        (None, Some(post_scalar), Some(post_vec)) => {
+            unary_fn_with_out(&output, post_vec, post_scalar, Some(output.clone()))?;
+        }
+        (Some(bias), None, None) => {
+            output.add_(bias, &mut output.clone())?;
+        }
+        (Some(bias), Some(post_scalar), Some(post_vec)) => {
+            binary_fn_with_out_simd(
+                &output,
+                &bias,
+                |lhs, rhs| { post_scalar(lhs._add(rhs)) },
+                |lhs, rhs| { post_vec(lhs._add(rhs)) },
+                Some(output.clone())
+            )?;
+        }
+        _ => {
+            unreachable!();
+        }
+    }
+    Ok(())
 }

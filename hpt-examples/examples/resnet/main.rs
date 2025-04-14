@@ -19,7 +19,8 @@ impl Conv2dBatchNorm {
     pub fn forward(
         &self,
         x: &Tensor<f32>,
-        activation: fn(F32Simd) -> F32Simd,
+        activation_scalar: fn(f32) -> f32,
+        activation_vec: fn(F32Simd) -> F32Simd,
     ) -> anyhow::Result<Tensor<f32>> {
         Ok(x.batchnorm_conv2d(
             &self.weight,
@@ -35,7 +36,8 @@ impl Conv2dBatchNorm {
                 (self.padding as i64, self.padding as i64),
             ],
             [self.dilation as i64, self.dilation as i64],
-            Some(activation),
+            Some(activation_scalar),
+            Some(activation_vec),
         )?)
     }
 }
@@ -83,7 +85,7 @@ pub struct DownSample {
 
 impl DownSample {
     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-        Ok(self.conv.forward(x, |x| x)?)
+        Ok(self.conv.forward(x, |x| x, |x| x)?)
     }
 }
 
@@ -116,8 +118,8 @@ impl BasicBlock {
         } else {
             x.clone()
         };
-        let out = self.bn_conv1.forward(&x, |x| x._relu())?;
-        let mut out = self.bn_conv2.forward(&out, |x| x)?;
+        let out = self.bn_conv1.forward(&x, |x| x._relu(), |x| x._relu())?;
+        let mut out = self.bn_conv2.forward(&out, |x| x, |x| x)?;
         out.par_iter_mut_simd()
             .zip(identity.par_iter_simd())
             .for_each(
@@ -725,7 +727,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
 
 impl ResNet {
     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-        let x = self.bn_conv1.forward(&x, |x| x._relu())?;
+        let x = self.bn_conv1.forward(&x, |x| x._relu(), |x| x._relu())?;
         let x = self.max_pool1.forward(&x)?;
         let x = self.layer1.forward(&x)?;
         let x = self.layer2.forward(&x)?;

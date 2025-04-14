@@ -1,18 +1,14 @@
-use crate::backends::common::conv::cal_conv2d_output_shape;
 use crate::tensor_base::_Tensor;
-use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
+use hpt_allocator::traits::{ Allocator, AllocatorOutputRetrive };
 use hpt_allocator::Cpu;
 use hpt_common::error::base::TensorError;
-use hpt_common::error::shape::ShapeError;
-use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
-use hpt_types::into_scalar::Cast;
 use hpt_types::vectors::traits::*;
 use rayon::prelude::*;
 
 use super::microkernel_trait::Conv2dMicroKernel;
-use super::utils::calculate_kernel_params;
+use super::utils::{ calculate_kernel_params, handle_post };
 use super::utils::create_packed_kernel;
 use super::utils::pack_kernel;
 
@@ -30,12 +26,12 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
     out_channels: i64,
     kh: i64,
     kw: i64,
-    output: _Tensor<T, Cpu, DEVICE, A>,
-) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
-where
-    i64: Cast<T>,
-    A: Allocator + Send + Sync,
-    A::Output: AllocatorOutputRetrive,
+    post_scalar: Option<fn(T) -> T>,
+    post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
+    mut output: _Tensor<T, Cpu, DEVICE, A>
+)
+    -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
+    where A: Allocator + Send + Sync, A::Output: AllocatorOutputRetrive
 {
     let in_channels = img_channels;
     let (step_width, step_height) = (steps[0], steps[1]);
@@ -64,20 +60,21 @@ where
     let kernel_ptr = kernels.ptr();
     let nr = T::get_max_nr() * T::Vec::SIZE;
     let mr = T::get_max_mr().min(out_width as usize);
-    let param = calculate_kernel_params::<T>(
-        in_channels,
-        out_channels,
-        out_width,
-        mr,
-        nr,
-        [kh as usize, kw as usize],
-    );
+    let param = calculate_kernel_params::<T>(in_channels, out_channels, out_width, mr, nr, [
+        kh as usize,
+        kw as usize,
+    ]);
     let oc: i64 = param.nc as i64;
     let ic: i64 = param.kc as i64;
     let kc: i64 = param.mc as i64;
-    // println!("kc: {}, ic: {}, oc: {}", kc, ic, oc);
-    let buffer =
-        create_packed_kernel::<T, DEVICE, A>(kh, kw, in_channels, out_channels, oc, nr as i64)?;
+    let buffer = create_packed_kernel::<T, DEVICE, A>(
+        kh,
+        kw,
+        in_channels,
+        out_channels,
+        oc,
+        nr as i64
+    )?;
     pack_kernel(
         buffer.ptr(),
         kernel_ptr,
@@ -87,14 +84,10 @@ where
         oc,
         nr as i64,
         [kh, kw],
-        [ks0, ks1, ks2],
+        [ks0, ks1, ks2]
     );
     let need_pad = ph_start != 0 || pw_start != 0 || ph_end != 0 || pw_end != 0;
-    let get_kernel = if !need_pad {
-        T::get_kernel
-    } else {
-        T::get_kernel_with_padding
-    };
+    let get_kernel = if !need_pad { T::get_kernel } else { T::get_kernel_with_padding };
 
     (0..outer).into_par_iter().for_each(|idx| {
         let kernel = buffer.ptr();
@@ -133,7 +126,8 @@ where
                                 [img_height, img_width],
                                 [ish, isw],
                                 [owr, ocr],
-                                i == 0,
+                                [dh, dw],
+                                i == 0
                             );
                         }
                     }
@@ -141,6 +135,8 @@ where
             }
         }
     });
+
+    handle_post(&mut output, bias, post_scalar, post_vec)?;
 
     Ok(output)
 }

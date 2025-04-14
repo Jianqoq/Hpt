@@ -36,6 +36,7 @@ pub(crate) mod backends {
                 pub(crate) mod logsoftmax;
                 pub(crate) mod normalize_utils;
                 pub(crate) mod softmax;
+                pub(crate) mod batch_norm;
             }
             pub(crate) mod conv2d {
                 pub(crate) mod batchnorm_conv2d;

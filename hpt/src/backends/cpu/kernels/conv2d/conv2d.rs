@@ -8,7 +8,6 @@ use hpt_common::error::shape::ShapeError;
 use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
-use hpt_types::into_scalar::Cast;
 
 use super::microkernel_trait::Conv2dMicroKernel;
 use super::{conv2d_direct, conv2d_img2col};
@@ -20,10 +19,11 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
     steps: [i64; 2],
     padding: [(i64, i64); 2],
     dilation: [i64; 2],
+    post_scalar: Option<fn(T) -> T>,
+    post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
 ) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
     T: MatmulMicroKernel,
-    i64: Cast<T>,
     A: Allocator + Send + Sync,
     A::Output: AllocatorOutputRetrive,
 {
@@ -104,6 +104,8 @@ where
             out_channels,
             kh,
             kw,
+            post_scalar,
+            post_vec,
             output,
         )
     } else {
@@ -121,6 +123,8 @@ where
             out_channels,
             kh,
             kw,
+            post_scalar,
+            post_vec,
             output,
         )
     }

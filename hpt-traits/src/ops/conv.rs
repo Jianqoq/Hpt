@@ -43,7 +43,9 @@ pub trait Conv<T: CommonBounds> {
         bias: Option<&Self::Output>,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
-        dilation: [i64; 2]
+        dilation: [i64; 2],
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(T::Vec) -> T::Vec>,
     ) -> Result<Self::Output, TensorError>;
 
     /// Performs a grouped 2D convolution operation, which divides input channels into groups and performs separate convolutions on each group.
@@ -88,7 +90,8 @@ pub trait Conv<T: CommonBounds> {
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         groups: i64,
-        activation: Option<fn(T::Vec) -> T::Vec>,
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(T::Vec) -> T::Vec>,
     ) -> Result<Self::Output, TensorError>;
 
     /// Performs a depthwise 2D convolution operation with support for stride, padding, dilation, and activation functions.
@@ -129,7 +132,8 @@ pub trait Conv<T: CommonBounds> {
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        activation: Option<fn(T::Vec) -> T::Vec>,
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(T::Vec) -> T::Vec>,
     ) -> Result<Self::Output, TensorError>;
 
     /// Performs a transpose 2D convolution operation with support for stride, padding, dilation, and activation functions.
@@ -168,6 +172,8 @@ pub trait Conv<T: CommonBounds> {
         padding: [(i64, i64); 2],
         output_padding: [i64; 2],
         dilation: [i64; 2],
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(T::Vec) -> T::Vec>,
     ) -> Result<Self::Output, TensorError>;
 }
 
@@ -408,7 +414,8 @@ pub trait ConvBatchNorm<T: CommonBounds> {
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        activation: Option<fn(T::Vec) -> T::Vec>,
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(T::Vec) -> T::Vec>,
     ) -> Result<Self::Output, TensorError>;
 }
 

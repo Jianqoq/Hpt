@@ -10,7 +10,7 @@ use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
 use hpt_types::type_promote::NormalOutUnary;
 use rand::Rng;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{ IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator };
 use tch;
 
 use crate::TestTypes;
@@ -20,23 +20,31 @@ use crate::TEST_RTOL;
 
 use super::assert_utils::assert_f64;
 
-fn common_input(
-    [in_channel, out_channel, kernel_height, kernel_width, height, width]: [i64; 6],
-) -> anyhow::Result<(Tensor<TestTypes>, Tensor<TestTypes>, tch::Tensor, tch::Tensor)> {
+fn common_input([in_channel, out_channel, kernel_height, kernel_width, height, width]: [
+    i64;
+    6
+]) -> anyhow::Result<(Tensor<TestTypes>, Tensor<TestTypes>, tch::Tensor, tch::Tensor)> {
     let batch = 1;
-    let tch_kernel = tch::Tensor::randn(
-        [out_channel, in_channel, kernel_height, kernel_width],
-        (TCH_TEST_TYPES, tch::Device::Cpu),
-    );
-    let tch_a = tch::Tensor::randn(
-        [batch, out_channel, height, width],
-        (TCH_TEST_TYPES, tch::Device::Cpu),
-    );
-    let mut kernel = Tensor::<TestTypes>::empty([out_channel, in_channel, kernel_height, kernel_width])?;
+    let tch_kernel = tch::Tensor::randn([out_channel, in_channel, kernel_height, kernel_width], (
+        TCH_TEST_TYPES,
+        tch::Device::Cpu,
+    ));
+    let tch_a = tch::Tensor::randn([batch, out_channel, height, width], (
+        TCH_TEST_TYPES,
+        tch::Device::Cpu,
+    ));
+    let mut kernel = Tensor::<TestTypes>::empty([
+        out_channel,
+        in_channel,
+        kernel_height,
+        kernel_width,
+    ])?;
     let size = kernel.size();
-    kernel.as_raw_mut().copy_from_slice(unsafe {
-        std::slice::from_raw_parts(tch_kernel.data_ptr() as *const TestTypes, size)
-    });
+    kernel
+        .as_raw_mut()
+        .copy_from_slice(unsafe {
+            std::slice::from_raw_parts(tch_kernel.data_ptr() as *const TestTypes, size)
+        });
     let mut a = Tensor::<TestTypes>::empty([batch, out_channel, height, width])?;
     let size = a.size();
     a.as_raw_mut().copy_from_slice(unsafe {
@@ -55,10 +63,21 @@ fn assert_eq(
     a: &Tensor<TestTypes>,
     a_kernel: &Tensor<TestTypes>,
     b: &tch::Tensor,
-    b_kernel: &tch::Tensor,
+    b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
     let res = a
-        .conv2d_transpose(&a_kernel, [1, 1], [(0, 0), (0, 0)], [0, 0], [1, 1])?
+        .conv2d_transpose(
+            &a_kernel,
+            [1, 1],
+            [
+                (0, 0),
+                (0, 0),
+            ],
+            [0, 0],
+            [1, 1],
+            None,
+            None
+        )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.conv_transpose2d(
@@ -68,11 +87,11 @@ fn assert_eq(
         &[0, 0],
         &[0, 0],
         1,
-        1,
+        1
     );
-    let tch_res = unsafe {
+    let tch_res = (unsafe {
         Tensor::<TestTypes>::from_raw(tch_res.data_ptr() as *mut TestTypes, &res.shape().to_vec())
-    }?;
+    })?;
     assert!(res.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
     Ok(())
 }
@@ -82,10 +101,21 @@ fn assert_eq_pad(
     a: &Tensor<TestTypes>,
     a_kernel: &Tensor<TestTypes>,
     b: &tch::Tensor,
-    b_kernel: &tch::Tensor,
+    b_kernel: &tch::Tensor
 ) -> anyhow::Result<()> {
     let res = a
-        .conv2d_transpose(&a_kernel, [1, 1], [(2, 2), (2, 2)], [0, 0], [1, 1])?
+        .conv2d_transpose(
+            &a_kernel,
+            [1, 1],
+            [
+                (2, 2),
+                (2, 2),
+            ],
+            [0, 0],
+            [1, 1],
+            None,
+            None
+        )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.conv_transpose2d(
@@ -95,11 +125,11 @@ fn assert_eq_pad(
         &[2, 2],
         &[0, 0],
         1,
-        1,
+        1
     );
-    let tch_res = unsafe {
+    let tch_res = (unsafe {
         Tensor::<TestTypes>::from_raw(tch_res.data_ptr() as *mut TestTypes, &res.shape().to_vec())
-    }?;
+    })?;
     assert!(res.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
     Ok(())
 }

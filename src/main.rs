@@ -22,13 +22,18 @@ fn main() -> Result<(), TensorError> {
     let pads = [(1, 1), (1, 1)];
     let now = std::time::Instant::now();
     for _ in 0..test_times {
-        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
-        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
-        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
-        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
-        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
-        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
-        // test_a = b;
+        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1], None, None)?;
+        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1], None, None)?;
+        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1], None, None)?;
+        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1], None, None)?;
+        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1], None, None)?;
+        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1], None, None)?;
+        // let b2 = a.conv2d_group(&kernel, None, [1, 1], pads, [1, 1], 1, None, None)?;
+        // let b = a.conv2d_group(&kernel, None, [1, 1], pads, [1, 1], 1, None)?;
+        // let b = a.conv2d_group(&kernel, None, [1, 1], pads, [1, 1], 1, None)?;
+        // let b = a.conv2d_group(&kernel, None, [1, 1], pads, [1, 1], 1, None)?;
+        // let b = a.conv2d_group(&kernel, None, [1, 1], pads, [1, 1], 1, None)?;
+        // let b = a.conv2d_group(&kernel, None, [1, 1], pads, [1, 1], 1, None)?;
     }
     println!("conv2d time: {:?}", now.elapsed() / test_times);
 

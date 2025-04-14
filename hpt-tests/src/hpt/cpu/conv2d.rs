@@ -58,7 +58,7 @@ fn assert_eq(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let res = a
-        .conv2d(&a_kernel, None, [1, 1], [(0, 0), (0, 0)], [1, 1])?
+        .conv2d(&a_kernel, None, [1, 1], [(0, 0), (0, 0)], [1, 1], None, None)?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.conv2d(&b_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
@@ -77,7 +77,7 @@ fn assert_eq_pad(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let res = a
-        .conv2d(&a_kernel, None, [1, 1], [(2, 2), (2, 2)], [1, 1])?
+        .conv2d(&a_kernel, None, [1, 1], [(2, 2), (2, 2)], [1, 1], None, None)?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.conv2d(&b_kernel, None::<tch::Tensor>, &[1, 1], &[2, 2], &[1, 1], 1);
@@ -108,6 +108,8 @@ fn assert_eq_bias(
             [1, 1],
             [(0, 0), (0, 0)],
             [1, 1],
+            None,
+            None
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
@@ -139,6 +141,8 @@ fn assert_eq_bias_pad(
             [1, 1],
             [(2, 2), (2, 2)],
             [1, 1],
+            None,
+            None
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
@@ -150,44 +154,45 @@ fn assert_eq_bias_pad(
     Ok(())
 }
 
-// #[track_caller]
-// fn assert_eq_bias_pad_relu6(
-//     a: &Tensor<TestTypes>,
-//     a_kernel: &Tensor<TestTypes>,
-//     b: &tch::Tensor,
-//     b_kernel: &tch::Tensor,
-// ) -> anyhow::Result<()> {
-//     let tch_bias = tch::Tensor::randn(b_kernel.size()[0], (TCH_TEST_TYPES, tch::Device::Cpu));
-//     let mut bias = Tensor::<TestTypes>::empty([*a_kernel.shape().last().unwrap() as i64])?;
-//     let size = bias.size();
-//     bias.as_raw_mut().copy_from_slice(unsafe {
-//         std::slice::from_raw_parts(tch_bias.data_ptr() as *const TestTypes, size)
-//     });
-//     let res = a
-//         .conv2d(
-//             &a_kernel,
-//             Some(&bias),
-//             [1, 1],
-//             [(2, 2), (2, 2)],
-//             [1, 1],
-//             Some(|x| x._relu6()),
-//         )?
-//         .permute([0, 3, 1, 2])?
-//         .contiguous()?;
-//     let tch_res = b
-//         .conv2d(&b_kernel, Some(&tch_bias), &[1, 1], &[2, 2], &[1, 1], 1)
-//         .relu6();
-//     let tch_res = unsafe {
-//         Tensor::<TestTypes>::from_raw(tch_res.data_ptr() as *mut TestTypes, &res.shape().to_vec())
-//     }?;
-//     assert!(res.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
-//     Ok(())
-// }
+#[track_caller]
+fn assert_eq_bias_pad_relu6(
+    a: &Tensor<TestTypes>,
+    a_kernel: &Tensor<TestTypes>,
+    b: &tch::Tensor,
+    b_kernel: &tch::Tensor,
+) -> anyhow::Result<()> {
+    let tch_bias = tch::Tensor::randn(b_kernel.size()[0], (TCH_TEST_TYPES, tch::Device::Cpu));
+    let mut bias = Tensor::<TestTypes>::empty([*a_kernel.shape().last().unwrap() as i64])?;
+    let size = bias.size();
+    bias.as_raw_mut().copy_from_slice(unsafe {
+        std::slice::from_raw_parts(tch_bias.data_ptr() as *const TestTypes, size)
+    });
+    let res = a
+        .conv2d(
+            &a_kernel,
+            Some(&bias),
+            [1, 1],
+            [(2, 2), (2, 2)],
+            [1, 1],
+            Some(|x| x._relu6()),
+            Some(|x| x._relu6()),
+        )?
+        .permute([0, 3, 1, 2])?
+        .contiguous()?;
+    let tch_res = b
+        .conv2d(&b_kernel, Some(&tch_bias), &[1, 1], &[2, 2], &[1, 1], 1)
+        .relu6();
+    let tch_res = unsafe {
+        Tensor::<TestTypes>::from_raw(tch_res.data_ptr() as *mut TestTypes, &res.shape().to_vec())
+    }?;
+    assert!(res.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
+    Ok(())
+}
 
 #[test]
 fn test() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for i in 0..10 {
+    for i in 0..100 {
         let in_channel = rng.random_range(1..=32);
         let out_channel = rng.random_range(1..=32);
         let kernel_height = rng.random_range(1..=5);
@@ -203,10 +208,10 @@ fn test() -> anyhow::Result<()> {
             width,
         ])?;
         assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-        // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-        // assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
-        // assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-        // assert_eq_bias_pad_relu6(&a, &kernel, &tch_a, &tch_kernel)?;
+        assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+        assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+        assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+        assert_eq_bias_pad_relu6(&a, &kernel, &tch_a, &tch_kernel)?;
     }
     Ok(())
 }

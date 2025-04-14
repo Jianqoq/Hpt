@@ -77,6 +77,7 @@ fn assert_eq(
             [1, 1],
             groups,
             None,
+            None,
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
@@ -111,6 +112,7 @@ fn assert_eq_pad(
             [(2, 2), (2, 2)],
             [1, 1],
             groups,
+            None,
             None,
         )?
         .permute([0, 3, 1, 2])?
@@ -153,6 +155,7 @@ fn assert_eq_bias(
             [1, 1],
             groups,
             None,
+            None,
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
@@ -187,6 +190,7 @@ fn assert_eq_bias_pad(
             [1, 1],
             groups,
             None,
+            None,
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
@@ -220,6 +224,7 @@ fn assert_eq_bias_pad_relu(
             [(2, 2), (2, 2)],
             [1, 1],
             groups,
+            None,
             None,
         )?
         .permute([0, 3, 1, 2])?

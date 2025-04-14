@@ -22,6 +22,7 @@ impl Conv2dMicroKernel for crate::types::f16 {
         [i64; 2],
         [i64; 2],
         [i64; 2],
+        [i64; 2],
         bool,
         fn(Self) -> MixedType,
         fn(MixedType) -> Self,

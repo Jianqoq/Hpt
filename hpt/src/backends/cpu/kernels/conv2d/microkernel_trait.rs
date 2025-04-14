@@ -1,15 +1,11 @@
 use hpt_common::Pointer;
 use hpt_traits::tensor::CommonBounds;
-use hpt_types::into_scalar::Cast;
 
-pub trait Conv2dMicroKernel
-where
-    Self: CommonBounds + Sized,
-{
+pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
     #[allow(unused_variables)]
     fn get_kernel(
         nr: usize,
-        mr: usize,
+        mr: usize
     ) -> fn(
         Pointer<Self>,
         Pointer<Self>,
@@ -24,7 +20,8 @@ where
         [i64; 2],
         [i64; 2],
         [i64; 2],
-        bool,
+        [i64; 2],
+        bool
     ) {
         #[cfg(target_feature = "avx2")]
         {
@@ -60,11 +57,13 @@ where
             conv2d_micro_kernel!(x4x6, 4, 6);
             return [x4x1, x4x2, x4x3, x4x4, x4x5, x4x6][mr - 1];
         }
-        #[cfg(all(
-            not(target_feature = "avx2"),
-            not(target_feature = "sse"),
-            not(target_feature = "neon")
-        ))]
+        #[cfg(
+            all(
+                not(target_feature = "avx2"),
+                not(target_feature = "sse"),
+                not(target_feature = "neon")
+            )
+        )]
         {
             unimplemented!()
         }
@@ -73,7 +72,7 @@ where
     #[allow(unused_variables)]
     fn get_kernel_with_padding(
         nr: usize,
-        mr: usize,
+        mr: usize
     ) -> fn(
         Pointer<Self>,
         Pointer<Self>,
@@ -88,11 +87,9 @@ where
         [i64; 2],
         [i64; 2],
         [i64; 2],
-        bool,
-    )
-    where
-        i64: Cast<Self>,
-    {
+        [i64; 2],
+        bool
+    ) {
         #[cfg(target_feature = "avx2")]
         {
             use crate::conv2d_micro_kernel_with_padding;
@@ -118,11 +115,13 @@ where
             conv2d_micro_kernel_with_padding!(x4x6, 4, 6);
             return [x4x1, x4x2, x4x3, x4x4, x4x5, x4x6][mr - 1];
         }
-        #[cfg(all(
-            not(target_feature = "avx2"),
-            not(target_feature = "sse"),
-            not(target_feature = "neon")
-        ))]
+        #[cfg(
+            all(
+                not(target_feature = "avx2"),
+                not(target_feature = "sse"),
+                not(target_feature = "neon")
+            )
+        )]
         {
             unimplemented!()
         }
@@ -131,7 +130,7 @@ where
     #[allow(unused_variables)]
     fn get_kernel_with_post_op<F: Fn(Self) -> Self, G: Fn(Self::Vec) -> Self::Vec>(
         nr: usize,
-        mr: usize,
+        mr: usize
     ) -> fn(
         Pointer<Self>,
         Pointer<Self>,
@@ -144,7 +143,7 @@ where
         bool,
         bool,
         F,
-        G,
+        G
     ) {
         unimplemented!()
     }
@@ -152,27 +151,27 @@ where
     #[allow(unused_variables)]
     fn get_mixed_precision_kernel<MixedType>(
         nr: usize,
-        mr: usize,
+        mr: usize
     ) -> fn(
-        hpt_common::Pointer<Self>,
-        hpt_common::Pointer<MixedType>,
-        hpt_common::Pointer<Self>,
-        i64,
-        i64,
-        &mut i64,
-        [i64; 3],
-        [i64; 2],
-        [i64; 2],
-        [i64; 2],
-        [i64; 2],
-        [i64; 2],
-        [i64; 2],
-        bool,
-        fn(Self) -> MixedType,
-        fn(MixedType) -> Self,
-    )
-    where
-        MixedType: CommonBounds,
+            hpt_common::Pointer<Self>,
+            hpt_common::Pointer<MixedType>,
+            hpt_common::Pointer<Self>,
+            i64,
+            i64,
+            &mut i64,
+            [i64; 3],
+            [i64; 2],
+            [i64; 2],
+            [i64; 2],
+            [i64; 2],
+            [i64; 2],
+            [i64; 2],
+            [i64; 2],
+            bool,
+            fn(Self) -> MixedType,
+            fn(MixedType) -> Self
+        )
+        where MixedType: CommonBounds
     {
         unimplemented!("mixed precision kernel is required for user to implement")
     }
@@ -180,27 +179,27 @@ where
     #[allow(unused_variables)]
     fn get_mixed_precision_kernel_with_padding<MixedType>(
         nr: usize,
-        mr: usize,
+        mr: usize
     ) -> fn(
-        hpt_common::Pointer<Self>,
-        hpt_common::Pointer<MixedType>,
-        hpt_common::Pointer<Self>,
-        i64,
-        i64,
-        &mut i64,
-        [i64; 3],
-        [i64; 2],
-        [i64; 2],
-        [i64; 2],
-        [i64; 2],
-        [i64; 2],
-        [i64; 2],
-        bool,
-        fn(Self) -> MixedType,
-        fn(MixedType) -> Self,
-    )
-    where
-        MixedType: CommonBounds,
+            hpt_common::Pointer<Self>,
+            hpt_common::Pointer<MixedType>,
+            hpt_common::Pointer<Self>,
+            i64,
+            i64,
+            &mut i64,
+            [i64; 3],
+            [i64; 2],
+            [i64; 2],
+            [i64; 2],
+            [i64; 2],
+            [i64; 2],
+            [i64; 2],
+            [i64; 2],
+            bool,
+            fn(Self) -> MixedType,
+            fn(MixedType) -> Self
+        )
+        where MixedType: CommonBounds
     {
         unimplemented!("mixed precision kernel is required for user to implement")
     }
@@ -209,28 +208,27 @@ where
     fn get_mixed_precision_kernel_with_post_op<
         MixedType,
         F: Fn(Self) -> Self,
-        G: Fn(Self::Vec) -> Self::Vec,
-    >(
+        G: Fn(Self::Vec) -> Self::Vec
+        >(
         nr: usize,
-        mr: usize,
+        mr: usize
     ) -> fn(
-        Pointer<MixedType>,
-        Pointer<MixedType>,
-        Pointer<Self>,
-        i64,
-        i64,
-        usize,
-        usize,
-        i64,
-        bool,
-        bool,
-        fn(*const MixedType::Vec) -> Self::Vec,
-        fn(MixedType) -> Self,
-        F,
-        G,
-    )
-    where
-        MixedType: CommonBounds,
+            Pointer<MixedType>,
+            Pointer<MixedType>,
+            Pointer<Self>,
+            i64,
+            i64,
+            usize,
+            usize,
+            i64,
+            bool,
+            bool,
+            fn(*const MixedType::Vec) -> Self::Vec,
+            fn(MixedType) -> Self,
+            F,
+            G
+        )
+        where MixedType: CommonBounds
     {
         unimplemented!("mixed precision kernel is required for user to implement")
     }
@@ -255,11 +253,13 @@ where
         {
             6
         }
-        #[cfg(all(
-            not(target_feature = "avx2"),
-            not(target_feature = "sse"),
-            not(target_feature = "neon")
-        ))]
+        #[cfg(
+            all(
+                not(target_feature = "avx2"),
+                not(target_feature = "sse"),
+                not(target_feature = "neon")
+            )
+        )]
         {
             unimplemented!()
         }
@@ -277,11 +277,13 @@ where
         {
             4
         }
-        #[cfg(all(
-            not(target_feature = "avx2"),
-            not(target_feature = "sse"),
-            not(target_feature = "neon")
-        ))]
+        #[cfg(
+            all(
+                not(target_feature = "avx2"),
+                not(target_feature = "sse"),
+                not(target_feature = "neon")
+            )
+        )]
         {
             unimplemented!()
         }

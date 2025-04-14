@@ -27,7 +27,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
 )
     -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
     where
-        i64: Cast<T>,
+    bool: Cast<T>,
         A: Allocator + Send + Sync,
         A::Output: AllocatorOutputRetrive,
         T: Cast<<T as NormalOutPromote>::Intermediate>,
@@ -189,6 +189,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
                                 [img_height, img_width],
                                 [ish, isw],
                                 [owr, ocr],
+                                [dh, dw],
                                 i == 0,
                                 |x| x.cast(),
                                 |x| x.cast()

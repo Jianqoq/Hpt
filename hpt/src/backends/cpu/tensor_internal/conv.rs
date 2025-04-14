@@ -10,7 +10,6 @@ use hpt_types::{
 use crate::{
     backends::cpu::kernels::{conv2d::{
         self, batchnorm_conv2d::batchnorm_conv2d, conv2d_group::conv2d_group, conv2d_new_mp,
-        conv2d_transpose::conv2d_transpose, dwconv2d::dwconv2d,
         microkernel_trait::Conv2dMicroKernel,
     }, matmul::microkernel_trait::MatmulMicroKernel},
     tensor_base::_Tensor,
@@ -24,7 +23,7 @@ impl<T, const DEVICE: usize, Al> Conv<T> for _Tensor<T, Cpu, DEVICE, Al>
 where
     T: CommonBounds + Conv2dMicroKernel + Cast<<T as NormalOutPromote>::Intermediate> + MatmulMicroKernel,
     <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
-    i64: Cast<T>,
+    bool: Cast<T>,
     Al: Allocator + Send + Sync,
     Al::Output: AllocatorOutputRetrive,
 {
@@ -37,13 +36,15 @@ where
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         if T::STR == "bf16" {
             conv2d_new_mp::conv2d(self, kernels, bias, steps, padding, dilation)
         } else if T::STR == "f16" && !cfg!(target_feature = "neon") {
             conv2d_new_mp::conv2d(self, kernels, bias, steps, padding, dilation)
         } else {
-            conv2d::conv2d::conv2d(self, kernels, bias, steps, padding, dilation)
+            conv2d::conv2d::conv2d(self, kernels, bias, steps, padding, dilation, post_scalar, post_vec)
         }
     }
 
@@ -55,12 +56,12 @@ where
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         groups: i64,
-        activation: Option<fn(<T>::Vec) -> <T>::Vec>,
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
-        unimplemented!()
-        // conv2d_group(
-        //     self, kernels, bias, steps, padding, dilation, groups, activation,
-        // )
+        conv2d_group(
+            self, kernels, bias, steps, padding, dilation, groups, post_vec,
+        )
     }
 
     fn dwconv2d(
@@ -70,7 +71,8 @@ where
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        activation: Option<fn(<T>::Vec) -> <T>::Vec>,
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         unimplemented!()
         // dwconv2d(self, kernels, bias, steps, padding, dilation, activation)
@@ -83,6 +85,8 @@ where
         padding: [(i64, i64); 2],
         output_padding: [i64; 2],
         dilation: [i64; 2],
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         unimplemented!()
         // conv2d_transpose(self, kernels, steps, padding, output_padding, dilation)
@@ -94,7 +98,6 @@ where
     T: CommonBounds + Conv2dMicroKernel + MatmulMicroKernel,
     T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
     T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
-    i64: Cast<T>,
     A: Allocator + Send + Sync,
     A::Output: AllocatorOutputRetrive,
 {
@@ -111,10 +114,12 @@ where
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        activation: Option<fn(<T>::Vec) -> <T>::Vec>,
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         batchnorm_conv2d(
-            self, kernels, mean, var, gamma, beta, bias, eps, steps, padding, dilation,
+            self, kernels, mean, var, gamma, beta, bias, eps, steps, padding, dilation, post_scalar,
+            post_vec,
         )
     }
 }

@@ -30,7 +30,7 @@ thread_local! {
 
 thread_local! {
     pub(crate) static L3_SLAB: core::cell::RefCell<dyn_stack::MemBuffer> = core::cell::RefCell::new(dyn_stack::MemBuffer::new(
-        dyn_stack::StackReq::new_aligned::<u8>(CACHE_INFO[2].cache_bytes, CACHELINE_ALIGN)
+        dyn_stack::StackReq::new_aligned::<u8>(CACHE_INFO[2].cache_bytes.max(1024 * 1024 * 32), CACHELINE_ALIGN)
     ));
 }
 
