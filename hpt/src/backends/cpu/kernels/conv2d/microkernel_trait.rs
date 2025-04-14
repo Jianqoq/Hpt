@@ -26,7 +26,7 @@ where
         [i64; 2],
         bool,
     ) {
-        // #[cfg(target_feature = "avx2")]
+        #[cfg(target_feature = "avx2")]
         {
             use crate::conv2d_micro_kernel;
             assert_eq!(nr, 2);
@@ -36,8 +36,7 @@ where
             conv2d_micro_kernel!(x2x3, 2, 3);
             conv2d_micro_kernel!(x2x4, 2, 4);
             conv2d_micro_kernel!(x2x5, 2, 5);
-            conv2d_micro_kernel!(x2x6, 2, 6);
-            return [x2x1, x2x2, x2x3, x2x4, x2x5, x2x6][mr - 1];
+            return [x2x1, x2x2, x2x3, x2x4, x2x5][mr - 1];
         }
         // #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
         // {
@@ -90,7 +89,10 @@ where
         [i64; 2],
         [i64; 2],
         bool,
-    ) where i64: Cast<Self> {
+    )
+    where
+        i64: Cast<Self>,
+    {
         #[cfg(target_feature = "avx2")]
         {
             use crate::conv2d_micro_kernel_with_padding;

@@ -60,7 +60,7 @@ pub(crate) fn img2col_nhwc<T: CommonBounds>(
 }
 
 pub(crate) fn pack_kernel<T: CommonBounds>(
-    mut packed_kernel: Pointer<T>,
+    packed_kernel: Pointer<T>,
     kernel: Pointer<T>,
     in_channels: i64,
     out_channels: i64,

@@ -23,12 +23,12 @@ fn main() -> Result<(), TensorError> {
     let now = std::time::Instant::now();
     for _ in 0..test_times {
         let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
-        let b = b.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
-        let b = b.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
-        let b = b.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
-        let b = b.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
-        let b = b.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
-        test_a = b;
+        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
+        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
+        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
+        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
+        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1])?;
+        // test_a = b;
     }
     println!("conv2d time: {:?}", now.elapsed() / test_times);
 
