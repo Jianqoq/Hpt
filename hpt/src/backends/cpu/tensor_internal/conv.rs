@@ -8,11 +8,11 @@ use hpt_types::{
 };
 
 use crate::{
-    backends::cpu::kernels::conv2d::{
+    backends::cpu::kernels::{conv2d::{
         self, batchnorm_conv2d::batchnorm_conv2d, conv2d_group::conv2d_group, conv2d_new_mp,
         conv2d_transpose::conv2d_transpose, dwconv2d::dwconv2d,
         microkernel_trait::Conv2dMicroKernel,
-    },
+    }, matmul::microkernel_trait::MatmulMicroKernel},
     tensor_base::_Tensor,
 };
 use hpt_allocator::{
@@ -22,9 +22,9 @@ use hpt_allocator::{
 
 impl<T, const DEVICE: usize, Al> Conv<T> for _Tensor<T, Cpu, DEVICE, Al>
 where
-    T: CommonBounds + Conv2dMicroKernel + Cast<<T as NormalOutPromote>::Intermediate>,
+    T: CommonBounds + Conv2dMicroKernel + Cast<<T as NormalOutPromote>::Intermediate> + MatmulMicroKernel,
     <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
-    bool: Cast<T>,
+    i64: Cast<T>,
     Al: Allocator + Send + Sync,
     Al::Output: AllocatorOutputRetrive,
 {
@@ -57,9 +57,10 @@ where
         groups: i64,
         activation: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
-        conv2d_group(
-            self, kernels, bias, steps, padding, dilation, groups, activation,
-        )
+        unimplemented!()
+        // conv2d_group(
+        //     self, kernels, bias, steps, padding, dilation, groups, activation,
+        // )
     }
 
     fn dwconv2d(
@@ -71,7 +72,8 @@ where
         dilation: [i64; 2],
         activation: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
-        dwconv2d(self, kernels, bias, steps, padding, dilation, activation)
+        unimplemented!()
+        // dwconv2d(self, kernels, bias, steps, padding, dilation, activation)
     }
 
     fn conv2d_transpose(
@@ -82,16 +84,17 @@ where
         output_padding: [i64; 2],
         dilation: [i64; 2],
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
-        conv2d_transpose(self, kernels, steps, padding, output_padding, dilation)
+        unimplemented!()
+        // conv2d_transpose(self, kernels, steps, padding, output_padding, dilation)
     }
 }
 
 impl<T, const DEVICE: usize, A> ConvBatchNorm<T> for _Tensor<T, Cpu, DEVICE, A>
 where
-    T: CommonBounds + Conv2dMicroKernel,
+    T: CommonBounds + Conv2dMicroKernel + MatmulMicroKernel,
     T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
     T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
-    bool: Cast<T>,
+    i64: Cast<T>,
     A: Allocator + Send + Sync,
     A::Output: AllocatorOutputRetrive,
 {

@@ -118,14 +118,14 @@ impl BasicBlock {
         };
         let out = self.bn_conv1.forward(&x, |x| x._relu())?;
         let mut out = self.bn_conv2.forward(&out, |x| x)?;
-        out.par_iter_mut_simd()
-            .zip(identity.par_iter_simd())
-            .for_each(
-                |(a, b)| *a = (*a + b)._relu(),
-                |(a, b)| {
-                    a.write_unaligned((a.read_unaligned() + b)._relu());
-                },
-            );
+        // out.par_iter_mut_simd()
+        //     .zip(identity.par_iter_simd())
+        //     .for_each(
+        //         |(a, b)| *a = (*a + b)._relu(),
+        //         |(a, b)| {
+        //             a.write_unaligned((a.read_unaligned() + b)._relu());
+        //         },
+        //     );
         Ok(out)
     }
 }
@@ -392,34 +392,34 @@ fn create_resnet() -> anyhow::Result<ResNet> {
 
     let layer2 = Sequential {
         layers: vec![
-            create_basic_block_with_downsample(
-                &data,
-                "layer2.0.conv1.weight",
-                "layer2.0.bn1.running_mean",
-                "layer2.0.bn1.running_var",
-                "layer2.0.bn1.weight",
-                "layer2.0.bn1.bias",
-                "layer2.0.conv2.weight",
-                "layer2.0.bn2.running_mean",
-                "layer2.0.bn2.running_var",
-                "layer2.0.bn2.weight",
-                "layer2.0.bn2.bias",
-                "layer2.0.downsample.0.weight",
-                "layer2.0.downsample.1.running_mean",
-                "layer2.0.downsample.1.running_var",
-                "layer2.0.downsample.1.weight",
-                "layer2.0.downsample.1.bias",
-                1e-5, /*eps */
-                2,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
-                2,    /*downsample_steps */
-                0,    /*downsample_padding */
-                1,    /*downsample_dilation */
-            ),
+            // create_basic_block_with_downsample(
+            //     &data,
+            //     "layer2.0.conv1.weight",
+            //     "layer2.0.bn1.running_mean",
+            //     "layer2.0.bn1.running_var",
+            //     "layer2.0.bn1.weight",
+            //     "layer2.0.bn1.bias",
+            //     "layer2.0.conv2.weight",
+            //     "layer2.0.bn2.running_mean",
+            //     "layer2.0.bn2.running_var",
+            //     "layer2.0.bn2.weight",
+            //     "layer2.0.bn2.bias",
+            //     "layer2.0.downsample.0.weight",
+            //     "layer2.0.downsample.1.running_mean",
+            //     "layer2.0.downsample.1.running_var",
+            //     "layer2.0.downsample.1.weight",
+            //     "layer2.0.downsample.1.bias",
+            //     1e-5, /*eps */
+            //     2,    /*conv1_steps */
+            //     1,    /*conv1_padding */
+            //     1,    /*conv1_dilation */
+            //     1,    /*conv2_steps */
+            //     1,    /*conv2_padding */
+            //     1,    /*conv2_dilation */
+            //     2,    /*downsample_steps */
+            //     0,    /*downsample_padding */
+            //     1,    /*downsample_dilation */
+            // ),
             create_basic_block(
                 &data,
                 "layer2.1.conv1.weight",
@@ -440,46 +440,46 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 1,    /*conv2_padding */
                 1,    /*conv2_dilation */
             ),
-            create_basic_block(
-                &data,
-                "layer2.2.conv1.weight",
-                "layer2.2.bn1.running_mean",
-                "layer2.2.bn1.running_var",
-                "layer2.2.bn1.weight",
-                "layer2.2.bn1.bias",
-                "layer2.2.conv2.weight",
-                "layer2.2.bn2.running_mean",
-                "layer2.2.bn2.running_var",
-                "layer2.2.bn2.weight",
-                "layer2.2.bn2.bias",
-                1e-5, /*eps */
-                1,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
-            ),
-            create_basic_block(
-                &data,
-                "layer2.3.conv1.weight",
-                "layer2.3.bn1.running_mean",
-                "layer2.3.bn1.running_var",
-                "layer2.3.bn1.weight",
-                "layer2.3.bn1.bias",
-                "layer2.3.conv2.weight",
-                "layer2.3.bn2.running_mean",
-                "layer2.3.bn2.running_var",
-                "layer2.3.bn2.weight",
-                "layer2.3.bn2.bias",
-                1e-5, /*eps */
-                1,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
-            ),
+            // create_basic_block(
+            //     &data,
+            //     "layer2.2.conv1.weight",
+            //     "layer2.2.bn1.running_mean",
+            //     "layer2.2.bn1.running_var",
+            //     "layer2.2.bn1.weight",
+            //     "layer2.2.bn1.bias",
+            //     "layer2.2.conv2.weight",
+            //     "layer2.2.bn2.running_mean",
+            //     "layer2.2.bn2.running_var",
+            //     "layer2.2.bn2.weight",
+            //     "layer2.2.bn2.bias",
+            //     1e-5, /*eps */
+            //     1,    /*conv1_steps */
+            //     1,    /*conv1_padding */
+            //     1,    /*conv1_dilation */
+            //     1,    /*conv2_steps */
+            //     1,    /*conv2_padding */
+            //     1,    /*conv2_dilation */
+            // ),
+            // create_basic_block(
+            //     &data,
+            //     "layer2.3.conv1.weight",
+            //     "layer2.3.bn1.running_mean",
+            //     "layer2.3.bn1.running_var",
+            //     "layer2.3.bn1.weight",
+            //     "layer2.3.bn1.bias",
+            //     "layer2.3.conv2.weight",
+            //     "layer2.3.bn2.running_mean",
+            //     "layer2.3.bn2.running_var",
+            //     "layer2.3.bn2.weight",
+            //     "layer2.3.bn2.bias",
+            //     1e-5, /*eps */
+            //     1,    /*conv1_steps */
+            //     1,    /*conv1_padding */
+            //     1,    /*conv1_dilation */
+            //     1,    /*conv2_steps */
+            //     1,    /*conv2_padding */
+            //     1,    /*conv2_dilation */
+            // ),
         ],
     };
 
@@ -725,14 +725,14 @@ fn create_resnet() -> anyhow::Result<ResNet> {
 
 impl ResNet {
     pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-        let x = self.bn_conv1.forward(&x, |x| x._relu())?;
-        let x = self.max_pool1.forward(&x)?;
-        let x = self.layer1.forward(&x)?;
+        // let x = self.bn_conv1.forward(&x, |x| x._relu())?;
+        // let x = self.max_pool1.forward(&x)?;
+        // let x = self.layer1.forward(&x)?;
         let x = self.layer2.forward(&x)?;
-        let x = self.layer3.forward(&x)?;
-        let x = self.layer4.forward(&x)?;
-        let x = self.avg_pool.forward(&x)?;
-        let x = self.fc.forward(&x)?;
+        // let x = self.layer3.forward(&x)?;
+        // let x = self.layer4.forward(&x)?;
+        // let x = self.avg_pool.forward(&x)?;
+        // let x = self.fc.forward(&x)?;
         Ok(x)
     }
 }
@@ -745,8 +745,9 @@ fn main() -> anyhow::Result<()> {
     // let resnet = ResNet::load("resnet.model")?;
     let mut size = vec![];
     let mut time = vec![];
-    for i in 0..30 {
-        let inp = Tensor::<f32>::randn([1, 64 + 32 * i, 64 + 32 * i, 3])?;
+    for i in 11..12 {
+        // let inp = Tensor::<f32>::randn([1, 64 + 32 * i, 64 + 32 * i, 3])?;
+        let inp = Tensor::<f32>::randn([1, 52, 52, 128])?;
         let now = std::time::Instant::now();
         for _ in 0..10 {
             resnet.forward(&inp)?;

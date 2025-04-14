@@ -45,7 +45,6 @@ pub(crate) mod backends {
                 pub(crate) mod conv2d_transpose;
                 pub(crate) mod dwconv2d;
                 pub(crate) mod micro_kernels {
-                    pub(crate) mod conv;
                     pub(crate) mod conv_group;
                     pub(crate) mod conv_transpose;
                     pub(crate) mod dwconv;

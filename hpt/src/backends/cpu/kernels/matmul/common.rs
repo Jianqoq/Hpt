@@ -28,6 +28,12 @@ thread_local! {
     ));
 }
 
+thread_local! {
+    pub(crate) static L3_SLAB: core::cell::RefCell<dyn_stack::MemBuffer> = core::cell::RefCell::new(dyn_stack::MemBuffer::new(
+        dyn_stack::StackReq::new_aligned::<u8>(CACHE_INFO[2].cache_bytes, CACHELINE_ALIGN)
+    ));
+}
+
 pub(crate) fn calculate_jobs(n: usize, nc: usize, mr: usize, nr: usize, ib: usize) -> usize {
     let mut jobs = 0;
     for j in (0..n).step_by(nc) {
@@ -148,14 +154,14 @@ pub(crate) fn pack_b_mixed_precision<T, I>(
     kb: usize,
     kc: usize,
     nr: usize,
-    pack_vec: fn(*mut I::Vec, *const T, usize),
+    pack_vec: fn(*mut I::Vec, *const T::Vec, usize),
     pack_vec_exceed: fn(*mut I::Vec, usize),
     pack_zero: fn(T) -> I,
 ) where
     T: CommonBounds,
     I: CommonBounds,
 {
-    let nr_div_lane = nr / I::Vec::SIZE;
+    let nr_div_lane = nr / T::Vec::SIZE;
 
     for j in (0..nc).step_by(nr) {
         let nb = nr.min(nc - j);
@@ -164,7 +170,7 @@ pub(crate) fn pack_b_mixed_precision<T, I>(
                 for i in 0..nr_div_lane {
                     pack_vec(
                         packed_b.ptr as *mut I::Vec,
-                        unsafe { b.ptr.offset((p * ldb) as isize + j as isize) },
+                        unsafe { b.ptr.offset((p * ldb) as isize + j as isize) } as *const T::Vec,
                         i,
                     );
                 }

@@ -9,15 +9,16 @@ use hpt_types::{
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 
+use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 use crate::Tensor;
 use crate::backends::cpu::kernels::conv2d::microkernel_trait::Conv2dMicroKernel;
 
 impl<T, const DEVICE: usize> Conv<T> for Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + Cast<T> + NormalOut<Output = T> + Conv2dMicroKernel + Cast<<T as NormalOutPromote>::Intermediate>,
+    T: CommonBounds + Cast<T> + NormalOut<Output = T> + Conv2dMicroKernel + MatmulMicroKernel + Cast<<T as NormalOutPromote>::Intermediate>,
     <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
     T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
-    bool: Cast<T>,
+    i64: Cast<T>,
 {
     type Output = Tensor<T, Cpu, DEVICE>;
 
@@ -110,10 +111,10 @@ where
 
 impl<T, const DEVICE: usize, A> ConvBatchNorm<T> for Tensor<T, Cpu, DEVICE, A>
 where
-    T: CommonBounds + Conv2dMicroKernel,
+    T: CommonBounds + Conv2dMicroKernel + MatmulMicroKernel,
     T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
     T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
-    bool: Cast<T>,
+    i64: Cast<T>,
     A: Allocator + Send + Sync,
     A::Output: AllocatorOutputRetrive,
 {

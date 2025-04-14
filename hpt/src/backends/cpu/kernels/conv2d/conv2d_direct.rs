@@ -33,7 +33,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
     output: _Tensor<T, Cpu, DEVICE, A>,
 ) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
-    bool: Cast<T>,
+    i64: Cast<T>,
     A: Allocator + Send + Sync,
     A::Output: AllocatorOutputRetrive,
 {
@@ -64,15 +64,22 @@ where
     let kernel_ptr = kernels.ptr();
     let nr = T::get_max_nr() * T::Vec::SIZE;
     let mr = T::get_max_mr().min(out_width as usize);
-    let param = calculate_kernel_params::<T>(in_channels, out_channels, out_width, mr, nr);
+    let param = calculate_kernel_params::<T>(
+        in_channels,
+        out_channels,
+        out_width,
+        mr,
+        nr,
+        [kh as usize, kw as usize],
+    );
     let kc: i64 = param.nc as i64;
-    let ic: i64 = 16 as i64;
+    let ic: i64 = param.kc as i64;
     let oc: i64 = param.mc as i64;
     // println!("kc: {}, ic: {}, oc: {}", kc, ic, oc);
-    let (packed_kernel, packed_kernel_layout) =
-        create_packed_kernel::<T>(kh, kw, in_channels, out_channels, oc, nr as i64);
+    let buffer =
+        create_packed_kernel::<T, DEVICE, A>(kh, kw, in_channels, out_channels, oc, nr as i64)?;
     pack_kernel(
-        packed_kernel,
+        buffer.ptr(),
         kernel_ptr,
         in_channels,
         out_channels,
@@ -90,7 +97,7 @@ where
     };
 
     (0..outer).into_par_iter().for_each(|idx| {
-        let kernel = packed_kernel;
+        let kernel = buffer.ptr();
         let b = idx / out_height;
         let ll = idx % out_height;
 
@@ -135,8 +142,5 @@ where
         }
     });
 
-    unsafe {
-        std::alloc::dealloc(packed_kernel.ptr as *mut _, packed_kernel_layout);
-    }
     Ok(output)
 }

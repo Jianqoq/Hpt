@@ -15,22 +15,11 @@ use hpt_allocator::{
     Cpu,
 };
 use hpt_common::{error::base::TensorError, shape::shape_utils::mt_intervals, Pointer};
-use hpt_traits::{
-    ops::creation::TensorCreator,
-    tensor::{CommonBounds, TensorInfo},
-};
-use hpt_types::{
-    dtype::TypeCommon, into_scalar::Cast, traits::VecTrait, type_promote::NormalOutPromote,
-};
-use rayon::{
-    iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
-    slice::{ParallelSlice, ParallelSliceMut},
-};
+use hpt_traits::tensor::{CommonBounds, TensorInfo};
+use hpt_types::{dtype::TypeCommon, into_scalar::Cast, traits::VecTrait};
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use super::{microkernel_trait::MatmulMicroKernel, utils::kernel_params};
-
-type IMVec<T> = <<T as NormalOutPromote>::Intermediate as TypeCommon>::Vec;
-type IM<T> = <T as NormalOutPromote>::Intermediate;
 
 /// single batch matmul template
 ///
@@ -54,11 +43,10 @@ type IM<T> = <T as NormalOutPromote>::Intermediate;
 /// * `mr`: m register block size
 /// * `num_threads`: number of threads
 #[inline(always)]
-pub fn matmul_mixed_precision_template<T>(
+pub fn matmul_mixed_precision_template<T, IM>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
-    buffer: Pointer<IM<T>>,
     m: usize,
     n: usize,
     k: usize,
@@ -73,16 +61,15 @@ pub fn matmul_mixed_precision_template<T>(
     nr: usize,
     mr: usize,
     mut num_threads: usize,
-    pack_vec: fn(*mut IMVec<T>, *const T, usize),
-    pack_vec_exceed: fn(*mut IMVec<T>, usize),
-    pack_zero: fn(T) -> IM<T>,
-    vec_cast_back: fn(*const IMVec<T>) -> T::Vec,
-    cast_back: fn(IM<T>) -> T,
+    pack_vec: fn(*mut IM::Vec, *const T::Vec, usize),
+    pack_vec_exceed: fn(*mut IM::Vec, usize),
+    pack_zero: fn(T) -> IM,
+    vec_cast_back: fn(*const IM::Vec) -> T::Vec,
+    cast_back: fn(IM) -> T,
 ) where
-    T: CommonBounds + Cast<IM<T>>,
-    IM<T>: CommonBounds + MatmulMicroKernel,
+    T: CommonBounds + MatmulMicroKernel + Cast<IM>,
+    IM: CommonBounds,
 {
-    println!("kc: {}, mc: {}, nc: {}, nr: {}, mr: {}", kc, mc, nc, nr, mr);
     assert_eq!(
         nr % T::Vec::SIZE,
         0,
@@ -94,7 +81,7 @@ pub fn matmul_mixed_precision_template<T>(
     let num_mr_blocks = (mc + mr - 1) / mr;
     let num_nr_blocks = (nc + nr - 1) / nr;
     let packed_a_layout = std::alloc::Layout::from_size_align(
-        num_mr_blocks * mr * kc * std::mem::size_of::<IM<T>>(),
+        num_mr_blocks * mr * kc * std::mem::size_of::<IM>(),
         ALIGN,
     )
     .expect("layout create failed");
@@ -103,15 +90,15 @@ pub fn matmul_mixed_precision_template<T>(
         let a_buffer = unsafe { std::alloc::alloc(packed_a_layout) };
         #[cfg(feature = "bound_check")]
         let ret = Pointer::new(
-            a_buffer as *mut IM<T>,
-            (packed_a_layout.size() / std::mem::size_of::<IM<T>>()) as i64,
+            a_buffer as *mut IM,
+            (packed_a_layout.size() / std::mem::size_of::<IM>()) as i64,
         );
         #[cfg(not(feature = "bound_check"))]
-        let ret = Pointer::new(a_buffer as *mut IM<T>);
+        let ret = Pointer::new(a_buffer as *mut IM);
         ret
     };
 
-    let packed_a_ptr = packed_a.ptr as *mut IM<T>;
+    let packed_a_ptr = packed_a.ptr as *mut IM;
 
     let mc_jobs = calculate_jobs(n, nc, mr, nr, mc);
     let mc_rem_jobs = calculate_jobs(n, nc, mr, nr, m % mc);
@@ -135,15 +122,14 @@ pub fn matmul_mixed_precision_template<T>(
                     let mut mem = mem.borrow_mut();
                     let stack = DynStack::new(&mut mem);
                     let (packed_b_storage, _) =
-                        stack.make_aligned_uninit::<IM<T>>(num_nr_blocks * nr * kc, ALIGN);
+                        stack.make_aligned_uninit::<IM>(num_nr_blocks * nr * kc, ALIGN);
                     #[cfg(feature = "bound_check")]
                     let packed_b = Pointer::new(
-                        packed_b_storage.as_mut_ptr() as *mut IM<T>,
+                        packed_b_storage.as_mut_ptr() as *mut IM,
                         (num_nr_blocks * nr * kc) as i64,
                     );
                     #[cfg(not(feature = "bound_check"))]
-                    let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut IM<T>);
-
+                    let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut IM);
                     let mut i = 0;
                     while i < m {
                         let ib = min(mc, m - i);
@@ -155,7 +141,7 @@ pub fn matmul_mixed_precision_template<T>(
                         while p < k {
                             let first_kiter = p == 0;
                             let pb = min(kc, k - p);
-                            pack_a_mixed_precision::<T, IM<T>>(
+                            pack_a_mixed_precision::<T, IM>(
                                 a.clone() + i as i64 * lda + p as i64 * lhs_col_stride,
                                 packed_a.clone(),
                                 lda,
@@ -175,8 +161,8 @@ pub fn matmul_mixed_precision_template<T>(
                             let mut jj_start = use_prg[2] * nr;
                             'outer: for j in (j_start..n).step_by(nc) {
                                 let jb = min(nc, n - j);
-                                let c = buffer.clone() + i as i64 * ldc + j as i64;
-                                pack_b_mixed_precision::<T, IM<T>>(
+                                let c = out.clone() + i as i64 * ldc + j as i64;
+                                pack_b_mixed_precision::<T, IM>(
                                     b.clone() + (p as i64 * ldb + j as i64),
                                     packed_b.clone(),
                                     ldb,
@@ -189,23 +175,26 @@ pub fn matmul_mixed_precision_template<T>(
                                     pack_vec_exceed,
                                     pack_zero,
                                 );
+                                let packed_a = packed_a.clone();
                                 for i in (i_start..ib).step_by(mr) {
                                     let mb = min(mr, ib - i);
                                     let micro_kernel =
-                                        IM::<T>::get_kernel(nr / IMVec::<T>::SIZE, mb);
+                                        <T>::get_mixed_precision_kernel(nr / <T>::Vec::SIZE, mb);
 
                                     for jj in (jj_start..jb).step_by(nr) {
                                         let jjb = min(nr, jb - jj);
                                         micro_kernel(
                                             packed_a.clone() + kc as i64 * i as i64,
-                                            packed_b.clone() + kc as i64 * jj as i64,
-                                            c.clone() + i as i64 * n as i64 + jj as i64,
-                                            n as i64,
+                                            packed_b.clone() + jj as i64 * kc as i64,
+                                            c.clone() + i as i64 * ldc + jj as i64,
+                                            ldc,
                                             1,
                                             kc,
                                             jjb,
                                             mb as i64,
                                             first_kiter,
+                                            vec_cast_back,
+                                            cast_back,
                                         );
                                         job_count += 1;
                                         if job_count >= use_end {
@@ -227,50 +216,6 @@ pub fn matmul_mixed_precision_template<T>(
             },
         );
 
-    let buffer_slice = unsafe { std::slice::from_raw_parts(buffer.ptr as *mut IM<T>, m * n) };
-    let out_slice = unsafe { std::slice::from_raw_parts_mut(out.ptr as *mut T, m * n) };
-    let mut chunk_exact = out_slice.par_chunks_exact_mut(T::Vec::SIZE);
-    let chunk_buffer_exact = buffer_slice.par_chunks_exact(T::Vec::SIZE);
-    chunk_exact
-        .remainder()
-        .into_par_iter()
-        .zip(chunk_buffer_exact.remainder().into_par_iter())
-        .for_each(|(out, buffer)| {
-            *out = cast_back(*buffer);
-        });
-
-    match IM::<T>::BYTE_SIZE / T::BYTE_SIZE {
-        2 => {
-            chunk_exact
-                .into_par_iter()
-                .zip(chunk_buffer_exact.into_par_iter())
-                .for_each(|(out, buffer)| {
-                    let out_ptr = out.as_mut_ptr() as *mut T::Vec;
-                    let buffer_ptr = buffer.as_ptr() as *const IMVec<T>;
-                    unsafe {
-                        out_ptr.write_unaligned(vec_cast_back(buffer_ptr));
-                    }
-                });
-        }
-        4 => {
-            chunk_exact
-                .into_par_iter()
-                .zip(chunk_buffer_exact.into_par_iter())
-                .for_each(|(out, buffer)| {
-                    let out_ptr = out.as_ptr() as *mut T;
-                    let buffer_ptr = buffer.as_ptr() as *const IMVec<T>;
-                    unsafe {
-                        seq_macro::seq!(N in 0..4 {
-                            let out_ptr = out_ptr.add(N * IMVec::<T>::SIZE) as *mut T::Vec;
-                            out_ptr.write_unaligned(vec_cast_back(buffer_ptr.add(N)));
-                        });
-                    }
-                });
-        }
-        _ => {
-            unreachable!()
-        }
-    }
     unsafe {
         std::alloc::dealloc(packed_a_ptr as *mut u8, packed_a_layout);
     }
@@ -293,11 +238,10 @@ pub fn matmul_mixed_precision_template<T>(
 /// * `rhs_col_stride`: `rhs.strides[b.ndim() - 1]`
 /// * `num_threads`: number of threads
 #[inline(always)]
-pub fn matmul_mixed_precision_template_no_block_info<T>(
+pub fn matmul_mixed_precision_template_no_block_info<T, IM>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
-    buffer: Pointer<IM<T>>,
     m: usize,
     n: usize,
     k: usize,
@@ -307,29 +251,28 @@ pub fn matmul_mixed_precision_template_no_block_info<T>(
     lhs_col_stride: i64,
     rhs_col_stride: i64,
     num_threads: usize,
-    pack_vec: fn(*mut IMVec<T>, *const T, usize),
-    pack_vec_exceed: fn(*mut IMVec<T>, usize),
-    pack_zero: fn(T) -> IM<T>,
-    vec_cast_back: fn(*const IMVec<T>) -> T::Vec,
-    cast_back: fn(IM<T>) -> T,
+    pack_vec: fn(*mut IM::Vec, *const T::Vec, usize),
+    pack_vec_exceed: fn(*mut IM::Vec, usize),
+    pack_zero: fn(T) -> IM,
+    vec_cast_back: fn(*const IM::Vec) -> T::Vec,
+    cast_back: fn(IM) -> T,
 ) where
-    T: CommonBounds + Cast<IM<T>> + MatmulMicroKernel,
-    IM<T>: CommonBounds + MatmulMicroKernel,
+    T: CommonBounds + MatmulMicroKernel + Cast<IM>,
+    IM: CommonBounds,
 {
-    let nr = IM::<T>::get_max_nr() * IMVec::<T>::SIZE;
-    let mr = IM::<T>::get_max_mr().min(m);
-    let mut param = kernel_params(n, m, k, nr, mr, std::mem::size_of::<IM<T>>(), true);
+    let nr = T::get_max_mixed_precision_nr() * T::Vec::SIZE;
+    let mr = T::get_max_mixed_precision_mr().min(m);
+    let mut param = kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>(), true);
     if param.mc == 0 {
         param.mc = m.msrv_next_multiple_of(mr);
     }
     if param.nc == 0 {
-        param.nc = n.msrv_next_multiple_of(nr);
+        param.nc = m.msrv_next_multiple_of(nr);
     }
-    matmul_mixed_precision_template::<T>(
+    matmul_mixed_precision_template::<T, IM>(
         a,
         b,
         out,
-        buffer,
         m,
         n,
         k,
@@ -363,22 +306,18 @@ where
     A: Allocator,
     A::Output: AllocatorOutputRetrive,
 {
-    type F32Vec = <<half::f16 as NormalOutPromote>::Intermediate as TypeCommon>::Vec;
+    type F32Vec = <f32 as TypeCommon>::Vec;
     type F16Vec = <half::f16 as TypeCommon>::Vec;
-    type IM = <half::f16 as NormalOutPromote>::Intermediate;
 
     let c = matmul_prepare(&a, &b, out)?;
     let m = a.shape()[0] as usize;
     let n = b.shape()[1] as usize;
     let k = a.shape()[1] as usize;
 
-    let buffer = _Tensor::<IM, Cpu, DEVICE, A>::empty(&[m, n])?;
-
-    matmul_mixed_precision_template_no_block_info::<half::f16>(
+    matmul_mixed_precision_template_no_block_info::<half::f16, f32>(
         a.ptr(),
         b.ptr(),
         c.ptr(),
-        buffer.ptr(),
         m,
         n,
         k,
@@ -389,23 +328,23 @@ where
         b.strides()[b.ndim() - 1],
         num_threads,
         |packed_b, b, i| unsafe {
-            let b = b.add(i * IMVec::<half::f16>::SIZE);
-            let packed_b_vec0 = packed_b.add(i);
-            let mut f16_vec = F16Vec::splat(half::f16::from_f32_const(0.0));
-            for j in 0..IMVec::<half::f16>::SIZE {
-                f16_vec[j] = *b.add(j);
-            }
-            let val_f32 = f16_vec.high_to_f32vec();
-            packed_b_vec0.write(val_f32);
+            let packed_b_vec0 = packed_b.add(i * 2);
+            let packed_b_vec1 = packed_b.add(i * 2 + 1);
+            let b_vec = b.add(i).read_unaligned();
+            let val_f32 = b_vec.to_2_f32vec();
+            packed_b_vec0.write(val_f32[0]);
+            packed_b_vec1.write(val_f32[1]);
         },
         |packed_b, i| unsafe {
-            let packed_b_vec0 = packed_b.add(i);
+            let packed_b_vec0 = packed_b.add(i * 2);
+            let packed_b_vec1 = packed_b.add(i * 2 + 1);
             packed_b_vec0.write(F32Vec::splat(0.0));
+            packed_b_vec1.write(F32Vec::splat(0.0));
         },
         |val| val.cast(),
         |val| {
-            let vec0 = unsafe { val.read_unaligned() };
-            let vec1 = unsafe { val.add(1).read_unaligned() };
+            let vec0 = unsafe { val.read() };
+            let vec1 = unsafe { val.add(1).read() };
             F16Vec::from_2_f32vec([vec0, vec1])
         },
         |val| val.cast(),
@@ -425,20 +364,16 @@ where
 {
     type F32Vec = <f32 as TypeCommon>::Vec;
     type F16Vec = <half::bf16 as TypeCommon>::Vec;
-    type IM = <half::bf16 as NormalOutPromote>::Intermediate;
 
     let c = matmul_prepare(&a, &b, out)?;
     let m = a.shape()[0] as usize;
     let n = b.shape()[1] as usize;
     let k = a.shape()[1] as usize;
 
-    let buffer = _Tensor::<IM, Cpu, DEVICE, A>::empty(&[m, n])?;
-
-    matmul_mixed_precision_template_no_block_info::<half::bf16>(
+    matmul_mixed_precision_template_no_block_info::<half::bf16, f32>(
         a.ptr(),
         b.ptr(),
         c.ptr(),
-        buffer.ptr(),
         m,
         n,
         k,
@@ -449,23 +384,23 @@ where
         b.strides()[b.ndim() - 1],
         num_threads,
         |packed_b, b, i| unsafe {
-            let b = b.add(i * IMVec::<half::bf16>::SIZE);
-            let packed_b_vec0 = packed_b.add(i);
-            let mut f16_vec = F16Vec::splat(half::bf16::from_f32_const(0.0));
-            for j in 0..IMVec::<half::bf16>::SIZE {
-                f16_vec[j] = *b.add(j);
-            }
-            let val_f32 = f16_vec.high_to_f32vec();
-            packed_b_vec0.write(val_f32);
+            let packed_b_vec0 = packed_b.add(i * 2);
+            let packed_b_vec1 = packed_b.add(i * 2 + 1);
+            let b_vec = b.add(i).read_unaligned();
+            let val_f32 = b_vec.to_2_f32vec();
+            packed_b_vec0.write(val_f32[0]);
+            packed_b_vec1.write(val_f32[1]);
         },
         |packed_b, i| unsafe {
-            let packed_b_vec0 = packed_b.add(i);
+            let packed_b_vec0 = packed_b.add(i * 2);
+            let packed_b_vec1 = packed_b.add(i * 2 + 1);
             packed_b_vec0.write(F32Vec::splat(0.0));
+            packed_b_vec1.write(F32Vec::splat(0.0));
         },
         |val| val.cast(),
         |val| {
-            let vec0 = unsafe { val.read_unaligned() };
-            let vec1 = unsafe { val.add(1).read_unaligned() };
+            let vec0 = unsafe { val.read() };
+            let vec1 = unsafe { val.add(1).read() };
             F16Vec::from_2_f32vec([vec0, vec1])
         },
         |val| val.cast(),

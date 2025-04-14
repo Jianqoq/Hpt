@@ -60,7 +60,6 @@ pub(crate) fn kernel_params(
         (mr * (kc_0 * sizeof).next_multiple_of(l1_line_bytes)) / (l1_line_bytes * l1_n_sets)
     };
     let kc_multiplier = l1_assoc / (c_rhs + c_lhs);
-    // let auto_kc = kc_0 * kc_multiplier;
     let auto_kc = (kc_0 * kc_multiplier.max(1))
         .next_power_of_two()
         .max(512)
@@ -81,17 +80,16 @@ pub(crate) fn kernel_params(
             mr * (auto_kc * sizeof).next_multiple_of(l1_line_bytes)
         };
         let lhs_l2_assoc = lhs_micropanel_bytes.div_ceil(l2_cache_bytes / l2_assoc);
+
         let rhs_l2_assoc = (l2_assoc - lhs_l2_assoc).max(1);
 
-        let nc_from_rhs_l2_assoc = |rhs_l2_assoc: usize| -> usize {
-            (rhs_l2_assoc * l2_cache_bytes) / (l2_assoc * sizeof * auto_kc)
-        };
+        let nc_from_rhs_l2_assoc = (rhs_l2_assoc * l2_cache_bytes) / (l2_assoc * sizeof * auto_kc);
 
-        let auto_nc = round_down(nc_from_rhs_l2_assoc(rhs_l2_assoc), nr);
+        let auto_nc = round_down(nc_from_rhs_l2_assoc, nr);
         let n_iter = n.div_ceil(auto_nc);
         n.div_ceil(n_iter * nr) * nr
     };
-    let auto_nc = Ord::min(auto_nc, 8 * nr);
+    let auto_nc = Ord::min(auto_nc, 4 * nr);
 
     // l3 cache must hold
     //  - A macropanel: mc×kc: assume 1 assoc degree

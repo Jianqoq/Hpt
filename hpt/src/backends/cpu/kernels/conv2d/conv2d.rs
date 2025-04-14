@@ -1,4 +1,5 @@
 use crate::backends::common::conv::cal_conv2d_output_shape;
+use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 use crate::tensor_base::_Tensor;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_allocator::Cpu;
@@ -8,13 +9,8 @@ use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
 use hpt_types::into_scalar::Cast;
-use hpt_types::vectors::traits::*;
-use rayon::prelude::*;
 
 use super::microkernel_trait::Conv2dMicroKernel;
-use super::utils::calculate_kernel_params;
-use super::utils::create_packed_kernel;
-use super::utils::pack_kernel;
 use super::{conv2d_direct, conv2d_img2col};
 
 pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A>(
@@ -26,7 +22,8 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
     dilation: [i64; 2],
 ) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
-    bool: Cast<T>,
+    T: MatmulMicroKernel,
+    i64: Cast<T>,
     A: Allocator + Send + Sync,
     A::Output: AllocatorOutputRetrive,
 {
@@ -93,7 +90,6 @@ where
     let img2col_buffer_size = kh * kw * in_channels * out_height * out_width;
     let direct_buffer_size = kh * kw * in_channels * out_channels;
     if img2col_buffer_size < direct_buffer_size {
-        // println!("img2col");
         conv2d_img2col::conv2d(
             input,
             kernels,
@@ -111,7 +107,6 @@ where
             output,
         )
     } else {
-        // println!("direct");
         conv2d_direct::conv2d(
             input,
             kernels,

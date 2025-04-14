@@ -1,24 +1,19 @@
 use crate::backends::common::conv::cal_conv2d_output_shape;
+use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
+use crate::backends::cpu::tensor_internal::matmul::matmul_with_out;
 use crate::tensor_base::_Tensor;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_allocator::Cpu;
 use hpt_common::error::base::TensorError;
-use hpt_common::error::shape::ShapeError;
-use hpt_common::layout::layout::Layout;
 use hpt_common::shape::shape::Shape;
-use hpt_traits::ops::binary::Gemm;
-use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::ops::shape_manipulate::ShapeManipulate;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
 use hpt_types::into_scalar::Cast;
-use hpt_types::vectors::traits::*;
-use rayon::prelude::*;
 
 use super::microkernel_trait::Conv2dMicroKernel;
-use super::utils::pack_kernel;
-use super::utils::{calculate_kernel_params, create_packed_input_img2col};
-use super::utils::{create_packed_kernel, img2col_nhwc};
+use super::utils::create_packed_input_img2col;
+use super::utils::img2col_nhwc;
 
 pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A>(
     input: &_Tensor<T, Cpu, DEVICE, A>,
@@ -37,7 +32,8 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
     output: _Tensor<T, Cpu, DEVICE, A>,
 ) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
-    bool: Cast<T>,
+    T: MatmulMicroKernel,
+    i64: Cast<T>,
     A: Allocator + Send + Sync,
     A::Output: AllocatorOutputRetrive,
 {
@@ -58,12 +54,16 @@ where
     let img = input.clone();
     let inp_ptr = input.ptr();
     let (input_buffer, input_buffer_layout) =
-        create_packed_input_img2col::<T>(kh, kw, in_channels, out_height, out_width);
+        create_packed_input_img2col::<T>(batch, kh, kw, in_channels, out_height, out_width);
 
-    assert_eq!(output.shape().as_slice(), &[batch, out_height, out_width, out_channels]);
+    assert_eq!(
+        output.shape().as_slice(),
+        &[batch, out_height, out_width, out_channels]
+    );
     img2col_nhwc(
         input_buffer,
         inp_ptr,
+        batch,
         &img.strides(),
         img_height,
         img_width,
@@ -79,20 +79,19 @@ where
     let buffer_tensor = unsafe {
         _Tensor::<T, Cpu, DEVICE, A>::from_raw(
             input_buffer.ptr as *mut _,
-            Shape::new([out_height * out_width, kh * kw * in_channels]),
+            Shape::new([batch, out_height * out_width, kh * kw * in_channels]),
         )
     }?;
 
     let output_shape = output.shape().clone();
-    let res = buffer_tensor.gemm_(
+    let res = matmul_with_out(
+        &buffer_tensor,
         &kernels.reshape(&[kh * kw * in_channels, out_channels])?,
-        T::ZERO,
-        T::ONE,
-        false,
-        false,
-        false,
-        output,
-    )?.reshape(output_shape)?;
+        Some(output),
+        None,
+        None,
+    )?
+    .reshape(output_shape)?;
 
     unsafe {
         std::alloc::dealloc(input_buffer.ptr as *mut _, input_buffer_layout);

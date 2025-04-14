@@ -1,9 +1,6 @@
 use hpt_common::Pointer;
 use hpt_traits::tensor::CommonBounds;
-use hpt_types::{
-    dtype::TypeCommon,
-    type_promote::{FloatOutBinary, FloatOutUnary},
-};
+use hpt_types::into_scalar::Cast;
 
 pub trait Conv2dMicroKernel
 where
@@ -93,7 +90,7 @@ where
         [i64; 2],
         [i64; 2],
         bool,
-    ) {
+    ) where i64: Cast<Self> {
         #[cfg(target_feature = "avx2")]
         {
             use crate::conv2d_micro_kernel_with_padding;

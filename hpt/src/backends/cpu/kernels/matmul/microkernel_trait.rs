@@ -118,13 +118,15 @@ where
     ) -> fn(
         Pointer<MixedType>,
         Pointer<MixedType>,
-        Pointer<MixedType>,
+        Pointer<Self>,
         i64,
         i64,
         usize,
         usize,
         i64,
         bool,
+        fn(*const MixedType::Vec) -> Self::Vec,
+        fn(MixedType) -> Self,
     )
     where
         MixedType: CommonBounds,
