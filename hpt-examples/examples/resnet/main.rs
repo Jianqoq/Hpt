@@ -748,7 +748,7 @@ fn main() -> anyhow::Result<()> {
     let mut size = vec![];
     let mut time = vec![];
     for i in 0..31 {
-        let inp = Tensor::<f32>::randn([1, 64 + 32 * i, 64 + 32 * i, 3])?;
+        let inp = Tensor::<f32>::randn([5, 64 + 32 * i, 64 + 32 * i, 3])?;
         // let inp = Tensor::<f32>::randn([1, 52, 52, 128])?;
         let now = std::time::Instant::now();
         for _ in 0..10 {

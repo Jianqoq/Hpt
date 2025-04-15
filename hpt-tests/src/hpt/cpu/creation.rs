@@ -5,6 +5,7 @@ use hpt::ops::Contiguous;
 use hpt::ops::ShapeManipulate;
 use hpt::ops::TensorCreator;
 use hpt::ops::WindowOps;
+use hpt::types::TypeCommon;
 use hpt::Tensor;
 use hpt_common::slice;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
@@ -85,7 +86,7 @@ fn test_zeros() -> anyhow::Result<()> {
 #[test]
 fn test_full() -> anyhow::Result<()> {
     let tch_a = tch::Tensor::full(&[1000], 1.0, (TCH_TEST_TYPES, tch::Device::Cpu));
-    let a = Tensor::<TestTypes>::full(1.0, &[1000])?;
+    let a = Tensor::<TestTypes>::full(TestTypes::ONE, &[1000])?;
     assert_eq(&a, &tch_a)?;
     Ok(())
 }

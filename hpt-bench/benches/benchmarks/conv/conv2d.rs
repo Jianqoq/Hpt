@@ -54,7 +54,6 @@ fn conv2d_benchmark(c: &mut Criterion) {
         ([1, 128, 256, 256], [128, 704]),
         ([1, 128, 256, 256], [128, 736]),
         ([1, 128, 256, 256], [128, 768]),
-
         // ([1, 64, 256, 256], [64, 128]),
         // ([1, 96, 256, 256], [96, 128]),
         // ([1, 128, 256, 256], [128, 128]),
@@ -114,15 +113,15 @@ fn conv2d_benchmark(c: &mut Criterion) {
         .sample_size(10);
     for idx in 0..shapes.len() {
         let (inp_shape, [in_channels, out_channels]) = shapes[idx];
-        let a = black_box(TchTensor::randn(inp_shape, (Kind::Float, Device::Cpu)));
-        let a_kernel = black_box(TchTensor::randn(
-            [out_channels, in_channels, 3, 3],
-            (Kind::Float, Device::Cpu),
-        ));
+        // let a = black_box(TchTensor::randn(inp_shape, (Kind::Float, Device::Cpu)));
+        // let a_kernel = black_box(TchTensor::randn(
+        //     [out_channels, in_channels, 3, 3],
+        //     (Kind::Float, Device::Cpu),
+        // ));
         let a2 = black_box(
-            Tensor::<f32>::randn([inp_shape[0], inp_shape[2], inp_shape[3], inp_shape[1]]).unwrap(),
+            Tensor::<f16>::randn([inp_shape[0], inp_shape[2], inp_shape[3], inp_shape[1]]).unwrap(),
         );
-        let a2_kernel = black_box(Tensor::<f32>::randn([3, 3, in_channels, out_channels]).unwrap());
+        let a2_kernel = black_box(Tensor::<f16>::randn([3, 3, in_channels, out_channels]).unwrap());
         // let a3 = black_box(
         //     CandleTensor::randn(
         //         0f32,
@@ -158,8 +157,18 @@ fn conv2d_benchmark(c: &mut Criterion) {
             &shapes[idx],
             |b, _| {
                 b.iter(|| {
-                    a2.conv2d(&a2_kernel, None, [1, 1], [(0, 0), (0, 0)], [1, 1], None, None)
-                        .unwrap()
+                    // a2.conv2d_group(&a2_kernel, None, [1, 1], [(0, 0), (0, 0)], [1, 1], 1, None, None)
+                    //     .unwrap()
+                    a2.conv2d(
+                        &a2_kernel,
+                        None,
+                        [1, 1],
+                        [(0, 0), (0, 0)],
+                        [1, 1],
+                        None,
+                        None,
+                    )
+                    .unwrap()
                 });
             },
         );
