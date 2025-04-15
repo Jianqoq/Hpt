@@ -1,3 +1,7 @@
+use super::microkernel_trait::Conv2dMicroKernel;
+use super::utils::calculate_kernel_params;
+use super::utils::create_packed_kernel;
+use super::utils::pack_kernel_mp;
 use crate::backends::common::conv::cal_conv2d_output_shape;
 use crate::tensor_base::_Tensor;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
@@ -7,15 +11,15 @@ use hpt_common::error::shape::ShapeError;
 use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
+use hpt_types::dtype::TypeCommon;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOutPromote;
 use hpt_types::vectors::traits::*;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use rayon::slice::{ParallelSlice, ParallelSliceMut};
 
-use super::microkernel_trait::Conv2dMicroKernel;
-use super::utils::calculate_kernel_params;
-use super::utils::create_packed_kernel;
-use super::utils::pack_kernel_mp;
+type IM<T> = <T as NormalOutPromote>::Intermediate;
+type IMVec<T> = <<T as NormalOutPromote>::Intermediate as TypeCommon>::Vec;
 
 pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A>(
     input: &_Tensor<T, Cpu, DEVICE, A>,
@@ -24,13 +28,17 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
     steps: [i64; 2],
     padding: [(i64, i64); 2],
     dilation: [i64; 2],
+    vec_cast_back: fn(*const IMVec<T>) -> T::Vec,
+    vec_cast: fn(*const T) -> IMVec<T>,
+    cast: fn(T) -> IM<T>,
+    cast_back: fn(IM<T>) -> T,
 ) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
     bool: Cast<T>,
     A: Allocator + Send + Sync,
     A::Output: AllocatorOutputRetrive,
-    T: Cast<<T as NormalOutPromote>::Intermediate>,
-    <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
+    T: Cast<IM<T>>,
+    IM<T>: CommonBounds + Cast<T>,
 {
     ShapeError::check_contiguous(
         "Conv2d requires input tensor to be contiguous. ".to_string(),
@@ -80,7 +88,60 @@ where
         &[step_height, step_width],
         &[dh, dw],
     );
-    let img = input.clone();
+
+    let casted_input = _Tensor::<IM<T>, Cpu, DEVICE, A>::empty(input.shape())?;
+    let buffer_slice =
+        unsafe { std::slice::from_raw_parts(input.ptr().ptr as *mut T, input.size()) };
+    let out_slice = unsafe {
+        std::slice::from_raw_parts_mut(casted_input.ptr().ptr as *mut IM<T>, input.size())
+    };
+    let mut chunk_exact = out_slice.par_chunks_exact_mut(T::Vec::SIZE);
+    let chunk_buffer_exact = buffer_slice.par_chunks_exact(T::Vec::SIZE);
+    chunk_exact
+        .remainder()
+        .into_par_iter()
+        .zip(chunk_buffer_exact.remainder().into_par_iter())
+        .for_each(|(out, buffer)| {
+            *out = cast(*buffer);
+        });
+
+    match IM::<T>::BYTE_SIZE / T::BYTE_SIZE {
+        2 => {
+            chunk_exact
+                .into_par_iter()
+                .zip(chunk_buffer_exact.into_par_iter())
+                .for_each(|(out, buffer)| {
+                    let out_ptr = out.as_mut_ptr() as *mut IMVec<T>;
+                    let buffer_ptr = buffer.as_ptr() as *const T;
+                    unsafe {
+                        seq_macro::seq!(N in 0..2 {
+                            let buffer_ptr = buffer_ptr.add(N * IMVec::<T>::SIZE);
+                            out_ptr.add(N).write_unaligned(vec_cast(buffer_ptr));
+                        });
+                    }
+                });
+        }
+        4 => {
+            chunk_exact
+                .into_par_iter()
+                .zip(chunk_buffer_exact.into_par_iter())
+                .for_each(|(out, buffer)| {
+                    let out_ptr = out.as_ptr() as *mut IMVec<T>;
+                    let buffer_ptr = buffer.as_ptr() as *const T;
+                    unsafe {
+                        seq_macro::seq!(N in 0..4 {
+                            let buffer_ptr = buffer_ptr.add(N * IMVec::<T>::SIZE);
+                            out_ptr.add(N).write_unaligned(vec_cast(buffer_ptr));
+                        });
+                    }
+                });
+        }
+        _ => {
+            unreachable!()
+        }
+    }
+
+    let img = casted_input.clone();
     if out_height <= 0 || out_width <= 0 {
         return Err((ShapeError::ConvError {
             message: if out_height <= 0 {
@@ -109,7 +170,7 @@ where
 
     let outer = batch * out_height;
 
-    let inp_ptr = input.ptr();
+    let inp_ptr = img.ptr();
     let kernel_ptr = kernels.ptr();
     let nr = T::get_max_mixed_precision_nr() * T::Vec::SIZE;
     let mr = T::get_max_mixed_precision_mr().min(out_width as usize);
@@ -125,14 +186,8 @@ where
     let kc: i64 = param.mc as i64;
     let ic: i64 = param.kc as i64;
     let oc: i64 = param.nc as i64;
-    let buffer = create_packed_kernel::<<T as NormalOutPromote>::Intermediate, DEVICE, A>(
-        kh,
-        kw,
-        in_channels,
-        out_channels,
-        oc,
-        nr as i64,
-    )?;
+    let buffer =
+        create_packed_kernel::<IM<T>, DEVICE, A>(kh, kw, in_channels, out_channels, oc, nr as i64)?;
     pack_kernel_mp(
         buffer.ptr(),
         kernel_ptr,
@@ -190,8 +245,10 @@ where
                                 [owr, ocr],
                                 [dh, dw],
                                 i == 0,
-                                |x| x.cast(),
-                                |x| x.cast(),
+                                vec_cast,
+                                vec_cast_back,
+                                cast,
+                                cast_back,
                             );
                         }
                     }

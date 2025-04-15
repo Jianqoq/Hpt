@@ -153,7 +153,7 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
         nr: usize,
         mr: usize
     ) -> fn(
-            hpt_common::Pointer<Self>,
+            hpt_common::Pointer<MixedType>,
             hpt_common::Pointer<MixedType>,
             hpt_common::Pointer<Self>,
             i64,
@@ -168,6 +168,8 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
             [i64; 2],
             [i64; 2],
             bool,
+            fn(*const Self) -> MixedType::Vec,
+            fn(*const MixedType::Vec) -> Self::Vec,
             fn(Self) -> MixedType,
             fn(MixedType) -> Self
         )
@@ -181,7 +183,7 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
         nr: usize,
         mr: usize
     ) -> fn(
-            hpt_common::Pointer<Self>,
+            hpt_common::Pointer<MixedType>,
             hpt_common::Pointer<MixedType>,
             hpt_common::Pointer<Self>,
             i64,
@@ -196,6 +198,8 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
             [i64; 2],
             [i64; 2],
             bool,
+            fn(*const Self) -> MixedType::Vec,
+            fn(*const MixedType::Vec) -> Self::Vec,
             fn(Self) -> MixedType,
             fn(MixedType) -> Self
         )

@@ -24,8 +24,10 @@ impl Conv2dMicroKernel for crate::types::bf16 {
         [i64; 2],
         [i64; 2],
         bool,
+        fn(*const MixedType::Vec) -> Self::Vec,
+        fn(*const Self::Vec) -> MixedType::Vec,
         fn(Self) -> MixedType,
-        fn(MixedType) -> Self,
+        fn(MixedType) -> Self
     )
     where
         MixedType: CommonBounds,
@@ -85,7 +87,7 @@ impl Conv2dMicroKernel for crate::types::bf16 {
         nr: usize,
         mr: usize,
     ) -> fn(
-        hpt_common::Pointer<Self>,
+        hpt_common::Pointer<MixedType>,
         hpt_common::Pointer<MixedType>,
         hpt_common::Pointer<Self>,
         i64,
@@ -100,8 +102,10 @@ impl Conv2dMicroKernel for crate::types::bf16 {
         [i64; 2],
         [i64; 2],
         bool,
+        fn(*const Self) -> MixedType::Vec,
+        fn(*const MixedType::Vec) -> Self::Vec,
         fn(Self) -> MixedType,
-        fn(MixedType) -> Self,
+        fn(MixedType) -> Self
     )
     where
         MixedType: CommonBounds,

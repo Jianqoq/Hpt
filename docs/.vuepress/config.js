@@ -486,8 +486,11 @@ export default defineUserConfig({
               link: '/benchmarks/reduce.md'
             },
             {
-              text: 'conv',
-              link: '/benchmarks/conv.md'
+              text: 'conv(f32)',
+              link: '/benchmarks/conv_f32.md'
+            },{
+              text: 'conv(f16)',
+              link: '/benchmarks/conv_f16.md'
             },
             {
               text: 'pooling',

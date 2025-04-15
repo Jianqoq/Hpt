@@ -3,25 +3,33 @@ use hpt_traits::{
     tensor::CommonBounds,
 };
 use hpt_types::{
+    dtype::TypeCommon,
     into_scalar::Cast,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOutPromote},
 };
 
 use crate::{
-    backends::cpu::kernels::{conv2d::{
-        self, batchnorm_conv2d::batchnorm_conv2d, conv2d_group::conv2d_group, conv2d_new_mp,
-        microkernel_trait::Conv2dMicroKernel,
-    }, matmul::microkernel_trait::MatmulMicroKernel},
+    backends::cpu::kernels::{
+        conv2d::{
+            self, batchnorm_conv2d::batchnorm_conv2d, conv2d_group::conv2d_group, conv2d_new_mp,
+            microkernel_trait::Conv2dMicroKernel,
+        },
+        matmul::microkernel_trait::MatmulMicroKernel,
+    },
     tensor_base::_Tensor,
 };
 use hpt_allocator::{
     traits::{Allocator, AllocatorOutputRetrive},
     Cpu,
 };
+use hpt_types::traits::VecTrait;
 
 impl<T, const DEVICE: usize, Al> Conv<T> for _Tensor<T, Cpu, DEVICE, Al>
 where
-    T: CommonBounds + Conv2dMicroKernel + Cast<<T as NormalOutPromote>::Intermediate> + MatmulMicroKernel,
+    T: CommonBounds
+        + Conv2dMicroKernel
+        + Cast<<T as NormalOutPromote>::Intermediate>
+        + MatmulMicroKernel,
     <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
     bool: Cast<T>,
     Al: Allocator + Send + Sync,
@@ -40,11 +48,90 @@ where
         post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         if T::STR == "bf16" {
-            conv2d_new_mp::conv2d(self, kernels, bias, steps, padding, dilation)
+            type F32Vec = <<half::bf16 as NormalOutPromote>::Intermediate as TypeCommon>::Vec;
+            type BF16Vec = <half::bf16 as TypeCommon>::Vec;
+            let inp = self
+                .static_cast::<half::bf16>()
+                .expect("static_cast bf16 failed");
+            let ker = kernels
+                .static_cast::<half::bf16>()
+                .expect("static_cast bf16 failed");
+            let bias = bias.map(|x| {
+                x.static_cast::<half::bf16>()
+                    .expect("static_cast bf16 failed")
+            });
+            let res = conv2d_new_mp::conv2d::<half::bf16, DEVICE, Al>(
+                &inp,
+                &ker,
+                bias.as_ref(),
+                steps,
+                padding,
+                dilation,
+                |x| {
+                    let vec0 = unsafe { x.read_unaligned() };
+                    let vec1 = unsafe { x.add(1).read_unaligned() };
+                    BF16Vec::from_2_f32vec([vec0, vec1])
+                },
+                |x| unsafe {
+                    let mut bf16_vec = BF16Vec::splat(half::bf16::from_f32_const(0.0));
+                    for j in 0..F32Vec::SIZE {
+                        bf16_vec[j] = *x.add(j);
+                    }
+                    let val_f32 = bf16_vec.high_to_f32vec();
+                    val_f32
+                },
+                |x| x.cast(),
+                |x| x.cast(),
+            )?;
+            Ok(res.static_cast::<T>()?)
         } else if T::STR == "f16" && !cfg!(target_feature = "neon") {
-            conv2d_new_mp::conv2d(self, kernels, bias, steps, padding, dilation)
+            type F32Vec = <<half::f16 as NormalOutPromote>::Intermediate as TypeCommon>::Vec;
+            type F16Vec = <half::f16 as TypeCommon>::Vec;
+            let inp = self
+                .static_cast::<half::f16>()
+                .expect("static_cast f16 failed");
+            let ker = kernels
+                .static_cast::<half::f16>()
+                .expect("static_cast f16 failed");
+            let bias = bias.map(|x| {
+                x.static_cast::<half::f16>()
+                    .expect("static_cast f16 failed")
+            });
+            let res = conv2d_new_mp::conv2d::<half::f16, DEVICE, Al>(
+                &inp,
+                &ker,
+                bias.as_ref(),
+                steps,
+                padding,
+                dilation,
+                |x| {
+                    let vec0 = unsafe { x.read_unaligned() };
+                    let vec1 = unsafe { x.add(1).read_unaligned() };
+                    F16Vec::from_2_f32vec([vec0, vec1])
+                },
+                |x| unsafe {
+                    let mut f16_vec = F16Vec::splat(half::f16::from_f32_const(0.0));
+                    for j in 0..F32Vec::SIZE {
+                        f16_vec[j] = *x.add(j);
+                    }
+                    let val_f32 = f16_vec.high_to_f32vec();
+                    val_f32
+                },
+                |x| x.cast(),
+                |x| x.cast(),
+            )?;
+            Ok(res.static_cast::<T>()?)
         } else {
-            conv2d::conv2d::conv2d(self, kernels, bias, steps, padding, dilation, post_scalar, post_vec)
+            conv2d::conv2d::conv2d(
+                self,
+                kernels,
+                bias,
+                steps,
+                padding,
+                dilation,
+                post_scalar,
+                post_vec,
+            )
         }
     }
 
@@ -118,7 +205,18 @@ where
         post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         batchnorm_conv2d(
-            self, kernels, mean, var, gamma, beta, bias, eps, steps, padding, dilation, post_scalar,
+            self,
+            kernels,
+            mean,
+            var,
+            gamma,
+            beta,
+            bias,
+            eps,
+            steps,
+            padding,
+            dilation,
+            post_scalar,
             post_vec,
         )
     }

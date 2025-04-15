@@ -10,7 +10,6 @@ use hpt::{
     types::{math::NormalOutUnary, TypeCommon},
     Load, Save, Tensor,
 };
-use hpt::common::TensorInfo;
 use safetensors::SafeTensors;
 type F32Simd = <f32 as TypeCommon>::Vec;
 

@@ -101,7 +101,7 @@ macro_rules! conv2d_micro_kernel {
 macro_rules! conv2d_mixed_precision_micro_kernel {
     ($name:ident, $nr:expr, $mr:expr, $nr2:expr) => {
         fn $name<T: $crate::common::CommonBounds, IM: $crate::common::CommonBounds>(
-            inp: $crate::common::Pointer<T>,
+            inp: $crate::common::Pointer<IM>,
             kernel: $crate::common::Pointer<IM>,
             mut out: $crate::common::Pointer<T>,
             icb: i64,
@@ -116,6 +116,8 @@ macro_rules! conv2d_mixed_precision_micro_kernel {
             [owr, ocr]: [i64; 2],
             [dh, dw]: [i64; 2],
             first_ic_iter: bool,
+            vec_cast: fn(*const T) -> IM::Vec,
+            vec_cast_back: fn(*const IM::Vec) -> T::Vec,
             cast: fn(T) -> IM,
             cast_back: fn(IM) -> T,
         ) {
@@ -125,11 +127,21 @@ macro_rules! conv2d_mixed_precision_micro_kernel {
                 [[IM::Vec::splat(IM::ZERO); $nr2]; $mr]
             } else {
                 let mut c_local = [[IM::Vec::splat(IM::ZERO); $nr2]; $mr];
-                for mr in 0..owr {
-                    let reg = c_local[mr as usize].as_mut_ptr() as *mut IM;
-                    for nr in 0..ocr as i64 {
-                        let val = cast(out[(mr + k) * osw + j + nr]);
-                        unsafe { reg.add(nr as usize).write(val) };
+                if ocr == $nr2 * IM::Vec::SIZE as i64 {
+                    for mr in 0..owr {
+                        let reg = c_local[mr as usize].as_mut_ptr() as *mut IM::Vec;
+                        let out_ptr = unsafe { out.ptr.offset(((mr + k) * osw + j) as isize) } as *const T;
+                        $crate::re_exports::seq_macro::seq!(NR in 0..$nr2 {
+                            unsafe { reg.add(NR as usize).write(vec_cast(out_ptr.add(NR * IM::Vec::SIZE))) };
+                        });
+                    }
+                } else {
+                    for mr in 0..owr {
+                        let reg = c_local[mr as usize].as_mut_ptr() as *mut IM;
+                        for nr in 0..ocr as i64 {
+                            let val = cast(out[(mr + k) * osw + j + nr]);
+                            unsafe { reg.add(nr as usize).write(val) };
+                        }
                     }
                 }
                 c_local
@@ -150,7 +162,7 @@ macro_rules! conv2d_mixed_precision_micro_kernel {
                         let mut a_vec;
                         $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
                             let in_x = (k + MR) * step_width + m * dw;
-                            a_vec = <IM as $crate::types::TypeCommon>::Vec::splat(cast(inp[in_y * ish + in_x * isw + ii]));
+                            a_vec = <IM as $crate::types::TypeCommon>::Vec::splat(inp[in_y * ish + in_x * isw + ii]);
                             $crate::re_exports::seq_macro::seq!(NR in 0..$nr2 {
                                 c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
                             });
@@ -160,11 +172,19 @@ macro_rules! conv2d_mixed_precision_micro_kernel {
                     }
                 }
             }
-            for mr in 0..owr {
-                let reg = c_local[mr as usize].as_ptr() as *const IM;
-                for nr in 0..ocr as i64 {
-                    out[(mr + k) * osw + j + nr] =
-                        cast_back(unsafe { reg.add(nr as usize).read() });
+            if ocr == $nr2 * IM::Vec::SIZE as i64 {
+                for mr in 0..owr {
+                    let res = vec_cast_back(c_local[mr as usize].as_ptr() as *const IM::Vec);
+                    let out_ptr = unsafe { out.ptr.offset(((mr + k) * osw + j) as isize) } as *mut T::Vec;
+                    unsafe { out_ptr.write_unaligned(res) };
+                }
+            } else {
+                for mr in 0..owr {
+                    let reg = c_local[mr as usize].as_ptr() as *const IM;
+                    for nr in 0..ocr as i64 {
+                        out[(mr + k) * osw + j + nr] =
+                            cast_back(unsafe { reg.add(nr as usize).read() });
+                    }
                 }
             }
         }

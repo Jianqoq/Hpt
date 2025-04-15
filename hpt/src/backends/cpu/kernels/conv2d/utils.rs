@@ -147,7 +147,7 @@ pub(crate) fn pack_kernel<T: CommonBounds>(
 }
 
 pub(crate) fn pack_kernel_mp<T: CommonBounds>(
-    mut packed_kernel: Pointer<<T as NormalOutPromote>::Intermediate>,
+    packed_kernel: Pointer<<T as NormalOutPromote>::Intermediate>,
     kernel: Pointer<T>,
     in_channels: i64,
     out_channels: i64,
@@ -160,9 +160,6 @@ pub(crate) fn pack_kernel_mp<T: CommonBounds>(
     T: Cast<<T as NormalOutPromote>::Intermediate>,
     <T as NormalOutPromote>::Intermediate: CommonBounds,
 {
-    use hpt_types::traits::VecTrait;
-
-    // 计算单个块的大小
     fn calculate_block_size(icb: i64, ocb: i64, or: i64, kh: i64, kw: i64) -> i64 {
         let mut size = 0;
         for jj in (0..ocb).step_by(or as usize) {
@@ -172,7 +169,6 @@ pub(crate) fn pack_kernel_mp<T: CommonBounds>(
         size
     }
 
-    // 创建工作项
     let mut work_items = Vec::new();
     let mut total_offset = 0;
 
@@ -210,32 +206,6 @@ pub(crate) fn pack_kernel_mp<T: CommonBounds>(
             }
         }
     });
-
-    // let mut idx: i64 = 0;
-    // for i in (0..in_channels).step_by(ic as usize) {
-    //     let icb = ic.min(in_channels - i);
-    //     for j in (0..out_channels).step_by(oc as usize) {
-    //         let ocb = oc.min(out_channels - j);
-    //         for jj in (0..ocb).step_by(or as usize) {
-    //             let ocr = or.min(ocb - jj);
-    //             for n in 0..kh {
-    //                 for m in 0..kw {
-    //                     for ii in 0..icb {
-    //                         for nr in 0..ocr {
-    //                             packed_kernel[idx] =
-    //                                 kernel[n * ks0 + m * ks1 + (i + ii) * ks2 + jj + j + nr].cast();
-    //                             idx += 1;
-    //                         }
-    //                         for _ in ocr..or {
-    //                             packed_kernel[idx] = <T as NormalOutPromote>::Intermediate::ZERO;
-    //                             idx += 1;
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
 }
 
 pub(crate) fn calculate_kernel_params<T: CommonBounds>(
