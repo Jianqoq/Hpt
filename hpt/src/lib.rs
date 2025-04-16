@@ -32,24 +32,18 @@ pub(crate) mod backends {
                 pub(crate) mod common;
             }
             pub(crate) mod normalization {
+                pub(crate) mod batch_norm;
                 pub(crate) mod log_softmax;
                 pub(crate) mod logsoftmax;
                 pub(crate) mod normalize_utils;
                 pub(crate) mod softmax;
-                pub(crate) mod batch_norm;
             }
             pub(crate) mod conv2d {
                 pub(crate) mod batchnorm_conv2d;
                 pub(crate) mod conv2d;
                 pub(crate) mod conv2d_direct;
                 pub(crate) mod conv2d_group;
-                pub(crate) mod conv2d_transpose;
                 pub(crate) mod dwconv2d;
-                pub(crate) mod micro_kernels {
-                    pub(crate) mod conv_group;
-                    pub(crate) mod conv_transpose;
-                    pub(crate) mod dwconv;
-                }
                 pub(crate) mod type_kernels {
                     pub(crate) mod bf16_microkernels;
                     pub(crate) mod bool_microkernels;
@@ -70,7 +64,7 @@ pub(crate) mod backends {
                     pub(crate) mod usize_microkernels;
                 }
                 pub(crate) mod conv2d_img2col;
-                pub(crate) mod conv2d_micro_kernels_new;
+                pub(crate) mod conv2d_micro_kernels;
                 pub(crate) mod conv2d_new_mp;
                 pub(crate) mod microkernel_trait;
                 pub(crate) mod utils;
@@ -195,12 +189,6 @@ pub(crate) mod backends {
             pub(crate) mod tensordot;
             /// a module that contains all the windows creation functions
             pub(crate) mod windows;
-        }
-
-        /// a module contains cpu L1, L2, L3 cache helper
-        pub(crate) mod cache_utils {
-            /// a module contains cache utils
-            pub(crate) mod cache;
         }
         /// a module contains cpu tensor impls
         pub(crate) mod tensor_impls;
@@ -506,7 +494,6 @@ pub mod utils {
 
 use ctor::ctor;
 use hpt_types::arch_simd as simd;
-use hpt_types::traits::VecTrait;
 use std::{cell::RefCell, sync::atomic::AtomicUsize};
 pub use tensor::Tensor;
 
@@ -540,9 +527,6 @@ type BoolVector = simd::_256bit::boolx32;
     target_feature = "neon"
 ))]
 type BoolVector = simd::_128bit::boolx16;
-
-const SIMD_WIDTH: usize =
-    <f32 as hpt_types::dtype::TypeCommon>::Vec::SIZE * std::mem::size_of::<f32>() * 8;
 
 #[cfg(feature = "cuda")]
 const CUDA_SEED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(2621654116416541);

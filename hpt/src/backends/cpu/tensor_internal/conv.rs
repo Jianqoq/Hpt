@@ -11,8 +11,7 @@ use hpt_types::{
 use crate::{
     backends::cpu::kernels::{
         conv2d::{
-            self, batchnorm_conv2d::batchnorm_conv2d, conv2d_group::conv2d_group, conv2d_new_mp,
-            microkernel_trait::Conv2dMicroKernel,
+            self, batchnorm_conv2d::batchnorm_conv2d, conv2d_group::conv2d_group, conv2d_new_mp, dwconv2d::dwconv2d, microkernel_trait::Conv2dMicroKernel
         },
         matmul::microkernel_trait::MatmulMicroKernel,
     },
@@ -151,7 +150,15 @@ where
         post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         conv2d_group(
-            self, kernels, bias, steps, padding, dilation, groups, post_vec,
+            self,
+            kernels,
+            bias,
+            steps,
+            padding,
+            dilation,
+            groups,
+            post_scalar,
+            post_vec,
         )
     }
 
@@ -165,22 +172,20 @@ where
         post_scalar: Option<fn(T) -> T>,
         post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
-        unimplemented!()
-        // dwconv2d(self, kernels, bias, steps, padding, dilation, activation)
+        dwconv2d(self, bias, kernels, steps, padding, dilation, post_scalar, post_vec)
     }
 
     fn conv2d_transpose(
         &self,
-        kernels: &Self::Output,
-        steps: [i64; 2],
-        padding: [(i64, i64); 2],
-        output_padding: [i64; 2],
-        dilation: [i64; 2],
-        post_scalar: Option<fn(T) -> T>,
-        post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
+        _: &Self::Output,
+        _: [i64; 2],
+        _: [(i64, i64); 2],
+        _: [i64; 2],
+        _: [i64; 2],
+        _: Option<fn(T) -> T>,
+        _: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         unimplemented!()
-        // conv2d_transpose(self, kernels, steps, padding, output_padding, dilation)
     }
 }
 
