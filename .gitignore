@@ -31,3 +31,5 @@ docs/.vuepress/dist/
 
 cutlass_gemm.cu
 cutlass
+
+package-lock.json
