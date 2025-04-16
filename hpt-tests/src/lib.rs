@@ -25,7 +25,6 @@ pub mod hpt {
         pub mod matmul;
         pub mod maxpool;
         pub mod onehot;
-        pub mod pwconv2d;
         pub mod reduce;
         pub mod scatter;
         pub mod shape_manipulate;
