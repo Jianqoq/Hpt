@@ -128,27 +128,6 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
     }
 
     #[allow(unused_variables)]
-    fn get_kernel_with_post_op<F: Fn(Self) -> Self, G: Fn(Self::Vec) -> Self::Vec>(
-        nr: usize,
-        mr: usize
-    ) -> fn(
-        Pointer<Self>,
-        Pointer<Self>,
-        Pointer<Self>,
-        i64,
-        i64,
-        usize,
-        usize,
-        i64,
-        bool,
-        bool,
-        F,
-        G
-    ) {
-        unimplemented!()
-    }
-
-    #[allow(unused_variables)]
     fn get_mixed_precision_kernel<MixedType>(
         nr: usize,
         mr: usize
@@ -202,35 +181,6 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
             fn(*const MixedType::Vec) -> Self::Vec,
             fn(Self) -> MixedType,
             fn(MixedType) -> Self
-        )
-        where MixedType: CommonBounds
-    {
-        unimplemented!("mixed precision kernel is required for user to implement")
-    }
-
-    #[allow(unused_variables)]
-    fn get_mixed_precision_kernel_with_post_op<
-        MixedType,
-        F: Fn(Self) -> Self,
-        G: Fn(Self::Vec) -> Self::Vec
-        >(
-        nr: usize,
-        mr: usize
-    ) -> fn(
-            Pointer<MixedType>,
-            Pointer<MixedType>,
-            Pointer<Self>,
-            i64,
-            i64,
-            usize,
-            usize,
-            i64,
-            bool,
-            bool,
-            fn(*const MixedType::Vec) -> Self::Vec,
-            fn(MixedType) -> Self,
-            F,
-            G
         )
         where MixedType: CommonBounds
     {

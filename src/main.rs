@@ -4,63 +4,63 @@ use hpt::types::{bf16, f16};
 use hpt::utils::{set_display_elements, set_seed};
 use hpt::{error::TensorError, Tensor};
 fn main() -> Result<(), TensorError> {
-    let test_times = 10000;
-    // const N: i64 = 52;
-    // const CHANNEL: i64 = 128;
-    // let batch = 1;
-    // let in_channel = 97;
-    // let out_channel = 110;
-    // let height = 81;
-    // let width = 26;
-    // let kernel_height = 3;
-    // let kernel_width = 1;
-    // // 196 * 4608 * 512
-    // let mut test_a = Tensor::<f32>::arange(0, batch * in_channel * height * width)?;
-    // let mut test_b = test_a.reshape([batch, height, width, in_channel])?;
-    // let a = Tensor::<f16>::ones([batch, height, width, in_channel])?;
-    // let kernel = Tensor::<f16>::ones([kernel_height, kernel_width, in_channel, out_channel])?;
-    // let pads = [(0, 0), (0, 0)];
+    let test_times = 100;
+    const N: i64 = 52;
+    const CHANNEL: i64 = 128;
+    let batch = 1;
+    let in_channel = 128;
+    let out_channel = 128;
+    let height = 256;
+    let width = 256;
+    let kernel_height = 3;
+    let kernel_width = 3;
+    // 196 * 4608 * 512
+    let mut test_a = Tensor::<f32>::arange(0, batch * in_channel * height * width)?;
+    let mut test_b = test_a.reshape([batch, height, width, in_channel])?;
+    let a = Tensor::<f16>::ones([batch, height, width, in_channel])?;
+    let kernel = Tensor::<f16>::ones([kernel_height, kernel_width, in_channel, out_channel])?;
+    let pads = [(0, 0), (0, 0)];
+    let now = std::time::Instant::now();
+    for _ in 0..test_times {
+        let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1], None, None)?;
+        // println!("b: {}", b);
+    }
+    println!("conv2d time: {:?}", now.elapsed() / test_times);
+
+    // let a = Tensor::<f32>::ones([32, 512])?;
+    // let b = Tensor::<f32>::ones([512, 512])?;
     // let now = std::time::Instant::now();
     // for _ in 0..test_times {
-    //     let b = a.conv2d(&kernel, None, [1, 1], pads, [1, 1], None, None)?;
-    //     println!("b: {}", b);
+    //     let c = a.matmul(&b)?;
     // }
-    // println!("conv2d time: {:?}", now.elapsed() / test_times);
-
-    let a = Tensor::<f32>::ones([32, 512])?;
-    let b = Tensor::<f32>::ones([512, 512])?;
-    let now = std::time::Instant::now();
-    for _ in 0..test_times {
-        let c = a.matmul(&b)?;
-    }
-    println!("gemm time: {:?}", now.elapsed() / test_times);
-    let now = std::time::Instant::now();
-    for _ in 0..test_times {
-        let c = a.matmul(&b.t()?)?;
-    }
-    println!("gemm2 time: {:?}", now.elapsed() / test_times);
-    let a3 = CandleTensor::ones(
-        [512, 512]
-            .into_iter()
-            .map(|x| x as usize)
-            .collect::<Vec<usize>>(),
-        candle_core::DType::F32,
-        &candle_core::Device::Cpu,
-    )
-    .unwrap();
-    let c3 = CandleTensor::ones(
-        [512, 512]
-            .into_iter()
-            .map(|x| x as usize)
-            .collect::<Vec<usize>>(),
-        candle_core::DType::F32,
-        &candle_core::Device::Cpu,
-    )
-    .unwrap();
-    let now = std::time::Instant::now();
-    for _ in 0..test_times {
-        let c = a3.matmul(&c3).unwrap();
-    }
-    println!("mkl time: {:?}", now.elapsed() / test_times);
+    // println!("gemm time: {:?}", now.elapsed() / test_times);
+    // let now = std::time::Instant::now();
+    // for _ in 0..test_times {
+    //     let c = a.matmul(&b.t()?)?;
+    // }
+    // println!("gemm2 time: {:?}", now.elapsed() / test_times);
+    // let a3 = CandleTensor::ones(
+    //     [512, 512]
+    //         .into_iter()
+    //         .map(|x| x as usize)
+    //         .collect::<Vec<usize>>(),
+    //     candle_core::DType::F32,
+    //     &candle_core::Device::Cpu,
+    // )
+    // .unwrap();
+    // let c3 = CandleTensor::ones(
+    //     [512, 512]
+    //         .into_iter()
+    //         .map(|x| x as usize)
+    //         .collect::<Vec<usize>>(),
+    //     candle_core::DType::F32,
+    //     &candle_core::Device::Cpu,
+    // )
+    // .unwrap();
+    // let now = std::time::Instant::now();
+    // for _ in 0..test_times {
+    //     let c = a3.matmul(&c3).unwrap();
+    // }
+    // println!("mkl time: {:?}", now.elapsed() / test_times);
     Ok(())
 }

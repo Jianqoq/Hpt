@@ -1,5 +1,4 @@
 use hpt_traits::tensor::CommonBounds;
-use hpt_types::dtype::TypeCommon;
 
 use crate::backends::cpu::kernels::conv2d::microkernel_trait::Conv2dMicroKernel;
 
@@ -9,7 +8,7 @@ impl Conv2dMicroKernel for crate::types::f16 {
         nr: usize,
         mr: usize,
     ) -> fn(
-        hpt_common::Pointer<Self>,
+        hpt_common::Pointer<MixedType>,
         hpt_common::Pointer<MixedType>,
         hpt_common::Pointer<Self>,
         i64,
@@ -24,8 +23,10 @@ impl Conv2dMicroKernel for crate::types::f16 {
         [i64; 2],
         [i64; 2],
         bool,
+        fn(*const Self) -> MixedType::Vec,
+        fn(*const MixedType::Vec) -> Self::Vec,
         fn(Self) -> MixedType,
-        fn(MixedType) -> Self,
+        fn(MixedType) -> Self
     )
     where
         MixedType: CommonBounds,
@@ -42,34 +43,6 @@ impl Conv2dMicroKernel for crate::types::f16 {
         conv2d_mixed_precision_micro_kernel!(x2x4, 2, 4, 4);
         [x2x1, x2x2, x2x3, x2x4][mr - 1]
     }
-    fn get_mixed_precision_kernel_with_post_op<
-        MixedType,
-        F: Fn(Self) -> Self,
-        G: Fn(Self::Vec) -> Self::Vec,
-    >(
-        nr: usize,
-        mr: usize,
-    ) -> fn(
-        hpt_common::Pointer<MixedType>,
-        hpt_common::Pointer<MixedType>,
-        hpt_common::Pointer<Self>,
-        i64,
-        i64,
-        usize,
-        usize,
-        i64,
-        bool,
-        bool,
-        fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
-        fn(MixedType) -> Self,
-        F,
-        G,
-    )
-    where
-        MixedType: CommonBounds,
-    {
-        unimplemented!()
-    }
     fn get_max_mixed_precision_nr() -> usize {
         2
     }
@@ -78,7 +51,7 @@ impl Conv2dMicroKernel for crate::types::f16 {
     }
 }
 
-// #[cfg(target_feature = "avx2")]
+#[cfg(target_feature = "avx2")]
 impl Conv2dMicroKernel for crate::types::f16 {
     fn get_mixed_precision_kernel<MixedType>(
         nr: usize,
