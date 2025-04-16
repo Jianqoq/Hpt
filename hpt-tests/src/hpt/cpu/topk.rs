@@ -5,23 +5,11 @@ use hpt::ops::*;
 use hpt::slice;
 use hpt::Tensor;
 use rand::Rng;
-#[allow(unused)]
-fn assert_eq(b: &Tensor<f32>, a: &tch::Tensor) {
-    let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const f32, b.size()) };
-    let b_raw = b.as_raw();
 
-    for i in 0..b.size() {
-        if a_raw[i] != b_raw[i] {
-            panic!(
-                "{} != {}, bytes: {:?}, {:?}",
-                a_raw[i],
-                b_raw[i],
-                a_raw[i].to_ne_bytes(),
-                b_raw[i].to_ne_bytes()
-            );
-        }
-    }
-}
+use crate::TestTypes;
+use crate::TCH_TEST_TYPES;
+use crate::TEST_ATOL;
+use crate::TEST_RTOL;
 
 #[test]
 fn test() -> anyhow::Result<()> {
@@ -31,17 +19,20 @@ fn test() -> anyhow::Result<()> {
         let shape = (0..ndim)
             .map(|_| rng.random_range(1..=10))
             .collect::<Vec<_>>();
-        let tch_a = tch::Tensor::randn(&shape, (tch::Kind::Float, tch::Device::Cpu));
-        let mut a = Tensor::<f32>::empty(&shape)?;
+        let tch_a = tch::Tensor::randn(&shape, (TCH_TEST_TYPES, tch::Device::Cpu));
+        let mut a = Tensor::<TestTypes>::empty(&shape)?;
         a.as_raw_mut().copy_from_slice(unsafe {
-            std::slice::from_raw_parts(tch_a.data_ptr() as *mut f32, tch_a.numel())
+            std::slice::from_raw_parts(tch_a.data_ptr() as *mut TestTypes, tch_a.numel())
         });
 
         for i in 0..ndim {
             let k = rng.random_range(1..=shape[i]);
             let (_, b_values) = a.topk(k as i64, i as i64, true, true)?;
             let (tch_b_values, _) = tch_a.topk(k as i64, i as i64, true, true);
-            assert_eq(&b_values, &tch_b_values);
+            let tch_res = unsafe {
+                Tensor::<TestTypes>::from_raw(tch_b_values.data_ptr() as *mut TestTypes, &b_values.shape().to_vec())
+            }?;
+            assert!(b_values.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
         }
     }
     Ok(())
@@ -55,10 +46,10 @@ fn test_uncontiguous() -> anyhow::Result<()> {
         let shape = (0..ndim)
             .map(|_| rng.random_range(1..=10))
             .collect::<Vec<_>>();
-        let tch_a = tch::Tensor::randn(&shape, (tch::Kind::Float, tch::Device::Cpu));
-        let mut a = Tensor::<f32>::empty(&shape)?;
+        let tch_a = tch::Tensor::randn(&shape, (TCH_TEST_TYPES, tch::Device::Cpu));
+        let mut a = Tensor::<TestTypes>::empty(&shape)?;
         a.as_raw_mut().copy_from_slice(unsafe {
-            std::slice::from_raw_parts(tch_a.data_ptr() as *mut f32, tch_a.numel())
+            std::slice::from_raw_parts(tch_a.data_ptr() as *mut TestTypes, tch_a.numel())
         });
         let permute_shape = (0..ndim).rev().collect::<Vec<_>>();
         let a = a.permute(&permute_shape)?;
@@ -67,7 +58,10 @@ fn test_uncontiguous() -> anyhow::Result<()> {
             let k = rng.random_range(1..=a.shape()[i as usize]);
             let (_, b_values) = a.topk(k as i64, i as i64, true, true)?;
             let (tch_b_values, _) = tch_a.topk(k as i64, i as i64, true, true);
-            assert_eq(&b_values, &tch_b_values);
+            let tch_res = unsafe {
+                Tensor::<TestTypes>::from_raw(tch_b_values.data_ptr() as *mut TestTypes, &b_values.shape().to_vec())
+            }?;
+            assert!(b_values.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
         }
     }
     Ok(())
@@ -81,10 +75,10 @@ fn test_2dim_uncontiguous_sub_tensor() -> anyhow::Result<()> {
         let shape = (0..ndim)
             .map(|_| rng.random_range(1..=10))
             .collect::<Vec<_>>();
-        let tch_a = tch::Tensor::randn(&shape, (tch::Kind::Float, tch::Device::Cpu));
-        let mut a = Tensor::<f32>::empty(&shape)?;
+        let tch_a = tch::Tensor::randn(&shape, (TCH_TEST_TYPES, tch::Device::Cpu));
+        let mut a = Tensor::<TestTypes>::empty(&shape)?;
         a.as_raw_mut().copy_from_slice(unsafe {
-            std::slice::from_raw_parts(tch_a.data_ptr() as *mut f32, tch_a.numel())
+            std::slice::from_raw_parts(tch_a.data_ptr() as *mut TestTypes, tch_a.numel())
         });
         let permute_shape = (0..ndim).rev().collect::<Vec<_>>();
         let a = a.permute(&permute_shape)?;
@@ -138,7 +132,10 @@ fn test_2dim_uncontiguous_sub_tensor() -> anyhow::Result<()> {
             let k = rng.random_range(1..=a.shape()[i as usize]);
             let (_, b_values) = a.topk(k, i, true, true)?;
             let (tch_b_values, _) = tch_a.topk(k, i, true, true);
-            assert_eq(&b_values, &tch_b_values);
+            let tch_res = unsafe {
+                Tensor::<TestTypes>::from_raw(tch_b_values.data_ptr() as *mut TestTypes, &b_values.shape().to_vec())
+            }?;
+            assert!(b_values.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
         }
     }
     Ok(())

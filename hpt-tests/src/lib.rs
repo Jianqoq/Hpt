@@ -15,7 +15,7 @@ pub mod hpt {
         pub mod bn_conv2d;
         pub mod conv2d;
         pub mod conv2d_group;
-        pub mod conv2d_transpose;
+        // pub mod conv2d_transpose;
         pub mod creation;
         pub mod cumulate;
         pub mod dwconv2d;

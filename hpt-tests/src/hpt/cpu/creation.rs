@@ -15,8 +15,6 @@ use crate::TCH_TEST_TYPES;
 use crate::TEST_ATOL;
 use crate::TEST_RTOL;
 
-use super::assert_utils::assert_f64;
-
 #[allow(unused)]
 fn assert_eq(hpt_res: &Tensor<TestTypes>, tch_res: &tch::Tensor) -> anyhow::Result<()> {
     let tch_res = unsafe {

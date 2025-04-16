@@ -3,7 +3,7 @@ use crate::backends::cpu::kernels::matmul::common::{calculate_jobs, calculate_pr
 use crate::tensor_base::_Tensor;
 use crate::ALIGN;
 use dyn_stack::DynStack;
-use gemm_common::cache::{DivCeil, KernelParams, CACHE_INFO};
+use gemm_common::cache::DivCeil;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::shape::shape_utils::mt_intervals;
 use hpt_common::{error::base::TensorError, Pointer};
@@ -291,19 +291,7 @@ pub fn matmul_post_template_no_block_info<T, F, F2>(
     if (lhs_col_stride == 1 && n > 128 * nr) || lhs_col_stride != 1 {
         do_lhs_pack = true;
     }
-    let mut param = if m <= 64 && n <= 64 {
-        // skip expensive kernel_params call for small sizes
-        let kc = k.min(512);
-        let alloc = CACHE_INFO[1].cache_bytes / core::mem::size_of::<T>();
-        let nc = (alloc / kc) / nr * nr;
-        KernelParams {
-            kc,
-            mc: m.msrv_next_multiple_of(mr),
-            nc,
-        }
-    } else {
-        kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>(), do_lhs_pack)
-    };
+    let mut param = kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>(), do_lhs_pack);
     if param.nc == 0 {
         param.nc = n.msrv_next_multiple_of(nr);
     }
