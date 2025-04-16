@@ -45,7 +45,7 @@ dyn-stack = { version = "0.13", default-features = false, features = ["alloc"] }
 num-traits = "0.2.19"
 num-complex = "0.4.6"
 rayon = "1.10.0"
-half = { version = "2.3.1", features = ["num-traits", "rand_distr"] }
+half = { version = "2.3.1", features = ["num-traits", "rand_distr", "serde"] }
 serde = { version = "1.0.219", features = ["derive", "rc"] }
 libm = "0.2.11"
 rand_distr = "0.5.1"

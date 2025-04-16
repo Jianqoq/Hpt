@@ -19,3 +19,4 @@ flate2 = { workspace = true }
 num = { workspace = true }
 safetensors = { workspace = true }
 bytemuck = { workspace = true }
+half = { workspace = true }

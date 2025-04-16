@@ -82,6 +82,8 @@ where
                 },
                 |x| x.cast(),
                 |x| x.cast(),
+                unsafe { std::mem::transmute(post_scalar) },
+                unsafe { std::mem::transmute(post_vec) },
             )?;
             Ok(res.static_cast::<T>()?)
         } else if T::STR == "f16" && !cfg!(target_feature = "neon") {
@@ -119,6 +121,8 @@ where
                 },
                 |x| x.cast(),
                 |x| x.cast(),
+                unsafe { std::mem::transmute(post_scalar) },
+                unsafe { std::mem::transmute(post_vec) },
             )?;
             Ok(res.static_cast::<T>()?)
         } else {

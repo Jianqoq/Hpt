@@ -1,6 +1,7 @@
 use super::microkernel_trait::Conv2dMicroKernel;
 use super::utils::calculate_kernel_params;
 use super::utils::create_packed_kernel;
+use super::utils::handle_post;
 use super::utils::pack_kernel_mp;
 use crate::backends::common::conv::cal_conv2d_output_shape;
 use crate::tensor_base::_Tensor;
@@ -32,6 +33,8 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel, const DEVICE: usize, A
     vec_cast: fn(*const T) -> IMVec<T>,
     cast: fn(T) -> IM<T>,
     cast_back: fn(IM<T>) -> T,
+    post_scalar: Option<fn(T) -> T>,
+    post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
 ) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
     bool: Cast<T>,
@@ -153,7 +156,7 @@ where
         })
         .into());
     }
-    let output = _Tensor::<T, Cpu, DEVICE, A>::empty([batch, out_height, out_width, out_channels])?;
+    let mut output = _Tensor::<T, Cpu, DEVICE, A>::empty([batch, out_height, out_width, out_channels])?;
     let out = output.ptr();
 
     let osb = output.strides()[0]; // batch
@@ -256,6 +259,8 @@ where
             }
         }
     });
+
+    handle_post(&mut output, bias, post_scalar, post_vec)?;
 
     Ok(output)
 }

@@ -93,6 +93,7 @@ impl LSTM {
             .collect::<Tensor<f32>>();
 
         Ok((h_t, c_t))
+        // Ok((o_t, f_t))
     }
 }
 

@@ -89,7 +89,7 @@ pub(crate) fn kernel_params(
         let n_iter = n.div_ceil(auto_nc);
         n.div_ceil(n_iter * nr) * nr
     };
-    let auto_nc = Ord::min(auto_nc, 4 * nr);
+    let auto_nc = Ord::min(auto_nc, 2 * nr);
 
     // l3 cache must hold
     //  - A macropanel: mc×kc: assume 1 assoc degree
