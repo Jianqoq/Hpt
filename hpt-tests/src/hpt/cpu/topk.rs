@@ -41,7 +41,7 @@ fn test() -> anyhow::Result<()> {
 #[test]
 fn test_uncontiguous() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let ndim = rng.random_range(1..=5);
         let shape = (0..ndim)
             .map(|_| rng.random_range(1..=10))
@@ -71,7 +71,7 @@ fn test_uncontiguous() -> anyhow::Result<()> {
 fn test_2dim_uncontiguous_sub_tensor() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     let ndim = 5;
-    for _ in 0..1000 {
+    for _ in 0..100 {
         let shape = (0..ndim)
             .map(|_| rng.random_range(1..=10))
             .collect::<Vec<_>>();

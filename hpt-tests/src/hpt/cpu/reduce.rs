@@ -29,8 +29,6 @@ fn assert_eq(a: &hpt::Tensor<TestTypes>, b: &Tensor) {
     let tch_res = unsafe {
         hpt::Tensor::<TestTypes>::from_raw(b.data_ptr() as *mut TestTypes, &a.shape().to_vec())
     }.expect("Failed to convert tch tensor to hpt tensor");
-    println!("a {}", a);
-    println!("tch_res {}", tch_res);
     assert!(a.allclose(&tch_res, TEST_ATOL, TEST_RTOL));
 }
 

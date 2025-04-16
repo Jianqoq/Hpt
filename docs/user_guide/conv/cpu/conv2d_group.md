@@ -8,7 +8,8 @@ fn conv2d_group(
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         groups: i64,
-        activation: Option<fn(T::Vec) -> T::Vec>,
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Tensor<T>, TensorError>
 ```
 Performs a grouped 2D convolution operation, which divides input channels into groups and performs separate convolutions on each group.
@@ -28,7 +29,9 @@ Performs a grouped 2D convolution operation, which divides input channels into g
 
 `groups`: Number of groups to use
 
-`activation`: Optional activation function applied to the convolution result
+`post_scalar`: Optional post function applied to each of the scalar result
+
+`post_vec`: Optional post_vec function applied to each of the vector result
 
 ## Returns:
 Tensor with type `T`
@@ -61,6 +64,7 @@ fn main() -> Result<(), TensorError> {
         [(1, 1), (1, 1)], // padding
         [1, 1],           // dilation
         4,                // groups
+        None,             // no activation function
         None,             // no activation function
     )?;
 
