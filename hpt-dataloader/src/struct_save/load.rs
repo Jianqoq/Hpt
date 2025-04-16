@@ -136,6 +136,8 @@ impl_load!(f32, 0.0);
 impl_load!(f64, 0.0);
 impl_load!(usize, 0);
 impl_load!(isize, 0);
+impl_load!(half::f16, half::f16::ZERO);
+impl_load!(half::bf16, half::bf16::ZERO);
 impl_load!(String, String::new());
 impl_load!(Shape, Shape::new([]));
 impl_load!(PhantomData<T>, Self, T);

@@ -1,9 +1,11 @@
 use crate::backend::Cpu;
-use crate::backends::cpu::kernels::matmul::common::{calculate_jobs, calculate_prgs, L2_SLAB};
+use crate::backends::cpu::kernels::matmul::common::{
+    calculate_jobs, calculate_prgs, L2_SLAB, L3_SLAB,
+};
 use crate::tensor_base::_Tensor;
 use crate::ALIGN;
 use dyn_stack::DynStack;
-use gemm_common::cache::{DivCeil, KernelParams, CACHE_INFO};
+use gemm_common::cache::DivCeil;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::shape::shape_utils::mt_intervals;
 use hpt_common::{error::base::TensorError, Pointer};
@@ -14,6 +16,7 @@ use std::cmp::min;
 
 use super::common::matmul_prepare;
 use super::microkernel_trait::MatmulMicroKernel;
+use super::utils::kernel_params;
 
 /// single batch matmul template
 ///
@@ -54,6 +57,7 @@ pub fn matmul_template<T>(
     nc: usize,
     nr: usize,
     mr: usize,
+    do_lhs_pack: bool,
     mut num_threads: usize,
 ) where
     T: CommonBounds + MatmulMicroKernel,
@@ -66,38 +70,27 @@ pub fn matmul_template<T>(
         T::STR
     );
 
-    #[cfg(not(target_feature = "neon"))]
-    let mut do_lhs_pack = false;
-    #[cfg(target_feature = "neon")]
-    let mut do_lhs_pack = true;
-
-    if (lhs_col_stride == 1 && n > 128 * nr) || lhs_col_stride != 1 {
-        do_lhs_pack = true;
-    }
-
     let num_mr_blocks = (mc + mr - 1) / mr;
     let num_nr_blocks = (nc + nr - 1) / nr;
-    let packed_a_layout = std::alloc::Layout::from_size_align(
-        num_mr_blocks * mr * kc * std::mem::size_of::<T>(),
-        ALIGN,
-    )
-    .expect("layout create failed");
 
-    let packed_a = if do_lhs_pack {
-        let a_buffer = unsafe { std::alloc::alloc(packed_a_layout) };
-        #[cfg(feature = "bound_check")]
-        let ret = Pointer::new(
-            a_buffer as *mut T,
-            (packed_a_layout.size() / std::mem::size_of::<T>()) as i64,
-        );
-        #[cfg(not(feature = "bound_check"))]
-        let ret = Pointer::new(a_buffer as *mut T);
-        ret
-    } else {
-        a.clone()
-    };
-
-    let packed_a_ptr = packed_a.ptr as *mut T;
+    let packed_a = L3_SLAB.with(|mem| {
+        if do_lhs_pack {
+            let mut mem = mem.borrow_mut();
+            let stack = DynStack::new(&mut mem);
+            let (packed_a_storage, _) =
+                stack.make_aligned_uninit::<T>(num_mr_blocks * mr * kc, ALIGN);
+            #[cfg(feature = "bound_check")]
+            let packed_a = Pointer::new(
+                packed_a_storage.as_mut_ptr() as *mut T,
+                (num_mr_blocks * mr * kc) as i64,
+            );
+            #[cfg(not(feature = "bound_check"))]
+            let packed_a = Pointer::new(packed_a_storage.as_mut_ptr() as *mut T);
+            packed_a
+        } else {
+            a.clone()
+        }
+    });
 
     let mc_jobs = calculate_jobs(n, nc, mr, nr, mc);
     let mc_rem_jobs = calculate_jobs(n, nc, mr, nr, m % mc);
@@ -227,12 +220,6 @@ pub fn matmul_template<T>(
                 });
             },
         );
-
-    if do_lhs_pack {
-        unsafe {
-            std::alloc::dealloc(packed_a_ptr as *mut u8, packed_a_layout);
-        }
-    }
 }
 
 /// single batch matmul template no block info
@@ -270,21 +257,17 @@ pub fn matmul_template_no_block_info<T>(
 {
     let nr = T::get_max_nr() * T::Vec::SIZE;
     let mr = T::get_max_mr().min(m);
-    let mut param = if m <= 64 && n <= 64 {
-        // skip expensive kernel_params call for small sizes
-        let kc = k.min(512);
-        let alloc = CACHE_INFO[1].cache_bytes / core::mem::size_of::<T>();
-        let nc = (alloc / kc) / nr * nr;
-        KernelParams {
-            kc,
-            mc: m.msrv_next_multiple_of(mr),
-            nc,
-        }
-    } else {
-        gemm_common::cache::kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>())
-    };
+    #[cfg(not(target_feature = "neon"))]
+    let mut do_lhs_pack = false;
+    #[cfg(target_feature = "neon")]
+    let mut do_lhs_pack = true;
+
+    if (lhs_col_stride == 1 && n > 128 * nr) || lhs_col_stride != 1 {
+        do_lhs_pack = true;
+    }
+    let mut param = kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>(), do_lhs_pack);
     if param.nc == 0 {
-        param.nc = m.msrv_next_multiple_of(nr);
+        param.nc = n.msrv_next_multiple_of(nr);
     }
     if param.mc == 0 {
         param.mc = m.msrv_next_multiple_of(mr);
@@ -302,10 +285,11 @@ pub fn matmul_template_no_block_info<T>(
         lhs_col_stride,
         rhs_col_stride,
         param.kc,
-        param.nc,
         param.mc,
+        param.nc,
         nr,
         mr,
+        do_lhs_pack,
         num_threads,
     );
 }

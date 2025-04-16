@@ -7,7 +7,7 @@ use std::{
 /// This is for wrapping raw pointers to make them safe for multithreading
 ///
 /// This is for internal use only
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Pointer<T> {
     /// raw pointer
     pub ptr: *mut T,
@@ -16,17 +16,15 @@ pub struct Pointer<T> {
     pub len: i64,
 }
 
-impl<T> Clone for Pointer<T> {
-    fn clone(&self) -> Self {
-        Self {
-            ptr: self.ptr.clone(),
-            #[cfg(feature = "bound_check")]
-            len: self.len.clone(),
-        }
-    }
-}
-
 impl<T> Pointer<T> {
+    /// return a slice of the pointer
+    ///
+    /// # Returns
+    /// `&[T]`
+    #[cfg(feature = "bound_check")]
+    pub fn as_slice(&self) -> &[T] {
+        unsafe { std::slice::from_raw_parts(self.ptr, self.len as usize) }
+    }
     /// cast the pointer to a new type
     ///
     /// # Arguments

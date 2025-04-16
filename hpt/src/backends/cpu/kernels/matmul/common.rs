@@ -24,7 +24,13 @@ use hpt_types::traits::VecTrait;
 
 thread_local! {
     pub(crate) static L2_SLAB: core::cell::RefCell<dyn_stack::MemBuffer> = core::cell::RefCell::new(dyn_stack::MemBuffer::new(
-        dyn_stack::StackReq::new_aligned::<u8>(CACHE_INFO[1].cache_bytes, CACHELINE_ALIGN)
+        dyn_stack::StackReq::new_aligned::<u8>(CACHE_INFO[1].cache_bytes * 8, CACHELINE_ALIGN)
+    ));
+}
+
+thread_local! {
+    pub(crate) static L3_SLAB: core::cell::RefCell<dyn_stack::MemBuffer> = core::cell::RefCell::new(dyn_stack::MemBuffer::new(
+        dyn_stack::StackReq::new_aligned::<u8>(CACHE_INFO[2].cache_bytes.max(1024 * 1024 * 8) * 8, CACHELINE_ALIGN)
     ));
 }
 

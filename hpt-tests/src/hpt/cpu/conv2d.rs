@@ -58,7 +58,7 @@ fn assert_eq(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let res = a
-        .conv2d(&a_kernel, None, [1, 1], [(0, 0), (0, 0)], [1, 1], None)?
+        .conv2d(&a_kernel, None, [1, 1], [(0, 0), (0, 0)], [1, 1], None, None)?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.conv2d(&b_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
@@ -77,7 +77,7 @@ fn assert_eq_pad(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let res = a
-        .conv2d(&a_kernel, None, [1, 1], [(2, 2), (2, 2)], [1, 1], None)?
+        .conv2d(&a_kernel, None, [1, 1], [(2, 2), (2, 2)], [1, 1], None, None)?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.conv2d(&b_kernel, None::<tch::Tensor>, &[1, 1], &[2, 2], &[1, 1], 1);
@@ -109,6 +109,7 @@ fn assert_eq_bias(
             [(0, 0), (0, 0)],
             [1, 1],
             None,
+            None
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
@@ -141,6 +142,7 @@ fn assert_eq_bias_pad(
             [(2, 2), (2, 2)],
             [1, 1],
             None,
+            None
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
@@ -173,6 +175,7 @@ fn assert_eq_bias_pad_relu6(
             [(2, 2), (2, 2)],
             [1, 1],
             Some(|x| x._relu6()),
+            Some(|x| x._relu6()),
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
@@ -189,11 +192,11 @@ fn assert_eq_bias_pad_relu6(
 #[test]
 fn test() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for i in 0..10 {
+    for i in 0..100 {
         let in_channel = rng.random_range(1..=32);
         let out_channel = rng.random_range(1..=32);
-        let kernel_height = rng.random_range(1..=5);
-        let kernel_width = rng.random_range(1..=5);
+        let kernel_height = rng.random_range(1..=3);
+        let kernel_width = rng.random_range(1..=3);
         let height = rng.random_range(10..=32);
         let width = rng.random_range(10..=32);
         let (kernel, a, tch_kernel, tch_a) = common_input([
@@ -205,10 +208,10 @@ fn test() -> anyhow::Result<()> {
             width,
         ])?;
         assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-        // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-        // assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
-        // assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-        // assert_eq_bias_pad_relu6(&a, &kernel, &tch_a, &tch_kernel)?;
+        assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+        assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+        assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+        assert_eq_bias_pad_relu6(&a, &kernel, &tch_a, &tch_kernel)?;
     }
     Ok(())
 }

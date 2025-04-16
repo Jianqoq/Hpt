@@ -173,6 +173,34 @@ impl f16x8 {
         }
     }
 
+    /// convert to f32x4
+    #[inline(always)]
+    pub fn high_to_f32vec(self) -> f32x4 {
+        unsafe {
+            #[cfg(target_feature = "fp16")]
+            {
+                use std::arch::aarch64::{float32x4_t, vld1_s16};
+
+                let low = vld1_s16(self.0.as_ptr() as *const _);
+                let mut res0: float32x4_t;
+                std::arch::asm!(
+                    "fcvtl {0:v}.4s, {1:v}.4h",
+                    out(vreg) res0,
+                    in(vreg) low,
+                );
+                std::mem::transmute(res0)
+            }
+            #[cfg(not(target_feature = "fp16"))]
+            {
+                let mut res = [0f32; 4];
+                for i in 0..4 {
+                    res[i] = self.0[i].to_f32();
+                }
+                std::mem::transmute(res)
+            }
+        }
+    }
+
     /// convert from 2 f32x4
     #[inline(always)]
     pub fn from_2_f32vec(val: [f32x4; 2]) -> Self {

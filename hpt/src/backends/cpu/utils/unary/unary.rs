@@ -13,10 +13,42 @@ use hpt_traits::tensor::{CommonBounds, TensorInfo, TensorLike};
 use hpt_types::dtype::TypeCommon;
 use hpt_types::type_promote::{Eval, NormalOut};
 use hpt_types::vectors::traits::*;
-use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator};
 use rayon::slice::{ParallelSlice, ParallelSliceMut};
 use std::borrow::Borrow;
 use threadpool::ThreadPool;
+
+pub fn unary_map<A, K, F, F2>(slice_a: &[A], slice_o: &mut [K], f: F, f2: F2)
+where
+    A: CommonBounds,
+    K: CommonBounds,
+    F: Fn(A::Vec) -> K::Vec + Sync + Send,
+    F2: Fn(A) -> K + Sync + Send,
+{
+    if K::BYTE_SIZE == A::BYTE_SIZE {
+        let mut chunk_o = slice_o.par_chunks_exact_mut(A::Vec::SIZE);
+        let chunk_a = slice_a.par_chunks_exact(A::Vec::SIZE);
+        chunk_o
+            .remainder()
+            .into_par_iter()
+            .zip(chunk_a.remainder().into_par_iter())
+            .for_each(|(out, buffer)| {
+                *out = f2(*buffer);
+            });
+        chunk_o.into_par_iter().zip(chunk_a.into_par_iter()).for_each(|(out, buffer)| {
+            let out_ptr = out.as_mut_ptr() as *mut K::Vec;
+            let buffer_ptr = buffer.as_ptr() as *const A::Vec;
+            unsafe {
+                out_ptr.write_unaligned(f(buffer_ptr.read_unaligned()));
+            }
+        });
+    } else {
+        slice_o.par_iter_mut().zip(slice_a.par_iter()).for_each(|(out, buffer)| {
+            *out = f2(*buffer);
+        });
+    }
+}
+
 /// Perform unary operation with output tensor
 pub fn unary_fn_with_out<A, O, K, F, F2, const DEVICE: usize, A2>(
     inp: &_Tensor<A, Cpu, DEVICE, A2>,
@@ -39,7 +71,6 @@ where
     } else {
         _Tensor::<K, Cpu, DEVICE, A2>::empty(inp.shape())?
     };
-    let ret_size = ret.size();
     if inp.parent().is_some() {
         ret.par_iter_mut_simd()
             .zip(inp.par_iter_simd())
@@ -48,41 +79,7 @@ where
             });
         return Ok(ret);
     }
-    let per_thread_len = ret.size() / rayon::current_num_threads();
-    let per_thread_remain = per_thread_len % K::Vec::SIZE;
-    let total_remain = rayon::current_num_threads() * per_thread_remain
-        + (ret.size() % rayon::current_num_threads());
-    let per_thread_real_len = per_thread_len - per_thread_remain;
-    if per_thread_real_len > 0 {
-        ret.as_raw_mut()
-            .par_chunks_exact_mut(per_thread_real_len)
-            .zip(inp.as_raw().par_chunks_exact(per_thread_real_len))
-            .for_each(|(ret, lhs)| {
-                assert_eq!(lhs.len() % A::Vec::SIZE, 0);
-                assert_eq!(ret.len() % K::Vec::SIZE, 0);
-                ret.chunks_exact_mut(A::Vec::SIZE)
-                    .zip(lhs.chunks_exact(A::Vec::SIZE))
-                    .for_each(|(ret, lhs)| {
-                        let a = unsafe { A::Vec::from_ptr(lhs.as_ptr()) };
-                        let res = f(a);
-                        unsafe {
-                            std::ptr::copy_nonoverlapping(
-                                res.as_ptr(),
-                                ret.as_mut_ptr(),
-                                K::Vec::SIZE,
-                            );
-                        }
-                    });
-            });
-    }
-    if total_remain > 0 {
-        ret.as_raw_mut()[ret_size - total_remain..]
-            .iter_mut()
-            .zip(inp.as_raw()[ret_size - total_remain..].iter())
-            .for_each(|(a, &lhs)| {
-                *a = f2(lhs);
-            });
-    }
+    unary_map(inp.as_raw(), ret.as_raw_mut(), f, f2);
     Ok(ret)
 }
 

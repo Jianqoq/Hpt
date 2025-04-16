@@ -13,23 +13,10 @@ use hpt::Tensor;
 use hpt_common::slice;
 use rand::Rng;
 
-#[allow(unused)]
-fn assert_eq(b: &Tensor<i64>, a: &tch::Tensor) {
-    let a_raw = unsafe { std::slice::from_raw_parts(a.data_ptr() as *const i64, b.size()) };
-    let b_raw = b.as_raw();
-
-    for i in 0..b.size() {
-        if a_raw[i] != b_raw[i] {
-            panic!(
-                "{} != {}, bytes: {:?}, {:?}",
-                a_raw[i],
-                b_raw[i],
-                a_raw[i].to_ne_bytes(),
-                b_raw[i].to_ne_bytes()
-            );
-        }
-    }
-}
+use crate::TestTypes;
+use crate::TCH_TEST_TYPES;
+use crate::TEST_ATOL;
+use crate::TEST_RTOL;
 
 #[duplicate_item(
     func            hpt_method      tch_method;
@@ -46,21 +33,22 @@ fn func() -> anyhow::Result<()> {
         for _ in 0..len {
             shape.push(rng.random_range(1..10));
         }
-        let tch_a = tch::Tensor::randint_low(
-            i64::MIN,
-            i64::MAX,
+        let tch_a = tch::Tensor::randn(
             &shape,
-            (tch::Kind::Int64, tch::Device::Cpu),
+            (TCH_TEST_TYPES, tch::Device::Cpu),
         );
-        let mut a = Tensor::<i64>::empty(shape)?;
+        let mut a = Tensor::<TestTypes>::empty(shape)?;
         a.as_raw_mut().copy_from_slice(unsafe {
-            std::slice::from_raw_parts(tch_a.data_ptr() as *mut i64, tch_a.numel())
+            std::slice::from_raw_parts(tch_a.data_ptr() as *mut TestTypes, tch_a.numel())
         });
 
         let dim = rng.random_range(0..len) as i64;
         let b = a.hpt_method(dim)?;
-        let tch_b = tch_a.tch_method(dim, tch::Kind::Int64);
-        assert_eq(&b, &tch_b);
+        let tch_b = tch_a.tch_method(dim, TCH_TEST_TYPES);
+        let tch_res = unsafe {
+            Tensor::<TestTypes>::from_raw(tch_b.data_ptr() as *mut TestTypes, &b.shape().to_vec())
+        }?;
+        assert!(b.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
     }
     Ok(())
 }

@@ -37,5 +37,5 @@ debug = true
 # codegen-units = 1
 
 [features]
-default = ["cuda"]
+# default = ["cuda"]
 cuda = ["hpt/cuda"]

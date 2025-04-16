@@ -2,17 +2,21 @@ use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_allocator::Cpu;
 use hpt_traits::ops::conv::ConvBatchNorm;
 use hpt_traits::{ops::conv::Conv, tensor::CommonBounds};
+use hpt_types::type_promote::NormalOutPromote;
 use hpt_types::{
     into_scalar::Cast,
     traits::VecTrait,
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 
+use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 use crate::Tensor;
+use crate::backends::cpu::kernels::conv2d::microkernel_trait::Conv2dMicroKernel;
 
 impl<T, const DEVICE: usize> Conv<T> for Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + Cast<T> + NormalOut<Output = T>,
+    T: CommonBounds + Cast<T> + NormalOut<Output = T> + Conv2dMicroKernel + MatmulMicroKernel + Cast<<T as NormalOutPromote>::Intermediate>,
+    <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
     T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
     bool: Cast<T>,
 {
@@ -25,7 +29,8 @@ where
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        activation: Option<fn(<T>::Vec) -> <T>::Vec>,
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         Ok(self
             .inner
@@ -35,7 +40,8 @@ where
                 steps,
                 padding,
                 dilation,
-                activation,
+                post_scalar,
+                post_vec,
             )?
             .into())
     }
@@ -48,7 +54,8 @@ where
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         groups: i64,
-        activation: Option<fn(<T>::Vec) -> <T>::Vec>,
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         Ok(self
             .inner
@@ -59,7 +66,8 @@ where
                 padding,
                 dilation,
                 groups,
-                activation,
+                post_scalar,
+                post_vec,
             )?
             .into())
     }
@@ -71,7 +79,8 @@ where
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        activation: Option<fn(<T>::Vec) -> <T>::Vec>,
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         Ok(self
             .inner
@@ -81,7 +90,8 @@ where
                 steps,
                 padding,
                 dilation,
-                activation,
+                post_scalar,
+                post_vec,
             )?
             .into())
     }
@@ -93,6 +103,8 @@ where
         padding: [(i64, i64); 2],
         output_padding: [i64; 2],
         dilation: [i64; 2],
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         Ok(self
             .inner
@@ -102,6 +114,8 @@ where
                 padding,
                 output_padding,
                 dilation,
+                post_scalar,
+                post_vec,
             )?
             .into())
     }
@@ -109,10 +123,9 @@ where
 
 impl<T, const DEVICE: usize, A> ConvBatchNorm<T> for Tensor<T, Cpu, DEVICE, A>
 where
-    T: CommonBounds,
+    T: CommonBounds + Conv2dMicroKernel + MatmulMicroKernel,
     T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
     T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
-    bool: Cast<T>,
     A: Allocator + Send + Sync,
     A::Output: AllocatorOutputRetrive,
 {
@@ -129,7 +142,8 @@ where
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        activation: Option<fn(<T>::Vec) -> <T>::Vec>,
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         Ok(self
             .inner
@@ -144,7 +158,8 @@ where
                 steps,
                 padding,
                 dilation,
-                activation,
+                post_scalar,
+                post_vec,
             )?
             .into())
     }

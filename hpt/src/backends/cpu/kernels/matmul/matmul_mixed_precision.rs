@@ -9,8 +9,7 @@ use crate::{
     ALIGN,
 };
 use dyn_stack::DynStack;
-use gemm_common::cache::KernelParams;
-use gemm_common::cache::{DivCeil, CACHE_INFO};
+use gemm_common::cache::DivCeil;
 use hpt_allocator::{
     traits::{Allocator, AllocatorOutputRetrive},
     Cpu,
@@ -20,7 +19,7 @@ use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::{dtype::TypeCommon, into_scalar::Cast, traits::VecTrait};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
-use super::microkernel_trait::MatmulMicroKernel;
+use super::{microkernel_trait::MatmulMicroKernel, utils::kernel_params};
 
 /// single batch matmul template
 ///
@@ -263,19 +262,7 @@ pub fn matmul_mixed_precision_template_no_block_info<T, IM>(
 {
     let nr = T::get_max_mixed_precision_nr() * T::Vec::SIZE;
     let mr = T::get_max_mixed_precision_mr().min(m);
-    let mut param = if m <= 64 && n <= 64 {
-        // skip expensive kernel_params call for small sizes
-        let kc = k.min(512);
-        let alloc = CACHE_INFO[1].cache_bytes / core::mem::size_of::<T>();
-        let nc = (alloc / kc) / nr * nr;
-        KernelParams {
-            kc,
-            mc: m.msrv_next_multiple_of(mr),
-            nc,
-        }
-    } else {
-        gemm_common::cache::kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>())
-    };
+    let mut param = kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>(), true);
     if param.mc == 0 {
         param.mc = m.msrv_next_multiple_of(mr);
     }
@@ -295,8 +282,8 @@ pub fn matmul_mixed_precision_template_no_block_info<T, IM>(
         lhs_col_stride,
         rhs_col_stride,
         param.kc,
-        param.nc,
         param.mc,
+        param.nc,
         nr,
         mr,
         num_threads,

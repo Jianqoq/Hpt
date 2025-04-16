@@ -13,8 +13,9 @@ use hpt_types::type_promote::NormalOut;
 use hpt_types::type_promote::NormalOutUnary;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use tch;
-
+use hpt::ops::Conv;
 use crate::TestTypes;
+use crate::EPSILON;
 use crate::TCH_TEST_TYPES;
 use crate::TEST_ATOL;
 use crate::TEST_RTOL;
@@ -72,10 +73,11 @@ fn assert_eq(
             &hpt_gamma,
             &hpt_beta,
             None,
-            1e-5,
+            EPSILON,
             [1, 1],
             [(0, 0), (0, 0)],
             [1, 1],
+            None,
             None,
         )?
         .permute([0, 3, 1, 2])?
@@ -116,10 +118,11 @@ fn assert_eq_pad(
             &hpt_gamma,
             &hpt_beta,
             None,
-            1e-5,
+            EPSILON,
             [1, 1],
             [(2, 2), (2, 2)],
             [1, 1],
+            None,
             None,
         )?
         .permute([0, 3, 1, 2])?
@@ -161,10 +164,11 @@ fn assert_eq_bias(
             &hpt_gamma,
             &hpt_beta,
             Some(&bias),
-            1e-5,
+            EPSILON,
             [1, 1],
             [(0, 0), (0, 0)],
             [1, 1],
+            None,
             None,
         )?
         .permute([0, 3, 1, 2])?
@@ -207,10 +211,11 @@ fn assert_eq_bias_pad(
             &hpt_gamma,
             &hpt_beta,
             Some(&bias),
-            1e-5,
+            EPSILON,
             [1, 1],
             [(2, 2), (2, 2)],
             [1, 1],
+            None,
             None,
         )?
         .permute([0, 3, 1, 2])?
@@ -253,10 +258,11 @@ fn assert_eq_bias_pad_relu6(
             &hpt_gamma,
             &hpt_beta,
             Some(&bias),
-            1e-5,
+            EPSILON,
             [1, 1],
             [(2, 2), (2, 2)],
             [1, 1],
+            Some(|x| x._relu6()),
             Some(|x| x._relu6()),
         )?
         .permute([0, 3, 1, 2])?

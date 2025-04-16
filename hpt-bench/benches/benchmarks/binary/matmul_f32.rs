@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use candle_core::Tensor as CandleTensor;
 use criterion::{black_box, BenchmarkId, Criterion};
+use half::f16;
 use hpt::ops::*;
 use hpt::Tensor;
 // use tch::{Device, Kind, Tensor as TchTensor};
@@ -17,7 +18,7 @@ fn matmul_f32_benchmark(c: &mut Criterion<crate::benchmarks::Timer>) {
         ns.push(64 * i);
     }
 
-    let mut group = c.benchmark_group("matmul f16 Benchmarks");
+    let mut group = c.benchmark_group("matmul f32 Benchmarks");
     group
         .warm_up_time(Duration::new(1, 0))
         .measurement_time(Duration::new(3, 0))
@@ -26,12 +27,12 @@ fn matmul_f32_benchmark(c: &mut Criterion<crate::benchmarks::Timer>) {
     for n in ns {
         // let a = black_box(TchTensor::randn([n, n], (Kind::Float, Device::Cpu)));
         // let c = black_box(TchTensor::randn([n, n], (Kind::Float, Device::Cpu)));
-        let a2 = black_box(Tensor::<f32>::randn([n, n]).unwrap());
-        let c2 = black_box(Tensor::<f32>::randn([n, n]).unwrap());
+        let a2 = black_box(Tensor::<f16>::randn([n, n]).unwrap());
+        let c2 = black_box(Tensor::<f16>::randn([n, n]).unwrap());
         // let a3 = black_box(
         //     CandleTensor::randn(
-        //         half::f16::from_f32(0.0),
-        //         half::f16::from_f32(1.0),
+        //         0.0f32,
+        //         1.0f32,
         //         [n, n]
         //             .into_iter()
         //             .map(|x| x as usize)
@@ -42,8 +43,8 @@ fn matmul_f32_benchmark(c: &mut Criterion<crate::benchmarks::Timer>) {
         // );
         // let c3 = black_box(
         //     CandleTensor::randn(
-        //         half::f16::from_f32(0.0),
-        //         half::f16::from_f32(1.0),
+        //         0.0f32,
+        //         1.0f32,
         //         [n, n]
         //             .into_iter()
         //             .map(|x| x as usize)
@@ -60,6 +61,9 @@ fn matmul_f32_benchmark(c: &mut Criterion<crate::benchmarks::Timer>) {
         // });
         // group.bench_with_input(BenchmarkId::new("hpt(faer-gemm)", n), &n, |b, _| {
         //     b.iter(|| a2.gemm(&c2, 0.0, 1.0, false, false, false).unwrap());
+        // });
+        // group.bench_with_input(BenchmarkId::new("Candle(mkl)", n), &n, |b, _| {
+        //     b.iter(|| a3.matmul(&c3).unwrap());
         // });
     }
 

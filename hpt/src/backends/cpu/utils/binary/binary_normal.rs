@@ -5,6 +5,8 @@ use hpt_allocator::traits::AllocatorOutputRetrive;
 use hpt_allocator::Cpu;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
+use hpt_iterator::iterator_traits::ParStridedIteratorSimd;
+use hpt_iterator::iterator_traits::ParStridedIteratorSimdZip;
 use hpt_iterator::iterator_traits::ParStridedIteratorZip;
 use hpt_iterator::TensorIterator;
 use hpt_traits::ops::creation::TensorCreator;
@@ -13,7 +15,10 @@ use hpt_traits::tensor::TensorInfo;
 use hpt_traits::tensor::TensorLike;
 use hpt_types::dtype::TypeCommon;
 use rayon::iter::{
-    IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
+    IndexedParallelIterator,
+    IntoParallelRefIterator,
+    IntoParallelRefMutIterator,
+    ParallelIterator,
 };
 use std::borrow::Borrow;
 
@@ -51,23 +56,24 @@ pub(crate) fn binary_fn_with_out_simd<A, B, O, K, F, F2, const DEVICE: usize, Al
     rhs: &_Tensor<B, Cpu, DEVICE, Al>,
     f: F,
     f2: F2,
-    out: Option<O>,
-) -> std::result::Result<_Tensor<K, Cpu, DEVICE, Al>, TensorError>
-where
-    A: CommonBounds,
-    B: CommonBounds,
-    O: Borrow<_Tensor<K, Cpu, DEVICE, Al>>,
-    K: CommonBounds,
-    F: Fn(A, B) -> K + Sync + Send + Copy,
-    F2: Fn(<A as TypeCommon>::Vec, <B as TypeCommon>::Vec) -> <K as TypeCommon>::Vec
-        + Sync
-        + Send
-        + Copy,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
+    out: Option<O>
+)
+    -> std::result::Result<_Tensor<K, Cpu, DEVICE, Al>, TensorError>
+    where
+        A: CommonBounds,
+        B: CommonBounds,
+        O: Borrow<_Tensor<K, Cpu, DEVICE, Al>>,
+        K: CommonBounds,
+        F: Fn(A, B) -> K + Sync + Send + Copy,
+        F2: Fn(<A as TypeCommon>::Vec, <B as TypeCommon>::Vec) -> <K as TypeCommon>::Vec +
+            Sync +
+            Send +
+            Copy,
+        Al: Allocator,
+        Al::Output: AllocatorOutputRetrive
 {
     use hpt_types::traits::*;
-    use rayon::slice::{ParallelSlice, ParallelSliceMut};
+    use rayon::slice::{ ParallelSlice, ParallelSliceMut };
     if lhs.size() == 1 {
         let val = lhs.as_raw()[0];
         let val_vec = <A as TypeCommon>::Vec::splat(val);
@@ -79,8 +85,9 @@ where
             _Tensor::<K, Cpu, DEVICE, Al>::empty(rhs.shape())?
         };
         if rhs.is_contiguous() {
-            if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
-                && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
+            if
+                <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
+                <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
             {
                 let remain = res.size() % <A as TypeCommon>::Vec::SIZE;
                 res.as_raw_mut()
@@ -93,14 +100,14 @@ where
                             std::ptr::copy_nonoverlapping(
                                 res,
                                 a.as_mut_ptr(),
-                                <A as TypeCommon>::Vec::SIZE,
+                                <A as TypeCommon>::Vec::SIZE
                             );
                         }
                     });
                 if remain > 0 {
                     let ret_size = res.size();
-                    res.as_raw_mut()[ret_size - remain..]
-                        .iter_mut()
+                    res.as_raw_mut()
+                        [ret_size - remain..].iter_mut()
                         .zip(rhs.as_raw()[ret_size - remain..].iter())
                         .for_each(|(a, b)| {
                             *a = f(val, *b);
@@ -111,15 +118,17 @@ where
                     .par_chunks_exact_mut(<K as TypeCommon>::Vec::SIZE)
                     .zip(rhs.as_raw().par_chunks_exact(<K as TypeCommon>::Vec::SIZE))
                     .for_each(|(a, b)| {
-                        a.iter_mut().zip(b.iter()).for_each(|(a, b)| {
-                            *a = f(val, *b);
-                        });
+                        a.iter_mut()
+                            .zip(b.iter())
+                            .for_each(|(a, b)| {
+                                *a = f(val, *b);
+                            });
                     });
                 let remain = res.size() % <K as TypeCommon>::Vec::SIZE;
                 if remain > 0 {
                     let ret_size = res.size();
-                    res.as_raw_mut()[ret_size - remain..]
-                        .iter_mut()
+                    res.as_raw_mut()
+                        [ret_size - remain..].iter_mut()
                         .zip(rhs.as_raw()[ret_size - remain..].iter())
                         .for_each(|(a, b)| {
                             *a = f(val, *b);
@@ -127,9 +136,11 @@ where
                 }
             }
         } else {
-            res.par_iter_mut().zip(rhs.par_iter()).for_each(|(a, b)| {
-                *a = f(val, b);
-            });
+            res.par_iter_mut()
+                .zip(rhs.par_iter())
+                .for_each(|(a, b)| {
+                    *a = f(val, b);
+                });
         }
         Ok(res)
     } else if rhs.size() == 1 {
@@ -143,8 +154,9 @@ where
             _Tensor::<K, Cpu, DEVICE, Al>::empty(lhs.shape())?
         };
         if lhs.is_contiguous() {
-            if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
-                && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
+            if
+                <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
+                <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
             {
                 let remain = res.size() % <A as TypeCommon>::Vec::SIZE;
                 res.as_raw_mut()
@@ -157,14 +169,14 @@ where
                             std::ptr::copy_nonoverlapping(
                                 res,
                                 a.as_mut_ptr(),
-                                <A as TypeCommon>::Vec::SIZE,
+                                <A as TypeCommon>::Vec::SIZE
                             );
                         }
                     });
                 if remain > 0 {
                     let ret_size = res.size();
-                    res.as_raw_mut()[ret_size - remain..]
-                        .iter_mut()
+                    res.as_raw_mut()
+                        [ret_size - remain..].iter_mut()
                         .zip(lhs.as_raw()[ret_size - remain..].iter())
                         .for_each(|(a, lhs)| {
                             *a = f(*lhs, val);
@@ -175,15 +187,17 @@ where
                     .par_chunks_exact_mut(<K as TypeCommon>::Vec::SIZE)
                     .zip(lhs.as_raw().par_chunks_exact(<K as TypeCommon>::Vec::SIZE))
                     .for_each(|(a, lhs)| {
-                        a.iter_mut().zip(lhs.iter()).for_each(|(a, lhs)| {
-                            *a = f(*lhs, val);
-                        });
+                        a.iter_mut()
+                            .zip(lhs.iter())
+                            .for_each(|(a, lhs)| {
+                                *a = f(*lhs, val);
+                            });
                     });
                 let remain = res.size() % <K as TypeCommon>::Vec::SIZE;
                 if remain > 0 {
                     let ret_size = res.size();
-                    res.as_raw_mut()[ret_size - remain..]
-                        .iter_mut()
+                    res.as_raw_mut()
+                        [ret_size - remain..].iter_mut()
                         .zip(lhs.as_raw()[ret_size - remain..].iter())
                         .for_each(|(a, lhs)| {
                             *a = f(*lhs, val);
@@ -191,9 +205,11 @@ where
                 }
             }
         } else {
-            res.par_iter_mut().zip(lhs.par_iter()).for_each(|(a, lhs)| {
-                *a = f(lhs, val);
-            });
+            res.par_iter_mut()
+                .zip(lhs.par_iter())
+                .for_each(|(a, lhs)| {
+                    *a = f(lhs, val);
+                });
         }
         Ok(res)
     } else {
@@ -205,8 +221,9 @@ where
             } else {
                 _Tensor::<K, Cpu, DEVICE, Al>::empty(rhs.shape())?
             };
-            if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
-                && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
+            if
+                <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
+                <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
             {
                 let remain = ret.size() % <K as TypeCommon>::Vec::SIZE;
                 ret.as_raw_mut()
@@ -221,14 +238,14 @@ where
                             std::ptr::copy_nonoverlapping(
                                 res.as_ptr(),
                                 ret.as_mut_ptr(),
-                                <K as TypeCommon>::Vec::SIZE,
+                                <K as TypeCommon>::Vec::SIZE
                             );
                         }
                     });
                 if remain > 0 {
                     let ret_size = ret.size();
-                    ret.as_raw_mut()[ret_size - remain..]
-                        .iter_mut()
+                    ret.as_raw_mut()
+                        [ret_size - remain..].iter_mut()
                         .zip(lhs.as_raw()[ret_size - remain..].iter())
                         .zip(rhs.as_raw()[ret_size - remain..].iter())
                         .for_each(|((a, &lhs), &rhs)| {
@@ -249,12 +266,28 @@ where
             }
             Ok(ret)
         } else {
-            let ret = lhs
-                .par_iter()
-                .zip(rhs.par_iter())
-                .strided_map(|(res, (x, y))| *res = f(x, y))
-                .collect::<_Tensor<K, Cpu, DEVICE, Al>>();
-            Ok(ret)
+            let output_shape = lhs.layout().broadcast(rhs.layout())?;
+            let mut res = if let Some(out) = out {
+                ShapeError::check_inplace_out_layout_valid(
+                    output_shape.shape(),
+                    &out.borrow().layout()
+                )?;
+                let out: &_Tensor<K, Cpu, DEVICE, Al> = out.borrow();
+                out.clone()
+            } else {
+                _Tensor::<K, Cpu, DEVICE, Al>::empty(output_shape.shape())?
+            };
+            let iter = res.par_iter_mut_simd().zip(lhs.par_iter_simd()).zip(rhs.par_iter_simd());
+            ParStridedIteratorSimd::for_each(
+                iter,
+                |((x, y), z)| {
+                    *x = f(y, z);
+                },
+                |((x, y), z)| {
+                    x.write_unaligned(f2(y, z));
+                }
+            );
+            Ok(res)
         }
     }
 }
@@ -266,20 +299,21 @@ pub fn binary_with_out<A, B, O, K, F, F2, const DEVICE: usize, Al>(
     rhs: &Tensor<B, Cpu, DEVICE, Al>,
     f: F,
     f2: F2,
-    out: Option<O>,
-) -> std::result::Result<Tensor<K, Cpu, DEVICE, Al>, TensorError>
-where
-    A: CommonBounds,
-    B: CommonBounds,
-    O: Borrow<Tensor<K, Cpu, DEVICE, Al>>,
-    K: CommonBounds,
-    F: Fn(A, B) -> K + Sync + Send + Copy,
-    F2: Fn(<A as TypeCommon>::Vec, <B as TypeCommon>::Vec) -> <K as TypeCommon>::Vec
-        + Sync
-        + Send
-        + Copy,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
+    out: Option<O>
+)
+    -> std::result::Result<Tensor<K, Cpu, DEVICE, Al>, TensorError>
+    where
+        A: CommonBounds,
+        B: CommonBounds,
+        O: Borrow<Tensor<K, Cpu, DEVICE, Al>>,
+        K: CommonBounds,
+        F: Fn(A, B) -> K + Sync + Send + Copy,
+        F2: Fn(<A as TypeCommon>::Vec, <B as TypeCommon>::Vec) -> <K as TypeCommon>::Vec +
+            Sync +
+            Send +
+            Copy,
+        Al: Allocator,
+        Al::Output: AllocatorOutputRetrive
 {
     let out: Option<_Tensor<K, Cpu, DEVICE, Al>> = out.map(|x| x.borrow().inner.as_ref().clone());
     Ok(binary_fn_with_out_simd(lhs.inner.as_ref(), rhs.inner.as_ref(), f, f2, out)?.into())
@@ -292,28 +326,29 @@ pub(crate) fn binary_fn_with_out_simd_3<A, B, C, O, K, F, F2, const DEVICE: usiz
     c: &_Tensor<C, Cpu, DEVICE, Al>,
     f: F,
     f2: F2,
-    out: Option<O>,
-) -> std::result::Result<_Tensor<K, Cpu, DEVICE, Al>, TensorError>
-where
-    A: CommonBounds,
-    B: CommonBounds,
-    C: CommonBounds,
-    O: Borrow<_Tensor<K, Cpu, DEVICE, Al>>,
-    K: CommonBounds,
-    F: Fn(A, B, C) -> K + Sync + Send + Copy,
-    F2: Fn(
+    out: Option<O>
+)
+    -> std::result::Result<_Tensor<K, Cpu, DEVICE, Al>, TensorError>
+    where
+        A: CommonBounds,
+        B: CommonBounds,
+        C: CommonBounds,
+        O: Borrow<_Tensor<K, Cpu, DEVICE, Al>>,
+        K: CommonBounds,
+        F: Fn(A, B, C) -> K + Sync + Send + Copy,
+        F2: Fn(
             <A as TypeCommon>::Vec,
             <B as TypeCommon>::Vec,
-            <C as TypeCommon>::Vec,
-        ) -> <K as TypeCommon>::Vec
-        + Sync
-        + Send
-        + Copy,
-    Al: Allocator,
-    Al::Output: AllocatorOutputRetrive,
+            <C as TypeCommon>::Vec
+        ) -> <K as TypeCommon>::Vec +
+            Sync +
+            Send +
+            Copy,
+        Al: Allocator,
+        Al::Output: AllocatorOutputRetrive
 {
     use hpt_types::traits::*;
-    use rayon::slice::{ParallelSlice, ParallelSliceMut};
+    use rayon::slice::{ ParallelSlice, ParallelSliceMut };
     if b.is_contiguous() && a.is_contiguous() && b.shape() == a.shape() {
         let mut ret = if let Some(out) = out {
             ShapeError::check_inplace_out_layout_valid(b.shape(), &out.borrow().layout())?;
@@ -322,9 +357,10 @@ where
         } else {
             _Tensor::<K, Cpu, DEVICE, Al>::empty(b.shape())?
         };
-        if <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE
-            && <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE
-            && <B as TypeCommon>::Vec::SIZE == <C as TypeCommon>::Vec::SIZE
+        if
+            <A as TypeCommon>::Vec::SIZE == <B as TypeCommon>::Vec::SIZE &&
+            <B as TypeCommon>::Vec::SIZE == <K as TypeCommon>::Vec::SIZE &&
+            <B as TypeCommon>::Vec::SIZE == <C as TypeCommon>::Vec::SIZE
         {
             let remain = ret.size() % <K as TypeCommon>::Vec::SIZE;
             ret.as_raw_mut()
@@ -341,14 +377,14 @@ where
                         std::ptr::copy_nonoverlapping(
                             res.as_ptr(),
                             ret.as_mut_ptr(),
-                            <K as TypeCommon>::Vec::SIZE,
+                            <K as TypeCommon>::Vec::SIZE
                         );
                     }
                 });
             if remain > 0 {
                 let ret_size = ret.size();
-                ret.as_raw_mut()[ret_size - remain..]
-                    .iter_mut()
+                ret.as_raw_mut()
+                    [ret_size - remain..].iter_mut()
                     .zip(a.as_raw()[ret_size - remain..].iter())
                     .zip(b.as_raw()[ret_size - remain..].iter())
                     .zip(c.as_raw()[ret_size - remain..].iter())
@@ -375,7 +411,9 @@ where
             .par_iter()
             .zip(b.par_iter())
             .zip(c.par_iter())
-            .strided_map(|(res, ((x, y), z))| *res = f(x, y, z))
+            .strided_map(|(res, ((x, y), z))| {
+                *res = f(x, y, z);
+            })
             .collect::<_Tensor<K, Cpu, DEVICE, Al>>();
         Ok(ret)
     }

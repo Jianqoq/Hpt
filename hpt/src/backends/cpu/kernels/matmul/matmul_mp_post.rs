@@ -20,7 +20,7 @@ use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::{dtype::TypeCommon, into_scalar::Cast, traits::VecTrait};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
-use super::microkernel_trait::MatmulMicroKernel;
+use super::{microkernel_trait::MatmulMicroKernel, utils::kernel_params};
 
 /// single batch matmul template
 ///
@@ -284,13 +284,13 @@ pub fn matmul_mp_post_template_no_block_info<T, IM>(
             nc,
         }
     } else {
-        gemm_common::cache::kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>())
+        kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>(), true)
     };
     if param.mc == 0 {
         param.mc = m.msrv_next_multiple_of(mr);
     }
     if param.nc == 0 {
-        param.nc = m.msrv_next_multiple_of(nr);
+        param.nc = n.msrv_next_multiple_of(nr);
     }
     matmul_mixed_precision_template::<T, IM>(
         a,
@@ -305,8 +305,8 @@ pub fn matmul_mp_post_template_no_block_info<T, IM>(
         lhs_col_stride,
         rhs_col_stride,
         param.kc,
-        param.nc,
         param.mc,
+        param.nc,
         nr,
         mr,
         num_threads,

@@ -7,13 +7,11 @@ use hpt_common::slice;
 use rand::Rng;
 use tch::Tensor;
 
-use crate::{TestTypes, TCH_TEST_TYPES, TEST_ATOL, TEST_RTOL};
-
-use super::assert_utils::assert_f64;
+use crate::{TestTypes, EPSILON, TCH_TEST_TYPES, TEST_ATOL, TEST_RTOL};
 
 #[allow(unused)]
 #[track_caller]
-fn assert_eq_f64(hpt_res: &hpt::Tensor<TestTypes>, tch_res: &Tensor) {
+fn assert_eq(hpt_res: &hpt::Tensor<TestTypes>, tch_res: &Tensor) {
     let tch_res = unsafe {
         hpt::Tensor::<TestTypes>::from_raw(tch_res.data_ptr() as *mut TestTypes, &hpt_res.shape().to_vec())
     }.expect("from_raw failed");
@@ -45,7 +43,7 @@ fn func() -> anyhow::Result<()> {
         let dim = rng.random_range(0..len) as i64;
         let res = a.hpt_method(dim)?;
         let tch_res = tch_a.tch_method(dim, TCH_TEST_TYPES);
-        assert_eq_f64(&res, &tch_res);
+        assert_eq(&res, &tch_res);
     }
     Ok(())
 }
@@ -71,7 +69,7 @@ fn test_layernorm() -> anyhow::Result<()> {
             common_input(normalized_shape.iter().product::<i64>(), &normalized_shape)?;
         let (beta, tch_beta) =
             common_input(normalized_shape.iter().product::<i64>(), &normalized_shape)?;
-        let res = a.layernorm(&normalized_shape, Some(&gamma), Some(&beta), 1e-5)?;
+        let res = a.layernorm(&normalized_shape, Some(&gamma), Some(&beta), EPSILON)?;
         let tch_res = tch_a.layer_norm(
             &normalized_shape,
             Some(tch_gamma),
@@ -79,7 +77,7 @@ fn test_layernorm() -> anyhow::Result<()> {
             1e-5,
             false,
         );
-        assert_eq_f64(&res, &tch_res);
+        assert_eq(&res, &tch_res);
     }
     Ok(())
 }

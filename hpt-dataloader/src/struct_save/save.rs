@@ -316,7 +316,7 @@ fn get_unpack_closure(endian: Endian) -> impl Fn(&mut Box<dyn DataLoaderTrait>, 
 }
 
 macro_rules! impl_save {
-    ($struct:ident) => {
+    ($struct:ty) => {
         impl Save for $struct {
             type Meta = Self;
             fn __save(
@@ -344,6 +344,8 @@ impl_save!(u32);
 impl_save!(u64);
 impl_save!(f32);
 impl_save!(f64);
+impl_save!(half::f16);
+impl_save!(half::bf16);
 impl_save!(usize);
 impl_save!(isize);
 impl_save!(String);

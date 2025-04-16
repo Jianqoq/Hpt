@@ -10,17 +10,19 @@ use hpt::{
     types::{math::NormalOutUnary, TypeCommon},
     Load, Save, Tensor,
 };
-
+use hpt::types::f16;
 use safetensors::SafeTensors;
-type F32Simd = <f32 as TypeCommon>::Vec;
+type F32Simd = <f16 as TypeCommon>::Vec;
+const EPS: f16 = f16::from_f32_const(1e-5);
 
 impl Conv2dBatchNorm {
     #[track_caller]
     pub fn forward(
         &self,
-        x: &Tensor<f32>,
-        activation: fn(F32Simd) -> F32Simd,
-    ) -> anyhow::Result<Tensor<f32>> {
+        x: &Tensor<f16>,
+        activation_scalar: fn(f16) -> f16,
+        activation_vec: fn(F32Simd) -> F32Simd,
+    ) -> anyhow::Result<Tensor<f16>> {
         Ok(x.batchnorm_conv2d(
             &self.weight,
             &self.running_mean,
@@ -35,7 +37,8 @@ impl Conv2dBatchNorm {
                 (self.padding as i64, self.padding as i64),
             ],
             [self.dilation as i64, self.dilation as i64],
-            Some(activation),
+            Some(activation_scalar),
+            Some(activation_vec),
         )?)
     }
 }
@@ -52,7 +55,7 @@ pub struct MaxPool2d {
 }
 
 impl MaxPool2d {
-    pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
+    pub fn forward(&self, x: &Tensor<f16>) -> anyhow::Result<Tensor<f16>> {
         Ok(x.maxpool2d(
             &self.kernel_size,
             [self.stride as i64, self.stride as i64],
@@ -71,7 +74,7 @@ pub struct AdaptiveAvgPool2d {
 }
 
 impl AdaptiveAvgPool2d {
-    pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
+    pub fn forward(&self, x: &Tensor<f16>) -> anyhow::Result<Tensor<f16>> {
         Ok(x.adaptive_avgpool2d(self.kernel_size)?)
     }
 }
@@ -82,8 +85,8 @@ pub struct DownSample {
 }
 
 impl DownSample {
-    pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-        Ok(self.conv.forward(x, |x| x)?)
+    pub fn forward(&self, x: &Tensor<f16>) -> anyhow::Result<Tensor<f16>> {
+        Ok(self.conv.forward(x, |x| x, |x| x)?)
     }
 }
 
@@ -93,7 +96,7 @@ pub struct Sequential {
 }
 
 impl Sequential {
-    pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
+    pub fn forward(&self, x: &Tensor<f16>) -> anyhow::Result<Tensor<f16>> {
         let mut x = x.clone();
         for layer in &self.layers {
             x = layer.forward(&x)?;
@@ -110,14 +113,14 @@ pub struct BasicBlock {
 }
 
 impl BasicBlock {
-    pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
+    pub fn forward(&self, x: &Tensor<f16>) -> anyhow::Result<Tensor<f16>> {
         let identity = if let Some(downsample) = &self.downsample {
             downsample.forward(&x)?
         } else {
             x.clone()
         };
-        let out = self.bn_conv1.forward(&x, |x| x._relu())?;
-        let mut out = self.bn_conv2.forward(&out, |x| x)?;
+        let out = self.bn_conv1.forward(&x, |x| x._relu(), |x| x._relu())?;
+        let mut out = self.bn_conv2.forward(&out, |x| x, |x| x)?;
         out.par_iter_mut_simd()
             .zip(identity.par_iter_simd())
             .for_each(
@@ -131,7 +134,7 @@ impl BasicBlock {
 }
 
 impl Linear {
-    pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
+    pub fn forward(&self, x: &Tensor<f16>) -> anyhow::Result<Tensor<f16>> {
         let out = x.matmul(&self.weight.t()?)?;
         Ok(out.add_(&self.bias, out.clone())?)
     }
@@ -140,13 +143,13 @@ impl Linear {
 #[derive(Save, Load)]
 pub struct Conv2dBatchNorm {
     weight_str: String,
-    weight: Tensor<f32>,
-    bias: Option<Tensor<f32>>,
-    running_mean: Tensor<f32>,
-    running_var: Tensor<f32>,
-    running_gamma: Tensor<f32>,
-    running_beta: Tensor<f32>,
-    eps: f32,
+    weight: Tensor<f16>,
+    bias: Option<Tensor<f16>>,
+    running_mean: Tensor<f16>,
+    running_var: Tensor<f16>,
+    running_gamma: Tensor<f16>,
+    running_beta: Tensor<f16>,
+    eps: f16,
     steps: usize,
     padding: usize,
     dilation: usize,
@@ -154,9 +157,9 @@ pub struct Conv2dBatchNorm {
 
 #[derive(Save, Load)]
 pub struct Linear {
-    weight: Tensor<f32>,
+    weight: Tensor<f16>,
 
-    bias: Tensor<f32>,
+    bias: Tensor<f16>,
 }
 
 #[derive(Save, Load)]
@@ -171,19 +174,6 @@ pub struct ResNet {
     fc: Linear,
 }
 
-impl ResNet {
-    pub fn forward(&self, x: &Tensor<f32>) -> anyhow::Result<Tensor<f32>> {
-        let x = self.bn_conv1.forward(&x, |x| x._relu())?;
-        let x = self.max_pool1.forward(&x)?;
-        let x = self.layer1.forward(&x)?;
-        let x = self.layer2.forward(&x)?;
-        let x = self.layer3.forward(&x)?;
-        let x = self.layer4.forward(&x)?;
-        let x = self.avg_pool.forward(&x)?;
-        let x = self.fc.forward(&x)?;
-        Ok(x)
-    }
-}
 fn create_resnet() -> anyhow::Result<ResNet> {
     let data = std::fs::read("resnet.safetensor").expect("failed to read weights");
     let data = safetensors::SafeTensors::deserialize(&data).expect("failed to deserialize weights");
@@ -206,7 +196,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
         conv2_running_var: &str,
         conv2_running_gamma: &str,
         conv2_running_beta: &str,
-        eps: f32,
+        eps: f16,
         conv1_steps: usize,
         conv1_padding: usize,
         conv1_dilation: usize,
@@ -217,16 +207,16 @@ fn create_resnet() -> anyhow::Result<ResNet> {
         BasicBlock {
             bn_conv1: Conv2dBatchNorm {
                 weight_str: weight.to_string(),
-                weight: Tensor::<f32>::from_safe_tensors(data, weight)
+                weight: Tensor::<f16>::from_safe_tensors(data, weight)
                     .permute([2, 3, 1, 0])
                     .expect("permute failed")
                     .contiguous()
                     .expect("contiguous failed"),
                 bias: None,
-                running_mean: Tensor::<f32>::from_safe_tensors(data, running_mean),
-                running_var: Tensor::<f32>::from_safe_tensors(data, running_var),
-                running_gamma: Tensor::<f32>::from_safe_tensors(data, running_gamma),
-                running_beta: Tensor::<f32>::from_safe_tensors(data, running_beta),
+                running_mean: Tensor::<f16>::from_safe_tensors(data, running_mean),
+                running_var: Tensor::<f16>::from_safe_tensors(data, running_var),
+                running_gamma: Tensor::<f16>::from_safe_tensors(data, running_gamma),
+                running_beta: Tensor::<f16>::from_safe_tensors(data, running_beta),
                 eps,
                 steps: conv1_steps,
                 padding: conv1_padding,
@@ -234,16 +224,16 @@ fn create_resnet() -> anyhow::Result<ResNet> {
             },
             bn_conv2: Conv2dBatchNorm {
                 weight_str: conv2_weight.to_string(),
-                weight: Tensor::<f32>::from_safe_tensors(data, conv2_weight)
+                weight: Tensor::<f16>::from_safe_tensors(data, conv2_weight)
                     .permute([2, 3, 1, 0])
                     .expect("permute failed")
                     .contiguous()
                     .expect("contiguous failed"),
                 bias: None,
-                running_mean: Tensor::<f32>::from_safe_tensors(data, conv2_running_mean),
-                running_var: Tensor::<f32>::from_safe_tensors(data, conv2_running_var),
-                running_gamma: Tensor::<f32>::from_safe_tensors(data, conv2_running_gamma),
-                running_beta: Tensor::<f32>::from_safe_tensors(data, conv2_running_beta),
+                running_mean: Tensor::<f16>::from_safe_tensors(data, conv2_running_mean),
+                running_var: Tensor::<f16>::from_safe_tensors(data, conv2_running_var),
+                running_gamma: Tensor::<f16>::from_safe_tensors(data, conv2_running_gamma),
+                running_beta: Tensor::<f16>::from_safe_tensors(data, conv2_running_beta),
                 eps,
                 steps: conv2_steps,
                 padding: conv2_padding,
@@ -270,7 +260,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
         downsample_running_var: &str,
         downsample_running_gamma: &str,
         downsample_running_beta: &str,
-        eps: f32,
+        eps: f16,
         conv1_steps: usize,
         conv1_padding: usize,
         conv1_dilation: usize,
@@ -284,16 +274,16 @@ fn create_resnet() -> anyhow::Result<ResNet> {
         BasicBlock {
             bn_conv1: Conv2dBatchNorm {
                 weight_str: weight.to_string(),
-                weight: Tensor::<f32>::from_safe_tensors(data, weight)
+                weight: Tensor::<f16>::from_safe_tensors(data, weight)
                     .permute([2, 3, 1, 0])
                     .expect("permute failed")
                     .contiguous()
                     .expect("contiguous failed"),
                 bias: None,
-                running_mean: Tensor::<f32>::from_safe_tensors(data, running_mean),
-                running_var: Tensor::<f32>::from_safe_tensors(data, running_var),
-                running_gamma: Tensor::<f32>::from_safe_tensors(data, running_gamma),
-                running_beta: Tensor::<f32>::from_safe_tensors(data, running_beta),
+                running_mean: Tensor::<f16>::from_safe_tensors(data, running_mean),
+                running_var: Tensor::<f16>::from_safe_tensors(data, running_var),
+                running_gamma: Tensor::<f16>::from_safe_tensors(data, running_gamma),
+                running_beta: Tensor::<f16>::from_safe_tensors(data, running_beta),
                 eps,
                 steps: conv1_steps,
                 padding: conv1_padding,
@@ -301,16 +291,16 @@ fn create_resnet() -> anyhow::Result<ResNet> {
             },
             bn_conv2: Conv2dBatchNorm {
                 weight_str: conv2_weight.to_string(),
-                weight: Tensor::<f32>::from_safe_tensors(data, conv2_weight)
+                weight: Tensor::<f16>::from_safe_tensors(data, conv2_weight)
                     .permute([2, 3, 1, 0])
                     .expect("permute failed")
                     .contiguous()
                     .expect("contiguous failed"),
                 bias: None,
-                running_mean: Tensor::<f32>::from_safe_tensors(data, conv2_running_mean),
-                running_var: Tensor::<f32>::from_safe_tensors(data, conv2_running_var),
-                running_gamma: Tensor::<f32>::from_safe_tensors(data, conv2_running_gamma),
-                running_beta: Tensor::<f32>::from_safe_tensors(data, conv2_running_beta),
+                running_mean: Tensor::<f16>::from_safe_tensors(data, conv2_running_mean),
+                running_var: Tensor::<f16>::from_safe_tensors(data, conv2_running_var),
+                running_gamma: Tensor::<f16>::from_safe_tensors(data, conv2_running_gamma),
+                running_beta: Tensor::<f16>::from_safe_tensors(data, conv2_running_beta),
                 eps,
                 steps: conv2_steps,
                 padding: conv2_padding,
@@ -319,16 +309,16 @@ fn create_resnet() -> anyhow::Result<ResNet> {
             downsample: Some(DownSample {
                 conv: Conv2dBatchNorm {
                     weight_str: downsample_weight.to_string(),
-                    weight: Tensor::<f32>::from_safe_tensors(data, downsample_weight)
+                    weight: Tensor::<f16>::from_safe_tensors(data, downsample_weight)
                         .permute([2, 3, 1, 0])
                         .expect("permute failed")
                         .contiguous()
                         .expect("contiguous failed"),
                     bias: None,
-                    running_mean: Tensor::<f32>::from_safe_tensors(data, downsample_running_mean),
-                    running_var: Tensor::<f32>::from_safe_tensors(data, downsample_running_var),
-                    running_gamma: Tensor::<f32>::from_safe_tensors(data, downsample_running_gamma),
-                    running_beta: Tensor::<f32>::from_safe_tensors(data, downsample_running_beta),
+                    running_mean: Tensor::<f16>::from_safe_tensors(data, downsample_running_mean),
+                    running_var: Tensor::<f16>::from_safe_tensors(data, downsample_running_var),
+                    running_gamma: Tensor::<f16>::from_safe_tensors(data, downsample_running_gamma),
+                    running_beta: Tensor::<f16>::from_safe_tensors(data, downsample_running_beta),
                     eps,
                     steps: downsample_steps,
                     padding: downsample_padding,
@@ -352,7 +342,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer1.0.bn2.running_var",
                 "layer1.0.bn2.weight",
                 "layer1.0.bn2.bias",
-                1e-5, /*eps */
+                EPS, /*eps */
                 1,    /*conv1_steps */
                 1,    /*conv1_padding */
                 1,    /*conv1_dilation */
@@ -372,7 +362,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer1.1.bn2.running_var",
                 "layer1.1.bn2.weight",
                 "layer1.1.bn2.bias",
-                1e-5, /*eps */
+                EPS, /*eps */
                 1,    /*conv1_steps */
                 1,    /*conv1_padding */
                 1,    /*conv1_dilation */
@@ -392,7 +382,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer1.2.bn2.running_var",
                 "layer1.2.bn2.weight",
                 "layer1.2.bn2.bias",
-                1e-5, /*eps */
+                EPS, /*eps */
                 1,    /*conv1_steps */
                 1,    /*conv1_padding */
                 1,    /*conv1_dilation */
@@ -422,7 +412,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer2.0.downsample.1.running_var",
                 "layer2.0.downsample.1.weight",
                 "layer2.0.downsample.1.bias",
-                1e-5, /*eps */
+                EPS, /*eps */
                 2,    /*conv1_steps */
                 1,    /*conv1_padding */
                 1,    /*conv1_dilation */
@@ -445,7 +435,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer2.1.bn2.running_var",
                 "layer2.1.bn2.weight",
                 "layer2.1.bn2.bias",
-                1e-5, /*eps */
+                EPS, /*eps */
                 1,    /*conv1_steps */
                 1,    /*conv1_padding */
                 1,    /*conv1_dilation */
@@ -465,7 +455,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer2.2.bn2.running_var",
                 "layer2.2.bn2.weight",
                 "layer2.2.bn2.bias",
-                1e-5, /*eps */
+                EPS, /*eps */
                 1,    /*conv1_steps */
                 1,    /*conv1_padding */
                 1,    /*conv1_dilation */
@@ -485,7 +475,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer2.3.bn2.running_var",
                 "layer2.3.bn2.weight",
                 "layer2.3.bn2.bias",
-                1e-5, /*eps */
+                EPS, /*eps */
                 1,    /*conv1_steps */
                 1,    /*conv1_padding */
                 1,    /*conv1_dilation */
@@ -515,7 +505,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer3.0.downsample.1.running_var",
                 "layer3.0.downsample.1.weight",
                 "layer3.0.downsample.1.bias",
-                1e-5, /*eps */
+                EPS, /*eps */
                 2,    /*conv1_steps */
                 1,    /*conv1_padding */
                 1,    /*conv1_dilation */
@@ -538,7 +528,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer3.1.bn2.running_var",
                 "layer3.1.bn2.weight",
                 "layer3.1.bn2.bias",
-                1e-5, /*eps */
+                EPS, /*eps */
                 1,    /*conv1_steps */
                 1,    /*conv1_padding */
                 1,    /*conv1_dilation */
@@ -558,7 +548,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer3.2.bn2.running_var",
                 "layer3.2.bn2.weight",
                 "layer3.2.bn2.bias",
-                1e-5, /*eps */
+                EPS, /*eps */
                 1,    /*conv1_steps */
                 1,    /*conv1_padding */
                 1,    /*conv1_dilation */
@@ -578,7 +568,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer3.3.bn2.running_var",
                 "layer3.3.bn2.weight",
                 "layer3.3.bn2.bias",
-                1e-5, /*eps */
+                EPS, /*eps */
                 1,    /*conv1_steps */
                 1,    /*conv1_padding */
                 1,    /*conv1_dilation */
@@ -598,7 +588,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer3.4.bn2.running_var",
                 "layer3.4.bn2.weight",
                 "layer3.4.bn2.bias",
-                1e-5, /*eps */
+                EPS, /*eps */
                 1,    /*conv1_steps */
                 1,    /*conv1_padding */
                 1,    /*conv1_dilation */
@@ -618,7 +608,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer3.5.bn2.running_var",
                 "layer3.5.bn2.weight",
                 "layer3.5.bn2.bias",
-                1e-5, /*eps */
+                EPS, /*eps */
                 1,    /*conv1_steps */
                 1,    /*conv1_padding */
                 1,    /*conv1_dilation */
@@ -648,7 +638,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer4.0.downsample.1.running_var",
                 "layer4.0.downsample.1.weight",
                 "layer4.0.downsample.1.bias",
-                1e-5, /*eps */
+                EPS, /*eps */
                 2,    /*conv1_steps */
                 1,    /*conv1_padding */
                 1,    /*conv1_dilation */
@@ -671,7 +661,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer4.1.bn2.running_var",
                 "layer4.1.bn2.weight",
                 "layer4.1.bn2.bias",
-                1e-5, /*eps */
+                EPS, /*eps */
                 1,    /*conv1_steps */
                 1,    /*conv1_padding */
                 1,    /*conv1_dilation */
@@ -691,7 +681,7 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer4.2.bn2.running_var",
                 "layer4.2.bn2.weight",
                 "layer4.2.bn2.bias",
-                1e-5, /*eps */
+                EPS, /*eps */
                 1,    /*conv1_steps */
                 1,    /*conv1_padding */
                 1,    /*conv1_dilation */
@@ -707,21 +697,21 @@ fn create_resnet() -> anyhow::Result<ResNet> {
     };
 
     let fc = Linear {
-        weight: Tensor::<f32>::from_safe_tensors(&data, "fc.weight"),
-        bias: Tensor::<f32>::from_safe_tensors(&data, "fc.bias"),
+        weight: Tensor::<f16>::from_safe_tensors(&data, "fc.weight"),
+        bias: Tensor::<f16>::from_safe_tensors(&data, "fc.bias"),
     };
     Ok(ResNet {
         bn_conv1: Conv2dBatchNorm {
             weight_str: "conv1.weight".to_string(),
-            weight: Tensor::<f32>::from_safe_tensors(&data, "conv1.weight")
+            weight: Tensor::<f16>::from_safe_tensors(&data, "conv1.weight")
                 .permute(&[2, 3, 1, 0])?
                 .contiguous()?,
             bias: None,
-            running_mean: Tensor::<f32>::from_safe_tensors(&data, "bn1.running_mean"),
-            running_var: Tensor::<f32>::from_safe_tensors(&data, "bn1.running_var"),
-            running_gamma: Tensor::<f32>::from_safe_tensors(&data, "bn1.weight"),
-            running_beta: Tensor::<f32>::from_safe_tensors(&data, "bn1.bias"),
-            eps: 1e-5,
+            running_mean: Tensor::<f16>::from_safe_tensors(&data, "bn1.running_mean"),
+            running_var: Tensor::<f16>::from_safe_tensors(&data, "bn1.running_var"),
+            running_gamma: Tensor::<f16>::from_safe_tensors(&data, "bn1.weight"),
+            running_beta: Tensor::<f16>::from_safe_tensors(&data, "bn1.bias"),
+            eps: EPS,
             steps: 2,
             padding: 3,
             dilation: 1,
@@ -735,16 +725,32 @@ fn create_resnet() -> anyhow::Result<ResNet> {
         fc,
     })
 }
+
+impl ResNet {
+    pub fn forward(&self, x: &Tensor<f16>) -> anyhow::Result<Tensor<f16>> {
+        let x = self.bn_conv1.forward(&x, |x| x._relu(), |x| x._relu())?;
+        let x = self.max_pool1.forward(&x)?;
+        let x = self.layer1.forward(&x)?;
+        let x = self.layer2.forward(&x)?;
+        let x = self.layer3.forward(&x)?;
+        let x = self.layer4.forward(&x)?;
+        let x = self.avg_pool.forward(&x)?;
+        let x = self.fc.forward(&x)?;
+        Ok(x)
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     let resnet = create_resnet()?;
     // you can save the model to a file
-    resnet.save("resnet.model")?;
+    // resnet.save("resnet.model")?;
     // you can load the model from a file
-    let resnet = ResNet::load("resnet.model")?;
+    // let resnet = ResNet::load("resnet.model")?;
     let mut size = vec![];
     let mut time = vec![];
-    for i in 0..50 {
-        let inp = Tensor::<f32>::randn([5, 64 + 32 * i, 64 + 32 * i, 3])?;
+    for i in 0..31 {
+        let inp = Tensor::<f16>::randn([1, 64 + 32 * i, 64 + 32 * i, 3])?;
+        // let inp = Tensor::<f16>::randn([1, 52, 52, 128])?;
         let now = std::time::Instant::now();
         for _ in 0..10 {
             resnet.forward(&inp)?;

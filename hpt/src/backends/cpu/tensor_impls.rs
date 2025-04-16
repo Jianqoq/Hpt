@@ -64,12 +64,12 @@ where
 
 macro_rules! impl_tensor_info {
     ($tensor:ty) => {
-        impl<T, const DEVICE: usize, A> TensorInfo<T> for $tensor
+        impl<T: CommonBounds, const DEVICE: usize, A> TensorInfo<T> for $tensor
         where
             A: Allocator,
         {
             fn ptr(&self) -> Pointer<T> {
-                self.data.clone()
+                self.data
             }
             fn size(&self) -> usize {
                 self.layout.size() as usize

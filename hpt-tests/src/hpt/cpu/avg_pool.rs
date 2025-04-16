@@ -1,7 +1,6 @@
 #![allow(unused)]
 use crate::{TestTypes, TCH_TEST_TYPES, TEST_ATOL, TEST_RTOL};
 
-use super::assert_utils::assert_f64;
 use hpt::common::cpu::TensorLike;
 use hpt::common::TensorInfo;
 use hpt::{

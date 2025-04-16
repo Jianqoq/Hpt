@@ -12,7 +12,8 @@ fn batchnorm_conv2d(
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        activation: Option<fn(T::Vec) -> T::Vec>,
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Tensor<T>, TensorError>
 ```
 Performs a 2D convolution operation followed by batch normalization in a single fused operation for improved performance.
@@ -40,7 +41,9 @@ Performs a 2D convolution operation followed by batch normalization in a single 
 
 `dilation`: Kernel dilation factors as `[dilation_height, dilation_width]`
 
-`activation`: Optional activation function applied to the convolution result
+`post_scalar`: Optional post function applied to each of the scalar result
+
+`post_vec`: Optional post_vec function applied to each of the vector result
 
 ## Returns:
 Tensor with type `T`
@@ -82,6 +85,7 @@ fn main() -> Result<(), TensorError> {
         [1, 1],           // stride
         [(1, 1), (1, 1)], // padding
         [1, 1],           // dilation
+        None,             // no activation function
         None,             // no activation function
     )?;
 

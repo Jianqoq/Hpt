@@ -486,8 +486,11 @@ export default defineUserConfig({
               link: '/benchmarks/reduce.md'
             },
             {
-              text: 'conv',
-              link: '/benchmarks/conv.md'
+              text: 'conv(f32)',
+              link: '/benchmarks/conv_f32.md'
+            },{
+              text: 'conv(f16)',
+              link: '/benchmarks/conv_f16.md'
             },
             {
               text: 'pooling',
@@ -508,7 +511,8 @@ export default defineUserConfig({
               text: 'nn',
               collapsible: true,
               children: [
-                { text: 'resnet', link: '/benchmarks/nn/resnet.md' },
+                { text: 'resnet(f32)', link: '/benchmarks/nn/resnet_f32.md' },
+                { text: 'resnet(f16)', link: '/benchmarks/nn/resnet_f16.md' },
                 { text: 'lstm', link: '/benchmarks/nn/lstm.md' }
               ]
             }

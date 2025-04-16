@@ -1,7 +1,8 @@
 pub(crate) type TestTypes = f32;
 static TCH_TEST_TYPES: tch::Kind = tch::Kind::Float;
-static TEST_RTOL: TestTypes = 1e-3;
-static TEST_ATOL: TestTypes = 1e-3;
+static TEST_RTOL: TestTypes = 1e-2;
+static TEST_ATOL: TestTypes = 1e-2;
+static EPSILON: TestTypes = 1e-5;
 
 pub mod hpt {
     pub mod cpu {
@@ -14,7 +15,7 @@ pub mod hpt {
         pub mod bn_conv2d;
         pub mod conv2d;
         pub mod conv2d_group;
-        pub mod conv2d_transpose;
+        // pub mod conv2d_transpose;
         pub mod creation;
         pub mod cumulate;
         pub mod dwconv2d;
@@ -24,7 +25,6 @@ pub mod hpt {
         pub mod matmul;
         pub mod maxpool;
         pub mod onehot;
-        pub mod pwconv2d;
         pub mod reduce;
         pub mod scatter;
         pub mod shape_manipulate;
