@@ -6,7 +6,10 @@ use hpt::{
     ops::{ShapeManipulate, TensorCreator},
     types::{
         cast::{Cast, IntoVec},
-        math::{FloatOutBinary, FloatOutBinaryPromote, FloatOutUnary, FloatOutUnaryPromote, NormalOut, NormalOutPromote, NormalOutUnary},
+        math::{
+            FloatOutBinary, FloatOutBinaryPromote, FloatOutUnary, FloatOutUnaryPromote, NormalOut,
+            NormalOutPromote, NormalOutUnary,
+        },
         vectors::traits::VecTrait,
         TypeCommon,
     },

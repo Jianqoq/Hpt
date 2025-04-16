@@ -1,4 +1,5 @@
 use hpt::ops::Contiguous;
+use hpt::types::f16;
 use hpt::{
     common::Shape,
     iter::{ParStridedIteratorSimd, ParStridedIteratorSimdZip, TensorIterator},
@@ -10,7 +11,6 @@ use hpt::{
     types::{math::NormalOutUnary, TypeCommon},
     Load, Save, Tensor,
 };
-use hpt::types::f16;
 use safetensors::SafeTensors;
 type F32Simd = <f16 as TypeCommon>::Vec;
 const EPS: f16 = f16::from_f32_const(1e-5);
@@ -343,12 +343,12 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer1.0.bn2.weight",
                 "layer1.0.bn2.bias",
                 EPS, /*eps */
-                1,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
+                1,   /*conv1_steps */
+                1,   /*conv1_padding */
+                1,   /*conv1_dilation */
+                1,   /*conv2_steps */
+                1,   /*conv2_padding */
+                1,   /*conv2_dilation */
             ),
             create_basic_block(
                 &data,
@@ -363,12 +363,12 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer1.1.bn2.weight",
                 "layer1.1.bn2.bias",
                 EPS, /*eps */
-                1,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
+                1,   /*conv1_steps */
+                1,   /*conv1_padding */
+                1,   /*conv1_dilation */
+                1,   /*conv2_steps */
+                1,   /*conv2_padding */
+                1,   /*conv2_dilation */
             ),
             create_basic_block(
                 &data,
@@ -383,12 +383,12 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer1.2.bn2.weight",
                 "layer1.2.bn2.bias",
                 EPS, /*eps */
-                1,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
+                1,   /*conv1_steps */
+                1,   /*conv1_padding */
+                1,   /*conv1_dilation */
+                1,   /*conv2_steps */
+                1,   /*conv2_padding */
+                1,   /*conv2_dilation */
             ),
         ],
     };
@@ -413,15 +413,15 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer2.0.downsample.1.weight",
                 "layer2.0.downsample.1.bias",
                 EPS, /*eps */
-                2,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
-                2,    /*downsample_steps */
-                0,    /*downsample_padding */
-                1,    /*downsample_dilation */
+                2,   /*conv1_steps */
+                1,   /*conv1_padding */
+                1,   /*conv1_dilation */
+                1,   /*conv2_steps */
+                1,   /*conv2_padding */
+                1,   /*conv2_dilation */
+                2,   /*downsample_steps */
+                0,   /*downsample_padding */
+                1,   /*downsample_dilation */
             ),
             create_basic_block(
                 &data,
@@ -436,12 +436,12 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer2.1.bn2.weight",
                 "layer2.1.bn2.bias",
                 EPS, /*eps */
-                1,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
+                1,   /*conv1_steps */
+                1,   /*conv1_padding */
+                1,   /*conv1_dilation */
+                1,   /*conv2_steps */
+                1,   /*conv2_padding */
+                1,   /*conv2_dilation */
             ),
             create_basic_block(
                 &data,
@@ -456,12 +456,12 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer2.2.bn2.weight",
                 "layer2.2.bn2.bias",
                 EPS, /*eps */
-                1,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
+                1,   /*conv1_steps */
+                1,   /*conv1_padding */
+                1,   /*conv1_dilation */
+                1,   /*conv2_steps */
+                1,   /*conv2_padding */
+                1,   /*conv2_dilation */
             ),
             create_basic_block(
                 &data,
@@ -476,12 +476,12 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer2.3.bn2.weight",
                 "layer2.3.bn2.bias",
                 EPS, /*eps */
-                1,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
+                1,   /*conv1_steps */
+                1,   /*conv1_padding */
+                1,   /*conv1_dilation */
+                1,   /*conv2_steps */
+                1,   /*conv2_padding */
+                1,   /*conv2_dilation */
             ),
         ],
     };
@@ -506,15 +506,15 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer3.0.downsample.1.weight",
                 "layer3.0.downsample.1.bias",
                 EPS, /*eps */
-                2,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
-                2,    /*downsample_steps */
-                0,    /*downsample_padding */
-                1,    /*downsample_dilation */
+                2,   /*conv1_steps */
+                1,   /*conv1_padding */
+                1,   /*conv1_dilation */
+                1,   /*conv2_steps */
+                1,   /*conv2_padding */
+                1,   /*conv2_dilation */
+                2,   /*downsample_steps */
+                0,   /*downsample_padding */
+                1,   /*downsample_dilation */
             ),
             create_basic_block(
                 &data,
@@ -529,12 +529,12 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer3.1.bn2.weight",
                 "layer3.1.bn2.bias",
                 EPS, /*eps */
-                1,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
+                1,   /*conv1_steps */
+                1,   /*conv1_padding */
+                1,   /*conv1_dilation */
+                1,   /*conv2_steps */
+                1,   /*conv2_padding */
+                1,   /*conv2_dilation */
             ),
             create_basic_block(
                 &data,
@@ -549,12 +549,12 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer3.2.bn2.weight",
                 "layer3.2.bn2.bias",
                 EPS, /*eps */
-                1,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
+                1,   /*conv1_steps */
+                1,   /*conv1_padding */
+                1,   /*conv1_dilation */
+                1,   /*conv2_steps */
+                1,   /*conv2_padding */
+                1,   /*conv2_dilation */
             ),
             create_basic_block(
                 &data,
@@ -569,12 +569,12 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer3.3.bn2.weight",
                 "layer3.3.bn2.bias",
                 EPS, /*eps */
-                1,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
+                1,   /*conv1_steps */
+                1,   /*conv1_padding */
+                1,   /*conv1_dilation */
+                1,   /*conv2_steps */
+                1,   /*conv2_padding */
+                1,   /*conv2_dilation */
             ),
             create_basic_block(
                 &data,
@@ -589,12 +589,12 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer3.4.bn2.weight",
                 "layer3.4.bn2.bias",
                 EPS, /*eps */
-                1,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
+                1,   /*conv1_steps */
+                1,   /*conv1_padding */
+                1,   /*conv1_dilation */
+                1,   /*conv2_steps */
+                1,   /*conv2_padding */
+                1,   /*conv2_dilation */
             ),
             create_basic_block(
                 &data,
@@ -609,12 +609,12 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer3.5.bn2.weight",
                 "layer3.5.bn2.bias",
                 EPS, /*eps */
-                1,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
+                1,   /*conv1_steps */
+                1,   /*conv1_padding */
+                1,   /*conv1_dilation */
+                1,   /*conv2_steps */
+                1,   /*conv2_padding */
+                1,   /*conv2_dilation */
             ),
         ],
     };
@@ -639,15 +639,15 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer4.0.downsample.1.weight",
                 "layer4.0.downsample.1.bias",
                 EPS, /*eps */
-                2,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
-                2,    /*downsample_steps */
-                0,    /*downsample_padding */
-                1,    /*downsample_dilation */
+                2,   /*conv1_steps */
+                1,   /*conv1_padding */
+                1,   /*conv1_dilation */
+                1,   /*conv2_steps */
+                1,   /*conv2_padding */
+                1,   /*conv2_dilation */
+                2,   /*downsample_steps */
+                0,   /*downsample_padding */
+                1,   /*downsample_dilation */
             ),
             create_basic_block(
                 &data,
@@ -662,12 +662,12 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer4.1.bn2.weight",
                 "layer4.1.bn2.bias",
                 EPS, /*eps */
-                1,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
+                1,   /*conv1_steps */
+                1,   /*conv1_padding */
+                1,   /*conv1_dilation */
+                1,   /*conv2_steps */
+                1,   /*conv2_padding */
+                1,   /*conv2_dilation */
             ),
             create_basic_block(
                 &data,
@@ -682,12 +682,12 @@ fn create_resnet() -> anyhow::Result<ResNet> {
                 "layer4.2.bn2.weight",
                 "layer4.2.bn2.bias",
                 EPS, /*eps */
-                1,    /*conv1_steps */
-                1,    /*conv1_padding */
-                1,    /*conv1_dilation */
-                1,    /*conv2_steps */
-                1,    /*conv2_padding */
-                1,    /*conv2_dilation */
+                1,   /*conv1_steps */
+                1,   /*conv1_padding */
+                1,   /*conv1_dilation */
+                1,   /*conv2_steps */
+                1,   /*conv2_padding */
+                1,   /*conv2_dilation */
             ),
         ],
     };

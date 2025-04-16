@@ -33,10 +33,7 @@ fn func() -> anyhow::Result<()> {
         for _ in 0..len {
             shape.push(rng.random_range(1..10));
         }
-        let tch_a = tch::Tensor::randn(
-            &shape,
-            (TCH_TEST_TYPES, tch::Device::Cpu),
-        );
+        let tch_a = tch::Tensor::randn(&shape, (TCH_TEST_TYPES, tch::Device::Cpu));
         let mut a = Tensor::<TestTypes>::empty(shape)?;
         a.as_raw_mut().copy_from_slice(unsafe {
             std::slice::from_raw_parts(tch_a.data_ptr() as *mut TestTypes, tch_a.numel())

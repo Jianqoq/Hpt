@@ -156,7 +156,8 @@ where
         })
         .into());
     }
-    let mut output = _Tensor::<T, Cpu, DEVICE, A>::empty([batch, out_height, out_width, out_channels])?;
+    let mut output =
+        _Tensor::<T, Cpu, DEVICE, A>::empty([batch, out_height, out_width, out_channels])?;
     let out = output.ptr();
 
     let osb = output.strides()[0]; // batch

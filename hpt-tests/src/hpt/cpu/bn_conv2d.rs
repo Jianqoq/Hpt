@@ -1,9 +1,15 @@
 #![allow(unused)]
 use super::assert_utils::assert_f32;
 use super::assert_utils::assert_f64;
+use crate::TestTypes;
+use crate::EPSILON;
+use crate::TCH_TEST_TYPES;
+use crate::TEST_ATOL;
+use crate::TEST_RTOL;
 use hpt::common::cpu::TensorLike;
 use hpt::common::TensorInfo;
 use hpt::ops::Contiguous;
+use hpt::ops::Conv;
 use hpt::ops::ConvBatchNorm;
 use hpt::ops::ShapeManipulate;
 use hpt::ops::TensorCreator;
@@ -13,21 +19,20 @@ use hpt_types::type_promote::NormalOut;
 use hpt_types::type_promote::NormalOutUnary;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use tch;
-use hpt::ops::Conv;
-use crate::TestTypes;
-use crate::EPSILON;
-use crate::TCH_TEST_TYPES;
-use crate::TEST_ATOL;
-use crate::TEST_RTOL;
-
 
 fn common_input(
     [batch, out_channel, in_channel, kernel_height, kernel_width, height, width]: [i64; 7],
-) -> anyhow::Result<(Tensor<TestTypes>, Tensor<TestTypes>, tch::Tensor, tch::Tensor)> {
-    let kernel = Tensor::<TestTypes>::arange(0, in_channel * out_channel * kernel_height * kernel_width)?
-        .reshape([out_channel, in_channel, kernel_height, kernel_width])?
-        .permute([2, 3, 1, 0])?
-        .contiguous()?;
+) -> anyhow::Result<(
+    Tensor<TestTypes>,
+    Tensor<TestTypes>,
+    tch::Tensor,
+    tch::Tensor,
+)> {
+    let kernel =
+        Tensor::<TestTypes>::arange(0, in_channel * out_channel * kernel_height * kernel_width)?
+            .reshape([out_channel, in_channel, kernel_height, kernel_width])?
+            .permute([2, 3, 1, 0])?
+            .contiguous()?;
     let a = Tensor::<TestTypes>::arange(0, batch * in_channel * height * width)?
         .reshape([batch, in_channel, height, width])?
         .permute([0, 2, 3, 1])?
@@ -54,13 +59,10 @@ fn assert_eq(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let oc = *a_kernel.shape().last().unwrap();
-    let mean =
-        tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let mean = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
     let var = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let gamma =
-        tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let beta =
-        tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let gamma = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let beta = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
     let hpt_mean = Tensor::<TestTypes>::arange(0, oc)?;
     let hpt_var = Tensor::<TestTypes>::arange(0, oc)?;
     let hpt_gamma = Tensor::<TestTypes>::arange(0, oc)?;
@@ -99,13 +101,10 @@ fn assert_eq_pad(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let oc = *a_kernel.shape().last().unwrap();
-    let mean =
-        tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let mean = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
     let var = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let gamma =
-        tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let beta =
-        tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let gamma = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let beta = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
     let hpt_mean = Tensor::<TestTypes>::arange(0, oc)?;
     let hpt_var = Tensor::<TestTypes>::arange(0, oc)?;
     let hpt_gamma = Tensor::<TestTypes>::arange(0, oc)?;
@@ -144,13 +143,10 @@ fn assert_eq_bias(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let oc = *a_kernel.shape().last().unwrap();
-    let mean =
-        tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let mean = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
     let var = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let gamma =
-        tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let beta =
-        tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let gamma = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let beta = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
     let hpt_mean = Tensor::<TestTypes>::arange(0, oc)?;
     let hpt_var = Tensor::<TestTypes>::arange(0, oc)?;
     let hpt_gamma = Tensor::<TestTypes>::arange(0, oc)?;
@@ -191,13 +187,10 @@ fn assert_eq_bias_pad(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let oc = *a_kernel.shape().last().unwrap();
-    let mean =
-        tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let mean = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
     let var = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let gamma =
-        tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let beta =
-        tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let gamma = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let beta = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
     let hpt_mean = Tensor::<TestTypes>::arange(0, oc)?;
     let hpt_var = Tensor::<TestTypes>::arange(0, oc)?;
     let hpt_gamma = Tensor::<TestTypes>::arange(0, oc)?;
@@ -238,13 +231,10 @@ fn assert_eq_bias_pad_relu6(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let oc = *a_kernel.shape().last().unwrap();
-    let mean =
-        tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let mean = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
     let var = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let gamma =
-        tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
-    let beta =
-        tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let gamma = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
+    let beta = tch::Tensor::arange(oc, (TCH_TEST_TYPES, tch::Device::Cpu)).reshape(&[1, oc, 1, 1]);
     let hpt_mean = Tensor::<TestTypes>::arange(0, oc)?;
     let hpt_var = Tensor::<TestTypes>::arange(0, oc)?;
     let hpt_gamma = Tensor::<TestTypes>::arange(0, oc)?;

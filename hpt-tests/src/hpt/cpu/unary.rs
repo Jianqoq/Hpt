@@ -1,15 +1,15 @@
 #![allow(unused_imports)]
+use crate::TestTypes;
+use crate::TCH_TEST_TYPES;
+use crate::TEST_ATOL;
+use crate::TEST_RTOL;
 use hpt::common::cpu::TensorLike;
 use hpt::common::TensorInfo;
 use hpt::ops::*;
 use hpt::slice;
 use hpt::Tensor;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use rand::Rng;
-use crate::TestTypes;
-use crate::TCH_TEST_TYPES;
-use crate::TEST_ATOL;
-use crate::TEST_RTOL;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 #[allow(unused)]
 fn assert_eq(b: &Tensor<TestTypes>, a: &tch::Tensor) {
     let tch_b = unsafe {
@@ -159,12 +159,7 @@ test_unarys!(softplus, assert_eq, softplus(), softplus());
 test_unarys!(round, assert_eq, round(), round());
 test_unarys!(clip, assert_eq, clamp(0.0, 1.0), clamp(0.0, 1.0));
 test_unarys!(dropout, no_assert, dropout(0.5, false), dropout(0.5));
-test_unarys!(
-    hard_sigmoid,
-    assert_eq,
-    hardsigmoid(),
-    hard_sigmoid()
-);
+test_unarys!(hard_sigmoid, assert_eq, hardsigmoid(), hard_sigmoid());
 test_unarys!(hard_swish, assert_eq, hardswish(), hard_swish());
 test_unarys_out!(hard_swish_, assert_eq, hardswish(), hard_swish_());
 

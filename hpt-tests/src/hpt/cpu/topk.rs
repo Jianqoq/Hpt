@@ -30,7 +30,10 @@ fn test() -> anyhow::Result<()> {
             let (_, b_values) = a.topk(k as i64, i as i64, true, true)?;
             let (tch_b_values, _) = tch_a.topk(k as i64, i as i64, true, true);
             let tch_res = unsafe {
-                Tensor::<TestTypes>::from_raw(tch_b_values.data_ptr() as *mut TestTypes, &b_values.shape().to_vec())
+                Tensor::<TestTypes>::from_raw(
+                    tch_b_values.data_ptr() as *mut TestTypes,
+                    &b_values.shape().to_vec(),
+                )
             }?;
             assert!(b_values.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
         }
@@ -59,7 +62,10 @@ fn test_uncontiguous() -> anyhow::Result<()> {
             let (_, b_values) = a.topk(k as i64, i as i64, true, true)?;
             let (tch_b_values, _) = tch_a.topk(k as i64, i as i64, true, true);
             let tch_res = unsafe {
-                Tensor::<TestTypes>::from_raw(tch_b_values.data_ptr() as *mut TestTypes, &b_values.shape().to_vec())
+                Tensor::<TestTypes>::from_raw(
+                    tch_b_values.data_ptr() as *mut TestTypes,
+                    &b_values.shape().to_vec(),
+                )
             }?;
             assert!(b_values.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
         }
@@ -133,7 +139,10 @@ fn test_2dim_uncontiguous_sub_tensor() -> anyhow::Result<()> {
             let (_, b_values) = a.topk(k, i, true, true)?;
             let (tch_b_values, _) = tch_a.topk(k, i, true, true);
             let tch_res = unsafe {
-                Tensor::<TestTypes>::from_raw(tch_b_values.data_ptr() as *mut TestTypes, &b_values.shape().to_vec())
+                Tensor::<TestTypes>::from_raw(
+                    tch_b_values.data_ptr() as *mut TestTypes,
+                    &b_values.shape().to_vec(),
+                )
             }?;
             assert!(b_values.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
         }

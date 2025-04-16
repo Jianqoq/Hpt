@@ -201,7 +201,6 @@ pub(crate) fn compute_kernel_launch_config(
     _: &RegisterInfo,
     size: usize,
 ) -> LaunchConfig {
-
     use cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT;
     let sm_count = device
         .attribute(CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT)

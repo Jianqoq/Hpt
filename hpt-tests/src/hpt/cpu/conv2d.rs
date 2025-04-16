@@ -22,7 +22,12 @@ use super::assert_utils::assert_f64;
 
 fn common_input(
     [in_channel, out_channel, kernel_height, kernel_width, height, width]: [i64; 6],
-) -> anyhow::Result<(Tensor<TestTypes>, Tensor<TestTypes>, tch::Tensor, tch::Tensor)> {
+) -> anyhow::Result<(
+    Tensor<TestTypes>,
+    Tensor<TestTypes>,
+    tch::Tensor,
+    tch::Tensor,
+)> {
     let batch = 1;
     let tch_kernel = tch::Tensor::randn(
         [out_channel, in_channel, kernel_height, kernel_width],
@@ -32,7 +37,8 @@ fn common_input(
         [batch, in_channel, height, width],
         (TCH_TEST_TYPES, tch::Device::Cpu),
     );
-    let mut kernel = Tensor::<TestTypes>::empty([out_channel, in_channel, kernel_height, kernel_width])?;
+    let mut kernel =
+        Tensor::<TestTypes>::empty([out_channel, in_channel, kernel_height, kernel_width])?;
     let size = kernel.size();
     kernel.as_raw_mut().copy_from_slice(unsafe {
         std::slice::from_raw_parts(tch_kernel.data_ptr() as *const TestTypes, size)
@@ -58,7 +64,15 @@ fn assert_eq(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let res = a
-        .conv2d(&a_kernel, None, [1, 1], [(0, 0), (0, 0)], [1, 1], None, None)?
+        .conv2d(
+            &a_kernel,
+            None,
+            [1, 1],
+            [(0, 0), (0, 0)],
+            [1, 1],
+            None,
+            None,
+        )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.conv2d(&b_kernel, None::<tch::Tensor>, &[1, 1], &[0, 0], &[1, 1], 1);
@@ -77,7 +91,15 @@ fn assert_eq_pad(
     b_kernel: &tch::Tensor,
 ) -> anyhow::Result<()> {
     let res = a
-        .conv2d(&a_kernel, None, [1, 1], [(2, 2), (2, 2)], [1, 1], None, None)?
+        .conv2d(
+            &a_kernel,
+            None,
+            [1, 1],
+            [(2, 2), (2, 2)],
+            [1, 1],
+            None,
+            None,
+        )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
     let tch_res = b.conv2d(&b_kernel, None::<tch::Tensor>, &[1, 1], &[2, 2], &[1, 1], 1);
@@ -109,7 +131,7 @@ fn assert_eq_bias(
             [(0, 0), (0, 0)],
             [1, 1],
             None,
-            None
+            None,
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;
@@ -142,7 +164,7 @@ fn assert_eq_bias_pad(
             [(2, 2), (2, 2)],
             [1, 1],
             None,
-            None
+            None,
         )?
         .permute([0, 3, 1, 2])?
         .contiguous()?;

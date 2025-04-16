@@ -14,7 +14,12 @@ use tch;
 
 fn common_input(
     [batch, in_channel, kernel_height, kernel_width, height, width]: [i64; 6],
-) -> anyhow::Result<(Tensor<TestTypes>, Tensor<TestTypes>, tch::Tensor, tch::Tensor)> {
+) -> anyhow::Result<(
+    Tensor<TestTypes>,
+    Tensor<TestTypes>,
+    tch::Tensor,
+    tch::Tensor,
+)> {
     let kernel = Tensor::<TestTypes>::arange(0, kernel_height * kernel_width)?
         .reshape([kernel_height, kernel_width])?;
     let a = Tensor::<TestTypes>::arange(0, batch * in_channel * height * width)?

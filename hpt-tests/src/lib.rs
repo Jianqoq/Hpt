@@ -45,9 +45,9 @@ pub mod hpt {
         pub mod dwconv2d;
         pub mod from_raw;
         pub mod matmul;
+        pub mod normalization;
         pub mod reduce;
         pub mod unary;
-        pub mod normalization;
     }
 }
 

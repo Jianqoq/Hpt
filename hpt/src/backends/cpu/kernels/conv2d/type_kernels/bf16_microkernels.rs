@@ -26,7 +26,7 @@ impl Conv2dMicroKernel for crate::types::bf16 {
         fn(*const Self) -> MixedType::Vec,
         fn(*const MixedType::Vec) -> Self::Vec,
         fn(Self) -> MixedType,
-        fn(MixedType) -> Self
+        fn(MixedType) -> Self,
     )
     where
         MixedType: CommonBounds,
@@ -76,7 +76,7 @@ impl Conv2dMicroKernel for crate::types::bf16 {
         fn(*const Self) -> MixedType::Vec,
         fn(*const MixedType::Vec) -> Self::Vec,
         fn(Self) -> MixedType,
-        fn(MixedType) -> Self
+        fn(MixedType) -> Self,
     )
     where
         MixedType: CommonBounds,

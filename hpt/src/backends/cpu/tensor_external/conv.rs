@@ -9,13 +9,18 @@ use hpt_types::{
     type_promote::{FloatOutBinary, FloatOutUnary, NormalOut},
 };
 
+use crate::backends::cpu::kernels::conv2d::microkernel_trait::Conv2dMicroKernel;
 use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 use crate::Tensor;
-use crate::backends::cpu::kernels::conv2d::microkernel_trait::Conv2dMicroKernel;
 
 impl<T, const DEVICE: usize> Conv<T> for Tensor<T, Cpu, DEVICE>
 where
-    T: CommonBounds + Cast<T> + NormalOut<Output = T> + Conv2dMicroKernel + MatmulMicroKernel + Cast<<T as NormalOutPromote>::Intermediate>,
+    T: CommonBounds
+        + Cast<T>
+        + NormalOut<Output = T>
+        + Conv2dMicroKernel
+        + MatmulMicroKernel
+        + Cast<<T as NormalOutPromote>::Intermediate>,
     <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
     T::Vec: VecTrait<T> + Copy + Send + Sync + NormalOut<Output = T::Vec>,
     bool: Cast<T>,

@@ -3,19 +3,19 @@ use crate::TestTypes;
 use crate::TCH_TEST_TYPES;
 
 use super::assert_utils::assert_f64;
+use crate::{TEST_ATOL, TEST_RTOL};
 use hpt::common::cpu::TensorLike;
 use hpt::common::TensorInfo;
 use hpt::ops::TensorCreator;
 use hpt::ops::*;
 use hpt::slice;
+use hpt::types::TypeCommon;
 use hpt::{backend::Cuda, Tensor};
 use hpt_common::slice;
 use rand::Rng;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::ops::*;
 use tch::Tensor as TchTensor;
-use hpt::types::TypeCommon;
-use crate::{TEST_ATOL, TEST_RTOL};
 
 #[allow(unused)]
 fn assert_eq(b: &Tensor<TestTypes, Cuda>, a: &TchTensor) -> anyhow::Result<()> {

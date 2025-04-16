@@ -28,16 +28,17 @@ fn assert_eq(a: &hpt::Tensor<TestTypes>, b: &Tensor) {
     }
     let tch_res = unsafe {
         hpt::Tensor::<TestTypes>::from_raw(b.data_ptr() as *mut TestTypes, &a.shape().to_vec())
-    }.expect("Failed to convert tch tensor to hpt tensor");
+    }
+    .expect("Failed to convert tch tensor to hpt tensor");
     assert!(a.allclose(&tch_res, TEST_ATOL, TEST_RTOL));
 }
 
 #[track_caller]
 fn assert_eq_i64(a: &hpt::Tensor<i64>, b: &Tensor) {
     let raw = a.as_raw();
-    let tch_res = unsafe {
-        hpt::Tensor::<i64>::from_raw(b.data_ptr() as *mut i64, &a.shape().to_vec())
-    }.expect("Failed to convert tch tensor to hpt tensor");
+    let tch_res =
+        unsafe { hpt::Tensor::<i64>::from_raw(b.data_ptr() as *mut i64, &a.shape().to_vec()) }
+            .expect("Failed to convert tch tensor to hpt tensor");
     assert!(a.allclose(&tch_res, 0, 0));
 }
 
@@ -469,10 +470,9 @@ fn test_sum_square() -> anyhow::Result<()> {
     assert_eq(&sum, &tch_sum);
 
     let sum = a.sum_square([0, 1, 2], false)?;
-    let tch_sum =
-        tch_a
-            .pow_tensor_scalar(2)
-            .sum_dim_intlist(&[0, 1, 2][..], false, TCH_TEST_TYPES);
+    let tch_sum = tch_a
+        .pow_tensor_scalar(2)
+        .sum_dim_intlist(&[0, 1, 2][..], false, TCH_TEST_TYPES);
     assert_eq(&sum, &tch_sum);
     Ok(())
 }

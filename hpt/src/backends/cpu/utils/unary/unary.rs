@@ -13,7 +13,10 @@ use hpt_traits::tensor::{CommonBounds, TensorInfo, TensorLike};
 use hpt_types::dtype::TypeCommon;
 use hpt_types::type_promote::{Eval, NormalOut};
 use hpt_types::vectors::traits::*;
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator};
+use rayon::iter::{
+    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator,
+    IntoParallelRefMutIterator, ParallelIterator,
+};
 use rayon::slice::{ParallelSlice, ParallelSliceMut};
 use std::borrow::Borrow;
 use threadpool::ThreadPool;
@@ -35,17 +38,23 @@ where
             .for_each(|(out, buffer)| {
                 *out = f2(*buffer);
             });
-        chunk_o.into_par_iter().zip(chunk_a.into_par_iter()).for_each(|(out, buffer)| {
-            let out_ptr = out.as_mut_ptr() as *mut K::Vec;
-            let buffer_ptr = buffer.as_ptr() as *const A::Vec;
-            unsafe {
-                out_ptr.write_unaligned(f(buffer_ptr.read_unaligned()));
-            }
-        });
+        chunk_o
+            .into_par_iter()
+            .zip(chunk_a.into_par_iter())
+            .for_each(|(out, buffer)| {
+                let out_ptr = out.as_mut_ptr() as *mut K::Vec;
+                let buffer_ptr = buffer.as_ptr() as *const A::Vec;
+                unsafe {
+                    out_ptr.write_unaligned(f(buffer_ptr.read_unaligned()));
+                }
+            });
     } else {
-        slice_o.par_iter_mut().zip(slice_a.par_iter()).for_each(|(out, buffer)| {
-            *out = f2(*buffer);
-        });
+        slice_o
+            .par_iter_mut()
+            .zip(slice_a.par_iter())
+            .for_each(|(out, buffer)| {
+                *out = f2(*buffer);
+            });
     }
 }
 

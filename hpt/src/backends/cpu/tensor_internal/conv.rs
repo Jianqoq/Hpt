@@ -11,7 +11,8 @@ use hpt_types::{
 use crate::{
     backends::cpu::kernels::{
         conv2d::{
-            self, batchnorm_conv2d::batchnorm_conv2d, conv2d_group::conv2d_group, conv2d_new_mp, dwconv2d::dwconv2d, microkernel_trait::Conv2dMicroKernel
+            self, batchnorm_conv2d::batchnorm_conv2d, conv2d_group::conv2d_group, conv2d_new_mp,
+            dwconv2d::dwconv2d, microkernel_trait::Conv2dMicroKernel,
         },
         matmul::microkernel_trait::MatmulMicroKernel,
     },
@@ -172,7 +173,16 @@ where
         post_scalar: Option<fn(T) -> T>,
         post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
-        dwconv2d(self, bias, kernels, steps, padding, dilation, post_scalar, post_vec)
+        dwconv2d(
+            self,
+            bias,
+            kernels,
+            steps,
+            padding,
+            dilation,
+            post_scalar,
+            post_vec,
+        )
     }
 
     fn conv2d_transpose(

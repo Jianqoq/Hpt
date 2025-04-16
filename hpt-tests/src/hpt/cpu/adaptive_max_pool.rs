@@ -10,8 +10,8 @@ use hpt_types::type_promote::NormalOut;
 use rand::Rng;
 use tch;
 
-use crate::{TestTypes, TEST_ATOL, TEST_RTOL};
 use crate::TCH_TEST_TYPES;
+use crate::{TestTypes, TEST_ATOL, TEST_RTOL};
 fn common_input(
     [batch, in_channel, height, width]: [i64; 4],
 ) -> anyhow::Result<(Tensor<TestTypes>, tch::Tensor)> {

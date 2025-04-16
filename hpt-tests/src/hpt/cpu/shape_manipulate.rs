@@ -189,15 +189,14 @@ fn test_split() -> anyhow::Result<()> {
     });
     let b = a.split(&[2, 5], 1)?;
     let tch_b = tch_a.split_with_sizes(&[2, 3, 5], 1);
-    b.iter()
-        .zip(tch_b.iter())
-        .for_each(|(b, tch_b)| {
-            let tch_b = tch_b.contiguous();
-            let tch_b = unsafe {
-                Tensor::<TestTypes>::from_raw(tch_b.data_ptr() as *mut TestTypes, &b.shape().to_vec())
-            }.expect("failed to create tensor from raw pointer");
-            assert!(b.allclose(&tch_b, TEST_RTOL, TEST_ATOL));
-        });
+    b.iter().zip(tch_b.iter()).for_each(|(b, tch_b)| {
+        let tch_b = tch_b.contiguous();
+        let tch_b = unsafe {
+            Tensor::<TestTypes>::from_raw(tch_b.data_ptr() as *mut TestTypes, &b.shape().to_vec())
+        }
+        .expect("failed to create tensor from raw pointer");
+        assert!(b.allclose(&tch_b, TEST_RTOL, TEST_ATOL));
+    });
     Ok(())
 }
 

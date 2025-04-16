@@ -1,16 +1,16 @@
 #![allow(unused_imports)]
+use super::assert_utils::assert_f64;
 use crate::TestTypes;
 use crate::TCH_TEST_TYPES;
 use crate::TEST_ATOL;
 use crate::TEST_RTOL;
-use hpt::types::TypeCommon;
-use super::assert_utils::assert_f64;
 use hpt::common::cpu::TensorLike;
 use hpt::common::TensorInfo;
 use hpt::ops::Matmul;
 use hpt::ops::ShapeManipulate;
 use hpt::ops::TensorCmp;
 use hpt::ops::TensorCreator;
+use hpt::types::TypeCommon;
 use hpt::*;
 use hpt_common::slice;
 use rand::Rng;
@@ -58,7 +58,10 @@ fn no_assert_i64(b: &Tensor<i64>, a: &TchTensor) -> anyhow::Result<()> {
 fn common_input(
     lhs_shape: &[i64],
     rhs_shape: &[i64],
-) -> anyhow::Result<((TchTensor, TchTensor), (Tensor<TestTypes>, Tensor<TestTypes>))> {
+) -> anyhow::Result<(
+    (TchTensor, TchTensor),
+    (Tensor<TestTypes>, Tensor<TestTypes>),
+)> {
     let tch_a = TchTensor::randn(lhs_shape, (TCH_TEST_TYPES, tch::Device::Cpu));
     let mut a = Tensor::<TestTypes>::empty(lhs_shape)?;
     let a_size = a.size();

@@ -13,8 +13,12 @@ use crate::{TestTypes, EPSILON, TCH_TEST_TYPES, TEST_ATOL, TEST_RTOL};
 #[track_caller]
 fn assert_eq(hpt_res: &hpt::Tensor<TestTypes>, tch_res: &Tensor) {
     let tch_res = unsafe {
-        hpt::Tensor::<TestTypes>::from_raw(tch_res.data_ptr() as *mut TestTypes, &hpt_res.shape().to_vec())
-    }.expect("from_raw failed");
+        hpt::Tensor::<TestTypes>::from_raw(
+            tch_res.data_ptr() as *mut TestTypes,
+            &hpt_res.shape().to_vec(),
+        )
+    }
+    .expect("from_raw failed");
     assert!(hpt_res.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
 }
 

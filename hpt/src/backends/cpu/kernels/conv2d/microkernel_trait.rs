@@ -1,11 +1,14 @@
 use hpt_common::Pointer;
 use hpt_traits::tensor::CommonBounds;
 
-pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
+pub trait Conv2dMicroKernel
+where
+    Self: CommonBounds + Sized,
+{
     #[allow(unused_variables)]
     fn get_kernel(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
         Pointer<Self>,
         Pointer<Self>,
@@ -21,7 +24,7 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
         [i64; 2],
         [i64; 2],
         [i64; 2],
-        bool
+        bool,
     ) {
         #[cfg(target_feature = "avx2")]
         {
@@ -55,13 +58,11 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
             conv2d_micro_kernel!(x4x6, 4, 6);
             return [x4x1, x4x2, x4x3, x4x4, x4x5, x4x6][mr - 1];
         }
-        #[cfg(
-            all(
-                not(target_feature = "avx2"),
-                not(target_feature = "sse"),
-                not(target_feature = "neon")
-            )
-        )]
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
         {
             unimplemented!()
         }
@@ -70,7 +71,7 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
     #[allow(unused_variables)]
     fn get_kernel_with_padding(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
         Pointer<Self>,
         Pointer<Self>,
@@ -86,7 +87,7 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
         [i64; 2],
         [i64; 2],
         [i64; 2],
-        bool
+        bool,
     ) {
         #[cfg(target_feature = "avx2")]
         {
@@ -121,13 +122,11 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
             conv2d_micro_kernel_with_padding!(x4x3, 4, 3);
             return [x4x1, x4x2, x4x3][mr - 1];
         }
-        #[cfg(
-            all(
-                not(target_feature = "avx2"),
-                not(target_feature = "sse"),
-                not(target_feature = "neon")
-            )
-        )]
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
         {
             unimplemented!()
         }
@@ -136,29 +135,30 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
     #[allow(unused_variables)]
     fn get_mixed_precision_kernel<MixedType>(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
-            hpt_common::Pointer<MixedType>,
-            hpt_common::Pointer<MixedType>,
-            hpt_common::Pointer<Self>,
-            i64,
-            i64,
-            &mut i64,
-            [i64; 3],
-            [i64; 2],
-            [i64; 2],
-            [i64; 2],
-            [i64; 2],
-            [i64; 2],
-            [i64; 2],
-            [i64; 2],
-            bool,
-            fn(*const Self) -> MixedType::Vec,
-            fn(*const MixedType::Vec) -> Self::Vec,
-            fn(Self) -> MixedType,
-            fn(MixedType) -> Self
-        )
-        where MixedType: CommonBounds
+        hpt_common::Pointer<MixedType>,
+        hpt_common::Pointer<MixedType>,
+        hpt_common::Pointer<Self>,
+        i64,
+        i64,
+        &mut i64,
+        [i64; 3],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        bool,
+        fn(*const Self) -> MixedType::Vec,
+        fn(*const MixedType::Vec) -> Self::Vec,
+        fn(Self) -> MixedType,
+        fn(MixedType) -> Self,
+    )
+    where
+        MixedType: CommonBounds,
     {
         unimplemented!("mixed precision kernel is required for user to implement")
     }
@@ -166,29 +166,30 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
     #[allow(unused_variables)]
     fn get_mixed_precision_kernel_with_padding<MixedType>(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
-            hpt_common::Pointer<MixedType>,
-            hpt_common::Pointer<MixedType>,
-            hpt_common::Pointer<Self>,
-            i64,
-            i64,
-            &mut i64,
-            [i64; 3],
-            [i64; 2],
-            [i64; 2],
-            [i64; 2],
-            [i64; 2],
-            [i64; 2],
-            [i64; 2],
-            [i64; 2],
-            bool,
-            fn(*const Self) -> MixedType::Vec,
-            fn(*const MixedType::Vec) -> Self::Vec,
-            fn(Self) -> MixedType,
-            fn(MixedType) -> Self
-        )
-        where MixedType: CommonBounds
+        hpt_common::Pointer<MixedType>,
+        hpt_common::Pointer<MixedType>,
+        hpt_common::Pointer<Self>,
+        i64,
+        i64,
+        &mut i64,
+        [i64; 3],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        bool,
+        fn(*const Self) -> MixedType::Vec,
+        fn(*const MixedType::Vec) -> Self::Vec,
+        fn(Self) -> MixedType,
+        fn(MixedType) -> Self,
+    )
+    where
+        MixedType: CommonBounds,
     {
         unimplemented!("mixed precision kernel is required for user to implement")
     }
@@ -213,13 +214,11 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
         {
             6
         }
-        #[cfg(
-            all(
-                not(target_feature = "avx2"),
-                not(target_feature = "sse"),
-                not(target_feature = "neon")
-            )
-        )]
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
         {
             unimplemented!()
         }
@@ -237,13 +236,11 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
         {
             4
         }
-        #[cfg(
-            all(
-                not(target_feature = "avx2"),
-                not(target_feature = "sse"),
-                not(target_feature = "neon")
-            )
-        )]
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
         {
             unimplemented!()
         }

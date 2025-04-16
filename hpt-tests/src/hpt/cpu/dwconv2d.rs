@@ -19,7 +19,12 @@ use crate::TEST_RTOL;
 
 fn common_input(
     [batch, out_channel, in_channel, kernel_height, kernel_width, height, width, groups]: [i64; 8],
-) -> anyhow::Result<(Tensor<TestTypes>, Tensor<TestTypes>, tch::Tensor, tch::Tensor)> {
+) -> anyhow::Result<(
+    Tensor<TestTypes>,
+    Tensor<TestTypes>,
+    tch::Tensor,
+    tch::Tensor,
+)> {
     let kernel = Tensor::<TestTypes>::arange(
         0,
         (in_channel / groups) * out_channel * kernel_height * kernel_width,

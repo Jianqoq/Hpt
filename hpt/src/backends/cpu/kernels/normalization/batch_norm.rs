@@ -1,45 +1,59 @@
-use hpt_allocator::{ traits::{ Allocator, AllocatorOutputRetrive }, Cpu };
+use crate::tensor_base::_Tensor;
+use hpt_allocator::{
+    traits::{Allocator, AllocatorOutputRetrive},
+    Cpu,
+};
 use hpt_common::{
-    error::{ base::TensorError, shape::ShapeError },
+    error::{base::TensorError, shape::ShapeError},
     shape::shape_utils::mt_intervals,
 };
-use hpt_traits::{ ops::creation::TensorCreator, tensor::{ CommonBounds, TensorInfo } };
-use rayon::iter::{ IntoParallelIterator, ParallelIterator };
-use hpt_types::{ traits::VecTrait, type_promote::NormalOut };
+use hpt_traits::{
+    ops::creation::TensorCreator,
+    tensor::{CommonBounds, TensorInfo},
+};
 use hpt_types::type_promote::FloatOutBinary;
 use hpt_types::type_promote::FloatOutUnary;
-use crate::tensor_base::_Tensor;
+use hpt_types::{traits::VecTrait, type_promote::NormalOut};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 /// input shape: [batch, height, width, channel]
 pub(crate) fn batch_norm<T, const DEVICE: usize, A>(
     input: &_Tensor<T, Cpu, DEVICE, A>, // shape: [batch, height, width, channel]
-    mean: &_Tensor<T, Cpu, DEVICE, A>, // shape: [channel]
-    var: &_Tensor<T, Cpu, DEVICE, A>, // shape: [channel]
+    mean: &_Tensor<T, Cpu, DEVICE, A>,  // shape: [channel]
+    var: &_Tensor<T, Cpu, DEVICE, A>,   // shape: [channel]
     gamma: &_Tensor<T, Cpu, DEVICE, A>, // shape: [channel]
-    beta: &_Tensor<T, Cpu, DEVICE, A>, // shape: [channel]
+    beta: &_Tensor<T, Cpu, DEVICE, A>,  // shape: [channel]
     eps: T,
     post_scalar: Option<fn(T) -> T>,
     post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
-    out: Option<_Tensor<T, Cpu, DEVICE, A>>
-)
-    -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
-    where
-        T: CommonBounds + FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
-        T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
-        A: Allocator + Send + Sync,
-        A::Output: AllocatorOutputRetrive
+    out: Option<_Tensor<T, Cpu, DEVICE, A>>,
+) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
+where
+    T: CommonBounds + FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
+    T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
 {
     ShapeError::check_contiguous(
         "batch norm requires contiguous input".to_string(),
-        input.layout()
+        input.layout(),
     )?;
-    ShapeError::check_contiguous("batch norm requires contiguous mean".to_string(), mean.layout())?;
-    ShapeError::check_contiguous("batch norm requires contiguous var".to_string(), var.layout())?;
+    ShapeError::check_contiguous(
+        "batch norm requires contiguous mean".to_string(),
+        mean.layout(),
+    )?;
+    ShapeError::check_contiguous(
+        "batch norm requires contiguous var".to_string(),
+        var.layout(),
+    )?;
     ShapeError::check_contiguous(
         "batch norm requires contiguous gamma".to_string(),
-        gamma.layout()
+        gamma.layout(),
     )?;
-    ShapeError::check_contiguous("batch norm requires contiguous beta".to_string(), beta.layout())?;
+    ShapeError::check_contiguous(
+        "batch norm requires contiguous beta".to_string(),
+        beta.layout(),
+    )?;
 
     let res = if let Some(out) = out {
         ShapeError::check_inplace_out_layout_valid(input.shape(), &out.layout)?;
@@ -92,7 +106,9 @@ pub(crate) fn batch_norm<T, const DEVICE: usize, A>(
                         ._div(var._add(eps_vec)._sqrt())
                         ._mul(gamma)
                         ._add(beta);
-                    out_vec_ptr.offset(j as isize).write_unaligned(post_vec(res));
+                    out_vec_ptr
+                        .offset(j as isize)
+                        .write_unaligned(post_vec(res));
                 }
                 for j in channel - rem..channel {
                     let mean = mean_ptr[j];
@@ -100,7 +116,11 @@ pub(crate) fn batch_norm<T, const DEVICE: usize, A>(
                     let gamma = gamma_ptr[j];
                     let beta = beta_ptr[j];
                     let inp = inp[j];
-                    let res = inp._sub(mean)._div(var._add(eps)._sqrt())._mul(gamma)._add(beta);
+                    let res = inp
+                        ._sub(mean)
+                        ._div(var._add(eps)._sqrt())
+                        ._mul(gamma)
+                        ._add(beta);
                     out[j] = post_scalar(res);
                 }
             }

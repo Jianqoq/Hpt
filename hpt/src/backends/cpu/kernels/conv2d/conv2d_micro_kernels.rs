@@ -27,7 +27,7 @@ macro_rules! conv2d_micro_kernel {
                 let mut c_local = [[T::Vec::splat(T::ZERO); $nr]; $mr];
                 if ocr == $nr * T::Vec::SIZE as i64 {
                     for mr in 0..owr {
-                        unsafe { 
+                        unsafe {
                             let out_ptr = out.ptr.offset(((mr + k) * osw + j) as isize);
                             $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
                                 let ptr = out_ptr.add(NR * T::Vec::SIZE) as *const T::Vec;

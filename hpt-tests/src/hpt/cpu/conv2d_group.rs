@@ -21,7 +21,12 @@ use super::assert_utils::assert_f64;
 
 fn common_input(
     [batch, out_channel, in_channel, kernel_height, kernel_width, height, width, groups]: [i64; 8],
-) -> anyhow::Result<(Tensor<TestTypes>, Tensor<TestTypes>, tch::Tensor, tch::Tensor)> {
+) -> anyhow::Result<(
+    Tensor<TestTypes>,
+    Tensor<TestTypes>,
+    tch::Tensor,
+    tch::Tensor,
+)> {
     let tch_kernel = tch::Tensor::randn(
         [
             out_channel,
