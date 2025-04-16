@@ -7,7 +7,7 @@ use hpt_common::slice;
 use rand::Rng;
 use tch::Tensor;
 
-use crate::{TestTypes, TCH_TEST_TYPES, TEST_ATOL, TEST_RTOL};
+use crate::{TestTypes, EPSILON, TCH_TEST_TYPES, TEST_ATOL, TEST_RTOL};
 
 use super::assert_utils::assert_f64;
 
@@ -71,7 +71,7 @@ fn test_layernorm() -> anyhow::Result<()> {
             common_input(normalized_shape.iter().product::<i64>(), &normalized_shape)?;
         let (beta, tch_beta) =
             common_input(normalized_shape.iter().product::<i64>(), &normalized_shape)?;
-        let res = a.layernorm(&normalized_shape, Some(&gamma), Some(&beta), 1e-5)?;
+        let res = a.layernorm(&normalized_shape, Some(&gamma), Some(&beta), EPSILON)?;
         let tch_res = tch_a.layer_norm(
             &normalized_shape,
             Some(tch_gamma),

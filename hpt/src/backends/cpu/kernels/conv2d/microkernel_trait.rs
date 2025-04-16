@@ -27,7 +27,6 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
         {
             use crate::conv2d_micro_kernel;
             assert_eq!(nr, 2);
-            // avx2 has 16 registers, each has 256 bits, assume cache line size is 512 bits
             conv2d_micro_kernel!(x2x1, 2, 1);
             conv2d_micro_kernel!(x2x2, 2, 2);
             conv2d_micro_kernel!(x2x3, 2, 3);
@@ -35,16 +34,15 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
             conv2d_micro_kernel!(x2x5, 2, 5);
             return [x2x1, x2x2, x2x3, x2x4, x2x5][mr - 1];
         }
-        // #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
-        // {
-        //     use crate::conv2d_micro_kernel;
-        //     assert_eq!(nr, 4);
-        //     // sse has 16 registers, each has 128 bits, assume cache line size is 512 bits
-        //     conv2d_micro_kernel!(x4x1, 4, 1);
-        //     conv2d_micro_kernel!(x4x2, 4, 2);
-        //     conv2d_micro_kernel!(x4x3, 4, 3);
-        //     return [x4x1, x4x2, x4x3][mr - 1];
-        // }
+        #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
+        {
+            use crate::conv2d_micro_kernel;
+            assert_eq!(nr, 4);
+            conv2d_micro_kernel!(x4x1, 4, 1);
+            conv2d_micro_kernel!(x4x2, 4, 2);
+            conv2d_micro_kernel!(x4x3, 4, 3);
+            return [x4x1, x4x2, x4x3][mr - 1];
+        }
         #[cfg(target_feature = "neon")]
         {
             use crate::conv2d_micro_kernel;
@@ -94,7 +92,6 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
         {
             use crate::conv2d_micro_kernel_with_padding;
             assert_eq!(nr, 2);
-            // avx2 has 16 registers, each has 256 bits, assume cache line size is 512 bits
             conv2d_micro_kernel_with_padding!(x2x1, 2, 1);
             conv2d_micro_kernel_with_padding!(x2x2, 2, 2);
             conv2d_micro_kernel_with_padding!(x2x3, 2, 3);
@@ -114,6 +111,15 @@ pub trait Conv2dMicroKernel where Self: CommonBounds + Sized {
             conv2d_micro_kernel_with_padding!(x4x5, 4, 5);
             conv2d_micro_kernel_with_padding!(x4x6, 4, 6);
             return [x4x1, x4x2, x4x3, x4x4, x4x5, x4x6][mr - 1];
+        }
+        #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
+        {
+            use crate::conv2d_micro_kernel_with_padding;
+            assert_eq!(nr, 4);
+            conv2d_micro_kernel_with_padding!(x4x1, 4, 1);
+            conv2d_micro_kernel_with_padding!(x4x2, 4, 2);
+            conv2d_micro_kernel_with_padding!(x4x3, 4, 3);
+            return [x4x1, x4x2, x4x3][mr - 1];
         }
         #[cfg(
             all(

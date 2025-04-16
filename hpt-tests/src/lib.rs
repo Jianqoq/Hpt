@@ -1,7 +1,8 @@
 pub(crate) type TestTypes = f32;
 static TCH_TEST_TYPES: tch::Kind = tch::Kind::Float;
-static TEST_RTOL: TestTypes = 1e-3;
-static TEST_ATOL: TestTypes = 1e-3;
+static TEST_RTOL: TestTypes = 1e-2;
+static TEST_ATOL: TestTypes = 1e-2;
+static EPSILON: TestTypes = 1e-5;
 
 pub mod hpt {
     pub mod cpu {

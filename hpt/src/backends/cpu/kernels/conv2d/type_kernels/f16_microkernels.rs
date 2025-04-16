@@ -142,7 +142,7 @@ impl Conv2dMicroKernel for crate::types::f16 {
 }
 
 #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
-impl MatmulMicroKernel for crate::types::f16 {
+impl Conv2dMicroKernel for crate::types::f16 {
     fn get_mixed_precision_kernel<MixedType>(
         nr: usize,
         mr: usize,
@@ -152,11 +152,19 @@ impl MatmulMicroKernel for crate::types::f16 {
         hpt_common::Pointer<Self>,
         i64,
         i64,
-        usize,
-        usize,
-        i64,
+        &mut i64,
+        [i64; 3],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
         bool,
-        fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
+        fn(*const Self) -> MixedType::Vec,
+        fn(*const MixedType::Vec) -> Self::Vec,
+        fn(Self) -> MixedType,
         fn(MixedType) -> Self,
     )
     where
@@ -165,20 +173,15 @@ impl MatmulMicroKernel for crate::types::f16 {
         const {
             assert!(MixedType::BYTE_SIZE == 4);
         }
-        use crate::define_mixed_precision_matmul_micro_kernel;
+        use crate::conv2d_mixed_precision_micro_kernel;
         assert_eq!(nr, 2);
-        // sse has 16 registers, each has 128 bits, assume cache line size is 512 bits
-        define_mixed_precision_matmul_micro_kernel!(x2x1, 2, 1, 4);
-        define_mixed_precision_matmul_micro_kernel!(x2x2, 2, 2, 4);
-        define_mixed_precision_matmul_micro_kernel!(x2x3, 2, 3, 4);
+        conv2d_mixed_precision_micro_kernel!(x2x1, 2, 1, 4);
+        conv2d_mixed_precision_micro_kernel!(x2x2, 2, 2, 4);
+        conv2d_mixed_precision_micro_kernel!(x2x3, 2, 3, 4);
         [x2x1, x2x2, x2x3][mr - 1]
     }
 
-    fn get_mixed_precision_kernel_with_post_op<
-        MixedType,
-        F: Fn(Self) -> Self,
-        G: Fn(Self::Vec) -> Self::Vec,
-    >(
+    fn get_mixed_precision_kernel_with_padding<MixedType>(
         nr: usize,
         mr: usize,
     ) -> fn(
@@ -187,15 +190,20 @@ impl MatmulMicroKernel for crate::types::f16 {
         hpt_common::Pointer<Self>,
         i64,
         i64,
-        usize,
-        usize,
-        i64,
+        &mut i64,
+        [i64; 3],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
         bool,
-        bool,
-        fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
+        fn(*const Self) -> MixedType::Vec,
+        fn(*const MixedType::Vec) -> Self::Vec,
+        fn(Self) -> MixedType,
         fn(MixedType) -> Self,
-        F,
-        G,
     )
     where
         MixedType: CommonBounds,
@@ -203,12 +211,11 @@ impl MatmulMicroKernel for crate::types::f16 {
         const {
             assert!(MixedType::BYTE_SIZE == 4);
         }
-        use crate::define_mixed_precision_post_op_matmul_micro_kernel;
+        use crate::conv2d_mixed_precision_micro_kernel_with_padding;
         assert_eq!(nr, 2);
-        // sse has 16 registers, each has 128 bits, assume cache line size is 512 bits
-        define_mixed_precision_post_op_matmul_micro_kernel!(x2x1, 2, 1, 4);
-        define_mixed_precision_post_op_matmul_micro_kernel!(x2x2, 2, 2, 4);
-        define_mixed_precision_post_op_matmul_micro_kernel!(x2x3, 2, 3, 4);
+        conv2d_mixed_precision_micro_kernel_with_padding!(x2x1, 2, 1, 4);
+        conv2d_mixed_precision_micro_kernel_with_padding!(x2x2, 2, 2, 4);
+        conv2d_mixed_precision_micro_kernel_with_padding!(x2x3, 2, 3, 4);
         [x2x1, x2x2, x2x3][mr - 1]
     }
 

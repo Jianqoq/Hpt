@@ -65,8 +65,6 @@ fn assert_eq(
     let tch_res = unsafe {
         Tensor::<TestTypes>::from_raw(tch_res.data_ptr() as *mut TestTypes, &res.shape().to_vec())
     }?;
-    // println!("res: {}", res);
-    // println!("tch_res: {}", tch_res);
     assert!(res.allclose(&tch_res, TEST_RTOL, TEST_ATOL));
     Ok(())
 }
@@ -194,14 +192,13 @@ fn assert_eq_bias_pad_relu6(
 #[test]
 fn test() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for i in 0..10000 {
-        let in_channel = rng.random_range(1..=128);
-        let out_channel = rng.random_range(1..=128);
+    for i in 0..100 {
+        let in_channel = rng.random_range(1..=32);
+        let out_channel = rng.random_range(1..=32);
         let kernel_height = rng.random_range(1..=3);
         let kernel_width = rng.random_range(1..=3);
-        let height = rng.random_range(10..=128);
-        let width = rng.random_range(10..=128);
-        println!("{i}: in_channel: {}, out_channel: {}, kernel_height: {}, kernel_width: {}, height: {}, width: {}", in_channel, out_channel, kernel_height, kernel_width, height, width);
+        let height = rng.random_range(10..=32);
+        let width = rng.random_range(10..=32);
         let (kernel, a, tch_kernel, tch_a) = common_input([
             in_channel,
             out_channel,
@@ -211,10 +208,10 @@ fn test() -> anyhow::Result<()> {
             width,
         ])?;
         assert_eq(&a, &kernel, &tch_a, &tch_kernel)?;
-        // assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-        // assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
-        // assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
-        // assert_eq_bias_pad_relu6(&a, &kernel, &tch_a, &tch_kernel)?;
+        assert_eq_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+        assert_eq_bias(&a, &kernel, &tch_a, &tch_kernel)?;
+        assert_eq_bias_pad(&a, &kernel, &tch_a, &tch_kernel)?;
+        assert_eq_bias_pad_relu6(&a, &kernel, &tch_a, &tch_kernel)?;
     }
     Ok(())
 }

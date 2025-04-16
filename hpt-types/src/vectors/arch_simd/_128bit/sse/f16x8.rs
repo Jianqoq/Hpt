@@ -58,11 +58,6 @@ impl f16x8 {
                 std::mem::transmute([f32x4_1, f32x4_2])
             }
             #[cfg(not(target_feature = "f16c"))]
-            #[cfg(not(all(
-                target_feature = "neon",
-                target_arch = "aarch64",
-                target_feature = "fp16"
-            )))]
             {
                 let mut res = [0f32; 4];
                 for i in 0..4 {
@@ -89,11 +84,6 @@ impl f16x8 {
                 std::mem::transmute(f32x4_1)
             }
             #[cfg(not(target_feature = "f16c"))]
-            #[cfg(not(all(
-                target_feature = "neon",
-                target_arch = "aarch64",
-                target_feature = "fp16"
-            )))]
             {
                 let mut res = [0f32; 4];
                 for i in 0..4 {

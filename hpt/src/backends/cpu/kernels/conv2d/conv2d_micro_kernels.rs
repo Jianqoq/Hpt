@@ -174,9 +174,12 @@ macro_rules! conv2d_mixed_precision_micro_kernel {
             }
             if ocr == $nr2 * IM::Vec::SIZE as i64 {
                 for mr in 0..owr {
-                    let res = vec_cast_back(c_local[mr as usize].as_ptr() as *const IM::Vec);
                     let out_ptr = unsafe { out.ptr.offset(((mr + k) * osw + j) as isize) } as *mut T::Vec;
-                    unsafe { out_ptr.write_unaligned(res) };
+                    for i in 0..$nr2 / (IM::BYTE_SIZE as i64 / T::BYTE_SIZE as i64) {
+                        let c_local_ptr = c_local[mr as usize].as_ptr() as *const IM::Vec;
+                        let res = vec_cast_back(unsafe { c_local_ptr.offset(i as isize) });
+                        unsafe { out_ptr.offset(i as isize).write_unaligned(res) };
+                    }
                 }
             } else {
                 for mr in 0..owr {
@@ -404,9 +407,12 @@ macro_rules! conv2d_mixed_precision_micro_kernel_with_padding {
             }
             if ocr == $nr2 * IM::Vec::SIZE as i64 {
                 for mr in 0..owr {
-                    let res = vec_cast_back(c_local[mr as usize].as_ptr() as *const IM::Vec);
                     let out_ptr = unsafe { out.ptr.offset(((mr + k) * osw + j) as isize) } as *mut T::Vec;
-                    unsafe { out_ptr.write_unaligned(res) };
+                    for i in 0..$nr2 / (IM::BYTE_SIZE as i64 / T::BYTE_SIZE as i64) {
+                        let c_local_ptr = c_local[mr as usize].as_ptr() as *const IM::Vec;
+                        let res = vec_cast_back(unsafe { c_local_ptr.offset(i as isize) });
+                        unsafe { out_ptr.offset(i as isize).write_unaligned(res) };
+                    }
                 }
             } else {
                 for mr in 0..owr {
