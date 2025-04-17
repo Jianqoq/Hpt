@@ -335,9 +335,7 @@ fn fn_name() -> anyhow::Result<()> {
 fn fn_name() -> anyhow::Result<()> {
     let mut rng = rand::rng();
     for _ in 0..100 {
-        let shape = (1..=1)
-            .map(|_| rng.random_range(1..=5))
-            .collect::<Vec<_>>();
+        let shape = (1..=1).map(|_| rng.random_range(1..=5)).collect::<Vec<_>>();
         let ((tch_a, _), (a, _)) = input_method(&shape, &shape)?;
         let c = a.clone().hpt_op(scalar);
         let tch_c = tch_a.shallow_clone().tch_op(&TchTensor::from(scalar));
