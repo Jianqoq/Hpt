@@ -1,8 +1,8 @@
-pub(crate) type TestTypes = half::f16;
-static TCH_TEST_TYPES: tch::Kind = tch::Kind::Half;
-static TEST_RTOL: TestTypes = half::f16::from_f32_const(1e-1);
-static TEST_ATOL: TestTypes = half::f16::from_f32_const(1e-1);
-static EPSILON: TestTypes = half::f16::from_f32_const(1e-5);
+// pub(crate) type TestTypes = half::f16;
+// static TCH_TEST_TYPES: tch::Kind = tch::Kind::Half;
+// static TEST_RTOL: TestTypes = half::f16::from_f32_const(1e-1);
+// static TEST_ATOL: TestTypes = half::f16::from_f32_const(1e-1);
+// static EPSILON: TestTypes = half::f16::from_f32_const(1e-5);
 
 // pub(crate) type TestTypes = half::bf16;
 // static TCH_TEST_TYPES: tch::Kind = tch::Kind::BFloat16;
@@ -10,11 +10,11 @@ static EPSILON: TestTypes = half::f16::from_f32_const(1e-5);
 // static TEST_ATOL: TestTypes = half::bf16::from_f32_const(1e-1);
 // static EPSILON: TestTypes = half::bf16::from_f32_const(1e-5);
 
-// pub(crate) type TestTypes = f32;
-// static TCH_TEST_TYPES: tch::Kind = tch::Kind::Float;
-// static TEST_RTOL: TestTypes = 1e-3;
-// static TEST_ATOL: TestTypes = 1e-3;
-// static EPSILON: TestTypes = 1e-5;
+pub(crate) type TestTypes = f32;
+static TCH_TEST_TYPES: tch::Kind = tch::Kind::Float;
+static TEST_RTOL: TestTypes = 1e-3;
+static TEST_ATOL: TestTypes = 1e-3;
+static EPSILON: TestTypes = 1e-5;
 
 pub mod hpt {
     pub mod cpu {

@@ -27,12 +27,12 @@ where
         #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
         {
             use crate::define_matmul_micro_kernel;
-            assert_eq!(nr, 4);
+            assert_eq!(nr, 2);
             // sse has 16 registers, each has 128 bits, assume cache line size is 512 bits
-            define_matmul_micro_kernel!(x4x1, 4, 1);
-            define_matmul_micro_kernel!(x4x2, 4, 2);
-            define_matmul_micro_kernel!(x4x3, 4, 3);
-            return [x4x1, x4x2, x4x3][mr - 1];
+            define_matmul_micro_kernel!(x2x1, 2, 1);
+            define_matmul_micro_kernel!(x2x2, 2, 2);
+            define_matmul_micro_kernel!(x2x3, 2, 3);
+            return [x2x1, x2x2, x2x3][mr - 1];
         }
         #[cfg(target_feature = "neon")]
         {
@@ -194,13 +194,9 @@ where
         }
     }
     fn get_max_nr() -> usize {
-        #[cfg(target_feature = "avx2")]
+        #[cfg(any(target_feature = "avx2", target_feature = "sse"))]
         {
             2
-        }
-        #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
-        {
-            4
         }
         #[cfg(target_feature = "neon")]
         {

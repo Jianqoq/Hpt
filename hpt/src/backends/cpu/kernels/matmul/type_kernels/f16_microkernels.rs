@@ -253,12 +253,11 @@ impl MatmulMicroKernel for crate::types::f16 {
             assert!(MixedType::BYTE_SIZE == 4);
         }
         use crate::define_mixed_precision_matmul_micro_kernel;
-        assert_eq!(nr, 2);
-        // sse has 16 registers, each has 128 bits, assume cache line size is 512 bits
-        define_mixed_precision_matmul_micro_kernel!(x2x1, 2, 1, 4);
-        define_mixed_precision_matmul_micro_kernel!(x2x2, 2, 2, 4);
-        define_mixed_precision_matmul_micro_kernel!(x2x3, 2, 3, 4);
-        [x2x1, x2x2, x2x3][mr - 1]
+        assert_eq!(nr, 1);
+        define_mixed_precision_matmul_micro_kernel!(x1x1, 1, 1, 2);
+        define_mixed_precision_matmul_micro_kernel!(x1x2, 1, 2, 2);
+        define_mixed_precision_matmul_micro_kernel!(x1x3, 1, 3, 2);
+        [x1x1, x1x2, x1x3][mr - 1]
     }
 
     fn get_mixed_precision_kernel_with_post_op<
@@ -291,16 +290,16 @@ impl MatmulMicroKernel for crate::types::f16 {
             assert!(MixedType::BYTE_SIZE == 4);
         }
         use crate::define_mixed_precision_post_op_matmul_micro_kernel;
-        assert_eq!(nr, 2);
+        assert_eq!(nr, 1);
         // sse has 16 registers, each has 128 bits, assume cache line size is 512 bits
-        define_mixed_precision_post_op_matmul_micro_kernel!(x2x1, 2, 1, 4);
-        define_mixed_precision_post_op_matmul_micro_kernel!(x2x2, 2, 2, 4);
-        define_mixed_precision_post_op_matmul_micro_kernel!(x2x3, 2, 3, 4);
-        [x2x1, x2x2, x2x3][mr - 1]
+        define_mixed_precision_post_op_matmul_micro_kernel!(x1x1, 1, 1, 2);
+        define_mixed_precision_post_op_matmul_micro_kernel!(x1x2, 1, 2, 2);
+        define_mixed_precision_post_op_matmul_micro_kernel!(x1x3, 1, 3, 2);
+        [x1x1, x1x2, x1x3][mr - 1]
     }
 
     fn get_max_mixed_precision_nr() -> usize {
-        2
+        1
     }
     fn get_max_mixed_precision_mr() -> usize {
         3
