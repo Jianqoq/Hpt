@@ -10,6 +10,7 @@ use hpt::Tensor;
 use hpt_common::slice;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
+use crate::hpt::cpu::utils::copy_from_tch;
 use crate::TestTypes;
 use crate::TCH_TEST_TYPES;
 use crate::TEST_ATOL;
@@ -104,10 +105,7 @@ fn test_tril() -> anyhow::Result<()> {
     fn assert(diagnal: i64) -> anyhow::Result<()> {
         let tch_a = tch::Tensor::randn(&[10, 10], (TCH_TEST_TYPES, tch::Device::Cpu)).tril(diagnal);
         let mut a = Tensor::<TestTypes>::empty(&[10, 10])?;
-        let a_size = a.size();
-        a.as_raw_mut().copy_from_slice(unsafe {
-            std::slice::from_raw_parts(tch_a.data_ptr() as *const TestTypes, a_size)
-        });
+        copy_from_tch(&mut a, &tch_a)?;
         let b = a.tril(diagnal)?;
         assert_eq(&b, &tch_a)?;
         Ok(())

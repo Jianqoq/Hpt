@@ -167,7 +167,7 @@ pub fn matmul_mixed_precision_template<T, IM>(
                                 let jb = min(nc, n - j);
                                 let c = out.clone() + i as i64 * ldc + j as i64;
                                 pack_b_mixed_precision::<T, IM>(
-                                    b.clone() + (p as i64 * ldb + j as i64),
+                                    b.clone() + (p as i64 * ldb + j as i64 * rhs_col_stride),
                                     packed_b.clone(),
                                     ldb,
                                     rhs_col_stride,
@@ -272,7 +272,7 @@ pub fn matmul_mp_post_template_no_block_info<T, IM>(
     IM: CommonBounds,
 {
     let nr = T::get_max_mixed_precision_nr() * T::Vec::SIZE;
-    let mr = T::get_max_mixed_precision_mr().min(m);
+    let mr = T::get_max_mixed_precision_mr();
     let mut param = if m <= 64 && n <= 64 {
         // skip expensive kernel_params call for small sizes
         let kc = k.min(512);

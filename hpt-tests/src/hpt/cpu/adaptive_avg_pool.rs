@@ -14,19 +14,18 @@ use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
 use rand::Rng;
 use tch;
+
+use super::utils::copy_from_tch;
 fn common_input(
     [batch, in_channel, height, width]: [i64; 4],
 ) -> anyhow::Result<(Tensor<TestTypes>, tch::Tensor)> {
-    let a = Tensor::<TestTypes>::arange(0, batch * in_channel * height * width)?
-        .reshape([batch, in_channel, height, width])?
-        .permute([0, 2, 3, 1])?
-        .contiguous()?;
-    let tch_a = tch::Tensor::arange(
-        batch * in_channel * height * width,
+    let tch_a = tch::Tensor::randn(
+        [batch, in_channel, height, width],
         (TCH_TEST_TYPES, tch::Device::Cpu),
-    )
-    .reshape(&[batch, in_channel, height, width]);
-    Ok((a, tch_a))
+    );
+    let mut a = Tensor::<TestTypes>::empty([batch, in_channel, height, width])?;
+    copy_from_tch(&mut a, &tch_a)?;
+    Ok((a.permute([0, 2, 3, 1])?.contiguous()?, tch_a))
 }
 
 #[track_caller]

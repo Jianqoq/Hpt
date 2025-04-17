@@ -1,11 +1,7 @@
 #![allow(unused)]
 use super::assert_utils::assert_f32;
 use super::assert_utils::assert_f64;
-use crate::TestTypes;
-use crate::EPSILON;
-use crate::TCH_TEST_TYPES;
-use crate::TEST_ATOL;
-use crate::TEST_RTOL;
+use super::utils::copy_from_tch;
 use hpt::common::cpu::TensorLike;
 use hpt::common::TensorInfo;
 use hpt::ops::Contiguous;
@@ -20,6 +16,12 @@ use hpt_types::type_promote::NormalOutUnary;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use tch;
 
+pub(crate) type TestTypes = f32;
+static TCH_TEST_TYPES: tch::Kind = tch::Kind::Float;
+static TEST_RTOL: TestTypes = 1e-3;
+static TEST_ATOL: TestTypes = 1e-3;
+static EPSILON: TestTypes = 1e-5;
+
 fn common_input(
     [batch, out_channel, in_channel, kernel_height, kernel_width, height, width]: [i64; 7],
 ) -> anyhow::Result<(
@@ -28,27 +30,25 @@ fn common_input(
     tch::Tensor,
     tch::Tensor,
 )> {
-    let kernel =
-        Tensor::<TestTypes>::arange(0, in_channel * out_channel * kernel_height * kernel_width)?
-            .reshape([out_channel, in_channel, kernel_height, kernel_width])?
-            .permute([2, 3, 1, 0])?
-            .contiguous()?;
-    let a = Tensor::<TestTypes>::arange(0, batch * in_channel * height * width)?
-        .reshape([batch, in_channel, height, width])?
-        .permute([0, 2, 3, 1])?
-        .contiguous()?;
-
-    let tch_kernel = tch::Tensor::arange(
-        in_channel * out_channel * kernel_height * kernel_width,
+    let tch_kernel = tch::Tensor::randn(
+        [out_channel, in_channel, kernel_height, kernel_width],
         (TCH_TEST_TYPES, tch::Device::Cpu),
-    )
-    .reshape(&[out_channel, in_channel, kernel_height, kernel_width]);
-    let tch_a = tch::Tensor::arange(
-        batch * in_channel * height * width,
+    );
+    let tch_a = tch::Tensor::randn(
+        [batch, in_channel, height, width],
         (TCH_TEST_TYPES, tch::Device::Cpu),
-    )
-    .reshape(&[batch, in_channel, height, width]);
-    Ok((kernel, a, tch_kernel, tch_a))
+    );
+    let mut kernel =
+        Tensor::<TestTypes>::empty([out_channel, in_channel, kernel_height, kernel_width])?;
+    let mut a = Tensor::<TestTypes>::empty([batch, in_channel, height, width])?;
+    copy_from_tch(&mut kernel, &tch_kernel)?;
+    copy_from_tch(&mut a, &tch_a)?;
+    Ok((
+        kernel.permute([2, 3, 1, 0])?.contiguous()?,
+        a.permute([0, 2, 3, 1])?.contiguous()?,
+        tch_kernel,
+        tch_a,
+    ))
 }
 
 #[track_caller]

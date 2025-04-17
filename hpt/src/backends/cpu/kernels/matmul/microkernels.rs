@@ -765,12 +765,11 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
                     #[allow(unused_mut)]
                     let mut a_vec;
                     $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
-                            a_vec = <T as $crate::types::TypeCommon>::Vec::splat(a[MR as i64 * lda]);
-                            $crate::re_exports::seq_macro::seq!(NR in 0..$nr2 {
-                                c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
-                            });
-                        }
-                    );
+                        a_vec = <T as $crate::types::TypeCommon>::Vec::splat(a[MR as i64 * lda]);
+                        $crate::re_exports::seq_macro::seq!(NR in 0..$nr2 {
+                            c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
+                        });
+                    });
                     b += $nr2 * <T as $crate::types::TypeCommon>::Vec::SIZE as i64;
                     a += ks;
                 }

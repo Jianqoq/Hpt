@@ -57,7 +57,7 @@ pub fn __impl_scalar_convert() -> TokenStream {
                     match lhs_ty {
                         Type::Bool => {
                             quote! {
-                                #f16_ty::from_bits(self as u16)
+                                #f16_ty::from_f32(self as u8 as f32)
                             }
                         }
                         Type::I8 => {

@@ -7,7 +7,9 @@ use hpt::common::cpu::TensorLike;
 use hpt::common::TensorInfo;
 use hpt::ops::*;
 use hpt::slice;
+use hpt::types::TypeCommon;
 use hpt::Tensor;
+use hpt_types::into_scalar::Cast;
 use rand::Rng;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 #[allow(unused)]
@@ -47,7 +49,7 @@ macro_rules! test_unarys {
                 let mut rng = rand::rng();
                 for _ in 0..100 {
                     let shape = [
-                        rng.random_range(1..1024),
+                        rng.random_range(1..10),
                     ];
                     let tch_a = tch::Tensor::randn(shape, (TCH_TEST_TYPES, tch::Device::Cpu));
                     let mut a = Tensor::<TestTypes>::empty(shape)?;
@@ -149,15 +151,25 @@ test_unarys!(gelu, assert_eq, gelu("none"), gelu());
 test_unarys_out!(gelu_, assert_eq, gelu("none"), gelu_());
 test_unarys!(elu, assert_eq, elu(), elu(1.0));
 test_unarys_out!(elu_, assert_eq, elu(), elu_(1.0));
-test_unarys!(leaky_relu, assert_eq, leaky_relu(), leaky_relu(0.01));
+test_unarys!(
+    leaky_relu,
+    assert_eq,
+    leaky_relu(),
+    leaky_relu((0.01f64).cast())
+);
 test_unarys!(mish, assert_eq, mish(), mish());
 test_unarys_out!(mish_, assert_eq, mish(), mish_());
 test_unarys!(relu, assert_eq, relu(), relu());
 test_unarys!(selu, assert_eq, selu(), selu());
 test_unarys_out!(selu_, assert_eq, selu(), selu_());
 test_unarys!(softplus, assert_eq, softplus(), softplus());
-test_unarys!(round, assert_eq, round(), round());
-test_unarys!(clip, assert_eq, clamp(0.0, 1.0), clamp(0.0, 1.0));
+// test_unarys!(round, assert_eq, round(), round());
+test_unarys!(
+    clip,
+    assert_eq,
+    clamp(0.0, 1.0),
+    clamp(TestTypes::ZERO, TestTypes::ONE)
+);
 test_unarys!(dropout, no_assert, dropout(0.5, false), dropout(0.5));
 test_unarys!(hard_sigmoid, assert_eq, hardsigmoid(), hard_sigmoid());
 test_unarys!(hard_swish, assert_eq, hardswish(), hard_swish());

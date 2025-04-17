@@ -3,7 +3,7 @@ use std::cmp::min;
 use crate::{
     backends::cpu::kernels::matmul::common::{
         calculate_jobs, calculate_prgs, matmul_prepare, pack_a_mixed_precision,
-        pack_b_mixed_precision, L2_SLAB,
+        pack_b_mixed_precision, L2_SLAB, L3_SLAB,
     },
     tensor_base::_Tensor,
     ALIGN,
@@ -80,25 +80,20 @@ pub fn matmul_mixed_precision_template<T, IM>(
 
     let num_mr_blocks = (mc + mr - 1) / mr;
     let num_nr_blocks = (nc + nr - 1) / nr;
-    let packed_a_layout = std::alloc::Layout::from_size_align(
-        num_mr_blocks * mr * kc * std::mem::size_of::<IM>(),
-        ALIGN,
-    )
-    .expect("layout create failed");
 
-    let packed_a = {
-        let a_buffer = unsafe { std::alloc::alloc(packed_a_layout) };
+    let packed_a = L3_SLAB.with(|mem| {
+        let mut mem = mem.borrow_mut();
+        let stack = DynStack::new(&mut mem);
+        let (packed_a_storage, _) = stack.make_aligned_uninit::<IM>(num_mr_blocks * mr * kc, ALIGN);
         #[cfg(feature = "bound_check")]
-        let ret = Pointer::new(
-            a_buffer as *mut IM,
-            (packed_a_layout.size() / std::mem::size_of::<IM>()) as i64,
+        let packed_a = Pointer::new(
+            packed_a_storage.as_mut_ptr() as *mut IM,
+            (num_mr_blocks * mr * kc) as i64,
         );
         #[cfg(not(feature = "bound_check"))]
-        let ret = Pointer::new(a_buffer as *mut IM);
-        ret
-    };
-
-    let packed_a_ptr = packed_a.ptr as *mut IM;
+        let packed_a = Pointer::new(packed_a_storage.as_mut_ptr() as *mut IM);
+        packed_a
+    });
 
     let mc_jobs = calculate_jobs(n, nc, mr, nr, mc);
     let mc_rem_jobs = calculate_jobs(n, nc, mr, nr, m % mc);
@@ -163,7 +158,7 @@ pub fn matmul_mixed_precision_template<T, IM>(
                                 let jb = min(nc, n - j);
                                 let c = out.clone() + i as i64 * ldc + j as i64;
                                 pack_b_mixed_precision::<T, IM>(
-                                    b.clone() + (p as i64 * ldb + j as i64),
+                                    b.clone() + (p as i64 * ldb + j as i64 * rhs_col_stride),
                                     packed_b.clone(),
                                     ldb,
                                     rhs_col_stride,
@@ -215,10 +210,6 @@ pub fn matmul_mixed_precision_template<T, IM>(
                 });
             },
         );
-
-    unsafe {
-        std::alloc::dealloc(packed_a_ptr as *mut u8, packed_a_layout);
-    }
 }
 
 /// single batch matmul mixed precision template no block info
@@ -261,7 +252,7 @@ pub fn matmul_mixed_precision_template_no_block_info<T, IM>(
     IM: CommonBounds,
 {
     let nr = T::get_max_mixed_precision_nr() * T::Vec::SIZE;
-    let mr = T::get_max_mixed_precision_mr().min(m);
+    let mr = T::get_max_mixed_precision_mr();
     let mut param = kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>(), true);
     if param.mc == 0 {
         param.mc = m.msrv_next_multiple_of(mr);

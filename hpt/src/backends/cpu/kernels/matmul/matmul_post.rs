@@ -282,7 +282,7 @@ pub fn matmul_post_template_no_block_info<T, F, F2>(
     F2: Fn(T::Vec) -> T::Vec + Send + Sync + Clone,
 {
     let nr = T::get_max_nr() * T::Vec::SIZE;
-    let mr = T::get_max_mr().min(m);
+    let mr = T::get_max_mr();
     #[cfg(not(target_feature = "neon"))]
     let mut do_lhs_pack = false;
     #[cfg(target_feature = "neon")]

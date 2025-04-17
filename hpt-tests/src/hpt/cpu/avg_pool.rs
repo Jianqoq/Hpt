@@ -12,6 +12,8 @@ use hpt_types::type_promote::NormalOut;
 use rand::Rng;
 use tch;
 
+use super::utils::copy_from_tch;
+
 fn common_input(
     [batch, in_channel, kernel_height, kernel_width, height, width]: [i64; 6],
 ) -> anyhow::Result<(
@@ -20,24 +22,24 @@ fn common_input(
     tch::Tensor,
     tch::Tensor,
 )> {
-    let kernel = Tensor::<TestTypes>::arange(0, kernel_height * kernel_width)?
-        .reshape([kernel_height, kernel_width])?;
-    let a = Tensor::<TestTypes>::arange(0, batch * in_channel * height * width)?
-        .reshape([batch, in_channel, height, width])?
-        .permute([0, 2, 3, 1])?
-        .contiguous()?;
-
-    let tch_kernel = tch::Tensor::arange(
-        kernel_height * kernel_width,
+    let tch_kernel = tch::Tensor::randn(
+        [kernel_height, kernel_width],
         (TCH_TEST_TYPES, tch::Device::Cpu),
-    )
-    .reshape(&[kernel_height, kernel_width]);
-    let tch_a = tch::Tensor::arange(
-        batch * in_channel * height * width,
+    );
+    let tch_a = tch::Tensor::randn(
+        [batch, in_channel, height, width],
         (TCH_TEST_TYPES, tch::Device::Cpu),
-    )
-    .reshape(&[batch, in_channel, height, width]);
-    Ok((kernel, a, tch_kernel, tch_a))
+    );
+    let mut kernel = Tensor::<TestTypes>::empty([kernel_height, kernel_width])?;
+    let mut a = Tensor::<TestTypes>::empty([batch, in_channel, height, width])?;
+    copy_from_tch(&mut kernel, &tch_kernel)?;
+    copy_from_tch(&mut a, &tch_a)?;
+    Ok((
+        kernel,
+        a.permute([0, 2, 3, 1])?.contiguous()?,
+        tch_kernel,
+        tch_a,
+    ))
 }
 
 #[track_caller]

@@ -12,12 +12,16 @@ use rand::Rng;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use tch;
 
-use crate::TestTypes;
-use crate::TCH_TEST_TYPES;
-use crate::TEST_ATOL;
-use crate::TEST_RTOL;
+// use crate::TestTypes;
+// use crate::TCH_TEST_TYPES;
+// use crate::TEST_ATOL;
+// use crate::TEST_RTOL;
 
-use super::assert_utils::assert_f64;
+pub(crate) type TestTypes = f32;
+static TCH_TEST_TYPES: tch::Kind = tch::Kind::Float;
+static TEST_RTOL: TestTypes = 1e-3;
+static TEST_ATOL: TestTypes = 1e-3;
+static EPSILON: TestTypes = 1e-5;
 
 fn common_input(
     [batch, out_channel, in_channel, kernel_height, kernel_width, height, width, groups]: [i64; 8],
