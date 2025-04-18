@@ -2,11 +2,14 @@ use hpt_common::Pointer;
 use hpt_traits::tensor::CommonBounds;
 
 /// A trait for microkernels of matrix multiplication
-pub trait MatmulMicroKernel where Self: CommonBounds + Sized {
+pub trait MatmulMicroKernel
+where
+    Self: CommonBounds + Sized,
+{
     #[allow(unused_variables)]
     fn get_kernel(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(Pointer<Self>, Pointer<Self>, Pointer<Self>, i64, i64, usize, usize, i64, bool) {
         #[cfg(target_feature = "avx2")]
         {
@@ -39,22 +42,29 @@ pub trait MatmulMicroKernel where Self: CommonBounds + Sized {
             define_matmul_micro_kernel!(x8x2, 8, 2);
             return [x8x1, x8x2][mr - 1];
         }
-        #[cfg(
-            all(
-                not(target_feature = "avx2"),
-                not(target_feature = "sse"),
-                not(target_feature = "neon")
-            )
-        )]
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
         {
             unimplemented!()
         }
     }
 
     #[allow(unused_variables)]
+    fn get_inline_asm_kernel(
+        nr: usize,
+        mr: usize,
+        has_rem: bool,
+    ) -> fn(Pointer<Self>, Pointer<Self>, Pointer<Self>, i64, i64, usize, usize, i64, bool) {
+        unimplemented!("inline asm kernel only support specific microkernel")
+    }
+
+    #[allow(unused_variables)]
     fn get_kernel_with_post_op<F: Fn(Self) -> Self, G: Fn(Self::Vec) -> Self::Vec>(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
         Pointer<Self>,
         Pointer<Self>,
@@ -67,22 +77,8 @@ pub trait MatmulMicroKernel where Self: CommonBounds + Sized {
         bool,
         bool,
         F,
-        G
+        G,
     ) {
-        use crate::define_matmul_micro_kernel_inline_asm;
-        define_matmul_micro_kernel_inline_asm!(
-            x2x1,
-            2,
-            1,
-            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
-            [0, 1, 2, 3],
-            ["", "+ 32", "+ 64", "+ 96"],
-            4,
-            "vxorps",
-            "vmovups",
-            "vbroadcastss",
-            "ymm"
-        );
         #[cfg(target_feature = "avx2")]
         {
             use crate::define_post_op_matmul_micro_kernel;
@@ -114,13 +110,11 @@ pub trait MatmulMicroKernel where Self: CommonBounds + Sized {
             define_post_op_matmul_micro_kernel!(x8x2, 8, 2);
             return [x8x1, x8x2][mr - 1];
         }
-        #[cfg(
-            all(
-                not(target_feature = "avx2"),
-                not(target_feature = "sse"),
-                not(target_feature = "neon")
-            )
-        )]
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
         {
             unimplemented!()
         }
@@ -129,21 +123,22 @@ pub trait MatmulMicroKernel where Self: CommonBounds + Sized {
     #[allow(unused_variables)]
     fn get_mixed_precision_kernel<MixedType>(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
-            Pointer<MixedType>,
-            Pointer<MixedType>,
-            Pointer<Self>,
-            i64,
-            i64,
-            usize,
-            usize,
-            i64,
-            bool,
-            fn(*const MixedType::Vec) -> Self::Vec,
-            fn(MixedType) -> Self
-        )
-        where MixedType: CommonBounds
+        Pointer<MixedType>,
+        Pointer<MixedType>,
+        Pointer<Self>,
+        i64,
+        i64,
+        usize,
+        usize,
+        i64,
+        bool,
+        fn(*const MixedType::Vec) -> Self::Vec,
+        fn(MixedType) -> Self,
+    )
+    where
+        MixedType: CommonBounds,
     {
         unimplemented!("mixed precision kernel is required for user to implement")
     }
@@ -152,27 +147,28 @@ pub trait MatmulMicroKernel where Self: CommonBounds + Sized {
     fn get_mixed_precision_kernel_with_post_op<
         MixedType,
         F: Fn(Self) -> Self,
-        G: Fn(Self::Vec) -> Self::Vec
-        >(
+        G: Fn(Self::Vec) -> Self::Vec,
+    >(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
-            Pointer<MixedType>,
-            Pointer<MixedType>,
-            Pointer<Self>,
-            i64,
-            i64,
-            usize,
-            usize,
-            i64,
-            bool,
-            bool,
-            fn(*const MixedType::Vec) -> Self::Vec,
-            fn(MixedType) -> Self,
-            F,
-            G
-        )
-        where MixedType: CommonBounds
+        Pointer<MixedType>,
+        Pointer<MixedType>,
+        Pointer<Self>,
+        i64,
+        i64,
+        usize,
+        usize,
+        i64,
+        bool,
+        bool,
+        fn(*const MixedType::Vec) -> Self::Vec,
+        fn(MixedType) -> Self,
+        F,
+        G,
+    )
+    where
+        MixedType: CommonBounds,
     {
         unimplemented!("mixed precision kernel is required for user to implement")
     }
@@ -197,13 +193,11 @@ pub trait MatmulMicroKernel where Self: CommonBounds + Sized {
         {
             2
         }
-        #[cfg(
-            all(
-                not(target_feature = "avx2"),
-                not(target_feature = "sse"),
-                not(target_feature = "neon")
-            )
-        )]
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
         {
             unimplemented!()
         }
@@ -217,13 +211,11 @@ pub trait MatmulMicroKernel where Self: CommonBounds + Sized {
         {
             8
         }
-        #[cfg(
-            all(
-                not(target_feature = "avx2"),
-                not(target_feature = "sse"),
-                not(target_feature = "neon")
-            )
-        )]
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
         {
             unimplemented!()
         }

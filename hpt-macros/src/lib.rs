@@ -22,6 +22,7 @@ use kernel_gen_helper::{
     __gen_fast_layernorm_simd_helper, __gen_fast_reduce_simd_helper,
     __gen_reduce_dim_not_include_simd_helper,
 };
+use matmul_microkernels_asm::{matmul_gen_asm, MatmulMicrokernelArgs};
 use normal_out::__impl_normal_out_binary;
 use proc_macro::TokenStream;
 use scalar_convert::__impl_scalar_convert;
@@ -33,7 +34,6 @@ use simd_float_out_binary::{
 use simd_normal_out::{impl_simd_normal_out_with_lhs_scalar, impl_simd_normal_out_with_rhs_scalar};
 use syn::{parse, parse_macro_input, Expr, Token};
 mod binary_float_out;
-mod conv2d;
 mod float_unary;
 mod from_scalar;
 mod into_cuda_scalar;
@@ -45,6 +45,7 @@ mod normal_out_unary;
 mod scalar_convert;
 mod simd_bitwise;
 
+mod matmul_microkernels_asm;
 mod simd_cmp;
 mod simd_eval;
 mod simd_float_out_binary;
@@ -790,65 +791,6 @@ pub fn gen_reduce_dim_not_include_simd_helper(input: TokenStream) -> TokenStream
     __gen_reduce_dim_not_include_simd_helper(input)
 }
 
-/// declare const values
-///
-/// const OW_BLOCK: usize = ?;
-///
-/// const OC_BLOCK: usize = ?;
-#[proc_macro]
-pub fn conv2d_microkernel_declare_const(input: TokenStream) -> TokenStream {
-    conv2d::conv2d_microkernel_declare_const(input)
-}
-
-/// generate conv2d inps
-#[proc_macro]
-pub fn conv2d_microkernel_gen_inps(input: TokenStream) -> TokenStream {
-    conv2d::conv2d_microkernel_gen_inps(input)
-}
-
-/// generate conv2d inps
-#[proc_macro]
-pub fn conv2d_microkernel_gen_pad_inps(input: TokenStream) -> TokenStream {
-    conv2d::conv2d_microkernel_gen_pad_inps(input)
-}
-
-/// generate pwconv2d inps
-#[proc_macro]
-pub fn pwconv2d_microkernel_gen_pad_inps(input: TokenStream) -> TokenStream {
-    conv2d::pwconv2d_microkernel_gen_pad_inps(input)
-}
-
-/// generate conv2d inps
-#[proc_macro]
-pub fn dwconv2d_microkernel_gen_pad_inps(input: TokenStream) -> TokenStream {
-    conv2d::dwconv2d_microkernel_gen_pad_inps(input)
-}
-
-/// generate conv2d kernels
-#[proc_macro]
-pub fn conv2d_microkernel_gen_kernels(input: TokenStream) -> TokenStream {
-    conv2d::conv2d_microkernel_gen_kernels(input)
-}
-
-/// generate conv2d repeat results
-#[proc_macro]
-pub fn conv2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
-    conv2d::conv2d_microkernel_gen_results(input)
-}
-
-/// generate conv2d repeat results
-#[proc_macro]
-pub fn dwconv2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
-    conv2d::dwconv2d_microkernel_gen_results(input)
-}
-
-/// generate maxpool2d kernels
-/// generate conv2d repeat results
-#[proc_macro]
-pub fn maxpool2d_microkernel_gen_results(input: TokenStream) -> TokenStream {
-    conv2d::maxpool2d_microkernel_gen_results(input)
-}
-
 /// generate save trait
 #[proc_macro_derive(Save, attributes(compress))]
 pub fn impl_save(input: TokenStream) -> TokenStream {
@@ -1158,5 +1100,13 @@ pub fn impl_from_safetensors(input: TokenStream) -> TokenStream {
     // ));
     // let formatted = prettyplease::unparse(&syntax_tree);
     // println!("{}", formatted);
+    expanded.into()
+}
+
+/// generate matmul microkernel asm
+#[proc_macro]
+pub fn gen_matmul_microkernel_asm(input: TokenStream) -> TokenStream {
+    let ast = syn::parse_macro_input!(input as MatmulMicrokernelArgs);
+    let expanded = matmul_gen_asm(&ast);
     expanded.into()
 }
