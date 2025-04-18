@@ -31,7 +31,6 @@ where
         + Cast<<T as NormalOutPromote>::Intermediate>
         + MatmulMicroKernel,
     <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
-    bool: Cast<T>,
     Al: Allocator + Send + Sync,
     Al::Output: AllocatorOutputRetrive,
 {
@@ -201,7 +200,8 @@ where
 
 impl<T, const DEVICE: usize, A> ConvBatchNorm<T> for _Tensor<T, Cpu, DEVICE, A>
 where
-    T: CommonBounds + Conv2dMicroKernel + MatmulMicroKernel,
+    T: CommonBounds + Conv2dMicroKernel + MatmulMicroKernel + Cast<<T as NormalOutPromote>::Intermediate>,
+    <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
     T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
     T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
     A: Allocator + Send + Sync,
