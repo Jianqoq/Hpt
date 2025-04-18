@@ -35,22 +35,6 @@ pub(crate) fn kernel_params(
 
     let l1_n_sets = l1_cache_bytes / (l1_line_bytes * l1_assoc);
 
-    // requires
-    // A micropanels must occupy different cache sets
-    // so that loading a micropanel evicts the previous one
-    // => byte stride must be multiple of n_sets×line_bytes
-    //
-    // => mr×kc×scalar_bytes == C_A × l1_line_bytes × l1_n_sets
-    //
-    // l1 must be able to hold A micropanel, B micropanel
-    //
-    // => C_A + C_B <= l1_assoc
-
-    // a×n = b×m
-    // find lcm of a, b
-    // n = lcm / a = b/gcd(a,b)
-    // m = lcm / b = a/gcd(a,b)
-
     let gcd = gcd(nr * sizeof, l1_line_bytes * l1_n_sets);
     let kc_0 = (l1_line_bytes * l1_n_sets) / gcd; // maximum # of nr * sizeof access that has no conflicts
     let c_rhs = (nr * kc_0 * sizeof).next_multiple_of(l1_line_bytes) / (l1_line_bytes * l1_n_sets);
@@ -67,10 +51,6 @@ pub(crate) fn kernel_params(
     let k_iter = k.div_ceil(auto_kc);
     let auto_kc = k.div_ceil(k_iter);
 
-    // l2 cache must hold
-    //  - B micropanel: nc×kc: assume 1 assoc degree
-    //  - A macropanel: mr×kc
-    // mc×kc×scalar_bytes
     let auto_nc = if l2_cache_bytes == 0 {
         panic!();
     } else {
@@ -91,14 +71,9 @@ pub(crate) fn kernel_params(
     };
     let auto_nc = Ord::min(auto_nc, 2 * nr);
 
-    // l3 cache must hold
-    //  - A macropanel: mc×kc: assume 1 assoc degree
-    //  - B macropanel: nc×kc
     let auto_mc = if l3_cache_bytes == 0 {
         0
     } else {
-        // let lhs_macropanel_bytes = auto_mc * auto_kc * sizeof;
-        // let lhs_l3_assoc = msrv_div_ceil(lhs_macropanel_bytes, l3_cache_bytes / l3_assoc);
         let rhs_l3_assoc = l3_assoc - 1;
         let rhs_macropanel_max_bytes = (rhs_l3_assoc * l3_cache_bytes) / l3_assoc;
 

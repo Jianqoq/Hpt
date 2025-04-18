@@ -173,9 +173,13 @@ pub fn matmul_template<T>(
                                 for i in (i_start..ib).step_by(mr) {
                                     let mb = min(mr, ib - i);
                                     let micro_kernel = <T>::get_kernel(nr / <T>::Vec::SIZE, mb);
-
                                     for jj in (jj_start..jb).step_by(nr) {
                                         let jjb = min(nr, jb - jj);
+                                        // let micro_kernel = <T>::get_inline_asm_kernel(
+                                        //     nr / <T>::Vec::SIZE,
+                                        //     mb,
+                                        //     jjb != nr,
+                                        // );
                                         if do_lhs_pack {
                                             micro_kernel(
                                                 packed_a.clone() + kc as i64 * i as i64,

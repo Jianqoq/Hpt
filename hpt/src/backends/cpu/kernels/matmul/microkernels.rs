@@ -61,10 +61,11 @@ macro_rules! define_matmul_micro_kernel {
             if jb == $nr * <T as $crate::types::TypeCommon>::Vec::SIZE {
                 if first_kiter {
                     $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
+                        let c_ptr = unsafe { c.ptr.offset(MR * ldc as isize) };
                         $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
                                 let res_ptr = unsafe {
-                                    c.ptr.offset(
-                                        (MR * ldc + NR * <T as $crate::types::TypeCommon>::Vec::SIZE as i64) as isize,
+                                    c_ptr.offset(
+                                        (NR * <T as $crate::types::TypeCommon>::Vec::SIZE as i64) as isize,
                                     )
                                 } as *mut <T as $crate::types::TypeCommon>::Vec;
                                 unsafe {res_ptr.write_unaligned(c_local[MR as usize][NR as usize]) };
@@ -79,10 +80,11 @@ macro_rules! define_matmul_micro_kernel {
                         }
                     );
                     $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
+                        let c_ptr = unsafe { c.ptr.offset(MR * ldc as isize) };
                         $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
                                 let res_ptr = unsafe {
-                                    c.ptr.offset(
-                                        (MR * ldc + NR * <T as $crate::types::TypeCommon>::Vec::SIZE as i64) as isize,
+                                    c_ptr.offset(
+                                        (NR * <T as $crate::types::TypeCommon>::Vec::SIZE as i64) as isize,
                                     )
                                 } as *mut <T as $crate::types::TypeCommon>::Vec;
                                 res~NR = unsafe {res_ptr.read_unaligned()};
@@ -112,6 +114,170 @@ macro_rules! define_matmul_micro_kernel {
                                 *res_ptr = (*res_ptr)._add(c_local_ptr.offset(jj as isize).read());
                             };
                         }
+                    }
+                }
+            }
+        }
+    };
+}
+
+/// Define Matmul Micro Kernel function
+///
+/// # Arguments
+///
+/// * `$name`: The name of the function
+/// * `$nr`: The number of registers to use for the columns of B
+/// * `$mr`: The number of rows of C to accumulate in registers
+///
+/// Total registers = ($mr + 1) * $nr + 1
+///
+/// # Example
+///
+/// ```rust
+/// define_matmul_micro_kernel_inline_asm!(f32x2x1, f32, 2, 1);
+/// ```
+///
+#[macro_export]
+macro_rules! define_matmul_micro_kernel_inline_asm {
+    (
+        $name:ident,
+        $nr:expr,
+        $mr:expr,
+        $vec_size:expr,
+        $vxor:ident,
+        $vmov_aligned:ident,
+        $vmov_unaligned:ident,
+        $vbroadcast:ident,
+        $vfma:ident,
+        $vadd:ident,
+        $c_regs:expr,
+        $b_regs:expr,
+        $a_regs:expr,
+        $res_regs:expr
+    ) => {
+        #[allow(unused)]
+        fn $name<T: crate::common::CommonBounds>(
+            a: crate::common::Pointer<T>,
+            b: crate::common::Pointer<T>,
+            c: crate::common::Pointer<T>,
+            mut ldc: i64,
+            mut lda: i64,
+            kc: usize,
+            _: usize,
+            mut ks: i64,
+            first_kiter: bool,
+        ) {
+            use hpt_macros::gen_matmul_microkernel_asm;
+            let b_ptr = b.ptr as *const T;
+            let a_ptr = a.ptr as *const T;
+            let c_ptr = c.ptr as *mut T;
+            let first_kiter = first_kiter as i64;
+            ldc *= 4;
+            lda *= 4;
+            ks *= 4;
+            ks -= ($mr - 1) * lda;
+            unsafe {
+                gen_matmul_microkernel_asm!(
+                    $nr,       /* nr */
+                    $mr,       /* mr */
+                    $vec_size, /* vec_size */
+                    $vxor,
+                    $vmov_aligned,
+                    $vmov_unaligned,
+                    $vbroadcast,
+                    $vfma,
+                    $vadd,
+                    a_ptr,
+                    b_ptr,
+                    c_ptr,
+                    lda,
+                    ldc,
+                    kc,
+                    ks,
+                    first_kiter,
+                    $c_regs,
+                    $b_regs,
+                    $a_regs,
+                    $res_regs
+                )
+            };
+        }
+    };
+}
+
+/// Define Matmul Micro Kernel function with inline asm
+///
+/// # Arguments
+///
+/// * `$name`: The name of the function
+/// * `$nr`: The number of registers to use for the columns of B
+#[macro_export]
+macro_rules! define_matmul_micro_kernel_inline_asm_rem {
+    (
+        $name:ident,
+        $nr:expr,
+        $mr:expr
+    ) => {
+        #[allow(unused_variables)]
+        fn $name<T: crate::common::CommonBounds>(
+            a: crate::common::Pointer<T>,
+            b: crate::common::Pointer<T>,
+            c: crate::common::Pointer<T>,
+            ldc: i64,
+            lda: i64,
+            kc: usize,
+            jb: usize,
+            ks: i64,
+            first_kiter: bool,
+        ) {
+            use $crate::types::vectors::traits::VecTrait;
+            use $crate::common::Pointer;
+            use $crate::types::math::NormalOut;
+            #[inline(always)]
+            fn mma<T: $crate::common::CommonBounds>(mut a: Pointer<T>, mut b: Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as $crate::types::TypeCommon>::Vec; $nr]; $mr] {
+                let mut c_local = [[<T as $crate::types::TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
+                for _ in 0..kc {
+                    $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
+                            let b_vec~NR = unsafe {
+                                *(b.ptr.add(NR * <T as $crate::types::TypeCommon>::Vec::SIZE)
+                                    as *const <T as $crate::types::TypeCommon>::Vec)
+                            };
+                        }
+                    );
+                    #[allow(unused_mut)]
+                    let mut a_vec;
+                    $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
+                            a_vec = <T as $crate::types::TypeCommon>::Vec::splat(a[MR as i64 * lda]);
+                            $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
+                                c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
+                            });
+                        }
+                    );
+                    b += $nr * <T as $crate::types::TypeCommon>::Vec::SIZE as i64;
+                    a += ks;
+                }
+                c_local
+            }
+
+            let c_local = mma(a, b, lda, kc, ks);
+            if first_kiter {
+                for ii in 0..$mr as i64 {
+                    let c_local_ptr = c_local[ii as usize].as_ptr() as *const T;
+                    for jj in 0..jb as i64 {
+                        let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
+                        unsafe {
+                            *res_ptr = c_local_ptr.offset(jj as isize).read();
+                        };
+                    }
+                }
+            } else {
+                for ii in 0..$mr as i64 {
+                    let c_local_ptr = c_local[ii as usize].as_ptr() as *const T;
+                    for jj in 0..jb as i64 {
+                        let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
+                        unsafe {
+                            *res_ptr = (*res_ptr)._add(c_local_ptr.offset(jj as isize).read());
+                        };
                     }
                 }
             }

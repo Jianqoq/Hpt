@@ -53,6 +53,15 @@ where
     }
 
     #[allow(unused_variables)]
+    fn get_inline_asm_kernel(
+        nr: usize,
+        mr: usize,
+        has_rem: bool,
+    ) -> fn(Pointer<Self>, Pointer<Self>, Pointer<Self>, i64, i64, usize, usize, i64, bool) {
+        unimplemented!("inline asm kernel only support specific microkernel")
+    }
+
+    #[allow(unused_variables)]
     fn get_kernel_with_post_op<F: Fn(Self) -> Self, G: Fn(Self::Vec) -> Self::Vec>(
         nr: usize,
         mr: usize,
