@@ -1,7 +1,7 @@
 use std::time::Instant;
 
-use hpt::{ops::Random, Tensor};
 use hpt::ops::Matmul;
+use hpt::{ops::Random, Tensor};
 fn main() -> anyhow::Result<()> {
     let a = Tensor::<f32>::randn(&[32, 512])?;
     let b = Tensor::<f32>::randn(&[512, 512])?;
