@@ -283,6 +283,7 @@ pub(crate) fn create_packed_input_img2col<T: CommonBounds>(
     (buffer_ptr, layout)
 }
 
+/// cache block calculation based on [gemm](https://github.com/sarah-quinones/gemm)
 pub(crate) fn kernel_params(
     n: usize,
     m: usize,
