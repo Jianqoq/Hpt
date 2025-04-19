@@ -253,10 +253,7 @@ pub(crate) fn matmul_gen_asm(args: &MatmulMicrokernelArgs) -> TokenStream {
             asm.push(fma);
         }
     }
-    asm.push(format!(
-        "add {{{b_ptr}}}, {}",
-        4 * vec_size * nr
-    ));
+    asm.push(format!("add {{{b_ptr}}}, {}", 4 * vec_size * nr));
     asm.push(format!("add {{{a_ptr}}}, {{{ks}}}"));
     asm.push(format!("dec {{{kc}}}"));
     asm.push(format!("jnz 2b"));

@@ -3,7 +3,7 @@ use crate::backend::Cpu;
 use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 use crate::backends::cpu::kernels::normalization::batch_norm::batch_norm;
 use crate::tensor_base::_Tensor;
-use hpt_allocator::traits::{ Allocator, AllocatorOutputRetrive };
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_common::error::base::TensorError;
 use hpt_traits::ops::conv::Conv;
 use hpt_traits::tensor::CommonBounds;
@@ -26,19 +26,18 @@ pub(crate) fn batchnorm_conv2d<T, const DEVICE: usize, A>(
     padding: [(i64, i64); 2],
     dilation: [i64; 2],
     post_scalar: Option<fn(T) -> T>,
-    post_vec: Option<fn(<T>::Vec) -> <T>::Vec>
-)
-    -> std::result::Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
-    where
-        T: CommonBounds +
-            Conv2dMicroKernel +
-            MatmulMicroKernel +
-            Cast<<T as NormalOutPromote>::Intermediate>,
-        <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
-        T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
-        T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
-        A: Allocator + Send + Sync,
-        A::Output: AllocatorOutputRetrive
+    post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
+) -> std::result::Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
+where
+    T: CommonBounds
+        + Conv2dMicroKernel
+        + MatmulMicroKernel
+        + Cast<<T as NormalOutPromote>::Intermediate>,
+    <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
+    T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
+    T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
+    A: Allocator + Send + Sync,
+    A::Output: AllocatorOutputRetrive,
 {
     let conv_res = input.conv2d(kernels, bias, steps, padding, dilation, None, None)?;
 
@@ -51,7 +50,7 @@ pub(crate) fn batchnorm_conv2d<T, const DEVICE: usize, A>(
         eps,
         post_scalar,
         post_vec,
-        Some(conv_res.clone())
+        Some(conv_res.clone()),
     )?;
 
     Ok(conv_res)
