@@ -439,7 +439,9 @@ pub mod buitin_templates {
 pub mod utils {
     #[cfg(feature = "cuda")]
     use crate::CUDA_SEED;
-    use crate::{DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION, THREAD_POOL};
+    use crate::{
+        DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION, RAYON_NUM_THREADS, RAYON_POOL, THREAD_POOL,
+    };
     pub use hpt_allocator::resize_cpu_lru_cache;
     #[cfg(feature = "cuda")]
     pub use hpt_allocator::resize_cuda_lru_cache;
@@ -486,7 +488,17 @@ pub mod utils {
             .stack_size(4 * 1024 * 1024)
             .build_global()
         {
-            Ok(_) => {}
+            Ok(_) => {
+                RAYON_NUM_THREADS.store(num_threads, std::sync::atomic::Ordering::Relaxed);
+                RAYON_POOL.with(|x| {
+                    let mut x = x.borrow_mut();
+                    *x = rayon::ThreadPoolBuilder::new()
+                        .num_threads(num_threads)
+                        .stack_size(4 * 1024 * 1024)
+                        .build()
+                        .unwrap();
+                });
+            }
             Err(_) => {}
         }
     }
@@ -494,6 +506,7 @@ pub mod utils {
 
 use ctor::ctor;
 use hpt_types::arch_simd as simd;
+use once_cell::sync::Lazy;
 use std::{cell::RefCell, sync::atomic::AtomicUsize};
 pub use tensor::Tensor;
 
@@ -509,9 +522,20 @@ thread_local! {
         threadpool::ThreadPool::new(num_cpus::get_physical())
     );
 }
+
+thread_local! {
+    static RAYON_POOL: RefCell<rayon::ThreadPool> = RefCell::new(
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(num_cpus::get())
+            .build()
+            .unwrap()
+    );
+}
+
 static DISPLAY_PRECISION: AtomicUsize = AtomicUsize::new(4);
 static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
 static ALIGN: usize = 64;
+static RAYON_NUM_THREADS: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(num_cpus::get()));
 
 #[cfg(target_feature = "avx2")]
 pub(crate) const REGNUM: usize = 16;

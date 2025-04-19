@@ -8,7 +8,7 @@ use crate::backends::cpu::kernels::matmul::matmul_post::{
 };
 use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 use crate::tensor_base::_Tensor;
-use crate::THREAD_POOL;
+use crate::{RAYON_NUM_THREADS, THREAD_POOL};
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_allocator::Cpu;
 use hpt_common::error::{base::TensorError, shape::ShapeError};
@@ -87,7 +87,7 @@ where
                                         .static_cast::<half::f16>()
                                         .expect("static_cast f16 failed")
                                 }),
-                                rayon::current_num_threads(),
+                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed),
                             )?;
                             Ok(res.static_cast::<T>()?)
                         }
@@ -102,7 +102,7 @@ where
                                         .static_cast::<half::bf16>()
                                         .expect("static_cast bf16 failed")
                                 }),
-                                rayon::current_num_threads(),
+                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed),
                             )?;
                             Ok(res.static_cast::<T>()?)
                         }
@@ -110,7 +110,7 @@ where
                             lhs,
                             rhs,
                             out.map(|mut x| x.borrow_mut().clone()),
-                            rayon::current_num_threads(),
+                            RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed),
                         ),
                     }
                 }
@@ -173,7 +173,7 @@ where
                                 }),
                                 post_op,
                                 post_op_vec,
-                                rayon::current_num_threads(),
+                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed),
                             )?;
                             Ok(res.static_cast::<T>()?)
                         }
@@ -192,7 +192,7 @@ where
                                 }),
                                 post_op,
                                 post_op_vec,
-                                rayon::current_num_threads(),
+                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed),
                             )?;
                             Ok(res.static_cast::<T>()?)
                         }
@@ -202,7 +202,7 @@ where
                             out.map(|mut x| x.borrow_mut().clone()),
                             post_op,
                             post_op_vec,
-                            rayon::current_num_threads(),
+                            RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed),
                         ),
                     }
                 }
@@ -236,7 +236,7 @@ where
         };
         let a_strides = preprocess_strides(&a_shape, &lhs.strides());
         let b_strides = preprocess_strides(&b_shape, &rhs.strides());
-        let len = iterate_shape.iter().fold(1, |acc, x| acc * (*x as usize));
+        let batch = iterate_shape.iter().fold(1, |acc, x| acc * (*x as usize));
         let res_inner_matrix_size = (res.shape()[res.shape().len() - 2] as usize)
             * (res.shape()[res.shape().len() - 1] as usize);
         iterate_shape.iter_mut().for_each(|x| {
@@ -245,14 +245,15 @@ where
         let mut a_ptr = lhs.data.clone();
         let mut b_ptr = rhs.data.clone();
         let mut res_ptr = res.data.clone();
-        let num_threads = len.min(rayon::current_num_threads());
-        let mut num_threads_each: Vec<usize> = if len < rayon::current_num_threads() {
-            let vec = mt_intervals(rayon::current_num_threads(), len);
+        let rayon_num_threads = RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed);
+        let num_threads = batch.min(rayon_num_threads);
+        let mut num_threads_each: Vec<usize> = if batch < rayon_num_threads {
+            let vec = mt_intervals(rayon_num_threads, batch);
             vec.iter().map(|x| x.1 - x.0).collect::<Vec<usize>>()
         } else {
-            vec![1; rayon::current_num_threads()]
+            vec![1; rayon_num_threads]
         };
-        let intervals = mt_intervals(len, num_threads);
+        let intervals = mt_intervals(batch, num_threads);
         let mut res_ptrs = Vec::with_capacity(num_threads);
         let mut a_ptrs = Vec::with_capacity(num_threads);
         let mut b_ptrs = Vec::with_capacity(num_threads);
@@ -285,10 +286,10 @@ where
         let m = a_shape[a_shape.len() - 2] as usize;
         let n = b_shape[b_shape.len() - 1] as usize;
         let k = b_shape[b_shape.len() - 2] as usize;
-        THREAD_POOL.with_borrow_mut(|pool: &mut threadpool::ThreadPool| {
+        THREAD_POOL.with_borrow_mut(|pool| {
             for i in (0..num_threads).rev() {
-                let threads: usize = num_threads_each.pop().unwrap();
-                let current_size: usize = intervals[i].1 - intervals[i].0;
+                let threads = num_threads_each.pop().unwrap();
+                let current_size = intervals[i].1 - intervals[i].0;
                 let mut res_ptr = res_ptrs.pop().unwrap();
                 let mut a_ptr = a_ptrs.pop().unwrap();
                 let mut b_ptr = b_ptrs.pop().unwrap();

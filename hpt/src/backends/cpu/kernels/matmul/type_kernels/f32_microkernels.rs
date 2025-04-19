@@ -59,7 +59,7 @@ impl MatmulMicroKernel for f32 {
     }
 }
 
-// #[cfg(target_feature = "avx2")]
+#[cfg(target_feature = "avx2")]
 impl MatmulMicroKernel for f32 {
     fn get_inline_asm_kernel(
         nr: usize,
