@@ -6,7 +6,7 @@ use crate::{
         pack_b_mixed_precision, L2_SLAB, L3_SLAB,
     },
     tensor_base::_Tensor,
-    ALIGN,
+    ALIGN, RAYON_POOL,
 };
 use dyn_stack::DynStack;
 use gemm_common::cache::DivCeil;
@@ -105,111 +105,118 @@ pub fn matmul_mixed_precision_template<T, IM>(
 
     let prgs = calculate_prgs(n, nc, mr, nr, mc, &intervals);
     let rem_prgs = calculate_prgs(n, nc, mr, nr, m % mc, &mc_rem_intervals);
-    (0..num_threads)
-        .into_par_iter()
-        .zip(prgs)
-        .zip(rem_prgs)
-        .zip(intervals)
-        .zip(mc_rem_intervals)
-        .for_each(
-            |((((tid, prg), rem_prg), (start, end)), (start_rem, end_rem))| {
-                L2_SLAB.with(|mem| {
-                    let mut mem = mem.borrow_mut();
-                    let stack = DynStack::new(&mut mem);
-                    let (packed_b_storage, _) =
-                        stack.make_aligned_uninit::<IM>(num_nr_blocks * nr * kc, ALIGN);
-                    #[cfg(feature = "bound_check")]
-                    let packed_b = Pointer::new(
-                        packed_b_storage.as_mut_ptr() as *mut IM,
-                        (num_nr_blocks * nr * kc) as i64,
-                    );
-                    #[cfg(not(feature = "bound_check"))]
-                    let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut IM);
-                    let mut i = 0;
-                    while i < m {
-                        let ib = min(mc, m - i);
-                        let use_prg = if ib == mc { prg } else { rem_prg };
-                        let use_start = if ib == mc { start } else { start_rem };
-                        let use_end = if ib == mc { end } else { end_rem };
-                        let j_start = use_prg[0] * nc;
-                        let mut p = 0;
-                        while p < k {
-                            let first_kiter = p == 0;
-                            let pb = min(kc, k - p);
-                            pack_a_mixed_precision::<T, IM>(
-                                a.clone() + i as i64 * lda + p as i64 * lhs_col_stride,
-                                packed_a.clone(),
-                                lda,
-                                lhs_col_stride,
-                                ib,
-                                pb,
-                                kc,
-                                mr,
-                                tid,
-                                mb_per_thread,
-                                num_mr_blocks,
+    RAYON_POOL.with_borrow(|pool| {
+        pool.install(|| {
+            (0..num_threads)
+                .into_par_iter()
+                .zip(prgs)
+                .zip(rem_prgs)
+                .zip(intervals)
+                .zip(mc_rem_intervals)
+                .for_each(
+                    |((((tid, prg), rem_prg), (start, end)), (start_rem, end_rem))| {
+                        L2_SLAB.with(|mem| {
+                            let mut mem = mem.borrow_mut();
+                            let stack = DynStack::new(&mut mem);
+                            let (packed_b_storage, _) =
+                                stack.make_aligned_uninit::<IM>(num_nr_blocks * nr * kc, ALIGN);
+                            #[cfg(feature = "bound_check")]
+                            let packed_b = Pointer::new(
+                                packed_b_storage.as_mut_ptr() as *mut IM,
+                                (num_nr_blocks * nr * kc) as i64,
                             );
-                            barrier.wait();
+                            #[cfg(not(feature = "bound_check"))]
+                            let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut IM);
+                            let mut i = 0;
+                            while i < m {
+                                let ib = min(mc, m - i);
+                                let use_prg = if ib == mc { prg } else { rem_prg };
+                                let use_start = if ib == mc { start } else { start_rem };
+                                let use_end = if ib == mc { end } else { end_rem };
+                                let j_start = use_prg[0] * nc;
+                                let mut p = 0;
+                                while p < k {
+                                    let first_kiter = p == 0;
+                                    let pb = min(kc, k - p);
+                                    pack_a_mixed_precision::<T, IM>(
+                                        a.clone() + i as i64 * lda + p as i64 * lhs_col_stride,
+                                        packed_a.clone(),
+                                        lda,
+                                        lhs_col_stride,
+                                        ib,
+                                        pb,
+                                        kc,
+                                        mr,
+                                        tid,
+                                        mb_per_thread,
+                                        num_mr_blocks,
+                                    );
+                                    barrier.wait();
 
-                            let mut job_count = use_start;
-                            let mut i_start = use_prg[1] * mr;
-                            let mut jj_start = use_prg[2] * nr;
-                            'outer: for j in (j_start..n).step_by(nc) {
-                                let jb = min(nc, n - j);
-                                let c = out.clone() + i as i64 * ldc + j as i64;
-                                pack_b_mixed_precision::<T, IM>(
-                                    b.clone() + (p as i64 * ldb + j as i64 * rhs_col_stride),
-                                    packed_b.clone(),
-                                    ldb,
-                                    rhs_col_stride,
-                                    jb,
-                                    pb,
-                                    kc,
-                                    nr,
-                                    pack_vec,
-                                    pack_vec_exceed,
-                                    pack_zero,
-                                );
-                                let packed_a = packed_a.clone();
-                                for i in (i_start..ib).step_by(mr) {
-                                    let mb = min(mr, ib - i);
-                                    let micro_kernel =
-                                        <T>::get_mixed_precision_kernel(nr / <T>::Vec::SIZE, mb);
-
-                                    for jj in (jj_start..jb).step_by(nr) {
-                                        let jjb = min(nr, jb - jj);
-                                        micro_kernel(
-                                            packed_a.clone() + kc as i64 * i as i64,
-                                            packed_b.clone() + jj as i64 * kc as i64,
-                                            c.clone() + i as i64 * ldc + jj as i64,
-                                            ldc,
-                                            1,
+                                    let mut job_count = use_start;
+                                    let mut i_start = use_prg[1] * mr;
+                                    let mut jj_start = use_prg[2] * nr;
+                                    'outer: for j in (j_start..n).step_by(nc) {
+                                        let jb = min(nc, n - j);
+                                        let c = out.clone() + i as i64 * ldc + j as i64;
+                                        pack_b_mixed_precision::<T, IM>(
+                                            b.clone()
+                                                + (p as i64 * ldb + j as i64 * rhs_col_stride),
+                                            packed_b.clone(),
+                                            ldb,
+                                            rhs_col_stride,
+                                            jb,
+                                            pb,
                                             kc,
-                                            jjb,
-                                            mb as i64,
-                                            first_kiter,
-                                            vec_cast_back,
-                                            cast_back,
+                                            nr,
+                                            pack_vec,
+                                            pack_vec_exceed,
+                                            pack_zero,
                                         );
-                                        job_count += 1;
-                                        if job_count >= use_end {
-                                            break 'outer;
+                                        let packed_a = packed_a.clone();
+                                        for i in (i_start..ib).step_by(mr) {
+                                            let mb = min(mr, ib - i);
+                                            let micro_kernel = <T>::get_mixed_precision_kernel(
+                                                nr / <T>::Vec::SIZE,
+                                                mb,
+                                            );
+
+                                            for jj in (jj_start..jb).step_by(nr) {
+                                                let jjb = min(nr, jb - jj);
+                                                micro_kernel(
+                                                    packed_a.clone() + kc as i64 * i as i64,
+                                                    packed_b.clone() + jj as i64 * kc as i64,
+                                                    c.clone() + i as i64 * ldc + jj as i64,
+                                                    ldc,
+                                                    1,
+                                                    kc,
+                                                    jjb,
+                                                    mb as i64,
+                                                    first_kiter,
+                                                    vec_cast_back,
+                                                    cast_back,
+                                                );
+                                                job_count += 1;
+                                                if job_count >= use_end {
+                                                    break 'outer;
+                                                }
+                                            }
+                                            jj_start = 0;
                                         }
+                                        i_start = 0;
                                     }
-                                    jj_start = 0;
+                                    p += kc;
+                                    if p < k {
+                                        barrier.wait();
+                                    }
                                 }
-                                i_start = 0;
+                                i += mc;
                             }
-                            p += kc;
-                            if p < k {
-                                barrier.wait();
-                            }
-                        }
-                        i += mc;
-                    }
-                });
-            },
-        );
+                        });
+                    },
+                );
+        });
+    });
 }
 
 /// single batch matmul mixed precision template no block info

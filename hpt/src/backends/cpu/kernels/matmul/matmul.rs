@@ -101,7 +101,6 @@ pub fn matmul_template<T>(
     let mc_rem_intervals = mt_intervals(mc_rem_jobs, num_threads);
     let prgs = calculate_prgs(n, nc, mr, nr, mc, &intervals);
     let rem_prgs = calculate_prgs(n, nc, mr, nr, m % mc, &mc_rem_intervals);
-
     RAYON_POOL.with_borrow(|pool| {
         pool.install(|| {
             (0..num_threads)
@@ -114,8 +113,11 @@ pub fn matmul_template<T>(
                     |((((tid, prg), rem_prg), (start, end)), (start_rem, end_rem))| {
                         L2_SLAB.with_borrow_mut(|mem| {
                             let stack = DynStack::new(mem);
-                            let (packed_b_storage, _) =
-                                stack.make_aligned_uninit::<T>(num_nr_blocks * nr * kc, ALIGN);
+                            let (mut packed_b_storage, _) = stack.make_aligned_with::<T>(
+                                num_nr_blocks * nr * kc,
+                                ALIGN,
+                                |_| T::ZERO,
+                            );
                             #[cfg(feature = "bound_check")]
                             let packed_b = Pointer::new(
                                 packed_b_storage.as_mut_ptr() as *mut T,
@@ -136,8 +138,8 @@ pub fn matmul_template<T>(
                                     let pb = min(kc, k - p);
                                     if do_lhs_pack {
                                         pack_a::<T>(
-                                            a.clone() + i as i64 * lda + p as i64 * lhs_col_stride,
-                                            packed_a.clone(),
+                                            a + i as i64 * lda + p as i64 * lhs_col_stride,
+                                            packed_a,
                                             lda,
                                             lhs_col_stride,
                                             ib,
@@ -156,11 +158,10 @@ pub fn matmul_template<T>(
                                     let mut jj_start = use_prg[2] * nr;
                                     'outer: for j in (j_start..n).step_by(nc) {
                                         let jb = min(nc, n - j);
-                                        let c = out.clone() + i as i64 * ldc + j as i64;
+                                        let c = out + i as i64 * ldc + j as i64;
                                         pack_b::<T>(
-                                            b.clone()
-                                                + (p as i64 * ldb + j as i64 * rhs_col_stride),
-                                            packed_b.clone(),
+                                            b + (p as i64 * ldb + j as i64 * rhs_col_stride),
+                                            packed_b,
                                             ldb,
                                             rhs_col_stride,
                                             jb,
@@ -169,9 +170,9 @@ pub fn matmul_template<T>(
                                             nr,
                                         );
                                         let packed_a = if do_lhs_pack {
-                                            packed_a.clone()
+                                            packed_a
                                         } else {
-                                            a.clone() + (i as i64 * lda + p as i64 * lhs_col_stride)
+                                            a + (i as i64 * lda + p as i64 * lhs_col_stride)
                                         };
                                         for i in (i_start..ib).step_by(mr) {
                                             let mb = min(mr, ib - i);
@@ -186,9 +187,9 @@ pub fn matmul_template<T>(
                                                 // );
                                                 if do_lhs_pack {
                                                     micro_kernel(
-                                                        packed_a.clone() + kc as i64 * i as i64,
-                                                        packed_b.clone() + jj as i64 * kc as i64,
-                                                        c.clone() + i as i64 * ldc + jj as i64,
+                                                        packed_a + kc as i64 * i as i64,
+                                                        packed_b + jj as i64 * kc as i64,
+                                                        c + i as i64 * ldc + jj as i64,
                                                         ldc,
                                                         1,
                                                         kc,
@@ -198,9 +199,9 @@ pub fn matmul_template<T>(
                                                     );
                                                 } else {
                                                     micro_kernel(
-                                                        packed_a.clone() + i as i64 * lda,
-                                                        packed_b.clone() + jj as i64 * kc as i64,
-                                                        c.clone() + i as i64 * ldc + jj as i64,
+                                                        packed_a + i as i64 * lda,
+                                                        packed_b + jj as i64 * kc as i64,
+                                                        c + i as i64 * ldc + jj as i64,
                                                         ldc,
                                                         lda,
                                                         kc,
@@ -347,7 +348,7 @@ pub(crate) fn pack_a<T>(
     }
 }
 
-#[inline]
+#[inline(never)]
 pub(crate) fn pack_b<T>(
     b: Pointer<T>,
     mut packed_b: Pointer<T>,
@@ -379,10 +380,6 @@ pub(crate) fn pack_b<T>(
                 packed_b += nr as i64;
             }
             for _ in kb..kc {
-                for i in 0..nr_div_lane {
-                    let packed_b_vec = unsafe { packed_b.ptr.add(i * T::Vec::SIZE) } as *mut T::Vec;
-                    unsafe { packed_b_vec.write(T::Vec::splat(T::ZERO)) };
-                }
                 packed_b += nr as i64;
             }
         } else {
@@ -393,13 +390,11 @@ pub(crate) fn pack_b<T>(
                     packed_b += 1i64;
                 }
                 for _ in nb..nr {
-                    *packed_b = T::ZERO;
                     packed_b += 1i64;
                 }
             }
             for _ in kb..kc {
                 for _ in 0..nr as i64 {
-                    *packed_b = T::ZERO;
                     packed_b += 1i64;
                 }
             }
