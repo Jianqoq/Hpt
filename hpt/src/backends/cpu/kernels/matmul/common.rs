@@ -47,6 +47,21 @@ pub(crate) fn calculate_jobs(n: usize, nc: usize, mr: usize, nr: usize, ib: usiz
     jobs
 }
 
+
+
+pub(crate) fn calculate_jobs_n_k_m(m: usize, mc: usize, nr: usize, mr: usize, jb: usize) -> usize {
+    let mut jobs = 0;
+    for i in (0..m).step_by(mc) {
+        let ib = min(mc, m - i);
+        for _ in (0..jb).step_by(nr) {
+            for _ in (0..ib).step_by(mr) {
+                jobs += 1;
+            }
+        }
+    }
+    jobs
+}
+
 pub(crate) fn calculate_prg(
     n: usize,
     nc: usize,

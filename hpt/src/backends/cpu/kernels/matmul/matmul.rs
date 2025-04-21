@@ -1,6 +1,6 @@
 use crate::backend::Cpu;
 use crate::backends::cpu::kernels::matmul::common::{
-    calculate_jobs, calculate_prgs, L2_SLAB, L3_SLAB,
+    calculate_jobs, calculate_jobs_n_k_m, calculate_prgs, L2_SLAB, L3_SLAB
 };
 use crate::tensor_base::_Tensor;
 use crate::{ALIGN, RAYON_POOL};
@@ -125,6 +125,220 @@ pub fn matmul_template<T>(
                             );
                             #[cfg(not(feature = "bound_check"))]
                             let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T);
+                            let mut i = 0;
+                            while i < m {
+                                let ib = min(mc, m - i);
+                                let use_prg = if ib == mc { prg } else { rem_prg };
+                                let use_start = if ib == mc { start } else { start_rem };
+                                let use_end = if ib == mc { end } else { end_rem };
+                                let j_start = use_prg[0] * nc;
+                                let mut p = 0;
+                                while p < k {
+                                    let first_kiter = p == 0;
+                                    let pb = min(kc, k - p);
+                                    if do_lhs_pack {
+                                        pack_a::<T>(
+                                            a + i as i64 * lda + p as i64 * lhs_col_stride,
+                                            packed_a,
+                                            lda,
+                                            lhs_col_stride,
+                                            ib,
+                                            pb,
+                                            kc,
+                                            mr,
+                                            tid,
+                                            mb_per_thread,
+                                            num_mr_blocks,
+                                        );
+                                        barrier.wait();
+                                    }
+
+                                    let mut job_count = use_start;
+                                    let mut i_start = use_prg[1] * mr;
+                                    let mut jj_start = use_prg[2] * nr;
+                                    'outer: for j in (j_start..n).step_by(nc) {
+                                        let jb = min(nc, n - j);
+                                        let c = out + i as i64 * ldc + j as i64;
+                                        pack_b::<T>(
+                                            b + (p as i64 * ldb + j as i64 * rhs_col_stride),
+                                            packed_b,
+                                            ldb,
+                                            rhs_col_stride,
+                                            jb,
+                                            pb,
+                                            kc,
+                                            nr,
+                                        );
+                                        let packed_a = if do_lhs_pack {
+                                            packed_a
+                                        } else {
+                                            a + (i as i64 * lda + p as i64 * lhs_col_stride)
+                                        };
+                                        for i in (i_start..ib).step_by(mr) {
+                                            let mb = min(mr, ib - i);
+                                            let micro_kernel =
+                                                <T>::get_kernel(nr / <T>::Vec::SIZE, mb);
+                                            for jj in (jj_start..jb).step_by(nr) {
+                                                let jjb = min(nr, jb - jj);
+                                                // let micro_kernel = <T>::get_inline_asm_kernel(
+                                                //     nr / <T>::Vec::SIZE,
+                                                //     mb,
+                                                //     jjb != nr,
+                                                // );
+                                                if do_lhs_pack {
+                                                    micro_kernel(
+                                                        packed_a + kc as i64 * i as i64,
+                                                        packed_b + jj as i64 * kc as i64,
+                                                        c + i as i64 * ldc + jj as i64,
+                                                        ldc,
+                                                        1,
+                                                        kc,
+                                                        jjb,
+                                                        mb as i64,
+                                                        first_kiter,
+                                                    );
+                                                } else {
+                                                    micro_kernel(
+                                                        packed_a + i as i64 * lda,
+                                                        packed_b + jj as i64 * kc as i64,
+                                                        c + i as i64 * ldc + jj as i64,
+                                                        ldc,
+                                                        lda,
+                                                        kc,
+                                                        jjb,
+                                                        lhs_col_stride,
+                                                        first_kiter,
+                                                    );
+                                                }
+                                                job_count += 1;
+                                                if job_count >= use_end {
+                                                    break 'outer;
+                                                }
+                                            }
+                                            jj_start = 0;
+                                        }
+                                        i_start = 0;
+                                    }
+                                    p += kc;
+                                    if p < k {
+                                        barrier.wait();
+                                    }
+                                }
+                                i += mc;
+                            }
+                        });
+                    },
+                );
+        });
+    });
+}
+
+#[inline]
+pub(crate) fn matmul_template_n_k_m<T>(
+    a: Pointer<T>,
+    b: Pointer<T>,
+    out: Pointer<T>,
+    m: usize,
+    n: usize,
+    k: usize,
+    lda: i64,
+    ldb: i64,
+    ldc: i64,
+    lhs_col_stride: i64,
+    rhs_col_stride: i64,
+    kc: usize,
+    mc: usize,
+    nc: usize,
+    nr: usize,
+    mr: usize,
+    do_lhs_pack: bool,
+    mut num_threads: usize,
+) where
+    T: CommonBounds + MatmulMicroKernel,
+{
+    assert_eq!(
+        nr % T::Vec::SIZE,
+        0,
+        "nr must be a multiple of {} for type {}",
+        T::Vec::SIZE,
+        T::STR
+    );
+
+    let num_mr_blocks = (mc + mr - 1) / mr;
+    let num_nr_blocks = (nc + nr - 1) / nr;
+
+    let packed_a = L3_SLAB.with(|mem| {
+        if do_lhs_pack {
+            let mut mem = mem.borrow_mut();
+            let stack = DynStack::new(&mut mem);
+            let (packed_a_storage, _) =
+                stack.make_aligned_uninit::<T>(num_mr_blocks * mr * kc, ALIGN);
+            #[cfg(feature = "bound_check")]
+            let packed_a = Pointer::new(
+                packed_a_storage.as_mut_ptr() as *mut T,
+                (num_mr_blocks * mr * kc) as i64,
+            );
+            #[cfg(not(feature = "bound_check"))]
+            let packed_a = Pointer::new(packed_a_storage.as_mut_ptr() as *mut T);
+            packed_a
+        } else {
+            a.clone()
+        }
+    });
+
+    let mc_jobs = calculate_jobs_n_k_m(m, mc, nr, mr, nc);
+    let mc_rem_jobs = calculate_jobs_n_k_m(m, mc, nr, mr, m % mc);
+    num_threads = num_threads.min(mc_jobs);
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(num_threads));
+    let mb_per_thread = num_mr_blocks.div_ceil(num_threads);
+    let intervals = mt_intervals(mc_jobs, num_threads);
+    let mc_rem_intervals = mt_intervals(mc_rem_jobs, num_threads);
+    let prgs = calculate_prgs(n, nc, mr, nr, mc, &intervals);
+    let rem_prgs = calculate_prgs(n, nc, mr, nr, m % mc, &mc_rem_intervals);
+    RAYON_POOL.with_borrow(|pool| {
+        pool.install(|| {
+            (0..num_threads)
+                .into_par_iter()
+                .zip(prgs)
+                .zip(rem_prgs)
+                .zip(intervals)
+                .zip(mc_rem_intervals)
+                .for_each(
+                    |((((tid, prg), rem_prg), (start, end)), (start_rem, end_rem))| {
+                        L2_SLAB.with_borrow_mut(|mem| {
+                            let stack = DynStack::new(mem);
+                            let (mut packed_b_storage, _) = stack.make_aligned_with::<T>(
+                                num_nr_blocks * nr * kc,
+                                ALIGN,
+                                |_| T::ZERO,
+                            );
+                            #[cfg(feature = "bound_check")]
+                            let packed_b = Pointer::new(
+                                packed_b_storage.as_mut_ptr() as *mut T,
+                                (num_nr_blocks * nr * kc) as i64,
+                            );
+                            #[cfg(not(feature = "bound_check"))]
+                            let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T);
+
+                            for j in (0..n).step_by(nc) {
+                                let jb = min(nc, n - j);
+                                // pack b
+                                for p in (0..k).step_by(kc) {
+                                    let pb = min(kc, k - p);
+                                    let first_kiter = p == 0;
+                                    // pack a
+                                    for i in (0..m).step_by(mc) {
+                                        let ib = min(mc, m - i);
+                                        for jj in (0..jb).step_by(nr) {
+                                            let jjb = min(nr, jb - jj);
+                                            for ii in (0..ib).step_by(mr) {
+                                                let mb = min(mr, ib - ii);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             let mut i = 0;
                             while i < m {
                                 let ib = min(mc, m - i);
