@@ -302,6 +302,7 @@ pub(crate) mod backends {
         pub(crate) mod shape_manipulate;
         /// a module contains slice op
         pub(crate) mod slice;
+        pub(crate) mod thread_pool;
     }
 }
 pub(crate) mod tensor;
@@ -440,7 +441,8 @@ pub mod utils {
     #[cfg(feature = "cuda")]
     use crate::CUDA_SEED;
     use crate::{
-        DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION, RAYON_NUM_THREADS, RAYON_POOL, THREAD_POOL,
+        CUSTOM_THREAD_POOL, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION, RAYON_NUM_THREADS, RAYON_POOL,
+        THREAD_POOL,
     };
     pub use hpt_allocator::resize_cpu_lru_cache;
     #[cfg(feature = "cuda")]
@@ -498,6 +500,9 @@ pub mod utils {
                         .build()
                         .unwrap();
                 });
+                CUSTOM_THREAD_POOL.with(|x| {
+                    x.borrow_mut().resize(num_threads).unwrap();
+                });
             }
             Err(_) => {}
         }
@@ -513,13 +518,30 @@ pub use tensor::Tensor;
 #[ctor]
 fn init() {
     THREAD_POOL.with(|x| {
-        x.borrow_mut().set_num_threads(num_cpus::get_physical());
+        x.borrow_mut().set_num_threads(num_cpus::get());
+    });
+    RAYON_POOL.with(|x| {
+        let mut x = x.borrow_mut();
+        *x = rayon::ThreadPoolBuilder::new()
+            .num_threads(num_cpus::get())
+            .stack_size(4 * 1024 * 1024)
+            .build()
+            .unwrap();
+    });
+    CUSTOM_THREAD_POOL.with(|x| {
+        x.borrow_mut().resize(num_cpus::get()).unwrap();
     });
 }
 
 thread_local! {
     static THREAD_POOL: RefCell<threadpool::ThreadPool> = RefCell::new(
         threadpool::ThreadPool::new(num_cpus::get_physical())
+    );
+}
+
+thread_local! {
+    static CUSTOM_THREAD_POOL: RefCell<crate::backends::common::thread_pool::ComputeThreadPool> = RefCell::new(
+        crate::backends::common::thread_pool::ComputeThreadPool::new(num_cpus::get())
     );
 }
 

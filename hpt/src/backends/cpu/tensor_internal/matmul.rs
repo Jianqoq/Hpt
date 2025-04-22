@@ -8,7 +8,7 @@ use crate::backends::cpu::kernels::matmul::matmul_post::{
 };
 use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 use crate::tensor_base::_Tensor;
-use crate::{RAYON_NUM_THREADS, THREAD_POOL};
+use crate::{CUSTOM_THREAD_POOL, RAYON_NUM_THREADS};
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_allocator::Cpu;
 use hpt_common::error::{base::TensorError, shape::ShapeError};
@@ -245,9 +245,9 @@ where
         let mut a_ptr = lhs.data.clone();
         let mut b_ptr = rhs.data.clone();
         let mut res_ptr = res.data.clone();
-        let rayon_num_threads = RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed);
+        let rayon_num_threads = CUSTOM_THREAD_POOL.with_borrow(|pool| pool.num_threads());
         let num_threads = batch.min(rayon_num_threads);
-        let mut num_threads_each: Vec<usize> = if batch < rayon_num_threads {
+        let num_threads_each = if batch < rayon_num_threads {
             let vec = mt_intervals(rayon_num_threads, batch);
             vec.iter().map(|x| x.1 - x.0).collect::<Vec<usize>>()
         } else {
@@ -263,7 +263,7 @@ where
             let (start, end) = intervals[i];
             res_ptrs.push(res_ptr.clone());
             res_ptr.add((end - start) * res_inner_matrix_size);
-            let mut prg: Vec<i64> = vec![0; iterate_shape.len()];
+            let mut prg = vec![0i64; iterate_shape.len()];
             let mut amount_cpy = amount as i64;
             for j in (0..=iterate_shape.len() - 1).rev() {
                 prg[j] = amount_cpy % (iterate_shape[j] + 1);
@@ -286,22 +286,22 @@ where
         let m = a_shape[a_shape.len() - 2] as usize;
         let n = b_shape[b_shape.len() - 1] as usize;
         let k = b_shape[b_shape.len() - 2] as usize;
-        THREAD_POOL.with_borrow_mut(|pool| {
-            for i in (0..num_threads).rev() {
-                let threads = num_threads_each.pop().unwrap();
-                let current_size = intervals[i].1 - intervals[i].0;
-                let mut res_ptr = res_ptrs.pop().unwrap();
-                let mut a_ptr = a_ptrs.pop().unwrap();
-                let mut b_ptr = b_ptrs.pop().unwrap();
-                let mut prg = prgs.pop().unwrap();
-                let shape = iterate_shape.clone();
-                let __a_strides = a_strides.clone();
-                let __b_strides = b_strides.clone();
-                type F32Vec = <f32 as TypeCommon>::Vec;
-                type F16Vec = <half::f16 as TypeCommon>::Vec;
-                type BF16Vec = <half::bf16 as TypeCommon>::Vec;
-                pool.execute(move || {
-                    for _ in 0..current_size {
+
+        CUSTOM_THREAD_POOL.with_borrow(|pool| {
+            let iter = num_threads_each
+                .into_iter()
+                .zip(intervals)
+                .zip(res_ptrs)
+                .zip(a_ptrs)
+                .zip(b_ptrs)
+                .zip(prgs);
+            type F32Vec = <f32 as TypeCommon>::Vec;
+            type F16Vec = <half::f16 as TypeCommon>::Vec;
+            type BF16Vec = <half::bf16 as TypeCommon>::Vec;
+            pool.parallel_for(
+                iter,
+                move |(((((threads, (start, end)), mut res_ptr), mut a_ptr), mut b_ptr), mut prg), _| {
+                    for _ in start..end {
                         match T::STR {
                             "f16" => {
                                 if let (Some(post_op), Some(post_op_vec)) = (post_op, post_op_vec) {
@@ -494,22 +494,21 @@ where
                             }
                         }
                         res_ptr.add(res_inner_matrix_size);
-                        for j in 0..shape.len() {
-                            if prg[j] < shape[j] {
+                        for j in 0..iterate_shape.len() {
+                            if prg[j] < iterate_shape[j] {
                                 prg[j] += 1;
-                                a_ptr.offset(__a_strides[j]);
-                                b_ptr.offset(__b_strides[j]);
+                                a_ptr.offset(a_strides[j]);
+                                b_ptr.offset(b_strides[j]);
                                 break;
                             } else {
                                 prg[j] = 0;
-                                a_ptr.offset(-__a_strides[j] * shape[j]);
-                                b_ptr.offset(-__b_strides[j] * shape[j]);
+                                a_ptr.offset(-a_strides[j] * iterate_shape[j]);
+                                b_ptr.offset(-b_strides[j] * iterate_shape[j]);
                             }
                         }
                     }
-                });
-            }
-            pool.join();
+                },
+            );
         });
         Ok(res)
     }

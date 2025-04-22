@@ -247,12 +247,12 @@ where
                 }
                 let tolerance = atol._add(rtol._mul(b._abs()));
                 let abs_diff = (a._sub(b))._abs();
-                if !abs_diff._le(tolerance) {
-                    println!("a: {}", a);
-                    println!("b: {}", b);
-                    println!("abs_diff: {}", abs_diff);
-                    println!("tolerance: {}", tolerance);
-                }
+                // if !abs_diff._le(tolerance) {
+                //     println!("a: {}", a);
+                //     println!("b: {}", b);
+                //     println!("abs_diff: {}", abs_diff);
+                //     println!("tolerance: {}", tolerance);
+                // }
                 acc && abs_diff._le(tolerance)
             },
         );

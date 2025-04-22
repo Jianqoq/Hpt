@@ -23,7 +23,7 @@ use crate::TEST_RTOL;
 #[test]
 fn test() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for i in 0..10 {
+    for i in 0..1000 {
         let m = rng.random_range(1..=128);
         let n = rng.random_range(1..=128);
         let k = rng.random_range(1..=128);
@@ -206,7 +206,7 @@ fn test_batch_matmul() -> anyhow::Result<()> {
 #[test]
 fn test_uncontiguous_batch_matmul() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for i in 0..10 {
+    for i in 0..1000 {
         let m = rng.random_range(1..=128);
         let n = rng.random_range(1..=128);
         let k = rng.random_range(1..=128);
