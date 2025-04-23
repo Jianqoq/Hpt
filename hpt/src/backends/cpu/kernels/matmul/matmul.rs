@@ -197,7 +197,7 @@ pub fn matmul_template<T>(
                                                 c + i as i64 * ldc + jj as i64,
                                                 ldc,
                                                 1,
-                                                kc,
+                                                pb,
                                                 jjb,
                                                 mb as i64,
                                                 first_kiter,
@@ -209,7 +209,7 @@ pub fn matmul_template<T>(
                                                 c + i as i64 * ldc + jj as i64,
                                                 ldc,
                                                 lda,
-                                                kc,
+                                                pb,
                                                 jjb,
                                                 lhs_col_stride,
                                                 first_kiter,
@@ -382,9 +382,7 @@ pub(crate) fn pack_b<T>(
                 }
                 packed_b += nr as i64;
             }
-            for _ in kb..kc {
-                packed_b += nr as i64;
-            }
+            packed_b += (kc - kb) as i64 * nr as i64;
         } else {
             for p in 0..kb as i64 {
                 for jj in 0..nb as i64 {
@@ -392,15 +390,9 @@ pub(crate) fn pack_b<T>(
                     *packed_b = b[p * ldb + j * stride];
                     packed_b += 1i64;
                 }
-                for _ in nb..nr {
-                    packed_b += 1i64;
-                }
+                packed_b += (nr - nb) as i64;
             }
-            for _ in kb..kc {
-                for _ in 0..nr as i64 {
-                    packed_b += 1i64;
-                }
-            }
+            packed_b += (kc - kb) as i64 * nr as i64;
         }
     }
 }
