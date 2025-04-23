@@ -75,32 +75,32 @@ impl LSTMCell {
             use hpt::iter::ParStridedIteratorSimd;
             use hpt::iter::ParStridedIteratorSimdZip;
             use hpt::iter::TensorIterator;
-            c.par_iter_mut_simd()
-                .zip(i.par_iter_simd())
-                .zip(f.par_iter_simd())
-                .zip(g.par_iter_simd())
-                .for_each(
-                    |(((c, i), f), g)| {
-                        let mul = i._sigmoid() * g.tanh();
-                        *c = f._sigmoid().mul_add(*c, mul);
-                    },
-                    |(((c, i), f), g)| {
-                        let mul = i._sigmoid() * g._tanh();
-                        c.write_unaligned(f._sigmoid().mul_add(c.read_unaligned(), mul));
-                    },
-                );
+            // c.par_iter_mut_simd()
+            //     .zip(i.par_iter_simd())
+            //     .zip(f.par_iter_simd())
+            //     .zip(g.par_iter_simd())
+            //     .for_each(
+            //         |(((c, i), f), g)| {
+            //             let mul = i._sigmoid() * g.tanh();
+            //             *c = f._sigmoid().mul_add(*c, mul);
+            //         },
+            //         |(((c, i), f), g)| {
+            //             let mul = i._sigmoid() * g._tanh();
+            //             c.write_unaligned(f._sigmoid().mul_add(c.read_unaligned(), mul));
+            //         },
+            //     );
 
-            h.par_iter_mut_simd()
-                .zip(c.par_iter_simd())
-                .zip(o.par_iter_simd())
-                .for_each(
-                    |((h, c), o)| {
-                        *h = o._sigmoid() * c._tanh();
-                    },
-                    |((h, c), o)| {
-                        h.write_unaligned(o._sigmoid() * c._tanh());
-                    },
-                );
+            // h.par_iter_mut_simd()
+            //     .zip(c.par_iter_simd())
+            //     .zip(o.par_iter_simd())
+            //     .for_each(
+            //         |((h, c), o)| {
+            //             *h = o._sigmoid() * c._tanh();
+            //         },
+            //         |((h, c), o)| {
+            //             h.write_unaligned(o._sigmoid() * c._tanh());
+            //         },
+            //     );
         }
 
         let last_h = hs.slice(&select![-1:,:,:])?;
@@ -191,11 +191,11 @@ fn main() -> anyhow::Result<()> {
     let mut batch_sizes = Vec::new();
     for b in 4..=4 {
         let batch_size = b * 32;
-        let seq_length = 100;
+        let seq_length = 512;
         let input = Tensor::randn(&[seq_length, batch_size, 512])?;
 
         let start_time = std::time::Instant::now();
-        for _ in 0..10 {
+        for _ in 0..1 {
             let _ = model.forward(&input)?;
         }
         times.push((start_time.elapsed() / 10).as_secs_f32() * 1000.0);

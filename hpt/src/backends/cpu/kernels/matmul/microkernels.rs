@@ -35,6 +35,9 @@ macro_rules! define_matmul_micro_kernel {
             fn mma<T: $crate::common::CommonBounds>(mut a: Pointer<T>, mut b: Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as $crate::types::TypeCommon>::Vec; $nr]; $mr] {
                 let mut c_local = [[<T as $crate::types::TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
                 for _ in 0..kc {
+                    unsafe {
+                        std::arch::x86_64::_mm_prefetch(a.ptr.add(2 * ks as usize) as *const i8, std::arch::x86_64::_MM_HINT_T0);
+                    }
                     $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
                             let b_vec~NR = unsafe {
                                 *(b.ptr.add(NR * <T as $crate::types::TypeCommon>::Vec::SIZE)

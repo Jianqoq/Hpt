@@ -165,16 +165,16 @@ pub fn matmul_template<T>(
                             'outer: for j in (j_start..n).step_by(nc) {
                                 let jb = min(nc, n - j);
                                 let c = out + i as i64 * ldc + j as i64;
-                                pack_b::<T>(
-                                    b + (p as i64 * ldb + j as i64 * rhs_col_stride),
-                                    packed_b,
-                                    ldb,
-                                    rhs_col_stride,
-                                    jb,
-                                    pb,
-                                    kc,
-                                    nr,
-                                );
+                                // pack_b::<T>(
+                                //     b + (p as i64 * ldb + j as i64 * rhs_col_stride),
+                                //     packed_b,
+                                //     ldb,
+                                //     rhs_col_stride,
+                                //     jb,
+                                //     pb,
+                                //     kc,
+                                //     nr,
+                                // );
                                 let packed_a = if do_lhs_pack {
                                     packed_a
                                 } else {
