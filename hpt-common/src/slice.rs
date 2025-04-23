@@ -96,7 +96,6 @@ pub fn slice_process(
         } else {
             0
         };
-
         if length > 0 {
             res_shape[idx] = length * alpha;
             res_ptr += start * res_strides[idx];

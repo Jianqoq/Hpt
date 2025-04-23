@@ -1,92 +1,90 @@
 use hpt::ops::FloatUnaryOps;
 use hpt::{
-    common::TensorInfo,
-    error::TensorError,
-    iter::{ParStridedIteratorSimdZip, TensorIterator},
-    ops::{Concat, Matmul, NormalBinOps, Random, ShapeManipulate, Slice, TensorCreator},
-    types::math::FloatOutUnary,
-    utils::select,
+    common::TensorInfo, error::TensorError, ops::*, types::math::FloatOutUnary, utils::select,
     Tensor,
 };
 
-struct LSTM {
-    x_weights: Tensor<f32>,
-    h_weights: Tensor<f32>,
+struct LSTMCell {
+    ih: Tensor<f32>,
+    hh: Tensor<f32>,
     biases: Tensor<f32>,
+    input_size: usize,
+    hidden_size: usize,
 }
 
-impl LSTM {
+impl LSTMCell {
     fn new(input_size: usize, hidden_size: usize) -> Result<Self, TensorError> {
-        let biases = Tensor::concat(
-            vec![
-                Tensor::<f32>::zeros(&[hidden_size])?,
-                Tensor::<f32>::zeros(&[hidden_size])?,
-                Tensor::<f32>::zeros(&[hidden_size])?,
-                Tensor::<f32>::zeros(&[hidden_size])?,
-            ],
-            0,
-            false,
-        )?;
-        let x_weights = Tensor::concat(
-            vec![
-                Tensor::<f32>::randn(&[hidden_size, input_size])?,
-                Tensor::<f32>::randn(&[hidden_size, input_size])?,
-                Tensor::<f32>::randn(&[hidden_size, input_size])?,
-                Tensor::<f32>::randn(&[hidden_size, input_size])?,
-            ],
-            0,
-            false,
-        )?;
-        let h_weights = Tensor::concat(
-            vec![
-                Tensor::<f32>::randn(&[hidden_size, hidden_size])?,
-                Tensor::<f32>::randn(&[hidden_size, hidden_size])?,
-                Tensor::<f32>::randn(&[hidden_size, hidden_size])?,
-                Tensor::<f32>::randn(&[hidden_size, hidden_size])?,
-            ],
-            0,
-            false,
-        )?;
-        use hpt::ops::Contiguous;
+        let biases = Tensor::<f32>::zeros(&[4 * hidden_size])?;
+        let ih = Tensor::<f32>::randn(&[4 * hidden_size, input_size])?;
+        let hh = Tensor::<f32>::randn(&[4 * hidden_size, hidden_size])?;
         Ok(Self {
-            x_weights: x_weights.t()?.contiguous()?,
-            h_weights: h_weights.t()?.contiguous()?,
+            ih,
+            hh,
             biases,
+            input_size,
+            hidden_size,
         })
     }
     fn forward(
         &self,
-        x_t: &Tensor<f32>,
-        h_t_1: &Tensor<f32>,
-        c_t_1: &Tensor<f32>,
-    ) -> Result<(Tensor<f32>, Tensor<f32>), TensorError> {
-        let x_proj: Tensor<f32> = x_t.matmul(&self.x_weights)?;
-        let h_proj: Tensor<f32> = h_t_1.matmul(&self.h_weights)?;
+        x: &Tensor<f32>,
+        states: Option<(Tensor<f32>, Tensor<f32>)>,
+        total: &mut std::time::Duration,
+    ) -> Result<(Tensor<f32>, Tensor<f32>, Tensor<f32>), TensorError> {
+        let (seq_len, batch_size, input_size) = (x.shape()[0], x.shape()[1], x.shape()[2]);
+        let hidden_size = self.hidden_size as i64;
+        let (mut h, mut c) = if let Some(states) = states {
+            states
+        } else {
+            (
+                Tensor::<f32>::zeros(&[batch_size, hidden_size])?,
+                Tensor::<f32>::zeros(&[batch_size, hidden_size])?,
+            )
+        };
 
-        let gates: Tensor<f32> = &x_proj + &h_proj + &self.biases;
+        let flattened: Tensor<f32> = x.reshape(&[batch_size * seq_len, input_size])?;
+        let now = std::time::Instant::now();
+        let ih: Tensor<f32> =
+            flattened
+                .matmul(&self.ih.t()?)?
+                .reshape(&[seq_len, batch_size, 4 * hidden_size])?; // [seq_len, batch_size, 4 * hidden_size]
+        *total += now.elapsed();
+        let mut outputs = Vec::with_capacity(seq_len as usize);
+        for i in 0..seq_len {
+            let ih_t: Tensor<f32> = ih.slice(&select![i:i+1, :, :])?.squeeze(0)?; // [1, batch_size, 4 * hidden_size]
+            let now = std::time::Instant::now();
+            let hh: Tensor<f32> = h.matmul_post(&self.hh.t()?, |x| x._sigmoid(), |x| x._sigmoid())? + ih_t; // [batch_size, 4 * hidden_size]
+            *total += now.elapsed();
 
-        let hidden_size = c_t_1.shape()[1] as i64;
-        // let i_gate: Tensor<f32> = gates.slice(&select![:, 0:hidden_size])?;
-        let f_gate: Tensor<f32> = gates.slice(&select![:, hidden_size:2*hidden_size])?;
-        // let g_gate: Tensor<f32> = gates.slice(&select![:, 2*hidden_size:3*hidden_size])?;
-        let o_gate: Tensor<f32> = gates.slice(&select![:, 3*hidden_size:4*hidden_size])?;
-        // let i_t: Tensor<f32> = i_gate.sigmoid()?;
-        let f_t: Tensor<f32> = f_gate.sigmoid()?;
-        // let g_t: Tensor<f32> = g_gate.tanh()?;
-        let o_t: Tensor<f32> = o_gate.sigmoid()?;
+            let i = hh.slice(&select![:, 0:hidden_size])?;
+            let f = hh.slice(&select![:, hidden_size:2*hidden_size])?;
+            let g = hh.slice(&select![:, 2*hidden_size:3*hidden_size])?;
+            let o = hh.slice(&select![:, 3*hidden_size:4*hidden_size])?;
 
-        // let c_t: Tensor<f32> = f_t * c_t_1 + i_t * g_t;
-        // let h_t: Tensor<f32> = o_t * c_t.tanh()?;
+            // let i_t: Tensor<f32> = i.sigmoid()?;
+            // let f_t: Tensor<f32> = f.sigmoid()?;
+            // let g_t: Tensor<f32> = g.tanh()?;
+            // let o_t: Tensor<f32> = o.sigmoid()?;
 
-        // Ok((h_t, c_t))
-        Ok((o_t, f_t))
+            let i_t: Tensor<f32> = i;
+            let f_t: Tensor<f32> = f;
+            let g_t: Tensor<f32> = g;
+            let o_t: Tensor<f32> = o;
+
+            c = f_t * &c + i_t * g_t;
+            h = o_t * c.tanh()?;
+
+            outputs.push(h.clone());
+        }
+
+        // println!("c shape: {:?}", c.shape());
+        Ok((Tensor::concat(outputs, 0, true)?, h, c))
     }
 }
 
-struct LSTMModel {
-    hidden_size: usize,
+struct LSTM2 {
     num_layers: usize,
-    lstm_cells: Vec<LSTM>,
+    lstm_cells: Vec<LSTMCell>,
     output_layer: Option<LinearLayer>,
 }
 
@@ -109,7 +107,7 @@ impl LinearLayer {
     }
 }
 
-impl LSTMModel {
+impl LSTM2 {
     fn new(
         input_size: usize,
         hidden_size: usize,
@@ -118,10 +116,10 @@ impl LSTMModel {
     ) -> Result<Self, TensorError> {
         let mut lstm_cells = Vec::with_capacity(num_layers);
 
-        lstm_cells.push(LSTM::new(input_size, hidden_size)?);
+        lstm_cells.push(LSTMCell::new(input_size, hidden_size)?);
 
         for _ in 1..num_layers {
-            lstm_cells.push(LSTM::new(hidden_size, hidden_size)?);
+            lstm_cells.push(LSTMCell::new(hidden_size, hidden_size)?);
         }
 
         let output_layer = if let Some(out_size) = output_size {
@@ -130,7 +128,6 @@ impl LSTMModel {
             None
         };
         Ok(Self {
-            hidden_size,
             num_layers,
             lstm_cells,
             output_layer,
@@ -140,69 +137,40 @@ impl LSTMModel {
     fn forward(
         &self,
         x: &Tensor<f32>,
-        init_states: Option<Vec<(Tensor<f32>, Tensor<f32>)>>,
     ) -> Result<(Tensor<f32>, Vec<(Tensor<f32>, Tensor<f32>)>), TensorError> {
-        let batch_size = x.shape()[0];
-        let seq_length = x.shape()[1];
-
-        let mut states = if let Some(init) = init_states {
-            init
-        } else {
-            let mut states = Vec::with_capacity(self.num_layers);
-            for _ in 0..self.num_layers {
-                states.push((
-                    Tensor::<f32>::zeros(&[batch_size, self.hidden_size as i64])?,
-                    Tensor::<f32>::zeros(&[batch_size, self.hidden_size as i64])?,
-                ));
-            }
-            states
-        };
-
-        let mut outputs = Vec::with_capacity(seq_length as usize);
-
+        let mut inp = x.clone();
+        let mut new_states = Vec::with_capacity(self.num_layers);
         let mut total = std::time::Duration::from_secs(0);
-        for t in 0..seq_length {
-            let mut layer_input = x.slice(&select![:, t:t+1, :])?.squeeze(1)?;
-            let now = std::time::Instant::now();
-            for layer_idx in 0..self.num_layers {
-                let lstm = &self.lstm_cells[layer_idx];
-                let (h_t, c_t) =
-                    lstm.forward(&layer_input, &states[layer_idx].0, &states[layer_idx].1)?;
-                states[layer_idx] = (h_t.clone(), c_t);
-
-                layer_input = h_t;
-            }
-            total += now.elapsed();
-            // println!("next layer\n");
-            let output_t = layer_input.unsqueeze(1)?;
-            outputs.push(output_t);
+        for layer_idx in 0..self.num_layers {
+            let lstm = &self.lstm_cells[layer_idx];
+            let (output, h, c) = lstm.forward(&inp, None, &mut total)?;
+            new_states.push((h, c));
+            inp = output;
         }
-        // println!("total time: {:?}", total);
-        let output = Tensor::concat(outputs, 1, false)?;
-
+        println!("total time: {:?}", total);
         let final_output = if let Some(output_layer) = &self.output_layer {
-            output_layer.forward(&output)?
+            output_layer.forward(&inp)?
         } else {
-            output
+            inp
         };
 
-        Ok((final_output, states))
+        Ok((final_output, new_states))
     }
 }
 
 fn main() -> anyhow::Result<()> {
-    let model = LSTMModel::new(512, 512, 4, Some(20))?;
+    let model = LSTM2::new(512, 512, 4, Some(20))?;
 
     let mut times = Vec::new();
     let mut batch_sizes = Vec::new();
     for b in 4..=4 {
         let batch_size = b * 32;
         let seq_length = 10;
-        let input = Tensor::randn(&[batch_size, seq_length, 512])?;
+        let input = Tensor::randn(&[seq_length, batch_size, 512])?;
 
         let start_time = std::time::Instant::now();
         for _ in 0..10 {
-            let _ = model.forward(&input, None)?;
+            let _ = model.forward(&input)?;
         }
         times.push((start_time.elapsed() / 10).as_secs_f32() * 1000.0);
         batch_sizes.push(batch_size);
