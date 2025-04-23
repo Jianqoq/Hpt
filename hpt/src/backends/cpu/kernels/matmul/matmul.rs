@@ -95,11 +95,13 @@ pub fn matmul_template<T>(
     let mc_jobs = calculate_jobs(n, nc, mr, nr, mc);
     let mc_rem_jobs = calculate_jobs(n, nc, mr, nr, m % mc);
     num_threads = num_threads.min(mc_jobs);
-    let jobs_per_thread = mc_jobs.div_ceil(num_threads) * mc + mc_rem_jobs.div_ceil(num_threads) * m % mc;
+    let jobs_per_thread =
+        mc_jobs.div_ceil(num_threads) * mc + mc_rem_jobs.div_ceil(num_threads) * m % mc;
     if jobs_per_thread < 1024 {
         while num_threads > 1 {
             num_threads -= 1;
-            let jobs_per_thread = mc_jobs.div_ceil(num_threads) * mc + mc_rem_jobs.div_ceil(num_threads) * m % mc;
+            let jobs_per_thread =
+                mc_jobs.div_ceil(num_threads) * mc + mc_rem_jobs.div_ceil(num_threads) * m % mc;
             if jobs_per_thread >= 1024 {
                 break;
             }
@@ -111,6 +113,7 @@ pub fn matmul_template<T>(
     let mc_rem_intervals = mt_intervals(mc_rem_jobs, num_threads);
     let prgs = calculate_prgs(n, nc, mr, nr, mc, &intervals);
     let rem_prgs = calculate_prgs(n, nc, mr, nr, m % mc, &mc_rem_intervals);
+    let need_pack_b = (nc % nr != 0) || rhs_col_stride != 1;
     CUSTOM_THREAD_POOL.with_borrow(|pool| {
         pool.parallel_for(
             (0..num_threads)
@@ -165,16 +168,26 @@ pub fn matmul_template<T>(
                             'outer: for j in (j_start..n).step_by(nc) {
                                 let jb = min(nc, n - j);
                                 let c = out + i as i64 * ldc + j as i64;
-                                pack_b::<T>(
-                                    b + (p as i64 * ldb + j as i64 * rhs_col_stride),
-                                    packed_b,
-                                    ldb,
-                                    rhs_col_stride,
-                                    jb,
-                                    pb,
-                                    kc,
-                                    nr,
-                                );
+                                if need_pack_b {
+                                    pack_b::<T>(
+                                        b + (p as i64 * ldb + j as i64 * rhs_col_stride),
+                                        packed_b,
+                                        ldb,
+                                        rhs_col_stride,
+                                        jb,
+                                        pb,
+                                        kc,
+                                        nr,
+                                    );
+                                } else {
+                                    // prefetch_b::<T>(
+                                    //     b + (p as i64 * ldb + j as i64 * rhs_col_stride),
+                                    //     ldb,
+                                    //     jb,
+                                    //     pb,
+                                    //     nr,
+                                    // );
+                                }
                                 let packed_a = if do_lhs_pack {
                                     packed_a
                                 } else {
@@ -185,11 +198,11 @@ pub fn matmul_template<T>(
                                     let micro_kernel = <T>::get_kernel(nr / <T>::Vec::SIZE, mb);
                                     for jj in (jj_start..jb).step_by(nr) {
                                         let jjb = min(nr, jb - jj);
-                                        // let micro_kernel = <T>::get_inline_asm_kernel(
-                                        //     nr / <T>::Vec::SIZE,
-                                        //     mb,
-                                        //     jjb != nr,
-                                        // );
+                                        let packed_b = if need_pack_b {
+                                            packed_b + jj as i64 * kc as i64
+                                        } else {
+                                            b + (p as i64 * ldb + j as i64 + jj as i64)
+                                        };
                                         if do_lhs_pack {
                                             micro_kernel(
                                                 packed_a + kc as i64 * i as i64,
@@ -393,6 +406,25 @@ pub(crate) fn pack_b<T>(
                 packed_b += (nr - nb) as i64;
             }
             packed_b += (kc - kb) as i64 * nr as i64;
+        }
+    }
+}
+
+#[inline(never)]
+pub(crate) fn prefetch_b<T>(b: Pointer<T>, ldb: i64, nc: usize, kb: usize, nr: usize)
+where
+    T: CommonBounds,
+{
+    for j in (0..nc).step_by(nr) {
+        let nb = nr.min(nc - j);
+        assert_eq!(nb, nr);
+        for p in 0..kb as i64 {
+            unsafe {
+                std::arch::x86_64::_mm_prefetch(
+                    b.ptr.offset((p * ldb) as isize + j as isize) as *const i8,
+                    std::arch::x86_64::_MM_HINT_T0,
+                )
+            };
         }
     }
 }

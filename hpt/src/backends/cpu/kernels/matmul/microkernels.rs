@@ -32,35 +32,132 @@ macro_rules! define_matmul_micro_kernel {
             use $crate::common::Pointer;
             use $crate::types::math::NormalOut;
             #[inline(always)]
-            fn mma<T: $crate::common::CommonBounds>(mut a: Pointer<T>, mut b: Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as $crate::types::TypeCommon>::Vec; $nr]; $mr] {
+            fn mma<T: $crate::common::CommonBounds>(a: Pointer<T>, b: Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as $crate::types::TypeCommon>::Vec; $nr]; $mr] {
                 let mut c_local = [[<T as $crate::types::TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
-                for _ in 0..kc {
-                    // unsafe {
-                    //     std::arch::x86_64::_mm_prefetch(a.ptr.add(2 * ks as usize) as *const i8, std::arch::x86_64::_MM_HINT_T0);
-                    // }
-                    $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
-                            let b_vec~NR = unsafe {
-                                *(b.ptr.add(NR * <T as $crate::types::TypeCommon>::Vec::SIZE)
-                                    as *const <T as $crate::types::TypeCommon>::Vec)
-                            };
-                        }
-                    );
-                    #[allow(unused_mut)]
-                    let mut a_vec;
+                #[inline(always)]
+                fn prefetch_b<T: crate::types::TypeCommon>(b: *const <T as crate::types::TypeCommon>::Vec, offset: usize) {
+                    unsafe {
+                        std::arch::x86_64::_mm_prefetch(
+                            b.add(offset) as *const i8,
+                            std::arch::x86_64::_MM_HINT_T0,
+                        );
+                    }
+                }
+                fn prefetch_a<T: crate::types::TypeCommon>(a: *const T, offset: usize) {
+                    unsafe {
+                        std::arch::x86_64::_mm_prefetch(
+                            a.add(offset) as *const i8,
+                            std::arch::x86_64::_MM_HINT_T0,
+                        );
+                    }
+                }
+                let a_ptr = a.ptr as *const T;
+                let b_ptr = b.ptr as *const <T as crate::types::TypeCommon>::Vec;
+                let rem = kc % 4;
+                for k in 0..(kc / 4) as i64 {
                     $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
-                            a_vec = <T as $crate::types::TypeCommon>::Vec::splat(a[MR as i64 * lda]);
+                        prefetch_a::<T>(a_ptr, (k * (64 / 4) * ks + MR as i64 * lda) as usize);
+                    });
+                    $crate::re_exports::seq_macro::seq!(UNROLL in 0..4 {
+                        $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
+                            prefetch_b::<T>(b_ptr, ((k * 4 + 4 + UNROLL) * $nr + NR) as usize);
+                        });
+                        $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
+                            let b_vec~NR = unsafe {*b_ptr.add(((k * 4 + UNROLL) * $nr + NR) as usize)};
+                        });
+                        #[allow(unused_mut)]
+                        let mut a_vec;
+                        $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
+                            a_vec = <T as $crate::types::TypeCommon>::Vec::splat(a[(k * 4 + UNROLL) * ks + MR as i64 * lda]);
                             $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
                                 c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
                             });
-                        }
-                    );
-                    b += $nr * <T as $crate::types::TypeCommon>::Vec::SIZE as i64;
-                    a += ks;
+                        });
+                    });
+                }
+
+                for k in (kc - rem) as i64..kc as i64 {
+                    $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
+                        let b_vec~NR = unsafe {*b_ptr.add((k * $nr + NR) as usize)};
+                    });
+                    #[allow(unused_mut)]
+                    let mut a_vec;
+                    $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
+                        a_vec = <T as $crate::types::TypeCommon>::Vec::splat(a[k * ks + MR as i64 * lda]);
+                        $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
+                            c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
+                        });
+                    });
+                }
+
+                c_local
+            }
+
+            #[inline(always)]
+            fn mma_packed_a<T: $crate::common::CommonBounds>(a: Pointer<T>, b: Pointer<T>, kc: usize) -> [[<T as $crate::types::TypeCommon>::Vec; $nr]; $mr] {
+                let mut c_local = [[<T as $crate::types::TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
+                #[inline(always)]
+                fn prefetch_b<T: crate::types::TypeCommon>(b: *const <T as crate::types::TypeCommon>::Vec, offset: usize) {
+                    unsafe {
+                        std::arch::x86_64::_mm_prefetch(
+                            b.add(offset) as *const i8,
+                            std::arch::x86_64::_MM_HINT_T0,
+                        );
+                    }
+                }
+                fn prefetch_a<T: crate::types::TypeCommon>(a: *const T, offset: usize) {
+                    unsafe {
+                        std::arch::x86_64::_mm_prefetch(
+                            a.add(offset) as *const i8,
+                            std::arch::x86_64::_MM_HINT_T0,
+                        );
+                    }
+                }
+                let a_ptr = a.ptr as *const T;
+                let b_ptr = b.ptr as *const <T as crate::types::TypeCommon>::Vec;
+                let rem = kc % 4;
+                prefetch_a::<T>(a_ptr, 0);
+                for k in 0..(kc / 4) as i64 {
+                    prefetch_a::<T>(a_ptr, ((k + 1) * 4 * $mr) as usize);
+                    $crate::re_exports::seq_macro::seq!(UNROLL in 0..4 {
+                        $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
+                            prefetch_b::<T>(b_ptr, ((k * 4 + 4 + UNROLL) * $nr + NR) as usize);
+                        });
+                        $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
+                            let b_vec~NR = unsafe {*b_ptr.add(((k * 4 + UNROLL) * $nr + NR) as usize)};
+                        });
+                        #[allow(unused_mut)]
+                        let mut a_vec;
+                        $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
+                            a_vec = <T as $crate::types::TypeCommon>::Vec::splat(a[(k * 4 + UNROLL) * $mr + MR]);
+                            $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
+                                c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
+                            });
+                        });
+                    });
+                }
+
+                for k in (kc - rem) as i64..kc as i64 {
+                    $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
+                        let b_vec~NR = unsafe {*b_ptr.add((k * $nr + NR) as usize)};
+                    });
+                    #[allow(unused_mut)]
+                    let mut a_vec;
+                    $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
+                        a_vec = <T as $crate::types::TypeCommon>::Vec::splat(a[k * $mr + MR]);
+                        $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
+                            c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
+                        });
+                    });
                 }
                 c_local
             }
 
-            let c_local = mma(a, b, lda, kc, ks);
+            let c_local = if lda == 1 && ks == $mr {
+                mma_packed_a::<T>(a, b, kc)
+            }else {
+                mma(a, b, lda, kc, ks)
+            };
             if jb == $nr * <T as $crate::types::TypeCommon>::Vec::SIZE {
                 if first_kiter {
                     $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
