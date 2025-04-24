@@ -63,6 +63,7 @@ pub(crate) fn calculate_prg(
     let mut jj_start = prg[2] * nr;
     for j in (j_start..n).step_by(nc) {
         let jb = min(nc, n - j);
+        // pack b
         for _ in (i_start..ib).step_by(mr) {
             for _ in (jj_start..jb).step_by(nr) {
                 ret[2] += 1;
