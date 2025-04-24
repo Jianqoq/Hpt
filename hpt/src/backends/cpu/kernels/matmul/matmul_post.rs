@@ -59,8 +59,8 @@ pub fn matmul_template<T>(
     nr: usize,
     mr: usize,
     do_lhs_pack: bool,
-    post_op: fn(T) -> T,
-    post_op_vec: fn(T::Vec) -> T::Vec,
+    post_op: fn(T, usize, usize) -> T,
+    post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
     mut num_threads: usize,
 ) where
     T: CommonBounds + MatmulMicroKernel,
@@ -175,8 +175,8 @@ pub fn matmul_template<T>(
                                 } else {
                                     a.clone() + (i as i64 * lda + p as i64 * lhs_col_stride)
                                 };
-                                for i in (i_start..ib).step_by(mr) {
-                                    let mb = min(mr, ib - i);
+                                for ii in (i_start..ib).step_by(mr) {
+                                    let mb = min(mr, ib - ii);
                                     let micro_kernel =
                                         <T>::get_kernel_with_post_op(nr / <T>::Vec::SIZE, mb);
 
@@ -185,9 +185,9 @@ pub fn matmul_template<T>(
                                         let packed_b = packed_b + jj as i64 * kc as i64;
                                         if do_lhs_pack {
                                             micro_kernel(
-                                                packed_a + kc as i64 * i as i64,
+                                                packed_a + kc as i64 * ii as i64,
                                                 packed_b,
-                                                c + i as i64 * ldc + jj as i64,
+                                                c + ii as i64 * ldc + jj as i64,
                                                 ldc,
                                                 1,
                                                 kc,
@@ -195,14 +195,16 @@ pub fn matmul_template<T>(
                                                 mb as i64,
                                                 first_kiter,
                                                 last_kiter,
+                                                i + ii,
+                                                j + jj,
                                                 post_op.clone(),
                                                 post_op_vec.clone(),
                                             );
                                         } else {
                                             micro_kernel(
-                                                packed_a + i as i64 * lda,
+                                                packed_a + ii as i64 * lda,
                                                 packed_b,
-                                                c + i as i64 * ldc + jj as i64,
+                                                c + ii as i64 * ldc + jj as i64,
                                                 ldc,
                                                 lda,
                                                 kc,
@@ -210,6 +212,8 @@ pub fn matmul_template<T>(
                                                 lhs_col_stride,
                                                 first_kiter,
                                                 last_kiter,
+                                                i + ii,
+                                                j + jj,
                                                 post_op.clone(),
                                                 post_op_vec.clone(),
                                             );
@@ -267,8 +271,8 @@ pub fn matmul_post_template_no_block_info<T>(
     ldc: i64,
     lhs_col_stride: i64,
     rhs_col_stride: i64,
-    post_op: fn(T) -> T,
-    post_op_vec: fn(T::Vec) -> T::Vec,
+    post_op: fn(T, usize, usize) -> T,
+    post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
     num_threads: usize,
 ) where
     T: CommonBounds + MatmulMicroKernel,
@@ -422,8 +426,8 @@ pub(crate) fn matmul_post<T, const DEVICE: usize, A>(
     a: &_Tensor<T, Cpu, DEVICE, A>,
     b: &_Tensor<T, Cpu, DEVICE, A>,
     out: Option<_Tensor<T, Cpu, DEVICE, A>>,
-    post_op: fn(T) -> T,
-    post_op_vec: fn(T::Vec) -> T::Vec,
+    post_op: fn(T, usize, usize) -> T,
+    post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
     num_threads: usize,
 ) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where

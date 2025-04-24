@@ -67,7 +67,7 @@ impl LSTMCell {
                 } else {
                     hs.slice(&select![i - 1:i, :, :])?.squeeze(0)?
                 };
-                h.matmul(&self.hh)? + ih_t
+                h.matmul(&self.hh)? /* + ih_t*/
             }; // [batch_size, 4 * hidden_size]
             *total += now.elapsed();
 

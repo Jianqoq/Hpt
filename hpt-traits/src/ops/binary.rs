@@ -290,9 +290,11 @@ where
     fn matmul_post(
         &self,
         rhs: RHS,
-        post_op: fn(Self::OutputMeta) -> Self::OutputMeta,
+        post_op: fn(Self::OutputMeta, usize, usize) -> Self::OutputMeta,
         post_op_vec: fn(
             <<Self as MatmulPost<RHS>>::OutputMeta as TypeCommon>::Vec,
+            usize,
+            usize,
         ) -> <<Self as MatmulPost<RHS>>::OutputMeta as TypeCommon>::Vec,
     ) -> std::result::Result<Self::Output, TensorError>;
 
@@ -325,9 +327,11 @@ where
     fn matmul_post_<U>(
         &self,
         rhs: RHS,
-        post_op: fn(Self::OutputMeta) -> Self::OutputMeta,
+        post_op: fn(Self::OutputMeta, usize, usize) -> Self::OutputMeta,
         post_op_vec: fn(
             <<Self as MatmulPost<RHS>>::OutputMeta as TypeCommon>::Vec,
+            usize,
+            usize,
         ) -> <<Self as MatmulPost<RHS>>::OutputMeta as TypeCommon>::Vec,
         out: U,
     ) -> std::result::Result<Self::InplaceOutput, TensorError>

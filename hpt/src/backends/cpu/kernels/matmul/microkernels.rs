@@ -58,11 +58,11 @@ macro_rules! define_matmul_micro_kernel {
                 let rem = kc % 4;
                 for k in 0..(kc / 4) as i64 {
                     $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
-                        prefetch_a::<T>(a_ptr, (k * (64 / 4) * ks + MR as i64 * lda) as usize);
+                        prefetch_a::<T>(a_ptr, ((k + 1) * 4 * ks + MR as i64 * lda) as usize);
                     });
                     $crate::re_exports::seq_macro::seq!(UNROLL in 0..4 {
                         $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
-                            prefetch_b::<T>(b_ptr, ((k * 4 + 4 + UNROLL) * $nr + NR) as usize);
+                            prefetch_b::<T>(b_ptr, (((k + 1) * 4 + UNROLL) * $nr + NR) as usize);
                         });
                         $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
                             let b_vec~NR = unsafe {*b_ptr.add(((k * 4 + UNROLL) * $nr + NR) as usize)};
@@ -125,7 +125,7 @@ macro_rules! define_matmul_micro_kernel {
                     prefetch_a::<T>(a_ptr, ((k + 1) * 4 * $mr) as usize);
                     $crate::re_exports::seq_macro::seq!(UNROLL in 0..4 {
                         $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
-                            prefetch_b::<T>(b_ptr, ((k * 4 + 4 + UNROLL) * $nr + NR) as usize);
+                            prefetch_b::<T>(b_ptr, (((k + 1) * 4 + UNROLL) * $nr + NR) as usize);
                         });
                         $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
                             let b_vec~NR = unsafe {*b_ptr.add(((k * 4 + UNROLL) * $nr + NR) as usize)};
@@ -408,7 +408,7 @@ macro_rules! define_matmul_micro_kernel_inline_asm_rem {
 #[macro_export]
 macro_rules! define_post_op_matmul_micro_kernel {
     ($name:ident, $nr:expr, $mr:expr) => {
-        fn $name<T: $crate::common::CommonBounds, F: Fn(T) -> T, F2: Fn(T::Vec) -> T::Vec>(
+        fn $name<T: $crate::common::CommonBounds>(
             a: $crate::common::Pointer<T>,
             b: $crate::common::Pointer<T>,
             c: $crate::common::Pointer<T>,
@@ -419,8 +419,10 @@ macro_rules! define_post_op_matmul_micro_kernel {
             ks: i64,
             first_kiter: bool,
             last_kiter: bool,
-            post_op: F,
-            post_op_vec: F2,
+            m_idx: usize,
+            n_idx: usize,
+            post_op: fn(T, usize, usize) -> T,
+            post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
         ) {
             use $crate::types::vectors::traits::VecTrait;
             use $crate::common::Pointer;
@@ -500,7 +502,7 @@ macro_rules! define_post_op_matmul_micro_kernel {
                                     )
                                 } as *mut <T as $crate::types::TypeCommon>::Vec;
                                 res~NR = unsafe {res_ptr.read_unaligned()};
-                                unsafe {res_ptr.write_unaligned(post_op_vec(res~NR)) };
+                                unsafe {res_ptr.write_unaligned(post_op_vec(res~NR, m_idx + MR, n_idx + NR)) };
                                 }
                             );
                         }
@@ -533,7 +535,7 @@ macro_rules! define_post_op_matmul_micro_kernel {
                         for jj in 0..jb as i64 {
                             let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
                             unsafe {
-                                *res_ptr = post_op(res_ptr.read());
+                                *res_ptr = post_op(res_ptr.read(), m_idx + ii as usize, n_idx + jj as usize);
                             };
                         }
                     }

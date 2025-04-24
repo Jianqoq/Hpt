@@ -28,8 +28,8 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
     lhs: &_Tensor<T, Cpu, DEVICE, A2>,
     rhs: &_Tensor<T, Cpu, DEVICE, A2>,
     out: Option<O>,
-    post_op: Option<fn(T) -> T>,
-    post_op_vec: Option<fn(T::Vec) -> T::Vec>,
+    post_op: Option<fn(T, usize, usize) -> T>,
+    post_op_vec: Option<fn(T::Vec, usize, usize) -> T::Vec>,
 ) -> std::result::Result<_Tensor<T, Cpu, DEVICE, A2>, TensorError>
 where
     T: CommonBounds + MatmulMicroKernel,
@@ -531,8 +531,8 @@ where
             self,
             &rhs,
             None::<Self::Output>,
-            None::<fn(T) -> T>,
-            None::<fn(T::Vec) -> T::Vec>,
+            None::<fn(T, usize, usize) -> T>,
+            None::<fn(T::Vec, usize, usize) -> T::Vec>,
         )
     }
     fn matmul_<U>(
@@ -547,8 +547,8 @@ where
             self,
             &rhs,
             Some(out),
-            None::<fn(T) -> T>,
-            None::<fn(T::Vec) -> T::Vec>,
+            None::<fn(T, usize, usize) -> T>,
+            None::<fn(T::Vec, usize, usize) -> T::Vec>,
         )
     }
 }
@@ -571,8 +571,8 @@ where
             self,
             &rhs,
             None::<Self::Output>,
-            None::<fn(T) -> T>,
-            None::<fn(T::Vec) -> T::Vec>,
+            None::<fn(T, usize, usize) -> T>,
+            None::<fn(T::Vec, usize, usize) -> T::Vec>,
         )
     }
 
@@ -588,8 +588,8 @@ where
             self,
             rhs,
             Some(out),
-            None::<fn(T) -> T>,
-            None::<fn(T::Vec) -> T::Vec>,
+            None::<fn(T, usize, usize) -> T>,
+            None::<fn(T::Vec, usize, usize) -> T::Vec>,
         )
     }
 }
@@ -610,8 +610,8 @@ where
     fn matmul_post(
         &self,
         rhs: _Tensor<T, Cpu, DEVICE, A2>,
-        post_op: fn(T) -> T,
-        post_op_vec: fn(T::Vec) -> T::Vec,
+        post_op: fn(T, usize, usize) -> T,
+        post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
     ) -> std::result::Result<Self::Output, TensorError> {
         matmul_with_out(
             self,
@@ -625,8 +625,8 @@ where
     fn matmul_post_<U>(
         &self,
         rhs: _Tensor<T, Cpu, DEVICE, A2>,
-        post_op: fn(T) -> T,
-        post_op_vec: fn(T::Vec) -> T::Vec,
+        post_op: fn(T, usize, usize) -> T,
+        post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
         out: U,
     ) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
@@ -652,8 +652,8 @@ where
     fn matmul_post(
         &self,
         rhs: &_Tensor<T, Cpu, DEVICE, A2>,
-        post_op: fn(T) -> T,
-        post_op_vec: fn(T::Vec) -> T::Vec,
+        post_op: fn(T, usize, usize) -> T,
+        post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
     ) -> std::result::Result<Self::Output, TensorError> {
         matmul_with_out(
             self,
@@ -667,8 +667,8 @@ where
     fn matmul_post_<U>(
         &self,
         rhs: &_Tensor<T, Cpu, DEVICE, A2>,
-        post_op: fn(T) -> T,
-        post_op_vec: fn(T::Vec) -> T::Vec,
+        post_op: fn(T, usize, usize) -> T,
+        post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
         out: U,
     ) -> std::result::Result<Self::InplaceOutput, TensorError>
     where

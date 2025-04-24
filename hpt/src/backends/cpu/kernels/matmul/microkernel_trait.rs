@@ -62,7 +62,7 @@ where
     }
 
     #[allow(unused_variables)]
-    fn get_kernel_with_post_op<F: Fn(Self) -> Self, G: Fn(Self::Vec) -> Self::Vec>(
+    fn get_kernel_with_post_op(
         nr: usize,
         mr: usize,
     ) -> fn(
@@ -76,8 +76,10 @@ where
         i64,
         bool,
         bool,
-        F,
-        G,
+        usize,
+        usize,
+        fn(Self, usize, usize) -> Self,
+        fn(Self::Vec, usize, usize) -> Self::Vec,
     ) {
         #[cfg(target_feature = "avx2")]
         {

@@ -68,7 +68,7 @@ fn test_post_op() -> anyhow::Result<()> {
         let k = rng.random_range(1..=128);
         let a = Tensor::<TestTypes>::randn(&[m, k])?;
         let b = Tensor::<TestTypes>::randn(&[k, n])?;
-        let c = a.matmul_post(&b, |x| x._relu(), |x| x._relu())?;
+        let c = a.matmul_post(&b, |x, _, _| x._relu(), |x, _, _| x._relu())?;
         let c2 = a
             .gemm(&b, TestTypes::ZERO, TestTypes::ONE, false, false, false)?
             .relu()?;
@@ -86,7 +86,7 @@ fn test_mp_post_op() -> anyhow::Result<()> {
         let k = rng.random_range(1..=128);
         let a = Tensor::<TestTypes>::randn(&[m, k])?;
         let b = Tensor::<TestTypes>::randn(&[k, n])?;
-        let c = a.matmul_post(&b, |x| x._relu(), |x| x._relu())?;
+        let c = a.matmul_post(&b, |x, _, _| x._relu(), |x, _, _| x._relu())?;
         let c2: Tensor<TestTypes> = a.matmul(&b)?.relu()?;
         assert!(c.allclose(&c2, TEST_ATOL, TEST_RTOL));
     }
