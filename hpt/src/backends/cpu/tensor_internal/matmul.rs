@@ -305,7 +305,7 @@ where
                         match T::STR {
                             "f16" => {
                                 if let (Some(post_op), Some(post_op_vec)) = (post_op, post_op_vec) {
-                                    matmul_mp_post_template_no_block_info::<half::f16, f32>(
+                                    bf16_matmul_post::<half::f16, f32>(
                                         a_ptr.clone().cast::<half::f16>(),
                                         b_ptr.clone().cast::<half::f16>(),
                                         res_ptr.clone().cast::<half::f16>(),

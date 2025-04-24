@@ -17,7 +17,7 @@ use hpt_allocator::{
 };
 use hpt_common::{error::base::TensorError, shape::shape_utils::mt_intervals, Pointer};
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
-use hpt_types::{dtype::TypeCommon, into_scalar::Cast, traits::VecTrait};
+use hpt_types::{dtype::TypeCommon, into_scalar::Cast, into_vec::IntoVec, traits::VecTrait};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use super::{microkernel_trait::MatmulMicroKernel, utils::kernel_params};
@@ -44,7 +44,7 @@ use super::{microkernel_trait::MatmulMicroKernel, utils::kernel_params};
 /// * `mr`: m register block size
 /// * `num_threads`: number of threads
 #[inline(always)]
-pub fn matmul_mixed_precision_template<T, IM>(
+pub fn matmul_mixed_precision_template<T, IM, F1, F2>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
@@ -67,11 +67,13 @@ pub fn matmul_mixed_precision_template<T, IM>(
     pack_zero: fn(T) -> IM,
     vec_cast_back: fn(*const IM::Vec) -> T::Vec,
     cast_back: fn(IM) -> T,
-    post_op: fn(T) -> T,
-    post_op_vec: fn(T::Vec) -> T::Vec,
+    post_op: F1,
+    post_op_vec: F2,
 ) where
     T: CommonBounds + MatmulMicroKernel + Cast<IM>,
     IM: CommonBounds,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
 {
     assert_eq!(
         nr % T::Vec::SIZE,
@@ -183,8 +185,8 @@ pub fn matmul_mixed_precision_template<T, IM>(
                                             pack_zero,
                                         );
                                         let packed_a = packed_a.clone();
-                                        for i in (i_start..ib).step_by(mr) {
-                                            let mb = min(mr, ib - i);
+                                        for ii in (i_start..ib).step_by(mr) {
+                                            let mb = min(mr, ib - ii);
                                             let micro_kernel =
                                                 <T>::get_mixed_precision_kernel_with_post_op(
                                                     nr / <T>::Vec::SIZE,
@@ -194,9 +196,9 @@ pub fn matmul_mixed_precision_template<T, IM>(
                                             for jj in (jj_start..jb).step_by(nr) {
                                                 let jjb = min(nr, jb - jj);
                                                 micro_kernel(
-                                                    packed_a.clone() + kc as i64 * i as i64,
+                                                    packed_a.clone() + kc as i64 * ii as i64,
                                                     packed_b.clone() + jj as i64 * kc as i64,
-                                                    c.clone() + i as i64 * ldc + jj as i64,
+                                                    c.clone() + ii as i64 * ldc + jj as i64,
                                                     ldc,
                                                     1,
                                                     kc,
@@ -204,6 +206,8 @@ pub fn matmul_mixed_precision_template<T, IM>(
                                                     mb as i64,
                                                     first_kiter,
                                                     last_kiter,
+                                                    i + ii,
+                                                    j + jj,
                                                     vec_cast_back,
                                                     cast_back,
                                                     post_op.clone(),
@@ -253,7 +257,7 @@ pub fn matmul_mixed_precision_template<T, IM>(
 /// * `rhs_col_stride`: `rhs.strides[b.ndim() - 1]`
 /// * `num_threads`: number of threads
 #[inline(always)]
-pub fn matmul_mp_post_template_no_block_info<T, IM>(
+pub fn matmul_mp_post_template_no_block_info<T, IM, F1, F2>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
@@ -271,11 +275,13 @@ pub fn matmul_mp_post_template_no_block_info<T, IM>(
     pack_zero: fn(T) -> IM,
     vec_cast_back: fn(*const IM::Vec) -> T::Vec,
     cast_back: fn(IM) -> T,
-    post_op: fn(T) -> T,
-    post_op_vec: fn(T::Vec) -> T::Vec,
+    post_op: F1,
+    post_op_vec: F2,
 ) where
     T: CommonBounds + MatmulMicroKernel + Cast<IM>,
     IM: CommonBounds,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
 {
     let nr = T::get_max_mixed_precision_nr() * T::Vec::SIZE;
     let mr = T::get_max_mixed_precision_mr();
@@ -298,7 +304,7 @@ pub fn matmul_mp_post_template_no_block_info<T, IM>(
     if param.nc == 0 {
         param.nc = n.msrv_next_multiple_of(nr);
     }
-    matmul_mixed_precision_template::<T, IM>(
+    matmul_mixed_precision_template::<T, IM, F1, F2>(
         a,
         b,
         out,
@@ -327,17 +333,26 @@ pub fn matmul_mp_post_template_no_block_info<T, IM>(
 }
 
 #[allow(unused)]
-pub(crate) fn f16_matmul_post<const DEVICE: usize, A>(
-    a: &_Tensor<half::f16, Cpu, DEVICE, A>,
-    b: &_Tensor<half::f16, Cpu, DEVICE, A>,
-    out: Option<_Tensor<half::f16, Cpu, DEVICE, A>>,
-    post_op: fn(half::f16) -> half::f16,
-    post_op_vec: fn(<half::f16 as TypeCommon>::Vec) -> <half::f16 as TypeCommon>::Vec,
+pub(crate) fn f16_matmul_post<T: CommonBounds, const DEVICE: usize, A, F1, F2>(
+    a: &_Tensor<T, Cpu, DEVICE, A>,
+    b: &_Tensor<T, Cpu, DEVICE, A>,
+    out: Option<_Tensor<T, Cpu, DEVICE, A>>,
+    post_op: F1,
+    post_op_vec: F2,
     num_threads: usize,
-) -> Result<_Tensor<half::f16, Cpu, DEVICE, A>, TensorError>
+) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
+    T: MatmulMicroKernel + Cast<f32>,
+    f32: Cast<T>,
+    <half::f16 as TypeCommon>::Vec: IntoVec<T::Vec>,
     A: Allocator,
     A::Output: AllocatorOutputRetrive,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(<T as TypeCommon>::Vec, usize, usize) -> <T as TypeCommon>::Vec
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     type F32Vec = <f32 as TypeCommon>::Vec;
     type F16Vec = <half::f16 as TypeCommon>::Vec;
@@ -347,7 +362,7 @@ where
     let n = b.shape()[1] as usize;
     let k = a.shape()[1] as usize;
 
-    matmul_mp_post_template_no_block_info::<half::f16, f32>(
+    matmul_mp_post_template_no_block_info::<T, f32, F1, F2>(
         a.ptr(),
         b.ptr(),
         c.ptr(),
@@ -361,6 +376,8 @@ where
         b.strides()[b.ndim() - 1],
         num_threads,
         |packed_b, b, i| unsafe {
+            let packed_b = packed_b as *mut F32Vec;
+            let b = b as *const F16Vec;
             let packed_b_vec0 = packed_b.add(i * 2);
             let packed_b_vec1 = packed_b.add(i * 2 + 1);
             let b_vec = b.add(i).read_unaligned();
@@ -378,7 +395,7 @@ where
         |val| {
             let vec0 = unsafe { val.read() };
             let vec1 = unsafe { val.add(1).read() };
-            F16Vec::from_2_f32vec([vec0, vec1])
+            F16Vec::from_2_f32vec([vec0, vec1]).into_vec()
         },
         |val| val.cast(),
         post_op,
@@ -387,17 +404,26 @@ where
     Ok(c)
 }
 
-pub(crate) fn bf16_matmul_post<const DEVICE: usize, A>(
-    a: &_Tensor<half::bf16, Cpu, DEVICE, A>,
-    b: &_Tensor<half::bf16, Cpu, DEVICE, A>,
-    out: Option<_Tensor<half::bf16, Cpu, DEVICE, A>>,
-    post_op: fn(half::bf16) -> half::bf16,
-    post_op_vec: fn(<half::bf16 as TypeCommon>::Vec) -> <half::bf16 as TypeCommon>::Vec,
+pub(crate) fn bf16_matmul_post<T: CommonBounds, const DEVICE: usize, A, F1, F2>(
+    a: &_Tensor<T, Cpu, DEVICE, A>,
+    b: &_Tensor<T, Cpu, DEVICE, A>,
+    out: Option<_Tensor<T, Cpu, DEVICE, A>>,
+    post_op: F1,
+    post_op_vec: F2,
     num_threads: usize,
-) -> Result<_Tensor<half::bf16, Cpu, DEVICE, A>, TensorError>
+) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
+    T: MatmulMicroKernel + Cast<f32>,
+    f32: Cast<T>,
+    <half::bf16 as TypeCommon>::Vec: IntoVec<T::Vec>,
     A: Allocator,
     A::Output: AllocatorOutputRetrive,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(<T as TypeCommon>::Vec, usize, usize) -> <T as TypeCommon>::Vec
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     type F32Vec = <f32 as TypeCommon>::Vec;
     type F16Vec = <half::bf16 as TypeCommon>::Vec;
@@ -407,7 +433,7 @@ where
     let n = b.shape()[1] as usize;
     let k = a.shape()[1] as usize;
 
-    matmul_mp_post_template_no_block_info::<half::bf16, f32>(
+    matmul_mp_post_template_no_block_info::<T, f32, F1, F2>(
         a.ptr(),
         b.ptr(),
         c.ptr(),
@@ -421,6 +447,8 @@ where
         b.strides()[b.ndim() - 1],
         num_threads,
         |packed_b, b, i| unsafe {
+            let packed_b = packed_b as *mut F32Vec;
+            let b = b as *const F16Vec;
             let packed_b_vec0 = packed_b.add(i * 2);
             let packed_b_vec1 = packed_b.add(i * 2 + 1);
             let b_vec = b.add(i).read_unaligned();
@@ -438,7 +466,7 @@ where
         |val| {
             let vec0 = unsafe { val.read() };
             let vec1 = unsafe { val.add(1).read() };
-            F16Vec::from_2_f32vec([vec0, vec1])
+            F16Vec::from_2_f32vec([vec0, vec1]).into_vec()
         },
         |val| val.cast(),
         post_op,

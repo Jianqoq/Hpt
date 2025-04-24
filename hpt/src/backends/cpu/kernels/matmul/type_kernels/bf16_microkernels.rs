@@ -180,8 +180,8 @@ impl MatmulMicroKernel for crate::types::bf16 {
 
     fn get_mixed_precision_kernel_with_post_op<
         MixedType,
-        F: Fn(Self) -> Self,
-        G: Fn(Self::Vec) -> Self::Vec,
+        F: Fn(Self, usize, usize) -> Self,
+        G: Fn(Self::Vec, usize, usize) -> Self::Vec,
     >(
         nr: usize,
         mr: usize,
@@ -196,6 +196,8 @@ impl MatmulMicroKernel for crate::types::bf16 {
         i64,
         bool,
         bool,
+        usize,
+        usize,
         fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
         fn(MixedType) -> Self,
         F,

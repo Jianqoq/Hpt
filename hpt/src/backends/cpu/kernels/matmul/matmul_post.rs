@@ -41,7 +41,7 @@ use super::utils::kernel_params;
 /// * `post_op_vec`: post operation for vector
 /// * `num_threads`: number of threads
 #[inline]
-pub fn matmul_template<T>(
+pub fn matmul_template<T, F1, F2>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
@@ -59,11 +59,13 @@ pub fn matmul_template<T>(
     nr: usize,
     mr: usize,
     do_lhs_pack: bool,
-    post_op: fn(T, usize, usize) -> T,
-    post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
+    post_op: F1,
+    post_op_vec: F2,
     mut num_threads: usize,
 ) where
     T: CommonBounds + MatmulMicroKernel,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
 {
     assert_eq!(
         nr % T::Vec::SIZE,
@@ -259,7 +261,7 @@ pub fn matmul_template<T>(
 /// * `post_op_vec`: post operation for vector
 /// * `num_threads`: number of threads
 #[inline]
-pub fn matmul_post_template_no_block_info<T>(
+pub fn matmul_post_template_no_block_info<T, F1, F2>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
@@ -271,11 +273,13 @@ pub fn matmul_post_template_no_block_info<T>(
     ldc: i64,
     lhs_col_stride: i64,
     rhs_col_stride: i64,
-    post_op: fn(T, usize, usize) -> T,
-    post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
+    post_op: F1,
+    post_op_vec: F2,
     num_threads: usize,
 ) where
     T: CommonBounds + MatmulMicroKernel,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
 {
     let nr = T::get_max_nr() * T::Vec::SIZE;
     let mr = T::get_max_mr();
@@ -294,7 +298,7 @@ pub fn matmul_post_template_no_block_info<T>(
     if param.mc == 0 {
         param.mc = m.msrv_next_multiple_of(mr);
     }
-    matmul_template::<T>(
+    matmul_template::<T, F1, F2>(
         a,
         b,
         out,
@@ -422,24 +426,26 @@ pub(crate) fn pack_b<T>(
 }
 
 /// matmul
-pub(crate) fn matmul_post<T, const DEVICE: usize, A>(
+pub(crate) fn matmul_post<T, const DEVICE: usize, A, F1, F2>(
     a: &_Tensor<T, Cpu, DEVICE, A>,
     b: &_Tensor<T, Cpu, DEVICE, A>,
     out: Option<_Tensor<T, Cpu, DEVICE, A>>,
-    post_op: fn(T, usize, usize) -> T,
-    post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
+    post_op: F1,
+    post_op_vec: F2,
     num_threads: usize,
 ) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
     T: CommonBounds + MatmulMicroKernel,
     A: Allocator,
     A::Output: AllocatorOutputRetrive,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
 {
     let c = matmul_prepare(&a, &b, out)?;
     let m = a.shape()[0] as usize;
     let n = b.shape()[1] as usize;
     let k = a.shape()[1] as usize;
-    matmul_post_template_no_block_info::<T>(
+    matmul_post_template_no_block_info::<T, F1, F2>(
         a.ptr(),
         b.ptr(),
         c.ptr(),

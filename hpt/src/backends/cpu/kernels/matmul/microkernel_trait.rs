@@ -62,7 +62,7 @@ where
     }
 
     #[allow(unused_variables)]
-    fn get_kernel_with_post_op(
+    fn get_kernel_with_post_op<F: Fn(Self, usize, usize) -> Self, G: Fn(Self::Vec, usize, usize) -> Self::Vec>(
         nr: usize,
         mr: usize,
     ) -> fn(
@@ -78,8 +78,8 @@ where
         bool,
         usize,
         usize,
-        fn(Self, usize, usize) -> Self,
-        fn(Self::Vec, usize, usize) -> Self::Vec,
+        F,
+        G,
     ) {
         #[cfg(target_feature = "avx2")]
         {
@@ -148,8 +148,8 @@ where
     #[allow(unused_variables)]
     fn get_mixed_precision_kernel_with_post_op<
         MixedType,
-        F: Fn(Self) -> Self,
-        G: Fn(Self::Vec) -> Self::Vec,
+        F: Fn(Self, usize, usize) -> Self,
+        G: Fn(Self::Vec, usize, usize) -> Self::Vec,
     >(
         nr: usize,
         mr: usize,
@@ -164,6 +164,8 @@ where
         i64,
         bool,
         bool,
+        usize,
+        usize,
         fn(*const MixedType::Vec) -> Self::Vec,
         fn(MixedType) -> Self,
         F,

@@ -408,7 +408,7 @@ macro_rules! define_matmul_micro_kernel_inline_asm_rem {
 #[macro_export]
 macro_rules! define_post_op_matmul_micro_kernel {
     ($name:ident, $nr:expr, $mr:expr) => {
-        fn $name<T: $crate::common::CommonBounds>(
+        fn $name<T: $crate::common::CommonBounds, F: Fn(T, usize, usize) -> T, G: Fn(T::Vec, usize, usize) -> T::Vec>(
             a: $crate::common::Pointer<T>,
             b: $crate::common::Pointer<T>,
             c: $crate::common::Pointer<T>,
@@ -421,8 +421,8 @@ macro_rules! define_post_op_matmul_micro_kernel {
             last_kiter: bool,
             m_idx: usize,
             n_idx: usize,
-            post_op: fn(T, usize, usize) -> T,
-            post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
+            post_op: F,
+            post_op_vec: G,
         ) {
             use $crate::types::vectors::traits::VecTrait;
             use $crate::common::Pointer;
@@ -1130,7 +1130,7 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
 #[macro_export]
 macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
     ($name:ident, $nr:expr, $mr:expr, $nr2:expr) => {
-        fn $name<T: $crate::common::CommonBounds, IM: $crate::common::CommonBounds, F: Fn(T) -> T, F2: Fn(T::Vec) -> T::Vec>(
+        fn $name<T: $crate::common::CommonBounds, IM: $crate::common::CommonBounds, F: Fn(T, usize, usize) -> T, F2: Fn(T::Vec, usize, usize) -> T::Vec>(
             a: $crate::common::Pointer<IM>,
             b: $crate::common::Pointer<IM>,
             c: $crate::common::Pointer<T>,
@@ -1141,6 +1141,8 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
             ks: i64,
             first_kiter: bool,
             last_kiter: bool,
+            m_idx: usize,
+            n_idx: usize,
             vec_cast_back: fn(*const IM::Vec) -> T::Vec,
             cast_back: fn(IM) -> T,
             post_op: F,
@@ -1186,7 +1188,7 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                                             (MR * ldc + NR * <T as $crate::types::TypeCommon>::Vec::SIZE as i64) as isize,
                                         )
                                     } as *mut <T as $crate::types::TypeCommon>::Vec;
-                                    unsafe {res_ptr.write_unaligned(post_op_vec(vec_cast_back(c_local[MR as usize].as_ptr()))) };
+                                    unsafe {res_ptr.write_unaligned(post_op_vec(vec_cast_back(c_local[MR as usize].as_ptr()), m_idx + MR, n_idx + NR)) };
                                     }
                                 );
                             }
@@ -1220,7 +1222,7 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                                         )
                                     } as *mut <T as $crate::types::TypeCommon>::Vec;
                                     res~NR = unsafe {res_ptr.read_unaligned()};
-                                    unsafe {res_ptr.write_unaligned(post_op_vec(res~NR._add(vec_cast_back(c_local[MR as usize].as_ptr())))) };
+                                    unsafe {res_ptr.write_unaligned(post_op_vec(res~NR._add(vec_cast_back(c_local[MR as usize].as_ptr())), m_idx + MR, n_idx + NR)) };
                                     }
                                 );
                             }
@@ -1249,7 +1251,7 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                             for jj in 0..jb as i64 {
                                 let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
                                 unsafe {
-                                    *res_ptr = post_op(cast_back(c_local_ptr.offset(jj as isize).read()));
+                                    *res_ptr = post_op(cast_back(c_local_ptr.offset(jj as isize).read()), m_idx + ii as usize, n_idx + jj as usize);
                                 };
                             }
                         }
@@ -1271,7 +1273,7 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                             for jj in 0..jb as i64 {
                                 let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
                                 unsafe {
-                                    *res_ptr = post_op((*res_ptr)._add(cast_back(c_local_ptr.offset(jj as isize).read())));
+                                    *res_ptr = post_op((*res_ptr)._add(cast_back(c_local_ptr.offset(jj as isize).read())), m_idx + ii as usize, n_idx + jj as usize);
                                 };
                             }
                         }
