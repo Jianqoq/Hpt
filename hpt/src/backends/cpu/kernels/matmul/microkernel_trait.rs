@@ -136,8 +136,8 @@ where
         usize,
         i64,
         bool,
-        fn(*const MixedType::Vec) -> Self::Vec,
-        fn(MixedType) -> Self,
+        fn(*mut Self::Vec, *const MixedType::Vec),
+        fn(&mut Self, &MixedType),
     )
     where
         MixedType: CommonBounds,
@@ -166,8 +166,8 @@ where
         bool,
         usize,
         usize,
-        fn(*const MixedType::Vec) -> Self::Vec,
-        fn(MixedType) -> Self,
+        fn(*mut Self::Vec, *const MixedType::Vec),
+        fn(&mut Self, &MixedType),
         F,
         G,
     )

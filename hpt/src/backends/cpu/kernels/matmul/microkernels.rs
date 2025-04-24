@@ -43,6 +43,14 @@ macro_rules! define_matmul_micro_kernel {
                             std::arch::x86_64::_MM_HINT_T0,
                         );
                     }
+                    #[cfg(target_arch = "aarch64")]
+                    unsafe {
+                        std::arch::asm!(
+                            "prfm pldl1keep, [{0}]", 
+                            in(reg) b.add(offset),
+                            options(nostack, preserves_flags)
+                        );
+                    }
                 }
                 fn prefetch_a<T: crate::types::TypeCommon>(a: *const T, offset: usize) {
                     #[cfg(target_arch = "x86_64")]
@@ -50,6 +58,14 @@ macro_rules! define_matmul_micro_kernel {
                         std::arch::x86_64::_mm_prefetch(
                             a.add(offset) as *const i8,
                             std::arch::x86_64::_MM_HINT_T0,
+                        );
+                    }
+                    #[cfg(target_arch = "aarch64")]
+                    unsafe {
+                        std::arch::asm!(
+                            "prfm pldl1keep, [{0}]", 
+                            in(reg) a.add(offset),
+                            options(nostack, preserves_flags)
                         );
                     }
                 }
@@ -107,6 +123,14 @@ macro_rules! define_matmul_micro_kernel {
                             std::arch::x86_64::_MM_HINT_T0,
                         );
                     }
+                    #[cfg(target_arch = "aarch64")]
+                    unsafe {
+                        std::arch::asm!(
+                            "prfm pldl1keep, [{0}]", 
+                            in(reg) b.add(offset),
+                            options(nostack, preserves_flags)
+                        );
+                    }
                 }
                 fn prefetch_a<T: crate::types::TypeCommon>(a: *const T, offset: usize) {
                     #[cfg(target_arch = "x86_64")]
@@ -114,6 +138,14 @@ macro_rules! define_matmul_micro_kernel {
                         std::arch::x86_64::_mm_prefetch(
                             a.add(offset) as *const i8,
                             std::arch::x86_64::_MM_HINT_T0,
+                        );
+                    }
+                    #[cfg(target_arch = "aarch64")]
+                    unsafe {
+                        std::arch::asm!(
+                            "prfm pldl1keep, [{0}]", 
+                            in(reg) a.add(offset),
+                            options(nostack, preserves_flags)
                         );
                     }
                 }
@@ -317,11 +349,7 @@ macro_rules! define_matmul_micro_kernel_inline_asm {
 /// * `$nr`: The number of registers to use for the columns of B
 #[macro_export]
 macro_rules! define_matmul_micro_kernel_inline_asm_rem {
-    (
-        $name:ident,
-        $nr:expr,
-        $mr:expr
-    ) => {
+    ($name:ident, $nr:expr, $mr:expr) => {
         #[allow(unused_variables)]
         fn $name<T: crate::common::CommonBounds>(
             a: crate::common::Pointer<T>,
@@ -757,7 +785,7 @@ macro_rules! define_neon_matmul_micro_kernel {
 #[macro_export]
 macro_rules! define_neon_post_op_matmul_micro_kernel {
     ($name:ident, $nr:expr, $mr:expr) => {
-        fn $name<T: $crate::common::CommonBounds, F: Fn(T) -> T, G: Fn(<T as $crate::types::TypeCommon>::Vec) -> <T as $crate::types::TypeCommon>::Vec>(
+        fn $name<T: $crate::common::CommonBounds, F: Fn(T, usize, usize) -> T, G: Fn(<T as $crate::types::TypeCommon>::Vec, usize, usize) -> <T as $crate::types::TypeCommon>::Vec>(
             a: $crate::common::Pointer<T>,
             b: $crate::common::Pointer<T>,
             c: $crate::common::Pointer<T>,
@@ -768,6 +796,8 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
             ks: i64,
             first_kiter: bool,
             last_kiter: bool,
+            m_idx: usize,
+            n_idx: usize,
             post_op: F,
             post_op_vec: G,
         ) {
@@ -881,7 +911,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
                                             (MR * ldc + NR * <T as $crate::types::TypeCommon>::Vec::SIZE as i64) as isize,
                                         )
                                     } as *mut <T as $crate::types::TypeCommon>::Vec;
-                                    unsafe {res_ptr.write_unaligned(post_op_vec(c_local[MR as usize][NR as usize])) };
+                                    unsafe {res_ptr.write_unaligned(post_op_vec(c_local[MR as usize][NR as usize], m_idx, n_idx)) };
                                     }
                                 );
                             }
@@ -915,7 +945,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
                                         )
                                     } as *mut <T as $crate::types::TypeCommon>::Vec;
                                     res~NR = unsafe {res_ptr.read_unaligned()};
-                                    unsafe {res_ptr.write_unaligned(post_op_vec(res~NR._add(c_local[MR as usize][NR as usize]))) };
+                                    unsafe {res_ptr.write_unaligned(post_op_vec(res~NR._add(c_local[MR as usize][NR as usize]), m_idx + MR, n_idx + NR)) };
                                     }
                                 );
                             }
@@ -944,7 +974,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
                             for jj in 0..jb as i64 {
                                 let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
                                 unsafe {
-                                    *res_ptr = post_op(c_local_ptr.offset(jj as isize).read());
+                                    *res_ptr = post_op(c_local_ptr.offset(jj as isize).read(), m_idx + ii as usize, n_idx + jj as usize);
                                 };
                             }
                         }
@@ -966,7 +996,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
                             for jj in 0..jb as i64 {
                                 let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
                                 unsafe {
-                                    *res_ptr = post_op((*res_ptr)._add(c_local_ptr.offset(jj as isize).read()));
+                                    *res_ptr = post_op((*res_ptr)._add(c_local_ptr.offset(jj as isize).read()), m_idx + ii as usize, n_idx + jj as usize);
                                 };
                             }
                         }
@@ -1017,8 +1047,8 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
             jb: usize,
             ks: i64,
             first_kiter: bool,
-            vec_cast_back: fn(*const IM::Vec) -> T::Vec,
-            cast_back: fn(IM) -> T,
+            vec_cast_back: fn(*mut T::Vec, *const IM::Vec),
+            cast_back: fn(&mut T, &IM),
         ) {
             use $crate::types::vectors::traits::VecTrait;
             use $crate::common::Pointer;
@@ -1058,7 +1088,7 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
                                         (MR * ldc + NR * <T as $crate::types::TypeCommon>::Vec::SIZE as i64) as isize,
                                     )
                                 } as *mut <T as $crate::types::TypeCommon>::Vec;
-                                unsafe {res_ptr.write_unaligned(vec_cast_back(c_local[MR as usize].as_ptr())) };
+                                vec_cast_back(res_ptr, c_local[MR as usize].as_ptr());
                                 }
                             );
                         }
@@ -1077,7 +1107,9 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
                                     )
                                 } as *mut <T as $crate::types::TypeCommon>::Vec;
                                 res~NR = unsafe {res_ptr.read_unaligned()};
-                                unsafe {res_ptr.write_unaligned(res~NR._add(vec_cast_back(c_local[MR as usize].as_ptr()))) };
+                                let mut res_vec = <T as $crate::types::TypeCommon>::Vec::splat(T::ZERO);
+                                vec_cast_back(&mut res_vec, c_local[MR as usize].as_ptr());
+                                unsafe {res_ptr.write_unaligned(res~NR._add(res_vec)) };
                                 }
                             );
                         }
@@ -1089,8 +1121,10 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
                         let c_local_ptr = c_local[ii as usize].as_ptr() as *const IM;
                         for jj in 0..jb as i64 {
                             let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
+                            let mut res = T::ZERO;
                             unsafe {
-                                *res_ptr = cast_back(c_local_ptr.offset(jj as isize).read());
+                                cast_back(&mut res, &c_local_ptr.offset(jj as isize).read());
+                                *res_ptr = res;
                             };
                         }
                     }
@@ -1099,8 +1133,10 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
                         let c_local_ptr = c_local[ii as usize].as_ptr() as *const IM;
                         for jj in 0..jb as i64 {
                             let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
+                            let mut res = T::ZERO;
                             unsafe {
-                                *res_ptr = (*res_ptr)._add(cast_back(c_local_ptr.offset(jj as isize).read()));
+                                cast_back(&mut res, &c_local_ptr.offset(jj as isize).read());
+                                *res_ptr = (*res_ptr)._add(res);
                             };
                         }
                     }
@@ -1143,8 +1179,8 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
             last_kiter: bool,
             m_idx: usize,
             n_idx: usize,
-            vec_cast_back: fn(*const IM::Vec) -> T::Vec,
-            cast_back: fn(IM) -> T,
+            vec_cast_back: fn(*mut T::Vec, *const IM::Vec),
+            cast_back: fn(&mut T, &IM),
             post_op: F,
             post_op_vec: F2
         ) {
@@ -1188,7 +1224,9 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                                             (MR * ldc + NR * <T as $crate::types::TypeCommon>::Vec::SIZE as i64) as isize,
                                         )
                                     } as *mut <T as $crate::types::TypeCommon>::Vec;
-                                    unsafe {res_ptr.write_unaligned(post_op_vec(vec_cast_back(c_local[MR as usize].as_ptr()), m_idx + MR, n_idx + NR)) };
+                                    let mut res = T::Vec::splat(T::ZERO);
+                                    vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
+                                    unsafe {res_ptr.write_unaligned(post_op_vec(res, m_idx + MR, n_idx + NR)) };
                                     }
                                 );
                             }
@@ -1201,7 +1239,9 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                                             (MR * ldc + NR * <T as $crate::types::TypeCommon>::Vec::SIZE as i64) as isize,
                                         )
                                     } as *mut <T as $crate::types::TypeCommon>::Vec;
-                                    unsafe {res_ptr.write_unaligned(vec_cast_back(c_local[MR as usize].as_ptr())) };
+                                    let mut res = T::Vec::splat(T::ZERO);
+                                    vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
+                                    unsafe {res_ptr.write_unaligned(res) };
                                     }
                                 );
                             }
@@ -1222,7 +1262,9 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                                         )
                                     } as *mut <T as $crate::types::TypeCommon>::Vec;
                                     res~NR = unsafe {res_ptr.read_unaligned()};
-                                    unsafe {res_ptr.write_unaligned(post_op_vec(res~NR._add(vec_cast_back(c_local[MR as usize].as_ptr())), m_idx + MR, n_idx + NR)) };
+                                    let mut res = T::Vec::splat(T::ZERO);
+                                    vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
+                                    unsafe {res_ptr.write_unaligned(post_op_vec(res~NR._add(res), m_idx + MR, n_idx + NR)) };
                                     }
                                 );
                             }
@@ -1236,7 +1278,9 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                                         )
                                     } as *mut <T as $crate::types::TypeCommon>::Vec;
                                     res~NR = unsafe {res_ptr.read_unaligned()};
-                                    unsafe {res_ptr.write_unaligned(res~NR._add(vec_cast_back(c_local[MR as usize].as_ptr()))) };
+                                    let mut res = T::Vec::splat(T::ZERO);
+                                    vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
+                                    unsafe {res_ptr.write_unaligned(res~NR._add(res)) };
                                     }
                                 );
                             }
@@ -1250,8 +1294,10 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                             let c_local_ptr = c_local[ii as usize].as_ptr() as *const IM;
                             for jj in 0..jb as i64 {
                                 let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
+                                let mut res = T::ZERO;
                                 unsafe {
-                                    *res_ptr = post_op(cast_back(c_local_ptr.offset(jj as isize).read()), m_idx + ii as usize, n_idx + jj as usize);
+                                    cast_back(&mut res, &c_local_ptr.offset(jj as isize).read());
+                                    *res_ptr = post_op(res, m_idx + ii as usize, n_idx + jj as usize);
                                 };
                             }
                         }
@@ -1260,8 +1306,10 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                             let c_local_ptr = c_local[ii as usize].as_ptr() as *const IM;
                             for jj in 0..jb as i64 {
                                 let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
+                                let mut res = T::ZERO;
                                 unsafe {
-                                    *res_ptr = cast_back(c_local_ptr.offset(jj as isize).read());
+                                    cast_back(&mut res, &c_local_ptr.offset(jj as isize).read());
+                                    *res_ptr = res;
                                 };
                             }
                         }
@@ -1272,8 +1320,10 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                             let c_local_ptr = c_local[ii as usize].as_ptr() as *const IM;
                             for jj in 0..jb as i64 {
                                 let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
+                                let mut res = T::ZERO;
                                 unsafe {
-                                    *res_ptr = post_op((*res_ptr)._add(cast_back(c_local_ptr.offset(jj as isize).read())), m_idx + ii as usize, n_idx + jj as usize);
+                                    cast_back(&mut res, &c_local_ptr.offset(jj as isize).read());
+                                    *res_ptr = post_op((*res_ptr)._add(res), m_idx + ii as usize, n_idx + jj as usize);
                                 };
                             }
                         }
@@ -1282,8 +1332,10 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                             let c_local_ptr = c_local[ii as usize].as_ptr() as *const IM;
                             for jj in 0..jb as i64 {
                                 let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
+                                let mut res = T::ZERO;
                                 unsafe {
-                                    *res_ptr = (*res_ptr)._add(cast_back(c_local_ptr.offset(jj as isize).read()));
+                                    cast_back(&mut res, &c_local_ptr.offset(jj as isize).read());
+                                    *res_ptr = (*res_ptr)._add(res);
                                 };
                             }
                         }
@@ -1325,8 +1377,8 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
             jb: usize,
             ks: i64,
             first_kiter: bool,
-            vec_cast_back: fn(*const IM::Vec) -> T::Vec,
-            cast_back: fn(IM) -> T,
+            vec_cast_back: fn(*mut T::Vec, *const IM::Vec),
+            cast_back: fn(&mut T, &IM),
         ) {
             fn load_vec_neon<const NR: usize>(data: *const f32, mut to_write: *mut f32) {
                 use std::{arch::aarch64::*, mem::transmute};
@@ -1437,7 +1489,7 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
                                         (MR * ldc + NR * <T as $crate::types::TypeCommon>::Vec::SIZE as i64) as isize,
                                     )
                                 } as *mut <T as $crate::types::TypeCommon>::Vec;
-                                unsafe {res_ptr.write_unaligned(vec_cast_back(c_local[MR as usize].as_ptr())) };
+                                vec_cast_back(res_ptr, c_local[MR as usize].as_ptr());
                                 }
                             );
                         }
@@ -1456,7 +1508,9 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
                                     )
                                 } as *mut <T as $crate::types::TypeCommon>::Vec;
                                 res~NR = unsafe {res_ptr.read_unaligned()};
-                                unsafe {res_ptr.write_unaligned(res~NR._add(vec_cast_back(c_local[MR as usize].as_ptr()))) };
+                                let mut res_vec = <T as $crate::types::TypeCommon>::Vec::splat(<T>::ZERO);
+                                vec_cast_back(&mut res_vec, c_local[MR as usize].as_ptr());
+                                unsafe {res_ptr.write_unaligned(res~NR._add(res_vec)) };
                                 }
                             );
                         }
@@ -1469,7 +1523,9 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
                         for jj in 0..jb as i64 {
                             let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
                             unsafe {
-                                *res_ptr = cast_back(c_local_ptr.offset(jj as isize).read());
+                                let mut res = T::ZERO;
+                                cast_back(&mut res, &c_local_ptr.offset(jj as isize).read());
+                                *res_ptr = res;
                             };
                         }
                     }
@@ -1479,7 +1535,9 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
                         for jj in 0..jb as i64 {
                             let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
                             unsafe {
-                                *res_ptr = (*res_ptr)._add(cast_back(c_local_ptr.offset(jj as isize).read()));
+                                let mut res = T::ZERO;
+                                cast_back(&mut res, &c_local_ptr.offset(jj as isize).read());
+                                *res_ptr = (*res_ptr)._add(res);
                             };
                         }
                     }
@@ -1510,7 +1568,7 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
 #[cfg(target_feature = "neon")]
 macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
     ($name:ident, $nr:expr, $mr:expr, $nr2:expr) => {
-        fn $name<T: $crate::common::CommonBounds, IM: $crate::common::CommonBounds, F: Fn(T) -> T, G: Fn(T::Vec) -> T::Vec>(
+        fn $name<T: $crate::common::CommonBounds, IM: $crate::common::CommonBounds, F: Fn(T, usize, usize) -> T, G: Fn(T::Vec, usize, usize) -> T::Vec>(
             a: $crate::common::Pointer<IM>,
             b: $crate::common::Pointer<IM>,
             c: $crate::common::Pointer<T>,
@@ -1521,8 +1579,10 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
             ks: i64,
             first_kiter: bool,
             last_kiter: bool,
-            vec_cast_back: fn(*const IM::Vec) -> T::Vec,
-            cast_back: fn(IM) -> T,
+            m_idx: usize,
+            n_idx: usize,
+            vec_cast_back: fn(*mut T::Vec, *const IM::Vec),
+            cast_back: fn(&mut T, &IM),
             post_op: F,
             post_op_vec: G,
         ) {
@@ -1636,7 +1696,9 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                                             (MR * ldc + NR * <T as $crate::types::TypeCommon>::Vec::SIZE as i64) as isize,
                                         )
                                     } as *mut <T as $crate::types::TypeCommon>::Vec;
-                                    unsafe {res_ptr.write_unaligned(post_op_vec(vec_cast_back(c_local[MR as usize].as_ptr()))) };
+                                    let mut res = T::Vec::splat(T::ZERO);
+                                    vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
+                                    unsafe {res_ptr.write_unaligned(post_op_vec(res, m_idx + MR, n_idx + NR)) };
                                     }
                                 );
                             }
@@ -1649,7 +1711,9 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                                             (MR * ldc + NR * <T as $crate::types::TypeCommon>::Vec::SIZE as i64) as isize,
                                         )
                                     } as *mut <T as $crate::types::TypeCommon>::Vec;
-                                    unsafe {res_ptr.write_unaligned(vec_cast_back(c_local[MR as usize].as_ptr())) };
+                                    let mut res = T::Vec::splat(T::ZERO);
+                                    vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
+                                    unsafe {res_ptr.write_unaligned(res) };
                                     }
                                 );
                             }
@@ -1670,7 +1734,9 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                                         )
                                     } as *mut <T as $crate::types::TypeCommon>::Vec;
                                     res~NR = unsafe {res_ptr.read_unaligned()};
-                                    unsafe {res_ptr.write_unaligned(post_op_vec(res~NR._add(vec_cast_back(c_local[MR as usize].as_ptr())))) };
+                                    let mut res = T::Vec::splat(T::ZERO);
+                                    vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
+                                    unsafe {res_ptr.write_unaligned(post_op_vec(res~NR._add(res), m_idx + MR, n_idx + NR)) };
                                     }
                                 );
                             }
@@ -1684,7 +1750,9 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                                         )
                                     } as *mut <T as $crate::types::TypeCommon>::Vec;
                                     res~NR = unsafe {res_ptr.read_unaligned()};
-                                    unsafe {res_ptr.write_unaligned(res~NR._add(vec_cast_back(c_local[MR as usize].as_ptr()))) };
+                                    let mut res = T::Vec::splat(T::ZERO);
+                                    vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
+                                    unsafe {res_ptr.write_unaligned(res~NR._add(res)) };
                                     }
                                 );
                             }
@@ -1698,8 +1766,10 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                             let c_local_ptr = c_local[ii as usize].as_ptr() as *const IM;
                             for jj in 0..jb as i64 {
                                 let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
+                                let mut res = T::ZERO;
                                 unsafe {
-                                    *res_ptr = post_op(cast_back(c_local_ptr.offset(jj as isize).read()));
+                                    cast_back(&mut res, &c_local_ptr.offset(jj as isize).read());
+                                    *res_ptr = post_op(res, m_idx + ii as usize, n_idx + jj as usize);
                                 };
                             }
                         }
@@ -1708,8 +1778,10 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                             let c_local_ptr = c_local[ii as usize].as_ptr() as *const IM;
                             for jj in 0..jb as i64 {
                                 let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
+                                let mut res = T::ZERO;
                                 unsafe {
-                                    *res_ptr = cast_back(c_local_ptr.offset(jj as isize).read());
+                                    cast_back(&mut res, &c_local_ptr.offset(jj as isize).read());
+                                    *res_ptr = res;
                                 };
                             }
                         }
@@ -1720,8 +1792,10 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                             let c_local_ptr = c_local[ii as usize].as_ptr() as *const IM;
                             for jj in 0..jb as i64 {
                                 let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
+                                let mut res = T::ZERO;
                                 unsafe {
-                                    *res_ptr = post_op((*res_ptr)._add(cast_back(c_local_ptr.offset(jj as isize).read())));
+                                    cast_back(&mut res, &c_local_ptr.offset(jj as isize).read());
+                                    *res_ptr = post_op((*res_ptr)._add(res), m_idx + ii as usize, n_idx + jj as usize);
                                 };
                             }
                         }
@@ -1730,8 +1804,10 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                             let c_local_ptr = c_local[ii as usize].as_ptr() as *const IM;
                             for jj in 0..jb as i64 {
                                 let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
+                                let mut res = T::ZERO;
                                 unsafe {
-                                    *res_ptr = (*res_ptr)._add(cast_back(c_local_ptr.offset(jj as isize).read()));
+                                    cast_back(&mut res, &c_local_ptr.offset(jj as isize).read());
+                                    *res_ptr = (*res_ptr)._add(res);
                                 };
                             }
                         }

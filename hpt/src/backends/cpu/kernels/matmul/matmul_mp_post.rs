@@ -17,7 +17,7 @@ use hpt_allocator::{
 };
 use hpt_common::{error::base::TensorError, shape::shape_utils::mt_intervals, Pointer};
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
-use hpt_types::{dtype::TypeCommon, into_scalar::Cast, into_vec::IntoVec, traits::VecTrait};
+use hpt_types::{dtype::TypeCommon, traits::VecTrait};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use super::{microkernel_trait::MatmulMicroKernel, utils::kernel_params};
@@ -64,13 +64,13 @@ pub fn matmul_mixed_precision_template<T, IM, F1, F2>(
     mut num_threads: usize,
     pack_vec: fn(*mut IM::Vec, *const T::Vec, usize),
     pack_vec_exceed: fn(*mut IM::Vec, usize),
-    pack_zero: fn(T) -> IM,
-    vec_cast_back: fn(*const IM::Vec) -> T::Vec,
-    cast_back: fn(IM) -> T,
+    pack_zero: fn(&mut IM, &T),
+    vec_cast_back: fn(*mut T::Vec, *const IM::Vec),
+    cast_back: fn(&mut T, &IM),
     post_op: F1,
     post_op_vec: F2,
 ) where
-    T: CommonBounds + MatmulMicroKernel + Cast<IM>,
+    T: CommonBounds + MatmulMicroKernel,
     IM: CommonBounds,
     F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
     F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
@@ -161,6 +161,7 @@ pub fn matmul_mixed_precision_template<T, IM, F1, F2>(
                                         tid,
                                         mb_per_thread,
                                         num_mr_blocks,
+                                        pack_zero,
                                     );
                                     barrier.wait();
 
@@ -272,13 +273,13 @@ pub fn matmul_mp_post_template_no_block_info<T, IM, F1, F2>(
     num_threads: usize,
     pack_vec: fn(*mut IM::Vec, *const T::Vec, usize),
     pack_vec_exceed: fn(*mut IM::Vec, usize),
-    pack_zero: fn(T) -> IM,
-    vec_cast_back: fn(*const IM::Vec) -> T::Vec,
-    cast_back: fn(IM) -> T,
+    pack_zero: fn(&mut IM, &T),
+    vec_cast_back: fn(*mut T::Vec, *const IM::Vec),
+    cast_back: fn(&mut T, &IM),
     post_op: F1,
     post_op_vec: F2,
 ) where
-    T: CommonBounds + MatmulMicroKernel + Cast<IM>,
+    T: CommonBounds + MatmulMicroKernel,
     IM: CommonBounds,
     F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
     F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
@@ -332,48 +333,48 @@ pub fn matmul_mp_post_template_no_block_info<T, IM, F1, F2>(
     );
 }
 
-#[allow(unused)]
-pub(crate) fn f16_matmul_post<T: CommonBounds, const DEVICE: usize, A, F1, F2>(
-    a: &_Tensor<T, Cpu, DEVICE, A>,
-    b: &_Tensor<T, Cpu, DEVICE, A>,
-    out: Option<_Tensor<T, Cpu, DEVICE, A>>,
+#[duplicate::duplicate_item(
+    func_name half_type half_str;
+    [f16_matmul_mp_post_template_no_block_info] [half::f16] ["f16"];
+    [bf16_matmul_mp_post_template_no_block_info] [half::bf16] ["bf16"];
+)]
+pub(crate) fn func_name<T, IM, F1, F2>(
+    a: Pointer<T>,
+    b: Pointer<T>,
+    out: Pointer<T>,
+    m: usize,
+    n: usize,
+    k: usize,
+    lda: i64,
+    ldb: i64,
+    ldc: i64,
+    lhs_col_stride: i64,
+    rhs_col_stride: i64,
+    num_threads: usize,
     post_op: F1,
     post_op_vec: F2,
-    num_threads: usize,
-) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
-where
-    T: MatmulMicroKernel + Cast<f32>,
-    f32: Cast<T>,
-    <half::f16 as TypeCommon>::Vec: IntoVec<T::Vec>,
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+) where
+    T: CommonBounds + MatmulMicroKernel,
+    IM: CommonBounds,
     F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
-    F2: Fn(<T as TypeCommon>::Vec, usize, usize) -> <T as TypeCommon>::Vec
-        + Clone
-        + Send
-        + Sync
-        + 'static,
+    F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
 {
     type F32Vec = <f32 as TypeCommon>::Vec;
-    type F16Vec = <half::f16 as TypeCommon>::Vec;
-
-    let c = matmul_prepare(&a, &b, out)?;
-    let m = a.shape()[0] as usize;
-    let n = b.shape()[1] as usize;
-    let k = a.shape()[1] as usize;
-
+    type F16Vec = <half_type as TypeCommon>::Vec;
+    assert_eq!(T::STR, half_str);
+    assert_eq!(IM::STR, "f32");
     matmul_mp_post_template_no_block_info::<T, f32, F1, F2>(
-        a.ptr(),
-        b.ptr(),
-        c.ptr(),
+        a,
+        b,
+        out,
         m,
         n,
         k,
-        a.strides()[a.ndim() - 2],
-        b.strides()[b.ndim() - 2],
-        c.shape()[c.ndim() - 1] as i64,
-        a.strides()[a.ndim() - 1],
-        b.strides()[b.ndim() - 1],
+        lda,
+        ldb,
+        ldc,
+        lhs_col_stride,
+        rhs_col_stride,
         num_threads,
         |packed_b, b, i| unsafe {
             let packed_b = packed_b as *mut F32Vec;
@@ -386,25 +387,39 @@ where
             packed_b_vec1.write(val_f32[1]);
         },
         |packed_b, i| unsafe {
+            let packed_b = packed_b as *mut F32Vec;
             let packed_b_vec0 = packed_b.add(i * 2);
             let packed_b_vec1 = packed_b.add(i * 2 + 1);
             packed_b_vec0.write(F32Vec::splat(0.0));
             packed_b_vec1.write(F32Vec::splat(0.0));
         },
-        |val| val.cast(),
-        |val| {
+        |im, val| {
+            let val = val as *const T as *const half_type;
+            *im = unsafe { val.read().to_f32() };
+        },
+        |im, val| {
+            let im = im as *mut F16Vec;
+            let val = val as *const F32Vec;
             let vec0 = unsafe { val.read() };
             let vec1 = unsafe { val.add(1).read() };
-            F16Vec::from_2_f32vec([vec0, vec1]).into_vec()
+            unsafe { im.write_unaligned(F16Vec::from_2_f32vec([vec0, vec1])) };
         },
-        |val| val.cast(),
+        |im, val| {
+            let im = im as *mut T as *mut half_type;
+            unsafe { *im = half_type::from_f32(*val) };
+        },
         post_op,
         post_op_vec,
     );
-    Ok(c)
 }
 
-pub(crate) fn bf16_matmul_post<T: CommonBounds, const DEVICE: usize, A, F1, F2>(
+#[duplicate::duplicate_item(
+    func_name inner_func_name half_type;
+    [f16_matmul_post] [f16_matmul_mp_post_template_no_block_info] [half::f16];
+    [bf16_matmul_post] [bf16_matmul_mp_post_template_no_block_info] [half::bf16];
+)]
+#[allow(unused)]
+pub(crate) fn func_name<T: CommonBounds, const DEVICE: usize, A, F1, F2>(
     a: &_Tensor<T, Cpu, DEVICE, A>,
     b: &_Tensor<T, Cpu, DEVICE, A>,
     out: Option<_Tensor<T, Cpu, DEVICE, A>>,
@@ -413,9 +428,7 @@ pub(crate) fn bf16_matmul_post<T: CommonBounds, const DEVICE: usize, A, F1, F2>(
     num_threads: usize,
 ) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
-    T: MatmulMicroKernel + Cast<f32>,
-    f32: Cast<T>,
-    <half::bf16 as TypeCommon>::Vec: IntoVec<T::Vec>,
+    T: MatmulMicroKernel,
     A: Allocator,
     A::Output: AllocatorOutputRetrive,
     F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
@@ -425,15 +438,12 @@ where
         + Sync
         + 'static,
 {
-    type F32Vec = <f32 as TypeCommon>::Vec;
-    type F16Vec = <half::bf16 as TypeCommon>::Vec;
-
     let c = matmul_prepare(&a, &b, out)?;
     let m = a.shape()[0] as usize;
     let n = b.shape()[1] as usize;
     let k = a.shape()[1] as usize;
 
-    matmul_mp_post_template_no_block_info::<T, f32, F1, F2>(
+    inner_func_name::<T, f32, F1, F2>(
         a.ptr(),
         b.ptr(),
         c.ptr(),
@@ -446,29 +456,6 @@ where
         a.strides()[a.ndim() - 1],
         b.strides()[b.ndim() - 1],
         num_threads,
-        |packed_b, b, i| unsafe {
-            let packed_b = packed_b as *mut F32Vec;
-            let b = b as *const F16Vec;
-            let packed_b_vec0 = packed_b.add(i * 2);
-            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-            let b_vec = b.add(i).read_unaligned();
-            let val_f32 = b_vec.to_2_f32vec();
-            packed_b_vec0.write(val_f32[0]);
-            packed_b_vec1.write(val_f32[1]);
-        },
-        |packed_b, i| unsafe {
-            let packed_b_vec0 = packed_b.add(i * 2);
-            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-            packed_b_vec0.write(F32Vec::splat(0.0));
-            packed_b_vec1.write(F32Vec::splat(0.0));
-        },
-        |val| val.cast(),
-        |val| {
-            let vec0 = unsafe { val.read() };
-            let vec1 = unsafe { val.add(1).read() };
-            F16Vec::from_2_f32vec([vec0, vec1]).into_vec()
-        },
-        |val| val.cast(),
         post_op,
         post_op_vec,
     );

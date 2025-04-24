@@ -23,7 +23,7 @@ impl MatmulMicroKernel for f64 {
         define_neon_matmul_micro_kernel!(x8x2, 8, 2);
         [x8x1, x8x2][mr - 1]
     }
-    fn get_kernel_with_post_op<F: Fn(Self) -> Self, G: Fn(Self::Vec) -> Self::Vec>(
+    fn get_kernel_with_post_op<F: Fn(Self, usize, usize) -> Self, G: Fn(Self::Vec, usize, usize) -> Self::Vec>(
         nr: usize,
         mr: usize,
     ) -> fn(
@@ -37,6 +37,8 @@ impl MatmulMicroKernel for f64 {
         i64,
         bool,
         bool,
+        usize,
+        usize,
         F,
         G,
     ) {

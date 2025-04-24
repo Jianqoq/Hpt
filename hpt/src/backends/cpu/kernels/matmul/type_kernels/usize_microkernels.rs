@@ -35,7 +35,7 @@ impl MatmulMicroKernel for usize {
             [x4x1, x4x2, x4x3, x4x4][mr - 1]
         }
     }
-    fn get_kernel_with_post_op<F: Fn(Self) -> Self, G: Fn(Self::Vec) -> Self::Vec>(
+    fn get_kernel_with_post_op<F: Fn(Self, usize, usize) -> Self, G: Fn(Self::Vec, usize, usize) -> Self::Vec>(
         nr: usize,
         mr: usize,
     ) -> fn(
@@ -49,6 +49,8 @@ impl MatmulMicroKernel for usize {
         i64,
         bool,
         bool,
+        usize,
+        usize,
         F,
         G,
     ) {

@@ -73,6 +73,7 @@ pub(crate) mod backends {
             pub(crate) mod matmul {
                 pub(crate) mod common;
                 pub(crate) mod matmul;
+                pub(crate) mod template;
                 pub(crate) mod matmul_mixed_precision;
                 pub(crate) mod matmul_mp_post;
                 pub(crate) mod matmul_post;
@@ -431,7 +432,6 @@ pub mod backend {
 pub mod buitin_templates {
     /// module for cpu buitin templates
     pub mod cpu {
-        pub use crate::backends::cpu::kernels::matmul::matmul::matmul_template;
         pub use crate::backends::cpu::utils::binary::binary_normal::binary_with_out;
     }
 }

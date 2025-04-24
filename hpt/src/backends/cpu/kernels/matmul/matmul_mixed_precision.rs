@@ -16,7 +16,7 @@ use hpt_allocator::{
 };
 use hpt_common::{error::base::TensorError, shape::shape_utils::mt_intervals, Pointer};
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
-use hpt_types::{dtype::TypeCommon, into_scalar::Cast, traits::VecTrait};
+use hpt_types::{dtype::TypeCommon, traits::VecTrait};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use super::{microkernel_trait::MatmulMicroKernel, utils::kernel_params};
@@ -63,11 +63,11 @@ pub fn matmul_mixed_precision_template<T, IM>(
     mut num_threads: usize,
     pack_vec: fn(*mut IM::Vec, *const T::Vec, usize),
     pack_vec_exceed: fn(*mut IM::Vec, usize),
-    pack_zero: fn(T) -> IM,
-    vec_cast_back: fn(*const IM::Vec) -> T::Vec,
-    cast_back: fn(IM) -> T,
+    pack_zero: fn(&mut IM, &T),
+    vec_cast_back: fn(*mut T::Vec, *const IM::Vec),
+    cast_back: fn(&mut T, &IM),
 ) where
-    T: CommonBounds + MatmulMicroKernel + Cast<IM>,
+    T: CommonBounds + MatmulMicroKernel,
     IM: CommonBounds,
 {
     assert_eq!(
@@ -150,6 +150,7 @@ pub fn matmul_mixed_precision_template<T, IM>(
                                         tid,
                                         mb_per_thread,
                                         num_mr_blocks,
+                                        pack_zero
                                     );
                                     barrier.wait();
 
@@ -251,11 +252,11 @@ pub fn matmul_mixed_precision_template_no_block_info<T, IM>(
     num_threads: usize,
     pack_vec: fn(*mut IM::Vec, *const T::Vec, usize),
     pack_vec_exceed: fn(*mut IM::Vec, usize),
-    pack_zero: fn(T) -> IM,
-    vec_cast_back: fn(*const IM::Vec) -> T::Vec,
-    cast_back: fn(IM) -> T,
+    pack_zero: fn(&mut IM, &T),
+    vec_cast_back: fn(*mut T::Vec, *const IM::Vec),
+    cast_back: fn(&mut T, &IM),
 ) where
-    T: CommonBounds + MatmulMicroKernel + Cast<IM>,
+    T: CommonBounds + MatmulMicroKernel,
     IM: CommonBounds,
 {
     let nr = T::get_max_mixed_precision_nr() * T::Vec::SIZE;
@@ -293,39 +294,48 @@ pub fn matmul_mixed_precision_template_no_block_info<T, IM>(
     );
 }
 
-#[allow(unused)]
-pub(crate) fn f16_matmul<const DEVICE: usize, A>(
-    a: &_Tensor<half::f16, Cpu, DEVICE, A>,
-    b: &_Tensor<half::f16, Cpu, DEVICE, A>,
-    out: Option<_Tensor<half::f16, Cpu, DEVICE, A>>,
+#[duplicate::duplicate_item(
+    func_name half_type half_str;
+    [f16_matmul_mixed_precision_template_no_block_info] [half::f16] ["f16"];
+    [bf16_matmul_mixed_precision_template_no_block_info] [half::bf16] ["bf16"];
+)]
+pub(crate) fn func_name<T, IM>(
+    a: Pointer<T>,
+    b: Pointer<T>,
+    out: Pointer<T>,
+    m: usize,
+    n: usize,
+    k: usize,
+    lda: i64,
+    ldb: i64,
+    ldc: i64,
+    lhs_col_stride: i64,
+    rhs_col_stride: i64,
     num_threads: usize,
-) -> Result<_Tensor<half::f16, Cpu, DEVICE, A>, TensorError>
-where
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+) where
+    T: CommonBounds + MatmulMicroKernel,
+    IM: CommonBounds,
 {
     type F32Vec = <f32 as TypeCommon>::Vec;
-    type F16Vec = <half::f16 as TypeCommon>::Vec;
-
-    let c = matmul_prepare(&a, &b, out)?;
-    let m = a.shape()[0] as usize;
-    let n = b.shape()[1] as usize;
-    let k = a.shape()[1] as usize;
-
-    matmul_mixed_precision_template_no_block_info::<half::f16, f32>(
-        a.ptr(),
-        b.ptr(),
-        c.ptr(),
+    type F16Vec = <half_type as TypeCommon>::Vec;
+    assert_eq!(T::STR, half_str);
+    assert_eq!(IM::STR, "f32");
+    matmul_mixed_precision_template_no_block_info::<T, f32>(
+        a,
+        b,
+        out,
         m,
         n,
         k,
-        a.strides()[a.ndim() - 2],
-        b.strides()[b.ndim() - 2],
-        c.shape()[c.ndim() - 1] as i64,
-        a.strides()[a.ndim() - 1],
-        b.strides()[b.ndim() - 1],
+        lda,
+        ldb,
+        ldc,
+        lhs_col_stride,
+        rhs_col_stride,
         num_threads,
         |packed_b, b, i| unsafe {
+            let packed_b = packed_b as *mut F32Vec;
+            let b = b as *const F16Vec;
             let packed_b_vec0 = packed_b.add(i * 2);
             let packed_b_vec1 = packed_b.add(i * 2 + 1);
             let b_vec = b.add(i).read_unaligned();
@@ -334,41 +344,52 @@ where
             packed_b_vec1.write(val_f32[1]);
         },
         |packed_b, i| unsafe {
+            let packed_b = packed_b as *mut F32Vec;
             let packed_b_vec0 = packed_b.add(i * 2);
             let packed_b_vec1 = packed_b.add(i * 2 + 1);
             packed_b_vec0.write(F32Vec::splat(0.0));
             packed_b_vec1.write(F32Vec::splat(0.0));
         },
-        |val| val.cast(),
-        |val| {
+        |im, val| {
+            let val = val as *const T as *const half_type;
+            *im = unsafe { val.read().to_f32() };
+        },
+        |im, val| {
+            let im = im as *mut F16Vec;
+            let val = val as *const F32Vec;
             let vec0 = unsafe { val.read() };
             let vec1 = unsafe { val.add(1).read() };
-            F16Vec::from_2_f32vec([vec0, vec1])
+            unsafe { im.write_unaligned(F16Vec::from_2_f32vec([vec0, vec1])) };
         },
-        |val| val.cast(),
-    );
-    Ok(c)
+        |im, val| {
+            let im = im as *mut T as *mut half_type;
+            unsafe { *im = half_type::from_f32(*val) };
+        },
+    )
 }
 
-pub(crate) fn bf16_matmul<const DEVICE: usize, A>(
-    a: &_Tensor<half::bf16, Cpu, DEVICE, A>,
-    b: &_Tensor<half::bf16, Cpu, DEVICE, A>,
-    out: Option<_Tensor<half::bf16, Cpu, DEVICE, A>>,
+#[duplicate::duplicate_item(
+    func_name  inner_func_name half_type;
+    [f16_matmul] [f16_matmul_mixed_precision_template_no_block_info] [half::f16];
+    [bf16_matmul] [bf16_matmul_mixed_precision_template_no_block_info] [half::bf16];
+)]
+#[allow(unused)]
+pub(crate) fn func_name<const DEVICE: usize, A>(
+    a: &_Tensor<half_type, Cpu, DEVICE, A>,
+    b: &_Tensor<half_type, Cpu, DEVICE, A>,
+    out: Option<_Tensor<half_type, Cpu, DEVICE, A>>,
     num_threads: usize,
-) -> Result<_Tensor<half::bf16, Cpu, DEVICE, A>, TensorError>
+) -> Result<_Tensor<half_type, Cpu, DEVICE, A>, TensorError>
 where
     A: Allocator,
     A::Output: AllocatorOutputRetrive,
 {
-    type F32Vec = <f32 as TypeCommon>::Vec;
-    type F16Vec = <half::bf16 as TypeCommon>::Vec;
-
     let c = matmul_prepare(&a, &b, out)?;
     let m = a.shape()[0] as usize;
     let n = b.shape()[1] as usize;
     let k = a.shape()[1] as usize;
 
-    matmul_mixed_precision_template_no_block_info::<half::bf16, f32>(
+    inner_func_name::<half_type, f32>(
         a.ptr(),
         b.ptr(),
         c.ptr(),
@@ -381,27 +402,6 @@ where
         a.strides()[a.ndim() - 1],
         b.strides()[b.ndim() - 1],
         num_threads,
-        |packed_b, b, i| unsafe {
-            let packed_b_vec0 = packed_b.add(i * 2);
-            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-            let b_vec = b.add(i).read_unaligned();
-            let val_f32 = b_vec.to_2_f32vec();
-            packed_b_vec0.write(val_f32[0]);
-            packed_b_vec1.write(val_f32[1]);
-        },
-        |packed_b, i| unsafe {
-            let packed_b_vec0 = packed_b.add(i * 2);
-            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-            packed_b_vec0.write(F32Vec::splat(0.0));
-            packed_b_vec1.write(F32Vec::splat(0.0));
-        },
-        |val| val.cast(),
-        |val| {
-            let vec0 = unsafe { val.read() };
-            let vec1 = unsafe { val.add(1).read() };
-            F16Vec::from_2_f32vec([vec0, vec1])
-        },
-        |val| val.cast(),
     );
     Ok(c)
 }

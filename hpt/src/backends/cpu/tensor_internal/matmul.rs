@@ -1,27 +1,31 @@
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::{ Borrow, BorrowMut };
 
-use crate::backends::cpu::kernels::matmul::matmul::{matmul, matmul_template_no_block_info};
-use crate::backends::cpu::kernels::matmul::matmul_mixed_precision::matmul_mixed_precision_template_no_block_info;
-use crate::backends::cpu::kernels::matmul::matmul_mp_post::matmul_mp_post_template_no_block_info;
+use crate::backends::cpu::kernels::matmul::matmul::{ matmul, matmul_template_no_block_info };
+use crate::backends::cpu::kernels::matmul::matmul_mixed_precision::{
+    bf16_matmul_mixed_precision_template_no_block_info,
+    f16_matmul_mixed_precision_template_no_block_info,
+};
+use crate::backends::cpu::kernels::matmul::matmul_mp_post::{
+    bf16_matmul_mp_post_template_no_block_info,
+    f16_matmul_mp_post_template_no_block_info,
+};
 use crate::backends::cpu::kernels::matmul::matmul_post::{
-    matmul_post, matmul_post_template_no_block_info,
+    matmul_post,
+    matmul_post_template_no_block_info,
 };
 use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 use crate::tensor_base::_Tensor;
-use crate::{CUSTOM_THREAD_POOL, RAYON_NUM_THREADS};
-use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
+use crate::CUSTOM_THREAD_POOL;
+use hpt_allocator::traits::{ Allocator, AllocatorOutputRetrive };
 use hpt_allocator::Cpu;
-use hpt_common::error::{base::TensorError, shape::ShapeError};
+use hpt_common::error::{ base::TensorError, shape::ShapeError };
 use hpt_common::shape::shape::Shape;
 use hpt_common::shape::shape_utils::predict_broadcast_shape;
-use hpt_common::shape::shape_utils::{compare_and_pad_shapes, mt_intervals};
+use hpt_common::shape::shape_utils::{ compare_and_pad_shapes, mt_intervals };
 use hpt_common::strides::strides_utils::preprocess_strides;
-use hpt_traits::ops::binary::{Matmul, MatmulPost};
+use hpt_traits::ops::binary::{ Matmul, MatmulPost };
 use hpt_traits::ops::creation::TensorCreator;
-use hpt_traits::tensor::{CommonBounds, TensorInfo};
-use hpt_types::dtype::TypeCommon;
-use hpt_types::into_scalar::Cast;
-use hpt_types::traits::VecTrait;
+use hpt_traits::tensor::{ CommonBounds, TensorInfo };
 
 #[track_caller]
 pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
@@ -29,22 +33,19 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
     rhs: &_Tensor<T, Cpu, DEVICE, A2>,
     out: Option<O>,
     post_op: Option<fn(T, usize, usize) -> T>,
-    post_op_vec: Option<fn(T::Vec, usize, usize) -> T::Vec>,
-) -> std::result::Result<_Tensor<T, Cpu, DEVICE, A2>, TensorError>
-where
-    T: CommonBounds + MatmulMicroKernel,
-    O: BorrowMut<_Tensor<T, Cpu, DEVICE, A2>>,
-    A2: Allocator,
-    A2::Output: AllocatorOutputRetrive,
+    post_op_vec: Option<fn(T::Vec, usize, usize) -> T::Vec>
+)
+    -> std::result::Result<_Tensor<T, Cpu, DEVICE, A2>, TensorError>
+    where
+        T: CommonBounds + MatmulMicroKernel,
+        O: BorrowMut<_Tensor<T, Cpu, DEVICE, A2>>,
+        A2: Allocator,
+        A2::Output: AllocatorOutputRetrive
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         match (post_op, post_op_vec) {
             (None, None) => {
-                #[cfg(all(
-                    target_feature = "neon",
-                    target_arch = "aarch64",
-                    target_feature = "fp16"
-                ))]
+                #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
                 {
                     if T::STR == "bf16" {
                         use crate::backends::cpu::kernels::matmul::matmul_mixed_precision::bf16_matmul;
@@ -57,7 +58,7 @@ where
                                     .static_cast::<half::bf16>()
                                     .expect("static_cast bf16 failed")
                             }),
-                            rayon::current_num_threads(),
+                            rayon::current_num_threads()
                         )?;
                         Ok(res.static_cast::<T>()?)
                     } else {
@@ -65,15 +66,19 @@ where
                             lhs,
                             rhs,
                             out.map(|mut x| x.borrow_mut().clone()),
-                            rayon::current_num_threads(),
+                            rayon::current_num_threads()
                         )
                     }
                 }
-                #[cfg(not(all(
-                    target_feature = "neon",
-                    target_arch = "aarch64",
-                    target_feature = "fp16"
-                )))]
+                #[cfg(
+                    not(
+                        all(
+                            target_feature = "neon",
+                            target_arch = "aarch64",
+                            target_feature = "fp16"
+                        )
+                    )
+                )]
                 {
                     match T::STR {
                         "f16" => {
@@ -87,7 +92,7 @@ where
                                         .static_cast::<half::f16>()
                                         .expect("static_cast f16 failed")
                                 }),
-                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed),
+                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed)
                             )?;
                             Ok(res.static_cast::<T>()?)
                         }
@@ -102,42 +107,34 @@ where
                                         .static_cast::<half::bf16>()
                                         .expect("static_cast bf16 failed")
                                 }),
-                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed),
+                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed)
                             )?;
                             Ok(res.static_cast::<T>()?)
                         }
-                        _ => matmul(
-                            lhs,
-                            rhs,
-                            out.map(|mut x| x.borrow_mut().clone()),
-                            RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed),
-                        ),
+                        _ =>
+                            matmul(
+                                lhs,
+                                rhs,
+                                out.map(|mut x| x.borrow_mut().clone()),
+                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed)
+                            ),
                     }
                 }
             }
             (Some(post_op), Some(post_op_vec)) => {
-                #[cfg(all(
-                    target_feature = "neon",
-                    target_arch = "aarch64",
-                    target_feature = "fp16"
-                ))]
+                #[cfg(
+                    all(target_feature = "neon", target_arch = "aarch64", target_feature = "fp16")
+                )]
                 {
                     if T::STR == "bf16" {
                         use crate::backends::cpu::kernels::matmul::matmul_mp_post::bf16_matmul_post;
-                        let post_op = unsafe { std::mem::transmute(post_op) };
-                        let post_op_vec = unsafe { std::mem::transmute(post_op_vec) };
                         let res = bf16_matmul_post(
-                            &lhs.static_cast::<half::bf16>()?,
-                            &rhs.static_cast::<half::bf16>()?,
-                            out.map(|mut x| {
-                                x.borrow_mut()
-                                    .clone()
-                                    .static_cast::<half::bf16>()
-                                    .expect("static_cast bf16 failed")
-                            }),
+                            &lhs,
+                            &rhs,
+                            out.map(|mut x| x.borrow_mut().clone()),
                             post_op,
                             post_op_vec,
-                            rayon::current_num_threads(),
+                            rayon::current_num_threads()
                         )?;
                         Ok(res.static_cast::<T>()?)
                     } else {
@@ -147,15 +144,19 @@ where
                             out.map(|mut x| x.borrow_mut().clone()),
                             post_op,
                             post_op_vec,
-                            rayon::current_num_threads(),
+                            rayon::current_num_threads()
                         )
                     }
                 }
-                #[cfg(not(all(
-                    target_feature = "neon",
-                    target_arch = "aarch64",
-                    target_feature = "fp16"
-                )))]
+                #[cfg(
+                    not(
+                        all(
+                            target_feature = "neon",
+                            target_arch = "aarch64",
+                            target_feature = "fp16"
+                        )
+                    )
+                )]
                 {
                     match T::STR {
                         "f16" => {
@@ -173,7 +174,7 @@ where
                                 }),
                                 post_op,
                                 post_op_vec,
-                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed),
+                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed)
                             )?;
                             Ok(res.static_cast::<T>()?)
                         }
@@ -192,18 +193,19 @@ where
                                 }),
                                 post_op,
                                 post_op_vec,
-                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed),
+                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed)
                             )?;
                             Ok(res.static_cast::<T>()?)
                         }
-                        _ => matmul_post(
-                            lhs,
-                            rhs,
-                            out.map(|mut x| x.borrow_mut().clone()),
-                            post_op,
-                            post_op_vec,
-                            RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed),
-                        ),
+                        _ =>
+                            matmul_post(
+                                lhs,
+                                rhs,
+                                out.map(|mut x| x.borrow_mut().clone()),
+                                post_op,
+                                post_op_vec,
+                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed)
+                            ),
                     }
                 }
             }
@@ -221,9 +223,10 @@ where
             b_shape = longer_shape;
         }
         ShapeError::check_matmul(lhs.shape(), rhs.shape())?;
-        let mut res_shape =
-            predict_broadcast_shape(&a_shape[..a_shape.len() - 2], &b_shape[..b_shape.len() - 2])?
-                .to_vec();
+        let mut res_shape = predict_broadcast_shape(
+            &a_shape[..a_shape.len() - 2],
+            &b_shape[..b_shape.len() - 2]
+        )?.to_vec();
         let mut iterate_shape = res_shape.clone();
         res_shape.push(a_shape[a_shape.len() - 2]);
         res_shape.push(b_shape[b_shape.len() - 1]);
@@ -237,8 +240,9 @@ where
         let a_strides = preprocess_strides(&a_shape, &lhs.strides());
         let b_strides = preprocess_strides(&b_shape, &rhs.strides());
         let batch = iterate_shape.iter().fold(1, |acc, x| acc * (*x as usize));
-        let res_inner_matrix_size = (res.shape()[res.shape().len() - 2] as usize)
-            * (res.shape()[res.shape().len() - 1] as usize);
+        let res_inner_matrix_size =
+            (res.shape()[res.shape().len() - 2] as usize) *
+            (res.shape()[res.shape().len() - 1] as usize);
         iterate_shape.iter_mut().for_each(|x| {
             *x -= 1;
         });
@@ -249,7 +253,9 @@ where
         let num_threads = batch.min(rayon_num_threads);
         let num_threads_each = if batch < rayon_num_threads {
             let vec = mt_intervals(rayon_num_threads, batch);
-            vec.iter().map(|x| x.1 - x.0).collect::<Vec<usize>>()
+            vec.iter()
+                .map(|x| x.1 - x.0)
+                .collect::<Vec<usize>>()
         } else {
             vec![1; rayon_num_threads]
         };
@@ -295,20 +301,20 @@ where
                 .zip(a_ptrs)
                 .zip(b_ptrs)
                 .zip(prgs);
-            type F32Vec = <f32 as TypeCommon>::Vec;
-            type F16Vec = <half::f16 as TypeCommon>::Vec;
-            type BF16Vec = <half::bf16 as TypeCommon>::Vec;
             pool.parallel_for(
                 iter,
-                move |(((((threads, (start, end)), mut res_ptr), mut a_ptr), mut b_ptr), mut prg), _| {
+                move |
+                    (((((threads, (start, end)), mut res_ptr), mut a_ptr), mut b_ptr), mut prg),
+                    _
+                | {
                     for _ in start..end {
                         match T::STR {
                             "f16" => {
                                 if let (Some(post_op), Some(post_op_vec)) = (post_op, post_op_vec) {
-                                    bf16_matmul_post::<half::f16, f32>(
-                                        a_ptr.clone().cast::<half::f16>(),
-                                        b_ptr.clone().cast::<half::f16>(),
-                                        res_ptr.clone().cast::<half::f16>(),
+                                    f16_matmul_mp_post_template_no_block_info::<T, f32, _, _>(
+                                        a_ptr,
+                                        b_ptr,
+                                        res_ptr,
                                         m,
                                         n,
                                         k,
@@ -318,35 +324,14 @@ where
                                         lhs_cs,
                                         rhs_cs,
                                         threads,
-                                        |packed_b, b, i| unsafe {
-                                            let packed_b_vec0 = packed_b.add(i * 2);
-                                            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                                            let b_vec = b.add(i).read_unaligned();
-                                            let val_f32 = b_vec.to_2_f32vec();
-                                            packed_b_vec0.write(val_f32[0]);
-                                            packed_b_vec1.write(val_f32[1]);
-                                        },
-                                        |packed_b, i| unsafe {
-                                            let packed_b_vec0 = packed_b.add(i * 2);
-                                            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                                            packed_b_vec0.write(F32Vec::splat(0.0));
-                                            packed_b_vec1.write(F32Vec::splat(0.0));
-                                        },
-                                        |val| val.cast(),
-                                        |val| {
-                                            let vec0 = unsafe { val.read() };
-                                            let vec1 = unsafe { val.add(1).read() };
-                                            F16Vec::from_2_f32vec([vec0, vec1])
-                                        },
-                                        |val| val.cast(),
-                                        unsafe { std::mem::transmute(post_op) },
-                                        unsafe { std::mem::transmute(post_op_vec) },
+                                        post_op,
+                                        post_op_vec
                                     );
                                 } else {
-                                    matmul_mixed_precision_template_no_block_info::<half::f16, f32>(
-                                        a_ptr.clone().cast::<half::f16>(),
-                                        b_ptr.clone().cast::<half::f16>(),
-                                        res_ptr.clone().cast::<half::f16>(),
+                                    f16_matmul_mixed_precision_template_no_block_info::<T, f32>(
+                                        a_ptr,
+                                        b_ptr,
+                                        res_ptr,
                                         m,
                                         n,
                                         k,
@@ -355,37 +340,16 @@ where
                                         dst_cs,
                                         lhs_cs,
                                         rhs_cs,
-                                        threads,
-                                        |packed_b, b, i| unsafe {
-                                            let packed_b_vec0 = packed_b.add(i * 2);
-                                            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                                            let b_vec = b.add(i).read_unaligned();
-                                            let val_f32 = b_vec.to_2_f32vec();
-                                            packed_b_vec0.write(val_f32[0]);
-                                            packed_b_vec1.write(val_f32[1]);
-                                        },
-                                        |packed_b, i| unsafe {
-                                            let packed_b_vec0 = packed_b.add(i * 2);
-                                            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                                            packed_b_vec0.write(F32Vec::splat(0.0));
-                                            packed_b_vec1.write(F32Vec::splat(0.0));
-                                        },
-                                        |val| val.cast(),
-                                        |val| {
-                                            let vec0 = unsafe { val.read() };
-                                            let vec1 = unsafe { val.add(1).read() };
-                                            F16Vec::from_2_f32vec([vec0, vec1])
-                                        },
-                                        |val| val.cast(),
+                                        threads
                                     );
                                 }
                             }
                             "bf16" => {
                                 if let (Some(post_op), Some(post_op_vec)) = (post_op, post_op_vec) {
-                                    matmul_mp_post_template_no_block_info::<half::bf16, f32>(
-                                        a_ptr.clone().cast::<half::bf16>(),
-                                        b_ptr.clone().cast::<half::bf16>(),
-                                        res_ptr.clone().cast::<half::bf16>(),
+                                    bf16_matmul_mp_post_template_no_block_info::<T, f32, _, _>(
+                                        a_ptr,
+                                        b_ptr,
+                                        res_ptr,
                                         m,
                                         n,
                                         k,
@@ -395,35 +359,14 @@ where
                                         lhs_cs,
                                         rhs_cs,
                                         threads,
-                                        |packed_b, b, i| unsafe {
-                                            let packed_b_vec0 = packed_b.add(i * 2);
-                                            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                                            let b_vec = b.add(i).read_unaligned();
-                                            let val_f32 = b_vec.to_2_f32vec();
-                                            packed_b_vec0.write(val_f32[0]);
-                                            packed_b_vec1.write(val_f32[1]);
-                                        },
-                                        |packed_b, i| unsafe {
-                                            let packed_b_vec0 = packed_b.add(i * 2);
-                                            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                                            packed_b_vec0.write(F32Vec::splat(0.0));
-                                            packed_b_vec1.write(F32Vec::splat(0.0));
-                                        },
-                                        |val| val.cast(),
-                                        |val| {
-                                            let vec0 = unsafe { val.read() };
-                                            let vec1 = unsafe { val.add(1).read() };
-                                            BF16Vec::from_2_f32vec([vec0, vec1])
-                                        },
-                                        |val| val.cast(),
-                                        unsafe { std::mem::transmute(post_op) },
-                                        unsafe { std::mem::transmute(post_op_vec) },
+                                        post_op,
+                                        post_op_vec
                                     );
                                 } else {
-                                    matmul_mixed_precision_template_no_block_info::<half::bf16, f32>(
-                                        a_ptr.clone().cast::<half::bf16>(),
-                                        b_ptr.clone().cast::<half::bf16>(),
-                                        res_ptr.clone().cast::<half::bf16>(),
+                                    bf16_matmul_mixed_precision_template_no_block_info::<T, f32>(
+                                        a_ptr,
+                                        b_ptr,
+                                        res_ptr,
                                         m,
                                         n,
                                         k,
@@ -432,28 +375,7 @@ where
                                         dst_cs,
                                         lhs_cs,
                                         rhs_cs,
-                                        threads,
-                                        |packed_b, b, i| unsafe {
-                                            let packed_b_vec0 = packed_b.add(i * 2);
-                                            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                                            let b_vec = b.add(i).read_unaligned();
-                                            let val_f32 = b_vec.to_2_f32vec();
-                                            packed_b_vec0.write(val_f32[0]);
-                                            packed_b_vec1.write(val_f32[1]);
-                                        },
-                                        |packed_b, i| unsafe {
-                                            let packed_b_vec0 = packed_b.add(i * 2);
-                                            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                                            packed_b_vec0.write(F32Vec::splat(0.0));
-                                            packed_b_vec1.write(F32Vec::splat(0.0));
-                                        },
-                                        |val| val.cast(),
-                                        |val| {
-                                            let vec0 = unsafe { val.read() };
-                                            let vec1 = unsafe { val.add(1).read() };
-                                            BF16Vec::from_2_f32vec([vec0, vec1])
-                                        },
-                                        |val| val.cast(),
+                                        threads
                                     );
                                 }
                             }
@@ -473,7 +395,7 @@ where
                                         rhs_cs,
                                         post_op,
                                         post_op_vec,
-                                        threads,
+                                        threads
                                     );
                                 } else {
                                     matmul_template_no_block_info(
@@ -488,7 +410,7 @@ where
                                         dst_cs,
                                         lhs_cs,
                                         rhs_cs,
-                                        threads,
+                                        threads
                                     );
                                 }
                             }
@@ -507,18 +429,16 @@ where
                             }
                         }
                     }
-                },
+                }
             );
         });
         Ok(res)
     }
 }
 
-impl<T, A2, const DEVICE: usize> Matmul<_Tensor<T, Cpu, DEVICE, A2>> for _Tensor<T, Cpu, DEVICE, A2>
-where
-    T: CommonBounds + MatmulMicroKernel,
-    A2: Allocator,
-    A2::Output: AllocatorOutputRetrive,
+impl<T, A2, const DEVICE: usize> Matmul<_Tensor<T, Cpu, DEVICE, A2>>
+    for _Tensor<T, Cpu, DEVICE, A2>
+    where T: CommonBounds + MatmulMicroKernel, A2: Allocator, A2::Output: AllocatorOutputRetrive
 {
     type Output = _Tensor<T, Cpu, DEVICE, A2>;
 
@@ -532,33 +452,29 @@ where
             &rhs,
             None::<Self::Output>,
             None::<fn(T, usize, usize) -> T>,
-            None::<fn(T::Vec, usize, usize) -> T::Vec>,
+            None::<fn(T::Vec, usize, usize) -> T::Vec>
         )
     }
     fn matmul_<U>(
         &self,
         rhs: _Tensor<T, Cpu, DEVICE, A2>,
-        out: U,
+        out: U
     ) -> Result<Self::Output, TensorError>
-    where
-        U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
+        where U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>
     {
         matmul_with_out(
             self,
             &rhs,
             Some(out),
             None::<fn(T, usize, usize) -> T>,
-            None::<fn(T::Vec, usize, usize) -> T::Vec>,
+            None::<fn(T::Vec, usize, usize) -> T::Vec>
         )
     }
 }
 
 impl<T, A2, const DEVICE: usize> Matmul<&_Tensor<T, Cpu, DEVICE, A2>>
     for _Tensor<T, Cpu, DEVICE, A2>
-where
-    T: CommonBounds + MatmulMicroKernel,
-    A2: Allocator,
-    A2::Output: AllocatorOutputRetrive,
+    where T: CommonBounds + MatmulMicroKernel, A2: Allocator, A2::Output: AllocatorOutputRetrive
 {
     type Output = _Tensor<T, Cpu, DEVICE, A2>;
 
@@ -572,34 +488,30 @@ where
             &rhs,
             None::<Self::Output>,
             None::<fn(T, usize, usize) -> T>,
-            None::<fn(T::Vec, usize, usize) -> T::Vec>,
+            None::<fn(T::Vec, usize, usize) -> T::Vec>
         )
     }
 
     fn matmul_<U>(
         &self,
         rhs: &_Tensor<T, Cpu, DEVICE, A2>,
-        out: U,
+        out: U
     ) -> Result<Self::Output, TensorError>
-    where
-        U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
+        where U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>
     {
         matmul_with_out(
             self,
             rhs,
             Some(out),
             None::<fn(T, usize, usize) -> T>,
-            None::<fn(T::Vec, usize, usize) -> T::Vec>,
+            None::<fn(T::Vec, usize, usize) -> T::Vec>
         )
     }
 }
 
 impl<T, A2, const DEVICE: usize> MatmulPost<_Tensor<T, Cpu, DEVICE, A2>>
     for _Tensor<T, Cpu, DEVICE, A2>
-where
-    T: CommonBounds + MatmulMicroKernel,
-    A2: Allocator,
-    A2::Output: AllocatorOutputRetrive,
+    where T: CommonBounds + MatmulMicroKernel, A2: Allocator, A2::Output: AllocatorOutputRetrive
 {
     type Output = _Tensor<T, Cpu, DEVICE, A2>;
 
@@ -611,15 +523,9 @@ where
         &self,
         rhs: _Tensor<T, Cpu, DEVICE, A2>,
         post_op: fn(T, usize, usize) -> T,
-        post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
+        post_op_vec: fn(T::Vec, usize, usize) -> T::Vec
     ) -> std::result::Result<Self::Output, TensorError> {
-        matmul_with_out(
-            self,
-            &rhs,
-            None::<Self::Output>,
-            Some(post_op),
-            Some(post_op_vec),
-        )
+        matmul_with_out(self, &rhs, None::<Self::Output>, Some(post_op), Some(post_op_vec))
     }
 
     fn matmul_post_<U>(
@@ -627,10 +533,9 @@ where
         rhs: _Tensor<T, Cpu, DEVICE, A2>,
         post_op: fn(T, usize, usize) -> T,
         post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
-        out: U,
+        out: U
     ) -> std::result::Result<Self::InplaceOutput, TensorError>
-    where
-        U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
+        where U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>
     {
         matmul_with_out(self, &rhs, Some(out), Some(post_op), Some(post_op_vec))
     }
@@ -638,10 +543,7 @@ where
 
 impl<T, A2, const DEVICE: usize> MatmulPost<&_Tensor<T, Cpu, DEVICE, A2>>
     for _Tensor<T, Cpu, DEVICE, A2>
-where
-    T: CommonBounds + MatmulMicroKernel,
-    A2: Allocator,
-    A2::Output: AllocatorOutputRetrive,
+    where T: CommonBounds + MatmulMicroKernel, A2: Allocator, A2::Output: AllocatorOutputRetrive
 {
     type Output = _Tensor<T, Cpu, DEVICE, A2>;
 
@@ -653,15 +555,9 @@ where
         &self,
         rhs: &_Tensor<T, Cpu, DEVICE, A2>,
         post_op: fn(T, usize, usize) -> T,
-        post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
+        post_op_vec: fn(T::Vec, usize, usize) -> T::Vec
     ) -> std::result::Result<Self::Output, TensorError> {
-        matmul_with_out(
-            self,
-            &rhs,
-            None::<Self::Output>,
-            Some(post_op),
-            Some(post_op_vec),
-        )
+        matmul_with_out(self, &rhs, None::<Self::Output>, Some(post_op), Some(post_op_vec))
     }
 
     fn matmul_post_<U>(
@@ -669,10 +565,9 @@ where
         rhs: &_Tensor<T, Cpu, DEVICE, A2>,
         post_op: fn(T, usize, usize) -> T,
         post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
-        out: U,
+        out: U
     ) -> std::result::Result<Self::InplaceOutput, TensorError>
-    where
-        U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
+        where U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>
     {
         matmul_with_out(self, &rhs, Some(out), Some(post_op), Some(post_op_vec))
     }
