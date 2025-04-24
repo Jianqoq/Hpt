@@ -1,7 +1,9 @@
 use crate::backend::Cpu;
-use crate::backends::cpu::kernels::matmul::common::{calculate_jobs, calculate_prgs, L2_SLAB};
+use crate::backends::cpu::kernels::matmul::common::{
+    calculate_jobs, calculate_prgs, L2_SLAB, L3_SLAB,
+};
 use crate::tensor_base::_Tensor;
-use crate::{ALIGN, RAYON_POOL};
+use crate::{ALIGN, CUSTOM_THREAD_POOL};
 use dyn_stack::DynStack;
 use gemm_common::cache::DivCeil;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
@@ -9,7 +11,6 @@ use hpt_common::shape::shape_utils::mt_intervals;
 use hpt_common::{error::base::TensorError, Pointer};
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::traits::VecTrait;
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use std::cmp::min;
 
 use super::common::matmul_prepare;
@@ -40,7 +41,7 @@ use super::utils::kernel_params;
 /// * `post_op_vec`: post operation for vector
 /// * `num_threads`: number of threads
 #[inline]
-pub fn matmul_template<T, F, F2>(
+pub fn matmul_template<T>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
@@ -58,13 +59,11 @@ pub fn matmul_template<T, F, F2>(
     nr: usize,
     mr: usize,
     do_lhs_pack: bool,
-    post_op: F,
-    post_op_vec: F2,
+    post_op: fn(T) -> T,
+    post_op_vec: fn(T::Vec) -> T::Vec,
     mut num_threads: usize,
 ) where
     T: CommonBounds + MatmulMicroKernel,
-    F: Fn(T) -> T + Send + Sync + Clone,
-    F2: Fn(T::Vec) -> T::Vec + Send + Sync + Clone,
 {
     assert_eq!(
         nr % T::Vec::SIZE,
@@ -76,27 +75,25 @@ pub fn matmul_template<T, F, F2>(
 
     let num_mr_blocks = (mc + mr - 1) / mr;
     let num_nr_blocks = (nc + nr - 1) / nr;
-    let packed_a_layout = std::alloc::Layout::from_size_align(
-        num_mr_blocks * mr * kc * std::mem::size_of::<T>(),
-        ALIGN,
-    )
-    .expect("layout create failed");
 
-    let packed_a = if do_lhs_pack {
-        let a_buffer = unsafe { std::alloc::alloc(packed_a_layout) };
-        #[cfg(feature = "bound_check")]
-        let ret = Pointer::new(
-            a_buffer as *mut T,
-            (packed_a_layout.size() / std::mem::size_of::<T>()) as i64,
-        );
-        #[cfg(not(feature = "bound_check"))]
-        let ret = Pointer::new(a_buffer as *mut T);
-        ret
-    } else {
-        a.clone()
-    };
-
-    let packed_a_ptr = packed_a.ptr as *mut T;
+    let packed_a = L3_SLAB.with(|mem| {
+        if do_lhs_pack {
+            let mut mem = mem.borrow_mut();
+            let stack = DynStack::new(&mut mem);
+            let (packed_a_storage, _) =
+                stack.make_aligned_uninit::<T>(num_mr_blocks * mr * kc, ALIGN);
+            #[cfg(feature = "bound_check")]
+            let packed_a = Pointer::new(
+                packed_a_storage.as_mut_ptr() as *mut T,
+                (num_mr_blocks * mr * kc) as i64,
+            );
+            #[cfg(not(feature = "bound_check"))]
+            let packed_a = Pointer::new(packed_a_storage.as_mut_ptr() as *mut T);
+            packed_a
+        } else {
+            a.clone()
+        }
+    });
 
     let mc_jobs = calculate_jobs(n, nc, mr, nr, mc);
     let mc_rem_jobs = calculate_jobs(n, nc, mr, nr, m % mc);
@@ -107,146 +104,136 @@ pub fn matmul_template<T, F, F2>(
     let mc_rem_intervals = mt_intervals(mc_rem_jobs, num_threads);
     let prgs = calculate_prgs(n, nc, mr, nr, mc, &intervals);
     let rem_prgs = calculate_prgs(n, nc, mr, nr, m % mc, &mc_rem_intervals);
-    RAYON_POOL.with_borrow(|pool| {
-        pool.install(|| {
+    CUSTOM_THREAD_POOL.with_borrow(|pool| {
+        pool.parallel_for(
             (0..num_threads)
-                .into_par_iter()
-                .zip(prgs)
-                .zip(rem_prgs)
-                .zip(intervals)
-                .zip(mc_rem_intervals)
-                .for_each(
-                    |((((tid, prg), rem_prg), (start, end)), (start_rem, end_rem))| {
-                        L2_SLAB.with(|mem| {
-                            let mut mem = mem.borrow_mut();
-                            let stack = DynStack::new(&mut mem);
-                            let (packed_b_storage, _) =
-                                stack.make_aligned_uninit::<T>(num_nr_blocks * nr * kc, ALIGN);
-                            #[cfg(feature = "bound_check")]
-                            let packed_b = Pointer::new(
-                                packed_b_storage.as_mut_ptr() as *mut T,
-                                (num_nr_blocks * nr * kc) as i64,
-                            );
-                            #[cfg(not(feature = "bound_check"))]
-                            let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T);
-                            let mut i = 0;
-                            while i < m {
-                                let ib = min(mc, m - i);
-                                let use_prg = if ib == mc { prg } else { rem_prg };
-                                let use_start = if ib == mc { start } else { start_rem };
-                                let use_end = if ib == mc { end } else { end_rem };
-                                let j_start = use_prg[0] * nc;
-                                let mut p = 0;
-                                while p < k {
-                                    let first_kiter = p == 0;
-                                    let pb = min(kc, k - p);
-                                    let last_kiter = p + pb == k;
-                                    if do_lhs_pack {
-                                        pack_a::<T>(
-                                            a.clone() + i as i64 * lda + p as i64 * lhs_col_stride,
-                                            packed_a.clone(),
-                                            lda,
-                                            lhs_col_stride,
-                                            ib,
-                                            pb,
-                                            kc,
-                                            mr,
-                                            tid,
-                                            mb_per_thread,
-                                            num_mr_blocks,
-                                        );
-                                        barrier.wait();
-                                    }
-
-                                    let mut job_count = use_start;
-                                    let mut i_start = use_prg[1] * mr;
-                                    let mut jj_start = use_prg[2] * nr;
-                                    'outer: for j in (j_start..n).step_by(nc) {
-                                        let jb = min(nc, n - j);
-                                        let c = out.clone() + i as i64 * ldc + j as i64;
-                                        pack_b::<T>(
-                                            b.clone()
-                                                + (p as i64 * ldb + j as i64 * rhs_col_stride),
-                                            packed_b.clone(),
-                                            ldb,
-                                            rhs_col_stride,
-                                            jb,
-                                            pb,
-                                            kc,
-                                            nr,
-                                        );
-                                        let packed_a = if do_lhs_pack {
-                                            packed_a.clone()
-                                        } else {
-                                            a.clone() + (i as i64 * lda + p as i64 * lhs_col_stride)
-                                        };
-                                        for i in (i_start..ib).step_by(mr) {
-                                            let mb = min(mr, ib - i);
-                                            let micro_kernel = <T>::get_kernel_with_post_op(
-                                                nr / <T>::Vec::SIZE,
-                                                mb,
-                                            );
-
-                                            for jj in (jj_start..jb).step_by(nr) {
-                                                let jjb = min(nr, jb - jj);
-                                                if do_lhs_pack {
-                                                    micro_kernel(
-                                                        packed_a.clone() + kc as i64 * i as i64,
-                                                        packed_b.clone() + jj as i64 * kc as i64,
-                                                        c.clone() + i as i64 * ldc + jj as i64,
-                                                        ldc,
-                                                        1,
-                                                        kc,
-                                                        jjb,
-                                                        mb as i64,
-                                                        first_kiter,
-                                                        last_kiter,
-                                                        post_op.clone(),
-                                                        post_op_vec.clone(),
-                                                    );
-                                                } else {
-                                                    micro_kernel(
-                                                        packed_a.clone() + i as i64 * lda,
-                                                        packed_b.clone() + jj as i64 * kc as i64,
-                                                        c.clone() + i as i64 * ldc + jj as i64,
-                                                        ldc,
-                                                        lda,
-                                                        kc,
-                                                        jjb,
-                                                        lhs_col_stride,
-                                                        first_kiter,
-                                                        last_kiter,
-                                                        post_op.clone(),
-                                                        post_op_vec.clone(),
-                                                    );
-                                                }
-                                                job_count += 1;
-                                                if job_count >= use_end {
-                                                    break 'outer;
-                                                }
-                                            }
-                                            jj_start = 0;
-                                        }
-                                        i_start = 0;
-                                    }
-                                    p += kc;
-                                    if p < k {
-                                        barrier.wait();
-                                    }
-                                }
-                                i += mc;
+                .into_iter()
+                .zip(prgs.into_iter())
+                .zip(rem_prgs.into_iter())
+                .zip(intervals.into_iter())
+                .zip(mc_rem_intervals.into_iter()),
+            move |((((tid, prg), rem_prg), (start, end)), (start_rem, end_rem)), _| {
+                L2_SLAB.with(|mem| {
+                    let mut mem = mem.borrow_mut();
+                    let stack = DynStack::new(&mut mem);
+                    let (packed_b_storage, _) =
+                        stack.make_aligned_uninit::<T>(num_nr_blocks * nr * kc, ALIGN);
+                    #[cfg(feature = "bound_check")]
+                    let packed_b = Pointer::new(
+                        packed_b_storage.as_mut_ptr() as *mut T,
+                        (num_nr_blocks * nr * kc) as i64,
+                    );
+                    #[cfg(not(feature = "bound_check"))]
+                    let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T);
+                    let mut i = 0;
+                    while i < m {
+                        let ib = min(mc, m - i);
+                        let use_prg = if ib == mc { prg } else { rem_prg };
+                        let use_start = if ib == mc { start } else { start_rem };
+                        let use_end = if ib == mc { end } else { end_rem };
+                        let j_start = use_prg[0] * nc;
+                        let mut p = 0;
+                        while p < k {
+                            let first_kiter = p == 0;
+                            let pb = min(kc, k - p);
+                            let last_kiter = p + pb == k;
+                            if do_lhs_pack {
+                                pack_a::<T>(
+                                    a.clone() + i as i64 * lda + p as i64 * lhs_col_stride,
+                                    packed_a.clone(),
+                                    lda,
+                                    lhs_col_stride,
+                                    ib,
+                                    pb,
+                                    kc,
+                                    mr,
+                                    tid,
+                                    mb_per_thread,
+                                    num_mr_blocks,
+                                );
+                                barrier.wait();
                             }
-                        });
-                    },
-                );
-        });
-    });
 
-    if do_lhs_pack {
-        unsafe {
-            std::alloc::dealloc(packed_a_ptr as *mut u8, packed_a_layout);
-        }
-    }
+                            let mut job_count = use_start;
+                            let mut i_start = use_prg[1] * mr;
+                            let mut jj_start = use_prg[2] * nr;
+                            'outer: for j in (j_start..n).step_by(nc) {
+                                let jb = min(nc, n - j);
+                                let c = out.clone() + i as i64 * ldc + j as i64;
+                                pack_b::<T>(
+                                    b + (p as i64 * ldb + j as i64 * rhs_col_stride),
+                                    packed_b,
+                                    ldb,
+                                    rhs_col_stride,
+                                    jb,
+                                    pb,
+                                    kc,
+                                    nr,
+                                );
+                                let packed_a = if do_lhs_pack {
+                                    packed_a.clone()
+                                } else {
+                                    a.clone() + (i as i64 * lda + p as i64 * lhs_col_stride)
+                                };
+                                for i in (i_start..ib).step_by(mr) {
+                                    let mb = min(mr, ib - i);
+                                    let micro_kernel =
+                                        <T>::get_kernel_with_post_op(nr / <T>::Vec::SIZE, mb);
+
+                                    for jj in (jj_start..jb).step_by(nr) {
+                                        let jjb = min(nr, jb - jj);
+                                        let packed_b = packed_b + jj as i64 * kc as i64;
+                                        if do_lhs_pack {
+                                            micro_kernel(
+                                                packed_a + kc as i64 * i as i64,
+                                                packed_b,
+                                                c + i as i64 * ldc + jj as i64,
+                                                ldc,
+                                                1,
+                                                kc,
+                                                jjb,
+                                                mb as i64,
+                                                first_kiter,
+                                                last_kiter,
+                                                post_op.clone(),
+                                                post_op_vec.clone(),
+                                            );
+                                        } else {
+                                            micro_kernel(
+                                                packed_a + i as i64 * lda,
+                                                packed_b,
+                                                c + i as i64 * ldc + jj as i64,
+                                                ldc,
+                                                lda,
+                                                kc,
+                                                jjb,
+                                                lhs_col_stride,
+                                                first_kiter,
+                                                last_kiter,
+                                                post_op.clone(),
+                                                post_op_vec.clone(),
+                                            );
+                                        }
+                                        job_count += 1;
+                                        if job_count >= use_end {
+                                            break 'outer;
+                                        }
+                                    }
+                                    jj_start = 0;
+                                }
+                                i_start = 0;
+                            }
+                            p += kc;
+                            if p < k {
+                                barrier.wait();
+                            }
+                        }
+                        i += mc;
+                    }
+                });
+            },
+        );
+    });
 }
 
 /// single batch matmul template no block info
@@ -268,7 +255,7 @@ pub fn matmul_template<T, F, F2>(
 /// * `post_op_vec`: post operation for vector
 /// * `num_threads`: number of threads
 #[inline]
-pub fn matmul_post_template_no_block_info<T, F, F2>(
+pub fn matmul_post_template_no_block_info<T>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
@@ -280,13 +267,11 @@ pub fn matmul_post_template_no_block_info<T, F, F2>(
     ldc: i64,
     lhs_col_stride: i64,
     rhs_col_stride: i64,
-    post_op: F,
-    post_op_vec: F2,
+    post_op: fn(T) -> T,
+    post_op_vec: fn(T::Vec) -> T::Vec,
     num_threads: usize,
 ) where
     T: CommonBounds + MatmulMicroKernel,
-    F: Fn(T) -> T + Send + Sync + Clone,
-    F2: Fn(T::Vec) -> T::Vec + Send + Sync + Clone,
 {
     let nr = T::get_max_nr() * T::Vec::SIZE;
     let mr = T::get_max_mr();
@@ -305,7 +290,7 @@ pub fn matmul_post_template_no_block_info<T, F, F2>(
     if param.mc == 0 {
         param.mc = m.msrv_next_multiple_of(mr);
     }
-    matmul_template::<T, F, F2>(
+    matmul_template::<T>(
         a,
         b,
         out,
@@ -433,26 +418,24 @@ pub(crate) fn pack_b<T>(
 }
 
 /// matmul
-pub(crate) fn matmul_post<T, const DEVICE: usize, A, F, F2>(
+pub(crate) fn matmul_post<T, const DEVICE: usize, A>(
     a: &_Tensor<T, Cpu, DEVICE, A>,
     b: &_Tensor<T, Cpu, DEVICE, A>,
     out: Option<_Tensor<T, Cpu, DEVICE, A>>,
-    post_op: F,
-    post_op_vec: F2,
+    post_op: fn(T) -> T,
+    post_op_vec: fn(T::Vec) -> T::Vec,
     num_threads: usize,
 ) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
     T: CommonBounds + MatmulMicroKernel,
     A: Allocator,
     A::Output: AllocatorOutputRetrive,
-    F: Fn(T) -> T + Send + Sync + Clone,
-    F2: Fn(T::Vec) -> T::Vec + Send + Sync + Clone,
 {
     let c = matmul_prepare(&a, &b, out)?;
     let m = a.shape()[0] as usize;
     let n = b.shape()[1] as usize;
     let k = a.shape()[1] as usize;
-    matmul_post_template_no_block_info::<T, F, F2>(
+    matmul_post_template_no_block_info::<T>(
         a.ptr(),
         b.ptr(),
         c.ptr(),

@@ -16,8 +16,12 @@ struct LSTMCell {
 impl LSTMCell {
     fn new(input_size: usize, hidden_size: usize) -> Result<Self, TensorError> {
         let biases = Tensor::<f32>::zeros(&[4 * hidden_size])?;
-        let ih = Tensor::<f32>::randn(&[4 * hidden_size, input_size])?.t()?.contiguous()?;
-        let hh = Tensor::<f32>::randn(&[4 * hidden_size, hidden_size])?.t()?.contiguous()?;
+        let ih = Tensor::<f32>::randn(&[4 * hidden_size, input_size])?
+            .t()?
+            .contiguous()?;
+        let hh = Tensor::<f32>::randn(&[4 * hidden_size, hidden_size])?
+            .t()?
+            .contiguous()?;
         Ok(Self {
             ih,
             hh,
@@ -67,10 +71,10 @@ impl LSTMCell {
             }; // [batch_size, 4 * hidden_size]
             *total += now.elapsed();
 
-            let i = hh.slice(&select![:, 0:hidden_size])?;
-            let f = hh.slice(&select![:, hidden_size:2*hidden_size])?;
-            let g = hh.slice(&select![:, 2*hidden_size:3*hidden_size])?;
-            let o = hh.slice(&select![:, 3*hidden_size:4*hidden_size])?;
+            let i = hh.slice(&select![:, 0:hidden_size])?; // sigmoid
+            let f = hh.slice(&select![:, hidden_size:2*hidden_size])?; // sigmoid
+            let g = hh.slice(&select![:, 2*hidden_size:3*hidden_size])?; // tanh
+            let o = hh.slice(&select![:, 3*hidden_size:4*hidden_size])?; // sigmoid
 
             // use hpt::iter::ParStridedIteratorSimd;
             // use hpt::iter::ParStridedIteratorSimdZip;

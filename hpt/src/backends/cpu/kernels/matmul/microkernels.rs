@@ -36,6 +36,7 @@ macro_rules! define_matmul_micro_kernel {
                 let mut c_local = [[<T as $crate::types::TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
                 #[inline(always)]
                 fn prefetch_b<T: crate::types::TypeCommon>(b: *const <T as crate::types::TypeCommon>::Vec, offset: usize) {
+                    #[cfg(target_arch = "x86_64")]
                     unsafe {
                         std::arch::x86_64::_mm_prefetch(
                             b.add(offset) as *const i8,
@@ -44,6 +45,7 @@ macro_rules! define_matmul_micro_kernel {
                     }
                 }
                 fn prefetch_a<T: crate::types::TypeCommon>(a: *const T, offset: usize) {
+                    #[cfg(target_arch = "x86_64")]
                     unsafe {
                         std::arch::x86_64::_mm_prefetch(
                             a.add(offset) as *const i8,
@@ -98,6 +100,7 @@ macro_rules! define_matmul_micro_kernel {
                 let mut c_local = [[<T as $crate::types::TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
                 #[inline(always)]
                 fn prefetch_b<T: crate::types::TypeCommon>(b: *const <T as crate::types::TypeCommon>::Vec, offset: usize) {
+                    #[cfg(target_arch = "x86_64")]
                     unsafe {
                         std::arch::x86_64::_mm_prefetch(
                             b.add(offset) as *const i8,
@@ -106,6 +109,7 @@ macro_rules! define_matmul_micro_kernel {
                     }
                 }
                 fn prefetch_a<T: crate::types::TypeCommon>(a: *const T, offset: usize) {
+                    #[cfg(target_arch = "x86_64")]
                     unsafe {
                         std::arch::x86_64::_mm_prefetch(
                             a.add(offset) as *const i8,

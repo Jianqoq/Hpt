@@ -113,7 +113,6 @@ pub fn matmul_template<T>(
     let mc_rem_intervals = mt_intervals(mc_rem_jobs, num_threads);
     let prgs = calculate_prgs(n, nc, mr, nr, mc, &intervals);
     let rem_prgs = calculate_prgs(n, nc, mr, nr, m % mc, &mc_rem_intervals);
-    let need_pack_b = (nc % nr != 0) || rhs_col_stride != 1;
     CUSTOM_THREAD_POOL.with_borrow(|pool| {
         pool.parallel_for(
             (0..num_threads)
@@ -134,15 +133,13 @@ pub fn matmul_template<T>(
                     );
                     #[cfg(not(feature = "bound_check"))]
                     let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T);
-                    let mut i = 0;
-                    while i < m {
+                    for i in (0..m).step_by(mc) {
                         let ib = min(mc, m - i);
                         let use_prg = if ib == mc { prg } else { rem_prg };
                         let use_start = if ib == mc { start } else { start_rem };
                         let use_end = if ib == mc { end } else { end_rem };
                         let j_start = use_prg[0] * nc;
-                        let mut p = 0;
-                        while p < k {
+                        for p in (0..k).step_by(kc) {
                             let first_kiter = p == 0;
                             let pb = min(kc, k - p);
                             if do_lhs_pack {
@@ -165,29 +162,22 @@ pub fn matmul_template<T>(
                             let mut job_count = use_start;
                             let mut i_start = use_prg[1] * mr;
                             let mut jj_start = use_prg[2] * nr;
+                            let need_full_pack = (ib - i_start) > mr;
                             'outer: for j in (j_start..n).step_by(nc) {
                                 let jb = min(nc, n - j);
                                 let c = out + i as i64 * ldc + j as i64;
-                                if need_pack_b {
-                                    pack_b::<T>(
-                                        b + (p as i64 * ldb + j as i64 * rhs_col_stride),
-                                        packed_b,
-                                        ldb,
-                                        rhs_col_stride,
-                                        jb,
-                                        pb,
-                                        kc,
-                                        nr,
-                                    );
-                                } else {
-                                    // prefetch_b::<T>(
-                                    //     b + (p as i64 * ldb + j as i64 * rhs_col_stride),
-                                    //     ldb,
-                                    //     jb,
-                                    //     pb,
-                                    //     nr,
-                                    // );
-                                }
+                                pack_b::<T>(
+                                    b + (p as i64 * ldb + j as i64 * rhs_col_stride),
+                                    packed_b,
+                                    ldb,
+                                    rhs_col_stride,
+                                    jb,
+                                    pb,
+                                    kc,
+                                    nr,
+                                    jj_start,
+                                    need_full_pack,
+                                );
                                 let packed_a = if do_lhs_pack {
                                     packed_a
                                 } else {
@@ -198,15 +188,11 @@ pub fn matmul_template<T>(
                                     let micro_kernel = <T>::get_kernel(nr / <T>::Vec::SIZE, mb);
                                     for jj in (jj_start..jb).step_by(nr) {
                                         let jjb = min(nr, jb - jj);
-                                        let packed_b = if need_pack_b {
-                                            packed_b + jj as i64 * kc as i64
-                                        } else {
-                                            b + (p as i64 * ldb + j as i64 + jj as i64)
-                                        };
+                                        let packed_b = packed_b + jj as i64 * kc as i64;
                                         if do_lhs_pack {
                                             micro_kernel(
                                                 packed_a + kc as i64 * i as i64,
-                                                packed_b + jj as i64 * kc as i64,
+                                                packed_b,
                                                 c + i as i64 * ldc + jj as i64,
                                                 ldc,
                                                 1,
@@ -218,7 +204,7 @@ pub fn matmul_template<T>(
                                         } else {
                                             micro_kernel(
                                                 packed_a + i as i64 * lda,
-                                                packed_b + jj as i64 * kc as i64,
+                                                packed_b,
                                                 c + i as i64 * ldc + jj as i64,
                                                 ldc,
                                                 lda,
@@ -237,12 +223,10 @@ pub fn matmul_template<T>(
                                 }
                                 i_start = 0;
                             }
-                            p += kc;
                             if p < k {
                                 barrier.wait();
                             }
                         }
-                        i += mc;
                     }
                 });
             },
@@ -374,11 +358,28 @@ pub(crate) fn pack_b<T>(
     kb: usize,
     kc: usize,
     nr: usize,
+    jj_start: usize,
+    need_full_pack: bool,
 ) where
     T: CommonBounds,
 {
+    let start = if need_full_pack {
+        0
+    } else {
+        for j in (0..jj_start).step_by(nr) {
+            let nb = nr.min(nc - j);
+            if nb == nr {
+                packed_b += nr as i64 * kb as i64;
+                packed_b += (kc - kb) as i64 * nr as i64;
+            } else {
+                packed_b += (nr - nb) as i64 * kb as i64;
+                packed_b += (kc - kb) as i64 * nr as i64;
+            }
+        }
+        jj_start
+    };
     let nr_div_lane = nr / T::Vec::SIZE;
-    for j in (0..nc).step_by(nr) {
+    for j in (start..nc).step_by(nr) {
         let nb = nr.min(nc - j);
         if nb == nr && stride == 1 {
             for p in 0..kb as i64 {
@@ -406,25 +407,6 @@ pub(crate) fn pack_b<T>(
                 packed_b += (nr - nb) as i64;
             }
             packed_b += (kc - kb) as i64 * nr as i64;
-        }
-    }
-}
-
-#[inline(never)]
-pub(crate) fn prefetch_b<T>(b: Pointer<T>, ldb: i64, nc: usize, kb: usize, nr: usize)
-where
-    T: CommonBounds,
-{
-    for j in (0..nc).step_by(nr) {
-        let nb = nr.min(nc - j);
-        assert_eq!(nb, nr);
-        for p in 0..kb as i64 {
-            unsafe {
-                std::arch::x86_64::_mm_prefetch(
-                    b.ptr.offset((p * ldb) as isize + j as isize) as *const i8,
-                    std::arch::x86_64::_MM_HINT_T0,
-                )
-            };
         }
     }
 }
