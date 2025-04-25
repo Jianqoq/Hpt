@@ -162,8 +162,8 @@ impl MatmulMicroKernel for crate::types::f16 {
         usize,
         i64,
         bool,
-        fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
-        fn(MixedType) -> Self,
+        fn(*mut Self::Vec, *const <MixedType as TypeCommon>::Vec),
+        fn(&mut Self, &MixedType),
     )
     where
         MixedType: CommonBounds,
@@ -203,8 +203,8 @@ impl MatmulMicroKernel for crate::types::f16 {
         bool,
         usize,
         usize,
-        fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
-        fn(MixedType) -> Self,
+        fn(*mut Self::Vec, *const <MixedType as TypeCommon>::Vec),
+        fn(&mut Self, &MixedType),
         F,
         G,
     )

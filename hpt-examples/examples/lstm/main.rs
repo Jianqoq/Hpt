@@ -1,4 +1,3 @@
-use hpt::ops::FloatUnaryOps;
 use hpt::types::vectors::traits::VecTrait;
 use hpt::{
     common::TensorInfo, error::TensorError, ops::*, types::math::FloatOutUnary, utils::select,
@@ -56,7 +55,7 @@ impl LSTMCell {
                 .reshape(&[seq_len, batch_size, 4 * hidden_size])?; // [seq_len, batch_size, 4 * hidden_size]
         *total += now.elapsed();
         for i in 0..seq_len {
-            let mut h = hs.slice(&select![i:i+1, :, :])?;
+            let mut h = hs.slice(&select![i:i+1, :, :])?; // [batch_size, hidden_size]
             let ih_t: Tensor<f32> = ih.slice(&select![i:i+1, :, :])?.squeeze(0)?; // [batch_size, 4 * hidden_size]
             let now = std::time::Instant::now();
             let hh = if !has_states && i == 0 {
@@ -67,42 +66,69 @@ impl LSTMCell {
                 } else {
                     hs.slice(&select![i - 1:i, :, :])?.squeeze(0)?
                 };
-                h.matmul(&self.hh)? /* + ih_t*/
+                h.addmm_post(
+                    &self.hh,
+                    &ih_t,
+                    move |x, _, n| {
+                        if n >= 2 * hidden_size as usize && n < 3 * hidden_size as usize {
+                            x._tanh()
+                        } else {
+                            x._sigmoid()
+                        }
+                    },
+                    move |x, _, n| {
+                        if n >= 2 * hidden_size as usize && n < 3 * hidden_size as usize {
+                            x._tanh()
+                        } else {
+                            x._sigmoid()
+                        }
+                    },
+                )?
             }; // [batch_size, 4 * hidden_size]
             *total += now.elapsed();
 
-            let i = hh.slice(&select![:, 0:hidden_size])?; // sigmoid
-            let f = hh.slice(&select![:, hidden_size:2*hidden_size])?; // sigmoid
-            let g = hh.slice(&select![:, 2*hidden_size:3*hidden_size])?; // tanh
-            let o = hh.slice(&select![:, 3*hidden_size:4*hidden_size])?; // sigmoid
+            let i = hh.slice(&select![:, 0:hidden_size])?; // sigmoid， [batch_size, hidden_size]
+            let f = hh.slice(&select![:, hidden_size:2*hidden_size])?; // sigmoid， [batch_size, hidden_size]
+            let g = hh.slice(&select![:, 2*hidden_size:3*hidden_size])?; // tanh， [batch_size, hidden_size]
+            let o = hh.slice(&select![:, 3*hidden_size:4*hidden_size])?; // sigmoid， [batch_size, hidden_size]
 
-            // use hpt::iter::ParStridedIteratorSimd;
-            // use hpt::iter::ParStridedIteratorSimdZip;
-            // use hpt::iter::TensorIterator;
-            // c.par_iter_mut_simd()
-            //     .zip(i.par_iter_simd())
-            //     .zip(f.par_iter_simd())
-            //     .zip(g.par_iter_simd())
-            //     .for_each(
-            //         |(((c, i), f), g)| {
-            //             let mul = i._sigmoid() * g.tanh();
-            //             *c = f._sigmoid().mul_add(*c, mul);
-            //         },
-            //         |(((c, i), f), g)| {
-            //             let mul = i._sigmoid() * g._tanh();
-            //             c.write_unaligned(f._sigmoid().mul_add(c.read_unaligned(), mul));
-            //         },
-            //     );
+            use hpt::iter::ParStridedIteratorSimd;
+            use hpt::iter::ParStridedIteratorSimdZip;
+            use hpt::iter::TensorIterator;
+            c.par_iter_mut_simd()
+                .zip(i.par_iter_simd())
+                .zip(f.par_iter_simd())
+                .zip(g.par_iter_simd())
+                .zip(h.par_iter_mut_simd())
+                .zip(o.par_iter_simd())
+                .for_each(
+                    |(((((c, i), f), g), h), o)| {
+                        let mul = i * g;
+                        let res = f.mul_add(*c, mul);
+                        let tanh = res._tanh();
+                        let o = o * tanh;
+                        *c = res;
+                        *h = o;
+                    },
+                    |(((((c, i), f), g), h), o)| {
+                        let mul = i * g;
+                        let res = f.mul_add(c.read_unaligned(), mul);
+                        let tanh = res._tanh();
+                        let o = o * tanh;
+                        c.write_unaligned(res);
+                        h.write_unaligned(o);
+                    },
+                );
 
             // h.par_iter_mut_simd()
             //     .zip(c.par_iter_simd())
             //     .zip(o.par_iter_simd())
             //     .for_each(
             //         |((h, c), o)| {
-            //             *h = o._sigmoid() * c._tanh();
+            //             *h = o * c._tanh();
             //         },
             //         |((h, c), o)| {
-            //             h.write_unaligned(o._sigmoid() * c._tanh());
+            //             h.write_unaligned(o * c._tanh());
             //         },
             //     );
         }

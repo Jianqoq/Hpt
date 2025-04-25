@@ -249,6 +249,16 @@ where
     fn matmul_<U>(&self, rhs: RHS, out: U) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;
+
+    /// matrix multiplication with specified output tensor and bias
+    ///
+    /// ## Parameters:
+    /// `rhs`: The right-hand side tensor.
+    ///
+    /// `bias`: The bias tensor.
+    ///
+    #[track_caller]
+    fn addmm(&self, rhs: RHS, bias: RHS) -> std::result::Result<Self::Output, TensorError>;
 }
 
 /// A trait for matrix multiplication operations on tensors with post-operation.
@@ -337,6 +347,25 @@ where
     ) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
         U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>;
+
+    /// matrix multiplication with specified output tensor and bias and post operation
+    ///
+    /// ## Parameters:
+    /// `rhs`: The right-hand side tensor.
+    ///
+    /// `bias`: The bias tensor.
+    ///
+    #[track_caller]
+    fn addmm_post<F, F2>(
+        &self,
+        rhs: RHS,
+        bias: RHS,
+        post_op: F,
+        post_op_vec: F2,
+    ) -> std::result::Result<Self::Output, TensorError>
+    where
+        F: Fn(Self::OutputMeta, usize, usize) -> Self::OutputMeta + Clone + Send + Sync + 'static,
+        F2: Fn(<<Self as MatmulPost<RHS>>::OutputMeta as TypeCommon>::Vec, usize, usize) -> <<Self as MatmulPost<RHS>>::OutputMeta as TypeCommon>::Vec + Clone + Send + Sync + 'static;
 }
 /// A trait for gemm operations on tensors.
 pub trait Gemm<RHS = Self>

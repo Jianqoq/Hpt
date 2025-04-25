@@ -303,8 +303,8 @@ macro_rules! call_non_packed_microkernel {
     func_name ty  get_kernel  need_post_op has_bias;
     [matmul]  [T] [get_kernel] [false] [false];
     [matmul_post]  [T] [get_kernel_with_post_op] [true] [false];
-    [matmul_bias]  [T] [get_kernel] [false] [true];
-    [matmul_post_bias]  [T] [get_kernel_with_post_op] [true] [true];
+    // [matmul_bias]  [T] [get_kernel] [false] [true];
+    // [matmul_post_bias]  [T] [get_kernel_with_post_op] [true] [true];
 )]
 pub(crate) fn func_name<T, F1, F2>(
     a: Pointer<T>,
@@ -445,7 +445,7 @@ pub(crate) fn func_name<T, F1, F2>(
                             'outer: for j in (j_start..n).step_by(nc) {
                                 let jb = min(nc, n - j);
                                 let c = out + (i as i64) * ldc + (j as i64);
-                                let bias = bias + (i as i64) * bias_row_stride + (j as i64) * bias_col_stride;
+                                let _bias = bias + (i as i64) * bias_row_stride + (j as i64) * bias_col_stride;
                                 pack_b::<T>(
                                     b + ((p as i64) * ldb + (j as i64) * rhs_col_stride),
                                     packed_b,
@@ -476,7 +476,7 @@ pub(crate) fn func_name<T, F1, F2>(
                                                 packed_a + (kc as i64) * (ii as i64),
                                                 packed_b,
                                                 c + (ii as i64) * ldc + (jj as i64),
-                                                bias + (ii as i64) * bias_row_stride + (jj as i64) * bias_col_stride,
+                                                _bias + (ii as i64) * bias_row_stride + (jj as i64) * bias_col_stride,
                                                 micro_kernel,
                                                 ldc,
                                                 pb,
@@ -497,7 +497,7 @@ pub(crate) fn func_name<T, F1, F2>(
                                                 packed_a + (ii as i64) * lda,
                                                 packed_b,
                                                 c + (ii as i64) * ldc + (jj as i64),
-                                                bias + (ii as i64) * bias_row_stride + (jj as i64) * bias_col_stride,
+                                                _bias + (ii as i64) * bias_row_stride + (jj as i64) * bias_col_stride,
                                                 micro_kernel,
                                                 ldc,
                                                 lda,

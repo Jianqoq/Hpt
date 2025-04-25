@@ -1,46 +1,46 @@
-use std::borrow::{ Borrow, BorrowMut };
+use std::borrow::{Borrow, BorrowMut};
 
-use crate::backends::cpu::kernels::matmul::matmul::{ matmul, matmul_template_no_block_info };
+use crate::backends::cpu::kernels::matmul::matmul::{matmul, matmul_template_no_block_info};
 use crate::backends::cpu::kernels::matmul::matmul_mixed_precision::{
     bf16_matmul_mixed_precision_template_no_block_info,
     f16_matmul_mixed_precision_template_no_block_info,
 };
 use crate::backends::cpu::kernels::matmul::matmul_mp_post::{
-    bf16_matmul_mp_post_template_no_block_info,
-    f16_matmul_mp_post_template_no_block_info,
+    bf16_matmul_mp_post_template_no_block_info, f16_matmul_mp_post_template_no_block_info,
 };
 use crate::backends::cpu::kernels::matmul::matmul_post::{
-    matmul_post,
-    matmul_post_template_no_block_info,
+    matmul_post, matmul_post_template_no_block_info,
 };
 use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 use crate::tensor_base::_Tensor;
+use crate::utils::get_num_threads;
 use crate::CUSTOM_THREAD_POOL;
-use hpt_allocator::traits::{ Allocator, AllocatorOutputRetrive };
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_allocator::Cpu;
-use hpt_common::error::{ base::TensorError, shape::ShapeError };
+use hpt_common::error::{base::TensorError, shape::ShapeError};
 use hpt_common::shape::shape::Shape;
 use hpt_common::shape::shape_utils::predict_broadcast_shape;
-use hpt_common::shape::shape_utils::{ compare_and_pad_shapes, mt_intervals };
+use hpt_common::shape::shape_utils::{compare_and_pad_shapes, mt_intervals};
 use hpt_common::strides::strides_utils::preprocess_strides;
-use hpt_traits::ops::binary::{ Matmul, MatmulPost };
+use hpt_traits::ops::binary::{Matmul, MatmulPost};
 use hpt_traits::ops::creation::TensorCreator;
-use hpt_traits::tensor::{ CommonBounds, TensorInfo };
+use hpt_traits::tensor::{CommonBounds, TensorInfo};
 
 #[track_caller]
-pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
+pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize, F1, F2>(
     lhs: &_Tensor<T, Cpu, DEVICE, A2>,
     rhs: &_Tensor<T, Cpu, DEVICE, A2>,
     out: Option<O>,
-    post_op: Option<fn(T, usize, usize) -> T>,
-    post_op_vec: Option<fn(T::Vec, usize, usize) -> T::Vec>
-)
-    -> std::result::Result<_Tensor<T, Cpu, DEVICE, A2>, TensorError>
-    where
-        T: CommonBounds + MatmulMicroKernel,
-        O: BorrowMut<_Tensor<T, Cpu, DEVICE, A2>>,
-        A2: Allocator,
-        A2::Output: AllocatorOutputRetrive
+    post_op: Option<F1>,
+    post_op_vec: Option<F2>,
+) -> std::result::Result<_Tensor<T, Cpu, DEVICE, A2>, TensorError>
+where
+    T: CommonBounds + MatmulMicroKernel,
+    O: BorrowMut<_Tensor<T, Cpu, DEVICE, A2>>,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
 {
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         match (post_op, post_op_vec) {
@@ -58,7 +58,7 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                                     .static_cast::<half::bf16>()
                                     .expect("static_cast bf16 failed")
                             }),
-                            rayon::current_num_threads()
+                            rayon::current_num_threads(),
                         )?;
                         Ok(res.static_cast::<T>()?)
                     } else {
@@ -66,19 +66,15 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                             lhs,
                             rhs,
                             out.map(|mut x| x.borrow_mut().clone()),
-                            rayon::current_num_threads()
+                            rayon::current_num_threads(),
                         )
                     }
                 }
-                #[cfg(
-                    not(
-                        all(
-                            target_feature = "neon",
-                            target_arch = "aarch64",
-                            target_feature = "fp16"
-                        )
-                    )
-                )]
+                #[cfg(not(all(
+                    target_feature = "neon",
+                    target_arch = "aarch64",
+                    target_feature = "fp16"
+                )))]
                 {
                     match T::STR {
                         "f16" => {
@@ -92,7 +88,7 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                                         .static_cast::<half::f16>()
                                         .expect("static_cast f16 failed")
                                 }),
-                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed)
+                                get_num_threads(),
                             )?;
                             Ok(res.static_cast::<T>()?)
                         }
@@ -107,24 +103,25 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                                         .static_cast::<half::bf16>()
                                         .expect("static_cast bf16 failed")
                                 }),
-                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed)
+                                get_num_threads(),
                             )?;
                             Ok(res.static_cast::<T>()?)
                         }
-                        _ =>
-                            matmul(
-                                lhs,
-                                rhs,
-                                out.map(|mut x| x.borrow_mut().clone()),
-                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed)
-                            ),
+                        _ => matmul(
+                            lhs,
+                            rhs,
+                            out.map(|mut x| x.borrow_mut().clone()),
+                            get_num_threads(),
+                        ),
                     }
                 }
             }
             (Some(post_op), Some(post_op_vec)) => {
-                #[cfg(
-                    all(target_feature = "neon", target_arch = "aarch64", target_feature = "fp16")
-                )]
+                #[cfg(all(
+                    target_feature = "neon",
+                    target_arch = "aarch64",
+                    target_feature = "fp16"
+                ))]
                 {
                     if T::STR == "bf16" {
                         use crate::backends::cpu::kernels::matmul::matmul_mp_post::bf16_matmul_post;
@@ -134,7 +131,7 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                             out.map(|mut x| x.borrow_mut().clone()),
                             post_op,
                             post_op_vec,
-                            rayon::current_num_threads()
+                            rayon::current_num_threads(),
                         )?;
                         Ok(res.static_cast::<T>()?)
                     } else {
@@ -144,68 +141,49 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                             out.map(|mut x| x.borrow_mut().clone()),
                             post_op,
                             post_op_vec,
-                            rayon::current_num_threads()
+                            rayon::current_num_threads(),
                         )
                     }
                 }
-                #[cfg(
-                    not(
-                        all(
-                            target_feature = "neon",
-                            target_arch = "aarch64",
-                            target_feature = "fp16"
-                        )
-                    )
-                )]
+                #[cfg(not(all(
+                    target_feature = "neon",
+                    target_arch = "aarch64",
+                    target_feature = "fp16"
+                )))]
                 {
                     match T::STR {
                         "f16" => {
                             use crate::backends::cpu::kernels::matmul::matmul_mp_post::f16_matmul_post;
-                            let post_op = unsafe { std::mem::transmute(post_op) };
-                            let post_op_vec = unsafe { std::mem::transmute(post_op_vec) };
                             let res = f16_matmul_post(
-                                &lhs.static_cast::<half::f16>()?,
-                                &rhs.static_cast::<half::f16>()?,
-                                out.map(|mut x| {
-                                    x.borrow_mut()
-                                        .clone()
-                                        .static_cast::<half::f16>()
-                                        .expect("static_cast f16 failed")
-                                }),
+                                &lhs,
+                                &rhs,
+                                out.map(|mut x| x.borrow_mut().clone()),
                                 post_op,
                                 post_op_vec,
-                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed)
+                                get_num_threads(),
                             )?;
                             Ok(res.static_cast::<T>()?)
                         }
                         "bf16" => {
                             use crate::backends::cpu::kernels::matmul::matmul_mp_post::bf16_matmul_post;
-                            let post_op = unsafe { std::mem::transmute(post_op) };
-                            let post_op_vec = unsafe { std::mem::transmute(post_op_vec) };
                             let res = bf16_matmul_post(
-                                &lhs.static_cast::<half::bf16>()?,
-                                &rhs.static_cast::<half::bf16>()?,
-                                out.map(|mut x| {
-                                    x.borrow_mut()
-                                        .clone()
-                                        .static_cast::<half::bf16>()
-                                        .expect("static_cast bf16 failed")
-                                }),
-                                post_op,
-                                post_op_vec,
-                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed)
-                            )?;
-                            Ok(res.static_cast::<T>()?)
-                        }
-                        _ =>
-                            matmul_post(
-                                lhs,
-                                rhs,
+                                &lhs,
+                                &rhs,
                                 out.map(|mut x| x.borrow_mut().clone()),
                                 post_op,
                                 post_op_vec,
-                                RAYON_NUM_THREADS.load(std::sync::atomic::Ordering::Relaxed)
-                            ),
+                                get_num_threads(),
+                            )?;
+                            Ok(res.static_cast::<T>()?)
+                        }
+                        _ => matmul_post(
+                            lhs,
+                            rhs,
+                            out.map(|mut x| x.borrow_mut().clone()),
+                            post_op,
+                            post_op_vec,
+                            get_num_threads(),
+                        ),
                     }
                 }
             }
@@ -223,10 +201,9 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
             b_shape = longer_shape;
         }
         ShapeError::check_matmul(lhs.shape(), rhs.shape())?;
-        let mut res_shape = predict_broadcast_shape(
-            &a_shape[..a_shape.len() - 2],
-            &b_shape[..b_shape.len() - 2]
-        )?.to_vec();
+        let mut res_shape =
+            predict_broadcast_shape(&a_shape[..a_shape.len() - 2], &b_shape[..b_shape.len() - 2])?
+                .to_vec();
         let mut iterate_shape = res_shape.clone();
         res_shape.push(a_shape[a_shape.len() - 2]);
         res_shape.push(b_shape[b_shape.len() - 1]);
@@ -240,9 +217,8 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
         let a_strides = preprocess_strides(&a_shape, &lhs.strides());
         let b_strides = preprocess_strides(&b_shape, &rhs.strides());
         let batch = iterate_shape.iter().fold(1, |acc, x| acc * (*x as usize));
-        let res_inner_matrix_size =
-            (res.shape()[res.shape().len() - 2] as usize) *
-            (res.shape()[res.shape().len() - 1] as usize);
+        let res_inner_matrix_size = (res.shape()[res.shape().len() - 2] as usize)
+            * (res.shape()[res.shape().len() - 1] as usize);
         iterate_shape.iter_mut().for_each(|x| {
             *x -= 1;
         });
@@ -253,9 +229,7 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
         let num_threads = batch.min(rayon_num_threads);
         let num_threads_each = if batch < rayon_num_threads {
             let vec = mt_intervals(rayon_num_threads, batch);
-            vec.iter()
-                .map(|x| x.1 - x.0)
-                .collect::<Vec<usize>>()
+            vec.iter().map(|x| x.1 - x.0).collect::<Vec<usize>>()
         } else {
             vec![1; rayon_num_threads]
         };
@@ -303,14 +277,17 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                 .zip(prgs);
             pool.parallel_for(
                 iter,
-                move |
-                    (((((threads, (start, end)), mut res_ptr), mut a_ptr), mut b_ptr), mut prg),
-                    _
-                | {
+                move |(
+                    ((((threads, (start, end)), mut res_ptr), mut a_ptr), mut b_ptr),
+                    mut prg,
+                ),
+                      _| {
                     for _ in start..end {
                         match T::STR {
                             "f16" => {
-                                if let (Some(post_op), Some(post_op_vec)) = (post_op, post_op_vec) {
+                                if let (Some(post_op), Some(post_op_vec)) =
+                                    (post_op.clone(), post_op_vec.clone())
+                                {
                                     f16_matmul_mp_post_template_no_block_info::<T, f32, _, _>(
                                         a_ptr,
                                         b_ptr,
@@ -325,27 +302,19 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                                         rhs_cs,
                                         threads,
                                         post_op,
-                                        post_op_vec
+                                        post_op_vec,
                                     );
                                 } else {
                                     f16_matmul_mixed_precision_template_no_block_info::<T, f32>(
-                                        a_ptr,
-                                        b_ptr,
-                                        res_ptr,
-                                        m,
-                                        n,
-                                        k,
-                                        lhs_rs,
-                                        rhs_rs,
-                                        dst_cs,
-                                        lhs_cs,
-                                        rhs_cs,
-                                        threads
+                                        a_ptr, b_ptr, res_ptr, m, n, k, lhs_rs, rhs_rs, dst_cs,
+                                        lhs_cs, rhs_cs, threads,
                                     );
                                 }
                             }
                             "bf16" => {
-                                if let (Some(post_op), Some(post_op_vec)) = (post_op, post_op_vec) {
+                                if let (Some(post_op), Some(post_op_vec)) =
+                                    (post_op.clone(), post_op_vec.clone())
+                                {
                                     bf16_matmul_mp_post_template_no_block_info::<T, f32, _, _>(
                                         a_ptr,
                                         b_ptr,
@@ -360,27 +329,19 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                                         rhs_cs,
                                         threads,
                                         post_op,
-                                        post_op_vec
+                                        post_op_vec,
                                     );
                                 } else {
                                     bf16_matmul_mixed_precision_template_no_block_info::<T, f32>(
-                                        a_ptr,
-                                        b_ptr,
-                                        res_ptr,
-                                        m,
-                                        n,
-                                        k,
-                                        lhs_rs,
-                                        rhs_rs,
-                                        dst_cs,
-                                        lhs_cs,
-                                        rhs_cs,
-                                        threads
+                                        a_ptr, b_ptr, res_ptr, m, n, k, lhs_rs, rhs_rs, dst_cs,
+                                        lhs_cs, rhs_cs, threads,
                                     );
                                 }
                             }
                             _ => {
-                                if let (Some(post_op), Some(post_op_vec)) = (post_op, post_op_vec) {
+                                if let (Some(post_op), Some(post_op_vec)) =
+                                    (post_op.clone(), post_op_vec.clone())
+                                {
                                     matmul_post_template_no_block_info(
                                         a_ptr.clone(),
                                         b_ptr.clone(),
@@ -395,7 +356,7 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                                         rhs_cs,
                                         post_op,
                                         post_op_vec,
-                                        threads
+                                        threads,
                                     );
                                 } else {
                                     matmul_template_no_block_info(
@@ -410,7 +371,7 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                                         dst_cs,
                                         lhs_cs,
                                         rhs_cs,
-                                        threads
+                                        threads,
                                     );
                                 }
                             }
@@ -429,16 +390,18 @@ pub(crate) fn matmul_with_out<T, O, A2, const DEVICE: usize>(
                             }
                         }
                     }
-                }
+                },
             );
         });
         Ok(res)
     }
 }
 
-impl<T, A2, const DEVICE: usize> Matmul<_Tensor<T, Cpu, DEVICE, A2>>
-    for _Tensor<T, Cpu, DEVICE, A2>
-    where T: CommonBounds + MatmulMicroKernel, A2: Allocator, A2::Output: AllocatorOutputRetrive
+impl<T, A2, const DEVICE: usize> Matmul<_Tensor<T, Cpu, DEVICE, A2>> for _Tensor<T, Cpu, DEVICE, A2>
+where
+    T: CommonBounds + MatmulMicroKernel,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
     type Output = _Tensor<T, Cpu, DEVICE, A2>;
 
@@ -452,29 +415,41 @@ impl<T, A2, const DEVICE: usize> Matmul<_Tensor<T, Cpu, DEVICE, A2>>
             &rhs,
             None::<Self::Output>,
             None::<fn(T, usize, usize) -> T>,
-            None::<fn(T::Vec, usize, usize) -> T::Vec>
+            None::<fn(T::Vec, usize, usize) -> T::Vec>,
         )
     }
     fn matmul_<U>(
         &self,
         rhs: _Tensor<T, Cpu, DEVICE, A2>,
-        out: U
+        out: U,
     ) -> Result<Self::Output, TensorError>
-        where U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>
+    where
+        U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
     {
         matmul_with_out(
             self,
             &rhs,
             Some(out),
             None::<fn(T, usize, usize) -> T>,
-            None::<fn(T::Vec, usize, usize) -> T::Vec>
+            None::<fn(T::Vec, usize, usize) -> T::Vec>,
         )
+    }
+
+    fn addmm(
+        &self,
+        rhs: _Tensor<T, Cpu, DEVICE, A2>,
+        bias: _Tensor<T, Cpu, DEVICE, A2>,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        todo!()
     }
 }
 
 impl<T, A2, const DEVICE: usize> Matmul<&_Tensor<T, Cpu, DEVICE, A2>>
     for _Tensor<T, Cpu, DEVICE, A2>
-    where T: CommonBounds + MatmulMicroKernel, A2: Allocator, A2::Output: AllocatorOutputRetrive
+where
+    T: CommonBounds + MatmulMicroKernel,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
     type Output = _Tensor<T, Cpu, DEVICE, A2>;
 
@@ -488,30 +463,42 @@ impl<T, A2, const DEVICE: usize> Matmul<&_Tensor<T, Cpu, DEVICE, A2>>
             &rhs,
             None::<Self::Output>,
             None::<fn(T, usize, usize) -> T>,
-            None::<fn(T::Vec, usize, usize) -> T::Vec>
+            None::<fn(T::Vec, usize, usize) -> T::Vec>,
         )
     }
 
     fn matmul_<U>(
         &self,
         rhs: &_Tensor<T, Cpu, DEVICE, A2>,
-        out: U
+        out: U,
     ) -> Result<Self::Output, TensorError>
-        where U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>
+    where
+        U: Borrow<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
     {
         matmul_with_out(
             self,
             rhs,
             Some(out),
             None::<fn(T, usize, usize) -> T>,
-            None::<fn(T::Vec, usize, usize) -> T::Vec>
+            None::<fn(T::Vec, usize, usize) -> T::Vec>,
         )
+    }
+
+    fn addmm(
+        &self,
+        rhs: &_Tensor<T, Cpu, DEVICE, A2>,
+        bias: &_Tensor<T, Cpu, DEVICE, A2>,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        todo!()
     }
 }
 
 impl<T, A2, const DEVICE: usize> MatmulPost<_Tensor<T, Cpu, DEVICE, A2>>
     for _Tensor<T, Cpu, DEVICE, A2>
-    where T: CommonBounds + MatmulMicroKernel, A2: Allocator, A2::Output: AllocatorOutputRetrive
+where
+    T: CommonBounds + MatmulMicroKernel,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
     type Output = _Tensor<T, Cpu, DEVICE, A2>;
 
@@ -523,9 +510,15 @@ impl<T, A2, const DEVICE: usize> MatmulPost<_Tensor<T, Cpu, DEVICE, A2>>
         &self,
         rhs: _Tensor<T, Cpu, DEVICE, A2>,
         post_op: fn(T, usize, usize) -> T,
-        post_op_vec: fn(T::Vec, usize, usize) -> T::Vec
+        post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
     ) -> std::result::Result<Self::Output, TensorError> {
-        matmul_with_out(self, &rhs, None::<Self::Output>, Some(post_op), Some(post_op_vec))
+        matmul_with_out(
+            self,
+            &rhs,
+            None::<Self::Output>,
+            Some(post_op),
+            Some(post_op_vec),
+        )
     }
 
     fn matmul_post_<U>(
@@ -533,17 +526,87 @@ impl<T, A2, const DEVICE: usize> MatmulPost<_Tensor<T, Cpu, DEVICE, A2>>
         rhs: _Tensor<T, Cpu, DEVICE, A2>,
         post_op: fn(T, usize, usize) -> T,
         post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
-        out: U
+        out: U,
     ) -> std::result::Result<Self::InplaceOutput, TensorError>
-        where U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>
+    where
+        U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
     {
         matmul_with_out(self, &rhs, Some(out), Some(post_op), Some(post_op_vec))
+    }
+
+    fn addmm_post<F, F2>(
+        &self,
+        rhs: _Tensor<T, Cpu, DEVICE, A2>,
+        bias: _Tensor<T, Cpu, DEVICE, A2>,
+        post_op: F,
+        post_op_vec: F2,
+    ) -> std::result::Result<Self::Output, TensorError>
+    where
+        F: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+        F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
+    {
+        let bias_strides = bias.strides();
+        if bias.ndim() > 2 {
+            panic!("bias must be a 2D tensor");
+        }
+        let bias_cs = bias_strides[bias_strides.len() - 1];
+        let bias_rs = if bias.ndim() == 1 {
+            0i64
+        } else {
+            bias_strides[bias_strides.len() - 2]
+        };
+        let ptr = bias.ptr();
+        if bias_cs == 1 {
+            matmul_with_out(
+                self,
+                &rhs,
+                None::<Self::Output>,
+                Some(move |x: T, m: usize, n: usize| {
+                    let val = ptr[m as i64 * bias_rs + n as i64 * bias_cs];
+                    post_op(x._add(val), m, n)
+                }),
+                Some(move |x: T::Vec, mm: usize, nn: usize| {
+                    use hpt_types::type_promote::NormalOut;
+                    let offset = mm as i64 * bias_rs + nn as i64 * bias_cs;
+                    let vec = ptr
+                        .cast::<T>()
+                        .offset(offset)
+                        .cast::<T::Vec>()
+                        .read_unaligned();
+                    post_op_vec(x._add(vec), mm, nn)
+                }),
+            )
+        } else {
+            matmul_with_out(
+                self,
+                &rhs,
+                None::<Self::Output>,
+                Some(move |x: T, m: usize, n: usize| {
+                    let val = ptr[m as i64 * bias_rs + n as i64 * bias_cs];
+                    post_op(x._add(val), m, n)
+                }),
+                Some(move |x: T::Vec, mm: usize, nn: usize| {
+                    use hpt_types::traits::VecTrait;
+                    use hpt_types::type_promote::NormalOut;
+                    let offset = mm as i64 * bias_rs + nn as i64 * bias_cs;
+                    let ptr = ptr.cast::<T>().offset(offset);
+                    let mut vec = T::Vec::splat(T::ZERO);
+                    for i in 0..T::Vec::SIZE {
+                        vec[i] = ptr[i];
+                    }
+                    post_op_vec(x._add(vec), mm, nn)
+                }),
+            )
+        }
     }
 }
 
 impl<T, A2, const DEVICE: usize> MatmulPost<&_Tensor<T, Cpu, DEVICE, A2>>
     for _Tensor<T, Cpu, DEVICE, A2>
-    where T: CommonBounds + MatmulMicroKernel, A2: Allocator, A2::Output: AllocatorOutputRetrive
+where
+    T: CommonBounds + MatmulMicroKernel,
+    A2: Allocator,
+    A2::Output: AllocatorOutputRetrive,
 {
     type Output = _Tensor<T, Cpu, DEVICE, A2>;
 
@@ -555,9 +618,15 @@ impl<T, A2, const DEVICE: usize> MatmulPost<&_Tensor<T, Cpu, DEVICE, A2>>
         &self,
         rhs: &_Tensor<T, Cpu, DEVICE, A2>,
         post_op: fn(T, usize, usize) -> T,
-        post_op_vec: fn(T::Vec, usize, usize) -> T::Vec
+        post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
     ) -> std::result::Result<Self::Output, TensorError> {
-        matmul_with_out(self, &rhs, None::<Self::Output>, Some(post_op), Some(post_op_vec))
+        matmul_with_out(
+            self,
+            &rhs,
+            None::<Self::Output>,
+            Some(post_op),
+            Some(post_op_vec),
+        )
     }
 
     fn matmul_post_<U>(
@@ -565,10 +634,25 @@ impl<T, A2, const DEVICE: usize> MatmulPost<&_Tensor<T, Cpu, DEVICE, A2>>
         rhs: &_Tensor<T, Cpu, DEVICE, A2>,
         post_op: fn(T, usize, usize) -> T,
         post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
-        out: U
+        out: U,
     ) -> std::result::Result<Self::InplaceOutput, TensorError>
-        where U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>
+    where
+        U: BorrowMut<Self::InplaceOutput> + BorrowMut<Self::InplaceOutput>,
     {
         matmul_with_out(self, &rhs, Some(out), Some(post_op), Some(post_op_vec))
+    }
+
+    fn addmm_post<F, F2>(
+        &self,
+        rhs: &_Tensor<T, Cpu, DEVICE, A2>,
+        bias: &_Tensor<T, Cpu, DEVICE, A2>,
+        post_op: F,
+        post_op_vec: F2,
+    ) -> std::result::Result<Self::Output, TensorError>
+    where
+        F: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+        F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
+    {
+        self.addmm_post(rhs.clone(), bias.clone(), post_op, post_op_vec)
     }
 }

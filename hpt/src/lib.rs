@@ -452,7 +452,7 @@ pub mod utils {
 
     /// Get the global number of threads
     pub fn get_num_threads() -> usize {
-        THREAD_POOL.with(|x| x.borrow().max_count())
+        CUSTOM_THREAD_POOL.with(|x| x.borrow().num_threads())
     }
     /// Set the Tensor display precision
     pub fn set_display_precision(precision: usize) {

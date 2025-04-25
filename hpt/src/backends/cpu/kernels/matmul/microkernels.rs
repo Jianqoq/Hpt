@@ -271,19 +271,17 @@ macro_rules! store_res_scalar {
         $ldc:expr,
         $c_local:expr => $c_ty: ty,
         $jb:expr,
+        $nn: ident,
         [$res_ptr:ident <= $to_store:ident],
         $($stores:tt)*
     ) => {
         $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
-            $crate::re_exports::seq_macro::seq!(NR1 in 0..$nr {
-                if NR1 == $jb {
-                    $crate::re_exports::seq_macro::seq!(NR in 0..NR1 {
-                        let $res_ptr = unsafe { $c_ptr.ptr.offset((MR * $ldc + NR) as isize) } as *mut $res_ty;
-                        let $to_store = unsafe { ($c_local[MR].as_ptr() as *const $c_ty).offset(NR).read() };
-                        $($stores)*;
-                    });
-                }
-            });
+            let c_local_ptr = $c_local[MR].as_ptr() as *const $c_ty;
+            for $nn in 0..$jb as i64 {
+                let $res_ptr = unsafe { $c_ptr.ptr.offset((MR * $ldc + $nn) as isize) } as *mut $res_ty;
+                let $to_store = unsafe { c_local_ptr.offset($nn as isize).read() };
+                $($stores)*;
+            }
         });
     };
 }
@@ -363,7 +361,8 @@ macro_rules! define_matmul_micro_kernel {
                         c => T, 
                         ldc, 
                         c_local => T, 
-                        jb, 
+                        jb,
+                        nn,
                         [res_ptr <= c_val], 
                         unsafe { *res_ptr = c_val }
                     );
@@ -374,7 +373,8 @@ macro_rules! define_matmul_micro_kernel {
                         c => T, 
                         ldc, 
                         c_local => T, 
-                        jb, 
+                        jb,
+                        nn,
                         [res_ptr <= c_val], 
                         unsafe { *res_ptr = (*res_ptr)._add(c_val) }
                     );
@@ -644,16 +644,16 @@ macro_rules! define_post_op_matmul_micro_kernel {
             } else {
                 match (first_kiter, last_kiter) {
                     (true, true) => {
-                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, [res_ptr <= c_val], unsafe { *res_ptr = _post_op(c_val, m_idx + MR, n_idx + NR) });
+                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, nn, [res_ptr <= c_val], unsafe { *res_ptr = _post_op(c_val, m_idx + MR, n_idx + nn as usize) });
                     }
                     (true, false) => {
-                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, [res_ptr <= c_val], unsafe { *res_ptr = c_val });
+                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, nn, [res_ptr <= c_val], unsafe { *res_ptr = c_val });
                     }
                     (false, true) => {
-                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, [res_ptr <= c_val], unsafe { *res_ptr = _post_op((*res_ptr)._add(c_val), m_idx + MR, n_idx + NR) });
+                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, nn, [res_ptr <= c_val], unsafe { *res_ptr = _post_op((*res_ptr)._add(c_val), m_idx + MR, n_idx + nn as usize) });
                     }
                     (false, false) => {
-                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, [res_ptr <= c_val], unsafe { *res_ptr = c_val._add(c_val) });
+                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, nn, [res_ptr <= c_val], unsafe { *res_ptr = c_val._add(c_val) });
                     },
                 }
             }
@@ -929,6 +929,7 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
                         ldc,
                         c_local => IM,
                         jb,
+                        nn,
                         [res_ptr <= c_val],
                         unsafe { cast_back(&mut *res_ptr, &c_val) }
                     );
@@ -940,6 +941,7 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
                         ldc,
                         c_local => IM,
                         jb,
+                        nn,
                         [res_ptr <= c_val],
                         let mut res = T::ZERO;
                         cast_back(&mut res, &c_val);
@@ -1067,10 +1069,11 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                             ldc,
                             c_local => IM,
                             jb,
+                            nn,
                             [res_ptr <= c_val],
                             let mut res = T::ZERO;
                             cast_back(&mut res, &c_val);
-                            unsafe { res_ptr.write(post_op(res, m_idx + MR, n_idx + NR)) }
+                            unsafe { res_ptr.write(post_op(res, m_idx + MR, n_idx + nn as usize)) }
                         );
                     }
                     (true, false) => {
@@ -1081,6 +1084,7 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                             ldc,
                             c_local => IM,
                             jb,
+                            nn,
                             [res_ptr <= c_val],
                             unsafe { cast_back(&mut *res_ptr, &c_val) }
                         );
@@ -1093,10 +1097,11 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                             ldc,
                             c_local => IM,
                             jb,
+                            nn,
                             [res_ptr <= c_val],
                             let mut res = T::ZERO;
                             cast_back(&mut res, &c_val);
-                            unsafe { res_ptr.write(post_op(res._add(*res_ptr), m_idx + MR, n_idx + NR)) }
+                            unsafe { res_ptr.write(post_op(res._add(*res_ptr), m_idx + MR, n_idx + nn as usize)) }
                         );
                     }
                     (false, false) => {
@@ -1107,6 +1112,7 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                             ldc,
                             c_local => IM,
                             jb,
+                            nn,
                             [res_ptr <= c_val],
                             let mut res = T::ZERO;
                             cast_back(&mut res, &c_val);

@@ -64,7 +64,7 @@ pub fn matmul_template_no_block_info<T>(
         a,
         b,
         out,
-        Pointer::null(),
+        hpt_common::Pointer::<T>::null(),
         m,
         n,
         k,

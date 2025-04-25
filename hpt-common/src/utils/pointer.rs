@@ -22,7 +22,10 @@ impl<T> Pointer<T> {
     /// # Returns
     /// `Pointer<T>`
     pub fn null() -> Self {
-        Self { ptr: std::ptr::null_mut(), len: 0 }
+        #[cfg(feature = "bound_check")]
+        return Self { ptr: std::ptr::null_mut(), len: 0 };
+        #[cfg(not(feature = "bound_check"))]
+        return Self { ptr: std::ptr::null_mut() };
     }
     /// return a slice of the pointer
     ///
@@ -143,10 +146,19 @@ impl<T> Pointer<T> {
     /// unsafe { std::alloc::dealloc(_a as *mut u8, std::alloc::Layout::new::<i32>()); }
     /// ```
     #[inline(always)]
-    pub fn add(&mut self, offset: usize) {
+    pub fn add(&mut self, offset: usize) -> Self {
         unsafe {
             self.ptr = self.ptr.add(offset);
         }
+        #[cfg(feature = "bound_check")]
+        return Self {
+            ptr: self.ptr,
+            len: self.len,
+        };
+        #[cfg(not(feature = "bound_check"))]
+        return Self {
+            ptr: self.ptr,
+        };
     }
 
     /// inplace offset the value of the pointer in the current address
@@ -165,10 +177,55 @@ impl<T> Pointer<T> {
     /// unsafe { std::alloc::dealloc(_a as *mut u8, std::alloc::Layout::new::<i32>()); }
     /// ```
     #[inline(always)]
-    pub fn offset(&mut self, offset: i64) {
+    pub fn offset(&mut self, offset: i64) -> Self {
         unsafe {
             self.ptr = self.ptr.offset(offset as isize);
         }
+        #[cfg(feature = "bound_check")]
+        return Self {
+            ptr: self.ptr,
+            len: self.len,
+        };
+        #[cfg(not(feature = "bound_check"))]
+        return Self {
+            ptr: self.ptr,
+        };
+    }
+
+    /// read the value of the pointer in the current address
+    ///
+    /// # Returns
+    /// `T`
+    #[inline(always)]
+    pub fn read_unaligned(&self) -> T {
+        unsafe { self.ptr.read_unaligned() }
+    }
+
+    /// write the value of the pointer in the current address
+    ///
+    /// # Arguments
+    /// `value` - the value to be written
+    #[inline(always)]
+    pub fn write_unaligned(&self, value: T) {
+        unsafe { self.ptr.write_unaligned(value) }
+    }
+
+    /// read the value of the pointer in the current address
+    ///
+    /// # Returns
+    /// `T`
+    #[inline(always)]
+    pub fn read(&self) -> T {
+        unsafe { self.ptr.read() }
+    }
+
+    /// write the value of the pointer in the current address
+    ///
+    /// # Arguments
+    /// `value` - the value to be written
+    #[inline(always)]
+    pub fn write(&self, value: T) {
+        unsafe { self.ptr.write(value) }
     }
 }
 
