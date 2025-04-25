@@ -16,9 +16,11 @@ use hpt_types::traits::VecTrait;
 macro_rules! call_microkernel {
     (
         true,
+        false,
         $packed_a:expr,
         $packed_b:expr,
         $c:expr,
+        $bias:expr,
         $micro_kernel:expr,
         $ldc:expr,
         $pb:expr,
@@ -28,6 +30,7 @@ macro_rules! call_microkernel {
         $m_idx:expr,
         $n_idx:expr,
         $last_k_iter:expr,
+        $bias_strides:expr,
         $post_op:expr,
         $post_op_vec:expr
     ) => {
@@ -50,9 +53,11 @@ macro_rules! call_microkernel {
     };
     (
         false,
+        false,
         $packed_a:expr,
         $packed_b:expr,
         $c:expr,
+        $bias:expr,
         $micro_kernel:expr,
         $ldc:expr,
         $pb:expr,
@@ -62,6 +67,7 @@ macro_rules! call_microkernel {
         $m_idx:expr,
         $n_idx:expr,
         $last_k_iter:expr,
+        $bias_strides:expr,
         $post_op:expr,
         $post_op_vec:expr
     ) => {
@@ -77,14 +83,85 @@ macro_rules! call_microkernel {
             $first_kiter
         );
     };
+    (
+        false,
+        true,
+        $packed_a:expr,
+        $packed_b:expr,
+        $c:expr,
+        $bias:expr,
+        $micro_kernel:expr,
+        $ldc:expr,
+        $pb:expr,
+        $jjb:expr,
+        $mb:expr,
+        $first_kiter:expr,
+        $m_idx:expr,
+        $n_idx:expr,
+        $last_k_iter:expr,
+        $bias_strides:expr,
+        $post_op:expr,
+        $post_op_vec:expr
+    ) => {
+        $micro_kernel(
+            $packed_a,
+            $packed_b,
+            $c,
+            $ldc,
+            1,
+            $pb,
+            $jjb,
+            $mb as i64,
+            $first_kiter
+        );
+    };
+    (
+        true,
+        true,
+        $packed_a:expr,
+        $packed_b:expr,
+        $c:expr,
+        $bias:expr,
+        $micro_kernel:expr,
+        $ldc:expr,
+        $pb:expr,
+        $jjb:expr,
+        $mb:expr,
+        $first_kiter:expr,
+        $m_idx:expr,
+        $n_idx:expr,
+        $last_k_iter:expr,
+        $bias_strides:expr,
+        $post_op:expr,
+        $post_op_vec:expr
+    ) => {
+        $micro_kernel(
+            $packed_a,
+            $packed_b,
+            $c,
+            $ldc,
+            1,
+            $pb,
+            $jjb,
+            $mb as i64,
+            $first_kiter,
+            $last_k_iter,
+            $m_idx,
+            $n_idx,
+            $post_op.clone(),
+            $post_op_vec.clone()
+        );
+    };
 }
 
 macro_rules! call_non_packed_microkernel {
     (
         true,
+        false,
         $packed_a:expr,
         $packed_b:expr,
         $c:expr,
+        $bias:expr,
         $micro_kernel:expr,
         $ldc:expr,
         $lda:expr,
@@ -95,6 +172,7 @@ macro_rules! call_non_packed_microkernel {
         $m_idx:expr,
         $n_idx:expr,
         $last_k_iter:expr,
+        $bias_strides:expr,
         $post_op:expr,
         $post_op_vec:expr
     ) => {
@@ -117,9 +195,11 @@ macro_rules! call_non_packed_microkernel {
     };
     (
         false,
+        false,
         $packed_a:expr,
         $packed_b:expr,
         $c:expr,
+        $bias:expr,
         $micro_kernel:expr,
         $ldc:expr,
         $lda:expr,
@@ -130,6 +210,7 @@ macro_rules! call_non_packed_microkernel {
         $m_idx:expr,
         $n_idx:expr,
         $last_k_iter:expr,
+        $bias_strides:expr,
         $post_op:expr,
         $post_op_vec:expr
     ) => {
@@ -145,17 +226,91 @@ macro_rules! call_non_packed_microkernel {
             $first_kiter,
         );
     };
+    (
+        false,
+        true,
+        $packed_a:expr,
+        $packed_b:expr,
+        $c:expr,
+        $bias:expr,
+        $micro_kernel:expr,
+        $ldc:expr,
+        $lda:expr,
+        $pb:expr,
+        $jjb:expr,
+        $lhs_col_stride:expr,
+        $first_kiter:expr,
+        $m_idx:expr,
+        $n_idx:expr,
+        $last_k_iter:expr,
+        $bias_strides:expr,
+        $post_op:expr,
+        $post_op_vec:expr
+    ) => {
+        $micro_kernel(
+            $packed_a,
+            $packed_b,
+            $c,
+            $ldc,
+            $lda,
+            $pb,
+            $jjb,
+            $lhs_col_stride,
+            $first_kiter,
+        );
+    };
+    (
+        true,
+        true,
+        $packed_a:expr,
+        $packed_b:expr,
+        $c:expr,
+        $bias:expr,
+        $micro_kernel:expr,
+        $ldc:expr,
+        $lda:expr,
+        $pb:expr,
+        $jjb:expr,
+        $lhs_col_stride:expr,
+        $first_kiter:expr,
+        $m_idx:expr,
+        $n_idx:expr,
+        $last_k_iter:expr,
+        $bias_strides:expr,
+        $post_op:expr,
+        $post_op_vec:expr
+    ) => {
+        $micro_kernel(
+            $packed_a,
+            $packed_b,
+            $c,
+            $ldc,
+            $lda,
+            $pb,
+            $jjb,
+            $lhs_col_stride,
+            $first_kiter,
+            $last_k_iter,
+            $m_idx,
+            $n_idx,
+            $post_op.clone(),
+            $post_op_vec.clone()
+        );
+    };
 }
 
 #[duplicate::duplicate_item(
-    func_name ty  get_kernel  need_post_op;
-    [matmul]  [T] [get_kernel] [false];
-    [matmul_post]  [T] [get_kernel_with_post_op] [true];
+    func_name ty  get_kernel  need_post_op has_bias;
+    [matmul]  [T] [get_kernel] [false] [false];
+    [matmul_post]  [T] [get_kernel_with_post_op] [true] [false];
+    [matmul_bias]  [T] [get_kernel] [false] [true];
+    [matmul_post_bias]  [T] [get_kernel_with_post_op] [true] [true];
 )]
 pub(crate) fn func_name<T, F1, F2>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
+    bias: Pointer<T>,
     m: usize,
     n: usize,
     k: usize,
@@ -164,6 +319,8 @@ pub(crate) fn func_name<T, F1, F2>(
     ldc: i64,
     lhs_col_stride: i64,
     rhs_col_stride: i64,
+    bias_col_stride: i64,
+    bias_row_stride: i64,
     kc: usize,
     mc: usize,
     nc: usize,
@@ -288,6 +445,7 @@ pub(crate) fn func_name<T, F1, F2>(
                             'outer: for j in (j_start..n).step_by(nc) {
                                 let jb = min(nc, n - j);
                                 let c = out + (i as i64) * ldc + (j as i64);
+                                let bias = bias + (i as i64) * bias_row_stride + (j as i64) * bias_col_stride;
                                 pack_b::<T>(
                                     b + ((p as i64) * ldb + (j as i64) * rhs_col_stride),
                                     packed_b,
@@ -314,9 +472,11 @@ pub(crate) fn func_name<T, F1, F2>(
                                         if do_lhs_pack {
                                             call_microkernel!(
                                                 need_post_op,
+                                                has_bias,
                                                 packed_a + (kc as i64) * (ii as i64),
                                                 packed_b,
                                                 c + (ii as i64) * ldc + (jj as i64),
+                                                bias + (ii as i64) * bias_row_stride + (jj as i64) * bias_col_stride,
                                                 micro_kernel,
                                                 ldc,
                                                 pb,
@@ -326,15 +486,18 @@ pub(crate) fn func_name<T, F1, F2>(
                                                 i + ii,
                                                 j + jj,
                                                 p + pb == k,
+                                                [bias_row_stride, bias_col_stride],
                                                 _post_op.clone(),
                                                 _post_op_vec.clone()
                                             );
                                         } else {
                                             call_non_packed_microkernel!(
                                                 need_post_op,
+                                                has_bias,
                                                 packed_a + (ii as i64) * lda,
                                                 packed_b,
                                                 c + (ii as i64) * ldc + (jj as i64),
+                                                bias + (ii as i64) * bias_row_stride + (jj as i64) * bias_col_stride,
                                                 micro_kernel,
                                                 ldc,
                                                 lda,
@@ -345,6 +508,7 @@ pub(crate) fn func_name<T, F1, F2>(
                                                 i + ii,
                                                 j + jj,
                                                 p + pb == k,
+                                                [bias_row_stride, bias_col_stride],
                                                 _post_op.clone(),
                                                 _post_op_vec.clone()
                                             );

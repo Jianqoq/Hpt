@@ -15,7 +15,6 @@ where
         {
             use crate::define_matmul_micro_kernel;
             assert_eq!(nr, 2);
-            // avx2 has 16 registers, each has 256 bits, assume cache line size is 512 bits
             define_matmul_micro_kernel!(x2x1, 2, 1);
             define_matmul_micro_kernel!(x2x2, 2, 2);
             define_matmul_micro_kernel!(x2x3, 2, 3);
@@ -28,7 +27,6 @@ where
         {
             use crate::define_matmul_micro_kernel;
             assert_eq!(nr, 2);
-            // sse has 16 registers, each has 128 bits, assume cache line size is 512 bits
             define_matmul_micro_kernel!(x2x1, 2, 1);
             define_matmul_micro_kernel!(x2x2, 2, 2);
             define_matmul_micro_kernel!(x2x3, 2, 3);
@@ -85,7 +83,6 @@ where
         {
             use crate::define_post_op_matmul_micro_kernel;
             assert_eq!(nr, 2);
-            // avx2 has 16 registers, each has 256 bits, assume cache line size is 512 bits
             define_post_op_matmul_micro_kernel!(x2x1, 2, 1);
             define_post_op_matmul_micro_kernel!(x2x2, 2, 2);
             define_post_op_matmul_micro_kernel!(x2x3, 2, 3);
@@ -98,7 +95,6 @@ where
         {
             use crate::define_post_op_matmul_micro_kernel;
             assert_eq!(nr, 4);
-            // sse has 16 registers, each has 128 bits, assume cache line size is 512 bits
             define_post_op_matmul_micro_kernel!(x4x1, 4, 1);
             define_post_op_matmul_micro_kernel!(x4x2, 4, 2);
             define_post_op_matmul_micro_kernel!(x4x3, 4, 3);

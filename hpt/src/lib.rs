@@ -304,6 +304,7 @@ pub(crate) mod backends {
         /// a module contains slice op
         pub(crate) mod slice;
         pub(crate) mod thread_pool;
+        pub(crate) mod prefetch;
     }
 }
 pub(crate) mod tensor;

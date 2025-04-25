@@ -17,6 +17,13 @@ pub struct Pointer<T> {
 }
 
 impl<T> Pointer<T> {
+    /// return a null pointer
+    ///
+    /// # Returns
+    /// `Pointer<T>`
+    pub fn null() -> Self {
+        Self { ptr: std::ptr::null_mut(), len: 0 }
+    }
     /// return a slice of the pointer
     ///
     /// # Returns
