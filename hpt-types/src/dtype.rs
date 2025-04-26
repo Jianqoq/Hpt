@@ -8,6 +8,95 @@ use half::{bf16, f16};
 use num_complex::{Complex32, Complex64};
 use std::fmt::Debug;
 
+/// A enum defines the data type of the tensor
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DType {
+    /// boolean type
+    Bool,
+    /// 8-bit integer type
+    I8,
+    /// 8-bit unsigned integer type
+    U8,
+    /// 16-bit integer type
+    I16,
+    /// 16-bit unsigned integer type
+    U16,
+    /// 32-bit integer type
+    I32,
+    /// 32-bit unsigned integer type
+    U32,
+    /// 64-bit integer type
+    I64,
+    /// 32-bit floating point type
+    F32,
+    /// 16-bit floating point type
+    F16,
+    /// 16-bit floating point type
+    BF16,
+}
+
+impl DType {
+    /// the byte size of the data type
+    pub fn sizeof(&self) -> usize {
+        match self {
+            DType::Bool => std::mem::size_of::<bool>(),
+            DType::I8 => std::mem::size_of::<i8>(),
+            DType::U8 => std::mem::size_of::<u8>(),
+            DType::I16 => std::mem::size_of::<i16>(),
+            DType::U16 => std::mem::size_of::<u16>(),
+            DType::I32 => std::mem::size_of::<i32>(),
+            DType::U32 => std::mem::size_of::<u32>(),
+            DType::I64 => std::mem::size_of::<i64>(),
+            DType::F32 => std::mem::size_of::<f32>(),
+            DType::F16 => std::mem::size_of::<half::f16>(),
+            DType::BF16 => std::mem::size_of::<half::bf16>(),
+        }
+    }
+    /// the size of the simd vector of the data type
+    pub const fn vec_size(&self) -> usize {
+        match self {
+            DType::Bool => <bool as TypeCommon>::Vec::SIZE,
+            DType::I8 => <i8 as TypeCommon>::Vec::SIZE,
+            DType::U8 => <u8 as TypeCommon>::Vec::SIZE,
+            DType::I16 => <i16 as TypeCommon>::Vec::SIZE,
+            DType::U16 => <u16 as TypeCommon>::Vec::SIZE,
+            DType::I32 => <i32 as TypeCommon>::Vec::SIZE,
+            DType::U32 => <u32 as TypeCommon>::Vec::SIZE,
+            DType::I64 => <i64 as TypeCommon>::Vec::SIZE,
+            DType::F32 => <f32 as TypeCommon>::Vec::SIZE,
+            DType::F16 => <half::f16 as TypeCommon>::Vec::SIZE,
+            DType::BF16 => <half::bf16 as TypeCommon>::Vec::SIZE,
+        }
+    }
+}
+
+pub(crate) trait ToDType {
+    fn to_dtype() -> DType;
+}
+
+macro_rules! impl_to_dtype {
+    ($t:ty, $dtype:expr) => {
+        impl ToDType for $t {
+            fn to_dtype() -> DType {
+                $dtype
+            }
+        }
+    };
+}
+
+impl_to_dtype!(bool, DType::Bool);
+impl_to_dtype!(i8, DType::I8);
+impl_to_dtype!(u8, DType::U8);
+impl_to_dtype!(i16, DType::I16);
+impl_to_dtype!(u16, DType::U16);
+impl_to_dtype!(i32, DType::I32);
+impl_to_dtype!(u32, DType::U32);
+impl_to_dtype!(i64, DType::I64);
+impl_to_dtype!(f32, DType::F32);
+impl_to_dtype!(half::f16, DType::F16);
+impl_to_dtype!(half::bf16, DType::BF16);
+
+
 /// trait for cuda type
 pub trait CudaType {
     /// the cuda type

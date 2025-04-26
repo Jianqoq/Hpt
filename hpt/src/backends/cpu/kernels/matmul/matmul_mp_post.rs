@@ -93,13 +93,10 @@ pub fn matmul_mixed_precision_template<T, IM, F1, F2>(
 
     let packed_a = {
         let a_buffer = unsafe { std::alloc::alloc(packed_a_layout) };
-        #[cfg(feature = "bound_check")]
         let ret = Pointer::new(
             a_buffer as *mut IM,
             (packed_a_layout.size() / std::mem::size_of::<IM>()) as i64,
         );
-        #[cfg(not(feature = "bound_check"))]
-        let ret = Pointer::new(a_buffer as *mut IM);
         ret
     };
 
@@ -130,13 +127,10 @@ pub fn matmul_mixed_precision_template<T, IM, F1, F2>(
                             let stack = DynStack::new(&mut mem);
                             let (packed_b_storage, _) =
                                 stack.make_aligned_uninit::<IM>(num_nr_blocks * nr * kc, ALIGN);
-                            #[cfg(feature = "bound_check")]
                             let packed_b = Pointer::new(
                                 packed_b_storage.as_mut_ptr() as *mut IM,
                                 (num_nr_blocks * nr * kc) as i64,
                             );
-                            #[cfg(not(feature = "bound_check"))]
-                            let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut IM);
                             let mut i = 0;
                             while i < m {
                                 let ib = min(mc, m - i);

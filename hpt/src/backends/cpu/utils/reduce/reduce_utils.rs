@@ -151,11 +151,11 @@ where
         for id in 0..num_threads {
             let mut res_prg = vec![0; res_shape.len()];
             let mut a_data_ptr_cpy = ptrs.clone();
-            let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
+            let mut a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
 
             /*traverse the whole result shape and increment the input data ptr based on current thread id*/
             for i in (0..=res_shape.len() - 1).rev() {
-                a_data_ptr_cpy.offset(progress_init_a_data[i] * strides[i]);
+                a_data_ptr_cpy += progress_init_a_data[i] * strides[i];
             }
             // calculate the total task amount so far based on current thread id,
             // we are splitting the whole tensor into two axes
@@ -224,11 +224,10 @@ where
         let ndim = res_shape.len() as i64;
         for id in 0..num_threads {
             let mut a_data_ptr_cpy = ptrs.clone();
-            let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
+            let mut a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
 
             for i in (0..ndim - 1).rev() {
-                a_data_ptr_cpy
-                    .offset(progress_init_a_data[i as usize] * transposed_strides[i as usize]);
+                a_data_ptr_cpy += progress_init_a_data[i as usize] * transposed_strides[i as usize];
             }
 
             let progress_init_a_data_cpy = progress_init_a_data.clone();
@@ -304,11 +303,11 @@ where
         let res_ptrs = res_ptrs.borrow_mut();
         for id in 0..num_threads {
             let mut a_data_ptr_cpy = ptrs.clone();
-            let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
+            let mut a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
 
             /*traverse the whole result shape and increment the input data ptr based on current thread id*/
             for i in (0..=res_shape.len() as i64 - 1).rev() {
-                a_data_ptr_cpy.offset(progress_init_a_data[i as usize] * strides[i as usize]);
+                a_data_ptr_cpy += progress_init_a_data[i as usize] * strides[i as usize];
             }
             // calculate the total task amount so far based on current thread id,
             // we are splitting the whole tensor into two axes
@@ -378,11 +377,10 @@ where
         // [5, 11, 17, 23, 29, 35] res5   thread 2
         for id in 0..num_threads {
             let mut a_data_ptr_cpy = ptrs.clone();
-            let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
+            let mut a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
 
             for i in (0..ndim - 1).rev() {
-                a_data_ptr_cpy
-                    .offset(progress_init_a_data[i as usize] * transposed_strides[i as usize]);
+                a_data_ptr_cpy += progress_init_a_data[i as usize] * transposed_strides[i as usize];
             }
 
             let progress_init_a_data_cpy = progress_init_a_data.clone();

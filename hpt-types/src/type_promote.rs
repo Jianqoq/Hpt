@@ -6,9 +6,9 @@ use crate::into_vec::IntoVec;
     target_arch = "aarch64",
     target_feature = "neon"
 ))]
-use crate::simd::_128bit::common::*;
+use crate::simd::_128bit::*;
 #[cfg(target_feature = "avx2")]
-use crate::simd::_256bit::common::*;
+use crate::simd::_256bit::*;
 use crate::traits::SimdMath;
 use crate::vectors::traits::SimdCompare;
 use crate::vectors::traits::VecTrait;

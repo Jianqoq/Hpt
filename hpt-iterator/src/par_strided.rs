@@ -192,11 +192,11 @@ pub mod par_strided_simd {
                 let j = j as usize;
                 if self.prg[j] < self.shape()[j] {
                     self.prg[j] += 1;
-                    self.ptr.offset(self.strides()[j]);
+                    self.ptr += self.strides()[j];
                     break;
                 } else {
                     self.prg[j] = 0;
-                    self.ptr.offset(-self.strides()[j] * self.shape()[j]);
+                    self.ptr += -self.strides()[j] * self.shape()[j];
                 }
             }
         }
@@ -530,11 +530,11 @@ impl<T: CommonBounds> IterGetSet for ParStrided<T> {
             let j = j as usize;
             if self.prg[j] < self.shape()[j] {
                 self.prg[j] += 1;
-                self.ptr.offset(self.strides()[j]);
+                self.ptr += self.strides()[j];
                 break;
             } else {
                 self.prg[j] = 0;
-                self.ptr.offset(-self.strides()[j] * self.shape()[j]);
+                self.ptr += -self.strides()[j] * self.shape()[j];
             }
         }
     }
@@ -577,7 +577,7 @@ where
                 amount /= self.shape()[j] as usize;
                 index += curent_shape_prg[j] * self.strides()[j];
             }
-            self.ptr.offset(index);
+            self.ptr += index;
             self.prg = curent_shape_prg;
             let mut new_shape = self.shape().to_vec();
             new_shape.iter_mut().for_each(|x| {

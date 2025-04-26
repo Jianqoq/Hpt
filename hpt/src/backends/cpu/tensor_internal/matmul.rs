@@ -248,8 +248,8 @@ where
             for j in (0..=iterate_shape.len() - 1).rev() {
                 prg[j] = amount_cpy % (iterate_shape[j] + 1);
                 amount_cpy /= iterate_shape[j] + 1;
-                a_ptr.offset(prg[j] * a_strides[j]);
-                b_ptr.offset(prg[j] * b_strides[j]);
+                a_ptr += prg[j] * a_strides[j];
+                b_ptr += prg[j] * b_strides[j];
             }
             amount += end - start;
             a_ptrs.push(a_ptr);
@@ -380,13 +380,13 @@ where
                         for j in 0..iterate_shape.len() {
                             if prg[j] < iterate_shape[j] {
                                 prg[j] += 1;
-                                a_ptr.offset(a_strides[j]);
-                                b_ptr.offset(b_strides[j]);
+                                a_ptr += a_strides[j];
+                                b_ptr += b_strides[j];
                                 break;
                             } else {
                                 prg[j] = 0;
-                                a_ptr.offset(-a_strides[j] * iterate_shape[j]);
-                                b_ptr.offset(-b_strides[j] * iterate_shape[j]);
+                                a_ptr += -a_strides[j] * iterate_shape[j];
+                                b_ptr += -b_strides[j] * iterate_shape[j];
                             }
                         }
                     }
@@ -568,11 +568,7 @@ where
                 Some(move |x: T::Vec, mm: usize, nn: usize| {
                     use hpt_types::type_promote::NormalOut;
                     let offset = mm as i64 * bias_rs + nn as i64 * bias_cs;
-                    let vec = ptr
-                        .cast::<T>()
-                        .offset(offset)
-                        .cast::<T::Vec>()
-                        .read_unaligned();
+                    let vec = (ptr.cast::<T>() + offset).cast::<T::Vec>().read_unaligned();
                     post_op_vec(x._add(vec), mm, nn)
                 }),
             )
@@ -589,7 +585,7 @@ where
                     use hpt_types::traits::VecTrait;
                     use hpt_types::type_promote::NormalOut;
                     let offset = mm as i64 * bias_rs + nn as i64 * bias_cs;
-                    let ptr = ptr.cast::<T>().offset(offset);
+                    let ptr = ptr.cast::<T>() + offset;
                     let mut vec = T::Vec::splat(T::ZERO);
                     for i in 0..T::Vec::SIZE {
                         vec[i] = ptr[i];

@@ -1,0 +1,29 @@
+[package]
+name = "hpt-dyn"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+half = { workspace = true }
+num-complex = { workspace = true }
+paste = { workspace = true }
+num-traits = { workspace = true }
+hpt-types = { path = "../hpt-types", version = "0.1.1" }
+hpt-macros = { path = "../hpt-macros", version = "0.1.1" }
+hpt-common = { path = "../hpt-common", version = "0.1.1" }
+hpt-allocator = { path = "../hpt-allocator", version = "0.1.1" }
+hpt-display = { path = "../hpt-display", version = "0.1.1" }
+cudarc = { workspace = true }
+seq-macro = { workspace = true }
+rayon = { workspace = true }
+duplicate = { workspace = true }
+
+[features]
+default = []
+cuda = [
+    "hpt-allocator/cuda",
+    "hpt-types/cuda",
+    "hpt-macros/cuda",
+    "hpt-common/cuda",
+]
+bound_check = ["hpt-common/bound_check"]

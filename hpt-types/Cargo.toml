@@ -15,7 +15,7 @@ paste = { workspace = true }
 num-traits = { workspace = true }
 libm = { workspace = true }
 serde = { workspace = true }
-
+duplicate = { workspace = true }
 [features]
 cuda = []
 default = ["normal_promote"]

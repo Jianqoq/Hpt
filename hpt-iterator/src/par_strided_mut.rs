@@ -193,7 +193,7 @@ pub mod par_strided_map_mut_simd {
                 #[cfg(feature = "bound_check")]
                 return MutVec::new(Pointer::new(ptr, T::Vec::SIZE as i64));
                 #[cfg(not(feature = "bound_check"))]
-                return MutVec::new(Pointer::new(ptr));
+                return MutVec::new(Pointer::new(ptr, 0));
             }
         }
 

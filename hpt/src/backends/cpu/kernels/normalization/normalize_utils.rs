@@ -58,12 +58,12 @@ where
         for id in 0..num_threads {
             let mut a_data_ptr_cpy = ptrs.clone();
             let mut res_ptrs_cpy = res_ptrs.clone();
-            let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
-            let res_ptrs_cpy = res_ptrs_cpy.borrow_mut();
+            let mut a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
+            let mut res_ptrs_cpy = res_ptrs_cpy.borrow_mut();
             /*traverse the whole result shape and increment the input data ptr based on current thread id*/
             for i in (0..=reduce_shape.len() - 1).rev() {
-                a_data_ptr_cpy.offset(progress_init_a_data[i] * strides[i]);
-                res_ptrs_cpy.offset(progress_init_a_data[i] * res_strides[i]);
+                a_data_ptr_cpy += progress_init_a_data[i] * strides[i];
+                res_ptrs_cpy += progress_init_a_data[i] * res_strides[i];
             }
             // calculate the total task amount so far based on current thread id,
             // we are splitting the whole tensor into two axes
@@ -131,14 +131,12 @@ where
         for id in 0..num_threads {
             let mut a_data_ptr_cpy = ptrs.clone();
             let mut res_ptr_cpy = res_ptrs.clone();
-            let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
-            let res_ptr_cpy = res_ptr_cpy.borrow_mut();
+            let mut a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
+            let mut res_ptr_cpy = res_ptr_cpy.borrow_mut();
 
             for i in (0..ndim - 1).rev() {
-                a_data_ptr_cpy
-                    .offset(progress_init_a_data[i as usize] * transposed_strides[i as usize]);
-                res_ptr_cpy
-                    .offset(progress_init_a_data[i as usize] * res_transposed_strides[i as usize]);
+                a_data_ptr_cpy += progress_init_a_data[i as usize] * transposed_strides[i as usize];
+                res_ptr_cpy += progress_init_a_data[i as usize] * res_transposed_strides[i as usize];
             }
 
             let progress_init_a_data_cpy = progress_init_a_data.clone();
@@ -204,14 +202,13 @@ where
         let ndim = reduce_shape.len() as i64;
         for id in 0..num_threads {
             let mut a_data_ptr_cpy = ptrs.clone();
-            let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
+            let mut a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
             let mut res_ptrs_cpy = res_ptrs.clone();
-            let res_ptrs_cpy = res_ptrs_cpy.borrow_mut();
+            let mut res_ptrs_cpy = res_ptrs_cpy.borrow_mut();
 
             for i in (0..ndim - 1).rev() {
-                a_data_ptr_cpy
-                    .offset(progress_init_a_data[i as usize] * transposed_strides[i as usize]);
-                res_ptrs_cpy.offset(progress_init_a_data[i as usize] * res_strides[i as usize]);
+                a_data_ptr_cpy += progress_init_a_data[i as usize] * transposed_strides[i as usize];
+                res_ptrs_cpy += progress_init_a_data[i as usize] * res_strides[i as usize];
             }
 
             let progress_init_a_data_cpy = progress_init_a_data.clone();

@@ -11,6 +11,19 @@ pub mod into_scalar;
 pub mod into_vec;
 /// A module defines a set of traits for tensor operations, and implement computation functions for scalar and vector types
 pub mod type_promote;
+
+/// A module defines functions for dynamic dispatch
+pub mod dyn_dispatch {
+    /// scalar dispatch
+    pub mod scalar;
+    /// vector dispatch
+    pub mod vector;
+}
+
+pub use dyn_dispatch::scalar;
+pub use dyn_dispatch::vector;
+pub use promotion::utils::{promote_float_binary, promote_float_unary, promote_normal_binary};
+
 /// A module defines a set of traits for scalar operations
 pub(crate) mod scalars {
     pub(crate) mod _bf16;

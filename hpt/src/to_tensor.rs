@@ -74,9 +74,6 @@ macro_rules! impl_type_num {
                     }
                     let ly = hpt_common::layout::layout::Layout::new(res_shape, vec![1]);
                     return _Tensor {
-                        #[cfg(not(feature = "bound_check"))]
-                        data: Pointer::new(ptr),
-                        #[cfg(feature = "bound_check")]
                         data: Pointer::new(ptr, length as i64),
                         parent: None,
                         layout: ly,
@@ -121,9 +118,6 @@ macro_rules! impl_type_num {
                     let strides = shape_to_strides(&shape);
                     let ly = hpt_common::layout::layout::Layout::new(shape, strides);
                     return _Tensor {
-                        #[cfg(not(feature = "bound_check"))]
-                        data: Pointer::new(ptr),
-                        #[cfg(feature = "bound_check")]
                         data: Pointer::new(ptr, length as i64),
                         parent: None,
                         layout: ly,
@@ -169,9 +163,6 @@ macro_rules! impl_type_num {
 
                 let ly = hpt_common::layout::layout::Layout::new(shape, strides);
                 return _Tensor {
-                    #[cfg(not(feature = "bound_check"))]
-                    data: Pointer::new(ptr),
-                    #[cfg(feature = "bound_check")]
                     data: Pointer::new(ptr, length as i64),
                     parent: None,
                     layout: ly,
@@ -234,9 +225,6 @@ macro_rules! impl_type_num {
 
             let ly = hpt_common::layout::layout::Layout::new(shape, strides);
             return _Tensor {
-                #[cfg(not(feature = "bound_check"))]
-                data: Pointer::new(ptr),
-                #[cfg(feature = "bound_check")]
                 data: Pointer::new(ptr, length as i64),
                 parent: None,
                 layout: ly,
@@ -282,9 +270,6 @@ macro_rules! impl_type_num {
 
                 let ly = hpt_common::layout::layout::Layout::new(shape, strides);
                 return _Tensor {
-                    #[cfg(not(feature = "bound_check"))]
-                    data: Pointer::new(ptr),
-                    #[cfg(feature = "bound_check")]
                     data: Pointer::new(ptr, length as i64),
                     parent: None,
                     layout: ly,
@@ -330,9 +315,6 @@ macro_rules! impl_type_num {
 
                 let ly = hpt_common::layout::layout::Layout::new(shape, strides);
                 return _Tensor {
-                    #[cfg(not(feature = "bound_check"))]
-                    data: Pointer::new(ptr),
-                    #[cfg(feature = "bound_check")]
                     data: Pointer::new(ptr, length as i64),
                     parent: None,
                     layout: ly,

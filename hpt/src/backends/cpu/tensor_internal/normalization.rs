@@ -92,13 +92,13 @@ where
         for id in 0..num_threads {
             let mut a_data_ptr_cpy = a_ptr.clone();
             let mut res_data_ptr_cpy = res_ptr.clone();
-            let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
-            let res_data_ptr_cpy = res_data_ptr_cpy.borrow_mut();
+            let mut a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
+            let mut res_data_ptr_cpy = res_data_ptr_cpy.borrow_mut();
             for i in (0..=res_layout.ndim() as i64 - 1).rev() {
                 a_data_ptr_cpy
-                    .offset(progress_init_a_data[i as usize] * self.strides()[i as usize]);
+                    += progress_init_a_data[i as usize] * self.strides()[i as usize];
                 res_data_ptr_cpy
-                    .offset(progress_init_a_data[i as usize] * res.strides()[i as usize]);
+                    += progress_init_a_data[i as usize] * res.strides()[i as usize];
             }
             let mut tmp1 = (task_amout * inner_loop_size) as i64;
             let mut prg = vec![0; self.ndim() - 1];
@@ -225,7 +225,7 @@ where
 fn update_prg2<T>(
     prg: &mut [i64],
     shape_len: i64,
-    inp_ptr: &mut Pointer<T>,
+    mut inp_ptr: &mut Pointer<T>,
     strides: &[i64],
     shape: &[i64],
 ) {
@@ -234,11 +234,11 @@ fn update_prg2<T>(
 
         if prg[j] < shape[j] {
             prg[j] += 1;
-            inp_ptr.offset(strides[j]);
+            inp_ptr += strides[j];
             break;
         } else {
             prg[j] = 0;
-            inp_ptr.offset(-strides[j] * shape[j]);
+            inp_ptr += -strides[j] * shape[j];
         }
     }
 }
@@ -247,8 +247,8 @@ fn update_prg2<T>(
 fn update_prg3<T, O>(
     prg: &mut [i64],
     shape_len: i64,
-    inp_ptr: &mut Pointer<T>,
-    res_ptr: &mut Pointer<O>,
+    mut inp_ptr: &mut Pointer<T>,
+    mut res_ptr: &mut Pointer<O>,
     strides: &[i64],
     shape: &[i64],
     res_strides: &[i64],
@@ -259,13 +259,13 @@ fn update_prg3<T, O>(
 
         if prg[j] < shape[j] {
             prg[j] += 1;
-            inp_ptr.offset(strides[j]);
-            res_ptr.offset(res_strides[j]);
+            inp_ptr += strides[j];
+            res_ptr += res_strides[j];
             break;
         } else {
             prg[j] = 0;
-            inp_ptr.offset(-strides[j] * shape[j]);
-            res_ptr.offset(-res_strides[j] * res_shape[j]);
+            inp_ptr += -strides[j] * shape[j];
+            res_ptr += -res_strides[j] * res_shape[j];
         }
     }
 }

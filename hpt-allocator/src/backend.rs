@@ -92,7 +92,7 @@ impl Clone for Cuda {
         if let Ok(mut storage) = crate::CUDA_STORAGE.lock() {
             clone_storage(self.ptr as *mut u8, self.device.ordinal(), &mut storage);
         } else {
-            panic!("failed to lock CPU_STORAGE");
+            panic!("failed to lock CUDA_STORAGE");
         }
         Cuda {
             ptr: self.ptr,

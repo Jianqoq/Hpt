@@ -157,7 +157,9 @@ impl _Allocator {
                 &mut self.cache,
                 &mut self.allocated,
                 &mut storage,
-                || unsafe { std::alloc::alloc(layout) },
+                || unsafe {
+                    std::alloc::alloc(layout) 
+                },
                 |_, _| {},
                 |ptr, layout| unsafe { std::alloc::dealloc(ptr, layout) },
                 layout,

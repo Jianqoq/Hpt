@@ -85,13 +85,10 @@ pub fn matmul_mixed_precision_template<T, IM>(
         let mut mem = mem.borrow_mut();
         let stack = DynStack::new(&mut mem);
         let (packed_a_storage, _) = stack.make_aligned_uninit::<IM>(num_mr_blocks * mr * kc, ALIGN);
-        #[cfg(feature = "bound_check")]
         let packed_a = Pointer::new(
             packed_a_storage.as_mut_ptr() as *mut IM,
             (num_mr_blocks * mr * kc) as i64,
         );
-        #[cfg(not(feature = "bound_check"))]
-        let packed_a = Pointer::new(packed_a_storage.as_mut_ptr() as *mut IM);
         packed_a
     });
 
@@ -120,13 +117,10 @@ pub fn matmul_mixed_precision_template<T, IM>(
                             let stack = DynStack::new(&mut mem);
                             let (packed_b_storage, _) =
                                 stack.make_aligned_uninit::<IM>(num_nr_blocks * nr * kc, ALIGN);
-                            #[cfg(feature = "bound_check")]
                             let packed_b = Pointer::new(
                                 packed_b_storage.as_mut_ptr() as *mut IM,
                                 (num_nr_blocks * nr * kc) as i64,
                             );
-                            #[cfg(not(feature = "bound_check"))]
-                            let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut IM);
                             let mut i = 0;
                             while i < m {
                                 let ib = min(mc, m - i);

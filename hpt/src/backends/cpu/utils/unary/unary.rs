@@ -21,6 +21,7 @@ use rayon::slice::{ParallelSlice, ParallelSliceMut};
 use std::borrow::Borrow;
 use threadpool::ThreadPool;
 
+#[inline(never)]
 pub fn unary_map<A, K, F, F2>(slice_a: &[A], slice_o: &mut [K], f: F, f2: F2)
 where
     A: CommonBounds,
@@ -189,8 +190,8 @@ where
                         inp_amount += prg_tmp[j as usize] * strides[j as usize];
                         res_amount += prg_tmp[j as usize] * res_strides[j as usize];
                     }
-                    res_ptr_tmp.offset(res_amount);
-                    ptr_tmp.offset(inp_amount);
+                    res_ptr_tmp += res_amount;
+                    ptr_tmp += inp_amount;
                     prgs.push(prg_tmp);
                     ptrs.push(ptr_tmp);
                     res_ptrs.push(res_ptr_tmp);
@@ -218,13 +219,13 @@ where
                                 let j = j as usize;
                                 if prg[j] < __shape[j] {
                                     prg[j] += 1;
-                                    res_ptr.offset(__res_strides[j]);
-                                    ptr.offset(__strides[j]);
+                                    res_ptr += __res_strides[j];
+                                    ptr += __strides[j];
                                     break;
                                 } else {
                                     prg[j] = 0;
-                                    res_ptr.offset(-__shape[j] * __res_strides[j]);
-                                    ptr.offset(-__shape[j] * __strides[j]);
+                                    res_ptr += -__shape[j] * __res_strides[j];
+                                    ptr += -__shape[j] * __strides[j];
                                 }
                             }
                         }

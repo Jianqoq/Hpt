@@ -257,7 +257,7 @@ where
     let mut new_strides = a.layout.strides().to_vec();
     let mut ptr = a.data.clone();
     for &i in axes.iter() {
-        ptr.offset(new_strides[i] * (a.layout.shape()[i] - 1));
+        ptr += new_strides[i] * (a.layout.shape()[i] - 1);
         new_strides[i] = -new_strides[i];
     }
     if a.parent.is_none() {

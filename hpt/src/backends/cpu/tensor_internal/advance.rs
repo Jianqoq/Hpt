@@ -70,7 +70,7 @@ where
                     inp_amount /= self.shape()[j] as usize;
                     inp_index += inp_prg[j] * self.strides()[j];
                 }
-                ptr.offset(inp_index);
+                ptr += inp_index;
                 ptrs.push(ptr);
                 prgs.push(inp_prg);
             }
@@ -94,7 +94,7 @@ where
                     {
                         let padded_idx = prg_idx + pads[dim_idx].0;
                         let offset = padded_idx * stride;
-                        res_ptr.offset(offset);
+                        res_ptr += offset;
                     }
                     for _ in start..end {
                         for i in 0..inner_loop {
@@ -104,13 +104,13 @@ where
                             let j = j;
                             if inp_prg[j] < tsp[j] - 1 {
                                 inp_prg[j] += 1;
-                                ptr.offset(ts[j]);
-                                res_ptr.offset(rs[j]);
+                                ptr += ts[j];
+                                res_ptr += rs[j];
                                 break;
                             } else {
                                 inp_prg[j] = 0;
-                                ptr.offset(-ts[j] * (tsp[j] - 1));
-                                res_ptr.offset(-rs[j] * (tsp[j] - 1));
+                                ptr += -ts[j] * (tsp[j] - 1);
+                                res_ptr += -rs[j] * (tsp[j] - 1);
                             }
                         }
                     }
@@ -205,11 +205,11 @@ where
                     index += current_prg[j] * transposed.strides()[j];
                     res_index += res_shape_prg[j] * transposed_res_strides[j];
                 }
-                ptr.offset(index);
+                ptr += index;
                 prgs.push(current_prg);
                 ptrs.push(ptr);
-                res_ptr_cpy.offset(res_index);
-                res_indices_ptr_cpy.offset(res_index);
+                res_ptr_cpy += res_index;
+                res_indices_ptr_cpy += res_index;
                 res_ptrs.push(res_ptr_cpy);
                 res_indices_ptrs.push(res_indices_ptr_cpy);
                 res_prgs.push(res_shape_prg);

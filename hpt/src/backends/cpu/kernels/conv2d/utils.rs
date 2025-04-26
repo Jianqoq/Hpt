@@ -272,13 +272,10 @@ pub(crate) fn create_packed_input_img2col<T: CommonBounds>(
 
     let layout = std::alloc::Layout::from_size_align(packed_size as usize, ALIGN).unwrap();
     let buffer = unsafe { std::alloc::alloc(layout) };
-    #[cfg(feature = "bound_check")]
     let buffer_ptr = Pointer::new(
         buffer as *mut T,
         packed_size / (std::mem::size_of::<T>() as i64),
     );
-    #[cfg(not(feature = "bound_check"))]
-    let buffer_ptr = Pointer::new(buffer as *mut T);
 
     (buffer_ptr, layout)
 }

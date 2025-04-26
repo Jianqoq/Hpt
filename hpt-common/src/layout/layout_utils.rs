@@ -246,8 +246,8 @@ impl Layout {
     ///
     /// if the broadcast is not possible
     #[track_caller]
-    pub fn broadcast(&self, other: &Layout) -> Result<Layout, TensorError> {
-        let shape = predict_broadcast_shape(&self.shape, &other.shape)?;
+    pub fn broadcast(&self, other: &Shape) -> Result<Layout, TensorError> {
+        let shape = predict_broadcast_shape(&self.shape, other)?;
         let strides = shape_to_strides(&shape);
         Ok(Layout { shape, strides })
     }

@@ -60,10 +60,7 @@ where
         let ptr = allocate_res.get_ptr() as *mut T;
         let device = allocate_res.get_device();
         Ok(_Tensor {
-            #[cfg(feature = "bound_check")]
             data: Pointer::new(ptr as *mut T, size as i64),
-            #[cfg(not(feature = "bound_check"))]
-            data: Pointer::new(ptr as *mut T),
             parent: None,
             layout: Layout::from(res_shape.clone()),
             mem_layout: Arc::new(layout),
@@ -101,10 +98,7 @@ where
         let ptr = allocate_res.get_ptr() as *mut T;
         let device = allocate_res.get_device();
         Ok(_Tensor {
-            #[cfg(feature = "bound_check")]
             data: Pointer::new(ptr as *mut T, size as i64),
-            #[cfg(not(feature = "bound_check"))]
-            data: Pointer::new(ptr as *mut T),
             parent: None,
             layout: Layout::from(res_shape.clone()),
             mem_layout: Arc::new(layout),

@@ -1,13 +1,12 @@
-use std::{ cmp::min, sync::Arc };
+use std::{cmp::min, sync::Arc};
 
 use dyn_stack::DynStack;
-use hpt_common::{ shape::shape_utils::mt_intervals, Pointer };
+use hpt_common::{shape::shape_utils::mt_intervals, Pointer};
 use hpt_traits::tensor::CommonBounds;
 
 use crate::{
-    backends::cpu::kernels::matmul::common::{ calculate_jobs, calculate_prgs, L2_SLAB, L3_SLAB },
-    ALIGN,
-    CUSTOM_THREAD_POOL,
+    backends::cpu::kernels::matmul::common::{calculate_jobs, calculate_prgs, L2_SLAB, L3_SLAB},
+    ALIGN, CUSTOM_THREAD_POOL,
 };
 
 use super::microkernel_trait::MatmulMicroKernel;
@@ -48,7 +47,7 @@ macro_rules! call_microkernel {
             $m_idx,
             $n_idx,
             $post_op.clone(),
-            $post_op_vec.clone()
+            $post_op_vec.clone(),
         );
     };
     (
@@ -80,7 +79,7 @@ macro_rules! call_microkernel {
             $pb,
             $jjb,
             $mb as i64,
-            $first_kiter
+            $first_kiter,
         );
     };
     (
@@ -112,7 +111,7 @@ macro_rules! call_microkernel {
             $pb,
             $jjb,
             $mb as i64,
-            $first_kiter
+            $first_kiter,
         );
     };
     (
@@ -149,7 +148,7 @@ macro_rules! call_microkernel {
             $m_idx,
             $n_idx,
             $post_op.clone(),
-            $post_op_vec.clone()
+            $post_op_vec.clone(),
         );
     };
 }
@@ -190,7 +189,7 @@ macro_rules! call_non_packed_microkernel {
             $m_idx,
             $n_idx,
             $post_op.clone(),
-            $post_op_vec.clone()
+            $post_op_vec.clone(),
         );
     };
     (
@@ -294,7 +293,7 @@ macro_rules! call_non_packed_microkernel {
             $m_idx,
             $n_idx,
             $post_op.clone(),
-            $post_op_vec.clone()
+            $post_op_vec.clone(),
         );
     };
 }
@@ -329,12 +328,11 @@ pub(crate) fn func_name<T, F1, F2>(
     do_lhs_pack: bool,
     mut num_threads: usize,
     _post_op: F1,
-    _post_op_vec: F2
-)
-    where
-        T: CommonBounds + MatmulMicroKernel,
-        F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
-        F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static
+    _post_op_vec: F2,
+) where
+    T: CommonBounds + MatmulMicroKernel,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
 {
     assert_eq!(
         nr % T::Vec::SIZE,
@@ -351,17 +349,12 @@ pub(crate) fn func_name<T, F1, F2>(
         if do_lhs_pack {
             let mut mem = mem.borrow_mut();
             let stack = DynStack::new(&mut mem);
-            let (packed_a_storage, _) = stack.make_aligned_uninit::<T>(
-                num_mr_blocks * mr * kc,
-                ALIGN
-            );
-            #[cfg(feature = "bound_check")]
+            let (packed_a_storage, _) =
+                stack.make_aligned_uninit::<T>(num_mr_blocks * mr * kc, ALIGN);
             let packed_a = Pointer::new(
                 packed_a_storage.as_mut_ptr() as *mut T,
-                (num_mr_blocks * mr * kc) as i64
+                (num_mr_blocks * mr * kc) as i64,
             );
-            #[cfg(not(feature = "bound_check"))]
-            let packed_a = Pointer::new(packed_a_storage.as_mut_ptr() as *mut T);
             packed_a
         } else {
             a.clone()
@@ -400,18 +393,12 @@ pub(crate) fn func_name<T, F1, F2>(
             move |((((tid, prg), rem_prg), (start, end)), (start_rem, end_rem)), _| {
                 L2_SLAB.with_borrow_mut(|mem| {
                     let stack = DynStack::new(mem);
-                    let (mut packed_b_storage, _) = stack.make_aligned_with::<T>(
-                        num_nr_blocks * nr * kc,
-                        ALIGN,
-                        |_| T::ZERO
-                    );
-                    #[cfg(feature = "bound_check")]
+                    let (mut packed_b_storage, _) =
+                        stack.make_aligned_with::<T>(num_nr_blocks * nr * kc, ALIGN, |_| T::ZERO);
                     let packed_b = Pointer::new(
                         packed_b_storage.as_mut_ptr() as *mut T,
-                        (num_nr_blocks * nr * kc) as i64
+                        (num_nr_blocks * nr * kc) as i64,
                     );
-                    #[cfg(not(feature = "bound_check"))]
-                    let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut T);
                     for i in (0..m).step_by(mc) {
                         let ib = min(mc, m - i);
                         let use_prg = if ib == mc { prg } else { rem_prg };
@@ -433,7 +420,7 @@ pub(crate) fn func_name<T, F1, F2>(
                                     mr,
                                     tid,
                                     mb_per_thread,
-                                    num_mr_blocks
+                                    num_mr_blocks,
                                 );
                                 barrier.wait();
                             }
@@ -445,7 +432,9 @@ pub(crate) fn func_name<T, F1, F2>(
                             'outer: for j in (j_start..n).step_by(nc) {
                                 let jb = min(nc, n - j);
                                 let c = out + (i as i64) * ldc + (j as i64);
-                                let _bias = bias + (i as i64) * bias_row_stride + (j as i64) * bias_col_stride;
+                                let _bias = bias
+                                    + (i as i64) * bias_row_stride
+                                    + (j as i64) * bias_col_stride;
                                 pack_b::<T>(
                                     b + ((p as i64) * ldb + (j as i64) * rhs_col_stride),
                                     packed_b,
@@ -456,7 +445,7 @@ pub(crate) fn func_name<T, F1, F2>(
                                     kc,
                                     nr,
                                     jj_start,
-                                    need_full_pack
+                                    need_full_pack,
                                 );
                                 let packed_a = if do_lhs_pack {
                                     packed_a
@@ -476,7 +465,9 @@ pub(crate) fn func_name<T, F1, F2>(
                                                 packed_a + (kc as i64) * (ii as i64),
                                                 packed_b,
                                                 c + (ii as i64) * ldc + (jj as i64),
-                                                _bias + (ii as i64) * bias_row_stride + (jj as i64) * bias_col_stride,
+                                                _bias
+                                                    + (ii as i64) * bias_row_stride
+                                                    + (jj as i64) * bias_col_stride,
                                                 micro_kernel,
                                                 ldc,
                                                 pb,
@@ -497,7 +488,9 @@ pub(crate) fn func_name<T, F1, F2>(
                                                 packed_a + (ii as i64) * lda,
                                                 packed_b,
                                                 c + (ii as i64) * ldc + (jj as i64),
-                                                _bias + (ii as i64) * bias_row_stride + (jj as i64) * bias_col_stride,
+                                                _bias
+                                                    + (ii as i64) * bias_row_stride
+                                                    + (jj as i64) * bias_col_stride,
                                                 micro_kernel,
                                                 ldc,
                                                 lda,
@@ -528,7 +521,7 @@ pub(crate) fn func_name<T, F1, F2>(
                         }
                     }
                 });
-            }
+            },
         );
     });
 }
@@ -545,9 +538,9 @@ pub(crate) fn pack_a<T>(
     mr: usize,
     tid: usize,
     mb_per_thread: usize,
-    num_mr_blocks: usize
-)
-    where T: CommonBounds
+    num_mr_blocks: usize,
+) where
+    T: CommonBounds,
 {
     let start_block = tid * mb_per_thread;
     let end_block = std::cmp::min((tid + 1) * mb_per_thread, num_mr_blocks);
@@ -587,9 +580,9 @@ pub(crate) fn pack_b<T>(
     kc: usize,
     nr: usize,
     jj_start: usize,
-    need_full_pack: bool
-)
-    where T: CommonBounds
+    need_full_pack: bool,
+) where
+    T: CommonBounds,
 {
     let start = if need_full_pack {
         0
@@ -611,20 +604,11 @@ pub(crate) fn pack_b<T>(
         let nb = nr.min(nc - j);
         if nb == nr && stride == 1 {
             for p in 0..kb as i64 {
-                for i in 0..nr_div_lane {
-                    let packed_b_vec = (unsafe {
-                        packed_b.ptr.add(i * T::Vec::SIZE)
-                    }) as *mut T::Vec;
-                    unsafe {
-                        packed_b_vec.write(
-                            (
-                                b.ptr.offset(
-                                    ((p * ldb) as isize) +
-                                        ((i * T::Vec::SIZE) as isize) +
-                                        (j as isize)
-                                ) as *const T::Vec
-                            ).read_unaligned()
-                        );
+                unsafe {
+                    let b_ptr = b.ptr.offset((p * ldb) as isize + j as isize) as *const T::Vec;
+                    for i in 0..nr_div_lane {
+                        let packed_b_vec = packed_b.ptr.add(i * T::Vec::SIZE) as *mut T::Vec;
+                        packed_b_vec.write(b_ptr.add(i).read_unaligned());
                     }
                 }
                 packed_b += nr as i64;

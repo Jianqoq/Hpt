@@ -140,8 +140,8 @@ where
             for j in (0..=iterate_shape.len() - 1).rev() {
                 prg[j] = amount_cpy % (iterate_shape[j] + 1);
                 amount_cpy /= iterate_shape[j] + 1;
-                a_ptr.offset(prg[j] * a_strides[j]);
-                b_ptr.offset(prg[j] * b_strides[j]);
+                a_ptr += prg[j] * a_strides[j];
+                b_ptr += prg[j] * b_strides[j];
             }
             amount += end - start;
             a_ptrs.push(a_ptr);
@@ -198,13 +198,13 @@ where
                             for j in 0..shape.len() {
                                 if prg[j] < shape[j] {
                                     prg[j] += 1;
-                                    a_ptr.offset(__a_strides[j]);
-                                    b_ptr.offset(__b_strides[j]);
+                                    a_ptr += __a_strides[j];
+                                    b_ptr += __b_strides[j];
                                     break;
                                 } else {
                                     prg[j] = 0;
-                                    a_ptr.offset(-__a_strides[j] * shape[j]);
-                                    b_ptr.offset(-__b_strides[j] * shape[j]);
+                                    a_ptr += -__a_strides[j] * shape[j];
+                                    b_ptr += -__b_strides[j] * shape[j];
                                 }
                             }
                         }

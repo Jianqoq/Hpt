@@ -35,43 +35,43 @@ pub fn impl_simd_bitwise_out() -> TokenStream {
             }
             let res = if lhs_type.dtype == rhs_type.dtype {
                 quote! {
-                    impl BitWiseOut<#rhs_simd_ty::#rhs_simd_ty> for #lhs_simd_ty::#lhs_simd_ty {
-                        type Output = #lhs_simd_ty::#lhs_simd_ty;
-                        fn _bitand(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                    impl BitWiseOut<#rhs_simd_ty> for #lhs_simd_ty {
+                        type Output = #lhs_simd_ty;
+                        fn _bitand(self, rhs: #rhs_simd_ty) -> Self::Output {
                             self & rhs
                         }
-                        fn _bitor(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _bitor(self, rhs: #rhs_simd_ty) -> Self::Output {
                             self | rhs
                         }
-                        fn _bitxor(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _bitxor(self, rhs: #rhs_simd_ty) -> Self::Output {
                             self ^ rhs
                         }
                         fn _not(self) -> Self::Output {
                             !self
                         }
-                        fn _shl(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _shl(self, rhs: #rhs_simd_ty) -> Self::Output {
                             self << rhs
                         }
-                        fn _shr(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _shr(self, rhs: #rhs_simd_ty) -> Self::Output {
                             self >> rhs
                         }
                     }
                 }
             } else {
                 quote! {
-                    impl BitWiseOut<#rhs_simd_ty::#rhs_simd_ty> for #lhs_simd_ty::#lhs_simd_ty {
-                        type Output = <#lhs_simd_ty::#lhs_simd_ty as NormalOutPromote<#rhs_simd_ty::#rhs_simd_ty>>::Output;
-                        fn _bitand(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                    impl BitWiseOut<#rhs_simd_ty> for #lhs_simd_ty {
+                        type Output = <#lhs_simd_ty as NormalOutPromote<#rhs_simd_ty>>::Output;
+                        fn _bitand(self, rhs: #rhs_simd_ty) -> Self::Output {
                             let lhs: Self::Output = self.into_vec();
                             let rhs: Self::Output = rhs.into_vec();
                             lhs & rhs
                         }
-                        fn _bitor(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _bitor(self, rhs: #rhs_simd_ty) -> Self::Output {
                             let lhs: Self::Output = self.into_vec();
                             let rhs: Self::Output = rhs.into_vec();
                             lhs | rhs
                         }
-                        fn _bitxor(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _bitxor(self, rhs: #rhs_simd_ty) -> Self::Output {
                             let lhs: Self::Output = self.into_vec();
                             let rhs: Self::Output = rhs.into_vec();
                             lhs ^ rhs
@@ -80,12 +80,12 @@ pub fn impl_simd_bitwise_out() -> TokenStream {
                             let lhs: Self::Output = self.into_vec();
                             !lhs
                         }
-                        fn _shl(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _shl(self, rhs: #rhs_simd_ty) -> Self::Output {
                             let lhs: Self::Output = self.into_vec();
                             let rhs: Self::Output = rhs.into_vec();
                             lhs << rhs
                         }
-                        fn _shr(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _shr(self, rhs: #rhs_simd_ty) -> Self::Output {
                             let lhs: Self::Output = self.into_vec();
                             let rhs: Self::Output = rhs.into_vec();
                             lhs >> rhs
@@ -102,24 +102,24 @@ pub fn impl_simd_bitwise_out() -> TokenStream {
 
 fn impl_unreachable(lhs_simd: Ident, rhs_simd: Ident) -> TokenStream2 {
     quote! {
-        impl BitWiseOut<#rhs_simd::#rhs_simd> for #lhs_simd::#lhs_simd {
-            type Output = <#lhs_simd::#lhs_simd as NormalOutPromote<#rhs_simd::#rhs_simd>>::Output;
-            fn _bitand(self, rhs: #rhs_simd::#rhs_simd) -> Self::Output {
+        impl BitWiseOut<#rhs_simd> for #lhs_simd {
+            type Output = <#lhs_simd as NormalOutPromote<#rhs_simd>>::Output;
+            fn _bitand(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _bitor(self, rhs: #rhs_simd::#rhs_simd) -> Self::Output {
+            fn _bitor(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _bitxor(self, rhs: #rhs_simd::#rhs_simd) -> Self::Output {
+            fn _bitxor(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
             fn _not(self) -> Self::Output {
                 unreachable!()
             }
-            fn _shl(self, rhs: #rhs_simd::#rhs_simd) -> Self::Output {
+            fn _shl(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _shr(self, rhs: #rhs_simd::#rhs_simd) -> Self::Output {
+            fn _shr(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
         }

@@ -138,7 +138,7 @@ where
             #[cfg(feature = "bound_check")]
             data: Pointer::new(data, shape.size()),
             #[cfg(not(feature = "bound_check"))]
-            data: Pointer::new(data),
+            data: Pointer::new(data, 0),
             parent: None,
             layout: Layout::from(&shape),
             mem_layout: Arc::new(
@@ -198,12 +198,12 @@ where
                     #[cfg(feature = "bound_check")]
                     let new_parent = Pointer::new(parent.ptr as *mut Dst, parent.len);
                     #[cfg(not(feature = "bound_check"))]
-                    let new_parent = Pointer::new(parent.ptr as *mut Dst);
+                    let new_parent = Pointer::new(parent.ptr as *mut Dst, 0);
                     Ok(_Tensor {
                         #[cfg(feature = "bound_check")]
                         data: Pointer::new(self.data.ptr as *mut Dst, self.ptr().len),
                         #[cfg(not(feature = "bound_check"))]
-                        data: Pointer::new(self.data.ptr as *mut Dst),
+                        data: Pointer::new(self.data.ptr as *mut Dst, 0),
                         parent: Some(new_parent),
                         mem_layout: self.mem_layout.clone(),
                         layout: self.layout.clone(),
@@ -215,7 +215,7 @@ where
                     #[cfg(feature = "bound_check")]
                     data: Pointer::new(self.data.ptr as *mut Dst, self.ptr().len),
                     #[cfg(not(feature = "bound_check"))]
-                    data: Pointer::new(self.data.ptr as *mut Dst),
+                    data: Pointer::new(self.data.ptr as *mut Dst, 0),
                     parent: None,
                     mem_layout: self.mem_layout.clone(),
                     layout: self.layout.clone(),
@@ -424,7 +424,15 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
         let lr_element_size = DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed);
-        display(self, f, lr_element_size, precision, false)
+        display(
+            self.ptr(),
+            self.shape().as_slice(),
+            self.strides().as_slice(),
+            f,
+            lr_element_size,
+            precision,
+            false,
+        )
     }
 }
 
@@ -435,7 +443,15 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
         let lr_element_size = DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed);
-        display(self, f, lr_element_size, precision, false)
+        display(
+            self.ptr(),
+            self.shape().as_slice(),
+            self.strides().as_slice(),
+            f,
+            lr_element_size,
+            precision,
+            false,
+        )
     }
 }
 
@@ -521,7 +537,15 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
         let lr_element_size = DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed);
-        display(self, f, lr_element_size, precision, false)
+        display(
+            self.ptr(),
+            self.shape().as_slice(),
+            self.strides().as_slice(),
+            f,
+            lr_element_size,
+            precision,
+            false,
+        )
     }
 }
 

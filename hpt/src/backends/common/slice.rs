@@ -90,7 +90,7 @@ where
         {
             Ok(from_slice(
                 self,
-                Pointer::new(res_ptr),
+                Pointer::new(res_ptr, 0),
                 res_shape,
                 res_strides,
             ))

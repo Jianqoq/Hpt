@@ -1,15 +1,26 @@
 use std::time::Instant;
 
 use hpt::ops::Matmul;
+use hpt::types::f16;
 use hpt::{ops::*, Tensor};
+use hpt_dyn::Device;
+use hpt_dyn::{DType, Tensor as DynTensor};
 fn main() -> anyhow::Result<()> {
-    let a = Tensor::<f32>::randn(&[128, 512])?;
-    let b = Tensor::<f32>::randn(&[512, 2048])?;
+    let a = DynTensor::ones(&[512, 512, 512], DType::F32, Device::Cpu)?;
     let start = Instant::now();
-    for _ in 0..1000 {
-        let c = a.matmul(&b)?;
+    for _ in 0..10 {
+        let c = a.sin()?;
+        // println!("c: {}", c);
     }
-    println!("time: {:?}", start.elapsed() / 1000);
+    println!("time: {:?}", start.elapsed() / 10);
+    // let a = Tensor::<f32>::ones(&[512, 512, 512])?;
+    // // let b = Tensor::<f32>::randn(&[512, 2048])?;
+    // let start = Instant::now();
+    // for _ in 0..10 {
+    //     let c = a.sin()?;
+    //     // println!("c: {}", c);
+    // }
+    // println!("time: {:?}", start.elapsed() / 10);
 
     // let start = Instant::now();
     // for _ in 0..10000 {
