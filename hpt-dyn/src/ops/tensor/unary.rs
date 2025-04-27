@@ -1,11 +1,10 @@
+use crate::{Tensor, current_num_threads};
 use hpt_common::error::base::TensorError;
 use hpt_common::shape::shape_utils::mt_intervals;
 use hpt_types::promote_float_unary;
 use hpt_types::scalar::*;
 use hpt_types::vector::*;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
-
-use crate::{Tensor, current_num_threads};
 
 pub(crate) fn unary_1operand<F1, F2>(
     output: &mut Tensor,
@@ -76,7 +75,6 @@ pub(crate) fn unary_1operand<F1, F2>(
             let vector_bytes = unroll * vec_size as usize * out_sizeof as usize;
 
             let intervals = mt_intervals(output.layout.size() as usize, current_num_threads());
-
             intervals.into_par_iter().for_each(|(start, end)| {
                 let size = end - start;
                 let num_loop = size / (unroll * vec_size as usize);
@@ -95,27 +93,6 @@ pub(crate) fn unary_1operand<F1, F2>(
                     kernel(lhs.add_addr(i * out_sizeof), out.add_addr(i * out_sizeof));
                 }
             });
-
-            // let slice = inp.as_slice::<u8>();
-            // let slice_out = output.as_slice_mut::<u8>();
-            // let mut out_chunk =
-            //     slice_out.par_chunks_exact_mut(unroll * vec_size * out_sizeof as usize);
-            // let lhs_chunk = slice.par_chunks_exact(unroll * vec_size * lhs_sizeof as usize);
-            // out_chunk
-            //     .remainder()
-            //     .par_iter_mut()
-            //     .zip(lhs_chunk.remainder().par_iter())
-            //     .for_each(|(out, lhs)| {
-            //         kernel(lhs as *const u8 as usize, out as *mut u8 as usize);
-            //     });
-            // out_chunk
-            //     .into_par_iter()
-            //     .zip(lhs_chunk.into_par_iter())
-            //     .for_each(|(out, lhs)| {
-            //         let lhs_ptr = lhs.as_ptr();
-            //         let out_ptr = out.as_mut_ptr();
-            //         simd_kernel(lhs_ptr as usize, out_ptr as usize);
-            //     });
         } else {
             (0..inp.layout.size()).into_par_iter().for_each(|i| {
                 kernel(

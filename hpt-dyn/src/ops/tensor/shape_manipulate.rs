@@ -120,6 +120,25 @@ impl Tensor {
         })
     }
 
+    pub fn permute_inv(&self, axes: &[i64]) -> Result<Tensor, TensorError> {
+        let permuted_layout = self.layout.permute_inv(axes)?;
+        let prg_update = dispatch_loop_progress_update(&permuted_layout, self.dtype.sizeof());
+        let map_global_idx = dispatch_map_global_idx(&permuted_layout);
+        let map_gp = dispatch_map_gp(&permuted_layout);
+        Ok(Tensor {
+            data: self.data.clone(),
+            layout: permuted_layout,
+            dtype: self.dtype.clone(),
+            device: self.device.clone(),
+            parent: self.parent.clone(),
+            prg_update,
+            map_global_idx,
+            map_gp,
+            mem_layout: self.mem_layout.clone(),
+            backend: self.backend.clone(),
+        })
+    }
+
     pub fn expand(&self, shape: &[i64]) -> Result<Tensor, TensorError> {
         let res_shape = Shape::from(shape);
         let res_strides = self.layout.expand_strides(&res_shape)?;

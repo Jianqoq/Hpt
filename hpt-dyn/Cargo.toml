@@ -11,13 +11,15 @@ num-traits = { workspace = true }
 hpt-types = { path = "../hpt-types", version = "0.1.1" }
 hpt-macros = { path = "../hpt-macros", version = "0.1.1" }
 hpt-common = { path = "../hpt-common", version = "0.1.1" }
+hpt-traits = { path = "../hpt-traits", version = "0.1.1" }
 hpt-allocator = { path = "../hpt-allocator", version = "0.1.1" }
 hpt-display = { path = "../hpt-display", version = "0.1.1" }
 cudarc = { workspace = true }
 seq-macro = { workspace = true }
 rayon = { workspace = true }
 duplicate = { workspace = true }
-
+rand = { workspace = true }
+rand_distr = { workspace = true }
 [features]
 default = []
 cuda = [

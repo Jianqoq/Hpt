@@ -56,6 +56,9 @@ impl Tensor {
     pub fn strides(&self) -> &Strides {
         self.layout.strides()
     }
+    pub fn ptr(&self) -> Pointer<u8> {
+        self.data
+    }
 }
 
 impl Drop for Tensor {
@@ -63,3 +66,7 @@ impl Drop for Tensor {
         self.backend.dealloc(self.mem_layout);
     }
 }
+
+unsafe impl Send for Tensor {}
+unsafe impl Sync for Tensor {}
+

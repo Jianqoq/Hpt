@@ -16,7 +16,6 @@ use crate::{DType, Device, Tensor};
 use hpt_types::scalar::*;
 
 impl Tensor {
-
     #[duplicate::duplicate_item(
         func_name    alloc_method;
         [empty]      [allocate];
@@ -87,6 +86,18 @@ impl Tensor {
         });
 
         Ok(empty)
+    }
+
+    pub fn fill(&mut self, val: f64) {
+        let fill_fn = dispatch_fill(self.dtype, val);
+
+        let fill_fn_ref = fill_fn.as_ref();
+
+        let sizeof = self.dtype.sizeof() as i64;
+        let ptr = self.data;
+        (0..self.layout.size()).into_par_iter().for_each(|i| {
+            fill_fn_ref(ptr.offset_addr(i * sizeof));
+        });
     }
 
     pub fn ones(shape: &[i64], dtype: DType, device: Device) -> Result<Self, TensorError> {

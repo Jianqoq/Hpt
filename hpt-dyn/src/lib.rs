@@ -14,3 +14,9 @@ pub fn current_num_threads() -> usize {
     rayon::current_num_threads()
 }
 
+#[cfg(target_feature = "avx2")]
+pub(crate) const REGNUM: usize = 16;
+#[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
+pub(crate) const REGNUM: usize = 8;
+#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
+pub(crate) const REGNUM: usize = 32;
