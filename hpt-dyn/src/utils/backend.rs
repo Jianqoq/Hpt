@@ -1,3 +1,4 @@
+#[cfg(feature = "cuda")]
 use std::sync::Arc;
 
 use hpt_allocator::{clone_storage, traits::Allocator};

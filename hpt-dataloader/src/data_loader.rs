@@ -37,6 +37,7 @@ pub(crate) struct HeaderInfo {
     pub(crate) indices: Vec<(usize, usize, usize, usize)>,
     pub(crate) compress_algo: CompressionAlgo,
     pub(crate) dtype: String,
+    pub(crate) sizeof: usize,
     pub(crate) endian: Endian,
 }
 /// the meta data of the tensor
@@ -102,5 +103,42 @@ impl HeaderInfo {
         let ret: HashMap<String, HeaderInfo> =
             serde_json::from_str::<HashMap<String, Self>>(&info)?;
         Ok(ret)
+    }
+}
+
+pub struct LoadResult {
+    pub(crate) ptr: *mut u8,
+    pub(crate) shape: Vec<i64>,
+    pub(crate) strides: Vec<i64>,
+    pub(crate) dtype: String
+}
+
+impl LoadResult {
+    pub fn dtype(&self) -> &str {
+        &self.dtype
+    }
+    pub fn shape(&self) -> &[i64] {
+        &self.shape
+    }
+    pub fn strides(&self) -> &[i64] {
+        &self.strides
+    }
+    pub fn ptr(&self) -> *mut u8 {
+        self.ptr
+    }
+    pub fn size(&self) -> usize {
+        self.shape.iter().map(|&x| x as usize).product()
+    }
+}
+
+impl Drop for LoadResult {
+    fn drop(&mut self) {
+        unsafe {
+            let layout = std::alloc::Layout::from_size_align(
+                self.shape.iter().product::<i64>() as usize, 
+                128
+            ).unwrap();
+            std::alloc::dealloc(self.ptr, layout);
+        }
     }
 }

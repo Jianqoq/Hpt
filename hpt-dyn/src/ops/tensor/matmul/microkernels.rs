@@ -2,10 +2,11 @@
 macro_rules! define_mma {
     ($nr:expr, $mr:expr, $unroll:expr) => {
         #[inline(always)]
-        fn mma<T: CommonBounds>(a: Pointer<T>, b: Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as TypeCommon>::Vec; $nr]; $mr] {
+        fn mma<T: hpt_traits::tensor::CommonBounds>(a: hpt_common::Pointer<T>, b: hpt_common::Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as TypeCommon>::Vec; $nr]; $mr] {
             // use crate::utils::prefetch::prefetch_a;
             // use crate::utils::prefetch::prefetch_b;
             use hpt_types::type_promote::NormalOut;
+            use hpt_types::dtype::TypeCommon;
             let mut c_local = [[<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
             // let a_ptr = a.ptr as *const T;
             let b_ptr = b.ptr as *const <T as TypeCommon>::Vec;
@@ -57,7 +58,8 @@ pub(crate) use define_mma;
 macro_rules! define_neon_mma {
     ($nr:expr, $mr:expr) => {
         #[inline(always)]
-        fn mma<T: CommonBounds>(mut a: Pointer<T>, mut b: Pointer<T>, _: i64, kc: usize, ks: i64) -> [[<T as TypeCommon>::Vec; $nr]; $mr] {
+        fn mma<T: hpt_traits::tensor::CommonBounds>(mut a: hpt_common::Pointer<T>, mut b: hpt_common::Pointer<T>, _: i64, kc: usize, ks: i64) -> [[<T as TypeCommon>::Vec; $nr]; $mr] {
+            use crate::ops::tensor::matmul::microkernels::load_vec_neon;
             let mut c_local = [[<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
             for _ in 0..kc {
                 let mut b_vec = [<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr];
@@ -88,7 +90,7 @@ pub(crate) use define_neon_mma;
 macro_rules! define_mma_packed_a {
     ($nr:expr, $mr:expr, $unroll:expr) => {
         #[inline(always)]
-        fn mma_packed_a<T: CommonBounds>(a: Pointer<T>, b: Pointer<T>, kc: usize) -> [[<T as TypeCommon>::Vec; $nr]; $mr] {
+        fn mma_packed_a<T: hpt_traits::tensor::CommonBounds>(a: hpt_common::Pointer<T>, b: hpt_common::Pointer<T>, kc: usize) -> [[<T as TypeCommon>::Vec; $nr]; $mr] {
             // use crate::utils::prefetch::prefetch_a;
             // use crate::utils::prefetch::prefetch_b;
             use hpt_types::type_promote::NormalOut;
@@ -195,8 +197,8 @@ pub(crate) use store_res_vec_mp;
 #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
 pub(crate) fn load_vec_neon<const NR: usize>(data: *const f32, mut to_write: *mut f32) {
     use std::{arch::aarch64::*, mem::transmute};
-    use TypeCommon;
     use hpt_types::traits::VecTrait;
+    use hpt_types::dtype::TypeCommon;
     unsafe {
         match NR {
             1 => {
@@ -268,9 +270,6 @@ pub(crate) fn load_vec_neon<const NR: usize>(data: *const f32, mut to_write: *mu
     }
 }
 
-#[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
-pub(crate) use load_vec_neon;
-
 macro_rules! store_res_scalar {
     (
         $mr:expr,
@@ -314,10 +313,10 @@ pub(crate) use store_res_scalar;
 
 macro_rules! define_matmul_micro_kernel {
     ($name:ident, $nr:expr, $mr:expr) => {
-        fn $name<T: CommonBounds>(
-            a: Pointer<T>,
-            b: Pointer<T>,
-            c: Pointer<T>,
+        fn $name<T: hpt_traits::tensor::CommonBounds>(
+            a: hpt_common::Pointer<T>,
+            b: hpt_common::Pointer<T>,
+            c: hpt_common::Pointer<T>,
             ldc: i64,
             lda: i64,
             kc: usize,
@@ -325,7 +324,8 @@ macro_rules! define_matmul_micro_kernel {
             ks: i64,
             first_kiter: bool,
         ) {
-            use Pointer;
+            use hpt_types::type_promote::NormalOut;
+            use hpt_types::traits::VecTrait;
             use crate::ops::tensor::matmul::microkernels::define_mma;
             use crate::ops::tensor::matmul::microkernels::define_mma_packed_a;
             use crate::ops::tensor::matmul::microkernels::store_res_vec;
@@ -409,7 +409,7 @@ pub(crate) use define_matmul_micro_kernel;
 /// define_matmul_micro_kernel_inline_asm!(f32x2x1, f32, 2, 1);
 /// ```
 ///
-
+#[cfg(target_feature = "avx2")]
 macro_rules! define_matmul_micro_kernel_inline_asm {
     (
         $name:ident,
@@ -428,10 +428,10 @@ macro_rules! define_matmul_micro_kernel_inline_asm {
         $res_regs:expr
     ) => {
         #[allow(unused)]
-        fn $name<T: CommonBounds>(
-            a: Pointer<T>,
-            b: Pointer<T>,
-            c: Pointer<T>,
+        fn $name<T: hpt_traits::tensor::CommonBounds>(
+            a: hpt_common::Pointer<T>,
+            b: hpt_common::Pointer<T>,
+            c: hpt_common::Pointer<T>,
             mut ldc: i64,
             mut lda: i64,
             kc: usize,
@@ -477,6 +477,7 @@ macro_rules! define_matmul_micro_kernel_inline_asm {
     };
 }
 
+#[cfg(target_feature = "avx2")]
 pub(crate) use define_matmul_micro_kernel_inline_asm;
 
 /// Define Matmul Micro Kernel function with inline asm
@@ -485,14 +486,14 @@ pub(crate) use define_matmul_micro_kernel_inline_asm;
 ///
 /// * `$name`: The name of the function
 /// * `$nr`: The number of registers to use for the columns of B
-
+#[cfg(target_feature = "avx2")]
 macro_rules! define_matmul_micro_kernel_inline_asm_rem {
     ($name:ident, $nr:expr, $mr:expr) => {
         #[allow(unused_variables)]
-        fn $name<T: CommonBounds>(
-            a: Pointer<T>,
-            b: Pointer<T>,
-            c: Pointer<T>,
+        fn $name<T: hpt_traits::tensor::CommonBounds>(
+            a: hpt_common::Pointer<T>,
+            b: hpt_common::Pointer<T>,
+            c: hpt_common::Pointer<T>,
             ldc: i64,
             lda: i64,
             kc: usize,
@@ -502,7 +503,7 @@ macro_rules! define_matmul_micro_kernel_inline_asm_rem {
         ) {
             use hpt_types::type_promote::NormalOut;
             #[inline(always)]
-            fn mma<T: CommonBounds>(mut a: Pointer<T>, mut b: Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as TypeCommon>::Vec; $nr]; $mr] {
+            fn mma<T: hpt_traits::tensor::CommonBounds>(mut a: hpt_common::Pointer<T>, mut b: hpt_common::Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as TypeCommon>::Vec; $nr]; $mr] {
                 let mut c_local = [[<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
                 for _ in 0..kc {
                     seq_macro::seq!(NR in 0..$nr {
@@ -552,7 +553,7 @@ macro_rules! define_matmul_micro_kernel_inline_asm_rem {
         }
     };
 }
-
+#[cfg(target_feature = "avx2")]
 pub(crate) use define_matmul_micro_kernel_inline_asm_rem;
 
 /// Define Matmul Micro Kernel function with post operation
@@ -574,10 +575,10 @@ pub(crate) use define_matmul_micro_kernel_inline_asm_rem;
 
 macro_rules! define_post_op_matmul_micro_kernel {
     ($name:ident, $nr:expr, $mr:expr) => {
-        fn $name<T: CommonBounds, F: Fn(T, usize, usize) -> T, G: Fn(T::Vec, usize, usize) -> T::Vec>(
-            a: Pointer<T>,
-            b: Pointer<T>,
-            c: Pointer<T>,
+        fn $name<T: hpt_traits::tensor::CommonBounds, F: Fn(T, usize, usize) -> T, G: Fn(T::Vec, usize, usize) -> T::Vec>(
+            a: hpt_common::Pointer<T>,
+            b: hpt_common::Pointer<T>,
+            c: hpt_common::Pointer<T>,
             ldc: i64,
             lda: i64,
             kc: usize,
@@ -590,11 +591,12 @@ macro_rules! define_post_op_matmul_micro_kernel {
             _post_op: F,
             post_op_vec: G,
         ) {
-            use Pointer;
             use crate::ops::tensor::matmul::microkernels::define_mma;
             use crate::ops::tensor::matmul::microkernels::define_mma_packed_a;
             use crate::ops::tensor::matmul::microkernels::store_res_vec;
             use crate::ops::tensor::matmul::microkernels::store_res_scalar;
+            use hpt_types::traits::VecTrait;
+            use hpt_types::type_promote::NormalOut;
             define_mma!($nr, $mr, 4);
             define_mma_packed_a!($nr, $mr, 4);
 
@@ -691,10 +693,10 @@ pub(crate) use define_post_op_matmul_micro_kernel;
 #[cfg(target_feature = "neon")]
 macro_rules! define_neon_matmul_micro_kernel {
     ($name:ident, $nr:expr, $mr:expr) => {
-        fn $name<T: CommonBounds>(
-            a: Pointer<T>,
-            b: Pointer<T>,
-            c: Pointer<T>,
+        fn $name<T: hpt_traits::tensor::CommonBounds>(
+            a: hpt_common::Pointer<T>,
+            b: hpt_common::Pointer<T>,
+            c: hpt_common::Pointer<T>,
             ldc: i64,
             lda: i64,
             kc: usize,
@@ -702,13 +704,12 @@ macro_rules! define_neon_matmul_micro_kernel {
             ks: i64,
             first_kiter: bool,
         ) {
-            use vectors::traits::VecTrait;
-            use Pointer;
-            use math::NormalOut;
-            use $crate::backends::cpu::kernels::matmul::microkernels::load_vec_neon;
-            use $crate::define_neon_mma;
-            use $crate::store_res_vec;
-            use $crate::store_res_scalar;
+            use crate::ops::tensor::matmul::microkernels::define_neon_mma;
+            use crate::ops::tensor::matmul::microkernels::store_res_vec;
+            use crate::ops::tensor::matmul::microkernels::store_res_scalar;
+            use hpt_types::traits::VecTrait;
+            use hpt_types::type_promote::NormalOut;
+
             define_neon_mma!($nr, $mr);
 
             let c_local = mma(a, b, lda, kc, ks);
@@ -721,7 +722,7 @@ macro_rules! define_neon_matmul_micro_kernel {
                         ldc,
                         c_local,
                         [res <= c_vec],
-                        res.write_unaligned(c_vec)
+                        unsafe { res.write_unaligned(c_vec) }
                     );
                 } else {
                     store_res_vec!(
@@ -731,14 +732,14 @@ macro_rules! define_neon_matmul_micro_kernel {
                         ldc,
                         c_local,
                         [res_ptr <= c_vec],
-                        res_ptr.write_unaligned(res_ptr.read_unaligned()._add(c_vec))
+                        unsafe { res_ptr.write_unaligned(res_ptr.read_unaligned()._add(c_vec)) }
                     );
                 }
             } else {
                 if first_kiter {
-                    store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, [res_ptr <= c_val], unsafe { *res_ptr = c_val });
+                    store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, nn, [res_ptr <= c_val], unsafe { *res_ptr = c_val });
                 } else {
-                    store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, [res_ptr <= c_val], unsafe { *res_ptr = (*res_ptr)._add(c_val) });
+                    store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, nn, [res_ptr <= c_val], unsafe { *res_ptr = (*res_ptr)._add(c_val) });
                 }
             }
         }
@@ -767,10 +768,10 @@ pub(crate) use define_neon_matmul_micro_kernel;
 #[cfg(target_feature = "neon")]
 macro_rules! define_neon_post_op_matmul_micro_kernel {
     ($name:ident, $nr:expr, $mr:expr) => {
-        fn $name<T: CommonBounds, F: Fn(T, usize, usize) -> T, G: Fn(<T as TypeCommon>::Vec, usize, usize) -> <T as TypeCommon>::Vec>(
-            a: Pointer<T>,
-            b: Pointer<T>,
-            c: Pointer<T>,
+        fn $name<T: hpt_traits::tensor::CommonBounds, F: Fn(T, usize, usize) -> T, G: Fn(<T as TypeCommon>::Vec, usize, usize) -> <T as TypeCommon>::Vec>(
+            a: hpt_common::Pointer<T>,
+            b: hpt_common::Pointer<T>,
+            c: hpt_common::Pointer<T>,
             ldc: i64,
             lda: i64,
             kc: usize,
@@ -783,13 +784,12 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
             _post_op: F,
             post_op_vec: G,
         ) {
-            use vectors::traits::VecTrait;
-            use Pointer;
-            use math::NormalOut;
-            use $crate::backends::cpu::kernels::matmul::microkernels::load_vec_neon;
-            use $crate::define_neon_mma;
-            use $crate::store_res_vec;
-            use $crate::store_res_scalar;
+            use crate::ops::tensor::matmul::microkernels::define_neon_mma;
+            use crate::ops::tensor::matmul::microkernels::store_res_vec;
+            use crate::ops::tensor::matmul::microkernels::store_res_scalar;
+            use hpt_types::traits::VecTrait;
+            use hpt_types::type_promote::NormalOut;
+
             define_neon_mma!($nr, $mr);
 
             let c_local = mma(a, b, lda, kc, ks);
@@ -803,7 +803,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
                             ldc,
                             c_local,
                             [res_ptr <= c_vec],
-                            res_ptr.write_unaligned(post_op_vec(c_vec, m_idx + MR, n_idx + NR))
+                            unsafe { res_ptr.write_unaligned(post_op_vec(c_vec, m_idx + MR, n_idx + NR)) }
                         );
                     }
                     (true, false) => {
@@ -814,7 +814,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
                             ldc,
                             c_local,
                             [res <= c_vec],
-                            res.write_unaligned(c_vec)
+                            unsafe { res.write_unaligned(c_vec) }
                         );
                     }
                     (false, true) => {
@@ -825,7 +825,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
                             ldc,
                             c_local,
                             [res_ptr <= c_vec],
-                            res_ptr.write_unaligned(post_op_vec(res_ptr.read_unaligned()._add(c_vec), m_idx + MR, n_idx + NR))
+                            unsafe { res_ptr.write_unaligned(post_op_vec(res_ptr.read_unaligned()._add(c_vec), m_idx + MR, n_idx + NR)) }
                         );
                     }
                     (false, false) => {
@@ -836,23 +836,23 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
                             ldc,
                             c_local,
                             [res_ptr <= c_vec],
-                            res_ptr.write_unaligned(res_ptr.read_unaligned()._add(c_vec))
+                            unsafe { res_ptr.write_unaligned(res_ptr.read_unaligned()._add(c_vec)) }
                         );
                     },
                 }
             } else {
                 match (first_kiter, last_kiter) {
                     (true, true) => {
-                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, [res_ptr <= c_val], unsafe { *res_ptr = _post_op(c_val, m_idx + MR, n_idx + NR) });
+                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, nn, [res_ptr <= c_val], unsafe { *res_ptr = _post_op(c_val, m_idx + MR, n_idx + nn as usize) });
                     }
                     (true, false) => {
-                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, [res_ptr <= c_val], unsafe { *res_ptr = c_val });
+                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, nn, [res_ptr <= c_val], unsafe { *res_ptr = c_val });
                     }
                     (false, true) => {
-                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, [res_ptr <= c_val], unsafe { *res_ptr = _post_op((*res_ptr)._add(c_val), m_idx + MR, n_idx + NR) });
+                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, nn, [res_ptr <= c_val], unsafe { *res_ptr = _post_op((*res_ptr)._add(c_val), m_idx + MR, n_idx + nn as usize) });
                     }
                     (false, false) => {
-                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, [res_ptr <= c_val], unsafe { *res_ptr = c_val._add(c_val) });
+                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, nn, [res_ptr <= c_val], unsafe { *res_ptr = c_val._add(c_val) });
                     },
                 }
             }
@@ -883,10 +883,10 @@ pub(crate) use define_neon_post_op_matmul_micro_kernel;
 
 macro_rules! define_mixed_precision_matmul_micro_kernel {
     ($name:ident, $nr:expr, $mr:expr, $nr2:expr) => {
-        fn $name<T: CommonBounds, IM: CommonBounds>(
-            a: Pointer<IM>,
-            b: Pointer<IM>,
-            c: Pointer<T>,
+        fn $name<T: hpt_traits::tensor::CommonBounds, IM: hpt_traits::tensor::CommonBounds>(
+            a: hpt_common::Pointer<IM>,
+            b: hpt_common::Pointer<IM>,
+            c: hpt_common::Pointer<T>,
             ldc: i64,
             lda: i64,
             kc: usize,
@@ -990,10 +990,10 @@ pub(crate) use define_mixed_precision_matmul_micro_kernel;
 
 macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
     ($name:ident, $nr:expr, $mr:expr, $nr2:expr) => {
-        fn $name<T: CommonBounds, IM: CommonBounds, F: Fn(T, usize, usize) -> T, F2: Fn(T::Vec, usize, usize) -> T::Vec>(
-            a: Pointer<IM>,
-            b: Pointer<IM>,
-            c: Pointer<T>,
+        fn $name<T: hpt_traits::tensor::CommonBounds, IM: hpt_traits::tensor::CommonBounds, F: Fn(T, usize, usize) -> T, F2: Fn(T::Vec, usize, usize) -> T::Vec>(
+            a: hpt_common::Pointer<IM>,
+            b: hpt_common::Pointer<IM>,
+            c: hpt_common::Pointer<T>,
             ldc: i64,
             lda: i64,
             kc: usize,
@@ -1165,10 +1165,10 @@ pub(crate) use define_mixed_precision_post_op_matmul_micro_kernel;
 #[cfg(target_feature = "neon")]
 macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
     ($name:ident, $nr:expr, $mr:expr, $nr2:expr) => {
-        fn $name<T: CommonBounds, IM: CommonBounds>(
-            a: Pointer<IM>,
-            b: Pointer<IM>,
-            c: Pointer<T>,
+        fn $name<T: hpt_traits::tensor::CommonBounds, IM: hpt_traits::tensor::CommonBounds>(
+            a: hpt_common::Pointer<IM>,
+            b: hpt_common::Pointer<IM>,
+            c: hpt_common::Pointer<T>,
             ldc: i64,
             lda: i64,
             kc: usize,
@@ -1178,13 +1178,12 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
             vec_cast_back: fn(*mut T::Vec, *const IM::Vec),
             cast_back: fn(&mut T, &IM),
         ) {
-            use vectors::traits::VecTrait;
-            use Pointer;
-            use math::NormalOut;
-            use $crate::define_mma;
-            use $crate::define_mma_packed_a;
-            use $crate::store_res_vec_mp;
-            use $crate::store_res_scalar;
+            use crate::ops::tensor::matmul::microkernels::define_mma;
+            use crate::ops::tensor::matmul::microkernels::define_mma_packed_a;
+            use crate::ops::tensor::matmul::microkernels::store_res_vec_mp;
+            use crate::ops::tensor::matmul::microkernels::store_res_scalar;
+            use hpt_types::traits::VecTrait;
+            use hpt_types::type_promote::NormalOut;
             define_mma!($nr2, $mr, 4);
             define_mma_packed_a!($nr2, $mr, 4);
 
@@ -1232,6 +1231,7 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
                             ldc,
                             c_local => IM,
                             jb,
+                            nn,
                             [res_ptr <= c_val],
                             unsafe { cast_back(&mut *res_ptr, &c_val) }
                         );
@@ -1244,6 +1244,7 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
                             ldc,
                             c_local => IM,
                             jb,
+                            nn,
                             [res_ptr <= c_val],
                             let mut res = T::ZERO;
                             cast_back(&mut res, &c_val);
@@ -1280,10 +1281,10 @@ pub(crate) use define_neon_mixed_precision_matmul_micro_kernel;
 #[cfg(target_feature = "neon")]
 macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
     ($name:ident, $nr:expr, $mr:expr, $nr2:expr) => {
-        fn $name<T: CommonBounds, IM: CommonBounds, F: Fn(T, usize, usize) -> T, G: Fn(T::Vec, usize, usize) -> T::Vec>(
-            a: Pointer<IM>,
-            b: Pointer<IM>,
-            c: Pointer<T>,
+        fn $name<T: hpt_traits::tensor::CommonBounds, IM: hpt_traits::tensor::CommonBounds, F: Fn(T, usize, usize) -> T, G: Fn(T::Vec, usize, usize) -> T::Vec>(
+            a: hpt_common::Pointer<IM>,
+            b: hpt_common::Pointer<IM>,
+            c: hpt_common::Pointer<T>,
             ldc: i64,
             _lda: i64,
             kc: usize,
@@ -1298,6 +1299,8 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
             post_op: F,
             post_op_vec: G,
         ) {
+            use hpt_types::traits::VecTrait;
+            use hpt_types::type_promote::NormalOut;
             fn load_vec_neon<const NR: usize>(data: *const f32, mut to_write: *mut f32) {
                 use std::{arch::aarch64::*, mem::transmute};
                 unsafe {
@@ -1370,11 +1373,8 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                     }
                 }
             }
-            use vectors::traits::VecTrait;
-            use Pointer;
-            use math::NormalOut;
             #[inline(always)]
-            fn mma<T: CommonBounds>(mut a: Pointer<T>, mut b: Pointer<T>, kc: usize, ks: i64) -> [[<T as TypeCommon>::Vec; $nr2]; $mr] {
+            fn mma<T: hpt_traits::tensor::CommonBounds>(mut a: hpt_common::Pointer<T>, mut b: hpt_common::Pointer<T>, kc: usize, ks: i64) -> [[<T as TypeCommon>::Vec; $nr2]; $mr] {
                 let mut c_local = [[<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr2]; $mr];
                 for _ in 0..kc {
                     let mut b_vec = [<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr2];

@@ -14,7 +14,7 @@ pub(crate) enum Allocator {
 fn alloc(
     allocator: &mut Allocator,
     layout: std::alloc::Layout,
-    device: &mut Device,
+    _device: &mut Device,
     cpu_alloc_method: fn(
         &mut hpt_allocator::HptAllocator<Cpu>,
         layout: std::alloc::Layout,
@@ -36,8 +36,8 @@ fn alloc(
         }
         #[cfg(feature = "cuda")]
         Allocator::BuiltinCuda(allocator) => {
-            let res = (cuda_alloc_method)(allocator, layout, device.id())?;
-            *device = Device::CudaWithDevice(res.1);
+            let res = (cuda_alloc_method)(allocator, layout, _device.id())?;
+            *_device = Device::CudaWithDevice(res.1);
             Ok(Pointer::new(res.0, layout.size() as i64))
         }
     }

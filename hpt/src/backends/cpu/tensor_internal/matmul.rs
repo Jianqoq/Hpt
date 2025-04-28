@@ -13,7 +13,7 @@ use crate::backends::cpu::kernels::matmul::matmul_post::{
 };
 use crate::backends::cpu::kernels::matmul::microkernel_trait::MatmulMicroKernel;
 use crate::tensor_base::_Tensor;
-use crate::utils::get_num_threads;
+// use crate::utils::get_num_threads;
 use crate::CUSTOM_THREAD_POOL;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_allocator::Cpu;
@@ -437,8 +437,8 @@ where
 
     fn addmm(
         &self,
-        rhs: _Tensor<T, Cpu, DEVICE, A2>,
-        bias: _Tensor<T, Cpu, DEVICE, A2>,
+        _: _Tensor<T, Cpu, DEVICE, A2>,
+        _: _Tensor<T, Cpu, DEVICE, A2>,
     ) -> std::result::Result<Self::Output, TensorError> {
         todo!()
     }
@@ -486,8 +486,8 @@ where
 
     fn addmm(
         &self,
-        rhs: &_Tensor<T, Cpu, DEVICE, A2>,
-        bias: &_Tensor<T, Cpu, DEVICE, A2>,
+        _: &_Tensor<T, Cpu, DEVICE, A2>,
+        _: &_Tensor<T, Cpu, DEVICE, A2>,
     ) -> std::result::Result<Self::Output, TensorError> {
         todo!()
     }

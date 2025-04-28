@@ -20,3 +20,10 @@ thread_local! {
 pub fn current_num_threads() -> usize {
     rayon::current_num_threads()
 }
+
+#[ctor::ctor]
+fn init() {
+    THREAD_POOL.with(|x| {
+        x.borrow_mut().resize(num_cpus::get());
+    });
+}

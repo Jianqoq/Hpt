@@ -4,7 +4,7 @@ use crate::ops::tensor::matmul::microkernel_trait::MatmulMicroKernel;
 impl MatmulMicroKernel for i8 {
     fn get_kernel(
         nr: usize,
-        mr: usize,
+        mr: usize
     ) -> fn(
         hpt_common::Pointer<Self>,
         hpt_common::Pointer<Self>,
@@ -14,10 +14,11 @@ impl MatmulMicroKernel for i8 {
         usize,
         usize,
         i64,
-        bool,
+        bool
     ) {
         use crate::ops::tensor::matmul::microkernels::define_matmul_micro_kernel;
         use crate::ops::tensor::matmul::microkernels::define_neon_matmul_micro_kernel;
+        use hpt_types::dtype::TypeCommon;
         assert_eq!(nr, 1);
         define_matmul_micro_kernel!(x1x1, 1, 1);
         define_matmul_micro_kernel!(x1x2, 1, 2);
@@ -36,14 +37,31 @@ impl MatmulMicroKernel for i8 {
         define_matmul_micro_kernel!(x1x15, 1, 15);
         define_neon_matmul_micro_kernel!(x1x16, 1, 16);
         [
-            x1x1, x1x2, x1x3, x1x4, x1x5, x1x6, x1x7, x1x8, x1x9, x1x10, x1x11, x1x12, x1x13,
-            x1x14, x1x15, x1x16,
+            x1x1,
+            x1x2,
+            x1x3,
+            x1x4,
+            x1x5,
+            x1x6,
+            x1x7,
+            x1x8,
+            x1x9,
+            x1x10,
+            x1x11,
+            x1x12,
+            x1x13,
+            x1x14,
+            x1x15,
+            x1x16,
         ][mr - 1]
     }
 
-    fn get_kernel_with_post_op<F: Fn(Self, usize, usize) -> Self, G: Fn(Self::Vec, usize, usize) -> Self::Vec>(
+    fn get_kernel_with_post_op<
+        F: Fn(Self, usize, usize) -> Self,
+        G: Fn(Self::Vec, usize, usize) -> Self::Vec
+    >(
         nr: usize,
-        mr: usize,
+        mr: usize
     ) -> fn(
         hpt_common::Pointer<Self>,
         hpt_common::Pointer<Self>,
@@ -58,10 +76,11 @@ impl MatmulMicroKernel for i8 {
         usize,
         usize,
         F,
-        G,
+        G
     ) {
         use crate::ops::tensor::matmul::microkernels::define_neon_post_op_matmul_micro_kernel;
         use crate::ops::tensor::matmul::microkernels::define_post_op_matmul_micro_kernel;
+        use hpt_types::dtype::TypeCommon;
         assert_eq!(nr, 1);
         define_post_op_matmul_micro_kernel!(x1x1, 1, 1);
         define_post_op_matmul_micro_kernel!(x1x2, 1, 2);
@@ -80,8 +99,22 @@ impl MatmulMicroKernel for i8 {
         define_post_op_matmul_micro_kernel!(x1x15, 1, 15);
         define_neon_post_op_matmul_micro_kernel!(x1x16, 1, 16);
         [
-            x1x1, x1x2, x1x3, x1x4, x1x5, x1x6, x1x7, x1x8, x1x9, x1x10, x1x11, x1x12, x1x13,
-            x1x14, x1x15, x1x16,
+            x1x1,
+            x1x2,
+            x1x3,
+            x1x4,
+            x1x5,
+            x1x6,
+            x1x7,
+            x1x8,
+            x1x9,
+            x1x10,
+            x1x11,
+            x1x12,
+            x1x13,
+            x1x14,
+            x1x15,
+            x1x16,
         ][mr - 1]
     }
 

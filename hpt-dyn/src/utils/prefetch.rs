@@ -1,3 +1,4 @@
+#![allow(unused)]
 use hpt_types::dtype::TypeCommon;
 
 #[inline(always)]

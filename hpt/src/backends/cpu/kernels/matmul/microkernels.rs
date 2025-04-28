@@ -5,7 +5,7 @@ macro_rules! define_mma {
         #[inline(always)]
         fn mma<T: $crate::common::CommonBounds>(a: Pointer<T>, b: Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as $crate::types::TypeCommon>::Vec; $nr]; $mr] {
             let mut c_local = [[<T as $crate::types::TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
-            let a_ptr = a.ptr as *const T;
+            // let a_ptr = a.ptr as *const T;
             let b_ptr = b.ptr as *const <T as crate::types::TypeCommon>::Vec;
             let rem = kc % $unroll;
             for k in 0..(kc / $unroll) as i64 {
@@ -13,11 +13,9 @@ macro_rules! define_mma {
                 //     $crate::backends::common::prefetch::prefetch_a::<T>(a_ptr, ((k + 1) * $unroll * ks + MR as i64 * lda) as usize);
                 // });
                 $crate::re_exports::seq_macro::seq!(UNROLL in 0..$unroll {
-                    // $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
-                    //     $crate::backends::common::prefetch::prefetch_b::<T>(b_ptr, (((k + 1) * $unroll + UNROLL) * $nr + NR) as usize);
-                    // });
                     $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
                         let b_vec~NR = unsafe {*b_ptr.add(((k * $unroll + UNROLL) * $nr + NR) as usize)};
+                        // $crate::backends::common::prefetch::prefetch_b::<T>(b_ptr, (((k + 1) * $unroll + UNROLL) * $nr + NR) as usize);
                     });
                     #[allow(unused_mut)]
                     let mut a_vec;
@@ -84,7 +82,7 @@ macro_rules! define_mma_packed_a {
         #[inline(always)]
         fn mma_packed_a<T: $crate::common::CommonBounds>(a: Pointer<T>, b: Pointer<T>, kc: usize) -> [[<T as $crate::types::TypeCommon>::Vec; $nr]; $mr] {
             let mut c_local = [[<T as $crate::types::TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
-            let a_ptr = a.ptr as *const T;
+            // let a_ptr = a.ptr as *const T;
             let b_ptr = b.ptr as *const <T as crate::types::TypeCommon>::Vec;
             let rem = kc % $unroll;
             for k in 0..(kc / $unroll) as i64 {
@@ -726,9 +724,9 @@ macro_rules! define_neon_matmul_micro_kernel {
                 }
             } else {
                 if first_kiter {
-                    store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, [res_ptr <= c_val], unsafe { *res_ptr = c_val });
+                    store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, nn, [res_ptr <= c_val], unsafe { *res_ptr = c_val });
                 } else {
-                    store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, [res_ptr <= c_val], unsafe { *res_ptr = (*res_ptr)._add(c_val) });
+                    store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, nn, [res_ptr <= c_val], unsafe { *res_ptr = (*res_ptr)._add(c_val) });
                 }
             }
         }
@@ -831,16 +829,16 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
             } else {
                 match (first_kiter, last_kiter) {
                     (true, true) => {
-                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, [res_ptr <= c_val], unsafe { *res_ptr = _post_op(c_val, m_idx + MR, n_idx + NR) });
+                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, nn, [res_ptr <= c_val], unsafe { *res_ptr = _post_op(c_val, m_idx + MR, n_idx + nn as usize) });
                     }
                     (true, false) => {
-                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, [res_ptr <= c_val], unsafe { *res_ptr = c_val });
+                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, nn, [res_ptr <= c_val], unsafe { *res_ptr = c_val });
                     }
                     (false, true) => {
-                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, [res_ptr <= c_val], unsafe { *res_ptr = _post_op((*res_ptr)._add(c_val), m_idx + MR, n_idx + NR) });
+                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, nn, [res_ptr <= c_val], unsafe { *res_ptr = _post_op((*res_ptr)._add(c_val), m_idx + MR, n_idx + nn as usize) });
                     }
                     (false, false) => {
-                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, [res_ptr <= c_val], unsafe { *res_ptr = c_val._add(c_val) });
+                        store_res_scalar!($mr, $nr, c => T, ldc, c_local => T, jb, nn, [res_ptr <= c_val], unsafe { *res_ptr = c_val._add(c_val) });
                     },
                 }
             }
@@ -1213,6 +1211,7 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
                             ldc,
                             c_local => IM,
                             jb,
+                            nn,
                             [res_ptr <= c_val],
                             unsafe { cast_back(&mut *res_ptr, &c_val) }
                         );
@@ -1225,6 +1224,7 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
                             ldc,
                             c_local => IM,
                             jb,
+                            nn,
                             [res_ptr <= c_val],
                             let mut res = T::ZERO;
                             cast_back(&mut res, &c_val);

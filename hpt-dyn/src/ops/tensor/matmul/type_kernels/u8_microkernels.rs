@@ -18,6 +18,7 @@ impl MatmulMicroKernel for u8 {
     ) {
         use crate::ops::tensor::matmul::microkernels::define_matmul_micro_kernel;
         use crate::ops::tensor::matmul::microkernels::define_neon_matmul_micro_kernel;
+        use hpt_types::dtype::TypeCommon;
         assert_eq!(nr, 1);
         define_matmul_micro_kernel!(x1x1, 1, 1);
         define_matmul_micro_kernel!(x1x2, 1, 2);
@@ -61,6 +62,7 @@ impl MatmulMicroKernel for u8 {
     ) {
         use crate::ops::tensor::matmul::microkernels::define_neon_post_op_matmul_micro_kernel;
         use crate::ops::tensor::matmul::microkernels::define_post_op_matmul_micro_kernel;
+        use hpt_types::dtype::TypeCommon;
         assert_eq!(nr, 1);
         define_post_op_matmul_micro_kernel!(x1x1, 1, 1);
         define_post_op_matmul_micro_kernel!(x1x2, 1, 2);

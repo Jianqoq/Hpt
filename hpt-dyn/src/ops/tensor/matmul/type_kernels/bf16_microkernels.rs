@@ -2,10 +2,9 @@ use hpt_traits::tensor::CommonBounds;
 use hpt_types::dtype::TypeCommon;
 
 use crate::ops::tensor::matmul::microkernel_trait::MatmulMicroKernel;
-use hpt_common::Pointer;
 
 #[cfg(target_feature = "neon")]
-impl MatmulMicroKernel for crate::types::bf16 {
+impl MatmulMicroKernel for half::bf16 {
     fn get_kernel(
         nr: usize,
         mr: usize,
@@ -20,8 +19,8 @@ impl MatmulMicroKernel for crate::types::bf16 {
         i64,
         bool,
     ) {
-        use crate::define_matmul_micro_kernel;
-        use crate::define_neon_matmul_micro_kernel;
+        use crate::ops::tensor::matmul::microkernels::define_matmul_micro_kernel;
+        use crate::ops::tensor::matmul::microkernels::define_neon_matmul_micro_kernel;
         assert_eq!(nr, 2);
         define_matmul_micro_kernel!(x2x1, 2, 1);
         define_matmul_micro_kernel!(x2x2, 2, 2);
@@ -55,8 +54,8 @@ impl MatmulMicroKernel for crate::types::bf16 {
         F,
         G,
     ) {
-        use crate::define_neon_post_op_matmul_micro_kernel;
-        use crate::define_post_op_matmul_micro_kernel;
+        use crate::ops::tensor::matmul::microkernels::define_neon_post_op_matmul_micro_kernel;
+        use crate::ops::tensor::matmul::microkernels::define_post_op_matmul_micro_kernel;
         assert_eq!(nr, 2);
         define_post_op_matmul_micro_kernel!(x2x1, 2, 1);
         define_post_op_matmul_micro_kernel!(x2x2, 2, 2);
@@ -96,8 +95,8 @@ impl MatmulMicroKernel for crate::types::bf16 {
         const {
             assert!(MixedType::BYTE_SIZE == 4);
         }
-        use crate::define_mixed_precision_matmul_micro_kernel;
-        use crate::define_neon_mixed_precision_matmul_micro_kernel;
+        use crate::ops::tensor::matmul::microkernels::define_mixed_precision_matmul_micro_kernel;
+        use crate::ops::tensor::matmul::microkernels::define_neon_mixed_precision_matmul_micro_kernel;
         assert_eq!(nr, 2);
         define_mixed_precision_matmul_micro_kernel!(x2x1, 2, 1, 4);
         define_mixed_precision_matmul_micro_kernel!(x2x2, 2, 2, 4);
@@ -133,8 +132,8 @@ impl MatmulMicroKernel for crate::types::bf16 {
     where
         MixedType: CommonBounds,
     {
-        use crate::define_mixed_precision_post_op_matmul_micro_kernel;
-        use crate::define_neon_mixed_precision_post_op_matmul_micro_kernel;
+        use crate::ops::tensor::matmul::microkernels::define_mixed_precision_post_op_matmul_micro_kernel;
+        use crate::ops::tensor::matmul::microkernels::define_neon_mixed_precision_post_op_matmul_micro_kernel;
         assert_eq!(nr, 2);
         define_mixed_precision_post_op_matmul_micro_kernel!(x2x1, 2, 1, 4);
         define_mixed_precision_post_op_matmul_micro_kernel!(x2x2, 2, 2, 4);

@@ -28,12 +28,10 @@ fn main() -> Result<(), TensorError> {
     */
 
     let res = loader
-        .push("b", &[])
-        .push("c", &[])
-        .load::<Tensor<f64>>()
+        .push::<f32>("b", &[])
+        .push::<f32>("c", &[])
+        .load()
         .expect("load failed");
-
-    println!("{:?}", res);
 
     Ok(())
 }

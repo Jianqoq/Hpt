@@ -92,45 +92,33 @@ impl LSTMCell {
             let g = hh.slice(&select![:, 2*hidden_size:3*hidden_size])?; // tanh， [batch_size, hidden_size]
             let o = hh.slice(&select![:, 3*hidden_size:4*hidden_size])?; // sigmoid， [batch_size, hidden_size]
 
-            // use hpt::iter::ParStridedIteratorSimd;
-            // use hpt::iter::ParStridedIteratorSimdZip;
-            // use hpt::iter::TensorIterator;
-            // c.par_iter_mut_simd()
-            //     .zip(i.par_iter_simd())
-            //     .zip(f.par_iter_simd())
-            //     .zip(g.par_iter_simd())
-            //     .zip(h.par_iter_mut_simd())
-            //     .zip(o.par_iter_simd())
-            //     .for_each(
-            //         |(((((c, i), f), g), h), o)| {
-            //             let mul = i * g;
-            //             let res = f.mul_add(*c, mul);
-            //             let tanh = res._tanh();
-            //             let o = o * tanh;
-            //             *c = res;
-            //             *h = o;
-            //         },
-            //         |(((((c, i), f), g), h), o)| {
-            //             let mul = i * g;
-            //             let res = f.mul_add(c.read_unaligned(), mul);
-            //             let tanh = res._tanh();
-            //             let o = o * tanh;
-            //             c.write_unaligned(res);
-            //             h.write_unaligned(o);
-            //         },
-            //     );
-
-            // h.par_iter_mut_simd()
-            //     .zip(c.par_iter_simd())
-            //     .zip(o.par_iter_simd())
-            //     .for_each(
-            //         |((h, c), o)| {
-            //             *h = o * c._tanh();
-            //         },
-            //         |((h, c), o)| {
-            //             h.write_unaligned(o * c._tanh());
-            //         },
-            //     );
+            use hpt::iter::ParStridedIteratorSimd;
+            use hpt::iter::ParStridedIteratorSimdZip;
+            use hpt::iter::TensorIterator;
+            c.par_iter_mut_simd()
+                .zip(i.par_iter_simd())
+                .zip(f.par_iter_simd())
+                .zip(g.par_iter_simd())
+                .zip(h.par_iter_mut_simd())
+                .zip(o.par_iter_simd())
+                .for_each(
+                    |(((((c, i), f), g), h), o)| {
+                        let mul = i * g;
+                        let res = f.mul_add(*c, mul);
+                        let tanh = res._tanh();
+                        let o = o * tanh;
+                        *c = res;
+                        *h = o;
+                    },
+                    |(((((c, i), f), g), h), o)| {
+                        let mul = i * g;
+                        let res = f.mul_add(c.read_unaligned(), mul);
+                        let tanh = res._tanh();
+                        let o = o * tanh;
+                        c.write_unaligned(res);
+                        h.write_unaligned(o);
+                    },
+                );
         }
 
         let last_h = hs.slice(&select![-1:,:,:])?;

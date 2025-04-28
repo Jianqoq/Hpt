@@ -201,7 +201,7 @@ pub mod vectors {
             target_arch = "aarch64",
             target_feature = "neon"
         ))]
-        pub use crate::arch_simd::_128bit::common::REGNUM;
+        pub use crate::arch_simd::_128bit::neon::REGNUM;
         #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
         pub use crate::arch_simd::_256bit::avx2::REGNUM;
 

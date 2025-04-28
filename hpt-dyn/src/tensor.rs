@@ -1,9 +1,15 @@
-use hpt_common::{Pointer, layout::layout::Layout, shape::shape::Shape, strides::strides::Strides};
-use hpt_traits::tensor::{CommonBounds, TensorInfo};
+use hpt_common::error::base::TensorError;
+use hpt_common::{ Pointer, layout::layout::Layout, shape::shape::Shape, strides::strides::Strides };
+use hpt_traits::tensor::{ CommonBounds, TensorInfo };
 use std::sync::Arc;
 
-use crate::DType;
-use crate::utils::{backend::Backend, device::Device};
+use crate::utils::index_cal::{
+    dispatch_loop_progress_update,
+    dispatch_map_global_idx,
+    dispatch_map_gp,
+};
+use crate::{ DType, ALIGN };
+use crate::utils::{ backend::Backend, device::Device };
 
 use hpt_iterator::TensorIterator;
 
@@ -29,7 +35,7 @@ impl Tensor {
         unsafe {
             std::slice::from_raw_parts(
                 self.data.ptr as *const T,
-                self.mem_layout.size() as usize / std::mem::size_of::<T>(),
+                (self.mem_layout.size() as usize) / std::mem::size_of::<T>()
             )
         }
     }
@@ -40,14 +46,47 @@ impl Tensor {
         unsafe {
             std::slice::from_raw_parts_mut(
                 self.data.ptr as *mut T,
-                self.mem_layout.size() as usize / std::mem::size_of::<T>(),
+                (self.mem_layout.size() as usize) / std::mem::size_of::<T>()
             )
+        }
+    }
+    pub unsafe fn from_raw(
+        data: *mut u8,
+        layout: Layout,
+        dtype: DType,
+        device: Device
+    ) -> Result<Self, TensorError> {
+        let len = layout.size() as usize;
+        match device {
+            Device::Cpu => {
+                let ptr = Pointer::new(data, len as i64);
+                let prg_update = dispatch_loop_progress_update(&layout, dtype.sizeof());
+                let map_global_idx = dispatch_map_global_idx(&layout);
+                let map_gp = dispatch_map_gp(&layout);
+                let mem_layout = std::alloc::Layout
+                    ::from_size_align(len * dtype.sizeof(), ALIGN)
+                    .expect("failed to create memory layout");
+                Ok(Self {
+                    data: ptr,
+                    layout,
+                    dtype,
+                    device,
+                    parent: None,
+                    prg_update,
+                    map_global_idx,
+                    map_gp,
+                    mem_layout,
+                    backend: Backend::new_cpu(ptr, 0, false),
+                })
+            }
+            #[cfg(feature = "cuda")]
+            _ => { unimplemented!() }
         }
     }
 }
 
 macro_rules! impl_tensor_info {
-    ($t: ty) => {
+    ($t:ty) => {
         impl TensorInfo for $t {
             fn ptr<T>(&self) -> Pointer<T> {
                 self.data.cast::<T>()

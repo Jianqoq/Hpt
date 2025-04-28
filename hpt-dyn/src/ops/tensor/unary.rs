@@ -1,11 +1,93 @@
+use std::borrow::Borrow;
+
 use crate::{Tensor, current_num_threads};
 use hpt_common::error::base::TensorError;
+use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape_utils::mt_intervals;
+use hpt_iterator::iterator_traits::ParStridedIteratorSimdZip;
+use hpt_iterator::TensorIterator;
+use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
 use hpt_types::promote_float_unary;
 use hpt_types::scalar::*;
 use hpt_types::vector::*;
+use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::IntoParallelRefMutIterator;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use rayon::slice::ParallelSlice;
+use rayon::slice::ParallelSliceMut;
+use hpt_types::traits::VecTrait;
+
+#[inline(never)]
+pub fn unary_map<A, K, F, F2>(slice_a: &[A], slice_o: &mut [K], f: F, f2: F2)
+where
+    A: CommonBounds,
+    K: CommonBounds,
+    F: Fn(A::Vec) -> K::Vec + Sync + Send,
+    F2: Fn(A) -> K + Sync + Send,
+{
+    if K::BYTE_SIZE == A::BYTE_SIZE {
+        let mut chunk_o = slice_o.par_chunks_exact_mut(A::Vec::SIZE);
+        let chunk_a = slice_a.par_chunks_exact(A::Vec::SIZE);
+        chunk_o
+            .remainder()
+            .into_par_iter()
+            .zip(chunk_a.remainder().into_par_iter())
+            .for_each(|(out, buffer)| {
+                *out = f2(*buffer);
+            });
+        chunk_o
+            .into_par_iter()
+            .zip(chunk_a.into_par_iter())
+            .for_each(|(out, buffer)| {
+                let out_ptr = out.as_mut_ptr() as *mut K::Vec;
+                let buffer_ptr = buffer.as_ptr() as *const A::Vec;
+                unsafe {
+                    out_ptr.write_unaligned(f(buffer_ptr.read_unaligned()));
+                }
+            });
+    } else {
+        slice_o
+            .par_iter_mut()
+            .zip(slice_a.par_iter())
+            .for_each(|(out, buffer)| {
+                *out = f2(*buffer);
+            });
+    }
+}
+
+/// Perform unary operation with output tensor
+pub fn unary_fn_with_out<A, O, K, F, F2>(
+    inp: &Tensor,
+    f: F,
+    f2: F2,
+    out: Option<O>,
+) -> std::result::Result<Tensor, TensorError>
+where
+    A: CommonBounds,
+    K: CommonBounds,
+    O: Borrow<Tensor>,
+    F: Fn(A::Vec) -> K::Vec + Sync + Send,
+    F2: Fn(A) -> K + Sync + Send,
+{
+    let mut ret = if let Some(out) = out {
+        ShapeError::check_inplace_out_layout_valid(inp.shape(), &out.borrow().layout())?;
+        let ret: Tensor = out.borrow().clone();
+        ret
+    } else {
+        inp.empty_like()?
+    };
+    if inp.parent::<A>().is_some() {
+        ret.par_iter_mut_simd()
+            .zip(inp.par_iter_simd())
+            .for_each(|(a, b)| {
+                *a = f2(b);
+            });
+        return Ok(ret);
+    }
+    unary_map(inp.as_slice(), ret.as_slice_mut(), f, f2);
+    Ok(ret)
+}
 
 pub(crate) fn unary_1operand<F1, F2>(
     output: &mut Tensor,

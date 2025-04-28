@@ -2,9 +2,6 @@ use hpt_traits::tensor::CommonBounds;
 use hpt_types::dtype::TypeCommon;
 
 use crate::ops::tensor::matmul::microkernel_trait::MatmulMicroKernel;
-
-use hpt_common::Pointer;
-
 #[cfg(target_feature = "neon")]
 impl MatmulMicroKernel for half::f16 {
     fn get_kernel(

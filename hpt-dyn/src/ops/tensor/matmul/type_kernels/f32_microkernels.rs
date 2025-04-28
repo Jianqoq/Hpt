@@ -1,8 +1,5 @@
 use crate::ops::tensor::matmul::microkernel_trait::MatmulMicroKernel;
-use hpt_common::Pointer;
-use hpt_traits::tensor::CommonBounds;
 use hpt_types::dtype::TypeCommon;
-use hpt_types::traits::VecTrait;
 
 #[cfg(target_feature = "neon")]
 impl MatmulMicroKernel for f32 {

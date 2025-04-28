@@ -167,6 +167,15 @@ impl bf16x8 {
     }
 }
 
+impl SimdSelect<bf16x8> for i16x8 {
+    #[inline(always)]
+    fn select(&self, true_val: bf16x8, false_val: bf16x8) -> bf16x8 {
+        use std::arch::aarch64::vbslq_u16;
+        let selected = unsafe { vbslq_u16(std::mem::transmute(self.0), std::mem::transmute(true_val.0), std::mem::transmute(false_val.0)) };
+        unsafe { bf16x8(std::mem::transmute(selected)) }
+    }
+}
+
 impl VecConvertor for bf16x8 {
     #[inline(always)]
     fn to_bf16(self) -> bf16x8 {

@@ -1,8 +1,6 @@
 use hpt_common::Pointer;
 use hpt_traits::tensor::CommonBounds;
 use hpt_types::dtype::TypeCommon;
-use hpt_types::traits::VecTrait;
-use hpt_types::type_promote::NormalOut;
 /// A trait for microkernels of matrix multiplication
 pub trait MatmulMicroKernel
 where

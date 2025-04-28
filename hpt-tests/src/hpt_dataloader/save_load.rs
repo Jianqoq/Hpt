@@ -19,26 +19,17 @@ fn test_save_load_single() -> anyhow::Result<()> {
         .push("d", d.clone(), CompressionAlgo::Gzip, 1)
         .save()?;
 
-    let a_loaded = TensorLoader::new(&tmp_file)
-        .push("a", &[])
-        .load::<Tensor<f32>>()?;
+    let mut loaded = TensorLoader::new(&tmp_file)
+        .push::<f32>("a", &[])
+        .push::<i8>("b", &[])
+        .push::<f16>("c", &[])
+        .push::<bf16>("d", &[])
+        .load()?;
 
-    let b_loaded = TensorLoader::new(&tmp_file)
-        .push("b", &[])
-        .load::<Tensor<i8>>()?;
-
-    let c_loaded = TensorLoader::new(&tmp_file)
-        .push("c", &[])
-        .load::<Tensor<f16>>()?;
-
-    let d_loaded = TensorLoader::new(&tmp_file)
-        .push("d", &[])
-        .load::<Tensor<bf16>>()?;
-
-    assert_eq!(a, a_loaded["a"]);
-    assert_eq!(b, b_loaded["b"]);
-    assert_eq!(c, c_loaded["c"]);
-    assert_eq!(d, d_loaded["d"]);
+    assert_eq!(a, loaded.remove("a").unwrap().into());
+    assert_eq!(b, loaded.remove("b").unwrap().into());
+    assert_eq!(c, loaded.remove("c").unwrap().into());
+    assert_eq!(d, loaded.remove("d").unwrap().into());
 
     std::fs::remove_file(&tmp_file)?;
     Ok(())

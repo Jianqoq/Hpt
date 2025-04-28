@@ -1,4 +1,5 @@
 use crate::convertion::VecConvertor;
+use crate::traits::SimdSelect;
 use crate::traits::VecTrait;
 use crate::vectors::arch_simd::_128bit::common::f16x8::f16x8;
 use crate::vectors::arch_simd::_128bit::f32x4;
@@ -228,6 +229,15 @@ impl f16x8 {
                 std::mem::transmute(result)
             }
         }
+    }
+}
+
+impl SimdSelect<f16x8> for i16x8 {
+    #[inline(always)]
+    fn select(&self, true_val: f16x8, false_val: f16x8) -> f16x8 {
+        use std::arch::aarch64::vbslq_u16;
+        let selected = unsafe { vbslq_u16(std::mem::transmute(self.0), std::mem::transmute(true_val.0), std::mem::transmute(false_val.0)) };
+        unsafe { f16x8(std::mem::transmute(selected)) }
     }
 }
 

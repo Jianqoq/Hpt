@@ -16,7 +16,6 @@ use crate::type_promote::NormalOutUnary;
 
 use half::{bf16, f16};
 
-type Fn4Type = fn(usize, usize, usize, usize, usize);
 type Fn3Type = fn(usize, usize, usize, usize);
 type Fn2Type = fn(usize, usize, usize);
 type Fn1Type = fn(usize, usize);

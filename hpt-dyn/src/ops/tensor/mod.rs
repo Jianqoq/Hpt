@@ -28,3 +28,26 @@ pub(crate) mod matmul {
         pub(crate) mod bf16_microkernels;
     }
 }
+
+pub(crate) mod normalization {
+    pub(crate) mod batch_norm;
+}
+
+pub(crate) mod conv2d {
+    pub(crate) mod conv2d;
+    pub(crate) mod conv2d_direct;
+    pub(crate) mod conv2d_group;
+    pub(crate) mod conv2d_img2col;
+    pub(crate) mod conv2d_micro_kernels;
+    pub(crate) mod conv2d_mp;
+    pub(crate) mod batchnorm_conv2d;
+    pub(crate) mod microkernel_trait;
+    pub(crate) mod utils;
+    pub(crate) mod type_kernels {
+        pub(crate) mod i8_microkernels;
+        pub(crate) mod u8_microkernels;
+        pub(crate) mod f16_microkernels;
+        pub(crate) mod f32_microkernels;
+        pub(crate) mod bf16_microkernels;
+    }
+}
