@@ -64,7 +64,7 @@ pub mod par_strided_map_mut_simd {
         /// # Returns
         ///
         /// A new instance of `ParStridedMapMutSimd` initialized with the provided result tensor.
-        pub fn new<U: TensorInfo<T>>(res_tensor: U) -> Self {
+        pub fn new<U: TensorInfo>(res_tensor: U) -> Self {
             ParStridedMapMutSimd {
                 base: ParStridedMutSimd::new(res_tensor),
                 phantom: std::marker::PhantomData,
@@ -252,16 +252,16 @@ where
     ///
     /// # Type Parameters
     ///
-    /// * `U` - The type of the tensor to accumulate results into. Must implement `TensorInfo<T>`.
+    /// * `U` - The type of the tensor to accumulate results into. Must implement `TensorInfo`.
     ///
     /// # Arguments
     ///
-    /// * `res_tensor` - The tensor implementing the `TensorInfo<T>` trait to accumulate results into.
+    /// * `res_tensor` - The tensor implementing the `TensorInfo` trait to accumulate results into.
     ///
     /// # Returns
     ///
     /// A new instance of `ParStridedMapMut` initialized with the provided result tensor.
-    pub fn new<U: TensorInfo<T>>(res_tensor: U) -> Self {
+    pub fn new<U: TensorInfo>(res_tensor: U) -> Self {
         ParStridedMapMut {
             base: ParStridedMut::new(res_tensor),
             phantom: std::marker::PhantomData,

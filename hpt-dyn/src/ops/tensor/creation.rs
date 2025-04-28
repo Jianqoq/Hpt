@@ -39,9 +39,11 @@ impl Tensor {
                 let ptr = allocator.alloc_method(mem_layout, &mut device)?;
                 let backend = match &device {
                     Device::Cpu => Backend::new_cpu(ptr, 0, true),
+                    #[cfg(feature = "cuda")]
                     Device::CudaWithDevice(cuda_device) => {
                         Backend::new_cuda(ptr, cuda_device.clone(), true)
                     }
+                    #[cfg(feature = "cuda")]
                     Device::Cuda(_) => unreachable!(),
                 };
                 Ok(Tensor {

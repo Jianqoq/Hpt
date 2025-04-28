@@ -82,7 +82,7 @@ pub mod par_strided_map_simd {
                 + Sync
                 + Send
                 + 'a,
-            U: Clone + TensorInfo<U::Meta> + TensorCreator<Output = U>,
+            U: Clone + TensorInfo + TensorCreator<Output = U>,
             <I as IterGetSetSimd>::Item: Send,
             <U as TensorCreator>::Meta: CommonBounds,
             F2: Send
@@ -153,7 +153,7 @@ impl<
     pub fn collect<U>(self) -> U
     where
         F: Fn((&mut U::Meta, T)) + Sync + Send,
-        U: Clone + TensorInfo<U::Meta> + TensorCreator<Output = U>,
+        U: Clone + TensorInfo + TensorCreator<Output = U>,
         <I as IterGetSet>::Item: Send,
         <U as TensorCreator>::Meta: CommonBounds,
     {

@@ -64,7 +64,7 @@ pub struct DataLoader<T, B> {
 
 impl<T, B> DataLoader<T, B>
 where
-    B: TensorInfo<T>,
+    B: TensorInfo,
 {
     pub fn new(shape: Shape, strides: Strides, tensor: B) -> Self {
         let ptr = tensor.ptr();
@@ -79,7 +79,7 @@ where
 
 impl<B, T> DataLoaderTrait for DataLoader<T, B>
 where
-    B: TensorInfo<T>,
+    B: TensorInfo,
     T: CommonBounds + bytemuck::NoUninit,
 {
     fn shape(&self) -> &Shape {
@@ -160,7 +160,7 @@ impl TensorSaver {
     ) -> Self
     where
         T: CommonBounds + bytemuck::NoUninit,
-        A: TensorInfo<T> + 'static + ToDataLoader,
+        A: TensorInfo + 'static + ToDataLoader,
         <A as ToDataLoader>::Output: DataLoaderTrait,
     {
         let data_loader = tensor.to_dataloader();
@@ -212,7 +212,7 @@ impl TensorLoader {
     pub fn load<B>(self) -> std::io::Result<HashMap<String, B>>
     where
         B: CPUTensorCreator,
-        <B as CPUTensorCreator>::Output: Into<B> + TensorInfo<<B as CPUTensorCreator>::Meta>,
+        <B as CPUTensorCreator>::Output: Into<B> + TensorInfo,
         <B as CPUTensorCreator>::Meta: CommonBounds + bytemuck::AnyBitPattern,
     {
         let res = load_compressed_slice::<B>(
@@ -226,7 +226,7 @@ impl TensorLoader {
     pub fn load_all<B>(self) -> std::io::Result<HashMap<String, B>>
     where
         B: CPUTensorCreator,
-        <B as CPUTensorCreator>::Output: Into<B> + TensorInfo<<B as CPUTensorCreator>::Meta>,
+        <B as CPUTensorCreator>::Output: Into<B> + TensorInfo,
         <B as CPUTensorCreator>::Meta: CommonBounds + bytemuck::AnyBitPattern,
     {
         let res = HeaderInfo::parse_header_compressed(self.file_path.to_str().unwrap().into())

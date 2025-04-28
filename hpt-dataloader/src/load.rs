@@ -15,7 +15,7 @@ pub(crate) fn load_compressed_slice<'a, B: CPUTensorCreator>(
     queries: Vec<(String, Vec<(i64, i64, i64)>)>,
 ) -> Result<HashMap<String, B>, Box<dyn std::error::Error>>
 where
-    <B as CPUTensorCreator>::Output: Into<B> + TensorInfo<<B as CPUTensorCreator>::Meta>,
+    <B as CPUTensorCreator>::Output: Into<B> + TensorInfo,
     <B as CPUTensorCreator>::Meta: CommonBounds + bytemuck::AnyBitPattern,
 {
     let res = HeaderInfo::parse_header_compressed(file_name)?;

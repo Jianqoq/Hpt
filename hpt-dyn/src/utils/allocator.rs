@@ -1,4 +1,6 @@
-use hpt_allocator::{Cpu, Cuda, traits::Allocator as AllocatorTrait};
+use hpt_allocator::{Cpu, traits::Allocator as AllocatorTrait};
+#[cfg(feature = "cuda")]
+use hpt_allocator::Cuda;
 use hpt_common::{Pointer, error::base::TensorError};
 
 use super::device::Device;

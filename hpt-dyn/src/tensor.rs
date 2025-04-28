@@ -1,8 +1,11 @@
 use hpt_common::{Pointer, layout::layout::Layout, shape::shape::Shape, strides::strides::Strides};
+use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use std::sync::Arc;
 
 use crate::DType;
 use crate::utils::{backend::Backend, device::Device};
+
+use hpt_iterator::TensorIterator;
 
 #[derive(Clone)]
 pub struct Tensor {
@@ -41,25 +44,51 @@ impl Tensor {
             )
         }
     }
-    pub fn is_contiguous(&self) -> bool {
-        self.layout.is_contiguous()
-    }
-    pub fn size(&self) -> usize {
-        self.layout.size() as usize
-    }
-    pub fn ndim(&self) -> usize {
-        self.layout.ndim()
-    }
-    pub fn shape(&self) -> &Shape {
-        self.layout.shape()
-    }
-    pub fn strides(&self) -> &Strides {
-        self.layout.strides()
-    }
-    pub fn ptr(&self) -> Pointer<u8> {
-        self.data
-    }
 }
+
+macro_rules! impl_tensor_info {
+    ($t: ty) => {
+        impl TensorInfo for $t {
+            fn ptr<T>(&self) -> Pointer<T> {
+                self.data.cast::<T>()
+            }
+        
+            fn size(&self) -> usize {
+                self.layout.size() as usize
+            }
+        
+            fn shape(&self) -> &Shape {
+                self.layout.shape()
+            }
+        
+            fn strides(&self) -> &Strides {
+                self.layout.strides()
+            }
+        
+            fn layout(&self) -> &Layout {
+                &self.layout
+            }
+        
+            fn parent<T>(&self) -> Option<Pointer<T>> {
+                self.parent.map(|p| p.cast::<T>())
+            }
+        
+            fn ndim(&self) -> usize {
+                self.layout.ndim()
+            }
+        
+            fn is_contiguous(&self) -> bool {
+                self.layout.is_contiguous()
+            }
+        }
+    };
+}
+
+impl_tensor_info!(Tensor);
+impl_tensor_info!(&Tensor);
+impl_tensor_info!(&mut Tensor);
+
+impl<T: CommonBounds> TensorIterator<'_, T> for Tensor {}
 
 impl Drop for Tensor {
     fn drop(&mut self) {
@@ -69,4 +98,3 @@ impl Drop for Tensor {
 
 unsafe impl Send for Tensor {}
 unsafe impl Sync for Tensor {}
-

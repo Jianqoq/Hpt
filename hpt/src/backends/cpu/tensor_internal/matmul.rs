@@ -555,7 +555,7 @@ where
         } else {
             bias_strides[bias_strides.len() - 2]
         };
-        let ptr = bias.ptr();
+        let ptr = bias.ptr::<T>();
         if bias_cs == 1 {
             matmul_with_out(
                 self,

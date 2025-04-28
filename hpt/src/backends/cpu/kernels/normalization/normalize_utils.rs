@@ -298,7 +298,7 @@ where
         transposed_tensor.shape()[a.ndim() - 1]
     } as usize;
     assert_eq!(a_last_stride, 1);
-    let result_data = result.ptr();
+    let result_data = result.ptr::<O>();
     if a.ndim() == 1 {
         full_reduce(unsafe { result_data.get_ptr().as_mut().unwrap() });
     } else {
@@ -350,7 +350,7 @@ where
 {
     let (keep_fast_dim, transposed_tensor, result) = normalize_prepare(a, axis, c)?;
 
-    let result_data = result.ptr();
+    let result_data = result.ptr::<O>();
     if a.ndim() == 1 {
         full_reduce(unsafe { result_data.get_ptr().as_mut().unwrap() });
     } else {

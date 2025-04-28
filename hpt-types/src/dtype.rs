@@ -70,7 +70,9 @@ impl DType {
     }
 }
 
-pub(crate) trait ToDType {
+/// trait for converting a type to a `DType`
+pub trait ToDType {
+    /// convert the type to a `DType`
     fn to_dtype() -> DType;
 }
 

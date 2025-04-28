@@ -64,12 +64,12 @@ where
 
 macro_rules! impl_tensor_info {
     ($tensor:ty) => {
-        impl<T: CommonBounds, const DEVICE: usize, A> TensorInfo<T> for $tensor
+        impl<T: CommonBounds, const DEVICE: usize, A> TensorInfo for $tensor
         where
             A: Allocator,
         {
-            fn ptr(&self) -> Pointer<T> {
-                self.data
+            fn ptr<U>(&self) -> Pointer<U> {
+                self.data.cast::<U>()
             }
             fn size(&self) -> usize {
                 self.layout.size() as usize
@@ -83,8 +83,8 @@ macro_rules! impl_tensor_info {
             fn layout(&self) -> &Layout {
                 &self.layout
             }
-            fn parent(&self) -> Option<Pointer<T>> {
-                self.parent.clone()
+            fn parent<U>(&self) -> Option<Pointer<U>> {
+                self.parent.clone().map(|p| p.cast::<U>())
             }
             fn ndim(&self) -> usize {
                 self.layout.ndim()
@@ -201,7 +201,7 @@ where
                     let new_parent = Pointer::new(parent.ptr as *mut Dst, 0);
                     Ok(_Tensor {
                         #[cfg(feature = "bound_check")]
-                        data: Pointer::new(self.data.ptr as *mut Dst, self.ptr().len),
+                        data: Pointer::new(self.data.ptr as *mut Dst, self.ptr::<Dst>().len),
                         #[cfg(not(feature = "bound_check"))]
                         data: Pointer::new(self.data.ptr as *mut Dst, 0),
                         parent: Some(new_parent),
@@ -213,7 +213,7 @@ where
                 }
                 None => Ok(_Tensor {
                     #[cfg(feature = "bound_check")]
-                    data: Pointer::new(self.data.ptr as *mut Dst, self.ptr().len),
+                    data: Pointer::new(self.data.ptr as *mut Dst, self.ptr::<Dst>().len),
                     #[cfg(not(feature = "bound_check"))]
                     data: Pointer::new(self.data.ptr as *mut Dst, 0),
                     parent: None,
@@ -425,7 +425,7 @@ where
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
         let lr_element_size = DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed);
         display(
-            self.ptr(),
+            self.ptr::<T>(),
             self.shape().as_slice(),
             self.strides().as_slice(),
             f,
@@ -444,7 +444,7 @@ where
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
         let lr_element_size = DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed);
         display(
-            self.ptr(),
+            self.ptr::<T>(),
             self.shape().as_slice(),
             self.strides().as_slice(),
             f,
@@ -538,7 +538,7 @@ where
         let precision = DISPLAY_PRECISION.load(Ordering::Relaxed);
         let lr_element_size = DISPLAY_LR_ELEMENTS.load(Ordering::Relaxed);
         display(
-            self.ptr(),
+            self.ptr::<T>(),
             self.shape().as_slice(),
             self.strides().as_slice(),
             f,

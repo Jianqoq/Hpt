@@ -33,7 +33,7 @@ pub(crate) fn load<'a, T: CommonBounds + bytemuck::AnyBitPattern, B: CPUTensorCr
     meta: &TensorMeta<T, B>,
 ) -> std::io::Result<<B as CPUTensorCreator>::Output>
 where
-    <B as CPUTensorCreator>::Output: Clone + TensorInfo<T> + Display,
+    <B as CPUTensorCreator>::Output: Clone + TensorInfo + Display,
 {
     if meta.dtype != T::STR {
         return Err(std::io::Error::new(

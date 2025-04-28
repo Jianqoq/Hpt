@@ -78,6 +78,7 @@ macro_rules! impl_float_out_unary_promote {
 
 use crate::dtype::DType;
 use crate::dtype::ToDType;
+use crate::type_promote::Eval;
 use crate::type_promote::{FloatOutBinaryPromote, FloatOutUnaryPromote, NormalOutPromote};
 
 #[allow(missing_docs)]
@@ -94,6 +95,40 @@ pub fn promote_float_unary(lhs: DType) -> DType {
         DType::F32 => <f32 as FloatOutUnaryPromote>::Output::to_dtype(),
         DType::F16 => <half::f16 as FloatOutUnaryPromote>::Output::to_dtype(),
         DType::BF16 => <half::bf16 as FloatOutUnaryPromote>::Output::to_dtype(),
+    }
+}
+
+#[allow(missing_docs)]
+pub fn promote_normal_unary(lhs: DType) -> DType {
+    match lhs {
+        DType::Bool => <bool as NormalOutPromote>::Output::to_dtype(),
+        DType::I8 => <i8 as NormalOutPromote>::Output::to_dtype(),
+        DType::U8 => <u8 as NormalOutPromote>::Output::to_dtype(),
+        DType::I16 => <i16 as NormalOutPromote>::Output::to_dtype(),
+        DType::U16 => <u16 as NormalOutPromote>::Output::to_dtype(),
+        DType::I32 => <i32 as NormalOutPromote>::Output::to_dtype(),
+        DType::U32 => <u32 as NormalOutPromote>::Output::to_dtype(),
+        DType::I64 => unreachable!(),
+        DType::F32 => <f32 as NormalOutPromote>::Output::to_dtype(),
+        DType::F16 => <half::f16 as NormalOutPromote>::Output::to_dtype(),
+        DType::BF16 => <half::bf16 as NormalOutPromote>::Output::to_dtype(),
+    }
+}
+
+#[allow(missing_docs)]
+pub fn promote_eval(lhs: DType) -> DType {
+    match lhs {
+        DType::Bool => <bool as Eval>::Output::to_dtype(),
+        DType::I8 => <i8 as Eval>::Output::to_dtype(),
+        DType::U8 => <u8 as Eval>::Output::to_dtype(),
+        DType::I16 => <i16 as Eval>::Output::to_dtype(),
+        DType::U16 => <u16 as Eval>::Output::to_dtype(),
+        DType::I32 => <i32 as Eval>::Output::to_dtype(),
+        DType::U32 => <u32 as Eval>::Output::to_dtype(),
+        DType::I64 => unreachable!(),
+        DType::F32 => <f32 as Eval>::Output::to_dtype(),
+        DType::F16 => <half::f16 as Eval>::Output::to_dtype(),
+        DType::BF16 => <half::bf16 as Eval>::Output::to_dtype(),
     }
 }
 

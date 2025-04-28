@@ -1,6 +1,6 @@
 use crate::backends::cpu::kernels::conv2d::utils::handle_post;
 use crate::tensor_base::_Tensor;
-use crate::REGNUM;
+use hpt_types::REGNUM;
 use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
 use hpt_allocator::Cpu;
 use hpt_common::error::base::TensorError;
@@ -75,7 +75,7 @@ where
     }
     let mut output =
         _Tensor::<T, Cpu, DEVICE, A>::empty([batch, out_height, out_width, in_channels])?;
-    let out = output.ptr();
+    let out = output.ptr::<T>();
     let inp = img.ptr();
 
     let osb = output.strides()[0]; // batch
@@ -89,7 +89,7 @@ where
     let ks0 = kernel.strides()[0]; // kernel_height
     let ks1 = kernel.strides()[1]; // kernel_width
 
-    let kernel = kernel.ptr();
+    let kernel = kernel.ptr::<T>();
 
     let out_size = batch * out_height * out_width;
 

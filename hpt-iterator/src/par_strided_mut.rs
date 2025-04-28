@@ -47,12 +47,12 @@ pub mod par_strided_map_mut_simd {
         ///
         /// # Arguments
         ///
-        /// * `tensor` - The tensor implementing the `TensorInfo<T>` trait to iterate over mutably.
+        /// * `tensor` - The tensor implementing the `TensorInfo` trait to iterate over mutably.
         ///
         /// # Returns
         ///
         /// A new instance of `ParStridedMutSimd` initialized with the provided tensor.
-        pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
+        pub fn new<U: TensorInfo>(tensor: U) -> Self {
             ParStridedMutSimd {
                 base: ParStridedSimd::new(tensor),
                 phantom: std::marker::PhantomData,
@@ -269,12 +269,12 @@ impl<'a, T: CommonBounds> ParStridedMut<'a, T> {
     ///
     /// # Arguments
     ///
-    /// * `tensor` - The tensor implementing the `TensorInfo<T>` trait to iterate over mutably.
+    /// * `tensor` - The tensor implementing the `TensorInfo` trait to iterate over mutably.
     ///
     /// # Returns
     ///
     /// A new instance of `ParStridedMut` initialized with the provided tensor.
-    pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
+    pub fn new<U: TensorInfo>(tensor: U) -> Self {
         ParStridedMut {
             base: ParStrided::new(tensor),
             phantom: std::marker::PhantomData,

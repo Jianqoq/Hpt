@@ -74,15 +74,15 @@ where
     let eps_vec = T::Vec::splat(eps);
     let post_scalar = post_scalar.unwrap_or(|x| x);
     let post_vec = post_vec.unwrap_or(|x| x);
-    let inp_ptr = input.ptr();
+    let inp_ptr = input.ptr::<T>();
     (0..num_threads).into_par_iter().for_each(|idx| {
         let (start, end) = intervals[idx];
         let inp_ptr = inp_ptr;
-        let out_ptr = res.ptr();
-        let mean_ptr = mean.ptr();
-        let var_ptr = var.ptr();
-        let gamma_ptr = gamma.ptr();
-        let beta_ptr = beta.ptr();
+        let out_ptr = res.ptr::<T>();
+        let mean_ptr = mean.ptr::<T>();
+        let var_ptr = var.ptr::<T>();
+        let gamma_ptr = gamma.ptr::<T>();
+        let beta_ptr = beta.ptr::<T>();
         let mean_vec_ptr = mean_ptr.ptr as *const T::Vec;
         let var_vec_ptr = var_ptr.ptr as *const T::Vec;
         let gamma_vec_ptr = gamma_ptr.ptr as *const T::Vec;

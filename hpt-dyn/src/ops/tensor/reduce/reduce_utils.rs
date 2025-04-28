@@ -1,6 +1,7 @@
 use std::borrow::BorrowMut;
 
 use hpt_common::{error::{base::TensorError, shape::ShapeError}, shape::{shape::Shape, shape_utils::mt_intervals}, strides::strides::Strides, Pointer};
+use hpt_traits::tensor::TensorInfo;
 use hpt_types::dtype::DType;
 
 use crate::Tensor;

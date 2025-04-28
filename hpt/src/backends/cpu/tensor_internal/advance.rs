@@ -61,7 +61,7 @@ where
             let mut ptrs = vec![];
             let mut prgs = vec![];
             for (start, _) in intervals.iter() {
-                let mut ptr = self.ptr();
+                let mut ptr = self.ptr::<T>();
                 let mut inp_index = 0;
                 let mut inp_prg = vec![0; self.ndim()];
                 let mut inp_amount = start * (self.shape()[self.ndim() - 1] as usize);
@@ -169,8 +169,8 @@ where
         let inner_loop = *transposed.shape().last().unwrap() as isize;
         let outer_loop_size = transposed.size() / inner_loop as usize;
 
-        let res_ptr = transposed_res.ptr();
-        let res_indices_ptr = transposed_res_indices.ptr();
+        let res_ptr = transposed_res.ptr::<T>();
+        let res_indices_ptr = transposed_res_indices.ptr::<i64>();
         let transposed_res_shape = transposed_res.shape();
         let transposed_res_strides = transposed_res.strides();
         THREAD_POOL.with_borrow_mut(move |x| {
@@ -188,7 +188,7 @@ where
             let mut res_prgs = vec![];
 
             for (start, _) in intervals.iter() {
-                let mut ptr = transposed.ptr();
+                let mut ptr = transposed.ptr::<T>();
                 let mut res_ptr_cpy = res_ptr.clone();
                 let mut res_indices_ptr_cpy = res_indices_ptr.clone();
                 let mut current_prg = vec![0; transposed.ndim()];
@@ -370,7 +370,7 @@ where
                 let inp_strides = self.strides().clone();
                 let permuted_res_shape = permuted_res.shape().clone();
                 let permuted_res_strides = permuted_res.strides().clone();
-                let inp_ptr = self.ptr();
+                let inp_ptr = self.ptr::<T>();
                 pool.execute(move || {
                     for i in start..end {
                         let mut amount = i;
@@ -666,9 +666,9 @@ where
         let ndim = self.ndim();
         let shape = self.shape();
 
-        let indices_ptr = indices.ptr();
-        let src_ptr = src.ptr();
-        let res_ptr = result.ptr();
+        let indices_ptr = indices.ptr::<i64>();
+        let src_ptr = src.ptr::<T>();
+        let res_ptr = result.ptr::<T>();
         let res_strides = result.strides();
 
         // scatter must be done in serial, because the indices may have same value

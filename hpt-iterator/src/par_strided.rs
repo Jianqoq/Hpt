@@ -82,7 +82,7 @@ pub mod par_strided_simd {
         }
 
         /// Create a new parallel strided iterator for SIMD operations.
-        pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
+        pub fn new<U: TensorInfo>(tensor: U) -> Self {
             let inner_loop_size = *tensor.shape().last().unwrap() as usize;
             let outer_loop_size = tensor.size() / inner_loop_size;
             let num_threads;
@@ -390,7 +390,7 @@ impl<T: CommonBounds> ParStrided<T> {
     /// # Returns
     ///
     /// A new instance of `ParStrided` initialized with the provided tensor.
-    pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
+    pub fn new<U: TensorInfo>(tensor: U) -> Self {
         let inner_loop_size = tensor.shape()[tensor.shape().len() - 1] as usize;
         let outer_loop_size = tensor.size() / inner_loop_size;
         let num_threads;

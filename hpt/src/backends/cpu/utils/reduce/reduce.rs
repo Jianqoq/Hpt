@@ -81,7 +81,7 @@ macro_rules! body_one_axis {
         transposed_shape_cpy.iter_mut().for_each(|x| {
             *x -= 1;
         });
-        let a_data = a_.ptr();
+        let a_data = a_.ptr::<T>();
         let mut res_shape = Vec::with_capacity(a_.ndim() - $axes.len());
         a_shape_cpy.iter().for_each(|x| {
             (if *x != 0 {
@@ -111,7 +111,7 @@ macro_rules! body_one_axis {
             init_arr!(result, res_shape, $init_val, $($specific_type)*);
             result_size = result.size();
         }
-        let result_data = result.ptr();
+        let result_data = result.ptr::<$($specific_type)*>();
         let a_last_index = a_.ndim() - 1;
         let inner_loop_size = transposed_shape[a_last_index];
         let a_data_ptr = a_data.clone();
@@ -249,7 +249,7 @@ where
     Al: Allocator + Send + Sync,
     Al::Output: AllocatorOutputRetrive,
 {
-    if a.is_contiguous() && a.parent().is_none() {
+    if a.is_contiguous() && a.parent::<T>().is_none() {
         contiguous_reduce(
             a,
             preop,
@@ -313,7 +313,7 @@ where
     Al: Allocator + Send + Sync,
     Al::Output: AllocatorOutputRetrive,
 {
-    if a.is_contiguous() && a.parent().is_none() {
+    if a.is_contiguous() && a.parent::<T>().is_none() {
         contiguous_reduce(
             a,
             preop,
@@ -422,8 +422,8 @@ where
                 num_threads,
                 result.size(),
                 inner_loop_size_2,
-                a.ptr(),
-                result.ptr(),
+                a.ptr::<T>(),
+                result.ptr::<O>(),
                 transposed_tensor.strides().clone(),
                 transposed_tensor.shape().sub_one(),
                 transposed_tensor.shape().clone(),
@@ -538,8 +538,8 @@ where
                 num_threads,
                 outer_loop_size,
                 inner_loop_size,
-                a.ptr(),
-                result.ptr(),
+                a.ptr::<T>(),
+                result.ptr::<O>(),
                 transposed_tensor.strides().clone(),
                 transposed_tensor.shape().sub_one(),
                 result.shape().clone(),
@@ -717,8 +717,8 @@ where
                 num_threads,
                 outer_loop_size,
                 inner_loop_size,
-                a.ptr(),
-                result.ptr(),
+                a.ptr::<T>(),
+                result.ptr::<O>(),
                 transposed_tensor.strides().clone(),
                 transposed_tensor.shape().sub_one(),
                 result.shape().clone(),

@@ -1,4 +1,5 @@
 use hpt_common::error::base::TensorError;
+use hpt_traits::tensor::TensorInfo;
 use hpt_types::dtype::DType;
 
 use crate::{
@@ -33,9 +34,9 @@ where
     let groups = a.layout.coalesce_dims();
     let new_groups = split_groups_by_axes(&groups, axes);
     let new_shape = get_new_shape(&new_groups, a.shape());
-    let original_ptr = a.ptr();
+    let original_ptr = a.ptr::<u8>();
     let a = a.reshape(&new_shape)?;
-    let new_ptr = a.ptr();
+    let new_ptr = a.ptr::<u8>();
     assert_eq!(original_ptr.ptr, new_ptr.ptr);
     let axes = get_new_reduce_axes(new_groups, axes);
     let keep_fast_dim = is_keep_fast_dim(a.strides(), &axes);
@@ -46,7 +47,7 @@ where
         transposed_tensor.strides()[a.ndim() - 1]
     };
     assert_eq!(a_last_stride, 1);
-    let result_data = result.ptr();
+    let result_data = result.ptr::<u8>();
     if a.ndim() == axes.len() {
         full_reduce(result_data.ptr as usize);
     } else {
@@ -112,7 +113,7 @@ where
         *x -= 1;
     });
 
-    let result_data = result.ptr();
+    let result_data = result.ptr::<u8>();
     if a.ndim() == axes.len() {
         full_reduce(result_data.ptr as usize);
     } else {

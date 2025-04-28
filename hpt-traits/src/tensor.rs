@@ -13,10 +13,10 @@ use std::fmt::Debug;
 use std::fmt::Display;
 
 /// A trait for getting information of a Tensor
-pub trait TensorInfo<T> {
+pub trait TensorInfo {
     /// Returns a pointer to the tensor's first data.
     #[track_caller]
-    fn ptr(&self) -> Pointer<T>;
+    fn ptr<T>(&self) -> Pointer<T>;
 
     /// Returns the size of the tensor based on the shape
     #[track_caller]
@@ -37,7 +37,7 @@ pub trait TensorInfo<T> {
     ///
     /// if the tensor is a view, it will return the root tensor. Otherwise, it will return None.
     #[track_caller]
-    fn parent(&self) -> Option<Pointer<T>>;
+    fn parent<T>(&self) -> Option<Pointer<T>>;
 
     /// Returns the number of dimensions of the tensor.
     #[track_caller]
@@ -46,12 +46,6 @@ pub trait TensorInfo<T> {
     /// Returns whether the tensor is contiguous in memory. View or transpose tensors are not contiguous.
     #[track_caller]
     fn is_contiguous(&self) -> bool;
-
-    /// Returns the data type memory size in bytes.
-    #[track_caller]
-    fn elsize() -> usize {
-        size_of::<T>()
-    }
 }
 
 /// A trait for let the object like a tensor

@@ -81,7 +81,7 @@ where
     } else {
         _Tensor::<K, Cpu, DEVICE, A2>::empty(inp.shape())?
     };
-    if inp.parent().is_some() {
+    if inp.parent::<A>().is_some() {
         ret.par_iter_mut_simd()
             .zip(inp.par_iter_simd())
             .for_each(|(a, b)| {

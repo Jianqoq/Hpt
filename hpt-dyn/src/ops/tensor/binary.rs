@@ -1,4 +1,5 @@
 use hpt_common::shape::shape_utils::mt_intervals;
+use hpt_traits::tensor::TensorInfo;
 use hpt_types::promote_normal_binary;
 use hpt_types::scalar::*;
 use hpt_types::vector::*;

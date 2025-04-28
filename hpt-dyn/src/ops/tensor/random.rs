@@ -1,4 +1,5 @@
 use hpt_common::error::base::TensorError;
+use hpt_traits::tensor::TensorInfo;
 use hpt_types::{dtype::DType, into_scalar::Cast};
 use rand_distr::{Distribution, Normal, Uniform};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};

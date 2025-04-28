@@ -87,8 +87,8 @@ where
         let mut prgs = vec![];
         let mut task_amout = 0;
         let mut progress_init_a_data = vec![0; res_layout.ndim()];
-        let a_ptr = self.ptr();
-        let res_ptr = res.ptr();
+        let a_ptr = self.ptr::<T>();
+        let res_ptr = res.ptr::<Self::OutputMeta>();
         for id in 0..num_threads {
             let mut a_data_ptr_cpy = a_ptr.clone();
             let mut res_data_ptr_cpy = res_ptr.clone();
@@ -203,7 +203,7 @@ where
     }
 
     fn softmax(&self, axis: i64) -> Result<Self::Output, TensorError> {
-        let res = if self.is_contiguous() && self.parent().is_none() {
+        let res = if self.is_contiguous() && self.parent::<T>().is_none() {
             contiguous_softmax(self, axis, None::<Self::Output>)?
         } else {
             uncontiguous_softmax(self, axis, None::<Self::Output>)?
@@ -212,7 +212,7 @@ where
     }
 
     fn log_softmax(&self, axis: i64) -> Result<Self::Output, TensorError> {
-        let res = if self.is_contiguous() && self.parent().is_none() {
+        let res = if self.is_contiguous() && self.parent::<T>().is_none() {
             contiguous_log_softmax(self, axis, None::<Self::Output>)?
         } else {
             uncontiguous_log_softmax(self, axis, None::<Self::Output>)?

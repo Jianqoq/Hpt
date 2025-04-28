@@ -47,6 +47,7 @@ impl<T> Pointer<T> {
     ///
     /// # Returns
     /// `Pointer<U>`
+    #[inline(always)]
     pub fn cast<U>(&self) -> Pointer<U> {
         #[cfg(feature = "bound_check")]
         {

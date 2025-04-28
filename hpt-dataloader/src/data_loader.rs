@@ -44,7 +44,7 @@ pub(crate) struct HeaderInfo {
 #[must_use]
 pub struct TensorMeta<T: CommonBounds, B: CPUTensorCreator>
 where
-    <B as CPUTensorCreator>::Output: Clone + TensorInfo<T>,
+    <B as CPUTensorCreator>::Output: Clone + TensorInfo
 {
     pub begin: usize,
     pub shape: Vec<i64>,
@@ -77,7 +77,7 @@ pub fn parse_header_compressed<M: Save, P: Into<std::path::PathBuf>>(
 impl<T, B: CPUTensorCreator> MetaLoad for TensorMeta<T, B>
 where
     T: CommonBounds + bytemuck::AnyBitPattern,
-    <B as CPUTensorCreator>::Output: Clone + TensorInfo<T> + Display + Into<B>,
+    <B as CPUTensorCreator>::Output: Clone + TensorInfo + Display + Into<B>,
 {
     type Output = B;
     fn load(&self, file: &mut std::fs::File) -> std::io::Result<Self::Output> {

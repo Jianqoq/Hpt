@@ -71,7 +71,7 @@ pub mod strided_simd {
         /// # Returns
         ///
         /// A new instance of `StridedSimd` initialized with the provided tensor.
-        pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
+        pub fn new<U: TensorInfo>(tensor: U) -> Self {
             StridedSimd {
                 ptr: tensor.ptr(),
                 layout: tensor.layout().clone(),
@@ -244,7 +244,7 @@ impl<T: CommonBounds> Strided<T> {
     /// # Returns
     ///
     /// A new instance of `Strided` initialized with the provided tensor.
-    pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
+    pub fn new<U: TensorInfo>(tensor: U) -> Self {
         Strided {
             ptr: tensor.ptr(),
             layout: tensor.layout().clone(),

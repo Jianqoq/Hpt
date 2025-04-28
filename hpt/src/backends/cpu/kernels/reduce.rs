@@ -174,7 +174,7 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4, F5, F6>(
     F5: Fn(O::Vec, O::Vec) -> O::Vec,
     F6: Fn(O::Vec) -> O::Vec,
 {
-    use crate::REGNUM;
+    use hpt_types::REGNUM;
 
     let origin = inp_ptr.clone(); // save original inp_ptr
     let origin_res = res_ptr.clone(); // save original res_ptr
@@ -431,7 +431,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4, F5, F6>(
 {
     use std::ops::IndexMut;
 
-    use crate::REGNUM;
+    use hpt_types::REGNUM;
 
     let origin = inp_ptr.clone(); // save original inp_ptr
     let origin_res = res_ptr.clone(); // save original res_ptr

@@ -60,7 +60,7 @@ where
     let mut res = x.clone();
 
     // Clone the original tensor to avoid modifying it directly.
-    let mut self_clone = if x.is_contiguous() && x.parent().is_none() {
+    let mut self_clone = if x.is_contiguous() && x.parent::<Complex<T>>().is_none() {
         x.clone()
     } else {
         x.contiguous()?

@@ -76,14 +76,14 @@ where
 
 macro_rules! impl_tensor_info {
     ($tensor:ty) => {
-        impl<T, B, const DEVICE: usize, A> TensorInfo<T> for $tensor
+        impl<T, B, const DEVICE: usize, A> TensorInfo for $tensor
         where
             T: CommonBounds,
             B: BackendTy + Buffer,
             A: hpt_allocator::traits::Allocator,
         {
-            fn ptr(&self) -> Pointer<T> {
-                self.inner.as_ref().data.clone()
+            fn ptr<U>(&self) -> Pointer<U> {
+                self.inner.as_ref().data.clone().cast::<U>()
             }
 
             fn size(&self) -> usize {
@@ -102,8 +102,8 @@ macro_rules! impl_tensor_info {
                 &self.inner.as_ref().layout
             }
 
-            fn parent(&self) -> Option<Pointer<T>> {
-                self.inner.as_ref().parent.clone()
+            fn parent<U>(&self) -> Option<Pointer<U>> {
+                self.inner.as_ref().parent.clone().map(|p| p.cast::<U>())
             }
 
             fn ndim(&self) -> usize {
@@ -202,7 +202,7 @@ where
             .field("data", &self.inner.data)
             .field("shape", &self.shape())
             .field("strides", &self.strides())
-            .field("parent", &self.parent())
+            .field("parent", &self.parent::<T>())
             .field("align", &self.inner.mem_layout.align())
             .field("backend", &self.inner.backend)
             .finish()

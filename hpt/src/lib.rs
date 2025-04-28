@@ -561,13 +561,6 @@ static ALIGN: usize = 64;
 static RAYON_NUM_THREADS: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(num_cpus::get()));
 
 #[cfg(target_feature = "avx2")]
-pub(crate) const REGNUM: usize = 16;
-#[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
-pub(crate) const REGNUM: usize = 8;
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-pub(crate) const REGNUM: usize = 32;
-
-#[cfg(target_feature = "avx2")]
 type BoolVector = simd::_256bit::boolx32;
 #[cfg(any(
     all(not(target_feature = "avx2"), target_feature = "sse"),

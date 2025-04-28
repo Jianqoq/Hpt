@@ -14,12 +14,18 @@ hpt-common = { path = "../hpt-common", version = "0.1.1" }
 hpt-traits = { path = "../hpt-traits", version = "0.1.1" }
 hpt-allocator = { path = "../hpt-allocator", version = "0.1.1" }
 hpt-display = { path = "../hpt-display", version = "0.1.1" }
+hpt-iterator = { path = "../hpt-iterator", version = "0.1.1" }
 cudarc = { workspace = true }
 seq-macro = { workspace = true }
 rayon = { workspace = true }
 duplicate = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
+gemm-common = { workspace = true}
+dyn-stack = { workspace = true}
+num_cpus = { workspace = true }
+num = { workspace = true }
+
 [features]
 default = []
 cuda = [

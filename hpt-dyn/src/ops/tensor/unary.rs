@@ -1,6 +1,7 @@
 use crate::{Tensor, current_num_threads};
 use hpt_common::error::base::TensorError;
 use hpt_common::shape::shape_utils::mt_intervals;
+use hpt_traits::tensor::TensorInfo;
 use hpt_types::promote_float_unary;
 use hpt_types::scalar::*;
 use hpt_types::vector::*;

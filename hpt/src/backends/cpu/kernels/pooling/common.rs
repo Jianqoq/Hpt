@@ -5,7 +5,8 @@ use hpt_common::{
 use hpt_traits::{ops::creation::TensorCreator, tensor::CommonBounds};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use crate::{tensor_base::_Tensor, REGNUM};
+use crate::tensor_base::_Tensor;
+use hpt_types::REGNUM;
 use hpt_allocator::{
     traits::{Allocator, AllocatorOutputRetrive},
     Cpu,
@@ -61,8 +62,8 @@ where
         .into());
     }
     let output = _Tensor::<O, Cpu, DEVICE, A>::empty([batch, out_height, out_width, in_channels])?;
-    let out = output.ptr();
-    let inp = img.ptr();
+    let out = output.ptr::<O>();
+    let inp = img.ptr::<T>();
 
     let osb = output.strides()[0]; // batch
     let osh = output.strides()[1]; // height
@@ -251,8 +252,8 @@ where
         .into());
     }
     let output = _Tensor::<O, Cpu, DEVICE, A>::empty([batch, out_height, out_width, in_channels])?;
-    let out = output.ptr();
-    let inp = img.ptr();
+    let out = output.ptr::<O>();
+    let inp = img.ptr::<T>();
 
     let osb = output.strides()[0]; // batch
     let osh = output.strides()[1]; // height
