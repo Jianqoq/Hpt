@@ -502,6 +502,7 @@ macro_rules! define_matmul_micro_kernel_inline_asm_rem {
             first_kiter: bool,
         ) {
             use hpt_types::type_promote::NormalOut;
+            use hpt_types::traits::VecTrait;
             #[inline(always)]
             fn mma<T: hpt_traits::tensor::CommonBounds>(mut a: hpt_common::Pointer<T>, mut b: hpt_common::Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as TypeCommon>::Vec; $nr]; $mr] {
                 let mut c_local = [[<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];

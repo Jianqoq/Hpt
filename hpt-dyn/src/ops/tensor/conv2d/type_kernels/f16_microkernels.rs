@@ -51,7 +51,7 @@ impl Conv2dMicroKernel for half::f16 {
 }
 
 #[cfg(target_feature = "avx2")]
-impl Conv2dMicroKernel for crate::types::f16 {
+impl Conv2dMicroKernel for half::f16 {
     fn get_mixed_precision_kernel<MixedType>(
         nr: usize,
         mr: usize,
@@ -141,7 +141,7 @@ impl Conv2dMicroKernel for crate::types::f16 {
 }
 
 #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
-impl Conv2dMicroKernel for crate::types::f16 {
+impl Conv2dMicroKernel for half::f16 {
     fn get_mixed_precision_kernel<MixedType>(
         nr: usize,
         mr: usize,

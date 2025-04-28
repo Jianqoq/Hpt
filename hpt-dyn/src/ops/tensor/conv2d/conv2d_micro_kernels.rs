@@ -323,8 +323,8 @@ macro_rules! conv2d_mixed_precision_micro_kernel_with_padding {
             cast: fn(T) -> IM,
             cast_back: fn(IM) -> T,
         ) {
-            use $crate::types::vectors::traits::VecTrait;
-            use $crate::types::math::NormalOut;
+            use hpt_types::traits::VecTrait;
+            use hpt_types::type_promote::NormalOut;
             let mut c_local = if first_ic_iter {
                 [[IM::Vec::splat(IM::ZERO); $nr2]; $mr]
             } else {
