@@ -3,21 +3,21 @@ macro_rules! define_mma {
     ($nr:expr, $mr:expr, $unroll:expr) => {
         #[inline(always)]
         fn mma<T: CommonBounds>(a: Pointer<T>, b: Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as TypeCommon>::Vec; $nr]; $mr] {
-            use crate::utils::prefetch::prefetch_a;
-            use crate::utils::prefetch::prefetch_b;
+            // use crate::utils::prefetch::prefetch_a;
+            // use crate::utils::prefetch::prefetch_b;
             use hpt_types::type_promote::NormalOut;
             let mut c_local = [[<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
-            let a_ptr = a.ptr as *const T;
+            // let a_ptr = a.ptr as *const T;
             let b_ptr = b.ptr as *const <T as TypeCommon>::Vec;
             let rem = kc % $unroll;
             for k in 0..(kc / $unroll) as i64 {
-                seq_macro::seq!(MR in 0..$mr {
-                    prefetch_a::<T>(a_ptr, ((k + 1) * $unroll * ks + MR as i64 * lda) as usize);
-                });
+                // seq_macro::seq!(MR in 0..$mr {
+                //     prefetch_a::<T>(a_ptr, ((k + 1) * $unroll * ks + MR as i64 * lda) as usize);
+                // });
                 seq_macro::seq!(UNROLL in 0..$unroll {
-                    seq_macro::seq!(NR in 0..$nr {
-                        prefetch_b::<T>(b_ptr, (((k + 1) * $unroll + UNROLL) * $nr + NR) as usize);
-                    });
+                    // seq_macro::seq!(NR in 0..$nr {
+                    //     prefetch_b::<T>(b_ptr, (((k + 1) * $unroll + UNROLL) * $nr + NR) as usize);
+                    // });
                     seq_macro::seq!(NR in 0..$nr {
                         let b_vec~NR = unsafe {*b_ptr.add(((k * $unroll + UNROLL) * $nr + NR) as usize)};
                     });
@@ -89,19 +89,19 @@ macro_rules! define_mma_packed_a {
     ($nr:expr, $mr:expr, $unroll:expr) => {
         #[inline(always)]
         fn mma_packed_a<T: CommonBounds>(a: Pointer<T>, b: Pointer<T>, kc: usize) -> [[<T as TypeCommon>::Vec; $nr]; $mr] {
-            use crate::utils::prefetch::prefetch_a;
-            use crate::utils::prefetch::prefetch_b;
+            // use crate::utils::prefetch::prefetch_a;
+            // use crate::utils::prefetch::prefetch_b;
             use hpt_types::type_promote::NormalOut;
             let mut c_local = [[<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
-            let a_ptr = a.ptr as *const T;
+            // let a_ptr = a.ptr as *const T;
             let b_ptr = b.ptr as *const <T as TypeCommon>::Vec;
             let rem = kc % $unroll;
             for k in 0..(kc / $unroll) as i64 {
-                prefetch_a::<T>(a_ptr, ((k + 1) * $unroll * $mr) as usize);
+                // prefetch_a::<T>(a_ptr, ((k + 1) * $unroll * $mr) as usize);
                 seq_macro::seq!(UNROLL in 0..$unroll {
-                    seq_macro::seq!(NR in 0..$nr {
-                        prefetch_b::<T>(b_ptr, (((k + 1) * $unroll + UNROLL) * $nr + NR) as usize);
-                    });
+                    // seq_macro::seq!(NR in 0..$nr {
+                    //     prefetch_b::<T>(b_ptr, (((k + 1) * $unroll + UNROLL) * $nr + NR) as usize);
+                    // });
                     seq_macro::seq!(NR in 0..$nr {
                         let b_vec~NR = unsafe {*b_ptr.add(((k * $unroll + UNROLL) * $nr + NR) as usize)};
                     });

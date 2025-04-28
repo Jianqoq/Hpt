@@ -30,10 +30,10 @@ fn matmul_f32_benchmark(c: &mut Criterion<crate::benchmarks::Timer>) {
     for n in ns {
         // let a = black_box(TchTensor::randn([n, n], (Kind::Float, Device::Cpu)));
         // let c = black_box(TchTensor::randn([n, n], (Kind::Float, Device::Cpu)));
-        // let a2 = black_box(Tensor::<f32>::randn([n, n]).unwrap());
-        // let c2 = black_box(Tensor::<f32>::randn([n, n]).unwrap());
-        let a2 = black_box(DynTensor::randn(0.0, 1.0, &[n, n], DType::F32, Device::Cpu).unwrap());
-        let c2 = black_box(DynTensor::randn(0.0, 1.0, &[n, n], DType::F32, Device::Cpu).unwrap());
+        let a2 = black_box(Tensor::<f32>::randn([n, n]).unwrap());
+        let c2 = black_box(Tensor::<f32>::randn([n, n]).unwrap());
+        // let a2 = black_box(DynTensor::randn(0.0, 1.0, &[n, n], DType::F32, Device::Cpu).unwrap());
+        // let c2 = black_box(DynTensor::randn(0.0, 1.0, &[n, n], DType::F32, Device::Cpu).unwrap());
         // let a3 = black_box(
         //     CandleTensor::randn(
         //         0.0f32,
