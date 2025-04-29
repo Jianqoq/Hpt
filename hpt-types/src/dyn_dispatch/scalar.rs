@@ -6,9 +6,7 @@ use hpt_macros::impl_dispatch;
 
 use crate::dtype::DType;
 use crate::into_scalar::Cast;
-use crate::type_promote::FloatOutUnary;
 use crate::type_promote::NormalOutPromote;
-use crate::type_promote::FloatOutUnaryPromote;
 use crate::type_promote::FloatOutBinaryPromote;
 use crate::type_promote::NormalOut;
 use crate::type_promote::FloatOutBinary;
@@ -338,26 +336,10 @@ pub fn dispatch_pow(lhs: DType, rhs: DType) -> Fn2Type {
     impl_dispatch!(FloatOutBinaryPromote, FloatOutBinary, _pow, true, 2, 1)
 }
 
-pub fn dispatch_add(lhs: DType, rhs: DType) -> Fn2Type {
-    impl_dispatch!(NormalOutPromote, NormalOut, _add, true, 2, 1)
-}
-
-pub fn dispatch_sub(lhs: DType, rhs: DType) -> Fn2Type {
-    impl_dispatch!(NormalOutPromote, NormalOut, _sub, true, 2, 1)
-}
-
 pub fn dispatch_mul_add(a: DType, b: DType, c: DType) -> Fn3Type {
     assert_eq!(a, b);
     assert_eq!(a, c);
     impl_dispatch!(NormalOutPromote, NormalOut, _mul_add, false, 3, 1)
-}
-
-pub fn dispatch_mul(lhs: DType, rhs: DType) -> Fn2Type {
-    impl_dispatch!(NormalOutPromote, NormalOut, _mul, true, 2, 1)
-}
-
-pub fn dispatch_rem(lhs: DType, rhs: DType) -> Fn2Type {
-    impl_dispatch!(NormalOutPromote, NormalOut, _rem, true, 2, 1)
 }
 
 pub fn dispatch_max(lhs: DType, rhs: DType) -> Fn2Type {
@@ -374,34 +356,6 @@ pub fn dispatch_clamp(a: DType, b: DType, c: DType) -> Fn3Type {
     impl_dispatch!(NormalOutPromote, NormalOut, _clamp, false, 3, 1)
 }
 
-pub fn dispatch_square(lhs: DType) -> Fn1Type {
-    impl_dispatch!(NormalOutPromote, NormalOutUnary, _square, true, 1, 1)
-}
-
-pub fn dispatch_abs(lhs: DType) -> Fn1Type {
-    impl_dispatch!(NormalOutPromote, NormalOutUnary, _abs, true, 1, 1)
-}
-
-pub fn dispatch_ceil(lhs: DType) -> Fn1Type {
-    impl_dispatch!(NormalOutPromote, NormalOutUnary, _ceil, true, 1, 1)
-}
-
-pub fn dispatch_floor(lhs: DType) -> Fn1Type {
-    impl_dispatch!(NormalOutPromote, NormalOutUnary, _floor, true, 1, 1)
-}
-
-pub fn dispatch_neg(lhs: DType) -> Fn1Type {
-    impl_dispatch!(NormalOutPromote, NormalOutUnary, _neg, true, 1, 1)
-}
-
-pub fn dispatch_round(lhs: DType) -> Fn1Type {
-    impl_dispatch!(NormalOutPromote, NormalOutUnary, _round, true, 1, 1)
-}
-
-pub fn dispatch_signum(lhs: DType) -> Fn1Type {
-    impl_dispatch!(NormalOutPromote, NormalOutUnary, _signum, true, 1, 1)
-}
-
 pub fn dispatch_trunc(lhs: DType) -> Fn1Type {
     impl_dispatch!(NormalOutPromote, NormalOutUnary, _trunc, true, 1, 1)
 }
@@ -411,85 +365,9 @@ pub fn dispatch_leaky_relu(lhs: DType, rhs: DType) -> Fn2Type {
     impl_dispatch!(NormalOutPromote, NormalOutUnary, _leaky_relu, false, 2, 1)
 }
 
-pub fn dispatch_relu(lhs: DType) -> Fn1Type {
-    impl_dispatch!(NormalOutPromote, NormalOutUnary, _relu, true, 1, 1)
-}
-
-pub fn dispatch_relu6(lhs: DType) -> Fn1Type {
-    impl_dispatch!(NormalOutPromote, NormalOutUnary, _relu6, true, 1, 1)
-}
-
 pub fn dispatch_copysign(lhs: DType, rhs: DType) -> Fn2Type {
     assert_eq!(lhs, rhs);
     impl_dispatch!(NormalOutPromote, NormalOutUnary, _copysign, false, 2, 1)
-}
-
-#[duplicate::duplicate_item(
-    func_name           method;
-    [dispatch_celu]     [_celu];
-    [dispatch_elu]      [_elu];
-)]
-pub fn func_name(lhs: DType, alpha: f64) -> Arc<dyn Fn(usize, usize) + Send + Sync> {
-    macro_rules! arm {
-        ($lhs:ident) => {{
-            type Output = <$lhs as FloatOutUnaryPromote>::Output;
-            let alpha: Output = alpha.cast();
-            Arc::new(move |lhs: usize, res: usize| {
-                let ptr = res as *mut Output;
-                let lhs = lhs as *const $lhs;
-                unsafe { *ptr = (*lhs).method(alpha) };
-            })
-        }};
-    }
-    match lhs {
-        DType::Bool => arm!(bool),
-        DType::I8 => arm!(i8),
-        DType::U8 => arm!(u8),
-        DType::I16 => arm!(i16),
-        DType::U16 => arm!(u16),
-        DType::I32 => arm!(i32),
-        DType::U32 => arm!(u32),
-        DType::I64 => arm!(i64),
-        DType::F32 => arm!(f32),
-        DType::F16 => arm!(f16),
-        DType::BF16 => arm!(bf16),
-    }
-}
-
-#[duplicate::duplicate_item(
-    func_name           method;
-    [dispatch_selu]     [_selu];
-)]
-pub fn func_name(
-    lhs: DType,
-    arg1: f64,
-    arg2: f64,
-) -> Arc<dyn Fn(usize, usize) + Send + Sync> {
-    macro_rules! arm {
-        ($lhs:ident) => {{
-            type Output = <$lhs as FloatOutUnaryPromote>::Output;
-            let arg1: Output = arg1.cast();
-            let arg2: Output = arg2.cast();
-            Arc::new(move |lhs: usize, res: usize| {
-                let ptr = res as *mut Output;
-                let lhs = lhs as *const $lhs;
-                unsafe { *ptr = (*lhs).method(arg1, arg2) };
-            })
-        }};
-    }
-    match lhs {
-        DType::Bool => arm!(bool),
-        DType::I8 => arm!(i8),
-        DType::U8 => arm!(u8),
-        DType::I16 => arm!(i16),
-        DType::U16 => arm!(u16),
-        DType::I32 => arm!(i32),
-        DType::U32 => arm!(u32),
-        DType::I64 => arm!(i64),
-        DType::F32 => arm!(f32),
-        DType::F16 => arm!(f16),
-        DType::BF16 => arm!(bf16),
-    }
 }
 
 pub fn dispatch_copy(lhs: DType) -> fn(usize, usize) {
@@ -515,41 +393,4 @@ pub fn dispatch_copy(lhs: DType) -> fn(usize, usize) {
         DType::F16 => arm!(f16),
         DType::BF16 => arm!(bf16),
     }
-}
-
-#[duplicate::duplicate_item(
-    func_name               method;
-    [dispatch_sin]          [_sin];
-    [dispatch_cos]          [_cos];
-    [dispatch_tan]          [_tan];
-    [dispatch_asin]         [_asin];
-    [dispatch_acos]         [_acos];
-    [dispatch_atan]         [_atan];
-    [dispatch_sinh]         [_sinh];
-    [dispatch_cosh]         [_cosh];
-    [dispatch_tanh]         [_tanh];
-    [dispatch_asinh]        [_asinh];
-    [dispatch_acosh]        [_acosh];
-    [dispatch_atanh]        [_atanh];
-    [dispatch_exp]          [_exp];
-    [dispatch_exp2]         [_exp2];
-    [dispatch_expm1]        [_expm1];
-    [dispatch_ln]           [_ln];
-    [dispatch_log1p]        [_log1p];
-    [dispatch_log2]         [_log2];
-    [dispatch_log10]        [_log10];
-    [dispatch_sqrt]         [_sqrt];
-    [dispatch_cbrt]         [_cbrt];
-    [dispatch_recip]        [_recip];
-    [dispatch_erf]          [_erf];
-    [dispatch_sigmoid]      [_sigmoid];
-    [dispatch_gelu]         [_gelu];
-    [dispatch_hard_sigmoid] [_hard_sigmoid];
-    [dispatch_hard_swish]  [_hard_swish];
-    [dispatch_softplus]    [_softplus];
-    [dispatch_softsign]    [_softsign];
-    [dispatch_mish]        [_mish];
-)]
-pub fn func_name(lhs: DType) -> Fn1Type {
-    impl_dispatch!(FloatOutUnaryPromote, FloatOutUnary, method, true, 1, 1)
 }

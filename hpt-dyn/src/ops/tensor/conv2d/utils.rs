@@ -2,7 +2,7 @@ use gemm_common::cache::{ DivCeil, KernelParams, CACHE_INFO };
 use hpt_common::error::base::TensorError;
 use hpt_common::Pointer;
 use hpt_traits::tensor::CommonBounds;
-use hpt_types::dtype::{ DType, TypeCommon };
+use hpt_types::dtype::{ DType, ToDType, TypeCommon };
 use hpt_types::type_promote::NormalOut;
 use hpt_types::{ into_scalar::Cast, type_promote::NormalOutPromote };
 use num::integer::gcd;
@@ -356,7 +356,7 @@ pub(crate) fn kernel_params(
     }
 }
 
-pub(crate) fn handle_post<T: CommonBounds>(
+pub(crate) fn handle_post<T: CommonBounds + ToDType>(
     output: &mut Tensor,
     bias: Option<&Tensor>,
     post_scalar: Option<fn(T) -> T>,

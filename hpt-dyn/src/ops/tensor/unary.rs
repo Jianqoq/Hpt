@@ -4,19 +4,25 @@ use crate::{Tensor, current_num_threads};
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape_utils::mt_intervals;
-use hpt_iterator::iterator_traits::ParStridedIteratorSimdZip;
 use hpt_iterator::TensorIterator;
+use hpt_iterator::iterator_traits::ParStridedIteratorSimdZip;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
-use hpt_types::promote_float_unary;
-use hpt_types::scalar::*;
+use hpt_types::dtype::ToDType;
+use hpt_types::dtype::TypeCommon;
+use hpt_types::into_scalar::Cast;
+use hpt_types::scalar::dispatch_copy;
+use hpt_types::traits::VecTrait;
+use hpt_types::type_promote::FloatOutUnary;
+use hpt_types::type_promote::NormalOutUnary;
 use hpt_types::vector::*;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::IntoParallelRefMutIterator;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use rayon::slice::ParallelSlice;
 use rayon::slice::ParallelSliceMut;
-use hpt_types::traits::VecTrait;
+
+use half::{bf16, f16};
 
 #[inline(never)]
 pub fn unary_map<A, K, F, F2>(slice_a: &[A], slice_o: &mut [K], f: F, f2: F2)
@@ -27,12 +33,12 @@ where
     F2: Fn(A) -> K + Sync + Send,
 {
     if K::BYTE_SIZE == A::BYTE_SIZE {
-        let mut chunk_o = slice_o.par_chunks_exact_mut(A::Vec::SIZE);
-        let chunk_a = slice_a.par_chunks_exact(A::Vec::SIZE);
+        let mut chunk_o = slice_o.par_chunks_exact_mut(4 * A::Vec::SIZE);
+        let chunk_a = slice_a.par_chunks_exact(4 * A::Vec::SIZE);
         chunk_o
             .remainder()
-            .into_par_iter()
-            .zip(chunk_a.remainder().into_par_iter())
+            .into_iter()
+            .zip(chunk_a.remainder().into_iter())
             .for_each(|(out, buffer)| {
                 *out = f2(*buffer);
             });
@@ -44,6 +50,15 @@ where
                 let buffer_ptr = buffer.as_ptr() as *const A::Vec;
                 unsafe {
                     out_ptr.write_unaligned(f(buffer_ptr.read_unaligned()));
+                    out_ptr
+                        .add(1)
+                        .write_unaligned(f(buffer_ptr.add(1).read_unaligned()));
+                    out_ptr
+                        .add(2)
+                        .write_unaligned(f(buffer_ptr.add(2).read_unaligned()));
+                    out_ptr
+                        .add(3)
+                        .write_unaligned(f(buffer_ptr.add(3).read_unaligned()));
                 }
             });
     } else {
@@ -57,7 +72,7 @@ where
 }
 
 /// Perform unary operation with output tensor
-pub fn unary_fn_with_out<A, O, K, F, F2>(
+pub fn unary_fn_with_out<A, K, O, F, F2>(
     inp: &Tensor,
     f: F,
     f2: F2,
@@ -189,100 +204,192 @@ pub(crate) fn unary_1operand<F1, F2>(
 
 impl Tensor {
     #[duplicate::duplicate_item(
-        func_name       kernel                  simd_kernel;
-        [sin]           [dispatch_sin]          [dispatch_simd_sin];
-        [cos]           [dispatch_cos]          [dispatch_simd_cos];
-        [tan]           [dispatch_tan]          [dispatch_simd_tan];
-        [asin]          [dispatch_asin]         [dispatch_simd_asin];
-        [acos]          [dispatch_acos]         [dispatch_simd_acos];
-        [atan]          [dispatch_atan]         [dispatch_simd_atan];
-        [sinh]          [dispatch_sinh]         [dispatch_simd_sinh];
-        [cosh]          [dispatch_cosh]         [dispatch_simd_cosh];
-        [tanh]          [dispatch_tanh]         [dispatch_simd_tanh];
-        [asinh]         [dispatch_asinh]        [dispatch_simd_asinh];
-        [acosh]         [dispatch_acosh]        [dispatch_simd_acosh];
-        [atanh]         [dispatch_atanh]        [dispatch_simd_atanh];
-        [exp]           [dispatch_exp]          [dispatch_simd_exp];
-        [exp2]          [dispatch_exp2]         [dispatch_simd_exp2];
-        [expm1]         [dispatch_expm1]        [dispatch_simd_expm1];
-        [ln]            [dispatch_ln]           [dispatch_simd_ln];
-        [log1p]         [dispatch_log1p]        [dispatch_simd_log1p];
-        [log2]          [dispatch_log2]         [dispatch_simd_log2];
-        [log10]         [dispatch_log10]        [dispatch_simd_log10];
-        [sqrt]          [dispatch_sqrt]         [dispatch_simd_sqrt];
-        [cbrt]          [dispatch_cbrt]         [dispatch_simd_cbrt];
-        [recip]         [dispatch_recip]        [dispatch_simd_recip];
-        [erf]           [dispatch_erf]          [dispatch_simd_erf];
-        [sigmoid]       [dispatch_sigmoid]      [dispatch_simd_sigmoid];
-        [gelu]          [dispatch_gelu]         [dispatch_simd_gelu];
-        [hard_sigmoid]  [dispatch_hard_sigmoid] [dispatch_simd_hard_sigmoid];
-        [hard_swish]    [dispatch_hard_swish]   [dispatch_simd_hard_swish];
-        [softplus]      [dispatch_softplus]     [dispatch_simd_softplus];
-        [softsign]      [dispatch_softsign]     [dispatch_simd_softsign];
-        [mish]          [dispatch_mish]         [dispatch_simd_mish];
+        func_name       kernel              description                                                                     test_code;
+        [sin]           [_sin]              ["Computes sine of each element in the input tensor."]                          ["let y = x.sin()?"];
+        [cos]           [_cos]              ["Computes cosine of each element in the input tensor."]                        ["let y = x.cos()?"];
+        [tan]           [_tan]              ["Computes tangent of each element in the input tensor."]                       ["let y = x.tan()?"];
+        [asin]          [_asin]             ["Computes arcsine of each element in the input tensor."]                       ["let y = x.asin()?"];
+        [acos]          [_acos]             ["Computes arccosine of each element in the input tensor."]                     ["let y = x.acos()?"];
+        [atan]          [_atan]             ["Computes arctangent of each element in the input tensor."]                    ["let y = x.atan()?"];
+        [sinh]          [_sinh]             ["Computes hyperbolic sine of each element in the input tensor."]               ["let y = x.sinh()?"];
+        [cosh]          [_cosh]             ["Computes hyperbolic cosine of each element in the input tensor."]             ["let y = x.cosh()?"];
+        [tanh]          [_tanh]             ["Computes hyperbolic tangent of each element in the input tensor."]            ["let y = x.tanh()?"];
+        [asinh]         [_asinh]            ["Computes inverse hyperbolic sine of each element in the input tensor."]       ["let y = x.asinh()?"];
+        [acosh]         [_acosh]            ["Computes inverse hyperbolic cosine of each element in the input tensor."]     ["let y = x.acosh()?"];
+        [atanh]         [_atanh]            ["Computes inverse hyperbolic tangent of each element in the input tensor."]    ["let y = x.atanh()?"];
+        [exp]           [_exp]              ["Computes exponential of each element in the input tensor."]                   ["let y = x.exp()?"];
+        [exp2]          [_exp2]             ["Computes 2 to the power of each element in the input tensor."]                ["let y = x.exp2()?"];
+        [expm1]         [_expm1]            ["Computes exp(x) - 1 of each element in the input tensor."]                    ["let y = x.expm1()?"];
+        [ln]            [_ln]               ["Computes natural logarithm of each element in the input tensor."]             ["let y = x.ln()?"];
+        [log1p]         [_log1p]            ["Computes natural logarithm of each element in the input tensor."]             ["let y = x.log1p()?"];
+        [log2]          [_log2]             ["Computes base 2 logarithm of each element in the input tensor."]              ["let y = x.log2()?"];
+        [log10]         [_log10]            ["Computes base 10 logarithm of each element in the input tensor."]             ["let y = x.log10()?"];
+        [sqrt]          [_sqrt]             ["Computes square root of each element in the input tensor."]                   ["let y = x.sqrt()?"];
+        [cbrt]          [_cbrt]             ["Computes cube root of each element in the input tensor."]                     ["let y = x.cbrt()?"];
+        [recip]         [_recip]            ["Computes reciprocal of each element in the input tensor."]                    ["let y = x.recip()?"];
+        [erf]           [_erf]              ["Computes error function of each element in the input tensor."]                ["let y = x.erf()?"];
+        [sigmoid]       [_sigmoid]          ["Computes sigmoid of each element in the input tensor."]                       ["let y = x.sigmoid()?"];
+        [gelu]          [_gelu]             ["Computes GELU of each element in the input tensor."]                          ["let y = x.gelu()?"];
+        [hard_sigmoid]  [_hard_sigmoid]     ["Computes hard sigmoid of each element in the input tensor."]                  ["let y = x.hard_sigmoid()?"];
+        [hard_swish]    [_hard_swish]       ["Computes hard swish of each element in the input tensor."]                    ["let y = x.hard_swish()?"];
+        [softplus]      [_softplus]         ["Computes softplus of each element in the input tensor."]                      ["let y = x.softplus()?"];
+        [softsign]      [_softsign]         ["Computes softsign of each element in the input tensor."]                      ["let y = x.softsign()?"];
+        [mish]          [_mish]             ["Computes mish of each element in the input tensor."]                          ["let y = x.mish()?"];
     )]
+    #[doc = description]
+    /// # Parameters:
+    /// `x`: Input tensor
+    ///
+    /// # Example:
+    /// ```rust
+    /// let x = Tensor::randn(/*mean*/0.0, /*std*/1.0, /*shape*/&[2, 3, 4], DType::F32, Device::Cpu)?;
+    #[doc = test_code]
+    /// ```
+    ///
+    /// # Returns:
+    /// A new tensor with the same shape as the input tensor.
     pub fn func_name(&self) -> Result<Self, TensorError> {
-        let mut res = Tensor::empty(
-            &self.layout.shape(),
-            promote_float_unary(self.dtype),
-            self.device.clone(),
-        )?;
-        let scalar_fn = kernel(self.dtype);
-        let (simd_fn, unroll) = simd_kernel(self.dtype);
+        macro_rules! unary {
+            ($dtype:ty) => {{
+                type T = $dtype;
+                type O = <T as FloatOutUnary>::Output;
+                type InVec = <T as TypeCommon>::Vec;
+                let res = Tensor::empty(&self.layout.shape(), O::to_dtype(), self.device.clone())?;
 
-        unary_1operand(&mut res, &self, scalar_fn, simd_fn, unroll);
-        Ok(res)
+                unary_fn_with_out(self, |x: InVec| x.kernel(), |x: T| x.kernel(), Some(res))
+            }};
+        }
+        match self.dtype {
+            hpt_types::dtype::DType::I8 => unary!(i8),
+            hpt_types::dtype::DType::U8 => unary!(u8),
+            hpt_types::dtype::DType::F32 => unary!(f32),
+            hpt_types::dtype::DType::F16 => unary!(f16),
+            hpt_types::dtype::DType::BF16 => unary!(bf16),
+            _ => unimplemented!(),
+        }
     }
 
     #[duplicate::duplicate_item(
-        func_name       kernel                  simd_kernel;
-        [celu]          [dispatch_celu]         [dispatch_simd_celu];
-        [elu]           [dispatch_elu]          [dispatch_simd_elu];
+        func_name       kernel              description                                                                     test_code;
+        [floor]         [_floor]            ["Computes floor of each element in the input tensor."]                         ["let y = x.floor()?"];
+        [ceil]          [_ceil]             ["Computes ceil of each element in the input tensor."]                          ["let y = x.ceil()?"];
+        [round]         [_round]            ["Computes round of each element in the input tensor."]                         ["let y = x.round()?"];
+        [trunc]         [_trunc]            ["Computes trunc of each element in the input tensor."]                         ["let y = x.trunc()?"];
+        [abs]           [_abs]              ["Computes absolute value of each element in the input tensor."]                ["let y = x.abs()?"];
+        [neg]           [_neg]              ["Computes negative value of each element in the input tensor."]                ["let y = x.neg()?"];
+        [signum]        [_signum]           ["Computes sign of each element in the input tensor."]                          ["let y = x.sign()?"];
+        [relu]          [_relu]             ["Computes relu of each element in the input tensor."]                          ["let y = x.relu()?"];
+        [relu6]         [_relu6]            ["Computes relu6 of each element in the input tensor."]                         ["let y = x.relu6()?"];
+        [square]        [_square]           ["Computes square of each element in the input tensor."]                        ["let y = x.square()?"];
     )]
-    pub fn func_name(&self, alpha: f64) -> Result<Self, TensorError> {
-        let mut res = Tensor::empty(
-            &self.layout.shape(),
-            promote_float_unary(self.dtype),
-            self.device.clone(),
-        )?;
-        let scalar_fn = kernel(self.dtype, alpha);
-        let (simd_fn, unroll) = simd_kernel(self.dtype, alpha);
+    #[doc = description]
+    /// # Parameters:
+    /// `x`: Input tensor
+    ///
+    /// # Example:
+    /// ```rust
+    /// let x = Tensor::randn(/*mean*/0.0, /*std*/1.0, /*shape*/&[2, 3, 4], DType::F32, Device::Cpu)?;
+    #[doc = test_code]
+    /// ```
+    ///
+    /// # Returns:
+    /// A new tensor with the same shape as the input tensor.
+    pub fn func_name(&self) -> Result<Self, TensorError> {
+        macro_rules! unary {
+            ($dtype:ty) => {{
+                type T = $dtype;
+                type InVec = <T as TypeCommon>::Vec;
+                let res = Tensor::empty(&self.layout.shape(), T::to_dtype(), self.device.clone())?;
 
-        unary_1operand(
-            &mut res,
-            &self,
-            scalar_fn.as_ref(),
-            simd_fn.as_ref(),
-            unroll,
-        );
-        Ok(res)
+                unary_fn_with_out(self, |x: InVec| x.kernel(), |x: T| x.kernel(), Some(res))
+            }};
+        }
+        match self.dtype {
+            hpt_types::dtype::DType::I8 => unary!(i8),
+            hpt_types::dtype::DType::U8 => unary!(u8),
+            hpt_types::dtype::DType::F32 => unary!(f32),
+            hpt_types::dtype::DType::F16 => unary!(f16),
+            hpt_types::dtype::DType::BF16 => unary!(bf16),
+            _ => unimplemented!(),
+        }
+    }
+
+    #[duplicate::duplicate_item(
+        func_name       kernel                  description                                                                     test_code;
+        [celu]          [_celu]                 ["Computes celu of each element in the input tensor."]                         ["let y = x.celu(/*alpha*/1.0)?"];
+        [elu]           [_elu]                  ["Computes elu of each element in the input tensor."]                          ["let y = x.elu(/*alpha*/1.0)?"];
+    )]
+    #[doc = description]
+    /// # Parameters:
+    /// `x`: Input tensor
+    /// `alpha`: Alpha value
+    ///
+    /// # Example:
+    /// ```rust
+    /// let x = Tensor::randn(/*mean*/0.0, /*std*/1.0, /*shape*/&[2, 3, 4], DType::F32, Device::Cpu)?;
+    #[doc = test_code]
+    /// ```
+    ///
+    /// # Returns:
+    /// A new tensor with the same shape as the input tensor.
+    pub fn func_name(&self, alpha: f64) -> Result<Self, TensorError> {
+        macro_rules! unary {
+            ($dtype:ty) => {{
+                type T = $dtype;
+                type O = <T as FloatOutUnary>::Output;
+                type InVec = <T as TypeCommon>::Vec;
+                type OVec = <O as TypeCommon>::Vec;
+                let res = Tensor::empty(&self.layout.shape(), O::to_dtype(), self.device.clone())?;
+                let alpha: O = alpha.cast();
+                let alpha_vec = OVec::splat(alpha);
+                unary_fn_with_out(
+                    self,
+                    |x: InVec| x.kernel(alpha_vec),
+                    |x: T| x.kernel(alpha),
+                    Some(res),
+                )
+            }};
+        }
+        match self.dtype {
+            hpt_types::dtype::DType::I8 => unary!(i8),
+            hpt_types::dtype::DType::U8 => unary!(u8),
+            hpt_types::dtype::DType::F32 => unary!(f32),
+            hpt_types::dtype::DType::F16 => unary!(f16),
+            hpt_types::dtype::DType::BF16 => unary!(bf16),
+            _ => unimplemented!(),
+        }
     }
 
     pub fn selu(&self) -> Result<Self, TensorError> {
-        let mut res = Tensor::empty(
-            &self.layout.shape(),
-            promote_float_unary(self.dtype),
-            self.device.clone(),
-        )?;
-        let scalar_fn = dispatch_selu(
-            self.dtype,
-            1.6732632423543772848170429916717,
-            1.0507009873554804934193349852946,
-        );
-        let (simd_fn, unroll) = dispatch_simd_selu(
-            self.dtype,
-            1.6732632423543772848170429916717,
-            1.0507009873554804934193349852946,
-        );
-
-        unary_1operand(
-            &mut res,
-            &self,
-            scalar_fn.as_ref(),
-            simd_fn.as_ref(),
-            unroll,
-        );
-        Ok(res)
+        macro_rules! unary {
+            ($dtype:ty) => {{
+                type T = $dtype;
+                type O = <T as FloatOutUnary>::Output;
+                type InVec = <T as TypeCommon>::Vec;
+                type OVec = <O as TypeCommon>::Vec;
+                let res = Tensor::empty(&self.layout.shape(), O::to_dtype(), self.device.clone())?;
+                let arg1 = 1.6732632423543772848170429916717;
+                let arg2 = 1.0507009873554804934193349852946;
+                let arg1: O = arg1.cast();
+                let arg2: O = arg2.cast();
+                let arg1_vec = OVec::splat(arg1);
+                let arg2_vec = OVec::splat(arg2);
+                unary_fn_with_out(
+                    self,
+                    |x: InVec| x._selu(arg1_vec, arg2_vec),
+                    |x: T| x._selu(arg1, arg2),
+                    Some(res),
+                )
+            }};
+        }
+        match self.dtype {
+            hpt_types::dtype::DType::I8 => unary!(i8),
+            hpt_types::dtype::DType::U8 => unary!(u8),
+            hpt_types::dtype::DType::F32 => unary!(f32),
+            hpt_types::dtype::DType::F16 => unary!(f16),
+            hpt_types::dtype::DType::BF16 => unary!(bf16),
+            _ => unimplemented!(),
+        }
     }
 
     pub fn contiguous(&self) -> Result<Self, TensorError> {

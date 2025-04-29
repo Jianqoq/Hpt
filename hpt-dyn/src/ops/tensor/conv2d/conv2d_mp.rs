@@ -10,6 +10,7 @@ use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
+use hpt_types::dtype::ToDType;
 use hpt_types::dtype::TypeCommon;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOutPromote;
@@ -20,7 +21,7 @@ use rayon::slice::{ ParallelSlice, ParallelSliceMut };
 type IM<T> = <T as NormalOutPromote>::Intermediate;
 type IMVec<T> = <<T as NormalOutPromote>::Intermediate as TypeCommon>::Vec;
 
-pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel>(
+pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     input: &Tensor,
     kernels: &Tensor,
     bias: Option<&Tensor>,

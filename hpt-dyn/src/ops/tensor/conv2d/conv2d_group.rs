@@ -2,6 +2,7 @@ use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
+use hpt_types::dtype::ToDType;
 use hpt_types::vectors::traits::*;
 use rayon::prelude::*;
 
@@ -23,7 +24,7 @@ pub(crate) fn conv2d_group<T>(
     post_scalar: Option<fn(T) -> T>,
     post_vec: Option<fn(<T>::Vec) -> <T>::Vec>
 ) -> Result<Tensor, TensorError>
-    where T: Conv2dMicroKernel + CommonBounds
+    where T: Conv2dMicroKernel + CommonBounds + ToDType
 {
     let img_shape = input.shape();
     ShapeError::check_dim(4, img_shape.len())?;

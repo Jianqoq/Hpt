@@ -21,7 +21,7 @@ use super::microkernel_trait::Conv2dMicroKernel;
 use super::utils::cal_conv2d_output_shape;
 use super::{ conv2d_direct, conv2d_img2col };
 
-pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel>(
+pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     input: &Tensor,
     kernels: &Tensor,
     bias: Option<&Tensor>,

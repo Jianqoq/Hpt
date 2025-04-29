@@ -1,6 +1,7 @@
 use hpt_common::error::base::TensorError;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
+use hpt_types::dtype::ToDType;
 use hpt_types::vectors::traits::*;
 use rayon::prelude::*;
 
@@ -9,7 +10,7 @@ use crate::Tensor;
 use super::microkernel_trait::Conv2dMicroKernel;
 use super::utils::{ calculate_kernel_params, create_packed_kernel, handle_post, pack_kernel };
 
-pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel>(
+pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     input: &Tensor,
     kernels: &Tensor,
     bias: Option<&Tensor>,

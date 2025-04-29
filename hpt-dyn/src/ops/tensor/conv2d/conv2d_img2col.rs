@@ -3,6 +3,7 @@ use hpt_common::layout::layout::Layout;
 use hpt_common::shape::shape::Shape;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
+use hpt_types::dtype::ToDType;
 
 use crate::ops::tensor::conv2d::utils::{ cal_conv2d_output_shape, handle_post };
 use crate::ops::tensor::matmul::matmul::matmul_with_out;
@@ -13,7 +14,7 @@ use super::microkernel_trait::Conv2dMicroKernel;
 use super::utils::create_packed_input_img2col;
 use super::utils::img2col_nhwc;
 
-pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel>(
+pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     input: &Tensor,
     kernels: &Tensor,
     bias: Option<&Tensor>,
