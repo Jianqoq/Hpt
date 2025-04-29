@@ -31,6 +31,10 @@ pub(crate) mod matmul {
 
 pub(crate) mod normalization {
     pub(crate) mod batch_norm;
+    pub(crate) mod normalize_utils;
+    pub(crate) mod softmax;
+    pub(crate) mod kernels;
+    pub(crate) mod logsoftmax;
 }
 
 pub(crate) mod conv2d {
@@ -50,4 +54,10 @@ pub(crate) mod conv2d {
         pub(crate) mod f32_microkernels;
         pub(crate) mod bf16_microkernels;
     }
+}
+
+pub(crate) mod pooling {
+    pub(crate) mod template;
+    pub(crate) mod maxpool;
+    pub(crate) mod avgpool;
 }

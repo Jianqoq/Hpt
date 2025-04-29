@@ -42,6 +42,7 @@ safetensors = { workspace = true }
 bytemuck = { workspace = true }
 gemm-common = { workspace = true }
 seq-macro = { workspace = true }
+spindle = { workspace = true }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 raw-cpuid = { version = "11.3.0", default-features = false }
