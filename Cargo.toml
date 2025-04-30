@@ -96,17 +96,19 @@ gnuplot = "0.0.45"
 criterion = { version = "0.5.1", features = ["html_reports"] }
 tch = { version = "0.17.0", features = ["download-libtorch"] }
 spindle = "0.2.2"
+prost = "0.13.5"
+prost-types = "0.13.5"
 
 [[bin]]
 name = "hpt-workspace"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 3
+opt-level = 0
 incremental = true
-debug = false
-lto = "fat"
-codegen-units = 1
+debug = true
+# lto = "fat"
+# codegen-units = 1
 
 [profile.dev]
 opt-level = 0

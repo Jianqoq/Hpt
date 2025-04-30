@@ -1,11 +1,11 @@
 pub(crate) mod ops;
-pub(crate) mod utils;
 pub(crate) mod tensor;
+pub(crate) mod utils;
 use std::{cell::RefCell, sync::atomic::AtomicUsize};
 
+pub use hpt_types::dtype::DType;
 pub use tensor::Tensor;
 pub use utils::device::Device;
-pub use hpt_types::dtype::DType;
 
 static DISPLAY_PRECISION: AtomicUsize = AtomicUsize::new(4);
 static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
@@ -26,4 +26,9 @@ fn init() {
     THREAD_POOL.with(|x| {
         x.borrow_mut().resize(num_cpus::get());
     });
+}
+
+pub mod onnx {
+    pub use crate::utils::onnx::load_model::load_onnx;
+    pub(crate) use crate::utils::onnx::proto::*;
 }

@@ -222,6 +222,127 @@ pub(crate) fn func_name<T, F1, F2>(
     let mc_rem_intervals = mt_intervals(mc_rem_jobs, num_threads);
     let prgs = calculate_prgs(n, nc, mr, nr, mc, &intervals);
     let rem_prgs = calculate_prgs(n, nc, mr, nr, m % mc, &mc_rem_intervals);
+
+    // spindle::with_lock(num_threads, || {
+    //     for i in (0..m).step_by(mc) {
+    //         let ib = min(mc, m - i);
+    //         for p in (0..k).step_by(kc) {
+    //             let first_kiter = p == 0;
+    //             let pb = min(kc, k - p);
+    //             if do_lhs_pack {
+    //                 spindle::for_each_raw(num_threads, |tid| {
+    //                     pack_a::<T>(
+    //                         a + (i as i64) * lda + (p as i64) * lhs_col_stride,
+    //                         packed_a,
+    //                         lda,
+    //                         lhs_col_stride,
+    //                         ib,
+    //                         pb,
+    //                         kc,
+    //                         mr,
+    //                         tid,
+    //                         mb_per_thread,
+    //                         num_mr_blocks,
+    //                     );
+    //                 });
+    //             }
+
+    //             spindle::for_each_raw(num_threads, |tid| {
+    //                 L2_SLAB.with_borrow_mut(|mem| {
+    //                     let stack = DynStack::new(mem);
+    //                     let (mut packed_b_storage, _) =
+    //                         stack.make_aligned_with::<T>(num_nr_blocks * nr * kc, ALIGN, |_| T::ZERO);
+    //                     let packed_b = Pointer::new(
+    //                         packed_b_storage.as_mut_ptr() as *mut T,
+    //                         (num_nr_blocks * nr * kc) as i64,
+    //                     );
+    //                     let use_prg = if ib == mc { prgs[tid] } else { rem_prgs[tid] };
+    //                     let use_start = if ib == mc { intervals[tid].0 } else { mc_rem_intervals[tid].0 };
+    //                     let use_end = if ib == mc { intervals[tid].1 } else { mc_rem_intervals[tid].1 };
+    //                     let j_start = use_prg[0] * nc;
+    //                     let mut job_count = use_start;
+    //                     let mut i_start = use_prg[1] * mr;
+    //                     let mut jj_start = use_prg[2] * nr;
+    //                     let need_full_pack = ib - i_start > mr;
+    //                     'outer: for j in (j_start..n).step_by(nc) {
+    //                         let jb = min(nc, n - j);
+    //                         let c = out + (i as i64) * ldc + (j as i64);
+    //                         pack_b::<T>(
+    //                             b + ((p as i64) * ldb + (j as i64) * rhs_col_stride),
+    //                             packed_b,
+    //                             ldb,
+    //                             rhs_col_stride,
+    //                             jb,
+    //                             pb,
+    //                             kc,
+    //                             nr,
+    //                             jj_start,
+    //                             need_full_pack,
+    //                         );
+    //                         let packed_a = if do_lhs_pack {
+    //                             packed_a
+    //                         } else {
+    //                             a + ((i as i64) * lda + (p as i64) * lhs_col_stride)
+    //                         };
+    //                         for ii in (i_start..ib).step_by(mr) {
+    //                             let mb = min(mr, ib - ii);
+    //                             let micro_kernel = <T>::get_kernel(nr / <T>::Vec::SIZE, mb);
+    //                             for jj in (jj_start..jb).step_by(nr) {
+    //                                 let jjb = min(nr, jb - jj);
+    //                                 let packed_b = packed_b + (jj as i64) * (kc as i64);
+    //                                 if do_lhs_pack {
+    //                                     call_microkernel!(
+    //                                         need_post_op,
+    //                                         packed_a + (kc as i64) * (ii as i64),
+    //                                         packed_b,
+    //                                         c + (ii as i64) * ldc + (jj as i64),
+    //                                         micro_kernel,
+    //                                         ldc,
+    //                                         pb,
+    //                                         jjb,
+    //                                         mb as i64,
+    //                                         first_kiter,
+    //                                         i + ii,
+    //                                         j + jj,
+    //                                         p + pb == k,
+    //                                         _post_op,
+    //                                         _post_op_vec
+    //                                     );
+    //                                 } else {
+    //                                     call_non_packed_microkernel!(
+    //                                         need_post_op,
+    //                                         packed_a + (ii as i64) * lda,
+    //                                         packed_b,
+    //                                         c + (ii as i64) * ldc + (jj as i64),
+    //                                         micro_kernel,
+    //                                         ldc,
+    //                                         lda,
+    //                                         pb,
+    //                                         jjb,
+    //                                         lhs_col_stride,
+    //                                         first_kiter,
+    //                                         i + ii,
+    //                                         j + jj,
+    //                                         p + pb == k,
+    //                                         _post_op,
+    //                                         _post_op_vec
+    //                                     );
+    //                                 }
+    //                                 job_count += 1;
+    //                                 if job_count >= use_end {
+    //                                     break 'outer;
+    //                                 }
+    //                             }
+    //                             jj_start = 0;
+    //                         }
+    //                         i_start = 0;
+    //                     }
+    //                 });
+    //             });
+    //         }
+    //     }
+    // });
+
     THREAD_POOL.with_borrow(|pool| {
         pool.parallel_for(
             (0..num_threads)
@@ -310,8 +431,8 @@ pub(crate) fn func_name<T, F1, F2>(
                                                 i + ii,
                                                 j + jj,
                                                 p + pb == k,
-                                                _post_op.clone(),
-                                                _post_op_vec.clone()
+                                                _post_op,
+                                                _post_op_vec
                                             );
                                         } else {
                                             call_non_packed_microkernel!(
@@ -329,8 +450,8 @@ pub(crate) fn func_name<T, F1, F2>(
                                                 i + ii,
                                                 j + jj,
                                                 p + pb == k,
-                                                _post_op.clone(),
-                                                _post_op_vec.clone()
+                                                _post_op,
+                                                _post_op_vec
                                             );
                                         }
                                         job_count += 1;

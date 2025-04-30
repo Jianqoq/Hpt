@@ -26,6 +26,12 @@ dyn-stack = { workspace = true}
 num_cpus = { workspace = true }
 num = { workspace = true }
 ctor = { workspace = true }
+spindle = { workspace = true }
+prost = { workspace = true }
+prost-types = { workspace = true }
+
+[build-dependencies]
+prost-build = "0.13.5"
 
 [features]
 default = []

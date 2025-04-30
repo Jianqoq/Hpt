@@ -10,8 +10,8 @@ use hpt_types::type_promote::FloatOutBinary;
 use hpt_types::type_promote::FloatOutUnary;
 use hpt_types::type_promote::NormalOutPromote;
 
-use crate::ops::tensor::matmul::microkernel_trait::MatmulMicroKernel;
 use crate::Tensor;
+use crate::ops::tensor::matmul::microkernel_trait::MatmulMicroKernel;
 
 use hpt_types::traits::VecTrait;
 
@@ -19,7 +19,7 @@ use super::batchnorm_conv2d::batchnorm_conv2d;
 use super::conv2d_group::conv2d_group;
 use super::microkernel_trait::Conv2dMicroKernel;
 use super::utils::cal_conv2d_output_shape;
-use super::{ conv2d_direct, conv2d_img2col };
+use super::{conv2d_direct, conv2d_img2col};
 
 pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     input: &Tensor,
@@ -29,22 +29,23 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     padding: [(i64, i64); 2],
     dilation: [i64; 2],
     post_scalar: Option<fn(T) -> T>,
-    post_vec: Option<fn(<T>::Vec) -> <T>::Vec>
+    post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
 ) -> Result<Tensor, TensorError>
-    where T: MatmulMicroKernel
+where
+    T: MatmulMicroKernel,
 {
     ShapeError::check_contiguous(
         "Conv2d requires input tensor to be contiguous. ".to_string(),
-        input.layout()
+        input.layout(),
     )?;
     ShapeError::check_contiguous(
         "Conv2d requires kernel tensor to be contiguous. ".to_string(),
-        kernels.layout()
+        kernels.layout(),
     )?;
     if bias.is_some() {
         ShapeError::check_contiguous(
             "Conv2d requires bias tensor to be contiguous. ".to_string(),
-            bias.unwrap().layout()
+            bias.unwrap().layout(),
         )?;
     }
     let img_shape = input.shape();
@@ -59,16 +60,14 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     let in_channels = kernel_shape[2];
     let out_channels = kernel_shape[3];
     if in_channels != img_channels {
-        return Err(
-            (ShapeError::ConvError {
-                message: format!(
-                    "kernel in_channel {} not match input in_channel {}",
-                    in_channels,
-                    img_channels
-                ),
-                location: core::panic::Location::caller(),
-            }).into()
-        );
+        return Err((ShapeError::ConvError {
+            message: format!(
+                "kernel in_channel {} not match input in_channel {}",
+                in_channels, img_channels
+            ),
+            location: core::panic::Location::caller(),
+        })
+        .into());
     }
     let (step_width, step_height) = (steps[0], steps[1]);
     let ((ph_start, ph_end), (pw_start, pw_end)) = (padding[0], padding[1]);
@@ -79,29 +78,25 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
         img_width,
         kh,
         kw,
-        &[
-            (ph_start, ph_end),
-            (pw_start, pw_end),
-        ],
+        &[(ph_start, ph_end), (pw_start, pw_end)],
         &[step_height, step_width],
-        &[dh, dw]
+        &[dh, dw],
     );
     if out_height <= 0 || out_width <= 0 {
-        return Err(
-            (ShapeError::ConvError {
-                message: if out_height <= 0 {
-                    "output height <= 0".to_string()
-                } else {
-                    "output width <= 0".to_string()
-                },
-                location: core::panic::Location::caller(),
-            }).into()
-        );
+        return Err((ShapeError::ConvError {
+            message: if out_height <= 0 {
+                "output height <= 0".to_string()
+            } else {
+                "output width <= 0".to_string()
+            },
+            location: core::panic::Location::caller(),
+        })
+        .into());
     }
     let output = Tensor::empty(
         &[batch, out_height, out_width, out_channels],
         input.dtype,
-        input.device.clone()
+        input.device.clone(),
     )?;
     let img2col_buffer_size = kh * kw * in_channels * out_height * out_width;
     let direct_buffer_size = kh * kw * in_channels * out_channels;
@@ -122,7 +117,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
             kw,
             post_scalar,
             post_vec,
-            output
+            output,
         )
     } else {
         conv2d_direct::conv2d(
@@ -141,7 +136,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
             kw,
             post_scalar,
             post_vec,
-            output
+            output,
         )
     }
 }
@@ -153,16 +148,15 @@ impl Tensor {
         bias: Option<&Tensor>,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
-        dilation: [i64; 2]
-    )
-        -> Result<Tensor, TensorError>
-        where
-            T: CommonBounds +
-                Conv2dMicroKernel +
-                MatmulMicroKernel +
-                ToDType +
-                Cast<<T as NormalOutPromote>::Intermediate>,
-            <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>
+        dilation: [i64; 2],
+    ) -> Result<Tensor, TensorError>
+    where
+        T: CommonBounds
+            + Conv2dMicroKernel
+            + MatmulMicroKernel
+            + ToDType
+            + Cast<<T as NormalOutPromote>::Intermediate>,
+        <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
     {
         let t_dtype = T::to_dtype();
         assert_eq!(self.dtype, t_dtype);
@@ -170,9 +164,8 @@ impl Tensor {
         if let Some(bias) = bias {
             assert_eq!(bias.dtype, t_dtype);
         }
-        if
-            t_dtype == DType::F16 &&
-            !(cfg!(target_feature = "neon") && cfg!(target_feature = "fp16"))
+        if t_dtype == DType::F16
+            && !(cfg!(target_feature = "neon") && cfg!(target_feature = "fp16"))
         {
             type F16Vec = <half::f16 as TypeCommon>::Vec;
             super::conv2d_mp::conv2d::<half::f16>(
@@ -198,7 +191,7 @@ impl Tensor {
                 |x| x.cast(),
                 |x| x.cast(),
                 None,
-                None
+                None,
             )
         } else if t_dtype == DType::BF16 {
             type F16Vec = <half::bf16 as TypeCommon>::Vec;
@@ -225,10 +218,27 @@ impl Tensor {
                 |x| x.cast(),
                 |x| x.cast(),
                 None,
-                None
+                None,
             )
         } else {
-            conv2d::<T>(self, kernels, bias, steps, padding, dilation, None, None)
+            match self.dtype {
+                DType::I8 => {
+                    conv2d::<i8>(self, kernels, bias, steps, padding, dilation, None, None)
+                }
+                DType::U8 => {
+                    conv2d::<u8>(self, kernels, bias, steps, padding, dilation, None, None)
+                }
+                DType::F32 => {
+                    conv2d::<f32>(self, kernels, bias, steps, padding, dilation, None, None)
+                }
+                DType::F16 => {
+                    conv2d::<half::f16>(self, kernels, bias, steps, padding, dilation, None, None)
+                }
+                DType::BF16 => {
+                    conv2d::<half::bf16>(self, kernels, bias, steps, padding, dilation, None, None)
+                }
+                _ => panic!("Unsupported dtype for conv2d"),
+            }
         }
     }
 
@@ -243,18 +253,17 @@ impl Tensor {
         eps: T,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
-        dilation: [i64; 2]
-    )
-        -> Result<Tensor, TensorError>
-        where
-            T: CommonBounds +
-                Conv2dMicroKernel +
-                MatmulMicroKernel +
-                Cast<<T as NormalOutPromote>::Intermediate> +
-                ToDType,
-            <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
-            T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
-            T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>
+        dilation: [i64; 2],
+    ) -> Result<Tensor, TensorError>
+    where
+        T: CommonBounds
+            + Conv2dMicroKernel
+            + MatmulMicroKernel
+            + Cast<<T as NormalOutPromote>::Intermediate>
+            + ToDType,
+        <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
+        T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
+        T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
     {
         let t_dtype = T::to_dtype();
         assert_eq!(self.dtype, t_dtype);
@@ -267,19 +276,7 @@ impl Tensor {
             assert_eq!(bias.dtype, t_dtype);
         }
         batchnorm_conv2d::<T>(
-            self,
-            kernels,
-            mean,
-            var,
-            gamma,
-            beta,
-            bias,
-            eps,
-            steps,
-            padding,
-            dilation,
-            None,
-            None
+            self, kernels, mean, var, gamma, beta, bias, eps, steps, padding, dilation, None, None,
         )
     }
 
@@ -290,26 +287,18 @@ impl Tensor {
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-        groups: i64
+        groups: i64,
     ) -> Result<Tensor, TensorError>
-        where
-            T: CommonBounds +
-                Conv2dMicroKernel +
-                MatmulMicroKernel +
-                ToDType +
-                Cast<<T as NormalOutPromote>::Intermediate>,
-            <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>
+    where
+        T: CommonBounds
+            + Conv2dMicroKernel
+            + MatmulMicroKernel
+            + ToDType
+            + Cast<<T as NormalOutPromote>::Intermediate>,
+        <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
     {
         conv2d_group::<T>(
-            self,
-            kernels,
-            bias,
-            steps,
-            padding,
-            dilation,
-            groups,
-            None,
-            None,
+            self, kernels, bias, steps, padding, dilation, groups, None, None,
         )
     }
 }
