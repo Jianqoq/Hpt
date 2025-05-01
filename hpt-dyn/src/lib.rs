@@ -13,18 +13,18 @@ static ALIGN: usize = 64;
 
 thread_local! {
     static THREAD_POOL: RefCell<crate::utils::thread_pool::ComputeThreadPool> = RefCell::new(
-        crate::utils::thread_pool::ComputeThreadPool::new(num_cpus::get())
+        crate::utils::thread_pool::ComputeThreadPool::new(num_cpus::get_physical())
     );
 }
 
 pub fn current_num_threads() -> usize {
-    rayon::current_num_threads()
+    THREAD_POOL.with(|x| x.borrow().num_threads())
 }
 
 #[ctor::ctor]
 fn init() {
     THREAD_POOL.with(|x| {
-        x.borrow_mut().resize(num_cpus::get());
+        x.borrow_mut().resize(num_cpus::get_physical());
     });
 }
 

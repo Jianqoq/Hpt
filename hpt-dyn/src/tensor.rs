@@ -1,15 +1,18 @@
 use hpt_common::error::base::TensorError;
-use hpt_common::{Pointer, layout::layout::Layout, shape::shape::Shape, strides::strides::Strides};
-use hpt_traits::tensor::{CommonBounds, TensorInfo};
+use hpt_common::{ Pointer, layout::layout::Layout, shape::shape::Shape, strides::strides::Strides };
+use hpt_traits::tensor::{ CommonBounds, TensorInfo };
+use hpt_types::dtype::ToDType;
 use std::sync::Arc;
 
 use crate::onnx::TensorProto;
 use crate::utils::index_cal::{
-    dispatch_loop_progress_update, dispatch_map_global_idx, dispatch_map_gp,
+    dispatch_loop_progress_update,
+    dispatch_map_global_idx,
+    dispatch_map_gp,
 };
 use crate::utils::onnx::map_dtype::to_dtype;
-use crate::utils::{backend::Backend, device::Device};
-use crate::{ALIGN, DType};
+use crate::utils::{ backend::Backend, device::Device };
+use crate::{ ALIGN, DType };
 
 use hpt_iterator::TensorIterator;
 
@@ -28,6 +31,10 @@ pub struct Tensor {
 }
 
 impl Tensor {
+    pub fn dtype(&self) -> DType {
+        self.dtype
+    }
+
     pub fn as_slice<T: Sized>(&self) -> &[T] {
         if !self.is_contiguous() {
             panic!("uncontiguous tensor cannot be converted to slice");
@@ -35,7 +42,7 @@ impl Tensor {
         unsafe {
             std::slice::from_raw_parts(
                 self.data.ptr as *const T,
-                (self.mem_layout.size() as usize) / std::mem::size_of::<T>(),
+                (self.mem_layout.size() as usize) / std::mem::size_of::<T>()
             )
         }
     }
@@ -46,7 +53,7 @@ impl Tensor {
         unsafe {
             std::slice::from_raw_parts_mut(
                 self.data.ptr as *mut T,
-                (self.mem_layout.size() as usize) / std::mem::size_of::<T>(),
+                (self.mem_layout.size() as usize) / std::mem::size_of::<T>()
             )
         }
     }
@@ -55,21 +62,22 @@ impl Tensor {
         layout: Layout,
         dtype: DType,
         device: Device,
-        take_ownership: bool,
+        take_ownership: bool
     ) -> Result<Self, TensorError> {
         let len = layout.size() as usize;
         match device {
             Device::Cpu => {
                 let ptr = Pointer::new(data, len as i64);
-                if data as usize % ALIGN != 0 {
+                if (data as usize) % ALIGN != 0 {
                     assert_eq!(take_ownership, false);
                 } else {
-                    assert_eq!(data as usize % ALIGN, 0);
+                    assert_eq!((data as usize) % ALIGN, 0);
                 }
                 let prg_update = dispatch_loop_progress_update(&layout, dtype.sizeof());
                 let map_global_idx = dispatch_map_global_idx(&layout);
                 let map_gp = dispatch_map_gp(&layout);
-                let mem_layout = std::alloc::Layout::from_size_align(len * dtype.sizeof(), ALIGN)
+                let mem_layout = std::alloc::Layout
+                    ::from_size_align(len * dtype.sizeof(), ALIGN)
                     .expect("failed to create memory layout");
                 Ok(Self {
                     data: ptr,
@@ -85,15 +93,13 @@ impl Tensor {
                 })
             }
             #[cfg(feature = "cuda")]
-            _ => {
-                unimplemented!()
-            }
+            _ => { unimplemented!() }
         }
     }
 
     pub fn from_onnx_tensor(
         tensor: &mut TensorProto,
-        permute: &Option<Vec<i64>>,
+        permute: &Option<Vec<i64>>
     ) -> Result<Self, TensorError> {
         let shape = Shape::from(&tensor.dims);
         let layout = Layout::from(shape);
@@ -156,7 +162,7 @@ impl Tensor {
         }
         match dtype {
             DType::Bool => unimplemented!(),
-            DType::I8
+            | DType::I8
             | DType::U8
             | DType::I16
             | DType::U16
@@ -167,6 +173,17 @@ impl Tensor {
             DType::I64 => from_specific_data!(int64_data),
             DType::F32 => from_specific_data!(float_data),
         }
+    }
+
+    pub fn get<T: ToDType + CommonBounds>(&self, index: &[i64]) -> Result<T, TensorError> {
+        assert_eq!(self.dtype(), T::to_dtype());
+        let ptr = self.data.cast::<T>();
+        let strides = self.layout.strides();
+        let mut idx = 0;
+        for (i, &val) in index.iter().zip(strides.iter()) {
+            idx += val * i;
+        }
+        Ok(ptr[idx])
     }
 }
 

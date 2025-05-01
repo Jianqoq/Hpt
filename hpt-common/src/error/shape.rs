@@ -175,7 +175,7 @@ pub enum ShapeError {
 
     /// Any ShapeError
     #[error("ShapeError: {message} at {location}")]
-    Any {
+    AnyError {
         /// Message describing the error
         message: String,
         /// Location where error occurred

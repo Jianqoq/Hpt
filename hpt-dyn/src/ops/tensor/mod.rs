@@ -4,6 +4,7 @@ pub(crate) mod binary;
 pub(crate) mod shape_manipulate;
 pub(crate) mod random;
 pub(crate) mod cmp;
+pub(crate) mod copy;
 pub(crate) mod reduce {
     pub(crate) mod reduce_utils;
     pub(crate) mod reduce_template;
@@ -60,4 +61,8 @@ pub(crate) mod pooling {
     pub(crate) mod template;
     pub(crate) mod maxpool;
     pub(crate) mod avgpool;
+}
+
+pub(crate) mod rnn {
+    pub(crate) mod lstm;
 }

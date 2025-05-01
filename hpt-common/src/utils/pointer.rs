@@ -154,6 +154,25 @@ impl<T> Pointer<T> {
     /// # Arguments
     /// `offset` - the offset to be added
     ///
+    /// # Returns
+    #[inline(always)]
+    pub fn offset(&self, offset: isize) -> Self {
+        unsafe {
+            #[cfg(feature = "bound_check")]
+            return Self {
+                ptr: self.ptr.offset(offset as isize),
+                len: self.len,
+            };
+            #[cfg(not(feature = "bound_check"))]
+            return Self { ptr: self.ptr };
+        }
+    }
+
+    /// inplace offset the value of the pointer in the current address
+    ///
+    /// # Arguments
+    /// `offset` - the offset to be added
+    ///
     /// # Example
     /// ```
     /// use tensor_pointer::Pointer;
