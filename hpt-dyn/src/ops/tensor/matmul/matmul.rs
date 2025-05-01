@@ -393,10 +393,7 @@ where
 }
 
 impl Tensor {
-    pub fn matmul<T>(&self, rhs: &Tensor) -> Result<Tensor, TensorError>
-    where
-        T: MatmulMicroKernel,
-    {
+    pub fn matmul(&self, rhs: &Tensor) -> Result<Tensor, TensorError> {
         macro_rules! matmul {
             ($dtype:ty) => {
                 matmul_with_out(

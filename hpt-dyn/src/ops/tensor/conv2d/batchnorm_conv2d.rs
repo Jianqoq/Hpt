@@ -37,7 +37,7 @@ pub(crate) fn batchnorm_conv2d<T>(
         T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
         T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>
 {
-    let conv_res = input.conv2d::<T>(kernels, bias, steps, padding, dilation)?;
+    let conv_res = input.conv2d(kernels, bias, steps, padding, dilation)?;
 
     batch_norm(
         &conv_res,

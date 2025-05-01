@@ -9,4 +9,5 @@ pub(crate) mod onnx {
     pub(crate) mod load_model;
     pub(crate) mod proto;
     pub(crate) mod execute;
+    pub(crate) mod map_dtype;
 }

@@ -36,7 +36,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     post_vec: Option<fn(<T>::Vec) -> <T>::Vec>
 )
     -> Result<Tensor, TensorError>
-    where T: Cast<IM<T>>, IM<T>: CommonBounds + Cast<T>
+    where T: Cast<IM<T>>, IM<T>: CommonBounds + Cast<T> + ToDType
 {
     ShapeError::check_contiguous(
         "Conv2d requires input tensor to be contiguous. ".to_string(),
@@ -92,7 +92,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
         &[dh, dw]
     );
 
-    let casted_input = Tensor::empty(input.shape(), input.dtype, input.device.clone())?;
+    let casted_input = Tensor::empty(input.shape(), IM::<T>::to_dtype(), input.device.clone())?;
     let buffer_slice = unsafe {
         std::slice::from_raw_parts(input.ptr().ptr as *mut T, input.size())
     };
@@ -192,7 +192,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     let ic: i64 = param.kc as i64;
     let oc: i64 = param.nc as i64;
     let buffer = create_packed_kernel(
-        input.dtype,
+        IM::<T>::to_dtype(),
         input.device.clone(),
         kh,
         kw,

@@ -22,4 +22,13 @@ pub enum CommonError {
         /// Location where the error occurred
         location: &'static Location<'static>,
     },
+
+    /// Error that occurs when dtype mismatch
+    #[error("Dtype mismatch: {message} at {location}")]
+    DtypeMismatch {
+        /// Message describing the error
+        message: String,
+        /// Location where the error occurred
+        location: &'static Location<'static>,
+    },
 }

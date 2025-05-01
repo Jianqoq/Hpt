@@ -54,11 +54,9 @@ impl Backend {
                 ptr,
                 device_id,
             } => {
-                if *should_drop {
-                    use hpt_allocator::Cpu;
-                    let mut allocator = hpt_allocator::HptAllocator::<Cpu>::new();
-                    allocator.deallocate(ptr.ptr, &layout, *should_drop, *device_id);
-                }
+                use hpt_allocator::Cpu;
+                let mut allocator = hpt_allocator::HptAllocator::<Cpu>::new();
+                allocator.deallocate(ptr.ptr, &layout, *should_drop, *device_id);
             }
             #[cfg(feature = "cuda")]
             Self::Cuda {
@@ -115,6 +113,36 @@ impl Clone for Backend {
                     cap: cap.clone(),
                 }
             }
+        }
+    }
+}
+
+impl std::fmt::Debug for Backend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Backend::Cpu {
+                should_drop,
+                ptr,
+                device_id,
+            } => f
+                .debug_struct("Backend(Cpu)")
+                .field("should_drop", should_drop)
+                .field("ptr", ptr)
+                .field("device_id", device_id)
+                .finish(),
+            #[cfg(feature = "cuda")]
+            Backend::Cuda {
+                should_drop,
+                ptr,
+                device,
+                cap,
+            } => f
+                .debug_struct("Backend(Cuda)")
+                .field("should_drop", should_drop)
+                .field("ptr", ptr)
+                .field("device_id", device.ordinal())
+                .field("cap", cap)
+                .finish(),
         }
     }
 }

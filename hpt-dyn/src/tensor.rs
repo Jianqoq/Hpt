@@ -1,15 +1,15 @@
 use hpt_common::error::base::TensorError;
-use hpt_common::{ Pointer, layout::layout::Layout, shape::shape::Shape, strides::strides::Strides };
-use hpt_traits::tensor::{ CommonBounds, TensorInfo };
+use hpt_common::{Pointer, layout::layout::Layout, shape::shape::Shape, strides::strides::Strides};
+use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use std::sync::Arc;
 
+use crate::onnx::TensorProto;
 use crate::utils::index_cal::{
-    dispatch_loop_progress_update,
-    dispatch_map_global_idx,
-    dispatch_map_gp,
+    dispatch_loop_progress_update, dispatch_map_global_idx, dispatch_map_gp,
 };
-use crate::{ DType, ALIGN };
-use crate::utils::{ backend::Backend, device::Device };
+use crate::utils::onnx::map_dtype::to_dtype;
+use crate::utils::{backend::Backend, device::Device};
+use crate::{ALIGN, DType};
 
 use hpt_iterator::TensorIterator;
 
@@ -35,7 +35,7 @@ impl Tensor {
         unsafe {
             std::slice::from_raw_parts(
                 self.data.ptr as *const T,
-                (self.mem_layout.size() as usize) / std::mem::size_of::<T>()
+                (self.mem_layout.size() as usize) / std::mem::size_of::<T>(),
             )
         }
     }
@@ -46,7 +46,7 @@ impl Tensor {
         unsafe {
             std::slice::from_raw_parts_mut(
                 self.data.ptr as *mut T,
-                (self.mem_layout.size() as usize) / std::mem::size_of::<T>()
+                (self.mem_layout.size() as usize) / std::mem::size_of::<T>(),
             )
         }
     }
@@ -54,17 +54,22 @@ impl Tensor {
         data: *mut u8,
         layout: Layout,
         dtype: DType,
-        device: Device
+        device: Device,
+        take_ownership: bool,
     ) -> Result<Self, TensorError> {
         let len = layout.size() as usize;
         match device {
             Device::Cpu => {
                 let ptr = Pointer::new(data, len as i64);
+                if data as usize % ALIGN != 0 {
+                    assert_eq!(take_ownership, false);
+                } else {
+                    assert_eq!(data as usize % ALIGN, 0);
+                }
                 let prg_update = dispatch_loop_progress_update(&layout, dtype.sizeof());
                 let map_global_idx = dispatch_map_global_idx(&layout);
                 let map_gp = dispatch_map_gp(&layout);
-                let mem_layout = std::alloc::Layout
-                    ::from_size_align(len * dtype.sizeof(), ALIGN)
+                let mem_layout = std::alloc::Layout::from_size_align(len * dtype.sizeof(), ALIGN)
                     .expect("failed to create memory layout");
                 Ok(Self {
                     data: ptr,
@@ -76,11 +81,91 @@ impl Tensor {
                     map_global_idx,
                     map_gp,
                     mem_layout,
-                    backend: Backend::new_cpu(ptr, 0, false),
+                    backend: Backend::new_cpu(ptr, 0, take_ownership).clone(),
                 })
             }
             #[cfg(feature = "cuda")]
-            _ => { unimplemented!() }
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn from_onnx_tensor(
+        tensor: &mut TensorProto,
+        permute: &Option<Vec<i64>>,
+    ) -> Result<Self, TensorError> {
+        let shape = Shape::from(&tensor.dims);
+        let layout = Layout::from(shape);
+        let dtype = to_dtype(tensor.data_type());
+        let device = Device::Cpu;
+
+        macro_rules! from_raw_data {
+            () => {
+                if let Some(raw_data) = tensor.raw_data.take() {
+                    let raw_ptr = raw_data.as_ptr() as *mut u8;
+                    if raw_data.len() == 0 {
+                        unimplemented!()
+                    }
+                    assert_eq!(raw_data.len(), layout.size() as usize * dtype.sizeof());
+                    if let Some(permute) = permute {
+                        unsafe {
+                            Tensor::from_raw(raw_ptr, layout, dtype, device, false)?
+                                .permute(&permute)?
+                                .contiguous()
+                        }
+                    } else {
+                        let empty = Self::empty(layout.shape(), dtype, device)?;
+                        let ptr = empty.data.ptr as *mut u8;
+                        unsafe {
+                            std::ptr::copy(raw_ptr, ptr, raw_data.len());
+                        }
+                        Ok(empty)
+                    }
+                } else {
+                    unimplemented!()
+                }
+            };
+        }
+        macro_rules! from_specific_data {
+            ($specific_data:ident) => {
+                if !tensor.$specific_data.is_empty() {
+                    let raw_ptr = tensor.$specific_data.as_ptr() as *mut u8;
+                    if tensor.$specific_data.len() == 0 {
+                        unimplemented!()
+                    }
+                    assert_eq!(tensor.$specific_data.len(), layout.size() as usize);
+                    if let Some(permute) = permute {
+                        unsafe {
+                            Tensor::from_raw(raw_ptr, layout, dtype, device, false)?
+                                .permute(&permute)?
+                                .contiguous()
+                        }
+                    } else {
+                        let empty = Self::empty(layout.shape(), dtype, device)?;
+                        let ptr = empty.data.ptr as *mut u8;
+                        unsafe {
+                            std::ptr::copy(raw_ptr, ptr, tensor.$specific_data.len());
+                        }
+                        Ok(empty)
+                    }
+                } else {
+                    from_raw_data!()
+                }
+            };
+        }
+        match dtype {
+            DType::Bool => unimplemented!(),
+            DType::I8
+            | DType::U8
+            | DType::I16
+            | DType::U16
+            | DType::U32
+            | DType::F16
+            | DType::BF16 => from_raw_data!(),
+            DType::I32 => from_specific_data!(int32_data),
+            DType::I64 => from_specific_data!(int64_data),
+            DType::F32 => from_specific_data!(float_data),
         }
     }
 }
@@ -91,31 +176,31 @@ macro_rules! impl_tensor_info {
             fn ptr<T>(&self) -> Pointer<T> {
                 self.data.cast::<T>()
             }
-        
+
             fn size(&self) -> usize {
                 self.layout.size() as usize
             }
-        
+
             fn shape(&self) -> &Shape {
                 self.layout.shape()
             }
-        
+
             fn strides(&self) -> &Strides {
                 self.layout.strides()
             }
-        
+
             fn layout(&self) -> &Layout {
                 &self.layout
             }
-        
+
             fn parent<T>(&self) -> Option<Pointer<T>> {
                 self.parent.map(|p| p.cast::<T>())
             }
-        
+
             fn ndim(&self) -> usize {
                 self.layout.ndim()
             }
-        
+
             fn is_contiguous(&self) -> bool {
                 self.layout.is_contiguous()
             }
@@ -132,6 +217,19 @@ impl<T: CommonBounds> TensorIterator<'_, T> for Tensor {}
 impl Drop for Tensor {
     fn drop(&mut self) {
         self.backend.dealloc(self.mem_layout);
+    }
+}
+
+impl std::fmt::Debug for Tensor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Tensor")
+            .field("data", &self.data)
+            .field("layout", &self.layout)
+            .field("dtype", &self.dtype)
+            .field("parent", &self.parent)
+            .field("align", &self.mem_layout.align())
+            .field("backend", &self.backend)
+            .finish()
     }
 }
 

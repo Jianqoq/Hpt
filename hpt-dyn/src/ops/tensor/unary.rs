@@ -92,7 +92,7 @@ where
     } else {
         inp.empty_like()?
     };
-    if inp.parent::<A>().is_some() {
+    if inp.parent::<A>().is_some() || !inp.is_contiguous() {
         ret.par_iter_mut_simd()
             .zip(inp.par_iter_simd())
             .for_each(|(a, b)| {
@@ -396,16 +396,31 @@ impl Tensor {
         if self.is_contiguous() {
             return Ok(self.clone());
         }
-        let mut res = Tensor::empty(
+        let res = Tensor::empty(
             &self.layout.shape(),
             self.dtype.clone(),
             self.device.clone(),
         )?;
-        let copy_fn = dispatch_copy(self.dtype);
-        let (simd_copy_fn, unroll) = dispatch_simd_copy(self.dtype);
-
-        unary_1operand(&mut res, &self, copy_fn, simd_copy_fn, unroll);
-        Ok(res)
+        macro_rules! contiguous {
+            ($dtype:ty) => {{
+                type T = $dtype;
+                type InVec = <T as TypeCommon>::Vec;
+                unary_fn_with_out(self, |x: InVec| x, |x: T| x, Some(res.clone()))
+            }};
+        }
+        match self.dtype {
+            hpt_types::dtype::DType::Bool => contiguous!(bool),
+            hpt_types::dtype::DType::I8 => contiguous!(i8),
+            hpt_types::dtype::DType::U8 => contiguous!(u8),
+            hpt_types::dtype::DType::I16 => contiguous!(i16),
+            hpt_types::dtype::DType::U16 => contiguous!(u16),
+            hpt_types::dtype::DType::I32 => contiguous!(i32),
+            hpt_types::dtype::DType::U32 => contiguous!(u32),
+            hpt_types::dtype::DType::I64 => contiguous!(i64),
+            hpt_types::dtype::DType::F32 => contiguous!(f32),
+            hpt_types::dtype::DType::F16 => contiguous!(f16),
+            hpt_types::dtype::DType::BF16 => contiguous!(bf16),
+        }
     }
 
     pub fn copy(&self) -> Result<Self, TensorError> {

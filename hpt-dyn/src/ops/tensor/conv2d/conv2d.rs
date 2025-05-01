@@ -142,23 +142,15 @@ where
 }
 
 impl Tensor {
-    pub fn conv2d<T>(
+    pub fn conv2d(
         &self,
         kernels: &Tensor,
         bias: Option<&Tensor>,
         steps: [i64; 2],
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
-    ) -> Result<Tensor, TensorError>
-    where
-        T: CommonBounds
-            + Conv2dMicroKernel
-            + MatmulMicroKernel
-            + ToDType
-            + Cast<<T as NormalOutPromote>::Intermediate>,
-        <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
-    {
-        let t_dtype = T::to_dtype();
+    ) -> Result<Tensor, TensorError> {
+        let t_dtype = self.dtype;
         assert_eq!(self.dtype, t_dtype);
         assert_eq!(kernels.dtype, t_dtype);
         if let Some(bias) = bias {

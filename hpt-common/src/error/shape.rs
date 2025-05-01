@@ -172,6 +172,15 @@ pub enum ShapeError {
         /// Location where error occurred
         location: &'static Location<'static>,
     },
+
+    /// Any ShapeError
+    #[error("ShapeError: {message} at {location}")]
+    Any {
+        /// Message describing the error
+        message: String,
+        /// Location where error occurred
+        location: &'static Location<'static>,
+    },
 }
 
 impl ShapeError {
