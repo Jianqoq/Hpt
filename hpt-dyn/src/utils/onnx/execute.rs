@@ -11,7 +11,7 @@ use crate::{
 };
 
 use super::{
-    init::{conv_init, pooling_init},
+    init::{conv_init, pooling_init, unary_init},
     map_dtype::to_dtype,
 };
 
@@ -251,6 +251,7 @@ impl OnnxModel {
                 let mut node_degree = HashMap::new();
 
                 let mut all_inputs = HashSet::new();
+                let mut operators = Vec::new();
                 if let Some(graph) = model_proto.graph.as_mut() {
                     for input in graph.input.iter() {
                         let name = input.name();
@@ -264,11 +265,28 @@ impl OnnxModel {
                     }
                     for node in graph.node.iter() {
                         match node.op_type() {
-                            "Conv" => conv_init(node, &mut permutes, &mut node_degree, &all_inputs),
+                            "Conv" => operators.push(conv_init(
+                                node,
+                                &mut permutes,
+                                &mut node_degree,
+                                &all_inputs,
+                            )),
                             "MaxPool" | "GlobalAveragePool" | "GlobalMaxPool" | "AveragePool" => {
                                 pooling_init(node, &mut permutes, &mut node_degree, &all_inputs)
                             }
-                            "Relu" | "Identity" | "Add" | "Flatten" | "Gemm" => {}
+                            "Abs" | "Acos" | "Acosh" | "Asin" | "Asinh" | "Atan" | "Atanh"
+                            | "BitwiseNot" | "Ceil" | "Cos" | "Cosh" | "Erf" | "Exp" | "Floor"
+                            | "IsInf" | "IsNaN" | "Log" | "Neg" | "Not" | "Reciprocal"
+                            | "Round" | "Sigmoid" | "Sign" | "Sin" | "Sinh" | "Sqrt" | "Tan"
+                            | "Tanh" | "Gelu" | "HardSigmoid" | "HardSwish" | "LeakyRelu"
+                            | "Mish" | "Shrink" | "Relu" | "Softplus" | "Softsign" => operators
+                                .push(unary_init(
+                                    node,
+                                    &mut permutes,
+                                    &mut node_degree,
+                                    &all_inputs,
+                                )),
+                            "Identity" | "Add" | "Flatten" | "Gemm" => {}
                             _ => unimplemented!(
                                 "unsupported op when initializing: {:?}",
                                 node.op_type

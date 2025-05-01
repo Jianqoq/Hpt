@@ -11,4 +11,5 @@ pub(crate) mod onnx {
     pub(crate) mod execute;
     pub(crate) mod map_dtype;
     pub(crate) mod init;
+    pub(crate) mod operators;
 }

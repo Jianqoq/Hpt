@@ -1,5 +1,6 @@
 use hpt_dyn::{onnx::load_onnx, DType, Device, Tensor};
 use std::collections::HashMap;
+
 fn main() -> anyhow::Result<()> {
     let model = load_onnx("model.onnx").expect("加载模型失败");
     let mut map = HashMap::new();
