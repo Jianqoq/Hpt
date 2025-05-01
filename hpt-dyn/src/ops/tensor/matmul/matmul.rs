@@ -24,6 +24,8 @@ use hpt_types::{dtype::TypeCommon, traits::VecTrait, type_promote::NormalOut};
 
 use half::{bf16, f16};
 
+use hpt_types::into_scalar::Cast;
+
 #[inline]
 fn matmul_template_no_block_info<T>(
     a: Pointer<T>,
@@ -420,6 +422,107 @@ impl Tensor {
             _ => panic!("Unsupported dtype for matmul"),
         }
     }
+    pub fn gemm(
+        &self,
+        rhs: &Tensor,
+        bias: Option<&Tensor>,
+        alpha: f64,
+        beta: f64,
+    ) -> Result<Tensor, TensorError> {
+        macro_rules! matmul {
+            ($dtype:ty) => {{
+                type T = $dtype;
+                type InVec = <T as TypeCommon>::Vec;
+                if let Some(bias) = bias {
+                    let bias_ptr = bias.ptr::<T>();
+                    let bias_strides = bias.strides();
+                    let bias_cs = bias_strides[bias_strides.len() - 1];
+                    let bias_rs = if bias.ndim() == 1 {
+                        0i64
+                    } else {
+                        bias_strides[bias_strides.len() - 2]
+                    };
+                    let alpha_casted: T = alpha.cast();
+                    let beta_casted: T = beta.cast();
+                    let alpha_vec = InVec::splat(alpha_casted);
+                    let beta_vec = InVec::splat(beta_casted);
+                    match (alpha == 1.0, beta == 0.0) {
+                        (true, true) => matmul_with_out(
+                            self,
+                            rhs,
+                            None,
+                            None::<fn(T, usize, usize) -> T>,
+                            None::<fn(InVec, usize, usize) -> InVec>,
+                        ),
+                        (true, false) => matmul_with_out(
+                            self,
+                            rhs,
+                            None,
+                            Some(move |inp: T, m, n| {
+                                inp + beta_casted
+                                    * bias_ptr[(m as i64) * bias_rs + (n as i64) * bias_cs]
+                            }),
+                            Some(move |inp: InVec, m, n| {
+                                let offset = (m as i64) * bias_rs + (n as i64) * bias_cs;
+                                (bias_ptr + offset).cast::<InVec>().read_unaligned() * beta_vec
+                                    + inp
+                            }),
+                        ),
+                        (false, true) => matmul_with_out(
+                            self,
+                            rhs,
+                            None,
+                            Some(move |inp: T, _, _| inp * alpha_casted),
+                            Some(move |inp: InVec, _, _| inp * alpha_vec),
+                        ),
+                        (false, false) => matmul_with_out(
+                            self,
+                            rhs,
+                            None,
+                            Some(move |inp: T, m, n| {
+                                inp * alpha_casted
+                                    + beta_casted
+                                        * bias_ptr[(m as i64) * bias_rs + (n as i64) * bias_cs]
+                            }),
+                            Some(move |inp: InVec, m, n| {
+                                let offset = (m as i64) * bias_rs + (n as i64) * bias_cs;
+                                (bias_ptr + offset).cast::<InVec>().read_unaligned() * beta_vec
+                                    + inp * alpha_vec
+                            }),
+                        ),
+                    }
+                } else {
+                    if alpha == 1.0 {
+                        matmul_with_out(
+                            self,
+                            rhs,
+                            None,
+                            None::<fn(T, usize, usize) -> T>,
+                            None::<fn(InVec, usize, usize) -> InVec>,
+                        )
+                    } else {
+                        let alpha_casted: T = alpha.cast();
+                        let alpha_vec = InVec::splat(alpha_casted);
+                        matmul_with_out(
+                            self,
+                            rhs,
+                            None,
+                            Some(move |inp: T, _, _| inp * alpha_casted),
+                            Some(move |inp: InVec, _, _| inp * alpha_vec),
+                        )
+                    }
+                }
+            }};
+        }
+        match self.dtype {
+            hpt_types::dtype::DType::I8 => matmul!(i8),
+            hpt_types::dtype::DType::U8 => matmul!(u8),
+            hpt_types::dtype::DType::F32 => matmul!(f32),
+            hpt_types::dtype::DType::F16 => matmul!(f16),
+            hpt_types::dtype::DType::BF16 => matmul!(bf16),
+            _ => panic!("Unsupported dtype for matmul"),
+        }
+    }
     pub fn matmul_<T>(&self, rhs: &Tensor, out: &mut Tensor) -> Result<Tensor, TensorError>
     where
         T: MatmulMicroKernel,
@@ -500,7 +603,9 @@ impl Tensor {
                 let bias_ptr = bias.ptr::<$dtype>();
                 self.matmul_post::<$dtype, _, _>(
                     rhs,
-                    move |inp, m, n| bias_ptr[(m as i64) * bias_rs + (n as i64)]._add(inp),
+                    move |inp, m, n| {
+                        bias_ptr[(m as i64) * bias_rs + (n as i64) * bias_cs]._add(inp)
+                    },
                     move |inp, m, n| {
                         let offset = (m as i64) * bias_rs + (n as i64) * bias_cs;
                         (bias_ptr + offset)

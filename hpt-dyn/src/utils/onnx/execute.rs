@@ -10,7 +10,10 @@ use crate::{
     ops::models::onnx::{Initialized, Meta, OnnxModel},
 };
 
-use super::map_dtype::to_dtype;
+use super::{
+    init::{conv_init, pooling_init},
+    map_dtype::to_dtype,
+};
 
 fn validate_tensor_shape(
     tensor: &Tensor,
@@ -202,16 +205,26 @@ impl OnnxModel {
                                 tensors.insert(node.output[0].as_str(), output);
                             }
                             "Gemm" => {
-                                // let alpha = node.attribute[0].f;
-                                // let beta = node.attribute[1].f;
+                                let alpha = node.attribute[0].f.map(|f| f as f64);
+                                let beta = node.attribute[1].f.map(|f| f as f64);
                                 let input = &tensors[node.input[0].as_str()];
                                 let weight = &tensors[node.input[1].as_str()];
                                 let trans_b = node.attribute[2].i == Some(1);
-                                // let bias = tensors.get(node.input[2].as_str());
+                                let bias = tensors.get(node.input[2].as_str());
                                 let output = if trans_b {
-                                    input.matmul(&weight.t()?)?
+                                    input.gemm(
+                                        &weight.t()?,
+                                        bias,
+                                        alpha.unwrap_or(1.0),
+                                        beta.unwrap_or(0.0),
+                                    )?
                                 } else {
-                                    input.matmul(weight)?
+                                    input.gemm(
+                                        &weight,
+                                        bias,
+                                        alpha.unwrap_or(1.0),
+                                        beta.unwrap_or(0.0),
+                                    )?
                                 };
                                 tensors.insert(node.output[0].as_str(), output);
                             }
@@ -235,6 +248,7 @@ impl OnnxModel {
             OnnxModel::Model(mut model_proto) => {
                 let mut initializer_map = HashMap::new();
                 let mut permutes = HashMap::new();
+                let mut node_degree = HashMap::new();
 
                 let mut all_inputs = HashSet::new();
                 if let Some(graph) = model_proto.graph.as_mut() {
@@ -250,40 +264,9 @@ impl OnnxModel {
                     }
                     for node in graph.node.iter() {
                         match node.op_type() {
-                            "Conv" => {
-                                let input_name = node.input[0].as_str();
-                                if all_inputs.contains(input_name) {
-                                    permutes
-                                        .entry(input_name.to_string())
-                                        .or_insert(Meta {
-                                            permute: Some(vec![0, 2, 3, 1]),
-                                        })
-                                        .permute = Some(vec![0, 2, 3, 1]);
-                                }
-                                let kernel_name = node.input[1].as_str();
-                                if all_inputs.contains(kernel_name) {
-                                    permutes
-                                        .entry(kernel_name.to_string())
-                                        .or_insert(Meta {
-                                            permute: Some(vec![2, 3, 1, 0]),
-                                        })
-                                        .permute = Some(vec![2, 3, 1, 0]);
-                                }
-                                let bias_name = node.input[2].as_str();
-                                permutes
-                                    .entry(bias_name.to_string())
-                                    .or_insert(Meta { permute: None });
-                            }
-                            "MaxPool" | "GlobalAveragePool" => {
-                                let input_name = node.input[0].as_str();
-                                if all_inputs.contains(input_name) {
-                                    permutes
-                                        .entry(input_name.to_string())
-                                        .or_insert(Meta {
-                                            permute: Some(vec![0, 2, 3, 1]),
-                                        })
-                                        .permute = Some(vec![0, 2, 3, 1]);
-                                }
+                            "Conv" => conv_init(node, &mut permutes, &mut node_degree, &all_inputs),
+                            "MaxPool" | "GlobalAveragePool" | "GlobalMaxPool" | "AveragePool" => {
+                                pooling_init(node, &mut permutes, &mut node_degree, &all_inputs)
                             }
                             "Relu" | "Identity" | "Add" | "Flatten" | "Gemm" => {}
                             _ => unimplemented!(
