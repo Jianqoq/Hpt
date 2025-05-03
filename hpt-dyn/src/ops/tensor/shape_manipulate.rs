@@ -23,8 +23,8 @@ impl Tensor {
         ShapeError::check_size_match(self.layout.size() as i64, shape.size())?;
         if let Ok(new_layout) = self.layout.inplace_reshape(&shape) {
             let prg_update = dispatch_loop_progress_update(&new_layout, self.dtype.sizeof());
-            let map_global_idx = dispatch_map_global_idx(&new_layout);
-            let map_gp = dispatch_map_gp(&new_layout);
+            let map_global_idx = dispatch_map_global_idx(&new_layout, self.dtype.sizeof());
+            let map_gp = dispatch_map_gp(&new_layout, self.dtype.sizeof());
             Ok(Tensor {
                 data: self.data.clone(),
                 layout: new_layout,
@@ -104,8 +104,8 @@ impl Tensor {
     pub fn permute(&self, axes: &[i64]) -> Result<Tensor, TensorError> {
         let permuted_layout = self.layout.permute(axes)?;
         let prg_update = dispatch_loop_progress_update(&permuted_layout, self.dtype.sizeof());
-        let map_global_idx = dispatch_map_global_idx(&permuted_layout);
-        let map_gp = dispatch_map_gp(&permuted_layout);
+        let map_global_idx = dispatch_map_global_idx(&permuted_layout, self.dtype.sizeof());
+        let map_gp = dispatch_map_gp(&permuted_layout, self.dtype.sizeof());
         Ok(Tensor {
             data: self.data.clone(),
             layout: permuted_layout,
@@ -123,8 +123,8 @@ impl Tensor {
     pub fn permute_inv(&self, axes: &[i64]) -> Result<Tensor, TensorError> {
         let permuted_layout = self.layout.permute_inv(axes)?;
         let prg_update = dispatch_loop_progress_update(&permuted_layout, self.dtype.sizeof());
-        let map_global_idx = dispatch_map_global_idx(&permuted_layout);
-        let map_gp = dispatch_map_gp(&permuted_layout);
+        let map_global_idx = dispatch_map_global_idx(&permuted_layout, self.dtype.sizeof());
+        let map_gp = dispatch_map_gp(&permuted_layout, self.dtype.sizeof());
         Ok(Tensor {
             data: self.data.clone(),
             layout: permuted_layout,
@@ -144,8 +144,8 @@ impl Tensor {
         let res_strides = self.layout.expand_strides(&res_shape)?;
         let res_layout = Layout::new(res_shape, res_strides);
         let prg_update = dispatch_loop_progress_update(&res_layout, self.dtype.sizeof());
-        let map_global_idx = dispatch_map_global_idx(&res_layout);
-        let map_gp = dispatch_map_gp(&res_layout);
+        let map_global_idx = dispatch_map_global_idx(&res_layout, self.dtype.sizeof());
+        let map_gp = dispatch_map_gp(&res_layout, self.dtype.sizeof());
         Ok(Tensor {
             data: self.data.clone(),
             layout: res_layout,
@@ -199,8 +199,8 @@ impl Tensor {
         };
         let new_layout = Layout::new(self.layout.shape().clone(), new_strides);
         let prg_update = dispatch_loop_progress_update(&new_layout, self.dtype.sizeof());
-        let map_global_idx = dispatch_map_global_idx(&new_layout);
-        let map_gp = dispatch_map_gp(&new_layout);
+        let map_global_idx = dispatch_map_global_idx(&new_layout, self.dtype.sizeof());
+        let map_gp = dispatch_map_gp(&new_layout, self.dtype.sizeof());
         Ok(Tensor {
             data: ptr,
             parent: new_parent,
@@ -353,8 +353,8 @@ impl Tensor {
         new_strides.swap(axis1 as usize, axis2 as usize);
         let layout = Layout::new(new_shape, new_strides);
         let prg_update = dispatch_loop_progress_update(&layout, self.dtype.sizeof());
-        let map_global_idx = dispatch_map_global_idx(&layout);
-        let map_gp = dispatch_map_gp(&layout);
+        let map_global_idx = dispatch_map_global_idx(&layout, self.dtype.sizeof());
+        let map_gp = dispatch_map_gp(&layout, self.dtype.sizeof());
         Ok(Tensor {
             data: self.data.clone(),
             layout,
@@ -393,8 +393,8 @@ impl Tensor {
         let res_shape = Shape::from(shape);
         let broadcasted_layout = self.layout.broadcast(&res_shape)?;
         let prg_update = dispatch_loop_progress_update(&broadcasted_layout, self.dtype.sizeof());
-        let map_global_idx = dispatch_map_global_idx(&broadcasted_layout);
-        let map_gp = dispatch_map_gp(&broadcasted_layout);
+        let map_global_idx = dispatch_map_global_idx(&broadcasted_layout, self.dtype.sizeof());
+        let map_gp = dispatch_map_gp(&broadcasted_layout, self.dtype.sizeof());
         Ok(Tensor {
             data: self.data.clone(),
             layout: broadcasted_layout,
@@ -449,8 +449,8 @@ impl Tensor {
                 self.parent.clone()
             };
             let prg_update = dispatch_loop_progress_update(&layout, self.dtype.sizeof());
-            let map_global_idx = dispatch_map_global_idx(&layout);
-            let map_gp = dispatch_map_gp(&layout);
+            let map_global_idx = dispatch_map_global_idx(&layout, self.dtype.sizeof());
+            let map_gp = dispatch_map_gp(&layout, self.dtype.sizeof());
             Ok(Tensor {
                 data: Pointer::new(res_ptr, 0),
                 layout,

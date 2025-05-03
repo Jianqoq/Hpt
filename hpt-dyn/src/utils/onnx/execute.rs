@@ -1,61 +1,77 @@
 use core::panic;
-use std::collections::{ HashMap, HashSet };
+use std::collections::{HashMap, HashSet};
 
-use hpt_common::error::{ base::TensorError, common::CommonError, shape::ShapeError };
+use hpt_common::error::{base::TensorError, common::CommonError, shape::ShapeError};
 use hpt_traits::tensor::TensorInfo;
 
 use crate::{
     Tensor,
-    onnx::{ TensorShapeProto, tensor_shape_proto, type_proto },
-    ops::models::onnx::{ Initialized, Meta, OnnxModel },
+    onnx::{TensorShapeProto, tensor_shape_proto, type_proto},
+    ops::models::onnx::{Initialized, OnnxModel},
 };
 
-use super::{ init::{ conv_init, pooling_init, unary_init }, map_dtype::to_dtype };
+use super::{
+    init::{
+        binary_init, concat_init, const_of_shape_init, constant_init, conv_init, gather_init,
+        gemm_init, lstm_init, matmul_init, pooling_init, slice_init, squeeze_init, transpose_init,
+        unary_init, unsqueeze_init,
+    },
+    map_dtype::to_dtype,
+};
 
 fn validate_tensor_shape(
     tensor: &Tensor,
     onnx_shape: &TensorShapeProto,
-    tensor_name: &str
+    tensor_name: &str,
 ) -> Result<(), TensorError> {
     if onnx_shape.dim.is_empty() {
         return Ok(());
     }
 
     if tensor.shape().len() != onnx_shape.dim.len() {
-        return Err(
-            (ShapeError::InvalidDimension {
-                message: format!(
-                    "dimension mismatch: tensor '{}' has {} dimensions, but model expects {}",
-                    tensor_name,
-                    tensor.shape().len(),
-                    onnx_shape.dim.len()
-                ),
-                location: panic::Location::caller(),
-            }).into()
-        );
+        return Err((ShapeError::InvalidDimension {
+            message: format!(
+                "dimension mismatch: tensor '{}' has shape [{}] but model expects shape [{}]",
+                tensor_name,
+                tensor
+                    .shape()
+                    .iter()
+                    .map(|d| d.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                onnx_shape
+                    .dim
+                    .iter()
+                    .map(|d| match &d.value {
+                        Some(value) => match value {
+                            tensor_shape_proto::dimension::Value::DimValue(dim) => dim.to_string(),
+                            tensor_shape_proto::dimension::Value::DimParam(param) =>
+                                param.to_string(),
+                        },
+                        None => "?".to_string(),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            ),
+            location: panic::Location::caller(),
+        })
+        .into());
     }
 
-    for (i, (tensor_dim, onnx_dim)) in tensor
-        .shape()
-        .iter()
-        .zip(onnx_shape.dim.iter())
-        .enumerate() {
+    for (i, (tensor_dim, onnx_dim)) in tensor.shape().iter().zip(onnx_shape.dim.iter()).enumerate()
+    {
         if let Some(dim_value) = &onnx_dim.value {
             match dim_value {
                 tensor_shape_proto::dimension::Value::DimValue(expected_size) => {
                     if *tensor_dim != *expected_size && *expected_size != -1 {
-                        return Err(
-                            (ShapeError::AnyError {
-                                message: format!(
-                                    "dim mismatch: tensor '{}' dim({}) is {}, but model expects {}",
-                                    tensor_name,
-                                    i,
-                                    tensor_dim,
-                                    expected_size
-                                ),
-                                location: panic::Location::caller(),
-                            }).into()
-                        );
+                        return Err((ShapeError::AnyError {
+                            message: format!(
+                                "dim mismatch: tensor '{}' dim({}) is {}, but model expects {}",
+                                tensor_name, i, tensor_dim, expected_size
+                            ),
+                            location: panic::Location::caller(),
+                        })
+                        .into());
                     }
                 }
                 tensor_shape_proto::dimension::Value::DimParam(_) => {
@@ -71,23 +87,20 @@ fn validate_tensor_shape(
 fn validate_tensor_type(
     tensor: &Tensor,
     onnx_type: &type_proto::Value,
-    tensor_name: &str
+    tensor_name: &str,
 ) -> Result<(), TensorError> {
     match onnx_type {
         type_proto::Value::TensorType(tensor_type) => {
             let dtype = to_dtype(tensor_type.elem_type());
             if dtype != tensor.dtype {
-                return Err(
-                    (CommonError::DtypeMismatch {
-                        message: format!(
-                            "dtype mismatch: tensor '{}' has dtype {:?}, but model expects {:?}",
-                            tensor_name,
-                            tensor.dtype,
-                            dtype
-                        ),
-                        location: panic::Location::caller(),
-                    }).into()
-                );
+                return Err((CommonError::DtypeMismatch {
+                    message: format!(
+                        "dtype mismatch: tensor '{}' has dtype {:?}, but model expects {:?}",
+                        tensor_name, tensor.dtype, dtype
+                    ),
+                    location: panic::Location::caller(),
+                })
+                .into());
             }
             if let Some(shape) = &tensor_type.shape {
                 validate_tensor_shape(tensor, shape, tensor_name)?;
@@ -105,11 +118,15 @@ fn validate_tensor_type(
 impl OnnxModel {
     pub fn execute(
         &self,
-        inputs: HashMap<String, Tensor>
+        inputs: HashMap<String, Tensor>,
     ) -> Result<HashMap<String, Tensor>, TensorError> {
         match self {
             OnnxModel::Model(_) => panic!("model not initialized"),
-            OnnxModel::Initialized(Initialized { model, initializer_map, permutes }) => {
+            OnnxModel::Initialized(Initialized {
+                model,
+                initializer_map,
+                permutes,
+            }) => {
                 let mut tensors = HashMap::new();
                 for (name, input) in inputs.iter() {
                     tensors.insert(name.as_str(), input.clone());
@@ -129,7 +146,7 @@ impl OnnxModel {
                                 if let Some(permute) = &meta.permute {
                                     tensors.insert(
                                         inp.name(),
-                                        tensor.permute(&permute)?.contiguous()?
+                                        tensor.permute(&permute)?.contiguous()?,
                                     );
                                 }
                             }
@@ -161,11 +178,8 @@ impl OnnxModel {
                                     &weight,
                                     bias,
                                     [strides[0], strides[1]],
-                                    [
-                                        (pads[0], pads[1]),
-                                        (pads[2], pads[3]),
-                                    ],
-                                    [dilations[0], dilations[1]]
+                                    [(pads[0], pads[1]), (pads[2], pads[3])],
+                                    [dilations[0], dilations[1]],
                                 )?;
                                 tensors.insert(node.output[0].as_str(), output);
                             }
@@ -185,11 +199,8 @@ impl OnnxModel {
                                 let output = input.maxpool2d(
                                     &kernel_shape,
                                     [strides[0], strides[1]],
-                                    [
-                                        (pads[0], pads[1]),
-                                        (pads[2], pads[3]),
-                                    ],
-                                    [dilations[0], dilations[1]]
+                                    [(pads[0], pads[1]), (pads[2], pads[3])],
+                                    [dilations[0], dilations[1]],
                                 )?;
                                 tensors.insert(node.output[0].as_str(), output);
                             }
@@ -226,14 +237,14 @@ impl OnnxModel {
                                         &weight.t()?,
                                         bias,
                                         alpha.unwrap_or(1.0),
-                                        beta.unwrap_or(0.0)
+                                        beta.unwrap_or(0.0),
                                     )?
                                 } else {
                                     input.gemm(
                                         &weight,
                                         bias,
                                         alpha.unwrap_or(1.0),
-                                        beta.unwrap_or(0.0)
+                                        beta.unwrap_or(0.0),
                                     )?
                                 };
                                 tensors.insert(node.output[0].as_str(), output);
@@ -241,10 +252,7 @@ impl OnnxModel {
                             _ => {
                                 println!(
                                     "operator: {:?}, input: {:?}, output: {:?}, attribute: {:?}",
-                                    node.op_type,
-                                    node.input,
-                                    node.output,
-                                    node.attribute
+                                    node.op_type, node.input, node.output, node.attribute
                                 );
                                 panic!("unsupported op: {:?}", node.op_type);
                             }
@@ -260,7 +268,6 @@ impl OnnxModel {
         match self {
             OnnxModel::Model(mut model_proto) => {
                 let mut initializer_map = HashMap::new();
-                let mut permutes = HashMap::new();
                 let mut node_degree = HashMap::new();
 
                 let mut all_inputs = HashSet::new();
@@ -268,88 +275,72 @@ impl OnnxModel {
                 if let Some(graph) = model_proto.graph.as_mut() {
                     for input in graph.input.iter() {
                         let name = input.name();
-                        permutes.insert(name.to_string(), Meta { permute: None });
                         all_inputs.insert(name.to_string());
                     }
                     for initializer in graph.initializer.iter() {
                         let name = initializer.name();
-                        permutes.insert(name.to_string(), Meta { permute: None });
                         all_inputs.insert(name.to_string());
                     }
                     for node in graph.node.iter() {
                         match node.op_type() {
-                            "Conv" =>
-                                operators.push(
-                                    conv_init(node, &mut permutes, &mut node_degree, &all_inputs)
-                                ),
+                            "Conv" => operators.push(conv_init(node, &mut node_degree)),
                             "MaxPool" | "GlobalAveragePool" | "GlobalMaxPool" | "AveragePool" => {
-                                pooling_init(node, &mut permutes, &mut node_degree, &all_inputs);
+                                operators.push(pooling_init(node, &mut node_degree));
                             }
-                            | "Abs"
-                            | "Acos"
-                            | "Acosh"
-                            | "Asin"
-                            | "Asinh"
-                            | "Atan"
-                            | "Atanh"
-                            | "BitwiseNot"
-                            | "Ceil"
-                            | "Cos"
-                            | "Cosh"
-                            | "Erf"
-                            | "Exp"
-                            | "Floor"
-                            | "IsInf"
-                            | "IsNaN"
-                            | "Log"
-                            | "Neg"
-                            | "Not"
-                            | "Reciprocal"
-                            | "Round"
-                            | "Sigmoid"
-                            | "Sign"
-                            | "Sin"
-                            | "Sinh"
-                            | "Sqrt"
-                            | "Tan"
-                            | "Tanh"
-                            | "Gelu"
-                            | "HardSigmoid"
-                            | "HardSwish"
-                            | "LeakyRelu"
-                            | "Mish"
-                            | "Shrink"
-                            | "Relu"
-                            | "Softplus"
-                            | "Softsign" =>
-                                operators.push(
-                                    unary_init(node, &mut permutes, &mut node_degree, &all_inputs)
-                                ),
-                            "Identity" | "Add" | "Flatten" | "Gemm" => {}
-                            _ =>
-                                unimplemented!(
-                                    "unsupported op when initializing: {:?}",
-                                    node.op_type
-                                ),
+                            "Abs" | "Acos" | "Acosh" | "Asin" | "Asinh" | "Atan" | "Atanh"
+                            | "BitwiseNot" | "Ceil" | "Cos" | "Cosh" | "Erf" | "Exp" | "Floor"
+                            | "IsInf" | "IsNaN" | "Log" | "Neg" | "Not" | "Reciprocal"
+                            | "Round" | "Sigmoid" | "Sign" | "Sin" | "Sinh" | "Sqrt" | "Tan"
+                            | "Tanh" | "Gelu" | "HardSigmoid" | "HardSwish" | "LeakyRelu"
+                            | "Mish" | "Shrink" | "Relu" | "Softplus" | "Softsign" | "Shape" => {
+                                operators.push(unary_init(node, &mut node_degree))
+                            }
+                            "Add" | "Sub" | "Mul" | "Div" | "Max" | "Min" => {
+                                operators.push(binary_init(node, &mut node_degree))
+                            }
+                            "Gather" => operators.push(gather_init(node, &mut node_degree)),
+                            "Constant" => {
+                                operators.push(constant_init(node, &mut initializer_map)?)
+                            }
+                            "Gemm" => operators.push(gemm_init(node, &mut node_degree)),
+                            "MatMul" => operators.push(matmul_init(node, &mut node_degree)),
+                            "Unsqueeze" => operators.push(unsqueeze_init(
+                                node,
+                                &mut node_degree,
+                                &mut initializer_map,
+                            )),
+                            "Squeeze" => operators.push(squeeze_init(
+                                node,
+                                &mut node_degree,
+                                &mut initializer_map,
+                            )),
+                            "Concat" => operators.push(concat_init(node, &mut node_degree)),
+                            "ConstantOfShape" => {
+                                operators.push(const_of_shape_init(node, &mut node_degree)?)
+                            }
+                            "Transpose" => operators.push(transpose_init(node, &mut node_degree)),
+                            "Slice" => operators.push(slice_init(node, &mut node_degree)),
+                            "LSTM" => {
+                                operators.push(lstm_init(node, &mut node_degree));
+                            }
+                            _ => unimplemented!(
+                                "unsupported op when initializing: {:?}",
+                                node.op_type
+                            ),
                         }
                     }
 
                     for initializer in graph.initializer.iter_mut() {
                         let name = initializer.name().to_string();
-                        let tensor = Tensor::from_onnx_tensor(
-                            initializer,
-                            &permutes[&name].permute
-                        )?;
+                        let tensor = Tensor::from_onnx_tensor(initializer, &None)?;
                         initializer_map.insert(name, tensor);
                     }
                 }
-                Ok(
-                    OnnxModel::Initialized(Initialized {
-                        model: model_proto,
-                        initializer_map,
-                        permutes,
-                    })
-                )
+                Ok(OnnxModel::Initialized(Initialized {
+                    model: model_proto,
+                    initializer_map,
+                    permutes: HashMap::new(),
+                }))
             }
             OnnxModel::Initialized(_) => panic!("model already initialized"),
         }

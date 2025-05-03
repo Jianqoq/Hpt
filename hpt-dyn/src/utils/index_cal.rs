@@ -40,65 +40,67 @@ pub(crate) fn dispatch_loop_progress_update(
     }
 }
 
-pub(crate) fn dispatch_map_global_idx(layout: &Layout) -> Arc<dyn Fn(i64) -> i64> {
+pub(crate) fn dispatch_map_global_idx(layout: &Layout, sizeof: usize) -> Arc<dyn Fn(i64) -> i64 + Send + Sync> {
     let shape = layout.shape();
     let strides = layout.strides();
     match layout.ndim() {
         1 => {
             let shape = shape[0];
-            let strides = strides[0];
+            let strides = strides[0] * sizeof as i64;
             Arc::new(move |global_idx| map_global_1d(shape, strides, global_idx))
         }
         2 => {
             let shape = [shape[0], shape[1]];
-            let strides = [strides[0], strides[1]];
+            let strides = [strides[0] * sizeof as i64, strides[1] * sizeof as i64];
             Arc::new(move |global_idx| map_global_2d(shape, strides, global_idx))
         }
         3 => {
             let shape = [shape[0], shape[1], shape[2]];
-            let strides = [strides[0], strides[1], strides[2]];
+            let strides = [strides[0] * sizeof as i64, strides[1] * sizeof as i64, strides[2] * sizeof as i64];
             Arc::new(move |global_idx| map_global_3d(shape, strides, global_idx))
         }
         4 => {
             let shape = [shape[0], shape[1], shape[2], shape[3]];
-            let strides = [strides[0], strides[1], strides[2], strides[3]];
+            let strides = [strides[0] * sizeof as i64, strides[1] * sizeof as i64, strides[2] * sizeof as i64, strides[3] * sizeof as i64];
             Arc::new(move |global_idx| map_global_4d(shape, strides, global_idx))
         }
         _ => {
             let mut shape = shape.clone();
             let mut strides = strides.clone();
+            strides.iter_mut().for_each(|s| *s *= sizeof as i64);
             Arc::new(move |global_idx| map_global_idx(&shape, &strides, global_idx))
         }
     }
 }
 
-pub(crate) fn dispatch_map_gp(layout: &Layout) -> Arc<dyn Fn(i64) -> (i64, Vec<i64>)> {
+pub(crate) fn dispatch_map_gp(layout: &Layout, sizeof: usize) -> Arc<dyn Fn(i64) -> (i64, Vec<i64>) + Send + Sync> {
     let shape = layout.shape();
     let strides = layout.strides();
     match layout.ndim() {
         1 => {
             let shape = shape[0];
-            let strides = strides[0];
+            let strides = strides[0] * sizeof as i64;
             Arc::new(move |global_idx| map_gp_1d(shape, strides, global_idx))
         }
         2 => {
             let shape = [shape[0], shape[1]];
-            let strides = [strides[0], strides[1]];
+            let strides = [strides[0] * sizeof as i64, strides[1] * sizeof as i64];
             Arc::new(move |global_idx| map_gp_2d(shape, strides, global_idx))
         }
         3 => {
             let shape = [shape[0], shape[1], shape[2]];
-            let strides = [strides[0], strides[1], strides[2]];
+            let strides = [strides[0] * sizeof as i64, strides[1] * sizeof as i64, strides[2] * sizeof as i64];
             Arc::new(move |global_idx| map_gp_3d(shape, strides, global_idx))
         }
         4 => {
             let shape = [shape[0], shape[1], shape[2], shape[3]];
-            let strides = [strides[0], strides[1], strides[2], strides[3]];
+            let strides = [strides[0] * sizeof as i64, strides[1] * sizeof as i64, strides[2] * sizeof as i64, strides[3] * sizeof as i64];
             Arc::new(move |global_idx| map_gp_4d(shape, strides, global_idx))
         }
         _ => {
             let mut shape = shape.clone();
             let mut strides = strides.clone();
+            strides.iter_mut().for_each(|s| *s *= sizeof as i64);
             Arc::new(move |global_idx| map_gp_nd(&shape, &strides, global_idx))
         }
     }

@@ -1,117 +1,47 @@
+use super::{
+    reduce_template::{contiguous_reduce_template, uncontiguos_reduce_template},
+    reduce_utils::{ReductionPreprocessor, UCReductionPreprocessor},
+};
 use crate::{
+    Tensor,
     ops::tensor::reduce::kernels::{
         contiguous_reduce_dim_include, contiguous_reduce_dim_include_simd, fast_reduce_no_simd,
-        fast_reduce_simd, reduce_dim_not_include, reduce_dim_not_include_simd, uncontiguous_reduce_dim_include, uncontiguous_reduce_dim_not_include,
-    }, Tensor
+        fast_reduce_simd, reduce_dim_not_include, reduce_dim_not_include_simd,
+        uncontiguous_reduce_dim_include, uncontiguous_reduce_dim_not_include,
+    },
 };
-use hpt_common::{error::base::TensorError, shape::shape_utils::{mt_intervals, mt_intervals_simd}};
+use half::{bf16, f16};
+use hpt_common::axis::axis::process_axes;
+use hpt_common::{
+    error::base::TensorError,
+    shape::shape_utils::{mt_intervals, mt_intervals_simd},
+};
 use hpt_iterator::TensorIterator;
-use hpt_traits::tensor::TensorInfo;
-use hpt_types::{into_vec::IntoVec, promote_float_unary, promote_normal_unary};
+use hpt_iterator::iterator_traits::StridedIterator;
+use hpt_traits::tensor::{CommonBounds, TensorInfo};
+use hpt_types::dtype::TypeCommon;
+use hpt_types::traits::VecTrait;
+use hpt_types::type_promote::FloatOutBinary;
+use hpt_types::type_promote::FloatOutUnary;
+use hpt_types::type_promote::NormalOutUnary;
 use hpt_types::{
     dtype::DType,
     dtype::ToDType,
     into_scalar::Cast,
     traits::SimdSelect,
-    type_promote::{Eval, Eval2, NormalOut},
+    type_promote::{Eval, NormalOut},
 };
-use num_complex::ComplexFloat;
+use hpt_types::{into_vec::IntoVec, promote_normal_unary};
 use rayon::iter::{
     IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
 };
-use hpt_iterator::iterator_traits::StridedIterator;
-use super::{reduce_template::{contiguous_reduce_template, uncontiguos_reduce_template}, reduce_utils::{ReductionPreprocessor, UCReductionPreprocessor}};
-use half::{bf16, f16};
-use hpt_types::dtype::TypeCommon;
-use hpt_types::traits::VecTrait;
-use hpt_types::type_promote::NormalOutUnary;
-use hpt_types::type_promote::FloatOutUnary;
-use hpt_types::dtype::FloatConst;
-use hpt_types::type_promote::FloatOutBinary;
-use hpt_common::axis::axis::process_axes;
-use hpt_types::promote_eval;
 
-#[duplicate::duplicate_item(
-    func_name                   in_type   trait_name        pre_op                                                  pre_op_no_cast                  cumulate_op                 post_op                                     vec_pre_op                                                                                              vec_preop_no_cast                                                       vec_cumulate                            vec_post_op;
-    [contiguous_sum_f32]        [f32]     [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_sum_f16]        [f16]     [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_sum_bf16]       [bf16]    [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_sum_i8]         [i8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_sum_u8]         [u8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    
-    [contiguous_prod_f32]       [f32]     [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x * y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_prod_f16]       [f16]     [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x * y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_prod_bf16]      [bf16]    [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x * y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_prod_i8]        [i8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x * y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_prod_u8]        [u8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x * y]          [None::<fn(OutVec) -> OutVec>];
-    
-    [contiguous_min_f32]        [f32]     [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._min(b)]    [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x._min(y)]      [None::<fn(OutVec) -> OutVec>];
-    [contiguous_min_f16]        [f16]     [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._min(b)]    [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x._min(y)]      [None::<fn(OutVec) -> OutVec>];
-    [contiguous_min_bf16]       [bf16]    [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._min(b)]    [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x._min(y)]      [None::<fn(OutVec) -> OutVec>];
-    [contiguous_min_i8]         [i8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._min(b)]    [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x._min(y)]      [None::<fn(OutVec) -> OutVec>];
-    [contiguous_min_u8]         [u8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._min(b)]    [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x._min(y)]      [None::<fn(OutVec) -> OutVec>];
-    
-    [contiguous_max_f32]        [f32]     [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._max(b)]    [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x._max(y)]      [None::<fn(OutVec) -> OutVec>];
-    [contiguous_max_f16]        [f16]     [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._max(b)]    [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x._max(y)]      [None::<fn(OutVec) -> OutVec>];
-    [contiguous_max_bf16]       [bf16]    [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._max(b)]    [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x._max(y)]      [None::<fn(OutVec) -> OutVec>];
-    [contiguous_max_i8]         [i8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._max(b)]    [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x._max(y)]      [None::<fn(OutVec) -> OutVec>];
-    [contiguous_max_u8]         [u8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._max(b)]    [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x._max(y)]      [None::<fn(OutVec) -> OutVec>];
-    
-    [contiguous_reducel1_f32]   [f32]     [NormalOut]       [|x: T| x.abs()]                                        [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x._abs()]                                                                                   [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];  
-    [contiguous_reducel1_f16]   [f16]     [NormalOut]       [|x: T| x.abs()]                                        [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x._abs()]                                                                                   [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_reducel1_bf16]  [bf16]    [NormalOut]       [|x: T| x.abs()]                                        [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x._abs()]                                                                                   [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_reducel1_i8]    [i8]      [NormalOut]       [|x: T| x.abs()]                                        [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x._abs()]                                                                                   [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_reducel1_u8]    [u8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    
-    [contiguous_sumsquare_f32]  [f32]     [NormalOut]       [|x: T| x * x]                                          [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x * x]                                                                                      [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_sumsquare_f16]  [f16]     [NormalOut]       [|x: T| x * x]                                          [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x * x]                                                                                      [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_sumsquare_bf16] [bf16]    [NormalOut]       [|x: T| x * x]                                          [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x * x]                                                                                      [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_sumsquare_i8]   [i8]      [NormalOut]       [|x: T| x * x]                                          [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x * x]                                                                                      [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_sumsquare_u8]   [u8]      [NormalOut]       [|x: T| x * x]                                          [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x * x]                                                                                      [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    
-    [contiguous_all_f32]        [f32]     [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a & b]        [None::<fn(O) -> O>]                        [|x: InVec| x.into_vec()]                                                                               [|x: OutVec| x]                                                         [|x: OutVec, y: OutVec| x & y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_all_f16]        [f16]     [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a & b]        [None::<fn(O) -> O>]                        [|x: InVec| x.into_vec()]                                                                               [|x: OutVec| x]                                                         [|x: OutVec, y: OutVec| x & y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_all_bf16]       [bf16]    [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a & b]        [None::<fn(O) -> O>]                        [|x: InVec| x.into_vec()]                                                                               [|x: OutVec| x]                                                         [|x: OutVec, y: OutVec| x & y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_all_i8]         [i8]      [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a & b]        [None::<fn(O) -> O>]                        [|x: InVec| x.into_vec()]                                                                               [|x: OutVec| x]                                                         [|x: OutVec, y: OutVec| x & y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_all_u8]         [u8]      [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a & b]        [None::<fn(O) -> O>]                        [|x: InVec| x.into_vec()]                                                                               [|x: OutVec| x]                                                         [|x: OutVec, y: OutVec| x & y]          [None::<fn(OutVec) -> OutVec>];
-    
-    [contiguous_any_f32]        [f32]     [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a | b]        [None::<fn(O) -> O>]                        [|x: InVec| x.into_vec()]                                                                               [|x: OutVec| x]                                                         [|x: OutVec, y: OutVec| x | y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_any_f16]        [f16]     [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a | b]        [None::<fn(O) -> O>]                        [|x: InVec| x.into_vec()]                                                                               [|x: OutVec| x]                                                         [|x: OutVec, y: OutVec| x | y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_any_bf16]       [bf16]    [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a | b]        [None::<fn(O) -> O>]                        [|x: InVec| x.into_vec()]                                                                               [|x: OutVec| x]                                                         [|x: OutVec, y: OutVec| x | y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_any_i8]         [i8]      [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a | b]        [None::<fn(O) -> O>]                        [|x: InVec| x.into_vec()]                                                                               [|x: OutVec| x]                                                         [|x: OutVec, y: OutVec| x | y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_any_u8]         [u8]      [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a | b]        [None::<fn(O) -> O>]                        [|x: InVec| x.into_vec()]                                                                               [|x: OutVec| x]                                                         [|x: OutVec, y: OutVec| x | y]          [None::<fn(OutVec) -> OutVec>];
-    
-    [contiguous_nansum_f32]     [f32]     [NormalOut]       [|x: T| if x.is_nan() {0.0} else {x}]                   [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x.__is_nan().select(<T as TypeCommon>::Vec::splat(T::ZERO), x)]                             [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_nansum_f16]     [f16]     [NormalOut]       [|x: T| if x.is_nan() {f16::ZERO} else {x}]             [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x.__is_nan().select(<T as TypeCommon>::Vec::splat(T::ZERO), x)]                             [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_nansum_bf16]    [bf16]    [NormalOut]       [|x: T| if x.is_nan() {bf16::ZERO} else {x}]            [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x.__is_nan().select(<T as TypeCommon>::Vec::splat(T::ZERO), x)]                             [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_nansum_i8]      [i8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_nansum_u8]      [u8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-
-    [contiguous_nanprod_f32]    [f32]     [NormalOut]       [|x: T| if x.is_nan() {1.0} else {x}]                   [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>]                        [|x: InVec| x.__is_nan().select(<T as TypeCommon>::Vec::splat(T::ONE), x)]                              [vec_preop]                                                             [|x: OutVec, y: OutVec| x * y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_nanprod_f16]    [f16]     [NormalOut]       [|x: T| if x.is_nan() {f16::ONE} else {x}]              [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>]                        [|x: InVec| x.__is_nan().select(<T as TypeCommon>::Vec::splat(T::ONE), x)]                              [vec_preop]                                                             [|x: OutVec, y: OutVec| x * y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_nanprod_bf16]   [bf16]    [NormalOut]       [|x: T| if x.is_nan() {bf16::ONE} else {x}]             [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>]                        [|x: InVec| x.__is_nan().select(<T as TypeCommon>::Vec::splat(T::ONE), x)]                              [vec_preop]                                                             [|x: OutVec, y: OutVec| x * y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_nanprod_i8]     [i8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x * y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_nanprod_u8]     [u8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>]                        [|x: InVec| x]                                                                                          [vec_preop]                                                             [|x: OutVec, y: OutVec| x * y]          [None::<fn(OutVec) -> OutVec>];
-
-    [contiguous_reducel2_f32]   [f32]     [FloatOutUnary]   [|x: T| x * x]                                          [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x * x]                                                                                      [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_reducel2_f16]   [f16]     [FloatOutUnary]   [|x: T| x * x]                                          [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x * x]                                                                                      [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_reducel2_bf16]  [bf16]    [FloatOutUnary]   [|x: T| x * x]                                          [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| x * x]                                                                                      [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_reducel2_i8]    [i8]      [FloatOutUnary]   [|x: T| {let x = f16::from(x); x * x}]                  [|x: O| x * x]                  [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| {let x: OutVec = x.into_vec(); x * x}]                                                      [|x: OutVec| x * x]                                                     [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-    [contiguous_reducel2_u8]    [u8]      [FloatOutUnary]   [|x: T| {let x = f16::from(x); x * x}]                  [|x: O| x * x]                  [|a: O, b: O| a + b]        [None::<fn(O) -> O>]                        [|x: InVec| {let x: OutVec = x.into_vec(); x * x}]                                                      [|x: OutVec| x * x]                                                     [|x: OutVec, y: OutVec| x + y]          [None::<fn(OutVec) -> OutVec>];
-
-    [contiguous_reducel3_f32]   [f32]     [FloatOutUnary]   [|x: T| x.abs().powi(3)]                                [preop]                         [|a: O, b: O| a + b]        [Some(|x: O| x.powf(O::ONE/O::THREE))]      [|x: InVec| x._abs()._pow(<T as TypeCommon>::Vec::splat(T::THREE))]                                     [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [Some(|x: OutVec| x._pow(<O as TypeCommon>::Vec::splat(O::ONE/O::THREE)))];
-    [contiguous_reducel3_f16]   [f16]     [FloatOutUnary]   [|x: T| x.abs().powi(3)]                                [preop]                         [|a: O, b: O| a + b]        [Some(|x: O| x.powf(O::ONE/O::THREE))]      [|x: InVec| x._abs()._pow(<T as TypeCommon>::Vec::splat(T::THREE))]                                     [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [Some(|x: OutVec| x._pow(<O as TypeCommon>::Vec::splat(O::ONE/O::THREE)))];
-    [contiguous_reducel3_bf16]  [bf16]    [FloatOutUnary]   [|x: T| x.abs().powi(3)]                                [preop]                         [|a: O, b: O| a + b]        [Some(|x: O| x.powf(O::ONE/O::THREE))]      [|x: InVec| x._abs()._pow(<T as TypeCommon>::Vec::splat(T::THREE))]                                     [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [Some(|x: OutVec| x._pow(<O as TypeCommon>::Vec::splat(O::ONE/O::THREE)))];
-    [contiguous_reducel3_i8]    [i8]      [FloatOutUnary]   [|x: T| {let x = f16::from(x); x.abs().powi(3)}]        [|x: O| x.abs().powi(3)]        [|a: O, b: O| a + b]        [Some(|x: O| x.powf(O::ONE/O::THREE))]      [|x: InVec| {let x: OutVec = x.into_vec(); x._abs()._pow(<O as TypeCommon>::Vec::splat(O::THREE))}]     [|x: OutVec| x._abs()._pow(<O as TypeCommon>::Vec::splat(O::THREE))]    [|x: OutVec, y: OutVec| x + y]          [Some(|x: OutVec| x._pow(<O as TypeCommon>::Vec::splat(O::ONE/O::THREE)))];
-    [contiguous_reducel3_u8]    [u8]      [FloatOutUnary]   [|x: T| {let x = f16::from(x); x.abs().powi(3)}]        [|x: O| x.abs().powi(3)]        [|a: O, b: O| a + b]        [Some(|x: O| x.powf(O::ONE/O::THREE))]      [|x: InVec| {let x: OutVec = x.into_vec(); x._abs()._pow(<O as TypeCommon>::Vec::splat(O::THREE))}]     [|x: OutVec| x._abs()._pow(<O as TypeCommon>::Vec::splat(O::THREE))]    [|x: OutVec, y: OutVec| x + y]          [Some(|x: OutVec| x._pow(<O as TypeCommon>::Vec::splat(O::ONE/O::THREE)))];
-
-    [contiguous_logsumexp_f32]   [f32]     [FloatOutUnary]   [|x: T| x.exp()]                                       [preop]                         [|a: O, b: O| a + b]        [Some(|x: O| x.ln())]                       [|x: InVec| x._exp()]                                                                                   [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [Some(|x: OutVec| x._ln())];
-    [contiguous_logsumexp_f16]   [f16]     [FloatOutUnary]   [|x: T| x.exp()]                                       [preop]                         [|a: O, b: O| a + b]        [Some(|x: O| x.ln())]                       [|x: InVec| x._exp()]                                                                                   [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [Some(|x: OutVec| x._ln())];
-    [contiguous_logsumexp_bf16]  [bf16]    [FloatOutUnary]   [|x: T| x.exp()]                                       [preop]                         [|a: O, b: O| a + b]        [Some(|x: O| x.ln())]                       [|x: InVec| x._exp()]                                                                                   [vec_preop]                                                             [|x: OutVec, y: OutVec| x + y]          [Some(|x: OutVec| x._ln())];
-    [contiguous_logsumexp_i8]    [i8]      [FloatOutUnary]   [|x: T| {let x = f16::from(x); x.exp()}]               [|x: O| x.exp()]                [|a: O, b: O| a + b]        [Some(|x: O| x.ln())]                       [|x: InVec| {let x: OutVec = x.into_vec(); x._exp()}]                                                   [|x: OutVec| x._exp()]                                                  [|x: OutVec, y: OutVec| x + y]          [Some(|x: OutVec| x._ln())];
-    [contiguous_logsumexp_u8]    [u8]      [FloatOutUnary]   [|x: T| {let x = f16::from(x); x.exp()}]               [|x: O| x.exp()]                [|a: O, b: O| a + b]        [Some(|x: O| x.ln())]                       [|x: InVec| {let x: OutVec = x.into_vec(); x._exp()}]                                                   [|x: OutVec| x._exp()]                                                  [|x: OutVec, y: OutVec| x + y]          [Some(|x: OutVec| x._ln())];
-)]
-pub(crate) fn func_name(
+pub(crate) fn contiguous_reduce<
+    T: CommonBounds,
+    O: CommonBounds,
+    F: Fn(O) -> O + Send + Sync + Copy,
+    VF: Fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec + Send + Sync + Copy,
+>(
     a: &Tensor,
     axes: &[usize],
     init_val: f64,
@@ -119,18 +49,20 @@ pub(crate) fn func_name(
     init_out: bool,
     res_dtype: DType,
     c: Option<Tensor>,
-) -> std::result::Result<Tensor, TensorError> {
-    type T = in_type;
-    type O = <T as trait_name>::Output;
-    type InVec = <T as TypeCommon>::Vec;
-    type OutVec = <O as TypeCommon>::Vec;
+    preop: fn(T) -> O,
+    preop_no_cast: fn(O) -> O,
+    cumulate: fn(O, O) -> O,
+    postop: Option<F>,
+    vec_preop: fn(<T as TypeCommon>::Vec) -> <O as TypeCommon>::Vec,
+    vec_preop_no_cast: fn(<O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec,
+    vec_cumulate: fn(<O as TypeCommon>::Vec, <O as TypeCommon>::Vec) -> <O as TypeCommon>::Vec,
+    vec_postop: Option<VF>,
+) -> std::result::Result<Tensor, TensorError>
+where
+    f64: Cast<O>,
+    O: ToDType,
+{
     assert_eq!(res_dtype, O::to_dtype());
-    let preop = pre_op;
-    let cumulate = cumulate_op;
-    let postop = post_op;
-    let preop_no_cast = pre_op_no_cast;
-    let vec_preop = vec_pre_op;
-    let vec_postop = vec_post_op;
     let res_shape = a.layout.reduce(axes, keepdims)?.shape().clone();
     let res = contiguous_reduce_template(
         &a,
@@ -156,7 +88,7 @@ pub(crate) fn func_name(
                 unsafe { *res = val };
             }
         },
-        |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
+        move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
             let iterators = ReductionPreprocessor::new(
                 num_threads,
                 result.size(),
@@ -209,8 +141,9 @@ pub(crate) fn func_name(
                 }
             });
         },
-        |num_threads, inner_loop_size, result, a| {
-            let intervals = mt_intervals_simd(inner_loop_size, num_threads, OutVec::SIZE);
+        move |num_threads, inner_loop_size, result, a| {
+            let intervals =
+                mt_intervals_simd(inner_loop_size, num_threads, <O as TypeCommon>::Vec::SIZE);
             let mut slices = vec![(0, 0x7FFFFFFFFFFFFFFF, 1); a.ndim()];
             let mut slices_res = vec![(0, 0x7FFFFFFFFFFFFFFF, 1); result.ndim()];
             let mut sliced_tensors = Vec::with_capacity(num_threads);
@@ -265,12 +198,12 @@ pub(crate) fn func_name(
                     }
                 });
         },
-        |num_threads,
-         outer_loop_size,
-         inner_loop_size,
-         inner_loop_size_2,
-         result,
-         transposed_tensor| {
+        move |num_threads,
+              outer_loop_size,
+              inner_loop_size,
+              inner_loop_size_2,
+              result,
+              transposed_tensor| {
             let iterators = ReductionPreprocessor::new2(
                 num_threads,
                 outer_loop_size,
@@ -332,87 +265,11 @@ pub(crate) fn func_name(
     res.reshape(&res_shape)
 }
 
-#[duplicate::duplicate_item(
-    func_name                     in_type   trait_name        pre_op                                                  pre_op_no_cast                  cumulate_op                 post_op;
-    [uncontiguous_sum_f32]        [f32]     [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_sum_f16]        [f16]     [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_sum_bf16]       [bf16]    [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_sum_i8]         [i8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_sum_u8]         [u8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    
-    [uncontiguous_prod_f32]       [f32]     [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>];
-    [uncontiguous_prod_f16]       [f16]     [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>];
-    [uncontiguous_prod_bf16]      [bf16]    [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>];
-    [uncontiguous_prod_i8]        [i8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>];
-    [uncontiguous_prod_u8]        [u8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>];
-    
-    [uncontiguous_min_f32]        [f32]     [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._min(b)]    [None::<fn(O) -> O>];
-    [uncontiguous_min_f16]        [f16]     [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._min(b)]    [None::<fn(O) -> O>];
-    [uncontiguous_min_bf16]       [bf16]    [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._min(b)]    [None::<fn(O) -> O>];
-    [uncontiguous_min_i8]         [i8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._min(b)]    [None::<fn(O) -> O>];
-    [uncontiguous_min_u8]         [u8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._min(b)]    [None::<fn(O) -> O>];
-    
-    [uncontiguous_max_f32]        [f32]     [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._max(b)]    [None::<fn(O) -> O>];
-    [uncontiguous_max_f16]        [f16]     [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._max(b)]    [None::<fn(O) -> O>];
-    [uncontiguous_max_bf16]       [bf16]    [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._max(b)]    [None::<fn(O) -> O>];
-    [uncontiguous_max_i8]         [i8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._max(b)]    [None::<fn(O) -> O>];
-    [uncontiguous_max_u8]         [u8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a._max(b)]    [None::<fn(O) -> O>];
-    
-    [uncontiguous_reducel1_f32]   [f32]     [NormalOut]       [|x: T| x.abs()]                                        [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];  
-    [uncontiguous_reducel1_f16]   [f16]     [NormalOut]       [|x: T| x.abs()]                                        [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_reducel1_bf16]  [bf16]    [NormalOut]       [|x: T| x.abs()]                                        [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_reducel1_i8]    [i8]      [NormalOut]       [|x: T| x.abs()]                                        [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_reducel1_u8]    [u8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    
-    [uncontiguous_sumsquare_f32]  [f32]     [NormalOut]       [|x: T| x * x]                                          [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_sumsquare_f16]  [f16]     [NormalOut]       [|x: T| x * x]                                          [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_sumsquare_bf16] [bf16]    [NormalOut]       [|x: T| x * x]                                          [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_sumsquare_i8]   [i8]      [NormalOut]       [|x: T| x * x]                                          [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_sumsquare_u8]   [u8]      [NormalOut]       [|x: T| x * x]                                          [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    
-    [uncontiguous_all_f32]        [f32]     [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a & b]        [None::<fn(O) -> O>];
-    [uncontiguous_all_f16]        [f16]     [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a & b]        [None::<fn(O) -> O>];
-    [uncontiguous_all_bf16]       [bf16]    [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a & b]        [None::<fn(O) -> O>];
-    [uncontiguous_all_i8]         [i8]      [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a & b]        [None::<fn(O) -> O>];
-    [uncontiguous_all_u8]         [u8]      [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a & b]        [None::<fn(O) -> O>];
-    
-    [uncontiguous_any_f32]        [f32]     [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a | b]        [None::<fn(O) -> O>];
-    [uncontiguous_any_f16]        [f16]     [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a | b]        [None::<fn(O) -> O>];
-    [uncontiguous_any_bf16]       [bf16]    [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a | b]        [None::<fn(O) -> O>];
-    [uncontiguous_any_i8]         [i8]      [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a | b]        [None::<fn(O) -> O>];
-    [uncontiguous_any_u8]         [u8]      [Eval]            [|x: T| x._is_true()]                                   [|x: O| x]                      [|a: O, b: O| a | b]        [None::<fn(O) -> O>];
-    
-    [uncontiguous_nansum_f32]     [f32]     [NormalOut]       [|x: T| if x.is_nan() {0.0} else {x}]                   [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_nansum_f16]     [f16]     [NormalOut]       [|x: T| if x.is_nan() {f16::ZERO} else {x}]             [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_nansum_bf16]    [bf16]    [NormalOut]       [|x: T| if x.is_nan() {bf16::ZERO} else {x}]            [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_nansum_i8]      [i8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_nansum_u8]      [u8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-
-    [uncontiguous_nanprod_f32]    [f32]     [NormalOut]       [|x: T| if x.is_nan() {1.0} else {x}]                   [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>];
-    [uncontiguous_nanprod_f16]    [f16]     [NormalOut]       [|x: T| if x.is_nan() {f16::ONE} else {x}]              [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>];
-    [uncontiguous_nanprod_bf16]   [bf16]    [NormalOut]       [|x: T| if x.is_nan() {bf16::ONE} else {x}]             [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>];
-    [uncontiguous_nanprod_i8]     [i8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>];
-    [uncontiguous_nanprod_u8]     [u8]      [NormalOut]       [|x: T| x]                                              [preop]                         [|a: O, b: O| a * b]        [None::<fn(O) -> O>];
-
-    [uncontiguous_reducel2_f32]   [f32]     [FloatOutUnary]   [|x: T| x * x]                                          [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_reducel2_f16]   [f16]     [FloatOutUnary]   [|x: T| x * x]                                          [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_reducel2_bf16]  [bf16]    [FloatOutUnary]   [|x: T| x * x]                                          [preop]                         [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_reducel2_i8]    [i8]      [FloatOutUnary]   [|x: T| {let x = f16::from(x); x * x}]                  [|x: O| x * x]                  [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-    [uncontiguous_reducel2_u8]    [u8]      [FloatOutUnary]   [|x: T| {let x = f16::from(x); x * x}]                  [|x: O| x * x]                  [|a: O, b: O| a + b]        [None::<fn(O) -> O>];
-
-    [uncontiguous_reducel3_f32]   [f32]     [FloatOutUnary]   [|x: T| x.abs().powi(3)]                                [preop]                         [|a: O, b: O| a + b]        [Some(|x: O| x.powf(O::ONE/O::THREE))];
-    [uncontiguous_reducel3_f16]   [f16]     [FloatOutUnary]   [|x: T| x.abs().powi(3)]                                [preop]                         [|a: O, b: O| a + b]        [Some(|x: O| x.powf(O::ONE/O::THREE))];
-    [uncontiguous_reducel3_bf16]  [bf16]    [FloatOutUnary]   [|x: T| x.abs().powi(3)]                                [preop]                         [|a: O, b: O| a + b]        [Some(|x: O| x.powf(O::ONE/O::THREE))];
-    [uncontiguous_reducel3_i8]    [i8]      [FloatOutUnary]   [|x: T| {let x = f16::from(x); x.abs().powi(3)}]        [|x: O| x.abs().powi(3)]        [|a: O, b: O| a + b]        [Some(|x: O| x.powf(O::ONE/O::THREE))];
-    [uncontiguous_reducel3_u8]    [u8]      [FloatOutUnary]   [|x: T| {let x = f16::from(x); x.abs().powi(3)}]        [|x: O| x.abs().powi(3)]        [|a: O, b: O| a + b]        [Some(|x: O| x.powf(O::ONE/O::THREE))];
-
-    [uncontiguous_logsumexp_f32]   [f32]     [FloatOutUnary]   [|x: T| x.exp()]                                       [preop]                         [|a: O, b: O| a + b]        [Some(|x: O| x.ln())];
-    [uncontiguous_logsumexp_f16]   [f16]     [FloatOutUnary]   [|x: T| x.exp()]                                       [preop]                         [|a: O, b: O| a + b]        [Some(|x: O| x.ln())];
-    [uncontiguous_logsumexp_bf16]  [bf16]    [FloatOutUnary]   [|x: T| x.exp()]                                       [preop]                         [|a: O, b: O| a + b]        [Some(|x: O| x.ln())];
-    [uncontiguous_logsumexp_i8]    [i8]      [FloatOutUnary]   [|x: T| {let x = f16::from(x); x.exp()}]               [|x: O| x.exp()]                [|a: O, b: O| a + b]        [Some(|x: O| x.ln())];
-    [uncontiguous_logsumexp_u8]    [u8]      [FloatOutUnary]   [|x: T| {let x = f16::from(x); x.exp()}]               [|x: O| x.exp()]                [|a: O, b: O| a + b]        [Some(|x: O| x.ln())];
-)]
-pub(crate) fn func_name(
+pub(crate) fn uncontiguous_reduce<
+    T: CommonBounds,
+    O: CommonBounds,
+    F: Fn(O) -> O + Send + Sync + Copy,
+>(
     a: &Tensor,
     axes: &[usize],
     init_val: f64,
@@ -420,14 +277,15 @@ pub(crate) fn func_name(
     init_out: bool,
     res_dtype: DType,
     c: Option<Tensor>,
+    preop: fn(T) -> O,
+    cumulate: fn(O, O) -> O,
+    postop: Option<F>,
 ) -> std::result::Result<Tensor, TensorError>
+where
+    f64: Cast<O>,
+    O: ToDType,
 {
-    type T = in_type;
-    type O = <T as trait_name>::Output;
     assert_eq!(res_dtype, O::to_dtype());
-    let preop = pre_op;
-    let cumulate = cumulate_op;
-    let postop = post_op;
     uncontiguos_reduce_template(
         a,
         axes,
@@ -444,9 +302,13 @@ pub(crate) fn func_name(
                 .par_strided_fold(init_val, |acc, x| cumulate(acc, preop(x)))
                 .reduce(|| init_val, |a, b| cumulate(a, b));
             if let Some(postop) = postop {
-                unsafe { *res = postop(val); }
+                unsafe {
+                    *res = postop(val);
+                }
             } else {
-                unsafe { *res = val; }
+                unsafe {
+                    *res = val;
+                }
             }
         },
         move |num_threads, inner_loop_size, inner_loop_size_2, result, transposed_tensor| {
@@ -570,211 +432,1157 @@ pub(crate) fn func_name(
     )
 }
 
+pub(crate) fn sum<T: CommonBounds + ToDType>(
+    inp: &Tensor,
+    axes: &[i64],
+    keepdims: bool,
+    out: Option<Tensor>,
+) -> Result<Tensor, TensorError>
+where
+    f64: Cast<T>,
+{
+    let axes = process_axes(axes, inp.ndim())?;
+    let res_dtype = promote_normal_unary(inp.dtype);
+    if inp.is_contiguous() && inp.parent.is_none() {
+        contiguous_reduce(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x,
+            |x| x,
+            |x: T, y: T| x._add(y),
+            None::<fn(T) -> T>,
+            |x| x.into_vec(),
+            |x| x,
+            |x, y| x._add(y),
+            None::<fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec>,
+        )
+    } else {
+        uncontiguous_reduce(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x,
+            |x: T, y: T| x._add(y),
+            None::<fn(T) -> T>,
+        )
+    }
+}
+
+pub(crate) fn nansum<T: CommonBounds + ToDType>(
+    inp: &Tensor,
+    axes: &[i64],
+    keepdims: bool,
+    out: Option<Tensor>,
+) -> Result<Tensor, TensorError>
+where
+    T: Eval<Output = bool>,
+    T::Vec: Eval,
+    <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
+    f64: Cast<T>,
+{
+    let axes = process_axes(axes, inp.ndim())?;
+    let res_dtype = promote_normal_unary(inp.dtype);
+    if inp.is_contiguous() && inp.parent.is_none() {
+        contiguous_reduce(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| if x._is_nan() { T::ZERO } else { x.cast() },
+            |x| x,
+            |x: T, y: T| x._add(y),
+            None::<fn(T) -> T>,
+            |x| x._is_nan().select(T::Vec::splat(T::ZERO), x),
+            |x| x._is_nan().select(T::Vec::splat(T::ZERO), x),
+            |x, y| x._add(y),
+            None::<fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec>,
+        )
+    } else {
+        uncontiguous_reduce(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| if x._is_nan() { T::ZERO } else { x.cast() },
+            |x: T, y: T| x._add(y),
+            None::<fn(T) -> T>,
+        )
+    }
+}
+
+pub(crate) fn prod<T: CommonBounds + ToDType>(
+    inp: &Tensor,
+    axes: &[i64],
+    keepdims: bool,
+    out: Option<Tensor>,
+) -> Result<Tensor, TensorError>
+where
+    f64: Cast<T>,
+{
+    let axes = process_axes(axes, inp.ndim())?;
+    let res_dtype = promote_normal_unary(inp.dtype);
+    if inp.is_contiguous() && inp.parent.is_none() {
+        contiguous_reduce(
+            inp,
+            &axes,
+            1.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x,
+            |x| x,
+            |x: T, y: T| x._mul(y),
+            None::<fn(T) -> T>,
+            |x| x,
+            |x| x,
+            |x, y| x._mul(y),
+            None::<fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec>,
+        )
+    } else {
+        uncontiguous_reduce(
+            inp,
+            &axes,
+            1.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x,
+            |x: T, y: T| x._mul(y),
+            None::<fn(T) -> T>,
+        )
+    }
+}
+
+pub(crate) fn nanprod<T: CommonBounds + ToDType>(
+    inp: &Tensor,
+    axes: &[i64],
+    keepdims: bool,
+    out: Option<Tensor>,
+) -> Result<Tensor, TensorError>
+where
+    T: Eval<Output = bool>,
+    T::Vec: Eval,
+    <T::Vec as Eval>::Output: SimdSelect<T::Vec>,
+    f64: Cast<T>,
+{
+    let axes = process_axes(axes, inp.ndim())?;
+    let res_dtype = promote_normal_unary(inp.dtype);
+    if inp.is_contiguous() && inp.parent.is_none() {
+        contiguous_reduce(
+            inp,
+            &axes,
+            1.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| if x._is_nan() { T::ONE } else { x },
+            |x| x,
+            |x: T, y: T| x._mul(y),
+            None::<fn(T) -> T>,
+            |x| x._is_nan().select(T::Vec::splat(T::ONE), x),
+            |x| x._is_nan().select(T::Vec::splat(T::ONE), x),
+            |x, y| x._mul(y),
+            None::<fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec>,
+        )
+    } else {
+        uncontiguous_reduce(
+            inp,
+            &axes,
+            1.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| if x._is_nan() { T::ONE } else { x.cast() },
+            |x: T, y: T| x._mul(y),
+            None::<fn(T) -> T>,
+        )
+    }
+}
+
+pub(crate) fn min<T: CommonBounds + ToDType>(
+    inp: &Tensor,
+    axes: &[i64],
+    keepdims: bool,
+    out: Option<Tensor>,
+) -> Result<Tensor, TensorError>
+where
+    f64: Cast<T>,
+    T: Cast<f64>,
+{
+    let axes = process_axes(axes, inp.ndim())?;
+    let res_dtype = promote_normal_unary(inp.dtype);
+    if inp.is_contiguous() && inp.parent.is_none() {
+        contiguous_reduce(
+            inp,
+            &axes,
+            T::MAX.cast(),
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x,
+            |x| x,
+            |x: T, y: T| x._min(y),
+            None::<fn(T) -> T>,
+            |x| x,
+            |x| x,
+            |x, y| x._min(y),
+            None::<fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec>,
+        )
+    } else {
+        uncontiguous_reduce(
+            inp,
+            &axes,
+            T::MAX.cast(),
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x,
+            |x: T, y: T| x._min(y),
+            None::<fn(T) -> T>,
+        )
+    }
+}
+
+pub(crate) fn max<T: CommonBounds + ToDType>(
+    inp: &Tensor,
+    axes: &[i64],
+    keepdims: bool,
+    out: Option<Tensor>,
+) -> Result<Tensor, TensorError>
+where
+    f64: Cast<T>,
+    T: Cast<f64>,
+{
+    let axes = process_axes(axes, inp.ndim())?;
+    let res_dtype = promote_normal_unary(inp.dtype);
+    if inp.is_contiguous() && inp.parent.is_none() {
+        contiguous_reduce(
+            inp,
+            &axes,
+            T::MIN.cast(),
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x,
+            |x| x,
+            |x: T, y: T| x._max(y),
+            None::<fn(T) -> T>,
+            |x| x,
+            |x| x,
+            |x, y| x._max(y),
+            None::<fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec>,
+        )
+    } else {
+        uncontiguous_reduce(
+            inp,
+            &axes,
+            T::MIN.cast(),
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x,
+            |x: T, y: T| x._max(y),
+            None::<fn(T) -> T>,
+        )
+    }
+}
+
+pub(crate) fn sum_square<T: CommonBounds + ToDType>(
+    inp: &Tensor,
+    axes: &[i64],
+    keepdims: bool,
+    out: Option<Tensor>,
+) -> Result<Tensor, TensorError>
+where
+    f64: Cast<T>,
+{
+    let axes = process_axes(axes, inp.ndim())?;
+    let res_dtype = promote_normal_unary(inp.dtype);
+    if inp.is_contiguous() && inp.parent.is_none() {
+        contiguous_reduce(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x._square(),
+            |x| x._square(),
+            |x: T, y: T| x._add(y),
+            None::<fn(T) -> T>,
+            |x| x._square(),
+            |x| x._square(),
+            |x, y| x._add(y),
+            None::<fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec>,
+        )
+    } else {
+        uncontiguous_reduce(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x._square(),
+            |x: T, y: T| x._add(y),
+            None::<fn(T) -> T>,
+        )
+    }
+}
+
+pub(crate) fn reducel1<T: CommonBounds + ToDType>(
+    inp: &Tensor,
+    axes: &[i64],
+    keepdims: bool,
+    out: Option<Tensor>,
+) -> Result<Tensor, TensorError>
+where
+    f64: Cast<T>,
+{
+    let axes = process_axes(axes, inp.ndim())?;
+    let res_dtype = promote_normal_unary(inp.dtype);
+    if inp.is_contiguous() && inp.parent.is_none() {
+        contiguous_reduce(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x._abs(),
+            |x| x._abs(),
+            |x: T, y: T| x._add(y),
+            None::<fn(T) -> T>,
+            |x| x._abs(),
+            |x| x._abs(),
+            |x, y| x._add(y),
+            None::<fn(<T as TypeCommon>::Vec) -> <T as TypeCommon>::Vec>,
+        )
+    } else {
+        uncontiguous_reduce(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x._abs(),
+            |x: T, y: T| x._add(y),
+            None::<fn(T) -> T>,
+        )
+    }
+}
+
+pub(crate) fn all<T: CommonBounds + ToDType>(
+    inp: &Tensor,
+    axes: &[i64],
+    keepdims: bool,
+    out: Option<Tensor>,
+) -> Result<Tensor, TensorError>
+where
+    f64: Cast<T>,
+    T: Eval<Output = bool>,
+    T::Vec: IntoVec<<bool as TypeCommon>::Vec>,
+{
+    let axes = process_axes(axes, inp.ndim())?;
+    let res_dtype = promote_normal_unary(inp.dtype);
+    if inp.is_contiguous() && inp.parent.is_none() {
+        contiguous_reduce::<T, bool, _, _>(
+            inp,
+            &axes,
+            1.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x._is_true(),
+            |x| x,
+            |x, y| x & y,
+            None::<fn(bool) -> bool>,
+            |x| x.into_vec(),
+            |x| x,
+            |x, y| x & y,
+            None::<fn(<bool as TypeCommon>::Vec) -> <bool as TypeCommon>::Vec>,
+        )
+    } else {
+        uncontiguous_reduce::<T, bool, _>(
+            inp,
+            &axes,
+            1.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x._is_true(),
+            |x, y| x & y,
+            None::<fn(bool) -> bool>,
+        )
+    }
+}
+
+pub(crate) fn any<T: CommonBounds + ToDType>(
+    inp: &Tensor,
+    axes: &[i64],
+    keepdims: bool,
+    out: Option<Tensor>,
+) -> Result<Tensor, TensorError>
+where
+    f64: Cast<T>,
+    T: Eval<Output = bool>,
+    T::Vec: IntoVec<<bool as TypeCommon>::Vec>,
+{
+    let axes = process_axes(axes, inp.ndim())?;
+    let res_dtype = promote_normal_unary(inp.dtype);
+    if inp.is_contiguous() && inp.parent.is_none() {
+        contiguous_reduce::<T, bool, _, _>(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x._is_true(),
+            |x| x,
+            |x, y| x | y,
+            None::<fn(bool) -> bool>,
+            |x| x.into_vec(),
+            |x| x,
+            |x, y| x | y,
+            None::<fn(<bool as TypeCommon>::Vec) -> <bool as TypeCommon>::Vec>,
+        )
+    } else {
+        uncontiguous_reduce::<T, bool, _>(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x._is_true(),
+            |x, y| x | y,
+            None::<fn(bool) -> bool>,
+        )
+    }
+}
+
+pub(crate) fn mean<T: CommonBounds, O: CommonBounds + ToDType>(
+    inp: &Tensor,
+    axes: &[i64],
+    keepdims: bool,
+    out: Option<Tensor>,
+) -> Result<Tensor, TensorError>
+where
+    f64: Cast<O>,
+    T: Cast<O>,
+    <T as TypeCommon>::Vec: IntoVec<<O as TypeCommon>::Vec>,
+    O: FloatOutBinary<Output = O>,
+    <O as TypeCommon>::Vec: FloatOutBinary<Output = <O as TypeCommon>::Vec>,
+{
+    let axes = process_axes(axes, inp.ndim())?;
+    let res_dtype = promote_normal_unary(inp.dtype);
+    let reduce_size: O = (axes
+        .iter()
+        .fold(1, |acc, &x| acc * (inp.shape()[x] as usize)) as f64)
+        .cast();
+    let reduce_vec = <O as TypeCommon>::Vec::splat(reduce_size);
+    if inp.is_contiguous() && inp.parent.is_none() {
+        contiguous_reduce::<T, O, _, _>(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x.cast(),
+            |x| x,
+            |x, y| x._add(y),
+            Some(|x: O| x._div(reduce_size)),
+            |x| x.into_vec(),
+            |x| x,
+            |x, y| x._add(y),
+            Some(|x: <O as TypeCommon>::Vec| x._div(reduce_vec)),
+        )
+    } else {
+        uncontiguous_reduce::<T, O, _>(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| x.cast(),
+            |x, y| x._add(y),
+            Some(|x: O| x._div(reduce_size)),
+        )
+    }
+}
+
+pub(crate) fn reducel2<T: CommonBounds, O: CommonBounds + ToDType>(
+    inp: &Tensor,
+    axes: &[i64],
+    keepdims: bool,
+    out: Option<Tensor>,
+) -> Result<Tensor, TensorError>
+where
+    f64: Cast<O>,
+    T: Cast<O>,
+    <T as TypeCommon>::Vec: IntoVec<<O as TypeCommon>::Vec>,
+    O: FloatOutBinary<Output = O> + FloatOutUnary<Output = O>,
+    <O as TypeCommon>::Vec: FloatOutBinary<Output = <O as TypeCommon>::Vec>,
+    <O as TypeCommon>::Vec: FloatOutUnary<Output = <O as TypeCommon>::Vec>,
+{
+    let axes = process_axes(axes, inp.ndim())?;
+    let res_dtype = promote_normal_unary(inp.dtype);
+    if inp.is_contiguous() && inp.parent.is_none() {
+        contiguous_reduce::<T, O, _, _>(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| {
+                let c: O = x.cast();
+                c._square()
+            },
+            |x| x._square(),
+            |x, y| x._add(y),
+            Some(|x: O| x._sqrt()),
+            |x| {
+                let c: <O as TypeCommon>::Vec = x.into_vec();
+                c._square()
+            },
+            |x| x._square(),
+            |x, y| x._add(y),
+            Some(|x: <O as TypeCommon>::Vec| x._sqrt()),
+        )
+    } else {
+        uncontiguous_reduce::<T, O, _>(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| {
+                let c: O = x.cast();
+                c._square()
+            },
+            |x, y| x._add(y),
+            Some(|x: O| x._sqrt()),
+        )
+    }
+}
+
+pub(crate) fn reducel3<T: CommonBounds, O: CommonBounds + ToDType>(
+    inp: &Tensor,
+    axes: &[i64],
+    keepdims: bool,
+    out: Option<Tensor>,
+) -> Result<Tensor, TensorError>
+where
+    f64: Cast<O>,
+    T: Cast<O>,
+    <T as TypeCommon>::Vec: IntoVec<<O as TypeCommon>::Vec>,
+    O: FloatOutBinary<Output = O> + FloatOutUnary<Output = O>,
+    <O as TypeCommon>::Vec: FloatOutBinary<Output = <O as TypeCommon>::Vec>,
+    <O as TypeCommon>::Vec: FloatOutUnary<Output = <O as TypeCommon>::Vec>,
+{
+    let axes = process_axes(axes, inp.ndim())?;
+    let res_dtype = promote_normal_unary(inp.dtype);
+
+    if inp.is_contiguous() && inp.parent.is_none() {
+        contiguous_reduce::<T, O, _, _>(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| {
+                let c: O = x._abs().cast();
+                c._pow((3.0).cast())
+            },
+            |x| x._abs()._pow((3.0).cast()),
+            |x, y| x._add(y),
+            Some(|x: O| x._pow((1.0 / 3.0).cast())),
+            |x| {
+                let c: <O as TypeCommon>::Vec = x.into_vec();
+                c._pow(<O as TypeCommon>::Vec::splat((3.0).cast()))
+            },
+            |x| x._abs()._pow(<O as TypeCommon>::Vec::splat((3.0).cast())),
+            |x, y| x._add(y),
+            Some(|x: <O as TypeCommon>::Vec| {
+                x._pow(<O as TypeCommon>::Vec::splat((1.0 / 3.0).cast()))
+            }),
+        )
+    } else {
+        uncontiguous_reduce::<T, O, _>(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| {
+                let c: O = x._abs().cast();
+                c._pow((3.0).cast())
+            },
+            |x, y| x._add(y),
+            Some(|x: O| x._pow((1.0 / 3.0).cast())),
+        )
+    }
+}
+
+pub(crate) fn logsumexp<T: CommonBounds, O: CommonBounds + ToDType>(
+    inp: &Tensor,
+    axes: &[i64],
+    keepdims: bool,
+    out: Option<Tensor>,
+) -> Result<Tensor, TensorError>
+where
+    f64: Cast<O>,
+    T: Cast<O>,
+    <T as TypeCommon>::Vec: IntoVec<<O as TypeCommon>::Vec>,
+    O: FloatOutBinary<Output = O> + FloatOutUnary<Output = O>,
+    <O as TypeCommon>::Vec: FloatOutBinary<Output = <O as TypeCommon>::Vec>,
+    <O as TypeCommon>::Vec: FloatOutUnary<Output = <O as TypeCommon>::Vec>,
+{
+    let axes = process_axes(axes, inp.ndim())?;
+    let res_dtype = promote_normal_unary(inp.dtype);
+
+    if inp.is_contiguous() && inp.parent.is_none() {
+        contiguous_reduce::<T, O, _, _>(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| {
+                let c: O = x._abs().cast();
+                c._exp()
+            },
+            |x| x._exp(),
+            |x, y| x._add(y),
+            Some(|x: O| x._ln()),
+            |x| {
+                let c: <O as TypeCommon>::Vec = x.into_vec();
+                c._exp()
+            },
+            |x| x._exp(),
+            |x, y| x._add(y),
+            Some(|x: <O as TypeCommon>::Vec| x._ln()),
+        )
+    } else {
+        uncontiguous_reduce::<T, O, _>(
+            inp,
+            &axes,
+            0.0,
+            keepdims,
+            true,
+            res_dtype,
+            out,
+            |x: T| {
+                let c: O = x.cast();
+                c._exp()
+            },
+            |x, y| x._add(y),
+            Some(|x: O| x._ln()),
+        )
+    }
+}
+
 impl Tensor {
-
-    #[duplicate::duplicate_item(
-        func_name     promote_func              description                                                         test_code;
-        [sum]         [promote_normal_unary]    ["Computes sum along the specified axes."]                          ["let y = x.sum(&[1], true)?;"];
-        [prod]        [promote_normal_unary]    ["Computes product along the specified axes."]                      ["let y = x.prod(&[1], true)?;"];
-        [nansum]      [promote_normal_unary]    ["Computes sum along the specified axes, ignoring NaNs."]           ["let y = x.nansum(&[1], true)?;"];
-        [nanprod]     [promote_normal_unary]    ["Computes product along the specified axes, ignoring NaNs."]       ["let y = x.nanprod(&[1], true)?;"];
-        [min]         [promote_normal_unary]    ["Computes minimum along the specified axes."]                      ["let y = x.min(&[1], true)?;"];
-        [max]         [promote_normal_unary]    ["Computes maximum along the specified axes."]                      ["let y = x.max(&[1], true)?;"];
-        [sumsquare]   [promote_normal_unary]    ["Computes sum of squares along the specified axes."]               ["let y = x.sumsquare(&[1], true)?;"];
-        [reducel1]    [promote_normal_unary]    ["Computes L1 norm along the specified axes."]                      ["let y = x.reducel1(&[1], true)?;"];
-
-        [all]         [promote_eval]            ["Computes all along the specified axes."]                          ["let y = x.all(&[1], true)?;"];
-        [any]         [promote_eval]            ["Computes any along the specified axes."]                          ["let y = x.any(&[1], true)?;"];
-
-        [logsumexp]   [promote_float_unary]     ["Computes logsumexp along the specified axes."]                    ["let y = x.logsumexp(&[1], true)?;"];
-        [reducel2]    [promote_float_unary]     ["Computes L2 norm along the specified axes."]                      ["let y = x.reducel2(&[1], true)?;"];
-        [reducel3]    [promote_float_unary]     ["Computes L3 norm along the specified axes."]                      ["let y = x.reducel3(&[1], true)?;"];
-    )]
-    #[doc = description]
-    /// # Parameters:
-    /// `x`: Input tensor
-    /// 
-    /// `dims`: Dimensions to reduce over
-    /// 
-    /// `keepdim`: Whether to keep the reduced dimensions with length 1
-    /// 
-    /// # Example:
-    /// ```rust
-    /// let x = Tensor::randn(/*mean*/0.0, /*std*/1.0, /*shape*/&[2, 3, 4], DType::F32, Device::Cpu)?;
-    #[doc = test_code]
-    /// ```
-    /// 
-    /// # Returns:
-    /// A new tensor with the reduced dimensions.
-    pub fn func_name(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
-        let axes = process_axes(axes, self.ndim())?;
-        let res_dtype = promote_func(self.dtype);
-        if self.is_contiguous() && self.parent.is_none() {
-            match self.dtype {
-                DType::F32 => {
-                    paste::paste!(
-                        [<contiguous_ func_name _f32>](self, &axes, 0.0, keepdims, true, res_dtype, None)
-                    )
-                }
-                DType::F16 => {
-                    paste::paste!(
-                        [<contiguous_ func_name _f16>](self, &axes, 0.0, keepdims, true, res_dtype, None)
-                    )
-                }
-                DType::BF16 => {
-                    paste::paste!(
-                        [<contiguous_ func_name _bf16>](self, &axes, 0.0, keepdims, true, res_dtype, None)
-                    )
-                }
-                DType::I8 => {
-                    paste::paste!(
-                        [<contiguous_ func_name _i8>](self, &axes, 0.0, keepdims, true, res_dtype, None)
-                    )
-                }
-                DType::U8 => {
-                    paste::paste!(
-                        [<contiguous_ func_name _u8>](self, &axes, 0.0, keepdims, true, res_dtype, None)
-                    )
-                }
-                _ => {
-                    unimplemented!()
-                }
-            }
-        } else {
-            match self.dtype {
-                DType::F32 => {
-                    paste::paste!(
-                        [<uncontiguous_ func_name _f32>](self, &axes, 0.0, keepdims, true, res_dtype, None)
-                    )
-                }
-                DType::F16 => {
-                    paste::paste!(
-                        [<uncontiguous_ func_name _f16>](self, &axes, 0.0, keepdims, true, res_dtype, None)
-                    )
-                }
-                DType::BF16 => {
-                    paste::paste!(
-                        [<uncontiguous_ func_name _bf16>](self, &axes, 0.0, keepdims, true, res_dtype, None)
-                    )
-                }
-                DType::I8 => {
-                    paste::paste!(
-                        [<uncontiguous_ func_name _i8>](self, &axes, 0.0, keepdims, true, res_dtype, None)
-                    )
-                }
-                DType::U8 => {
-                    paste::paste!(
-                        [<uncontiguous_ func_name _u8>](self, &axes, 0.0, keepdims, true, res_dtype, None)
-                    )
-                }
-                _ => {
-                    unimplemented!()
-                }
+    pub fn sum(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => sum::<f32>(self, axes, keepdims, None),
+            DType::F16 => sum::<f16>(self, axes, keepdims, None),
+            DType::BF16 => sum::<bf16>(self, axes, keepdims, None),
+            DType::I8 => sum::<i8>(self, axes, keepdims, None),
+            DType::U8 => sum::<u8>(self, axes, keepdims, None),
+            _ => {
+                unimplemented!()
             }
         }
     }
 
-    #[duplicate::duplicate_item(
-        func_name      method      promote_func                 description                                                         test_code;
-        [sum_]         [sum]        [promote_normal_unary]      ["Computes sum along the specified axes."]                          ["let y = x.sum_(&[1], true, &mut out)?;"];
-        [prod_]        [prod]       [promote_normal_unary]      ["Computes product along the specified axes."]                      ["let y = x.prod_(&[1], true, &mut out)?;"];
-        [nansum_]      [nansum]     [promote_normal_unary]      ["Computes sum along the specified axes, ignoring NaNs."]           ["let y = x.nansum_(&[1], true, &mut out)?;"];
-        [nanprod_]     [nanprod]    [promote_normal_unary]      ["Computes product along the specified axes, ignoring NaNs."]       ["let y = x.nanprod_(&[1], true, &mut out)?;"];
-        [min_]         [min]        [promote_normal_unary]      ["Computes minimum along the specified axes."]                      ["let y = x.min_(&[1], true, &mut out)?;"];
-        [max_]         [max]        [promote_normal_unary]      ["Computes maximum along the specified axes."]                      ["let y = x.max_(&[1], true, &mut out)?;"];
-        [sumsquare_]   [sumsquare]  [promote_normal_unary]      ["Computes sum of squares along the specified axes."]               ["let y = x.sumsquare_(&[1], true, &mut out)?;"];
-        [reducel1_]    [reducel1]   [promote_normal_unary]      ["Computes L1 norm along the specified axes."]                      ["let y = x.reducel1_(&[1], true, &mut out)?;"];
-
-        [all_]         [all]        [promote_eval]              ["Computes all along the specified axes."]                          ["let y = x.all_(&[1], true, &mut out)?;"];
-        [any_]         [any]        [promote_eval]              ["Computes any along the specified axes."]                          ["let y = x.any_(&[1], true, &mut out)?;"];
-
-        [logsumexp_]   [logsumexp]  [promote_float_unary]       ["Computes logsumexp along the specified axes."]                    ["let y = x.logsumexp_(&[1], true, &mut out)?;"];
-        [reducel2_]    [reducel2]   [promote_float_unary]       ["Computes L2 norm along the specified axes."]                      ["let y = x.reducel2_(&[1], true, &mut out)?;"];
-        [reducel3_]    [reducel3]   [promote_float_unary]       ["Computes L3 norm along the specified axes."]                      ["let y = x.reducel3_(&[1], true, &mut out)?;"];
-    )]
-    #[doc = description]
-    /// # Parameters:
-    /// `x`: Input tensor
-    /// 
-    /// `dims`: Dimensions to reduce over
-    /// 
-    /// `keepdim`: Whether to keep the reduced dimensions with length 1
-    /// 
-    /// `out`: tensor to store the result
-    /// 
-    /// # Example:
-    /// ```rust
-    /// let x = Tensor::randn(/*mean*/0.0, /*std*/1.0, /*shape*/&[2, 3, 4], DType::F32, Device::Cpu)?;
-    /// let mut out = Tensor::empty(/*shape*/&[2, 4], DType::F32, Device::Cpu)?;
-    #[doc = test_code]
-    /// ```
-    /// 
-    /// # Returns:
-    /// A new tensor with the reduced dimensions.
-    pub fn func_name(&self, axes: &[i64], keepdims: bool, out: &mut Tensor) -> Result<Tensor, TensorError> {
-        let axes = process_axes(axes, self.ndim())?;
-        let res_dtype = promote_func(self.dtype);
-        if self.is_contiguous() && self.parent.is_none() {
-            match self.dtype {
-                DType::F32 => {
-                    paste::paste!(
-                        [<contiguous_ method _f32>](self, &axes, 0.0, keepdims, true, res_dtype, Some(out.clone()))
-                    )
-                }
-                DType::F16 => {
-                    paste::paste!(
-                        [<contiguous_ method _f16>](self, &axes, 0.0, keepdims, true, res_dtype, Some(out.clone()))
-                    )
-                }
-                DType::BF16 => {
-                    paste::paste!(
-                        [<contiguous_ method _bf16>](self, &axes, 0.0, keepdims, true, res_dtype, Some(out.clone()))
-                    )
-                }
-                DType::I8 => {
-                    paste::paste!(
-                        [<contiguous_ method _i8>](self, &axes, 0.0, keepdims, true, res_dtype, Some(out.clone()))
-                    )
-                }
-                DType::U8 => {
-                    paste::paste!(
-                        [<contiguous_ method _u8>](self, &axes, 0.0, keepdims, true, res_dtype, Some(out.clone()))
-                    )
-                }
-                _ => {
-                    unimplemented!()
-                }
+    pub fn prod(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => prod::<f32>(self, axes, keepdims, None),
+            DType::F16 => prod::<f16>(self, axes, keepdims, None),
+            DType::BF16 => prod::<bf16>(self, axes, keepdims, None),
+            DType::I8 => prod::<i8>(self, axes, keepdims, None),
+            DType::U8 => prod::<u8>(self, axes, keepdims, None),
+            _ => {
+                unimplemented!()
             }
-        } else {
-            match self.dtype {
-                DType::F32 => {
-                    paste::paste!(
-                        [<uncontiguous_ method _f32>](self, &axes, 0.0, keepdims, true, res_dtype, Some(out.clone()))
-                    )
-                }
-                DType::F16 => {
-                    paste::paste!(
-                        [<uncontiguous_ method _f16>](self, &axes, 0.0, keepdims, true, res_dtype, Some(out.clone()))
-                    )
-                }
-                DType::BF16 => {
-                    paste::paste!(
-                        [<uncontiguous_ method _bf16>](self, &axes, 0.0, keepdims, true, res_dtype, Some(out.clone()))
-                    )
-                }
-                DType::I8 => {
-                    paste::paste!(
-                        [<uncontiguous_ method _i8>](self, &axes, 0.0, keepdims, true, res_dtype, Some(out.clone()))
-                    )
-                }
-                DType::U8 => {
-                    paste::paste!(
-                        [<uncontiguous_ method _u8>](self, &axes, 0.0, keepdims, true, res_dtype, Some(out.clone()))
-                    )
-                }
-                _ => {
-                    unimplemented!()
-                }
+        }
+    }
+
+    pub fn nansum(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => nansum::<f32>(self, axes, keepdims, None),
+            DType::F16 => nansum::<f16>(self, axes, keepdims, None),
+            DType::BF16 => nansum::<bf16>(self, axes, keepdims, None),
+            DType::I8 => nansum::<i8>(self, axes, keepdims, None),
+            DType::U8 => nansum::<u8>(self, axes, keepdims, None),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn nanprod(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => nanprod::<f32>(self, axes, keepdims, None),
+            DType::F16 => nanprod::<f16>(self, axes, keepdims, None),
+            DType::BF16 => nanprod::<bf16>(self, axes, keepdims, None),
+            DType::I8 => nanprod::<i8>(self, axes, keepdims, None),
+            DType::U8 => nanprod::<u8>(self, axes, keepdims, None),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn min(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => min::<f32>(self, axes, keepdims, None),
+            DType::F16 => min::<f16>(self, axes, keepdims, None),
+            DType::BF16 => min::<bf16>(self, axes, keepdims, None),
+            DType::I8 => min::<i8>(self, axes, keepdims, None),
+            DType::U8 => min::<u8>(self, axes, keepdims, None),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn max(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => max::<f32>(self, axes, keepdims, None),
+            DType::F16 => max::<f16>(self, axes, keepdims, None),
+            DType::BF16 => max::<bf16>(self, axes, keepdims, None),
+            DType::I8 => max::<i8>(self, axes, keepdims, None),
+            DType::U8 => max::<u8>(self, axes, keepdims, None),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn sum_square(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => sum_square::<f32>(self, axes, keepdims, None),
+            DType::F16 => sum_square::<f16>(self, axes, keepdims, None),
+            DType::BF16 => sum_square::<bf16>(self, axes, keepdims, None),
+            DType::I8 => sum_square::<i8>(self, axes, keepdims, None),
+            DType::U8 => sum_square::<u8>(self, axes, keepdims, None),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn reducel1(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => reducel1::<f32>(self, axes, keepdims, None),
+            DType::F16 => reducel1::<f16>(self, axes, keepdims, None),
+            DType::BF16 => reducel1::<bf16>(self, axes, keepdims, None),
+            DType::I8 => reducel1::<i8>(self, axes, keepdims, None),
+            DType::U8 => reducel1::<u8>(self, axes, keepdims, None),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+    pub fn all(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => all::<f32>(self, axes, keepdims, None),
+            DType::F16 => all::<f16>(self, axes, keepdims, None),
+            DType::BF16 => all::<bf16>(self, axes, keepdims, None),
+            DType::I8 => all::<i8>(self, axes, keepdims, None),
+            DType::U8 => all::<u8>(self, axes, keepdims, None),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn any(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => any::<f32>(self, axes, keepdims, None),
+            DType::F16 => any::<f16>(self, axes, keepdims, None),
+            DType::BF16 => any::<bf16>(self, axes, keepdims, None),
+            DType::I8 => any::<i8>(self, axes, keepdims, None),
+            DType::U8 => any::<u8>(self, axes, keepdims, None),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+    pub fn logsumexp(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => logsumexp::<f32, f32>(self, axes, keepdims, None),
+            DType::F16 => logsumexp::<f16, f16>(self, axes, keepdims, None),
+            DType::BF16 => logsumexp::<bf16, bf16>(self, axes, keepdims, None),
+            DType::I8 => logsumexp::<i8, <i8 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            DType::U8 => logsumexp::<u8, <u8 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+    pub fn reducel2(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => reducel2::<f32, f32>(self, axes, keepdims, None),
+            DType::F16 => reducel2::<f16, f16>(self, axes, keepdims, None),
+            DType::BF16 => reducel2::<bf16, bf16>(self, axes, keepdims, None),
+            DType::I8 => reducel2::<i8, <i8 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            DType::U8 => reducel2::<u8, <u8 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+    pub fn reducel3(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => reducel3::<f32, f32>(self, axes, keepdims, None),
+            DType::F16 => reducel3::<f16, f16>(self, axes, keepdims, None),
+            DType::BF16 => reducel3::<bf16, bf16>(self, axes, keepdims, None),
+            DType::I8 => reducel3::<i8, <i8 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            DType::U8 => reducel3::<u8, <u8 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+    pub fn mean(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => mean::<f32, f32>(self, axes, keepdims, None),
+            DType::F16 => mean::<f16, f16>(self, axes, keepdims, None),
+            DType::BF16 => mean::<bf16, bf16>(self, axes, keepdims, None),
+            DType::I8 => mean::<i8, <i8 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            DType::U8 => mean::<u8, <u8 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+    pub fn sum_(
+        &self,
+        axes: &[i64],
+        keepdims: bool,
+        out: &mut Tensor,
+    ) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => sum::<f32>(self, axes, keepdims, Some(out.clone())),
+            DType::F16 => sum::<f16>(self, axes, keepdims, Some(out.clone())),
+            DType::BF16 => sum::<bf16>(self, axes, keepdims, Some(out.clone())),
+            DType::I8 => sum::<i8>(self, axes, keepdims, Some(out.clone())),
+            DType::U8 => sum::<u8>(self, axes, keepdims, Some(out.clone())),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn prod_(
+        &self,
+        axes: &[i64],
+        keepdims: bool,
+        out: &mut Tensor,
+    ) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => prod::<f32>(self, axes, keepdims, Some(out.clone())),
+            DType::F16 => prod::<f16>(self, axes, keepdims, Some(out.clone())),
+            DType::BF16 => prod::<bf16>(self, axes, keepdims, Some(out.clone())),
+            DType::I8 => prod::<i8>(self, axes, keepdims, Some(out.clone())),
+            DType::U8 => prod::<u8>(self, axes, keepdims, Some(out.clone())),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn nansum_(
+        &self,
+        axes: &[i64],
+        keepdims: bool,
+        out: &mut Tensor,
+    ) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => nansum::<f32>(self, axes, keepdims, Some(out.clone())),
+            DType::F16 => nansum::<f16>(self, axes, keepdims, Some(out.clone())),
+            DType::BF16 => nansum::<bf16>(self, axes, keepdims, Some(out.clone())),
+            DType::I8 => nansum::<i8>(self, axes, keepdims, Some(out.clone())),
+            DType::U8 => nansum::<u8>(self, axes, keepdims, Some(out.clone())),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn nanprod_(
+        &self,
+        axes: &[i64],
+        keepdims: bool,
+        out: &mut Tensor,
+    ) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => nanprod::<f32>(self, axes, keepdims, Some(out.clone())),
+            DType::F16 => nanprod::<f16>(self, axes, keepdims, Some(out.clone())),
+            DType::BF16 => nanprod::<bf16>(self, axes, keepdims, Some(out.clone())),
+            DType::I8 => nanprod::<i8>(self, axes, keepdims, Some(out.clone())),
+            DType::U8 => nanprod::<u8>(self, axes, keepdims, Some(out.clone())),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn min_(
+        &self,
+        axes: &[i64],
+        keepdims: bool,
+        out: &mut Tensor,
+    ) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => min::<f32>(self, axes, keepdims, Some(out.clone())),
+            DType::F16 => min::<f16>(self, axes, keepdims, Some(out.clone())),
+            DType::BF16 => min::<bf16>(self, axes, keepdims, Some(out.clone())),
+            DType::I8 => min::<i8>(self, axes, keepdims, Some(out.clone())),
+            DType::U8 => min::<u8>(self, axes, keepdims, Some(out.clone())),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn max_(
+        &self,
+        axes: &[i64],
+        keepdims: bool,
+        out: &mut Tensor,
+    ) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => max::<f32>(self, axes, keepdims, Some(out.clone())),
+            DType::F16 => max::<f16>(self, axes, keepdims, Some(out.clone())),
+            DType::BF16 => max::<bf16>(self, axes, keepdims, Some(out.clone())),
+            DType::I8 => max::<i8>(self, axes, keepdims, Some(out.clone())),
+            DType::U8 => max::<u8>(self, axes, keepdims, Some(out.clone())),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn sum_square_(
+        &self,
+        axes: &[i64],
+        keepdims: bool,
+        out: &mut Tensor,
+    ) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => sum_square::<f32>(self, axes, keepdims, Some(out.clone())),
+            DType::F16 => sum_square::<f16>(self, axes, keepdims, Some(out.clone())),
+            DType::BF16 => sum_square::<bf16>(self, axes, keepdims, Some(out.clone())),
+            DType::I8 => sum_square::<i8>(self, axes, keepdims, Some(out.clone())),
+            DType::U8 => sum_square::<u8>(self, axes, keepdims, Some(out.clone())),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn reducel1_(
+        &self,
+        axes: &[i64],
+        keepdims: bool,
+        out: &mut Tensor,
+    ) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => reducel1::<f32>(self, axes, keepdims, Some(out.clone())),
+            DType::F16 => reducel1::<f16>(self, axes, keepdims, Some(out.clone())),
+            DType::BF16 => reducel1::<bf16>(self, axes, keepdims, Some(out.clone())),
+            DType::I8 => reducel1::<i8>(self, axes, keepdims, Some(out.clone())),
+            DType::U8 => reducel1::<u8>(self, axes, keepdims, Some(out.clone())),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+    pub fn all_(
+        &self,
+        axes: &[i64],
+        keepdims: bool,
+        out: &mut Tensor,
+    ) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => all::<f32>(self, axes, keepdims, Some(out.clone())),
+            DType::F16 => all::<f16>(self, axes, keepdims, Some(out.clone())),
+            DType::BF16 => all::<bf16>(self, axes, keepdims, Some(out.clone())),
+            DType::I8 => all::<i8>(self, axes, keepdims, Some(out.clone())),
+            DType::U8 => all::<u8>(self, axes, keepdims, Some(out.clone())),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn any_(
+        &self,
+        axes: &[i64],
+        keepdims: bool,
+        out: &mut Tensor,
+    ) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => any::<f32>(self, axes, keepdims, Some(out.clone())),
+            DType::F16 => any::<f16>(self, axes, keepdims, Some(out.clone())),
+            DType::BF16 => any::<bf16>(self, axes, keepdims, Some(out.clone())),
+            DType::I8 => any::<i8>(self, axes, keepdims, Some(out.clone())),
+            DType::U8 => any::<u8>(self, axes, keepdims, Some(out.clone())),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+    pub fn logsumexp_(
+        &self,
+        axes: &[i64],
+        keepdims: bool,
+        out: &mut Tensor,
+    ) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => logsumexp::<f32, f32>(self, axes, keepdims, Some(out.clone())),
+            DType::F16 => logsumexp::<f16, f16>(self, axes, keepdims, Some(out.clone())),
+            DType::BF16 => logsumexp::<bf16, bf16>(self, axes, keepdims, Some(out.clone())),
+            DType::I8 => logsumexp::<i8, <i8 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            DType::U8 => logsumexp::<u8, <u8 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+    pub fn reducel2_(
+        &self,
+        axes: &[i64],
+        keepdims: bool,
+        out: &mut Tensor,
+    ) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => reducel2::<f32, f32>(self, axes, keepdims, Some(out.clone())),
+            DType::F16 => reducel2::<f16, f16>(self, axes, keepdims, Some(out.clone())),
+            DType::BF16 => reducel2::<bf16, bf16>(self, axes, keepdims, Some(out.clone())),
+            DType::I8 => reducel2::<i8, <i8 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            DType::U8 => reducel2::<u8, <u8 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+    pub fn reducel3_(
+        &self,
+        axes: &[i64],
+        keepdims: bool,
+        out: &mut Tensor,
+    ) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => reducel3::<f32, f32>(self, axes, keepdims, Some(out.clone())),
+            DType::F16 => reducel3::<f16, f16>(self, axes, keepdims, Some(out.clone())),
+            DType::BF16 => reducel3::<bf16, bf16>(self, axes, keepdims, Some(out.clone())),
+            DType::I8 => reducel3::<i8, <i8 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            DType::U8 => reducel3::<u8, <u8 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+    pub fn mean_(
+        &self,
+        axes: &[i64],
+        keepdims: bool,
+        out: &mut Tensor,
+    ) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            DType::F32 => mean::<f32, f32>(self, axes, keepdims, Some(out.clone())),
+            DType::F16 => mean::<f16, f16>(self, axes, keepdims, Some(out.clone())),
+            DType::BF16 => mean::<bf16, bf16>(self, axes, keepdims, Some(out.clone())),
+            DType::I8 => {
+                mean::<i8, <i8 as FloatOutUnary>::Output>(self, axes, keepdims, Some(out.clone()))
+            }
+            DType::U8 => {
+                mean::<u8, <u8 as FloatOutUnary>::Output>(self, axes, keepdims, Some(out.clone()))
+            }
+            _ => {
+                unimplemented!()
             }
         }
     }

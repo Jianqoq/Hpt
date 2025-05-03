@@ -7,7 +7,6 @@ use hpt_types::utils::array_vec_reduce;
 use hpt_types::vectors::traits::*;
 use paste::paste;
 
-#[inline]
 fn update_prg<T>(prg: &mut [i64], mut inp_ptr: &mut Pointer<T>, strides: &[i64], shape: &[i64]) {
     for j in (0..strides.len() - 1).rev() {
         if prg[j] < shape[j] - 1
@@ -24,7 +23,7 @@ fn update_prg<T>(prg: &mut [i64], mut inp_ptr: &mut Pointer<T>, strides: &[i64],
 }
 
 /// used for updating prg and inp_ptr for case2, first next
-#[inline]
+
 fn update_prg2<T>(
     prg: &mut [i64],
     shape_len: i64,
@@ -46,7 +45,7 @@ fn update_prg2<T>(
 }
 
 /// used for updating prg and inp_ptr for case2, second next
-#[inline]
+
 fn update_prg3<T>(
     prg: &mut [i64],
     shape_len: i64,
@@ -67,7 +66,6 @@ fn update_prg3<T>(
     }
 }
 
-#[inline]
 fn update_prg4<T>(prg: &mut [i64], mut inp_ptr: &mut Pointer<T>, strides: &[i64], shape: &[i64]) {
     for j in (0..strides.len()).rev() {
         if prg[j] < shape[j] - 1
@@ -149,7 +147,7 @@ macro_rules! gen_kernel {
 }
 
 /// case when reduce along all axes except the fastest dimension, this case, inner loop stride is always 1
-#[inline]
+
 pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4, F5, F6>(
     inner_loop_size: isize,
     outer_loop_size: isize,
@@ -260,7 +258,6 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4, F5, F6>(
     }
 }
 
-#[inline]
 pub(crate) fn fast_reduce_no_simd<T, O, F, F2, F3>(
     inner_loop_size: isize,
     outer_loop_size: isize,
@@ -401,7 +398,7 @@ macro_rules! gen_kernel3 {
 }
 
 // case when reduce doesn't contain fastest dim, inner loop stride is always 1
-#[inline]
+
 pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4, F5, F6>(
     inner_loop_size: isize,
     outer_loop_size: isize,
@@ -558,7 +555,6 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4, F5, F6>(
     }
 }
 
-#[inline]
 pub(crate) fn reduce_dim_not_include<T, O, F, F2, F3>(
     inner_loop_size: isize,
     outer_loop_size: isize,
@@ -604,7 +600,6 @@ pub(crate) fn reduce_dim_not_include<T, O, F, F2, F3>(
     }
 }
 
-#[inline]
 pub(crate) fn contiguous_reduce_dim_include_simd<T, F, F2, F3, F4, F5>(
     init: T,
     inner_loop_size: isize,
@@ -657,7 +652,6 @@ pub(crate) fn contiguous_reduce_dim_include_simd<T, F, F2, F3, F4, F5>(
     }
 }
 
-#[inline]
 pub(crate) fn contiguous_reduce_dim_include<T, O, F, F2, F3>(
     inner_loop_size: isize,
     outer_loop_size: isize,
@@ -696,7 +690,6 @@ pub(crate) fn contiguous_reduce_dim_include<T, O, F, F2, F3>(
     }
 }
 
-#[inline]
 pub(crate) fn uncontiguous_reduce_dim_include<T, O, F, F2, F3>(
     inner_loop_size: isize,
     outer_loop_size: isize,
@@ -739,7 +732,6 @@ pub(crate) fn uncontiguous_reduce_dim_include<T, O, F, F2, F3>(
     }
 }
 
-#[inline]
 pub(crate) fn uncontiguous_reduce_dim_not_include<T, O, F, F2, F3>(
     inner_loop_size: isize,
     outer_loop_size: isize,

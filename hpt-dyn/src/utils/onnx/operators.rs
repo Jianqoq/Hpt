@@ -82,13 +82,20 @@ pub(crate) struct Flatten {
 }
 
 pub(crate) struct Gemm {
-    pub(crate) input: String,
+    pub(crate) a: String,
+    pub(crate) b: String,
     pub(crate) output: String,
     pub(crate) alpha: f64,
     pub(crate) beta: f64,
     pub(crate) trans_a: bool,
     pub(crate) trans_b: bool,
-    pub(crate) bias: String,
+    pub(crate) bias: Option<String>,
+}
+
+pub(crate) struct Matmul {
+    pub(crate) a: String,
+    pub(crate) b: String,
+    pub(crate) output: String,
 }
 
 pub(crate) struct Reduce {
@@ -141,7 +148,10 @@ pub(crate) struct Reshape {
 pub(crate) struct Slice {
     pub(crate) input: String,
     pub(crate) output: String,
-    pub(crate) selections: Vec<(i64, i64, i64)>,
+    pub(crate) starts: String,
+    pub(crate) ends: String,
+    pub(crate) steps: Option<String>,
+    pub(crate) axes: Option<String>,
 }
 
 pub(crate) struct Split {
@@ -196,7 +206,50 @@ pub(crate) struct LayerNormalization {
     pub(crate) epsilon: f64,
 }
 
+pub(crate) struct Gather {
+    pub(crate) input: String,
+    pub(crate) indices: String,
+    pub(crate) output: String,
+    pub(crate) axis: i64,
+}
+
+pub(crate) struct Constant {
+    pub(crate) output: String,
+    pub(crate) data: Vec<u8>,
+    pub(crate) dtype: DType,
+}
+
+pub(crate) struct ConstOfShape {
+    pub(crate) input: String,
+    pub(crate) output: String,
+    pub(crate) value: f64,
+    pub(crate) dtype: DType,
+}
+
+pub(crate) struct Lstm {
+    pub(crate) x: String,
+    pub(crate) w: String,
+    pub(crate) r: String,
+    pub(crate) b: Option<String>,
+    pub(crate) sequence_lens: Option<String>,
+    pub(crate) initial_h: Option<String>,
+    pub(crate) initial_c: Option<String>,
+    pub(crate) p: Option<String>,
+    pub(crate) activation_alpha: Option<Vec<f32>>,
+    pub(crate) activation_beta: Option<Vec<f32>>,
+    pub(crate) activations: Option<Vec<String>>,
+    pub(crate) clip: Option<f32>,
+    pub(crate) direction: String,
+    pub(crate) hidden_size: i64,
+    pub(crate) input_forget: bool,
+    pub(crate) layout: i64,
+    pub(crate) y: Option<String>,
+    pub(crate) y_h: Option<String>,
+    pub(crate) y_c: Option<String>,
+}
+
 pub(crate) enum Operator {
+    Constant,
     Abs(Unary),
     Acos(Unary),
     Acosh(Unary),
@@ -222,6 +275,7 @@ pub(crate) enum Operator {
     Conv2dInteger(Conv2d),
     Cos(Unary),
     Cosh(Unary),
+    ConstOfShape(ConstOfShape),
     Div(Binary),
     Dropout(Dropout),
     Equal(Binary),
@@ -231,6 +285,7 @@ pub(crate) enum Operator {
     EyeLike(EyeLike),
     Flatten(Flatten),
     Floor(Unary),
+    Gather(Gather),
     Gemm(Gemm),
     GlobalAveragePool(Pooling),
     GlobalMaxPool(Pooling),
@@ -242,8 +297,9 @@ pub(crate) enum Operator {
     Less(Binary),
     Log(Unary),
     Loop,
-    MatMul(Gemm),
-    MatMulInteger(Gemm),
+    Lstm(Lstm),
+    MatMul(Matmul),
+    MatMulInteger(Matmul),
     Max(Binary),
     MaxPool(Pooling),
     Mean(Reduce),
@@ -278,6 +334,7 @@ pub(crate) enum Operator {
     Squeeze(Squeeze),
     Sub(Binary),
     Sum(Reduce),
+    Shape(Unary),
     Tan(Unary),
     Tanh(Unary),
     Transpose(Permute),

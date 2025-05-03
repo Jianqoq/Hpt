@@ -1,8 +1,7 @@
 use thiserror::Error;
 
 use super::{
-    autograd::AutogradError, common::CommonError, device::DeviceError, kernel::KernelError,
-    memory::MemoryError, param::ParamError, random::RandomError, shape::ShapeError,
+    autograd::AutogradError, common::CommonError, device::DeviceError, kernel::KernelError, memory::MemoryError, onnx::OnnxError, param::ParamError, random::RandomError, shape::ShapeError
 };
 
 /// Base error type for all tensor operations
@@ -39,4 +38,8 @@ pub enum TensorError {
     /// Common errors such as lock failed
     #[error(transparent)]
     Common(#[from] CommonError),
+
+    /// Onnx errors
+    #[error(transparent)]
+    Onnx(#[from] OnnxError),
 }

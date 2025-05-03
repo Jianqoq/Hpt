@@ -41,7 +41,6 @@ pub fn matmul_post_template_no_block_info<T, F1, F2>(
     post_op: F1,
     post_op_vec: F2,
     num_threads: usize,
-    with_locked: bool,
 ) where
     T: CommonBounds + MatmulMicroKernel,
     F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
@@ -83,7 +82,6 @@ pub fn matmul_post_template_no_block_info<T, F1, F2>(
         mr,
         do_lhs_pack,
         num_threads,
-        with_locked,
         post_op,
         post_op_vec,
     );

@@ -12,4 +12,5 @@ pub(crate) mod onnx {
     pub(crate) mod map_dtype;
     pub(crate) mod init;
     pub(crate) mod operators;
+    pub(crate) mod fwd;
 }

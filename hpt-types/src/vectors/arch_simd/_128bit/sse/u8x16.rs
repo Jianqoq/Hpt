@@ -66,6 +66,19 @@ impl VecTrait<u8> for u8x16 {
     }
 }
 
+impl SimdSelect<u8x16> for i8x16 {
+    #[inline(always)]
+    fn select(&self, true_val: u8x16, false_val: u8x16) -> u8x16 {
+        unsafe {
+            u8x16(_mm_blendv_epi8(
+                false_val.0,
+                true_val.0,
+                std::mem::transmute(self.0),
+            ))
+        }
+    }
+}
+
 impl std::ops::Add for u8x16 {
     type Output = Self;
     #[inline(always)]

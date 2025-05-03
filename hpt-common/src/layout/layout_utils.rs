@@ -160,6 +160,11 @@ impl Layout {
     #[track_caller]
     pub fn permute<A: Into<Axis>>(&self, axes: A) -> Result<Layout, TensorError> {
         let axes = process_axes(axes, self.shape.len())?;
+        let axes = if axes.len() == 0 {
+            (0..self.shape.len()).rev().collect::<Vec<_>>()
+        } else {
+            axes
+        };
         ShapeError::check_dim(axes.len(), self.shape.len())?;
         let mut new_shape = self.shape().to_vec();
         let mut new_strides = self.strides().to_vec();
