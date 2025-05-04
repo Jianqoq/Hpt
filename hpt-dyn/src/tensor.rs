@@ -74,7 +74,7 @@ impl Tensor {
         let len = layout.size() as usize;
         match device {
             Device::Cpu => {
-                let ptr = Pointer::new(data, len as i64);
+                let ptr = Pointer::new(data, len as i64 * dtype.sizeof() as i64);
                 if (data as usize) % ALIGN != 0 {
                     assert_eq!(take_ownership, false);
                 } else {

@@ -115,6 +115,7 @@ impl OnnxModel {
         &self,
         inputs: HashMap<String, Tensor>,
     ) -> Result<HashMap<String, Tensor>, TensorError> {
+        let mut res = HashMap::new();
         match self {
             OnnxModel::Model(_) => panic!("model not initialized"),
             OnnxModel::Initialized(Initialized {
@@ -260,7 +261,7 @@ impl OnnxModel {
                 // }
                 for operator in operators.iter() {
                     match operator {
-                        super::operators::Operator::Constant => {},
+                        super::operators::Operator::Constant => {}
                         super::operators::Operator::Abs(unary) => todo!(),
                         super::operators::Operator::Acos(unary) => todo!(),
                         super::operators::Operator::Acosh(unary) => todo!(),
@@ -402,9 +403,16 @@ impl OnnxModel {
                         super::operators::Operator::Softsign(unary) => todo!(),
                     }
                 }
+                if let Some(graph) = model.graph.as_ref() {
+                    for output in graph.output.iter() {
+                        if let Some(tensor) = tensors.get(output.name()) {
+                            res.insert(output.name().to_string(), tensor.clone());
+                        }
+                    }
+                }
             }
         }
-        Ok(HashMap::new())
+        Ok(res)
     }
 
     pub fn initialize(self) -> Result<Self, TensorError> {

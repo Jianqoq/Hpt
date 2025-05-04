@@ -24,11 +24,8 @@ pub(crate) fn gather_fwd<'a>(
     tensors: &mut HashMap<&'a str, Tensor>,
 ) -> Result<(), TensorError> {
     let inp = &tensors[gather.input.as_str()];
-    println!("gather inp: {}", inp);
     let indices = &tensors[gather.indices.as_str()];
-    println!("gather indices: {}", indices);
     let out = inp.gather(indices, gather.axis)?;
-    println!("gather out: {}", out);
     tensors.insert(gather.output.as_str(), out);
     Ok(())
 }
@@ -39,7 +36,6 @@ pub(crate) fn unsqueeze_fwd<'a>(
 ) -> Result<(), TensorError> {
     let inp = &tensors[unsqueeze.input.as_str()];
     let out = inp.unsqueeze(&unsqueeze.axes)?;
-    println!("unsqueeze out: {}", out);
     tensors.insert(unsqueeze.output.as_str(), out);
     Ok(())
 }
@@ -63,11 +59,7 @@ pub(crate) fn concat_fwd<'a>(
         .iter()
         .map(|s| &tensors[s.as_str()])
         .collect::<Vec<_>>();
-    for tensor in inp.iter() {
-        println!("concat inp: {}", tensor);
-    }
     let out = Tensor::concat(inp, concat.axis, false)?;
-    println!("concat out: {}", out);
     tensors.insert(concat.output.as_str(), out);
     Ok(())
 }
@@ -115,7 +107,6 @@ pub(crate) fn slice_fwd<'a>(
         assert_eq!(axes.len(), starts.len());
         assert_eq!(axes.len(), ends.len());
         if let Some(steps_name) = &slice.steps {
-            println!("steps_name: {}", steps_name);
             let steps = &tensors[steps_name.as_str()];
             assert_eq!(steps.dtype, DType::I64);
             let steps = unsafe {
@@ -136,7 +127,6 @@ pub(crate) fn slice_fwd<'a>(
     } else {
         assert_eq!(starts.len(), ends.len());
         if let Some(steps_name) = &slice.steps {
-            println!("steps_name: {}", steps_name);
             let steps = &tensors[steps_name.as_str()];
             assert_eq!(steps.dtype, DType::I64);
             let steps = unsafe {
@@ -158,14 +148,6 @@ pub(crate) fn slice_fwd<'a>(
         }
     }
     let out = inp.slice(&selections)?;
-    // println!(
-    //     "input: {}: {}, slice out: {}: {}, selections: {:?}",
-    //     slice.input.as_str(),
-    //     inp,
-    //     slice.output.as_str(),
-    //     out,
-    //     selections
-    // );
     tensors.insert(slice.output.as_str(), out);
     Ok(())
 }

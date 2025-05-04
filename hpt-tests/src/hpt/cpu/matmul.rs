@@ -1,4 +1,8 @@
 #![allow(unused)]
+use crate::TestTypes;
+use crate::EPSILON;
+use crate::TEST_ATOL;
+use crate::TEST_RTOL;
 use hpt::common::cpu::TensorLike;
 use hpt::common::TensorInfo;
 use hpt::ops::*;
@@ -6,6 +10,7 @@ use hpt::slice;
 use hpt::types::TypeCommon;
 use hpt::utils::resize_cpu_lru_cache;
 use hpt::Tensor;
+use hpt_dyn::Tensor as DynTensor;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
 use hpt_types::type_promote::NormalOutUnary;
@@ -14,11 +19,6 @@ use rand::Rng;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use tch;
 use tch::Tensor as TchTensor;
-
-use crate::TestTypes;
-use crate::EPSILON;
-use crate::TEST_ATOL;
-use crate::TEST_RTOL;
 
 #[test]
 fn test() -> anyhow::Result<()> {
@@ -31,7 +31,24 @@ fn test() -> anyhow::Result<()> {
         let b = Tensor::<TestTypes>::randn(&[k, n])?;
         let c = a.matmul(&b)?;
         let c2 = a.gemm(&b, TestTypes::ZERO, TestTypes::ONE, false, false, false)?;
+        let a3 = unsafe { DynTensor::from_raw(
+            a.ptr().ptr as *mut u8,
+            a.layout().clone(),
+            hpt_dyn::DType::F32,
+            hpt_dyn::Device::Cpu,
+            false,
+        ) }?;
+        let b3 = unsafe { DynTensor::from_raw(
+            b.ptr().ptr as *mut u8,
+            b.layout().clone(),
+            hpt_dyn::DType::F32,
+            hpt_dyn::Device::Cpu,
+            false,
+        ) }?;
+        let c3 = a3.matmul(&b3)?;
         assert!(c.allclose(&c2, TEST_ATOL, TEST_RTOL));
+        let c3_hpt: Tensor<f32> = unsafe { Tensor::from_raw(c3.ptr().ptr as *mut TestTypes, c3.shape()) }?;
+        assert!(c.allclose(&c3_hpt, TEST_ATOL, TEST_RTOL));
     }
     Ok(())
 }

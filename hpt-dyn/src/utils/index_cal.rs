@@ -322,10 +322,10 @@ pub(crate) fn map_gp_2d(
     let mut rem = global_idx % shape[1];
     ret += rem * strides[1];
     global_idx /= shape[1];
-    vec[0] = rem;
+    vec[1] = rem;
     rem = global_idx % shape[0];
     ret += rem * strides[0];
-    vec[1] = rem;
+    vec[0] = rem;
     (ret, vec.to_vec())
 }
 
@@ -339,13 +339,14 @@ pub(crate) fn map_gp_3d(
     let mut rem = global_idx % shape[2];
     ret += rem * strides[2];
     global_idx /= shape[2];
-    vec[0] = rem;
+    vec[2] = rem;
     rem = global_idx % shape[1];
     ret += rem * strides[1];
+    global_idx /= shape[1];
     vec[1] = rem;
     rem = global_idx % shape[0];
     ret += rem * strides[0];
-    vec[2] = rem;
+    vec[0] = rem;
     (ret, vec.to_vec())
 }
 
@@ -359,16 +360,18 @@ pub(crate) fn map_gp_4d(
     let mut rem = global_idx % shape[3];
     ret += rem * strides[3];
     global_idx /= shape[3];
-    vec[0] = rem;
+    vec[3] = rem;
     rem = global_idx % shape[2];
     ret += rem * strides[2];
-    vec[1] = rem;
+    global_idx /= shape[2];
+    vec[2] = rem;
     rem = global_idx % shape[1];
     ret += rem * strides[1];
-    vec[2] = rem;
+    global_idx /= shape[1];
+    vec[1] = rem;
     rem = global_idx % shape[0];
     ret += rem * strides[0];
-    vec[3] = rem;
+    vec[0] = rem;
     (ret, vec.to_vec())
 }
 

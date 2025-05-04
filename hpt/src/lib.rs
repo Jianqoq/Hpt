@@ -519,18 +519,18 @@ pub use tensor::Tensor;
 #[ctor]
 fn init() {
     THREAD_POOL.with(|x| {
-        x.borrow_mut().set_num_threads(num_cpus::get());
+        x.borrow_mut().set_num_threads(num_cpus::get_physical());
     });
     RAYON_POOL.with(|x| {
         let mut x = x.borrow_mut();
         *x = rayon::ThreadPoolBuilder::new()
-            .num_threads(num_cpus::get())
+            .num_threads(num_cpus::get_physical())
             .stack_size(4 * 1024 * 1024)
             .build()
             .unwrap();
     });
     CUSTOM_THREAD_POOL.with(|x| {
-        x.borrow_mut().resize(num_cpus::get()).unwrap();
+        x.borrow_mut().resize(num_cpus::get_physical()).unwrap();
     });
 }
 
