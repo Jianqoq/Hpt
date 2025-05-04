@@ -5,7 +5,9 @@ use crate::{
     error::{base::TensorError, shape::ShapeError},
     shape::{
         shape::Shape,
-        shape_utils::{is_reshape_possible, predict_broadcast_shape, try_pad_shape},
+        shape_utils::{
+            get_broadcast_axes_from, is_reshape_possible, predict_broadcast_shape, try_pad_shape,
+        },
     },
     strides::{strides::Strides, strides_utils::shape_to_strides},
 };
@@ -235,6 +237,31 @@ impl Layout {
         }
     }
 
+    ///
+    #[track_caller]
+    pub fn broadcast_to(&self, other: &Shape) -> Result<Layout, TensorError> {
+        let self_shape = try_pad_shape(self.shape(), other.len());
+        let axes_to_broadcast =
+            get_broadcast_axes_from(&self_shape, &other).expect("Cannot broadcast shapes");
+
+        let mut new_strides = vec![0; other.len()];
+        new_strides
+            .iter_mut()
+            .rev()
+            .zip(self.strides().iter().rev())
+            .for_each(|(a, b)| {
+                *a = *b;
+            });
+        for &axis in axes_to_broadcast.iter() {
+            assert_eq!(self_shape[axis], 1);
+            new_strides[axis] = 0;
+        }
+        Ok(Layout {
+            shape: other.clone(),
+            strides: new_strides.into(),
+        })
+    }
+
     /// # Internal Function
     ///
     /// broadcast the layout to another layout
@@ -251,8 +278,8 @@ impl Layout {
     ///
     /// if the broadcast is not possible
     #[track_caller]
-    pub fn broadcast(&self, other: &Shape) -> Result<Layout, TensorError> {
-        let shape = predict_broadcast_shape(&self.shape, other)?;
+    pub fn broadcast(&self, res_shape: &Shape) -> Result<Layout, TensorError> {
+        let shape = predict_broadcast_shape(&self.shape, res_shape)?;
         let strides = shape_to_strides(&shape);
         Ok(Layout { shape, strides })
     }

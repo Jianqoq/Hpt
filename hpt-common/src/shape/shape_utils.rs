@@ -772,15 +772,29 @@ pub fn is_reshape_possible(
 /// each thread gets a fair share of the workload, even when the total number of iterations is not perfectly divisible
 /// by the number of threads.
 
-pub fn mt_intervals(outer_loop_size: usize, num_threads: usize) -> Vec<(usize, usize)> {
+pub fn mt_intervals(size: usize, num_threads: usize) -> Vec<(usize, usize)> {
     let mut intervals = Vec::with_capacity(num_threads);
     for i in 0..num_threads {
         let start_index =
-            i * (outer_loop_size / num_threads) + std::cmp::min(i, outer_loop_size % num_threads);
+            i * (size / num_threads) + std::cmp::min(i, size % num_threads);
         let end_index = start_index
-            + outer_loop_size / num_threads
-            + ((i < outer_loop_size % num_threads) as usize);
+            + size / num_threads
+            + ((i < size % num_threads) as usize);
         intervals.push((start_index, end_index));
+    }
+    intervals
+}
+
+///
+pub fn mt_size(size: usize, num_threads: usize) -> Vec<usize> {
+    let mut intervals = Vec::with_capacity(num_threads);
+    for i in 0..num_threads {
+        let start_index =
+            i * (size / num_threads) + std::cmp::min(i, size % num_threads);
+        let end_index = start_index
+            + size / num_threads
+            + ((i < size % num_threads) as usize);
+        intervals.push(end_index - start_index);
     }
     intervals
 }

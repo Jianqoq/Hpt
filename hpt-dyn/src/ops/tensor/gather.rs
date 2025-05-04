@@ -8,15 +8,16 @@ use crate::DType;
 impl Tensor {
     pub fn gather(&self, indices: &Tensor, axis: i64) -> Result<Tensor, TensorError> {
         let axis = if axis < 0 {
-            self.ndim() as i64 + axis
+            (self.ndim() as i64 + axis)
+                .try_into()
+                .expect("axis is still negative after adding ndim")
         } else {
-            axis
-        } as usize;
+            axis as usize
+        };
 
-        ShapeError::check_index_out_of_range(axis as i64, self.ndim() as i64)?;
+        ShapeError::check_index_out_of_range(axis, self.ndim())?;
         ShapeError::check_contiguous("Indices must be contiguous".to_string(), &indices.layout)?;
 
-        // 验证索引类型
         if !matches!(indices.dtype, DType::I32 | DType::I64) {
             panic!("Indices must be integer type, got {:?}", indices.dtype);
         }

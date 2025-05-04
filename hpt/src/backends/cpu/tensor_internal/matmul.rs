@@ -243,7 +243,7 @@ where
         for i in 0..num_threads {
             let (start, end) = intervals[i];
             res_ptrs.push(res_ptr.clone());
-            res_ptr.add((end - start) * res_inner_matrix_size);
+            res_ptr += (end - start) * res_inner_matrix_size;
             let mut prg = vec![0i64; iterate_shape.len()];
             let mut amount_cpy = amount as i64;
             for j in (0..=iterate_shape.len() - 1).rev() {
@@ -377,7 +377,7 @@ where
                                 }
                             }
                         }
-                        res_ptr.add(res_inner_matrix_size);
+                        res_ptr += res_inner_matrix_size;
                         for j in 0..iterate_shape.len() {
                             if prg[j] < iterate_shape[j] {
                                 prg[j] += 1;

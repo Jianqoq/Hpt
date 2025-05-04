@@ -113,7 +113,7 @@ impl ComputeThreadPool {
     where
         I: IntoIterator<Item = T>,
         T: Send + Sync + 'static,
-        F: Fn(T, usize) + Send + Sync + 'static,
+        F: Fn(T) + Send + Sync + 'static,
     {
         let f = Arc::new(f);
 
@@ -122,8 +122,8 @@ impl ComputeThreadPool {
             threads.push(thread);
             let f = Arc::clone(&f);
 
-            let task: Task = Box::new(move |thread_id| {
-                f(item, thread_id);
+            let task: Task = Box::new(move |_| {
+                f(item);
             });
 
             let mut task_guard = thread.task.lock().unwrap();

@@ -147,7 +147,7 @@ where
             if _axis < 0 {
                 _axis += a.ndim() as i64;
             }
-            ShapeError::check_index_out_of_range(_axis, a.ndim() as i64)?;
+            ShapeError::check_index_out_of_range(_axis as usize, a.ndim() as usize)?;
             let stride = a.strides()[_axis as usize];
             let inner_loop = a.shape()[_axis as usize] as usize;
             let outer_loop = a.size() / inner_loop;

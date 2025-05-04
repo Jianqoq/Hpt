@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::utils::onnx::operators::Operator;
 use crate::Tensor;
 use crate::onnx::ModelProto;
 
@@ -13,6 +14,7 @@ pub struct Initialized {
     pub(crate) model: ModelProto,
     pub(crate) initializer_map: HashMap<String, Tensor>,
     pub(crate) permutes: HashMap<String, Meta>,
+    pub(crate) operators: Vec<Operator>,
 }
 
 #[derive(Debug)]

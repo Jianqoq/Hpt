@@ -30,7 +30,7 @@ macro_rules! argmax_kernel {
             }
         }
         unsafe { $result_ptr.ptr.write(max_index.cast()) };
-        $result_ptr.add(1);
+        $result_ptr+= 1i64;
     };
 }
 
@@ -66,7 +66,7 @@ macro_rules! argmin_kernel {
             }
         }
         unsafe { $result_ptr.ptr.write(max_index.cast()) };
-        $result_ptr.add(1);
+        $result_ptr += 1i64;
     };
 }
 

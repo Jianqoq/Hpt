@@ -300,7 +300,7 @@ where
         let mut task_amout = 0;
         let mut iterators: Vec<ReductionPreprocessor<T, U>> = Vec::with_capacity(num_threads);
         let mut progress_init_a_data = vec![0; res_shape.len()];
-        let res_ptrs = res_ptrs.borrow_mut();
+        let mut res_ptrs = res_ptrs.borrow_mut();
         for id in 0..num_threads {
             let mut a_data_ptr_cpy = ptrs.clone();
             let mut a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
@@ -330,7 +330,7 @@ where
             // increment the res ptr based on the current thread task amount for next thread (next iteration)
             task_amout += intervals[id].1 - intervals[id].0;
             let res_ptr_cpy = res_ptrs.clone();
-            res_ptrs.add(intervals[id].1 - intervals[id].0);
+            res_ptrs += intervals[id].1 - intervals[id].0;
 
             let mut tmp2 = task_amout as i64;
             for j in (0..=res_shape.len() as i64 - 1).rev() {
@@ -366,7 +366,7 @@ where
         let mut task_amout = 0;
         let mut iterators = Vec::with_capacity(num_threads);
         let mut progress_init_a_data = vec![0; res_shape.len()];
-        let res_ptrs = res_ptrs.borrow_mut();
+        let mut res_ptrs = res_ptrs.borrow_mut();
         let ndim = res_shape.len() as i64;
 
         // [0, 6, 12, 18, 24, 30] res0    thread 0
@@ -390,7 +390,7 @@ where
             let prg = vec![0; transposed_shape.len()];
 
             let res_ptr_cpy = res_ptrs.clone();
-            res_ptrs.add((intervals[id].1 - intervals[id].0) * inner_loop_size);
+            res_ptrs += (intervals[id].1 - intervals[id].0) * inner_loop_size;
 
             let mut tmp = task_amout as i64;
             for j in (0..ndim - 1).rev() {

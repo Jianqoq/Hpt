@@ -4,14 +4,15 @@ use hpt_types::{dtype::DType, into_scalar::Cast};
 use super::{
     map_dtype::to_dtype,
     operators::{
-        Binary, Concat, Gather, Gemm, Lstm, Matmul, Operator, Permute, Pooling, Slice, Squeeze, Unary
+        Binary, Concat, Gather, Gemm, Lstm, Matmul, Operator, Permute, Pooling, Slice, Squeeze,
+        Unary,
     },
 };
 use crate::{
     Tensor,
     onnx::{NodeProto, attribute_proto},
     ops::models::onnx::Meta,
-    utils::onnx::operators::{ConstOfShape, Conv2d},
+    utils::onnx::operators::{ConstantOfShape, Conv2d},
 };
 use hpt_traits::tensor::TensorInfo;
 use std::collections::{HashMap, HashSet};
@@ -60,20 +61,7 @@ pub(crate) fn get_tensor_from_attribute(
                             )
                         };
 
-                        let real_len = match dtype {
-                            DType::F32 => tensor.float_data.len(),
-                            DType::F16 => tensor.float_data.len() * 2,
-                            DType::BF16 => tensor.float_data.len() * 2,
-                            _ => {
-                                return Err(OnnxError::new(format!(
-                                    "unsupported dtype for float datas: {:?}",
-                                    dtype
-                                ))
-                                .into());
-                            }
-                        };
-
-                        let tensor = Tensor::empty(&[real_len as i64], dtype, crate::Device::Cpu)?;
+                        let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)?;
                         let ptr = tensor.data.cast::<u8>().ptr;
                         unsafe {
                             ptr.copy_from(raw.as_ptr(), raw.len());
@@ -87,27 +75,7 @@ pub(crate) fn get_tensor_from_attribute(
                             )
                         };
 
-                        let real_len = match dtype {
-                            DType::I8 => tensor.int32_data.len() * 4,
-                            DType::U8 => tensor.int32_data.len() * 4,
-                            DType::I16 => tensor.int32_data.len() * 2,
-                            DType::U16 => tensor.int32_data.len() * 2,
-                            DType::BF16 => tensor.int32_data.len() * 2,
-                            DType::F16 => tensor.int32_data.len() * 2,
-                            DType::I32 => tensor.int32_data.len(),
-                            DType::U32 => tensor.int32_data.len(),
-                            DType::F32 => tensor.int32_data.len(),
-                            DType::I64 => tensor.int32_data.len() / 2,
-                            _ => {
-                                return Err(OnnxError::new(format!(
-                                    "unsupported dtype for int datas: {:?}",
-                                    dtype
-                                ))
-                                .into());
-                            }
-                        };
-
-                        let tensor = Tensor::empty(&[real_len as i64], dtype, crate::Device::Cpu)?;
+                        let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)?;
                         let ptr = tensor.data.cast::<u8>().ptr;
                         unsafe {
                             ptr.copy_from(raw.as_ptr(), raw.len());
@@ -121,18 +89,7 @@ pub(crate) fn get_tensor_from_attribute(
                             )
                         };
 
-                        let real_len = match dtype {
-                            DType::I64 => tensor.int64_data.len(),
-                            _ => {
-                                return Err(OnnxError::new(format!(
-                                    "unsupported dtype for int datas: {:?}",
-                                    dtype
-                                ))
-                                .into());
-                            }
-                        };
-
-                        let tensor = Tensor::empty(&[real_len as i64], dtype, crate::Device::Cpu)?;
+                        let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)?;
                         let ptr = tensor.data.cast::<u8>().ptr;
                         unsafe {
                             ptr.copy_from(raw.as_ptr(), raw.len());
@@ -146,27 +103,7 @@ pub(crate) fn get_tensor_from_attribute(
                             )
                         };
 
-                        let real_len = match dtype {
-                            DType::I8 => raw.len(),
-                            DType::U8 => raw.len(),
-                            DType::I16 => raw.len() / 2,
-                            DType::U16 => raw.len() / 2,
-                            DType::BF16 => raw.len() / 2,
-                            DType::F16 => raw.len() / 2,
-                            DType::I32 => raw.len() / 4,
-                            DType::U32 => raw.len() / 4,
-                            DType::F32 => raw.len() / 4,
-                            DType::I64 => raw.len() / 8,
-                            _ => {
-                                return Err(OnnxError::new(format!(
-                                    "unsupported dtype for int datas: {:?}",
-                                    dtype
-                                ))
-                                .into());
-                            }
-                        };
-
-                        let tensor = Tensor::empty(&[real_len as i64], dtype, crate::Device::Cpu)?;
+                        let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)?;
                         let ptr = tensor.data.cast::<u8>().ptr;
                         unsafe {
                             ptr.copy_from(raw.as_ptr(), raw.len());
@@ -401,7 +338,16 @@ pub(crate) fn unsqueeze_init(
     node_degree: &mut HashMap<String, u32>,
     initializer_map: &mut HashMap<String, Tensor>,
 ) -> Operator {
-    squeeze_init(node, node_degree, initializer_map)
+    let input_name = node.input[0].as_str();
+    let axes = node.input[1].as_str();
+    *node_degree.entry(input_name.to_string()).or_insert(0) += 1;
+    *node_degree.entry(axes.to_string()).or_insert(0) += 1;
+    let axes_tensor = initializer_map.get(axes).expect("axes tensor not found");
+    Operator::Unsqueeze(Squeeze {
+        input: input_name.to_string(),
+        output: node.output[0].to_string(),
+        axes: axes_tensor.as_slice().to_vec(),
+    })
 }
 
 pub(crate) fn concat_init(node: &NodeProto, node_degree: &mut HashMap<String, u32>) -> Operator {
@@ -442,14 +388,14 @@ pub(crate) fn const_of_shape_init(
             DType::F16 => tensor.as_slice::<half::f16>()[0].cast(),
             DType::BF16 => tensor.as_slice::<half::bf16>()[0].cast(),
         };
-        Ok(Operator::ConstOfShape(ConstOfShape {
+        Ok(Operator::ConstantOfShape(ConstantOfShape {
             output: node.output[0].to_string(),
             input: input_name.to_string(),
             value,
             dtype: tensor.dtype,
         }))
     } else {
-        Ok(Operator::ConstOfShape(ConstOfShape {
+        Ok(Operator::ConstantOfShape(ConstantOfShape {
             output: node.output[0].to_string(),
             input: input_name.to_string(),
             value: 0.0,
@@ -476,20 +422,20 @@ pub(crate) fn slice_init(node: &NodeProto, node_degree: &mut HashMap<String, u32
     *node_degree.entry(starts_name.to_string()).or_insert(0) += 1;
     *node_degree.entry(ends_name.to_string()).or_insert(0) += 1;
 
-    let steps_name = if let Some(steps_name) = node.input.get(3) {
-        *node_degree
-            .entry(steps_name.as_str().to_string())
-            .or_insert(0) += 1;
-        Some(steps_name.as_str().to_string())
-    } else {
-        None
-    };
-
-    let axes_name = if let Some(axes_name) = node.input.get(4) {
+    let axes_name = if let Some(axes_name) = node.input.get(3) {
         *node_degree
             .entry(axes_name.as_str().to_string())
             .or_insert(0) += 1;
         Some(axes_name.as_str().to_string())
+    } else {
+        None
+    };
+
+    let steps_name = if let Some(steps_name) = node.input.get(4) {
+        *node_degree
+            .entry(steps_name.as_str().to_string())
+            .or_insert(0) += 1;
+        Some(steps_name.as_str().to_string())
     } else {
         None
     };

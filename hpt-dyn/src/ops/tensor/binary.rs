@@ -384,7 +384,6 @@ impl std::ops::trait_name for Tensor {
 
     fn method_name(self, rhs: Self) -> Self::Output {
         let res_layout = self.layout.broadcast(rhs.shape()).expect("broadcast failed");
-
         let mut res = Tensor::empty(
             &res_layout.shape(),
             promote_method(self.dtype, rhs.dtype),

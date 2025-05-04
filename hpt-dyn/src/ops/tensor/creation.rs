@@ -27,15 +27,16 @@ impl Tensor {
         let layout = Layout::from(shape);
         let mem_layout = std::alloc::Layout::from_size_align(
             (layout.size() as usize)
+                .max(1)
                 .checked_mul(dtype.sizeof())
                 .unwrap_or((isize::MAX as usize) - (64 - 1)), // when overflow happened, we use max memory `from_size_align` accept,
             64,
         );
         match mem_layout {
             Ok(mem_layout) => {
-                let prg_update = dispatch_loop_progress_update(&layout, dtype.sizeof());
-                let map_global_idx = dispatch_map_global_idx(&layout, dtype.sizeof());
-                let map_gp = dispatch_map_gp(&layout, dtype.sizeof());
+                let prg_update = dispatch_loop_progress_update(&layout);
+                let map_global_idx = dispatch_map_global_idx(&layout);
+                let map_gp = dispatch_map_gp(&layout);
                 let ptr = allocator.alloc_method(mem_layout, &mut device)?;
                 let backend = match &device {
                     Device::Cpu => Backend::new_cpu(ptr, 0, true),

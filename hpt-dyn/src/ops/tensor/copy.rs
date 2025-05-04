@@ -107,8 +107,8 @@ impl Tensor {
                     let res_map_gp = self.map_gp.clone();
                     let input_map_gp = other.map_gp.clone();
 
-                    let res_ptr = self.data.cast::<u8>();
-                    let input_ptr = other.data.cast::<u8>();
+                    let res_ptr = self.data.cast::<T>();
+                    let input_ptr = other.data.cast::<T>();
 
                     let can_vectorize =
                         self.layout().last_stride() == 1 && other.layout().last_stride() == 1;
@@ -134,8 +134,8 @@ impl Tensor {
                                 for i in vec_count * vec_size..inner_loop_size as usize {
                                     tmp_res_ptr[i] = tmp_input_ptr[i];
                                 }
-                                res_prg_update(&mut res_prg, &mut res_ptr);
-                                input_prg_update(&mut input_prg, &mut input_ptr);
+                                res_ptr += res_prg_update(&mut res_prg);
+                                input_ptr += input_prg_update(&mut input_prg);
                             }
                         } else {
                             for _ in start..end {
@@ -144,8 +144,8 @@ impl Tensor {
                                 for i in 0..inner_loop_size {
                                     tmp_res_ptr[i] = tmp_input_ptr[i];
                                 }
-                                res_prg_update(&mut res_prg, &mut res_ptr);
-                                input_prg_update(&mut input_prg, &mut input_ptr);
+                                res_ptr += res_prg_update(&mut res_prg);
+                                input_ptr += input_prg_update(&mut input_prg);
                             }
                         }
                     };

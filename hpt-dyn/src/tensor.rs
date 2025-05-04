@@ -21,8 +21,17 @@ pub struct Tensor {
     pub(crate) dtype: DType,
     pub(crate) device: Device,
     pub(crate) parent: Option<Pointer<u8>>,
-    pub(crate) prg_update: Arc<dyn Fn(&mut [i64], &mut Pointer<u8>) + Send + Sync>,
+    /// update loop progress
+    ///
+    /// return # of element need to jump
+    pub(crate) prg_update: Arc<dyn Fn(&mut [i64]) -> i64 + Send + Sync>,
+    /// map global index to physical index
+    ///
+    /// return physical index
     pub(crate) map_global_idx: Arc<dyn Fn(i64) -> i64 + Send + Sync>,
+    /// map global index to physical index and provide loop progress
+    ///
+    /// return (physical index, loop progress)
     pub(crate) map_gp: Arc<dyn Fn(i64) -> (i64, Vec<i64>) + Send + Sync>,
     pub(crate) mem_layout: std::alloc::Layout,
     pub(crate) backend: Backend,
@@ -71,9 +80,9 @@ impl Tensor {
                 } else {
                     assert_eq!((data as usize) % ALIGN, 0);
                 }
-                let prg_update = dispatch_loop_progress_update(&layout, dtype.sizeof());
-                let map_global_idx = dispatch_map_global_idx(&layout, dtype.sizeof());
-                let map_gp = dispatch_map_gp(&layout, dtype.sizeof());
+                let prg_update = dispatch_loop_progress_update(&layout);
+                let map_global_idx = dispatch_map_global_idx(&layout);
+                let map_gp = dispatch_map_gp(&layout);
                 let mem_layout = std::alloc::Layout::from_size_align(len * dtype.sizeof(), ALIGN)
                     .expect("failed to create memory layout");
                 Ok(Self {

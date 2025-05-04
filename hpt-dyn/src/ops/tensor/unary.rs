@@ -159,7 +159,7 @@ pub(crate) fn unary_1operand<F1, F2>(
                     );
                 }
                 out += inner_size * out_sizeof;
-                lhs_prg_update(&mut lhs_prg, &mut lhs);
+                lhs += lhs_prg_update(&mut lhs_prg) * lhs_sizeof;
             });
     } else {
         let out_sizeof = output.dtype.sizeof() as i64;

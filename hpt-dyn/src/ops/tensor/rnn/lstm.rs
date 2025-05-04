@@ -1,12 +1,9 @@
+use crate::Tensor;
+use half::{bf16, f16};
 use hpt_common::error::base::TensorError;
 use hpt_macros::select;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
-use hpt_types::{
-    dtype::{DType, TypeCommon},
-    type_promote::FloatOutUnary,
-};
-
-use crate::Tensor;
+use hpt_types::dtype::DType;
 
 fn lstm_cell_ref<T: CommonBounds>(
     x: &Tensor,                // [seq_length, batch_size, input_size]
@@ -99,13 +96,16 @@ fn lstm_cell_ref<T: CommonBounds>(
         };
 
         let xw_bias = if let Some(wb) = &w_bias {
-            x_reshaped.addmm(&w_dir.t()?, &wb)?
+            x_reshaped.addmm(&w_dir.t()?, &wb)?.reshape(&[
+                seq_length,
+                batch_size,
+                4 * hidden_size,
+            ])?
         } else {
             x_reshaped
                 .matmul(&w_dir.t()?)?
                 .reshape(&[seq_length, batch_size, 4 * hidden_size])?
         };
-
         let mut h_prev = y_h.slice(&select![dir:dir+1, :, :])?;
         let mut c_prev = y_c.slice(&select![dir:dir+1, :, :])?;
         h_prev = h_prev.squeeze(&[0])?;
@@ -197,5 +197,29 @@ fn lstm_cell_ref<T: CommonBounds>(
         y_h.copy_from(&y_h_dir);
         y_c.copy_from(&y_c_dir);
     }
+
     Ok((y, y_h, y_c))
+}
+
+impl Tensor {
+    pub fn lstm(
+        &self,
+        w: &Tensor,
+        r: &Tensor,
+        b: Option<&Tensor>,
+        seq_lens: Option<&Tensor>,
+        init_h: Option<&Tensor>,
+        init_c: Option<&Tensor>,
+        p: Option<&Tensor>,
+    ) -> Result<(Tensor, Tensor, Tensor), TensorError> {
+        let (y, y_h, y_c) = match self.dtype {
+            DType::I8 => lstm_cell_ref::<i8>(self, w, r, b, seq_lens, init_h, init_c, p)?,
+            DType::U8 => lstm_cell_ref::<u8>(self, w, r, b, seq_lens, init_h, init_c, p)?,
+            DType::F32 => lstm_cell_ref::<f32>(self, w, r, b, seq_lens, init_h, init_c, p)?,
+            DType::F16 => lstm_cell_ref::<f16>(self, w, r, b, seq_lens, init_h, init_c, p)?,
+            DType::BF16 => lstm_cell_ref::<bf16>(self, w, r, b, seq_lens, init_h, init_c, p)?,
+            _ => unimplemented!(),
+        };
+        Ok((y, y_h, y_c))
+    }
 }

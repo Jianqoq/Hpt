@@ -2,15 +2,12 @@ use gemm_common::cache::DivCeil;
 use hpt_common::{
     Pointer,
     error::{base::TensorError, shape::ShapeError},
-    shape::{
-        shape::Shape,
-        shape_utils::{compare_and_pad_shapes, mt_intervals, predict_broadcast_shape},
-    },
-    strides::strides_utils::preprocess_strides,
+    shape::shape_utils::predict_broadcast_shape,
 };
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use crate::{THREAD_POOL, Tensor, current_num_threads};
+use crate::{Tensor, current_num_threads};
 
 use super::{
     common::matmul_prepare,
@@ -93,7 +90,6 @@ fn matmul<T, F1, F2>(
     out_strides: &[i64],
     lhs_shape: &[i64],
     rhs_shape: &[i64],
-    out_shape: &[i64],
     threads: usize,
     post_op: Option<F1>,
     post_op_vec: Option<F2>,
@@ -109,7 +105,7 @@ fn matmul<T, F1, F2>(
     let rhs_rs = rhs_strides[rhs_strides.len() - 2];
     let m = lhs_shape[lhs_shape.len() - 2] as usize;
     let n = rhs_shape[rhs_shape.len() - 1] as usize;
-    let k = out_shape[out_shape.len() - 2] as usize;
+    let k = rhs_shape[rhs_shape.len() - 2] as usize;
     match (post_op, post_op_vec) {
         (None, None) => match T::STR {
             "f16" => {
@@ -263,135 +259,105 @@ where
             c.strides(),
             lhs.shape(),
             rhs.shape(),
-            c.shape(),
             threads,
             post_op,
             post_op_vec,
         );
         Ok(c)
     } else {
-        let (longer_shape, padded_short_shape) = compare_and_pad_shapes(&lhs.shape(), &rhs.shape());
-        let a_shape;
-        let b_shape;
-        if lhs.shape().len() > rhs.shape().len() {
-            a_shape = longer_shape;
-            b_shape = padded_short_shape;
-        } else {
-            a_shape = padded_short_shape;
-            b_shape = longer_shape;
-        }
-        ShapeError::check_matmul(lhs.shape(), rhs.shape())?;
-        let mut res_shape =
-            predict_broadcast_shape(&a_shape[..a_shape.len() - 2], &b_shape[..b_shape.len() - 2])?
-                .to_vec();
-        let mut iterate_shape = res_shape.clone();
-        res_shape.push(a_shape[a_shape.len() - 2]);
-        res_shape.push(b_shape[b_shape.len() - 1]);
-        let res = if let Some(out) = out {
-            ShapeError::check_inplace_out_layout_valid(&Shape::from(&res_shape), &out.layout())?;
-            out
-        } else {
-            Tensor::empty(&res_shape, lhs.dtype, lhs.device.clone())?
-        };
-        let a_strides = preprocess_strides(&a_shape, &lhs.strides());
-        let b_strides = preprocess_strides(&b_shape, &rhs.strides());
-        let batch = iterate_shape.iter().fold(1, |acc, x| acc * (*x as usize));
-        let res_inner_matrix_size = (res.shape()[res.shape().len() - 2] as usize)
-            * (res.shape()[res.shape().len() - 1] as usize);
-        iterate_shape.iter_mut().for_each(|x| {
-            *x -= 1;
-        });
-        let mut a_ptr = lhs.data.clone();
-        let mut b_ptr = rhs.data.clone();
-        let mut res_ptr = res.data.clone();
-        let a_sizeof = lhs.dtype.sizeof();
-        let b_sizeof = rhs.dtype.sizeof();
-        let res_sizeof = res.dtype.sizeof();
-        let rayon_num_threads = THREAD_POOL.with_borrow(|pool| pool.num_threads());
-        let num_threads = batch.min(rayon_num_threads);
-        let num_threads_each = if batch < rayon_num_threads {
-            let vec = mt_intervals(rayon_num_threads, batch);
-            vec.iter().map(|x| x.1 - x.0).collect::<Vec<usize>>()
-        } else {
-            vec![1; rayon_num_threads]
-        };
-        let intervals = mt_intervals(batch, num_threads);
-        let mut res_ptrs = Vec::with_capacity(num_threads);
-        let mut a_ptrs = Vec::with_capacity(num_threads);
-        let mut b_ptrs = Vec::with_capacity(num_threads);
-        let mut prgs = Vec::with_capacity(num_threads);
-        let mut amount = 0;
-        for i in 0..num_threads {
-            let (start, end) = intervals[i];
-            res_ptrs.push(res_ptr.clone());
-            res_ptr.add((end - start) * res_inner_matrix_size * res_sizeof);
-            let mut prg = vec![0i64; iterate_shape.len()];
-            let mut amount_cpy = amount as i64;
-            for j in (0..=iterate_shape.len() - 1).rev() {
-                prg[j] = amount_cpy % (iterate_shape[j] + 1);
-                amount_cpy /= iterate_shape[j] + 1;
-                a_ptr += prg[j] * a_strides[j] * (a_sizeof as i64);
-                b_ptr += prg[j] * b_strides[j] * (b_sizeof as i64);
+        fn extract_batch_and_matrix_dims(
+            tensor: &Tensor,
+        ) -> Result<(Vec<i64>, i64, i64), TensorError> {
+            let shape = tensor.shape();
+            let ndim = shape.len();
+            if ndim < 2 {
+                panic!("Tensor must have at least 2 dimensions, got {}", ndim);
             }
-            amount += end - start;
-            a_ptrs.push(a_ptr);
-            b_ptrs.push(b_ptr);
-            a_ptr = lhs.data.clone();
-            b_ptr = rhs.data.clone();
-            prgs.push(prg);
-        }
-        THREAD_POOL.with_borrow(|pool| {
-            let iter = num_threads_each
-                .into_iter()
-                .zip(intervals)
-                .zip(res_ptrs)
-                .zip(a_ptrs)
-                .zip(b_ptrs)
-                .zip(prgs);
+            let matrix_dims = &shape[ndim - 2..];
+            let batch_dims = &shape[..ndim - 2];
 
-            let lhs_strides = lhs.strides().clone();
-            let rhs_strides = rhs.strides().clone();
-            let out_strides = res.strides().clone();
-            let lhs_shape = lhs.shape().clone();
-            let rhs_shape = rhs.shape().clone();
-            let out_shape = res.shape().clone();
-            pool.parallel_for(
-                iter,
-                move |(((((threads, interval), mut res_ptr), mut a_ptr), mut b_ptr), mut prg),
-                      _| {
-                    for _ in interval.0..interval.1 {
-                        matmul(
-                            a_ptr.cast::<T>(),
-                            b_ptr.cast::<T>(),
-                            res_ptr.cast::<T>(),
-                            &lhs_strides,
-                            &rhs_strides,
-                            &out_strides,
-                            &lhs_shape,
-                            &rhs_shape,
-                            &out_shape,
-                            threads,
-                            post_op.clone(),
-                            post_op_vec.clone(),
-                        );
-                        res_ptr.add(res_inner_matrix_size);
-                        for j in 0..iterate_shape.len() {
-                            if prg[j] < iterate_shape[j] {
-                                prg[j] += 1;
-                                a_ptr += a_strides[j];
-                                b_ptr += b_strides[j];
-                                break;
-                            } else {
-                                prg[j] = 0;
-                                a_ptr += -a_strides[j] * iterate_shape[j];
-                                b_ptr += -b_strides[j] * iterate_shape[j];
-                            }
-                        }
-                    }
-                },
+            Ok((batch_dims.to_vec(), matrix_dims[0], matrix_dims[1]))
+        }
+        let (batch_dims_lhs, m, k_lhs) = extract_batch_and_matrix_dims(lhs)?;
+        let (batch_dims_rhs, k_rhs, n) = extract_batch_and_matrix_dims(rhs)?;
+        if k_lhs != k_rhs {
+            panic!("Inner dimensions mismatch: {} vs {}", k_lhs, k_rhs);
+        }
+        let k = k_lhs;
+        let broadcast_batch_shape = predict_broadcast_shape(&batch_dims_lhs, &batch_dims_rhs)?;
+        let mut new_lhs_shape = broadcast_batch_shape.to_vec();
+        new_lhs_shape.push(m);
+        new_lhs_shape.push(k);
+        let mut new_rhs_shape = broadcast_batch_shape.to_vec();
+        new_rhs_shape.push(k);
+        new_rhs_shape.push(n);
+        let broacasted_lhs = lhs.broadcast_to(&new_lhs_shape)?;
+        let broacasted_rhs = rhs.broadcast_to(&new_rhs_shape)?;
+        let batch_size = broadcast_batch_shape.iter().product::<i64>() as usize;
+        let mut output_shape = broadcast_batch_shape.clone();
+        output_shape.push(m);
+        output_shape.push(n);
+
+        let result = match out {
+            Some(out) => {
+                ShapeError::check_inplace_out_layout_valid(&output_shape, &out.layout)?;
+                out
+            }
+            None => Tensor::empty(&output_shape, lhs.dtype, lhs.device.clone())?,
+        };
+
+        let lhs_strides: &[i64] = &broacasted_lhs.strides()[broacasted_lhs.strides().len() - 2..];
+        let rhs_strides: &[i64] = &broacasted_rhs.strides()[broacasted_rhs.strides().len() - 2..];
+        let out_strides: &[i64] = &result.strides()[result.strides().len() - 2..];
+
+        let res_gp = result.map_global_idx.as_ref();
+        let lhs_gp = broacasted_lhs.map_global_idx.as_ref();
+        let rhs_gp = broacasted_rhs.map_global_idx.as_ref();
+        // if batch_size < threads {
+        //     let threads_each = mt_size(threads, batch_size);
+        //     for (i, threads) in threads_each.into_iter().enumerate() {
+        //         let i = i as i64;
+        //         let lhs_offset = lhs_gp(i * m * k);
+        //         let rhs_offset = rhs_gp(i * k * n);
+        //         let out_offset = res_gp(i * m * n);
+        //         matmul(
+        //             lhs.data.cast::<T>() + lhs_offset,
+        //             rhs.data.cast::<T>() + rhs_offset,
+        //             result.data.cast::<T>() + out_offset,
+        //             lhs_strides,
+        //             rhs_strides,
+        //             out_strides,
+        //             &[m, k],
+        //             &[k, n],
+        //             &[m, n],
+        //             threads,
+        //             post_op.clone(),
+        //             post_op_vec.clone(),
+        //         );
+        //     }
+        // } else {
+        (0..batch_size).into_par_iter().for_each(|i| {
+            let i = i as i64;
+            let lhs_offset = lhs_gp(i * m * k);
+            let rhs_offset = rhs_gp(i * k * n);
+            let out_offset = res_gp(i * m * n);
+            matmul(
+                lhs.data.cast::<T>() + lhs_offset,
+                rhs.data.cast::<T>() + rhs_offset,
+                result.data.cast::<T>() + out_offset,
+                lhs_strides,
+                rhs_strides,
+                out_strides,
+                &[m, k],
+                &[k, n],
+                1,
+                post_op.clone(),
+                post_op_vec.clone(),
             );
         });
-        Ok(res)
+        // }
+
+        Ok(result)
     }
 }
 

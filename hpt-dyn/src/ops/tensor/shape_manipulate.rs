@@ -7,14 +7,15 @@ use hpt_common::{
     layout::layout::Layout,
     shape::{
         shape::Shape,
-        shape_utils::{try_pad_shape, yield_one_after, yield_one_before},
+        shape_utils::{mt_intervals, try_pad_shape, yield_one_after, yield_one_before},
     },
     slice::slice_process,
 };
+use hpt_traits::tensor::TensorInfo;
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use crate::{
-    Tensor,
-    utils::index_cal::{dispatch_loop_progress_update, dispatch_map_global_idx, dispatch_map_gp},
+    current_num_threads, utils::index_cal::{dispatch_loop_progress_update, dispatch_map_global_idx, dispatch_map_gp}, Tensor
 };
 
 impl Tensor {
@@ -22,9 +23,9 @@ impl Tensor {
         let shape: Shape = shape.into();
         ShapeError::check_size_match(self.layout.size() as i64, shape.size())?;
         if let Ok(new_layout) = self.layout.inplace_reshape(&shape) {
-            let prg_update = dispatch_loop_progress_update(&new_layout, self.dtype.sizeof());
-            let map_global_idx = dispatch_map_global_idx(&new_layout, self.dtype.sizeof());
-            let map_gp = dispatch_map_gp(&new_layout, self.dtype.sizeof());
+            let prg_update = dispatch_loop_progress_update(&new_layout);
+            let map_global_idx = dispatch_map_global_idx(&new_layout);
+            let map_gp = dispatch_map_gp(&new_layout);
             Ok(Tensor {
                 data: self.data.clone(),
                 layout: new_layout,
@@ -66,35 +67,7 @@ impl Tensor {
     }
     pub fn unsqueeze(&self, axes: &[i64]) -> Result<Tensor, TensorError> {
         let mut res_shape: Vec<i64> = self.layout.shape().to_vec();
-        let axes: Axis = axes.into();
-        assert_eq!(axes.axes.len(), 1);
-        let mut new_axes = Vec::with_capacity(axes.axes.len());
-        for i in &axes.axes {
-            if *i < 0 {
-                let new_i = *i + self.layout.ndim() as i64;
-                if new_i < 0 || new_i > self.layout.ndim() as i64 {
-                    return Err(ShapeError::DimOutOfRange {
-                        expected: 0..self.layout.ndim() as i64 + 1,
-                        actual: new_i,
-                        location: core::panic::Location::caller(),
-                    }
-                    .into());
-                } else {
-                    new_axes.push(new_i as usize);
-                }
-            } else {
-                if *i > self.layout.ndim() as i64 {
-                    return Err(ShapeError::DimOutOfRange {
-                        expected: 0..self.layout.ndim() as i64 + 1,
-                        actual: *i,
-                        location: core::panic::Location::caller(),
-                    }
-                    .into());
-                } else {
-                    new_axes.push(*i as usize);
-                }
-            }
-        }
+        let new_axes = process_axes(axes, self.layout.ndim())?;
         new_axes.iter().for_each(|&x| {
             res_shape = yield_one_before(&res_shape, x);
         });
@@ -103,9 +76,9 @@ impl Tensor {
 
     pub fn permute(&self, axes: &[i64]) -> Result<Tensor, TensorError> {
         let permuted_layout = self.layout.permute(axes)?;
-        let prg_update = dispatch_loop_progress_update(&permuted_layout, self.dtype.sizeof());
-        let map_global_idx = dispatch_map_global_idx(&permuted_layout, self.dtype.sizeof());
-        let map_gp = dispatch_map_gp(&permuted_layout, self.dtype.sizeof());
+        let prg_update = dispatch_loop_progress_update(&permuted_layout);
+        let map_global_idx = dispatch_map_global_idx(&permuted_layout);
+        let map_gp = dispatch_map_gp(&permuted_layout);
         Ok(Tensor {
             data: self.data.clone(),
             layout: permuted_layout,
@@ -122,9 +95,9 @@ impl Tensor {
 
     pub fn permute_inv(&self, axes: &[i64]) -> Result<Tensor, TensorError> {
         let permuted_layout = self.layout.permute_inv(axes)?;
-        let prg_update = dispatch_loop_progress_update(&permuted_layout, self.dtype.sizeof());
-        let map_global_idx = dispatch_map_global_idx(&permuted_layout, self.dtype.sizeof());
-        let map_gp = dispatch_map_gp(&permuted_layout, self.dtype.sizeof());
+        let prg_update = dispatch_loop_progress_update(&permuted_layout);
+        let map_global_idx = dispatch_map_global_idx(&permuted_layout);
+        let map_gp = dispatch_map_gp(&permuted_layout);
         Ok(Tensor {
             data: self.data.clone(),
             layout: permuted_layout,
@@ -143,9 +116,9 @@ impl Tensor {
         let res_shape = Shape::from(shape);
         let res_strides = self.layout.expand_strides(&res_shape)?;
         let res_layout = Layout::new(res_shape, res_strides);
-        let prg_update = dispatch_loop_progress_update(&res_layout, self.dtype.sizeof());
-        let map_global_idx = dispatch_map_global_idx(&res_layout, self.dtype.sizeof());
-        let map_gp = dispatch_map_gp(&res_layout, self.dtype.sizeof());
+        let prg_update = dispatch_loop_progress_update(&res_layout);
+        let map_global_idx = dispatch_map_global_idx(&res_layout);
+        let map_gp = dispatch_map_gp(&res_layout);
         Ok(Tensor {
             data: self.data.clone(),
             layout: res_layout,
@@ -198,9 +171,9 @@ impl Tensor {
             self.parent.clone()
         };
         let new_layout = Layout::new(self.layout.shape().clone(), new_strides);
-        let prg_update = dispatch_loop_progress_update(&new_layout, self.dtype.sizeof());
-        let map_global_idx = dispatch_map_global_idx(&new_layout, self.dtype.sizeof());
-        let map_gp = dispatch_map_gp(&new_layout, self.dtype.sizeof());
+        let prg_update = dispatch_loop_progress_update(&new_layout);
+        let map_global_idx = dispatch_map_global_idx(&new_layout);
+        let map_gp = dispatch_map_gp(&new_layout);
         Ok(Tensor {
             data: ptr,
             parent: new_parent,
@@ -236,8 +209,10 @@ impl Tensor {
     pub fn tile(&self, repeats: &[i64]) -> Result<Tensor, TensorError> {
         let repeats: Axis = repeats.into();
         ShapeError::check_index_out_of_range(
-            (repeats.axes.len() - 1) as i64,
-            self.layout.ndim() as i64,
+            (repeats.axes.len() - 1)
+                .try_into()
+                .expect("repeats.axes.len() - 1 is negative"),
+            self.layout.ndim(),
         )?;
         let repeats: Vec<i64> = repeats
             .axes
@@ -270,10 +245,13 @@ impl Tensor {
     }
 
     pub fn repeat(&self, repeats: usize, axes: i64) -> Result<Tensor, TensorError> {
-        let mut val: usize = axes as usize;
-        if axes < 0 {
-            val = self.layout.ndim() + (axes as usize);
-        }
+        let val = if axes < 0 {
+            (self.layout.ndim() as i64 + axes)
+                .try_into()
+                .expect("axis is still negative after adding ndim")
+        } else {
+            axes as usize
+        };
         let mut new_shape = yield_one_after(&self.layout.shape(), val);
         let mut new_tensor = self.reshape(&new_shape)?;
         new_shape[val + 1] *= repeats as i64;
@@ -345,16 +323,22 @@ impl Tensor {
         if axis2 < 0 {
             axis2 += self.layout.ndim() as i64;
         }
-        ShapeError::check_index_out_of_range(axis1, self.layout.ndim() as i64)?;
-        ShapeError::check_index_out_of_range(axis2, self.layout.ndim() as i64)?;
+        let axis1 = axis1
+            .try_into()
+            .expect("axis1 is still negative after adding ndim");
+        let axis2 = axis2
+            .try_into()
+            .expect("axis2 is still negative after adding ndim");
+        ShapeError::check_index_out_of_range(axis1, self.layout.ndim())?;
+        ShapeError::check_index_out_of_range(axis2, self.layout.ndim())?;
         let mut new_shape = self.layout.shape().to_vec();
         let mut new_strides = self.layout.strides().to_vec();
-        new_shape.swap(axis1 as usize, axis2 as usize);
-        new_strides.swap(axis1 as usize, axis2 as usize);
+        new_shape.swap(axis1, axis2);
+        new_strides.swap(axis1, axis2);
         let layout = Layout::new(new_shape, new_strides);
-        let prg_update = dispatch_loop_progress_update(&layout, self.dtype.sizeof());
-        let map_global_idx = dispatch_map_global_idx(&layout, self.dtype.sizeof());
-        let map_gp = dispatch_map_gp(&layout, self.dtype.sizeof());
+        let prg_update = dispatch_loop_progress_update(&layout);
+        let map_global_idx = dispatch_map_global_idx(&layout);
+        let map_gp = dispatch_map_gp(&layout);
         Ok(Tensor {
             data: self.data.clone(),
             layout,
@@ -369,12 +353,22 @@ impl Tensor {
         })
     }
 
-    pub fn flatten(&self, start_dim: i64, end_dim: i64) -> Result<Tensor, TensorError> {
-        let start = start_dim as usize;
-        let end = end_dim as usize;
+    pub fn flatten(&self, mut start_dim: i64, mut end_dim: i64) -> Result<Tensor, TensorError> {
+        if start_dim < 0 {
+            start_dim += self.layout.ndim() as i64;
+        }
+        if end_dim < 0 {
+            end_dim += self.layout.ndim() as i64;
+        }
+        let start = start_dim
+            .try_into()
+            .expect("start_dim is still negative after adding ndim");
+        let end = end_dim
+            .try_into()
+            .expect("end_dim is still negative after adding ndim");
         let shape = self.layout.shape();
-        ShapeError::check_index_out_of_range(start as i64, self.layout.ndim() as i64)?;
-        ShapeError::check_index_out_of_range(end as i64, self.layout.ndim() as i64)?;
+        ShapeError::check_index_out_of_range(start, self.layout.ndim())?;
+        ShapeError::check_index_out_of_range(end, self.layout.ndim())?;
         let flattened_dim = shape[start..=end].iter().product::<i64>();
         let mut new_shape = Vec::new();
         for (i, &dim) in shape.iter().enumerate() {
@@ -391,10 +385,10 @@ impl Tensor {
 
     pub fn broadcast_to(&self, shape: &[i64]) -> Result<Tensor, TensorError> {
         let res_shape = Shape::from(shape);
-        let broadcasted_layout = self.layout.broadcast(&res_shape)?;
-        let prg_update = dispatch_loop_progress_update(&broadcasted_layout, self.dtype.sizeof());
-        let map_global_idx = dispatch_map_global_idx(&broadcasted_layout, self.dtype.sizeof());
-        let map_gp = dispatch_map_gp(&broadcasted_layout, self.dtype.sizeof());
+        let broadcasted_layout = self.layout.broadcast_to(&res_shape)?;
+        let prg_update = dispatch_loop_progress_update(&broadcasted_layout);
+        let map_global_idx = dispatch_map_global_idx(&broadcasted_layout);
+        let map_gp = dispatch_map_gp(&broadcasted_layout);
         Ok(Tensor {
             data: self.data.clone(),
             layout: broadcasted_layout,
@@ -409,6 +403,7 @@ impl Tensor {
         })
     }
 
+    #[track_caller]
     pub fn slice(&self, index: &[(i64, i64, i64)]) -> Result<Tensor, TensorError> {
         let (res_shape, res_strides, offset) = slice_process(
             self.layout.shape().to_vec(),
@@ -433,12 +428,27 @@ impl Tensor {
                 );
             }
             let len = self.data.len - offset;
-            Ok(from_slice(
-                self,
-                Pointer::new(res_ptr, len),
-                res_shape,
-                res_strides,
-            ))
+            let layout = Layout::new(res_shape, res_strides);
+            let new_parent = if self.parent.is_none() {
+                Some(self.data.clone())
+            } else {
+                self.parent.clone()
+            };
+            let prg_update = dispatch_loop_progress_update(&layout);
+            let map_global_idx = dispatch_map_global_idx(&layout);
+            let map_gp = dispatch_map_gp(&layout);
+            Ok(Tensor {
+                data: Pointer::new(res_ptr, len),
+                layout,
+                dtype: self.dtype.clone(),
+                device: self.device.clone(),
+                parent: new_parent,
+                prg_update,
+                map_global_idx,
+                map_gp,
+                mem_layout: self.mem_layout.clone(),
+                backend: self.backend.clone(),
+            })
         }
         #[cfg(not(feature = "bound_check"))]
         {
@@ -448,9 +458,9 @@ impl Tensor {
             } else {
                 self.parent.clone()
             };
-            let prg_update = dispatch_loop_progress_update(&layout, self.dtype.sizeof());
-            let map_global_idx = dispatch_map_global_idx(&layout, self.dtype.sizeof());
-            let map_gp = dispatch_map_gp(&layout, self.dtype.sizeof());
+            let prg_update = dispatch_loop_progress_update(&layout);
+            let map_global_idx = dispatch_map_global_idx(&layout);
+            let map_gp = dispatch_map_gp(&layout);
             Ok(Tensor {
                 data: Pointer::new(res_ptr, 0),
                 layout,
@@ -463,6 +473,94 @@ impl Tensor {
                 mem_layout: self.mem_layout.clone(),
                 backend: self.backend.clone(),
             })
+        }
+    }
+
+    pub fn concat(
+        tensors: Vec<&Self>,
+        axis: i64,
+        keepdims: bool,
+    ) -> std::result::Result<Self, TensorError> {
+        let length = tensors.len();
+        let dtype = tensors[0].dtype;
+        let device = &tensors[0].device;
+
+        let ndim = tensors[0].ndim();
+
+        for i in tensors.iter() {
+            if i.ndim() != ndim {
+                return Err(ShapeError::ConcatDimMismatch {
+                    expected: ndim,
+                    actual: i.ndim(),
+                    location: Location::caller(),
+                }
+                .into());
+            }
+        }
+        let axis = if axis < 0 {
+            (axis + ndim as i64).try_into().expect("axis out of range")
+        } else {
+            axis as usize
+        };
+        for i in tensors.iter() {
+            if &i.device != device {
+                panic!("concat tensors must be on the same device");
+            }
+            if i.dtype != dtype {
+                panic!("concat tensors must have the same dtype");
+            }
+        }
+        let mut new_shape: Vec<i64> = vec![0; tensors[0].ndim()];
+        tensors.iter().for_each(|x| {
+            new_shape[axis] += x.shape()[axis];
+        });
+        tensors[0].shape().iter().enumerate().for_each(|(i, x)| {
+            if i != axis {
+                new_shape[i] = *x;
+            }
+        });
+        let new_tensor = Self::empty(&new_shape, dtype, device.clone())?;
+        let mut begin = 0;
+        let mut res_slices = Vec::with_capacity(length);
+        for i in tensors.iter() {
+            let mut selections = vec![(0, 0x7FFFFFFFFFFFFFFF, 1); new_shape.len()];
+            selections[axis] = (begin, begin + i.shape()[axis], 1);
+            begin += i.shape()[axis];
+            let res_tensor = new_tensor.slice(&selections)?;
+            res_slices.push(res_tensor);
+        }
+        let tensors = tensors.iter().map(|x| (*x).clone()).collect::<Vec<Self>>();
+        let num_threads = length.min(current_num_threads());
+        let intervals = mt_intervals(length, num_threads);
+        let res_tensors = intervals
+            .iter()
+            .map(|(start, end)| res_slices[*start..*end].to_vec())
+            .collect::<Vec<_>>();
+        let inputs = intervals
+            .iter()
+            .map(|(start, end)| tensors[*start..*end].to_vec())
+            .collect::<Vec<_>>();
+        res_tensors
+            .into_par_iter()
+            .zip(inputs.into_par_iter())
+            .for_each(|(res_tensors, inputs)| {
+                for (mut res, inp) in res_tensors.into_iter().zip(inputs.into_iter()) {
+                    res._copy_from(&inp, 1);
+                }
+            });
+        if keepdims {
+            let mut res_shape = Vec::with_capacity(new_shape.len() + 1);
+            for (idx, i) in new_shape.iter().enumerate() {
+                if idx == axis {
+                    res_shape.push(length as i64);
+                    res_shape.push(*i / (length as i64));
+                } else {
+                    res_shape.push(*i);
+                }
+            }
+            new_tensor.reshape(&res_shape)
+        } else {
+            Ok(new_tensor)
         }
     }
 }

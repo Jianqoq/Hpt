@@ -82,6 +82,7 @@ pub fn matmul_post_template_no_block_info<T, F1, F2>(
         mr,
         do_lhs_pack,
         num_threads,
+        
         post_op,
         post_op_vec,
     );

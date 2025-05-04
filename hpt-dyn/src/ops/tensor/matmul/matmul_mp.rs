@@ -19,6 +19,7 @@ pub(crate) fn matmul_mp_no_block_info<T, IM>(
     lhs_col_stride: i64,
     rhs_col_stride: i64,
     num_threads: usize,
+    
     pack_vec: fn(*mut IM::Vec, *const T::Vec, usize),
     pack_vec_exceed: fn(*mut IM::Vec, usize),
     pack_zero: fn(&mut IM, &T),
@@ -55,6 +56,7 @@ pub(crate) fn matmul_mp_no_block_info<T, IM>(
         nr,
         mr,
         num_threads,
+        
         |_, _, _| T::ZERO,
         |_, _, _| T::Vec::splat(T::ZERO),
         pack_vec,
@@ -83,6 +85,7 @@ pub(crate) fn func_name<T, IM>(
     lhs_col_stride: i64,
     rhs_col_stride: i64,
     num_threads: usize,
+    
 ) where
     T: CommonBounds + MatmulMicroKernel,
     IM: CommonBounds,
@@ -104,6 +107,7 @@ pub(crate) fn func_name<T, IM>(
         lhs_col_stride,
         rhs_col_stride,
         num_threads,
+        
         |packed_b, b, i| unsafe {
             let packed_b = packed_b as *mut F32Vec;
             let b = b as *const F16Vec;

@@ -1,16 +1,21 @@
+#![allow(unused)]
+
 use hpt_types::dtype::DType;
 
+#[derive(Debug)]
 pub(crate) struct Unary {
     pub(crate) input: String,
     pub(crate) output: String,
 }
 
+#[derive(Debug)]
 pub(crate) struct Binary {
     pub(crate) input1: String,
     pub(crate) input2: String,
     pub(crate) output: String,
 }
 
+#[derive(Debug)]
 pub(crate) struct ArgReduce {
     pub(crate) input: String,
     pub(crate) output: String,
@@ -19,6 +24,7 @@ pub(crate) struct ArgReduce {
     pub(crate) select_last_index: bool,
 }
 
+#[derive(Debug)]
 pub(crate) struct Pooling {
     pub(crate) input: String,
     pub(crate) output: String,
@@ -28,6 +34,7 @@ pub(crate) struct Pooling {
     pub(crate) ceil_mode: bool,
 }
 
+#[derive(Debug)]
 pub(crate) struct BatchNormalization {
     pub(crate) input: String,
     pub(crate) output: String,
@@ -39,12 +46,14 @@ pub(crate) struct BatchNormalization {
     pub(crate) momentum: f64,
 }
 
+#[derive(Debug)]
 pub(crate) struct Concat {
     pub(crate) inputs: Vec<String>,
     pub(crate) output: String,
     pub(crate) axis: i64,
 }
 
+#[derive(Debug)]
 pub(crate) struct Conv2d {
     pub(crate) input: String,
     pub(crate) output: String,
@@ -56,24 +65,28 @@ pub(crate) struct Conv2d {
     pub(crate) group: i64,
 }
 
+#[derive(Debug)]
 pub(crate) struct Dropout {
     pub(crate) input: String,
     pub(crate) output: String,
     pub(crate) ratio: f64,
 }
 
+#[derive(Debug)]
 pub(crate) struct Expand {
     pub(crate) input: String,
     pub(crate) output: String,
     pub(crate) dims: Vec<i64>,
 }
 
+#[derive(Debug)]
 pub(crate) struct EyeLike {
     pub(crate) input: String,
     pub(crate) output: String,
     pub(crate) shape: Vec<i64>,
 }
 
+#[derive(Debug)]
 pub(crate) struct Flatten {
     pub(crate) input: String,
     pub(crate) output: String,
@@ -81,6 +94,7 @@ pub(crate) struct Flatten {
     pub(crate) end_dim: i64,
 }
 
+#[derive(Debug)]
 pub(crate) struct Gemm {
     pub(crate) a: String,
     pub(crate) b: String,
@@ -92,12 +106,14 @@ pub(crate) struct Gemm {
     pub(crate) bias: Option<String>,
 }
 
+#[derive(Debug)]
 pub(crate) struct Matmul {
     pub(crate) a: String,
     pub(crate) b: String,
     pub(crate) output: String,
 }
 
+#[derive(Debug)]
 pub(crate) struct Reduce {
     pub(crate) input: String,
     pub(crate) output: String,
@@ -105,12 +121,14 @@ pub(crate) struct Reduce {
     pub(crate) keepdims: bool,
 }
 
+#[derive(Debug)]
 pub(crate) struct OneHot {
     pub(crate) input: String,
     pub(crate) output: String,
     pub(crate) axis: i64,
 }
 
+#[derive(Debug)]
 pub(crate) struct Pad {
     pub(crate) input: String,
     pub(crate) output: String,
@@ -119,6 +137,7 @@ pub(crate) struct Pad {
     pub(crate) axes: Vec<i64>,
 }
 
+#[derive(Debug)]
 pub(crate) struct RandomNormal {
     pub(crate) input: String,
     pub(crate) output: String,
@@ -129,6 +148,7 @@ pub(crate) struct RandomNormal {
     pub(crate) dtype: DType,
 }
 
+#[derive(Debug)]
 pub(crate) struct RandomUniform {
     pub(crate) input: String,
     pub(crate) output: String,
@@ -139,12 +159,14 @@ pub(crate) struct RandomUniform {
     pub(crate) dtype: DType,
 }
 
+#[derive(Debug)]
 pub(crate) struct Reshape {
     pub(crate) input: String,
     pub(crate) output: String,
     pub(crate) shape: Vec<i64>,
 }
 
+#[derive(Debug)]
 pub(crate) struct Slice {
     pub(crate) input: String,
     pub(crate) output: String,
@@ -154,30 +176,35 @@ pub(crate) struct Slice {
     pub(crate) axes: Option<String>,
 }
 
+#[derive(Debug)]
 pub(crate) struct Split {
     pub(crate) input: String,
     pub(crate) outputs: Vec<String>,
     pub(crate) axis: i64,
 }
 
+#[derive(Debug)]
 pub(crate) struct Squeeze {
     pub(crate) input: String,
     pub(crate) output: String,
     pub(crate) axes: Vec<i64>,
 }
 
+#[derive(Debug)]
 pub(crate) struct Permute {
     pub(crate) input: String,
     pub(crate) output: String,
     pub(crate) perm: Vec<i64>,
 }
 
+#[derive(Debug)]
 pub(crate) struct Where {
     pub(crate) input: String,
     pub(crate) output: String,
     pub(crate) condition: String,
 }
 
+#[derive(Debug)]
 pub(crate) struct Bernoulli {
     pub(crate) input: String,
     pub(crate) output: String,
@@ -185,12 +212,14 @@ pub(crate) struct Bernoulli {
     pub(crate) seed: i64,
 }
 
+#[derive(Debug)]
 pub(crate) struct Cast {
     pub(crate) input: String,
     pub(crate) output: String,
     pub(crate) to: DType,
 }
 
+#[derive(Debug)]
 pub(crate) struct Clip {
     pub(crate) input: String,
     pub(crate) output: String,
@@ -198,6 +227,7 @@ pub(crate) struct Clip {
     pub(crate) max: f64,
 }
 
+#[derive(Debug)]
 pub(crate) struct LayerNormalization {
     pub(crate) input: String,
     pub(crate) output: String,
@@ -206,6 +236,7 @@ pub(crate) struct LayerNormalization {
     pub(crate) epsilon: f64,
 }
 
+#[derive(Debug)]
 pub(crate) struct Gather {
     pub(crate) input: String,
     pub(crate) indices: String,
@@ -213,19 +244,22 @@ pub(crate) struct Gather {
     pub(crate) axis: i64,
 }
 
+#[derive(Debug)]
 pub(crate) struct Constant {
     pub(crate) output: String,
     pub(crate) data: Vec<u8>,
     pub(crate) dtype: DType,
 }
 
-pub(crate) struct ConstOfShape {
+#[derive(Debug)]
+pub(crate) struct ConstantOfShape {
     pub(crate) input: String,
     pub(crate) output: String,
     pub(crate) value: f64,
     pub(crate) dtype: DType,
 }
 
+#[derive(Debug)]
 pub(crate) struct Lstm {
     pub(crate) x: String,
     pub(crate) w: String,
@@ -248,6 +282,7 @@ pub(crate) struct Lstm {
     pub(crate) y_c: Option<String>,
 }
 
+#[derive(Debug)]
 pub(crate) enum Operator {
     Constant,
     Abs(Unary),
@@ -275,7 +310,7 @@ pub(crate) enum Operator {
     Conv2dInteger(Conv2d),
     Cos(Unary),
     Cosh(Unary),
-    ConstOfShape(ConstOfShape),
+    ConstantOfShape(ConstantOfShape),
     Div(Binary),
     Dropout(Dropout),
     Equal(Binary),

@@ -54,7 +54,10 @@ pub fn slice_process(
     });
     let mut res_ptr = 0;
     if index.len() > res_shape.len() {
-        panic!("index length is greater than the shape length");
+        panic!(
+            "index length is greater than the shape length, shape: {:?}, index: {:?}",
+            shape, index
+        );
     }
     let mut new_indices = Vec::with_capacity(shape.len());
     let ellipsis_pos = index

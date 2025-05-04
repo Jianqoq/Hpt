@@ -329,7 +329,7 @@ where
     Al::Output: AllocatorOutputRetrive,
 {
     let repeats: Axis = repeats.into();
-    ShapeError::check_index_out_of_range((repeats.axes.len() - 1) as i64, a.layout.ndim() as i64)?;
+    ShapeError::check_index_out_of_range((repeats.axes.len() - 1) as usize, a.layout.ndim() as usize)?;
     let repeats: Vec<i64> = repeats
         .axes
         .into_iter()
@@ -485,8 +485,8 @@ where
     if axis2 < 0 {
         axis2 += a.layout.ndim() as i64;
     }
-    ShapeError::check_index_out_of_range(axis1, a.layout.ndim() as i64)?;
-    ShapeError::check_index_out_of_range(axis2, a.layout.ndim() as i64)?;
+    ShapeError::check_index_out_of_range(axis1 as usize, a.layout.ndim() as usize)?;
+    ShapeError::check_index_out_of_range(axis2 as usize, a.layout.ndim() as usize)?;
     let mut new_shape = a.layout.shape().to_vec();
     let mut new_strides = a.layout.strides().to_vec();
     new_shape.swap(axis1 as usize, axis2 as usize);
@@ -524,8 +524,8 @@ where
     let start = start_dim.into().unwrap_or(0);
     let end = end_dim.into().unwrap_or(a.layout.ndim() - 1);
     let shape = a.layout.shape();
-    ShapeError::check_index_out_of_range(start as i64, a.layout.ndim() as i64)?;
-    ShapeError::check_index_out_of_range(end as i64, a.layout.ndim() as i64)?;
+    ShapeError::check_index_out_of_range(start as usize, a.layout.ndim() as usize)?;
+    ShapeError::check_index_out_of_range(end as usize, a.layout.ndim() as usize)?;
     let flattened_dim = shape[start..=end].iter().product::<i64>();
     let mut new_shape = Vec::new();
     for (i, &dim) in shape.iter().enumerate() {

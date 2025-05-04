@@ -135,19 +135,19 @@ impl<T> Pointer<T> {
     /// assert_eq!(a.read(), 10);
     /// unsafe { std::alloc::dealloc(_a as *mut u8, std::alloc::Layout::new::<i32>()); }
     /// ```
-    #[inline(always)]
-    pub fn add(&mut self, offset: usize) -> Self {
-        unsafe {
-            self.ptr = self.ptr.add(offset);
-        }
-        #[cfg(feature = "bound_check")]
-        return Self {
-            ptr: self.ptr,
-            len: self.len,
-        };
-        #[cfg(not(feature = "bound_check"))]
-        return Self { ptr: self.ptr };
-    }
+    // #[inline(always)]
+    // pub fn add(&mut self, offset: usize) -> Self {
+    //     unsafe {
+    //         self.ptr = self.ptr.add(offset);
+    //     }
+    //     #[cfg(feature = "bound_check")]
+    //     return Self {
+    //         ptr: self.ptr,
+    //         len: self.len,
+    //     };
+    //     #[cfg(not(feature = "bound_check"))]
+    //     return Self { ptr: self.ptr };
+    // }
 
     /// inplace offset the value of the pointer in the current address
     ///
@@ -161,7 +161,7 @@ impl<T> Pointer<T> {
             #[cfg(feature = "bound_check")]
             return Self {
                 ptr: self.ptr.offset(offset as isize),
-                len: self.len,
+                len: self.len - offset as i64,
             };
             #[cfg(not(feature = "bound_check"))]
             return Self { ptr: self.ptr };
@@ -240,7 +240,27 @@ impl<T> Pointer<T> {
     /// `T`
     #[inline(always)]
     pub fn read_unaligned(&self) -> T {
-        unsafe { self.ptr.read_unaligned() }
+        #[cfg(feature = "bound_check")]
+        {
+            if self.len < 1 {
+                panic!("pointer length is less than the size of the type");
+            }
+            unsafe { self.ptr.read_unaligned() }
+        }
+        #[cfg(not(feature = "bound_check"))]
+        {
+            unsafe { self.ptr.read_unaligned() }
+        }
+    }
+
+    /// check if the read will fail
+    ///
+    /// # Returns
+    /// `bool`
+    #[inline(always)]
+    #[cfg(feature = "bound_check")]
+    pub fn will_read_fail(&self) -> bool {
+        self.len < 1
     }
 
     /// write the value of the pointer in the current address
@@ -249,7 +269,17 @@ impl<T> Pointer<T> {
     /// `value` - the value to be written
     #[inline(always)]
     pub fn write_unaligned(&self, value: T) {
-        unsafe { self.ptr.write_unaligned(value) }
+        #[cfg(feature = "bound_check")]
+        {
+            if self.len < 1 {
+                panic!("pointer length is less than the size of the type");
+            }
+            unsafe { self.ptr.write_unaligned(value) }
+        }
+        #[cfg(not(feature = "bound_check"))]
+        {
+            unsafe { self.ptr.write_unaligned(value) }
+        }
     }
 
     /// read the value of the pointer in the current address
@@ -258,7 +288,17 @@ impl<T> Pointer<T> {
     /// `T`
     #[inline(always)]
     pub fn read(&self) -> T {
-        unsafe { self.ptr.read() }
+        #[cfg(feature = "bound_check")]
+        {
+            if self.len < 1 {
+                panic!("pointer length is less than the size of the type");
+            }
+            unsafe { self.ptr.read() }
+        }
+        #[cfg(not(feature = "bound_check"))]
+        unsafe {
+            self.ptr.read()
+        }
     }
 
     /// write the value of the pointer in the current address
@@ -267,7 +307,17 @@ impl<T> Pointer<T> {
     /// `value` - the value to be written
     #[inline(always)]
     pub fn write(&self, value: T) {
-        unsafe { self.ptr.write(value) }
+        #[cfg(feature = "bound_check")]
+        {
+            if self.len < 1 {
+                panic!("pointer length is less than the size of the type");
+            }
+            unsafe { self.ptr.write(value) }
+        }
+        #[cfg(not(feature = "bound_check"))]
+        unsafe {
+            self.ptr.write(value)
+        }
     }
 }
 
@@ -393,7 +443,7 @@ impl<T> Add<usize> for Pointer<T> {
         unsafe {
             Self {
                 ptr: self.ptr.add(rhs),
-                len: self.len,
+                len: self.len - rhs as i64,
             }
         }
         #[cfg(not(feature = "bound_check"))]
@@ -435,7 +485,7 @@ impl<T> Add<usize> for &mut Pointer<T> {
     fn add(self, rhs: usize) -> Self::Output {
         #[cfg(feature = "bound_check")]
         unsafe {
-            Pointer::new(self.ptr.add(rhs), self.len)
+            Pointer::new(self.ptr.add(rhs), self.len - rhs as i64)
         }
         #[cfg(not(feature = "bound_check"))]
         unsafe {
@@ -464,7 +514,7 @@ impl<T> Add<isize> for Pointer<T> {
         unsafe {
             Self {
                 ptr: self.ptr.offset(rhs),
-                len: self.len,
+                len: self.len - rhs as i64,
             }
         }
         #[cfg(not(feature = "bound_check"))]
@@ -496,7 +546,7 @@ impl<T> Add<i64> for Pointer<T> {
         unsafe {
             Self {
                 ptr: self.ptr.offset(rhs as isize),
-                len: self.len,
+                len: self.len - rhs as i64,
             }
         }
         #[cfg(not(feature = "bound_check"))]

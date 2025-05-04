@@ -340,7 +340,7 @@ where
         if axis < 0 {
             axis += self.ndim() as i64;
         }
-        ShapeError::check_index_out_of_range(axis, self.ndim() as i64)?;
+        ShapeError::check_index_out_of_range(axis as usize, self.ndim() as usize)?;
         axis += 1;
         new_shape.insert(axis as usize, depth as i64);
         let res = _Tensor::<T, Cpu, DEVICE, Al>::full(false_val, new_shape)?;

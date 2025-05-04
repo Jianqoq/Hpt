@@ -391,8 +391,7 @@ impl<T: CommonBounds> ParStrided<T> {
     ///
     /// A new instance of `ParStrided` initialized with the provided tensor.
     pub fn new<U: TensorInfo>(tensor: U) -> Self {
-        let inner_loop_size = tensor.shape()[tensor.shape().len() - 1] as usize;
-        let outer_loop_size = tensor.size() / inner_loop_size;
+        let outer_loop_size = tensor.layout().outer_loop_size() as usize;
         let num_threads;
         if outer_loop_size < rayon::current_num_threads() {
             num_threads = outer_loop_size;
@@ -408,7 +407,7 @@ impl<T: CommonBounds> ParStrided<T> {
             intervals: Arc::new(intervals),
             start_index: 0,
             end_index: len,
-            last_stride: tensor.strides()[tensor.strides().len() - 1],
+            last_stride: tensor.layout().last_stride(),
         }
     }
     /// Performs a parallel fold (reduce) operation over the tensor elements.
