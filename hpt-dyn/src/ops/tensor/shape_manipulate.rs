@@ -15,12 +15,56 @@ use hpt_traits::tensor::TensorInfo;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use crate::{
-    current_num_threads, utils::index_cal::{dispatch_loop_progress_update, dispatch_map_global_idx, dispatch_map_gp}, Tensor
+    Tensor, current_num_threads,
+    utils::index_cal::{dispatch_loop_progress_update, dispatch_map_global_idx, dispatch_map_gp},
 };
 
 impl Tensor {
     pub fn reshape(&self, shape: &[i64]) -> Result<Tensor, TensorError> {
-        let shape: Shape = shape.into();
+        let mut new_shape = shape.to_vec();
+
+        let total_elements = self.size() as i64;
+
+        let mut negative_one_index = None;
+        let mut known_dims_product = 1;
+
+        for (i, &dim) in shape.iter().enumerate() {
+            if dim == -1 {
+                if negative_one_index.is_some() {
+                    panic!("there can only be one -1 dimension");
+                }
+                negative_one_index = Some(i);
+            } else if dim <= 0 && dim != -1 {
+                panic!("dimension size must be positive or -1");
+            } else {
+                known_dims_product *= dim;
+            }
+        }
+        if let Some(idx) = negative_one_index {
+            if known_dims_product == 0 {
+                panic!(
+                    "cannot infer the size of the -1 dimension because the other dimensions contain zero"
+                );
+            }
+
+            if total_elements % known_dims_product != 0 {
+                panic!(
+                    "the total number of elements {} cannot be divided by the product of the known dimensions {}",
+                    total_elements, known_dims_product
+                );
+            }
+
+            new_shape[idx] = total_elements / known_dims_product;
+        } else {
+            if known_dims_product != total_elements {
+                panic!(
+                    "the number of elements after reshape {} is different from the original number of elements {}",
+                    known_dims_product, total_elements
+                );
+            }
+        }
+
+        let shape: Shape = new_shape.as_slice().into();
         ShapeError::check_size_match(self.layout.size() as i64, shape.size())?;
         if let Ok(new_layout) = self.layout.inplace_reshape(&shape) {
             let prg_update = dispatch_loop_progress_update(&new_layout);
@@ -43,6 +87,8 @@ impl Tensor {
             a.reshape(&shape)
         }
     }
+
+    #[track_caller]
     pub fn squeeze(&self, axes: &[i64]) -> Result<Tensor, TensorError> {
         let axes: Vec<usize> = process_axes(axes, self.layout.ndim())?;
         for i in 0..axes.len() {

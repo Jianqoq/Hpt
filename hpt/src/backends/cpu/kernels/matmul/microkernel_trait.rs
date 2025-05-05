@@ -51,6 +51,29 @@ where
     }
 
     #[allow(unused_variables)]
+    fn get_horizontal_kernel(
+        nr: usize,
+        mr: usize,
+    ) -> fn(Pointer<Self>, Pointer<Self>, Pointer<Self>, i64, i64, usize, usize, i64, bool) {
+        #[cfg(target_feature = "avx2")]
+        {
+            use crate::define_matmul_micro_kernel;
+            assert_eq!(nr, 6);
+            assert_eq!(mr, 1);
+            define_matmul_micro_kernel!(x6x1, 6, 1);
+            return x6x1;
+        }
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
+        {
+            unimplemented!()
+        }
+    }
+
+    #[allow(unused_variables)]
     fn get_inline_asm_kernel(
         nr: usize,
         mr: usize,
@@ -210,6 +233,20 @@ where
         #[cfg(target_feature = "neon")]
         {
             8
+        }
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
+        {
+            unimplemented!()
+        }
+    }
+    fn get_horizontal_max_nr() -> usize {
+        #[cfg(any(target_feature = "avx2", target_feature = "sse"))]
+        {
+            6
         }
         #[cfg(all(
             not(target_feature = "avx2"),

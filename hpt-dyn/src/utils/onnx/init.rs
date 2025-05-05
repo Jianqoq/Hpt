@@ -82,31 +82,19 @@ pub(crate) fn get_tensor_from_attribute(
                         }
                         Ok(tensor)
                     } else if tensor.int64_data.len() > 0 {
-                        let raw = unsafe {
-                            std::slice::from_raw_parts(
-                                tensor.int64_data.as_ptr() as *const u8,
-                                tensor.int64_data.len() * std::mem::size_of::<i64>(),
-                            )
-                        };
+                        let i64_data = tensor.int64_data.as_slice();
 
                         let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)?;
-                        let ptr = tensor.data.cast::<u8>().ptr;
+                        let ptr = tensor.data.cast::<i64>().ptr;
                         unsafe {
-                            ptr.copy_from(raw.as_ptr(), raw.len());
+                            ptr.copy_from(i64_data.as_ptr(), i64_data.len());
                         }
                         Ok(tensor)
                     } else if let Some(raw) = &tensor.raw_data {
-                        let raw = unsafe {
-                            std::slice::from_raw_parts(
-                                raw.as_ptr() as *const u8,
-                                raw.len() * std::mem::size_of::<u8>(),
-                            )
-                        };
-
                         let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)?;
                         let ptr = tensor.data.cast::<u8>().ptr;
                         unsafe {
-                            ptr.copy_from(raw.as_ptr(), raw.len());
+                            ptr.copy_from(raw.as_ptr(), raw.len() * std::mem::size_of::<u8>());
                         }
                         Ok(tensor)
                     } else {
@@ -126,18 +114,6 @@ pub(crate) fn get_tensor_from_attribute(
             }
         }
         _ => unimplemented!("constant ty {:?} not implemented", ty),
-    }
-}
-
-pub(crate) fn add_empty_permute(
-    input_name: &str,
-    permutes: &mut HashMap<String, Meta>,
-    all_inputs: &HashSet<String>,
-) {
-    if all_inputs.contains(input_name) {
-        permutes
-            .entry(input_name.to_string())
-            .or_insert(Meta { permute: None });
     }
 }
 

@@ -424,6 +424,7 @@ impl<T: Display> IndexMut<usize> for Pointer<T> {
 }
 
 impl<T> AddAssign<usize> for Pointer<T> {
+    #[track_caller]
     fn add_assign(&mut self, rhs: usize) {
         #[cfg(feature = "bound_check")]
         {
@@ -527,6 +528,7 @@ impl<T> Add<isize> for Pointer<T> {
 }
 
 impl<T> AddAssign<i64> for Pointer<T> {
+    #[track_caller]
     fn add_assign(&mut self, rhs: i64) {
         #[cfg(feature = "bound_check")]
         {

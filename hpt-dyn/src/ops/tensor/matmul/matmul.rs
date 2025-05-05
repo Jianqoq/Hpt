@@ -555,6 +555,7 @@ impl Tensor {
         &self,
         rhs: &Tensor,
         num_threads: usize,
+        out: Option<Tensor>,
         post_op: F1,
         post_op_vec: F2,
     ) -> Result<Tensor, TensorError>
@@ -566,7 +567,7 @@ impl Tensor {
         matmul_with_out(
             self,
             rhs,
-            None,
+            out,
             num_threads,
             Some(post_op),
             Some(post_op_vec),
@@ -595,12 +596,16 @@ impl Tensor {
         )
     }
     pub fn addmm(&self, rhs: &Tensor, bias: &Tensor) -> Result<Tensor, TensorError> {
-        self._addmm(rhs, bias, current_num_threads())
+        self._addmm(rhs, bias, None, current_num_threads())
+    }
+    pub fn addmm_(&self, rhs: &Tensor, bias: &Tensor, out: &mut Tensor) -> Result<Tensor, TensorError> {
+        self._addmm(rhs, bias, Some(out.clone()), current_num_threads())
     }
     pub(crate) fn _addmm(
         &self,
         rhs: &Tensor,
         bias: &Tensor,
+        out: Option<Tensor>,
         num_threads: usize,
     ) -> Result<Tensor, TensorError> {
         let bias_strides = bias.strides();
@@ -620,6 +625,7 @@ impl Tensor {
                 self._matmul_post::<$dtype, _, _>(
                     rhs,
                     num_threads,
+                    out,
                     move |inp, m, n| bias_ptr[(m as i64) * bias_rs + (n as i64) * bias_cs] + inp,
                     move |inp, m, n| {
                         let offset = (m as i64) * bias_rs + (n as i64) * bias_cs;

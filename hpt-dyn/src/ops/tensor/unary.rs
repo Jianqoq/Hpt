@@ -5,6 +5,7 @@ use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
 use hpt_common::shape::shape_utils::mt_intervals;
 use hpt_iterator::TensorIterator;
+use hpt_iterator::iterator_traits::ParStridedIteratorSimd;
 use hpt_iterator::iterator_traits::ParStridedIteratorSimdZip;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
@@ -25,7 +26,7 @@ use rayon::slice::ParallelSliceMut;
 use half::{bf16, f16};
 
 #[inline(never)]
-pub fn unary_map<A, K, F, F2>(slice_a: &[A], slice_o: &mut [K], f: F, f2: F2)
+pub(crate) fn unary_map<A, K, F, F2>(slice_a: &[A], slice_o: &mut [K], f: F, f2: F2)
 where
     A: CommonBounds,
     K: CommonBounds,
@@ -72,7 +73,7 @@ where
 }
 
 /// Perform unary operation with output tensor
-pub fn unary_fn_with_out<A, K, O, F, F2>(
+pub(crate) fn unary_fn_with_out<A, K, O, F, F2>(
     inp: &Tensor,
     f: F,
     f2: F2,
@@ -93,14 +94,19 @@ where
         inp.empty_like()?
     };
     if inp.parent::<A>().is_some() || !inp.is_contiguous() {
-        ret.par_iter_mut_simd()
-            .zip(inp.par_iter_simd())
-            .for_each(|(a, b)| {
+        let iter = ret.par_iter_mut_simd().zip(inp.par_iter_simd());
+        ParStridedIteratorSimd::for_each(
+            iter,
+            |(a, b)| {
                 *a = f2(b);
-            });
-        return Ok(ret);
+            },
+            |(a, b)| {
+                a.write_unaligned(f(b));
+            },
+        );
+    } else {
+        unary_map(inp.as_slice(), ret.as_slice_mut(), f, f2);
     }
-    unary_map(inp.as_slice(), ret.as_slice_mut(), f, f2);
     Ok(ret)
 }
 

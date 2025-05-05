@@ -7,9 +7,9 @@ use criterion::{black_box, BenchmarkId, Criterion};
 use half::f16;
 use hpt::ops::*;
 use hpt::Tensor;
-use hpt_dyn::DType;
-use hpt_dyn::Tensor as DynTensor;
-use hpt_dyn::Device;
+// use hpt_dyn::DType;
+// use hpt_dyn::Tensor as DynTensor;
+// use hpt_dyn::Device;
 // use tch::{Device, Kind, Tensor as TchTensor};
 
 fn matmul_f32_benchmark(c: &mut Criterion<crate::benchmarks::Timer>) {
@@ -30,10 +30,10 @@ fn matmul_f32_benchmark(c: &mut Criterion<crate::benchmarks::Timer>) {
     for n in ns {
         // let a = black_box(TchTensor::randn([n, n], (Kind::Float, Device::Cpu)));
         // let c = black_box(TchTensor::randn([n, n], (Kind::Float, Device::Cpu)));
-        // let a2 = black_box(Tensor::<f32>::randn([n, n]).unwrap());
-        // let c2 = black_box(Tensor::<f32>::randn([n, n]).unwrap());
-        let a2 = black_box(DynTensor::randn(0.0, 1.0, &[n, n], DType::F32, Device::Cpu).unwrap());
-        let c2 = black_box(DynTensor::randn(0.0, 1.0, &[n, n], DType::F32, Device::Cpu).unwrap());
+        let a2 = black_box(Tensor::<f32>::randn([n, n]).unwrap());
+        let c2 = black_box(Tensor::<f32>::randn([n, n]).unwrap());
+        // let a2 = black_box(DynTensor::randn(0.0, 1.0, &[n, n], DType::F32, Device::Cpu).unwrap());
+        // let c2 = black_box(DynTensor::randn(0.0, 1.0, &[n, n], DType::F32, Device::Cpu).unwrap());
         // let a3 = black_box(
         //     CandleTensor::randn(
         //         0.0f32,
@@ -59,7 +59,9 @@ fn matmul_f32_benchmark(c: &mut Criterion<crate::benchmarks::Timer>) {
         //     .unwrap(),
         // );
         group.bench_with_input(BenchmarkId::new("hpt(builtin)", n), &n, |b, _| {
-            b.iter(|| a2.matmul(&c2).unwrap());
+            spindle::with_lock(10, || {
+                b.iter(|| a2.matmul(&c2).unwrap());
+            });
         });
         // group.bench_with_input(BenchmarkId::new("torch", n), &n, |b, _| {
         //     b.iter(|| a.matmul(&c));

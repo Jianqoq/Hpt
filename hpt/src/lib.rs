@@ -542,14 +542,14 @@ thread_local! {
 
 thread_local! {
     static CUSTOM_THREAD_POOL: RefCell<crate::backends::common::thread_pool::ComputeThreadPool> = RefCell::new(
-        crate::backends::common::thread_pool::ComputeThreadPool::new(num_cpus::get())
+        crate::backends::common::thread_pool::ComputeThreadPool::new(num_cpus::get_physical())
     );
 }
 
 thread_local! {
     static RAYON_POOL: RefCell<rayon::ThreadPool> = RefCell::new(
         rayon::ThreadPoolBuilder::new()
-            .num_threads(num_cpus::get())
+            .num_threads(num_cpus::get_physical())
             .build()
             .unwrap()
     );
