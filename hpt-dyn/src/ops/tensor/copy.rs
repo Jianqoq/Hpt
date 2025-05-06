@@ -10,10 +10,10 @@ impl Tensor {
 
     pub(crate) fn _copy_from(&mut self, other: &Self, num_threads: usize) {
         if self.layout.size() != other.layout.size() {
-            panic!("size mismatch");
+            panic!("size mismatch, self: {:?}, other: {:?}", self.layout, other.layout);
         }
         if self.dtype != other.dtype {
-            panic!("dtype mismatch");
+            panic!("dtype mismatch, self: {:?}, other: {:?}", self.dtype, other.dtype);
         }
 
         if self.is_contiguous()

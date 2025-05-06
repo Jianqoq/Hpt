@@ -111,28 +111,6 @@ impl<T> Pointer<T> {
         }
     }
 
-    /// modify the value of the pointer in the address by the specified offset
-    ///
-    /// # Arguments
-    /// `offset` - the offset from the current address
-    /// `value` - the value to be written
-    ///
-    /// # Example
-    /// ```
-    /// use tensor_pointer::Pointer;
-    /// let mut _a = unsafe { std::alloc::alloc(std::alloc::Layout::new::<i32>()) as *mut i32 };
-    /// let mut a = Pointer::<i32>::new(_a);
-    /// a.modify(0, 10);
-    /// assert_eq!(a.read(), 10);
-    /// unsafe { std::alloc::dealloc(_a as *mut u8, std::alloc::Layout::new::<i32>()); }
-    /// ```
-    #[inline(always)]
-    pub fn modify(&mut self, offset: i64, value: T) {
-        unsafe {
-            self.ptr.offset(offset as isize).write(value);
-        }
-    }
-
     /// inplace increment the value of the pointer in the current address
     ///
     /// # Arguments
@@ -169,6 +147,7 @@ impl<T> Pointer<T> {
     ///
     /// # Returns
     #[inline(always)]
+    #[allow(unused)]
     pub fn offset(&self, offset: isize) -> Self {
         unsafe {
             #[cfg(feature = "bound_check")]
@@ -177,7 +156,27 @@ impl<T> Pointer<T> {
                 len: self.len - offset as i64,
             };
             #[cfg(not(feature = "bound_check"))]
-            return Self { ptr: self.ptr };
+            return Self { ptr: self.ptr.offset(offset as isize) };
+        }
+    }
+
+    /// add the pointer in the current address
+    ///
+    /// # Arguments
+    /// `offset` - the offset to be added
+    ///
+    /// # Returns
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn add(&self, offset: usize) -> Self {
+        unsafe {
+            #[cfg(feature = "bound_check")]
+            return Self {
+                ptr: self.ptr.add(offset),
+                len: self.len - offset as i64,
+            };
+            #[cfg(not(feature = "bound_check"))]
+            return Self { ptr: self.ptr.add(offset) };
         }
     }
 
@@ -300,6 +299,7 @@ impl<T> Pointer<T> {
     /// # Returns
     /// `T`
     #[inline(always)]
+    #[track_caller]
     pub fn read(&self) -> T {
         #[cfg(feature = "bound_check")]
         {

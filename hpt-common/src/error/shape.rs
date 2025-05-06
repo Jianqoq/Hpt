@@ -285,7 +285,7 @@ impl ShapeError {
     /// Check if the index is out of range
     #[track_caller]
     pub fn check_index_out_of_range(index: usize, dim: usize) -> Result<(), Self> {
-        if index >= dim || index < 0 {
+        if index >= dim {
             return Err(Self::DimOutOfRange {
                 expected: 0..dim as i64,
                 actual: index as i64,

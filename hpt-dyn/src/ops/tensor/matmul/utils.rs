@@ -1,4 +1,4 @@
-use gemm_common::cache::{KernelParams, CACHE_INFO};
+use gemm_common::cache::{CACHE_INFO, KernelParams};
 use hpt_common::Pointer;
 use num::integer::gcd;
 
@@ -72,7 +72,7 @@ pub(crate) fn kernel_params(
         let n_iter = n.div_ceil(auto_nc);
         n.div_ceil(n_iter * nr) * nr
     };
-    let auto_nc = Ord::min(auto_nc, 4 * nr);
+    let auto_nc = Ord::min(auto_nc, 2 * nr);
 
     let auto_mc = if l3_cache_bytes == 0 {
         0
@@ -92,6 +92,7 @@ pub(crate) fn kernel_params(
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone)]
 pub(crate) struct PrePackedRhs {
     pub(crate) buffers: Vec<Vec<Pointer<u8>>>,

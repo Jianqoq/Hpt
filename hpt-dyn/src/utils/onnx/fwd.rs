@@ -194,7 +194,7 @@ pub(crate) fn lstm_fwd<'a>(
     } else {
         None
     };
-    let (y, y_h, y_c) = x.lstm(w, r, b, seq_lens, init_h, init_c, p)?;
+    let (y, y_h, y_c) = x.lstm(w, r, b, seq_lens, init_h, init_c, p, lstm.direction.as_str())?;
     if let Some(y_name) = &lstm.y {
         tensors.insert(y_name.as_str(), y);
     }

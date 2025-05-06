@@ -12,7 +12,7 @@ macro_rules! define_mma {
             use hpt_types::dtype::TypeCommon;
             let mut c_local = [[<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
             // let a_ptr = a.ptr as *const T;
-            let b_ptr = b.ptr as *const <T as TypeCommon>::Vec;
+            let b_ptr = b.cast::<<T as TypeCommon>::Vec>();
             let rem = kc % $unroll;
             for k in 0..(kc / $unroll) as i64 {
                 // seq_macro::seq!(MR in 0..$mr {
@@ -23,7 +23,7 @@ macro_rules! define_mma {
                     //     prefetch_b::<T>(b_ptr, (((k + 1) * $unroll + UNROLL) * $nr + NR) as usize);
                     // });
                     seq_macro::seq!(NR in 0..$nr {
-                        let b_vec~NR = unsafe {*b_ptr.add(((k * $unroll + UNROLL) * $nr + NR) as usize)};
+                        let b_vec~NR = b_ptr.add(((k * $unroll + UNROLL) * $nr + NR) as usize).read();
                     });
                     #[allow(unused_mut)]
                     let mut a_vec;
@@ -38,7 +38,7 @@ macro_rules! define_mma {
 
             for k in (kc - rem) as i64..kc as i64 {
                 seq_macro::seq!(NR in 0..$nr {
-                    let b_vec~NR = unsafe {*b_ptr.add((k * $nr + NR) as usize)};
+                    let b_vec~NR = b_ptr.add((k * $nr + NR) as usize).read();
                 });
                 #[allow(unused_mut)]
                 let mut a_vec;

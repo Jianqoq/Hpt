@@ -235,6 +235,7 @@ pub(crate) fn func_name<T, F1, F2>(
 
     let panel_size = num_nr_blocks * nr * kc;
 
+    // credit to sarah-quinones with help on spindle
     for i in (0..m).step_by(mc) {
         let ib = min(mc, m - i);
         let prgs = if ib == mc { &prgs } else { &rem_prgs };
@@ -647,8 +648,9 @@ where
                     let mut jj_start = use_prg[2] * nr;
                     let need_full_pack = ib - i_start > mr;
 
-                    let mut buffer =
+                    let mut buffer_ptr =
                         buffer_ptr + cum_buffer_size[tid] + (p_idx * total_panels_size) as i64;
+                    let ptr_cpy = buffer_ptr;
                     // let buffer = Tensor::zeros(&[buffer_size[tid] as i64], dtype, device.clone())
                     //     .unwrap();
                     // let mut buffer_ptr = buffer.data.cast::<T>();
@@ -656,7 +658,7 @@ where
                         let jb = min(nc, n - j);
                         pack_b::<T>(
                             b + ((p as i64) * ldb + (j as i64) * rhs_col_stride),
-                            buffer,
+                            buffer_ptr,
                             ldb,
                             rhs_col_stride,
                             jb,
@@ -666,7 +668,7 @@ where
                             jj_start,
                             need_full_pack,
                         );
-                        buffer += panel_size as i64;
+                        buffer_ptr += panel_size as i64;
                         for _ in (i_start..ib).step_by(mr) {
                             for _ in (jj_start..jb).step_by(nr) {
                                 job_count += 1;
@@ -678,7 +680,8 @@ where
                         }
                         i_start = 0;
                     }
-                    buffer_ptr.cast::<u8>()
+                    ptr_cpy.cast::<u8>()
+                    // buffer
                 })
                 .collect::<Vec<_>>();
             buffers.push(local_buffers);

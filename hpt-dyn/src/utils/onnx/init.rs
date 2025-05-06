@@ -4,18 +4,16 @@ use hpt_types::{dtype::DType, into_scalar::Cast};
 use super::{
     map_dtype::to_dtype,
     operators::{
-        Binary, Concat, Gather, Gemm, Lstm, Matmul, Operator, Permute, Pooling, Slice, Squeeze,
-        Unary,
+        Binary, Concat, Gather, Gemm, Lstm, Matmul, Operator, Permute, Slice, Squeeze, Unary,
     },
 };
 use crate::{
     Tensor,
     onnx::{NodeProto, attribute_proto},
-    ops::models::onnx::Meta,
     utils::onnx::operators::{ConstantOfShape, Conv2d},
 };
 use hpt_traits::tensor::TensorInfo;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 fn bytes_to_string(bytes: &[u8]) -> String {
     String::from_utf8(bytes.to_vec()).expect("invalid utf-8 sequence")
@@ -449,37 +447,61 @@ pub(crate) fn lstm_init(node: &NodeProto, node_degree: &mut HashMap<String, u32>
     let b = if node.input[3].as_str() == "" {
         None
     } else {
+        *node_degree
+            .entry(node.input[3].as_str().to_string())
+            .or_insert(0) += 1;
         Some(node.input[3].as_str().to_string())
     };
     let sequence_lens = if node.input[4].as_str() == "" {
         None
     } else {
+        *node_degree
+            .entry(node.input[4].as_str().to_string())
+            .or_insert(0) += 1;
         Some(node.input[4].as_str().to_string())
     };
     let initial_h = if node.input[5].as_str() == "" {
         None
     } else {
+        *node_degree
+            .entry(node.input[5].as_str().to_string())
+            .or_insert(0) += 1;
         Some(node.input[5].as_str().to_string())
     };
     let initial_c = if node.input[6].as_str() == "" {
         None
     } else {
+        *node_degree
+            .entry(node.input[6].as_str().to_string())
+            .or_insert(0) += 1;
         Some(node.input[6].as_str().to_string())
     };
-    let p = node.input.get(7).map(|s| s.as_str().to_string());
+    let p = node.input.get(7).map(|s| {
+        *node_degree.entry(s.as_str().to_string()).or_insert(0) += 1;
+        s.as_str().to_string()
+    });
     let y = if node.output[0].as_str() == "" {
         None
     } else {
+        *node_degree
+            .entry(node.output[0].as_str().to_string())
+            .or_insert(0) += 1;
         Some(node.output[0].as_str().to_string())
     };
     let y_h = if node.output[1].as_str() == "" {
         None
     } else {
+        *node_degree
+            .entry(node.output[1].as_str().to_string())
+            .or_insert(0) += 1;
         Some(node.output[1].as_str().to_string())
     };
     let y_c = if node.output[2].as_str() == "" {
         None
     } else {
+        *node_degree
+            .entry(node.output[2].as_str().to_string())
+            .or_insert(0) += 1;
         Some(node.output[2].as_str().to_string())
     };
 
