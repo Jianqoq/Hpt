@@ -403,6 +403,7 @@ pub(crate) fn func_name<T, IM, F1, F2>(
     nr: usize,
     mr: usize,
     mut num_threads: usize,
+    prepack_rhs: Option<PrePackedRhs>,
     _post_op: F1,
     _post_op_vec: F2,
     pack_vec: fn(*mut IM::Vec, *const T::Vec, usize),

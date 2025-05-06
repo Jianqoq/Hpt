@@ -10,6 +10,3 @@ rustflags = [
     "-C",
     "target-feature=+f16c",
 ]
-
-[build]
-rustc-wrapper = "sccache"

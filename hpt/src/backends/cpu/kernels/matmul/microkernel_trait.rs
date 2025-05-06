@@ -63,6 +63,22 @@ where
             define_matmul_micro_kernel!(x6x1, 6, 1);
             return x6x1;
         }
+        #[cfg(target_feature = "sse")]
+        {
+            use crate::define_matmul_micro_kernel;
+            assert_eq!(nr, 2);
+            assert_eq!(mr, 1);
+            define_matmul_micro_kernel!(x2x1, 2, 1);
+            return x2x1;
+        }
+        #[cfg(target_feature = "neon")]
+        {
+            use crate::define_matmul_micro_kernel;
+            assert_eq!(nr, 14);
+            assert_eq!(mr, 1);
+            define_matmul_micro_kernel!(x14x1, 14, 1);
+            return x14x1;
+        }
         #[cfg(all(
             not(target_feature = "avx2"),
             not(target_feature = "sse"),
@@ -179,9 +195,9 @@ where
         #[cfg(target_feature = "neon")]
         {
             use crate::define_post_op_matmul_micro_kernel;
-            assert_eq!(nr, 8);
-            define_post_op_matmul_micro_kernel!(x8x1, 8, 1);
-            return [x8x1, x8x2][mr - 1];
+            assert_eq!(nr, 14);
+            define_post_op_matmul_micro_kernel!(x14x1, 14, 1);
+            return x14x1;
         }
         #[cfg(all(
             not(target_feature = "avx2"),
@@ -300,6 +316,10 @@ where
         #[cfg(any(target_feature = "avx2", target_feature = "sse"))]
         {
             6
+        }
+        #[cfg(target_feature = "neon")]
+        {
+            14
         }
         #[cfg(all(
             not(target_feature = "avx2"),

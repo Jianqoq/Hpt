@@ -1,5 +1,4 @@
 use crate::ops::tensor::matmul::microkernel_trait::MatmulMicroKernel;
-use hpt_types::dtype::TypeCommon;
 
 #[cfg(target_feature = "neon")]
 impl MatmulMicroKernel for f32 {

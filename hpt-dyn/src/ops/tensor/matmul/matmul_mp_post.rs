@@ -8,6 +8,7 @@ use super::{
     utils::kernel_params,
 };
 use hpt_types::traits::VecTrait;
+use super::utils::PrePackedRhs;
 
 #[allow(unused)]
 pub(crate) fn matmul_mp_post_no_block_info<T, IM, F1, F2>(
@@ -23,7 +24,7 @@ pub(crate) fn matmul_mp_post_no_block_info<T, IM, F1, F2>(
     lhs_col_stride: i64,
     rhs_col_stride: i64,
     num_threads: usize,
-    
+    prepack_rhs: Option<PrePackedRhs>,
     pack_vec: fn(*mut IM::Vec, *const T::Vec, usize),
     pack_vec_exceed: fn(*mut IM::Vec, usize),
     pack_zero: fn(&mut IM, &T),
@@ -64,7 +65,7 @@ pub(crate) fn matmul_mp_post_no_block_info<T, IM, F1, F2>(
         nr,
         mr,
         num_threads,
-        
+        prepack_rhs,
         post_op,
         post_op_vec,
         pack_vec,
@@ -90,7 +91,7 @@ pub(crate) fn f16_matmul_mp_post_no_block_info<T, IM, F1, F2>(
     lhs_col_stride: i64,
     rhs_col_stride: i64,
     num_threads: usize,
-    
+    prepack_rhs: Option<PrePackedRhs>,
     post_op: F1,
     post_op_vec: F2,
 ) where
@@ -117,7 +118,7 @@ pub(crate) fn f16_matmul_mp_post_no_block_info<T, IM, F1, F2>(
         lhs_col_stride,
         rhs_col_stride,
         num_threads,
-        
+        prepack_rhs,
         |packed_b, b, i| unsafe {
             let packed_b = packed_b as *mut F32Vec;
             let b = b as *const F16Vec;
@@ -136,7 +137,7 @@ pub(crate) fn f16_matmul_mp_post_no_block_info<T, IM, F1, F2>(
             packed_b_vec1.write(F32Vec::splat(0.0));
         },
         |im, val| {
-            let val = val as *const T as *const half_type;
+            let val = val as *const T as *const half::f16;
             *im = unsafe { val.read().to_f32() };
         },
         |im, val| {
@@ -147,8 +148,8 @@ pub(crate) fn f16_matmul_mp_post_no_block_info<T, IM, F1, F2>(
             unsafe { im.write_unaligned(F16Vec::from_2_f32vec([vec0, vec1])) };
         },
         |im, val| {
-            let im = im as *mut T as *mut half_type;
-            unsafe { *im = half_type::from_f32(*val) };
+            let im = im as *mut T as *mut half::f16;
+            unsafe { *im = half::f16::from_f32(*val) };
         },
         post_op,
         post_op_vec,
@@ -169,7 +170,7 @@ pub(crate) fn bf16_matmul_mp_post_no_block_info<T, IM, F1, F2>(
     lhs_col_stride: i64,
     rhs_col_stride: i64,
     num_threads: usize,
-    
+    prepack_rhs: Option<PrePackedRhs>,
     post_op: F1,
     post_op_vec: F2,
 ) where
@@ -196,7 +197,7 @@ pub(crate) fn bf16_matmul_mp_post_no_block_info<T, IM, F1, F2>(
         lhs_col_stride,
         rhs_col_stride,
         num_threads,
-        
+        prepack_rhs,
         |packed_b, b, i| unsafe {
             let packed_b = packed_b as *mut F32Vec;
             let b = b as *const F16Vec;
@@ -215,7 +216,7 @@ pub(crate) fn bf16_matmul_mp_post_no_block_info<T, IM, F1, F2>(
             packed_b_vec1.write(F32Vec::splat(0.0));
         },
         |im, val| {
-            let val = val as *const T as *const half_type;
+            let val = val as *const T as *const half::bf16;
             *im = unsafe { val.read().to_f32() };
         },
         |im, val| {
@@ -226,8 +227,8 @@ pub(crate) fn bf16_matmul_mp_post_no_block_info<T, IM, F1, F2>(
             unsafe { im.write_unaligned(F16Vec::from_2_f32vec([vec0, vec1])) };
         },
         |im, val| {
-            let im = im as *mut T as *mut half_type;
-            unsafe { *im = half_type::from_f32(*val) };
+            let im = im as *mut T as *mut half::bf16;
+            unsafe { *im = half::bf16::from_f32(*val) };
         },
         post_op,
         post_op_vec,

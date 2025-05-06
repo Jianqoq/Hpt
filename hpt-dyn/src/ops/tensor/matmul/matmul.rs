@@ -18,10 +18,7 @@ use super::matmul_mp_post::bf16_matmul_mp_post_no_block_info;
 #[cfg(feature = "f16")]
 use super::matmul_mp_post::f16_matmul_mp_post_no_block_info;
 use super::{
-    common::matmul_prepare,
-    matmul_post::matmul_post_template_no_block_info,
-    microkernel_trait::MatmulMicroKernel,
-    utils::{PrePackedRhs, kernel_params},
+    common::matmul_prepare, matmul_mp::matmul_mp_no_block_info_prepack_rhs, matmul_post::matmul_post_template_no_block_info, microkernel_trait::MatmulMicroKernel, utils::{kernel_params, PrePackedRhs}
 };
 
 use hpt_types::{
@@ -196,6 +193,7 @@ pub(crate) fn matmul<T, F1, F2>(
                         lhs_cs,
                         rhs_cs,
                         threads,
+                        prepacked_rhs,
                     )
                 } else {
                     f16_matmul_mp_no_block_info::<f16, f32>(
@@ -211,6 +209,7 @@ pub(crate) fn matmul<T, F1, F2>(
                         lhs_cs,
                         rhs_cs,
                         threads,
+                        prepacked_rhs,
                     )
                 }
             }
@@ -228,6 +227,7 @@ pub(crate) fn matmul<T, F1, F2>(
                 lhs_cs,
                 rhs_cs,
                 threads,
+                prepacked_rhs,
             ),
             _ => matmul_template_no_block_info(
                 lhs,
@@ -264,6 +264,7 @@ pub(crate) fn matmul<T, F1, F2>(
                         post_op,
                         post_op_vec,
                         threads,
+                        prepacked_rhs,
                     )
                 } else {
                     f16_matmul_mp_post_no_block_info::<T, f32, _, _>(
@@ -279,6 +280,7 @@ pub(crate) fn matmul<T, F1, F2>(
                         lhs_cs,
                         rhs_cs,
                         threads,
+                        prepacked_rhs,
                         post_op,
                         post_op_vec,
                     )
@@ -298,6 +300,7 @@ pub(crate) fn matmul<T, F1, F2>(
                 lhs_cs,
                 rhs_cs,
                 threads,
+                prepacked_rhs,
                 post_op,
                 post_op_vec,
             ),
@@ -344,51 +347,43 @@ where
         #[cfg(feature = "f16")]
         "f16" => {
             if cfg!(target_feature = "neon") && cfg!(target_feature = "fp16") {
-                matmul_template_no_block_info::<f16>(
-                    lhs.cast::<f16>(),
+                matmul_template_no_block_info_prepack_rhs::<f16>(
                     rhs.cast::<f16>(),
-                    out.cast::<f16>(),
                     m,
                     n,
                     k,
-                    lhs_rs,
-                    rhs_rs,
-                    dst_cs,
-                    lhs_cs,
-                    rhs_cs,
+                    rhs_row_stride,
+                    lhs_col_stride,
+                    rhs_col_stride,
                     threads,
+                    device,
+                    dtype,
                 )
             } else {
-                f16_matmul_mp_no_block_info::<f16, f32>(
-                    lhs.cast::<f16>(),
+                matmul_mp_no_block_info_prepack_rhs::<f16, f32>(
                     rhs.cast::<f16>(),
-                    out.cast::<f16>(),
                     m,
                     n,
                     k,
-                    lhs_rs,
-                    rhs_rs,
-                    dst_cs,
-                    lhs_cs,
-                    rhs_cs,
+                    rhs_row_stride,
+                    rhs_col_stride,
                     threads,
+                    device,
+                    dtype,
                 )
             }
         }
         #[cfg(feature = "bf16")]
-        "bf16" => bf16_matmul_mp_no_block_info::<bf16, f32>(
-            lhs.cast::<bf16>(),
+        "bf16" => matmul_mp_no_block_info_prepack_rhs::<bf16, f32>(
             rhs.cast::<bf16>(),
-            out.cast::<bf16>(),
             m,
             n,
             k,
-            lhs_rs,
-            rhs_rs,
-            dst_cs,
-            lhs_cs,
-            rhs_cs,
+            rhs_row_stride,
+            rhs_col_stride,
             threads,
+            device,
+            dtype,
         ),
         _ => matmul_template_no_block_info_prepack_rhs(
             rhs,

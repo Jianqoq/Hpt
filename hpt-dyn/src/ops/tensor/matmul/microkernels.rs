@@ -5,14 +5,13 @@
 macro_rules! define_mma {
     ($nr:expr, $mr:expr, $unroll:expr) => {
         #[inline(always)]
-        fn mma<T: hpt_traits::tensor::CommonBounds>(a: hpt_common::Pointer<T>, b: hpt_common::Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as TypeCommon>::Vec; $nr]; $mr] {
+        fn mma<T: hpt_traits::tensor::CommonBounds>(a: hpt_common::Pointer<T>, b: hpt_common::Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as hpt_types::dtype::TypeCommon>::Vec; $nr]; $mr] {
             // use crate::utils::prefetch::prefetch_a;
             // use crate::utils::prefetch::prefetch_b;
             use hpt_types::type_promote::NormalOut;
-            use hpt_types::dtype::TypeCommon;
-            let mut c_local = [[<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
+            let mut c_local = [[<T as hpt_types::dtype::TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
             // let a_ptr = a.ptr as *const T;
-            let b_ptr = b.cast::<<T as TypeCommon>::Vec>();
+            let b_ptr = b.cast::<<T as hpt_types::dtype::TypeCommon>::Vec>();
             let rem = kc % $unroll;
             for k in 0..(kc / $unroll) as i64 {
                 // seq_macro::seq!(MR in 0..$mr {
@@ -28,7 +27,7 @@ macro_rules! define_mma {
                     #[allow(unused_mut)]
                     let mut a_vec;
                     seq_macro::seq!(MR in 0..$mr {
-                        a_vec = <T as TypeCommon>::Vec::splat(a[(k * $unroll + UNROLL) * ks + MR as i64 * lda]);
+                        a_vec = <T as hpt_types::dtype::TypeCommon>::Vec::splat(a[(k * $unroll + UNROLL) * ks + MR as i64 * lda]);
                         seq_macro::seq!(NR in 0..$nr {
                             c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
                         });
@@ -43,7 +42,7 @@ macro_rules! define_mma {
                 #[allow(unused_mut)]
                 let mut a_vec;
                 seq_macro::seq!(MR in 0..$mr {
-                    a_vec = <T as TypeCommon>::Vec::splat(a[k * ks + MR as i64 * lda]);
+                    a_vec = <T as hpt_types::dtype::TypeCommon>::Vec::splat(a[k * ks + MR as i64 * lda]);
                     seq_macro::seq!(NR in 0..$nr {
                         c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
                     });
@@ -61,16 +60,16 @@ pub(crate) use define_mma;
 macro_rules! define_neon_mma {
     ($nr:expr, $mr:expr) => {
         #[inline(always)]
-        fn mma<T: hpt_traits::tensor::CommonBounds>(mut a: hpt_common::Pointer<T>, mut b: hpt_common::Pointer<T>, _: i64, kc: usize, ks: i64) -> [[<T as TypeCommon>::Vec; $nr]; $mr] {
+        fn mma<T: hpt_traits::tensor::CommonBounds>(mut a: hpt_common::Pointer<T>, mut b: hpt_common::Pointer<T>, _: i64, kc: usize, ks: i64) -> [[<T as hpt_types::dtype::TypeCommon>::Vec; $nr]; $mr] {
             use crate::ops::tensor::matmul::microkernels::load_vec_neon;
-            let mut c_local = [[<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
+            let mut c_local = [[<T as hpt_types::dtype::TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
             for _ in 0..kc {
-                let mut b_vec = [<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr];
+                let mut b_vec = [<T as hpt_types::dtype::TypeCommon>::Vec::splat(<T>::ZERO); $nr];
                 load_vec_neon::<$nr>(b.ptr as *const f32, b_vec.as_mut_ptr() as *mut f32);
                 #[allow(unused_mut)]
                 let mut a_vec;
                 unsafe {
-                    a_vec = <T as TypeCommon>::Vec::from_ptr(a.ptr);
+                    a_vec = <T as hpt_types::dtype::TypeCommon>::Vec::from_ptr(a.ptr);
                     seq_macro::seq!(MR in 0..$mr {
                         seq_macro::seq!(NR in 0..$nr {
                                 c_local[MR][NR] = b_vec[NR].mul_add_lane::<MR>(a_vec, c_local[MR][NR]);
@@ -78,7 +77,7 @@ macro_rules! define_neon_mma {
                         }
                     );
                 }
-                b += $nr * <T as TypeCommon>::Vec::SIZE as i64;
+                b += $nr * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE as i64;
                 a += ks;
             }
             c_local
@@ -93,13 +92,13 @@ pub(crate) use define_neon_mma;
 macro_rules! define_mma_packed_a {
     ($nr:expr, $mr:expr, $unroll:expr) => {
         #[inline(always)]
-        fn mma_packed_a<T: hpt_traits::tensor::CommonBounds>(a: hpt_common::Pointer<T>, b: hpt_common::Pointer<T>, kc: usize) -> [[<T as TypeCommon>::Vec; $nr]; $mr] {
+        fn mma_packed_a<T: hpt_traits::tensor::CommonBounds>(a: hpt_common::Pointer<T>, b: hpt_common::Pointer<T>, kc: usize) -> [[<T as hpt_types::dtype::TypeCommon>::Vec; $nr]; $mr] {
             // use crate::utils::prefetch::prefetch_a;
             // use crate::utils::prefetch::prefetch_b;
             use hpt_types::type_promote::NormalOut;
-            let mut c_local = [[<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
+            let mut c_local = [[<T as hpt_types::dtype::TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
             // let a_ptr = a.ptr as *const T;
-            let b_ptr = b.ptr as *const <T as TypeCommon>::Vec;
+            let b_ptr = b.ptr as *const <T as hpt_types::dtype::TypeCommon>::Vec;
             let rem = kc % $unroll;
             for k in 0..(kc / $unroll) as i64 {
                 // prefetch_a::<T>(a_ptr, ((k + 1) * $unroll * $mr) as usize);
@@ -113,7 +112,7 @@ macro_rules! define_mma_packed_a {
                     #[allow(unused_mut)]
                     let mut a_vec;
                     seq_macro::seq!(MR in 0..$mr {
-                        a_vec = <T as TypeCommon>::Vec::splat(a[(k * $unroll + UNROLL) * $mr + MR]);
+                        a_vec = <T as hpt_types::dtype::TypeCommon>::Vec::splat(a[(k * $unroll + UNROLL) * $mr + MR]);
                         seq_macro::seq!(NR in 0..$nr {
                             c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
                         });
@@ -128,7 +127,7 @@ macro_rules! define_mma_packed_a {
                 #[allow(unused_mut)]
                 let mut a_vec;
                 seq_macro::seq!(MR in 0..$mr {
-                    a_vec = <T as TypeCommon>::Vec::splat(a[k * $mr + MR]);
+                    a_vec = <T as hpt_types::dtype::TypeCommon>::Vec::splat(a[k * $mr + MR]);
                     seq_macro::seq!(NR in 0..$nr {
                         c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
                     });
@@ -156,9 +155,9 @@ macro_rules! store_res_vec {
             seq_macro::seq!(NR in 0..$nr {
                     let $res_ptr = unsafe {
                         c_ptr.offset(
-                            (NR * <T as TypeCommon>::Vec::SIZE as i64) as isize,
+                            (NR * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE as i64) as isize,
                         )
-                    } as *mut <T as TypeCommon>::Vec;
+                    } as *mut <T as hpt_types::dtype::TypeCommon>::Vec;
                     let $to_store = $c_local[MR as usize][NR as usize];
                     $($stores)*;
                 });
@@ -184,9 +183,9 @@ macro_rules! store_res_vec_mp {
             seq_macro::seq!(NR in 0..$nr {
                     let $res_ptr = unsafe {
                         c_ptr.offset(
-                            (NR * <T as TypeCommon>::Vec::SIZE as i64) as isize,
+                            (NR * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE as i64) as isize,
                         )
-                    } as *mut <T as TypeCommon>::Vec;
+                    } as *mut <T as hpt_types::dtype::TypeCommon>::Vec;
                     let $to_store = $c_local[MR as usize].as_ptr();
                     $($stores)*;
                 });
@@ -341,7 +340,7 @@ macro_rules! define_matmul_micro_kernel {
             }else {
                 mma(a, b, lda, kc, ks)
             };
-            if jb == $nr * <T as TypeCommon>::Vec::SIZE {
+            if jb == $nr * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE {
                 if first_kiter {
                     store_res_vec!(
                         $mr,
@@ -507,26 +506,26 @@ macro_rules! define_matmul_micro_kernel_inline_asm_rem {
             use hpt_types::type_promote::NormalOut;
             use hpt_types::traits::VecTrait;
             #[inline(always)]
-            fn mma<T: hpt_traits::tensor::CommonBounds>(mut a: hpt_common::Pointer<T>, mut b: hpt_common::Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as TypeCommon>::Vec; $nr]; $mr] {
-                let mut c_local = [[<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
+            fn mma<T: hpt_traits::tensor::CommonBounds>(mut a: hpt_common::Pointer<T>, mut b: hpt_common::Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as hpt_types::dtype::TypeCommon>::Vec; $nr]; $mr] {
+                let mut c_local = [[<T as hpt_types::dtype::TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
                 for _ in 0..kc {
                     seq_macro::seq!(NR in 0..$nr {
                             let b_vec~NR = unsafe {
-                                *(b.ptr.add(NR * <T as TypeCommon>::Vec::SIZE)
-                                    as *const <T as TypeCommon>::Vec)
+                                *(b.ptr.add(NR * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE)
+                                    as *const <T as hpt_types::dtype::TypeCommon>::Vec)
                             };
                         }
                     );
                     #[allow(unused_mut)]
                     let mut a_vec;
                     seq_macro::seq!(MR in 0..$mr {
-                            a_vec = <T as TypeCommon>::Vec::splat(a[MR as i64 * lda]);
+                            a_vec = <T as hpt_types::dtype::TypeCommon>::Vec::splat(a[MR as i64 * lda]);
                             seq_macro::seq!(NR in 0..$nr {
                                 c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
                             });
                         }
                     );
-                    b += $nr * <T as TypeCommon>::Vec::SIZE as i64;
+                    b += $nr * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE as i64;
                     a += ks;
                 }
                 c_local
@@ -609,7 +608,7 @@ macro_rules! define_post_op_matmul_micro_kernel {
             }else {
                 mma(a, b, lda, kc, ks)
             };
-            if jb == $nr * <T as TypeCommon>::Vec::SIZE {
+            if jb == $nr * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE {
                 match (first_kiter, last_kiter) {
                     (true, true) => {
                         store_res_vec!(
@@ -619,7 +618,7 @@ macro_rules! define_post_op_matmul_micro_kernel {
                             ldc,
                             c_local,
                             [res_ptr <= c_vec],
-                            unsafe { res_ptr.write_unaligned(post_op_vec(c_vec, m_idx + MR, n_idx + NR * <T as TypeCommon>::Vec::SIZE)) }
+                            unsafe { res_ptr.write_unaligned(post_op_vec(c_vec, m_idx + MR, n_idx + NR * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE)) }
                         );
                     }
                     (true, false) => {
@@ -641,7 +640,7 @@ macro_rules! define_post_op_matmul_micro_kernel {
                             ldc,
                             c_local,
                             [res_ptr <= c_vec],
-                            unsafe { res_ptr.write_unaligned(post_op_vec(res_ptr.read_unaligned()._add(c_vec), m_idx + MR, n_idx + NR * <T as TypeCommon>::Vec::SIZE)) }
+                            unsafe { res_ptr.write_unaligned(post_op_vec(res_ptr.read_unaligned()._add(c_vec), m_idx + MR, n_idx + NR * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE)) }
                         );
                     }
                     (false, false) => {
@@ -717,7 +716,7 @@ macro_rules! define_neon_matmul_micro_kernel {
             define_neon_mma!($nr, $mr);
 
             let c_local = mma(a, b, lda, kc, ks);
-            if jb == $nr * <T as TypeCommon>::Vec::SIZE {
+            if jb == $nr * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE {
                 if first_kiter {
                     store_res_vec!(
                         $mr,
@@ -772,7 +771,7 @@ pub(crate) use define_neon_matmul_micro_kernel;
 #[cfg(target_feature = "neon")]
 macro_rules! define_neon_post_op_matmul_micro_kernel {
     ($name:ident, $nr:expr, $mr:expr) => {
-        fn $name<T: hpt_traits::tensor::CommonBounds, F: Fn(T, usize, usize) -> T, G: Fn(<T as TypeCommon>::Vec, usize, usize) -> <T as TypeCommon>::Vec>(
+        fn $name<T: hpt_traits::tensor::CommonBounds, F: Fn(T, usize, usize) -> T, G: Fn(<T as hpt_types::dtype::TypeCommon>::Vec, usize, usize) -> <T as hpt_types::dtype::TypeCommon>::Vec>(
             a: hpt_common::Pointer<T>,
             b: hpt_common::Pointer<T>,
             c: hpt_common::Pointer<T>,
@@ -797,7 +796,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
             define_neon_mma!($nr, $mr);
 
             let c_local = mma(a, b, lda, kc, ks);
-            if jb == $nr * <T as TypeCommon>::Vec::SIZE {
+            if jb == $nr * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE {
                 match (first_kiter, last_kiter) {
                     (true, true) => {
                         store_res_vec!(
@@ -807,7 +806,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
                             ldc,
                             c_local,
                             [res_ptr <= c_vec],
-                            unsafe { res_ptr.write_unaligned(post_op_vec(c_vec, m_idx + MR, n_idx + NR * <T as TypeCommon>::Vec::SIZE)) }
+                            unsafe { res_ptr.write_unaligned(post_op_vec(c_vec, m_idx + MR, n_idx + NR * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE)) }
                         );
                     }
                     (true, false) => {
@@ -829,7 +828,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
                             ldc,
                             c_local,
                             [res_ptr <= c_vec],
-                            unsafe { res_ptr.write_unaligned(post_op_vec(res_ptr.read_unaligned()._add(c_vec), m_idx + MR, n_idx + NR * <T as TypeCommon>::Vec::SIZE)) }
+                            unsafe { res_ptr.write_unaligned(post_op_vec(res_ptr.read_unaligned()._add(c_vec), m_idx + MR, n_idx + NR * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE)) }
                         );
                     }
                     (false, false) => {
@@ -915,7 +914,7 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
             }else {
                 mma(a, b, lda, kc, ks)
             };
-            if jb == $nr * <T as TypeCommon>::Vec::SIZE {
+            if jb == $nr * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE {
                 if first_kiter {
                     store_res_vec_mp!(
                         $mr,
@@ -934,7 +933,7 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
                         ldc,
                         c_local,
                         [res_ptr <= c_vec],
-                        let mut res_vec = <T as TypeCommon>::Vec::splat(T::ZERO);
+                        let mut res_vec = <T as hpt_types::dtype::TypeCommon>::Vec::splat(T::ZERO);
                         vec_cast_back(&mut res_vec, c_vec);
                         unsafe { res_ptr.write_unaligned(res_vec._add(res_ptr.read_unaligned())) }
                     );
@@ -1027,7 +1026,7 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
             }else {
                 mma(a, b, lda, kc, ks)
             };
-            if jb == $nr * <T as TypeCommon>::Vec::SIZE {
+            if jb == $nr * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE {
                 match (first_kiter, last_kiter) {
                     (true, true) => {
                         store_res_vec_mp!(
@@ -1039,7 +1038,7 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                             [res_ptr <= c_vec],
                             let mut res = T::Vec::splat(T::ZERO);
                             vec_cast_back(&mut res, c_vec);
-                            unsafe { res_ptr.write_unaligned(post_op_vec(res, m_idx + MR, n_idx + NR * <T as TypeCommon>::Vec::SIZE)) }
+                            unsafe { res_ptr.write_unaligned(post_op_vec(res, m_idx + MR, n_idx + NR * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE)) }
                         );
                     }
                     (true, false) => {
@@ -1063,7 +1062,7 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                             [res_ptr <= c_vec],
                             let mut res = T::Vec::splat(T::ZERO);
                             vec_cast_back(&mut res, c_vec);
-                            unsafe { res_ptr.write_unaligned(post_op_vec(res._add(res_ptr.read_unaligned()), m_idx + MR, n_idx + NR * <T as TypeCommon>::Vec::SIZE)) }
+                            unsafe { res_ptr.write_unaligned(post_op_vec(res._add(res_ptr.read_unaligned()), m_idx + MR, n_idx + NR * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE)) }
                         );
                     }
                     (false, false) => {
@@ -1196,7 +1195,7 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
             }else {
                 mma(a, b, lda, kc, ks)
             };
-            if jb == $nr * <T as TypeCommon>::Vec::SIZE {
+            if jb == $nr * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE {
                 match first_kiter {
                     true => {
                         store_res_vec_mp!(
@@ -1378,16 +1377,16 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                 }
             }
             #[inline(always)]
-            fn mma<T: hpt_traits::tensor::CommonBounds>(mut a: hpt_common::Pointer<T>, mut b: hpt_common::Pointer<T>, kc: usize, ks: i64) -> [[<T as TypeCommon>::Vec; $nr2]; $mr] {
-                let mut c_local = [[<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr2]; $mr];
+            fn mma<T: hpt_traits::tensor::CommonBounds>(mut a: hpt_common::Pointer<T>, mut b: hpt_common::Pointer<T>, kc: usize, ks: i64) -> [[<T as hpt_types::dtype::TypeCommon>::Vec; $nr2]; $mr] {
+                let mut c_local = [[<T as hpt_types::dtype::TypeCommon>::Vec::splat(<T>::ZERO); $nr2]; $mr];
                 for _ in 0..kc {
-                    let mut b_vec = [<T as TypeCommon>::Vec::splat(<T>::ZERO); $nr2];
+                    let mut b_vec = [<T as hpt_types::dtype::TypeCommon>::Vec::splat(<T>::ZERO); $nr2];
                     load_vec_neon::<$nr2>(b.ptr as *const f32, b_vec.as_mut_ptr() as *mut f32);
 
                     #[allow(unused_mut)]
                     let mut a_vec;
                     unsafe {
-                        a_vec = <T as TypeCommon>::Vec::from_ptr(a.ptr);
+                        a_vec = <T as hpt_types::dtype::TypeCommon>::Vec::from_ptr(a.ptr);
                         seq_macro::seq!(MR in 0..$mr {
                             seq_macro::seq!(NR in 0..$nr2 {
                                     c_local[MR][NR] = b_vec[NR].mul_add_lane::<MR>(a_vec, c_local[MR][NR]);
@@ -1395,26 +1394,26 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                             }
                         );
                     }
-                    b += $nr2 * <T as TypeCommon>::Vec::SIZE as i64;
+                    b += $nr2 * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE as i64;
                     a += ks;
                 }
                 c_local
             }
 
             let c_local = mma(a, b, kc, ks);
-            if jb == $nr * <T as TypeCommon>::Vec::SIZE {
+            if jb == $nr * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE {
                 if first_kiter {
                     if last_kiter {
                         seq_macro::seq!(MR in 0..$mr {
                             seq_macro::seq!(NR in 0..$nr {
                                     let res_ptr = unsafe {
                                         c.ptr.offset(
-                                            (MR * ldc + NR * <T as TypeCommon>::Vec::SIZE as i64) as isize,
+                                            (MR * ldc + NR * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE as i64) as isize,
                                         )
-                                    } as *mut <T as TypeCommon>::Vec;
+                                    } as *mut <T as hpt_types::dtype::TypeCommon>::Vec;
                                     let mut res = T::Vec::splat(T::ZERO);
                                     vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
-                                    unsafe {res_ptr.write_unaligned(post_op_vec(res, m_idx + MR, n_idx + NR * <T as TypeCommon>::Vec::SIZE)) };
+                                    unsafe {res_ptr.write_unaligned(post_op_vec(res, m_idx + MR, n_idx + NR * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE)) };
                                     }
                                 );
                             }
@@ -1424,9 +1423,9 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                             seq_macro::seq!(NR in 0..$nr {
                                     let res_ptr = unsafe {
                                         c.ptr.offset(
-                                            (MR * ldc + NR * <T as TypeCommon>::Vec::SIZE as i64) as isize,
+                                            (MR * ldc + NR * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE as i64) as isize,
                                         )
-                                    } as *mut <T as TypeCommon>::Vec;
+                                    } as *mut <T as hpt_types::dtype::TypeCommon>::Vec;
                                     let mut res = T::Vec::splat(T::ZERO);
                                     vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
                                     unsafe {res_ptr.write_unaligned(res) };
@@ -1446,13 +1445,13 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                             seq_macro::seq!(NR in 0..$nr {
                                     let res_ptr = unsafe {
                                         c.ptr.offset(
-                                            (MR * ldc + NR * <T as TypeCommon>::Vec::SIZE as i64) as isize,
+                                            (MR * ldc + NR * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE as i64) as isize,
                                         )
-                                    } as *mut <T as TypeCommon>::Vec;
+                                    } as *mut <T as hpt_types::dtype::TypeCommon>::Vec;
                                     res~NR = unsafe {res_ptr.read_unaligned()};
                                     let mut res = T::Vec::splat(T::ZERO);
                                     vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
-                                    unsafe {res_ptr.write_unaligned(post_op_vec(res~NR._add(res), m_idx + MR, n_idx + NR * <T as TypeCommon>::Vec::SIZE)) };
+                                    unsafe {res_ptr.write_unaligned(post_op_vec(res~NR._add(res), m_idx + MR, n_idx + NR * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE)) };
                                     }
                                 );
                             }
@@ -1462,9 +1461,9 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                             seq_macro::seq!(NR in 0..$nr {
                                     let res_ptr = unsafe {
                                         c.ptr.offset(
-                                            (MR * ldc + NR * <T as TypeCommon>::Vec::SIZE as i64) as isize,
+                                            (MR * ldc + NR * <T as hpt_types::dtype::TypeCommon>::Vec::SIZE as i64) as isize,
                                         )
-                                    } as *mut <T as TypeCommon>::Vec;
+                                    } as *mut <T as hpt_types::dtype::TypeCommon>::Vec;
                                     res~NR = unsafe {res_ptr.read_unaligned()};
                                     let mut res = T::Vec::splat(T::ZERO);
                                     vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
