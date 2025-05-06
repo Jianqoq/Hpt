@@ -18,7 +18,7 @@ use super::matmul_mp_post::bf16_matmul_mp_post_no_block_info;
 #[cfg(feature = "f16")]
 use super::matmul_mp_post::f16_matmul_mp_post_no_block_info;
 use super::{
-    common::matmul_prepare, matmul_mp::matmul_mp_no_block_info_prepack_rhs, matmul_post::matmul_post_template_no_block_info, microkernel_trait::MatmulMicroKernel, utils::{kernel_params, PrePackedRhs}
+    common::matmul_prepare, matmul_post::matmul_post_template_no_block_info, microkernel_trait::MatmulMicroKernel, utils::{kernel_params, PrePackedRhs}
 };
 
 use hpt_types::{
@@ -360,6 +360,7 @@ where
                     dtype,
                 )
             } else {
+                use super::matmul_mp::matmul_mp_no_block_info_prepack_rhs;
                 matmul_mp_no_block_info_prepack_rhs::<f16, f32>(
                     rhs.cast::<f16>(),
                     m,
@@ -374,7 +375,7 @@ where
             }
         }
         #[cfg(feature = "bf16")]
-        "bf16" => matmul_mp_no_block_info_prepack_rhs::<bf16, f32>(
+        "bf16" => super::matmul_mp::matmul_mp_no_block_info_prepack_rhs::<bf16, f32>(
             rhs.cast::<bf16>(),
             m,
             n,

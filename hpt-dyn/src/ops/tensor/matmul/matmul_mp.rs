@@ -7,7 +7,7 @@ use crate::Device;
 use super::{microkernel_trait::MatmulMicroKernel, template::matmul_mp, utils::{kernel_params, PrePackedRhs}};
 use hpt_types::{dtype::DType, traits::VecTrait};
 
-
+#[allow(unused)]
 pub(crate) fn matmul_mp_no_block_info_prepack_rhs<T, IM>(
     b: Pointer<T>,
     m: usize,
