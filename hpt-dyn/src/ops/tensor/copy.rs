@@ -78,17 +78,33 @@ impl Tensor {
                 }};
             }
             match self.dtype {
+                #[cfg(feature = "bool")]
                 DType::Bool => copy_from_contiguous!(bool),
+                #[cfg(feature = "i8")]
                 DType::I8 => copy_from_contiguous!(i8),
+                #[cfg(feature = "u8")]
                 DType::U8 => copy_from_contiguous!(u8),
+                #[cfg(feature = "i16")]
                 DType::I16 => copy_from_contiguous!(i16),
+                #[cfg(feature = "u16")]
                 DType::U16 => copy_from_contiguous!(u16),
+                #[cfg(feature = "i32")]
                 DType::I32 => copy_from_contiguous!(i32),
+                #[cfg(feature = "u32")]
                 DType::U32 => copy_from_contiguous!(u32),
+                #[cfg(feature = "i64")]
                 DType::I64 => copy_from_contiguous!(i64),
+                #[cfg(feature = "u64")]
+                DType::U64 => copy_from_contiguous!(u64),
+                #[cfg(feature = "f32")]
                 DType::F32 => copy_from_contiguous!(f32),
+                #[cfg(feature = "f16")]
                 DType::F16 => copy_from_contiguous!(half::f16),
+                #[cfg(feature = "bf16")]
                 DType::BF16 => copy_from_contiguous!(half::bf16),
+                #[cfg(feature = "f64")]
+                DType::F64 => copy_from_contiguous!(f64),
+                _ => panic!("unsupported dtype {:?}", self.dtype),
             }
         } else {
             macro_rules! copy_from {
@@ -159,16 +175,29 @@ impl Tensor {
             }
             match self.dtype {
                 DType::Bool => copy_from!(bool),
+                #[cfg(feature = "i8")]
                 DType::I8 => copy_from!(i8),
+                #[cfg(feature = "u8")]
                 DType::U8 => copy_from!(u8),
+                #[cfg(feature = "i16")]
                 DType::I16 => copy_from!(i16),
+                #[cfg(feature = "u16")]
                 DType::U16 => copy_from!(u16),
+                #[cfg(feature = "i32")]
                 DType::I32 => copy_from!(i32),
+                #[cfg(feature = "u32")]
                 DType::U32 => copy_from!(u32),
+                #[cfg(feature = "i64")]
                 DType::I64 => copy_from!(i64),
+                #[cfg(feature = "u64")]
+                DType::U64 => copy_from!(u64),
+                #[cfg(feature = "f32")]
                 DType::F32 => copy_from!(f32),
+                #[cfg(feature = "f16")]
                 DType::F16 => copy_from!(half::f16),
+                #[cfg(feature = "bf16")]
                 DType::BF16 => copy_from!(half::bf16),
+                _ => panic!("unsupported dtype {:?}", self.dtype),
             }
         }
     }

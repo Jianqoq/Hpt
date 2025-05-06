@@ -31,7 +31,7 @@ anyhow = { workspace = true }
 # rand = { workspace = true }
 # ndarray = { workspace = true }
 # candle-core = { workspace = true }
-# hpt-dyn = { path = "./hpt-dyn" }
+hpt-dyn = { path = "./hpt-dyn", features = ["bound_check", "f32", "i64"] }
 spindle = { workspace = true}
 
 [workspace.dependencies]
@@ -104,11 +104,11 @@ name = "hpt-workspace"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 3
+opt-level = 0
 incremental = true
 debug = true
-lto = "fat"
-codegen-units = 1
+# lto = "fat"
+# codegen-units = 1
 
 [profile.dev]
 opt-level = 0

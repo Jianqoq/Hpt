@@ -1,5 +1,8 @@
 use gemm_common::cache::{KernelParams, CACHE_INFO};
+use hpt_common::Pointer;
 use num::integer::gcd;
+
+use crate::Tensor;
 
 pub(crate) fn kernel_params(
     n: usize,
@@ -87,4 +90,20 @@ pub(crate) fn kernel_params(
         mc: auto_mc,
         nc: auto_nc,
     }
+}
+
+#[derive(Clone)]
+pub(crate) struct PrePackedRhs {
+    pub(crate) buffers: Vec<Vec<Pointer<u8>>>,
+    pub(crate) buffer_rems: Vec<Vec<Pointer<u8>>>,
+    pub(crate) buffer: Tensor,
+    pub(crate) buffer_rem: Tensor,
+    pub(crate) mr: usize,
+    pub(crate) mc: usize,
+    pub(crate) kc: usize,
+    pub(crate) nr: usize,
+    pub(crate) nc: usize,
+    pub(crate) num_threads: usize,
+    pub(crate) prgs: Vec<[usize; 3]>,
+    pub(crate) rem_prgs: Vec<[usize; 3]>,
 }

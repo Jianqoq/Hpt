@@ -58,7 +58,7 @@ impl VecTrait<u16> for u16x16 {
     }
 }
 
-impl SimdSelect<u16x16> for u16x16 {
+impl SimdSelect<u16x16> for i16x16 {
     #[inline(always)]
     fn select(&self, true_val: u16x16, false_val: u16x16) -> u16x16 {
         unsafe { u16x16(_mm256_blendv_epi8(false_val.0, true_val.0, self.0)) }

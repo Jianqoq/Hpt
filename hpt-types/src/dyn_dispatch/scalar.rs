@@ -6,10 +6,10 @@ use hpt_macros::impl_dispatch;
 
 use crate::dtype::DType;
 use crate::into_scalar::Cast;
-use crate::type_promote::NormalOutPromote;
+use crate::type_promote::FloatOutBinary;
 use crate::type_promote::FloatOutBinaryPromote;
 use crate::type_promote::NormalOut;
-use crate::type_promote::FloatOutBinary;
+use crate::type_promote::NormalOutPromote;
 use crate::type_promote::NormalOutUnary;
 
 use half::{bf16, f16};
@@ -46,6 +46,8 @@ pub fn dispatch_fill(lhs: DType, val: f64) -> Arc<dyn Fn(usize) + Send + Sync> {
         DType::F32 => fill_arm!(f32, val as f32),
         DType::F16 => fill_arm!(f16, half::f16::from_f64(val)),
         DType::BF16 => fill_arm!(bf16, half::bf16::from_f64(val)),
+        DType::U64 => fill_arm!(u64, val as u64),
+        DType::F64 => fill_arm!(f64, val as f64),
     }
 }
 
@@ -79,6 +81,8 @@ pub fn dispatch_arange(lhs: DType, start: f64) -> Arc<dyn Fn(usize, usize) + Sen
             let ptr = res as *mut bf16;
             unsafe { *ptr = start._add(idx).cast() };
         }),
+        DType::U64 => arange_arm!(u64, start as u64),
+        DType::F64 => arange_arm!(f64, start as f64),
     }
 }
 
@@ -117,14 +121,12 @@ pub fn dispatch_arange_step(
             let ptr = res as *mut bf16;
             unsafe { *ptr = start._add(idx._mul(step)).cast() };
         }),
+        DType::U64 => arange_arm!(u64, start as u64, step as u64),
+        DType::F64 => arange_arm!(f64, start as f64, step as f64),
     }
 }
 
-pub fn dispatch_eye(
-    lhs: DType,
-    m: usize,
-    k: usize,
-) -> Arc<dyn Fn(usize, usize) + Send + Sync> {
+pub fn dispatch_eye(lhs: DType, m: usize, k: usize) -> Arc<dyn Fn(usize, usize) + Send + Sync> {
     macro_rules! arm {
         ($lhs:ident, $one:expr, $zero:expr) => {{
             Arc::new(move |res: usize, idx: usize| {
@@ -155,6 +157,8 @@ pub fn dispatch_eye(
         DType::F32 => arm!(f32, 1.0f32, 0.0f32),
         DType::F16 => arm!(f16, f16::from_f32_const(1.0), f16::from_f32_const(0.0)),
         DType::BF16 => arm!(bf16, bf16::from_f32_const(1.0), bf16::from_f32_const(0.0)),
+        DType::U64 => arm!(u64, 1u64, 0u64),
+        DType::F64 => arm!(f64, 1.0f64, 0.0f64),
     }
 }
 
@@ -208,6 +212,8 @@ pub fn dispatch_linspace(
                 unsafe { *ptr = half::bf16::from_f64(start._add(idx._mul(step))) };
             }
         }),
+        DType::U64 => arm!(u64),
+        DType::F64 => arm!(f64),
     }
 }
 
@@ -247,6 +253,8 @@ pub fn dispatch_logspace(
             let ptr = res as *mut bf16;
             unsafe { *ptr = base._pow(start._add(idx._mul(step))).cast() };
         }),
+        DType::U64 => arm!(u64),
+        DType::F64 => arm!(f64),
     }
 }
 
@@ -317,11 +325,9 @@ pub fn dispatch_geomspace(
                 })
             }
         }
+        DType::U64 => arm!(u64, 10.0f64),
+        DType::F64 => arm!(f64, 10.0f64),
     }
-}
-
-pub fn dispatch_div(lhs: DType, rhs: DType) -> Fn2Type {
-    impl_dispatch!(FloatOutBinaryPromote, FloatOutBinary, _div, true, 2, 1)
 }
 
 pub fn dispatch_log(lhs: DType, rhs: DType) -> Fn2Type {
@@ -392,5 +398,7 @@ pub fn dispatch_copy(lhs: DType) -> fn(usize, usize) {
         DType::F32 => arm!(f32),
         DType::F16 => arm!(f16),
         DType::BF16 => arm!(bf16),
+        DType::U64 => arm!(u64),
+        DType::F64 => arm!(f64),
     }
 }

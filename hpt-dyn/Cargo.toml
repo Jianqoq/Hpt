@@ -28,13 +28,12 @@ num = { workspace = true }
 ctor = { workspace = true }
 prost = { workspace = true }
 prost-types = { workspace = true }
-threadpool = { workspace = true }
-
+spindle = { workspace = true }
 [build-dependencies]
 prost-build = "0.13.5"
 
 [features]
-default = []
+default = ["f32", "i64"]
 cuda = [
     "cudarc",
     "hpt-allocator/cuda",
@@ -43,3 +42,17 @@ cuda = [
     "hpt-macros/cuda",
 ]
 bound_check = ["hpt-common/bound_check"]
+f16 = []
+f32 = []
+bf16 = []
+i8 = []
+u8 = []
+i16 = []
+u16 = []
+i32 = []
+u32 = []
+i64 = []
+u64 = []
+f64 = []
+bool = []
+

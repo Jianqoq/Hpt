@@ -1,9 +1,9 @@
 use crate::backend::Cpu;
 use crate::tensor_base::_Tensor;
 use gemm_common::cache::DivCeil;
-use hpt_allocator::traits::{ Allocator, AllocatorOutputRetrive };
-use hpt_common::{ error::base::TensorError, Pointer };
-use hpt_traits::tensor::{ CommonBounds, TensorInfo };
+use hpt_allocator::traits::{Allocator, AllocatorOutputRetrive};
+use hpt_common::{error::base::TensorError, Pointer};
+use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::traits::VecTrait;
 
 use super::common::matmul_prepare;
@@ -39,12 +39,15 @@ pub fn matmul_template_no_block_info<T>(
     ldc: i64,
     lhs_col_stride: i64,
     rhs_col_stride: i64,
-    num_threads: usize
-)
-    where T: CommonBounds + MatmulMicroKernel
+    num_threads: usize,
+) where
+    T: CommonBounds + MatmulMicroKernel,
 {
-    let nr = T::get_max_nr() * T::Vec::SIZE;
-    let mr = T::get_max_mr();
+    let (nr, mr) = if m > 1 {
+        (T::get_max_nr() * T::Vec::SIZE, T::get_max_mr())
+    } else {
+        (T::get_horizontal_max_nr() * T::Vec::SIZE, 1)
+    };
     #[cfg(not(target_feature = "neon"))]
     let mut do_lhs_pack = false;
     #[cfg(target_feature = "neon")]
@@ -80,7 +83,7 @@ pub fn matmul_template_no_block_info<T>(
         do_lhs_pack,
         num_threads,
         |_, _, _| T::ZERO,
-        |_, _, _| T::Vec::splat(T::ZERO)
+        |_, _, _| T::Vec::splat(T::ZERO),
     );
 }
 
@@ -89,10 +92,12 @@ pub(crate) fn matmul<T, const DEVICE: usize, A>(
     a: &_Tensor<T, Cpu, DEVICE, A>,
     b: &_Tensor<T, Cpu, DEVICE, A>,
     out: Option<_Tensor<T, Cpu, DEVICE, A>>,
-    num_threads: usize
-)
-    -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
-    where T: CommonBounds + MatmulMicroKernel, A: Allocator, A::Output: AllocatorOutputRetrive
+    num_threads: usize,
+) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
+where
+    T: CommonBounds + MatmulMicroKernel,
+    A: Allocator,
+    A::Output: AllocatorOutputRetrive,
 {
     let c = matmul_prepare(&a, &b, out)?;
     let m = a.shape()[0] as usize;
@@ -110,7 +115,7 @@ pub(crate) fn matmul<T, const DEVICE: usize, A>(
         c.strides()[c.ndim() - 2] as i64,
         a.strides()[a.ndim() - 1],
         b.strides()[b.ndim() - 1],
-        num_threads
+        num_threads,
     );
     Ok(c.into())
 }

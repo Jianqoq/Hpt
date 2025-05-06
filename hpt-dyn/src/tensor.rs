@@ -169,17 +169,33 @@ impl Tensor {
             };
         }
         match dtype {
+            #[cfg(feature = "bool")]
             DType::Bool => unimplemented!(),
-            DType::I8
-            | DType::U8
-            | DType::I16
-            | DType::U16
-            | DType::U32
-            | DType::F16
-            | DType::BF16 => from_raw_data!(),
+            #[cfg(feature = "i8")]
+            DType::I8 => from_raw_data!(),
+            #[cfg(feature = "u8")]
+            DType::U8 => from_raw_data!(),
+            #[cfg(feature = "i16")]
+            DType::I16 => from_raw_data!(),
+            #[cfg(feature = "u16")]
+            DType::U16 => from_raw_data!(),
+            #[cfg(feature = "u32")]
+            DType::U32 => from_raw_data!(),
+            #[cfg(feature = "f16")]
+            DType::F16 => from_raw_data!(),
+            #[cfg(feature = "bf16")]
+            DType::BF16 => from_raw_data!(),
+            #[cfg(feature = "u64")]
+            DType::U64 => from_raw_data!(),
+            #[cfg(feature = "i32")]
             DType::I32 => from_specific_data!(int32_data),
+            #[cfg(feature = "i64")]
             DType::I64 => from_specific_data!(int64_data),
+            #[cfg(feature = "f32")]
             DType::F32 => from_specific_data!(float_data),
+            #[cfg(feature = "f64")]
+            DType::F64 => from_specific_data!(double_data),
+            _ => unimplemented!("unsupported dtype {:?}", dtype),
         }
     }
 

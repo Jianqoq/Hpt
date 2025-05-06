@@ -18,9 +18,12 @@ use hpt_types::vectors::traits::*;
 use rayon::iter::{ IndexedParallelIterator, IntoParallelIterator, ParallelIterator };
 use rayon::slice::{ ParallelSlice, ParallelSliceMut };
 
+#[allow(unused)]
 type IM<T> = <T as NormalOutPromote>::Intermediate;
+#[allow(unused)]
 type IMVec<T> = <<T as NormalOutPromote>::Intermediate as TypeCommon>::Vec;
 
+#[allow(unused)]
 pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     input: &Tensor,
     kernels: &Tensor,

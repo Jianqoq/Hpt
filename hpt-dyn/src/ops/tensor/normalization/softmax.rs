@@ -10,8 +10,6 @@ use rayon::iter::{
     IntoParallelRefMutIterator, ParallelIterator,
 };
 
-use half::{bf16, f16};
-
 use crate::Tensor;
 
 use super::{
@@ -300,12 +298,33 @@ impl Tensor {
                 }};
             }
             match self.dtype {
+                #[cfg(feature = "i8")]
                 hpt_types::dtype::DType::I8 => softmax!(i8),
+                #[cfg(feature = "u8")]
                 hpt_types::dtype::DType::U8 => softmax!(u8),
+                #[cfg(feature = "f32")]
                 hpt_types::dtype::DType::F32 => softmax!(f32),
-                hpt_types::dtype::DType::F16 => softmax!(f16),
-                hpt_types::dtype::DType::BF16 => softmax!(bf16),
-                _ => unimplemented!(),
+                #[cfg(feature = "f16")]
+                hpt_types::dtype::DType::F16 => softmax!(half::f16),
+                #[cfg(feature = "bf16")]
+                hpt_types::dtype::DType::BF16 => softmax!(half::bf16),
+                #[cfg(feature = "bool")]
+                hpt_types::dtype::DType::Bool => softmax!(bool),
+                #[cfg(feature = "i16")]
+                hpt_types::dtype::DType::I16 => softmax!(i16),
+                #[cfg(feature = "u16")]
+                hpt_types::dtype::DType::U16 => softmax!(u16),
+                #[cfg(feature = "i32")]
+                hpt_types::dtype::DType::I32 => softmax!(i32),
+                #[cfg(feature = "u32")]
+                hpt_types::dtype::DType::U32 => softmax!(u32),
+                #[cfg(feature = "i64")]
+                hpt_types::dtype::DType::I64 => softmax!(i64),
+                #[cfg(feature = "u64")]
+                hpt_types::dtype::DType::U64 => softmax!(u64),
+                #[cfg(feature = "f64")]
+                hpt_types::dtype::DType::F64 => softmax!(f64),
+                _ => unreachable!("unsupported dtype: {:?}", self.dtype),
             }
         } else {
             macro_rules! softmax {
@@ -316,12 +335,33 @@ impl Tensor {
                 }};
             }
             match self.dtype {
+                #[cfg(feature = "i8")]
                 hpt_types::dtype::DType::I8 => softmax!(i8),
+                #[cfg(feature = "u8")]
                 hpt_types::dtype::DType::U8 => softmax!(u8),
+                #[cfg(feature = "f32")]
                 hpt_types::dtype::DType::F32 => softmax!(f32),
-                hpt_types::dtype::DType::F16 => softmax!(f16),
-                hpt_types::dtype::DType::BF16 => softmax!(bf16),
-                _ => unimplemented!(),
+                #[cfg(feature = "f16")]
+                hpt_types::dtype::DType::F16 => softmax!(half::f16),
+                #[cfg(feature = "bf16")]
+                hpt_types::dtype::DType::BF16 => softmax!(half::bf16),
+                #[cfg(feature = "bool")]
+                hpt_types::dtype::DType::Bool => softmax!(bool),
+                #[cfg(feature = "i16")]
+                hpt_types::dtype::DType::I16 => softmax!(i16),
+                #[cfg(feature = "u16")]
+                hpt_types::dtype::DType::U16 => softmax!(u16),
+                #[cfg(feature = "i32")]
+                hpt_types::dtype::DType::I32 => softmax!(i32),
+                #[cfg(feature = "u32")]
+                hpt_types::dtype::DType::U32 => softmax!(u32),
+                #[cfg(feature = "i64")]
+                hpt_types::dtype::DType::I64 => softmax!(i64),
+                #[cfg(feature = "u64")]
+                hpt_types::dtype::DType::U64 => softmax!(u64),
+                #[cfg(feature = "f64")]
+                hpt_types::dtype::DType::F64 => softmax!(f64),
+                _ => unreachable!("unsupported dtype: {:?}", self.dtype),
             }
         }
     }

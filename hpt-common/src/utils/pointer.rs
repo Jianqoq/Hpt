@@ -91,11 +91,24 @@ impl<T> Pointer<T> {
     /// assert_eq!(a.read(), 10);
     /// ```
     #[inline(always)]
-    pub fn new(ptr: *mut T, _len: i64) -> Self {
+    #[allow(unused)]
+    pub fn new(ptr: *mut T, len: i64) -> Self {
         #[cfg(feature = "bound_check")]
-        return Self { ptr, len: _len };
+        return Self { ptr, len };
         #[cfg(not(feature = "bound_check"))]
         return Self { ptr };
+    }
+
+    /// copy the value from the source pointer to the current pointer
+    ///
+    /// # Arguments
+    /// `src` - the source pointer
+    /// `len` - the length of the value to be copied
+    #[inline(always)]
+    pub unsafe fn copy_from_nonoverlapping(&mut self, src: &Self, len: usize) {
+        unsafe {
+            self.ptr.copy_from_nonoverlapping(src.ptr, len);
+        }
     }
 
     /// modify the value of the pointer in the address by the specified offset
@@ -231,7 +244,7 @@ impl<T> Pointer<T> {
     /// `usize`
     #[inline(always)]
     pub fn addr(&self) -> usize {
-        std::ptr::addr_of!(self.ptr) as usize
+        self.ptr as usize
     }
 
     /// read the value of the pointer in the current address

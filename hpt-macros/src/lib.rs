@@ -1158,8 +1158,8 @@ pub fn impl_dispatch(input: TokenStream) -> TokenStream {
     let mut ret = proc_macro2::TokenStream::new();
 
     let types = [
-        "bool", "f16", "f32", /*"f64",*/ "i8", "i16", "i32", "i64", "u8", "u16",
-        "u32", /*"u64", *//*"isize",*/
+        "bool", "f16", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32",
+        "u64", /*"isize",*/
         /*"usize",*/ "bf16",
     ];
 

@@ -95,6 +95,7 @@ where
         &kernels.reshape(&[kh * kw * in_channels, out_channels])?,
         Some(output),
         current_num_threads(),
+        None,
         None::<fn(T, usize, usize) -> T>,
         None::<fn(T::Vec, usize, usize) -> T::Vec>,
     )?

@@ -352,17 +352,33 @@ pub(crate) fn const_of_shape_init(
     if let Ok(tensor) = get_tensor_from_attribute(&node, 0) {
         assert_eq!(tensor.size(), 1);
         let value = match tensor.dtype {
+            #[cfg(feature = "bool")]
             DType::Bool => tensor.as_slice::<bool>()[0].cast(),
+            #[cfg(feature = "i8")]
             DType::I8 => tensor.as_slice::<i8>()[0].cast(),
+            #[cfg(feature = "u8")]
             DType::U8 => tensor.as_slice::<u8>()[0].cast(),
+            #[cfg(feature = "i16")]
             DType::I16 => tensor.as_slice::<i16>()[0].cast(),
+            #[cfg(feature = "u16")]
             DType::U16 => tensor.as_slice::<u16>()[0].cast(),
+            #[cfg(feature = "i32")]
             DType::I32 => tensor.as_slice::<i32>()[0].cast(),
+            #[cfg(feature = "u32")]
             DType::U32 => tensor.as_slice::<u32>()[0].cast(),
+            #[cfg(feature = "i64")]
             DType::I64 => tensor.as_slice::<i64>()[0].cast(),
+            #[cfg(feature = "f32")]
             DType::F32 => tensor.as_slice::<f32>()[0].cast(),
+            #[cfg(feature = "f16")]
             DType::F16 => tensor.as_slice::<half::f16>()[0].cast(),
+            #[cfg(feature = "bf16")]
             DType::BF16 => tensor.as_slice::<half::bf16>()[0].cast(),
+            #[cfg(feature = "u64")]
+            DType::U64 => tensor.as_slice::<u64>()[0].cast(),
+            #[cfg(feature = "f64")]
+            DType::F64 => tensor.as_slice::<f64>()[0].cast(),
+            _ => panic!("unsupported dtype {:?}", tensor.dtype),
         };
         Ok(Operator::ConstantOfShape(ConstantOfShape {
             output: node.output[0].to_string(),

@@ -1,9 +1,8 @@
 use std::borrow::Borrow;
 
-use crate::{Tensor, current_num_threads};
+use crate::Tensor;
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
-use hpt_common::shape::shape_utils::mt_intervals;
 use hpt_iterator::TensorIterator;
 use hpt_iterator::iterator_traits::ParStridedIteratorSimd;
 use hpt_iterator::iterator_traits::ParStridedIteratorSimdZip;
@@ -12,11 +11,9 @@ use hpt_traits::tensor::TensorInfo;
 use hpt_types::dtype::ToDType;
 use hpt_types::dtype::TypeCommon;
 use hpt_types::into_scalar::Cast;
-use hpt_types::scalar::dispatch_copy;
 use hpt_types::traits::VecTrait;
 use hpt_types::type_promote::FloatOutUnary;
 use hpt_types::type_promote::NormalOutUnary;
-use hpt_types::vector::*;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::IntoParallelRefMutIterator;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
@@ -108,104 +105,6 @@ where
         unary_map(inp.as_slice(), ret.as_slice_mut(), f, f2);
     }
     Ok(ret)
-}
-
-pub(crate) fn unary_1operand<F1, F2>(
-    output: &mut Tensor,
-    inp: &Tensor,
-    kernel: F1,
-    simd_kernel: F2,
-    unroll: usize,
-) where
-    F1: Fn(usize, usize) + Send + Sync,
-    F2: Fn(usize, usize) + Send + Sync,
-{
-    assert!(
-        inp.layout.ndim() > 0,
-        "input tensor must have at least one dimension"
-    );
-    if inp.parent.is_some() {
-        let inner_size = *inp.layout.shape().last().expect("inner size is None");
-        let outer_size = inp.layout.size() / inner_size;
-
-        let chunks = mt_intervals(outer_size as usize, current_num_threads());
-
-        let lhs_sizeof = inp.dtype.sizeof() as i64;
-        let out_sizeof = output.dtype.sizeof() as i64;
-        let inp_ptrs = chunks
-            .iter()
-            .map(|&(start, _)| {
-                let (offset, prg) = (inp.map_gp)(start as i64 * inner_size as i64);
-                let mut ptr = inp.data;
-                ptr += offset * lhs_sizeof as i64;
-                (ptr, prg)
-            })
-            .collect::<Vec<_>>();
-
-        let out_ptrs = chunks
-            .iter()
-            .map(|&(start, _)| {
-                let offset = (output.map_global_idx)(start as i64 * inner_size as i64);
-                let mut ptr = output.data;
-                ptr += offset * out_sizeof as i64;
-                ptr
-            })
-            .collect::<Vec<_>>();
-
-        let lhs_last_stride = *inp.layout.strides().last().expect("last stride is None");
-        let lhs_prg_update = inp.prg_update.as_ref();
-        inp_ptrs
-            .into_par_iter()
-            .zip(out_ptrs.into_par_iter())
-            .for_each(move |((mut lhs, mut lhs_prg), mut out)| {
-                for i in 0..inner_size {
-                    kernel(
-                        out.offset_addr(i * out_sizeof),
-                        lhs.offset_addr(i * lhs_last_stride * lhs_sizeof),
-                    );
-                }
-                out += inner_size * out_sizeof;
-                lhs += lhs_prg_update(&mut lhs_prg) * lhs_sizeof;
-            });
-    } else {
-        let out_sizeof = output.dtype.sizeof() as i64;
-        let lhs_sizeof = inp.dtype.sizeof() as i64;
-        let out = output.data;
-        let lhs = inp.data;
-
-        if out_sizeof == lhs_sizeof {
-            let vec_size = inp.dtype.vec_size();
-            let out_sizeof = output.dtype.sizeof();
-            let vector_bytes = unroll * vec_size as usize * out_sizeof as usize;
-
-            let intervals = mt_intervals(output.layout.size() as usize, current_num_threads());
-            intervals.into_par_iter().for_each(|(start, end)| {
-                let size = end - start;
-                let num_loop = size / (unroll * vec_size as usize);
-                let rem = size % (unroll * vec_size as usize);
-                let lhs = lhs + start * out_sizeof;
-                let out = out + start * out_sizeof;
-
-                for i in 0..num_loop {
-                    simd_kernel(
-                        lhs.add_addr(i * vector_bytes),
-                        out.add_addr(i * vector_bytes),
-                    );
-                }
-
-                for i in end - rem..end {
-                    kernel(lhs.add_addr(i * out_sizeof), out.add_addr(i * out_sizeof));
-                }
-            });
-        } else {
-            (0..inp.layout.size()).into_par_iter().for_each(|i| {
-                kernel(
-                    lhs.offset_addr(i * lhs_sizeof),
-                    out.offset_addr(i * out_sizeof),
-                );
-            });
-        }
-    }
 }
 
 impl Tensor {
@@ -415,30 +314,33 @@ impl Tensor {
             }};
         }
         match self.dtype {
+            #[cfg(feature = "bool")]
             hpt_types::dtype::DType::Bool => contiguous!(bool),
+            #[cfg(feature = "i8")]
             hpt_types::dtype::DType::I8 => contiguous!(i8),
+            #[cfg(feature = "u8")]
             hpt_types::dtype::DType::U8 => contiguous!(u8),
+            #[cfg(feature = "i16")]
             hpt_types::dtype::DType::I16 => contiguous!(i16),
+            #[cfg(feature = "u16")]
             hpt_types::dtype::DType::U16 => contiguous!(u16),
+            #[cfg(feature = "i32")]
             hpt_types::dtype::DType::I32 => contiguous!(i32),
+            #[cfg(feature = "u32")]
             hpt_types::dtype::DType::U32 => contiguous!(u32),
+            #[cfg(feature = "i64")]
             hpt_types::dtype::DType::I64 => contiguous!(i64),
+            #[cfg(feature = "f32")]
             hpt_types::dtype::DType::F32 => contiguous!(f32),
+            #[cfg(feature = "f16")]
             hpt_types::dtype::DType::F16 => contiguous!(f16),
+            #[cfg(feature = "bf16")]
             hpt_types::dtype::DType::BF16 => contiguous!(bf16),
+            #[cfg(feature = "u64")]
+            hpt_types::dtype::DType::U64 => contiguous!(u64),
+            #[cfg(feature = "f64")]
+            hpt_types::dtype::DType::F64 => contiguous!(f64),
+            _ => panic!("unsupported dtype {:?}", self.dtype),
         }
-    }
-
-    pub fn copy(&self) -> Result<Self, TensorError> {
-        let mut res = Tensor::empty(
-            &self.layout.shape(),
-            self.dtype.clone(),
-            self.device.clone(),
-        )?;
-        let copy_fn = dispatch_copy(self.dtype);
-        let (simd_copy_fn, unroll) = dispatch_simd_copy(self.dtype);
-
-        unary_1operand(&mut res, &self, copy_fn, simd_copy_fn, unroll);
-        Ok(res)
     }
 }

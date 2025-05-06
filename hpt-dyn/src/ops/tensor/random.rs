@@ -5,21 +5,25 @@ use rand_distr::{Distribution, Normal, Uniform};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{Device, Tensor};
-use half::{bf16, f16};
 
-pub(crate) fn random_template<F32Func, F16Func, BF16Func>(
+#[cfg(feature = "f16")]
+use half::f16;
+#[cfg(feature = "bf16")]
+use half::bf16;
+
+pub(crate) fn random_template<
+    #[cfg(feature = "f32")] F32Func: Fn(&mut [f32]),
+    #[cfg(feature = "f16")] F16Func: Fn(&mut [f16]),
+    #[cfg(feature = "bf16")] BF16Func: Fn(&mut [bf16]),
+>(
     random_method: &str,
     shape: &[i64],
     dtype: DType,
     device: Device,
-    f32_func: F32Func,
-    f16_func: F16Func,
-    bf16_func: BF16Func,
+    #[cfg(feature = "f32")] f32_func: F32Func,
+    #[cfg(feature = "f16")] f16_func: F16Func,
+    #[cfg(feature = "bf16")] bf16_func: BF16Func,
 ) -> Result<Tensor, TensorError>
-where
-    F32Func: Fn(&mut [f32]),
-    F16Func: Fn(&mut [f16]),
-    BF16Func: Fn(&mut [bf16]),
 {
     let mut ret = Tensor::empty(shape, dtype, device)?;
     match dtype {
@@ -31,9 +35,13 @@ where
         DType::I32 => panic!("I32 type does not support {random_method}"),
         DType::U32 => panic!("U32 type does not support {random_method}"),
         DType::I64 => panic!("I64 type does not support {random_method}"),
+        #[cfg(feature = "f32")]
         DType::F32 => f32_func(&mut ret.as_slice_mut::<f32>()),
+        #[cfg(feature = "f16")]
         DType::F16 => f16_func(&mut ret.as_slice_mut::<f16>()),
+        #[cfg(feature = "bf16")]
         DType::BF16 => bf16_func(&mut ret.as_slice_mut::<bf16>()),
+        _ => panic!("unsupported dtype {:?}", dtype),
     }
     Ok(ret)
 }
@@ -51,6 +59,7 @@ impl Tensor {
             shape,
             dtype,
             device,
+            #[cfg(feature = "f32")]
             |slice| {
                 let normal = Normal::new(mean as f32, std as f32)
                     .expect("Failed to create normal distribution");
@@ -62,6 +71,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "f16")]
             |slice| {
                 let normal = Normal::new(f16::from_f64(mean), f16::from_f64(std))
                     .expect("Failed to create normal distribution");
@@ -73,6 +83,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "bf16")]
             |slice| {
                 let normal = Normal::new(bf16::from_f64(mean), bf16::from_f64(std))
                     .expect("Failed to create normal distribution");
@@ -103,6 +114,7 @@ impl Tensor {
             shape,
             dtype,
             device,
+            #[cfg(feature = "f32")]
             |slice| {
                 let normal = Uniform::new(low as f32, high as f32)
                     .expect("Failed to create uniform distribution");
@@ -114,6 +126,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "f16")]
             |slice| {
                 let normal = Uniform::new(f16::from_f64(low), f16::from_f64(high))
                     .expect("Failed to create uniform distribution");
@@ -125,6 +138,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "bf16")]
             |slice| {
                 let normal = Uniform::new(bf16::from_f64(low), bf16::from_f64(high))
                     .expect("Failed to create uniform distribution");
@@ -155,6 +169,7 @@ impl Tensor {
             shape,
             dtype,
             device,
+            #[cfg(feature = "f32")]
             |slice| {
                 let normal = rand_distr::Beta::new(alpha as f32, beta as f32)
                     .expect("Failed to create beta distribution");
@@ -166,6 +181,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "f16")]
             |slice| {
                 let normal = rand_distr::Beta::new(f16::from_f64(alpha), f16::from_f64(beta))
                     .expect("Failed to create beta distribution");
@@ -177,6 +193,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "bf16")]
             |slice| {
                 let normal = rand_distr::Beta::new(bf16::from_f64(alpha), bf16::from_f64(beta))
                     .expect("Failed to create beta distribution");
@@ -206,6 +223,7 @@ impl Tensor {
             shape,
             dtype,
             device,
+            #[cfg(feature = "f32")]
             |slice| {
                 let normal = rand_distr::ChiSquared::new(k as f32)
                     .expect("Failed to create chi-square distribution");
@@ -217,6 +235,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "f16")]
             |slice| {
                 let normal = rand_distr::ChiSquared::new(f16::from_f64(k))
                     .expect("Failed to create chi-square distribution");
@@ -228,6 +247,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "bf16")]
             |slice| {
                 let normal = rand_distr::ChiSquared::new(bf16::from_f64(k))
                     .expect("Failed to create chi-square distribution");
@@ -257,6 +277,7 @@ impl Tensor {
             shape,
             dtype,
             device,
+            #[cfg(feature = "f32")]
             |slice| {
                 let normal = rand_distr::Exp::new(lambda as f32)
                     .expect("Failed to create exponential distribution");
@@ -268,6 +289,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "f16")]
             |slice| {
                 let normal = rand_distr::Exp::new(f16::from_f64(lambda))
                     .expect("Failed to create exponential distribution");
@@ -279,6 +301,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "bf16")]
             |slice| {
                 let normal = rand_distr::Exp::new(bf16::from_f64(lambda))
                     .expect("Failed to create exponential distribution");
@@ -309,6 +332,7 @@ impl Tensor {
             shape,
             dtype,
             device,
+            #[cfg(feature = "f32")]
             |slice| {
                 let normal = rand_distr::Gamma::new(gamma_shape as f32, scale as f32)
                     .expect("Failed to create gamma distribution");
@@ -320,6 +344,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "f16")]
             |slice| {
                 let normal =
                     rand_distr::Gamma::new(f16::from_f64(gamma_shape), f16::from_f64(scale))
@@ -332,6 +357,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "bf16")]
             |slice| {
                 let normal =
                     rand_distr::Gamma::new(bf16::from_f64(gamma_shape), bf16::from_f64(scale))
@@ -369,6 +395,7 @@ impl Tensor {
             shape,
             dtype,
             device,
+            #[cfg(feature = "f32")]
             |slice| {
                 let normal = rand_distr::Gumbel::new(location as f32, scale as f32)
                     .expect("Failed to create gumbel distribution");
@@ -380,6 +407,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "f16")]
             |slice| {
                 let normal = rand_distr::Gumbel::new(f16::from_f64(location), f16::from_f64(scale))
                     .expect("Failed to create gumbel distribution");
@@ -391,9 +419,11 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "bf16")]
             |slice| {
-                let normal = rand_distr::Gumbel::new(bf16::from_f64(location), bf16::from_f64(scale))
-                    .expect("Failed to create gumbel distribution");
+                let normal =
+                    rand_distr::Gumbel::new(bf16::from_f64(location), bf16::from_f64(scale))
+                        .expect("Failed to create gumbel distribution");
                 slice.into_par_iter().for_each_init(
                     || rand::rng(),
                     |rng, x| {
@@ -421,6 +451,7 @@ impl Tensor {
             shape,
             dtype,
             device,
+            #[cfg(feature = "f32")]
             |slice| {
                 let normal = rand_distr::LogNormal::new(mu as f32, sigma as f32)
                     .expect("Failed to create lognormal distribution");
@@ -432,6 +463,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "f16")]
             |slice| {
                 let normal = rand_distr::LogNormal::new(f16::from_f64(mu), f16::from_f64(sigma))
                     .expect("Failed to create lognormal distribution");
@@ -443,6 +475,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "bf16")]
             |slice| {
                 let normal = rand_distr::LogNormal::new(bf16::from_f64(mu), bf16::from_f64(sigma))
                     .expect("Failed to create lognormal distribution");
@@ -473,6 +506,7 @@ impl Tensor {
             shape,
             dtype,
             device,
+            #[cfg(feature = "f32")]
             |slice| {
                 let normal = rand_distr::NormalInverseGaussian::new(alpha as f32, beta as f32)
                     .expect("Failed to create normal inverse gaussian distribution");
@@ -484,6 +518,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "f16")]
             |slice| {
                 let normal = rand_distr::NormalInverseGaussian::new(
                     f16::from_f64(alpha),
@@ -498,6 +533,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "bf16")]
             |slice| {
                 let normal = rand_distr::NormalInverseGaussian::new(
                     bf16::from_f64(alpha),
@@ -531,6 +567,7 @@ impl Tensor {
             shape,
             dtype,
             device,
+            #[cfg(feature = "f32")]
             |slice| {
                 let normal = rand_distr::Pareto::new(scale as f32, pareto_shape as f32)
                     .expect("Failed to create pareto distribution");
@@ -542,6 +579,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "f16")]
             |slice| {
                 let normal =
                     rand_distr::Pareto::new(f16::from_f64(scale), f16::from_f64(pareto_shape))
@@ -554,6 +592,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "bf16")]
             |slice| {
                 let normal =
                     rand_distr::Pareto::new(bf16::from_f64(scale), bf16::from_f64(pareto_shape))
@@ -590,6 +629,7 @@ impl Tensor {
             shape,
             dtype,
             device,
+            #[cfg(feature = "f32")]
             |slice| {
                 let normal = rand_distr::Poisson::new(lambda as f32)
                     .expect("Failed to create poisson distribution");
@@ -601,6 +641,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "f16")]
             |slice| {
                 let normal = rand_distr::Poisson::new(f16::from_f64(lambda))
                     .expect("Failed to create poisson distribution");
@@ -612,6 +653,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "bf16")]
             |slice| {
                 let normal = rand_distr::Poisson::new(bf16::from_f64(lambda))
                     .expect("Failed to create poisson distribution");
@@ -642,6 +684,7 @@ impl Tensor {
             shape,
             dtype,
             device,
+            #[cfg(feature = "f32")]
             |slice| {
                 let normal = rand_distr::Weibull::new(scale as f32, weibull_shape as f32)
                     .expect("Failed to create weibull distribution");
@@ -653,6 +696,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "f16")]
             |slice| {
                 let normal =
                     rand_distr::Weibull::new(f16::from_f64(scale), f16::from_f64(weibull_shape))
@@ -665,6 +709,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "bf16")]
             |slice| {
                 let normal =
                     rand_distr::Weibull::new(bf16::from_f64(scale), bf16::from_f64(weibull_shape))
@@ -702,6 +747,7 @@ impl Tensor {
             shape,
             dtype,
             device,
+            #[cfg(feature = "f32")]
             |slice| {
                 let normal = rand_distr::Zipf::new(n as f32, s as f32)
                     .expect("Failed to create zipf distribution");
@@ -713,6 +759,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "f16")]
             |slice| {
                 let normal = rand_distr::Zipf::new(f16::from_f64(n), f16::from_f64(s))
                     .expect("Failed to create zipf distribution");
@@ -724,6 +771,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "bf16")]
             |slice| {
                 let normal = rand_distr::Zipf::new(bf16::from_f64(n), bf16::from_f64(s))
                     .expect("Failed to create zipf distribution");
@@ -755,6 +803,7 @@ impl Tensor {
             shape,
             dtype,
             device,
+            #[cfg(feature = "f32")]
             |slice| {
                 let normal = rand_distr::Triangular::new(low as f32, high as f32, mode as f32)
                     .expect("Failed to create triangular distribution");
@@ -766,6 +815,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "f16")]
             |slice| {
                 let normal = rand_distr::Triangular::new(
                     f16::from_f64(low),
@@ -781,6 +831,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "bf16")]
             |slice| {
                 let normal = rand_distr::Triangular::new(
                     bf16::from_f64(low),
@@ -821,6 +872,7 @@ impl Tensor {
             shape,
             dtype,
             device,
+            #[cfg(feature = "f32")]
             |slice| {
                 let normal = rand_distr::Bernoulli::new(p as f64)
                     .expect("Failed to create bernoulli distribution");
@@ -832,6 +884,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "f16")]
             |slice| {
                 let normal = rand_distr::Bernoulli::new(p as f64)
                     .expect("Failed to create bernoulli distribution");
@@ -843,6 +896,7 @@ impl Tensor {
                     },
                 );
             },
+            #[cfg(feature = "bf16")]
             |slice| {
                 let normal = rand_distr::Bernoulli::new(p as f64)
                     .expect("Failed to create bernoulli distribution");
@@ -857,6 +911,7 @@ impl Tensor {
         )
     }
 
+    #[allow(unused)]
     pub fn randint(
         low: f64,
         high: f64,
@@ -867,7 +922,9 @@ impl Tensor {
         let random_method: &str = "randint";
         let mut ret = Tensor::empty(shape, dtype, device)?;
         match dtype {
+            #[cfg(feature = "bool")]
             DType::Bool => panic!("Bool type does not support {random_method}"),
+            #[cfg(feature = "i8")]
             DType::I8 => {
                 let slice = ret.as_slice_mut::<i8>();
                 let normal = Uniform::new(low as i8, high as i8)
@@ -879,8 +936,11 @@ impl Tensor {
                         *x = rand_num;
                     },
                 );
+                Ok(ret)
             }
+            #[cfg(feature = "u8")]
             DType::U8 => panic!("U8 type does not support {random_method}"),
+            #[cfg(feature = "i16")]
             DType::I16 => {
                 let slice = ret.as_slice_mut::<i16>();
                 let normal = Uniform::new(low as i16, high as i16)
@@ -892,8 +952,11 @@ impl Tensor {
                         *x = rand_num;
                     },
                 );
+                Ok(ret)
             }
+            #[cfg(feature = "u16")]
             DType::U16 => panic!("U16 type does not support {random_method}"),
+            #[cfg(feature = "i32")]
             DType::I32 => {
                 let slice = ret.as_slice_mut::<i32>();
                 let normal = Uniform::new(low as i32, high as i32)
@@ -905,8 +968,11 @@ impl Tensor {
                         *x = rand_num;
                     },
                 );
+                Ok(ret)
             }
+            #[cfg(feature = "u32")]
             DType::U32 => panic!("U32 type does not support {random_method}"),
+            #[cfg(feature = "i64")]
             DType::I64 => {
                 let slice = ret.as_slice_mut::<i64>();
                 let normal = Uniform::new(low as i64, high as i64)
@@ -918,11 +984,19 @@ impl Tensor {
                         *x = rand_num;
                     },
                 );
+                Ok(ret)
             }
+            #[cfg(feature = "u64")]
+            DType::U64 => panic!("U64 type does not support {random_method}"),
+            #[cfg(feature = "f32")]
             DType::F32 => panic!("F32 type does not support {random_method}"),
+            #[cfg(feature = "f16")]
             DType::F16 => panic!("F16 type does not support {random_method}"),
+            #[cfg(feature = "bf16")]
             DType::BF16 => panic!("BF16 type does not support {random_method}"),
+            #[cfg(feature = "f64")]
+            DType::F64 => panic!("F64 type does not support {random_method}"),
+            _ => panic!("unsupported dtype {:?}", dtype),
         }
-        Ok(ret)
     }
 }

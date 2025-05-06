@@ -4,7 +4,6 @@ use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
 use hpt_types::dtype::DType;
 use hpt_types::dtype::ToDType;
-use hpt_types::dtype::TypeCommon;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::FloatOutBinary;
 use hpt_types::type_promote::FloatOutUnary;
@@ -12,8 +11,6 @@ use hpt_types::type_promote::NormalOutPromote;
 
 use crate::Tensor;
 use crate::ops::tensor::matmul::microkernel_trait::MatmulMicroKernel;
-
-use hpt_types::traits::VecTrait;
 
 use super::batchnorm_conv2d::batchnorm_conv2d;
 use super::conv2d_group::conv2d_group;
@@ -159,77 +156,132 @@ impl Tensor {
         if t_dtype == DType::F16
             && !(cfg!(target_feature = "neon") && cfg!(target_feature = "fp16"))
         {
-            type F16Vec = <half::f16 as TypeCommon>::Vec;
-            super::conv2d_mp::conv2d::<half::f16>(
-                self,
-                kernels,
-                bias,
-                steps,
-                padding,
-                dilation,
-                |x| {
-                    let vec0 = unsafe { x.read_unaligned() };
-                    let vec1 = unsafe { x.add(1).read_unaligned() };
-                    F16Vec::from_2_f32vec([vec0, vec1])
-                },
-                |x| unsafe {
-                    let mut f16_vec = F16Vec::splat(half::f16::ZERO);
-                    for j in 0..F16Vec::SIZE {
-                        f16_vec[j] = *x.add(j);
-                    }
-                    let val_f32 = f16_vec.high_to_f32vec();
-                    val_f32
-                },
-                |x| x.cast(),
-                |x| x.cast(),
-                None,
-                None,
-            )
+            #[cfg(feature = "f16")]
+            {
+                type F16Vec = <half::f16 as TypeCommon>::Vec;
+                use hpt_types::traits::VecTrait;
+                use hpt_types::dtype::TypeCommon;
+                super::conv2d_mp::conv2d::<half::f16>(
+                    self,
+                    kernels,
+                    bias,
+                    steps,
+                    padding,
+                    dilation,
+                    |x| {
+                        let vec0 = unsafe { x.read_unaligned() };
+                        let vec1 = unsafe { x.add(1).read_unaligned() };
+                        F16Vec::from_2_f32vec([vec0, vec1])
+                    },
+                    |x| unsafe {
+                        let mut f16_vec = F16Vec::splat(half::f16::ZERO);
+                        for j in 0..F16Vec::SIZE {
+                            f16_vec[j] = *x.add(j);
+                        }
+                        let val_f32 = f16_vec.high_to_f32vec();
+                        val_f32
+                    },
+                    |x| x.cast(),
+                    |x| x.cast(),
+                    None,
+                    None,
+                )
+            }
+            #[cfg(not(feature = "f16"))]
+            {
+                panic!("f16 is not supported for conv2d");
+            }
         } else if t_dtype == DType::BF16 {
-            type F16Vec = <half::bf16 as TypeCommon>::Vec;
-            super::conv2d_mp::conv2d::<half::bf16>(
-                self,
-                kernels,
-                bias,
-                steps,
-                padding,
-                dilation,
-                |x| {
-                    let vec0 = unsafe { x.read_unaligned() };
-                    let vec1 = unsafe { x.add(1).read_unaligned() };
-                    F16Vec::from_2_f32vec([vec0, vec1])
-                },
-                |x| unsafe {
-                    let mut f16_vec = F16Vec::splat(half::bf16::ZERO);
-                    for j in 0..F16Vec::SIZE {
-                        f16_vec[j] = *x.add(j);
-                    }
-                    let val_f32 = f16_vec.high_to_f32vec();
-                    val_f32
-                },
-                |x| x.cast(),
-                |x| x.cast(),
-                None,
-                None,
-            )
+            #[cfg(feature = "bf16")]
+            {
+                type F16Vec = <half::bf16 as TypeCommon>::Vec;
+                use hpt_types::traits::VecTrait;
+                use hpt_types::dtype::TypeCommon;
+                super::conv2d_mp::conv2d::<half::bf16>(
+                    self,
+                    kernels,
+                    bias,
+                    steps,
+                    padding,
+                    dilation,
+                    |x| {
+                        let vec0 = unsafe { x.read_unaligned() };
+                        let vec1 = unsafe { x.add(1).read_unaligned() };
+                        F16Vec::from_2_f32vec([vec0, vec1])
+                    },
+                    |x| unsafe {
+                        let mut f16_vec = F16Vec::splat(half::bf16::ZERO);
+                        for j in 0..F16Vec::SIZE {
+                            f16_vec[j] = *x.add(j);
+                        }
+                        let val_f32 = f16_vec.high_to_f32vec();
+                        val_f32
+                    },
+                    |x| x.cast(),
+                    |x| x.cast(),
+                    None,
+                    None,
+                )
+            }
+            #[cfg(not(feature = "bf16"))]
+            {
+                panic!("bf16 is not supported for conv2d");
+            }
         } else {
             match self.dtype {
+                #[cfg(feature = "i8")]
                 DType::I8 => {
                     conv2d::<i8>(self, kernels, bias, steps, padding, dilation, None, None)
                 }
+                #[cfg(feature = "u8")]
                 DType::U8 => {
                     conv2d::<u8>(self, kernels, bias, steps, padding, dilation, None, None)
                 }
+                #[cfg(feature = "f32")]
                 DType::F32 => {
                     conv2d::<f32>(self, kernels, bias, steps, padding, dilation, None, None)
                 }
+                #[cfg(feature = "f16")]
                 DType::F16 => {
                     conv2d::<half::f16>(self, kernels, bias, steps, padding, dilation, None, None)
                 }
+                #[cfg(feature = "bf16")]
                 DType::BF16 => {
                     conv2d::<half::bf16>(self, kernels, bias, steps, padding, dilation, None, None)
                 }
-                _ => panic!("Unsupported dtype for conv2d"),
+                #[cfg(feature = "bool")]
+                DType::Bool => {
+                    conv2d::<bool>(self, kernels, bias, steps, padding, dilation, None, None)
+                }
+                #[cfg(feature = "i16")]
+                DType::I16 => {
+                    conv2d::<i16>(self, kernels, bias, steps, padding, dilation, None, None)
+                }
+                #[cfg(feature = "u16")]
+                DType::U16 => {
+                    conv2d::<u16>(self, kernels, bias, steps, padding, dilation, None, None)
+                }
+                #[cfg(feature = "i32")]
+                DType::I32 => {
+                    conv2d::<i32>(self, kernels, bias, steps, padding, dilation, None, None)
+                }
+                #[cfg(feature = "u32")]
+                DType::U32 => {
+                    conv2d::<u32>(self, kernels, bias, steps, padding, dilation, None, None)
+                }
+                #[cfg(feature = "i64")]
+                DType::I64 => {
+                    conv2d::<i64>(self, kernels, bias, steps, padding, dilation, None, None)
+                }
+                #[cfg(feature = "u64")]
+                DType::U64 => {
+                    conv2d::<u64>(self, kernels, bias, steps, padding, dilation, None, None)
+                }
+                #[cfg(feature = "f64")]
+                DType::F64 => {
+                    conv2d::<f64>(self, kernels, bias, steps, padding, dilation, None, None)
+                }
+                _ => panic!("unsupported dtype: {:?}", self.dtype),
             }
         }
     }

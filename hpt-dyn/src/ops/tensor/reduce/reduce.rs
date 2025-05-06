@@ -10,7 +10,10 @@ use crate::{
         uncontiguous_reduce_dim_include, uncontiguous_reduce_dim_not_include,
     },
 };
-use half::{bf16, f16};
+#[cfg(feature = "f16")]
+use half::f16;
+#[cfg(feature = "bf16")]
+use half::bf16;
 use hpt_common::axis::axis::process_axes;
 use hpt_common::{
     error::base::TensorError,
@@ -1132,178 +1135,488 @@ where
 impl Tensor {
     pub fn sum(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => sum::<f32>(self, axes, keepdims, None),
+            #[cfg(feature = "f16")]
             DType::F16 => sum::<f16>(self, axes, keepdims, None),
+            #[cfg(feature = "bf16")]
             DType::BF16 => sum::<bf16>(self, axes, keepdims, None),
+            #[cfg(feature = "i8")]
             DType::I8 => sum::<i8>(self, axes, keepdims, None),
+            #[cfg(feature = "u8")]
             DType::U8 => sum::<u8>(self, axes, keepdims, None),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => sum::<bool>(self, axes, keepdims, None),
+            #[cfg(feature = "i16")]
+            DType::I16 => sum::<i16>(self, axes, keepdims, None),
+            #[cfg(feature = "u16")]
+            DType::U16 => sum::<u16>(self, axes, keepdims, None),
+            #[cfg(feature = "i32")]
+            DType::I32 => sum::<i32>(self, axes, keepdims, None),
+            #[cfg(feature = "u32")]
+            DType::U32 => sum::<u32>(self, axes, keepdims, None),
+            #[cfg(feature = "i64")]
+            DType::I64 => sum::<i64>(self, axes, keepdims, None),
+            #[cfg(feature = "u64")]
+            DType::U64 => sum::<u64>(self, axes, keepdims, None),
+            #[cfg(feature = "f64")]
+            DType::F64 => sum::<f64>(self, axes, keepdims, None),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 
     pub fn prod(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => prod::<f32>(self, axes, keepdims, None),
+            #[cfg(feature = "f16")]
             DType::F16 => prod::<f16>(self, axes, keepdims, None),
+            #[cfg(feature = "bf16")]
             DType::BF16 => prod::<bf16>(self, axes, keepdims, None),
+            #[cfg(feature = "i8")]
             DType::I8 => prod::<i8>(self, axes, keepdims, None),
+            #[cfg(feature = "u8")]
             DType::U8 => prod::<u8>(self, axes, keepdims, None),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => prod::<bool>(self, axes, keepdims, None),
+            #[cfg(feature = "i16")]
+            DType::I16 => prod::<i16>(self, axes, keepdims, None),
+            #[cfg(feature = "u16")]
+            DType::U16 => prod::<u16>(self, axes, keepdims, None),
+            #[cfg(feature = "i32")]
+            DType::I32 => prod::<i32>(self, axes, keepdims, None),
+            #[cfg(feature = "u32")]
+            DType::U32 => prod::<u32>(self, axes, keepdims, None),
+            #[cfg(feature = "i64")]
+            DType::I64 => prod::<i64>(self, axes, keepdims, None),
+            #[cfg(feature = "u64")]
+            DType::U64 => prod::<u64>(self, axes, keepdims, None),
+            #[cfg(feature = "f64")]
+            DType::F64 => prod::<f64>(self, axes, keepdims, None),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 
     pub fn nansum(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => nansum::<f32>(self, axes, keepdims, None),
+            #[cfg(feature = "f16")]
             DType::F16 => nansum::<f16>(self, axes, keepdims, None),
+            #[cfg(feature = "bf16")]
             DType::BF16 => nansum::<bf16>(self, axes, keepdims, None),
+            #[cfg(feature = "i8")]
             DType::I8 => nansum::<i8>(self, axes, keepdims, None),
+            #[cfg(feature = "u8")]
             DType::U8 => nansum::<u8>(self, axes, keepdims, None),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => nansum::<bool>(self, axes, keepdims, None),
+            #[cfg(feature = "i16")]
+            DType::I16 => nansum::<i16>(self, axes, keepdims, None),
+            #[cfg(feature = "u16")]
+            DType::U16 => nansum::<u16>(self, axes, keepdims, None),
+            #[cfg(feature = "i32")]
+            DType::I32 => nansum::<i32>(self, axes, keepdims, None),
+            #[cfg(feature = "u32")]
+            DType::U32 => nansum::<u32>(self, axes, keepdims, None),
+            #[cfg(feature = "i64")]
+            DType::I64 => nansum::<i64>(self, axes, keepdims, None),
+            #[cfg(feature = "u64")]
+            DType::U64 => nansum::<u64>(self, axes, keepdims, None),
+            #[cfg(feature = "f64")]
+            DType::F64 => nansum::<f64>(self, axes, keepdims, None),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 
     pub fn nanprod(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => nanprod::<f32>(self, axes, keepdims, None),
+            #[cfg(feature = "f16")]
             DType::F16 => nanprod::<f16>(self, axes, keepdims, None),
+            #[cfg(feature = "bf16")]
             DType::BF16 => nanprod::<bf16>(self, axes, keepdims, None),
+            #[cfg(feature = "i8")]
             DType::I8 => nanprod::<i8>(self, axes, keepdims, None),
+            #[cfg(feature = "u8")]
             DType::U8 => nanprod::<u8>(self, axes, keepdims, None),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => nanprod::<bool>(self, axes, keepdims, None),
+            #[cfg(feature = "i16")]
+            DType::I16 => nanprod::<i16>(self, axes, keepdims, None),
+            #[cfg(feature = "u16")]
+            DType::U16 => nanprod::<u16>(self, axes, keepdims, None),
+            #[cfg(feature = "i32")]
+            DType::I32 => nanprod::<i32>(self, axes, keepdims, None),
+            #[cfg(feature = "u32")]
+            DType::U32 => nanprod::<u32>(self, axes, keepdims, None),
+            #[cfg(feature = "i64")]
+            DType::I64 => nanprod::<i64>(self, axes, keepdims, None),
+            #[cfg(feature = "u64")]
+            DType::U64 => nanprod::<u64>(self, axes, keepdims, None),
+            #[cfg(feature = "f64")]
+            DType::F64 => nanprod::<f64>(self, axes, keepdims, None),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 
     pub fn min(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => min::<f32>(self, axes, keepdims, None),
+            #[cfg(feature = "f16")]
             DType::F16 => min::<f16>(self, axes, keepdims, None),
+            #[cfg(feature = "bf16")]
             DType::BF16 => min::<bf16>(self, axes, keepdims, None),
+            #[cfg(feature = "i8")]
             DType::I8 => min::<i8>(self, axes, keepdims, None),
+            #[cfg(feature = "u8")]
             DType::U8 => min::<u8>(self, axes, keepdims, None),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => min::<bool>(self, axes, keepdims, None),
+            #[cfg(feature = "i16")]
+            DType::I16 => min::<i16>(self, axes, keepdims, None),
+            #[cfg(feature = "u16")]
+            DType::U16 => min::<u16>(self, axes, keepdims, None),
+            #[cfg(feature = "i32")]
+            DType::I32 => min::<i32>(self, axes, keepdims, None),
+            #[cfg(feature = "u32")]
+            DType::U32 => min::<u32>(self, axes, keepdims, None),
+            #[cfg(feature = "i64")]
+            DType::I64 => min::<i64>(self, axes, keepdims, None),
+            #[cfg(feature = "u64")]
+            DType::U64 => min::<u64>(self, axes, keepdims, None),
+            #[cfg(feature = "f64")]
+            DType::F64 => min::<f64>(self, axes, keepdims, None),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 
     pub fn max(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => max::<f32>(self, axes, keepdims, None),
+            #[cfg(feature = "f16")]
             DType::F16 => max::<f16>(self, axes, keepdims, None),
+            #[cfg(feature = "bf16")]
             DType::BF16 => max::<bf16>(self, axes, keepdims, None),
+            #[cfg(feature = "i8")]
             DType::I8 => max::<i8>(self, axes, keepdims, None),
+            #[cfg(feature = "u8")]
             DType::U8 => max::<u8>(self, axes, keepdims, None),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => max::<bool>(self, axes, keepdims, None),
+            #[cfg(feature = "i16")]
+            DType::I16 => max::<i16>(self, axes, keepdims, None),
+            #[cfg(feature = "u16")]
+            DType::U16 => max::<u16>(self, axes, keepdims, None),
+            #[cfg(feature = "i32")]
+            DType::I32 => max::<i32>(self, axes, keepdims, None),
+            #[cfg(feature = "u32")]
+            DType::U32 => max::<u32>(self, axes, keepdims, None),
+            #[cfg(feature = "i64")]
+            DType::I64 => max::<i64>(self, axes, keepdims, None),
+            #[cfg(feature = "u64")]
+            DType::U64 => max::<u64>(self, axes, keepdims, None),
+            #[cfg(feature = "f64")]
+            DType::F64 => max::<f64>(self, axes, keepdims, None),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 
     pub fn sum_square(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => sum_square::<f32>(self, axes, keepdims, None),
+            #[cfg(feature = "f16")]
             DType::F16 => sum_square::<f16>(self, axes, keepdims, None),
+            #[cfg(feature = "bf16")]
             DType::BF16 => sum_square::<bf16>(self, axes, keepdims, None),
+            #[cfg(feature = "i8")]
             DType::I8 => sum_square::<i8>(self, axes, keepdims, None),
+            #[cfg(feature = "u8")]
             DType::U8 => sum_square::<u8>(self, axes, keepdims, None),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => sum_square::<bool>(self, axes, keepdims, None),
+            #[cfg(feature = "i16")]
+            DType::I16 => sum_square::<i16>(self, axes, keepdims, None),
+            #[cfg(feature = "u16")]
+            DType::U16 => sum_square::<u16>(self, axes, keepdims, None),
+            #[cfg(feature = "i32")]
+            DType::I32 => sum_square::<i32>(self, axes, keepdims, None),
+            #[cfg(feature = "u32")]
+            DType::U32 => sum_square::<u32>(self, axes, keepdims, None),
+            #[cfg(feature = "i64")]
+            DType::I64 => sum_square::<i64>(self, axes, keepdims, None),
+            #[cfg(feature = "u64")]
+            DType::U64 => sum_square::<u64>(self, axes, keepdims, None),
+            #[cfg(feature = "f64")]
+            DType::F64 => sum_square::<f64>(self, axes, keepdims, None),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 
     pub fn reducel1(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => reducel1::<f32>(self, axes, keepdims, None),
+            #[cfg(feature = "f16")]
             DType::F16 => reducel1::<f16>(self, axes, keepdims, None),
+            #[cfg(feature = "bf16")]
             DType::BF16 => reducel1::<bf16>(self, axes, keepdims, None),
+            #[cfg(feature = "i8")]
             DType::I8 => reducel1::<i8>(self, axes, keepdims, None),
+            #[cfg(feature = "u8")]
             DType::U8 => reducel1::<u8>(self, axes, keepdims, None),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => reducel1::<bool>(self, axes, keepdims, None),
+            #[cfg(feature = "i16")]
+            DType::I16 => reducel1::<i16>(self, axes, keepdims, None),
+            #[cfg(feature = "u16")]
+            DType::U16 => reducel1::<u16>(self, axes, keepdims, None),
+            #[cfg(feature = "i32")]
+            DType::I32 => reducel1::<i32>(self, axes, keepdims, None),
+            #[cfg(feature = "u32")]
+            DType::U32 => reducel1::<u32>(self, axes, keepdims, None),
+            #[cfg(feature = "i64")]
+            DType::I64 => reducel1::<i64>(self, axes, keepdims, None),
+            #[cfg(feature = "u64")]
+            DType::U64 => reducel1::<u64>(self, axes, keepdims, None),
+            #[cfg(feature = "f64")]
+            DType::F64 => reducel1::<f64>(self, axes, keepdims, None),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
     pub fn all(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => all::<f32>(self, axes, keepdims, None),
+            #[cfg(feature = "f16")]
             DType::F16 => all::<f16>(self, axes, keepdims, None),
+            #[cfg(feature = "bf16")]
             DType::BF16 => all::<bf16>(self, axes, keepdims, None),
+            #[cfg(feature = "i8")]
             DType::I8 => all::<i8>(self, axes, keepdims, None),
+            #[cfg(feature = "u8")]
             DType::U8 => all::<u8>(self, axes, keepdims, None),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => all::<bool>(self, axes, keepdims, None),
+            #[cfg(feature = "i16")]
+            DType::I16 => all::<i16>(self, axes, keepdims, None),
+            #[cfg(feature = "u16")]
+            DType::U16 => all::<u16>(self, axes, keepdims, None),
+            #[cfg(feature = "i32")]
+            DType::I32 => all::<i32>(self, axes, keepdims, None),
+            #[cfg(feature = "u32")]
+            DType::U32 => all::<u32>(self, axes, keepdims, None),
+            #[cfg(feature = "i64")]
+            DType::I64 => all::<i64>(self, axes, keepdims, None),
+            #[cfg(feature = "u64")]
+            DType::U64 => all::<u64>(self, axes, keepdims, None),
+            #[cfg(feature = "f64")]
+            DType::F64 => all::<f64>(self, axes, keepdims, None),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 
     pub fn any(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => any::<f32>(self, axes, keepdims, None),
+            #[cfg(feature = "f16")]
             DType::F16 => any::<f16>(self, axes, keepdims, None),
+            #[cfg(feature = "bf16")]
             DType::BF16 => any::<bf16>(self, axes, keepdims, None),
+            #[cfg(feature = "i8")]
             DType::I8 => any::<i8>(self, axes, keepdims, None),
+            #[cfg(feature = "u8")]
             DType::U8 => any::<u8>(self, axes, keepdims, None),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => any::<bool>(self, axes, keepdims, None),
+            #[cfg(feature = "i16")]
+            DType::I16 => any::<i16>(self, axes, keepdims, None),
+            #[cfg(feature = "u16")]
+            DType::U16 => any::<u16>(self, axes, keepdims, None),
+            #[cfg(feature = "i32")]
+            DType::I32 => any::<i32>(self, axes, keepdims, None),
+            #[cfg(feature = "u32")]
+            DType::U32 => any::<u32>(self, axes, keepdims, None),
+            #[cfg(feature = "i64")]
+            DType::I64 => any::<i64>(self, axes, keepdims, None),
+            #[cfg(feature = "u64")]
+            DType::U64 => any::<u64>(self, axes, keepdims, None),
+            #[cfg(feature = "f64")]
+            DType::F64 => any::<f64>(self, axes, keepdims, None),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
     pub fn logsumexp(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => logsumexp::<f32, f32>(self, axes, keepdims, None),
+            #[cfg(feature = "f16")]
             DType::F16 => logsumexp::<f16, f16>(self, axes, keepdims, None),
+            #[cfg(feature = "bf16")]
             DType::BF16 => logsumexp::<bf16, bf16>(self, axes, keepdims, None),
+            #[cfg(feature = "i8")]
             DType::I8 => logsumexp::<i8, <i8 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            #[cfg(feature = "u8")]
             DType::U8 => logsumexp::<u8, <u8 as FloatOutUnary>::Output>(self, axes, keepdims, None),
-            _ => {
-                unimplemented!()
+            #[cfg(feature = "bool")]
+            DType::Bool => {
+                logsumexp::<bool, <bool as FloatOutUnary>::Output>(self, axes, keepdims, None)
             }
+            #[cfg(feature = "i16")]
+            DType::I16 => {
+                logsumexp::<i16, <i16 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "u16")]
+            DType::U16 => {
+                logsumexp::<u16, <u16 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "i32")]
+            DType::I32 => {
+                logsumexp::<i32, <i32 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "u32")]
+            DType::U32 => {
+                logsumexp::<u32, <u32 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "i64")]
+            DType::I64 => {
+                logsumexp::<i64, <i64 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "u64")]
+            DType::U64 => {
+                logsumexp::<u64, <u64 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "f64")]
+            DType::F64 => logsumexp::<f64, f64>(self, axes, keepdims, None),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
     pub fn reducel2(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => reducel2::<f32, f32>(self, axes, keepdims, None),
+            #[cfg(feature = "f16")]
             DType::F16 => reducel2::<f16, f16>(self, axes, keepdims, None),
+            #[cfg(feature = "bf16")]
             DType::BF16 => reducel2::<bf16, bf16>(self, axes, keepdims, None),
+            #[cfg(feature = "i8")]
             DType::I8 => reducel2::<i8, <i8 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            #[cfg(feature = "u8")]
             DType::U8 => reducel2::<u8, <u8 as FloatOutUnary>::Output>(self, axes, keepdims, None),
-            _ => {
-                unimplemented!()
+            #[cfg(feature = "bool")]
+            DType::Bool => {
+                reducel2::<bool, <bool as FloatOutUnary>::Output>(self, axes, keepdims, None)
             }
+            #[cfg(feature = "i16")]
+            DType::I16 => {
+                reducel2::<i16, <i16 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "u16")]
+            DType::U16 => {
+                reducel2::<u16, <u16 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "i32")]
+            DType::I32 => {
+                reducel2::<i32, <i32 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "u32")]
+            DType::U32 => {
+                reducel2::<u32, <u32 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "i64")]
+            DType::I64 => {
+                reducel2::<i64, <i64 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "u64")]
+            DType::U64 => {
+                reducel2::<u64, <u64 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "f64")]
+            DType::F64 => reducel2::<f64, f64>(self, axes, keepdims, None),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
     pub fn reducel3(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => reducel3::<f32, f32>(self, axes, keepdims, None),
+            #[cfg(feature = "f16")]
             DType::F16 => reducel3::<f16, f16>(self, axes, keepdims, None),
+            #[cfg(feature = "bf16")]
             DType::BF16 => reducel3::<bf16, bf16>(self, axes, keepdims, None),
+            #[cfg(feature = "i8")]
             DType::I8 => reducel3::<i8, <i8 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            #[cfg(feature = "u8")]
             DType::U8 => reducel3::<u8, <u8 as FloatOutUnary>::Output>(self, axes, keepdims, None),
-            _ => {
-                unimplemented!()
+            #[cfg(feature = "bool")]
+            DType::Bool => {
+                reducel3::<bool, <bool as FloatOutUnary>::Output>(self, axes, keepdims, None)
             }
+            #[cfg(feature = "i16")]
+            DType::I16 => {
+                reducel3::<i16, <i16 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "u16")]
+            DType::U16 => {
+                reducel3::<u16, <u16 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "i32")]
+            DType::I32 => {
+                reducel3::<i32, <i32 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "u32")]
+            DType::U32 => {
+                reducel3::<u32, <u32 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "i64")]
+            DType::I64 => {
+                reducel3::<i64, <i64 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "u64")]
+            DType::U64 => {
+                reducel3::<u64, <u64 as FloatOutUnary>::Output>(self, axes, keepdims, None)
+            }
+            #[cfg(feature = "f64")]
+            DType::F64 => reducel3::<f64, f64>(self, axes, keepdims, None),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
     pub fn mean(&self, axes: &[i64], keepdims: bool) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => mean::<f32, f32>(self, axes, keepdims, None),
+            #[cfg(feature = "f16")]
             DType::F16 => mean::<f16, f16>(self, axes, keepdims, None),
+            #[cfg(feature = "bf16")]
             DType::BF16 => mean::<bf16, bf16>(self, axes, keepdims, None),
+            #[cfg(feature = "i8")]
             DType::I8 => mean::<i8, <i8 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            #[cfg(feature = "u8")]
             DType::U8 => mean::<u8, <u8 as FloatOutUnary>::Output>(self, axes, keepdims, None),
-            _ => {
-                unimplemented!()
+            #[cfg(feature = "bool")]
+            DType::Bool => {
+                mean::<bool, <bool as FloatOutUnary>::Output>(self, axes, keepdims, None)
             }
+            #[cfg(feature = "i16")]
+            DType::I16 => mean::<i16, <i16 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            #[cfg(feature = "u16")]
+            DType::U16 => mean::<u16, <u16 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            #[cfg(feature = "i32")]
+            DType::I32 => mean::<i32, <i32 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            #[cfg(feature = "u32")]
+            DType::U32 => mean::<u32, <u32 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            #[cfg(feature = "i64")]
+            DType::I64 => mean::<i64, <i64 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            #[cfg(feature = "u64")]
+            DType::U64 => mean::<u64, <u64 as FloatOutUnary>::Output>(self, axes, keepdims, None),
+            #[cfg(feature = "f64")]
+            DType::F64 => mean::<f64, f64>(self, axes, keepdims, None),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
     pub fn sum_(
@@ -1313,14 +1626,33 @@ impl Tensor {
         out: &mut Tensor,
     ) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => sum::<f32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f16")]
             DType::F16 => sum::<f16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "bf16")]
             DType::BF16 => sum::<bf16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i8")]
             DType::I8 => sum::<i8>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u8")]
             DType::U8 => sum::<u8>(self, axes, keepdims, Some(out.clone())),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => sum::<bool>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i16")]
+            DType::I16 => sum::<i16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u16")]
+            DType::U16 => sum::<u16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i32")]
+            DType::I32 => sum::<i32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u32")]
+            DType::U32 => sum::<u32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i64")]
+            DType::I64 => sum::<i64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u64")]
+            DType::U64 => sum::<u64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f64")]
+            DType::F64 => sum::<f64>(self, axes, keepdims, Some(out.clone())),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 
@@ -1331,14 +1663,33 @@ impl Tensor {
         out: &mut Tensor,
     ) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => prod::<f32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f16")]
             DType::F16 => prod::<f16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "bf16")]
             DType::BF16 => prod::<bf16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i8")]
             DType::I8 => prod::<i8>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u8")]
             DType::U8 => prod::<u8>(self, axes, keepdims, Some(out.clone())),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => prod::<bool>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i16")]
+            DType::I16 => prod::<i16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u16")]
+            DType::U16 => prod::<u16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i32")]
+            DType::I32 => prod::<i32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u32")]
+            DType::U32 => prod::<u32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i64")]
+            DType::I64 => prod::<i64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u64")]
+            DType::U64 => prod::<u64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f64")]
+            DType::F64 => prod::<f64>(self, axes, keepdims, Some(out.clone())),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 
@@ -1349,14 +1700,33 @@ impl Tensor {
         out: &mut Tensor,
     ) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => nansum::<f32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f16")]
             DType::F16 => nansum::<f16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "bf16")]
             DType::BF16 => nansum::<bf16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i8")]
             DType::I8 => nansum::<i8>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u8")]
             DType::U8 => nansum::<u8>(self, axes, keepdims, Some(out.clone())),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => nansum::<bool>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i16")]
+            DType::I16 => nansum::<i16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u16")]
+            DType::U16 => nansum::<u16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i32")]
+            DType::I32 => nansum::<i32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u32")]
+            DType::U32 => nansum::<u32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i64")]
+            DType::I64 => nansum::<i64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u64")]
+            DType::U64 => nansum::<u64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f64")]
+            DType::F64 => nansum::<f64>(self, axes, keepdims, Some(out.clone())),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 
@@ -1367,14 +1737,33 @@ impl Tensor {
         out: &mut Tensor,
     ) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => nanprod::<f32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f16")]
             DType::F16 => nanprod::<f16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "bf16")]
             DType::BF16 => nanprod::<bf16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i8")]
             DType::I8 => nanprod::<i8>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u8")]
             DType::U8 => nanprod::<u8>(self, axes, keepdims, Some(out.clone())),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => nanprod::<bool>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i16")]
+            DType::I16 => nanprod::<i16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u16")]
+            DType::U16 => nanprod::<u16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i32")]
+            DType::I32 => nanprod::<i32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u32")]
+            DType::U32 => nanprod::<u32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i64")]
+            DType::I64 => nanprod::<i64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u64")]
+            DType::U64 => nanprod::<u64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f64")]
+            DType::F64 => nanprod::<f64>(self, axes, keepdims, Some(out.clone())),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 
@@ -1385,14 +1774,33 @@ impl Tensor {
         out: &mut Tensor,
     ) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => min::<f32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f16")]
             DType::F16 => min::<f16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "bf16")]
             DType::BF16 => min::<bf16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i8")]
             DType::I8 => min::<i8>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u8")]
             DType::U8 => min::<u8>(self, axes, keepdims, Some(out.clone())),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => min::<bool>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i16")]
+            DType::I16 => min::<i16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u16")]
+            DType::U16 => min::<u16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i32")]
+            DType::I32 => min::<i32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u32")]
+            DType::U32 => min::<u32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i64")]
+            DType::I64 => min::<i64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u64")]
+            DType::U64 => min::<u64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f64")]
+            DType::F64 => min::<f64>(self, axes, keepdims, Some(out.clone())),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 
@@ -1403,14 +1811,33 @@ impl Tensor {
         out: &mut Tensor,
     ) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => max::<f32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f16")]
             DType::F16 => max::<f16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "bf16")]
             DType::BF16 => max::<bf16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i8")]
             DType::I8 => max::<i8>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u8")]
             DType::U8 => max::<u8>(self, axes, keepdims, Some(out.clone())),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => max::<bool>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i16")]
+            DType::I16 => max::<i16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u16")]
+            DType::U16 => max::<u16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i32")]
+            DType::I32 => max::<i32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u32")]
+            DType::U32 => max::<u32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i64")]
+            DType::I64 => max::<i64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u64")]
+            DType::U64 => max::<u64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f64")]
+            DType::F64 => max::<f64>(self, axes, keepdims, Some(out.clone())),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 
@@ -1421,14 +1848,33 @@ impl Tensor {
         out: &mut Tensor,
     ) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => sum_square::<f32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f16")]
             DType::F16 => sum_square::<f16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "bf16")]
             DType::BF16 => sum_square::<bf16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i8")]
             DType::I8 => sum_square::<i8>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u8")]
             DType::U8 => sum_square::<u8>(self, axes, keepdims, Some(out.clone())),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => sum_square::<bool>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i16")]
+            DType::I16 => sum_square::<i16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u16")]
+            DType::U16 => sum_square::<u16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i32")]
+            DType::I32 => sum_square::<i32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u32")]
+            DType::U32 => sum_square::<u32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i64")]
+            DType::I64 => sum_square::<i64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u64")]
+            DType::U64 => sum_square::<u64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f64")]
+            DType::F64 => sum_square::<f64>(self, axes, keepdims, Some(out.clone())),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 
@@ -1439,14 +1885,33 @@ impl Tensor {
         out: &mut Tensor,
     ) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => reducel1::<f32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f16")]
             DType::F16 => reducel1::<f16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "bf16")]
             DType::BF16 => reducel1::<bf16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i8")]
             DType::I8 => reducel1::<i8>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u8")]
             DType::U8 => reducel1::<u8>(self, axes, keepdims, Some(out.clone())),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => reducel1::<bool>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i16")]
+            DType::I16 => reducel1::<i16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u16")]
+            DType::U16 => reducel1::<u16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i32")]
+            DType::I32 => reducel1::<i32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u32")]
+            DType::U32 => reducel1::<u32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i64")]
+            DType::I64 => reducel1::<i64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u64")]
+            DType::U64 => reducel1::<u64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f64")]
+            DType::F64 => reducel1::<f64>(self, axes, keepdims, Some(out.clone())),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
     pub fn all_(
@@ -1456,14 +1921,33 @@ impl Tensor {
         out: &mut Tensor,
     ) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => all::<f32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f16")]
             DType::F16 => all::<f16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "bf16")]
             DType::BF16 => all::<bf16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i8")]
             DType::I8 => all::<i8>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u8")]
             DType::U8 => all::<u8>(self, axes, keepdims, Some(out.clone())),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => all::<bool>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i16")]
+            DType::I16 => all::<i16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u16")]
+            DType::U16 => all::<u16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i32")]
+            DType::I32 => all::<i32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u32")]
+            DType::U32 => all::<u32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i64")]
+            DType::I64 => all::<i64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u64")]
+            DType::U64 => all::<u64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f64")]
+            DType::F64 => all::<f64>(self, axes, keepdims, Some(out.clone())),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 
@@ -1474,14 +1958,33 @@ impl Tensor {
         out: &mut Tensor,
     ) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => any::<f32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f16")]
             DType::F16 => any::<f16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "bf16")]
             DType::BF16 => any::<bf16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i8")]
             DType::I8 => any::<i8>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u8")]
             DType::U8 => any::<u8>(self, axes, keepdims, Some(out.clone())),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => any::<bool>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i16")]
+            DType::I16 => any::<i16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u16")]
+            DType::U16 => any::<u16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i32")]
+            DType::I32 => any::<i32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u32")]
+            DType::U32 => any::<u32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i64")]
+            DType::I64 => any::<i64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "u64")]
+            DType::U64 => any::<u64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f64")]
+            DType::F64 => any::<f64>(self, axes, keepdims, Some(out.clone())),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
     pub fn logsumexp_(
@@ -1491,24 +1994,78 @@ impl Tensor {
         out: &mut Tensor,
     ) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => logsumexp::<f32, f32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f16")]
             DType::F16 => logsumexp::<f16, f16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "bf16")]
             DType::BF16 => logsumexp::<bf16, bf16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i8")]
             DType::I8 => logsumexp::<i8, <i8 as FloatOutUnary>::Output>(
                 self,
                 axes,
                 keepdims,
                 Some(out.clone()),
             ),
+            #[cfg(feature = "u8")]
             DType::U8 => logsumexp::<u8, <u8 as FloatOutUnary>::Output>(
                 self,
                 axes,
                 keepdims,
                 Some(out.clone()),
             ),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => logsumexp::<bool, <bool as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "i16")]
+            DType::I16 => logsumexp::<i16, <i16 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "u16")]
+            DType::U16 => logsumexp::<u16, <u16 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "i32")]
+            DType::I32 => logsumexp::<i32, <i32 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "u32")]
+            DType::U32 => logsumexp::<u32, <u32 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "i64")]
+            DType::I64 => logsumexp::<i64, <i64 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "u64")]
+            DType::U64 => logsumexp::<u64, <u64 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "f64")]
+            DType::F64 => logsumexp::<f64, f64>(self, axes, keepdims, Some(out.clone())),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
     pub fn reducel2_(
@@ -1518,24 +2075,78 @@ impl Tensor {
         out: &mut Tensor,
     ) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => reducel2::<f32, f32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f16")]
             DType::F16 => reducel2::<f16, f16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "bf16")]
             DType::BF16 => reducel2::<bf16, bf16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i8")]
             DType::I8 => reducel2::<i8, <i8 as FloatOutUnary>::Output>(
                 self,
                 axes,
                 keepdims,
                 Some(out.clone()),
             ),
+            #[cfg(feature = "u8")]
             DType::U8 => reducel2::<u8, <u8 as FloatOutUnary>::Output>(
                 self,
                 axes,
                 keepdims,
                 Some(out.clone()),
             ),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => reducel2::<bool, <bool as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "i16")]
+            DType::I16 => reducel2::<i16, <i16 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "u16")]
+            DType::U16 => reducel2::<u16, <u16 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "f64")]
+            DType::F64 => reducel2::<f64, f64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i32")]
+            DType::I32 => reducel2::<i32, <i32 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "u32")]
+            DType::U32 => reducel2::<u32, <u32 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "i64")]
+            DType::I64 => reducel2::<i64, <i64 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "u64")]
+            DType::U64 => reducel2::<u64, <u64 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
     pub fn reducel3_(
@@ -1545,24 +2156,78 @@ impl Tensor {
         out: &mut Tensor,
     ) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => reducel3::<f32, f32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f16")]
             DType::F16 => reducel3::<f16, f16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "bf16")]
             DType::BF16 => reducel3::<bf16, bf16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i8")]
             DType::I8 => reducel3::<i8, <i8 as FloatOutUnary>::Output>(
                 self,
                 axes,
                 keepdims,
                 Some(out.clone()),
             ),
+            #[cfg(feature = "u8")]
             DType::U8 => reducel3::<u8, <u8 as FloatOutUnary>::Output>(
                 self,
                 axes,
                 keepdims,
                 Some(out.clone()),
             ),
-            _ => {
-                unimplemented!()
-            }
+            #[cfg(feature = "bool")]
+            DType::Bool => reducel3::<bool, <bool as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "i16")]
+            DType::I16 => reducel3::<i16, <i16 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "u16")]
+            DType::U16 => reducel3::<u16, <u16 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "f64")]
+            DType::F64 => reducel3::<f64, f64>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i32")]
+            DType::I32 => reducel3::<i32, <i32 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "u32")]
+            DType::U32 => reducel3::<u32, <u32 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "i64")]
+            DType::I64 => reducel3::<i64, <i64 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "u64")]
+            DType::U64 => reducel3::<u64, <u64 as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
     pub fn mean_(
@@ -1572,18 +2237,54 @@ impl Tensor {
         out: &mut Tensor,
     ) -> Result<Tensor, TensorError> {
         match self.dtype {
+            #[cfg(feature = "f32")]
             DType::F32 => mean::<f32, f32>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "f16")]
             DType::F16 => mean::<f16, f16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "bf16")]
             DType::BF16 => mean::<bf16, bf16>(self, axes, keepdims, Some(out.clone())),
+            #[cfg(feature = "i8")]
             DType::I8 => {
                 mean::<i8, <i8 as FloatOutUnary>::Output>(self, axes, keepdims, Some(out.clone()))
             }
+            #[cfg(feature = "u8")]
             DType::U8 => {
                 mean::<u8, <u8 as FloatOutUnary>::Output>(self, axes, keepdims, Some(out.clone()))
             }
-            _ => {
-                unimplemented!()
+            #[cfg(feature = "bool")]
+            DType::Bool => mean::<bool, <bool as FloatOutUnary>::Output>(
+                self,
+                axes,
+                keepdims,
+                Some(out.clone()),
+            ),
+            #[cfg(feature = "i16")]
+            DType::I16 => {
+                mean::<i16, <i16 as FloatOutUnary>::Output>(self, axes, keepdims, Some(out.clone()))
             }
+            #[cfg(feature = "u16")]
+            DType::U16 => {
+                mean::<u16, <u16 as FloatOutUnary>::Output>(self, axes, keepdims, Some(out.clone()))
+            }
+            #[cfg(feature = "i32")]
+            DType::I32 => {
+                mean::<i32, <i32 as FloatOutUnary>::Output>(self, axes, keepdims, Some(out.clone()))
+            }
+            #[cfg(feature = "u32")]
+            DType::U32 => {
+                mean::<u32, <u32 as FloatOutUnary>::Output>(self, axes, keepdims, Some(out.clone()))
+            }
+            #[cfg(feature = "i64")]
+            DType::I64 => {
+                mean::<i64, <i64 as FloatOutUnary>::Output>(self, axes, keepdims, Some(out.clone()))
+            }
+            #[cfg(feature = "u64")]
+            DType::U64 => {
+                mean::<u64, <u64 as FloatOutUnary>::Output>(self, axes, keepdims, Some(out.clone()))
+            }
+            #[cfg(feature = "f64")]
+            DType::F64 => mean::<f64, f64>(self, axes, keepdims, Some(out.clone())),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 }

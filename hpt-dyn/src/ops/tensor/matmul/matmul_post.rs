@@ -1,11 +1,10 @@
-
 use gemm_common::cache::DivCeil;
 use hpt_common::Pointer;
 use hpt_traits::tensor::CommonBounds;
 use hpt_types::traits::VecTrait;
 
 use super::microkernel_trait::MatmulMicroKernel;
-use super::utils::kernel_params;
+use super::utils::{PrePackedRhs, kernel_params};
 
 /// single batch matmul template no block info
 ///
@@ -41,13 +40,17 @@ pub fn matmul_post_template_no_block_info<T, F1, F2>(
     post_op: F1,
     post_op_vec: F2,
     num_threads: usize,
+    prepack_rhs: Option<PrePackedRhs>,
 ) where
     T: CommonBounds + MatmulMicroKernel,
     F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
     F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
 {
-    let nr = T::get_max_nr() * T::Vec::SIZE;
-    let mr = T::get_max_mr();
+    let (nr, mr) = if m > 1 {
+        (T::get_max_nr() * T::Vec::SIZE, T::get_max_mr())
+    } else {
+        (T::get_max_horizontal_nr() * T::Vec::SIZE, 1)
+    };
     #[cfg(not(target_feature = "neon"))]
     let mut do_lhs_pack = false;
     #[cfg(target_feature = "neon")]
@@ -82,7 +85,7 @@ pub fn matmul_post_template_no_block_info<T, F1, F2>(
         mr,
         do_lhs_pack,
         num_threads,
-        
+        prepack_rhs,
         post_op,
         post_op_vec,
     );

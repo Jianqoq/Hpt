@@ -50,6 +50,43 @@ where
         }
     }
 
+    #[allow(unused_variables)]
+    fn get_horizontal_kernel(
+        nr: usize,
+        mr: usize,
+    ) -> fn(Pointer<Self>, Pointer<Self>, Pointer<Self>, i64, i64, usize, usize, i64, bool) {
+        assert_eq!(mr, 1);
+        #[cfg(target_feature = "avx2")]
+        {
+            use crate::ops::tensor::matmul::microkernels::define_matmul_micro_kernel;
+            assert_eq!(nr, 6);
+            define_matmul_micro_kernel!(x6x1, 6, 1);
+            return x6x1;
+        }
+        #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
+        {
+            use crate::ops::tensor::matmul::microkernels::define_matmul_micro_kernel;
+            assert_eq!(nr, 2);
+            define_matmul_micro_kernel!(x2x1, 2, 1);
+            return x2x1;
+        }
+        #[cfg(target_feature = "neon")]
+        {
+            use crate::ops::tensor::matmul::microkernels::define_matmul_micro_kernel;
+            assert_eq!(nr, 8);
+            define_matmul_micro_kernel!(x8x1, 8, 1);
+            return x8x1;
+        }
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
+        {
+            unimplemented!()
+        }
+    }
+
     #[allow(unused)]
     fn get_inline_asm_kernel(
         nr: usize,
@@ -107,6 +144,58 @@ where
             define_post_op_matmul_micro_kernel!(x8x1, 8, 1);
             define_post_op_matmul_micro_kernel!(x8x2, 8, 2);
             return [x8x1, x8x2][mr - 1];
+        }
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
+        {
+            unimplemented!()
+        }
+    }
+
+    #[allow(unused_variables)]
+    fn get_horizontal_kernel_with_post_op<F: Fn(Self, usize, usize) -> Self, G: Fn(Self::Vec, usize, usize) -> Self::Vec>(
+        nr: usize,
+        mr: usize,
+    ) -> fn(
+        Pointer<Self>,
+        Pointer<Self>,
+        Pointer<Self>,
+        i64,
+        i64,
+        usize,
+        usize,
+        i64,
+        bool,
+        bool,
+        usize,
+        usize,
+        F,
+        G,
+    ) {
+        assert_eq!(mr, 1);
+        #[cfg(target_feature = "avx2")]
+        {
+            use crate::ops::tensor::matmul::microkernels::define_post_op_matmul_micro_kernel;
+            assert_eq!(nr, 6);
+            define_post_op_matmul_micro_kernel!(x6x1, 6, 1);
+            return x6x1;
+        }
+        #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
+        {
+            use crate::ops::tensor::matmul::microkernels::define_post_op_matmul_micro_kernel;
+            assert_eq!(nr, 4);
+            define_post_op_matmul_micro_kernel!(x4x1, 4, 1);
+            return x4x1;
+        }
+        #[cfg(target_feature = "neon")]
+        {
+            use crate::ops::tensor::matmul::microkernels::define_post_op_matmul_micro_kernel;
+            assert_eq!(nr, 8);
+            define_post_op_matmul_micro_kernel!(x8x1, 8, 1);
+            return x8x1;
         }
         #[cfg(all(
             not(target_feature = "avx2"),
@@ -206,6 +295,24 @@ where
         #[cfg(any(target_feature = "avx2", target_feature = "sse"))]
         {
             2
+        }
+        #[cfg(target_feature = "neon")]
+        {
+            8
+        }
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
+        {
+            unimplemented!()
+        }
+    }
+    fn get_max_horizontal_nr() -> usize {
+        #[cfg(any(target_feature = "avx2", target_feature = "sse"))]
+        {
+            6
         }
         #[cfg(target_feature = "neon")]
         {

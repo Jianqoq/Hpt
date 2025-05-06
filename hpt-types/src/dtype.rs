@@ -27,12 +27,16 @@ pub enum DType {
     U32,
     /// 64-bit integer type
     I64,
+    /// 64-bit unsigned integer type
+    U64,
     /// 32-bit floating point type
     F32,
     /// 16-bit floating point type
     F16,
     /// 16-bit floating point type
     BF16,
+    /// 64-bit floating point type
+    F64,
 }
 
 impl DType {
@@ -50,6 +54,8 @@ impl DType {
             DType::F32 => std::mem::size_of::<f32>(),
             DType::F16 => std::mem::size_of::<half::f16>(),
             DType::BF16 => std::mem::size_of::<half::bf16>(),
+            DType::U64 => std::mem::size_of::<u64>(),
+            DType::F64 => std::mem::size_of::<f64>(),
         }
     }
     /// the size of the simd vector of the data type
@@ -66,6 +72,8 @@ impl DType {
             DType::F32 => <f32 as TypeCommon>::Vec::SIZE,
             DType::F16 => <half::f16 as TypeCommon>::Vec::SIZE,
             DType::BF16 => <half::bf16 as TypeCommon>::Vec::SIZE,
+            DType::U64 => <u64 as TypeCommon>::Vec::SIZE,
+            DType::F64 => <f64 as TypeCommon>::Vec::SIZE,
         }
     }
 }
@@ -97,6 +105,8 @@ impl_to_dtype!(i64, DType::I64);
 impl_to_dtype!(f32, DType::F32);
 impl_to_dtype!(half::f16, DType::F16);
 impl_to_dtype!(half::bf16, DType::BF16);
+impl_to_dtype!(u64, DType::U64);
+impl_to_dtype!(f64, DType::F64);
 
 
 /// trait for cuda type

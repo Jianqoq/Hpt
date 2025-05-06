@@ -1,3 +1,3 @@
-use crate::backends::cpu::kernels::conv2d::microkernel_trait::Conv2dMicroKernel;
+use crate::ops::tensor::conv2d::microkernel_trait::Conv2dMicroKernel;
 
 impl Conv2dMicroKernel for bool {}

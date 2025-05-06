@@ -1,3 +1,6 @@
+#![allow(unused_macros)]
+#![allow(unused_imports)]
+
 /// define mma macro
 macro_rules! define_mma {
     ($nr:expr, $mr:expr, $unroll:expr) => {
@@ -616,7 +619,7 @@ macro_rules! define_post_op_matmul_micro_kernel {
                             ldc,
                             c_local,
                             [res_ptr <= c_vec],
-                            unsafe { res_ptr.write_unaligned(post_op_vec(c_vec, m_idx + MR, n_idx + NR)) }
+                            unsafe { res_ptr.write_unaligned(post_op_vec(c_vec, m_idx + MR, n_idx + NR * <T as TypeCommon>::Vec::SIZE)) }
                         );
                     }
                     (true, false) => {
@@ -638,7 +641,7 @@ macro_rules! define_post_op_matmul_micro_kernel {
                             ldc,
                             c_local,
                             [res_ptr <= c_vec],
-                            unsafe { res_ptr.write_unaligned(post_op_vec(res_ptr.read_unaligned()._add(c_vec), m_idx + MR, n_idx + NR)) }
+                            unsafe { res_ptr.write_unaligned(post_op_vec(res_ptr.read_unaligned()._add(c_vec), m_idx + MR, n_idx + NR * <T as TypeCommon>::Vec::SIZE)) }
                         );
                     }
                     (false, false) => {
@@ -804,7 +807,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
                             ldc,
                             c_local,
                             [res_ptr <= c_vec],
-                            unsafe { res_ptr.write_unaligned(post_op_vec(c_vec, m_idx + MR, n_idx + NR)) }
+                            unsafe { res_ptr.write_unaligned(post_op_vec(c_vec, m_idx + MR, n_idx + NR * <T as TypeCommon>::Vec::SIZE)) }
                         );
                     }
                     (true, false) => {
@@ -826,7 +829,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
                             ldc,
                             c_local,
                             [res_ptr <= c_vec],
-                            unsafe { res_ptr.write_unaligned(post_op_vec(res_ptr.read_unaligned()._add(c_vec), m_idx + MR, n_idx + NR)) }
+                            unsafe { res_ptr.write_unaligned(post_op_vec(res_ptr.read_unaligned()._add(c_vec), m_idx + MR, n_idx + NR * <T as TypeCommon>::Vec::SIZE)) }
                         );
                     }
                     (false, false) => {
@@ -1036,7 +1039,7 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                             [res_ptr <= c_vec],
                             let mut res = T::Vec::splat(T::ZERO);
                             vec_cast_back(&mut res, c_vec);
-                            unsafe { res_ptr.write_unaligned(post_op_vec(res, m_idx + MR, n_idx + NR)) }
+                            unsafe { res_ptr.write_unaligned(post_op_vec(res, m_idx + MR, n_idx + NR * <T as TypeCommon>::Vec::SIZE)) }
                         );
                     }
                     (true, false) => {
@@ -1060,7 +1063,7 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                             [res_ptr <= c_vec],
                             let mut res = T::Vec::splat(T::ZERO);
                             vec_cast_back(&mut res, c_vec);
-                            unsafe { res_ptr.write_unaligned(post_op_vec(res._add(res_ptr.read_unaligned()), m_idx + MR, n_idx + NR)) }
+                            unsafe { res_ptr.write_unaligned(post_op_vec(res._add(res_ptr.read_unaligned()), m_idx + MR, n_idx + NR * <T as TypeCommon>::Vec::SIZE)) }
                         );
                     }
                     (false, false) => {
@@ -1411,7 +1414,7 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                                     } as *mut <T as TypeCommon>::Vec;
                                     let mut res = T::Vec::splat(T::ZERO);
                                     vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
-                                    unsafe {res_ptr.write_unaligned(post_op_vec(res, m_idx + MR, n_idx + NR)) };
+                                    unsafe {res_ptr.write_unaligned(post_op_vec(res, m_idx + MR, n_idx + NR * <T as TypeCommon>::Vec::SIZE)) };
                                     }
                                 );
                             }
@@ -1449,7 +1452,7 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                                     res~NR = unsafe {res_ptr.read_unaligned()};
                                     let mut res = T::Vec::splat(T::ZERO);
                                     vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
-                                    unsafe {res_ptr.write_unaligned(post_op_vec(res~NR._add(res), m_idx + MR, n_idx + NR)) };
+                                    unsafe {res_ptr.write_unaligned(post_op_vec(res~NR._add(res), m_idx + MR, n_idx + NR * <T as TypeCommon>::Vec::SIZE)) };
                                     }
                                 );
                             }

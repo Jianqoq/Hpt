@@ -49,8 +49,11 @@ pub fn matmul_post_template_no_block_info<T, F1, F2>(
     F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
     F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
 {
-    let nr = T::get_max_nr() * T::Vec::SIZE;
-    let mr = T::get_max_mr();
+    let (nr, mr) = if m > 1 {
+        (T::get_max_nr() * T::Vec::SIZE, T::get_max_mr())
+    } else {
+        (T::get_horizontal_max_nr() * T::Vec::SIZE, 1)
+    };
     #[cfg(not(target_feature = "neon"))]
     let mut do_lhs_pack = false;
     #[cfg(target_feature = "neon")]
