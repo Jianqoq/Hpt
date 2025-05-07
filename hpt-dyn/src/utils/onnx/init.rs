@@ -118,7 +118,7 @@ pub(crate) fn get_tensor_from_attribute(
     }
 }
 
-pub(crate) fn conv_init(node: &NodeProto, node_degree: &mut HashMap<String, u32>) -> [Operator; 5] {
+pub(crate) fn conv_init(node: &NodeProto, node_degree: &mut HashMap<String, u32>) -> [Operator; 4] {
     let input_name = node.input[0].as_str();
     let kernel_name = node.input[1].as_str();
     let bias_name = node.input[2].as_str();
@@ -149,15 +149,10 @@ pub(crate) fn conv_init(node: &NodeProto, node_degree: &mut HashMap<String, u32>
 
     let tmp_output_name = format!("tmp_{}", node.output[0]);
 
-    let out_permute = Operator::Transpose(Permute {
-        input: tmp_output_name.clone(),
-        output: tmp_output_name.clone(),
-        perm: vec![0, 2, 3, 1],
-    });
-
-    let contiguous = Operator::Contiguous(Unary {
+    let out_pc = Operator::PermuteContiguous(Permute {
         input: tmp_output_name.clone(),
         output: node.output[0].to_string(),
+        perm: vec![0, 2, 3, 1],
     });
 
     let conv2d = Operator::Conv2d(Conv2d {
@@ -171,7 +166,7 @@ pub(crate) fn conv_init(node: &NodeProto, node_degree: &mut HashMap<String, u32>
         group: node.attribute[1].i.unwrap_or(1),
     });
 
-    [inp_permute, kernel_permute, conv2d, out_permute, contiguous]
+    [inp_permute, kernel_permute, conv2d, out_pc]
 }
 
 pub(crate) fn unary_init(node: &NodeProto, node_degree: &mut HashMap<String, u32>) -> Operator {

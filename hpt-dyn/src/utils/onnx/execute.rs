@@ -165,8 +165,8 @@ impl OnnxModel {
                                 crate::utils::onnx::operators::Operator::Acos(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Acosh(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Add(binary) => {
-                                                                                            add_fwd(binary, &mut tensors)?
-                                                                                        }
+                                                                                                                        add_fwd(binary, &mut tensors)?
+                                                                                                                    }
                                 crate::utils::onnx::operators::Operator::And(binary) => todo!(),
                                 crate::utils::onnx::operators::Operator::ArgMax(arg_reduce) => todo!(),
                                 crate::utils::onnx::operators::Operator::ArgMin(arg_reduce) => todo!(),
@@ -176,10 +176,10 @@ impl OnnxModel {
                                 crate::utils::onnx::operators::Operator::Atanh(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::AveragePool(pooling) => todo!(),
                                 crate::utils::onnx::operators::Operator::BatchNormalization(
-                                                                                            batch_normalization,
-                                                                                        ) => {
-                                                                                            todo!()
-                                                                                        }
+                                                                                                                        batch_normalization,
+                                                                                                                    ) => {
+                                                                                                                        todo!()
+                                                                                                                    }
                                 crate::utils::onnx::operators::Operator::BitShift(binary) => todo!(),
                                 crate::utils::onnx::operators::Operator::BitwiseAnd(binary) => todo!(),
                                 crate::utils::onnx::operators::Operator::BitwiseNot(unary) => todo!(),
@@ -188,15 +188,15 @@ impl OnnxModel {
                                 crate::utils::onnx::operators::Operator::Cast(cast) => todo!(),
                                 crate::utils::onnx::operators::Operator::Ceil(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Concat(concat) => {
-                                                                                            concat_fwd(concat, &mut tensors)?
-                                                                                        }
+                                                                                                                        concat_fwd(concat, &mut tensors)?
+                                                                                                                    }
                                 crate::utils::onnx::operators::Operator::Conv2d(conv2d) => todo!(),
                                 crate::utils::onnx::operators::Operator::Conv2dInteger(conv2d) => todo!(),
                                 crate::utils::onnx::operators::Operator::Cos(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Cosh(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::ConstantOfShape(constant_of_shape) => {
-                                                                                            constant_of_shape_fwd(constant_of_shape, &mut tensors)?
-                                                                                        }
+                                                                                                                        constant_of_shape_fwd(constant_of_shape, &mut tensors)?
+                                                                                                                    }
                                 crate::utils::onnx::operators::Operator::Div(binary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Dropout(dropout) => todo!(),
                                 crate::utils::onnx::operators::Operator::Equal(binary) => todo!(),
@@ -207,8 +207,8 @@ impl OnnxModel {
                                 crate::utils::onnx::operators::Operator::Flatten(flatten) => todo!(),
                                 crate::utils::onnx::operators::Operator::Floor(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Gather(gather) => {
-                                                                                            gather_fwd(gather, &mut tensors)?
-                                                                                        }
+                                                                                                                        gather_fwd(gather, &mut tensors)?
+                                                                                                                    }
                                 crate::utils::onnx::operators::Operator::Gemm(gemm) => todo!(),
                                 crate::utils::onnx::operators::Operator::GlobalAveragePool(pooling) => todo!(),
                                 crate::utils::onnx::operators::Operator::GlobalMaxPool(pooling) => todo!(),
@@ -221,11 +221,11 @@ impl OnnxModel {
                                 crate::utils::onnx::operators::Operator::Log(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Loop => todo!(),
                                 crate::utils::onnx::operators::Operator::Lstm(lstm) => {
-                                                                                            lstm_fwd(lstm, &mut tensors)?
-                                                                                        }
+                                                                                                                        lstm_fwd(lstm, &mut tensors)?
+                                                                                                                    }
                                 crate::utils::onnx::operators::Operator::MatMul(matmul) => {
-                                                                                            matmul_fwd(matmul, &mut tensors)?
-                                                                                        }
+                                                                                                                        matmul_fwd(matmul, &mut tensors)?
+                                                                                                                    }
                                 crate::utils::onnx::operators::Operator::MatMulInteger(matmul) => todo!(),
                                 crate::utils::onnx::operators::Operator::Max(binary) => todo!(),
                                 crate::utils::onnx::operators::Operator::MaxPool(pooling) => todo!(),
@@ -241,14 +241,14 @@ impl OnnxModel {
                                 crate::utils::onnx::operators::Operator::Pow(binary) => todo!(),
                                 crate::utils::onnx::operators::Operator::RandomNormal(random_normal) => todo!(),
                                 crate::utils::onnx::operators::Operator::RandomNormalLike(random_normal) => {
-                                                                                            todo!()
-                                                                                        }
+                                                                                                                        todo!()
+                                                                                                                    }
                                 crate::utils::onnx::operators::Operator::RandomUniform(random_uniform) => {
-                                                                                            todo!()
-                                                                                        }
+                                                                                                                        todo!()
+                                                                                                                    }
                                 crate::utils::onnx::operators::Operator::RandomUniformLike(random_uniform) => {
-                                                                                            todo!()
-                                                                                        }
+                                                                                                                        todo!()
+                                                                                                                    }
                                 crate::utils::onnx::operators::Operator::Reciprocal(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::ReduceMax(reduce) => todo!(),
                                 crate::utils::onnx::operators::Operator::ReduceMean(reduce) => todo!(),
@@ -262,27 +262,27 @@ impl OnnxModel {
                                 crate::utils::onnx::operators::Operator::Sin(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Sinh(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Slice(slice) => {
-                                                                                            slice_fwd(slice, &mut tensors)?
-                                                                                        }
+                                                                                                                        slice_fwd(slice, &mut tensors)?
+                                                                                                                    }
                                 crate::utils::onnx::operators::Operator::Split(split) => todo!(),
                                 crate::utils::onnx::operators::Operator::Sqrt(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Squeeze(squeeze) => {
-                                                                                            squeeze_fwd(squeeze, &mut tensors)?
-                                                                                        }
+                                                                                                                        squeeze_fwd(squeeze, &mut tensors)?
+                                                                                                                    }
                                 crate::utils::onnx::operators::Operator::Sub(binary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Sum(reduce) => todo!(),
                                 crate::utils::onnx::operators::Operator::Shape(unary) => {
-                                                                                            shape_fwd(unary, &mut tensors)?
-                                                                                        }
+                                                                                                                        shape_fwd(unary, &mut tensors)?
+                                                                                                                    }
                                 crate::utils::onnx::operators::Operator::Tan(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Tanh(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Transpose(permute) => {
-                                                                                            transpose_fwd(permute, &mut tensors)?
-                                                                                        }
+                                                                                                                        transpose_fwd(permute, &mut tensors)?
+                                                                                                                    }
                                 crate::utils::onnx::operators::Operator::Trilu(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Unsqueeze(unsqueeze) => {
-                                                                                            unsqueeze_fwd(unsqueeze, &mut tensors)?
-                                                                                        }
+                                                                                                                        unsqueeze_fwd(unsqueeze, &mut tensors)?
+                                                                                                                    }
                                 crate::utils::onnx::operators::Operator::Where(_) => todo!(),
                                 crate::utils::onnx::operators::Operator::Xor(binary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Bernoulli(bernoulli) => todo!(),
@@ -298,10 +298,10 @@ impl OnnxModel {
                                 crate::utils::onnx::operators::Operator::HardSigmoid(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::HardSwish(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::LayerNormalization(
-                                                                                            layer_normalization,
-                                                                                        ) => {
-                                                                                            todo!()
-                                                                                        }
+                                                                                                                        layer_normalization,
+                                                                                                                    ) => {
+                                                                                                                        todo!()
+                                                                                                                    }
                                 crate::utils::onnx::operators::Operator::LeakyRelu(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::LessOrEqual(binary) => todo!(),
                                 crate::utils::onnx::operators::Operator::LogSoftmax(reduce) => todo!(),
@@ -316,11 +316,12 @@ impl OnnxModel {
                                 crate::utils::onnx::operators::Operator::Shrink(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Softmax(reduce) => todo!(),
                                 crate::utils::onnx::operators::Operator::SoftmaxCrossEntropyLoss(reduce) =>
-                                                                                            todo!(),
+                                                                                                                        todo!(),
                                 crate::utils::onnx::operators::Operator::Softplus(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Softsign(unary) => todo!(),
                                 crate::utils::onnx::operators::Operator::Contiguous(unary) => todo!(),
-crate::utils::onnx::operators::Operator::InvPermute(permute) => todo!(),
+                                crate::utils::onnx::operators::Operator::InvPermute(permute) => todo!(),
+                                crate::utils::onnx::operators::Operator::PermuteContiguous(permute) => todo!(),
                             }
                         }
                         if let Some(graph) = model.graph.as_ref() {

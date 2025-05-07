@@ -375,6 +375,7 @@ pub(crate) enum Operator {
     Tanh(Unary),
     Transpose(Permute),
     InvPermute(Permute),
+    PermuteContiguous(Permute),
     Trilu(Unary),
     Unsqueeze(Squeeze),
     Where(Where),
