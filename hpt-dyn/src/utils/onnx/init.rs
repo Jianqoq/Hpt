@@ -9,7 +9,7 @@ use super::{
 };
 use crate::{
     Tensor,
-    onnx::{NodeProto, attribute_proto},
+    onnx::{NodeProto, TensorProto, attribute_proto},
     utils::onnx::operators::{ConstantOfShape, Conv2d},
 };
 use hpt_traits::tensor::TensorInfo;
@@ -17,6 +17,63 @@ use std::collections::HashMap;
 
 fn bytes_to_string(bytes: &[u8]) -> String {
     String::from_utf8(bytes.to_vec()).expect("invalid utf-8 sequence")
+}
+
+impl From<&TensorProto> for Tensor {
+    fn from(tensor: &TensorProto) -> Self {
+        let dtype = to_dtype(tensor.data_type());
+        if tensor.float_data.len() > 0 {
+            let raw = unsafe {
+                std::slice::from_raw_parts(
+                    tensor.float_data.as_ptr() as *const u8,
+                    tensor.float_data.len() * std::mem::size_of::<f32>(),
+                )
+            };
+
+            let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)
+                .expect("cannot create   empty tensor");
+            let ptr = tensor.data.cast::<u8>().ptr;
+            unsafe {
+                ptr.copy_from(raw.as_ptr(), raw.len());
+            }
+            tensor
+        } else if tensor.int32_data.len() > 0 {
+            let raw = unsafe {
+                std::slice::from_raw_parts(
+                    tensor.int32_data.as_ptr() as *const u8,
+                    tensor.int32_data.len() * std::mem::size_of::<i32>(),
+                )
+            };
+
+            let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)
+                .expect("cannot create empty tensor");
+            let ptr = tensor.data.cast::<u8>().ptr;
+            unsafe {
+                ptr.copy_from(raw.as_ptr(), raw.len());
+            }
+            tensor
+        } else if tensor.int64_data.len() > 0 {
+            let i64_data = tensor.int64_data.as_slice();
+
+            let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)
+                .expect("cannot create empty tensor");
+            let ptr = tensor.data.cast::<i64>().ptr;
+            unsafe {
+                ptr.copy_from(i64_data.as_ptr(), i64_data.len());
+            }
+            tensor
+        } else if let Some(raw) = &tensor.raw_data {
+            let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)
+                .expect("cannot create empty tensor");
+            let ptr = tensor.data.cast::<u8>().ptr;
+            unsafe {
+                ptr.copy_from(raw.as_ptr(), raw.len() * std::mem::size_of::<u8>());
+            }
+            tensor
+        } else {
+            panic!("cannot find data in constant tensor attribute");
+        }
+    }
 }
 
 pub(crate) fn get_tensor_from_attribute(
@@ -49,61 +106,7 @@ pub(crate) fn get_tensor_from_attribute(
         }
         attribute_proto::AttributeType::Tensor => {
             if let Some(tensor) = &node.attribute[0].t {
-                if let Some(ty) = tensor.data_type {
-                    let dtype = to_dtype(ty);
-                    if tensor.float_data.len() > 0 {
-                        let raw = unsafe {
-                            std::slice::from_raw_parts(
-                                tensor.float_data.as_ptr() as *const u8,
-                                tensor.float_data.len() * std::mem::size_of::<f32>(),
-                            )
-                        };
-
-                        let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)?;
-                        let ptr = tensor.data.cast::<u8>().ptr;
-                        unsafe {
-                            ptr.copy_from(raw.as_ptr(), raw.len());
-                        }
-                        Ok(tensor)
-                    } else if tensor.int32_data.len() > 0 {
-                        let raw = unsafe {
-                            std::slice::from_raw_parts(
-                                tensor.int32_data.as_ptr() as *const u8,
-                                tensor.int32_data.len() * std::mem::size_of::<i32>(),
-                            )
-                        };
-
-                        let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)?;
-                        let ptr = tensor.data.cast::<u8>().ptr;
-                        unsafe {
-                            ptr.copy_from(raw.as_ptr(), raw.len());
-                        }
-                        Ok(tensor)
-                    } else if tensor.int64_data.len() > 0 {
-                        let i64_data = tensor.int64_data.as_slice();
-
-                        let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)?;
-                        let ptr = tensor.data.cast::<i64>().ptr;
-                        unsafe {
-                            ptr.copy_from(i64_data.as_ptr(), i64_data.len());
-                        }
-                        Ok(tensor)
-                    } else if let Some(raw) = &tensor.raw_data {
-                        let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)?;
-                        let ptr = tensor.data.cast::<u8>().ptr;
-                        unsafe {
-                            ptr.copy_from(raw.as_ptr(), raw.len() * std::mem::size_of::<u8>());
-                        }
-                        Ok(tensor)
-                    } else {
-                        Err(OnnxError::new(
-                            "cannot find data in constant tensor attribute".to_string(),
-                        )
-                        .into())
-                    }
-                } else {
-                    Err(OnnxError::new("constant tensor attribute not found".to_string()).into())
-                }
+                Ok(tensor.into())
             } else {
                 Err(OnnxError::new(
                     "AttributeType is Tensor but can't find TensorProto".to_string(),
@@ -115,7 +118,7 @@ pub(crate) fn get_tensor_from_attribute(
     }
 }
 
-pub(crate) fn conv_init(node: &NodeProto, node_degree: &mut HashMap<String, u32>) -> Operator {
+pub(crate) fn conv_init(node: &NodeProto, node_degree: &mut HashMap<String, u32>) -> [Operator; 5] {
     let input_name = node.input[0].as_str();
     let kernel_name = node.input[1].as_str();
     let bias_name = node.input[2].as_str();
@@ -132,7 +135,32 @@ pub(crate) fn conv_init(node: &NodeProto, node_degree: &mut HashMap<String, u32>
     let strides = node.attribute[4].ints.as_slice();
     assert_eq!(strides.len(), 2);
 
-    Operator::Conv2d(Conv2d {
+    let inp_permute = Operator::Transpose(Permute {
+        input: input_name.to_string(),
+        output: node.output[0].to_string(),
+        perm: vec![0, 2, 3, 1],
+    });
+
+    let kernel_permute = Operator::Transpose(Permute {
+        input: kernel_name.to_string(),
+        output: node.output[0].to_string(),
+        perm: vec![2, 3, 1, 0],
+    });
+
+    let tmp_output_name = format!("tmp_{}", node.output[0]);
+
+    let out_permute = Operator::Transpose(Permute {
+        input: tmp_output_name.clone(),
+        output: tmp_output_name.clone(),
+        perm: vec![0, 2, 3, 1],
+    });
+
+    let contiguous = Operator::Contiguous(Unary {
+        input: tmp_output_name.clone(),
+        output: node.output[0].to_string(),
+    });
+
+    let conv2d = Operator::Conv2d(Conv2d {
         input: input_name.to_string(),
         output: node.output[0].to_string(),
         kernel: kernel_name.to_string(),
@@ -141,7 +169,9 @@ pub(crate) fn conv_init(node: &NodeProto, node_degree: &mut HashMap<String, u32>
         strides: [strides[0], strides[1]],
         dilations: [dilations[0], dilations[1]],
         group: node.attribute[1].i.unwrap_or(1),
-    })
+    });
+
+    [inp_permute, kernel_permute, conv2d, out_permute, contiguous]
 }
 
 pub(crate) fn unary_init(node: &NodeProto, node_degree: &mut HashMap<String, u32>) -> Operator {
@@ -594,5 +624,27 @@ pub(crate) fn lstm_init(node: &NodeProto, node_degree: &mut HashMap<String, u32>
         y,
         y_h,
         y_c,
+    })
+}
+
+pub(crate) fn permute_init(node: &NodeProto, node_degree: &mut HashMap<String, u32>) -> Operator {
+    let input_name = node.input[0].as_str();
+    *node_degree.entry(input_name.to_string()).or_insert(0) += 1;
+    Operator::Transpose(Permute {
+        input: input_name.to_string(),
+        output: node.output[0].to_string(),
+        perm: node.attribute[0].ints.as_slice().to_vec(),
+    })
+}
+
+pub(crate) fn contiguous_init(
+    node: &NodeProto,
+    node_degree: &mut HashMap<String, u32>,
+) -> Operator {
+    let input_name = node.input[0].as_str();
+    *node_degree.entry(input_name.to_string()).or_insert(0) += 1;
+    Operator::Contiguous(Unary {
+        input: input_name.to_string(),
+        output: node.output[0].to_string(),
     })
 }

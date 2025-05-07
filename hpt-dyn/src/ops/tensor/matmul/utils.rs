@@ -72,7 +72,7 @@ pub(crate) fn kernel_params(
         let n_iter = n.div_ceil(auto_nc);
         n.div_ceil(n_iter * nr) * nr
     };
-    let auto_nc = Ord::min(auto_nc, 2 * nr);
+    let auto_nc = Ord::min(auto_nc, 4 * nr);
 
     let auto_mc = if l3_cache_bytes == 0 {
         0
@@ -107,4 +107,6 @@ pub(crate) struct PrePackedRhs {
     pub(crate) num_threads: usize,
     pub(crate) prgs: Vec<[usize; 3]>,
     pub(crate) rem_prgs: Vec<[usize; 3]>,
+    pub(crate) intervals: Vec<(usize, usize)>,
+    pub(crate) rem_intervals: Vec<(usize, usize)>,
 }

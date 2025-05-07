@@ -1,4 +1,4 @@
-#![allow(unused)]
+// #![allow(unused)]
 
 use hpt_types::dtype::DType;
 
@@ -285,6 +285,7 @@ pub(crate) struct Lstm {
 #[derive(Debug)]
 pub(crate) enum Operator {
     Constant,
+    Contiguous(Unary),
     Abs(Unary),
     Acos(Unary),
     Acosh(Unary),
@@ -373,6 +374,7 @@ pub(crate) enum Operator {
     Tan(Unary),
     Tanh(Unary),
     Transpose(Permute),
+    InvPermute(Permute),
     Trilu(Unary),
     Unsqueeze(Squeeze),
     Where(Where),

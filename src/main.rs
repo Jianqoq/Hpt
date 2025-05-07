@@ -8,12 +8,12 @@ fn main() -> anyhow::Result<()> {
     let mut map = HashMap::new();
     map.insert(
         "input".to_string(),
-        DynTensor::ones(&[1, 512, 256], DType::F32, Device::Cpu)?,
+        DynTensor::ones(&[1, 512, 512], DType::F32, Device::Cpu)?,
     );
     let initialized = model.initialize()?;
 
     let now = std::time::Instant::now();
-    for _ in 0..1 {
+    for _ in 0..100 {
         let res = initialized.execute(10, map.clone())?;
         // println!("res: {}", res["output"]);
     }

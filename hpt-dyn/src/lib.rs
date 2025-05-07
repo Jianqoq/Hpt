@@ -12,7 +12,7 @@ static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(4);
 static ALIGN: usize = 64;
 
 pub fn current_num_threads() -> usize {
-    rayon::current_num_threads()
+    10
 }
 
 pub mod onnx {

@@ -4,7 +4,7 @@ use dyn_stack::DynStack;
 use hpt_common::error::base::TensorError;
 use hpt_common::{Pointer, shape::shape_utils::mt_intervals};
 use hpt_traits::tensor::CommonBounds;
-use hpt_types::dtype::DType;
+use hpt_types::dtype::ToDType;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use super::microkernel_trait::MatmulMicroKernel;
@@ -225,6 +225,8 @@ pub(crate) fn func_name<T, F1, F2>(
         assert_eq!(prepacked.num_threads, num_threads);
         assert_eq!(prepacked.prgs, prgs);
         assert_eq!(prepacked.rem_prgs, rem_prgs);
+        assert_eq!(prepacked.intervals, intervals);
+        assert_eq!(prepacked.rem_intervals, mc_rem_intervals);
         do_rhs_pack = false;
     }
     let get_kernel = if mr == 1 {
@@ -294,6 +296,7 @@ pub(crate) fn func_name<T, F1, F2>(
                         packed_b
                     })
                 };
+                let packed_b_cpy = packed_b;
                 let use_prg = prgs[tid];
                 let j_start = use_prg[0] * nc;
 
@@ -319,7 +322,7 @@ pub(crate) fn func_name<T, F1, F2>(
                             need_full_pack,
                         );
                     } else {
-                        packed_b += panel_idx * panel_size as i64;
+                        packed_b = packed_b_cpy + panel_idx * panel_size as i64;
                         panel_idx += 1;
                     }
                     for ii in (i_start..ib).step_by(mr) {
@@ -448,6 +451,23 @@ pub(crate) fn func_name<T, IM, F1, F2>(
     let prgs = calculate_prgs(n, nc, mr, nr, mc, &intervals);
     let rem_prgs = calculate_prgs(n, nc, mr, nr, m % mc, &mc_rem_intervals);
 
+    let mut do_rhs_pack = true;
+    if let Some(prepacked) = &prepack_rhs {
+        assert_eq!(prepacked.kc, kc);
+        assert_eq!(prepacked.mc, mc);
+        assert_eq!(prepacked.nc, nc);
+        assert_eq!(prepacked.mr, mr);
+        assert_eq!(prepacked.nr, nr);
+        assert_eq!(prepacked.num_threads, num_threads);
+        assert_eq!(prepacked.prgs, prgs);
+        assert_eq!(prepacked.rem_prgs, rem_prgs);
+        assert_eq!(prepacked.intervals, intervals);
+        assert_eq!(prepacked.rem_intervals, mc_rem_intervals);
+        do_rhs_pack = false;
+    }
+
+    let panel_size = num_nr_blocks * nr * kc;
+
     for i in (0..m).step_by(mc) {
         let ib = min(mc, m - i);
         let prgs = if ib == mc { &prgs } else { &rem_prgs };
@@ -456,7 +476,7 @@ pub(crate) fn func_name<T, IM, F1, F2>(
         } else {
             &mc_rem_intervals
         };
-        for p in (0..k).step_by(kc) {
+        for (p_idx, p) in (0..k).step_by(kc).enumerate() {
             let first_kiter = p == 0;
             let pb = min(kc, k - p);
             spindle::for_each_raw(num_threads, |tid| {
@@ -475,27 +495,40 @@ pub(crate) fn func_name<T, IM, F1, F2>(
                     pack_zero,
                 );
             });
-            L2_SLAB.with(|mem| {
-                let mut mem = mem.borrow_mut();
-                let stack = DynStack::new(&mut mem);
-                let (packed_b_storage, _) =
-                    stack.make_aligned_uninit::<IM>(num_nr_blocks * nr * kc, ALIGN);
-                let packed_b = Pointer::new(
-                    packed_b_storage.as_mut_ptr() as *mut IM,
-                    (num_nr_blocks * nr * kc) as i64,
-                );
-                spindle::for_each_raw(num_threads, |tid| {
-                    let use_prg = prgs[tid];
-                    let use_start = intervals[tid].0;
-                    let use_end = intervals[tid].1;
-                    let j_start = use_prg[0] * nc;
+            spindle::for_each_raw(num_threads, |tid| {
+                let mut packed_b = if let Some(prepacked) = &prepack_rhs {
+                    let buffer = if ib == mc {
+                        &prepacked.buffers[p_idx][tid]
+                    } else {
+                        &prepacked.buffer_rems[p_idx][tid]
+                    };
+                    buffer.cast::<IM>()
+                } else {
+                    L2_SLAB.with(|mem| {
+                        let mut mem = mem.borrow_mut();
+                        let stack = DynStack::new(&mut mem);
+                        let (packed_b_storage, _) =
+                            stack.make_aligned_uninit::<IM>(num_nr_blocks * nr * kc, ALIGN);
+                        Pointer::new(
+                            packed_b_storage.as_mut_ptr() as *mut IM,
+                            (num_nr_blocks * nr * kc) as i64,
+                        )
+                    })
+                };
+                let packed_b_cpy = packed_b;
+                let use_prg = prgs[tid];
+                let use_start = intervals[tid].0;
+                let use_end = intervals[tid].1;
+                let j_start = use_prg[0] * nc;
 
-                    let mut job_count = use_start;
-                    let mut i_start = use_prg[1] * mr;
-                    let mut jj_start = use_prg[2] * nr;
-                    'outer: for j in (j_start..n).step_by(nc) {
-                        let jb = min(nc, n - j);
-                        let c = out.clone() + (i as i64) * ldc + (j as i64);
+                let mut job_count = use_start;
+                let mut i_start = use_prg[1] * mr;
+                let mut jj_start = use_prg[2] * nr;
+                let mut panel_idx = 0;
+                'outer: for j in (j_start..n).step_by(nc) {
+                    let jb = min(nc, n - j);
+                    let c = out.clone() + (i as i64) * ldc + (j as i64);
+                    if do_rhs_pack {
                         pack_b_mixed_precision::<T, IM>(
                             b.clone() + ((p as i64) * ldb + (j as i64) * rhs_col_stride),
                             packed_b.clone(),
@@ -509,35 +542,38 @@ pub(crate) fn func_name<T, IM, F1, F2>(
                             pack_vec_exceed,
                             pack_zero,
                         );
-                        let packed_a = packed_a.clone();
-                        for ii in (i_start..ib).step_by(mr) {
-                            let mb = min(mr, ib - ii);
-                            let micro_kernel = <T>::get_kernel(nr / <T>::Vec::SIZE, mb);
-
-                            for jj in (jj_start..jb).step_by(nr) {
-                                let jjb = min(nr, jb - jj);
-                                micro_kernel(
-                                    packed_a.clone() + (kc as i64) * (ii as i64),
-                                    packed_b.clone() + (jj as i64) * (kc as i64),
-                                    c.clone() + (ii as i64) * ldc + (jj as i64),
-                                    ldc,
-                                    1,
-                                    kc,
-                                    jjb,
-                                    mb as i64,
-                                    first_kiter,
-                                    args,
-                                );
-                                job_count += 1;
-                                if job_count >= use_end {
-                                    break 'outer;
-                                }
-                            }
-                            jj_start = 0;
-                        }
-                        i_start = 0;
+                    } else {
+                        packed_b = packed_b_cpy + panel_idx * panel_size as i64;
+                        panel_idx += 1;
                     }
-                });
+                    let packed_a = packed_a.clone();
+                    for ii in (i_start..ib).step_by(mr) {
+                        let mb = min(mr, ib - ii);
+                        let micro_kernel = <T>::get_kernel(nr / <T>::Vec::SIZE, mb);
+
+                        for jj in (jj_start..jb).step_by(nr) {
+                            let jjb = min(nr, jb - jj);
+                            micro_kernel(
+                                packed_a.clone() + (kc as i64) * (ii as i64),
+                                packed_b.clone() + (jj as i64) * (kc as i64),
+                                c.clone() + (ii as i64) * ldc + (jj as i64),
+                                ldc,
+                                1,
+                                kc,
+                                jjb,
+                                mb as i64,
+                                first_kiter,
+                                args,
+                            );
+                            job_count += 1;
+                            if job_count >= use_end {
+                                break 'outer;
+                            }
+                        }
+                        jj_start = 0;
+                    }
+                    i_start = 0;
+                }
             });
         }
     }
@@ -557,10 +593,9 @@ pub(crate) fn prepack_b<T>(
     mr: usize,
     mut num_threads: usize,
     device: Device,
-    dtype: DType,
 ) -> Result<PrePackedRhs, TensorError>
 where
-    T: CommonBounds + MatmulMicroKernel,
+    T: CommonBounds + ToDType,
 {
     assert_eq!(
         nr % T::Vec::SIZE,
@@ -614,7 +649,7 @@ where
             }
         });
 
-        let mut cum_buffer_size = vec![0; num_threads];
+        let mut cum_buffer_size = vec![0usize; num_threads];
         let mut sum = 0;
         for i in 0..num_threads {
             sum += buffer_size[i];
@@ -626,7 +661,7 @@ where
         let num_kc = k.div_ceil(kc);
         let buffer = Tensor::zeros(
             &[(total_panels_size * num_kc) as i64],
-            dtype,
+            T::to_dtype(),
             device.clone(),
         )
         .expect("failed to create buffer");
@@ -652,9 +687,6 @@ where
                     let mut buffer_ptr =
                         buffer_ptr + cum_buffer_size[tid] + (p_idx * total_panels_size) as i64;
                     let ptr_cpy = buffer_ptr;
-                    // let buffer = Tensor::zeros(&[buffer_size[tid] as i64], dtype, device.clone())
-                    //     .unwrap();
-                    // let mut buffer_ptr = buffer.data.cast::<T>();
                     'outer: for j in (j_start..n).step_by(nc) {
                         let jb = min(nc, n - j);
                         pack_b::<T>(
@@ -706,6 +738,8 @@ where
             num_threads,
             prgs,
             rem_prgs,
+            intervals,
+            rem_intervals: mc_rem_intervals,
         })
     } else {
         let (buffers, buff_tensor) = func(mc);
@@ -722,6 +756,193 @@ where
             num_threads,
             prgs,
             rem_prgs,
+            intervals,
+            rem_intervals: mc_rem_intervals,
+        })
+    }
+}
+
+pub(crate) fn prepack_mp_b<T, IM>(
+    b: Pointer<T>,
+    m: usize,
+    n: usize,
+    k: usize,
+    ldb: i64,
+    rhs_col_stride: i64,
+    kc: usize,
+    mc: usize,
+    nc: usize,
+    nr: usize,
+    mr: usize,
+    mut num_threads: usize,
+    device: Device,
+    pack_vec: fn(*mut IM::Vec, *const T::Vec, usize),
+    pack_vec_exceed: fn(*mut IM::Vec, usize),
+    pack_zero: fn(&mut IM, &T),
+) -> Result<PrePackedRhs, TensorError>
+where
+    T: CommonBounds,
+    IM: CommonBounds + ToDType,
+{
+    assert_eq!(
+        nr % T::Vec::SIZE,
+        0,
+        "nr must be a multiple of {} for type {}",
+        T::Vec::SIZE,
+        T::STR
+    );
+
+    let num_nr_blocks = (nc + nr - 1) / nr;
+
+    let mc_jobs = calculate_jobs(n, nc, mr, nr, mc);
+    let mc_rem_jobs = calculate_jobs(n, nc, mr, nr, m % mc);
+    num_threads = num_threads.min(mc_jobs);
+    let intervals = mt_intervals(mc_jobs, num_threads);
+    let mc_rem_intervals = mt_intervals(mc_rem_jobs, num_threads);
+    let prgs = calculate_prgs(n, nc, mr, nr, mc, &intervals);
+    let rem_prgs = calculate_prgs(n, nc, mr, nr, m % mc, &mc_rem_intervals);
+
+    let panel_size = num_nr_blocks * nr * kc;
+
+    let func = |ib: usize| {
+        let prgs = if ib == mc { &prgs } else { &rem_prgs };
+        let intervals = if ib == mc {
+            &intervals
+        } else {
+            &mc_rem_intervals
+        };
+        let mut buffer_size = vec![0; num_threads];
+        (0..num_threads).for_each(|tid| {
+            let use_start = intervals[tid].0;
+            let use_end = intervals[tid].1;
+            let use_prg = prgs[tid];
+            let j_start = use_prg[0] * nc;
+            let mut job_count = use_start;
+            let mut i_start = use_prg[1] * mr;
+            let mut jj_start = use_prg[2] * nr;
+            'outer: for j in (j_start..n).step_by(nc) {
+                let jb = min(nc, n - j);
+                buffer_size[tid] += panel_size;
+                for _ in (i_start..ib).step_by(mr) {
+                    for _ in (jj_start..jb).step_by(nr) {
+                        job_count += 1;
+                        if job_count >= use_end {
+                            break 'outer;
+                        }
+                    }
+                    jj_start = 0;
+                }
+                i_start = 0;
+            }
+        });
+
+        let mut cum_buffer_size = vec![0usize; num_threads];
+        let mut sum = 0;
+        for i in 0..num_threads {
+            sum += buffer_size[i];
+            cum_buffer_size[i] = sum - buffer_size[i];
+        }
+
+        let total_panels_size = buffer_size.iter().sum::<usize>();
+
+        let num_kc = k.div_ceil(kc);
+        let buffer = Tensor::zeros(
+            &[(total_panels_size * num_kc) as i64],
+            IM::to_dtype(),
+            device.clone(),
+        )
+        .expect("failed to create buffer");
+
+        let buffer_ptr = buffer.data.cast::<IM>();
+
+        let mut buffers = vec![];
+        for (p_idx, p) in (0..k).step_by(kc).enumerate() {
+            let pb = min(kc, k - p);
+
+            let local_buffers = (0..num_threads)
+                .into_par_iter()
+                .map(|tid| {
+                    let use_start = intervals[tid].0;
+                    let use_end = intervals[tid].1;
+                    let use_prg = prgs[tid];
+                    let j_start = use_prg[0] * nc;
+                    let mut job_count = use_start;
+                    let mut i_start = use_prg[1] * mr;
+                    let mut jj_start = use_prg[2] * nr;
+                    let mut buffer_ptr =
+                        buffer_ptr + cum_buffer_size[tid] + (p_idx * total_panels_size) as i64;
+                    let ptr_cpy = buffer_ptr;
+                    'outer: for j in (j_start..n).step_by(nc) {
+                        let jb = min(nc, n - j);
+                        pack_b_mixed_precision::<T, IM>(
+                            b + ((p as i64) * ldb + (j as i64) * rhs_col_stride),
+                            buffer_ptr,
+                            ldb,
+                            rhs_col_stride,
+                            jb,
+                            pb,
+                            kc,
+                            nr,
+                            pack_vec,
+                            pack_vec_exceed,
+                            pack_zero,
+                        );
+                        buffer_ptr += panel_size as i64;
+                        for _ in (i_start..ib).step_by(mr) {
+                            for _ in (jj_start..jb).step_by(nr) {
+                                job_count += 1;
+                                if job_count >= use_end {
+                                    break 'outer;
+                                }
+                            }
+                            jj_start = 0;
+                        }
+                        i_start = 0;
+                    }
+                    ptr_cpy.cast::<u8>()
+                })
+                .collect::<Vec<_>>();
+            buffers.push(local_buffers);
+        }
+        (buffers, buffer)
+    };
+    let rem = m % mc;
+    if rem > 0 {
+        let (buffers_rem, buff_rem_tensor) = func(rem);
+        let (buffers, buff_tensor) = func(mc);
+        Ok(PrePackedRhs {
+            buffers,
+            buffer_rems: buffers_rem,
+            buffer: buff_tensor,
+            buffer_rem: buff_rem_tensor,
+            mr,
+            mc,
+            kc,
+            nr,
+            nc,
+            num_threads,
+            prgs,
+            rem_prgs,
+            intervals,
+            rem_intervals: mc_rem_intervals,
+        })
+    } else {
+        let (buffers, buff_tensor) = func(mc);
+        Ok(PrePackedRhs {
+            buffers: buffers.clone(),
+            buffer_rems: buffers,
+            buffer: buff_tensor.clone(),
+            buffer_rem: buff_tensor,
+            mr,
+            mc,
+            kc,
+            nr,
+            nc,
+            num_threads,
+            prgs,
+            rem_prgs,
+            intervals,
+            rem_intervals: mc_rem_intervals,
         })
     }
 }

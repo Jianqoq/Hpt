@@ -157,273 +157,170 @@ impl OnnxModel {
                                     panic!("input {:?} not found", inp.name);
                                 }
                             }
-                            // for node in graph.node.iter() {
-                            //     match node.op_type() {
-                            //         "Identity" => {}
-                            //         "Conv" => {
-                            //             let input = &tensors[node.input[0].as_str()];
-                            //             let weight = &tensors[node.input[1].as_str()];
-                            //             let bias = tensors.get(node.input[2].as_str());
-                            //             assert_eq!(node.attribute[0].name(), "dilations");
-                            //             let dilations = &node.attribute[0].ints.as_slice();
-                            //             assert_eq!(dilations.len(), 2);
-                            //             // assert_eq!(node.attribute[1].name(), "group");
-                            //             // let group = node.attribute[1].i;
-                            //             // assert_eq!(node.attribute[2].name(), "kernel_shape");
-                            //             // let kernel_shape = &node.attribute[2].ints.as_slice();
-                            //             assert_eq!(node.attribute[3].name(), "pads");
-                            //             let pads = node.attribute[3].ints.as_slice();
-                            //             // assert_eq!(pads.len(), 2);
-                            //             assert_eq!(node.attribute[4].name(), "strides");
-                            //             let strides = node.attribute[4].ints.as_slice();
-                            //             assert_eq!(strides.len(), 2);
-                            //             let output = input.conv2d(
-                            //                 &weight,
-                            //                 bias,
-                            //                 [strides[0], strides[1]],
-                            //                 [(pads[0], pads[1]), (pads[2], pads[3])],
-                            //                 [dilations[0], dilations[1]],
-                            //             )?;
-                            //             tensors.insert(node.output[0].as_str(), output);
-                            //         }
-                            //         "Relu" => {
-                            //             let input = &tensors[node.input[0].as_str()];
-                            //             let output = input.relu()?;
-                            //             tensors.insert(node.output[0].as_str(), output);
-                            //         }
-                            //         "MaxPool" => {
-                            //             let input = &tensors[node.input[0].as_str()];
-                            //             // let ceil_mode = node.attribute[0].i == Some(1);
-                            //             let dilations = node.attribute[1].ints.as_slice();
-                            //             let kernel_shape = node.attribute[2].ints.as_slice();
-                            //             let pads = node.attribute[3].ints.as_slice();
-                            //             let strides = node.attribute[4].ints.as_slice();
-
-                            //             let output = input.maxpool2d(
-                            //                 &kernel_shape,
-                            //                 [strides[0], strides[1]],
-                            //                 [(pads[0], pads[1]), (pads[2], pads[3])],
-                            //                 [dilations[0], dilations[1]],
-                            //             )?;
-                            //             tensors.insert(node.output[0].as_str(), output);
-                            //         }
-                            //         "Add" => {
-                            //             let input = &tensors[node.input[0].as_str()];
-                            //             let other = &tensors[node.input[1].as_str()];
-                            //             let output = input + other;
-                            //             tensors.insert(node.output[0].as_str(), output);
-                            //         }
-                            //         "GlobalAveragePool" => {
-                            //             let input = &tensors[node.input[0].as_str()];
-                            //             let output = input.adaptive_avgpool2d([1, 1])?;
-                            //             tensors.insert(node.output[0].as_str(), output);
-                            //         }
-                            //         "Flatten" => {
-                            //             let input = &tensors[node.input[0].as_str()];
-                            //             let output = if let Some(axis) = node.attribute[0].i {
-                            //                 input.flatten(axis, axis)?
-                            //             } else {
-                            //                 let axes = node.attribute[0].ints.as_slice();
-                            //                 input.flatten(axes[0], axes[1])?
-                            //             };
-                            //             tensors.insert(node.output[0].as_str(), output);
-                            //         }
-                            //         "Gemm" => {
-                            //             let alpha = node.attribute[0].f.map(|f| f as f64);
-                            //             let beta = node.attribute[1].f.map(|f| f as f64);
-                            //             let input = &tensors[node.input[0].as_str()];
-                            //             let weight = &tensors[node.input[1].as_str()];
-                            //             let trans_b = node.attribute[2].i == Some(1);
-                            //             let bias = tensors.get(node.input[2].as_str());
-                            //             let output = if trans_b {
-                            //                 input.gemm(
-                            //                     &weight.t()?,
-                            //                     bias,
-                            //                     alpha.unwrap_or(1.0),
-                            //                     beta.unwrap_or(0.0),
-                            //                 )?
-                            //             } else {
-                            //                 input.gemm(
-                            //                     &weight,
-                            //                     bias,
-                            //                     alpha.unwrap_or(1.0),
-                            //                     beta.unwrap_or(0.0),
-                            //                 )?
-                            //             };
-                            //             tensors.insert(node.output[0].as_str(), output);
-                            //         }
-                            //         _ => {
-                            //             println!(
-                            //                 "operator: {:?}, input: {:?}, output: {:?}, attribute: {:?}",
-                            //                 node.op_type, node.input, node.output, node.attribute
-                            //             );
-                            //             panic!("unsupported op: {:?}", node.op_type);
-                            //         }
-                            //     }
-                            // }
                         }
                         for operator in operators.iter() {
                             match operator {
-                                super::operators::Operator::Constant => {}
-                                super::operators::Operator::Abs(unary) => todo!(),
-                                super::operators::Operator::Acos(unary) => todo!(),
-                                super::operators::Operator::Acosh(unary) => todo!(),
-                                super::operators::Operator::Add(binary) => {
-                                    add_fwd(binary, &mut tensors)?
-                                }
-                                super::operators::Operator::And(binary) => todo!(),
-                                super::operators::Operator::ArgMax(arg_reduce) => todo!(),
-                                super::operators::Operator::ArgMin(arg_reduce) => todo!(),
-                                super::operators::Operator::Asin(unary) => todo!(),
-                                super::operators::Operator::Asinh(unary) => todo!(),
-                                super::operators::Operator::Atan(unary) => todo!(),
-                                super::operators::Operator::Atanh(unary) => todo!(),
-                                super::operators::Operator::AveragePool(pooling) => todo!(),
-                                super::operators::Operator::BatchNormalization(
-                                    batch_normalization,
-                                ) => {
-                                    todo!()
-                                }
-                                super::operators::Operator::BitShift(binary) => todo!(),
-                                super::operators::Operator::BitwiseAnd(binary) => todo!(),
-                                super::operators::Operator::BitwiseNot(unary) => todo!(),
-                                super::operators::Operator::BitwiseOr(binary) => todo!(),
-                                super::operators::Operator::BitwiseXor(binary) => todo!(),
-                                super::operators::Operator::Cast(cast) => todo!(),
-                                super::operators::Operator::Ceil(unary) => todo!(),
-                                super::operators::Operator::Concat(concat) => {
-                                    concat_fwd(concat, &mut tensors)?
-                                }
-                                super::operators::Operator::Conv2d(conv2d) => todo!(),
-                                super::operators::Operator::Conv2dInteger(conv2d) => todo!(),
-                                super::operators::Operator::Cos(unary) => todo!(),
-                                super::operators::Operator::Cosh(unary) => todo!(),
-                                super::operators::Operator::ConstantOfShape(constant_of_shape) => {
-                                    constant_of_shape_fwd(constant_of_shape, &mut tensors)?
-                                }
-                                super::operators::Operator::Div(binary) => todo!(),
-                                super::operators::Operator::Dropout(dropout) => todo!(),
-                                super::operators::Operator::Equal(binary) => todo!(),
-                                super::operators::Operator::Erf(unary) => todo!(),
-                                super::operators::Operator::Exp(unary) => todo!(),
-                                super::operators::Operator::Expand(expand) => todo!(),
-                                super::operators::Operator::EyeLike(eye_like) => todo!(),
-                                super::operators::Operator::Flatten(flatten) => todo!(),
-                                super::operators::Operator::Floor(unary) => todo!(),
-                                super::operators::Operator::Gather(gather) => {
-                                    gather_fwd(gather, &mut tensors)?
-                                }
-                                super::operators::Operator::Gemm(gemm) => todo!(),
-                                super::operators::Operator::GlobalAveragePool(pooling) => todo!(),
-                                super::operators::Operator::GlobalMaxPool(pooling) => todo!(),
-                                super::operators::Operator::Greater(binary) => todo!(),
-                                super::operators::Operator::Identity(eye_like) => todo!(),
-                                super::operators::Operator::If => todo!(),
-                                super::operators::Operator::IsInf(unary) => todo!(),
-                                super::operators::Operator::IsNaN(unary) => todo!(),
-                                super::operators::Operator::Less(binary) => todo!(),
-                                super::operators::Operator::Log(unary) => todo!(),
-                                super::operators::Operator::Loop => todo!(),
-                                super::operators::Operator::Lstm(lstm) => {
-                                    lstm_fwd(lstm, &mut tensors)?
-                                }
-                                super::operators::Operator::MatMul(matmul) => {
-                                    matmul_fwd(matmul, &mut tensors)?
-                                }
-                                super::operators::Operator::MatMulInteger(matmul) => todo!(),
-                                super::operators::Operator::Max(binary) => todo!(),
-                                super::operators::Operator::MaxPool(pooling) => todo!(),
-                                super::operators::Operator::Mean(reduce) => todo!(),
-                                super::operators::Operator::Min(binary) => todo!(),
-                                super::operators::Operator::Mod(binary) => todo!(),
-                                super::operators::Operator::Mul(binary) => todo!(),
-                                super::operators::Operator::Neg(unary) => todo!(),
-                                super::operators::Operator::Not(unary) => todo!(),
-                                super::operators::Operator::OneHot(one_hot) => todo!(),
-                                super::operators::Operator::Or(binary) => todo!(),
-                                super::operators::Operator::Pad(pad) => todo!(),
-                                super::operators::Operator::Pow(binary) => todo!(),
-                                super::operators::Operator::RandomNormal(random_normal) => todo!(),
-                                super::operators::Operator::RandomNormalLike(random_normal) => {
-                                    todo!()
-                                }
-                                super::operators::Operator::RandomUniform(random_uniform) => {
-                                    todo!()
-                                }
-                                super::operators::Operator::RandomUniformLike(random_uniform) => {
-                                    todo!()
-                                }
-                                super::operators::Operator::Reciprocal(unary) => todo!(),
-                                super::operators::Operator::ReduceMax(reduce) => todo!(),
-                                super::operators::Operator::ReduceMean(reduce) => todo!(),
-                                super::operators::Operator::ReduceMin(reduce) => todo!(),
-                                super::operators::Operator::ReduceProd(reduce) => todo!(),
-                                super::operators::Operator::ReduceSum(reduce) => todo!(),
-                                super::operators::Operator::Reshape(reshape) => todo!(),
-                                super::operators::Operator::Round(unary) => todo!(),
-                                super::operators::Operator::Sigmoid(unary) => todo!(),
-                                super::operators::Operator::Sign(unary) => todo!(),
-                                super::operators::Operator::Sin(unary) => todo!(),
-                                super::operators::Operator::Sinh(unary) => todo!(),
-                                super::operators::Operator::Slice(slice) => {
-                                    slice_fwd(slice, &mut tensors)?
-                                }
-                                super::operators::Operator::Split(split) => todo!(),
-                                super::operators::Operator::Sqrt(unary) => todo!(),
-                                super::operators::Operator::Squeeze(squeeze) => {
-                                    squeeze_fwd(squeeze, &mut tensors)?
-                                }
-                                super::operators::Operator::Sub(binary) => todo!(),
-                                super::operators::Operator::Sum(reduce) => todo!(),
-                                super::operators::Operator::Shape(unary) => {
-                                    shape_fwd(unary, &mut tensors)?
-                                }
-                                super::operators::Operator::Tan(unary) => todo!(),
-                                super::operators::Operator::Tanh(unary) => todo!(),
-                                super::operators::Operator::Transpose(permute) => {
-                                    transpose_fwd(permute, &mut tensors)?
-                                }
-                                super::operators::Operator::Trilu(unary) => todo!(),
-                                super::operators::Operator::Unsqueeze(unsqueeze) => {
-                                    unsqueeze_fwd(unsqueeze, &mut tensors)?
-                                }
-                                super::operators::Operator::Where(_) => todo!(),
-                                super::operators::Operator::Xor(binary) => todo!(),
-                                super::operators::Operator::Bernoulli(bernoulli) => todo!(),
-                                super::operators::Operator::BlackmanWindow(unary) => todo!(),
-                                super::operators::Operator::CastLike(cast) => todo!(),
-                                super::operators::Operator::Celu(unary) => todo!(),
-                                super::operators::Operator::Clip(clip) => todo!(),
-                                super::operators::Operator::Elu(unary) => todo!(),
-                                super::operators::Operator::Gelu(unary) => todo!(),
-                                super::operators::Operator::GreaterOrEqual(binary) => todo!(),
-                                super::operators::Operator::HammingWindow(unary) => todo!(),
-                                super::operators::Operator::HannWindow(unary) => todo!(),
-                                super::operators::Operator::HardSigmoid(unary) => todo!(),
-                                super::operators::Operator::HardSwish(unary) => todo!(),
-                                super::operators::Operator::LayerNormalization(
-                                    layer_normalization,
-                                ) => {
-                                    todo!()
-                                }
-                                super::operators::Operator::LeakyRelu(unary) => todo!(),
-                                super::operators::Operator::LessOrEqual(binary) => todo!(),
-                                super::operators::Operator::LogSoftmax(reduce) => todo!(),
-                                super::operators::Operator::Mish(unary) => todo!(),
-                                super::operators::Operator::ReduceL1(reduce) => todo!(),
-                                super::operators::Operator::ReduceL2(reduce) => todo!(),
-                                super::operators::Operator::ReduceLogSum(reduce) => todo!(),
-                                super::operators::Operator::ReduceLogSumExp(reduce) => todo!(),
-                                super::operators::Operator::ReduceSumSquare(reduce) => todo!(),
-                                super::operators::Operator::Relu(unary) => todo!(),
-                                super::operators::Operator::Selu(unary) => todo!(),
-                                super::operators::Operator::Shrink(unary) => todo!(),
-                                super::operators::Operator::Softmax(reduce) => todo!(),
-                                super::operators::Operator::SoftmaxCrossEntropyLoss(reduce) => {
-                                    todo!()
-                                }
-                                super::operators::Operator::Softplus(unary) => todo!(),
-                                super::operators::Operator::Softsign(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Constant => {}
+                                crate::utils::onnx::operators::Operator::Abs(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Acos(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Acosh(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Add(binary) => {
+                                                                                            add_fwd(binary, &mut tensors)?
+                                                                                        }
+                                crate::utils::onnx::operators::Operator::And(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::ArgMax(arg_reduce) => todo!(),
+                                crate::utils::onnx::operators::Operator::ArgMin(arg_reduce) => todo!(),
+                                crate::utils::onnx::operators::Operator::Asin(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Asinh(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Atan(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Atanh(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::AveragePool(pooling) => todo!(),
+                                crate::utils::onnx::operators::Operator::BatchNormalization(
+                                                                                            batch_normalization,
+                                                                                        ) => {
+                                                                                            todo!()
+                                                                                        }
+                                crate::utils::onnx::operators::Operator::BitShift(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::BitwiseAnd(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::BitwiseNot(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::BitwiseOr(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::BitwiseXor(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Cast(cast) => todo!(),
+                                crate::utils::onnx::operators::Operator::Ceil(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Concat(concat) => {
+                                                                                            concat_fwd(concat, &mut tensors)?
+                                                                                        }
+                                crate::utils::onnx::operators::Operator::Conv2d(conv2d) => todo!(),
+                                crate::utils::onnx::operators::Operator::Conv2dInteger(conv2d) => todo!(),
+                                crate::utils::onnx::operators::Operator::Cos(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Cosh(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::ConstantOfShape(constant_of_shape) => {
+                                                                                            constant_of_shape_fwd(constant_of_shape, &mut tensors)?
+                                                                                        }
+                                crate::utils::onnx::operators::Operator::Div(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Dropout(dropout) => todo!(),
+                                crate::utils::onnx::operators::Operator::Equal(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Erf(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Exp(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Expand(expand) => todo!(),
+                                crate::utils::onnx::operators::Operator::EyeLike(eye_like) => todo!(),
+                                crate::utils::onnx::operators::Operator::Flatten(flatten) => todo!(),
+                                crate::utils::onnx::operators::Operator::Floor(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Gather(gather) => {
+                                                                                            gather_fwd(gather, &mut tensors)?
+                                                                                        }
+                                crate::utils::onnx::operators::Operator::Gemm(gemm) => todo!(),
+                                crate::utils::onnx::operators::Operator::GlobalAveragePool(pooling) => todo!(),
+                                crate::utils::onnx::operators::Operator::GlobalMaxPool(pooling) => todo!(),
+                                crate::utils::onnx::operators::Operator::Greater(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Identity(eye_like) => todo!(),
+                                crate::utils::onnx::operators::Operator::If => todo!(),
+                                crate::utils::onnx::operators::Operator::IsInf(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::IsNaN(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Less(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Log(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Loop => todo!(),
+                                crate::utils::onnx::operators::Operator::Lstm(lstm) => {
+                                                                                            lstm_fwd(lstm, &mut tensors)?
+                                                                                        }
+                                crate::utils::onnx::operators::Operator::MatMul(matmul) => {
+                                                                                            matmul_fwd(matmul, &mut tensors)?
+                                                                                        }
+                                crate::utils::onnx::operators::Operator::MatMulInteger(matmul) => todo!(),
+                                crate::utils::onnx::operators::Operator::Max(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::MaxPool(pooling) => todo!(),
+                                crate::utils::onnx::operators::Operator::Mean(reduce) => todo!(),
+                                crate::utils::onnx::operators::Operator::Min(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Mod(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Mul(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Neg(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Not(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::OneHot(one_hot) => todo!(),
+                                crate::utils::onnx::operators::Operator::Or(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Pad(pad) => todo!(),
+                                crate::utils::onnx::operators::Operator::Pow(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::RandomNormal(random_normal) => todo!(),
+                                crate::utils::onnx::operators::Operator::RandomNormalLike(random_normal) => {
+                                                                                            todo!()
+                                                                                        }
+                                crate::utils::onnx::operators::Operator::RandomUniform(random_uniform) => {
+                                                                                            todo!()
+                                                                                        }
+                                crate::utils::onnx::operators::Operator::RandomUniformLike(random_uniform) => {
+                                                                                            todo!()
+                                                                                        }
+                                crate::utils::onnx::operators::Operator::Reciprocal(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::ReduceMax(reduce) => todo!(),
+                                crate::utils::onnx::operators::Operator::ReduceMean(reduce) => todo!(),
+                                crate::utils::onnx::operators::Operator::ReduceMin(reduce) => todo!(),
+                                crate::utils::onnx::operators::Operator::ReduceProd(reduce) => todo!(),
+                                crate::utils::onnx::operators::Operator::ReduceSum(reduce) => todo!(),
+                                crate::utils::onnx::operators::Operator::Reshape(reshape) => todo!(),
+                                crate::utils::onnx::operators::Operator::Round(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Sigmoid(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Sign(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Sin(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Sinh(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Slice(slice) => {
+                                                                                            slice_fwd(slice, &mut tensors)?
+                                                                                        }
+                                crate::utils::onnx::operators::Operator::Split(split) => todo!(),
+                                crate::utils::onnx::operators::Operator::Sqrt(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Squeeze(squeeze) => {
+                                                                                            squeeze_fwd(squeeze, &mut tensors)?
+                                                                                        }
+                                crate::utils::onnx::operators::Operator::Sub(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Sum(reduce) => todo!(),
+                                crate::utils::onnx::operators::Operator::Shape(unary) => {
+                                                                                            shape_fwd(unary, &mut tensors)?
+                                                                                        }
+                                crate::utils::onnx::operators::Operator::Tan(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Tanh(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Transpose(permute) => {
+                                                                                            transpose_fwd(permute, &mut tensors)?
+                                                                                        }
+                                crate::utils::onnx::operators::Operator::Trilu(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Unsqueeze(unsqueeze) => {
+                                                                                            unsqueeze_fwd(unsqueeze, &mut tensors)?
+                                                                                        }
+                                crate::utils::onnx::operators::Operator::Where(_) => todo!(),
+                                crate::utils::onnx::operators::Operator::Xor(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Bernoulli(bernoulli) => todo!(),
+                                crate::utils::onnx::operators::Operator::BlackmanWindow(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::CastLike(cast) => todo!(),
+                                crate::utils::onnx::operators::Operator::Celu(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Clip(clip) => todo!(),
+                                crate::utils::onnx::operators::Operator::Elu(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Gelu(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::GreaterOrEqual(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::HammingWindow(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::HannWindow(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::HardSigmoid(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::HardSwish(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::LayerNormalization(
+                                                                                            layer_normalization,
+                                                                                        ) => {
+                                                                                            todo!()
+                                                                                        }
+                                crate::utils::onnx::operators::Operator::LeakyRelu(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::LessOrEqual(binary) => todo!(),
+                                crate::utils::onnx::operators::Operator::LogSoftmax(reduce) => todo!(),
+                                crate::utils::onnx::operators::Operator::Mish(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::ReduceL1(reduce) => todo!(),
+                                crate::utils::onnx::operators::Operator::ReduceL2(reduce) => todo!(),
+                                crate::utils::onnx::operators::Operator::ReduceLogSum(reduce) => todo!(),
+                                crate::utils::onnx::operators::Operator::ReduceLogSumExp(reduce) => todo!(),
+                                crate::utils::onnx::operators::Operator::ReduceSumSquare(reduce) => todo!(),
+                                crate::utils::onnx::operators::Operator::Relu(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Selu(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Shrink(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Softmax(reduce) => todo!(),
+                                crate::utils::onnx::operators::Operator::SoftmaxCrossEntropyLoss(reduce) =>
+                                                                                            todo!(),
+                                crate::utils::onnx::operators::Operator::Softplus(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Softsign(unary) => todo!(),
+                                crate::utils::onnx::operators::Operator::Contiguous(unary) => todo!(),
+crate::utils::onnx::operators::Operator::InvPermute(permute) => todo!(),
                             }
                         }
                         if let Some(graph) = model.graph.as_ref() {
@@ -461,7 +358,12 @@ impl OnnxModel {
                     }
                     for node in graph.node.iter() {
                         match node.op_type() {
-                            "Conv" => operators.push(conv_init(node, &mut node_degree)),
+                            "Conv" => {
+                                let ops = conv_init(node, &mut node_degree);
+                                for op in ops {
+                                    operators.push(op);
+                                }
+                            }
                             "MaxPool" | "GlobalAveragePool" | "GlobalMaxPool" | "AveragePool" => {
                                 operators.push(pooling_init(node, &mut node_degree));
                             }

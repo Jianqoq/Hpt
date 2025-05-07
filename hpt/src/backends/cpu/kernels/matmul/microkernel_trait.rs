@@ -63,7 +63,7 @@ where
             define_matmul_micro_kernel!(x6x1, 6, 1);
             return x6x1;
         }
-        #[cfg(target_feature = "sse")]
+        #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
         {
             use crate::define_matmul_micro_kernel;
             assert_eq!(nr, 2);

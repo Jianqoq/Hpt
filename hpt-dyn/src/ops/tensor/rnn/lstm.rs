@@ -7,7 +7,10 @@ use crate::{
 use hpt_common::{Pointer, error::base::TensorError};
 use hpt_macros::select;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
-use hpt_types::{dtype::DType, type_promote::FloatOutUnary};
+use hpt_types::{
+    dtype::{DType, ToDType},
+    type_promote::FloatOutUnary,
+};
 use hpt_types::{traits::VecTrait, type_promote::NormalOut};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -157,7 +160,6 @@ fn lstm_step<T: CommonBounds>(
     x: &Tensor,                // [seq_len, batch_size, input_size]
     w_t: &Tensor,              // [input_size, 4 * hidden_size]
     r_t: &Tensor,              // [hidden_size, 4 * hidden_size]
-    w: PrePackedRhs,           // [4 * hidden_size, input_size]
     r: PrePackedRhs,           // [4 * hidden_size, hidden_size]
     b: Option<&Tensor>,        // [8 * hidden_size]
     p: Option<&Tensor>,        // [3*hidden_size]
@@ -166,6 +168,7 @@ fn lstm_step<T: CommonBounds>(
     seq_lens: Option<&Tensor>, // [batch_size]
     direction: Direction,
     hidden_size: i64,
+    num_threads: usize,
     activate1: impl Fn(T) -> T + Send + Sync + Copy,
     activate1_vec: impl Fn(T::Vec) -> T::Vec + Send + Sync + Copy,
     activate2: impl Fn(T) -> T + Send + Sync + Copy,
@@ -206,10 +209,9 @@ where
     let x_reshaped = x.reshape(&[seq_len * batch_size, -1])?;
 
     let tmp = if let Some(sum_bias) = &sum_bias {
-        // x_reshaped.addmm(w_t, sum_bias)?
-        x_reshaped._addmm(w_t, sum_bias, None, current_num_threads(), Some(w.clone()))?
+        x_reshaped.addmm(w_t, sum_bias)?
     } else {
-        x_reshaped._matmul(w_t, current_num_threads(), Some(w.clone()))?
+        x_reshaped.matmul(w_t)?
     };
 
     let gates = Tensor::empty(&[batch_size, 4 * hidden_size], x.dtype, x.device.clone())?;
@@ -222,14 +224,7 @@ where
     let gates_b_stride = gates.strides()[0] as i64;
 
     let mut func = |t: i64| -> Result<(), TensorError> {
-        // let gates = h_t._addmm(
-        //     r_t,
-        //     &tmp,
-        //     Some(gates.clone()),
-        //     current_num_threads(),
-        //     Some(r.clone()),
-        // )?;
-        let gates = h_t.addmm(r_t, &tmp)?;
+        let gates = h_t._addmm(r_t, &tmp, Some(gates.clone()), num_threads, Some(r.clone()))?;
 
         let sliced_y = y.slice(&select![t:t + 1, ..])?.squeeze(&[0])?;
 
@@ -274,7 +269,7 @@ where
     Ok((y, h_t, c_t))
 }
 
-fn lstm_cell_ref<T: CommonBounds>(
+fn lstm_cell_ref<T>(
     x: &Tensor,                // [seq_length, batch_size, input_size]
     w: &Tensor,                // [num_directions, 4 * hidden_size, input_size]
     r: &Tensor,                // [num_directions, 4 * hidden_size, hidden_size]
@@ -290,7 +285,7 @@ fn lstm_cell_ref<T: CommonBounds>(
     g_vec: impl Fn(T::Vec) -> T::Vec + Send + Sync + Copy,
 ) -> Result<(Tensor, Tensor, Tensor), TensorError>
 where
-    T: FloatOutUnary<Output = T> + MatmulMicroKernel,
+    T: FloatOutUnary<Output = T> + MatmulMicroKernel + ToDType + CommonBounds,
     T::Vec: FloatOutUnary<Output = T::Vec>,
 {
     let seq_length = x.shape()[0];
@@ -352,18 +347,8 @@ where
         let w = w.slice(&select![dir:dir + 1, ..])?.squeeze(&[0])?;
 
         let w_t = w.t()?;
-        let prepacked_w = matmul_prepack_rhs(
-            w.ptr::<T>(),
-            1,
-            w_t.strides()[1],
-            w_t.strides()[0],
-            &[x.shape()[0] * batch_size, x.shape()[2]],
-            w_t.shape(),
-            current_num_threads(),
-            x.device.clone(),
-            x.dtype,
-        )?;
         let r_t = r.t()?;
+        let num_threads = current_num_threads();
         let prepacked_r = matmul_prepack_rhs(
             r.ptr::<T>(),
             1,
@@ -371,16 +356,14 @@ where
             r_t.strides()[0],
             h0.shape(),
             r_t.shape(),
-            current_num_threads(),
+            num_threads,
             x.device.clone(),
-            x.dtype,
         )?;
 
         let (out, h_t, c_t) = lstm_step(
             x,
             &w_t,
             &r_t,
-            prepacked_w,
             prepacked_r,
             b.as_ref(),
             p,
@@ -389,6 +372,7 @@ where
             seq_lens,
             direction,
             hidden_size,
+            num_threads,
             f,
             f_vec,
             g,

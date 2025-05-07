@@ -18,11 +18,14 @@ use super::matmul_mp_post::bf16_matmul_mp_post_no_block_info;
 #[cfg(feature = "f16")]
 use super::matmul_mp_post::f16_matmul_mp_post_no_block_info;
 use super::{
-    common::matmul_prepare, matmul_post::matmul_post_template_no_block_info, microkernel_trait::MatmulMicroKernel, utils::{kernel_params, PrePackedRhs}
+    common::matmul_prepare,
+    matmul_post::matmul_post_template_no_block_info,
+    microkernel_trait::MatmulMicroKernel,
+    utils::{PrePackedRhs, kernel_params},
 };
 
 use hpt_types::{
-    dtype::{DType, TypeCommon},
+    dtype::{ToDType, TypeCommon},
     traits::VecTrait,
     type_promote::NormalOut,
 };
@@ -44,10 +47,9 @@ fn matmul_template_no_block_info_prepack_rhs<T>(
     rhs_col_stride: i64,
     num_threads: usize,
     device: Device,
-    dtype: DType,
 ) -> Result<PrePackedRhs, TensorError>
 where
-    T: CommonBounds + MatmulMicroKernel,
+    T: CommonBounds + MatmulMicroKernel + ToDType,
 {
     let (nr, mr) = if m > 1 {
         (T::get_max_nr() * T::Vec::SIZE, T::get_max_mr())
@@ -83,7 +85,6 @@ where
         mr,
         num_threads,
         device,
-        dtype,
     )
 }
 
@@ -335,10 +336,9 @@ pub(crate) fn matmul_prepack_rhs<T>(
     rhs_shape: &[i64],
     threads: usize,
     device: Device,
-    dtype: DType,
 ) -> Result<PrePackedRhs, TensorError>
 where
-    T: CommonBounds + MatmulMicroKernel,
+    T: CommonBounds + MatmulMicroKernel + ToDType,
 {
     let m = lhs_shape[lhs_shape.len() - 2] as usize;
     let n = rhs_shape[rhs_shape.len() - 1] as usize;
@@ -357,11 +357,9 @@ where
                     rhs_col_stride,
                     threads,
                     device,
-                    dtype,
                 )
             } else {
-                use super::matmul_mp::matmul_mp_no_block_info_prepack_rhs;
-                matmul_mp_no_block_info_prepack_rhs::<f16, f32>(
+                super::matmul_mp::f16_matmul_mp_no_block_info_prepack_rhs::<f16, f32>(
                     rhs.cast::<f16>(),
                     m,
                     n,
@@ -370,12 +368,11 @@ where
                     rhs_col_stride,
                     threads,
                     device,
-                    dtype,
                 )
             }
         }
         #[cfg(feature = "bf16")]
-        "bf16" => super::matmul_mp::matmul_mp_no_block_info_prepack_rhs::<bf16, f32>(
+        "bf16" => super::matmul_mp::bf16_matmul_mp_no_block_info_prepack_rhs::<bf16, f32>(
             rhs.cast::<bf16>(),
             m,
             n,
@@ -384,7 +381,6 @@ where
             rhs_col_stride,
             threads,
             device,
-            dtype,
         ),
         _ => matmul_template_no_block_info_prepack_rhs(
             rhs,
@@ -396,7 +392,6 @@ where
             rhs_col_stride,
             threads,
             device,
-            dtype,
         ),
     }
 }

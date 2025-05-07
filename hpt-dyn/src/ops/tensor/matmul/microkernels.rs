@@ -6,21 +6,12 @@ macro_rules! define_mma {
     ($nr:expr, $mr:expr, $unroll:expr) => {
         #[inline(always)]
         fn mma<T: hpt_traits::tensor::CommonBounds>(a: hpt_common::Pointer<T>, b: hpt_common::Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as hpt_types::dtype::TypeCommon>::Vec; $nr]; $mr] {
-            // use crate::utils::prefetch::prefetch_a;
-            // use crate::utils::prefetch::prefetch_b;
             use hpt_types::type_promote::NormalOut;
             let mut c_local = [[<T as hpt_types::dtype::TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
-            // let a_ptr = a.ptr as *const T;
             let b_ptr = b.cast::<<T as hpt_types::dtype::TypeCommon>::Vec>();
             let rem = kc % $unroll;
             for k in 0..(kc / $unroll) as i64 {
-                // seq_macro::seq!(MR in 0..$mr {
-                //     prefetch_a::<T>(a_ptr, ((k + 1) * $unroll * ks + MR as i64 * lda) as usize);
-                // });
                 seq_macro::seq!(UNROLL in 0..$unroll {
-                    // seq_macro::seq!(NR in 0..$nr {
-                    //     prefetch_b::<T>(b_ptr, (((k + 1) * $unroll + UNROLL) * $nr + NR) as usize);
-                    // });
                     seq_macro::seq!(NR in 0..$nr {
                         let b_vec~NR = b_ptr.add(((k * $unroll + UNROLL) * $nr + NR) as usize).read();
                     });
@@ -54,7 +45,6 @@ macro_rules! define_mma {
 }
 
 pub(crate) use define_mma;
-
 
 #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
 macro_rules! define_neon_mma {
@@ -93,19 +83,12 @@ macro_rules! define_mma_packed_a {
     ($nr:expr, $mr:expr, $unroll:expr) => {
         #[inline(always)]
         fn mma_packed_a<T: hpt_traits::tensor::CommonBounds>(a: hpt_common::Pointer<T>, b: hpt_common::Pointer<T>, kc: usize) -> [[<T as hpt_types::dtype::TypeCommon>::Vec; $nr]; $mr] {
-            // use crate::utils::prefetch::prefetch_a;
-            // use crate::utils::prefetch::prefetch_b;
             use hpt_types::type_promote::NormalOut;
             let mut c_local = [[<T as hpt_types::dtype::TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
-            // let a_ptr = a.ptr as *const T;
             let b_ptr = b.ptr as *const <T as hpt_types::dtype::TypeCommon>::Vec;
             let rem = kc % $unroll;
             for k in 0..(kc / $unroll) as i64 {
-                // prefetch_a::<T>(a_ptr, ((k + 1) * $unroll * $mr) as usize);
                 seq_macro::seq!(UNROLL in 0..$unroll {
-                    // seq_macro::seq!(NR in 0..$nr {
-                    //     prefetch_b::<T>(b_ptr, (((k + 1) * $unroll + UNROLL) * $nr + NR) as usize);
-                    // });
                     seq_macro::seq!(NR in 0..$nr {
                         let b_vec~NR = unsafe {*b_ptr.add(((k * $unroll + UNROLL) * $nr + NR) as usize)};
                     });
@@ -198,9 +181,9 @@ pub(crate) use store_res_vec_mp;
 #[inline(always)]
 #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
 pub(crate) fn load_vec_neon<const NR: usize>(data: *const f32, mut to_write: *mut f32) {
-    use std::{arch::aarch64::*, mem::transmute};
-    use hpt_types::traits::VecTrait;
     use hpt_types::dtype::TypeCommon;
+    use hpt_types::traits::VecTrait;
+    use std::{arch::aarch64::*, mem::transmute};
     unsafe {
         match NR {
             1 => {
@@ -267,7 +250,9 @@ pub(crate) fn load_vec_neon<const NR: usize>(data: *const f32, mut to_write: *mu
                 let res = vld1q_f32_x2(data.add(<f32 as TypeCommon>::Vec::SIZE * 8));
                 *(to_write as *mut [<f32 as TypeCommon>::Vec; 2]) = transmute(res);
             }
-            _ => { unreachable!() }
+            _ => {
+                unreachable!()
+            }
         }
     }
 }
@@ -365,26 +350,26 @@ macro_rules! define_matmul_micro_kernel {
             } else {
                 if first_kiter {
                     store_res_scalar!(
-                        $mr, 
-                        $nr, 
-                        c => T, 
-                        ldc, 
-                        c_local => T, 
+                        $mr,
+                        $nr,
+                        c => T,
+                        ldc,
+                        c_local => T,
                         jb,
                         nn,
-                        [res_ptr <= c_val], 
+                        [res_ptr <= c_val],
                         unsafe { *res_ptr = c_val }
                     );
                 } else {
                     store_res_scalar!(
-                        $mr, 
-                        $nr, 
-                        c => T, 
-                        ldc, 
-                        c_local => T, 
+                        $mr,
+                        $nr,
+                        c => T,
+                        ldc,
+                        c_local => T,
                         jb,
                         nn,
-                        [res_ptr <= c_val], 
+                        [res_ptr <= c_val],
                         unsafe { *res_ptr = (*res_ptr)._add(c_val) }
                     );
                 }
@@ -1535,4 +1520,3 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
 
 #[cfg(target_feature = "neon")]
 pub(crate) use define_neon_mixed_precision_post_op_matmul_micro_kernel;
-
