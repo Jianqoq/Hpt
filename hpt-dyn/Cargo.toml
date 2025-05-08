@@ -31,7 +31,7 @@ prost-types = { workspace = true }
 spindle = { workspace = true }
 petgraph = { workspace = true }
 urlencoding = { workspace = true }
-
+log = { workspace = true }
 [build-dependencies]
 prost-build = "0.13.5"
 

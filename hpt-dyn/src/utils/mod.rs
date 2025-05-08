@@ -13,4 +13,12 @@ pub(crate) mod onnx {
     pub(crate) mod operators;
     pub(crate) mod fwd;
     pub(crate) mod layout_sense;
+    pub(crate) mod build_graph;
+    pub(crate) mod plot;
+    pub(crate) mod run_fwd;
+    pub(crate) mod run_init;
+    pub(crate) mod optimize {
+        pub(crate) mod constant_fold;
+        pub(crate) mod fuse;
+    }
 }

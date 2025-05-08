@@ -5,8 +5,7 @@ use hpt_traits::tensor::TensorInfo;
 use hpt_types::dtype::DType;
 
 use super::operators::{
-    Binary, Concat, ConstantOfShape, Conv2d, Conv2dFused, Flatten, Gather, Gemm, Lstm, Matmul,
-    Permute, Pooling, Slice, Squeeze, Unary,
+    Binary, Concat, ConstantOfShape, Conv2d, Conv2dFused, Elu, Flatten, Gather, Gemm, Lstm, Matmul, Permute, Pooling, Slice, Squeeze, Unary
 };
 use crate::Tensor;
 
@@ -501,23 +500,71 @@ pub(crate) fn global_maxpool_fwd<'a>(
     Ok(())
 }
 
-pub(crate) fn relu_fwd<'a>(
-    relu: &'a Unary,
+#[duplicate::duplicate_item(
+    func_name               method                  out_method;
+    [relu_fwd]              [relu]                  [relu_];
+    [sigmoid_fwd]           [sigmoid]               [sigmoid_];
+    [gelu_fwd]              [gelu]                  [gelu_];
+    [softplus_fwd]          [softplus]              [softplus_];
+    [softsign_fwd]          [softsign]              [softsign_];
+    [sin_fwd]               [sin]                   [sin_];
+    [cos_fwd]               [cos]                   [cos_];
+    [tan_fwd]               [tan]                   [tan_];
+    [asin_fwd]              [asin]                  [asin_];
+    [acos_fwd]              [acos]                  [acos_];
+    [atan_fwd]              [atan]                  [atan_];
+    [sinh_fwd]              [sinh]                  [sinh_];
+    [cosh_fwd]              [cosh]                  [cosh_];
+    [tanh_fwd]              [tanh]                  [tanh_];
+    [asinh_fwd]             [asinh]                 [asinh_];
+    [acosh_fwd]             [acosh]                 [acosh_];
+    [atanh_fwd]             [atanh]                 [atanh_];
+    [exp_fwd]               [exp]                   [exp_];
+    [abs_fwd]               [abs]                   [abs_];
+    [floor_fwd]             [floor]                 [floor_];
+    [ln_fwd]                [ln]                    [ln_];
+    [sqrt_fwd]              [sqrt]                  [sqrt_];
+    [round_fwd]             [round]                 [round_];
+    [sign_fwd]              [signum]                [signum_];
+    [mish_fwd]              [mish]                  [mish_];
+)]
+pub(crate) fn func_name<'a>(
+    method: &'a Unary,
     tensors: &mut HashMap<&'a str, Tensor>,
     node_degree: &mut HashMap<&'a str, u32>,
 ) -> Result<(), TensorError> {
-    let inp_remove = try_remove_node!(relu.input.as_str(), node_degree, tensors);
+    let inp_remove = try_remove_node!(method.input.as_str(), node_degree, tensors);
     let out = if let Some(inp) = inp_remove {
         if inp.is_contiguous() && inp.parent.is_none() {
-            inp.relu_(&mut inp.clone())?
+            inp.out_method(&mut inp.clone())?
         } else {
-            inp.relu()?
+            inp.method()?
         }
     } else {
-        let inp = &tensors[relu.input.as_str()];
+        let inp = &tensors[method.input.as_str()];
         inp.relu()?
     };
-    tensors.insert(relu.output.as_str(), out);
+    tensors.insert(method.output.as_str(), out);
+    Ok(())
+}
+
+pub(crate) fn selu_fwd<'a>(
+    method: &'a Elu,
+    tensors: &mut HashMap<&'a str, Tensor>,
+    node_degree: &mut HashMap<&'a str, u32>,
+) -> Result<(), TensorError> {
+    let inp_remove = try_remove_node!(method.input.as_str(), node_degree, tensors);
+    let out = if let Some(inp) = inp_remove {
+        if inp.is_contiguous() && inp.parent.is_none() {
+            inp.selu_(method.alpha, method.gamma, &mut inp.clone())?
+        } else {
+            inp.selu(method.alpha, method.gamma)?
+        }
+    } else {
+        let inp = &tensors[method.input.as_str()];
+        inp.selu(method.alpha, method.gamma)?
+    };
+    tensors.insert(method.output.as_str(), out);
     Ok(())
 }
 
