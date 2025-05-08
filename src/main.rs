@@ -4,21 +4,22 @@ use std::collections::HashMap;
 use hpt::ops::*;
 use hpt::Tensor;
 fn main() -> anyhow::Result<()> {
-    let model = load_onnx("lstm_model.onnx").expect("加载模型失败");
+    let model = load_onnx("model.onnx").expect("加载模型失败");
     let mut map = HashMap::new();
     map.insert(
         "input".to_string(),
-        DynTensor::ones(&[1, 512, 512], DType::F32, Device::Cpu)?,
+        DynTensor::ones(&[1, 3, 64 + 32 * 10, 64 + 32 * 10], DType::F32, Device::Cpu)?,
     );
     let initialized = model.initialize()?;
 
     let now = std::time::Instant::now();
-    for _ in 0..100 {
+    for _ in 0..1 {
         let res = initialized.execute(10, map.clone())?;
         // println!("res: {}", res["output"]);
+        println!("next");
     }
     let duration = now.elapsed();
-    println!("Time taken: {:?}", duration / 100);
+    println!("Time taken: {:?}", duration / 10);
 
     // let a = DynTensor::randn(0.0, 1.0, &[1, 256], DType::F32, Device::Cpu)?;
     // let b = DynTensor::randn(0.0, 1.0, &[256, 256], DType::F32, Device::Cpu)?;

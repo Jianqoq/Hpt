@@ -29,6 +29,9 @@ ctor = { workspace = true }
 prost = { workspace = true }
 prost-types = { workspace = true }
 spindle = { workspace = true }
+petgraph = { workspace = true }
+urlencoding = { workspace = true }
+
 [build-dependencies]
 prost-build = "0.13.5"
 

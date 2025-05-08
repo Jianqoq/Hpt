@@ -33,21 +33,22 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     let ((ph_start, ph_end), (pw_start, pw_end)) = (padding[0], padding[1]);
     let (dh, dw) = (dilation[0], dilation[1]);
 
-    let (out_height, out_width) = (output.shape()[1], output.shape()[2]);
+    let (out_height, out_width) = (output.shape()[1] as i64, output.shape()[2] as i64);
     let img = input.clone();
     let out = output.ptr::<T>();
 
-    let osb = output.strides()[0]; // batch
-    let osh = output.strides()[1]; // height
-    let osw = output.strides()[2]; // width
+    let osb = output.strides()[0] as i64; // batch
+    let osh = output.strides()[1] as i64; // height
+    let osw = output.strides()[2] as i64; // width
 
-    let isb = img.strides()[0]; // batch
-    let ish = img.strides()[1]; // height
-    let isw = img.strides()[2]; // width
+    let isb = img.strides()[0] as i64; // batch
+    let ish = img.strides()[1] as i64; // height
+    let isw = img.strides()[2] as i64; // width
 
-    let ks0 = kernels.strides()[0]; // kernel_height
-    let ks1 = kernels.strides()[1]; // kernel_width
-    let ks2 = kernels.strides()[2]; // in_channels
+    let ks0 = kernels.strides()[0] as i64; // kernel_height
+    let ks1 = kernels.strides()[1] as i64; // kernel_width
+    let ks2 = kernels.strides()[2] as i64; // in_channels
+    let ks3 = kernels.strides()[3] as i64; // out_channels
 
     let outer = batch * out_height;
 
@@ -81,7 +82,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
         oc,
         nr as i64,
         [kh, kw],
-        [ks0, ks1, ks2]
+        [ks0, ks1, ks2, ks3]
     );
     let need_pad = ph_start != 0 || pw_start != 0 || ph_end != 0 || pw_end != 0;
     let get_kernel = if !need_pad { T::get_kernel } else { T::get_kernel_with_padding };
@@ -91,8 +92,8 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
         let b = idx / out_height;
         let ll = idx % out_height;
 
-        let inp = inp_ptr.clone() + b * isb;
-        let out = out.clone() + b * osb + ll * osh;
+        let inp = inp_ptr + b * isb;
+        let out = out + b * osb + ll * osh;
 
         for k in (0..out_width).step_by(kc as usize) {
             let owb = kc.min(out_width - k);

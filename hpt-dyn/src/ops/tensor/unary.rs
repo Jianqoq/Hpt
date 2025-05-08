@@ -20,8 +20,6 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterato
 use rayon::slice::ParallelSlice;
 use rayon::slice::ParallelSliceMut;
 
-use half::{bf16, f16};
-
 #[inline(never)]
 pub(crate) fn unary_map<A, K, F, F2>(slice_a: &[A], slice_o: &mut [K], f: F, f2: F2)
 where
@@ -165,11 +163,32 @@ impl Tensor {
             }};
         }
         match self.dtype {
+            #[cfg(feature = "i8")]
             hpt_types::dtype::DType::I8 => unary!(i8),
+            #[cfg(feature = "u8")]
             hpt_types::dtype::DType::U8 => unary!(u8),
+            #[cfg(feature = "f32")]
             hpt_types::dtype::DType::F32 => unary!(f32),
+            #[cfg(feature = "f16")]
             hpt_types::dtype::DType::F16 => unary!(f16),
+            #[cfg(feature = "bf16")]
             hpt_types::dtype::DType::BF16 => unary!(bf16),
+            #[cfg(feature = "f64")]
+            hpt_types::dtype::DType::F64 => unary!(f64),
+            #[cfg(feature = "bool")]
+            hpt_types::dtype::DType::Bool => unary!(bool),
+            #[cfg(feature = "u64")]
+            hpt_types::dtype::DType::U64 => unary!(u64),
+            #[cfg(feature = "i16")]
+            hpt_types::dtype::DType::I16 => unary!(i16),
+            #[cfg(feature = "u16")]
+            hpt_types::dtype::DType::U16 => unary!(u16),
+            #[cfg(feature = "i32")]
+            hpt_types::dtype::DType::I32 => unary!(i32),
+            #[cfg(feature = "u32")]
+            hpt_types::dtype::DType::U32 => unary!(u32),
+            #[cfg(feature = "i64")]
+            hpt_types::dtype::DType::I64 => unary!(i64),
             _ => unimplemented!(),
         }
     }
@@ -210,11 +229,96 @@ impl Tensor {
             }};
         }
         match self.dtype {
+            #[cfg(feature = "i8")]
             hpt_types::dtype::DType::I8 => unary!(i8),
+            #[cfg(feature = "u8")]
             hpt_types::dtype::DType::U8 => unary!(u8),
+            #[cfg(feature = "f32")]
             hpt_types::dtype::DType::F32 => unary!(f32),
+            #[cfg(feature = "f16")]
             hpt_types::dtype::DType::F16 => unary!(f16),
+            #[cfg(feature = "bf16")]
             hpt_types::dtype::DType::BF16 => unary!(bf16),
+            #[cfg(feature = "f64")]
+            hpt_types::dtype::DType::F64 => unary!(f64),
+            #[cfg(feature = "bool")]
+            hpt_types::dtype::DType::Bool => unary!(bool),
+            #[cfg(feature = "u64")]
+            hpt_types::dtype::DType::U64 => unary!(u64),
+            #[cfg(feature = "i16")]
+            hpt_types::dtype::DType::I16 => unary!(i16),
+            #[cfg(feature = "u16")]
+            hpt_types::dtype::DType::U16 => unary!(u16),
+            #[cfg(feature = "i32")]
+            hpt_types::dtype::DType::I32 => unary!(i32),
+            #[cfg(feature = "u32")]
+            hpt_types::dtype::DType::U32 => unary!(u32),
+            #[cfg(feature = "i64")]
+            hpt_types::dtype::DType::I64 => unary!(i64),
+            _ => unimplemented!(),
+        }
+    }
+
+    #[duplicate::duplicate_item(
+        func_name       kernel              description                                                                     test_code;
+        [floor_]         [_floor]            ["Computes floor of each element in the input tensor."]                         ["let y = x.floor()?"];
+        [ceil_]          [_ceil]             ["Computes ceil of each element in the input tensor."]                          ["let y = x.ceil()?"];
+        [round_]         [_round]            ["Computes round of each element in the input tensor."]                         ["let y = x.round()?"];
+        [trunc_]         [_trunc]            ["Computes trunc of each element in the input tensor."]                         ["let y = x.trunc()?"];
+        [abs_]           [_abs]              ["Computes absolute value of each element in the input tensor."]                ["let y = x.abs()?"];
+        [neg_]           [_neg]              ["Computes negative value of each element in the input tensor."]                ["let y = x.neg()?"];
+        [signum_]        [_signum]           ["Computes sign of each element in the input tensor."]                          ["let y = x.sign()?"];
+        [relu_]          [_relu]             ["Computes relu of each element in the input tensor."]                          ["let y = x.relu()?"];
+        [relu6_]         [_relu6]            ["Computes relu6 of each element in the input tensor."]                         ["let y = x.relu6()?"];
+        [square_]        [_square]           ["Computes square of each element in the input tensor."]                        ["let y = x.square()?"];
+    )]
+    #[doc = description]
+    /// # Parameters:
+    /// `x`: Input tensor
+    ///
+    /// # Example:
+    /// ```rust
+    /// let x = Tensor::randn(/*mean*/0.0, /*std*/1.0, /*shape*/&[2, 3, 4], DType::F32, Device::Cpu)?;
+    #[doc = test_code]
+    /// ```
+    ///
+    /// # Returns:
+    /// A new tensor with the same shape as the input tensor.
+    pub fn func_name(&self, out: &mut Tensor) -> Result<Self, TensorError> {
+        macro_rules! unary {
+            ($dtype:ty) => {{
+                type T = $dtype;
+                type InVec = <T as TypeCommon>::Vec;
+                unary_fn_with_out(self, |x: InVec| x.kernel(), |x: T| x.kernel(), Some(out))
+            }};
+        }
+        match self.dtype {
+            #[cfg(feature = "i8")]
+            hpt_types::dtype::DType::I8 => unary!(i8),
+            #[cfg(feature = "u8")]
+            hpt_types::dtype::DType::U8 => unary!(u8),
+            #[cfg(feature = "f32")]
+            hpt_types::dtype::DType::F32 => unary!(f32),
+            #[cfg(feature = "f16")]
+            hpt_types::dtype::DType::F16 => unary!(f16),
+            #[cfg(feature = "bf16")]
+            hpt_types::dtype::DType::BF16 => unary!(bf16),
+            #[cfg(feature = "f64")]
+            hpt_types::dtype::DType::F64 => unary!(f64),
+            #[cfg(feature = "bool")]
+            hpt_types::dtype::DType::Bool => unary!(bool),
+            #[cfg(feature = "u64")]
+            hpt_types::dtype::DType::U64 => unary!(u64),
+            #[cfg(feature = "i16")]
+            hpt_types::dtype::DType::I16 => unary!(i16),
+            #[cfg(feature = "u16")]
+            hpt_types::dtype::DType::U16 => unary!(u16),
+            #[cfg(feature = "i32")]
+            hpt_types::dtype::DType::I32 => unary!(i32),
+            #[cfg(feature = "u32")]
+            hpt_types::dtype::DType::U32 => unary!(u32),
+            #[cfg(feature = "i64")]
+            hpt_types::dtype::DType::I64 => unary!(i64),
             _ => unimplemented!(),
         }
     }
@@ -256,11 +360,32 @@ impl Tensor {
             }};
         }
         match self.dtype {
+            #[cfg(feature = "i8")]
             hpt_types::dtype::DType::I8 => unary!(i8),
+            #[cfg(feature = "u8")]
             hpt_types::dtype::DType::U8 => unary!(u8),
+            #[cfg(feature = "f32")]
             hpt_types::dtype::DType::F32 => unary!(f32),
+            #[cfg(feature = "f16")]
             hpt_types::dtype::DType::F16 => unary!(f16),
+            #[cfg(feature = "bf16")]
             hpt_types::dtype::DType::BF16 => unary!(bf16),
+            #[cfg(feature = "f64")]
+            hpt_types::dtype::DType::F64 => unary!(f64),
+            #[cfg(feature = "bool")]
+            hpt_types::dtype::DType::Bool => unary!(bool),
+            #[cfg(feature = "u64")]
+            hpt_types::dtype::DType::U64 => unary!(u64),
+            #[cfg(feature = "i16")]
+            hpt_types::dtype::DType::I16 => unary!(i16),
+            #[cfg(feature = "u16")]
+            hpt_types::dtype::DType::U16 => unary!(u16),
+            #[cfg(feature = "i32")]
+            hpt_types::dtype::DType::I32 => unary!(i32),
+            #[cfg(feature = "u32")]
+            hpt_types::dtype::DType::U32 => unary!(u32),
+            #[cfg(feature = "i64")]
+            hpt_types::dtype::DType::I64 => unary!(i64),
             _ => unimplemented!(),
         }
     }
@@ -288,11 +413,32 @@ impl Tensor {
             }};
         }
         match self.dtype {
+            #[cfg(feature = "i8")]
             hpt_types::dtype::DType::I8 => unary!(i8),
+            #[cfg(feature = "u8")]
             hpt_types::dtype::DType::U8 => unary!(u8),
+            #[cfg(feature = "f32")]
             hpt_types::dtype::DType::F32 => unary!(f32),
+            #[cfg(feature = "f16")]
             hpt_types::dtype::DType::F16 => unary!(f16),
+            #[cfg(feature = "bf16")]
             hpt_types::dtype::DType::BF16 => unary!(bf16),
+            #[cfg(feature = "f64")]
+            hpt_types::dtype::DType::F64 => unary!(f64),
+            #[cfg(feature = "bool")]
+            hpt_types::dtype::DType::Bool => unary!(bool),
+            #[cfg(feature = "u64")]
+            hpt_types::dtype::DType::U64 => unary!(u64),
+            #[cfg(feature = "i16")]
+            hpt_types::dtype::DType::I16 => unary!(i16),
+            #[cfg(feature = "u16")]
+            hpt_types::dtype::DType::U16 => unary!(u16),
+            #[cfg(feature = "i32")]
+            hpt_types::dtype::DType::I32 => unary!(i32),
+            #[cfg(feature = "u32")]
+            hpt_types::dtype::DType::U32 => unary!(u32),
+            #[cfg(feature = "i64")]
+            hpt_types::dtype::DType::I64 => unary!(i64),
             _ => unimplemented!(),
         }
     }

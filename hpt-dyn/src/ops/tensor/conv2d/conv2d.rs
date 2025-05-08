@@ -10,6 +10,7 @@ use hpt_types::type_promote::FloatOutUnary;
 use hpt_types::type_promote::NormalOutPromote;
 
 use crate::Tensor;
+use crate::ops::tensor::conv2d::conv2d_mp;
 use crate::ops::tensor::matmul::microkernel_trait::MatmulMicroKernel;
 
 use super::batchnorm_conv2d::batchnorm_conv2d;
@@ -31,14 +32,11 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
 where
     T: MatmulMicroKernel,
 {
-    ShapeError::check_contiguous(
-        "Conv2d requires input tensor to be contiguous. ".to_string(),
-        input.layout(),
-    )?;
-    ShapeError::check_contiguous(
-        "Conv2d requires kernel tensor to be contiguous. ".to_string(),
-        kernels.layout(),
-    )?;
+    let input = if !input.is_contiguous() || input.parent.is_some() {
+        input.contiguous()?
+    } else {
+        input.clone()
+    };
     if bias.is_some() {
         ShapeError::check_contiguous(
             "Conv2d requires bias tensor to be contiguous. ".to_string(),
@@ -99,7 +97,7 @@ where
     let direct_buffer_size = kh * kw * in_channels * out_channels;
     if img2col_buffer_size < direct_buffer_size {
         conv2d_img2col::conv2d(
-            input,
+            &input,
             kernels,
             bias,
             steps,
@@ -118,7 +116,7 @@ where
         )
     } else {
         conv2d_direct::conv2d(
-            input,
+            &input,
             kernels,
             bias,
             steps,
@@ -147,6 +145,73 @@ impl Tensor {
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
     ) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            #[cfg(feature = "i8")]
+            DType::I8 => {
+                self.conv2d_post::<i8>(kernels, bias, steps, padding, dilation, None, None)
+            }
+            #[cfg(feature = "u8")]
+            DType::U8 => {
+                self.conv2d_post::<u8>(kernels, bias, steps, padding, dilation, None, None)
+            }
+            #[cfg(feature = "f32")]
+            DType::F32 => {
+                self.conv2d_post::<f32>(kernels, bias, steps, padding, dilation, None, None)
+            }
+            #[cfg(feature = "f16")]
+            DType::F16 => {
+                self.conv2d_post::<half::f16>(kernels, bias, steps, padding, dilation, None, None)
+            }
+            #[cfg(feature = "bf16")]
+            DType::BF16 => {
+                self.conv2d_post::<half::bf16>(kernels, bias, steps, padding, dilation, None, None)
+            }
+            #[cfg(feature = "bool")]
+            DType::Bool => {
+                self.conv2d_post::<bool>(kernels, bias, steps, padding, dilation, None, None)
+            }
+            #[cfg(feature = "i16")]
+            DType::I16 => {
+                self.conv2d_post::<i16>(kernels, bias, steps, padding, dilation, None, None)
+            }
+            #[cfg(feature = "u16")]
+            DType::U16 => {
+                self.conv2d_post::<u16>(kernels, bias, steps, padding, dilation, None, None)
+            }
+            #[cfg(feature = "i32")]
+            DType::I32 => {
+                self.conv2d_post::<i32>(kernels, bias, steps, padding, dilation, None, None)
+            }
+            #[cfg(feature = "u32")]
+            DType::U32 => {
+                self.conv2d_post::<u32>(kernels, bias, steps, padding, dilation, None, None)
+            }
+            #[cfg(feature = "i64")]
+            DType::I64 => {
+                self.conv2d_post::<i64>(kernels, bias, steps, padding, dilation, None, None)
+            }
+            #[cfg(feature = "u64")]
+            DType::U64 => {
+                self.conv2d_post::<u64>(kernels, bias, steps, padding, dilation, None, None)
+            }
+            #[cfg(feature = "f64")]
+            DType::F64 => {
+                self.conv2d_post::<f64>(kernels, bias, steps, padding, dilation, None, None)
+            }
+            _ => panic!("unsupported dtype: {:?}", self.dtype),
+        }
+    }
+
+    pub fn conv2d_post<T: CommonBounds + ToDType + Conv2dMicroKernel + MatmulMicroKernel>(
+        &self,
+        kernels: &Tensor,
+        bias: Option<&Tensor>,
+        steps: [i64; 2],
+        padding: [(i64, i64); 2],
+        dilation: [i64; 2],
+        post_scalar: Option<fn(T) -> T>,
+        post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
+    ) -> Result<Tensor, TensorError> {
         let t_dtype = self.dtype;
         assert_eq!(self.dtype, t_dtype);
         assert_eq!(kernels.dtype, t_dtype);
@@ -156,133 +221,38 @@ impl Tensor {
         if t_dtype == DType::F16
             && !(cfg!(target_feature = "neon") && cfg!(target_feature = "fp16"))
         {
-            #[cfg(feature = "f16")]
-            {
-                type F16Vec = <half::f16 as TypeCommon>::Vec;
-                use hpt_types::traits::VecTrait;
-                use hpt_types::dtype::TypeCommon;
-                super::conv2d_mp::conv2d::<half::f16>(
-                    self,
-                    kernels,
-                    bias,
-                    steps,
-                    padding,
-                    dilation,
-                    |x| {
-                        let vec0 = unsafe { x.read_unaligned() };
-                        let vec1 = unsafe { x.add(1).read_unaligned() };
-                        F16Vec::from_2_f32vec([vec0, vec1])
-                    },
-                    |x| unsafe {
-                        let mut f16_vec = F16Vec::splat(half::f16::ZERO);
-                        for j in 0..F16Vec::SIZE {
-                            f16_vec[j] = *x.add(j);
-                        }
-                        let val_f32 = f16_vec.high_to_f32vec();
-                        val_f32
-                    },
-                    |x| x.cast(),
-                    |x| x.cast(),
-                    None,
-                    None,
-                )
-            }
-            #[cfg(not(feature = "f16"))]
-            {
-                panic!("f16 is not supported for conv2d");
-            }
+            conv2d_mp::conv2d_mp::<T>(
+                self,
+                kernels,
+                bias,
+                steps,
+                padding,
+                dilation,
+                post_scalar,
+                post_vec,
+            )
         } else if t_dtype == DType::BF16 {
-            #[cfg(feature = "bf16")]
-            {
-                type F16Vec = <half::bf16 as TypeCommon>::Vec;
-                use hpt_types::traits::VecTrait;
-                use hpt_types::dtype::TypeCommon;
-                super::conv2d_mp::conv2d::<half::bf16>(
-                    self,
-                    kernels,
-                    bias,
-                    steps,
-                    padding,
-                    dilation,
-                    |x| {
-                        let vec0 = unsafe { x.read_unaligned() };
-                        let vec1 = unsafe { x.add(1).read_unaligned() };
-                        F16Vec::from_2_f32vec([vec0, vec1])
-                    },
-                    |x| unsafe {
-                        let mut f16_vec = F16Vec::splat(half::bf16::ZERO);
-                        for j in 0..F16Vec::SIZE {
-                            f16_vec[j] = *x.add(j);
-                        }
-                        let val_f32 = f16_vec.high_to_f32vec();
-                        val_f32
-                    },
-                    |x| x.cast(),
-                    |x| x.cast(),
-                    None,
-                    None,
-                )
-            }
-            #[cfg(not(feature = "bf16"))]
-            {
-                panic!("bf16 is not supported for conv2d");
-            }
+            conv2d_mp::conv2d_mp::<T>(
+                self,
+                kernels,
+                bias,
+                steps,
+                padding,
+                dilation,
+                post_scalar,
+                post_vec,
+            )
         } else {
-            match self.dtype {
-                #[cfg(feature = "i8")]
-                DType::I8 => {
-                    conv2d::<i8>(self, kernels, bias, steps, padding, dilation, None, None)
-                }
-                #[cfg(feature = "u8")]
-                DType::U8 => {
-                    conv2d::<u8>(self, kernels, bias, steps, padding, dilation, None, None)
-                }
-                #[cfg(feature = "f32")]
-                DType::F32 => {
-                    conv2d::<f32>(self, kernels, bias, steps, padding, dilation, None, None)
-                }
-                #[cfg(feature = "f16")]
-                DType::F16 => {
-                    conv2d::<half::f16>(self, kernels, bias, steps, padding, dilation, None, None)
-                }
-                #[cfg(feature = "bf16")]
-                DType::BF16 => {
-                    conv2d::<half::bf16>(self, kernels, bias, steps, padding, dilation, None, None)
-                }
-                #[cfg(feature = "bool")]
-                DType::Bool => {
-                    conv2d::<bool>(self, kernels, bias, steps, padding, dilation, None, None)
-                }
-                #[cfg(feature = "i16")]
-                DType::I16 => {
-                    conv2d::<i16>(self, kernels, bias, steps, padding, dilation, None, None)
-                }
-                #[cfg(feature = "u16")]
-                DType::U16 => {
-                    conv2d::<u16>(self, kernels, bias, steps, padding, dilation, None, None)
-                }
-                #[cfg(feature = "i32")]
-                DType::I32 => {
-                    conv2d::<i32>(self, kernels, bias, steps, padding, dilation, None, None)
-                }
-                #[cfg(feature = "u32")]
-                DType::U32 => {
-                    conv2d::<u32>(self, kernels, bias, steps, padding, dilation, None, None)
-                }
-                #[cfg(feature = "i64")]
-                DType::I64 => {
-                    conv2d::<i64>(self, kernels, bias, steps, padding, dilation, None, None)
-                }
-                #[cfg(feature = "u64")]
-                DType::U64 => {
-                    conv2d::<u64>(self, kernels, bias, steps, padding, dilation, None, None)
-                }
-                #[cfg(feature = "f64")]
-                DType::F64 => {
-                    conv2d::<f64>(self, kernels, bias, steps, padding, dilation, None, None)
-                }
-                _ => panic!("unsupported dtype: {:?}", self.dtype),
-            }
+            conv2d::<T>(
+                self,
+                kernels,
+                bias,
+                steps,
+                padding,
+                dilation,
+                post_scalar,
+                post_vec,
+            )
         }
     }
 
@@ -324,7 +294,7 @@ impl Tensor {
         )
     }
 
-    pub fn conv2d_group<T>(
+    pub fn conv2d_group(
         &self,
         kernels: &Self,
         bias: Option<&Self>,
@@ -332,17 +302,61 @@ impl Tensor {
         padding: [(i64, i64); 2],
         dilation: [i64; 2],
         groups: i64,
-    ) -> Result<Tensor, TensorError>
-    where
-        T: CommonBounds
-            + Conv2dMicroKernel
-            + MatmulMicroKernel
-            + ToDType
-            + Cast<<T as NormalOutPromote>::Intermediate>,
-        <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
-    {
-        conv2d_group::<T>(
-            self, kernels, bias, steps, padding, dilation, groups, None, None,
-        )
+    ) -> Result<Tensor, TensorError> {
+        match self.dtype {
+            #[cfg(feature = "bool")]
+            DType::Bool => conv2d_group::<bool>(
+                self, kernels, bias, steps, padding, dilation, groups, None, None,
+            ),
+            #[cfg(feature = "i8")]
+            DType::I8 => conv2d_group::<i8>(
+                self, kernels, bias, steps, padding, dilation, groups, None, None,
+            ),
+            #[cfg(feature = "u8")]
+            DType::U8 => conv2d_group::<u8>(
+                self, kernels, bias, steps, padding, dilation, groups, None, None,
+            ),
+            #[cfg(feature = "i16")]
+            DType::I16 => conv2d_group::<i16>(
+                self, kernels, bias, steps, padding, dilation, groups, None, None,
+            ),
+            #[cfg(feature = "u16")]
+            DType::U16 => conv2d_group::<u16>(
+                self, kernels, bias, steps, padding, dilation, groups, None, None,
+            ),
+            #[cfg(feature = "i32")]
+            DType::I32 => conv2d_group::<i32>(
+                self, kernels, bias, steps, padding, dilation, groups, None, None,
+            ),
+            #[cfg(feature = "u32")]
+            DType::U32 => conv2d_group::<u32>(
+                self, kernels, bias, steps, padding, dilation, groups, None, None,
+            ),
+            #[cfg(feature = "i64")]
+            DType::I64 => conv2d_group::<i64>(
+                self, kernels, bias, steps, padding, dilation, groups, None, None,
+            ),
+            #[cfg(feature = "u64")]
+            DType::U64 => conv2d_group::<u64>(
+                self, kernels, bias, steps, padding, dilation, groups, None, None,
+            ),
+            #[cfg(feature = "f32")]
+            DType::F32 => conv2d_group::<f32>(
+                self, kernels, bias, steps, padding, dilation, groups, None, None,
+            ),
+            #[cfg(feature = "f16")]
+            DType::F16 => conv2d_group::<half::f16>(
+                self, kernels, bias, steps, padding, dilation, groups, None, None,
+            ),
+            #[cfg(feature = "bf16")]
+            DType::BF16 => conv2d_group::<half::bf16>(
+                self, kernels, bias, steps, padding, dilation, groups, None, None,
+            ),
+            #[cfg(feature = "f64")]
+            DType::F64 => conv2d_group::<f64>(
+                self, kernels, bias, steps, padding, dilation, groups, None, None,
+            ),
+            _ => panic!("unsupported dtype: {:?}", self.dtype),
+        }
     }
 }

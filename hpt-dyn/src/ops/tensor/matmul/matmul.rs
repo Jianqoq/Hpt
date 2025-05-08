@@ -401,7 +401,7 @@ pub(crate) fn matmul_with_out<T, F1, F2>(
     lhs: &Tensor,
     rhs: &Tensor,
     out: Option<Tensor>,
-    threads: usize,
+    mut threads: usize,
     prepacked_rhs: Option<PrePackedRhs>,
     post_op: Option<F1>,
     post_op_vec: Option<F2>,
@@ -411,6 +411,7 @@ where
     F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
     F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
 {
+    threads = threads.min(num_cpus::get_physical());
     if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
         let c = matmul_prepare(&lhs, &rhs, out)?;
         matmul(

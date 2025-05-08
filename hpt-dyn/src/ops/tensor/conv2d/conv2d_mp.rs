@@ -15,13 +15,106 @@ use hpt_types::dtype::TypeCommon;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOutPromote;
 use hpt_types::vectors::traits::*;
-use rayon::iter::{ IndexedParallelIterator, IntoParallelIterator, ParallelIterator };
-use rayon::slice::{ ParallelSlice, ParallelSliceMut };
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use rayon::slice::{ParallelSlice, ParallelSliceMut};
 
 #[allow(unused)]
 type IM<T> = <T as NormalOutPromote>::Intermediate;
 #[allow(unused)]
 type IMVec<T> = <<T as NormalOutPromote>::Intermediate as TypeCommon>::Vec;
+
+#[allow(unused)]
+pub(crate) fn conv2d_mp<T: CommonBounds + ToDType>(
+    input: &Tensor,
+    kernels: &Tensor,
+    bias: Option<&Tensor>,
+    steps: [i64; 2],
+    padding: [(i64, i64); 2],
+    dilation: [i64; 2],
+    post_scalar: Option<fn(T) -> T>,
+    post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
+) -> Result<Tensor, TensorError> {
+    let dtype = T::to_dtype();
+    match dtype {
+        #[cfg(feature = "f16")]
+        hpt_types::dtype::DType::F16 => {
+            type F16Vec = <half::f16 as TypeCommon>::Vec;
+            conv2d::<half::f16>(
+                input,
+                kernels,
+                bias,
+                steps,
+                padding,
+                dilation,
+                |x, y| {
+                    let vec0 = unsafe { y.read_unaligned() };
+                    let vec1 = unsafe { y.add(1).read_unaligned() };
+                    let res = F16Vec::from_2_f32vec([vec0, vec1]);
+                    unsafe { x.write_unaligned(res) };
+                },
+                |x, y| unsafe {
+                    let mut f16_vec = F16Vec::splat(half::f16::ZERO);
+                    for j in 0..F16Vec::SIZE {
+                        f16_vec[j] = *y.add(j);
+                    }
+                    let val_f32 = f16_vec.high_to_f32vec();
+                    x.write_unaligned(val_f32);
+                },
+                |x| x.cast(),
+                |x, y| *x = y.cast(),
+                if let Some(post_scalar) = post_scalar {
+                    Some(unsafe { std::mem::transmute(post_scalar) })
+                } else {
+                    None
+                },
+                if let Some(post_vec) = post_vec {
+                    Some(unsafe { std::mem::transmute(post_vec) })
+                } else {
+                    None
+                },
+            )
+        }
+        #[cfg(feature = "bf16")]
+        hpt_types::dtype::DType::BF16 => {
+            type F16Vec = <half::bf16 as TypeCommon>::Vec;
+            conv2d::<half::bf16>(
+                input,
+                kernels,
+                bias,
+                steps,
+                padding,
+                dilation,
+                |x, y| {
+                    let vec0 = unsafe { y.read_unaligned() };
+                    let vec1 = unsafe { y.add(1).read_unaligned() };
+                    let res = F16Vec::from_2_f32vec([vec0, vec1]);
+                    unsafe { x.write_unaligned(res) };
+                },
+                |x, y| unsafe {
+                    let mut f16_vec = F16Vec::splat(half::bf16::ZERO);
+                    for j in 0..F16Vec::SIZE {
+                        f16_vec[j] = *y.add(j);
+                    }
+                    let val_f32 = f16_vec.high_to_f32vec();
+                    x.write_unaligned(val_f32);
+                },
+                |x| x.cast(),
+                |x, y| *x = y.cast(),
+                if let Some(post_scalar) = post_scalar {
+                    Some(unsafe { std::mem::transmute(post_scalar) })
+                } else {
+                    None
+                },
+                if let Some(post_vec) = post_vec {
+                    Some(unsafe { std::mem::transmute(post_vec) })
+                } else {
+                    None
+                },
+            )
+        }
+        _ => unimplemented!("conv2d_mp only supports f16 and bf16 for now"),
+    }
+}
 
 #[allow(unused)]
 pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
@@ -31,28 +124,30 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     steps: [i64; 2],
     padding: [(i64, i64); 2],
     dilation: [i64; 2],
-    vec_cast_back: fn(*const IMVec<T>) -> T::Vec,
-    vec_cast: fn(*const T) -> IMVec<T>,
+    vec_cast_back: fn(*mut T::Vec, *const IMVec<T>),
+    vec_cast: fn(*mut IMVec<T>, *const T),
     cast: fn(T) -> IM<T>,
-    cast_back: fn(IM<T>) -> T,
+    cast_back: fn(&mut T, &IM<T>),
     post_scalar: Option<fn(T) -> T>,
-    post_vec: Option<fn(<T>::Vec) -> <T>::Vec>
-)
-    -> Result<Tensor, TensorError>
-    where T: Cast<IM<T>>, IM<T>: CommonBounds + Cast<T> + ToDType
+    post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
+) -> Result<Tensor, TensorError>
+where
+    T: Cast<IM<T>>,
+    IM<T>: CommonBounds + Cast<T> + ToDType,
 {
-    ShapeError::check_contiguous(
-        "Conv2d requires input tensor to be contiguous. ".to_string(),
-        input.layout()
-    )?;
+    let input = if !input.is_contiguous() || input.parent.is_some() {
+        input.contiguous()?
+    } else {
+        input.clone()
+    };
     ShapeError::check_contiguous(
         "Conv2d requires kernel tensor to be contiguous. ".to_string(),
-        kernels.layout()
+        kernels.layout(),
     )?;
     if bias.is_some() {
         ShapeError::check_contiguous(
             "Conv2d requires bias tensor to be contiguous. ".to_string(),
-            bias.unwrap().layout()
+            bias.unwrap().layout(),
         )?;
     }
     let img_shape = input.shape();
@@ -67,16 +162,14 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     let in_channels = kernel_shape[2];
     let out_channels = kernel_shape[3];
     if in_channels != img_channels {
-        return Err(
-            (ShapeError::ConvError {
-                message: format!(
-                    "kernel in_channel {} not match input in_channel {}",
-                    in_channels,
-                    img_channels
-                ),
-                location: core::panic::Location::caller(),
-            }).into()
-        );
+        return Err((ShapeError::ConvError {
+            message: format!(
+                "kernel in_channel {} not match input in_channel {}",
+                in_channels, img_channels
+            ),
+            location: core::panic::Location::caller(),
+        })
+        .into());
     }
     let (step_width, step_height) = (steps[0], steps[1]);
     let ((ph_start, ph_end), (pw_start, pw_end)) = (padding[0], padding[1]);
@@ -87,18 +180,14 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
         img_width,
         kh,
         kw,
-        &[
-            (ph_start, ph_end),
-            (pw_start, pw_end),
-        ],
+        &[(ph_start, ph_end), (pw_start, pw_end)],
         &[step_height, step_width],
-        &[dh, dw]
+        &[dh, dw],
     );
 
     let casted_input = Tensor::empty(input.shape(), IM::<T>::to_dtype(), input.device.clone())?;
-    let buffer_slice = unsafe {
-        std::slice::from_raw_parts(input.ptr().ptr as *mut T, input.size())
-    };
+    let buffer_slice =
+        unsafe { std::slice::from_raw_parts(input.ptr().ptr as *mut T, input.size()) };
     let out_slice = unsafe {
         std::slice::from_raw_parts_mut(casted_input.ptr().ptr as *mut IM<T>, input.size())
     };
@@ -123,7 +212,9 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
                     unsafe {
                         seq_macro::seq!(N in 0..2 {
                             let buffer_ptr = buffer_ptr.add(N * IMVec::<T>::SIZE);
-                            out_ptr.add(N).write_unaligned(vec_cast(buffer_ptr));
+                            let mut res = IMVec::<T>::splat(IM::<T>::ZERO);
+                            vec_cast(&mut res, buffer_ptr);
+                            out_ptr.add(N).write_unaligned(res);
                         });
                     }
                 });
@@ -138,7 +229,9 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
                     unsafe {
                         seq_macro::seq!(N in 0..4 {
                             let buffer_ptr = buffer_ptr.add(N * IMVec::<T>::SIZE);
-                            out_ptr.add(N).write_unaligned(vec_cast(buffer_ptr));
+                            let mut res = IMVec::<T>::splat(IM::<T>::ZERO);
+                            vec_cast(&mut res, buffer_ptr);
+                            out_ptr.add(N).write_unaligned(res);
                         });
                     }
                 });
@@ -150,21 +243,20 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
 
     let img = casted_input.clone();
     if out_height <= 0 || out_width <= 0 {
-        return Err(
-            (ShapeError::ConvError {
-                message: if out_height <= 0 {
-                    "output height <= 0".to_string()
-                } else {
-                    "output width <= 0".to_string()
-                },
-                location: core::panic::Location::caller(),
-            }).into()
-        );
+        return Err((ShapeError::ConvError {
+            message: if out_height <= 0 {
+                "output height <= 0".to_string()
+            } else {
+                "output width <= 0".to_string()
+            },
+            location: core::panic::Location::caller(),
+        })
+        .into());
     }
     let mut output = Tensor::empty(
         &[batch, out_height, out_width, out_channels],
         input.dtype,
-        input.device.clone()
+        input.device.clone(),
     )?;
     let out = output.ptr::<T>();
 
@@ -179,6 +271,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     let ks0 = kernels.strides()[0]; // kernel_height
     let ks1 = kernels.strides()[1]; // kernel_width
     let ks2 = kernels.strides()[2]; // in_channels
+    let ks3 = kernels.strides()[3]; // out_channels
 
     let outer = batch * out_height;
 
@@ -186,10 +279,14 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     let kernel_ptr = kernels.ptr::<T>();
     let nr = T::get_max_mixed_precision_nr() * T::Vec::SIZE;
     let mr = T::get_max_mixed_precision_mr().min(out_width as usize);
-    let param = calculate_kernel_params::<T>(in_channels, out_channels, out_width, mr, nr, [
-        kh as usize,
-        kw as usize,
-    ]);
+    let param = calculate_kernel_params::<T>(
+        in_channels,
+        out_channels,
+        out_width,
+        mr,
+        nr,
+        [kh as usize, kw as usize],
+    );
 
     let kc: i64 = param.mc as i64;
     let ic: i64 = param.kc as i64;
@@ -202,7 +299,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
         in_channels,
         out_channels,
         oc,
-        nr as i64
+        nr as i64,
     )?;
     pack_kernel_mp(
         buffer.ptr::<IM<T>>(),
@@ -213,7 +310,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
         oc,
         nr as i64,
         [kh, kw],
-        [ks0, ks1, ks2]
+        [ks0, ks1, ks2, ks3],
     );
 
     let get_kernel = if ph_start == 0 && pw_start == 0 && ph_end == 0 && pw_end == 0 {
@@ -264,7 +361,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
                                 vec_cast,
                                 vec_cast_back,
                                 cast,
-                                cast_back
+                                cast_back,
                             );
                         }
                     }

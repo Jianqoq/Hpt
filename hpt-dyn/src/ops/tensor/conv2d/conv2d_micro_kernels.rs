@@ -116,10 +116,10 @@ macro_rules! conv2d_mixed_precision_micro_kernel {
             [owr, ocr]: [i64; 2],
             [dh, dw]: [i64; 2],
             first_ic_iter: bool,
-            vec_cast: fn(*const T) -> IM::Vec,
-            vec_cast_back: fn(*const IM::Vec) -> T::Vec,
+            vec_cast: fn(*mut IM::Vec, *const T),
+            vec_cast_back: fn(*mut T::Vec, *const IM::Vec),
             cast: fn(T) -> IM,
-            cast_back: fn(IM) -> T,
+            cast_back: fn(&mut T, &IM),
         ) {
             use hpt_types::traits::VecTrait;
             use hpt_types::type_promote::NormalOut;
@@ -132,7 +132,9 @@ macro_rules! conv2d_mixed_precision_micro_kernel {
                         let reg = c_local[mr as usize].as_mut_ptr() as *mut IM::Vec;
                         let out_ptr = unsafe { out.ptr.offset(((mr + k) * osw + j) as isize) } as *const T;
                         seq_macro::seq!(NR in 0..$nr2 {
-                            unsafe { reg.add(NR as usize).write(vec_cast(out_ptr.add(NR * IM::Vec::SIZE))) };
+                            let mut res = IM::Vec::splat(IM::ZERO);
+                            vec_cast(&mut res, unsafe { out_ptr.add(NR * IM::Vec::SIZE) });
+                            unsafe { reg.add(NR as usize).write(res) };
                         });
                     }
                 } else {
@@ -176,17 +178,23 @@ macro_rules! conv2d_mixed_precision_micro_kernel {
                 for mr in 0..owr {
                     let out_ptr = unsafe { out.ptr.offset(((mr + k) * osw + j) as isize) } as *mut T::Vec;
                     for i in 0..$nr2 / (IM::BYTE_SIZE as i64 / T::BYTE_SIZE as i64) {
-                        let c_local_ptr = c_local[mr as usize].as_ptr() as *const IM::Vec;
-                        let res = vec_cast_back(unsafe { c_local_ptr.offset(i as isize) });
-                        unsafe { out_ptr.offset(i as isize).write_unaligned(res) };
+                        unsafe {
+                            let c_local_ptr = c_local[mr as usize].as_ptr() as *const IM::Vec;
+                            let mut res = T::Vec::splat(T::ZERO);
+                            vec_cast_back(&mut res, c_local_ptr.offset(i as isize));
+                            out_ptr.offset(i as isize).write_unaligned(res);
+                        }
                     }
                 }
             } else {
                 for mr in 0..owr {
                     let reg = c_local[mr as usize].as_ptr() as *const IM;
                     for nr in 0..ocr as i64 {
-                        out[(mr + k) * osw + j + nr] =
-                            cast_back(unsafe { reg.add(nr as usize).read() });
+                        unsafe {
+                            let mut res = T::ZERO;
+                            cast_back(&mut res, &*reg.add(nr as usize) );
+                            out[(mr + k) * osw + j + nr] = res;
+                        }
                     }
                 }
             }
@@ -318,10 +326,10 @@ macro_rules! conv2d_mixed_precision_micro_kernel_with_padding {
             [owr, ocr]: [i64; 2],
             [dh, dw]: [i64; 2],
             first_ic_iter: bool,
-            vec_cast: fn(*const T) -> IM::Vec,
-            vec_cast_back: fn(*const IM::Vec) -> T::Vec,
+            vec_cast: fn(*mut IM::Vec, *const T),
+            vec_cast_back: fn(*mut T::Vec, *const IM::Vec),
             cast: fn(T) -> IM,
-            cast_back: fn(IM) -> T,
+            cast_back: fn(&mut T, &IM),
         ) {
             use hpt_types::traits::VecTrait;
             use hpt_types::type_promote::NormalOut;
@@ -334,7 +342,9 @@ macro_rules! conv2d_mixed_precision_micro_kernel_with_padding {
                         let reg = c_local[mr as usize].as_mut_ptr() as *mut IM::Vec;
                         let out_ptr = unsafe { out.ptr.offset(((mr + k) * osw + j) as isize) } as *const T;
                         seq_macro::seq!(NR in 0..$nr2 {
-                            unsafe { reg.add(NR as usize).write(vec_cast(out_ptr.add(NR * IM::Vec::SIZE))) };
+                            let mut res = IM::Vec::splat(IM::ZERO);
+                            vec_cast(&mut res, unsafe { out_ptr.add(NR * IM::Vec::SIZE) });
+                            unsafe { reg.add(NR as usize).write(res) };
                         });
                     }
                 } else {
@@ -409,17 +419,23 @@ macro_rules! conv2d_mixed_precision_micro_kernel_with_padding {
                 for mr in 0..owr {
                     let out_ptr = unsafe { out.ptr.offset(((mr + k) * osw + j) as isize) } as *mut T::Vec;
                     for i in 0..$nr2 / (IM::BYTE_SIZE as i64 / T::BYTE_SIZE as i64) {
-                        let c_local_ptr = c_local[mr as usize].as_ptr() as *const IM::Vec;
-                        let res = vec_cast_back(unsafe { c_local_ptr.offset(i as isize) });
-                        unsafe { out_ptr.offset(i as isize).write_unaligned(res) };
+                        unsafe {
+                            let c_local_ptr = c_local[mr as usize].as_ptr() as *const IM::Vec;
+                            let mut res = T::Vec::splat(T::ZERO);
+                            vec_cast_back(&mut res, c_local_ptr.offset(i as isize));
+                            out_ptr.offset(i as isize).write_unaligned(res);
+                        }
                     }
                 }
             } else {
                 for mr in 0..owr {
                     let reg = c_local[mr as usize].as_ptr() as *const IM;
                     for nr in 0..ocr as i64 {
-                        out[(mr + k) * osw + j + nr] =
-                            cast_back(unsafe { reg.add(nr as usize).read() });
+                        unsafe {
+                            let mut res = T::ZERO;
+                            cast_back(&mut res, &*reg.add(nr as usize));
+                            out[(mr + k) * osw + j + nr] = res;
+                        }
                     }
                 }
             }

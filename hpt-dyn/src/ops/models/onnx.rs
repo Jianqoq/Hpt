@@ -15,6 +15,7 @@ pub struct Initialized {
     pub(crate) initializer_map: HashMap<String, Tensor>,
     pub(crate) permutes: HashMap<String, Meta>,
     pub(crate) operators: Vec<Operator>,
+    pub(crate) node_degree: HashMap<String, u32>,
 }
 
 #[derive(Debug)]

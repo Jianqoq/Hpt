@@ -1,16 +1,16 @@
-use gemm_common::cache::{ DivCeil, KernelParams, CACHE_INFO };
-use hpt_common::error::base::TensorError;
+use gemm_common::cache::{CACHE_INFO, DivCeil, KernelParams};
 use hpt_common::Pointer;
+use hpt_common::error::base::TensorError;
 use hpt_traits::tensor::CommonBounds;
-use hpt_types::dtype::{ DType, ToDType, TypeCommon };
+use hpt_types::dtype::{DType, ToDType, TypeCommon};
 use hpt_types::type_promote::NormalOut;
-use hpt_types::{ into_scalar::Cast, type_promote::NormalOutPromote };
+use hpt_types::{into_scalar::Cast, type_promote::NormalOutPromote};
 use num::integer::gcd;
-use rayon::iter::{ IntoParallelRefIterator, ParallelIterator };
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::ops::tensor::binary::binary_fn_with_out;
 use crate::ops::tensor::unary::unary_fn_with_out;
-use crate::{ Device, Tensor, ALIGN };
+use crate::{ALIGN, Device, Tensor};
 
 pub(crate) fn img2col_nhwc<T: CommonBounds>(
     mut buffer: Pointer<T>,
@@ -25,7 +25,7 @@ pub(crate) fn img2col_nhwc<T: CommonBounds>(
     [kh, kw]: [i64; 2],
     [stride_h, stride_w]: [i64; 2],
     [pad_h, pad_w]: [i64; 2],
-    [dilation_h, dilation_w]: [i64; 2]
+    [dilation_h, dilation_w]: [i64; 2],
 ) {
     let mut buffer_idx: i64 = 0;
     let h_stride = in_strides[1];
@@ -67,7 +67,7 @@ pub(crate) fn pack_kernel<T: CommonBounds>(
     oc: i64,
     or: i64,
     [kh, kw]: [i64; 2],
-    [ks0, ks1, ks2]: [i64; 3]
+    [ks0, ks1, ks2, ks3]: [i64; 4],
 ) {
     use hpt_types::traits::VecTrait;
     let num_vec = or / (T::Vec::SIZE as i64);
@@ -99,17 +99,17 @@ pub(crate) fn pack_kernel<T: CommonBounds>(
         let mut packed_kernel = packed_kernel;
         for jj in (0..ocb).step_by(or as usize) {
             let ocr = or.min(ocb - jj);
-            if ocr == or {
+            if ocr == or && ks3 == 1 {
                 for n in 0..kh {
                     for m in 0..kw {
                         for ii in 0..icb {
                             unsafe {
-                                let ptr = kernel.ptr.offset(
-                                    (n * ks0 + m * ks1 + (i + ii) * ks2 + jj + j) as isize
-                                ) as *const T::Vec;
-                                let packed_ptr = packed_kernel.ptr.offset(
-                                    local_idx as isize
-                                ) as *mut T::Vec;
+                                let ptr = kernel
+                                    .ptr
+                                    .offset((n * ks0 + m * ks1 + (i + ii) * ks2 + jj + j) as isize)
+                                    as *const T::Vec;
+                                let packed_ptr =
+                                    packed_kernel.ptr.offset(local_idx as isize) as *mut T::Vec;
                                 for nr in 0..num_vec {
                                     packed_ptr
                                         .offset(nr as isize)
@@ -125,9 +125,8 @@ pub(crate) fn pack_kernel<T: CommonBounds>(
                     for m in 0..kw {
                         for ii in 0..icb {
                             for nr in 0..ocr {
-                                packed_kernel[local_idx] = kernel[
-                                    n * ks0 + m * ks1 + (i + ii) * ks2 + jj + j + nr
-                                ];
+                                packed_kernel[local_idx] =
+                                    kernel[n * ks0 + m * ks1 + (i + ii) * ks2 + (jj + j + nr) * ks3];
                                 local_idx += 1;
                             }
                             for _ in ocr..or {
@@ -151,11 +150,10 @@ pub(crate) fn pack_kernel_mp<T: CommonBounds>(
     oc: i64,
     or: i64,
     [kh, kw]: [i64; 2],
-    [ks0, ks1, ks2]: [i64; 3]
-)
-    where
-        T: Cast<<T as NormalOutPromote>::Intermediate>,
-        <T as NormalOutPromote>::Intermediate: CommonBounds
+    [ks0, ks1, ks2, ks3]: [i64; 4],
+) where
+    T: Cast<<T as NormalOutPromote>::Intermediate>,
+    <T as NormalOutPromote>::Intermediate: CommonBounds,
 {
     fn calculate_block_size(icb: i64, ocb: i64, or: i64, kh: i64, kw: i64) -> i64 {
         let mut size = 0;
@@ -190,8 +188,9 @@ pub(crate) fn pack_kernel_mp<T: CommonBounds>(
                 for m in 0..kw {
                     for ii in 0..icb {
                         for nr in 0..ocr {
-                            packed_kernel[local_idx] =
-                                kernel[n * ks0 + m * ks1 + (i + ii) * ks2 + jj + j + nr].cast();
+                            packed_kernel[local_idx] = kernel
+                                [n * ks0 + m * ks1 + (i + ii) * ks2 + jj + j + nr * ks3]
+                                .cast();
                             local_idx += 1;
                         }
                         for _ in ocr..or {
@@ -211,7 +210,7 @@ pub(crate) fn calculate_kernel_params<T: CommonBounds>(
     out_width: i64,
     mr: usize,
     nr: usize,
-    [kh, kw]: [usize; 2]
+    [kh, kw]: [usize; 2],
 ) -> KernelParams {
     let mut param = kernel_params(
         out_channels as usize,
@@ -220,7 +219,7 @@ pub(crate) fn calculate_kernel_params<T: CommonBounds>(
         nr,
         mr,
         std::mem::size_of::<T>(),
-        [kh, kw]
+        [kh, kw],
     );
     if param.nc == 0 {
         param.nc = (out_channels as usize).msrv_next_multiple_of(nr);
@@ -240,15 +239,14 @@ pub(crate) fn create_packed_kernel(
     in_channels: i64,
     out_channels: i64,
     oc: i64,
-    nr: i64
+    nr: i64,
 ) -> Result<Tensor, TensorError> {
-    let packed_kernel_size =
-        kh *
-        kw *
-        in_channels *
-        ((out_channels as usize).div_ceil(oc as usize) as i64) *
-        ((oc as usize).div_ceil(nr as usize) as i64) *
-        (nr as i64);
+    let packed_kernel_size = kh
+        * kw
+        * in_channels
+        * ((out_channels as usize).div_ceil(oc as usize) as i64)
+        * ((oc as usize).div_ceil(nr as usize) as i64)
+        * (nr as i64);
 
     let buffer = Tensor::empty(&[packed_kernel_size], dtype, device)?;
 
@@ -261,7 +259,7 @@ pub(crate) fn create_packed_input_img2col<T: CommonBounds>(
     kw: i64,
     in_channels: i64,
     out_height: i64,
-    out_width: i64
+    out_width: i64,
 ) -> (Pointer<T>, std::alloc::Layout) {
     let packed_size =
         batch * kh * kw * in_channels * out_height * out_width * (std::mem::size_of::<T>() as i64);
@@ -270,7 +268,7 @@ pub(crate) fn create_packed_input_img2col<T: CommonBounds>(
     let buffer = unsafe { std::alloc::alloc(layout) };
     let buffer_ptr = Pointer::new(
         buffer as *mut T,
-        packed_size / (std::mem::size_of::<T>() as i64)
+        packed_size / (std::mem::size_of::<T>() as i64),
     );
 
     (buffer_ptr, layout)
@@ -284,7 +282,7 @@ pub(crate) fn kernel_params(
     nr: usize,
     mr: usize,
     sizeof: usize,
-    _: [usize; 2]
+    _: [usize; 2],
 ) -> KernelParams {
     fn round_down(a: usize, b: usize) -> usize {
         (a / b) * b
@@ -317,7 +315,10 @@ pub(crate) fn kernel_params(
     let c_lhs =
         (mr * (kc_0 * sizeof).next_multiple_of(l1_line_bytes)) / (l1_line_bytes * l1_n_sets);
     let kc_multiplier = l1_assoc / (c_rhs + c_lhs);
-    let auto_kc = (kc_0 * kc_multiplier.max(1)).next_power_of_two().max(512).min(k);
+    let auto_kc = (kc_0 * kc_multiplier.max(1))
+        .next_power_of_two()
+        .max(512)
+        .min(k);
     let k_iter = k.div_ceil(auto_kc);
     let auto_kc = k.div_ceil(k_iter);
 
@@ -356,11 +357,12 @@ pub(crate) fn kernel_params(
     }
 }
 
+#[inline]
 pub(crate) fn handle_post<T: CommonBounds + ToDType>(
     output: &mut Tensor,
     bias: Option<&Tensor>,
     post_scalar: Option<fn(T) -> T>,
-    post_vec: Option<fn(T::Vec) -> T::Vec>
+    post_vec: Option<fn(T::Vec) -> T::Vec>,
 ) -> Result<(), TensorError> {
     match (bias, post_scalar, post_vec) {
         (None, None, None) => {}
@@ -376,7 +378,7 @@ pub(crate) fn handle_post<T: CommonBounds + ToDType>(
                 &bias,
                 |lhs: T, rhs: T| post_scalar(lhs._add(rhs)),
                 |lhs: T::Vec, rhs: T::Vec| post_vec(lhs._add(rhs)),
-                Some(output.clone())
+                Some(output.clone()),
             )?;
         }
         _ => {
@@ -393,7 +395,7 @@ pub(crate) fn cal_conv2d_output_shape(
     kw: i64,
     padding: &[(i64, i64); 2],
     stride: &[i64; 2],
-    dilation: &[i64; 2]
+    dilation: &[i64; 2],
 ) -> (i64, i64) {
     let out_height =
         (img_height + padding[0].0 + padding[0].1 - dilation[0] * (kh - 1) - 1) / stride[0] + 1;

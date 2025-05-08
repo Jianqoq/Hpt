@@ -90,6 +90,7 @@ pub(crate) fn conv2d_group<T>(
     let ks0 = kernels.strides()[0]; // kernel_height
     let ks1 = kernels.strides()[1]; // kernel_width
     let ks2 = kernels.strides()[2]; // in_channels
+    let ks3 = kernels.strides()[3]; // out_channels
 
     let outer = batch * out_height;
 
@@ -128,7 +129,7 @@ pub(crate) fn conv2d_group<T>(
             oc,
             nr as i64,
             [kernel_height, kernel_width],
-            [ks0, ks1, ks2]
+            [ks0, ks1, ks2, ks3]
         );
         (0..outer).into_par_iter().for_each(|idx| {
             let kernel = buffer.ptr();

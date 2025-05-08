@@ -31,7 +31,7 @@ anyhow = { workspace = true }
 # rand = { workspace = true }
 # ndarray = { workspace = true }
 # candle-core = { workspace = true }
-hpt-dyn = { path = "./hpt-dyn", features = ["f32", "i64", "f16"] }
+hpt-dyn = { path = "./hpt-dyn", features = ["f32", "i64"] }
 spindle = { workspace = true}
 
 [workspace.dependencies]
@@ -64,7 +64,7 @@ indicatif = "0.17.11"
 serde_json = "1.0.140"
 zip = "2.4.0"
 thiserror = "2.0.12"
-petgraph = "0.7.1"
+petgraph = "0.8.1"
 cudarc = { version = "0.13.4", default-features = false, features = [
     "std",
     "cublas",
@@ -98,17 +98,19 @@ tch = { version = "0.17.0", features = ["download-libtorch"] }
 spindle = "0.2.2"
 prost = "0.13.5"
 prost-types = "0.13.5"
+urlencoding = "2.1.0"
+graphviz-rust = "0.9.4"
 
 [[bin]]
 name = "hpt-workspace"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 3
+opt-level = 0
 incremental = true
 debug = true
-lto = "fat"
-codegen-units = 1
+# lto = "fat"
+# codegen-units = 1
 
 [profile.dev]
 opt-level = 0
