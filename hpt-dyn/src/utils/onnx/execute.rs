@@ -204,6 +204,7 @@ impl OnnxModel {
                                 }
                             }
                         }
+                        // println!("tensors: {:#?}", tensors);
                         // println!("total_conv time: {:?}", total_conv);
                         // println!("total_relu time: {:?}", total_relu);
                         // println!("total_add time: {:?}", total_add);
@@ -258,6 +259,14 @@ impl OnnxModel {
                     let mut stablegraph = build_graph(&operators, &tensor_to_node);
                     pre_transpose(&mut stablegraph, &mut initializer_map);
                     fuse_conv_unary(&mut stablegraph);
+                    if let Ok(topo_order) = petgraph::algo::toposort(&stablegraph, None) {
+                        for node in topo_order.iter() {
+                            new_operators.push(stablegraph[*node].clone());
+                        }
+                    } else {
+                        panic!("toposort failed");
+                    }
+
                 }
 
                 Ok(

@@ -787,6 +787,179 @@ impl Operator {
         }
     }
 
+    pub(super) fn inputs_mut(&mut self) -> Vec<&mut String> {
+        match self {
+            Operator::Constant(_) => vec![],
+            Operator::Contiguous(base) => vec![&mut base.base.input],
+            Operator::Abs(base) => vec![&mut base.base.input],
+            Operator::Acos(base) => vec![&mut base.base.input],
+            Operator::Acosh(base) => vec![&mut base.base.input],
+            Operator::Add(base) => vec![&mut base.base.input1, &mut base.base.input2],
+            Operator::And(base) => vec![&mut base.base.input1, &mut base.base.input2],
+            Operator::ArgMax(base) => vec![&mut base.base.input],
+            Operator::ArgMin(base) => vec![&mut base.base.input],
+            Operator::Asin(base) => vec![&mut base.base.input],
+            Operator::Asinh(base) => vec![&mut base.base.input],
+            Operator::Atan(base) => vec![&mut base.base.input],
+            Operator::Atanh(base) => vec![&mut base.base.input],
+            Operator::AveragePool(base) => vec![&mut base.base.input],
+            Operator::BatchNormalization(base) =>
+                vec![
+                    &mut base.base.input,
+                    &mut base.base.scale,
+                    &mut base.base.bias,
+                    &mut base.base.input_mean,
+                    &mut base.base.input_variance
+                ],
+            Operator::BitShift(base) => vec![&mut base.base.input1, &mut base.base.input2],
+            Operator::BitwiseAnd(base) => {
+                vec![&mut base.base.input1, &mut base.base.input2]
+            }
+            Operator::BitwiseNot(base) => vec![&mut base.base.input],
+            Operator::BitwiseOr(base) => vec![&mut base.base.input1, &mut base.base.input2],
+            Operator::BitwiseXor(base) => {
+                vec![&mut base.base.input1, &mut base.base.input2]
+            }
+            Operator::Cast(base) => vec![&mut base.base.input],
+            Operator::Ceil(base) => vec![&mut base.base.input],
+            Operator::Concat(base) =>
+                base.base.inputs
+                    .iter_mut()
+                    .map(|s| s)
+                    .collect(),
+            Operator::Conv2d(base) => {
+                if let Some(bias) = base.base.bias.as_mut() {
+                    vec![&mut base.base.input, &mut base.base.kernel, bias]
+                } else {
+                    vec![&mut base.base.input, &mut base.base.kernel]
+                }
+            }
+            Operator::Conv2dInteger(base) => {
+                if let Some(bias) = base.base.bias.as_mut() {
+                    vec![&mut base.base.input, &mut base.base.kernel, bias]
+                } else {
+                    vec![&mut base.base.input, &mut base.base.kernel]
+                }
+            }
+            Operator::Cos(base) => vec![&mut base.base.input],
+            Operator::Cosh(base) => vec![&mut base.base.input],
+            Operator::ConstantOfShape(base) => vec![&mut base.base.input],
+            Operator::Div(base) => vec![&mut base.base.input1, &mut base.base.input2],
+            Operator::Dropout(base) => vec![&mut base.base.input],
+            Operator::Equal(base) => vec![&mut base.base.input1, &mut base.base.input2],
+            Operator::Erf(base) => vec![&mut base.base.input],
+            Operator::Exp(base) => vec![&mut base.base.input],
+            Operator::Expand(base) => vec![&mut base.base.input],
+            Operator::EyeLike(base) => vec![&mut base.base.input],
+            Operator::Flatten(base) => vec![&mut base.base.input],
+            Operator::Floor(base) => vec![&mut base.base.input],
+            Operator::Gather(base) => vec![&mut base.base.input, &mut base.base.indices],
+            Operator::Gemm(base) => vec![&mut base.base.a, &mut base.base.b],
+            Operator::GlobalAveragePool(base) => vec![&mut base.base.input],
+            Operator::GlobalMaxPool(base) => vec![&mut base.base.input],
+            Operator::Greater(base) => vec![&mut base.base.input1, &mut base.base.input2],
+            Operator::Identity(base) => vec![&mut base.base.input],
+            Operator::If(base) => vec![&mut base.base],
+            Operator::IsInf(base) => vec![&mut base.base.input],
+            Operator::IsNaN(base) => vec![&mut base.base.input],
+            Operator::Less(base) => vec![&mut base.base.input1, &mut base.base.input2],
+            Operator::Log(base) => vec![&mut base.base.input],
+            Operator::Loop(base) => vec![&mut base.base],
+            Operator::Lstm(base) =>
+                vec![&mut base.base.x, &mut base.base.w, &mut base.base.r],
+            Operator::MatMul(base) => vec![&mut base.base.a, &mut base.base.b],
+            Operator::MatMulInteger(base) => vec![&mut base.base.a, &mut base.base.b],
+            Operator::Max(base) => vec![&mut base.base.input1, &mut base.base.input2],
+            Operator::MaxPool(base) => vec![&mut base.base.input],
+            Operator::Mean(base) => vec![&mut base.base.input],
+            Operator::Min(base) => vec![&mut base.base.input1, &mut base.base.input2],
+            Operator::Mod(base) => vec![&mut base.base.input1, &mut base.base.input2],
+            Operator::Mul(base) => vec![&mut base.base.input1, &mut base.base.input2],
+            Operator::Neg(base) => vec![&mut base.base.input],
+            Operator::Not(base) => vec![&mut base.base.input],
+            Operator::OneHot(base) => vec![&mut base.base.input],
+            Operator::Or(base) => vec![&mut base.base.input1, &mut base.base.input2],
+            Operator::Pad(base) => vec![&mut base.base.input],
+            Operator::Pow(base) => vec![&mut base.base.input1, &mut base.base.input2],
+            Operator::RandomNormal(base) => vec![&mut base.base.input],
+            Operator::RandomNormalLike(base) => vec![&mut base.base.input],
+            Operator::RandomUniform(base) => vec![&mut base.base.input],
+            Operator::RandomUniformLike(base) => vec![&mut base.base.input],
+            Operator::Reciprocal(base) => vec![&mut base.base.input],
+            | Operator::ReduceL1(base)
+            | Operator::ReduceL2(base)
+            | Operator::ReduceLogSum(base)
+            | Operator::ReduceLogSumExp(base)
+            | Operator::ReduceSumSquare(base)
+            | Operator::ReduceMax(base)
+            | Operator::ReduceMean(base)
+            | Operator::ReduceMin(base)
+            | Operator::ReduceProd(base)
+            | Operator::ReduceSum(base) => if let Some(axes) = base.base.axes.as_mut() {
+                vec![&mut base.base.input, axes]
+            } else {
+                vec![&mut base.base.input]
+            }
+            Operator::Reshape(base) => vec![&mut base.base.input, &mut base.base.shape],
+            Operator::Round(base) => vec![&mut base.base.input],
+            Operator::Sigmoid(base) => vec![&mut base.base.input],
+            Operator::Sign(base) => vec![&mut base.base.input],
+            Operator::Sin(base) => vec![&mut base.base.input],
+            Operator::Sinh(base) => vec![&mut base.base.input],
+            Operator::Slice(base) => vec![&mut base.base.input],
+            Operator::Split(base) => vec![&mut base.base.input],
+            Operator::Sqrt(base) => vec![&mut base.base.input],
+            Operator::Squeeze(base) => vec![&mut base.base.input],
+            Operator::Sub(base) => vec![&mut base.base.input1, &mut base.base.input2],
+            Operator::Sum(base) => vec![&mut base.base.input],
+            Operator::Shape(base) => vec![&mut base.base.input],
+            Operator::Tan(base) => vec![&mut base.base.input],
+            Operator::Tanh(base) => vec![&mut base.base.input],
+            Operator::Transpose(base) => vec![&mut base.base.input],
+            Operator::InvPermute(base) => vec![&mut base.base.input],
+            Operator::PermuteContiguous(base) => vec![&mut base.base.input],
+            Operator::Trilu(base) => vec![&mut base.base.input],
+            Operator::Unsqueeze(base) => vec![&mut base.base.input],
+            Operator::Where(base) => vec![&mut base.base.input, &mut base.base.condition],
+            Operator::Xor(base) => vec![&mut base.base.input1, &mut base.base.input2],
+            Operator::Bernoulli(base) => vec![&mut base.base.input],
+            Operator::BlackmanWindow(base) => vec![&mut base.base.input],
+            Operator::CastLike(base) => vec![&mut base.base.input],
+            Operator::Celu(base) => vec![&mut base.base.input],
+            Operator::Clip(base) => vec![&mut base.base.input],
+            Operator::Elu(base) => vec![&mut base.base.input],
+            Operator::Gelu(base) => vec![&mut base.base.input],
+            Operator::GreaterOrEqual(base) => {
+                vec![&mut base.base.input1, &mut base.base.input2]
+            }
+            Operator::HammingWindow(base) => vec![&mut base.base.input],
+            Operator::HannWindow(base) => vec![&mut base.base.input],
+            Operator::HardSigmoid(base) => vec![&mut base.base.input],
+            Operator::HardSwish(base) => vec![&mut base.base.input],
+            Operator::LayerNormalization(base) => vec![&mut base.base.input],
+            Operator::LeakyRelu(base) => vec![&mut base.base.input],
+            Operator::LessOrEqual(base) => {
+                vec![&mut base.base.input1, &mut base.base.input2]
+            }
+            Operator::Mish(base) => vec![&mut base.base.input],
+            Operator::Relu(base) => vec![&mut base.base.input],
+            Operator::Selu(base) => vec![&mut base.base.input],
+            Operator::Shrink(base) => vec![&mut base.base.input],
+            Operator::Softmax(base) | Operator::LogSoftmax(base) => vec![&mut base.base.input],
+            Operator::SoftmaxCrossEntropyLoss(base) => vec![&mut base.base.input],
+            Operator::Softplus(base) => vec![&mut base.base.input],
+            Operator::Softsign(base) => vec![&mut base.base.input],
+            Operator::Conv2dFused(base) => {
+                if let Some(bias) = base.base.bias.as_mut() {
+                    vec![&mut base.base.input, &mut base.base.kernel, bias]
+                } else {
+                    vec![&mut base.base.input, &mut base.base.kernel]
+                }
+            }
+        }
+    }
+
+
     pub(super) fn outputs(&self) -> Vec<&str> {
         match self {
             Operator::Constant(base) => vec![base.base.as_str()],
@@ -946,6 +1119,166 @@ impl Operator {
             Operator::Softplus(base) => vec![base.base.output.as_str()],
             Operator::Softsign(base) => vec![base.base.output.as_str()],
             Operator::Conv2dFused(base) => vec![base.base.output.as_str()],
+        }
+    }
+
+    pub(super) fn outputs_mut(&mut self) -> Vec<&mut String> {
+        match self {
+            Operator::Constant(base) => vec![&mut base.base],
+            Operator::Contiguous(base) => vec![&mut base.base.output],
+            Operator::Abs(base) => vec![&mut base.base.output],
+            Operator::Acos(base) => vec![&mut base.base.output],
+            Operator::Acosh(base) => vec![&mut base.base.output],
+            Operator::Add(base) => vec![&mut base.base.output],
+            Operator::And(base) => vec![&mut base.base.output],
+            Operator::ArgMax(base) => vec![&mut base.base.output],
+            Operator::ArgMin(base) => vec![&mut base.base.output],
+            Operator::Asin(base) => vec![&mut base.base.output],
+            Operator::Asinh(base) => vec![&mut base.base.output],
+            Operator::Atan(base) => vec![&mut base.base.output],
+            Operator::Atanh(base) => vec![&mut base.base.output],
+            Operator::AveragePool(base) => vec![&mut base.base.output],
+            Operator::BatchNormalization(base) => {
+                let mut ret = vec![&mut base.base.y];
+                if let Some(running_mean) = base.base.running_mean.as_mut() {
+                    ret.push(running_mean);
+                }
+                if let Some(running_var) = base.base.running_var.as_mut() {
+                    ret.push(running_var);
+                }
+                ret
+            }
+            Operator::BitShift(base) => vec![&mut base.base.output],
+            Operator::BitwiseAnd(base) => { vec![&mut base.base.output] }
+            Operator::BitwiseNot(base) => vec![&mut base.base.output],
+            Operator::BitwiseOr(base) => vec![&mut base.base.output],
+            Operator::BitwiseXor(base) => { vec![&mut base.base.output] }
+            Operator::Cast(base) => vec![&mut base.base.output],
+            Operator::Ceil(base) => vec![&mut base.base.output],
+            Operator::Concat(base) =>
+                base.base.inputs
+                    .iter_mut()
+                    .map(|s| s)
+                    .collect(),
+            Operator::Conv2d(base) => vec![&mut base.base.output],
+            Operator::Conv2dInteger(base) => { vec![&mut base.base.output] }
+            Operator::Cos(base) => vec![&mut base.base.output],
+            Operator::Cosh(base) => vec![&mut base.base.output],
+            Operator::ConstantOfShape(base) => vec![&mut base.base.output],
+            Operator::Div(base) => vec![&mut base.base.output],
+            Operator::Dropout(base) => vec![&mut base.base.output],
+            Operator::Equal(base) => vec![&mut base.base.output],
+            Operator::Erf(base) => vec![&mut base.base.output],
+            Operator::Exp(base) => vec![&mut base.base.output],
+            Operator::Expand(base) => vec![&mut base.base.output],
+            Operator::EyeLike(base) => vec![&mut base.base.output],
+            Operator::Flatten(base) => vec![&mut base.base.output],
+            Operator::Floor(base) => vec![&mut base.base.output],
+            Operator::Gather(base) => vec![&mut base.base.output],
+            Operator::Gemm(base) => vec![&mut base.base.output],
+            Operator::GlobalAveragePool(base) => vec![&mut base.base.output],
+            Operator::GlobalMaxPool(base) => vec![&mut base.base.output],
+            Operator::Greater(base) => vec![&mut base.base.output],
+            Operator::Identity(base) => vec![&mut base.base.output],
+            Operator::If(_) => vec![],
+            Operator::IsInf(base) => vec![&mut base.base.output],
+            Operator::IsNaN(base) => vec![&mut base.base.output],
+            Operator::Less(base) => vec![&mut base.base.output],
+            Operator::Log(base) => vec![&mut base.base.output],
+            Operator::Loop(base) => vec![],
+            Operator::Lstm(base) => {
+                let mut ret = vec![];
+                if let Some(y) = base.base.y.as_mut() {
+                    ret.push(y);
+                }
+                if let Some(y_c) = base.base.y_c.as_mut() {
+                    ret.push(y_c);
+                }
+                if let Some(y_h) = base.base.y_h.as_mut() {
+                    ret.push(y_h);
+                }
+                ret
+            },
+            Operator::MatMul(base) => vec![&mut base.base.output],
+            Operator::MatMulInteger(base) => vec![&mut base.base.output],
+            Operator::Max(base) => vec![&mut base.base.output],
+            Operator::MaxPool(base) => vec![&mut base.base.output],
+            Operator::Mean(base) => vec![&mut base.base.output],
+            Operator::Min(base) => vec![&mut base.base.output],
+            Operator::Mod(base) => vec![&mut base.base.output],
+            Operator::Mul(base) => vec![&mut base.base.output],
+            Operator::Neg(base) => vec![&mut base.base.output],
+            Operator::Not(base) => vec![&mut base.base.output],
+            Operator::OneHot(base) => vec![&mut base.base.output],
+            Operator::Or(base) => vec![&mut base.base.output],
+            Operator::Pad(base) => vec![&mut base.base.output],
+            Operator::Pow(base) => vec![&mut base.base.output],
+            Operator::RandomNormal(base) => vec![&mut base.base.output],
+            Operator::RandomNormalLike(base) => vec![&mut base.base.output],
+            Operator::RandomUniform(base) => vec![&mut base.base.output],
+            Operator::RandomUniformLike(base) => vec![&mut base.base.output],
+            Operator::Reciprocal(base) => vec![&mut base.base.output],
+            Operator::ReduceMax(base) => vec![&mut base.base.output],
+            Operator::ReduceMean(base) => vec![&mut base.base.output],
+            Operator::ReduceMin(base) => vec![&mut base.base.output],
+            Operator::ReduceProd(base) => vec![&mut base.base.output],
+            Operator::ReduceSum(base) => vec![&mut base.base.output],
+            Operator::Reshape(base) => vec![&mut base.base.output],
+            Operator::Round(base) => vec![&mut base.base.output],
+            Operator::Sigmoid(base) => vec![&mut base.base.output],
+            Operator::Sign(base) => vec![&mut base.base.output],
+            Operator::Sin(base) => vec![&mut base.base.output],
+            Operator::Sinh(base) => vec![&mut base.base.output],
+            Operator::Slice(base) => vec![&mut base.base.output],
+            Operator::Split(base) =>
+                base.base.outputs
+                    .iter_mut()
+                    .map(|x| x)
+                    .collect(),
+            Operator::Sqrt(base) => vec![&mut base.base.output],
+            Operator::Squeeze(base) => vec![&mut base.base.output],
+            Operator::Sub(base) => vec![&mut base.base.output],
+            Operator::Sum(base) => vec![&mut base.base.output],
+            Operator::Shape(base) => vec![&mut base.base.output],
+            Operator::Tan(base) => vec![&mut base.base.output],
+            Operator::Tanh(base) => vec![&mut base.base.output],
+            Operator::Transpose(base) => vec![&mut base.base.output],
+            Operator::InvPermute(base) => vec![&mut base.base.output],
+            Operator::PermuteContiguous(base) => vec![&mut base.base.output],
+            Operator::Trilu(base) => vec![&mut base.base.output],
+            Operator::Unsqueeze(base) => vec![&mut base.base.output],
+            Operator::Where(base) => vec![&mut base.base.output],
+            Operator::Xor(base) => vec![&mut base.base.output],
+            Operator::Bernoulli(base) => vec![&mut base.base.output],
+            Operator::BlackmanWindow(base) => vec![&mut base.base.output],
+            Operator::CastLike(base) => vec![&mut base.base.output],
+            Operator::Celu(base) => vec![&mut base.base.output],
+            Operator::Clip(base) => vec![&mut base.base.output],
+            Operator::Elu(base) => vec![&mut base.base.output],
+            Operator::Gelu(base) => vec![&mut base.base.output],
+            Operator::GreaterOrEqual(base) => { vec![&mut base.base.output] }
+            Operator::HammingWindow(base) => vec![&mut base.base.output],
+            Operator::HannWindow(base) => vec![&mut base.base.output],
+            Operator::HardSigmoid(base) => vec![&mut base.base.output],
+            Operator::HardSwish(base) => vec![&mut base.base.output],
+            Operator::LayerNormalization(base) => vec![&mut base.base.output],
+            Operator::LeakyRelu(base) => vec![&mut base.base.output],
+            Operator::LessOrEqual(base) => { vec![&mut base.base.output] }
+            Operator::LogSoftmax(base) => vec![&mut base.base.output],
+            Operator::Mish(base) => vec![&mut base.base.output],
+            Operator::ReduceL1(base) => vec![&mut base.base.output],
+            Operator::ReduceL2(base) => vec![&mut base.base.output],
+            Operator::ReduceLogSum(base) => vec![&mut base.base.output],
+            Operator::ReduceLogSumExp(base) => vec![&mut base.base.output],
+            Operator::ReduceSumSquare(base) => vec![&mut base.base.output],
+            Operator::Relu(base) => vec![&mut base.base.output],
+            Operator::Selu(base) => vec![&mut base.base.output],
+            Operator::Shrink(base) => vec![&mut base.base.output],
+            Operator::Softmax(base) => vec![&mut base.base.output],
+            Operator::SoftmaxCrossEntropyLoss(base) => vec![&mut base.base.output],
+            Operator::Softplus(base) => vec![&mut base.base.output],
+            Operator::Softsign(base) => vec![&mut base.base.output],
+            Operator::Conv2dFused(base) => vec![&mut base.base.output],
         }
     }
 
