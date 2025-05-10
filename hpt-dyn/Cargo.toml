@@ -15,6 +15,8 @@ hpt-traits = { path = "../hpt-traits", version = "0.1.1" }
 hpt-allocator = { path = "../hpt-allocator", version = "0.1.1" }
 hpt-display = { path = "../hpt-display", version = "0.1.1" }
 hpt-iterator = { path = "../hpt-iterator", version = "0.1.1" }
+hpt-dataloader = { path = "../hpt-dataloader", version = "0.1.1" }
+safetensors = { workspace = true }
 cudarc = { workspace = true, optional = true }
 seq-macro = { workspace = true }
 rayon = { workspace = true }
@@ -32,6 +34,8 @@ spindle = { workspace = true }
 petgraph = { workspace = true }
 urlencoding = { workspace = true }
 log = { workspace = true }
+num_enum = { workspace = true }
+
 [build-dependencies]
 prost-build = "0.13.5"
 
@@ -44,7 +48,6 @@ cuda = [
     "hpt-types/cuda",
     "hpt-macros/cuda",
 ]
-bound_check = ["hpt-common/bound_check"]
 f16 = []
 f32 = []
 bf16 = []

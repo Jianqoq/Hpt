@@ -31,6 +31,7 @@ macro_rules! try_remove_node {
     };
 }
 
+#[inline]
 pub(crate) fn shape_fwd<'a>(
     unary: &'a Unary,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -43,6 +44,7 @@ pub(crate) fn shape_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn gather_fwd<'a>(
     gather: &'a Gather,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -54,6 +56,7 @@ pub(crate) fn gather_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn unsqueeze_fwd<'a>(
     unsqueeze: &'a Squeeze,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -64,6 +67,7 @@ pub(crate) fn unsqueeze_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn squeeze_fwd<'a>(
     squeeze: &'a Squeeze,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -74,6 +78,7 @@ pub(crate) fn squeeze_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn concat_fwd<'a>(
     concat: &'a Concat,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -106,6 +111,7 @@ pub(crate) fn constant_of_shape_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn slice_fwd<'a>(
     slice: &'a Slice,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -188,6 +194,7 @@ pub(crate) fn transpose_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn lstm_fwd<'a>(
     lstm: &'a Lstm,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -242,6 +249,7 @@ pub(crate) fn lstm_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn matmul_fwd<'a>(
     matmul: &'a Matmul,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -256,6 +264,7 @@ pub(crate) fn matmul_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn gemm_fwd<'a>(
     gemm: &'a Gemm,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -278,6 +287,8 @@ pub(crate) fn gemm_fwd<'a>(
     }
     Ok(())
 }
+
+#[inline]
 pub(crate) fn add_fwd<'a>(
     add: &'a Binary,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -329,6 +340,7 @@ pub(crate) fn add_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn conv_fwd<'a>(
     conv: &'a Conv2d,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -359,6 +371,7 @@ pub(crate) fn conv_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn conv_fused_fwd<'a>(
     conv: &'a Conv2dFused,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -377,27 +390,28 @@ pub(crate) fn conv_fused_fwd<'a>(
     let group = conv.group;
     let out = if group == 1 {
         use hpt_types::type_promote::NormalOutUnary;
+        use hpt_types::type_promote::FloatOutUnary;
         macro_rules! post_conv {
-            ($dtype: ty) => {{
+            ($dtype: ty, $activation: ident) => {{
                 inp.conv2d_post::<$dtype>(
                     kernel,
                     bias,
                     steps,
                     pads,
                     dilations,
-                    Some(|x| x._relu()),
-                    Some(|x| x._relu()),
+                    Some(|x| x.$activation()),
+                    Some(|x| x.$activation()),
                 )?
             }};
         }
         macro_rules! arm {
             ($dtype: ty) => {
                 match conv.activation {
-                    super::operators::ConvActivation::Relu => post_conv!($dtype),
-                    super::operators::ConvActivation::LeakyRelu => post_conv!($dtype),
-                    super::operators::ConvActivation::Gelu => post_conv!($dtype),
-                    super::operators::ConvActivation::Sigmoid => post_conv!($dtype),
-                    super::operators::ConvActivation::Tanh => post_conv!($dtype),
+                    super::operators::ConvActivation::Relu => post_conv!($dtype, _relu),
+                    super::operators::ConvActivation::Gelu => post_conv!($dtype, _gelu),
+                    super::operators::ConvActivation::Sigmoid => post_conv!($dtype, _sigmoid),
+                    super::operators::ConvActivation::Tanh => post_conv!($dtype, _tanh),
+                    _ => unimplemented!("conv fused fwd not implemented for {:?}", conv.activation),
                 }
             };
         }
@@ -416,8 +430,6 @@ pub(crate) fn conv_fused_fwd<'a>(
             DType::I32 => arm!(i32),
             #[cfg(feature = "u32")]
             DType::U32 => arm!(u32),
-            #[cfg(feature = "i64")]
-            DType::I64 => arm!(i64),
             #[cfg(feature = "u64")]
             DType::U64 => arm!(u64),
             #[cfg(feature = "f32")]
@@ -442,6 +454,7 @@ pub(crate) fn conv_fused_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn maxpool_fwd<'a>(
     maxpool: &'a Pooling,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -462,6 +475,7 @@ pub(crate) fn maxpool_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn avgpool_fwd<'a>(
     avgpool: &'a Pooling,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -480,6 +494,7 @@ pub(crate) fn avgpool_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn global_avgpool_fwd<'a>(
     global_avgpool: &'a Pooling,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -490,6 +505,7 @@ pub(crate) fn global_avgpool_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn global_maxpool_fwd<'a>(
     global_maxpool: &'a Pooling,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -528,6 +544,7 @@ pub(crate) fn global_maxpool_fwd<'a>(
     [sign_fwd]              [signum]                [signum_];
     [mish_fwd]              [mish]                  [mish_];
 )]
+#[inline]
 pub(crate) fn func_name<'a>(
     method: &'a Unary,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -548,6 +565,7 @@ pub(crate) fn func_name<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn selu_fwd<'a>(
     method: &'a Elu,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -568,6 +586,7 @@ pub(crate) fn selu_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn permute_contiguous_fwd<'a>(
     permute_contiguous: &'a Permute,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -579,6 +598,7 @@ pub(crate) fn permute_contiguous_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn identity_fwd<'a>(
     identity: &'a Unary,
     tensors: &mut HashMap<&'a str, Tensor>,
@@ -588,6 +608,7 @@ pub(crate) fn identity_fwd<'a>(
     Ok(())
 }
 
+#[inline]
 pub(crate) fn flatten_fwd<'a>(
     flatten: &'a Flatten,
     tensors: &mut HashMap<&'a str, Tensor>,

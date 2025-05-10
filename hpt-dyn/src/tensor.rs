@@ -1,16 +1,19 @@
 use hpt_common::error::base::TensorError;
-use hpt_common::{Pointer, layout::layout::Layout, shape::shape::Shape, strides::strides::Strides};
-use hpt_traits::tensor::{CommonBounds, TensorInfo};
+use hpt_common::{ Pointer, layout::layout::Layout, shape::shape::Shape, strides::strides::Strides };
+use hpt_dataloader::FromSafeTensors;
+use hpt_traits::tensor::{ CommonBounds, TensorInfo };
 use hpt_types::dtype::ToDType;
 use std::sync::Arc;
 
 use crate::onnx::TensorProto;
 use crate::utils::index_cal::{
-    dispatch_loop_progress_update, dispatch_map_global_idx, dispatch_map_gp,
+    dispatch_loop_progress_update,
+    dispatch_map_global_idx,
+    dispatch_map_gp,
 };
 use crate::utils::onnx::map_dtype::to_dtype;
-use crate::utils::{backend::Backend, device::Device};
-use crate::{ALIGN, DType};
+use crate::utils::{ backend::Backend, device::Device };
+use crate::{ ALIGN, DType };
 
 use hpt_iterator::TensorIterator;
 
@@ -24,15 +27,15 @@ pub struct Tensor {
     /// update loop progress
     ///
     /// return # of element need to jump
-    pub(crate) prg_update: Arc<dyn Fn(&mut [i64]) -> i64 + Send + Sync>,
+    pub(crate) prg_update: Arc<dyn (Fn(&mut [i64]) -> i64) + Send + Sync>,
     /// map global index to physical index
     ///
     /// return physical index
-    pub(crate) map_global_idx: Arc<dyn Fn(i64) -> i64 + Send + Sync>,
+    pub(crate) map_global_idx: Arc<dyn (Fn(i64) -> i64) + Send + Sync>,
     /// map global index to physical index and provide loop progress
     ///
     /// return (physical index, loop progress)
-    pub(crate) map_gp: Arc<dyn Fn(i64) -> (i64, Vec<i64>) + Send + Sync>,
+    pub(crate) map_gp: Arc<dyn (Fn(i64) -> (i64, Vec<i64>)) + Send + Sync>,
     pub(crate) mem_layout: std::alloc::Layout,
     pub(crate) backend: Backend,
 }
@@ -49,7 +52,7 @@ impl Tensor {
         unsafe {
             std::slice::from_raw_parts(
                 self.data.ptr as *const T,
-                (self.mem_layout.size() as usize) / std::mem::size_of::<T>(),
+                (self.mem_layout.size() as usize) / std::mem::size_of::<T>()
             )
         }
     }
@@ -60,7 +63,7 @@ impl Tensor {
         unsafe {
             std::slice::from_raw_parts_mut(
                 self.data.ptr as *mut T,
-                (self.mem_layout.size() as usize) / std::mem::size_of::<T>(),
+                (self.mem_layout.size() as usize) / std::mem::size_of::<T>()
             )
         }
     }
@@ -69,12 +72,12 @@ impl Tensor {
         layout: Layout,
         dtype: DType,
         device: Device,
-        take_ownership: bool,
+        take_ownership: bool
     ) -> Result<Self, TensorError> {
         let len = layout.size() as usize;
         match device {
             Device::Cpu => {
-                let ptr = Pointer::new(data, len as i64 * dtype.sizeof() as i64);
+                let ptr = Pointer::new(data, (len as i64) * (dtype.sizeof() as i64));
                 if (data as usize) % ALIGN != 0 {
                     assert_eq!(take_ownership, false);
                 } else {
@@ -83,7 +86,8 @@ impl Tensor {
                 let prg_update = dispatch_loop_progress_update(&layout);
                 let map_global_idx = dispatch_map_global_idx(&layout);
                 let map_gp = dispatch_map_gp(&layout);
-                let mem_layout = std::alloc::Layout::from_size_align(len * dtype.sizeof(), ALIGN)
+                let mem_layout = std::alloc::Layout
+                    ::from_size_align(len * dtype.sizeof(), ALIGN)
                     .expect("failed to create memory layout");
                 Ok(Self {
                     data: ptr,
@@ -99,15 +103,13 @@ impl Tensor {
                 })
             }
             #[cfg(feature = "cuda")]
-            _ => {
-                unimplemented!()
-            }
+            _ => { unimplemented!() }
         }
     }
 
     pub fn from_onnx_tensor(
         tensor: &mut TensorProto,
-        permute: &Option<Vec<i64>>,
+        permute: &Option<Vec<i64>>
     ) -> Result<Self, TensorError> {
         let shape = Shape::from(&tensor.dims);
         let layout = Layout::from(shape);
@@ -212,10 +214,10 @@ impl Tensor {
 
     pub fn from_vec<T: ToDType + CommonBounds>(
         vec: Vec<T>,
-        shape: &[i64],
+        shape: &[i64]
     ) -> Result<Self, TensorError> {
         let size = shape.iter().product::<i64>();
-        if size != vec.len() as i64 {
+        if size != (vec.len() as i64) {
             panic!("vec size mismatch");
         }
         let dtype = T::to_dtype();
@@ -269,6 +271,32 @@ macro_rules! impl_tensor_info {
 impl_tensor_info!(Tensor);
 impl_tensor_info!(&Tensor);
 impl_tensor_info!(&mut Tensor);
+
+impl FromSafeTensors for Tensor {
+    fn from_safe_tensors(data: &safetensors::SafeTensors, tensor_name: &str) -> Self {
+        let tensor = data.tensor(tensor_name);
+        match tensor {
+            Ok(view) => {
+                let shape = Shape::from(view.shape());
+                let dtype = match view.dtype() {
+                    safetensors::Dtype::F32 => DType::F32,
+                    _ => todo!(),
+                };
+                let mut ret = Self::empty(&shape, dtype, Device::Cpu).expect("failed to create tensor");
+                let size = ret.size();
+                let slice = ret.as_slice_mut::<u8>();
+                let view_slice = unsafe {
+                    std::slice::from_raw_parts(view.data().as_ptr() as *const u8, size * dtype.sizeof() as usize)
+                };
+                slice.copy_from_slice(view_slice);
+                ret
+            }
+            Err(e) => {
+                panic!("tensor not found: {}", e);
+            }
+        }
+    }
+}
 
 impl<T: CommonBounds> TensorIterator<'_, T> for Tensor {}
 

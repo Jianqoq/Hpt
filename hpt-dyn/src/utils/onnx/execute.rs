@@ -190,12 +190,6 @@ impl OnnxModel {
                             }
                         }
 
-                        let mut total_conv = std::time::Duration::from_secs(0);
-                        let mut total_relu = std::time::Duration::from_secs(0);
-                        let mut total_add = std::time::Duration::from_secs(0);
-                        let mut total_maxpool = std::time::Duration::from_secs(0);
-                        let mut total_transpose = std::time::Duration::from_secs(0);
-                        let mut total_conv_fused = std::time::Duration::from_secs(0);
                         run_fwd(&operators, &mut tensors, &mut node_degree)?;
                         if let Some(graph) = model.graph.as_ref() {
                             for output in graph.output.iter() {
@@ -204,13 +198,6 @@ impl OnnxModel {
                                 }
                             }
                         }
-                        // println!("tensors: {:#?}", tensors);
-                        // println!("total_conv time: {:?}", total_conv);
-                        // println!("total_relu time: {:?}", total_relu);
-                        // println!("total_add time: {:?}", total_add);
-                        // println!("total_maxpool time: {:?}", total_maxpool);
-                        // println!("total_transpose time: {:?}", total_transpose);
-                        // println!("total_conv_fused time: {:?}", total_conv_fused);
                     }
                 }
                 Ok(res)
