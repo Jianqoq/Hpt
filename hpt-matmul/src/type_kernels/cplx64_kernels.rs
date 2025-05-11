@@ -2,6 +2,7 @@ use crate::microkernel_trait::MatmulMicroKernel;
 use crate::Cplx64Vec;
 use num_complex::Complex64;
 use std::ops::Add;
+use crate::type_kernels::common::avx2_kernels;
 
 impl crate::Zero for Complex64 {
     const ZERO: Self = Complex64::new(0.0, 0.0);
@@ -103,3 +104,6 @@ impl MatmulMicroKernel<Cplx64Vec, Complex64, Cplx64Vec> for Complex64 {
         14
     }
 }
+
+#[cfg(target_feature = "avx2")]
+avx2_kernels!(Complex64, Cplx64Vec);

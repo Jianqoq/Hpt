@@ -60,7 +60,7 @@ fn matmul_f32_benchmark(c: &mut Criterion<crate::benchmarks::Timer>) {
         // );
         group.bench_with_input(BenchmarkId::new("hpt(builtin)", n), &n, |b, _| {
             spindle::with_lock(10, || {
-                b.iter(|| a2.matmul(&c2).unwrap());
+                b.iter(|| a2.gemm(&c2, 0.0, 1.0, false, false, false).unwrap());
             });
         });
         // group.bench_with_input(BenchmarkId::new("torch", n), &n, |b, _| {

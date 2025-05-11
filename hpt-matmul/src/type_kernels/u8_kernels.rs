@@ -1,6 +1,7 @@
 use crate::{ microkernel_trait::MatmulMicroKernel, U8Vec };
 use num_traits::ConstZero;
 use std::ops::Add;
+use crate::type_kernels::common::avx2_kernels;
 
 impl crate::Zero for u8 {
     const ZERO: Self = 0;
@@ -181,3 +182,6 @@ impl MatmulMicroKernel<U8Vec, u8, U8Vec> for u8 {
         14
     }
 }
+
+#[cfg(target_feature = "avx2")]
+avx2_kernels!(u8, U8Vec);

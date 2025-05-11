@@ -2,6 +2,7 @@ use crate::microkernel_trait::MatmulMicroKernel;
 use crate::BoolVec;
 use crate::Zero;
 use crate::Add;
+use crate::type_kernels::common::avx2_kernels;
 
 impl Zero for bool {
     const ZERO: Self = false;
@@ -150,3 +151,6 @@ impl MatmulMicroKernel<BoolVec, bool, BoolVec> for bool {
         32
     }
 }
+
+#[cfg(target_feature = "avx2")]
+avx2_kernels!(bool, BoolVec);

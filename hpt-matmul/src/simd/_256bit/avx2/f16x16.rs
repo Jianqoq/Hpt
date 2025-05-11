@@ -1,14 +1,10 @@
-use crate::convertion::VecConvertor;
-use crate::vectors::arch_simd::_256bit::f32x8;
-use crate::vectors::arch_simd::_256bit::u16x16;
-
-use crate::simd::_256bit::f16x16;
-use crate::simd::_256bit::i16x16;
+use crate::simd::_256bit::common::f16x16::f16x16;
+use crate::simd::_256bit::common::f32x8::f32x8;
 
 impl f16x16 {
     /// convert to [f32x8; 2]
     #[inline(always)]
-    pub fn to_2_f32vec(self) -> [f32x8; 2] {
+    pub(crate)  fn to_2_f32vec(self) -> [f32x8; 2] {
         unsafe {
             #[cfg(target_feature = "f16c")]
             {
@@ -32,7 +28,7 @@ impl f16x16 {
 
     /// convert to f32x8
     #[inline(always)]
-    pub fn high_to_f32vec(self) -> f32x8 {
+    pub(crate)  fn high_to_f32vec(self) -> f32x8 {
         unsafe {
             #[cfg(target_feature = "f16c")]
             {
@@ -54,7 +50,7 @@ impl f16x16 {
 
     /// convert from 2 f32x4
     #[inline(always)]
-    pub fn from_2_f32vec(val: [f32x8; 2]) -> Self {
+    pub(crate)  fn from_2_f32vec(val: [f32x8; 2]) -> Self {
         unsafe {
             #[cfg(target_feature = "f16c")]
             {
@@ -98,58 +94,5 @@ pub(crate) fn f32x8_to_f16x8(val: f32x8) -> [u16; 8] {
             }
             result
         }
-    }
-}
-
-impl VecConvertor for f16x16 {
-    #[inline(always)]
-    fn to_i16(self) -> i16x16 {
-        #[cfg(target_feature = "f16c")]
-        {
-            use std::arch::x86_64::*;
-            unsafe {
-                let [x0, x1]: [f32x8; 2] = std::mem::transmute(self.to_2_f32vec());
-                let i0 = _mm256_cvtps_epi32(x0.0);
-                let i1 = _mm256_cvtps_epi32(x1.0);
-                let packed = _mm256_packs_epi32(i0, i1);
-                return i16x16(packed);
-            }
-        }
-        #[cfg(not(target_feature = "f16c"))]
-        {
-            let arr: [half::f16; 16] = unsafe { std::mem::transmute(self) };
-            let mut result = [0i16; 16];
-            for i in 0..16 {
-                result[i] = arr[i].to_f32() as i16;
-            }
-            unsafe { std::mem::transmute(result) }
-        }
-    }
-    #[inline(always)]
-    fn to_u16(self) -> u16x16 {
-        #[cfg(target_feature = "f16c")]
-        {
-            use std::arch::x86_64::*;
-            unsafe {
-                let [x0, x1]: [f32x8; 2] = std::mem::transmute(self.to_2_f32vec());
-                let i0 = _mm256_cvtps_epi32(x0.0);
-                let i1 = _mm256_cvtps_epi32(x1.0);
-                let packed = _mm256_packus_epi32(i0, i1);
-                u16x16(packed)
-            }
-        }
-        #[cfg(not(target_feature = "f16c"))]
-        {
-            let arr: [half::f16; 16] = unsafe { std::mem::transmute(self) };
-            let mut result = [0u16; 16];
-            for i in 0..16 {
-                result[i] = arr[i].to_f32() as u16;
-            }
-            unsafe { std::mem::transmute(result) }
-        }
-    }
-    #[inline(always)]
-    fn to_f16(self) -> f16x16 {
-        self
     }
 }

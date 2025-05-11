@@ -2,6 +2,7 @@ use crate::microkernel_trait::MatmulMicroKernel;
 use crate::F32Vec;
 use num_traits::ConstZero;
 use std::ops::Add;
+use crate::type_kernels::common::avx2_kernels;
 
 impl crate::Zero for f32 {
     const ZERO: Self = 0.0;
@@ -107,3 +108,6 @@ impl MatmulMicroKernel<F32Vec, f32, F32Vec> for f32 {
         14
     }
 }
+
+#[cfg(target_feature = "avx2")]
+avx2_kernels!(f32, F32Vec);

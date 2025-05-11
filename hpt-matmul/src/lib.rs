@@ -15,6 +15,7 @@ pub(crate) mod type_kernels {
     pub(crate) mod cplx32_kernels;
     pub(crate) mod cplx64_kernels;
     pub(crate) mod bool_kernels;
+    pub(crate) mod common;
 }
 
 pub(crate) mod utils;
@@ -117,12 +118,10 @@ pub(crate) mod simd {
             pub(crate) mod i32x8;
             pub(crate) mod i64x4;
             pub(crate) mod i8x32;
-            pub(crate) mod isizex4;
             pub(crate) mod u16x16;
             pub(crate) mod u32x8;
             pub(crate) mod u64x4;
             pub(crate) mod u8x32;
-            pub(crate) mod usizex4;
         }
         #[cfg(target_feature = "avx2")]
         pub(crate) mod avx2 {
@@ -143,31 +142,21 @@ pub(crate) mod simd {
         }
     }
 
-    #[cfg(
-        any(
-            all(not(target_feature = "avx2"), target_feature = "sse"),
-            target_arch = "arm",
-            target_arch = "aarch64",
-            target_feature = "neon"
-        )
-    )]
-    pub(crate) use crate::simd::_128bit::{
-        F16Vec,
-        Bf16Vec,
-        BoolVec,
-        Cplx32Vec,
-        Cplx64Vec,
-        F32Vec,
-        F64Vec,
-        I16Vec,
-        I32Vec,
-        I64Vec,
-        I8Vec,
-        U16Vec,
-        U32Vec,
-        U64Vec,
-        U8Vec,
-    };
+    pub(crate) type F32Vec = crate::simd::_256bit::common::f32x8::f32x8;
+    pub(crate) type F64Vec = crate::simd::_256bit::common::f64x4::f64x4;
+    pub(crate) type I16Vec = crate::simd::_256bit::common::i16x16::i16x16;
+    pub(crate) type I32Vec = crate::simd::_256bit::common::i32x8::i32x8;
+    pub(crate) type I64Vec = crate::simd::_256bit::common::i64x4::i64x4;
+    pub(crate) type I8Vec = crate::simd::_256bit::common::i8x32::i8x32;
+    pub(crate) type U16Vec = crate::simd::_256bit::common::u16x16::u16x16;
+    pub(crate) type U32Vec = crate::simd::_256bit::common::u32x8::u32x8;
+    pub(crate) type U64Vec = crate::simd::_256bit::common::u64x4::u64x4;
+    pub(crate) type U8Vec = crate::simd::_256bit::common::u8x32::u8x32;
+    pub(crate) type F16Vec = crate::simd::_256bit::common::f16x16::f16x16;
+    pub(crate) type Bf16Vec = crate::simd::_256bit::common::bf16x16::bf16x16;
+    pub(crate) type BoolVec = crate::simd::_256bit::common::boolx32::boolx32;
+    pub(crate) type Cplx32Vec = crate::simd::_256bit::common::cplx32x4::cplx32x4;
+    pub(crate) type Cplx64Vec = crate::simd::_256bit::common::cplx64x2::cplx64x2;
 }
 
 pub(crate) const fn vec_size<T>() -> usize {
@@ -235,6 +224,16 @@ impl<T> DerefMut for Pointer<T> {
 unsafe impl<T> Send for Pointer<T> {}
 unsafe impl<T> Sync for Pointer<T> {}
 
+#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+pub(crate) const REG_BITS: usize = 256;
+
+#[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
+pub(crate) const REG_BITS: usize = 512;
+
+#[cfg(all(target_arch = "x86_64", not(target_feature = "avx2"), target_feature = "sse"))]
+pub(crate) const REG_BITS: usize = 128;
+
+#[cfg(all(target_arch = "arm", target_feature = "neon"))]
 pub(crate) const REG_BITS: usize = 128;
 
 use std::ops::{ AddAssign, Deref, DerefMut, Index, IndexMut };
