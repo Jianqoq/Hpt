@@ -20,7 +20,7 @@ members = [
     "hpt-codegen",
     "hpt-cudakernels",
     "hpt-examples",
-    "hpt-dyn",
+    "hpt-dyn", "hpt-matmul", "hpt-conv",
 ]
 
 exclude = ["hpt-bench", "hpt-tests", "hpt-codegen", "hpt-examples"]
@@ -105,6 +105,7 @@ graphviz-rust = "0.9.4"
 log = "0.4.27"
 env_logger = "0.11.8"
 num_enum = "0.7"
+num-integer = "0.1"
 
 [[bin]]
 name = "hpt-workspace"
