@@ -231,22 +231,39 @@ pub(crate) fn matmul<T, F1, F2>(
                 threads,
                 prepacked_rhs,
             ),
-            _ => matmul_template_no_block_info(
-                lhs,
-                rhs,
-                out,
-                m,
-                n,
-                k,
-                lhs_rs,
-                rhs_rs,
-                dst_cs,
-                lhs_cs,
-                rhs_cs,
-                threads,
-                prepacked_rhs,
-            ),
-        },
+            _ => {
+                if threads == 1 {
+                    hpt_matmul::single_thread_matmul::<T>(
+                        lhs,
+                        rhs,
+                        out,
+                        lhs_rs,
+                        rhs_rs,
+                        dst_cs,
+                        lhs_cs,
+                        rhs_cs,
+                        threads,
+                        prepacked_rhs,
+                    );
+                } else {
+                    matmul_template_no_block_info(
+                        lhs,
+                        rhs,
+                        out,
+                        m,
+                        n,
+                        k,
+                        lhs_rs,
+                        rhs_rs,
+                        dst_cs,
+                        lhs_cs,
+                        rhs_cs,
+                        threads,
+                        prepacked_rhs,
+                    );
+                }
+        }
+    },
         (Some(post_op), Some(post_op_vec)) => match T::STR {
             #[cfg(feature = "f16")]
             "f16" => {
