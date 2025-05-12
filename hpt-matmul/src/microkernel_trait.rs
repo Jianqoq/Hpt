@@ -1,7 +1,11 @@
 use crate::Pointer;
 
 /// A trait for microkernels of matrix multiplication
-pub trait MatmulMicroKernel<SelfVec, MixedType, MixedVec> where Self: Sized {
+pub trait MatmulMicroKernel where Self: Sized {
+    type SelfVec;
+    type MixedType;
+    type MixedVec;
+    
     fn get_kernel(
         nr: usize,
         mr: usize
@@ -12,7 +16,7 @@ pub trait MatmulMicroKernel<SelfVec, MixedType, MixedVec> where Self: Sized {
     ) -> fn(Pointer<Self>, Pointer<Self>, Pointer<Self>, i64, i64, usize, usize, i64, bool);
     fn get_kernel_with_post_op<
         F: Fn(Self, usize, usize) -> Self,
-        G: Fn(SelfVec, usize, usize) -> SelfVec
+        G: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
     >(
         nr: usize,
         mr: usize
@@ -34,7 +38,7 @@ pub trait MatmulMicroKernel<SelfVec, MixedType, MixedVec> where Self: Sized {
     );
     fn get_horizontal_kernel_with_post_op<
         F: Fn(Self, usize, usize) -> Self,
-        G: Fn(SelfVec, usize, usize) -> SelfVec
+        G: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
     >(
         nr: usize,
         mr: usize
@@ -58,8 +62,8 @@ pub trait MatmulMicroKernel<SelfVec, MixedType, MixedVec> where Self: Sized {
         nr: usize,
         mr: usize
     ) -> fn(
-        Pointer<MixedType>,
-        Pointer<MixedType>,
+        Pointer<Self::MixedType>,
+        Pointer<Self::MixedType>,
         Pointer<Self>,
         i64,
         i64,
@@ -67,20 +71,20 @@ pub trait MatmulMicroKernel<SelfVec, MixedType, MixedVec> where Self: Sized {
         usize,
         i64,
         bool,
-        fn(*mut SelfVec, *const MixedVec),
-        fn(&mut Self, &MixedType)
+        fn(*mut Self::SelfVec, *const Self::MixedVec),
+        fn(&mut Self, &Self::MixedType)
     ) {
         unimplemented!()
     }
     fn get_mixed_precision_kernel_with_post_op<
         F: Fn(Self, usize, usize) -> Self,
-        G: Fn(SelfVec, usize, usize) -> SelfVec
+        G: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
     >(
         nr: usize,
         mr: usize
     ) -> fn(
-        Pointer<MixedType>,
-        Pointer<MixedType>,
+        Pointer<Self::MixedType>,
+        Pointer<Self::MixedType>,
         Pointer<Self>,
         i64,
         i64,
@@ -91,8 +95,8 @@ pub trait MatmulMicroKernel<SelfVec, MixedType, MixedVec> where Self: Sized {
         bool,
         usize,
         usize,
-        fn(*mut SelfVec, *const MixedVec),
-        fn(&mut Self, &MixedType),
+        fn(*mut Self::SelfVec, *const Self::MixedVec),
+        fn(&mut Self, &Self::MixedType),
         F,
         G
     ) {

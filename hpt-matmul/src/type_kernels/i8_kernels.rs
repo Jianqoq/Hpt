@@ -183,5 +183,8 @@ impl MatmulMicroKernel<I8Vec, i8, I8Vec> for i8 {
     }
 }
 
-#[cfg(target_feature = "avx2")]
+#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 avx2_kernels!(i8, I8Vec);
+
+#[cfg(target_feature = "avx512f")]
+avx512_kernels!(i8, I8Vec);

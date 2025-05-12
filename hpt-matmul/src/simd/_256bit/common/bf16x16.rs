@@ -1,5 +1,4 @@
 use crate::simd::_256bit::common::f32x8::f32x8;
-use super::i16x16::i16x16;
 
 /// a vector of 16 bf16 values
 #[allow(non_camel_case_types)]

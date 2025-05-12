@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::collections::HashMap;
 
 use hpt_common::error::base::TensorError;
@@ -13,8 +15,6 @@ pub(super) fn run_fwd<'a>(
     tensors: &mut HashMap<&'a str, Tensor>,
     node_degree: &mut HashMap<&'a str, u32>
 ) -> Result<(), TensorError> {
-    let mut total_conv = std::time::Duration::from_secs(0);
-    let mut total_conv_fused = std::time::Duration::from_secs(0);
     for operator in operators.iter() {
         match operator {
             Operator::Constant(_) => {}
@@ -36,13 +36,11 @@ pub(super) fn run_fwd<'a>(
             Operator::BitwiseNot(unary) => todo!(),
             Operator::BitwiseOr(binary) => todo!(),
             Operator::BitwiseXor(binary) => todo!(),
-            Operator::Cast(cast) => todo!(),
+            Operator::Cast(cast) => cast_fwd(&cast.base, tensors)?,
             Operator::Ceil(unary) => todo!(),
             Operator::Concat(concat) => concat_fwd(&concat.base, tensors)?,
             Operator::Conv2d(conv2d) => {
-                let start = std::time::Instant::now();
                 conv_fwd(&conv2d.base, tensors, node_degree)?;
-                total_conv += start.elapsed();
             },
             Operator::Conv2dInteger(conv2d) => conv_fwd(&conv2d.base, tensors, node_degree)?,
             Operator::Cos(unary) => cos_fwd(&unary.base, tensors, node_degree)?,
@@ -147,12 +145,9 @@ pub(super) fn run_fwd<'a>(
             Operator::InvPermute(permute) => todo!(),
             Operator::PermuteContiguous(permute) => permute_contiguous_fwd(&permute.base, tensors)?,
             Operator::Conv2dFused(base) => {
-                let start = std::time::Instant::now();
                 conv_fused_fwd(&base.base, tensors, node_degree)?;
-                total_conv_fused += start.elapsed();
             },
         }
     }
-    println!("total_conv time: {:?}", total_conv + total_conv_fused);
     Ok(())
 }

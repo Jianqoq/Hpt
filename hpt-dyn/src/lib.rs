@@ -15,6 +15,10 @@ pub fn current_num_threads() -> usize {
     rayon::current_num_threads()
 }
 
+pub fn physical_cores() -> usize {
+    num_cpus::get_physical()
+}
+
 pub mod onnx {
     pub use crate::utils::onnx::load_model::load_onnx;
     pub(crate) use crate::utils::onnx::proto::*;

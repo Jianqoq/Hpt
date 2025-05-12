@@ -102,6 +102,7 @@ pub(super) fn run_init(
             "LayerNormalization" => layernorm_init(node, formats),
             "BatchNormalization" => bn_init(node, formats),
             "Expand" => expand_init(node, formats),
+            "Cast" => cast_init(node, formats),
             _ => unimplemented!("unsupported op when initializing: {:?}", node.op_type()),
         };
         for op in ops {

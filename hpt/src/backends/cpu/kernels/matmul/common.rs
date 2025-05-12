@@ -210,6 +210,7 @@ pub(crate) fn pack_b_mixed_precision<T, I>(
 }
 
 #[inline(always)]
+#[track_caller]
 pub(crate) fn matmul_prepare<T, const DEVICE: usize, A>(
     lhs: &_Tensor<T, Cpu, DEVICE, A>,
     rhs: &_Tensor<T, Cpu, DEVICE, A>,

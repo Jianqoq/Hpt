@@ -105,5 +105,8 @@ impl MatmulMicroKernel<Cplx64Vec, Complex64, Cplx64Vec> for Complex64 {
     }
 }
 
-#[cfg(target_feature = "avx2")]
+#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
+avx2_kernels!(Complex64, Cplx64Vec);
+
+#[cfg(target_feature = "avx512f")]
 avx2_kernels!(Complex64, Cplx64Vec);

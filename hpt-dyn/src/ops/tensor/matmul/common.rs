@@ -99,6 +99,7 @@ pub(crate) fn calculate_prgs(
 }
 
 #[inline(always)]
+#[track_caller]
 pub(crate) fn matmul_prepare(
     lhs: &Tensor,
     rhs: &Tensor,

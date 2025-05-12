@@ -64,7 +64,7 @@ use quote::{format_ident, quote};
 use type_utils::{type_simd_lanes, SimdType, TypeInfo};
 
 /// number of registers available for the target architecture
-#[cfg(target_feature = "avx2")]
+#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 const NUM_REG: usize = 16;
 #[cfg(all(
     any(target_feature = "sse", target_arch = "arm"),

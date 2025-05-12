@@ -215,20 +215,20 @@ pub(crate) fn func_name<T, F1, F2>(
     let prgs = calculate_prgs(n, nc, mr, nr, mc, &intervals);
     let rem_prgs = calculate_prgs(n, nc, mr, nr, m % mc, &mc_rem_intervals);
 
-    // let mut do_rhs_pack = true;
-    // if let Some(prepacked) = &prepack_rhs {
-    //     assert_eq!(prepacked.kc, kc);
-    //     assert_eq!(prepacked.mc, mc);
-    //     assert_eq!(prepacked.nc, nc);
-    //     assert_eq!(prepacked.mr, mr);
-    //     assert_eq!(prepacked.nr, nr);
-    //     assert_eq!(prepacked.num_threads, num_threads);
-    //     assert_eq!(prepacked.prgs, prgs);
-    //     assert_eq!(prepacked.rem_prgs, rem_prgs);
-    //     assert_eq!(prepacked.intervals, intervals);
-    //     assert_eq!(prepacked.rem_intervals, mc_rem_intervals);
-    //     do_rhs_pack = false;
-    // }
+    let mut do_rhs_pack = true;
+    if let Some(prepacked) = &prepack_rhs {
+        assert_eq!(prepacked.kc, kc);
+        assert_eq!(prepacked.mc, mc);
+        assert_eq!(prepacked.nc, nc);
+        assert_eq!(prepacked.mr, mr);
+        assert_eq!(prepacked.nr, nr);
+        assert_eq!(prepacked.num_threads, num_threads);
+        assert_eq!(prepacked.prgs, prgs);
+        assert_eq!(prepacked.rem_prgs, rem_prgs);
+        assert_eq!(prepacked.intervals, intervals);
+        assert_eq!(prepacked.rem_intervals, mc_rem_intervals);
+        do_rhs_pack = false;
+    }
     let get_kernel = if mr == 1 {
         <T>::get_horizontal_kernel
     } else {
@@ -277,26 +277,14 @@ pub(crate) fn func_name<T, F1, F2>(
                 let use_start = intervals[tid].0;
                 let use_end = intervals[tid].1;
 
-                // let mut packed_b = if let Some(prepacked) = &prepack_rhs {
-                //     let buffer = if ib == mc {
-                //         &prepacked.buffers[p_idx][tid]
-                //     } else {
-                //         &prepacked.buffer_rems[p_idx][tid]
-                //     };
-                //     buffer.cast::<T>()
-                // } else {
-                //     L2_SLAB.with_borrow_mut(|mem| {
-                //         let stack = DynStack::new(mem);
-                //         let (mut packed_b_storage, _) =
-                //             stack.make_aligned_with::<T>(num_nr_blocks * nr * kc, ALIGN, |_| {
-                //                 T::ZERO
-                //             });
-                //         let packed_b =
-                //             Pointer::new(packed_b_storage.as_mut_ptr(), panel_size as i64);
-                //         packed_b
-                //     })
-                // };
-                let mut packed_b = 
+                let mut packed_b = if let Some(prepacked) = &prepack_rhs {
+                    let buffer = if ib == mc {
+                        &prepacked.buffers[p_idx][tid]
+                    } else {
+                        &prepacked.buffer_rems[p_idx][tid]
+                    };
+                    buffer.cast::<T>()
+                } else {
                     L2_SLAB.with_borrow_mut(|mem| {
                         let stack = DynStack::new(mem);
                         let (mut packed_b_storage, _) =
@@ -306,7 +294,8 @@ pub(crate) fn func_name<T, F1, F2>(
                         let packed_b =
                             Pointer::new(packed_b_storage.as_mut_ptr(), panel_size as i64);
                         packed_b
-                    });
+                    })
+                };
                 let packed_b_cpy = packed_b;
                 let use_prg = prgs[tid];
                 let j_start = use_prg[0] * nc;
@@ -319,7 +308,7 @@ pub(crate) fn func_name<T, F1, F2>(
                 'outer: for j in (j_start..n).step_by(nc) {
                     let jb = min(nc, n - j);
                     let c = out + (i as i64) * ldc + (j as i64);
-                    // if do_rhs_pack {
+                    if do_rhs_pack {
                         pack_b::<T>(
                             b + ((p as i64) * ldb + (j as i64) * rhs_col_stride),
                             packed_b,
@@ -332,10 +321,10 @@ pub(crate) fn func_name<T, F1, F2>(
                             jj_start,
                             need_full_pack,
                         );
-                    // } else {
-                    //     packed_b = packed_b_cpy + panel_idx * panel_size as i64;
-                    //     panel_idx += 1;
-                    // }
+                    } else {
+                        packed_b = packed_b_cpy + panel_idx * panel_size as i64;
+                        panel_idx += 1;
+                    }
                     for ii in (i_start..ib).step_by(mr) {
                         let mb = min(mr, ib - ii);
                         let micro_kernel = get_kernel(nr / <T>::Vec::SIZE, mb);

@@ -27,7 +27,7 @@ use crate::{
     [matmul]        [get_kernel]               [get_horizontal_kernel]                  [];
     [matmul_post]   [get_kernel_with_post_op]  [get_horizontal_kernel_with_post_op]     [p + pb == k, i + ii, j + jj, _post_op.clone(), _post_op_vec.clone()];
 )]
-pub(crate) fn func_name<T, TVec, F1, F2>(
+pub(crate) fn func_name<T, F1, F2>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
@@ -51,9 +51,9 @@ pub(crate) fn func_name<T, TVec, F1, F2>(
     _post_op_vec: F2
 )
     where
-        T: MatmulMicroKernel<TVec, T, TVec> + Send + Sync + Copy + Zero,
-        F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
-        F2: Fn(TVec, usize, usize) -> TVec + Clone + Send + Sync + 'static
+        T: MatmulMicroKernel + Send + Sync + Copy + Zero,
+        F1: Fn(T, usize, usize) -> T + Clone + Send + Sync,
+        F2: Fn(<T as MatmulMicroKernel>::SelfVec, usize, usize) -> <T as MatmulMicroKernel>::SelfVec + Clone + Send + Sync
 {
     assert_eq!(nr % vec_size::<T>(), 0);
 
@@ -164,7 +164,7 @@ pub(crate) fn func_name<T, TVec, F1, F2>(
                     let jb = min(nc, n - j);
                     let c = out + (i as i64) * ldc + (j as i64);
                     if do_rhs_pack {
-                        pack_b::<T, TVec>(
+                        pack_b::<T, <T as MatmulMicroKernel>::SelfVec>(
                             b + ((p as i64) * ldb + (j as i64) * rhs_col_stride),
                             packed_b,
                             ldb,
@@ -237,7 +237,7 @@ pub(crate) fn func_name<T, TVec, F1, F2>(
     [matmul_mp]         [T]     [get_mixed_precision_kernel]                [vec_cast_back, cast_back];
     [matmul_mp_post]    [T]     [get_mixed_precision_kernel_with_post_op]   [p + pb == k, i + ii, j + jj, vec_cast_back, cast_back, _post_op.clone(), _post_op_vec.clone()];
 )]
-pub(crate) fn func_name<T, IM, TVec, IMVec, F1, F2>(
+pub(crate) fn func_name<T, F1, F2>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
@@ -258,17 +258,17 @@ pub(crate) fn func_name<T, IM, TVec, IMVec, F1, F2>(
     prepack_rhs: Option<PrePackedRhs>,
     _post_op: F1,
     _post_op_vec: F2,
-    pack_vec: fn(*mut IMVec, *const TVec, usize),
-    pack_vec_exceed: fn(*mut IMVec, usize),
-    pack_zero: fn(&mut IM, &T),
-    vec_cast_back: fn(*mut TVec, *const IMVec),
-    cast_back: fn(&mut T, &IM)
+    pack_vec: fn(*mut <T as MatmulMicroKernel>::MixedVec, *const <T as MatmulMicroKernel>::SelfVec, usize),
+    pack_vec_exceed: fn(*mut <T as MatmulMicroKernel>::MixedVec, usize),
+    pack_zero: fn(&mut <T as MatmulMicroKernel>::MixedType, &T),
+    vec_cast_back: fn(*mut <T as MatmulMicroKernel>::SelfVec, *const <T as MatmulMicroKernel>::MixedVec),
+    cast_back: fn(&mut T, &<T as MatmulMicroKernel>::MixedType)
 )
     where
-        T: MatmulMicroKernel<TVec, IM, IMVec> + Send + Sync + Copy + Zero,
-        IM: Send + Sync + Copy + Zero,
+        T: MatmulMicroKernel + Send + Sync + Copy + Zero,
+        <T as MatmulMicroKernel>::MixedType: Send + Sync + Copy + Zero,
         F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
-        F2: Fn(TVec, usize, usize) -> TVec + Clone + Send + Sync + 'static
+        F2: Fn(<T as MatmulMicroKernel>::SelfVec, usize, usize) -> <T as MatmulMicroKernel>::SelfVec + Clone + Send + Sync + 'static
 {
     assert_eq!(nr % vec_size::<T>(), 0);
 
@@ -278,9 +278,9 @@ pub(crate) fn func_name<T, IM, TVec, IMVec, F1, F2>(
     let packed_a = L3_SLAB.with(|mem| {
         let mut mem = mem.borrow_mut();
         let stack = DynStack::new(&mut mem);
-        let (packed_a_storage, _) = stack.make_aligned_uninit::<IM>(num_mr_blocks * mr * kc, 64);
+        let (packed_a_storage, _) = stack.make_aligned_uninit::<<T as MatmulMicroKernel>::MixedType>(num_mr_blocks * mr * kc, 64);
         let packed_a = Pointer::new(
-            packed_a_storage.as_mut_ptr() as *mut IM,
+            packed_a_storage.as_mut_ptr() as *mut <T as MatmulMicroKernel>::MixedType,
             num_mr_blocks * mr * kc
         );
         packed_a
@@ -320,7 +320,7 @@ pub(crate) fn func_name<T, IM, TVec, IMVec, F1, F2>(
             let first_kiter = p == 0;
             let pb = min(kc, k - p);
             spindle::for_each_raw(num_threads, |tid| {
-                pack_a_mixed_precision::<T, IM>(
+                pack_a_mixed_precision::<T, <T as MatmulMicroKernel>::MixedType>(
                     a + (i as i64) * lda + (p as i64) * lhs_col_stride,
                     packed_a,
                     lda,
@@ -342,17 +342,17 @@ pub(crate) fn func_name<T, IM, TVec, IMVec, F1, F2>(
                     } else {
                         &prepacked.buffer_rems[p_idx][tid]
                     };
-                    buffer.cast::<IM>()
+                    buffer.cast::<<T as MatmulMicroKernel>::MixedType>()
                 } else {
                     L2_SLAB.with(|mem| {
                         let mut mem = mem.borrow_mut();
                         let stack = DynStack::new(&mut mem);
-                        let (packed_b_storage, _) = stack.make_aligned_uninit::<IM>(
+                        let (packed_b_storage, _) = stack.make_aligned_uninit::<<T as MatmulMicroKernel>::MixedType>(
                             num_nr_blocks * nr * kc,
                             64
                         );
                         Pointer::new(
-                            packed_b_storage.as_mut_ptr() as *mut IM,
+                            packed_b_storage.as_mut_ptr() as *mut <T as MatmulMicroKernel>::MixedType,
                             num_nr_blocks * nr * kc
                         )
                     })
@@ -371,7 +371,7 @@ pub(crate) fn func_name<T, IM, TVec, IMVec, F1, F2>(
                     let jb = min(nc, n - j);
                     let c = out.clone() + (i as i64) * ldc + (j as i64);
                     if do_rhs_pack {
-                        pack_b_mixed_precision::<T, IM, TVec, IMVec>(
+                        pack_b_mixed_precision::<T, <T as MatmulMicroKernel>::MixedType, <T as MatmulMicroKernel>::SelfVec, <T as MatmulMicroKernel>::MixedVec>(
                             b + ((p as i64) * ldb + (j as i64) * rhs_col_stride),
                             packed_b,
                             ldb,

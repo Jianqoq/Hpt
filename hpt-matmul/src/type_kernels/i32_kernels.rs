@@ -109,5 +109,8 @@ impl MatmulMicroKernel<I32Vec, i32, I32Vec> for i32 {
     }
 }
 
-#[cfg(target_feature = "avx2")]
+#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 avx2_kernels!(i32, I32Vec);
+
+#[cfg(target_feature = "avx512f")]
+avx512_kernels!(i32, I32Vec);

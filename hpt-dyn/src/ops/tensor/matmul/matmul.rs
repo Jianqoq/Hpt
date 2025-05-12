@@ -7,7 +7,7 @@ use hpt_common::{
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use crate::{Device, Tensor, current_num_threads};
+use crate::{Device, Tensor, current_num_threads, physical_cores};
 
 #[cfg(feature = "bf16")]
 use super::matmul_mp::bf16_matmul_mp_no_block_info;
@@ -159,7 +159,7 @@ pub(crate) fn matmul<T, F1, F2>(
     out_strides: &[i64],
     lhs_shape: &[i64],
     rhs_shape: &[i64],
-    threads: usize,
+    mut threads: usize,
     prepacked_rhs: Option<PrePackedRhs>,
     post_op: Option<F1>,
     post_op_vec: Option<F2>,
@@ -168,6 +168,7 @@ pub(crate) fn matmul<T, F1, F2>(
     F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
     F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
 {
+    threads = threads.min(crate::physical_cores());
     let lhs_cs = lhs_strides[lhs_strides.len() - 1];
     let lhs_rs = lhs_strides[lhs_strides.len() - 2];
     let dst_cs = out_strides[out_strides.len() - 2];
@@ -321,6 +322,81 @@ pub(crate) fn matmul<T, F1, F2>(
                 post_op_vec,
                 threads,
                 prepacked_rhs,
+            ),
+        },
+        _ => panic!("post_op and post_op_vec must be both Some or both None"),
+    }
+}
+
+#[duplicate::duplicate_item(
+    func_name    T    ;
+    [new_matmul_f32] [f32];
+)]
+pub(crate) fn func_name<F1, F2>(
+    lhs: Pointer<T>,
+    rhs: Pointer<T>,
+    out: Pointer<T>,
+    lhs_strides: &[i64],
+    rhs_strides: &[i64],
+    out_strides: &[i64],
+    lhs_shape: &[i64],
+    rhs_shape: &[i64],
+    mut threads: usize,
+    prepacked_rhs: Option<hpt_matmul::PrePackedRhs>,
+    post_op: Option<F1>,
+    post_op_vec: Option<F2>,
+) where
+    T: CommonBounds + MatmulMicroKernel,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(<T as TypeCommon>::Vec, usize, usize) -> <T as TypeCommon>::Vec + Clone + Send + Sync + 'static,
+{
+    threads = threads.min(crate::physical_cores());
+    let lhs_cs = lhs_strides[lhs_strides.len() - 1];
+    let lhs_rs = lhs_strides[lhs_strides.len() - 2];
+    let dst_cs = out_strides[out_strides.len() - 2];
+    let rhs_cs = rhs_strides[rhs_strides.len() - 1];
+    let rhs_rs = rhs_strides[rhs_strides.len() - 2];
+    let m = lhs_shape[lhs_shape.len() - 2] as usize;
+    let n = rhs_shape[rhs_shape.len() - 1] as usize;
+    let k = rhs_shape[rhs_shape.len() - 2] as usize;
+    match (post_op, post_op_vec) {
+        (None, None) => match T::STR {
+            _ => hpt_matmul::matmul(
+                lhs.ptr as *const T,
+                rhs.ptr as *const T,
+                out.ptr,
+                m,
+                n,
+                k,
+                lhs_rs,
+                rhs_rs,
+                dst_cs,
+                lhs_cs,
+                rhs_cs,
+                threads,
+                prepacked_rhs,
+            ),
+        },
+        (Some(post_op), Some(post_op_vec)) => match T::STR {
+            _ => hpt_matmul::matmul_with_post(
+                lhs.ptr as *const T,
+                rhs.ptr as *const T,
+                out.ptr,
+                m,
+                n,
+                k,
+                lhs_rs,
+                rhs_rs,
+                dst_cs,
+                lhs_cs,
+                rhs_cs,
+                threads,
+                prepacked_rhs,
+                post_op,
+                |x, m, n| unsafe {
+                    let x: <T as TypeCommon>::Vec = std::mem::transmute(x);
+                    std::mem::transmute(post_op_vec(x, m, n))
+                },
             ),
         },
         _ => panic!("post_op and post_op_vec must be both Some or both None"),
@@ -504,6 +580,44 @@ where
         }
 
         Ok(result)
+    }
+}
+
+#[track_caller]
+pub(crate) fn new_matmul_with_out<T, F1, F2>(
+    lhs: &Tensor,
+    rhs: &Tensor,
+    out: Option<Tensor>,
+    mut threads: usize,
+    prepacked_rhs: Option<PrePackedRhs>,
+    post_op: Option<F1>,
+    post_op_vec: Option<F2>,
+) -> Result<Tensor, TensorError>
+where
+    T: CommonBounds + MatmulMicroKernel,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
+{
+    threads = threads.min(num_cpus::get_physical());
+    if lhs.shape().len() == 2 && rhs.shape().len() == 2 {
+        let c = matmul_prepare(&lhs, &rhs, out)?;
+        matmul(
+            lhs.data.cast::<T>(),
+            rhs.data.cast::<T>(),
+            c.data.cast::<T>(),
+            lhs.strides(),
+            rhs.strides(),
+            c.strides(),
+            lhs.shape(),
+            rhs.shape(),
+            threads,
+            prepacked_rhs,
+            post_op,
+            post_op_vec,
+        );
+        Ok(c)
+    } else {
+        panic!("Tensor must have at least 2 dimensions, got {}", lhs.shape().len());
     }
 }
 
@@ -778,6 +892,73 @@ impl Tensor {
             None,
             Some(post_op),
             Some(post_op_vec),
+        )
+    }
+    pub(crate) fn _matmul_f32_<F1, F2>(
+        &self,
+        rhs: &Tensor,
+        out: Option<Tensor>,
+        threads: usize,
+        pre_packed_rhs: Option<hpt_matmul::PrePackedRhs>,
+        post_op: Option<F1>,
+        post_op_vec: Option<F2>,
+    ) -> Result<Tensor, TensorError>
+    where
+        F1: Fn(f32, usize, usize) -> f32 + Clone + Send + Sync + 'static,
+        F2: Fn(<f32 as TypeCommon>::Vec, usize, usize) -> <f32 as TypeCommon>::Vec + Clone + Send + Sync + 'static,
+    {
+        let c = matmul_prepare(self, &rhs, out)?;
+        new_matmul_f32(
+            self.data.cast::<f32>(),
+            rhs.data.cast::<f32>(),
+            c.data.cast::<f32>(),
+            self.strides(),
+            rhs.strides(),
+            c.strides(),
+            self.shape(),
+            rhs.shape(),
+            threads.min(physical_cores()),
+            pre_packed_rhs,
+            post_op,
+            post_op_vec
+        );
+        Ok(c)
+    }
+    pub(crate) fn _addmm_f32_(
+        &self,
+        rhs: &Tensor,
+        bias: &Tensor,
+        out: Option<Tensor>,
+        threads: usize,
+        pre_packed_rhs: Option<hpt_matmul::PrePackedRhs>,
+    ) -> Result<Tensor, TensorError>
+    {
+        let bias_strides = bias.strides();
+        if bias.ndim() > 2 {
+            panic!("bias must be a 2D tensor");
+        }
+        let bias_cs = bias_strides[bias_strides.len() - 1];
+        let bias_rs = if bias.ndim() == 1 {
+            0i64
+        } else {
+            bias_strides[bias_strides.len() - 2]
+        };
+        let bias_ptr = bias.ptr::<f32>();
+        self._matmul_f32_(
+            rhs,
+            out,
+            threads,
+            pre_packed_rhs,
+            Some(move |inp, m, n| {
+                bias_ptr[(m as i64) * bias_rs + (n as i64) * bias_cs]._add(inp)
+            }),
+            Some(move |inp, m, n| {
+                let offset = (m as i64) * bias_rs + (n as i64) * bias_cs;
+                (bias_ptr + offset)
+                    .cast::<<f32 as TypeCommon>::Vec>()
+                    .read_unaligned()
+                    + inp
+            }),
         )
     }
     pub(crate) fn _matmul_post<T, F1, F2>(

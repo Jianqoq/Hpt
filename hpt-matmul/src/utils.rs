@@ -1,7 +1,8 @@
+use rayon::iter::ParallelIterator;
 use std::cmp::min;
 
 use gemm_common::{ cache::CACHE_INFO, gemm::CACHELINE_ALIGN };
-
+use rayon::iter::IntoParallelIterator;
 use crate::{vec_size, Pointer, Zero};
 
 thread_local! {
@@ -97,7 +98,7 @@ pub(crate) fn kernel_params(
         let n_iter = n.div_ceil(auto_nc);
         n.div_ceil(n_iter * nr) * nr
     };
-    let auto_nc = Ord::min(auto_nc, 2 * nr);
+    let auto_nc = Ord::min(auto_nc, 8 * nr);
 
     let auto_mc = if l3_cache_bytes == 0 {
         0
@@ -402,9 +403,185 @@ pub(crate) fn pack_b<T: Copy, TVec>(
     }
 }
 
+pub(crate) fn prepack_b<T: Copy, TVec>(
+    b: Pointer<T>,
+    m: usize,
+    n: usize,
+    k: usize,
+    ldb: i64,
+    rhs_col_stride: i64,
+    kc: usize,
+    mc: usize,
+    nc: usize,
+    nr: usize,
+    mr: usize,
+    mut num_threads: usize,
+) -> PrePackedRhs
+{
+    assert_eq!(
+        nr % vec_size::<T>(),
+        0,
+    );
+
+    let num_nr_blocks = (nc + nr - 1) / nr;
+
+    let mc_jobs = calculate_jobs(n, nc, mr, nr, mc);
+    let mc_rem_jobs = calculate_jobs(n, nc, mr, nr, m % mc);
+    num_threads = num_threads.min(mc_jobs);
+    let intervals = mt_intervals(mc_jobs, num_threads);
+    let mc_rem_intervals = mt_intervals(mc_rem_jobs, num_threads);
+    let prgs = calculate_prgs(n, nc, mr, nr, mc, &intervals);
+    let rem_prgs = calculate_prgs(n, nc, mr, nr, m % mc, &mc_rem_intervals);
+
+    let panel_size = num_nr_blocks * nr * kc;
+
+    let func = |ib: usize| {
+        let prgs = if ib == mc { &prgs } else { &rem_prgs };
+        let intervals = if ib == mc {
+            &intervals
+        } else {
+            &mc_rem_intervals
+        };
+        let mut buffer_size = vec![0; num_threads];
+        (0..num_threads).for_each(|tid| {
+            let use_start = intervals[tid].0;
+            let use_end = intervals[tid].1;
+            let use_prg = prgs[tid];
+            let j_start = use_prg[0] * nc;
+            let mut job_count = use_start;
+            let mut i_start = use_prg[1] * mr;
+            let mut jj_start = use_prg[2] * nr;
+            'outer: for j in (j_start..n).step_by(nc) {
+                let jb = min(nc, n - j);
+                buffer_size[tid] += panel_size;
+                for _ in (i_start..ib).step_by(mr) {
+                    for _ in (jj_start..jb).step_by(nr) {
+                        job_count += 1;
+                        if job_count >= use_end {
+                            break 'outer;
+                        }
+                    }
+                    jj_start = 0;
+                }
+                i_start = 0;
+            }
+        });
+
+        let mut cum_buffer_size = vec![0usize; num_threads];
+        let mut sum = 0;
+        for i in 0..num_threads {
+            sum += buffer_size[i];
+            cum_buffer_size[i] = sum - buffer_size[i];
+        }
+
+        let total_panels_size = buffer_size.iter().sum::<usize>();
+
+        let num_kc = k.div_ceil(kc);
+        
+        let mem_layout = std::alloc::Layout::from_size_align(total_panels_size * num_kc * size_of::<T>(), 64).unwrap();
+        
+        let buffer = unsafe {
+          Pointer::new(std::alloc::alloc_zeroed(mem_layout), total_panels_size * num_kc * size_of::<T>())
+        };
+        
+        let buffer_ptr = buffer.cast::<T>();
+
+        let mut buffers = vec![];
+        for (p_idx, p) in (0..k).step_by(kc).enumerate() {
+            let pb = min(kc, k - p);
+
+            let local_buffers = (0..num_threads)
+                .into_par_iter()
+                .map(|tid| {
+                    let use_start = intervals[tid].0;
+                    let use_end = intervals[tid].1;
+                    let use_prg = prgs[tid];
+                    let j_start = use_prg[0] * nc;
+                    let mut job_count = use_start;
+                    let mut i_start = use_prg[1] * mr;
+                    let mut jj_start = use_prg[2] * nr;
+                    let need_full_pack = ib - i_start > mr;
+
+                    let mut buffer_ptr =
+                        buffer_ptr + (cum_buffer_size[tid] + p_idx * total_panels_size) as i64;
+                    let ptr_cpy = buffer_ptr;
+                    'outer: for j in (j_start..n).step_by(nc) {
+                        let jb = min(nc, n - j);
+                        pack_b::<T, TVec>(
+                            b + ((p as i64) * ldb + (j as i64) * rhs_col_stride),
+                            buffer_ptr,
+                            ldb,
+                            rhs_col_stride,
+                            jb,
+                            pb,
+                            kc,
+                            nr,
+                            jj_start,
+                            need_full_pack,
+                        );
+                        buffer_ptr += panel_size as i64;
+                        for _ in (i_start..ib).step_by(mr) {
+                            for _ in (jj_start..jb).step_by(nr) {
+                                job_count += 1;
+                                if job_count >= use_end {
+                                    break 'outer;
+                                }
+                            }
+                            jj_start = 0;
+                        }
+                        i_start = 0;
+                    }
+                    ptr_cpy.cast::<u8>()
+                })
+                .collect::<Vec<_>>();
+            buffers.push(local_buffers);
+        }
+        (buffers, (buffer, mem_layout))
+    };
+    let rem = m % mc;
+    if rem > 0 {
+        let (buffers_rem, buff_rem) = func(rem);
+        let (buffers, buff) = func(mc);
+        PrePackedRhs {
+            buffers,
+            buffer_rems: buffers_rem,
+            buffer: buff,
+            buffer_rem: buff_rem,
+            mr,
+            mc,
+            kc,
+            nr,
+            nc,
+            num_threads,
+            prgs,
+            rem_prgs,
+            intervals,
+            rem_intervals: mc_rem_intervals,
+        }
+    } else {
+        let (buffers, buff_tensor) = func(mc);
+        PrePackedRhs {
+            buffers: buffers.clone(),
+            buffer_rems: buffers,
+            buffer: buff_tensor.clone(),
+            buffer_rem: buff_tensor,
+            mr,
+            mc,
+            kc,
+            nr,
+            nc,
+            num_threads,
+            prgs,
+            rem_prgs,
+            intervals,
+            rem_intervals: mc_rem_intervals,
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Clone)]
-pub(crate) struct PrePackedRhs {
+pub struct PrePackedRhs {
     pub(crate) buffers: Vec<Vec<Pointer<u8>>>,
     pub(crate) buffer_rems: Vec<Vec<Pointer<u8>>>,
     pub(crate) buffer: (Pointer<u8>, std::alloc::Layout),
@@ -419,4 +596,10 @@ pub(crate) struct PrePackedRhs {
     pub(crate) rem_prgs: Vec<[usize; 3]>,
     pub(crate) intervals: Vec<(usize, usize)>,
     pub(crate) rem_intervals: Vec<(usize, usize)>,
+}
+
+impl PrePackedRhs {
+    pub fn num_threads(&self) -> usize {
+        self.num_threads
+    }
 }

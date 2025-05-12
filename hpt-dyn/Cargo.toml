@@ -16,6 +16,7 @@ hpt-allocator = { path = "../hpt-allocator", version = "0.1.1" }
 hpt-display = { path = "../hpt-display", version = "0.1.1" }
 hpt-iterator = { path = "../hpt-iterator", version = "0.1.1" }
 hpt-dataloader = { path = "../hpt-dataloader", version = "0.1.1" }
+hpt-matmul = { path = "../hpt-matmul", version = "0.1.1" }
 safetensors = { workspace = true }
 cudarc = { workspace = true, optional = true }
 seq-macro = { workspace = true }
@@ -41,6 +42,7 @@ prost-build = "0.13.5"
 
 [features]
 default = ["f32", "i64"]
+bound_check = []
 cuda = [
     "cudarc",
     "hpt-allocator/cuda",

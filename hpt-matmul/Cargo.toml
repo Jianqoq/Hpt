@@ -13,6 +13,7 @@ gemm-common = { workspace = true }
 spindle = { workspace = true }
 duplicate = { workspace = true }
 num-integer = { workspace = true }
+rayon = {workspace = true}
 
 [features]
 default = ["f32"]

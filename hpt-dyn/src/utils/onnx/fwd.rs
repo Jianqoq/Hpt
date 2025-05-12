@@ -5,7 +5,8 @@ use hpt_traits::tensor::TensorInfo;
 use hpt_types::dtype::DType;
 
 use super::operators::{
-    Binary, Concat, ConstantOfShape, Conv2d, Conv2dFused, Elu, Flatten, Gather, Gemm, Lstm, Matmul, Permute, Pooling, Slice, Squeeze, Unary
+    Binary, Concat, ConstantOfShape, Conv2d, Conv2dFused, Elu, Flatten, Gather, Gemm, Lstm, Matmul,
+    Permute, Pooling, Slice, Squeeze, Unary,
 };
 use crate::Tensor;
 
@@ -301,7 +302,7 @@ pub(crate) fn add_fwd<'a>(
             let a = &tensors[add.input1.as_str()];
             let b = &tensors[add.input2.as_str()];
             a + b
-        },
+        }
         (None, Some(b)) => {
             let a = &tensors[add.input1.as_str()];
             let broadcast_layout = a.layout.broadcast(&b.shape())?;
@@ -389,8 +390,8 @@ pub(crate) fn conv_fused_fwd<'a>(
     let steps = conv.strides;
     let group = conv.group;
     let out = if group == 1 {
-        use hpt_types::type_promote::NormalOutUnary;
         use hpt_types::type_promote::FloatOutUnary;
+        use hpt_types::type_promote::NormalOutUnary;
         macro_rules! post_conv {
             ($dtype: ty, $activation: ident) => {{
                 inp.conv2d_post::<$dtype>(
@@ -618,5 +619,16 @@ pub(crate) fn flatten_fwd<'a>(
     let out = inp.flatten(flatten.start_dim, (inp.ndim() - 1) as i64)?;
     tensors.insert(flatten.output.as_str(), out);
     try_remove_node!(flatten.input.as_str(), node_degree, tensors);
+    Ok(())
+}
+
+#[inline]
+pub(crate) fn cast_fwd<'a>(
+    cast: &'a super::operators::Cast,
+    tensors: &mut HashMap<&'a str, Tensor>,
+) -> Result<(), TensorError> {
+    let inp = &tensors[cast.input.as_str()];
+    let out = inp.cast(cast.to)?;
+    tensors.insert(cast.output.as_str(), out);
     Ok(())
 }

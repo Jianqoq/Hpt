@@ -1,4 +1,4 @@
-// #![allow(unused)]
+#![allow(unused)]
 
 use std::collections::HashMap;
 
@@ -272,6 +272,7 @@ pub(crate) struct Cast {
     pub(crate) input: String,
     pub(crate) output: String,
     pub(crate) to: DType,
+    pub(crate) saturate: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -613,7 +614,6 @@ pub(crate) enum OperatorEnum {
     Conv2dFused,
 }
 
-
 impl Operator {
     pub(super) fn id(&self) -> &str {
         match self {
@@ -762,14 +762,13 @@ impl Operator {
             Operator::Atan(base) => vec![base.base.input.as_str()],
             Operator::Atanh(base) => vec![base.base.input.as_str()],
             Operator::AveragePool(base) => vec![base.base.input.as_str()],
-            Operator::BatchNormalization(base) =>
-                vec![
-                    base.base.input.as_str(),
-                    base.base.scale.as_str(),
-                    base.base.bias.as_str(),
-                    base.base.input_mean.as_str(),
-                    base.base.input_variance.as_str()
-                ],
+            Operator::BatchNormalization(base) => vec![
+                base.base.input.as_str(),
+                base.base.scale.as_str(),
+                base.base.bias.as_str(),
+                base.base.input_mean.as_str(),
+                base.base.input_variance.as_str(),
+            ],
             Operator::BitShift(base) => vec![base.base.input1.as_str(), base.base.input2.as_str()],
             Operator::BitwiseAnd(base) => {
                 vec![base.base.input1.as_str(), base.base.input2.as_str()]
@@ -781,21 +780,25 @@ impl Operator {
             }
             Operator::Cast(base) => vec![base.base.input.as_str()],
             Operator::Ceil(base) => vec![base.base.input.as_str()],
-            Operator::Concat(base) =>
-                base.base.inputs
-                    .iter()
-                    .map(|s| s.as_str())
-                    .collect(),
+            Operator::Concat(base) => base.base.inputs.iter().map(|s| s.as_str()).collect(),
             Operator::Conv2d(base) => {
                 if let Some(bias) = base.base.bias.as_ref() {
-                    vec![base.base.input.as_str(), base.base.kernel.as_str(), bias.as_str()]
+                    vec![
+                        base.base.input.as_str(),
+                        base.base.kernel.as_str(),
+                        bias.as_str(),
+                    ]
                 } else {
                     vec![base.base.input.as_str(), base.base.kernel.as_str()]
                 }
             }
             Operator::Conv2dInteger(base) => {
                 if let Some(bias) = base.base.bias.as_ref() {
-                    vec![base.base.input.as_str(), base.base.kernel.as_str(), bias.as_str()]
+                    vec![
+                        base.base.input.as_str(),
+                        base.base.kernel.as_str(),
+                        bias.as_str(),
+                    ]
                 } else {
                     vec![base.base.input.as_str(), base.base.kernel.as_str()]
                 }
@@ -824,8 +827,29 @@ impl Operator {
             Operator::Less(base) => vec![base.base.input1.as_str(), base.base.input2.as_str()],
             Operator::Log(base) => vec![base.base.input.as_str()],
             Operator::Loop(base) => vec![base.base.as_str()],
-            Operator::Lstm(base) =>
-                vec![base.base.x.as_str(), base.base.w.as_str(), base.base.r.as_str()],
+            Operator::Lstm(base) => {
+                let mut vec = vec![
+                    base.base.x.as_str(),
+                    base.base.w.as_str(),
+                    base.base.r.as_str(),
+                ];
+                if let Some(init_h) = &base.base.initial_h {
+                    vec.push(init_h.as_str());
+                }
+                if let Some(init_c) = &base.base.initial_c {
+                    vec.push(init_c.as_str());
+                }
+                if let Some(peephole) = &base.base.p {
+                    vec.push(peephole.as_str());
+                }
+                if let Some(b) = &base.base.b {
+                    vec.push(b);
+                }
+                if let Some(sequence) = &base.base.sequence_lens {
+                    vec.push(sequence.as_str());
+                }
+                vec
+            }
             Operator::MatMul(base) => vec![base.base.a.as_str(), base.base.b.as_str()],
             Operator::MatMulInteger(base) => vec![base.base.a.as_str(), base.base.b.as_str()],
             Operator::Max(base) => vec![base.base.input1.as_str(), base.base.input2.as_str()],
@@ -845,7 +869,7 @@ impl Operator {
             Operator::RandomUniform(base) => vec![base.base.input.as_str()],
             Operator::RandomUniformLike(base) => vec![base.base.input.as_str()],
             Operator::Reciprocal(base) => vec![base.base.input.as_str()],
-            | Operator::ReduceL1(base)
+            Operator::ReduceL1(base)
             | Operator::ReduceL2(base)
             | Operator::ReduceLogSum(base)
             | Operator::ReduceLogSumExp(base)
@@ -854,10 +878,12 @@ impl Operator {
             | Operator::ReduceMean(base)
             | Operator::ReduceMin(base)
             | Operator::ReduceProd(base)
-            | Operator::ReduceSum(base) => if let Some(axes) = base.base.axes.as_ref() {
-                vec![base.base.input.as_str(), axes.as_str()]
-            } else {
-                vec![base.base.input.as_str()]
+            | Operator::ReduceSum(base) => {
+                if let Some(axes) = base.base.axes.as_ref() {
+                    vec![base.base.input.as_str(), axes.as_str()]
+                } else {
+                    vec![base.base.input.as_str()]
+                }
             }
             Operator::Reshape(base) => vec![base.base.input.as_str(), base.base.shape.as_str()],
             Operator::Round(base) => vec![base.base.input.as_str()],
@@ -910,7 +936,11 @@ impl Operator {
             Operator::Softsign(base) => vec![base.base.input.as_str()],
             Operator::Conv2dFused(base) => {
                 if let Some(bias) = base.base.bias.as_ref() {
-                    vec![base.base.input.as_str(), base.base.kernel.as_str(), bias.as_str()]
+                    vec![
+                        base.base.input.as_str(),
+                        base.base.kernel.as_str(),
+                        bias.as_str(),
+                    ]
                 } else {
                     vec![base.base.input.as_str(), base.base.kernel.as_str()]
                 }
@@ -934,14 +964,13 @@ impl Operator {
             Operator::Atan(base) => vec![&mut base.base.input],
             Operator::Atanh(base) => vec![&mut base.base.input],
             Operator::AveragePool(base) => vec![&mut base.base.input],
-            Operator::BatchNormalization(base) =>
-                vec![
-                    &mut base.base.input,
-                    &mut base.base.scale,
-                    &mut base.base.bias,
-                    &mut base.base.input_mean,
-                    &mut base.base.input_variance
-                ],
+            Operator::BatchNormalization(base) => vec![
+                &mut base.base.input,
+                &mut base.base.scale,
+                &mut base.base.bias,
+                &mut base.base.input_mean,
+                &mut base.base.input_variance,
+            ],
             Operator::BitShift(base) => vec![&mut base.base.input1, &mut base.base.input2],
             Operator::BitwiseAnd(base) => {
                 vec![&mut base.base.input1, &mut base.base.input2]
@@ -953,11 +982,7 @@ impl Operator {
             }
             Operator::Cast(base) => vec![&mut base.base.input],
             Operator::Ceil(base) => vec![&mut base.base.input],
-            Operator::Concat(base) =>
-                base.base.inputs
-                    .iter_mut()
-                    .map(|s| s)
-                    .collect(),
+            Operator::Concat(base) => base.base.inputs.iter_mut().map(|s| s).collect(),
             Operator::Conv2d(base) => {
                 if let Some(bias) = base.base.bias.as_mut() {
                     vec![&mut base.base.input, &mut base.base.kernel, bias]
@@ -996,8 +1021,25 @@ impl Operator {
             Operator::Less(base) => vec![&mut base.base.input1, &mut base.base.input2],
             Operator::Log(base) => vec![&mut base.base.input],
             Operator::Loop(base) => vec![&mut base.base],
-            Operator::Lstm(base) =>
-                vec![&mut base.base.x, &mut base.base.w, &mut base.base.r],
+            Operator::Lstm(base) => {
+                let mut vec = vec![&mut base.base.x, &mut base.base.w, &mut base.base.r];
+                if let Some(init_h) = &mut base.base.initial_h {
+                    vec.push(init_h);
+                }
+                if let Some(init_c) = &mut base.base.initial_c {
+                    vec.push(init_c);
+                }
+                if let Some(p) = &mut base.base.p {
+                    vec.push(p);
+                }
+                if let Some(b) = &mut base.base.b {
+                    vec.push(b);
+                }
+                if let Some(sequence) = &mut base.base.sequence_lens {
+                    vec.push(sequence);
+                }
+                vec
+            },
             Operator::MatMul(base) => vec![&mut base.base.a, &mut base.base.b],
             Operator::MatMulInteger(base) => vec![&mut base.base.a, &mut base.base.b],
             Operator::Max(base) => vec![&mut base.base.input1, &mut base.base.input2],
@@ -1017,7 +1059,7 @@ impl Operator {
             Operator::RandomUniform(base) => vec![&mut base.base.input],
             Operator::RandomUniformLike(base) => vec![&mut base.base.input],
             Operator::Reciprocal(base) => vec![&mut base.base.input],
-            | Operator::ReduceL1(base)
+            Operator::ReduceL1(base)
             | Operator::ReduceL2(base)
             | Operator::ReduceLogSum(base)
             | Operator::ReduceLogSumExp(base)
@@ -1026,10 +1068,12 @@ impl Operator {
             | Operator::ReduceMean(base)
             | Operator::ReduceMin(base)
             | Operator::ReduceProd(base)
-            | Operator::ReduceSum(base) => if let Some(axes) = base.base.axes.as_mut() {
-                vec![&mut base.base.input, axes]
-            } else {
-                vec![&mut base.base.input]
+            | Operator::ReduceSum(base) => {
+                if let Some(axes) = base.base.axes.as_mut() {
+                    vec![&mut base.base.input, axes]
+                } else {
+                    vec![&mut base.base.input]
+                }
             }
             Operator::Reshape(base) => vec![&mut base.base.input, &mut base.base.shape],
             Operator::Round(base) => vec![&mut base.base.input],
@@ -1117,19 +1161,21 @@ impl Operator {
                 ret
             }
             Operator::BitShift(base) => vec![base.base.output.as_str()],
-            Operator::BitwiseAnd(base) => { vec![base.base.output.as_str()] }
+            Operator::BitwiseAnd(base) => {
+                vec![base.base.output.as_str()]
+            }
             Operator::BitwiseNot(base) => vec![base.base.output.as_str()],
             Operator::BitwiseOr(base) => vec![base.base.output.as_str()],
-            Operator::BitwiseXor(base) => { vec![base.base.output.as_str()] }
+            Operator::BitwiseXor(base) => {
+                vec![base.base.output.as_str()]
+            }
             Operator::Cast(base) => vec![base.base.output.as_str()],
             Operator::Ceil(base) => vec![base.base.output.as_str()],
-            Operator::Concat(base) =>
-                base.base.inputs
-                    .iter()
-                    .map(|s| s.as_str())
-                    .collect(),
+            Operator::Concat(base) => vec![base.base.output.as_str()],
             Operator::Conv2d(base) => vec![base.base.output.as_str()],
-            Operator::Conv2dInteger(base) => { vec![base.base.output.as_str()] }
+            Operator::Conv2dInteger(base) => {
+                vec![base.base.output.as_str()]
+            }
             Operator::Cos(base) => vec![base.base.output.as_str()],
             Operator::Cosh(base) => vec![base.base.output.as_str()],
             Operator::ConstantOfShape(base) => vec![base.base.output.as_str()],
@@ -1154,21 +1200,19 @@ impl Operator {
             Operator::Less(base) => vec![base.base.output.as_str()],
             Operator::Log(base) => vec![base.base.output.as_str()],
             Operator::Loop(base) => vec![base.base.as_str()],
-            Operator::Lstm(base) =>
-                vec![
-                    base.base.y
-                        .as_ref()
-                        .map(|x| x.as_str())
-                        .unwrap_or(""),
-                    base.base.y_c
-                        .as_ref()
-                        .map(|x| x.as_str())
-                        .unwrap_or(""),
-                    base.base.y_h
-                        .as_ref()
-                        .map(|x| x.as_str())
-                        .unwrap_or("")
-                ],
+            Operator::Lstm(base) => {
+                let mut ret = vec![];
+                if let Some(y) = base.base.y.as_ref() {
+                    ret.push(y.as_str());
+                }
+                if let Some(y_c) = base.base.y_c.as_ref() {
+                    ret.push(y_c.as_str());
+                }
+                if let Some(y_h) = base.base.y_h.as_ref() {
+                    ret.push(y_h.as_str());
+                }
+                ret
+            },
             Operator::MatMul(base) => vec![base.base.output.as_str()],
             Operator::MatMulInteger(base) => vec![base.base.output.as_str()],
             Operator::Max(base) => vec![base.base.output.as_str()],
@@ -1200,11 +1244,7 @@ impl Operator {
             Operator::Sin(base) => vec![base.base.output.as_str()],
             Operator::Sinh(base) => vec![base.base.output.as_str()],
             Operator::Slice(base) => vec![base.base.output.as_str()],
-            Operator::Split(base) =>
-                base.base.outputs
-                    .iter()
-                    .map(|x| x.as_str())
-                    .collect(),
+            Operator::Split(base) => base.base.outputs.iter().map(|x| x.as_str()).collect(),
             Operator::Sqrt(base) => vec![base.base.output.as_str()],
             Operator::Squeeze(base) => vec![base.base.output.as_str()],
             Operator::Sub(base) => vec![base.base.output.as_str()],
@@ -1226,14 +1266,18 @@ impl Operator {
             Operator::Clip(base) => vec![base.base.output.as_str()],
             Operator::Elu(base) => vec![base.base.output.as_str()],
             Operator::Gelu(base) => vec![base.base.output.as_str()],
-            Operator::GreaterOrEqual(base) => { vec![base.base.output.as_str()] }
+            Operator::GreaterOrEqual(base) => {
+                vec![base.base.output.as_str()]
+            }
             Operator::HammingWindow(base) => vec![base.base.output.as_str()],
             Operator::HannWindow(base) => vec![base.base.output.as_str()],
             Operator::HardSigmoid(base) => vec![base.base.output.as_str()],
             Operator::HardSwish(base) => vec![base.base.output.as_str()],
             Operator::LayerNormalization(base) => vec![base.base.output.as_str()],
             Operator::LeakyRelu(base) => vec![base.base.output.as_str()],
-            Operator::LessOrEqual(base) => { vec![base.base.output.as_str()] }
+            Operator::LessOrEqual(base) => {
+                vec![base.base.output.as_str()]
+            }
             Operator::LogSoftmax(base) => vec![base.base.output.as_str()],
             Operator::Mish(base) => vec![base.base.output.as_str()],
             Operator::ReduceL1(base) => vec![base.base.output.as_str()],
@@ -1279,19 +1323,21 @@ impl Operator {
                 ret
             }
             Operator::BitShift(base) => vec![&mut base.base.output],
-            Operator::BitwiseAnd(base) => { vec![&mut base.base.output] }
+            Operator::BitwiseAnd(base) => {
+                vec![&mut base.base.output]
+            }
             Operator::BitwiseNot(base) => vec![&mut base.base.output],
             Operator::BitwiseOr(base) => vec![&mut base.base.output],
-            Operator::BitwiseXor(base) => { vec![&mut base.base.output] }
+            Operator::BitwiseXor(base) => {
+                vec![&mut base.base.output]
+            }
             Operator::Cast(base) => vec![&mut base.base.output],
             Operator::Ceil(base) => vec![&mut base.base.output],
-            Operator::Concat(base) =>
-                base.base.inputs
-                    .iter_mut()
-                    .map(|s| s)
-                    .collect(),
+            Operator::Concat(base) => vec![&mut base.base.output],
             Operator::Conv2d(base) => vec![&mut base.base.output],
-            Operator::Conv2dInteger(base) => { vec![&mut base.base.output] }
+            Operator::Conv2dInteger(base) => {
+                vec![&mut base.base.output]
+            }
             Operator::Cos(base) => vec![&mut base.base.output],
             Operator::Cosh(base) => vec![&mut base.base.output],
             Operator::ConstantOfShape(base) => vec![&mut base.base.output],
@@ -1328,7 +1374,7 @@ impl Operator {
                     ret.push(y_h);
                 }
                 ret
-            },
+            }
             Operator::MatMul(base) => vec![&mut base.base.output],
             Operator::MatMulInteger(base) => vec![&mut base.base.output],
             Operator::Max(base) => vec![&mut base.base.output],
@@ -1360,11 +1406,7 @@ impl Operator {
             Operator::Sin(base) => vec![&mut base.base.output],
             Operator::Sinh(base) => vec![&mut base.base.output],
             Operator::Slice(base) => vec![&mut base.base.output],
-            Operator::Split(base) =>
-                base.base.outputs
-                    .iter_mut()
-                    .map(|x| x)
-                    .collect(),
+            Operator::Split(base) => base.base.outputs.iter_mut().map(|x| x).collect(),
             Operator::Sqrt(base) => vec![&mut base.base.output],
             Operator::Squeeze(base) => vec![&mut base.base.output],
             Operator::Sub(base) => vec![&mut base.base.output],
@@ -1386,14 +1428,18 @@ impl Operator {
             Operator::Clip(base) => vec![&mut base.base.output],
             Operator::Elu(base) => vec![&mut base.base.output],
             Operator::Gelu(base) => vec![&mut base.base.output],
-            Operator::GreaterOrEqual(base) => { vec![&mut base.base.output] }
+            Operator::GreaterOrEqual(base) => {
+                vec![&mut base.base.output]
+            }
             Operator::HammingWindow(base) => vec![&mut base.base.output],
             Operator::HannWindow(base) => vec![&mut base.base.output],
             Operator::HardSigmoid(base) => vec![&mut base.base.output],
             Operator::HardSwish(base) => vec![&mut base.base.output],
             Operator::LayerNormalization(base) => vec![&mut base.base.output],
             Operator::LeakyRelu(base) => vec![&mut base.base.output],
-            Operator::LessOrEqual(base) => { vec![&mut base.base.output] }
+            Operator::LessOrEqual(base) => {
+                vec![&mut base.base.output]
+            }
             Operator::LogSoftmax(base) => vec![&mut base.base.output],
             Operator::Mish(base) => vec![&mut base.base.output],
             Operator::ReduceL1(base) => vec![&mut base.base.output],
@@ -1581,7 +1627,9 @@ impl std::fmt::Debug for Operator {
             Operator::Atan(base) => write!(f, "Atan"),
             Operator::Atanh(base) => write!(f, "Atanh"),
             Operator::AveragePool(base) => write!(f, "AveragePool"),
-            Operator::BatchNormalization(base) => { write!(f, "BatchNormalization") }
+            Operator::BatchNormalization(base) => {
+                write!(f, "BatchNormalization")
+            }
             Operator::BitShift(base) => write!(f, "BitShift"),
             Operator::BitwiseAnd(base) => write!(f, "BitwiseAnd"),
             Operator::BitwiseNot(base) => write!(f, "BitwiseNot"),
@@ -1606,7 +1654,9 @@ impl std::fmt::Debug for Operator {
             Operator::Floor(base) => write!(f, "Floor"),
             Operator::Gather(base) => write!(f, "Gather"),
             Operator::Gemm(base) => write!(f, "Gemm"),
-            Operator::GlobalAveragePool(base) => { write!(f, "GlobalAveragePool") }
+            Operator::GlobalAveragePool(base) => {
+                write!(f, "GlobalAveragePool")
+            }
             Operator::GlobalMaxPool(base) => write!(f, "GlobalMaxPool"),
             Operator::Greater(base) => write!(f, "Greater"),
             Operator::Identity(base) => write!(f, "Identity"),
@@ -1675,7 +1725,9 @@ impl std::fmt::Debug for Operator {
             Operator::HannWindow(base) => write!(f, "HannWindow"),
             Operator::HardSigmoid(base) => write!(f, "HardSigmoid"),
             Operator::HardSwish(base) => write!(f, "HardSwish"),
-            Operator::LayerNormalization(base) => { write!(f, "LayerNormalization") }
+            Operator::LayerNormalization(base) => {
+                write!(f, "LayerNormalization")
+            }
             Operator::LeakyRelu(base) => write!(f, "LeakyRelu"),
             Operator::LessOrEqual(base) => write!(f, "LessOrEqual"),
             Operator::LogSoftmax(base) => write!(f, "LogSoftmax"),
@@ -1689,7 +1741,9 @@ impl std::fmt::Debug for Operator {
             Operator::Selu(base) => write!(f, "Selu"),
             Operator::Shrink(base) => write!(f, "Shrink"),
             Operator::Softmax(base) => write!(f, "Softmax"),
-            Operator::SoftmaxCrossEntropyLoss(base) => { write!(f, "SoftmaxCrossEntropyLoss") }
+            Operator::SoftmaxCrossEntropyLoss(base) => {
+                write!(f, "SoftmaxCrossEntropyLoss")
+            }
             Operator::Softplus(base) => write!(f, "Softplus"),
             Operator::Softsign(base) => write!(f, "Softsign"),
             Operator::Conv2dFused(base) => write!(f, "Conv2dFused"),

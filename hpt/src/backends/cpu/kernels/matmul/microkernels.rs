@@ -5,17 +5,12 @@ macro_rules! define_mma {
         #[inline(always)]
         fn mma<T: $crate::common::CommonBounds>(a: Pointer<T>, b: Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as $crate::types::TypeCommon>::Vec; $nr]; $mr] {
             let mut c_local = [[<T as $crate::types::TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
-            // let a_ptr = a.ptr as *const T;
             let b_ptr = b.ptr as *const <T as crate::types::TypeCommon>::Vec;
             let rem = kc % $unroll;
             for k in 0..(kc / $unroll) as i64 {
-                // $crate::re_exports::seq_macro::seq!(MR in 0..$mr {
-                //     $crate::backends::common::prefetch::prefetch_a::<T>(a_ptr, ((k + 1) * $unroll * ks + MR as i64 * lda) as usize);
-                // });
                 $crate::re_exports::seq_macro::seq!(UNROLL in 0..$unroll {
                     $crate::re_exports::seq_macro::seq!(NR in 0..$nr {
                         let b_vec~NR = unsafe {*b_ptr.add(((k * $unroll + UNROLL) * $nr + NR) as usize)};
-                        // $crate::backends::common::prefetch::prefetch_b::<T>(b_ptr, (((k + 1) * $unroll + UNROLL) * $nr + NR) as usize);
                     });
                     #[allow(unused_mut)]
                     let mut a_vec;

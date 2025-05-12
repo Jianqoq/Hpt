@@ -117,6 +117,7 @@ where
         a.strides()[a.ndim() - 1],
         b.strides()[b.ndim() - 1],
         num_threads,
+        None,
     );
 
     // matmul_template_no_block_info::<T>(

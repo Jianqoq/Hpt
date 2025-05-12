@@ -8,6 +8,7 @@ use hpt_iterator::iterator_traits::ParStridedIteratorSimd;
 use hpt_iterator::iterator_traits::ParStridedIteratorSimdZip;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
+use hpt_types::dtype::DType;
 use hpt_types::dtype::ToDType;
 use hpt_types::dtype::TypeCommon;
 use hpt_types::into_scalar::Cast;
@@ -283,8 +284,6 @@ impl Tensor {
         }
     }
 
-
-
     #[duplicate::duplicate_item(
         func_name       kernel              description                                                                     test_code;
         [floor]         [_floor]            ["Computes floor of each element in the input tensor."]                         ["let y = x.floor()?"];
@@ -367,7 +366,7 @@ impl Tensor {
     #[doc = description]
     /// # Parameters:
     /// `x`: Input tensor
-    /// 
+    ///
     /// `out`: Output tensor
     ///
     /// # Example:
@@ -492,7 +491,12 @@ impl Tensor {
         self._selu(alpha, gamma, Some(out.clone()))
     }
 
-    pub(crate) fn _selu(&self, alpha: f64, gamma: f64, out: Option<Tensor>) -> Result<Self, TensorError> {
+    pub(crate) fn _selu(
+        &self,
+        alpha: f64,
+        gamma: f64,
+        out: Option<Tensor>,
+    ) -> Result<Self, TensorError> {
         macro_rules! unary {
             ($dtype:ty) => {{
                 type T = $dtype;
@@ -547,7 +551,6 @@ impl Tensor {
             hpt_types::dtype::DType::I64 => unary!(i64),
             _ => unimplemented!(),
         }
-    
     }
 
     pub fn contiguous(&self) -> Result<Self, TensorError> {
@@ -594,6 +597,374 @@ impl Tensor {
             #[cfg(feature = "f64")]
             hpt_types::dtype::DType::F64 => contiguous!(f64),
             _ => panic!("unsupported dtype {:?}", self.dtype),
+        }
+    }
+
+    pub fn cast(&self, dtype: DType) -> Result<Self, TensorError> {
+        use hpt_types::into_vec::IntoVec;
+
+        if self.dtype == dtype {
+            return Ok(self.clone());
+        }
+        let res = Tensor::empty(&self.layout.shape(), dtype, self.device.clone())?;
+        macro_rules! cast {
+            ($dtype:ty, $target:ty) => {{
+                type T = $dtype;
+                type InVec = <T as TypeCommon>::Vec;
+                type OutVec = <$target as TypeCommon>::Vec;
+                unary_fn_with_out(
+                    self,
+                    |x: InVec| {
+                        let out: OutVec = x.into_vec();
+                        out
+                    },
+                    |x: T| {
+                        let out: $target = x.cast();
+                        out
+                    },
+                    Some(res.clone()),
+                )
+            }};
+        }
+        match (self.dtype, dtype) {
+            #[cfg(feature = "i8")]
+            (hpt_types::dtype::DType::I8, hpt_types::dtype::DType::I8) => cast!(i8, i8),
+            #[cfg(all(feature = "i8", feature = "u8"))]
+            (hpt_types::dtype::DType::I8, hpt_types::dtype::DType::U8) => cast!(i8, u8),
+            #[cfg(all(feature = "i8", feature = "f32"))]
+            (hpt_types::dtype::DType::I8, hpt_types::dtype::DType::F32) => cast!(i8, f32),
+            #[cfg(all(feature = "i8", feature = "f16"))]
+            (hpt_types::dtype::DType::I8, hpt_types::dtype::DType::F16) => cast!(i8, f16),
+            #[cfg(all(feature = "i8", feature = "bf16"))]
+            (hpt_types::dtype::DType::I8, hpt_types::dtype::DType::BF16) => cast!(i8, bf16),
+            #[cfg(all(feature = "u8", feature = "i8"))]
+            (hpt_types::dtype::DType::U8, hpt_types::dtype::DType::I8) => cast!(u8, i8),
+            #[cfg(feature = "u8")]
+            (hpt_types::dtype::DType::U8, hpt_types::dtype::DType::U8) => cast!(u8, u8),
+            #[cfg(all(feature = "u8", feature = "f32"))]
+            (hpt_types::dtype::DType::U8, hpt_types::dtype::DType::F32) => cast!(u8, f32),
+            #[cfg(all(feature = "u8", feature = "f16"))]
+            (hpt_types::dtype::DType::U8, hpt_types::dtype::DType::F16) => cast!(u8, f16),
+            #[cfg(all(feature = "u8", feature = "bf16"))]
+            (hpt_types::dtype::DType::U8, hpt_types::dtype::DType::BF16) => cast!(u8, bf16),
+            #[cfg(all(feature = "f32", feature = "i8"))]
+            (hpt_types::dtype::DType::F32, hpt_types::dtype::DType::I8) => cast!(f32, i8),
+            #[cfg(all(feature = "f32", feature = "u8"))]
+            (hpt_types::dtype::DType::F32, hpt_types::dtype::DType::U8) => cast!(f32, u8),
+            #[cfg(feature = "f32")]
+            (hpt_types::dtype::DType::F32, hpt_types::dtype::DType::F32) => cast!(f32, f32),
+            #[cfg(all(feature = "f32", feature = "f16"))]
+            (hpt_types::dtype::DType::F32, hpt_types::dtype::DType::F16) => cast!(f32, f16),
+            #[cfg(all(feature = "f32", feature = "bf16"))]
+            (hpt_types::dtype::DType::F32, hpt_types::dtype::DType::BF16) => cast!(f32, bf16),
+            #[cfg(all(feature = "f16", feature = "i8"))]
+            (hpt_types::dtype::DType::F16, hpt_types::dtype::DType::I8) => cast!(f16, i8),
+            #[cfg(all(feature = "f16", feature = "u8"))]
+            (hpt_types::dtype::DType::F16, hpt_types::dtype::DType::U8) => cast!(f16, u8),
+            #[cfg(all(feature = "f16", feature = "f32"))]
+            (hpt_types::dtype::DType::F16, hpt_types::dtype::DType::F32) => cast!(f16, f32),
+            #[cfg(feature = "f16")]
+            (hpt_types::dtype::DType::F16, hpt_types::dtype::DType::F16) => cast!(f16, f16),
+            #[cfg(all(feature = "f16", feature = "bf16"))]
+            (hpt_types::dtype::DType::F16, hpt_types::dtype::DType::BF16) => cast!(f16, bf16),
+            #[cfg(all(feature = "bf16", feature = "i8"))]
+            (hpt_types::dtype::DType::BF16, hpt_types::dtype::DType::I8) => cast!(bf16, i8),
+            #[cfg(all(feature = "bf16", feature = "u8"))]
+            (hpt_types::dtype::DType::BF16, hpt_types::dtype::DType::U8) => cast!(bf16, u8),
+            #[cfg(all(feature = "bf16", feature = "f32"))]
+            (hpt_types::dtype::DType::BF16, hpt_types::dtype::DType::F32) => cast!(bf16, f32),
+            #[cfg(all(feature = "bf16", feature = "f16"))]
+            (hpt_types::dtype::DType::BF16, hpt_types::dtype::DType::F16) => cast!(bf16, f16),
+            #[cfg(feature = "bf16")]
+            (hpt_types::dtype::DType::BF16, hpt_types::dtype::DType::BF16) => cast!(bf16, bf16),
+            #[cfg(all(feature = "bool", feature = "bool"))]
+            (hpt_types::dtype::DType::Bool, hpt_types::dtype::DType::Bool) => cast!(bool, bool),
+            #[cfg(all(feature = "bool", feature = "i8"))]
+            (hpt_types::dtype::DType::Bool, hpt_types::dtype::DType::I8) => cast!(bool, i8),
+            #[cfg(all(feature = "bool", feature = "u8"))]
+            (hpt_types::dtype::DType::Bool, hpt_types::dtype::DType::U8) => cast!(bool, u8),
+            #[cfg(all(feature = "bool", feature = "i16"))]
+            (hpt_types::dtype::DType::Bool, hpt_types::dtype::DType::I16) => cast!(bool, i16),
+            #[cfg(all(feature = "bool", feature = "u16"))]
+            (hpt_types::dtype::DType::Bool, hpt_types::dtype::DType::U16) => cast!(bool, u16),
+            #[cfg(all(feature = "bool", feature = "i32"))]
+            (hpt_types::dtype::DType::Bool, hpt_types::dtype::DType::I32) => cast!(bool, i32),
+            #[cfg(all(feature = "bool", feature = "u32"))]
+            (hpt_types::dtype::DType::Bool, hpt_types::dtype::DType::U32) => cast!(bool, u32),
+            #[cfg(all(feature = "bool", feature = "i64"))]
+            (hpt_types::dtype::DType::Bool, hpt_types::dtype::DType::I64) => cast!(bool, i64),
+            #[cfg(all(feature = "bool", feature = "u64"))]
+            (hpt_types::dtype::DType::Bool, hpt_types::dtype::DType::U64) => cast!(bool, u64),
+            #[cfg(all(feature = "bool", feature = "f32"))]
+            (hpt_types::dtype::DType::Bool, hpt_types::dtype::DType::F32) => cast!(bool, f32),
+            #[cfg(all(feature = "bool", feature = "f16"))]
+            (hpt_types::dtype::DType::Bool, hpt_types::dtype::DType::F16) => cast!(bool, f16),
+            #[cfg(all(feature = "bool", feature = "bf16"))]
+            (hpt_types::dtype::DType::Bool, hpt_types::dtype::DType::BF16) => cast!(bool, bf16),
+            #[cfg(all(feature = "bool", feature = "f64"))]
+            (hpt_types::dtype::DType::Bool, hpt_types::dtype::DType::F64) => cast!(bool, f64),
+            #[cfg(all(feature = "i8", feature = "bool"))]
+            (hpt_types::dtype::DType::I8, hpt_types::dtype::DType::Bool) => cast!(i8, bool),
+            #[cfg(all(feature = "i8", feature = "i16"))]
+            (hpt_types::dtype::DType::I8, hpt_types::dtype::DType::I16) => cast!(i8, i16),
+            #[cfg(all(feature = "i8", feature = "u16"))]
+            (hpt_types::dtype::DType::I8, hpt_types::dtype::DType::U16) => cast!(i8, u16),
+            #[cfg(all(feature = "i8", feature = "i32"))]
+            (hpt_types::dtype::DType::I8, hpt_types::dtype::DType::I32) => cast!(i8, i32),
+            #[cfg(all(feature = "i8", feature = "u32"))]
+            (hpt_types::dtype::DType::I8, hpt_types::dtype::DType::U32) => cast!(i8, u32),
+            #[cfg(all(feature = "i8", feature = "i64"))]
+            (hpt_types::dtype::DType::I8, hpt_types::dtype::DType::I64) => cast!(i8, i64),
+            #[cfg(all(feature = "i8", feature = "u64"))]
+            (hpt_types::dtype::DType::I8, hpt_types::dtype::DType::U64) => cast!(i8, u64),
+            #[cfg(all(feature = "i8", feature = "f64"))]
+            (hpt_types::dtype::DType::I8, hpt_types::dtype::DType::F64) => cast!(i8, f64),
+            #[cfg(all(feature = "u8", feature = "bool"))]
+            (hpt_types::dtype::DType::U8, hpt_types::dtype::DType::Bool) => cast!(u8, bool),
+            #[cfg(all(feature = "u8", feature = "i16"))]
+            (hpt_types::dtype::DType::U8, hpt_types::dtype::DType::I16) => cast!(u8, i16),
+            #[cfg(all(feature = "u8", feature = "u16"))]
+            (hpt_types::dtype::DType::U8, hpt_types::dtype::DType::U16) => cast!(u8, u16),
+            #[cfg(all(feature = "u8", feature = "i32"))]
+            (hpt_types::dtype::DType::U8, hpt_types::dtype::DType::I32) => cast!(u8, i32),
+            #[cfg(all(feature = "u8", feature = "u32"))]
+            (hpt_types::dtype::DType::U8, hpt_types::dtype::DType::U32) => cast!(u8, u32),
+            #[cfg(all(feature = "u8", feature = "i64"))]
+            (hpt_types::dtype::DType::U8, hpt_types::dtype::DType::I64) => cast!(u8, i64),
+            #[cfg(all(feature = "u8", feature = "u64"))]
+            (hpt_types::dtype::DType::U8, hpt_types::dtype::DType::U64) => cast!(u8, u64),
+            #[cfg(all(feature = "u8", feature = "f64"))]
+            (hpt_types::dtype::DType::U8, hpt_types::dtype::DType::F64) => cast!(u8, f64),
+            #[cfg(all(feature = "i16", feature = "bool"))]
+            (hpt_types::dtype::DType::I16, hpt_types::dtype::DType::Bool) => cast!(i16, bool),
+            #[cfg(all(feature = "i16", feature = "i8"))]
+            (hpt_types::dtype::DType::I16, hpt_types::dtype::DType::I8) => cast!(i16, i8),
+            #[cfg(all(feature = "i16", feature = "u8"))]
+            (hpt_types::dtype::DType::I16, hpt_types::dtype::DType::U8) => cast!(i16, u8),
+            #[cfg(all(feature = "i16", feature = "i16"))]
+            (hpt_types::dtype::DType::I16, hpt_types::dtype::DType::I16) => cast!(i16, i16),
+            #[cfg(all(feature = "i16", feature = "u16"))]
+            (hpt_types::dtype::DType::I16, hpt_types::dtype::DType::U16) => cast!(i16, u16),
+            #[cfg(all(feature = "i16", feature = "i32"))]
+            (hpt_types::dtype::DType::I16, hpt_types::dtype::DType::I32) => cast!(i16, i32),
+            #[cfg(all(feature = "i16", feature = "u32"))]
+            (hpt_types::dtype::DType::I16, hpt_types::dtype::DType::U32) => cast!(i16, u32),
+            #[cfg(all(feature = "i16", feature = "i64"))]
+            (hpt_types::dtype::DType::I16, hpt_types::dtype::DType::I64) => cast!(i16, i64),
+            #[cfg(all(feature = "i16", feature = "u64"))]
+            (hpt_types::dtype::DType::I16, hpt_types::dtype::DType::U64) => cast!(i16, u64),
+            #[cfg(all(feature = "i16", feature = "f32"))]
+            (hpt_types::dtype::DType::I16, hpt_types::dtype::DType::F32) => cast!(i16, f32),
+            #[cfg(all(feature = "i16", feature = "f16"))]
+            (hpt_types::dtype::DType::I16, hpt_types::dtype::DType::F16) => cast!(i16, f16),
+            #[cfg(all(feature = "i16", feature = "bf16"))]
+            (hpt_types::dtype::DType::I16, hpt_types::dtype::DType::BF16) => cast!(i16, bf16),
+            #[cfg(all(feature = "i16", feature = "f64"))]
+            (hpt_types::dtype::DType::I16, hpt_types::dtype::DType::F64) => cast!(i16, f64),
+            #[cfg(all(feature = "u16", feature = "bool"))]
+            (hpt_types::dtype::DType::U16, hpt_types::dtype::DType::Bool) => cast!(u16, bool),
+            #[cfg(all(feature = "u16", feature = "i8"))]
+            (hpt_types::dtype::DType::U16, hpt_types::dtype::DType::I8) => cast!(u16, i8),
+            #[cfg(all(feature = "u16", feature = "u8"))]
+            (hpt_types::dtype::DType::U16, hpt_types::dtype::DType::U8) => cast!(u16, u8),
+            #[cfg(all(feature = "u16", feature = "i16"))]
+            (hpt_types::dtype::DType::U16, hpt_types::dtype::DType::I16) => cast!(u16, i16),
+            #[cfg(all(feature = "u16", feature = "u16"))]
+            (hpt_types::dtype::DType::U16, hpt_types::dtype::DType::U16) => cast!(u16, u16),
+            #[cfg(all(feature = "u16", feature = "i32"))]
+            (hpt_types::dtype::DType::U16, hpt_types::dtype::DType::I32) => cast!(u16, i32),
+            #[cfg(all(feature = "u16", feature = "u32"))]
+            (hpt_types::dtype::DType::U16, hpt_types::dtype::DType::U32) => cast!(u16, u32),
+            #[cfg(all(feature = "u16", feature = "i64"))]
+            (hpt_types::dtype::DType::U16, hpt_types::dtype::DType::I64) => cast!(u16, i64),
+            #[cfg(all(feature = "u16", feature = "u64"))]
+            (hpt_types::dtype::DType::U16, hpt_types::dtype::DType::U64) => cast!(u16, u64),
+            #[cfg(all(feature = "u16", feature = "f32"))]
+            (hpt_types::dtype::DType::U16, hpt_types::dtype::DType::F32) => cast!(u16, f32),
+            #[cfg(all(feature = "u16", feature = "f16"))]
+            (hpt_types::dtype::DType::U16, hpt_types::dtype::DType::F16) => cast!(u16, f16),
+            #[cfg(all(feature = "u16", feature = "bf16"))]
+            (hpt_types::dtype::DType::U16, hpt_types::dtype::DType::BF16) => cast!(u16, bf16),
+            #[cfg(all(feature = "u16", feature = "f64"))]
+            (hpt_types::dtype::DType::U16, hpt_types::dtype::DType::F64) => cast!(u16, f64),
+            #[cfg(all(feature = "i32", feature = "bool"))]
+            (hpt_types::dtype::DType::I32, hpt_types::dtype::DType::Bool) => cast!(i32, bool),
+            #[cfg(all(feature = "i32", feature = "i8"))]
+            (hpt_types::dtype::DType::I32, hpt_types::dtype::DType::I8) => cast!(i32, i8),
+            #[cfg(all(feature = "i32", feature = "u8"))]
+            (hpt_types::dtype::DType::I32, hpt_types::dtype::DType::U8) => cast!(i32, u8),
+            #[cfg(all(feature = "i32", feature = "i16"))]
+            (hpt_types::dtype::DType::I32, hpt_types::dtype::DType::I16) => cast!(i32, i16),
+            #[cfg(all(feature = "i32", feature = "u16"))]
+            (hpt_types::dtype::DType::I32, hpt_types::dtype::DType::U16) => cast!(i32, u16),
+            #[cfg(all(feature = "i32", feature = "i32"))]
+            (hpt_types::dtype::DType::I32, hpt_types::dtype::DType::I32) => cast!(i32, i32),
+            #[cfg(all(feature = "i32", feature = "u32"))]
+            (hpt_types::dtype::DType::I32, hpt_types::dtype::DType::U32) => cast!(i32, u32),
+            #[cfg(all(feature = "i32", feature = "i64"))]
+            (hpt_types::dtype::DType::I32, hpt_types::dtype::DType::I64) => cast!(i32, i64),
+            #[cfg(all(feature = "i32", feature = "u64"))]
+            (hpt_types::dtype::DType::I32, hpt_types::dtype::DType::U64) => cast!(i32, u64),
+            #[cfg(all(feature = "i32", feature = "f32"))]
+            (hpt_types::dtype::DType::I32, hpt_types::dtype::DType::F32) => cast!(i32, f32),
+            #[cfg(all(feature = "i32", feature = "f16"))]
+            (hpt_types::dtype::DType::I32, hpt_types::dtype::DType::F16) => cast!(i32, f16),
+            #[cfg(all(feature = "i32", feature = "bf16"))]
+            (hpt_types::dtype::DType::I32, hpt_types::dtype::DType::BF16) => cast!(i32, bf16),
+            #[cfg(all(feature = "i32", feature = "f64"))]
+            (hpt_types::dtype::DType::I32, hpt_types::dtype::DType::F64) => cast!(i32, f64),
+            #[cfg(all(feature = "u32", feature = "bool"))]
+            (hpt_types::dtype::DType::U32, hpt_types::dtype::DType::Bool) => cast!(u32, bool),
+            #[cfg(all(feature = "u32", feature = "i8"))]
+            (hpt_types::dtype::DType::U32, hpt_types::dtype::DType::I8) => cast!(u32, i8),
+            #[cfg(all(feature = "u32", feature = "u8"))]
+            (hpt_types::dtype::DType::U32, hpt_types::dtype::DType::U8) => cast!(u32, u8),
+            #[cfg(all(feature = "u32", feature = "i16"))]
+            (hpt_types::dtype::DType::U32, hpt_types::dtype::DType::I16) => cast!(u32, i16),
+            #[cfg(all(feature = "u32", feature = "u16"))]
+            (hpt_types::dtype::DType::U32, hpt_types::dtype::DType::U16) => cast!(u32, u16),
+            #[cfg(all(feature = "u32", feature = "i32"))]
+            (hpt_types::dtype::DType::U32, hpt_types::dtype::DType::I32) => cast!(u32, i32),
+            #[cfg(all(feature = "u32", feature = "u32"))]
+            (hpt_types::dtype::DType::U32, hpt_types::dtype::DType::U32) => cast!(u32, u32),
+            #[cfg(all(feature = "u32", feature = "i64"))]
+            (hpt_types::dtype::DType::U32, hpt_types::dtype::DType::I64) => cast!(u32, i64),
+            #[cfg(all(feature = "u32", feature = "u64"))]
+            (hpt_types::dtype::DType::U32, hpt_types::dtype::DType::U64) => cast!(u32, u64),
+            #[cfg(all(feature = "u32", feature = "f32"))]
+            (hpt_types::dtype::DType::U32, hpt_types::dtype::DType::F32) => cast!(u32, f32),
+            #[cfg(all(feature = "u32", feature = "f16"))]
+            (hpt_types::dtype::DType::U32, hpt_types::dtype::DType::F16) => cast!(u32, f16),
+            #[cfg(all(feature = "u32", feature = "bf16"))]
+            (hpt_types::dtype::DType::U32, hpt_types::dtype::DType::BF16) => cast!(u32, bf16),
+            #[cfg(all(feature = "u32", feature = "f64"))]
+            (hpt_types::dtype::DType::U32, hpt_types::dtype::DType::F64) => cast!(u32, f64),
+            #[cfg(all(feature = "i64", feature = "bool"))]
+            (hpt_types::dtype::DType::I64, hpt_types::dtype::DType::Bool) => cast!(i64, bool),
+            #[cfg(all(feature = "i64", feature = "i8"))]
+            (hpt_types::dtype::DType::I64, hpt_types::dtype::DType::I8) => cast!(i64, i8),
+            #[cfg(all(feature = "i64", feature = "u8"))]
+            (hpt_types::dtype::DType::I64, hpt_types::dtype::DType::U8) => cast!(i64, u8),
+            #[cfg(all(feature = "i64", feature = "i16"))]
+            (hpt_types::dtype::DType::I64, hpt_types::dtype::DType::I16) => cast!(i64, i16),
+            #[cfg(all(feature = "i64", feature = "u16"))]
+            (hpt_types::dtype::DType::I64, hpt_types::dtype::DType::U16) => cast!(i64, u16),
+            #[cfg(all(feature = "i64", feature = "i32"))]
+            (hpt_types::dtype::DType::I64, hpt_types::dtype::DType::I32) => cast!(i64, i32),
+            #[cfg(all(feature = "i64", feature = "u32"))]
+            (hpt_types::dtype::DType::I64, hpt_types::dtype::DType::U32) => cast!(i64, u32),
+            #[cfg(all(feature = "i64", feature = "i64"))]
+            (hpt_types::dtype::DType::I64, hpt_types::dtype::DType::I64) => cast!(i64, i64),
+            #[cfg(all(feature = "i64", feature = "u64"))]
+            (hpt_types::dtype::DType::I64, hpt_types::dtype::DType::U64) => cast!(i64, u64),
+            #[cfg(all(feature = "i64", feature = "f32"))]
+            (hpt_types::dtype::DType::I64, hpt_types::dtype::DType::F32) => cast!(i64, f32),
+            #[cfg(all(feature = "i64", feature = "f16"))]
+            (hpt_types::dtype::DType::I64, hpt_types::dtype::DType::F16) => cast!(i64, f16),
+            #[cfg(all(feature = "i64", feature = "bf16"))]
+            (hpt_types::dtype::DType::I64, hpt_types::dtype::DType::BF16) => cast!(i64, bf16),
+            #[cfg(all(feature = "i64", feature = "f64"))]
+            (hpt_types::dtype::DType::I64, hpt_types::dtype::DType::F64) => cast!(i64, f64),
+            #[cfg(all(feature = "u64", feature = "bool"))]
+            (hpt_types::dtype::DType::U64, hpt_types::dtype::DType::Bool) => cast!(u64, bool),
+            #[cfg(all(feature = "u64", feature = "i8"))]
+            (hpt_types::dtype::DType::U64, hpt_types::dtype::DType::I8) => cast!(u64, i8),
+            #[cfg(all(feature = "u64", feature = "u8"))]
+            (hpt_types::dtype::DType::U64, hpt_types::dtype::DType::U8) => cast!(u64, u8),
+            #[cfg(all(feature = "u64", feature = "i16"))]
+            (hpt_types::dtype::DType::U64, hpt_types::dtype::DType::I16) => cast!(u64, i16),
+            #[cfg(all(feature = "u64", feature = "u16"))]
+            (hpt_types::dtype::DType::U64, hpt_types::dtype::DType::U16) => cast!(u64, u16),
+            #[cfg(all(feature = "u64", feature = "i32"))]
+            (hpt_types::dtype::DType::U64, hpt_types::dtype::DType::I32) => cast!(u64, i32),
+            #[cfg(all(feature = "u64", feature = "u32"))]
+            (hpt_types::dtype::DType::U64, hpt_types::dtype::DType::U32) => cast!(u64, u32),
+            #[cfg(all(feature = "u64", feature = "i64"))]
+            (hpt_types::dtype::DType::U64, hpt_types::dtype::DType::I64) => cast!(u64, i64),
+            #[cfg(all(feature = "u64", feature = "u64"))]
+            (hpt_types::dtype::DType::U64, hpt_types::dtype::DType::U64) => cast!(u64, u64),
+            #[cfg(all(feature = "u64", feature = "f32"))]
+            (hpt_types::dtype::DType::U64, hpt_types::dtype::DType::F32) => cast!(u64, f32),
+            #[cfg(all(feature = "u64", feature = "f16"))]
+            (hpt_types::dtype::DType::U64, hpt_types::dtype::DType::F16) => cast!(u64, f16),
+            #[cfg(all(feature = "u64", feature = "bf16"))]
+            (hpt_types::dtype::DType::U64, hpt_types::dtype::DType::BF16) => cast!(u64, bf16),
+            #[cfg(all(feature = "u64", feature = "f64"))]
+            (hpt_types::dtype::DType::U64, hpt_types::dtype::DType::F64) => cast!(u64, f64),
+            #[cfg(all(feature = "f32", feature = "bool"))]
+            (hpt_types::dtype::DType::F32, hpt_types::dtype::DType::Bool) => cast!(f32, bool),
+            #[cfg(all(feature = "f32", feature = "i16"))]
+            (hpt_types::dtype::DType::F32, hpt_types::dtype::DType::I16) => cast!(f32, i16),
+            #[cfg(all(feature = "f32", feature = "u16"))]
+            (hpt_types::dtype::DType::F32, hpt_types::dtype::DType::U16) => cast!(f32, u16),
+            #[cfg(all(feature = "f32", feature = "i32"))]
+            (hpt_types::dtype::DType::F32, hpt_types::dtype::DType::I32) => cast!(f32, i32),
+            #[cfg(all(feature = "f32", feature = "u32"))]
+            (hpt_types::dtype::DType::F32, hpt_types::dtype::DType::U32) => cast!(f32, u32),
+            #[cfg(all(feature = "f32", feature = "i64"))]
+            (hpt_types::dtype::DType::F32, hpt_types::dtype::DType::I64) => cast!(f32, i64),
+            #[cfg(all(feature = "f32", feature = "u64"))]
+            (hpt_types::dtype::DType::F32, hpt_types::dtype::DType::U64) => cast!(f32, u64),
+            #[cfg(all(feature = "f32", feature = "f64"))]
+            (hpt_types::dtype::DType::F32, hpt_types::dtype::DType::F64) => cast!(f32, f64),
+            #[cfg(all(feature = "f16", feature = "bool"))]
+            (hpt_types::dtype::DType::F16, hpt_types::dtype::DType::Bool) => cast!(f16, bool),
+            #[cfg(all(feature = "f16", feature = "i16"))]
+            (hpt_types::dtype::DType::F16, hpt_types::dtype::DType::I16) => cast!(f16, i16),
+            #[cfg(all(feature = "f16", feature = "u16"))]
+            (hpt_types::dtype::DType::F16, hpt_types::dtype::DType::U16) => cast!(f16, u16),
+            #[cfg(all(feature = "f16", feature = "i32"))]
+            (hpt_types::dtype::DType::F16, hpt_types::dtype::DType::I32) => cast!(f16, i32),
+            #[cfg(all(feature = "f16", feature = "u32"))]
+            (hpt_types::dtype::DType::F16, hpt_types::dtype::DType::U32) => cast!(f16, u32),
+            #[cfg(all(feature = "f16", feature = "i64"))]
+            (hpt_types::dtype::DType::F16, hpt_types::dtype::DType::I64) => cast!(f16, i64),
+            #[cfg(all(feature = "f16", feature = "u64"))]
+            (hpt_types::dtype::DType::F16, hpt_types::dtype::DType::U64) => cast!(f16, u64),
+            #[cfg(all(feature = "f16", feature = "f64"))]
+            (hpt_types::dtype::DType::F16, hpt_types::dtype::DType::F64) => cast!(f16, f64),
+            #[cfg(all(feature = "bf16", feature = "bool"))]
+            (hpt_types::dtype::DType::BF16, hpt_types::dtype::DType::Bool) => cast!(bf16, bool),
+            #[cfg(all(feature = "bf16", feature = "i16"))]
+            (hpt_types::dtype::DType::BF16, hpt_types::dtype::DType::I16) => cast!(bf16, i16),
+            (hpt_types::dtype::DType::BF16, hpt_types::dtype::DType::U16) => todo!(),
+            #[cfg(all(feature = "bf16", feature = "i32"))]
+            (hpt_types::dtype::DType::BF16, hpt_types::dtype::DType::I32) => cast!(bf16, i32),
+            #[cfg(all(feature = "bf16", feature = "u32"))]
+            (hpt_types::dtype::DType::BF16, hpt_types::dtype::DType::U32) => cast!(bf16, u32),
+            #[cfg(all(feature = "bf16", feature = "i64"))]
+            (hpt_types::dtype::DType::BF16, hpt_types::dtype::DType::I64) => cast!(bf16, i64),
+            #[cfg(all(feature = "bf16", feature = "u64"))]
+            (hpt_types::dtype::DType::BF16, hpt_types::dtype::DType::U64) => cast!(bf16, u64),
+            #[cfg(all(feature = "bf16", feature = "f64"))]
+            (hpt_types::dtype::DType::BF16, hpt_types::dtype::DType::F64) => cast!(bf16, f64),
+            #[cfg(all(feature = "f64", feature = "bool"))]
+            (hpt_types::dtype::DType::F64, hpt_types::dtype::DType::Bool) => cast!(f64, bool),
+            #[cfg(all(feature = "f64", feature = "i8"))]
+            (hpt_types::dtype::DType::F64, hpt_types::dtype::DType::I8) => cast!(f64, i8),
+            #[cfg(all(feature = "f64", feature = "u8"))]
+            (hpt_types::dtype::DType::F64, hpt_types::dtype::DType::U8) => cast!(f64, u8),
+            #[cfg(all(feature = "f64", feature = "i16"))]
+            (hpt_types::dtype::DType::F64, hpt_types::dtype::DType::I16) => cast!(f64, i16),
+            #[cfg(all(feature = "f64", feature = "u16"))]
+            (hpt_types::dtype::DType::F64, hpt_types::dtype::DType::U16) => cast!(f64, u16),
+            #[cfg(all(feature = "f64", feature = "i32"))]
+            (hpt_types::dtype::DType::F64, hpt_types::dtype::DType::I32) => cast!(f64, i32),
+            #[cfg(all(feature = "f64", feature = "u32"))]
+            (hpt_types::dtype::DType::F64, hpt_types::dtype::DType::U32) => cast!(f64, u32),
+            #[cfg(all(feature = "f64", feature = "i64"))]
+            (hpt_types::dtype::DType::F64, hpt_types::dtype::DType::I64) => cast!(f64, i64),
+            #[cfg(all(feature = "f64", feature = "u64"))]
+            (hpt_types::dtype::DType::F64, hpt_types::dtype::DType::U64) => cast!(f64, u64),
+            #[cfg(all(feature = "f64", feature = "f32"))]
+            (hpt_types::dtype::DType::F64, hpt_types::dtype::DType::F32) => cast!(f64, f32),
+            #[cfg(all(feature = "f64", feature = "f16"))]
+            (hpt_types::dtype::DType::F64, hpt_types::dtype::DType::F16) => cast!(f64, f16),
+            #[cfg(all(feature = "f64", feature = "bf16"))]
+            (hpt_types::dtype::DType::F64, hpt_types::dtype::DType::BF16) => cast!(f64, bf16),
+            #[cfg(all(feature = "f64", feature = "f64"))]
+            (hpt_types::dtype::DType::F64, hpt_types::dtype::DType::F64) => cast!(f64, f64),
+            _ => unreachable!("unsupported dtype: {:?}", self.dtype),
         }
     }
 }

@@ -190,6 +190,7 @@ pub(crate) mod backends {
             pub(crate) mod tensordot;
             /// a module that contains all the windows creation functions
             pub(crate) mod windows;
+            pub(crate) mod lstm;
         }
         /// a module contains cpu tensor impls
         pub(crate) mod tensor_impls;

@@ -39,7 +39,7 @@ pub fn type_simd_lanes(list: &str) -> u8 {
         "complex64" => 2,
         _ => 0,
     }
-    #[cfg(target_feature = "avx2")]
+    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
     match list.to_lowercase().as_str() {
         "bool" => 32,
         "i8" => 32,

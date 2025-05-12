@@ -1,16 +1,18 @@
-use hpt_common::error::{ base::TensorError, onnx::OnnxError };
-use hpt_types::{ dtype::DType, into_scalar::Cast };
+use hpt_common::error::{base::TensorError, onnx::OnnxError};
+use hpt_types::{dtype::DType, into_scalar::Cast};
 
 use super::{
     map_dtype::to_dtype,
     operators::{
-        AutoPad, Base, BatchNormalization, Binary, Concat, Elu, Expand, Flatten, Gather, Gemm, LayerNormalization, Lstm, Matmul, Operator, Permute, Pooling, Reduce, Reshape, Slice, Softmax, Squeeze, TensorFormat, Unary
+        AutoPad, Base, BatchNormalization, Binary, Concat, Elu, Expand, Flatten, Gather, Gemm,
+        LayerNormalization, Lstm, Matmul, Operator, Permute, Pooling, Reduce, Reshape, Slice,
+        Softmax, Squeeze, TensorFormat, Unary,
     },
 };
 use crate::{
     Tensor,
-    onnx::{ NodeProto, TensorProto, attribute_proto },
-    utils::onnx::operators::{ ConstantOfShape, Conv2d },
+    onnx::{NodeProto, TensorProto, attribute_proto},
+    utils::onnx::operators::{ConstantOfShape, Conv2d},
 };
 use hpt_traits::tensor::TensorInfo;
 use std::collections::HashMap;
@@ -30,12 +32,16 @@ fn parse_string_attribute(
     node: &NodeProto,
     arg_idx: &mut usize,
     target: &str,
-    default: &str
+    default: &str,
 ) -> String {
     if let Some(attr) = node.attribute.get(*arg_idx) {
         if attr.name() == target {
             let res = if let Some(s) = &attr.s {
-                if s.is_empty() { default.to_string() } else { bytes_to_string(s.as_slice()) }
+                if s.is_empty() {
+                    default.to_string()
+                } else {
+                    bytes_to_string(s.as_slice())
+                }
             } else {
                 default.to_string()
             };
@@ -53,7 +59,7 @@ fn parse_strings_attribute(
     node: &NodeProto,
     arg_idx: &mut usize,
     target: &str,
-    default: Vec<String>
+    default: Vec<String>,
 ) -> Vec<String> {
     let mut res = vec![];
     if node.attribute[*arg_idx].name() == target {
@@ -93,7 +99,9 @@ fn parse_int_attribute(node: &NodeProto, arg_idx: &mut usize, target: &str, defa
 fn parse_int_attribute_required(node: &NodeProto, arg_idx: &mut usize, target: &str) -> i64 {
     if let Some(attr) = node.attribute.get(*arg_idx) {
         if attr.name() == target {
-            let res = attr.i.expect(format!("expect {} but not found", target).as_str());
+            let res = attr
+                .i
+                .expect(format!("expect {} but not found", target).as_str());
             *arg_idx += 1;
             res
         } else {
@@ -118,7 +126,7 @@ fn parse_floats_attribute(
     node: &NodeProto,
     arg_idx: &mut usize,
     target: &str,
-    default: Vec<f32>
+    default: Vec<f32>,
 ) -> Vec<f32> {
     let mut res = vec![];
     if node.attribute[*arg_idx].name() == target {
@@ -141,7 +149,7 @@ fn parse_ints_attribute(
     node: &NodeProto,
     arg_idx: &mut usize,
     target: &str,
-    default: Vec<i64>
+    default: Vec<i64>,
 ) -> Vec<i64> {
     let mut res = vec![];
     if let Some(attr) = node.attribute.get(*arg_idx) {
@@ -168,32 +176,28 @@ fn try_pc(
     ret: &mut Vec<Operator>,
     input: &str,
     node_name: &str,
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Option<String> {
     if let Some(format) = formats.get(input) {
         if *format == TensorFormat::NHWC {
-            ret.push(
-                Operator::PermuteContiguous(Base {
-                    base: Permute {
-                        input: input.to_string(),
-                        output: format!("{}_{}_permute", input, node_name),
-                        perm: vec![0, 2, 3, 1],
-                    },
-                    id: format!("{}_{}_permute", input, node_name),
-                })
-            );
+            ret.push(Operator::PermuteContiguous(Base {
+                base: Permute {
+                    input: input.to_string(),
+                    output: format!("{}_{}_permute", input, node_name),
+                    perm: vec![0, 2, 3, 1],
+                },
+                id: format!("{}_{}_permute", input, node_name),
+            }));
             Some(format!("{}_{}_permute", input, node_name))
         } else if *format == TensorFormat::HWCO {
-            ret.push(
-                Operator::PermuteContiguous(Base {
-                    base: Permute {
-                        input: input.to_string(),
-                        output: format!("{}_{}_permute", input, node_name),
-                        perm: vec![3, 2, 0, 1],
-                    },
-                    id: format!("{}_{}_permute", input, node_name),
-                })
-            );
+            ret.push(Operator::PermuteContiguous(Base {
+                base: Permute {
+                    input: input.to_string(),
+                    output: format!("{}_{}_permute", input, node_name),
+                    perm: vec![3, 2, 0, 1],
+                },
+                id: format!("{}_{}_permute", input, node_name),
+            }));
             Some(format!("{}_{}_permute", input, node_name))
         } else {
             None
@@ -207,20 +211,18 @@ fn try_conv_pc(
     ret: &mut Vec<Operator>,
     input: &str,
     node_name: &str,
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) {
     if let Some(format) = formats.get(input) {
         if *format == TensorFormat::NCHW {
-            ret.push(
-                Operator::PermuteContiguous(Base {
-                    base: Permute {
-                        input: input.to_string(),
-                        output: format!("{}_{}_permute", input, node_name),
-                        perm: vec![0, 2, 3, 1],
-                    },
-                    id: format!("{}_{}_permute", input, node_name),
-                })
-            );
+            ret.push(Operator::PermuteContiguous(Base {
+                base: Permute {
+                    input: input.to_string(),
+                    output: format!("{}_{}_permute", input, node_name),
+                    perm: vec![0, 2, 3, 1],
+                },
+                id: format!("{}_{}_permute", input, node_name),
+            }));
         } else if *format == TensorFormat::HWCO || *format == TensorFormat::OCHW {
             panic!("invalid format for conv permute contiguous: {:?}", format);
         }
@@ -244,13 +246,12 @@ impl From<&TensorProto> for Tensor {
             let raw = unsafe {
                 std::slice::from_raw_parts(
                     tensor.float_data.as_ptr() as *const u8,
-                    tensor.float_data.len() * std::mem::size_of::<f32>()
+                    tensor.float_data.len() * std::mem::size_of::<f32>(),
                 )
             };
 
-            let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu).expect(
-                "cannot create   empty tensor"
-            );
+            let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)
+                .expect("cannot create   empty tensor");
             let ptr = tensor.data.cast::<u8>().ptr;
             unsafe {
                 ptr.copy_from(raw.as_ptr(), raw.len());
@@ -260,13 +261,12 @@ impl From<&TensorProto> for Tensor {
             let raw = unsafe {
                 std::slice::from_raw_parts(
                     tensor.int32_data.as_ptr() as *const u8,
-                    tensor.int32_data.len() * std::mem::size_of::<i32>()
+                    tensor.int32_data.len() * std::mem::size_of::<i32>(),
                 )
             };
 
-            let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu).expect(
-                "cannot create empty tensor"
-            );
+            let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)
+                .expect("cannot create empty tensor");
             let ptr = tensor.data.cast::<u8>().ptr;
             unsafe {
                 ptr.copy_from(raw.as_ptr(), raw.len());
@@ -275,18 +275,16 @@ impl From<&TensorProto> for Tensor {
         } else if tensor.int64_data.len() > 0 {
             let i64_data = tensor.int64_data.as_slice();
 
-            let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu).expect(
-                "cannot create empty tensor"
-            );
+            let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)
+                .expect("cannot create empty tensor");
             let ptr = tensor.data.cast::<i64>().ptr;
             unsafe {
                 ptr.copy_from(i64_data.as_ptr(), i64_data.len());
             }
             tensor
         } else if let Some(raw) = &tensor.raw_data {
-            let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu).expect(
-                "cannot create empty tensor"
-            );
+            let tensor = Tensor::empty(&tensor.dims, dtype, crate::Device::Cpu)
+                .expect("cannot create empty tensor");
             let ptr = tensor.data.cast::<u8>().ptr;
             unsafe {
                 ptr.copy_from(raw.as_ptr(), raw.len() * std::mem::size_of::<u8>());
@@ -300,11 +298,11 @@ impl From<&TensorProto> for Tensor {
 
 pub(crate) fn get_tensor_from_attribute(
     node: &NodeProto,
-    attribute_index: usize
+    attribute_index: usize,
 ) -> Result<Tensor, TensorError> {
-    let ty = attribute_proto::AttributeType
-        ::try_from(node.attribute[attribute_index].r#type.unwrap())
-        .unwrap();
+    let ty =
+        attribute_proto::AttributeType::try_from(node.attribute[attribute_index].r#type.unwrap())
+            .unwrap();
     match ty {
         attribute_proto::AttributeType::Int => {
             if let Some(i) = node.attribute[0].i {
@@ -330,11 +328,10 @@ pub(crate) fn get_tensor_from_attribute(
             if let Some(tensor) = &node.attribute[0].t {
                 Ok(tensor.into())
             } else {
-                Err(
-                    OnnxError::new(
-                        "AttributeType is Tensor but can't find TensorProto".to_string()
-                    ).into()
+                Err(OnnxError::new(
+                    "AttributeType is Tensor but can't find TensorProto".to_string(),
                 )
+                .into())
             }
         }
         _ => unimplemented!("constant ty {:?} not implemented", ty),
@@ -344,7 +341,7 @@ pub(crate) fn get_tensor_from_attribute(
 pub(crate) fn conv_init(
     node: &NodeProto,
 
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let input_name = node.input[0].as_str();
     let kernel_name = node.input[1].as_str();
@@ -386,10 +383,7 @@ pub(crate) fn conv_init(
         output: node.output[0].to_string(),
         kernel: kernel_name.to_string(),
         bias: bias_name,
-        pads: [
-            (pads[0], pads[1]),
-            (pads[2], pads[3]),
-        ],
+        pads: [(pads[0], pads[1]), (pads[2], pads[3])],
         strides: [strides[0], strides[1]],
         dilations: [dilations[0], dilations[1]],
         group: node.attribute[1].i.unwrap_or(1),
@@ -417,7 +411,7 @@ pub(crate) fn conv_init(
 
 pub(crate) fn unary_init(
     node: &NodeProto,
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Operator {
     let input_name = node.input[0].as_str();
     let unary = Unary {
@@ -480,13 +474,13 @@ pub(crate) fn selu_init(node: &NodeProto, formats: &mut HashMap<String, TensorFo
         node,
         &mut arg_idx,
         "alpha",
-        1.6732632423543772848170429916717
+        1.6732632423543772848170429916717,
     ) as f64;
     let gamma = parse_float_attribute(
         node,
         &mut arg_idx,
         "gamma",
-        1.0507009873554804934193349852946
+        1.0507009873554804934193349852946,
     ) as f64;
     let name = node.name().to_string();
     formats.insert(node.output[0].to_string(), formats[input_name]);
@@ -521,7 +515,7 @@ pub(crate) fn elu_init(node: &NodeProto, formats: &mut HashMap<String, TensorFor
 pub(crate) fn binary_init(
     node: &NodeProto,
 
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let input_name = node.input[0].as_str();
     let input2_name = node.input[1].as_str();
@@ -572,7 +566,7 @@ pub(crate) fn binary_init(
 pub(crate) fn gemm_init(
     node: &NodeProto,
 
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let a = node.input[0].as_str().to_string();
     let b = node.input[1].as_str().to_string();
@@ -603,19 +597,17 @@ pub(crate) fn gemm_init(
         trans_b,
         bias,
     };
-    ret.push(
-        Operator::Gemm(Base {
-            base: gemm,
-            id: name,
-        })
-    );
+    ret.push(Operator::Gemm(Base {
+        base: gemm,
+        id: name,
+    }));
     ret
 }
 
 pub(crate) fn matmul_init(
     node: &NodeProto,
 
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let a = node.input[0].as_str().to_string();
     let b = node.input[1].as_str().to_string();
@@ -630,19 +622,17 @@ pub(crate) fn matmul_init(
         b: new_b_name.unwrap_or(b.to_string()),
         output,
     };
-    ret.push(
-        Operator::MatMul(Base {
-            base: matmul,
-            id: name,
-        })
-    );
+    ret.push(Operator::MatMul(Base {
+        base: matmul,
+        id: name,
+    }));
     ret
 }
 
 pub(crate) fn pooling_init(
     node: &NodeProto,
 
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let input_name = node.input[0].as_str();
     let mut arg_idx = 0;
@@ -676,34 +666,22 @@ pub(crate) fn pooling_init(
 
     insert_conv_format(formats, &node.output[0]);
     match node.op_type() {
-        "MaxPool" =>
-            ret.push(
-                Operator::MaxPool(Base {
-                    base: pooling,
-                    id: node.name().to_string(),
-                })
-            ),
-        "AveragePool" =>
-            ret.push(
-                Operator::AveragePool(Base {
-                    base: pooling,
-                    id: node.name().to_string(),
-                })
-            ),
-        "GlobalMaxPool" =>
-            ret.push(
-                Operator::GlobalMaxPool(Base {
-                    base: pooling,
-                    id: node.name().to_string(),
-                })
-            ),
-        "GlobalAveragePool" =>
-            ret.push(
-                Operator::GlobalAveragePool(Base {
-                    base: pooling,
-                    id: node.name().to_string(),
-                })
-            ),
+        "MaxPool" => ret.push(Operator::MaxPool(Base {
+            base: pooling,
+            id: node.name().to_string(),
+        })),
+        "AveragePool" => ret.push(Operator::AveragePool(Base {
+            base: pooling,
+            id: node.name().to_string(),
+        })),
+        "GlobalMaxPool" => ret.push(Operator::GlobalMaxPool(Base {
+            base: pooling,
+            id: node.name().to_string(),
+        })),
+        "GlobalAveragePool" => ret.push(Operator::GlobalAveragePool(Base {
+            base: pooling,
+            id: node.name().to_string(),
+        })),
         _ => unimplemented!("unsupported pooling operator: {}", node.op_type()),
     }
     ret
@@ -712,7 +690,7 @@ pub(crate) fn pooling_init(
 pub(crate) fn gather_init(
     node: &NodeProto,
 
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let input_name = node.input[0].as_str();
     let indices_name = node.input[1].as_str();
@@ -727,38 +705,34 @@ pub(crate) fn gather_init(
         axis: node.attribute[0].i.unwrap_or(0),
     };
     insert_default_format(formats, &gather.output);
-    ret.push(
-        Operator::Gather(Base {
-            base: gather,
-            id: name,
-        })
-    );
+    ret.push(Operator::Gather(Base {
+        base: gather,
+        id: name,
+    }));
     ret
 }
 
 pub(crate) fn constant_init(
     node: &NodeProto,
     initializer_map: &mut HashMap<String, Tensor>,
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Result<Operator, TensorError> {
     let output_name = node.output[0].as_str();
     let tensor = get_tensor_from_attribute(&node, 0)?;
     initializer_map.insert(output_name.to_string(), tensor);
     let name = node.name().to_string();
     insert_default_format(formats, &output_name);
-    Ok(
-        Operator::Constant(Base {
-            base: output_name.to_string(),
-            id: name,
-        })
-    )
+    Ok(Operator::Constant(Base {
+        base: output_name.to_string(),
+        id: name,
+    }))
 }
 
 pub(crate) fn squeeze_init(
     node: &NodeProto,
 
     initializer_map: &mut HashMap<String, Tensor>,
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let input_name = node.input[0].as_str();
     let axes = node.input[1].as_str();
@@ -772,20 +746,17 @@ pub(crate) fn squeeze_init(
         axes: axes_tensor.as_slice().to_vec(),
     };
     insert_default_format(formats, &squeeze.output);
-    ret.push(
-        Operator::Squeeze(Base {
-            base: squeeze,
-            id: name,
-        })
-    );
+    ret.push(Operator::Squeeze(Base {
+        base: squeeze,
+        id: name,
+    }));
     ret
 }
 
 pub(crate) fn unsqueeze_init(
     node: &NodeProto,
-
     initializer_map: &mut HashMap<String, Tensor>,
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let input_name = node.input[0].as_str();
     let axes = node.input[1].as_str();
@@ -799,21 +770,19 @@ pub(crate) fn unsqueeze_init(
         axes: axes_tensor.as_slice().to_vec(),
     };
     insert_default_format(formats, &squeeze.output);
-    ret.push(
-        Operator::Unsqueeze(Base {
-            base: squeeze,
-            id: name,
-        })
-    );
+    ret.push(Operator::Unsqueeze(Base {
+        base: squeeze,
+        id: name,
+    }));
     ret
 }
 
 pub(crate) fn concat_init(
     node: &NodeProto,
-
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
-    let mut input_names = node.input
+    let mut input_names = node
+        .input
         .iter()
         .map(|s| s.as_str().to_string())
         .collect::<Vec<_>>();
@@ -830,19 +799,17 @@ pub(crate) fn concat_init(
         axis: node.attribute[0].i.expect("concat axis not found"),
     };
     insert_default_format(formats, &output_name);
-    ret.push(
-        Operator::Concat(Base {
-            base: concat,
-            id: name,
-        })
-    );
+    ret.push(Operator::Concat(Base {
+        base: concat,
+        id: name,
+    }));
     ret
 }
 
 pub(crate) fn const_of_shape_init(
     node: &NodeProto,
 
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Result<Vec<Operator>, TensorError> {
     let input_name = node.input[0].as_str();
     let name = node.name().to_string();
@@ -886,12 +853,10 @@ pub(crate) fn const_of_shape_init(
             dtype: tensor.dtype,
         };
         insert_default_format(formats, &constant_of_shape.output);
-        ret.push(
-            Operator::ConstantOfShape(Base {
-                base: constant_of_shape,
-                id: name,
-            })
-        );
+        ret.push(Operator::ConstantOfShape(Base {
+            base: constant_of_shape,
+            id: name,
+        }));
         Ok(ret)
     } else {
         let mut ret = vec![];
@@ -903,12 +868,10 @@ pub(crate) fn const_of_shape_init(
             dtype: DType::F32,
         };
         insert_default_format(formats, &constant_of_shape.output);
-        ret.push(
-            Operator::ConstantOfShape(Base {
-                base: constant_of_shape,
-                id: name,
-            })
-        );
+        ret.push(Operator::ConstantOfShape(Base {
+            base: constant_of_shape,
+            id: name,
+        }));
         Ok(ret)
     }
 }
@@ -916,7 +879,7 @@ pub(crate) fn const_of_shape_init(
 pub(crate) fn transpose_init(
     node: &NodeProto,
 
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let input_name = node.input[0].as_str();
     let name = node.name().to_string();
@@ -928,19 +891,17 @@ pub(crate) fn transpose_init(
         perm: node.attribute[0].ints.as_slice().to_vec(),
     };
     insert_default_format(formats, &permute.output);
-    ret.push(
-        Operator::Transpose(Base {
-            base: permute,
-            id: name,
-        })
-    );
+    ret.push(Operator::Transpose(Base {
+        base: permute,
+        id: name,
+    }));
     ret
 }
 
 pub(crate) fn slice_init(
     node: &NodeProto,
 
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let input_name = node.input[0].as_str();
     let starts_name = node.input[1].as_str();
@@ -970,18 +931,16 @@ pub(crate) fn slice_init(
         axes: axes_name,
     };
     insert_default_format(formats, &slice.output);
-    ret.push(
-        Operator::Slice(Base {
-            base: slice,
-            id: name,
-        })
-    );
+    ret.push(Operator::Slice(Base {
+        base: slice,
+        id: name,
+    }));
     ret
 }
 
 pub(crate) fn lstm_init(
     node: &NodeProto,
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let x = node.input[0].as_str();
     let w = node.input[1].as_str();
@@ -1031,7 +990,11 @@ pub(crate) fn lstm_init(
         node,
         &mut arg_idx,
         "activations",
-        vec!["Sigmoid".to_string(), "Tanh".to_string(), "Tanh".to_string()]
+        vec![
+            "Sigmoid".to_string(),
+            "Tanh".to_string(),
+            "Tanh".to_string(),
+        ],
     );
 
     let clip = {
@@ -1104,19 +1067,17 @@ pub(crate) fn lstm_init(
         y_h,
         y_c,
     };
-    ret.push(
-        Operator::Lstm(Base {
-            base: lstm,
-            id: name,
-        })
-    );
+    ret.push(Operator::Lstm(Base {
+        base: lstm,
+        id: name,
+    }));
     ret
 }
 
 pub(crate) fn identity_init(
     node: &NodeProto,
 
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Operator {
     let input_name = node.input[0].as_str();
     let name = node.name().to_string();
@@ -1133,7 +1094,7 @@ pub(crate) fn identity_init(
 
 pub(crate) fn flatten_init(
     node: &NodeProto,
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let input_name = node.input[0].as_str();
     let name = node.name().to_string();
@@ -1145,12 +1106,10 @@ pub(crate) fn flatten_init(
         start_dim: parse_int_attribute(node, &mut 0, "start_dim", 1),
     };
     insert_default_format(formats, &flatten.output);
-    ret.push(
-        Operator::Flatten(Base {
-            base: flatten,
-            id: name,
-        })
-    );
+    ret.push(Operator::Flatten(Base {
+        base: flatten,
+        id: name,
+    }));
     ret
 }
 
@@ -1169,7 +1128,7 @@ pub(crate) fn flatten_init(
 )]
 pub(crate) fn reduce_func(
     node: &NodeProto,
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let input_name = node.input[0].as_str();
     let axes_name = if let Some(axes_name) = node.input.get(1) {
@@ -1192,18 +1151,16 @@ pub(crate) fn reduce_func(
         reduce_all_if_empty_axes,
     };
     insert_default_format(formats, &reduce.output);
-    ret.push(
-        Operator::operator_enum(Base {
-            base: reduce,
-            id: name,
-        })
-    );
+    ret.push(Operator::operator_enum(Base {
+        base: reduce,
+        id: name,
+    }));
     ret
 }
 
 pub(crate) fn reshape_init(
     node: &NodeProto,
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let input_name = node.input[0].as_str();
     let shape_name = node.input[1].as_str();
@@ -1221,12 +1178,10 @@ pub(crate) fn reshape_init(
         allow_zero,
     };
     insert_default_format(formats, &reshape.output);
-    ret.push(
-        Operator::Reshape(Base {
-            base: reshape,
-            id: name,
-        })
-    );
+    ret.push(Operator::Reshape(Base {
+        base: reshape,
+        id: name,
+    }));
     ret
 }
 
@@ -1237,7 +1192,7 @@ pub(crate) fn reshape_init(
 )]
 pub(crate) fn func_name(
     node: &NodeProto,
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let input_name = node.input[0].as_str();
     let name = node.name().to_string();
@@ -1249,18 +1204,16 @@ pub(crate) fn func_name(
         axis: parse_int_attribute(node, &mut 0, "axis", -1),
     };
     insert_default_format(formats, &softmax.output);
-    ret.push(
-        Operator::operator_enum(Base {
-            base: softmax,
-            id: name,
-        })
-    );
+    ret.push(Operator::operator_enum(Base {
+        base: softmax,
+        id: name,
+    }));
     ret
 }
 
 pub(crate) fn layernorm_init(
     node: &NodeProto,
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let x = node.input[0].as_str();
     let scale = node.input[1].as_str();
@@ -1296,18 +1249,16 @@ pub(crate) fn layernorm_init(
         stash_type,
     };
     insert_default_format(formats, &layernorm.output);
-    ret.push(
-        Operator::LayerNormalization(Base {
-            base: layernorm,
-            id: name,
-        })
-    );
+    ret.push(Operator::LayerNormalization(Base {
+        base: layernorm,
+        id: name,
+    }));
     ret
 }
 
 pub(crate) fn bn_init(
     node: &NodeProto,
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let x = node.input[0].as_str();
     let scale = node.input[1].as_str();
@@ -1346,18 +1297,13 @@ pub(crate) fn bn_init(
     if let Some(running_var) = &bn.running_var {
         insert_default_format(formats, running_var);
     }
-    ret.push(
-        Operator::BatchNormalization(Base {
-            base: bn,
-            id: name,
-        })
-    );
+    ret.push(Operator::BatchNormalization(Base { base: bn, id: name }));
     ret
 }
 
 pub(crate) fn expand_init(
     node: &NodeProto,
-    formats: &mut HashMap<String, TensorFormat>
+    formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
     let input_name = node.input[0].as_str();
     let shape_name = node.input[1].as_str();
@@ -1371,11 +1317,34 @@ pub(crate) fn expand_init(
         dims: new_shape_name.unwrap_or(shape_name.to_string()),
     };
     insert_default_format(formats, &expand.output);
-    ret.push(
-        Operator::Expand(Base {
-            base: expand,
-            id: name,
-        })
-    );
+    ret.push(Operator::Expand(Base {
+        base: expand,
+        id: name,
+    }));
+    ret
+}
+
+pub(crate) fn cast_init(
+    node: &NodeProto,
+    formats: &mut HashMap<String, TensorFormat>,
+) -> Vec<Operator> {
+    let input_name = node.input[0].as_str();
+    let name = node.name().to_string();
+    let mut ret = vec![];
+    let new_input_name = try_pc(&mut ret, input_name, &name, formats);
+    let mut arg_idx = 0;
+    let saturate = parse_int_attribute(node, &mut arg_idx, "saturate", 1) == 1;
+    let to = parse_int_attribute_required(node, &mut arg_idx, "to");
+    let cast = super::operators::Cast {
+        input: new_input_name.unwrap_or(input_name.to_string()),
+        output: node.output[0].to_string(),
+        to: to_dtype(to as i32),
+        saturate,
+    };
+    insert_default_format(formats, &cast.output);
+    ret.push(Operator::Cast(Base {
+        base: cast,
+        id: name,
+    }));
     ret
 }

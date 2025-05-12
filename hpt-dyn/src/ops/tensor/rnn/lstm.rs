@@ -1,5 +1,5 @@
 use crate::{
-    Tensor, current_num_threads,
+    Tensor,
     ops::tensor::matmul::{
         matmul::matmul_prepack_rhs, microkernel_trait::MatmulMicroKernel, utils::PrePackedRhs,
     },
@@ -160,7 +160,7 @@ fn lstm_step<T: CommonBounds>(
     x: &Tensor,                // [seq_len, batch_size, input_size]
     w_t: &Tensor,              // [input_size, 4 * hidden_size]
     r_t: &Tensor,              // [hidden_size, 4 * hidden_size]
-    r: PrePackedRhs,           // [4 * hidden_size, hidden_size]
+    r: hpt_matmul::PrePackedRhs,           // [4 * hidden_size, hidden_size]
     b: Option<&Tensor>,        // [8 * hidden_size]
     p: Option<&Tensor>,        // [3*hidden_size]
     initial_h: &Tensor,        // [batch_size, hidden_size]
@@ -209,7 +209,8 @@ where
     let x_reshaped = x.reshape(&[seq_len * batch_size, -1])?;
 
     let tmp = if let Some(sum_bias) = &sum_bias {
-        x_reshaped.addmm(w_t, sum_bias)?
+        // x_reshaped.addmm(w_t, sum_bias)?
+        x_reshaped._addmm_f32_(w_t, &sum_bias, None, num_threads, None)?
     } else {
         x_reshaped.matmul(w_t)?
     };
@@ -224,8 +225,9 @@ where
     let gates_b_stride = gates.strides()[0] as i64;
 
     let mut func = |t: i64| -> Result<(), TensorError> {
-        let gates = h_t._addmm(r_t, &tmp, Some(gates.clone()), num_threads, Some(r.clone()))?;
+        // let gates = h_t._addmm(r_t, &tmp, Some(gates.clone()), num_threads, Some(r.clone()))?;
 
+        let gates = h_t._addmm_f32_(r_t, &tmp, Some(gates.clone()), num_threads, Some(r.clone()))?;
         let sliced_y = y.slice(&select![t:t + 1, ..])?.squeeze(&[0])?;
 
         for b in 0..batch_size {
@@ -285,7 +287,7 @@ fn lstm_cell_ref<T>(
     g_vec: impl Fn(T::Vec) -> T::Vec + Send + Sync + Copy,
 ) -> Result<(Tensor, Tensor, Tensor), TensorError>
 where
-    T: FloatOutUnary<Output = T> + MatmulMicroKernel + ToDType + CommonBounds,
+    T: FloatOutUnary<Output = T> + MatmulMicroKernel + ToDType + CommonBounds + hpt_matmul::MatmulMicroKernel,
     T::Vec: FloatOutUnary<Output = T::Vec>,
 {
     let seq_length = x.shape()[0];
@@ -348,17 +350,17 @@ where
 
         let w_t = w.t()?;
         let r_t = r.t()?;
-        let num_threads = current_num_threads();
-        let prepacked_r = matmul_prepack_rhs(
-            r.ptr::<T>(),
+        let num_threads = crate::physical_cores();
+        let prepacked_r = hpt_matmul::matmul_prepack_rhs(
+            r.ptr::<T>().ptr as *const T,
+            0,
             1,
             r_t.strides()[1],
             r_t.strides()[0],
             h0.shape(),
             r_t.shape(),
             num_threads,
-            x.device.clone(),
-        )?;
+        );
 
         let (out, h_t, c_t) = lstm_step(
             x,
