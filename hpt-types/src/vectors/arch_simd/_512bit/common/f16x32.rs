@@ -10,7 +10,7 @@ use crate::simd::_512bit::avx512::f16x32::f32x16_to_f16x16;
 /// a vector of 32 f16 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
-#[repr(C, align(32))]
+#[repr(C, align(64))]
 pub struct f16x32(pub(crate) [half::f16; 32]);
 
 /// helper to impl the promote trait

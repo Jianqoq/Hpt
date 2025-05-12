@@ -6,26 +6,26 @@ use crate::{
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use super::i64x4::i64x4;
+use super::i64x8::i64x8;
 
 /// a vector of 2 u64 values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-#[repr(C, align(32))]
-pub struct u64x4(#[cfg(target_arch = "x86_64")] pub(crate) __m256i);
+#[repr(C, align(64))]
+pub struct u64x8(#[cfg(target_arch = "x86_64")] pub(crate) __m512i);
 
 /// helper to impl the promote trait
 #[allow(non_camel_case_types)]
-pub(crate) type u64_promote = u64x4;
+pub(crate) type u64_promote = u64x8;
 
-impl SimdCompare for u64x4 {
-    type SimdMask = i64x4;
+impl SimdCompare for u64x8 {
+    type SimdMask = i64x8;
 
     #[inline(always)]
     fn simd_eq(self, other: Self) -> Self::SimdMask {
         unsafe {
-            let lhs: i64x4 = std::mem::transmute(self.0);
-            let rhs: i64x4 = std::mem::transmute(other.0);
+            let lhs: i64x8 = std::mem::transmute(self.0);
+            let rhs: i64x8 = std::mem::transmute(other.0);
             lhs.simd_eq(rhs)
         }
     }
@@ -33,8 +33,8 @@ impl SimdCompare for u64x4 {
     #[inline(always)]
     fn simd_ne(self, other: Self) -> Self::SimdMask {
         unsafe {
-            let lhs: i64x4 = std::mem::transmute(self.0);
-            let rhs: i64x4 = std::mem::transmute(other.0);
+            let lhs: i64x8 = std::mem::transmute(self.0);
+            let rhs: i64x8 = std::mem::transmute(other.0);
             lhs.simd_ne(rhs)
         }
     }
@@ -42,8 +42,8 @@ impl SimdCompare for u64x4 {
     #[inline(always)]
     fn simd_lt(self, other: Self) -> Self::SimdMask {
         unsafe {
-            let lhs: i64x4 = std::mem::transmute(self.0);
-            let rhs: i64x4 = std::mem::transmute(other.0);
+            let lhs: i64x8 = std::mem::transmute(self.0);
+            let rhs: i64x8 = std::mem::transmute(other.0);
             lhs.simd_lt(rhs)
         }
     }
@@ -51,8 +51,8 @@ impl SimdCompare for u64x4 {
     #[inline(always)]
     fn simd_le(self, other: Self) -> Self::SimdMask {
         unsafe {
-            let lhs: i64x4 = std::mem::transmute(self.0);
-            let rhs: i64x4 = std::mem::transmute(other.0);
+            let lhs: i64x8 = std::mem::transmute(self.0);
+            let rhs: i64x8 = std::mem::transmute(other.0);
             lhs.simd_le(rhs)
         }
     }
@@ -60,8 +60,8 @@ impl SimdCompare for u64x4 {
     #[inline(always)]
     fn simd_gt(self, other: Self) -> Self::SimdMask {
         unsafe {
-            let lhs: i64x4 = std::mem::transmute(self.0);
-            let rhs: i64x4 = std::mem::transmute(other.0);
+            let lhs: i64x8 = std::mem::transmute(self.0);
+            let rhs: i64x8 = std::mem::transmute(other.0);
             lhs.simd_gt(rhs)
         }
     }
@@ -69,14 +69,14 @@ impl SimdCompare for u64x4 {
     #[inline(always)]
     fn simd_ge(self, other: Self) -> Self::SimdMask {
         unsafe {
-            let lhs: i64x4 = std::mem::transmute(self.0);
-            let rhs: i64x4 = std::mem::transmute(other.0);
+            let lhs: i64x8 = std::mem::transmute(self.0);
+            let rhs: i64x8 = std::mem::transmute(other.0);
             lhs.simd_ge(rhs)
         }
     }
 }
 
-impl NormalOut2 for u64x4 {
+impl NormalOut2 for u64x8 {
     #[inline(always)]
     fn __add(self, rhs: Self) -> Self {
         self + rhs
@@ -118,7 +118,7 @@ impl NormalOut2 for u64x4 {
     }
 }
 
-impl NormalOutUnary2 for u64x4 {
+impl NormalOutUnary2 for u64x8 {
     #[inline(always)]
     fn __square(self) -> Self {
         self * self

@@ -7,25 +7,25 @@ use crate::{
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use super::u8x32::u8x32;
+use super::u8x64::u8x64;
 
 /// a vector of 32 i8 values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-#[repr(C, align(32))]
-pub struct i8x32(#[cfg(target_arch = "x86_64")] pub(crate) __m256i);
+#[repr(C, align(64))]
+pub struct i8x64(#[cfg(target_arch = "x86_64")] pub(crate) __m512i);
 
 /// helper to impl the promote trait
 #[allow(non_camel_case_types)]
-pub(crate) type i8_promote = i8x32;
+pub(crate) type i8_promote = i8x64;
 
-impl VecConvertor for i8x32 {
+impl VecConvertor for i8x64 {
     #[inline(always)]
-    fn to_i8(self) -> i8x32 {
+    fn to_i8(self) -> i8x64 {
         self
     }
     #[inline(always)]
-    fn to_u8(self) -> u8x32 {
+    fn to_u8(self) -> u8x64 {
         unsafe { std::mem::transmute(self) }
     }
     #[inline(always)]
@@ -34,7 +34,7 @@ impl VecConvertor for i8x32 {
     }
 }
 
-impl NormalOut2 for i8x32 {
+impl NormalOut2 for i8x64 {
     #[inline(always)]
     fn __add(self, rhs: Self) -> Self {
         self + rhs

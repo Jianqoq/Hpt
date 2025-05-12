@@ -9,14 +9,14 @@ use std::arch::x86_64::*;
 /// a vector of 4 i64 values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-#[repr(C, align(32))]
-pub struct i64x4(#[cfg(target_arch = "x86_64")] pub(crate) __m256i);
+#[repr(C, align(64))]
+pub struct i64x8(#[cfg(target_arch = "x86_64")] pub(crate) __m512i);
 
 /// helper to impl the promote trait
 #[allow(non_camel_case_types)]
-pub(crate) type i64_promote = i64x4;
+pub(crate) type i64_promote = i64x8;
 
-impl NormalOut2 for i64x4 {
+impl NormalOut2 for i64x8 {
     #[inline(always)]
     fn __add(self, rhs: Self) -> Self {
         self + rhs
@@ -58,7 +58,7 @@ impl NormalOut2 for i64x4 {
     }
 }
 
-impl NormalOutUnary2 for i64x4 {
+impl NormalOutUnary2 for i64x8 {
     #[inline(always)]
     fn __square(self) -> Self {
         self * self

@@ -4,18 +4,18 @@ use crate::{
     type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2},
 };
 
-use super::usizex4::usizex4;
+use super::usizex8::usizex8;
 
 #[cfg(target_pointer_width = "32")]
 use crate::arch_simd::_256bit::i32x8;
 #[cfg(target_pointer_width = "64")]
-use crate::arch_simd::_256bit::i64x4;
+use crate::arch_simd::_256bit::i64x8;
 
 #[cfg(target_pointer_width = "32")]
 /// a vector of 4 isize values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-#[repr(C, align(16))]
+#[repr(C, align(64))]
 pub struct isizex8(pub(crate) i32x8);
 
 #[cfg(target_pointer_width = "32")]
@@ -27,28 +27,28 @@ pub(crate) type isize_promote = isizex8;
 /// a vector of 4 isize values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-#[repr(C, align(16))]
-pub struct isizex4(pub(crate) i64x4);
+#[repr(C, align(64))]
+pub struct isizex8(pub(crate) i64x8);
 
 #[cfg(target_pointer_width = "64")]
 /// helper to impl the promote trait
 #[allow(non_camel_case_types)]
-pub(crate) type isize_promote = isizex4;
+pub(crate) type isize_promote = isizex8;
 
 #[cfg(target_pointer_width = "32")]
 type ISizeVEC = isizex8;
 #[cfg(target_pointer_width = "64")]
-type ISizeVEC = isizex4;
+type ISizeVEC = isizex8;
 
 #[cfg(target_pointer_width = "32")]
 type USizeVEC = usizex8;
 #[cfg(target_pointer_width = "64")]
-type USizeVEC = usizex4;
+type USizeVEC = usizex8;
 
 #[cfg(target_pointer_width = "32")]
 type ISizeBase = i32x8;
 #[cfg(target_pointer_width = "64")]
-type ISizeBase = i64x4;
+type ISizeBase = i64x8;
 
 impl Default for ISizeVEC {
     #[inline(always)]
@@ -306,7 +306,7 @@ impl VecConvertor for ISizeVEC {
     }
     #[inline(always)]
     #[cfg(target_pointer_width = "64")]
-    fn to_i64(self) -> i64x4 {
+    fn to_i64(self) -> i64x8 {
         unsafe { std::mem::transmute(self) }
     }
     #[inline(always)]

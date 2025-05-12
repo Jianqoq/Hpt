@@ -5,34 +5,35 @@ use crate::{
 
 use std::arch::x86_64::*;
 
-use crate::simd::_256bit::i8x32;
+use crate::simd::_512bit::i8x64;
 
-impl PartialEq for i8x32 {
+impl PartialEq for i8x64 {
     #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         unsafe {
-            let cmp = _mm256_cmpeq_epi8(self.0, other.0);
-            _mm256_movemask_epi8(cmp) == -1
+            let cmp_mask = _mm512_cmpeq_epi8_mask(self.0, other.0);
+
+            cmp_mask == u64::MAX
         }
     }
 }
 
-impl Default for i8x32 {
+impl Default for i8x64 {
     #[inline(always)]
     fn default() -> Self {
-        unsafe { i8x32(_mm256_setzero_si256()) }
+        unsafe { i8x64(_mm512_setzero_si512()) }
     }
 }
 
-impl VecTrait<i8> for i8x32 {
+impl VecTrait<i8> for i8x64 {
     const SIZE: usize = 32;
     type Base = i8;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[i8]) {
         unsafe {
-            _mm256_storeu_si256(
+            _mm512_storeu_si512(
                 &mut self.0,
-                _mm256_loadu_si256(slice.as_ptr() as *const __m256i),
+                _mm512_loadu_si512(slice.as_ptr() as *const __m256i),
             );
         }
     }
@@ -46,92 +47,128 @@ impl VecTrait<i8> for i8x32 {
             for i in 0..32 {
                 res[i] = x[i].wrapping_mul(y[i]).wrapping_add(z[i]);
             }
-            i8x32(_mm256_loadu_si256(res.as_ptr() as *const __m256i))
+            i8x64(_mm512_loadu_si512(res.as_ptr() as *const __m256i))
         }
     }
     #[inline(always)]
     fn sum(&self) -> i8 {
         unsafe {
-            let sum = _mm256_sad_epu8(self.0, _mm256_setzero_si256());
-            _mm256_cvtsi256_si32(sum) as i8
+            let sum = _mm512_sad_epu8(self.0, _mm512_setzero_si256());
+            _mm512_cvtsi512_si32(sum) as i8
         }
     }
     #[inline(always)]
-    fn splat(val: i8) -> i8x32 {
-        unsafe { i8x32(_mm256_set1_epi8(val)) }
+    fn splat(val: i8) -> i8x64 {
+        unsafe { i8x64(_mm512_set1_epi8(val)) }
     }
     #[inline(always)]
     unsafe fn from_ptr(ptr: *const i8) -> Self {
-        i8x32(_mm256_loadu_si256(ptr as *const __m256i))
+        i8x64(_mm512_loadu_si512(ptr as *const __m256i))
     }
 }
 
-impl SimdCompare for i8x32 {
-    type SimdMask = i8x32;
+impl SimdCompare for i8x64 {
+    type SimdMask = i8x64;
     #[inline(always)]
     fn simd_eq(self, other: Self) -> i8x32 {
-        unsafe { i8x32(_mm256_cmpeq_epi8(self.0, other.0)) }
+        unsafe {
+            // 生成比较掩码
+            let mask = _mm512_cmpeq_epi8_mask(self.0, other.0);
+
+            // 将掩码转换为向量（1表示相等，0表示不等）
+            let all_ones = _mm512_set1_epi8(-1); // 全1向量
+            let all_zeros = _mm512_setzero_si512(); // 全0向量
+
+            // 根据掩码选择值
+            i8x64(_mm512_mask_blend_epi8(mask, all_zeros, all_ones))
+        }
     }
     #[inline(always)]
-    fn simd_ne(self, other: Self) -> i8x32 {
+    fn simd_ne(self, other: Self) -> i8x64 {
         unsafe {
-            let eq = _mm256_cmpeq_epi8(self.0, other.0);
-            i8x32(_mm256_xor_si256(eq, _mm256_set1_epi8(-1)))
+            // 生成比较掩码（相等为1，不等为0）
+            let eq_mask = _mm512_cmpeq_epi8_mask(self.0, other.0);
+
+            // 取反掩码（相等为0，不等为1）
+            let ne_mask = !eq_mask;
+
+            // 转换为向量
+            let all_ones = _mm512_set1_epi8(-1);
+            let all_zeros = _mm512_setzero_si512();
+            i8x64(_mm512_mask_blend_epi8(ne_mask, all_zeros, all_ones))
         }
     }
     #[inline(always)]
     fn simd_lt(self, other: Self) -> i8x32 {
-        unsafe { i8x32(_mm256_cmpgt_epi8(other.0, self.0)) }
+        unsafe {
+            let lt_mask = _mm512_cmplt_epi8_mask(self.0, other.0);
+
+            let all_ones = _mm512_set1_epi8(-1);
+            let all_zeros = _mm512_setzero_si512();
+            i8x64(_mm512_mask_blend_epi8(lt_mask, all_zeros, all_ones))
+        }
     }
     #[inline(always)]
-    fn simd_le(self, other: Self) -> i8x32 {
+    fn simd_le(self, other: Self) -> i8x64 {
         unsafe {
-            let gt = _mm256_cmpgt_epi8(self.0, other.0);
-            i8x32(_mm256_xor_si256(gt, _mm256_set1_epi8(-1)))
+            let lt_mask = _mm512_cmplt_epi8_mask(self.0, other.0);
+            let eq_mask = _mm512_cmpeq_epi8_mask(self.0, other.0);
+            let le_mask = lt_mask | eq_mask;
+
+            let all_ones = _mm512_set1_epi8(-1);
+            let all_zeros = _mm512_setzero_si512();
+            i8x64(_mm512_mask_blend_epi8(le_mask, all_zeros, all_ones))
         }
     }
     #[inline(always)]
     fn simd_gt(self, other: Self) -> i8x32 {
-        unsafe { i8x32(_mm256_cmpgt_epi8(self.0, other.0)) }
+        unsafe {
+            let gt_mask = _mm512_cmpgt_epi8_mask(self.0, other.0);
+
+            let all_ones = _mm512_set1_epi8(-1);
+            let all_zeros = _mm512_setzero_si512();
+            i8x64(_mm512_mask_blend_epi8(gt_mask, all_zeros, all_ones))
+        }
     }
     #[inline(always)]
-    fn simd_ge(self, other: Self) -> i8x32 {
+    fn simd_ge(self, other: Self) -> i8x64 {
         unsafe {
-            let gt = _mm256_cmpgt_epi8(self.0, other.0);
-            let eq = _mm256_cmpeq_epi8(self.0, other.0);
-            i8x32(_mm256_or_si256(gt, eq))
+            let gt_mask = _mm512_cmpgt_epi8_mask(self.0, other.0);
+            let eq_mask = _mm512_cmpeq_epi8_mask(self.0, other.0);
+            let ge_mask = gt_mask | eq_mask;
+
+            let all_ones = _mm512_set1_epi8(-1);
+            let all_zeros = _mm512_setzero_si512();
+            i8x64(_mm512_mask_blend_epi8(ge_mask, all_zeros, all_ones))
         }
     }
 }
 
-impl SimdSelect<i8x32> for i8x32 {
+impl SimdSelect<i8x64> for i8x64 {
     #[inline(always)]
-    fn select(&self, true_val: i8x32, false_val: i8x32) -> i8x32 {
+    fn select(&self, true_val: i8x64, false_val: i8x64) -> i8x64 {
         unsafe {
-            i8x32(_mm256_blendv_epi8(
-                false_val.0,
-                true_val.0,
-                std::mem::transmute(self.0),
-            ))
+            let mask = _mm512_movepi8_mask(self.0);
+            i8x64(_mm512_mask_blend_epi8(mask, false_val.0, true_val.0))
         }
     }
 }
 
-impl std::ops::Add for i8x32 {
+impl std::ops::Add for i8x64 {
     type Output = Self;
     #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
-        unsafe { i8x32(_mm256_add_epi8(self.0, rhs.0)) }
+        unsafe { i8x64(_mm512_add_epi8(self.0, rhs.0)) }
     }
 }
-impl std::ops::Sub for i8x32 {
+impl std::ops::Sub for i8x64 {
     type Output = Self;
     #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
-        unsafe { i8x32(_mm256_sub_epi8(self.0, rhs.0)) }
+        unsafe { i8x64(_mm512_sub_epi8(self.0, rhs.0)) }
     }
 }
-impl std::ops::Mul for i8x32 {
+impl std::ops::Mul for i8x64 {
     type Output = Self;
     #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
@@ -142,11 +179,11 @@ impl std::ops::Mul for i8x32 {
             for i in 0..32 {
                 result[i] = a[i].wrapping_mul(b[i]);
             }
-            i8x32(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            i8x64(_mm512_loadu_si512(result.as_ptr() as *const __m256i))
         }
     }
 }
-impl std::ops::Div for i8x32 {
+impl std::ops::Div for i8x64 {
     type Output = Self;
     #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
@@ -158,11 +195,11 @@ impl std::ops::Div for i8x32 {
                 assert!(b[i] != 0, "division by zero");
                 result[i] = a[i] / b[i];
             }
-            i8x32(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            i8x64(_mm512_loadu_si512(result.as_ptr() as *const __m256i))
         }
     }
 }
-impl std::ops::Rem for i8x32 {
+impl std::ops::Rem for i8x64 {
     type Output = Self;
     #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
@@ -173,46 +210,50 @@ impl std::ops::Rem for i8x32 {
             for i in 0..32 {
                 result[i] = a[i] % b[i];
             }
-            i8x32(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            i8x64(_mm512_loadu_si512(result.as_ptr() as *const __m256i))
         }
     }
 }
-impl std::ops::Neg for i8x32 {
+impl std::ops::Neg for i8x64 {
     type Output = Self;
     #[inline(always)]
     fn neg(self) -> Self::Output {
-        unsafe { i8x32(_mm256_sign_epi8(self.0, _mm256_set1_epi8(-1))) }
+        unsafe {
+            // 在AVX512中，可以使用减法实现取反：0 - x
+            let zero = _mm512_setzero_si512();
+            i8x64(_mm512_sub_epi8(zero, self.0))
+        }
     }
 }
-impl std::ops::BitAnd for i8x32 {
+impl std::ops::BitAnd for i8x64 {
     type Output = Self;
     #[inline(always)]
     fn bitand(self, rhs: Self) -> Self::Output {
-        unsafe { i8x32(_mm256_and_si256(self.0, rhs.0)) }
+        unsafe { i8x64(_mm512_and_si512(self.0, rhs.0)) }
     }
 }
-impl std::ops::BitOr for i8x32 {
+impl std::ops::BitOr for i8x64 {
     type Output = Self;
     #[inline(always)]
     fn bitor(self, rhs: Self) -> Self::Output {
-        unsafe { i8x32(_mm256_or_si256(self.0, rhs.0)) }
+        unsafe { i8x64(_mm512_or_si512(self.0, rhs.0)) }
     }
 }
-impl std::ops::BitXor for i8x32 {
+impl std::ops::BitXor for i8x64 {
     type Output = Self;
     #[inline(always)]
     fn bitxor(self, rhs: Self) -> Self::Output {
-        unsafe { i8x32(_mm256_xor_si256(self.0, rhs.0)) }
+        unsafe { i8x64(_mm512_xor_si512(self.0, rhs.0)) }
     }
 }
-impl std::ops::Not for i8x32 {
+impl std::ops::Not for i8x64 {
     type Output = Self;
     #[inline(always)]
     fn not(self) -> Self::Output {
-        unsafe { i8x32(_mm256_xor_si256(self.0, _mm256_set1_epi8(-1))) }
+        unsafe { i8x64(_mm512_xor_si512(self.0, _mm512_set1_epi8(-1))) }
     }
 }
-impl std::ops::Shl for i8x32 {
+impl std::ops::Shl for i8x64 {
     type Output = Self;
     #[inline(always)]
     fn shl(self, rhs: Self) -> Self::Output {
@@ -223,11 +264,11 @@ impl std::ops::Shl for i8x32 {
             for i in 0..32 {
                 result[i] = a[i].wrapping_shl(b[i] as u32);
             }
-            i8x32(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            i8x64(_mm512_loadu_si512(result.as_ptr() as *const __m256i))
         }
     }
 }
-impl std::ops::Shr for i8x32 {
+impl std::ops::Shr for i8x64 {
     type Output = Self;
     #[inline(always)]
     fn shr(self, rhs: Self) -> Self::Output {
@@ -238,19 +279,19 @@ impl std::ops::Shr for i8x32 {
             for i in 0..32 {
                 result[i] = a[i].wrapping_shr(b[i] as u32);
             }
-            i8x32(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            i8x64(_mm512_loadu_si512(result.as_ptr() as *const __m256i))
         }
     }
 }
 
-impl SimdMath<i8> for i8x32 {
+impl SimdMath<i8> for i8x64 {
     #[inline(always)]
     fn max(self, other: Self) -> Self {
-        unsafe { i8x32(_mm256_max_epi8(self.0, other.0)) }
+        unsafe { i8x64(_mm512_max_epi8(self.0, other.0)) }
     }
     #[inline(always)]
     fn min(self, other: Self) -> Self {
-        unsafe { i8x32(_mm256_min_epi8(self.0, other.0)) }
+        unsafe { i8x64(_mm512_min_epi8(self.0, other.0)) }
     }
     #[inline(always)]
     fn relu(self) -> Self {
@@ -278,7 +319,7 @@ impl SimdMath<i8> for i8x32 {
     }
     #[inline(always)]
     fn abs(self) -> Self {
-        unsafe { i8x32(_mm256_abs_epi8(self.0)) }
+        unsafe { i8x64(_mm512_abs_epi8(self.0)) }
     }
     #[inline(always)]
     fn neg(self) -> Self {
@@ -302,7 +343,7 @@ impl SimdMath<i8> for i8x32 {
             for i in 0..32 {
                 result[i] = a[i].pow(b[i] as u32);
             }
-            i8x32(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            i8x64(_mm512_loadu_si512(result.as_ptr() as *const __m256i))
         }
     }
     #[inline(always)]
@@ -311,7 +352,7 @@ impl SimdMath<i8> for i8x32 {
     }
 }
 
-impl FloatOutBinary2 for i8x32 {
+impl FloatOutBinary2 for i8x64 {
     #[inline(always)]
     fn __div(self, rhs: Self) -> Self {
         self / rhs
@@ -324,7 +365,7 @@ impl FloatOutBinary2 for i8x32 {
 
     #[inline(always)]
     fn __hypot(self, _: Self) -> Self {
-        panic!("Hypot operation is not supported for i8x32");
+        panic!("Hypot operation is not supported for i8x64");
     }
 
     #[inline(always)]
@@ -339,12 +380,12 @@ impl FloatOutBinary2 for i8x32 {
                 }
                 result[i] = a[i].pow(b[i] as u32);
             }
-            i8x32(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            i8x64(_mm512_loadu_si512(result.as_ptr() as *const __m256i))
         }
     }
 }
 
-impl NormalOutUnary2 for i8x32 {
+impl NormalOutUnary2 for i8x64 {
     #[inline(always)]
     fn __square(self) -> Self {
         self * self
@@ -352,7 +393,7 @@ impl NormalOutUnary2 for i8x32 {
 
     #[inline(always)]
     fn __abs(self) -> Self {
-        i8x32(unsafe { _mm256_abs_epi8(self.0) })
+        i8x64(unsafe { _mm512_abs_epi8(self.0) })
     }
 
     #[inline(always)]
@@ -367,7 +408,7 @@ impl NormalOutUnary2 for i8x32 {
 
     #[inline(always)]
     fn __neg(self) -> Self {
-        unsafe { Self(_mm256_sub_epi8(_mm256_setzero_si256(), self.0)) }
+        unsafe { Self(_mm512_sub_epi8(_mm512_setzero_si512(), self.0)) }
     }
 
     #[inline(always)]
@@ -406,24 +447,30 @@ impl NormalOutUnary2 for i8x32 {
     }
 }
 
-impl Eval2 for i8x32 {
-    type Output = i8x32;
+impl Eval2 for i8x64 {
+    type Output = i8x64;
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
-        i8x32::default()
+        i8x64::default()
     }
 
     #[inline(always)]
     fn __is_true(&self) -> Self::Output {
         unsafe {
-            let eq = _mm256_cmpeq_epi8(self.0, _mm256_setzero_si256());
-            let result = _mm256_andnot_si256(eq, _mm256_set1_epi8(1));
-            Self(result)
+            let zero = _mm512_setzero_si512();
+
+            let non_zero_mask = _mm512_cmpneq_epi8_mask(self.0, zero);
+
+            let result_zero = _mm512_setzero_si512();
+
+            let ones = _mm512_set1_epi8(1);
+
+            Self(_mm512_mask_blend_epi8(non_zero_mask, result_zero, ones))
         }
     }
 
     #[inline(always)]
     fn __is_inf(&self) -> Self::Output {
-        i8x32::default()
+        i8x64::default()
     }
 }

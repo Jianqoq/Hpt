@@ -9,7 +9,7 @@ use std::arch::x86_64::*;
 /// a vector of 2 f64 values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-#[repr(C, align(32))]
+#[repr(C, align(64))]
 pub struct f64x8(#[cfg(target_arch = "x86_64")] pub(crate) __m512d);
 
 /// helper to impl the promote trait
@@ -29,6 +29,10 @@ impl FloatOutBinary2 for f64x8 {
             self[1].log(base[1]),
             self[2].log(base[2]),
             self[3].log(base[3]),
+            self[4].log(base[4]),
+            self[5].log(base[5]),
+            self[6].log(base[6]),
+            self[7].log(base[7]),
         ];
         f64x8(unsafe { std::mem::transmute(res) })
     }

@@ -6,15 +6,15 @@ use crate::{
 
 use std::arch::x86_64::*;
 
-use crate::simd::_256bit::f64x4;
-use crate::simd::_256bit::i64x4;
+use crate::simd::_512bit::f64x8;
+use crate::simd::_512bit::i64x8;
 #[cfg(target_pointer_width = "64")]
-use crate::simd::_256bit::isizex4;
-use crate::simd::_256bit::u64x4;
+use crate::simd::_512bit::isizex8;
+use crate::simd::_512bit::u64x8;
 #[cfg(target_pointer_width = "64")]
-use crate::simd::_256bit::usizex4;
+use crate::simd::_512bit::usizex8;
 
-impl PartialEq for u64x4 {
+impl PartialEq for u64x8 {
     #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         unsafe {
@@ -24,15 +24,15 @@ impl PartialEq for u64x4 {
     }
 }
 
-impl Default for u64x4 {
+impl Default for u64x8 {
     #[inline(always)]
     fn default() -> Self {
-        unsafe { u64x4(_mm256_setzero_si256()) }
+        unsafe { u64x8(_mm256_setzero_si256()) }
     }
 }
 
-impl VecTrait<u64> for u64x4 {
-    const SIZE: usize = 4;
+impl VecTrait<u64> for u64x8 {
+    const SIZE: usize = 8;
     type Base = u64;
     #[inline(always)]
     fn copy_from_slice(&mut self, slice: &[u64]) {
@@ -53,7 +53,7 @@ impl VecTrait<u64> for u64x4 {
             for i in 0..4 {
                 arr4[i] = arr[i] * arr2[i] + arr3[i];
             }
-            u64x4(_mm256_loadu_si256(arr4.as_ptr() as *const __m256i))
+            u64x8(_mm256_loadu_si256(arr4.as_ptr() as *const __m256i))
         }
     }
     #[inline(always)]
@@ -64,37 +64,37 @@ impl VecTrait<u64> for u64x4 {
         }
     }
     #[inline(always)]
-    fn splat(val: u64) -> u64x4 {
-        unsafe { u64x4(_mm256_set1_epi64x(val as i64)) }
+    fn splat(val: u64) -> u64x8 {
+        unsafe { u64x8(_mm256_set1_epi64x(val as i64)) }
     }
     #[inline(always)]
     unsafe fn from_ptr(ptr: *const u64) -> Self {
-        u64x4(_mm256_loadu_si256(ptr as *const __m256i))
+        u64x8(_mm256_loadu_si256(ptr as *const __m256i))
     }
 }
 
-impl SimdSelect<u64x4> for i64x4 {
+impl SimdSelect<u64x8> for i64x8 {
     #[inline(always)]
-    fn select(&self, true_val: u64x4, false_val: u64x4) -> u64x4 {
-        unsafe { u64x4(_mm256_blendv_epi8(false_val.0, true_val.0, self.0)) }
+    fn select(&self, true_val: u64x8, false_val: u64x8) -> u64x8 {
+        unsafe { u64x8(_mm256_blendv_epi8(false_val.0, true_val.0, self.0)) }
     }
 }
 
-impl std::ops::Add for u64x4 {
+impl std::ops::Add for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn add(self, rhs: Self) -> Self {
-        unsafe { u64x4(_mm256_add_epi64(self.0, rhs.0)) }
+        unsafe { u64x8(_mm256_add_epi64(self.0, rhs.0)) }
     }
 }
-impl std::ops::Sub for u64x4 {
+impl std::ops::Sub for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn sub(self, rhs: Self) -> Self {
-        unsafe { u64x4(_mm256_sub_epi64(self.0, rhs.0)) }
+        unsafe { u64x8(_mm256_sub_epi64(self.0, rhs.0)) }
     }
 }
-impl std::ops::Mul for u64x4 {
+impl std::ops::Mul for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn mul(self, rhs: Self) -> Self {
@@ -105,11 +105,11 @@ impl std::ops::Mul for u64x4 {
             for i in 0..4 {
                 arr3[i] = arr[i] * arr2[i];
             }
-            u64x4(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            u64x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
         }
     }
 }
-impl std::ops::Div for u64x4 {
+impl std::ops::Div for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn div(self, rhs: Self) -> Self {
@@ -121,11 +121,11 @@ impl std::ops::Div for u64x4 {
                 assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
-            u64x4(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            u64x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
         }
     }
 }
-impl std::ops::Rem for u64x4 {
+impl std::ops::Rem for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn rem(self, rhs: Self) -> Self {
@@ -136,39 +136,39 @@ impl std::ops::Rem for u64x4 {
             for i in 0..4 {
                 arr3[i] = arr[i] % arr2[i];
             }
-            u64x4(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            u64x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
         }
     }
 }
-impl std::ops::BitAnd for u64x4 {
+impl std::ops::BitAnd for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn bitand(self, rhs: Self) -> Self {
-        unsafe { u64x4(_mm256_and_si256(self.0, rhs.0)) }
+        unsafe { u64x8(_mm256_and_si256(self.0, rhs.0)) }
     }
 }
-impl std::ops::BitOr for u64x4 {
+impl std::ops::BitOr for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn bitor(self, rhs: Self) -> Self {
-        unsafe { u64x4(_mm256_or_si256(self.0, rhs.0)) }
+        unsafe { u64x8(_mm256_or_si256(self.0, rhs.0)) }
     }
 }
-impl std::ops::BitXor for u64x4 {
+impl std::ops::BitXor for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn bitxor(self, rhs: Self) -> Self {
-        unsafe { u64x4(_mm256_xor_si256(self.0, rhs.0)) }
+        unsafe { u64x8(_mm256_xor_si256(self.0, rhs.0)) }
     }
 }
-impl std::ops::Not for u64x4 {
+impl std::ops::Not for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn not(self) -> Self {
-        unsafe { u64x4(_mm256_xor_si256(self.0, _mm256_set1_epi64x(-1))) }
+        unsafe { u64x8(_mm256_xor_si256(self.0, _mm256_set1_epi64x(-1))) }
     }
 }
-impl std::ops::Shl for u64x4 {
+impl std::ops::Shl for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn shl(self, rhs: Self) -> Self {
@@ -179,11 +179,11 @@ impl std::ops::Shl for u64x4 {
             for i in 0..4 {
                 result[i] = a[i].wrapping_shl(b[i] as u32);
             }
-            u64x4(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            u64x8(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
         }
     }
 }
-impl std::ops::Shr for u64x4 {
+impl std::ops::Shr for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn shr(self, rhs: Self) -> Self {
@@ -194,11 +194,11 @@ impl std::ops::Shr for u64x4 {
             for i in 0..4 {
                 result[i] = a[i].wrapping_shr(b[i] as u32);
             }
-            u64x4(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            u64x8(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
         }
     }
 }
-impl SimdMath<u64> for u64x4 {
+impl SimdMath<u64> for u64x8 {
     #[inline(always)]
     fn max(self, other: Self) -> Self {
         unsafe {
@@ -208,7 +208,7 @@ impl SimdMath<u64> for u64x4 {
             for i in 0..4 {
                 arr3[i] = arr[i].max(arr2[i]);
             }
-            u64x4(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            u64x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
         }
     }
     #[inline(always)]
@@ -220,7 +220,7 @@ impl SimdMath<u64> for u64x4 {
             for i in 0..4 {
                 arr3[i] = arr[i].min(arr2[i]);
             }
-            u64x4(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            u64x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
         }
     }
     #[inline(always)]
@@ -260,7 +260,7 @@ impl SimdMath<u64> for u64x4 {
             for i in 0..4 {
                 result[i] = a[i].pow(b[i] as u32);
             }
-            u64x4(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            u64x8(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
         }
     }
     #[inline(always)]
@@ -269,39 +269,39 @@ impl SimdMath<u64> for u64x4 {
     }
 }
 
-impl VecConvertor for u64x4 {
+impl VecConvertor for u64x8 {
     #[inline(always)]
-    fn to_u64(self) -> u64x4 {
+    fn to_u64(self) -> u64x8 {
         self
     }
     #[inline(always)]
-    fn to_i64(self) -> i64x4 {
+    fn to_i64(self) -> i64x8 {
         unsafe { std::mem::transmute(self) }
     }
     #[inline(always)]
-    fn to_f64(self) -> f64x4 {
+    fn to_f64(self) -> f64x8 {
         unsafe {
             let arr: [u64; 4] = std::mem::transmute(self.0);
             let mut result = [0.0f64; 4];
             for i in 0..4 {
                 result[i] = arr[i] as f64;
             }
-            f64x4(_mm256_loadu_pd(result.as_ptr()))
+            f64x8(_mm256_loadu_pd(result.as_ptr()))
         }
     }
     #[cfg(target_pointer_width = "64")]
     #[inline(always)]
-    fn to_isize(self) -> isizex4 {
+    fn to_isize(self) -> isizex8 {
         unsafe { std::mem::transmute(self) }
     }
     #[cfg(target_pointer_width = "64")]
     #[inline(always)]
-    fn to_usize(self) -> usizex4 {
+    fn to_usize(self) -> usizex8 {
         unsafe { std::mem::transmute(self) }
     }
 }
 
-impl FloatOutBinary2 for u64x4 {
+impl FloatOutBinary2 for u64x8 {
     #[inline(always)]
     fn __div(self, rhs: Self) -> Self {
         self / rhs
@@ -314,7 +314,7 @@ impl FloatOutBinary2 for u64x4 {
 
     #[inline(always)]
     fn __hypot(self, _: Self) -> Self {
-        panic!("Hypot operation is not supported for u64x4");
+        panic!("Hypot operation is not supported for u64x8");
     }
 
     #[inline(always)]
@@ -326,16 +326,16 @@ impl FloatOutBinary2 for u64x4 {
             for i in 0..4 {
                 arr3[i] = arr[i].pow(arr2[i] as u32);
             }
-            u64x4(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            u64x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
         }
     }
 }
 
-impl Eval2 for u64x4 {
-    type Output = i64x4;
+impl Eval2 for u64x8 {
+    type Output = i64x8;
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
-        i64x4::default()
+        i64x8::default()
     }
 
     #[inline(always)]
@@ -343,12 +343,12 @@ impl Eval2 for u64x4 {
         unsafe {
             let eq = _mm256_cmpeq_epi64(self.0, _mm256_setzero_si256());
             let result = _mm256_andnot_si256(eq, _mm256_set1_epi64x(1));
-            i64x4(result)
+            i64x8(result)
         }
     }
 
     #[inline(always)]
     fn __is_inf(&self) -> Self::Output {
-        i64x4::default()
+        i64x8::default()
     }
 }

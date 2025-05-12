@@ -7,7 +7,7 @@ use std::arch::x86_64::*;
 /// a vector of 16 f32 values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-#[repr(C, align(16))]
+#[repr(C, align(64))]
 pub struct f32x16(#[cfg(target_arch = "x86_64")] pub(crate) __m512);
 
 /// helper to impl the promote trait
@@ -65,7 +65,7 @@ impl FloatOutBinary2 for f32x16 {
             self[8 + 1].log(base[8 + 1]),
             self[8 + 2].log(base[8 + 2]),
             self[8 + 3].log(base[8 + 3]),
-            self[8 + 4].log(base[8 + ]),
+            self[8 + 4].log(base[8 + 4]),
             self[8 + 5].log(base[8 + 5]),
             self[8 + 6].log(base[8 + 6]),
             self[8 + 7].log(base[8 + 7]),

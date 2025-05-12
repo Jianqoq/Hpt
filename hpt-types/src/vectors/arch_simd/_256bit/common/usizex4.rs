@@ -15,7 +15,7 @@ use super::isizex4::isizex4;
 /// a vector of 4 usize values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-#[repr(C, align(16))]
+#[repr(C, align(32))]
 pub struct usizex8(pub(crate) u32x8);
 
 #[cfg(target_pointer_width = "32")]
@@ -27,7 +27,7 @@ pub(crate) type usize_promote = usizex8;
 /// a vector of 4 usize values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-#[repr(C, align(16))]
+#[repr(C, align(32))]
 pub struct usizex4(pub(crate) u64x4);
 
 #[cfg(target_pointer_width = "64")]

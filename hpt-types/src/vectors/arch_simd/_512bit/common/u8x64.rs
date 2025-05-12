@@ -6,77 +6,77 @@ use crate::{
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use super::i8x32::i8x32;
+use super::i8x64::i8x64;
 
 /// a vector of 32 u8 values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-#[repr(C, align(32))]
-pub struct u8x32(#[cfg(target_arch = "x86_64")] pub(crate) __m256i);
+#[repr(C, align(64))]
+pub struct u8x64(#[cfg(target_arch = "x86_64")] pub(crate) __m512i);
 
 /// helper to impl the promote trait
 #[allow(non_camel_case_types)]
-pub(crate) type u8_promote = u8x32;
+pub(crate) type u8_promote = u8x64;
 
-impl SimdCompare for u8x32 {
-    type SimdMask = i8x32;
+impl SimdCompare for u8x64 {
+    type SimdMask = i8x64;
     #[inline(always)]
-    fn simd_eq(self, other: Self) -> i8x32 {
+    fn simd_eq(self, other: Self) -> i8x64 {
         unsafe {
-            let lhs: i8x32 = std::mem::transmute(self.0);
-            let rhs: i8x32 = std::mem::transmute(other.0);
+            let lhs: i8x64 = std::mem::transmute(self.0);
+            let rhs: i8x64 = std::mem::transmute(other.0);
             lhs.simd_eq(rhs)
         }
     }
     #[inline(always)]
-    fn simd_ne(self, other: Self) -> i8x32 {
+    fn simd_ne(self, other: Self) -> i8x64 {
         unsafe {
-            let lhs: i8x32 = std::mem::transmute(self.0);
-            let rhs: i8x32 = std::mem::transmute(other.0);
+            let lhs: i8x64 = std::mem::transmute(self.0);
+            let rhs: i8x64 = std::mem::transmute(other.0);
             lhs.simd_ne(rhs)
         }
     }
     #[inline(always)]
-    fn simd_lt(self, other: Self) -> i8x32 {
+    fn simd_lt(self, other: Self) -> i8x64 {
         unsafe {
-            let lhs: i8x32 = std::mem::transmute(self.0);
-            let rhs: i8x32 = std::mem::transmute(other.0);
+            let lhs: i8x64 = std::mem::transmute(self.0);
+            let rhs: i8x64 = std::mem::transmute(other.0);
             lhs.simd_lt(rhs)
         }
     }
     #[inline(always)]
-    fn simd_le(self, other: Self) -> i8x32 {
+    fn simd_le(self, other: Self) -> i8x64 {
         unsafe {
-            let lhs: i8x32 = std::mem::transmute(self.0);
-            let rhs: i8x32 = std::mem::transmute(other.0);
+            let lhs: i8x64 = std::mem::transmute(self.0);
+            let rhs: i8x64 = std::mem::transmute(other.0);
             lhs.simd_le(rhs)
         }
     }
     #[inline(always)]
-    fn simd_gt(self, other: Self) -> i8x32 {
+    fn simd_gt(self, other: Self) -> i8x64 {
         unsafe {
-            let lhs: i8x32 = std::mem::transmute(self.0);
-            let rhs: i8x32 = std::mem::transmute(other.0);
+            let lhs: i8x64 = std::mem::transmute(self.0);
+            let rhs: i8x64 = std::mem::transmute(other.0);
             lhs.simd_gt(rhs)
         }
     }
     #[inline(always)]
-    fn simd_ge(self, other: Self) -> i8x32 {
+    fn simd_ge(self, other: Self) -> i8x64 {
         unsafe {
-            let lhs: i8x32 = std::mem::transmute(self.0);
-            let rhs: i8x32 = std::mem::transmute(other.0);
+            let lhs: i8x64 = std::mem::transmute(self.0);
+            let rhs: i8x64 = std::mem::transmute(other.0);
             lhs.simd_ge(rhs)
         }
     }
 }
 
-impl VecConvertor for u8x32 {
+impl VecConvertor for u8x64 {
     #[inline(always)]
-    fn to_u8(self) -> u8x32 {
+    fn to_u8(self) -> u8x64 {
         self
     }
     #[inline(always)]
-    fn to_i8(self) -> i8x32 {
+    fn to_i8(self) -> i8x64 {
         unsafe { std::mem::transmute(self) }
     }
     #[inline(always)]
@@ -85,7 +85,7 @@ impl VecConvertor for u8x32 {
     }
 }
 
-impl NormalOut2 for u8x32 {
+impl NormalOut2 for u8x64 {
     #[inline(always)]
     fn __add(self, rhs: Self) -> Self {
         self + rhs
@@ -127,7 +127,7 @@ impl NormalOut2 for u8x32 {
     }
 }
 
-impl NormalOutUnary2 for u8x32 {
+impl NormalOutUnary2 for u8x64 {
     #[inline(always)]
     fn __square(self) -> Self {
         self * self

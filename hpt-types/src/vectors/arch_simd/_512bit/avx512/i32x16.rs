@@ -5,11 +5,11 @@ use crate::{
 };
 use std::arch::x86_64::*;
 
-use crate::simd::_256bit::f32x8;
-use crate::simd::_256bit::i32x8;
-use crate::simd::_256bit::u32x8;
+use crate::simd::_512bit::f32x16;
+use crate::simd::_512bit::i32x16;
+use crate::simd::_512bit::u32x16;
 
-impl PartialEq for i32x8 {
+impl PartialEq for i32x16 {
     #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         unsafe {
@@ -19,14 +19,14 @@ impl PartialEq for i32x8 {
     }
 }
 
-impl Default for i32x8 {
+impl Default for i32x16 {
     #[inline(always)]
     fn default() -> Self {
-        unsafe { i32x8(_mm256_setzero_si256()) }
+        unsafe { i32x16(_mm256_setzero_si256()) }
     }
 }
 
-impl VecTrait<i32> for i32x8 {
+impl VecTrait<i32> for i32x16 {
     const SIZE: usize = 8;
     type Base = i32;
     #[inline(always)]
@@ -40,7 +40,7 @@ impl VecTrait<i32> for i32x8 {
     }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
-        unsafe { i32x8(_mm256_add_epi32(self.0, _mm256_mullo_epi32(a.0, b.0))) }
+        unsafe { i32x16(_mm256_add_epi32(self.0, _mm256_mullo_epi32(a.0, b.0))) }
     }
     #[inline(always)]
     fn sum(&self) -> i32 {
@@ -50,84 +50,84 @@ impl VecTrait<i32> for i32x8 {
         }
     }
     #[inline(always)]
-    fn splat(val: i32) -> i32x8 {
-        unsafe { i32x8(_mm256_set1_epi32(val)) }
+    fn splat(val: i32) -> i32x16 {
+        unsafe { i32x16(_mm256_set1_epi32(val)) }
     }
     #[inline(always)]
     unsafe fn from_ptr(ptr: *const i32) -> Self {
-        i32x8(_mm256_loadu_si256(ptr as *const __m256i))
+        i32x16(_mm256_loadu_si256(ptr as *const __m256i))
     }
 }
 
-impl SimdCompare for i32x8 {
-    type SimdMask = i32x8;
+impl SimdCompare for i32x16 {
+    type SimdMask = i32x16;
     #[inline(always)]
-    fn simd_eq(self, other: Self) -> i32x8 {
-        unsafe { i32x8(_mm256_cmpeq_epi32(self.0, other.0)) }
+    fn simd_eq(self, other: Self) -> i32x16 {
+        unsafe { i32x16(_mm256_cmpeq_epi32(self.0, other.0)) }
     }
     #[inline(always)]
-    fn simd_ne(self, other: Self) -> i32x8 {
+    fn simd_ne(self, other: Self) -> i32x16 {
         unsafe {
             let eq = _mm256_cmpeq_epi32(self.0, other.0);
-            i32x8(_mm256_xor_si256(eq, _mm256_set1_epi32(-1)))
+            i32x16(_mm256_xor_si256(eq, _mm256_set1_epi32(-1)))
         }
     }
     #[inline(always)]
-    fn simd_lt(self, other: Self) -> i32x8 {
-        unsafe { i32x8(_mm256_cmpgt_epi32(other.0, self.0)) }
+    fn simd_lt(self, other: Self) -> i32x16 {
+        unsafe { i32x16(_mm256_cmpgt_epi32(other.0, self.0)) }
     }
     #[inline(always)]
-    fn simd_le(self, other: Self) -> i32x8 {
+    fn simd_le(self, other: Self) -> i32x16 {
         unsafe {
             let lt = _mm256_cmpgt_epi32(other.0, self.0);
             let eq = _mm256_cmpeq_epi32(self.0, other.0);
-            i32x8(_mm256_or_si256(lt, eq))
+            i32x16(_mm256_or_si256(lt, eq))
         }
     }
     #[inline(always)]
-    fn simd_gt(self, other: Self) -> i32x8 {
-        unsafe { i32x8(_mm256_cmpgt_epi32(self.0, other.0)) }
+    fn simd_gt(self, other: Self) -> i32x16 {
+        unsafe { i32x16(_mm256_cmpgt_epi32(self.0, other.0)) }
     }
     #[inline(always)]
-    fn simd_ge(self, other: Self) -> i32x8 {
+    fn simd_ge(self, other: Self) -> i32x16 {
         unsafe {
             let gt = _mm256_cmpgt_epi32(self.0, other.0);
             let eq = _mm256_cmpeq_epi32(self.0, other.0);
-            i32x8(_mm256_or_si256(gt, eq))
+            i32x16(_mm256_or_si256(gt, eq))
         }
     }
 }
 
-impl SimdSelect<i32x8> for i32x8 {
+impl SimdSelect<i32x16> for i32x16 {
     #[inline(always)]
-    fn select(&self, true_val: i32x8, false_val: i32x8) -> i32x8 {
-        unsafe { i32x8(_mm256_blendv_epi8(false_val.0, true_val.0, self.0)) }
+    fn select(&self, true_val: i32x16, false_val: i32x16) -> i32x16 {
+        unsafe { i32x16(_mm256_blendv_epi8(false_val.0, true_val.0, self.0)) }
     }
 }
 
-impl std::ops::Add for i32x8 {
-    type Output = i32x8;
+impl std::ops::Add for i32x16 {
+    type Output = i32x16;
     #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
-        unsafe { i32x8(_mm256_add_epi32(self.0, rhs.0)) }
+        unsafe { i32x16(_mm256_add_epi32(self.0, rhs.0)) }
     }
 }
-impl std::ops::Sub for i32x8 {
-    type Output = i32x8;
+impl std::ops::Sub for i32x16 {
+    type Output = i32x16;
     #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
-        unsafe { i32x8(_mm256_sub_epi32(self.0, rhs.0)) }
+        unsafe { i32x16(_mm256_sub_epi32(self.0, rhs.0)) }
     }
 }
-impl std::ops::Mul for i32x8 {
-    type Output = i32x8;
+impl std::ops::Mul for i32x16 {
+    type Output = i32x16;
     #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
-        unsafe { i32x8(_mm256_mullo_epi32(self.0, rhs.0)) }
+        unsafe { i32x16(_mm256_mullo_epi32(self.0, rhs.0)) }
     }
 }
-impl std::ops::Div for i32x8 {
-    type Output = i32x8;
+impl std::ops::Div for i32x16 {
+    type Output = i32x16;
     #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
         unsafe {
@@ -138,12 +138,12 @@ impl std::ops::Div for i32x8 {
                 assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
-            i32x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            i32x16(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
         }
     }
 }
-impl std::ops::Rem for i32x8 {
-    type Output = i32x8;
+impl std::ops::Rem for i32x16 {
+    type Output = i32x16;
     #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
         unsafe {
@@ -153,46 +153,46 @@ impl std::ops::Rem for i32x8 {
             for i in 0..8 {
                 arr3[i] = arr[i] % arr2[i];
             }
-            i32x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            i32x16(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
         }
     }
 }
-impl std::ops::Neg for i32x8 {
-    type Output = i32x8;
+impl std::ops::Neg for i32x16 {
+    type Output = i32x16;
     #[inline(always)]
     fn neg(self) -> Self::Output {
-        unsafe { i32x8(_mm256_sign_epi32(self.0, _mm256_set1_epi32(-1))) }
+        unsafe { i32x16(_mm256_sign_epi32(self.0, _mm256_set1_epi32(-1))) }
     }
 }
-impl std::ops::BitAnd for i32x8 {
+impl std::ops::BitAnd for i32x16 {
     type Output = Self;
     #[inline(always)]
     fn bitand(self, rhs: Self) -> Self::Output {
-        unsafe { i32x8(_mm256_and_si256(self.0, rhs.0)) }
+        unsafe { i32x16(_mm256_and_si256(self.0, rhs.0)) }
     }
 }
-impl std::ops::BitOr for i32x8 {
+impl std::ops::BitOr for i32x16 {
     type Output = Self;
     #[inline(always)]
     fn bitor(self, rhs: Self) -> Self::Output {
-        unsafe { i32x8(_mm256_or_si256(self.0, rhs.0)) }
+        unsafe { i32x16(_mm256_or_si256(self.0, rhs.0)) }
     }
 }
-impl std::ops::BitXor for i32x8 {
+impl std::ops::BitXor for i32x16 {
     type Output = Self;
     #[inline(always)]
     fn bitxor(self, rhs: Self) -> Self::Output {
-        unsafe { i32x8(_mm256_xor_si256(self.0, rhs.0)) }
+        unsafe { i32x16(_mm256_xor_si256(self.0, rhs.0)) }
     }
 }
-impl std::ops::Not for i32x8 {
+impl std::ops::Not for i32x16 {
     type Output = Self;
     #[inline(always)]
     fn not(self) -> Self::Output {
-        unsafe { i32x8(_mm256_xor_si256(self.0, _mm256_set1_epi32(-1))) }
+        unsafe { i32x16(_mm256_xor_si256(self.0, _mm256_set1_epi32(-1))) }
     }
 }
-impl std::ops::Shl for i32x8 {
+impl std::ops::Shl for i32x16 {
     type Output = Self;
     #[inline(always)]
     fn shl(self, rhs: Self) -> Self::Output {
@@ -203,11 +203,11 @@ impl std::ops::Shl for i32x8 {
             for i in 0..8 {
                 result[i] = a[i].wrapping_shl(b[i] as u32);
             }
-            i32x8(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            i32x16(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
         }
     }
 }
-impl std::ops::Shr for i32x8 {
+impl std::ops::Shr for i32x16 {
     type Output = Self;
     #[inline(always)]
     fn shr(self, rhs: Self) -> Self::Output {
@@ -218,18 +218,18 @@ impl std::ops::Shr for i32x8 {
             for i in 0..8 {
                 result[i] = a[i].wrapping_shr(b[i] as u32);
             }
-            i32x8(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            i32x16(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
         }
     }
 }
-impl SimdMath<i32> for i32x8 {
+impl SimdMath<i32> for i32x16 {
     #[inline(always)]
     fn max(self, other: Self) -> Self {
-        unsafe { i32x8(_mm256_max_epi32(self.0, other.0)) }
+        unsafe { i32x16(_mm256_max_epi32(self.0, other.0)) }
     }
     #[inline(always)]
     fn min(self, other: Self) -> Self {
-        unsafe { i32x8(_mm256_min_epi32(self.0, other.0)) }
+        unsafe { i32x16(_mm256_min_epi32(self.0, other.0)) }
     }
     #[inline(always)]
     fn relu(self) -> Self {
@@ -257,7 +257,7 @@ impl SimdMath<i32> for i32x8 {
     }
     #[inline(always)]
     fn abs(self) -> Self {
-        unsafe { i32x8(_mm256_abs_epi32(self.0)) }
+        unsafe { i32x16(_mm256_abs_epi32(self.0)) }
     }
     #[inline(always)]
     fn neg(self) -> Self {
@@ -281,7 +281,7 @@ impl SimdMath<i32> for i32x8 {
             for i in 0..8 {
                 result[i] = a[i].pow(b[i] as u32);
             }
-            i32x8(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            i32x16(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
         }
     }
     #[inline(always)]
@@ -290,9 +290,9 @@ impl SimdMath<i32> for i32x8 {
     }
 }
 
-impl VecConvertor for i32x8 {
+impl VecConvertor for i32x16 {
     #[inline(always)]
-    fn to_i32(self) -> i32x8 {
+    fn to_i32(self) -> i32x16 {
         self
     }
     #[inline(always)]
@@ -315,7 +315,7 @@ impl VecConvertor for i32x8 {
     }
 }
 
-impl FloatOutBinary2 for i32x8 {
+impl FloatOutBinary2 for i32x16 {
     #[inline(always)]
     fn __div(self, rhs: Self) -> Self {
         self / rhs
@@ -328,7 +328,7 @@ impl FloatOutBinary2 for i32x8 {
 
     #[inline(always)]
     fn __hypot(self, _: Self) -> Self {
-        panic!("Hypot operation is not supported for i32x8");
+        panic!("Hypot operation is not supported for i32x16");
     }
 
     #[inline(always)]
@@ -343,12 +343,12 @@ impl FloatOutBinary2 for i32x8 {
                 }
                 arr3[i] = arr[i].pow(arr2[i] as u32);
             }
-            i32x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            i32x16(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
         }
     }
 }
 
-impl NormalOutUnary2 for i32x8 {
+impl NormalOutUnary2 for i32x16 {
     #[inline(always)]
     fn __square(self) -> Self {
         self * self
@@ -356,7 +356,7 @@ impl NormalOutUnary2 for i32x8 {
 
     #[inline(always)]
     fn __abs(self) -> Self {
-        i32x8(unsafe { _mm256_abs_epi32(self.0) })
+        i32x16(unsafe { _mm256_abs_epi32(self.0) })
     }
 
     #[inline(always)]
@@ -410,11 +410,11 @@ impl NormalOutUnary2 for i32x8 {
     }
 }
 
-impl Eval2 for i32x8 {
-    type Output = i32x8;
+impl Eval2 for i32x16 {
+    type Output = i32x16;
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
-        i32x8::default()
+        i32x16::default()
     }
 
     #[inline(always)]
@@ -428,6 +428,6 @@ impl Eval2 for i32x8 {
 
     #[inline(always)]
     fn __is_inf(&self) -> Self::Output {
-        i32x8::default()
+        i32x16::default()
     }
 }

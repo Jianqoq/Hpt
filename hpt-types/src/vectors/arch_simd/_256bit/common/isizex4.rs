@@ -15,7 +15,7 @@ use crate::arch_simd::_256bit::i64x4;
 /// a vector of 4 isize values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-#[repr(C, align(16))]
+#[repr(C, align(32))]
 pub struct isizex8(pub(crate) i32x8);
 
 #[cfg(target_pointer_width = "32")]
@@ -27,7 +27,7 @@ pub(crate) type isize_promote = isizex8;
 /// a vector of 4 isize values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-#[repr(C, align(16))]
+#[repr(C, align(32))]
 pub struct isizex4(pub(crate) i64x4);
 
 #[cfg(target_pointer_width = "64")]
