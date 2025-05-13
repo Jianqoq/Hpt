@@ -181,7 +181,8 @@ macro_rules! store_res_vec_mp {
 #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
 pub(crate) fn load_vec_neon<const NR: usize>(data: *const f32, mut to_write: *mut f32) {
     use std::{arch::aarch64::*, mem::transmute};
-    use crate::{simd::F32Vec, vec_size};
+    use crate::vec_size;
+    use crate::F32Vec;
     unsafe {
         match NR {
             1 => {

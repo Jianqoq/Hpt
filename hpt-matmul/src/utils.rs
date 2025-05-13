@@ -24,13 +24,13 @@ thread_local! {
     );
 }
 
-pub(crate) struct KernelParams {
-    pub(crate) kc: usize,
-    pub(crate) mc: usize,
-    pub(crate) nc: usize,
+pub struct KernelParams {
+    pub kc: usize,
+    pub mc: usize,
+    pub nc: usize,
 }
 
-pub(crate) fn kernel_params(
+pub fn kernel_params(
     n: usize,
     m: usize,
     k: usize,
@@ -52,11 +52,11 @@ pub(crate) fn kernel_params(
 
     let info = *CACHE_INFO;
 
-    let l1_cache_bytes = info[0].cache_bytes.max(32 * 1024);
+    let l1_cache_bytes = info[0].cache_bytes;
     let l2_cache_bytes = info[1].cache_bytes;
     let l3_cache_bytes = info[2].cache_bytes;
 
-    let l1_line_bytes = info[0].cache_line_bytes.max(64);
+    let l1_line_bytes = info[0].cache_line_bytes;
 
     let l1_assoc = info[0].associativity.max(2);
     let l2_assoc = info[1].associativity.max(2);
@@ -403,6 +403,46 @@ pub(crate) fn pack_b<T: Copy, TVec>(
     }
 }
 
+pub(crate) fn pack_b_single_thread<T: Copy, TVec>(
+    b: Pointer<T>,
+    mut packed_b: Pointer<T>,
+    ldb: i64,
+    stride: i64,
+    nc: usize,
+    kb: usize,
+    kc: usize,
+    nr: usize,
+)
+{
+    let nr_div_lane = nr / vec_size::<T>();
+    for j in (0..nc).step_by(nr) {
+        let nb = nr.min(nc - j);
+        if nb == nr && stride == 1 {
+            for p in 0..kb as i64 {
+                unsafe {
+                    let b_ptr = b.ptr.offset((p * ldb) as isize + j as isize) as *const TVec;
+                    for i in 0..nr_div_lane {
+                        let packed_b_vec = packed_b.ptr.add(i * vec_size::<T>()) as *mut TVec;
+                        packed_b_vec.write(b_ptr.add(i).read_unaligned());
+                    }
+                }
+                packed_b += nr as i64;
+            }
+            packed_b += ((kc - kb) as i64) * (nr as i64);
+        } else {
+            for p in 0..kb as i64 {
+                for jj in 0..nb as i64 {
+                    let j = (j as i64) + jj;
+                    *packed_b = b[p * ldb + j * stride];
+                    packed_b += 1i64;
+                }
+                packed_b += (nr - nb) as i64;
+            }
+            packed_b += ((kc - kb) as i64) * (nr as i64);
+        }
+    }
+}
+
 pub(crate) fn prepack_b<T: Copy, TVec>(
     b: Pointer<T>,
     m: usize,
@@ -602,4 +642,19 @@ impl PrePackedRhs {
     pub fn num_threads(&self) -> usize {
         self.num_threads
     }
+}
+
+#[allow(dead_code)]
+#[derive(Clone)]
+pub struct PrePackedLhs {
+    pub(crate) buffers: Vec<Vec<Pointer<u8>>>,
+    pub(crate) buffer: (Pointer<u8>, std::alloc::Layout),
+    pub(crate) mr: usize,
+    pub(crate) mc: usize,
+    pub(crate) kc: usize,
+    pub(crate) nr: usize,
+    pub(crate) nc: usize,
+    pub(crate) num_threads: usize,
+    pub(crate) prgs: Vec<[usize; 3]>,
+    pub(crate) intervals: Vec<(usize, usize)>,
 }

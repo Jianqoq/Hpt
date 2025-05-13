@@ -336,4 +336,4 @@ pub(crate) trait Add {
 
 pub use matmul::{matmul, matmul_prepack_rhs, matmul_with_post};
 
-pub use utils::PrePackedRhs;
+pub use utils::{PrePackedRhs, kernel_params};

@@ -9,7 +9,7 @@ impl crate::Zero for f32 {
 }
 
 #[cfg(target_feature = "neon")]
-impl MatmulMicroKernel<F32Vec, f32, F32Vec> for f32 {
+impl MatmulMicroKernel for f32 {
     fn get_kernel(
         nr: usize,
         mr: usize
@@ -107,6 +107,12 @@ impl MatmulMicroKernel<F32Vec, f32, F32Vec> for f32 {
     fn get_horizontal_max_nr() -> usize {
         14
     }
+    
+    type SelfVec = F32Vec;
+    
+    type MixedType = f32;
+    
+    type MixedVec = F32Vec;
 }
 
 #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]

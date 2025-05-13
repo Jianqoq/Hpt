@@ -4,13 +4,9 @@ use dyn_stack::DynStack;
 use gemm_common::gemm::CACHELINE_ALIGN;
 
 use crate::{
-    Pointer, Zero,
-    microkernel_trait::MatmulMicroKernel,
-    utils::{
-        L2_SLAB, L3_SLAB, PrePackedRhs, calculate_jobs, calculate_prgs, mt_intervals, pack_a,
-        pack_a_mixed_precision, pack_b, pack_b_mixed_precision,
-    },
-    vec_size,
+    microkernel_trait::MatmulMicroKernel, utils::{
+        calculate_jobs, calculate_prgs, mt_intervals, pack_a, pack_a_mixed_precision, pack_b, pack_b_mixed_precision, pack_b_single_thread, PrePackedLhs, PrePackedRhs, L2_SLAB, L3_SLAB
+    }, vec_size, Pointer, Zero
 };
 
 #[duplicate::duplicate_item(
@@ -200,7 +196,7 @@ pub(crate) fn func_name<T, F1, F2>(
                                     jjb,
                                     mb as i64,
                                     first_kiter,
-                                    extra_args,
+                                    extra_args
                                 );
                             } else {
                                 micro_kernel(
@@ -213,7 +209,7 @@ pub(crate) fn func_name<T, F1, F2>(
                                     jjb,
                                     lhs_col_stride,
                                     first_kiter,
-                                    extra_args,
+                                    extra_args
                                 );
                             }
                             job_count += 1;
@@ -248,6 +244,7 @@ pub(crate) fn single_thread_matmul<T>(
     nr: usize,
     mr: usize,
     do_lhs_pack: bool,
+    prepacked_lhs: Option<PrePackedLhs>,
     prepack_rhs: Option<PrePackedRhs>,
 ) where
     T: MatmulMicroKernel + Send + Sync + Copy + Zero,
@@ -281,38 +278,31 @@ pub(crate) fn single_thread_matmul<T>(
         assert_eq!(prepacked.nc, nc);
         assert_eq!(prepacked.mr, mr);
         assert_eq!(prepacked.nr, nr);
-        assert_eq!(prepacked.num_threads, num_threads);
-        assert_eq!(prepacked.prgs, prgs);
-        assert_eq!(prepacked.rem_prgs, rem_prgs);
-        assert_eq!(prepacked.intervals, intervals);
-        assert_eq!(prepacked.rem_intervals, mc_rem_intervals);
         do_rhs_pack = false;
     }
 
     let panel_size = num_nr_blocks * nr * kc;
-
-    let mut packed_b_local_buffer = [0u8; 256 * 256 * 4];
 
     for i in (0..m).step_by(mc) {
         let ib = min(mc, m - i);
         for (p_idx, p) in (0..k).step_by(kc).enumerate() {
             let first_kiter = p == 0;
             let pb = min(kc, k - p);
-
+            
             let packed_a = if do_lhs_pack {
-                pack_a::<T>(
-                    a + (i as i64) * lda + (p as i64) * lhs_col_stride,
-                    packed_a,
-                    lda,
-                    lhs_col_stride,
-                    ib,
-                    pb,
-                    kc,
-                    mr,
-                    0,
-                    mb_per_thread,
-                    num_mr_blocks,
-                );
+                // pack_a::<T>(
+                //     a + (i as i64) * lda + (p as i64) * lhs_col_stride,
+                //     packed_a,
+                //     lda,
+                //     lhs_col_stride,
+                //     ib,
+                //     pb,
+                //     kc,
+                //     mr,
+                //     0,
+                //     num_mr_blocks,
+                //     num_mr_blocks,
+                // );
                 packed_a
             } else {
                 a + ((i as i64) * lda + (p as i64) * lhs_col_stride)
@@ -320,9 +310,9 @@ pub(crate) fn single_thread_matmul<T>(
 
             let mut packed_b = if let Some(prepacked) = &prepack_rhs {
                 let buffer = if ib == mc {
-                    &prepacked.buffers[p_idx][tid]
+                    &prepacked.buffers[p_idx][0]
                 } else {
-                    &prepacked.buffer_rems[p_idx][tid]
+                    &prepacked.buffer_rems[p_idx][0]
                 };
                 buffer.cast::<T>()
             } else {
@@ -339,7 +329,7 @@ pub(crate) fn single_thread_matmul<T>(
                 let jb = min(nc, n - j);
                 let c = out + (i as i64) * ldc + (j as i64);
                 if do_rhs_pack {
-                    pack_b::<T, <T as MatmulMicroKernel>::SelfVec>(
+                    pack_b_single_thread::<T, <T as MatmulMicroKernel>::SelfVec>(
                         b + ((p as i64) * ldb + (j as i64) * rhs_col_stride),
                         packed_b,
                         ldb,
@@ -348,8 +338,6 @@ pub(crate) fn single_thread_matmul<T>(
                         pb,
                         kc,
                         nr,
-                        0,
-                        true,
                     );
                 } else {
                     packed_b = packed_b_cpy + panel_idx * (panel_size as i64);
