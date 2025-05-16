@@ -11,13 +11,13 @@ use crate::{
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 #[repr(C, align(64))]
-pub struct cplx32x4(pub(crate) [Complex32; 4]);
+pub struct cplx32x8(pub(crate) [Complex32; 4]);
 
 /// helper to impl the promote trait
 #[allow(non_camel_case_types)]
-pub(crate) type Complex32_promote = cplx32x4;
+pub(crate) type Complex32_promote = cplx32x8;
 
-impl VecTrait<Complex32> for cplx32x4 {
+impl VecTrait<Complex32> for cplx32x8 {
     const SIZE: usize = 4;
     type Base = Complex32;
     #[inline(always)]
@@ -50,12 +50,12 @@ impl VecTrait<Complex32> for cplx32x4 {
         self.0.iter().sum()
     }
     #[inline(always)]
-    fn splat(val: Complex32) -> cplx32x4 {
-        cplx32x4([val; 4])
+    fn splat(val: Complex32) -> cplx32x8 {
+        cplx32x8([val; 4])
     }
     #[inline(always)]
     unsafe fn from_ptr(ptr: *const Complex32) -> Self {
-        cplx32x4([
+        cplx32x8([
             ptr.read_unaligned(),
             ptr.add(1).read_unaligned(),
             ptr.add(2).read_unaligned(),
@@ -64,44 +64,44 @@ impl VecTrait<Complex32> for cplx32x4 {
     }
 }
 
-impl std::ops::Add for cplx32x4 {
+impl std::ops::Add for cplx32x8 {
     type Output = Self;
     #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
-        let mut ret = cplx32x4::default();
+        let mut ret = cplx32x8::default();
         for i in 0..4 {
             ret.0[i] = self.0[i] + rhs.0[i];
         }
         ret
     }
 }
-impl std::ops::Sub for cplx32x4 {
+impl std::ops::Sub for cplx32x8 {
     type Output = Self;
     #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
-        let mut ret = cplx32x4::default();
+        let mut ret = cplx32x8::default();
         for i in 0..4 {
             ret.0[i] = self.0[i] - rhs.0[i];
         }
         ret
     }
 }
-impl std::ops::Mul for cplx32x4 {
+impl std::ops::Mul for cplx32x8 {
     type Output = Self;
     #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
-        let mut ret = cplx32x4::default();
+        let mut ret = cplx32x8::default();
         for i in 0..4 {
             ret.0[i] = self.0[i] * rhs.0[i];
         }
         ret
     }
 }
-impl std::ops::Div for cplx32x4 {
+impl std::ops::Div for cplx32x8 {
     type Output = Self;
     #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
-        let mut ret = cplx32x4::default();
+        let mut ret = cplx32x8::default();
         for i in 0..4 {
             ret.0[i] = self.0[i] / rhs.0[i];
         }
@@ -109,11 +109,11 @@ impl std::ops::Div for cplx32x4 {
     }
 }
 
-impl std::ops::Neg for cplx32x4 {
+impl std::ops::Neg for cplx32x8 {
     type Output = Self;
     #[inline(always)]
     fn neg(self) -> Self::Output {
-        let mut ret = cplx32x4::default();
+        let mut ret = cplx32x8::default();
         for i in 0..4 {
             ret.0[i] = -self.0[i];
         }
@@ -121,11 +121,11 @@ impl std::ops::Neg for cplx32x4 {
     }
 }
 
-impl std::ops::Rem for cplx32x4 {
+impl std::ops::Rem for cplx32x8 {
     type Output = Self;
     #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
-        let mut ret = cplx32x4::default();
+        let mut ret = cplx32x8::default();
         for i in 0..4 {
             ret.0[i] = self.0[i] % rhs.0[i];
         }
@@ -133,16 +133,16 @@ impl std::ops::Rem for cplx32x4 {
     }
 }
 
-impl VecConvertor for cplx32x4 {
+impl VecConvertor for cplx32x8 {
     #[inline(always)]
-    fn to_complex32(self) -> cplx32x4 {
+    fn to_complex32(self) -> cplx32x8 {
         self
     }
 }
 
-impl SimdMath<Complex32> for cplx32x4 {}
+impl SimdMath<Complex32> for cplx32x8 {}
 
-impl FloatOutBinary2 for cplx32x4 {
+impl FloatOutBinary2 for cplx32x8 {
     #[inline(always)]
     fn __div(self, rhs: Self) -> Self {
         self / rhs
@@ -156,7 +156,7 @@ impl FloatOutBinary2 for cplx32x4 {
             self[2].__log(base[2]),
             self[3].__log(base[3]),
         ];
-        cplx32x4(unsafe { std::mem::transmute(res) })
+        cplx32x8(unsafe { std::mem::transmute(res) })
     }
 
     #[inline(always)]
@@ -172,11 +172,11 @@ impl FloatOutBinary2 for cplx32x4 {
             self[2].__pow(rhs[2]),
             self[3].__pow(rhs[3]),
         ];
-        cplx32x4(unsafe { std::mem::transmute(res) })
+        cplx32x8(unsafe { std::mem::transmute(res) })
     }
 }
 
-impl NormalOut2 for cplx32x4 {
+impl NormalOut2 for cplx32x8 {
     #[inline(always)]
     fn __add(self, rhs: Self) -> Self {
         self + rhs
@@ -210,7 +210,7 @@ impl NormalOut2 for cplx32x4 {
             self[2].__max(rhs[2]),
             self[3].__max(rhs[3]),
         ];
-        cplx32x4(unsafe { std::mem::transmute(res) })
+        cplx32x8(unsafe { std::mem::transmute(res) })
     }
 
     #[inline(always)]
@@ -221,7 +221,7 @@ impl NormalOut2 for cplx32x4 {
             self[2].__min(rhs[2]),
             self[3].__min(rhs[3]),
         ];
-        cplx32x4(unsafe { std::mem::transmute(res) })
+        cplx32x8(unsafe { std::mem::transmute(res) })
     }
 
     #[inline(always)]
@@ -232,11 +232,11 @@ impl NormalOut2 for cplx32x4 {
             self[2].__clamp(min[2], max[2]),
             self[3].__clamp(min[3], max[3]),
         ];
-        cplx32x4(unsafe { std::mem::transmute(res) })
+        cplx32x8(unsafe { std::mem::transmute(res) })
     }
 }
 
-impl NormalOutUnary2 for cplx32x4 {
+impl NormalOutUnary2 for cplx32x8 {
     #[inline(always)]
     fn __square(self) -> Self {
         self * self
@@ -250,7 +250,7 @@ impl NormalOutUnary2 for cplx32x4 {
             self[2].__abs(),
             self[3].__abs(),
         ];
-        cplx32x4(unsafe { std::mem::transmute(res) })
+        cplx32x8(unsafe { std::mem::transmute(res) })
     }
 
     #[inline(always)]
@@ -261,7 +261,7 @@ impl NormalOutUnary2 for cplx32x4 {
             self[2].__ceil(),
             self[3].__ceil(),
         ];
-        cplx32x4(unsafe { std::mem::transmute(res) })
+        cplx32x8(unsafe { std::mem::transmute(res) })
     }
 
     #[inline(always)]
@@ -272,7 +272,7 @@ impl NormalOutUnary2 for cplx32x4 {
             self[2].__floor(),
             self[3].__floor(),
         ];
-        cplx32x4(unsafe { std::mem::transmute(res) })
+        cplx32x8(unsafe { std::mem::transmute(res) })
     }
 
     #[inline(always)]
@@ -288,7 +288,7 @@ impl NormalOutUnary2 for cplx32x4 {
             self[2].__round(),
             self[3].__round(),
         ];
-        cplx32x4(unsafe { std::mem::transmute(res) })
+        cplx32x8(unsafe { std::mem::transmute(res) })
     }
 
     #[inline(always)]
@@ -299,7 +299,7 @@ impl NormalOutUnary2 for cplx32x4 {
             self[2].__signum(),
             self[3].__signum(),
         ];
-        cplx32x4(unsafe { std::mem::transmute(res) })
+        cplx32x8(unsafe { std::mem::transmute(res) })
     }
 
     #[inline(always)]
@@ -315,7 +315,7 @@ impl NormalOutUnary2 for cplx32x4 {
             self[2].__relu(),
             self[3].__relu(),
         ];
-        cplx32x4(unsafe { std::mem::transmute(res) })
+        cplx32x8(unsafe { std::mem::transmute(res) })
     }
 
     #[inline(always)]
@@ -326,7 +326,7 @@ impl NormalOutUnary2 for cplx32x4 {
             self[2].__relu6(),
             self[3].__relu6(),
         ];
-        cplx32x4(unsafe { std::mem::transmute(res) })
+        cplx32x8(unsafe { std::mem::transmute(res) })
     }
 
     #[inline(always)]
@@ -337,7 +337,7 @@ impl NormalOutUnary2 for cplx32x4 {
             self[2].__trunc(),
             self[3].__trunc(),
         ];
-        cplx32x4(unsafe { std::mem::transmute(res) })
+        cplx32x8(unsafe { std::mem::transmute(res) })
     }
     #[inline(always)]
     fn __copysign(self, _: Self) -> Self {

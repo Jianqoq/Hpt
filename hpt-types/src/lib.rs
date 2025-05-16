@@ -253,8 +253,10 @@ pub mod vectors {
             target_feature = "neon"
         ))]
         pub use crate::arch_simd::_128bit::neon::REGNUM;
-        #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
-        pub use crate::arch_simd::_256bit::avx2::REGNUM;
+        #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
+        pub use crate::arch_simd::_512bit::avx512::REGNUM;
+        #[cfg(target_feature = "avx512f")]
+        pub use crate::arch_simd::_512bit::avx512::REGNUM;
 
         // This file contains code ported from SLEEF (https://github.com/shibatch/sleef)
         //
@@ -300,8 +302,10 @@ pub mod vectors {
                 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
                 pub mod helper_aarch64;
                 /// A module defines a set of vector types for helper
-                #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+                #[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(target_feature = "avx512f")))]
                 pub mod helper_avx2;
+                #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
+                pub mod helper_avx512;
                 /// A module defines a set of vector types for helper
                 #[cfg(all(
                     target_arch = "x86_64",
@@ -337,7 +341,7 @@ pub mod vectors {
     /// A module defines a set of utils for vector
     pub mod utils;
 
-    #[cfg(target_feature = "avx2")]
+    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
     pub(crate) mod vector_promote {
         #[cfg(target_pointer_width = "64")]
         pub(crate) use crate::vectors::arch_simd::_256bit::common::isizex4::isize_promote;
@@ -353,6 +357,24 @@ pub mod vectors {
             f64x4::f64_promote, i16x16::i16_promote, i32x8::i32_promote, i64x4::i64_promote,
             i8x32::i8_promote, u16x16::u16_promote, u32x8::u32_promote, u64x4::u64_promote,
             u8x32::u8_promote,
+        };
+    }
+    #[cfg(target_feature = "avx512f")]
+    pub(crate) mod vector_promote {
+        #[cfg(target_pointer_width = "64")]
+        pub(crate) use crate::vectors::arch_simd::_512bit::common::isizex8::isize_promote;
+        #[cfg(target_pointer_width = "32")]
+        pub(crate) use crate::vectors::arch_simd::_512bit::common::isizex16::isize_promote;
+        #[cfg(target_pointer_width = "64")]
+        pub(crate) use crate::vectors::arch_simd::_512bit::common::usizex8::usize_promote;
+        #[cfg(target_pointer_width = "32")]
+        pub(crate) use crate::vectors::arch_simd::_256bit::common::usizex16::usize_promote;
+        pub(crate) use crate::vectors::arch_simd::_512bit::common::{
+            bf16x32::bf16_promote, boolx64::bool_promote, cplx32x8::Complex32_promote,
+            cplx64x4::Complex64_promote, f16x32::f16_promote, f32x16::f32_promote,
+            f64x8::f64_promote, i16x32::i16_promote, i32x16::i32_promote, i64x8::i64_promote,
+            i8x64::i8_promote, u16x32::u16_promote, u32x16::u32_promote, u64x8::u64_promote,
+            u8x64::u8_promote,
         };
     }
     #[cfg(any(

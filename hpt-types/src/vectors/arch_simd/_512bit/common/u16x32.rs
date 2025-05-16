@@ -81,25 +81,25 @@ impl VecConvertor for u16x32 {
         unsafe { std::mem::transmute(self) }
     }
     #[inline(always)]
-    fn to_f16(self) -> super::f16x16::f16x16 {
+    fn to_f16(self) -> super::f16x32::f16x32 {
         unsafe {
-            let arr: [u16; 16] = std::mem::transmute(self.0);
-            let mut result = [half::f16::ZERO; 16];
-            for i in 0..16 {
+            let arr: [u16; 32] = std::mem::transmute(self.0);
+            let mut result = [half::f16::ZERO; 32];
+            for i in 0..32 {
                 result[i] = half::f16::from_f32(arr[i] as f32);
             }
-            super::f16x16::f16x16(result)
+            super::f16x32::f16x32(result)
         }
     }
     #[inline(always)]
-    fn to_bf16(self) -> super::bf16x16::bf16x16 {
+    fn to_bf16(self) -> super::bf16x32::bf16x32 {
         unsafe {
-            let arr: [u16; 16] = std::mem::transmute(self.0);
-            let mut result = [half::bf16::ZERO; 16];
-            for i in 0..16 {
+            let arr: [u16; 32] = std::mem::transmute(self.0);
+            let mut result = [half::bf16::ZERO; 32];
+            for i in 0..32 {
                 result[i] = half::bf16::from_f32(arr[i] as f32);
             }
-            super::bf16x16::bf16x16(result)
+            super::bf16x32::bf16x32(result)
         }
     }
 }

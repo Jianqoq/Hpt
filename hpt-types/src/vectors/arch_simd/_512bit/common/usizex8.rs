@@ -5,11 +5,11 @@ use crate::{
 };
 
 #[cfg(target_pointer_width = "32")]
-use crate::arch_simd::_256bit::u32x8;
+use crate::arch_simd::_512bit::u32x8;
 #[cfg(target_pointer_width = "64")]
-use crate::arch_simd::_256bit::u64x8;
+use crate::arch_simd::_512bit::u64x8;
 
-use super::isizex4::isizex4;
+use super::isizex8::isizex8;
 
 #[cfg(target_pointer_width = "32")]
 /// a vector of 8 usize values
@@ -120,14 +120,14 @@ impl USizeVEC {
 
 impl SimdCompare for USizeVEC {
     #[cfg(target_pointer_width = "64")]
-    type SimdMask = isizex4;
+    type SimdMask = isizex8;
     #[cfg(target_pointer_width = "32")]
     type SimdMask = isizex8;
     #[inline(always)]
     fn simd_eq(self, other: Self) -> Self::SimdMask {
         #[cfg(target_pointer_width = "64")]
         {
-            isizex4(self.0.simd_eq(other.0))
+            isizex8(self.0.simd_eq(other.0))
         }
         #[cfg(target_pointer_width = "32")]
         {
@@ -139,7 +139,7 @@ impl SimdCompare for USizeVEC {
     fn simd_ne(self, other: Self) -> Self::SimdMask {
         #[cfg(target_pointer_width = "64")]
         {
-            isizex4(self.0.simd_ne(other.0))
+            isizex8(self.0.simd_ne(other.0))
         }
         #[cfg(target_pointer_width = "32")]
         {
@@ -151,7 +151,7 @@ impl SimdCompare for USizeVEC {
     fn simd_lt(self, other: Self) -> Self::SimdMask {
         #[cfg(target_pointer_width = "64")]
         {
-            isizex4(self.0.simd_lt(other.0))
+            isizex8(self.0.simd_lt(other.0))
         }
         #[cfg(target_pointer_width = "32")]
         {
@@ -163,7 +163,7 @@ impl SimdCompare for USizeVEC {
     fn simd_le(self, other: Self) -> Self::SimdMask {
         #[cfg(target_pointer_width = "64")]
         {
-            isizex4(self.0.simd_le(other.0))
+            isizex8(self.0.simd_le(other.0))
         }
         #[cfg(target_pointer_width = "32")]
         {
@@ -175,7 +175,7 @@ impl SimdCompare for USizeVEC {
     fn simd_gt(self, other: Self) -> Self::SimdMask {
         #[cfg(target_pointer_width = "64")]
         {
-            isizex4(self.0.simd_gt(other.0))
+            isizex8(self.0.simd_gt(other.0))
         }
         #[cfg(target_pointer_width = "32")]
         {
@@ -187,7 +187,7 @@ impl SimdCompare for USizeVEC {
     fn simd_ge(self, other: Self) -> Self::SimdMask {
         #[cfg(target_pointer_width = "64")]
         {
-            isizex4(self.0.simd_ge(other.0))
+            isizex8(self.0.simd_ge(other.0))
         }
         #[cfg(target_pointer_width = "32")]
         {
@@ -197,7 +197,7 @@ impl SimdCompare for USizeVEC {
 }
 
 #[cfg(target_pointer_width = "64")]
-type Isize = isizex4;
+type Isize = isizex8;
 #[cfg(target_pointer_width = "32")]
 type Isize = isizex8;
 
@@ -357,17 +357,17 @@ impl VecConvertor for usizex8 {
     }
     #[cfg(target_pointer_width = "32")]
     #[inline(always)]
-    fn to_f32(self) -> crate::simd::_256bit::f32x8 {
+    fn to_f32(self) -> crate::simd::_512bit::f32x16 {
         self.to_u32().to_f32()
     }
     #[cfg(target_pointer_width = "64")]
     #[inline(always)]
-    fn to_i64(self) -> crate::simd::_256bit::i64x4 {
+    fn to_i64(self) -> crate::simd::_512bit::i64x8 {
         unsafe { std::mem::transmute(self) }
     }
     #[cfg(target_pointer_width = "32")]
     #[inline(always)]
-    fn to_i32(self) -> crate::simd::_256bit::i32x8 {
+    fn to_i32(self) -> crate::simd::_512bit::i32x16 {
         unsafe { std::mem::transmute(self) }
     }
 }
@@ -500,14 +500,14 @@ impl NormalOutUnary2 for USizeVEC {
 
 impl Eval2 for USizeVEC {
     #[cfg(target_pointer_width = "64")]
-    type Output = isizex4;
+    type Output = isizex8;
     #[cfg(target_pointer_width = "32")]
     type Output = isizex8;
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
         #[cfg(target_pointer_width = "64")]
         {
-            isizex4::default()
+            isizex8::default()
         }
         #[cfg(target_pointer_width = "32")]
         {
@@ -519,7 +519,7 @@ impl Eval2 for USizeVEC {
     fn __is_true(&self) -> Self::Output {
         #[cfg(target_pointer_width = "64")]
         {
-            isizex4(self.0.__is_true())
+            isizex8(self.0.__is_true())
         }
         #[cfg(target_pointer_width = "32")]
         {
@@ -531,7 +531,7 @@ impl Eval2 for USizeVEC {
     fn __is_inf(&self) -> Self::Output {
         #[cfg(target_pointer_width = "64")]
         {
-            isizex4::default()
+            isizex8::default()
         }
         #[cfg(target_pointer_width = "32")]
         {

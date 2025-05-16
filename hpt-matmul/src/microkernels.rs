@@ -289,13 +289,6 @@ macro_rules! store_res_scalar {
 /// * `$mr`: The number of rows of C to accumulate in registers
 ///
 /// Total registers = ($mr + 1) * $nr + 1
-///
-/// # Example
-///
-/// ```rust
-/// define_matmul_micro_kernel!(f32x2x1, f32, 2, 1);
-/// ```
-///
 #[macro_export]
 macro_rules! define_matmul_micro_kernel {
     ($dtype:ty, $vec_type:ty, $name:ident, $nr:expr, $mr:expr) => {
@@ -389,13 +382,6 @@ macro_rules! define_matmul_micro_kernel {
 /// * `$mr`: The number of rows of C to accumulate in registers
 ///
 /// Total registers = ($mr + 1) * $nr + 1
-///
-/// # Example
-///
-/// ```rust
-/// define_post_op_matmul_micro_kernel!(f32x2x1, f32, 2, 1);
-/// ```
-///
 #[macro_export]
 macro_rules! define_post_op_matmul_micro_kernel {
     ($dtype:ty, $vec_type:ty, $name:ident, $nr:expr, $mr:expr) => {
@@ -512,13 +498,6 @@ macro_rules! define_post_op_matmul_micro_kernel {
 /// * `$mr`: must equal to vector size
 ///
 /// Total registers = ($mr + 1) * $nr + 1
-///
-/// # Example
-///
-/// ```rust
-/// define_neon_matmul_micro_kernel!(f32x2x1, f32, 2, 1);
-/// ```
-///
 #[cfg(target_feature = "neon")]
 #[macro_export]
 macro_rules! define_neon_matmul_micro_kernel {
@@ -587,13 +566,6 @@ macro_rules! define_neon_matmul_micro_kernel {
 /// * `$mr`: must equal to vector size
 ///
 /// Total registers = ($mr + 1) * $nr + 1
-///
-/// # Example
-///
-/// ```rust
-/// define_neon_post_op_matmul_micro_kernel!(f32x2x1, f32, 2, 1);
-/// ```
-///
 #[cfg(target_feature = "neon")]
 #[macro_export]
 macro_rules! define_neon_post_op_matmul_micro_kernel {
@@ -707,12 +679,6 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
 ///
 /// Total registers = $nr2 * ($mr + 1) + 1
 ///
-/// # Example
-///
-/// ```rust
-/// define_mixed_precision_matmul_micro_kernel!(f32x2x1, f32, 2, 1);
-/// ```
-///
 #[macro_export]
 macro_rules! define_mixed_precision_matmul_micro_kernel {
     ($dtype:ty, $vec_type:ty, $im:ty, $im_vec:ty, $name:ident, $nr:expr, $mr:expr, $nr2:expr, $multiple_of:expr) => {
@@ -815,13 +781,6 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
 /// * `$nr2`: The number of registers to use for result type
 ///
 /// Total registers = $nr2 * ($mr + 1) + 1
-///
-/// # Example
-///
-/// ```rust
-/// define_mixed_precision_post_op_matmul_micro_kernel!(f32x2x1, f32, 2, 1);
-/// ```
-///
 #[macro_export]
 macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
     ($dtype:ty, $vec_type:ty, $im:ty, $im_vec:ty, $name:ident, $nr:expr, $mr:expr, $nr2:expr, $multiple_of:expr) => {
@@ -997,13 +956,6 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
 /// * `$nr2`: must less than or equal to 10
 ///
 /// Total registers = $nr2 * ($mr + 1) + 1
-///
-/// # Example
-///
-/// ```rust
-/// define_neon_mixed_precision_matmul_micro_kernel!(f32x2x1, f32, 2, 1);
-/// ```
-///
 #[macro_export]
 #[cfg(target_feature = "neon")]
 macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
@@ -1109,13 +1061,6 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
 /// * `$nr2`: must less than or equal to 10
 ///
 /// Total registers = $nr2 * ($mr + 1) + 1
-///
-/// # Example
-///
-/// ```rust
-/// define_neon_mixed_precision_post_op_matmul_micro_kernel!(f32x2x1, f32, 2, 1);
-/// ```
-///
 #[macro_export]
 #[cfg(target_feature = "neon")]
 macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {

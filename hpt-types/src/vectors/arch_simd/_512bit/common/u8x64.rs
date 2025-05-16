@@ -80,7 +80,7 @@ impl VecConvertor for u8x64 {
         unsafe { std::mem::transmute(self) }
     }
     #[inline(always)]
-    fn to_bool(self) -> super::boolx32::boolx32 {
+    fn to_bool(self) -> super::boolx64::boolx64 {
         unsafe { std::mem::transmute(self) }
     }
 }

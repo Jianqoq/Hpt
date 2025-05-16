@@ -1,29 +1,23 @@
 use half::bf16;
 
-use crate::arch_simd::_512bit::u16x32;
 use crate::traits::{SimdCompare, SimdMath, SimdSelect};
 use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
-use crate::{traits::VecTrait, vectors::arch_simd::_512bit::f32x32};
-
-use super::i16x32::i16x32;
+use crate::{traits::VecTrait, vectors::arch_simd::_512bit::f32x16};
+use crate::arch_simd::_512bit::{i16x32, u16x32};
 
 /// a vector of 16 bf16 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 #[repr(C, align(64))]
-pub struct bf16x32(pub(crate) [half::bf16; 32]);
+pub struct bf16x32(pub(crate) [bf16; 32]);
 
 /// helper to impl the promote trait
 #[allow(non_camel_case_types)]
 pub(crate) type bf16_promote = bf16x32;
 
-impl VecTrait<half::bf16> for bf16x32 {
+impl VecTrait<bf16> for bf16x32 {
     const SIZE: usize = 32;
-    type Base = half::bf16;
-    #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[half::bf16]) {
-        self.0.copy_from_slice(slice);
-    }
+    type Base = bf16;
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         let [x0, x1]: [f32x16; 2] = unsafe { std::mem::transmute(self.to_2_f32vec()) };
@@ -34,42 +28,31 @@ impl VecTrait<half::bf16> for bf16x32 {
         bf16x32::from_2_f32vec([res0, res1])
     }
     #[inline(always)]
-    fn sum(&self) -> half::bf16 {
+    fn copy_from_slice(&mut self, slice: &[half::bf16]) {
+        self.0.copy_from_slice(slice);
+    }
+    #[inline(always)]
+    fn sum(&self) -> bf16 {
         self.0.iter().sum()
     }
     #[inline(always)]
-    fn splat(val: half::bf16) -> bf16x32 {
-        bf16x32([val; 16])
+    fn splat(val: bf16) -> bf16x32 {
+        bf16x32([val; 32])
     }
     #[inline(always)]
-    unsafe fn from_ptr(ptr: *const half::bf16) -> Self {
-        bf16x32([
-            ptr.read_unaligned(),
-            ptr.add(1).read_unaligned(),
-            ptr.add(2).read_unaligned(),
-            ptr.add(3).read_unaligned(),
-            ptr.add(4).read_unaligned(),
-            ptr.add(5).read_unaligned(),
-            ptr.add(6).read_unaligned(),
-            ptr.add(7).read_unaligned(),
-            ptr.add(8).read_unaligned(),
-            ptr.add(9).read_unaligned(),
-            ptr.add(10).read_unaligned(),
-            ptr.add(11).read_unaligned(),
-            ptr.add(12).read_unaligned(),
-            ptr.add(13).read_unaligned(),
-            ptr.add(14).read_unaligned(),
-            ptr.add(15).read_unaligned(),
-        ])
+    unsafe fn from_ptr(ptr: *const bf16) -> Self {
+        let mut ret = Self::default();
+        std::ptr::copy_nonoverlapping(ptr, ret.as_mut_ptr(), 32);
+        ret
     }
 }
 
-impl SimdSelect<bf16x32> for i16x16 {
+impl SimdSelect<bf16x32> for i16x32 {
     #[inline(always)]
     fn select(&self, true_val: bf16x32, false_val: bf16x32) -> bf16x32 {
         let mut ret = bf16x32::default();
-        let arr: [i16; 16] = unsafe { std::mem::transmute(self.0) };
-        for i in 0..16 {
+        let arr: [i16; 32] = unsafe { std::mem::transmute(self.0) };
+        for i in 0..32 {
             ret.0[i] = if arr[i] != 0 {
                 true_val.0[i]
             } else {
@@ -705,10 +688,10 @@ impl NormalOutUnary2 for bf16x32 {
 }
 
 impl Eval2 for bf16x32 {
-    type Output = i16x16;
+    type Output = i16x32;
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
-        let res: [i16; 16] = self.0.map(|x| if x.is_nan() { -1 } else { 0 });
+        let res: [i16; 32] = self.0.map(|x| if x.is_nan() { -1 } else { 0 });
         unsafe { std::mem::transmute(res) }
     }
 
@@ -719,20 +702,20 @@ impl Eval2 for bf16x32 {
 
     #[inline(always)]
     fn __is_inf(&self) -> Self::Output {
-        let sign_mask = u16x16::splat(0x8000u16);
-        let inf_mask = u16x16::splat(0x7f80u16);
-        let frac_mask = u16x16::splat(0x007fu16);
+        let sign_mask = u16x32::splat(0x8000u16);
+        let inf_mask = u16x32::splat(0x7f80u16);
+        let frac_mask = u16x32::splat(0x007fu16);
 
-        let i: u16x16 = unsafe { std::mem::transmute(self.0) };
+        let i: u16x32 = unsafe { std::mem::transmute(self.0) };
 
         let exp = i & inf_mask;
         let frac = i & frac_mask;
-        let is_inf = exp.simd_eq(inf_mask) & frac.simd_eq(u16x16::splat(0));
-        let is_neg = (i & sign_mask).simd_ne(u16x16::splat(0));
+        let is_inf = exp.simd_eq(inf_mask) & frac.simd_eq(u16x32::splat(0));
+        let is_neg = (i & sign_mask).simd_ne(u16x32::splat(0));
 
         is_inf.select(
-            is_neg.select(i16x16::splat(-1), i16x16::splat(1)),
-            i16x16::splat(0),
+            is_neg.select(i16x32::splat(-1), i16x32::splat(1)),
+            i16x32::splat(0),
         )
     }
 }

@@ -1,4 +1,4 @@
-use crate::arch_simd::sleef::arch::helper_avx2::vabs_vf_vf;
+use crate::arch_simd::sleef::arch::helper_avx512::vabs_vf_vf;
 use crate::arch_simd::sleef::libm::sleefsimdsp::{
     xacosf_u1, xacoshf, xasinf_u1, xasinhf, xatan2f_u1, xatanf_u1, xatanhf, xcbrtf_u1, xcopysignf,
     xcosf_u1, xcoshf, xerff_u1, xexp10f, xexp2f, xexpf, xexpm1f, xhypotf_u05, xlog10f, xlog1pf,

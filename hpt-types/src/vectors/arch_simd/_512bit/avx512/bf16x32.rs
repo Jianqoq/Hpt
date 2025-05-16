@@ -59,7 +59,7 @@ impl bf16x32 {
     #[inline(always)]
     pub fn from_2_f32vec(val: [f32x16; 2]) -> Self {
         unsafe {
-            unsafe fn conv(vec: f32x16) -> __m256i {
+            unsafe fn conv(vec: f32x16) -> __m512i {
                 let x = u32x16(std::mem::transmute(vec.0));
                 let nan_mask =
                     (x & u32x16::splat(0x7FFF_FFFFu32)).simd_gt(u32x16::splat(0x7F80_0000u32));
@@ -87,7 +87,7 @@ impl bf16x32 {
     /// check if the value is NaN and return a mask
     #[inline(always)]
     pub fn is_nan(&self) -> i16x32 {
-        let res: [i16; 16] = self.0.map(|x| if x.is_nan() { 1 } else { 0 });
+        let res: [i16; 32] = self.0.map(|x| if x.is_nan() { 1 } else { 0 });
         unsafe { std::mem::transmute(res) }
     }
 }
@@ -100,7 +100,8 @@ impl SimdCompare for bf16x32 {
             let other_ptr = &other.0 as *const _ as *const i32;
             let a = _mm512_loadu_si512(self_ptr);
             let b = _mm512_loadu_si512(other_ptr);
-            i16x32(_mm256_cmpeq_epi16(a, b))
+            let mask = _mm512_cmp_epi16_mask::<_MM_CMPINT_EQ>(a, b);
+            i16x32(_mm512_mask_mov_epi16(_mm512_set1_epi16(0), mask, _mm512_set1_epi16(-1)))
         }
     }
     #[inline(always)]
@@ -166,17 +167,17 @@ impl VecConvertor for bf16x32 {
         self
     }
     #[inline(always)]
-    fn to_f16(self) -> f16x16 {
+    fn to_f16(self) -> f16x32 {
         let [x0, x1] = self.to_2_f32vec();
-        f16x16::from_2_f32vec([x0, x1])
+        f16x32::from_2_f32vec([x0, x1])
     }
     #[inline(always)]
     fn to_i16(self) -> i16x32 {
         unsafe {
             let [x0, x1]: [f32x16; 2] = std::mem::transmute(self.to_2_f32vec());
-            let i0 = _mm256_cvtps_epi32(x0.0);
-            let i1 = _mm256_cvtps_epi32(x1.0);
-            let packed = _mm256_packs_epi32(i0, i1);
+            let i0 = _mm512_cvtps_epi32(x0.0);
+            let i1 = _mm512_cvtps_epi32(x1.0);
+            let packed = _mm512_packs_epi32(i0, i1);
             i16x32(packed)
         }
     }

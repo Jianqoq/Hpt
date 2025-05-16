@@ -1,7 +1,9 @@
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
-#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+#[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(target_feature = "avx512f")))]
 use crate::arch_simd::sleef::arch::helper_avx2 as helper;
+#[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
+use crate::arch_simd::sleef::arch::helper_avx512 as helper;
 #[cfg(all(
     target_arch = "x86_64",
     target_feature = "sse",
@@ -794,7 +796,7 @@ pub(crate) unsafe fn xatan2f_u1(y: VFloat, x: VFloat) -> VFloat {
 #[inline(always)]
 pub(crate) unsafe fn xsincosf_u1(d: VFloat) -> VFloat2 {
     let mut q: VInt2;
-    let mut o: VMask;
+    let mut o: Vopmask;
     let mut u: VFloat;
 
     let mut rx: VFloat;
@@ -900,6 +902,7 @@ pub(crate) unsafe fn xlogf_u1(d: VFloat) -> VFloat {
 
     #[cfg(target_feature = "avx512f")]
     let (m, s) = {
+        use crate::arch_simd::sleef::arch::helper_avx512::{vgetmant_vf_vf, vgetexp_vf_vf};
         let mut e = vgetexp_vf_vf(vmul_vf_vf_vf(d, vcast_vf_f(1.0f32 / 0.75f32)));
         e = vsel_vf_vo_vf_vf(vispinf_vo_vf(e), vcast_vf_f(128.0f32), e);
         let m = vgetmant_vf_vf(d);
@@ -942,11 +945,11 @@ pub(crate) unsafe fn xlogf_u1(d: VFloat) -> VFloat {
 
     #[cfg(target_feature = "avx512f")]
     {
-        r = vfixup_vf_vf_vf_vi2_i(
+        use crate::arch_simd::sleef::arch::helper_avx512::vfixup_vf_vf_vf_vi2_i;
+        r = vfixup_vf_vf_vf_vi2_i::<0>(
             r,
             d,
             vcast_vi2_i((4 << (2 * 4)) | (3 << (4 * 4)) | (5 << (5 * 4)) | (2 << (6 * 4))),
-            0,
         );
     }
 
@@ -1037,7 +1040,7 @@ pub(crate) unsafe fn xcbrtf_u1(d: VFloat) -> VFloat {
     {
         z = vsel_vf_vo_vf_vf(
             visinf_vo_vf(s),
-            vmulsign_vf_vf_vf(vcast_vf_f(SLEEF_INFINITYf), s),
+            vmulsign_vf_vf_vf(vcast_vf_f(f32::INFINITY), s),
             z,
         );
         z = vsel_vf_vo_vf_vf(
@@ -1139,6 +1142,7 @@ unsafe fn logkf(d: VFloat) -> VFloat2 {
 
     #[cfg(target_feature = "avx512f")]
     let (m, e) = {
+        use crate::arch_simd::sleef::arch::helper_avx512::{vgetmant_vf_vf, vgetexp_vf_vf};
         let mut e = vgetexp_vf_vf(vmul_vf_vf_vf(d, vcast_vf_f(1.0f32 / 0.75f32)));
         e = vsel_vf_vo_vf_vf(vispinf_vo_vf(e), vcast_vf_f(128.0f32), e);
         let m = vgetmant_vf_vf(d);
@@ -1343,10 +1347,13 @@ unsafe fn logk2f(d: VFloat2) -> VFloat2 {
     ));
 
     #[cfg(target_feature = "avx512f")]
-    let e = vrint_vi2_vf(vgetexp_vf_vf(vmul_vf_vf_vf(
-        vf2getx_vf_vf2(d),
-        vcast_vf_f(1.0f32 / 0.75f32),
-    )));
+    let e = {
+        use crate::arch_simd::sleef::arch::helper_avx512::vgetexp_vf_vf;
+        vrint_vi2_vf(vgetexp_vf_vf(vmul_vf_vf_vf(
+            vf2getx_vf_vf2(d),
+            vcast_vf_f(1.0f32 / 0.75f32),
+        )))
+    };
 
     let m = dfscale_vf2_vf2_vf(d, vpow2i_vf_vi2(vneg_vi2_vi2(e)));
 
@@ -1633,6 +1640,7 @@ pub(crate) unsafe fn xlog10f(d: VFloat) -> VFloat {
 
     #[cfg(target_feature = "avx512f")]
     let (m, e) = {
+        use crate::arch_simd::sleef::arch::helper_avx512::{vgetmant_vf_vf, vgetexp_vf_vf};
         let mut e = vgetexp_vf_vf(vmul_vf_vf_vf(d, vcast_vf_f(1.0 / 0.75)));
         e = vsel_vf_vo_vf_vf(vispinf_vo_vf(e), vcast_vf_f(128.0), e);
         let m = vgetmant_vf_vf(d);
@@ -1683,11 +1691,11 @@ pub(crate) unsafe fn xlog10f(d: VFloat) -> VFloat {
 
     #[cfg(target_feature = "avx512f")]
     {
-        r = vfixup_vf_vf_vf_vi2_i(
+        use crate::arch_simd::sleef::arch::helper_avx512::vfixup_vf_vf_vf_vi2_i;
+        r = vfixup_vf_vf_vf_vi2_i::<0>(
             r,
             d,
             vcast_vi2_i((4 << (2 * 4)) | (3 << (4 * 4)) | (5 << (5 * 4)) | (2 << (6 * 4))),
-            0,
         );
     }
 
@@ -1717,6 +1725,7 @@ pub(crate) unsafe fn xlog2f(d: VFloat) -> VFloat {
 
     #[cfg(target_feature = "avx512f")]
     let (m, e) = {
+        use crate::arch_simd::sleef::arch::helper_avx512::{vgetmant_vf_vf, vgetexp_vf_vf};
         let mut e = vgetexp_vf_vf(vmul_vf_vf_vf(d, vcast_vf_f(1.0 / 0.75)));
         e = vsel_vf_vo_vf_vf(vispinf_vo_vf(e), vcast_vf_f(128.0), e);
         let m = vgetmant_vf_vf(d);
@@ -1769,11 +1778,11 @@ pub(crate) unsafe fn xlog2f(d: VFloat) -> VFloat {
 
     #[cfg(target_feature = "avx512f")]
     {
-        r = vfixup_vf_vf_vf_vi2_i(
+        use crate::arch_simd::sleef::arch::helper_avx512::vfixup_vf_vf_vf_vi2_i;
+        r = vfixup_vf_vf_vf_vi2_i::<0>(
             r,
             d,
             vcast_vi2_i((4 << (2 * 4)) | (3 << (4 * 4)) | (5 << (5 * 4)) | (2 << (6 * 4))),
-            0,
         );
     }
 
@@ -1810,6 +1819,7 @@ pub(crate) unsafe fn xlog1pf(d: VFloat) -> VFloat {
 
     #[cfg(target_feature = "avx512f")]
     let (m, mut s) = {
+        use crate::arch_simd::sleef::arch::helper_avx512::vgetexp_vf_vf;
         let mut e = vgetexp_vf_vf(vmul_vf_vf_vf(dp1, vcast_vf_f(1.0 / 0.75)));
         e = vsel_vf_vo_vf_vf(vispinf_vo_vf(e), vcast_vf_f(128.0), e);
         t = vldexp3_vf_vf_vi2(vcast_vf_f(1.0), vneg_vi2_vi2(vrint_vi2_vf(e)));

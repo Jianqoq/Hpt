@@ -7,9 +7,9 @@ use crate::{
 use super::usizex8::usizex8;
 
 #[cfg(target_pointer_width = "32")]
-use crate::arch_simd::_256bit::i32x8;
+use crate::arch_simd::_512bit::i32x8;
 #[cfg(target_pointer_width = "64")]
-use crate::arch_simd::_256bit::i64x8;
+use crate::arch_simd::_512bit::i64x8;
 
 #[cfg(target_pointer_width = "32")]
 /// a vector of 4 isize values
@@ -110,7 +110,7 @@ impl ISizeVEC {
     /// convert the vector to an array
     #[inline(always)]
     #[cfg(target_pointer_width = "64")]
-    pub fn as_array(&self) -> [isize; 4] {
+    pub fn as_array(&self) -> [isize; 8] {
         unsafe { std::mem::transmute(self.0) }
     }
     /// convert the vector to an array
@@ -326,7 +326,7 @@ impl VecConvertor for ISizeVEC {
     }
     #[inline(always)]
     #[cfg(target_pointer_width = "64")]
-    fn to_f64(self) -> super::f64x4::f64x4 {
+    fn to_f64(self) -> super::f64x8::f64x8 {
         self.to_i64().to_f64()
     }
 }

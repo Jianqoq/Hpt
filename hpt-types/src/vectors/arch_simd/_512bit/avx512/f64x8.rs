@@ -1,6 +1,6 @@
 use crate::{
     arch_simd::sleef::{
-        arch::helper_avx2::vabs_vd_vd,
+        arch::helper_avx512::vabs_vd_vd,
         libm::sleefsimddp::{
             xacos_u1, xacosh, xasin_u1, xasinh, xatan2_u1, xatan_u1, xatanh, xcbrt_u1, xcopysign,
             xcos_u1, xcosh, xerf_u1, xexp, xexp10, xexp2, xexpm1, xfmax, xfmin, xhypot_u05, xlog10,

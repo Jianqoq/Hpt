@@ -296,12 +296,12 @@ impl VecConvertor for i32x16 {
         self
     }
     #[inline(always)]
-    fn to_u32(self) -> u32x8 {
+    fn to_u32(self) -> u32x16 {
         unsafe { std::mem::transmute(self) }
     }
     #[inline(always)]
-    fn to_f32(self) -> f32x8 {
-        unsafe { f32x8(_mm256_cvtepi32_ps(self.0)) }
+    fn to_f32(self) -> f32x16 {
+        unsafe { f32x16(_mm512_cvtepi32_ps(self.0)) }
     }
     #[inline(always)]
     #[cfg(target_pointer_width = "32")]

@@ -8,9 +8,15 @@ use super::i8x64::i8x64;
 
 /// a vector of 16 bool values
 #[allow(non_camel_case_types)]
-#[derive(Default, Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 #[repr(C, align(64))]
 pub struct boolx64(pub(crate) [bool; 64]);
+
+impl Default for boolx64 {
+    fn default() -> Self {
+        Self([false; 64])
+    }
+}
 
 /// helper to impl the promote trait
 #[allow(non_camel_case_types)]
@@ -110,13 +116,6 @@ impl VecTrait<bool> for boolx64 {
     }
 }
 
-impl boolx64 {
-    /// convert the vector to an array
-    #[inline(always)]
-    pub fn as_array(&self) -> [bool; 64] {
-        unsafe { std::mem::transmute(self.0) }
-    }
-}
 
 impl SimdCompare for boolx64 {
     type SimdMask = i8x64;
@@ -245,8 +244,8 @@ impl std::ops::BitOr for boolx64 {
     type Output = Self;
     #[inline(always)]
     fn bitor(self, rhs: Self) -> Self::Output {
-        let mask: u8x32 = unsafe { std::mem::transmute(self) };
-        let rhs: u8x32 = unsafe { std::mem::transmute(rhs) };
+        let mask: u8x64 = unsafe { std::mem::transmute(self) };
+        let rhs: u8x64 = unsafe { std::mem::transmute(rhs) };
         boolx64(unsafe { std::mem::transmute(mask | rhs) })
     }
 }
@@ -254,8 +253,8 @@ impl std::ops::BitAnd for boolx64 {
     type Output = Self;
     #[inline(always)]
     fn bitand(self, rhs: Self) -> Self::Output {
-        let mask: u8x32 = unsafe { std::mem::transmute(self) };
-        let rhs: u8x32 = unsafe { std::mem::transmute(rhs) };
+        let mask: u8x64 = unsafe { std::mem::transmute(self) };
+        let rhs: u8x64 = unsafe { std::mem::transmute(rhs) };
         boolx64(unsafe { std::mem::transmute(mask & rhs) })
     }
 }
@@ -270,7 +269,7 @@ impl VecConvertor for boolx64 {
         unsafe { std::mem::transmute(self) }
     }
     #[inline(always)]
-    fn to_u8(self) -> u8x32 {
+    fn to_u8(self) -> u8x64 {
         unsafe { std::mem::transmute(self) }
     }
 }
@@ -414,50 +413,18 @@ impl Eval2 for boolx64 {
 
     #[inline(always)]
     fn __is_true(&self) -> Self::Output {
-        unsafe {
-            std::mem::transmute([
-                self[0]._is_true(),
-                self[1]._is_true(),
-                self[2]._is_true(),
-                self[3]._is_true(),
-                self[4]._is_true(),
-                self[5]._is_true(),
-                self[6]._is_true(),
-                self[7]._is_true(),
-                self[8]._is_true(),
-                self[9]._is_true(),
-                self[10]._is_true(),
-                self[11]._is_true(),
-                self[12]._is_true(),
-                self[13]._is_true(),
-                self[14]._is_true(),
-                self[15]._is_true(),
-                self[16]._is_true(),
-                self[17]._is_true(),
-                self[18]._is_true(),
-                self[19]._is_true(),
-                self[20]._is_true(),
-                self[21]._is_true(),
-                self[22]._is_true(),
-                self[23]._is_true(),
-                self[24]._is_true(),
-                self[25]._is_true(),
-                self[26]._is_true(),
-                self[27]._is_true(),
-                self[28]._is_true(),
-                self[29]._is_true(),
-                self[30]._is_true(),
-                self[31]._is_true(),
-            ])
+        let mut ret = [0i8; 64];
+        for i in 0..64 {
+            ret[i] = self.0[i].__is_true() as i8;
         }
+        unsafe { std::mem::transmute(ret) }
     }
 
     #[inline(always)]
     fn __is_inf(&self) -> Self::Output {
         unsafe {
             std::mem::transmute([
-                0i8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0,
+                0i8; 64
             ])
         }
     }

@@ -4,11 +4,20 @@ pub trait IntoVec<T> {
     fn into_vec(self) -> T;
 }
 
-#[cfg(target_feature = "avx2")]
+#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 mod into_vec {
     use super::IntoVec;
     use crate::convertion::VecConvertor;
     use crate::simd::_256bit::common::*;
+    use hpt_macros::impl_into_vec;
+    impl_into_vec!();
+}
+
+#[cfg(target_feature = "avx512f")]
+mod into_vec {
+    use super::IntoVec;
+    use crate::convertion::VecConvertor;
+    use crate::simd::_512bit::common::*;
     use hpt_macros::impl_into_vec;
     impl_into_vec!();
 }

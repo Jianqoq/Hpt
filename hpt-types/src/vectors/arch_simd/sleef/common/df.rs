@@ -1,8 +1,10 @@
 #![allow(unused)]
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
-#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+#[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(target_feature = "avx512f")))]
 use crate::arch_simd::sleef::arch::helper_avx2 as helper;
+#[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
+use crate::arch_simd::sleef::arch::helper_avx512 as helper;
 #[cfg(all(
     target_arch = "x86_64",
     target_feature = "sse",

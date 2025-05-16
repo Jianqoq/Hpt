@@ -7,8 +7,10 @@ use crate::into_vec::IntoVec;
     target_feature = "neon"
 ))]
 use crate::simd::_128bit::*;
-#[cfg(target_feature = "avx2")]
+#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 use crate::simd::_256bit::*;
+#[cfg(target_feature = "avx512f")]
+use crate::simd::_512bit::*;
 use crate::traits::SimdMath;
 use crate::vectors::traits::SimdCompare;
 use crate::vectors::traits::VecTrait;

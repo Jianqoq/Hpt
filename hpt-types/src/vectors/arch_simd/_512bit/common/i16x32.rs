@@ -30,7 +30,7 @@ impl VecConvertor for i16x32 {
     }
     #[inline(always)]
     fn to_f16(self) -> super::f16x32::f16x32 {
-        let mut result = [half::f16::ZERO; 16];
+        let mut result = [half::f16::ZERO; 32];
         let arr: [i16; 32] = unsafe { std::mem::transmute(self.0) };
         for i in 0..32 {
             result[i] = half::f16::from_f32(arr[i] as f32);

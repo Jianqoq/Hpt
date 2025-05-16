@@ -55,8 +55,8 @@ impl f16x32 {
             #[cfg(target_feature = "f16c")]
             {
                 use std::arch::x86_64::*;
-                let f16_low = _mm512_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(val[0].0);
-                let f16_high = _mm512_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(val[1].0);
+                let f16_low = _mm512_cvtps_ph::<4>(val[0].0);
+                let f16_high = _mm512_cvtps_ph::<4>(val[1].0);
                 let tmp_256 = _mm512_castsi256_si512(f16_low);
                 let result = _mm512_inserti32x8::<1>(tmp_256, f16_high);
 
@@ -82,7 +82,7 @@ pub(crate) fn f32x16_to_f16x16(val: f32x16) -> [u16; 16] {
         #[cfg(target_feature = "f16c")]
         {
             use std::arch::x86_64::*;
-            let f16_bits = _mm512_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(val.0);
+            let f16_bits = _mm512_cvtps_ph::<4>(val.0);
             std::mem::transmute(f16_bits)
         }
         #[cfg(not(target_feature = "f16c"))]

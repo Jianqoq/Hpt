@@ -1,4 +1,3 @@
-use std::simd::u16x32;
 use crate::convertion::VecConvertor;
 use crate::vectors::arch_simd::_512bit::f32x16;
 use crate::vectors::arch_simd::_512bit::u16x32;
@@ -91,7 +90,7 @@ impl f16x32 {
 }
 
 #[inline(always)]
-pub(crate) fn f32x8_to_f16x8(val: f32x16) -> [u16; 8] {
+pub(crate) fn f32x16_to_f16x16(val: f32x16) -> [u16; 16] {
     unsafe {
         #[cfg(target_feature = "f16c")]
         {

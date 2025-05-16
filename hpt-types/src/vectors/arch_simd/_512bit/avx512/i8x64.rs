@@ -70,7 +70,7 @@ impl VecTrait<i8> for i8x64 {
 impl SimdCompare for i8x64 {
     type SimdMask = i8x64;
     #[inline(always)]
-    fn simd_eq(self, other: Self) -> i8x32 {
+    fn simd_eq(self, other: Self) -> i8x64 {
         unsafe {
             // 生成比较掩码
             let mask = _mm512_cmpeq_epi8_mask(self.0, other.0);
@@ -99,7 +99,7 @@ impl SimdCompare for i8x64 {
         }
     }
     #[inline(always)]
-    fn simd_lt(self, other: Self) -> i8x32 {
+    fn simd_lt(self, other: Self) -> i8x64 {
         unsafe {
             let lt_mask = _mm512_cmplt_epi8_mask(self.0, other.0);
 
@@ -121,7 +121,7 @@ impl SimdCompare for i8x64 {
         }
     }
     #[inline(always)]
-    fn simd_gt(self, other: Self) -> i8x32 {
+    fn simd_gt(self, other: Self) -> i8x64 {
         unsafe {
             let gt_mask = _mm512_cmpgt_epi8_mask(self.0, other.0);
 

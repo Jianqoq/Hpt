@@ -100,8 +100,6 @@ pub(crate) mod simd {
             pub(crate) mod u32x4;
             pub(crate) mod u64x2;
             pub(crate) mod u8x16;
-            /// the number of registers available
-            pub const REGNUM: usize = 8;
         }
 
         pub type F32Vec = crate::simd::_128bit::common::f32x4::f32x4;
@@ -154,8 +152,6 @@ pub(crate) mod simd {
             pub(crate) mod u32x8;
             pub(crate) mod u64x4;
             pub(crate) mod u8x32;
-            /// the number of registers available
-            pub const REGNUM: usize = 16;
         }
         pub type F32Vec = crate::simd::_256bit::common::f32x8::f32x8;
         pub type F64Vec = crate::simd::_256bit::common::f64x4::f64x4;
@@ -209,7 +205,6 @@ pub(crate) mod simd {
             pub(crate) mod u64x8;
             pub(crate) mod u8x64;
         }
-        pub const REGNUM: usize = 32;
         pub type F32Vec = crate::simd::_512bit::common::f32x16::f32x16;
         pub type F64Vec = crate::simd::_512bit::common::f64x8::f64x8;
         pub type I16Vec = crate::simd::_512bit::common::i16x32::i16x32;
