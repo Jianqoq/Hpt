@@ -6,7 +6,6 @@ use hpt_macros::select;
 use hpt_matmul::Zero;
 use hpt_traits::tensor::{ CommonBounds, TensorInfo };
 use hpt_types::{ dtype::{ DType, ToDType }, type_promote::FloatOutUnary };
-use hpt_types::{ traits::VecTrait, type_promote::NormalOut };
 use rayon::iter::{ IntoParallelIterator, ParallelIterator };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,9 +47,7 @@ fn lstm_post_process<T: CommonBounds>(
     gates_b_stride: i64,
     hidden_size: i64,
     activate1: impl (Fn(T) -> T) + Send + Sync + Copy,
-    activate1_vec: impl (Fn(T::Vec) -> T::Vec) + Send + Sync + Copy,
-    activate2: impl (Fn(T) -> T) + Send + Sync + Copy,
-    activate2_vec: impl (Fn(T::Vec) -> T::Vec) + Send + Sync + Copy
+    activate2: impl (Fn(T) -> T) + Send + Sync + Copy
 )
     where T: FloatOutUnary<Output = T>, T::Vec: FloatOutUnary<Output = T::Vec>
 {
@@ -71,72 +68,29 @@ fn lstm_post_process<T: CommonBounds>(
     let f = i + 2 * hidden_size;
     let g = i + 3 * hidden_size;
 
-    let num_vec = (hidden_size as usize) / T::Vec::SIZE;
-    let rem = (hidden_size as usize) % T::Vec::SIZE;
-
-    let i_vec_ptr = i.cast::<T::Vec>();
-    let o_vec_ptr = o.cast::<T::Vec>();
-    let f_vec_ptr = f.cast::<T::Vec>();
-    let g_vec_ptr = g.cast::<T::Vec>();
-    let y_vec_ptr = y.cast::<T::Vec>();
-    let c_t_vec_ptr = c_t.cast::<T::Vec>();
-
     match p {
         Some(p) => {
             let pi = p;
             let pf = p + hidden_size;
             let po = p + 2 * hidden_size;
-            let pi_vec_ptr = pi.cast::<T::Vec>();
-            let pf_vec_ptr = pf.cast::<T::Vec>();
-            let po_vec_ptr = po.cast::<T::Vec>();
-            for h in 0..num_vec {
-                let pi_vec = pi_vec_ptr.add(h).read_unaligned();
-                let pf_vec = pf_vec_ptr.add(h).read_unaligned();
-                let po_vec = po_vec_ptr.add(h).read_unaligned();
-                let c_t_vec = c_t_vec_ptr.add(h).read_unaligned();
-                let pi_mul_ct = pi_vec._mul(c_t_vec);
-                let pf_mul_ct = pf_vec._mul(c_t_vec);
-                let po_mul_ct = po_vec._mul(c_t_vec);
-                let i_vec = activate1_vec(i_vec_ptr.add(h).read_unaligned()._add(pi_mul_ct));
-                let o_vec = activate1_vec(o_vec_ptr.add(h).read_unaligned()._add(po_mul_ct));
-                let f_vec = activate1_vec(f_vec_ptr.add(h).read_unaligned()._add(pf_mul_ct));
-                let g_vec = activate2_vec(g_vec_ptr.add(h).read_unaligned());
-                let tmp = c_t_vec._mul_add(f_vec, i_vec._mul(g_vec));
-                y_vec_ptr.add(h).write_unaligned(o_vec._mul(tmp._tanh()));
-                c_t_vec_ptr.add(h).write_unaligned(tmp);
-            }
-            if rem > 0 {
-                for h in num_vec * T::Vec::SIZE..hidden_size as usize {
-                    let pi = pi[h];
-                    let pf = pf[h];
-                    let po = po[h];
-                    let c_t_res = c_t[h];
-                    let pi_mul_ct = pi._mul(c_t_res);
-                    let pf_mul_ct = pf._mul(c_t_res);
-                    let po_mul_ct = po._mul(c_t_res);
-                    let i_res = activate1(i[h]._add(pi_mul_ct));
-                    let o_res = activate1(o[h]._add(po_mul_ct));
-                    let f_res = activate1(f[h]._add(pf_mul_ct));
-                    let g_res = activate2(g[h]);
-                    let tmp = c_t_res._mul_add(f_res, i_res._mul(g_res));
-                    y[h] = o_res._mul(tmp._tanh());
-                    c_t[h] = tmp;
-                }
+            for h in 0..hidden_size as usize {
+                let pi = pi[h];
+                let pf = pf[h];
+                let po = po[h];
+                let c_t_res = c_t[h];
+                let pi_mul_ct = pi._mul(c_t_res);
+                let pf_mul_ct = pf._mul(c_t_res);
+                let po_mul_ct = po._mul(c_t_res);
+                let i_res = activate1(i[h]._add(pi_mul_ct));
+                let o_res = activate1(o[h]._add(po_mul_ct));
+                let f_res = activate1(f[h]._add(pf_mul_ct));
+                let g_res = activate2(g[h]);
+                let tmp = c_t_res._mul_add(f_res, i_res._mul(g_res));
+                y[h] = o_res._mul(tmp._tanh());
+                c_t[h] = tmp;
             }
         }
         None => {
-            // for h in 0..num_vec {
-            //     let i_vec = activate1_vec(i_vec_ptr.add(h).read_unaligned());
-            //     let o_vec = activate1_vec(o_vec_ptr.add(h).read_unaligned());
-            //     let f_vec = activate1_vec(f_vec_ptr.add(h).read_unaligned());
-            //     let g_vec = activate2_vec(g_vec_ptr.add(h).read_unaligned());
-            //     let c_t_vec = c_t_vec_ptr.add(h).read_unaligned();
-            //     let tmp = c_t_vec._mul_add(f_vec, i_vec._mul(g_vec));
-            //     y_vec_ptr.add(h).write_unaligned(o_vec._mul(tmp._tanh()));
-            //     c_t_vec_ptr.add(h).write_unaligned(tmp);
-            // }
-            // if rem > 0 {
-            //     for h in num_vec * T::Vec::SIZE..hidden_size as usize {
             for h in 0..hidden_size as usize {
                 let i_res = activate1(i[h]);
                 let o_res = activate1(o[h]);
@@ -147,7 +101,6 @@ fn lstm_post_process<T: CommonBounds>(
                 y[h] = o_res._mul(tmp._tanh());
                 c_t[h] = tmp;
             }
-            // }
         }
     }
 }
@@ -164,9 +117,7 @@ fn lstm_step<T: CommonBounds>(
     direction: Direction,
     hidden_size: i64,
     activate1: impl (Fn(T) -> T) + Send + Sync + Copy,
-    activate1_vec: impl (Fn(T::Vec) -> T::Vec) + Send + Sync + Copy,
-    activate2: impl (Fn(T) -> T) + Send + Sync + Copy,
-    activate2_vec: impl (Fn(T::Vec) -> T::Vec) + Send + Sync + Copy
+    activate2: impl (Fn(T) -> T) + Send + Sync + Copy
 )
     -> Result<(Tensor, Tensor, Tensor), TensorError>
     where
@@ -204,7 +155,6 @@ fn lstm_step<T: CommonBounds>(
     let tmp = (
         if let Some(sum_bias) = &sum_bias {
             x_reshaped.addmm(w_t, sum_bias)?
-            // &x_reshaped.matmul(w_t)? + sum_bias
         } else {
             x_reshaped.matmul(w_t)?
         }
@@ -257,9 +207,7 @@ fn lstm_step<T: CommonBounds>(
                         gates_b_stride,
                         hidden_size,
                         activate1,
-                        activate1_vec,
-                        activate2,
-                        activate2_vec
+                        activate2
                     );
                 }
 
@@ -343,9 +291,7 @@ fn lstm_step<T: CommonBounds>(
                     gates_b_stride,
                     hidden_size,
                     activate1,
-                    activate1_vec,
-                    activate2,
-                    activate2_vec
+                    activate2
                 );
             }
 
@@ -383,9 +329,7 @@ fn lstm_cell_ref<T>(
     p: Option<&Tensor>, // [num_directions, 3*hidden_size],
     direction: Direction,
     f: impl (Fn(T) -> T) + Send + Sync + Copy,
-    f_vec: impl (Fn(T::Vec) -> T::Vec) + Send + Sync + Copy,
-    g: impl (Fn(T) -> T) + Send + Sync + Copy,
-    g_vec: impl (Fn(T::Vec) -> T::Vec) + Send + Sync + Copy
+    g: impl (Fn(T) -> T) + Send + Sync + Copy
 )
     -> Result<(Tensor, Tensor, Tensor), TensorError>
     where
@@ -458,9 +402,7 @@ fn lstm_cell_ref<T>(
             direction,
             hidden_size,
             f,
-            f_vec,
-            g,
-            g_vec
+            g
         )?;
 
         let mut y_local = y.slice(&select![:, dir:dir + 1, ..])?.squeeze(&[1])?;
@@ -507,9 +449,7 @@ impl Tensor {
                     p,
                     direction,
                     sigmoid,
-                    |x| x._sigmoid(),
-                    tanh,
-                    |x| x._tanh()
+                    tanh
                 )?
             }
             #[cfg(feature = "f16")]
@@ -525,8 +465,6 @@ impl Tensor {
                     p,
                     direction,
                     |x| x._sigmoid(),
-                    |x| x._sigmoid(),
-                    |x| x._tanh(),
                     |x| x._tanh()
                 )?,
             #[cfg(feature = "bf16")]
@@ -542,8 +480,6 @@ impl Tensor {
                     p,
                     direction,
                     |x| x._sigmoid(),
-                    |x| x._sigmoid(),
-                    |x| x._tanh(),
                     |x| x._tanh()
                 )?,
             _ => unimplemented!(),
