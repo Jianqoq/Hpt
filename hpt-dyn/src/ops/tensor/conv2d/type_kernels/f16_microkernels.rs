@@ -23,10 +23,10 @@ impl Conv2dMicroKernel for half::f16 {
         [i64; 2],
         [i64; 2],
         bool,
-        fn(*const Self) -> MixedType::Vec,
-        fn(*const MixedType::Vec) -> Self::Vec,
+        fn(*mut MixedType::Vec, *const Self),
+        fn(*mut Self::Vec, *const MixedType::Vec),
         fn(Self) -> MixedType,
-        fn(MixedType) -> Self,
+        fn(&mut Self, &MixedType),
     )
     where
         MixedType: CommonBounds,

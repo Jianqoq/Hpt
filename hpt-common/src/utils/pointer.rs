@@ -17,6 +17,17 @@ pub struct Pointer<T> {
 }
 
 impl<T> Pointer<T> {
+    /// return the length of the pointer
+    ///
+    /// # Returns
+    /// `i64`
+    #[inline(always)]
+    pub fn len(&self) -> i64 {
+        #[cfg(feature = "bound_check")]
+        return self.len;
+        #[cfg(not(feature = "bound_check"))]
+        return 0;
+    }
     /// return a null pointer
     ///
     /// # Returns

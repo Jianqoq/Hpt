@@ -31,24 +31,19 @@ impl bf16x8 {
         unsafe {
             let vec: u16x8 = std::mem::transmute(*self);
 
-            // Split into low and high parts
             let (vec_low_16, vec_high_16) = (vget_low_u16(vec.0), vget_high_u16(vec.0));
 
-            // Widen to 32-bit
             let vec_low = vshll_n_u16(vec_low_16, 0);
             let vec_high = vshll_n_u16(vec_high_16, 0);
 
-            // Create masks and compare
             let mask = vdupq_n_u32(0x7fff);
             let threshold = vdupq_n_u32(0x7f80);
             let t = vdupq_n_u32(0x0040);
             let sixteen = vreinterpretq_s32_u32(vdupq_n_u32(16));
 
-            // Compare and create masks
             let mask_low = vcgtq_u32(vandq_u32(vec_low, mask), threshold);
             let mask_high = vcgtq_u32(vandq_u32(vec_high, mask), threshold);
 
-            // Create true and false results
             let true_low = vreinterpretq_u32_s32(vshlq_s32(
                 vreinterpretq_s32_u32(vorrq_u32(vec_low, t)),
                 sixteen,
@@ -62,7 +57,6 @@ impl bf16x8 {
             let false_high =
                 vreinterpretq_u32_s32(vshlq_s32(vreinterpretq_s32_u32(vec_high), sixteen));
 
-            // Select based on mask
             let res_low = vbslq_u32(mask_low, true_low, false_low);
             let res_high = vbslq_u32(mask_high, true_high, false_high);
 

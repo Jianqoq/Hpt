@@ -41,12 +41,14 @@ pub(crate) mod microkernels;
 pub(crate) mod utils;
 
 pub(crate) mod simd {
-    #[cfg(any(
-        all(not(target_feature = "avx2"), target_feature = "sse"),
-        target_arch = "arm",
-        target_arch = "aarch64",
-        target_feature = "neon"
-    ))]
+    #[cfg(
+        any(
+            all(not(target_feature = "avx2"), target_feature = "sse"),
+            target_arch = "arm",
+            target_arch = "aarch64",
+            target_feature = "neon"
+        )
+    )]
     pub mod _128bit {
         pub(crate) mod common {
             pub(crate) mod bf16x8;
@@ -231,19 +233,53 @@ pub(crate) const fn vec_size<T>() -> usize {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct Pointer<T> {
+pub struct Pointer<T> {
     ptr: *mut T,
-    len: usize,
+    #[cfg(feature = "bound_check")]
+    len: i64,
 }
 
 impl<T> Pointer<T> {
-    pub(crate) fn new(ptr: *mut T, len: usize) -> Self {
-        Self { ptr, len }
+    #[allow(unused)]
+    #[inline(always)]
+    pub(crate) fn new(ptr: *mut T, len: i64) -> Self {
+        Self {
+            ptr,
+            #[cfg(feature = "bound_check")]
+            len,
+        }
     }
+    #[inline(always)]
     pub(crate) fn cast<U>(self) -> Pointer<U> {
-        Pointer::<U> {
-            ptr: self.ptr as *mut U,
-            len: self.len,
+        #[cfg(feature = "bound_check")]
+        {
+            let new_len =
+                ((self.len as usize) * std::mem::size_of::<T>()) / std::mem::size_of::<U>();
+            return Pointer::new(self.ptr as *mut U, new_len as i64);
+        }
+        #[cfg(not(feature = "bound_check"))]
+        return Pointer::new(self.ptr as *mut U, 0);
+    }
+    #[inline(always)]
+    pub(crate) fn offset(&self, offset: i64) -> Pointer<T> {
+        unsafe {
+            #[cfg(feature = "bound_check")]
+            {
+                if offset < 0 || offset >= (self.len as i64) {
+                    panic!("index out of bounds. index: {}, len: {}", offset, self.len);
+                }
+                Pointer::new(self.ptr.offset(offset as isize), self.len - offset)
+            }
+            #[cfg(not(feature = "bound_check"))]
+            {
+                Pointer::new(self.ptr.offset(offset as isize), 0)
+            }
+        }
+    }
+    #[inline(always)]
+    pub(crate) fn read_unaligned(&self) -> T {
+        unsafe {
+            std::ptr::read_unaligned(self.ptr)
         }
     }
 }
@@ -252,18 +288,35 @@ impl<T> Index<i64> for Pointer<T> {
     type Output = T;
 
     fn index(&self, index: i64) -> &Self::Output {
+        #[cfg(feature = "bound_check")]
+        {
+            if index < 0 || index >= (self.len as i64) {
+                panic!("index out of bounds. index: {}, len: {}", index, self.len);
+            }
+        }
         unsafe { &*self.ptr.offset(index as isize) }
     }
 }
 
 impl<T> IndexMut<i64> for Pointer<T> {
     fn index_mut(&mut self, index: i64) -> &mut Self::Output {
+        #[cfg(feature = "bound_check")]
+        {
+            if index < 0 || index >= (self.len as i64) {
+                panic!("index out of bounds. index: {}, len: {}", index, self.len);
+            }
+        }
         unsafe { &mut *self.ptr.offset(index as isize) }
     }
 }
 
 impl<T> AddAssign<i64> for Pointer<T> {
     fn add_assign(&mut self, rhs: i64) {
+        #[cfg(feature = "bound_check")]
+        {
+            self.len -= rhs as i64;
+            assert!(self.len >= 0);
+        }
         unsafe {
             self.ptr = self.ptr.offset(rhs as isize);
         }
@@ -274,9 +327,19 @@ impl<T> std::ops::Add<i64> for Pointer<T> {
     type Output = Pointer<T>;
 
     fn add(self, rhs: i64) -> Self::Output {
-        Pointer::<T> {
-            ptr: unsafe { self.ptr.offset(rhs as isize) },
-            len: self.len,
+        #[cfg(feature = "bound_check")]
+        unsafe {
+            Pointer::new(self.ptr.offset(rhs as isize), self.len - rhs)
+        }
+        #[cfg(not(feature = "bound_check"))]
+        {
+            Pointer::<T> {
+                ptr: unsafe {
+                    self.ptr.offset(rhs as isize)
+                },
+                #[cfg(feature = "bound_check")]
+                len: self.len,
+            }
         }
     }
 }
@@ -299,29 +362,70 @@ unsafe impl<T> Sync for Pointer<T> {}
 
 pub(crate) const REG_BITS: usize = std::mem::size_of::<F32Vec>() * 8;
 
-use std::ops::{AddAssign, Deref, DerefMut, Index, IndexMut};
+use std::ops::{ AddAssign, Deref, DerefMut, Index, IndexMut };
 
-#[cfg(any(
-    all(not(target_feature = "avx2"), target_feature = "sse"),
-    target_arch = "arm",
-    target_arch = "aarch64",
-    target_feature = "neon"
-))]
+#[cfg(
+    any(
+        all(not(target_feature = "avx2"), target_feature = "sse"),
+        target_arch = "arm",
+        target_arch = "aarch64",
+        target_feature = "neon"
+    )
+)]
 pub use crate::simd::_128bit::{
-    Bf16Vec, BoolVec, Cplx32Vec, Cplx64Vec, F16Vec, F32Vec, F64Vec, I8Vec, I16Vec, I32Vec, I64Vec,
-    U8Vec, U16Vec, U32Vec, U64Vec,
+    Bf16Vec,
+    BoolVec,
+    Cplx32Vec,
+    Cplx64Vec,
+    F16Vec,
+    F32Vec,
+    F64Vec,
+    I8Vec,
+    I16Vec,
+    I32Vec,
+    I64Vec,
+    U8Vec,
+    U16Vec,
+    U32Vec,
+    U64Vec,
 };
 
 #[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(target_feature = "avx512f")))]
 pub use crate::simd::_256bit::{
-    Bf16Vec, BoolVec, Cplx32Vec, Cplx64Vec, F16Vec, F32Vec, F64Vec, I8Vec, I16Vec, I32Vec, I64Vec,
-    U8Vec, U16Vec, U32Vec, U64Vec,
+    Bf16Vec,
+    BoolVec,
+    Cplx32Vec,
+    Cplx64Vec,
+    F16Vec,
+    F32Vec,
+    F64Vec,
+    I8Vec,
+    I16Vec,
+    I32Vec,
+    I64Vec,
+    U8Vec,
+    U16Vec,
+    U32Vec,
+    U64Vec,
 };
 
 #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
 pub use crate::simd::_512bit::{
-    Bf16Vec, BoolVec, Cplx32Vec, Cplx64Vec, F16Vec, F32Vec, F64Vec, I8Vec, I16Vec, I32Vec, I64Vec,
-    U8Vec, U16Vec, U32Vec, U64Vec,
+    Bf16Vec,
+    BoolVec,
+    Cplx32Vec,
+    Cplx64Vec,
+    F16Vec,
+    F32Vec,
+    F64Vec,
+    I8Vec,
+    I16Vec,
+    I32Vec,
+    I64Vec,
+    U8Vec,
+    U16Vec,
+    U32Vec,
+    U64Vec,
 };
 
 pub use crate::microkernel_trait::MatmulMicroKernel;
@@ -330,10 +434,11 @@ pub trait Zero {
     const ZERO: Self;
 }
 
+#[allow(unused)]
 pub(crate) trait Add {
     fn add(self, other: Self) -> Self;
 }
 
-pub use matmul::{matmul, matmul_prepack_rhs, matmul_with_post};
+pub use matmul::{matmul, prepack_rhs, addmm};
 
-pub use utils::{PrePackedRhs, kernel_params};
+pub use utils::{ kernel_params, NewPrePackedRhs };

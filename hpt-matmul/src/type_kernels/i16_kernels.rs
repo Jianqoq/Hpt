@@ -1,6 +1,8 @@
 use crate::{ microkernel_trait::MatmulMicroKernel, I16Vec };
 use num_traits::ConstZero;
 use std::ops::Add;
+
+#[cfg(target_feature = "avx2")]
 use crate::type_kernels::common::avx2_kernels;
 
 impl crate::Zero for i16 {
@@ -8,7 +10,11 @@ impl crate::Zero for i16 {
 }
 
 #[cfg(target_feature = "neon")]
-impl MatmulMicroKernel<I16Vec, i16, I16Vec> for i16 {
+impl MatmulMicroKernel for i16 {
+    type SelfVec = I16Vec;
+    type MixedType = i16;
+    type MixedVec = I16Vec;
+
     fn get_kernel(
         nr: usize,
         mr: usize

@@ -21,6 +21,13 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterato
 use rayon::slice::ParallelSlice;
 use rayon::slice::ParallelSliceMut;
 
+#[cfg(feature = "f16")]
+use half::f16;
+
+#[cfg(feature = "bf16")]
+use half::bf16;
+
+
 #[inline(never)]
 pub(crate) fn unary_map<A, K, F, F2>(slice_a: &[A], slice_o: &mut [K], f: F, f2: F2)
 where

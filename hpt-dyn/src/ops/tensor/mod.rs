@@ -17,7 +17,6 @@ pub(crate) mod matmul {
     pub(crate) mod matmul;
     pub(crate) mod matmul_mp;
     pub(crate) mod matmul_mp_post;
-    pub(crate) mod matmul_post;
     pub(crate) mod microkernel_trait;
     pub(crate) mod microkernels;
     pub(crate) mod template;

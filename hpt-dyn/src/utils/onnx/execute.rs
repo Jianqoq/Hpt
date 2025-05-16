@@ -143,8 +143,7 @@ fn validate_tensor_type(
 impl OnnxModel {
     pub fn execute(
         &self,
-        num_threads: usize,
-        inputs: HashMap<String, Tensor>
+        inputs: &HashMap<String, Tensor>
     ) -> Result<HashMap<String, Tensor>, TensorError> {
         let func = || {
             fn execute(
@@ -205,7 +204,6 @@ impl OnnxModel {
             execute(self, &inputs)
         };
         func()
-        // spindle::with_lock(num_threads, func)
     }
 
     pub fn initialize(self) -> Result<Self, TensorError> {

@@ -14,10 +14,11 @@ spindle = { workspace = true }
 duplicate = { workspace = true }
 num-integer = { workspace = true }
 rayon = {workspace = true}
+num_cpus = { workspace = true }
 
 [features]
-default = ["f32"]
-
+default = ["f32", "f16"]
+bound_check = []
 bool = []
 f32 = []
 f16 = []

@@ -104,10 +104,10 @@ where
     let n = b.shape()[1] as usize;
     let k = a.shape()[1] as usize;
 
-    hpt_matmul::matmul::<T>(
-        a.ptr().ptr as *const T,
-        b.ptr().ptr as *const T,
-        c.ptr().ptr as *mut T,
+    matmul_template_no_block_info::<T>(
+        a.ptr(),
+        b.ptr(),
+        c.ptr(),
         m,
         n,
         k,
@@ -117,22 +117,6 @@ where
         a.strides()[a.ndim() - 1],
         b.strides()[b.ndim() - 1],
         num_threads,
-        None,
     );
-
-    // matmul_template_no_block_info::<T>(
-    //     a.ptr(),
-    //     b.ptr(),
-    //     c.ptr(),
-    //     m,
-    //     n,
-    //     k,
-    //     a.strides()[a.ndim() - 2],
-    //     b.strides()[b.ndim() - 2],
-    //     c.strides()[c.ndim() - 2] as i64,
-    //     a.strides()[a.ndim() - 1],
-    //     b.strides()[b.ndim() - 1],
-    //     num_threads,
-    // );
     Ok(c.into())
 }

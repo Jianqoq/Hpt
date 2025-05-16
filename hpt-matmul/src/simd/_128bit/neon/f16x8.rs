@@ -1,4 +1,5 @@
 use std::arch::aarch64::uint16x8_t;
+
 use crate::simd::_128bit::common::{ f16x8::f16x8, f32x4::f32x4 };
 
 #[allow(non_camel_case_types)]
@@ -122,10 +123,10 @@ impl f16x8 {
         unsafe {
             #[cfg(target_feature = "fp16")]
             {
-                use std::arch::aarch64::{ float32x4_t, vld1_s16 };
+                use std::arch::aarch64::{ float32x4_t, vld1_u16 };
 
-                let low = vld1_s16(self.0.as_ptr() as *const _);
-                let high = vld1_s16(self.0.as_ptr().add(4) as *const _);
+                let low = vld1_u16(self.0.as_ptr() as *const _);
+                let high = vld1_u16(self.0.as_ptr().add(4) as *const _);
 
                 let mut res0: float32x4_t;
                 let mut res1: float32x4_t;

@@ -1,3 +1,5 @@
+
+#[cfg(target_feature = "avx2")]
 macro_rules! avx2_kernels {
     ($dtype:ty, $vec_type:ty) => {
 impl MatmulMicroKernel for $dtype {
@@ -107,8 +109,10 @@ impl MatmulMicroKernel for $dtype {
     };
 }
 
+#[cfg(target_feature = "avx2")]
 pub(crate) use avx2_kernels;
 
+#[cfg(target_feature = "avx512f")]
 macro_rules! avx512_kernels {
     ($dtype:ty, $vec_type:ty) => {
 impl MatmulMicroKernel for $dtype {
@@ -218,4 +222,5 @@ impl MatmulMicroKernel for $dtype {
     };
 }
 
+#[cfg(target_feature = "avx512f")]
 pub(crate) use avx512_kernels;

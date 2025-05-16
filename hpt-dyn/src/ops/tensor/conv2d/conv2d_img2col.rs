@@ -6,9 +6,7 @@ use hpt_traits::tensor::TensorInfo;
 use hpt_types::dtype::ToDType;
 
 use crate::Tensor;
-use crate::current_num_threads;
-use crate::ops::tensor::conv2d::utils::{cal_conv2d_output_shape, handle_post};
-use crate::ops::tensor::matmul::matmul::matmul_with_out;
+use crate::ops::tensor::conv2d::utils::{ cal_conv2d_output_shape, handle_post };
 use crate::ops::tensor::matmul::microkernel_trait::MatmulMicroKernel;
 
 use super::microkernel_trait::Conv2dMicroKernel;
@@ -31,10 +29,9 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     kw: i64,
     post_scalar: Option<fn(T) -> T>,
     post_vec: Option<fn(T::Vec) -> T::Vec>,
-    output: Tensor,
+    mut output: Tensor
 ) -> Result<Tensor, TensorError>
-where
-    T: MatmulMicroKernel,
+    where T: MatmulMicroKernel
 {
     let in_channels = img_channels;
     let (step_width, step_height) = (steps[0], steps[1]);
@@ -46,19 +43,25 @@ where
         img_width,
         kh,
         kw,
-        &[(ph_start, ph_end), (pw_start, pw_end)],
+        &[
+            (ph_start, ph_end),
+            (pw_start, pw_end),
+        ],
         &[step_height, step_width],
-        &[dh, dw],
+        &[dh, dw]
     );
     let img = input.clone();
     let inp_ptr = input.ptr();
-    let (input_buffer, input_buffer_layout) =
-        create_packed_input_img2col::<T>(batch, kh, kw, in_channels, out_height, out_width);
-
-    assert_eq!(
-        output.shape().as_slice(),
-        &[batch, out_height, out_width, out_channels]
+    let (input_buffer, input_buffer_layout) = create_packed_input_img2col::<T>(
+        batch,
+        kh,
+        kw,
+        in_channels,
+        out_height,
+        out_width
     );
+
+    assert_eq!(output.shape().as_slice(), &[batch, out_height, out_width, out_channels]);
     img2col_nhwc(
         input_buffer,
         inp_ptr,
@@ -72,34 +75,23 @@ where
         [kh, kw],
         [step_height, step_width],
         [ph_start, pw_start],
-        [dh, dw],
+        [dh, dw]
     );
 
     let buffer_tensor = (unsafe {
         Tensor::from_raw(
             input_buffer.ptr as *mut _,
-            Layout::from(Shape::new([
-                batch,
-                out_height * out_width,
-                kh * kw * in_channels,
-            ])),
+            Layout::from(Shape::new([batch, out_height * out_width, kh * kw * in_channels])),
             input.dtype,
             input.device.clone(),
-            false,
+            false
         )
     })?;
 
     let output_shape = output.shape().clone();
-    let mut res = matmul_with_out(
-        &buffer_tensor,
-        &kernels.reshape(&[kh * kw * in_channels, out_channels])?,
-        Some(output),
-        current_num_threads(),
-        None,
-        None::<fn(T, usize, usize) -> T>,
-        None::<fn(T::Vec, usize, usize) -> T::Vec>,
-    )?
-    .reshape(&output_shape)?;
+    let mut res = buffer_tensor
+        .matmul_(&kernels.reshape(&[kh * kw * in_channels, out_channels])?, &mut output)?
+        .reshape(&output_shape)?;
 
     handle_post(&mut res, bias, post_scalar, post_vec)?;
 

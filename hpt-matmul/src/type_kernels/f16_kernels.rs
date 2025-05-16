@@ -9,7 +9,11 @@ impl crate::Zero for half::f16 {
 }
 
 #[cfg(target_feature = "neon")]
-impl MatmulMicroKernel<F16Vec, f32, F32Vec> for half::f16 {
+impl MatmulMicroKernel for half::f16 {
+    type SelfVec = F16Vec;
+    type MixedType = f32;
+    type MixedVec = F32Vec;
+
     fn get_kernel(
         nr: usize,
         mr: usize,
@@ -36,27 +40,6 @@ impl MatmulMicroKernel<F16Vec, f32, F32Vec> for half::f16 {
         define_matmul_micro_kernel!(half::f16, F16Vec, x2x7, 2, 7);
         define_neon_matmul_micro_kernel!(half::f16, F16Vec, x2x8, 2, 8);
         [x2x1, x2x2, x2x3, x2x4, x2x5, x2x6, x2x7, x2x8][mr - 1]
-    }
-
-    fn get_horizontal_kernel(
-        nr: usize,
-        mr: usize,
-    ) -> fn(
-        crate::Pointer<Self>,
-        crate::Pointer<Self>,
-        crate::Pointer<Self>,
-        i64,
-        i64,
-        usize,
-        usize,
-        i64,
-        bool,
-    ) {
-        assert_eq!(nr, 14);
-        assert_eq!(mr, 1);
-        use crate::define_neon_matmul_micro_kernel;
-        define_neon_matmul_micro_kernel!(half::f16, F16Vec, x14x1, 14, 1);
-        x14x1
     }
 
     fn get_kernel_with_post_op<
@@ -95,45 +78,17 @@ impl MatmulMicroKernel<F16Vec, f32, F32Vec> for half::f16 {
         [x2x1, x2x2, x2x3, x2x4, x2x5, x2x6, x2x7, x2x8][mr - 1]
     }
 
-    fn get_horizontal_kernel_with_post_op<
-        F: Fn(Self, usize, usize) -> Self,
-        G: Fn(F16Vec, usize, usize) -> F16Vec,
-    >(
-        nr: usize,
-        mr: usize,
-    ) -> fn(
-        crate::Pointer<Self>,
-        crate::Pointer<Self>,
-        crate::Pointer<Self>,
-        i64,
-        i64,
-        usize,
-        usize,
-        i64,
-        bool,
-        bool,
-        usize,
-        usize,
-        F,
-        G,
-    ) {
-        assert_eq!(nr, 14);
-        assert_eq!(mr, 1);
-        use crate::define_neon_post_op_matmul_micro_kernel;
-        define_neon_post_op_matmul_micro_kernel!(half::f16, F16Vec, x14x1, 14, 1);
-        x14x1
-    }
-
     fn get_max_mr() -> usize {
         8
     }
-
+    fn get_max_mixed_precision_mr() -> usize {
+        4
+    }
     fn get_max_nr() -> usize {
         2
     }
-
-    fn get_horizontal_max_nr() -> usize {
-        14
+    fn get_max_mixed_precision_nr() -> usize {
+        2
     }
 
     fn get_mixed_precision_kernel(
@@ -155,9 +110,9 @@ impl MatmulMicroKernel<F16Vec, f32, F32Vec> for half::f16 {
         use crate::define_mixed_precision_matmul_micro_kernel;
         use crate::define_neon_mixed_precision_matmul_micro_kernel;
         assert_eq!(nr, 2);
-        define_mixed_precision_matmul_micro_kernel!(half::f16, F16Vec, f32, F32Vec, x2x1, 2, 1, 4);
-        define_mixed_precision_matmul_micro_kernel!(half::f16, F16Vec, f32, F32Vec, x2x2, 2, 2, 4);
-        define_mixed_precision_matmul_micro_kernel!(half::f16, F16Vec, f32, F32Vec, x2x3, 2, 3, 4);
+        define_mixed_precision_matmul_micro_kernel!(half::f16, F16Vec, f32, F32Vec, x2x1, 2, 1, 4, 2);
+        define_mixed_precision_matmul_micro_kernel!(half::f16, F16Vec, f32, F32Vec, x2x2, 2, 2, 4, 2);
+        define_mixed_precision_matmul_micro_kernel!(half::f16, F16Vec, f32, F32Vec, x2x3, 2, 3, 4, 2);
         define_neon_mixed_precision_matmul_micro_kernel!(
             half::f16,
             F16Vec,
@@ -166,7 +121,8 @@ impl MatmulMicroKernel<F16Vec, f32, F32Vec> for half::f16 {
             x2x4,
             2,
             4,
-            4
+            4,
+            2
         );
         [x2x1, x2x2, x2x3, x2x4][mr - 1]
     }
@@ -206,7 +162,8 @@ impl MatmulMicroKernel<F16Vec, f32, F32Vec> for half::f16 {
             x2x1,
             2,
             1,
-            4
+            4,
+            2
         );
         define_mixed_precision_post_op_matmul_micro_kernel!(
             half::f16,
@@ -216,7 +173,8 @@ impl MatmulMicroKernel<F16Vec, f32, F32Vec> for half::f16 {
             x2x2,
             2,
             2,
-            4
+            4,
+            2
         );
         define_mixed_precision_post_op_matmul_micro_kernel!(
             half::f16,
@@ -226,7 +184,8 @@ impl MatmulMicroKernel<F16Vec, f32, F32Vec> for half::f16 {
             x2x3,
             2,
             3,
-            4
+            4,
+            2
         );
         define_neon_mixed_precision_post_op_matmul_micro_kernel!(
             half::f16,
@@ -236,7 +195,8 @@ impl MatmulMicroKernel<F16Vec, f32, F32Vec> for half::f16 {
             x2x4,
             2,
             4,
-            4
+            4,
+            2
         );
         [x2x1, x2x2, x2x3, x2x4][mr - 1]
     }

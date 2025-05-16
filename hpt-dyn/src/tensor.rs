@@ -49,12 +49,7 @@ impl Tensor {
         if !self.is_contiguous() {
             panic!("uncontiguous tensor cannot be converted to slice");
         }
-        unsafe {
-            std::slice::from_raw_parts(
-                self.data.ptr as *const T,
-                (self.mem_layout.size() as usize) / std::mem::size_of::<T>()
-            )
-        }
+        unsafe { std::slice::from_raw_parts(self.data.ptr as *const T, self.size()) }
     }
     pub fn as_slice_mut<T: Sized>(&mut self) -> &mut [T] {
         if !self.is_contiguous() {
@@ -282,11 +277,16 @@ impl FromSafeTensors for Tensor {
                     safetensors::Dtype::F32 => DType::F32,
                     _ => todo!(),
                 };
-                let mut ret = Self::empty(&shape, dtype, Device::Cpu).expect("failed to create tensor");
+                let mut ret = Self::empty(&shape, dtype, Device::Cpu).expect(
+                    "failed to create tensor"
+                );
                 let size = ret.size();
                 let slice = ret.as_slice_mut::<u8>();
                 let view_slice = unsafe {
-                    std::slice::from_raw_parts(view.data().as_ptr() as *const u8, size * dtype.sizeof() as usize)
+                    std::slice::from_raw_parts(
+                        view.data().as_ptr() as *const u8,
+                        size * (dtype.sizeof() as usize)
+                    )
                 };
                 slice.copy_from_slice(view_slice);
                 ret

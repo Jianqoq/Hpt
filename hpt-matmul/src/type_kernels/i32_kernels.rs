@@ -2,6 +2,8 @@ use crate::microkernel_trait::MatmulMicroKernel;
 use crate::I32Vec;
 use num_traits::ConstZero;
 use std::ops::Add;
+
+#[cfg(target_feature = "avx2")]
 use crate::type_kernels::common::avx2_kernels;
 
 impl crate::Zero for i32 {
@@ -9,7 +11,11 @@ impl crate::Zero for i32 {
 }
 
 #[cfg(target_feature = "neon")]
-impl MatmulMicroKernel<I32Vec, i32, I32Vec> for i32 {
+impl MatmulMicroKernel for i32 {
+    type SelfVec = I32Vec;
+    type MixedType = i32;
+    type MixedVec = I32Vec;
+
     fn get_kernel(
         nr: usize,
         mr: usize

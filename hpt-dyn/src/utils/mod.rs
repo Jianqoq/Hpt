@@ -22,3 +22,4 @@ pub(crate) mod onnx {
         pub(crate) mod fuse;
     }
 }
+pub(crate) mod threadpool;

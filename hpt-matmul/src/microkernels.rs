@@ -1,7 +1,7 @@
 /// define mma macro
 #[macro_export]
 macro_rules! define_mma {
-    ($dtype: ty, $vec_type:ty, $nr:expr, $mr:expr, $unroll:expr) => {
+    ($dtype:ty, $vec_type:ty, $nr:expr, $mr:expr, $unroll:expr) => {
         #[inline(always)]
         fn mma(a: $crate::Pointer<$dtype>, b: $crate::Pointer<$dtype>, lda: i64, kc: usize, ks: i64) -> [[$vec_type; $nr]; $mr] {
             let mut c_local = [[<$vec_type>::splat(<$dtype>::ZERO); $nr]; $mr];
@@ -46,7 +46,7 @@ macro_rules! define_mma {
 macro_rules! define_neon_mma {
     ($dtype:ty, $vec_type:ty, $nr:expr, $mr:expr) => {
         #[inline(always)]
-        fn mma(mut a: $crate::Pointer<$dtype>, mut b: $crate::Pointer<$dtype>, _: i64, kc: usize, ks: i64) -> [[$vec_type; $nr]; $mr] {
+        fn mma(mut a: $crate::Pointer<$dtype>, mut b: $crate::Pointer<$dtype>, kc: usize, ks: i64) -> [[$vec_type; $nr]; $mr] {
             use crate::microkernels::load_vec_neon;
             let mut c_local = [[<$vec_type>::splat(<$dtype>::ZERO); $nr]; $mr];
             for _ in 0..kc {
@@ -152,6 +152,7 @@ macro_rules! store_res_vec_mp {
     (
         $dtype:ty,
         $vec_type:ty,
+        $multiple_of: expr,
         $mr:expr,
         $nr:expr,
         $c_ptr:expr,
@@ -168,7 +169,7 @@ macro_rules! store_res_vec_mp {
                             (NR * vec_size::<$dtype>() as i64) as isize,
                         )
                     } as *mut $vec_type;
-                    let $to_store = $c_local[MR as usize].as_ptr();
+                    let $to_store = unsafe { $c_local[MR as usize].as_ptr().offset(NR as isize * $multiple_of) };
                     $($stores)*;
                 });
             }
@@ -180,7 +181,7 @@ macro_rules! store_res_vec_mp {
 #[inline(always)]
 #[cfg(all(target_feature = "neon", target_arch = "aarch64"))]
 pub(crate) fn load_vec_neon<const NR: usize>(data: *const f32, mut to_write: *mut f32) {
-    use std::{arch::aarch64::*, mem::transmute};
+    use std::{ arch::aarch64::*, mem::transmute };
     use crate::vec_size;
     use crate::F32Vec;
     unsafe {
@@ -260,11 +261,11 @@ macro_rules! store_res_scalar {
     (
         $mr:expr,
         $nr:expr,
-        $c_ptr:expr => $res_ty: ty,
+        $c_ptr:expr => $res_ty:ty,
         $ldc:expr,
-        $c_local:expr => $c_ty: ty,
+        $c_local:expr => $c_ty:ty,
         $jb:expr,
-        $nn: ident,
+        $nn:ident,
         [$res_ptr:ident <= $to_store:ident],
         $($stores:tt)*
     ) => {
@@ -297,7 +298,7 @@ macro_rules! store_res_scalar {
 ///
 #[macro_export]
 macro_rules! define_matmul_micro_kernel {
-    ($dtype: ty, $vec_type:ty, $name:ident, $nr:expr, $mr:expr) => {
+    ($dtype:ty, $vec_type:ty, $name:ident, $nr:expr, $mr:expr) => {
         fn $name(
             a: $crate::Pointer<$dtype>,
             b: $crate::Pointer<$dtype>,
@@ -379,166 +380,6 @@ macro_rules! define_matmul_micro_kernel {
     };
 }
 
-/// Define Matmul Micro Kernel function
-///
-/// # Arguments
-///
-/// * `$name`: The name of the function
-/// * `$nr`: The number of registers to use for the columns of B
-/// * `$mr`: The number of rows of C to accumulate in registers
-///
-/// Total registers = ($mr + 1) * $nr + 1
-///
-/// # Example
-///
-/// ```rust
-/// define_matmul_micro_kernel_inline_asm!(f32x2x1, f32, 2, 1);
-/// ```
-///
-#[macro_export]
-macro_rules! define_matmul_micro_kernel_inline_asm {
-    (
-        $name:ident,
-        $nr:expr,
-        $mr:expr,
-        $vec_size:expr,
-        $vxor:ident,
-        $vmov_aligned:ident,
-        $vmov_unaligned:ident,
-        $vbroadcast:ident,
-        $vfma:ident,
-        $vadd:ident,
-        $c_regs:expr,
-        $b_regs:expr,
-        $a_regs:expr,
-        $res_regs:expr
-    ) => {
-        #[allow(unused)]
-        fn $name<T: crate::common::CommonBounds>(
-            a: crate::common::Pointer<T>,
-            b: crate::common::Pointer<T>,
-            c: crate::common::Pointer<T>,
-            mut ldc: i64,
-            mut lda: i64,
-            kc: usize,
-            _: usize,
-            mut ks: i64,
-            first_kiter: bool,
-        ) {
-            use hpt_macros::gen_matmul_microkernel_asm;
-            let b_ptr = b.ptr as *const T;
-            let a_ptr = a.ptr as *const T;
-            let c_ptr = c.ptr as *mut T;
-            let first_kiter = first_kiter as i64;
-            ldc *= 4;
-            lda *= 4;
-            ks *= 4;
-            ks -= ($mr - 1) * lda;
-            unsafe {
-                gen_matmul_microkernel_asm!(
-                    $nr,       /* nr */
-                    $mr,       /* mr */
-                    $vec_size, /* vec_size */
-                    $vxor,
-                    $vmov_aligned,
-                    $vmov_unaligned,
-                    $vbroadcast,
-                    $vfma,
-                    $vadd,
-                    a_ptr,
-                    b_ptr,
-                    c_ptr,
-                    lda,
-                    ldc,
-                    kc,
-                    ks,
-                    first_kiter,
-                    $c_regs,
-                    $b_regs,
-                    $a_regs,
-                    $res_regs
-                )
-            };
-        }
-    };
-}
-
-/// Define Matmul Micro Kernel function with inline asm
-///
-/// # Arguments
-///
-/// * `$name`: The name of the function
-/// * `$nr`: The number of registers to use for the columns of B
-#[macro_export]
-macro_rules! define_matmul_micro_kernel_inline_asm_rem {
-    ($name:ident, $nr:expr, $mr:expr) => {
-        #[allow(unused_variables)]
-        fn $name<T: crate::common::CommonBounds>(
-            a: crate::common::Pointer<T>,
-            b: crate::common::Pointer<T>,
-            c: crate::common::Pointer<T>,
-            ldc: i64,
-            lda: i64,
-            kc: usize,
-            jb: usize,
-            ks: i64,
-            first_kiter: bool,
-        ) {
-            use $crate::types::vectors::traits::VecTrait;
-            use $crate::common::Pointer;
-            use $crate::types::math::NormalOut;
-            #[inline(always)]
-            fn mma<T: $crate::common::CommonBounds>(mut a: Pointer<T>, mut b: Pointer<T>, lda: i64, kc: usize, ks: i64) -> [[<T as $crate::types::TypeCommon>::Vec; $nr]; $mr] {
-                let mut c_local = [[<T as $crate::types::TypeCommon>::Vec::splat(<T>::ZERO); $nr]; $mr];
-                for _ in 0..kc {
-                    seq_macro::seq!(NR in 0..$nr {
-                            let b_vec~NR = unsafe {
-                                *(b.ptr.add(NR * <T as $crate::types::TypeCommon>::Vec::SIZE)
-                                    as *const <T as $crate::types::TypeCommon>::Vec)
-                            };
-                        }
-                    );
-                    #[allow(unused_mut)]
-                    let mut a_vec;
-                    seq_macro::seq!(MR in 0..$mr {
-                            a_vec = <T as $crate::types::TypeCommon>::Vec::splat(a[MR as i64 * lda]);
-                            seq_macro::seq!(NR in 0..$nr {
-                                c_local[MR][NR] = a_vec._mul_add(b_vec~NR, c_local[MR][NR]);
-                            });
-                        }
-                    );
-                    b += $nr * <T as $crate::types::TypeCommon>::Vec::SIZE as i64;
-                    a += ks;
-                }
-                c_local
-            }
-
-            let c_local = mma(a, b, lda, kc, ks);
-            if first_kiter {
-                for ii in 0..$mr as i64 {
-                    let c_local_ptr = c_local[ii as usize].as_ptr() as *const T;
-                    for jj in 0..jb as i64 {
-                        let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
-                        unsafe {
-                            *res_ptr = c_local_ptr.offset(jj as isize).read();
-                        };
-                    }
-                }
-            } else {
-                for ii in 0..$mr as i64 {
-                    let c_local_ptr = c_local[ii as usize].as_ptr() as *const T;
-                    for jj in 0..jb as i64 {
-                        let res_ptr = unsafe { c.ptr.offset((ii * ldc + jj) as isize) } as *mut T;
-                        unsafe {
-                            *res_ptr = (*res_ptr)._add(c_local_ptr.offset(jj as isize).read());
-                        };
-                    }
-                }
-            }
-        }
-    };
-}
-
 /// Define Matmul Micro Kernel function with post operation
 ///
 /// # Arguments
@@ -599,7 +440,7 @@ macro_rules! define_post_op_matmul_micro_kernel {
                             ldc,
                             c_local,
                             [res_ptr <= c_vec],
-                            res_ptr.write_unaligned(post_op_vec(c_vec, m_idx + MR, n_idx + NR))
+                            res_ptr.write_unaligned(post_op_vec(c_vec, m_idx + MR, n_idx + NR * vec_size::<$dtype>()))
                         );
                     }
                     (true, false) => {
@@ -625,7 +466,7 @@ macro_rules! define_post_op_matmul_micro_kernel {
                             ldc,
                             c_local,
                             [res_ptr <= c_vec],
-                            res_ptr.write_unaligned(post_op_vec(res_ptr.read_unaligned() + c_vec, m_idx + MR, n_idx + NR))
+                            res_ptr.write_unaligned(post_op_vec(res_ptr.read_unaligned() + c_vec, m_idx + MR, n_idx + NR * vec_size::<$dtype>()))
                         );
                     }
                     (false, false) => {
@@ -687,7 +528,7 @@ macro_rules! define_neon_matmul_micro_kernel {
             b: $crate::Pointer<$dtype>,
             c: $crate::Pointer<$dtype>,
             ldc: i64,
-            lda: i64,
+            _: i64,
             kc: usize,
             jb: usize,
             ks: i64,
@@ -699,7 +540,7 @@ macro_rules! define_neon_matmul_micro_kernel {
             use crate::vec_size;
             define_neon_mma!($dtype, $vec_type, $nr, $mr);
             
-            let c_local = mma(a, b, lda, kc, ks);
+            let c_local = mma(a, b, kc, ks);
             if jb == $nr * vec_size::<$dtype>() {
                 if first_kiter {
                     store_res_vec!(
@@ -762,7 +603,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
             b: $crate::Pointer<$dtype>,
             c: $crate::Pointer<$dtype>,
             ldc: i64,
-            lda: i64,
+            _: i64,
             kc: usize,
             jb: usize,
             ks: i64,
@@ -779,7 +620,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
             use crate::vec_size;
             define_neon_mma!($dtype, $vec_type, $nr, $mr);
 
-            let c_local = mma(a, b, lda, kc, ks);
+            let c_local = mma(a, b, kc, ks);
             if jb == $nr * vec_size::<$dtype>() {
                 match (first_kiter, last_kiter) {
                     (true, true) => {
@@ -792,7 +633,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
                             ldc,
                             c_local,
                             [res_ptr <= c_vec],
-                            res_ptr.write_unaligned(post_op_vec(c_vec, m_idx + MR, n_idx + NR))
+                            res_ptr.write_unaligned(post_op_vec(c_vec, m_idx + MR, n_idx + NR * vec_size::<$dtype>()))
                         );
                     }
                     (true, false) => {
@@ -818,7 +659,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
                             ldc,
                             c_local,
                             [res_ptr <= c_vec],
-                            res_ptr.write_unaligned(post_op_vec(res_ptr.read_unaligned() + c_vec, m_idx + MR, n_idx + NR))
+                            res_ptr.write_unaligned(post_op_vec(res_ptr.read_unaligned() + c_vec, m_idx + MR, n_idx + NR * vec_size::<$dtype>()))
                         );
                     }
                     (false, false) => {
@@ -874,7 +715,7 @@ macro_rules! define_neon_post_op_matmul_micro_kernel {
 ///
 #[macro_export]
 macro_rules! define_mixed_precision_matmul_micro_kernel {
-    ($dtype:ty, $vec_type:ty, $im: ty, $im_vec: ty, $name:ident, $nr:expr, $mr:expr, $nr2:expr) => {
+    ($dtype:ty, $vec_type:ty, $im:ty, $im_vec:ty, $name:ident, $nr:expr, $mr:expr, $nr2:expr, $multiple_of:expr) => {
         fn $name(
             a: $crate::Pointer<$im>,
             b: $crate::Pointer<$im>,
@@ -906,6 +747,7 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
                     store_res_vec_mp!(
                         $dtype,
                         $vec_type,
+                        $multiple_of,
                         $mr,
                         $nr,
                         c,
@@ -918,6 +760,7 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
                     store_res_vec_mp!(
                         $dtype,
                         $vec_type,
+                        $multiple_of,
                         $mr,
                         $nr,
                         c,
@@ -981,7 +824,7 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
 ///
 #[macro_export]
 macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
-    ($dtype:ty, $vec_type:ty, $im: ty, $im_vec: ty, $name:ident, $nr:expr, $mr:expr, $nr2:expr) => {
+    ($dtype:ty, $vec_type:ty, $im:ty, $im_vec:ty, $name:ident, $nr:expr, $mr:expr, $nr2:expr, $multiple_of:expr) => {
         fn $name<F: Fn($dtype, usize, usize) -> $dtype, F2: Fn($vec_type, usize, usize) -> $vec_type>(
             a: $crate::Pointer<$im>,
             b: $crate::Pointer<$im>,
@@ -1019,6 +862,7 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                         store_res_vec_mp!(
                             $dtype,
                             $vec_type,
+                            $multiple_of,
                             $mr,
                             $nr,
                             c,
@@ -1027,13 +871,14 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                             [res_ptr <= c_vec],
                             let mut res = $vec_type::splat(<$dtype>::ZERO);
                             vec_cast_back(&mut res, c_vec);
-                            unsafe { res_ptr.write_unaligned(post_op_vec(res, m_idx + MR, n_idx + NR)) }
+                            unsafe { res_ptr.write_unaligned(post_op_vec(res, m_idx + MR, n_idx + NR * vec_size::<$dtype>())) }
                         );
                     }
                     (true, false) => {
                         store_res_vec_mp!(
                             $dtype,
                             $vec_type,
+                            $multiple_of,
                             $mr,
                             $nr,
                             c,
@@ -1047,6 +892,7 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                         store_res_vec_mp!(
                             $dtype,
                             $vec_type,
+                            $multiple_of,
                             $mr,
                             $nr,
                             c,
@@ -1055,13 +901,14 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
                             [res_ptr <= c_vec],
                             let mut res = $vec_type::splat(<$dtype>::ZERO);
                             vec_cast_back(&mut res, c_vec);
-                            unsafe { res_ptr.write_unaligned(post_op_vec(res + res_ptr.read_unaligned(), m_idx + MR, n_idx + NR)) }
+                            unsafe { res_ptr.write_unaligned(post_op_vec(res + res_ptr.read_unaligned(), m_idx + MR, n_idx + NR * vec_size::<$dtype>())) }
                         );
                     }
                     (false, false) => {
                         store_res_vec_mp!(
                             $dtype,
                             $vec_type,
+                            $multiple_of,
                             $mr,
                             $nr,
                             c,
@@ -1160,13 +1007,13 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
 #[macro_export]
 #[cfg(target_feature = "neon")]
 macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
-    ($dtype:ty, $vec_type:ty, $im: ty, $im_vec: ty, $name:ident, $nr:expr, $mr:expr, $nr2:expr) => {
+    ($dtype:ty, $vec_type:ty, $im:ty, $im_vec:ty, $name:ident, $nr:expr, $mr:expr, $nr2:expr, $multiple_of:expr) => {
         fn $name(
             a: $crate::Pointer<$im>,
             b: $crate::Pointer<$im>,
             c: $crate::Pointer<$dtype>,
             ldc: i64,
-            lda: i64,
+            _: i64,
             kc: usize,
             jb: usize,
             ks: i64,
@@ -1174,25 +1021,20 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
             vec_cast_back: fn(*mut $vec_type, *const $im_vec),
             cast_back: fn(&mut $dtype, &$im),
         ) {
-            use $crate::define_mma;
-            use $crate::define_mma_packed_a;
+            use $crate::define_neon_mma;
             use $crate::store_res_vec_mp;
             use $crate::store_res_scalar;
             use crate::vec_size;
-            define_mma!($im, $im_vec, $nr2, $mr, 4);
-            define_mma_packed_a!($im, $im_vec, $nr2, $mr, 4);
+            define_neon_mma!($im, $im_vec, $nr2, $mr);
 
-            let c_local = if lda == 1 && ks == $mr {
-                mma_packed_a(a, b, kc)
-            }else {
-                mma(a, b, lda, kc, ks)
-            };
+            let c_local = mma(a, b, kc, ks);
             if jb == $nr * vec_size::<$dtype>() {
                 match first_kiter {
                     true => {
                         store_res_vec_mp!(
                             $dtype,
                             $vec_type,
+                            $multiple_of,
                             $mr,
                             $nr,
                             c,
@@ -1208,6 +1050,7 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
                         store_res_vec_mp!(
                             $dtype,
                             $vec_type,
+                            $multiple_of,
                             $mr,
                             $nr,
                             c,
@@ -1276,13 +1119,13 @@ macro_rules! define_neon_mixed_precision_matmul_micro_kernel {
 #[macro_export]
 #[cfg(target_feature = "neon")]
 macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
-    ($dtype:ty, $vec_type:ty, $im: ty, $im_vec: ty, $name:ident, $nr:expr, $mr:expr, $nr2:expr) => {
+    ($dtype:ty, $vec_type:ty, $im:ty, $im_vec:ty, $name:ident, $nr:expr, $mr:expr, $nr2:expr, $multiple_of:expr) => {
         fn $name<F: Fn($dtype, usize, usize) -> $dtype, F2: Fn($vec_type, usize, usize) -> $vec_type>(
             a: $crate::Pointer<$im>,
             b: $crate::Pointer<$im>,
             c: $crate::Pointer<$dtype>,
             ldc: i64,
-            lda: i64,
+            _: i64,
             kc: usize,
             jb: usize,
             ks: i64,
@@ -1295,17 +1138,11 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
             post_op: F,
             post_op_vec: F2,
         ) {
-            use $crate::define_mma;
-            use $crate::define_mma_packed_a;
+            use $crate::define_neon_mma;
             use crate::vec_size;
-            define_mma!($im, $im_vec, $nr2, $mr, 4);
-            define_mma_packed_a!($im, $im_vec, $nr2, $mr, 4);
+            define_neon_mma!($im, $im_vec, $nr2, $mr);
 
-            let c_local = if lda == 1 && ks == $mr {
-                mma_packed_a(a, b, kc)
-            }else {
-                mma(a, b, lda, kc, ks)
-            };
+            let c_local = mma(a, b, kc, ks);
             if jb == $nr * vec_size::<$dtype>() {
                 if first_kiter {
                     if last_kiter {
@@ -1317,8 +1154,8 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                                         )
                                     } as *mut $vec_type;
                                     let mut res = $vec_type::splat(<$dtype>::ZERO);
-                                    vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
-                                    unsafe {res_ptr.write_unaligned(post_op_vec(res, m_idx + MR, n_idx + NR)) };
+                                    vec_cast_back(&mut res, unsafe { c_local[MR as usize].as_ptr().offset(NR as isize * $multiple_of) });
+                                    unsafe {res_ptr.write_unaligned(post_op_vec(res, m_idx + MR, n_idx + NR * vec_size::<$dtype>())) };
                                     }
                                 );
                             }
@@ -1332,7 +1169,7 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                                         )
                                     } as *mut $vec_type;
                                     let mut res = $vec_type::splat(<$dtype>::ZERO);
-                                    vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
+                                    vec_cast_back(&mut res, unsafe { c_local[MR as usize].as_ptr().offset(NR as isize * $multiple_of) });
                                     unsafe {res_ptr.write_unaligned(res) };
                                     }
                                 );
@@ -1355,8 +1192,8 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                                     } as *mut $vec_type;
                                     res~NR = unsafe {res_ptr.read_unaligned()};
                                     let mut res = $vec_type::splat(<$dtype>::ZERO);
-                                    vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
-                                    unsafe {res_ptr.write_unaligned(post_op_vec(res~NR + res, m_idx + MR, n_idx + NR)) };
+                                    vec_cast_back(&mut res, unsafe { c_local[MR as usize].as_ptr().offset(NR as isize * $multiple_of) });
+                                    unsafe {res_ptr.write_unaligned(post_op_vec(res~NR + res, m_idx + MR, n_idx + NR * vec_size::<$dtype>())) };
                                     }
                                 );
                             }
@@ -1371,7 +1208,7 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
                                     } as *mut $vec_type;
                                     res~NR = unsafe {res_ptr.read_unaligned()};
                                     let mut res = $vec_type::splat(<$dtype>::ZERO);
-                                    vec_cast_back(&mut res, c_local[MR as usize].as_ptr());
+                                    vec_cast_back(&mut res, unsafe { c_local[MR as usize].as_ptr().offset(NR as isize * $multiple_of) });
                                     unsafe {res_ptr.write_unaligned(res~NR + res) };
                                     }
                                 );

@@ -10,10 +10,6 @@ pub trait MatmulMicroKernel where Self: Sized {
         nr: usize,
         mr: usize
     ) -> fn(Pointer<Self>, Pointer<Self>, Pointer<Self>, i64, i64, usize, usize, i64, bool);
-    fn get_horizontal_kernel(
-        nr: usize,
-        mr: usize
-    ) -> fn(Pointer<Self>, Pointer<Self>, Pointer<Self>, i64, i64, usize, usize, i64, bool);
     fn get_kernel_with_post_op<
         F: Fn(Self, usize, usize) -> Self,
         G: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
@@ -36,28 +32,7 @@ pub trait MatmulMicroKernel where Self: Sized {
         F,
         G
     );
-    fn get_horizontal_kernel_with_post_op<
-        F: Fn(Self, usize, usize) -> Self,
-        G: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
-    >(
-        nr: usize,
-        mr: usize
-    ) -> fn(
-        Pointer<Self>,
-        Pointer<Self>,
-        Pointer<Self>,
-        i64,
-        i64,
-        usize,
-        usize,
-        i64,
-        bool,
-        bool,
-        usize,
-        usize,
-        F,
-        G
-    );
+    #[allow(unused_variables)]
     fn get_mixed_precision_kernel(
         nr: usize,
         mr: usize
@@ -76,6 +51,7 @@ pub trait MatmulMicroKernel where Self: Sized {
     ) {
         unimplemented!()
     }
+    #[allow(unused_variables)]
     fn get_mixed_precision_kernel_with_post_op<
         F: Fn(Self, usize, usize) -> Self,
         G: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
@@ -110,5 +86,4 @@ pub trait MatmulMicroKernel where Self: Sized {
     }
     fn get_max_mr() -> usize;
     fn get_max_nr() -> usize;
-    fn get_horizontal_max_nr() -> usize;
 }

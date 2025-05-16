@@ -2,6 +2,8 @@ use crate::microkernel_trait::MatmulMicroKernel;
 use crate::F64Vec;
 use num_traits::ConstZero;
 use std::ops::Add;
+
+#[cfg(target_feature = "avx2")]
 use crate::type_kernels::common::avx2_kernels;
 
 impl crate::Zero for f64 {
@@ -9,7 +11,11 @@ impl crate::Zero for f64 {
 }
 
 #[cfg(target_feature = "neon")]
-impl MatmulMicroKernel<F64Vec, f64, F64Vec> for f64 {
+impl MatmulMicroKernel for f64 {
+    type SelfVec = F64Vec;
+    type MixedType = f64;
+    type MixedVec = F64Vec;
+
     fn get_kernel(
         nr: usize,
         mr: usize

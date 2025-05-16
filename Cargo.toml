@@ -31,7 +31,7 @@ anyhow = { workspace = true }
 # rand = { workspace = true }
 # ndarray = { workspace = true }
 # candle-core = { workspace = true }
-hpt-dyn = { path = "./hpt-dyn", features = ["f32", "i64"] }
+hpt-dyn = { path = "./hpt-dyn", features = ["f32", "i64", "f16"] }
 spindle = { workspace = true}
 env_logger = { workspace = true }
 log = { workspace = true }
@@ -106,6 +106,8 @@ log = "0.4.27"
 env_logger = "0.11.8"
 num_enum = "0.7"
 num-integer = "0.1"
+crossbeam = "0.8.4"
+core_affinity = "0.8.3"
 
 [[bin]]
 name = "hpt-workspace"
