@@ -1,4 +1,4 @@
-#[cfg(target_feature = "avx2")]
+#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 macro_rules! avx2_kernels {
     ($dtype:ty, $vec_type:ty) => {
         impl MatmulMicroKernel for $dtype {
@@ -74,7 +74,7 @@ macro_rules! avx2_kernels {
     };
 }
 
-#[cfg(target_feature = "avx2")]
+#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 pub(crate) use avx2_kernels;
 
 #[cfg(target_feature = "avx512f")]
@@ -148,6 +148,39 @@ macro_rules! avx512_kernels {
 
             fn get_max_nr() -> usize {
                 4
+            }
+
+            #[allow(unused_variables)]
+            fn get_gemv_kernel() -> fn(
+                a: crate::Pointer<Self>,
+                b: crate::Pointer<Self>,
+                c: crate::Pointer<Self>,
+                n: usize,
+                k: usize,
+                ldb: i64,
+                lhs_col_stride: i64,
+            ) {
+                use crate::microkernels::define_gemv_microkernel;
+                define_gemv_microkernel!($dtype, $vec_type);
+                gemv_microkernel
+            }
+        
+            #[allow(unused_variables)]
+            fn get_gemv_kernel_with_post_op<F: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec>() -> fn(
+                a: crate::Pointer<Self>,
+                b: crate::Pointer<Self>,
+                c: crate::Pointer<Self>,
+                n: usize,
+                k: usize,
+                ldb: i64,
+                lhs_col_stride: i64,
+                m_offset: usize,
+                n_offset: usize,
+                post_op_vec: F,
+            ) {
+                use crate::microkernels::define_gemv_microkernel_post_op;
+                define_gemv_microkernel_post_op!($dtype, $vec_type);
+                gemv_microkernel_post_op
             }
         }
     };

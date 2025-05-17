@@ -41,14 +41,12 @@ pub(crate) mod microkernels;
 pub(crate) mod utils;
 
 pub(crate) mod simd {
-    #[cfg(
-        any(
-            all(not(target_feature = "avx2"), target_feature = "sse"),
-            target_arch = "arm",
-            target_arch = "aarch64",
-            target_feature = "neon"
-        )
-    )]
+    #[cfg(any(
+        all(not(target_feature = "avx2"), target_feature = "sse"),
+        target_arch = "arm",
+        target_arch = "aarch64",
+        target_feature = "neon"
+    ))]
     pub mod _128bit {
         pub(crate) mod common {
             pub(crate) mod bf16x8;
@@ -119,7 +117,11 @@ pub(crate) mod simd {
         pub type Cplx64Vec = crate::simd::_128bit::common::cplx64x1::cplx64x1;
     }
     /// A module defines a set of 256-bit vector types
-    #[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(target_feature = "avx512f")))]
+    #[cfg(all(
+        target_arch = "x86_64",
+        target_feature = "avx2",
+        not(target_feature = "avx512f")
+    ))]
     pub mod _256bit {
         pub(crate) mod common {
             pub(crate) mod bf16x16;
@@ -189,6 +191,7 @@ pub(crate) mod simd {
             pub(crate) mod u32x16;
             pub(crate) mod u64x8;
             pub(crate) mod u8x64;
+            pub(crate) mod mask;
         }
         #[cfg(target_feature = "avx512f")]
         pub(crate) mod avx512 {
@@ -273,8 +276,12 @@ impl<T> Pointer<T> {
     }
     #[inline(always)]
     pub(crate) fn read_unaligned(&self) -> T {
+        unsafe { std::ptr::read_unaligned(self.ptr) }
+    }
+    #[inline(always)]
+    pub(crate) fn write_unaligned(&self, val: T) {
         unsafe {
-            std::ptr::read_unaligned(self.ptr)
+            std::ptr::write_unaligned(self.ptr, val);
         }
     }
 }
@@ -329,9 +336,7 @@ impl<T> std::ops::Add<i64> for Pointer<T> {
         #[cfg(not(feature = "bound_check"))]
         {
             Pointer::<T> {
-                ptr: unsafe {
-                    self.ptr.offset(rhs as isize)
-                },
+                ptr: unsafe { self.ptr.offset(rhs as isize) },
                 #[cfg(feature = "bound_check")]
                 len: self.len,
             }
@@ -357,70 +362,33 @@ unsafe impl<T> Sync for Pointer<T> {}
 
 pub(crate) const REG_BITS: usize = std::mem::size_of::<F32Vec>() * 8;
 
-use std::ops::{ AddAssign, Deref, DerefMut, Index, IndexMut };
+use std::ops::{AddAssign, Deref, DerefMut, Index, IndexMut};
 
-#[cfg(
-    any(
-        all(not(target_feature = "avx2"), target_feature = "sse"),
-        target_arch = "arm",
-        target_arch = "aarch64",
-        target_feature = "neon"
-    )
-)]
+#[cfg(any(
+    all(not(target_feature = "avx2"), target_feature = "sse"),
+    target_arch = "arm",
+    target_arch = "aarch64",
+    target_feature = "neon"
+))]
 pub use crate::simd::_128bit::{
-    Bf16Vec,
-    BoolVec,
-    Cplx32Vec,
-    Cplx64Vec,
-    F16Vec,
-    F32Vec,
-    F64Vec,
-    I8Vec,
-    I16Vec,
-    I32Vec,
-    I64Vec,
-    U8Vec,
-    U16Vec,
-    U32Vec,
-    U64Vec,
+    Bf16Vec, BoolVec, Cplx32Vec, Cplx64Vec, F16Vec, F32Vec, F64Vec, I8Vec, I16Vec, I32Vec, I64Vec,
+    U8Vec, U16Vec, U32Vec, U64Vec,
 };
 
-#[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(target_feature = "avx512f")))]
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "avx2",
+    not(target_feature = "avx512f")
+))]
 pub use crate::simd::_256bit::{
-    Bf16Vec,
-    BoolVec,
-    Cplx32Vec,
-    Cplx64Vec,
-    F16Vec,
-    F32Vec,
-    F64Vec,
-    I8Vec,
-    I16Vec,
-    I32Vec,
-    I64Vec,
-    U8Vec,
-    U16Vec,
-    U32Vec,
-    U64Vec,
+    Bf16Vec, BoolVec, Cplx32Vec, Cplx64Vec, F16Vec, F32Vec, F64Vec, I8Vec, I16Vec, I32Vec, I64Vec,
+    U8Vec, U16Vec, U32Vec, U64Vec,
 };
 
 #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
 pub use crate::simd::_512bit::{
-    Bf16Vec,
-    BoolVec,
-    Cplx32Vec,
-    Cplx64Vec,
-    F16Vec,
-    F32Vec,
-    F64Vec,
-    I8Vec,
-    I16Vec,
-    I32Vec,
-    I64Vec,
-    U8Vec,
-    U16Vec,
-    U32Vec,
-    U64Vec,
+    Bf16Vec, BoolVec, Cplx32Vec, Cplx64Vec, F16Vec, F32Vec, F64Vec, I8Vec, I16Vec, I32Vec, I64Vec,
+    U8Vec, U16Vec, U32Vec, U64Vec,
 };
 
 pub use crate::microkernel_trait::MatmulMicroKernel;
@@ -434,8 +402,16 @@ pub(crate) trait Add {
     fn add(self, other: Self) -> Self;
 }
 
-pub use matmul::{matmul, prepack_rhs, addmm};
+pub(crate) trait VecTrait<T> {
+    const SIZE: usize = vec_size::<T>();
+    fn mul_add(self, a: Self, b: Self) -> Self;
+    fn splat(val: T) -> Self;
+    fn partial_load(ptr: *const T, num_elem: usize) -> Self;
+    fn partial_store(self, ptr: *mut T, num_elem: usize);
+}
 
-pub use utils::{ kernel_params, NewPrePackedRhs };
+pub use matmul::{addmm, matmul, prepack_rhs};
+
+pub use utils::{NewPrePackedRhs, kernel_params};
 
 static ALIGN: usize = 128;

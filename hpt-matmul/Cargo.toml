@@ -15,6 +15,7 @@ duplicate = { workspace = true }
 num-integer = { workspace = true }
 rayon = {workspace = true}
 num_cpus = { workspace = true }
+raw-cpuid = { workspace = true }
 
 [features]
 default = ["f32", "f16"]

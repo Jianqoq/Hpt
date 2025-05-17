@@ -2,8 +2,6 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use super::i32x16::i32x16;
-
 /// a vector of 4 u32 values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]

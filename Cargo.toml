@@ -31,7 +31,7 @@ anyhow = { workspace = true }
 # rand = { workspace = true }
 # ndarray = { workspace = true }
 # candle-core = { workspace = true }
-hpt-dyn = { path = "./hpt-dyn", features = ["f32", "i64", "f16"] }
+hpt-dyn = { path = "./hpt-dyn", features = ["f32", "i64"] }
 spindle = { workspace = true}
 env_logger = { workspace = true }
 log = { workspace = true }
@@ -115,7 +115,7 @@ path = "src/main.rs"
 [profile.release]
 opt-level = 3
 incremental = true
-debug = true
+debug = false
 lto = "fat"
 codegen-units = 1
 

@@ -1,7 +1,6 @@
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use crate::simd::_512bit::common::i16x32::i16x32;
 
 /// a vector of 16 u16 values
 #[allow(non_camel_case_types)]

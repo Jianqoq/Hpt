@@ -4,6 +4,7 @@ macro_rules! define_mma {
     ($dtype:ty, $vec_type:ty, $nr:expr, $mr:expr, $unroll:expr) => {
         #[inline(always)]
         fn mma(a: $crate::Pointer<$dtype>, b: $crate::Pointer<$dtype>, lda: i64, kc: usize, ks: i64) -> [[$vec_type; $nr]; $mr] {
+            use crate::VecTrait;
             let mut c_local = [[<$vec_type>::splat(<$dtype>::ZERO); $nr]; $mr];
             let b_ptr = b.ptr as *const $vec_type;
             let rem = kc % $unroll;
@@ -77,6 +78,7 @@ macro_rules! define_mma_packed_a {
     ($dtype:ty, $vec_type:ty, $nr:expr, $mr:expr, $unroll:expr) => {
         #[inline(always)]
         fn mma_packed_a(a: $crate::Pointer<$dtype>, b: $crate::Pointer<$dtype>, kc: usize) -> [[$vec_type; $nr]; $mr] {
+            use crate::VecTrait;
             let mut c_local = [[<$vec_type>::splat(<$dtype>::ZERO); $nr]; $mr];
             let b_ptr = b.ptr as *const $vec_type;
             let rem = kc % $unroll;
@@ -695,6 +697,7 @@ macro_rules! define_mixed_precision_matmul_micro_kernel {
             vec_cast_back: fn(*mut $vec_type, *const $im_vec),
             cast_back: fn(&mut $dtype, &$im),
         ) {
+            use $crate::VecTrait;
             use $crate::define_mma;
             use $crate::define_mma_packed_a;
             use $crate::store_res_vec_mp;
@@ -802,6 +805,7 @@ macro_rules! define_mixed_precision_post_op_matmul_micro_kernel {
             post_op: F,
             post_op_vec: F2
         ) {
+            use $crate::VecTrait;
             use $crate::define_mma;
             use $crate::define_mma_packed_a;
             use $crate::store_res_vec_mp;
@@ -1219,3 +1223,180 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
         }
     };
 }
+
+macro_rules! define_gemv_microkernel {
+    ($dtype: ty, $vec_type:ty) => {
+        pub(crate) fn gemv_microkernel(
+            a: crate::Pointer<$dtype>,
+            b: crate::Pointer<$dtype>,
+            c: crate::Pointer<$dtype>,
+            n: usize,
+            k: usize,
+            ldb: i64,
+            lhs_col_stride: i64,
+        ) {
+            use crate::VecTrait;
+            use crate::vec_size;
+            let num_vec = n / vec_size::<$dtype>();
+            let rem = n % vec_size::<$dtype>();
+            let a_vec = <$vec_type>::splat(a[0]);
+            let b_vec_ptr = b.cast::<$vec_type>();
+            let c_vec_ptr = c.cast::<$vec_type>();
+        
+            // full path
+            for j in 0..num_vec {
+                let b = b_vec_ptr + j as i64;
+                let c = c_vec_ptr + j as i64;
+                let b_vec = b.read_unaligned();
+                c.write_unaligned(a_vec * b_vec);
+            }
+            // partial path
+            if rem > 0 {
+                let b = b + (num_vec * vec_size::<$dtype>()) as i64;
+                let c = c + (num_vec * vec_size::<$dtype>()) as i64;
+                let b_vec = <$vec_type>::partial_load(b.ptr as *const $dtype, rem);
+                (a_vec * b_vec).partial_store(c.ptr as *mut $dtype, rem);
+            }
+        
+            for p in 1..k {
+                let a_vec = <$vec_type>::splat(a[p as i64 * lhs_col_stride]);
+                let b_vec_ptr = (b + p as i64 * ldb).cast::<$vec_type>();
+                let c_vec_ptr = c.cast::<$vec_type>();
+                // full path
+                for j in 0..num_vec {
+                    let b = b_vec_ptr + j as i64;
+                    let c = c_vec_ptr + j as i64;
+                    let b_vec = b.read_unaligned();
+                    let res = a_vec.mul_add(b_vec, c.read_unaligned());
+                    c.write_unaligned(res);
+                }
+                // partial path
+                if rem > 0 {
+                    let b = b + (num_vec * vec_size::<$dtype>()) as i64;
+                    let c = c + (num_vec * vec_size::<$dtype>()) as i64;
+                    let b_vec = <$vec_type>::partial_load(b.ptr as *const $dtype, rem);
+                    let c_vec = <$vec_type>::partial_load(c.ptr as *const $dtype, rem);
+                    let res = a_vec.mul_add(b_vec, c_vec);
+                    res.partial_store(c.ptr as *mut $dtype, rem);
+                }
+            }
+        }
+        
+    };
+}
+
+pub(crate) use define_gemv_microkernel;
+
+macro_rules! define_gemv_microkernel_post_op {
+    ($dtype: ty, $vec_type:ty) => {
+        pub(crate) fn gemv_microkernel_post_op<F>(
+            a: crate::Pointer<$dtype>,
+            b: crate::Pointer<$dtype>,
+            c: crate::Pointer<$dtype>,
+            n: usize,
+            k: usize,
+            ldb: i64,
+            lhs_col_stride: i64,
+            m_offset: usize,
+            n_offset: usize,
+            post_op_vec: F,
+        ) where
+            F: Fn($vec_type, usize, usize) -> $vec_type,
+        {
+            use crate::VecTrait;
+            use crate::vec_size;
+            let num_vec = n / vec_size::<$dtype>();
+            let rem = n % vec_size::<$dtype>();
+            let a_vec = <$vec_type>::splat(a[0]);
+            let b_vec_ptr = b.cast::<$vec_type>();
+            let c_vec_ptr = c.cast::<$vec_type>();
+        
+            assert!(k >= 1);
+            // full path
+            if k == 1 {
+                for j in 0..num_vec {
+                    let b = b_vec_ptr + j as i64;
+                    let c = c_vec_ptr + j as i64;
+                    let b_vec = b.read_unaligned();
+                    c.write_unaligned(post_op_vec(
+                        a_vec * b_vec,
+                        m_offset,
+                        n_offset + j * vec_size::<$dtype>(),
+                    ));
+                }
+                // partial path
+                if rem > 0 {
+                    let b = b + (num_vec * vec_size::<$dtype>()) as i64;
+                    let c = c + (num_vec * vec_size::<$dtype>()) as i64;
+                    let b_vec = <$vec_type>::partial_load(b.ptr as *const $dtype, rem);
+                    (post_op_vec(
+                        a_vec * b_vec,
+                        m_offset,
+                        n_offset + num_vec * vec_size::<$dtype>(),
+                    ))
+                    .partial_store(c.ptr as *mut $dtype, rem);
+                }
+            } else {
+                for j in 0..num_vec {
+                    let b = b_vec_ptr + j as i64;
+                    let c = c_vec_ptr + j as i64;
+                    let b_vec = b.read_unaligned();
+                    c.write_unaligned(a_vec * b_vec);
+                }
+                // partial path
+                if rem > 0 {
+                    let b = b + (num_vec * vec_size::<$dtype>()) as i64;
+                    let c = c + (num_vec * vec_size::<$dtype>()) as i64;
+                    let b_vec = <$vec_type>::partial_load(b.ptr as *const $dtype, rem);
+                    (a_vec * b_vec).partial_store(c.ptr as *mut $dtype, rem);
+                }
+            }
+        
+            for p in 1..k {
+                let a_vec = <$vec_type>::splat(a[p as i64 * lhs_col_stride]);
+                let b_vec_ptr = (b + p as i64 * ldb).cast::<$vec_type>();
+                let c_vec_ptr = c.cast::<$vec_type>();
+                if p == k - 1 {
+                    // full path
+                    for j in 0..num_vec {
+                        let b = b_vec_ptr + j as i64;
+                        let c = c_vec_ptr + j as i64;
+                        let b_vec = b.read_unaligned();
+                        let res = a_vec.mul_add(b_vec, c.read_unaligned());
+                        c.write_unaligned(post_op_vec(res, m_offset, n_offset + j * vec_size::<$dtype>()));
+                    }
+                    // partial path
+                    if rem > 0 {
+                        let b = b + (num_vec * vec_size::<$dtype>()) as i64;
+                        let c = c + (num_vec * vec_size::<$dtype>()) as i64;
+                        let b_vec = <$vec_type>::partial_load(b.ptr as *const $dtype, rem);
+                        let c_vec = <$vec_type>::partial_load(c.ptr as *const $dtype, rem);
+                        let res = a_vec.mul_add(b_vec, c_vec);
+                        (post_op_vec(res, m_offset, n_offset + num_vec * vec_size::<$dtype>()))
+                            .partial_store(c.ptr as *mut $dtype, rem);
+                    }
+                } else {
+                    // full path
+                    for j in 0..num_vec {
+                        let b = b_vec_ptr + j as i64;
+                        let c = c_vec_ptr + j as i64;
+                        let b_vec = b.read_unaligned();
+                        let res = a_vec.mul_add(b_vec, c.read_unaligned());
+                        c.write_unaligned(res);
+                    }
+                    // partial path
+                    if rem > 0 {
+                        let b = b + (num_vec * vec_size::<$dtype>()) as i64;
+                        let c = c + (num_vec * vec_size::<$dtype>()) as i64;
+                        let b_vec = <$vec_type>::partial_load(b.ptr as *const $dtype, rem);
+                        let c_vec = <$vec_type>::partial_load(c.ptr as *const $dtype, rem);
+                        let res = a_vec.mul_add(b_vec, c_vec);
+                        res.partial_store(c.ptr as *mut $dtype, rem);
+                    }
+                }
+            }
+        }
+    };
+}
+
+pub(crate) use define_gemv_microkernel_post_op;

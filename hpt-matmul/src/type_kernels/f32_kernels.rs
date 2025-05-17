@@ -3,7 +3,7 @@ use crate::F32Vec;
 use num_traits::ConstZero;
 use std::ops::Add;
 
-#[cfg(target_feature = "avx2")]
+#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 use crate::type_kernels::common::avx2_kernels;
 
 #[cfg(target_feature = "avx512f")]

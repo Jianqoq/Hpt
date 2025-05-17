@@ -4,26 +4,19 @@ use dyn_stack::DynStack;
 use gemm_common::gemm::CACHELINE_ALIGN;
 
 use crate::{
+    Pointer, Zero,
     microkernel_trait::MatmulMicroKernel,
     utils::{
-        pack_a_mixed_precision_single_thread,
-        pack_a_single_thread,
-        pack_b_mixed_precision,
-        pack_b_single_thread,
-        NewPrePackedRhs,
-        PrePackedLhs,
-        L2_SLAB,
-        L3_SLAB,
+        L2_SLAB, L3_SLAB, NewPrePackedRhs, PrePackedLhs, pack_a_mixed_precision_single_thread,
+        pack_a_single_thread, pack_b_mixed_precision, pack_b_single_thread,
     },
     vec_size,
-    Pointer,
-    Zero,
 };
 
 #[duplicate::duplicate_item(
-    func_name       get_kernel                 extra_args;
-    [matmul]        [get_kernel]               [];
-    [matmul_post]   [get_kernel_with_post_op]  [p + pb == k, m_offset + i + ii, n_offset + j + jj, post_op.clone(), post_op_vec.clone()];
+    func_name       mv_method       get_kernel                 extra_args;
+    [matmul]        [mv]            [get_kernel]               [first_kiter];
+    [matmul_post]   [mv_post]       [get_kernel_with_post_op]  [first_kiter,p + pb == k, m_offset + i + ii, n_offset + j + jj, post_op.clone(), post_op_vec.clone()];
 )]
 pub(crate) fn func_name<T, F1, F2>(
     a: Pointer<T>,
@@ -48,22 +41,37 @@ pub(crate) fn func_name<T, F1, F2>(
     prepacked_lhs: Option<&PrePackedLhs>,
     prepack_rhs: Option<&NewPrePackedRhs>,
     #[allow(unused_variables)] post_op: F1,
-    #[allow(unused_variables)] post_op_vec: F2
-)
-    where
-        T: MatmulMicroKernel + Send + Sync + Copy + Zero,
-        F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
-        F2: Fn(
-            <T as MatmulMicroKernel>::SelfVec,
-            usize,
-            usize
-        ) -> <T as MatmulMicroKernel>::SelfVec +
-            Clone +
-            Send +
-            Sync +
-            'static
+    #[allow(unused_variables)] post_op_vec: F2,
+) where
+    T: MatmulMicroKernel + Send + Sync + Copy + Zero,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(<T as MatmulMicroKernel>::SelfVec, usize, usize) -> <T as MatmulMicroKernel>::SelfVec
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     assert_eq!(nr % vec_size::<T>(), 0);
+
+    if m == 1 && rhs_col_stride == 1 {
+        mv_method(
+            a,
+            b,
+            out,
+            m_offset,
+            n_offset,
+            n,
+            k,
+            ldb,
+            lhs_col_stride,
+            kc,
+            nc,
+            nr,
+            prepack_rhs,
+            post_op_vec.clone(),
+        );
+        return;
+    }
 
     let num_mr_blocks = (mc + mr - 1) / mr;
     let num_nr_blocks = (nc + nr - 1) / nr;
@@ -91,13 +99,11 @@ pub(crate) fn func_name<T, F1, F2>(
             if do_lhs_pack {
                 let mut mem = mem.borrow_mut();
                 let stack = DynStack::new(&mut mem);
-                let (packed_a_storage, _) = stack.make_aligned_uninit::<T>(
-                    num_mr_blocks * mr * kc,
-                    64
-                );
+                let (packed_a_storage, _) =
+                    stack.make_aligned_uninit::<T>(num_mr_blocks * mr * kc, 64);
                 let packed_a = Pointer::new(
                     packed_a_storage.as_mut_ptr() as *mut T,
-                    (num_mr_blocks * mr * kc) as i64
+                    (num_mr_blocks * mr * kc) as i64,
                 );
                 packed_a
             } else {
@@ -126,7 +132,7 @@ pub(crate) fn func_name<T, F1, F2>(
                         ib,
                         pb,
                         kc,
-                        mr
+                        mr,
                     );
                     packed_a
                 } else {
@@ -139,13 +145,11 @@ pub(crate) fn func_name<T, F1, F2>(
             } else {
                 L2_SLAB.with_borrow_mut(|mem| {
                     let stack = DynStack::new(mem);
-                    let (packed_b_storage, _) = stack.make_aligned_uninit::<T>(
-                        panel_size,
-                        CACHELINE_ALIGN
-                    );
+                    let (packed_b_storage, _) =
+                        stack.make_aligned_uninit::<T>(panel_size, CACHELINE_ALIGN);
                     Pointer::new(
                         packed_b_storage.as_mut_ptr() as *mut T,
-                        (num_nr_blocks * nr * kc) as i64
+                        (num_nr_blocks * nr * kc) as i64,
                     )
                 })
             };
@@ -162,7 +166,7 @@ pub(crate) fn func_name<T, F1, F2>(
                         jb,
                         pb,
                         kc,
-                        nr
+                        nr,
                     );
                 } else {
                     packed_b = packed_b_cpy + ((j_idx * panel_size) as i64);
@@ -185,8 +189,7 @@ pub(crate) fn func_name<T, F1, F2>(
                             } else {
                                 lhs_col_stride
                             },
-                            first_kiter,
-                            extra_args
+                            extra_args,
                         );
                     }
                 }
@@ -227,29 +230,24 @@ pub(crate) fn func_name<T, F1, F2>(
     pack_vec: fn(
         *mut <T as MatmulMicroKernel>::MixedVec,
         *const <T as MatmulMicroKernel>::SelfVec,
-        usize
+        usize,
     ),
     pack_vec_exceed: fn(*mut <T as MatmulMicroKernel>::MixedVec, usize),
     cast: fn(&mut <T as MatmulMicroKernel>::MixedType, &T),
     vec_cast_back: fn(
         *mut <T as MatmulMicroKernel>::SelfVec,
-        *const <T as MatmulMicroKernel>::MixedVec
+        *const <T as MatmulMicroKernel>::MixedVec,
     ),
-    cast_back: fn(&mut T, &<T as MatmulMicroKernel>::MixedType)
-)
-    where
-        T: MatmulMicroKernel + Copy + Zero,
-        <T as MatmulMicroKernel>::MixedType: Copy + Zero,
-        F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
-        F2: Fn(
-            <T as MatmulMicroKernel>::SelfVec,
-            usize,
-            usize
-        ) -> <T as MatmulMicroKernel>::SelfVec +
-            Clone +
-            Send +
-            Sync +
-            'static
+    cast_back: fn(&mut T, &<T as MatmulMicroKernel>::MixedType),
+) where
+    T: MatmulMicroKernel + Copy + Zero,
+    <T as MatmulMicroKernel>::MixedType: Copy + Zero,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(<T as MatmulMicroKernel>::SelfVec, usize, usize) -> <T as MatmulMicroKernel>::SelfVec
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
     assert_eq!(nr % vec_size::<T>(), 0);
 
@@ -278,14 +276,14 @@ pub(crate) fn func_name<T, F1, F2>(
         L3_SLAB.with(|mem| {
             let mut mem = mem.borrow_mut();
             let stack = DynStack::new(&mut mem);
-            let (packed_a_storage, _) =
-                stack.make_aligned_uninit::<<T as MatmulMicroKernel>::MixedType>(
+            let (packed_a_storage, _) = stack
+                .make_aligned_uninit::<<T as MatmulMicroKernel>::MixedType>(
                     num_mr_blocks * mr * kc,
-                    64
+                    64,
                 );
             let packed_a = Pointer::new(
                 packed_a_storage.as_mut_ptr() as *mut <T as MatmulMicroKernel>::MixedType,
-                (num_mr_blocks * mr * kc) as i64
+                (num_mr_blocks * mr * kc) as i64,
             );
             packed_a
         })
@@ -311,7 +309,7 @@ pub(crate) fn func_name<T, F1, F2>(
                     pb,
                     kc,
                     mr,
-                    cast
+                    cast,
                 );
                 packed_a
             };
@@ -322,14 +320,14 @@ pub(crate) fn func_name<T, F1, F2>(
                 L2_SLAB.with(|mem| {
                     let mut mem = mem.borrow_mut();
                     let stack = DynStack::new(&mut mem);
-                    let (packed_b_storage, _) =
-                        stack.make_aligned_uninit::<<T as MatmulMicroKernel>::MixedType>(
+                    let (packed_b_storage, _) = stack
+                        .make_aligned_uninit::<<T as MatmulMicroKernel>::MixedType>(
                             num_nr_blocks * nr * kc,
-                            64
+                            64,
                         );
                     Pointer::new(
                         packed_b_storage.as_mut_ptr() as *mut <T as MatmulMicroKernel>::MixedType,
-                        (num_nr_blocks * nr * kc) as i64
+                        (num_nr_blocks * nr * kc) as i64,
                     )
                 })
             };
@@ -342,7 +340,7 @@ pub(crate) fn func_name<T, F1, F2>(
                         T,
                         <T as MatmulMicroKernel>::MixedType,
                         <T as MatmulMicroKernel>::SelfVec,
-                        <T as MatmulMicroKernel>::MixedVec
+                        <T as MatmulMicroKernel>::MixedVec,
                     >(
                         b + ((p as i64) * ldb + (j as i64) * rhs_col_stride),
                         packed_b,
@@ -354,7 +352,7 @@ pub(crate) fn func_name<T, F1, F2>(
                         nr,
                         pack_vec,
                         pack_vec_exceed,
-                        cast
+                        cast,
                     );
                 } else {
                     packed_b = packed_b_cpy + ((j_idx * panel_size) as i64);
@@ -378,11 +376,53 @@ pub(crate) fn func_name<T, F1, F2>(
                                 lhs_col_stride
                             },
                             first_kiter,
-                            extra_args
+                            extra_args,
                         );
                     }
                 }
             }
         }
+    }
+}
+
+#[duplicate::duplicate_item(
+    func_name   get_kernel                      extra_args;
+    [mv]        [get_gemv_kernel]               [];
+    [mv_post]   [get_gemv_kernel_with_post_op]  [m_offset, n_offset, post_op_vec];
+)]
+pub(crate) fn func_name<T, F>(
+    a: Pointer<T>,
+    b: Pointer<T>,
+    out: Pointer<T>,
+    #[allow(unused_variables)] m_offset: usize,
+    #[allow(unused_variables)] n_offset: usize,
+    n: usize,
+    k: usize,
+    ldb: i64,
+    lhs_col_stride: i64,
+    kc: usize,
+    nc: usize,
+    nr: usize,
+    prepack_rhs: Option<&NewPrePackedRhs>,
+    #[allow(unused_variables)] post_op_vec: F,
+) where
+    T: MatmulMicroKernel + Send + Sync + Copy + Zero,
+    F: Fn(<T as MatmulMicroKernel>::SelfVec, usize, usize) -> <T as MatmulMicroKernel>::SelfVec
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+{
+    let micro_kernel = <T>::get_kernel();
+
+    if let Some(prepacked_rhs) = &prepack_rhs {
+        assert_eq!(prepacked_rhs.kc, kc);
+        assert_eq!(prepacked_rhs.nc, nc);
+        assert_eq!(prepacked_rhs.nr, nr);
+        assert_eq!(prepacked_rhs.buffers.len(), 1);
+        let prepacked_b = prepacked_rhs.buffers[0].cast::<T>();
+        micro_kernel(a, prepacked_b, out, n, k, ldb, lhs_col_stride, extra_args)
+    } else {
+        micro_kernel(a, b, out, n, k, ldb, lhs_col_stride, extra_args)
     }
 }

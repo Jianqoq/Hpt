@@ -38,7 +38,7 @@ pub(crate) fn matmul_with_out<T, F1, F2>(
     post_op: Option<F1>,
     post_op_vec: Option<F2>
 )
-    -> std::result::Result<Tensor, TensorError>
+    -> Result<Tensor, TensorError>
     where
         T: CommonBounds + hpt_matmul::MatmulMicroKernel,
         F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
