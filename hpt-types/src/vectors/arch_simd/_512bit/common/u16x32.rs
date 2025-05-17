@@ -12,7 +12,7 @@ use super::i16x32::i16x32;
 /// a vector of 16 u16 values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-#[repr(C, align(32))]
+#[repr(C, align(64))]
 pub struct u16x32(#[cfg(target_arch = "x86_64")] pub(crate) __m512i);
 
 /// helper to impl the promote trait

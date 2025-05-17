@@ -38,7 +38,7 @@ impl Default for f32x16 {
 }
 
 impl VecTrait<f32> for f32x16 {
-    const SIZE: usize = 8;
+    const SIZE: usize = 16;
     type Base = f32;
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {

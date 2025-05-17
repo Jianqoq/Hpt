@@ -25,7 +25,7 @@ impl Default for i8x64 {
 }
 
 impl VecTrait<i8> for i8x64 {
-    const SIZE: usize = 32;
+    const SIZE: usize = 64;
     type Base = i8;
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
