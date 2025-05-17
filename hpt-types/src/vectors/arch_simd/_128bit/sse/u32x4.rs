@@ -34,15 +34,6 @@ impl VecTrait<u32> for u32x4 {
     const SIZE: usize = 4;
     type Base = u32;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[u32]) {
-        unsafe {
-            _mm_storeu_si128(
-                &mut self.0,
-                _mm_loadu_si128(slice.as_ptr() as *const __m128i),
-            )
-        }
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         unsafe { u32x4(_mm_add_epi32(self.0, _mm_mullo_epi32(a.0, b.0))) }
     }

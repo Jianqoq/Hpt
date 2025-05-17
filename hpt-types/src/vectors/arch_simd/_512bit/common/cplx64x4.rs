@@ -27,10 +27,6 @@ impl VecTrait<Complex64> for cplx64x4 {
         self
     }
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[Complex64]) {
-        self.0.copy_from_slice(slice);
-    }
-    #[inline(always)]
     fn as_ptr(&self) -> *const Complex64 {
         self.0.as_ptr()
     }

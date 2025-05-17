@@ -5,10 +5,6 @@ impl VecTrait<bool> for boolx16 {
     const SIZE: usize = 16;
     type Base = bool;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[bool]) {
-        self.0.copy_from_slice(slice);
-    }
-    #[inline(always)]
     fn mul_add(self, _: Self, _: Self) -> Self {
         todo!()
     }

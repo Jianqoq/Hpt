@@ -27,12 +27,6 @@ impl VecTrait<i8> for i8x16 {
     const SIZE: usize = 16;
     type Base = i8;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[i8]) {
-        unsafe {
-            self.0 = vld1q_s8(slice.as_ptr());
-        }
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         unsafe { i8x16(vmlaq_s8(self.0, a.0, b.0)) }
     }

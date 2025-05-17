@@ -96,8 +96,8 @@ impl SimdCompare for bf16x32 {
     #[inline(always)]
     fn simd_eq(self, other: Self) -> i16x32 {
         unsafe {
-            let self_ptr = &self.0 as *const _ as *const i32;
-            let other_ptr = &other.0 as *const _ as *const i32;
+            let self_ptr = &self.0 as *const _ as *const __m512i;
+            let other_ptr = &other.0 as *const _ as *const __m512i;
             let a = _mm512_loadu_si512(self_ptr);
             let b = _mm512_loadu_si512(other_ptr);
             let mask = _mm512_cmp_epi16_mask::<_MM_CMPINT_EQ>(a, b);
@@ -107,56 +107,56 @@ impl SimdCompare for bf16x32 {
     #[inline(always)]
     fn simd_ne(self, other: Self) -> i16x32 {
         unsafe {
-            let self_ptr = &self.0 as *const _ as *const __m256i;
-            let other_ptr = &other.0 as *const _ as *const __m256i;
-            let a = _mm256_loadu_si256(self_ptr);
-            let b = _mm256_loadu_si256(other_ptr);
-            let eq = _mm256_cmpeq_epi16(a, b);
-            i16x32(_mm256_xor_si256(eq, _mm256_set1_epi16(-1)))
+            let self_ptr = &self.0 as *const _ as *const __m512i;
+            let other_ptr = &other.0 as *const _ as *const __m512i;
+            let a = _mm512_loadu_si512(self_ptr);
+            let b = _mm512_loadu_si512(other_ptr);
+            let mask = _mm512_cmp_epi16_mask::<_MM_CMPINT_NE>(a, b);
+            i16x32(_mm512_maskz_mov_epi16(mask, _mm512_set1_epi16(-1)))
         }
     }
     #[inline(always)]
     fn simd_lt(self, other: Self) -> i16x32 {
         unsafe {
-            let self_ptr = &self.0 as *const _ as *const __m256i;
-            let other_ptr = &other.0 as *const _ as *const __m256i;
-            let a = _mm256_loadu_si256(self_ptr);
-            let b = _mm256_loadu_si256(other_ptr);
-            i16x32(_mm256_cmpgt_epi16(b, a))
+            let self_ptr = &self.0 as *const _ as *const __m512i;
+            let other_ptr = &other.0 as *const _ as *const __m512i;
+            let a = _mm512_loadu_si512(self_ptr);
+            let b = _mm512_loadu_si512(other_ptr);
+            let mask = _mm512_cmp_epi16_mask::<_MM_CMPINT_LT>(a, b);
+            i16x32(_mm512_maskz_mov_epi16(mask, _mm512_set1_epi16(-1)))
         }
     }
     #[inline(always)]
     fn simd_le(self, other: Self) -> i16x32 {
         unsafe {
-            let self_ptr = &self.0 as *const _ as *const __m256i;
-            let other_ptr = &other.0 as *const _ as *const __m256i;
-            let a = _mm256_loadu_si256(self_ptr);
-            let b = _mm256_loadu_si256(other_ptr);
-            let lt = _mm256_cmpgt_epi16(b, a);
-            let eq = _mm256_cmpeq_epi16(a, b);
-            i16x32(_mm256_or_si256(lt, eq))
+            let self_ptr = &self.0 as *const _ as *const __m512i;
+            let other_ptr = &other.0 as *const _ as *const __m512i;
+            let a = _mm512_loadu_si512(self_ptr);
+            let b = _mm512_loadu_si512(other_ptr);
+            let mask = _mm512_cmp_epi16_mask::<_MM_CMPINT_LE>(a, b);
+            i16x32(_mm512_maskz_mov_epi16(mask, _mm512_set1_epi16(-1)))
         }
     }
     #[inline(always)]
     fn simd_gt(self, other: Self) -> i16x32 {
         unsafe {
-            let self_ptr = &self.0 as *const _ as *const __m256i;
-            let other_ptr = &other.0 as *const _ as *const __m256i;
-            let a = _mm256_loadu_si256(self_ptr);
-            let b = _mm256_loadu_si256(other_ptr);
-            i16x32(_mm256_cmpgt_epi16(a, b))
+            let self_ptr = &self.0 as *const _ as *const __m512i;
+            let other_ptr = &other.0 as *const _ as *const __m512i;
+            let a = _mm512_loadu_si512(self_ptr);
+            let b = _mm512_loadu_si512(other_ptr);
+            let mask = _mm512_cmp_epi16_mask::<_MM_CMPINT_NLE>(a, b);
+            i16x32(_mm512_maskz_mov_epi16(mask, _mm512_set1_epi16(-1)))
         }
     }
     #[inline(always)]
     fn simd_ge(self, other: Self) -> i16x32 {
         unsafe {
-            let self_ptr = &self.0 as *const _ as *const __m256i;
-            let other_ptr = &other.0 as *const _ as *const __m256i;
-            let a = _mm256_loadu_si256(self_ptr);
-            let b = _mm256_loadu_si256(other_ptr);
-            let gt = _mm256_cmpgt_epi16(a, b);
-            let eq = _mm256_cmpeq_epi16(a, b);
-            i16x32(_mm256_or_si256(gt, eq))
+            let self_ptr = &self.0 as *const _ as *const __m512i;
+            let other_ptr = &other.0 as *const _ as *const __m512i;
+            let a = _mm512_loadu_si512(self_ptr);
+            let b = _mm512_loadu_si512(other_ptr);
+            let mask = _mm512_cmp_epi16_mask::<_MM_CMPINT_NLT>(a, b);
+            i16x32(_mm512_maskz_mov_epi16(mask, _mm512_set1_epi16(-1)))
         }
     }
 }
@@ -185,9 +185,9 @@ impl VecConvertor for bf16x32 {
     fn to_u16(self) -> u16x32 {
         unsafe {
             let [x0, x1]: [f32x16; 2] = std::mem::transmute(self.to_2_f32vec());
-            let i0 = _mm256_cvtps_epi32(x0.0);
-            let i1 = _mm256_cvtps_epi32(x1.0);
-            let packed = _mm256_packus_epi32(i0, i1);
+            let i0 = _mm512_cvtps_epi32(x0.0);
+            let i1 = _mm512_cvtps_epi32(x1.0);
+            let packed = _mm512_packus_epi32(i0, i1);
             u16x32(packed)
         }
     }

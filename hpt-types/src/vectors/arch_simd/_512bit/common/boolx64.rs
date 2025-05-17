@@ -26,10 +26,6 @@ impl VecTrait<bool> for boolx64 {
     const SIZE: usize = 64;
     type Base = bool;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[bool]) {
-        self.0.copy_from_slice(slice);
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         let mut ret = boolx64::default();
         for i in 0..64 {

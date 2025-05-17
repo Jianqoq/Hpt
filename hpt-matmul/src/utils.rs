@@ -3,7 +3,7 @@ use std::cmp::min;
 
 use gemm_common::{ cache::CACHE_INFO, gemm::CACHELINE_ALIGN };
 use rayon::iter::IntoParallelIterator;
-use crate::{ vec_size, Pointer, Zero };
+use crate::{vec_size, Pointer, Zero, ALIGN};
 
 type IM<T> = <T as crate::MatmulMicroKernel>::MixedType;
 type IMVec<T> = <T as crate::MatmulMicroKernel>::MixedVec;
@@ -296,7 +296,7 @@ pub(crate) fn prepack_b_single_thread<T>(
     let num_kc = k.div_ceil(kc);
     let num_nc = n.div_ceil(nc);
     let layout = std::alloc::Layout
-        ::from_size_align(panel_size * num_kc * num_nc * size_of::<T>(), 64)
+        ::from_size_align(panel_size * num_kc * num_nc * size_of::<T>(), ALIGN)
         .unwrap();
     let buffer_raw = unsafe { std::alloc::alloc_zeroed(layout) as *mut T };
     if buffer_raw.is_null() {
@@ -378,7 +378,7 @@ pub(crate) fn prepack_b_mp_single_thread<T>(
     let num_kc = k.div_ceil(kc);
     let num_nc = n.div_ceil(nc);
     let layout = std::alloc::Layout
-        ::from_size_align(panel_size * num_kc * num_nc * size_of::<IM<T>>(), 64)
+        ::from_size_align(panel_size * num_kc * num_nc * size_of::<IM<T>>(), ALIGN)
         .unwrap();
     let buffer_raw = unsafe { std::alloc::alloc_zeroed(layout) as *mut IM<T> };
     if buffer_raw.is_null() {
@@ -508,7 +508,7 @@ pub fn prepack_lhs<T: Zero + Copy>(
     let packed_a_panel_size = num_mr_blocks * mr * kc;
     let num_panels = m.div_ceil(mc) * k.div_ceil(kc);
     let layout = std::alloc::Layout
-        ::from_size_align(packed_a_panel_size * num_panels * size_of::<T>(), 64)
+        ::from_size_align(packed_a_panel_size * num_panels * size_of::<T>(), ALIGN)
         .unwrap();
     let packed_a_buffer = unsafe { std::alloc::alloc(layout) as *mut T };
     let packed_a_buffer = Pointer::new(
@@ -591,7 +591,7 @@ pub fn prepack_lhs_mp<T: Zero + Copy, IM: Zero + Copy>(
     let packed_a_panel_size = num_mr_blocks * mr * kc;
     let num_panels = m.div_ceil(mc) * k.div_ceil(kc);
     let layout = std::alloc::Layout
-        ::from_size_align(packed_a_panel_size * num_panels * size_of::<IM>(), 64)
+        ::from_size_align(packed_a_panel_size * num_panels * size_of::<IM>(), ALIGN)
         .unwrap();
     let packed_a_buffer = unsafe { std::alloc::alloc(layout) as *mut IM };
     let packed_a_buffer = Pointer::new(

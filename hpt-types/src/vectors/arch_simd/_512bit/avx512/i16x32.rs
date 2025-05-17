@@ -1,3 +1,4 @@
+
 use crate::{
     traits::{SimdCompare, SimdMath, SimdSelect, VecTrait},
     type_promote::{Eval2, FloatOutBinary2, NormalOutUnary2},
@@ -11,85 +12,89 @@ impl PartialEq for i16x32 {
     #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         unsafe {
-            let cmp = _mm256_cmpeq_epi16(self.0, other.0);
-            _mm256_movemask_epi8(cmp) == -1
+            let mask = _mm512_cmpeq_epi16_mask(self.0, other.0);
+            mask == 0xffffffff
         }
     }
 }
 impl Default for i16x32 {
     #[inline(always)]
     fn default() -> Self {
-        unsafe { i16x32(_mm256_setzero_si256()) }
+        unsafe { i16x32(_mm512_setzero_si512()) }
     }
 }
 impl VecTrait<i16> for i16x32 {
     const SIZE: usize = 32;
     type Base = i16;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[i16]) {
-        unsafe {
-            _mm256_storeu_si256(
-                &mut self.0,
-                _mm256_loadu_si256(slice.as_ptr() as *const __m256i),
-            )
-        }
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
-        unsafe { i16x32(_mm256_add_epi16(self.0, _mm256_mullo_epi16(a.0, b.0))) }
+        unsafe { i16x32(_mm512_add_epi16(self.0, _mm512_mullo_epi16(a.0, b.0))) }
     }
     #[inline(always)]
     fn sum(&self) -> i16 {
         unsafe {
-            let arr: [i16; 16] = std::mem::transmute(self.0);
+            let arr: [i16; 32] = std::mem::transmute(self.0);
             arr.iter().sum()
         }
     }
     #[inline(always)]
     fn splat(val: i16) -> i16x32 {
-        unsafe { i16x32(_mm256_set1_epi16(val)) }
+        unsafe { i16x32(_mm512_set1_epi16(val)) }
     }
     #[inline(always)]
     unsafe fn from_ptr(ptr: *const i16) -> Self {
-        i16x32(_mm256_loadu_si256(ptr as *const __m256i))
+        i16x32(_mm512_loadu_si512(ptr as *const __m512i))
     }
 }
 
 impl SimdCompare for i16x32 {
     type SimdMask = i16x32;
+
     #[inline(always)]
     fn simd_eq(self, other: Self) -> i16x32 {
-        unsafe { i16x32(_mm256_cmpeq_epi16(self.0, other.0)) }
+        unsafe {
+            let mask = _mm512_cmpeq_epi16_mask(self.0, other.0);
+            i16x32(_mm512_maskz_mov_epi16(mask, _mm512_set1_epi16(-1)))
+        }
     }
+
     #[inline(always)]
     fn simd_ne(self, other: Self) -> i16x32 {
         unsafe {
-            let eq = _mm256_cmpeq_epi16(self.0, other.0);
-            i16x32(_mm256_xor_si256(eq, _mm256_set1_epi16(-1)))
+            let mask = _mm512_cmpneq_epi16_mask(self.0, other.0);
+            i16x32(_mm512_maskz_mov_epi16(mask, _mm512_set1_epi16(-1)))
         }
     }
+
     #[inline(always)]
     fn simd_lt(self, other: Self) -> i16x32 {
-        unsafe { i16x32(_mm256_cmpgt_epi16(other.0, self.0)) }
+        unsafe {
+            let mask = _mm512_cmplt_epi16_mask(self.0, other.0);
+            i16x32(_mm512_maskz_mov_epi16(mask, _mm512_set1_epi16(-1)))
+        }
     }
+
     #[inline(always)]
     fn simd_le(self, other: Self) -> i16x32 {
         unsafe {
-            let lt = _mm256_cmpgt_epi16(other.0, self.0);
-            let eq = _mm256_cmpeq_epi16(self.0, other.0);
-            i16x32(_mm256_or_si256(lt, eq))
+            let mask = _mm512_cmple_epi16_mask(self.0, other.0);
+            i16x32(_mm512_maskz_mov_epi16(mask, _mm512_set1_epi16(-1)))
         }
     }
+
     #[inline(always)]
     fn simd_gt(self, other: Self) -> i16x32 {
-        unsafe { i16x32(_mm256_cmpgt_epi16(self.0, other.0)) }
+        unsafe {
+            let mask = _mm512_cmpgt_epi16_mask(self.0, other.0);
+            i16x32(_mm512_maskz_mov_epi16(mask, _mm512_set1_epi16(-1)))
+        }
     }
+
     #[inline(always)]
     fn simd_ge(self, other: Self) -> i16x32 {
         unsafe {
-            let gt = _mm256_cmpgt_epi16(self.0, other.0);
-            let eq = _mm256_cmpeq_epi16(self.0, other.0);
-            i16x32(_mm256_or_si256(gt, eq))
+            let mask = _mm512_cmpge_epi16_mask(self.0, other.0);
+            i16x32(_mm512_maskz_mov_epi16(mask, _mm512_set1_epi16(-1)))
         }
     }
 }
@@ -97,7 +102,10 @@ impl SimdCompare for i16x32 {
 impl SimdSelect<i16x32> for i16x32 {
     #[inline(always)]
     fn select(&self, true_val: i16x32, false_val: i16x32) -> i16x32 {
-        unsafe { i16x32(_mm256_blendv_epi8(false_val.0, true_val.0, self.0)) }
+        unsafe {
+            let mask = _mm512_movepi16_mask(self.0);
+            i16x32(_mm512_mask_blend_epi16(mask, false_val.0, true_val.0))
+        }
     }
 }
 
@@ -106,7 +114,7 @@ impl std::ops::Add for i16x32 {
 
     #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
-        unsafe { i16x32(_mm256_add_epi16(self.0, rhs.0)) }
+        unsafe { i16x32(_mm512_add_epi16(self.0, rhs.0)) }
     }
 }
 impl std::ops::Sub for i16x32 {
@@ -114,7 +122,7 @@ impl std::ops::Sub for i16x32 {
 
     #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
-        unsafe { i16x32(_mm256_sub_epi16(self.0, rhs.0)) }
+        unsafe { i16x32(_mm512_sub_epi16(self.0, rhs.0)) }
     }
 }
 impl std::ops::Mul for i16x32 {
@@ -122,7 +130,7 @@ impl std::ops::Mul for i16x32 {
 
     #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
-        unsafe { i16x32(_mm256_mullo_epi16(self.0, rhs.0)) }
+        unsafe { i16x32(_mm512_mullo_epi16(self.0, rhs.0)) }
     }
 }
 impl std::ops::Div for i16x32 {
@@ -131,14 +139,14 @@ impl std::ops::Div for i16x32 {
     #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
         unsafe {
-            let arr: [i16; 16] = std::mem::transmute(self.0);
-            let arr2: [i16; 16] = std::mem::transmute(rhs.0);
-            let mut arr3: [i16; 16] = [0; 16];
-            for i in 0..16 {
+            let arr: [i16; 32] = std::mem::transmute(self.0);
+            let arr2: [i16; 32] = std::mem::transmute(rhs.0);
+            let mut arr3: [i16; 32] = [0; 32];
+            for i in 0..32 {
                 assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
-            i16x32(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            i16x32(_mm512_loadu_si512(arr3.as_ptr() as *const __m512i))
         }
     }
 }
@@ -148,13 +156,13 @@ impl std::ops::Rem for i16x32 {
     #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
         unsafe {
-            let arr: [i16; 16] = std::mem::transmute(self.0);
-            let arr2: [i16; 16] = std::mem::transmute(rhs.0);
-            let mut arr3: [i16; 16] = [0; 16];
-            for i in 0..16 {
+            let arr: [i16; 32] = std::mem::transmute(self.0);
+            let arr2: [i16; 32] = std::mem::transmute(rhs.0);
+            let mut arr3: [i16; 32] = [0; 32];
+            for i in 0..32 {
                 arr3[i] = arr[i] % arr2[i];
             }
-            i16x32(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            i16x32(_mm512_loadu_si512(arr3.as_ptr() as *const __m512i))
         }
     }
 }
@@ -163,35 +171,35 @@ impl std::ops::Neg for i16x32 {
 
     #[inline(always)]
     fn neg(self) -> Self::Output {
-        unsafe { i16x32(_mm256_sign_epi16(self.0, _mm256_set1_epi16(-1))) }
+        unsafe { i16x32(_mm512_sub_epi16(_mm512_setzero_si512(), self.0)) }
     }
 }
 impl std::ops::BitAnd for i16x32 {
     type Output = Self;
     #[inline(always)]
     fn bitand(self, rhs: Self) -> Self::Output {
-        unsafe { i16x32(_mm256_and_si256(self.0, rhs.0)) }
+        unsafe { i16x32(_mm512_and_si512(self.0, rhs.0)) }
     }
 }
 impl std::ops::BitOr for i16x32 {
     type Output = Self;
     #[inline(always)]
     fn bitor(self, rhs: Self) -> Self::Output {
-        unsafe { i16x32(_mm256_or_si256(self.0, rhs.0)) }
+        unsafe { i16x32(_mm512_or_si512(self.0, rhs.0)) }
     }
 }
 impl std::ops::BitXor for i16x32 {
     type Output = Self;
     #[inline(always)]
     fn bitxor(self, rhs: Self) -> Self::Output {
-        unsafe { i16x32(_mm256_xor_si256(self.0, rhs.0)) }
+        unsafe { i16x32(_mm512_xor_si512(self.0, rhs.0)) }
     }
 }
 impl std::ops::Not for i16x32 {
     type Output = Self;
     #[inline(always)]
     fn not(self) -> Self::Output {
-        unsafe { i16x32(_mm256_xor_si256(self.0, _mm256_set1_epi16(-1))) }
+        unsafe { i16x32(_mm512_xor_si512(self.0, _mm512_set1_epi16(-1))) }
     }
 }
 impl std::ops::Shl for i16x32 {
@@ -199,13 +207,13 @@ impl std::ops::Shl for i16x32 {
     #[inline(always)]
     fn shl(self, rhs: Self) -> Self::Output {
         unsafe {
-            let a: [i16; 16] = std::mem::transmute(self.0);
-            let b: [i16; 16] = std::mem::transmute(rhs.0);
-            let mut result = [0; 16];
-            for i in 0..16 {
+            let a: [i16; 32] = std::mem::transmute(self.0);
+            let b: [i16; 32] = std::mem::transmute(rhs.0);
+            let mut result = [0; 32];
+            for i in 0..32 {
                 result[i] = a[i].wrapping_shl(b[i] as u32);
             }
-            i16x32(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            i16x32(_mm512_loadu_si512(result.as_ptr() as *const __m512i))
         }
     }
 }
@@ -214,13 +222,13 @@ impl std::ops::Shr for i16x32 {
     #[inline(always)]
     fn shr(self, rhs: Self) -> Self::Output {
         unsafe {
-            let a: [i16; 16] = std::mem::transmute(self.0);
-            let b: [i16; 16] = std::mem::transmute(rhs.0);
-            let mut result = [0; 16];
-            for i in 0..16 {
+            let a: [i16; 32] = std::mem::transmute(self.0);
+            let b: [i16; 32] = std::mem::transmute(rhs.0);
+            let mut result = [0; 32];
+            for i in 0..32 {
                 result[i] = a[i].wrapping_shr(b[i] as u32);
             }
-            i16x32(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            i16x32(_mm512_loadu_si512(result.as_ptr() as *const __m512i))
         }
     }
 }
@@ -228,11 +236,11 @@ impl std::ops::Shr for i16x32 {
 impl SimdMath<i16> for i16x32 {
     #[inline(always)]
     fn max(self, other: Self) -> Self {
-        unsafe { i16x32(_mm256_max_epi16(self.0, other.0)) }
+        unsafe { i16x32(_mm512_max_epi16(self.0, other.0)) }
     }
     #[inline(always)]
     fn min(self, other: Self) -> Self {
-        unsafe { i16x32(_mm256_min_epi16(self.0, other.0)) }
+        unsafe { i16x32(_mm512_min_epi16(self.0, other.0)) }
     }
     #[inline(always)]
     fn relu(self) -> Self {
@@ -245,13 +253,13 @@ impl SimdMath<i16> for i16x32 {
     #[inline(always)]
     fn pow(self, rhs: Self) -> Self {
         unsafe {
-            let a: [i16; 16] = std::mem::transmute(self.0);
-            let b: [i16; 16] = std::mem::transmute(rhs.0);
-            let mut result = [0i16; 16];
-            for i in 0..16 {
+            let a: [i16; 32] = std::mem::transmute(self.0);
+            let b: [i16; 32] = std::mem::transmute(rhs.0);
+            let mut result = [0i16; 32];
+            for i in 0..32 {
                 result[i] = a[i].pow(b[i] as u32);
             }
-            i16x32(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            i16x32(_mm512_loadu_si512(result.as_ptr() as *const __m512i))
         }
     }
     #[inline(always)]
@@ -272,7 +280,7 @@ impl SimdMath<i16> for i16x32 {
     }
     #[inline(always)]
     fn abs(self) -> Self {
-        unsafe { i16x32(_mm256_abs_epi16(self.0)) }
+        unsafe { i16x32(_mm512_abs_epi16(self.0)) }
     }
     #[inline(always)]
     fn neg(self) -> Self {
@@ -312,16 +320,16 @@ impl FloatOutBinary2 for i16x32 {
     #[inline(always)]
     fn __pow(self, rhs: Self) -> Self {
         unsafe {
-            let arr: [i16; 16] = std::mem::transmute(self.0);
-            let arr2: [i16; 16] = std::mem::transmute(rhs.0);
-            let mut arr3: [i16; 16] = [0; 16];
-            for i in 0..16 {
+            let arr: [i16; 32] = std::mem::transmute(self.0);
+            let arr2: [i16; 32] = std::mem::transmute(rhs.0);
+            let mut arr3: [i16; 32] = [0; 32];
+            for i in 0..32 {
                 if arr2[i] < 0 {
                     panic!("Power operation is not supported for negative i16");
                 }
                 arr3[i] = arr[i].pow(arr2[i] as u32);
             }
-            i16x32(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            i16x32(_mm512_loadu_si512(arr3.as_ptr() as *const __m512i))
         }
     }
 }
@@ -334,7 +342,7 @@ impl NormalOutUnary2 for i16x32 {
 
     #[inline(always)]
     fn __abs(self) -> Self {
-        i16x32(unsafe { _mm256_abs_epi16(self.0) })
+        i16x32(unsafe { _mm512_abs_epi16(self.0) })
     }
 
     #[inline(always)]
@@ -349,7 +357,7 @@ impl NormalOutUnary2 for i16x32 {
 
     #[inline(always)]
     fn __neg(self) -> Self {
-        unsafe { Self(_mm256_sub_epi16(_mm256_setzero_si256(), self.0)) }
+        unsafe { Self(_mm512_sub_epi16(_mm512_setzero_si512(), self.0)) }
     }
 
     #[inline(always)]
@@ -398,9 +406,8 @@ impl Eval2 for i16x32 {
     #[inline(always)]
     fn __is_true(&self) -> Self::Output {
         unsafe {
-            let eq = _mm256_cmpeq_epi16(self.0, _mm256_setzero_si256());
-            let result = _mm256_andnot_si256(eq, _mm256_set1_epi16(1));
-            Self(result)
+            let mask = _mm512_cmpneq_epi16_mask(self.0, _mm512_setzero_si512());
+            Self(_mm512_maskz_mov_epi16(mask, _mm512_set1_epi16(1)))
         }
     }
 

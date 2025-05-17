@@ -41,15 +41,6 @@ impl VecTrait<f32> for f32x16 {
     const SIZE: usize = 8;
     type Base = f32;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[f32]) {
-        unsafe {
-            _mm512_storeu_ps(
-                &mut self.0 as *mut _ as *mut f32,
-                _mm512_loadu_ps(slice.as_ptr()),
-            );
-        }
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         #[cfg(not(target_feature = "fma"))]
         unsafe {
@@ -475,11 +466,8 @@ impl Eval2 for f32x16 {
     #[inline(always)]
     fn __is_nan(&self) -> Self::Output {
         unsafe {
-            i32x16(std::mem::transmute(_mm512_cmp_ps(
-                self.0,
-                self.0,
-                _CMP_UNORD_Q,
-            )))
+            let mask = _mm512_cmp_ps_mask::<_CMP_UNORD_Q>(self.0, self.0);
+            i32x16(_mm512_maskz_mov_epi32(mask, _mm512_set1_epi32(-1)))
         }
     }
 

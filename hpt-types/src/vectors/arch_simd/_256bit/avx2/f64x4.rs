@@ -45,15 +45,6 @@ impl VecTrait<f64> for f64x4 {
     const SIZE: usize = 4;
     type Base = f64;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[f64]) {
-        unsafe {
-            _mm256_storeu_pd(
-                &mut self.0 as *mut _ as *mut f64,
-                _mm256_loadu_pd(slice.as_ptr()),
-            );
-        }
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         #[cfg(not(target_feature = "fma"))]
         unsafe {

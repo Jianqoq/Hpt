@@ -30,15 +30,6 @@ impl VecTrait<i32> for i32x8 {
     const SIZE: usize = 8;
     type Base = i32;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[i32]) {
-        unsafe {
-            _mm256_storeu_si256(
-                &mut self.0,
-                _mm256_loadu_si256(slice.as_ptr() as *const __m256i),
-            )
-        }
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         unsafe { i32x8(_mm256_add_epi32(self.0, _mm256_mullo_epi32(a.0, b.0))) }
     }

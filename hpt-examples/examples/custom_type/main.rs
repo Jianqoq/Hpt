@@ -599,10 +599,6 @@ impl VecTrait<CustomType> for CustomTypeVec {
         todo!()
     }
 
-    fn copy_from_slice(&mut self, slice: &[CustomType]) {
-        todo!()
-    }
-
     fn sum(&self) -> CustomType {
         todo!()
     }

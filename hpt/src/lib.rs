@@ -560,8 +560,10 @@ static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
 static ALIGN: usize = 64;
 static RAYON_NUM_THREADS: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(num_cpus::get()));
 
-#[cfg(target_feature = "avx2")]
+#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 type BoolVector = simd::_256bit::boolx32;
+#[cfg(target_feature = "avx512f")]
+type BoolVector = simd::_512bit::boolx64;
 #[cfg(any(
     all(not(target_feature = "avx2"), target_feature = "sse"),
     target_feature = "neon"

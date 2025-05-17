@@ -13,7 +13,7 @@ impl f16x32 {
             #[cfg(target_feature = "f16c")]
             {
                 use std::arch::x86_64::*;
-                let raw_f16: [u16; 16] = std::mem::transmute(self.0);
+                let raw_f16: [u16; 32] = std::mem::transmute(self.0);
                 let f32x4_1 = _mm512_cvtph_ps(_mm256_loadu_si256(raw_f16.as_ptr() as *const _));
                 let f32x4_2 =
                     _mm512_cvtph_ps(_mm256_loadu_si256(raw_f16.as_ptr().add(8) as *const _));
@@ -38,7 +38,7 @@ impl f16x32 {
             #[cfg(target_feature = "f16c")]
             {
                 use std::arch::x86_64::*;
-                let raw_f16: [u16; 16] = std::mem::transmute(self.0);
+                let raw_f16: [u16; 32] = std::mem::transmute(self.0);
                 let f32x4_1 = _mm512_cvtph_ps(_mm256_loadu_si256(raw_f16.as_ptr() as *const _));
                 std::mem::transmute(f32x4_1)
             }
@@ -62,8 +62,8 @@ impl f16x32 {
                 use std::arch::x86_64::*;
 
                 // 将两个512位f32向量转换为两个256位f16向量
-                let f16_low = _mm512_cvtps_ph(val[0].0, _MM_FROUND_TO_NEAREST_INT);
-                let f16_high = _mm512_cvtps_ph(val[1].0, _MM_FROUND_TO_NEAREST_INT);
+                let f16_low = _mm512_cvtps_ph::<4>(val[0].0);
+                let f16_high = _mm512_cvtps_ph::<4>(val[1].0);
 
                 // 将两个256位向量组合成一个512位向量
                 // 首先将第一个向量转换为512位向量（高256位将为0）
@@ -95,7 +95,7 @@ pub(crate) fn f32x16_to_f16x16(val: f32x16) -> [u16; 16] {
         #[cfg(target_feature = "f16c")]
         {
             use std::arch::x86_64::*;
-            let f16_bits = _mm512_cvtps_ph::<_MM_FROUND_TO_NEAREST_INT>(val.0);
+            let f16_bits = _mm512_cvtps_ph::<4>(val.0);
             std::mem::transmute(f16_bits)
         }
         #[cfg(not(target_feature = "f16c"))]

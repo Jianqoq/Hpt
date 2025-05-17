@@ -128,8 +128,20 @@ pub(crate) fn f32_to_f16_test(range: core::ops::RangeInclusive<f32>, repeats: us
             |x| {
                 let mut high = F32Vec::default();
                 let mut low = F32Vec::default();
-                high.copy_from_slice(&x[0..F32Vec::SIZE]);
-                low.copy_from_slice(&x[F32Vec::SIZE..]);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(
+                        x[0..F32Vec::SIZE].as_ptr(),
+                        high.as_mut_ptr(),
+                        x[0..F32Vec::SIZE].len()
+                    )
+                }
+                unsafe {
+                    std::ptr::copy_nonoverlapping(
+                        x[F32Vec::SIZE..].as_ptr(),
+                        low.as_mut_ptr(),
+                        x[F32Vec::SIZE..].len()
+                    )
+                }
                 let res = F16Vec::from_2_f32vec([high, low]);
                 unsafe { std::mem::transmute(res) }
             },
@@ -150,7 +162,13 @@ pub(crate) fn f16_to_f32_test(
             input,
             |x| {
                 let mut val = F16Vec::default();
-                val.copy_from_slice(&x);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(
+                        x.as_ptr(),
+                        val.as_mut_ptr(),
+                        x.len()
+                    )
+                }
                 let res = val.to_2_f32vec();
                 let mut result = [0.0; F16Vec::SIZE];
                 for i in 0..F16Vec::SIZE / 2 {
@@ -173,8 +191,20 @@ pub(crate) fn f32_to_bf16_test(range: core::ops::RangeInclusive<f32>, repeats: u
             |x| {
                 let mut high = F32Vec::default();
                 let mut low = F32Vec::default();
-                high.copy_from_slice(&x[0..F32Vec::SIZE]);
-                low.copy_from_slice(&x[F32Vec::SIZE..]);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(
+                        x[0..F32Vec::SIZE].as_ptr(),
+                        high.as_mut_ptr(),
+                        x[0..F32Vec::SIZE].len()
+                    )
+                }
+                unsafe {
+                    std::ptr::copy_nonoverlapping(
+                        x[F32Vec::SIZE..].as_ptr(),
+                        low.as_mut_ptr(),
+                        x[F32Vec::SIZE..].len()
+                    )
+                }
                 let res = Bf16Vec::from_2_f32vec([high, low]);
                 unsafe { std::mem::transmute(res) }
             },
@@ -195,7 +225,13 @@ pub(crate) fn bf16_to_f32_test(
             input,
             |x| {
                 let mut val = Bf16Vec::default();
-                val.copy_from_slice(&x);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(
+                        x.as_ptr(),
+                        val.as_mut_ptr(),
+                        x.len(),
+                    )
+                }
                 let res = val.to_2_f32vec();
                 let mut result = [0.0; Bf16Vec::SIZE];
                 for i in 0..Bf16Vec::SIZE / 2 {
@@ -216,8 +252,20 @@ pub(crate) fn f32_to_f16_test_single(val: f32, msg: &str) {
         |x| {
             let mut high = F32Vec::default();
             let mut low = F32Vec::default();
-            high.copy_from_slice(&x[0..F32Vec::SIZE]);
-            low.copy_from_slice(&x[F32Vec::SIZE..]);
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    x[0..F32Vec::SIZE].as_ptr(),
+                    high.as_mut_ptr(),
+                    x[0..F32Vec::SIZE].len()
+                )
+            }
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    x[F32Vec::SIZE..].as_ptr(),
+                    low.as_mut_ptr(),
+                    x[F32Vec::SIZE..].len()
+                )
+            }
             let res = F16Vec::from_2_f32vec([high, low]);
             unsafe { std::mem::transmute(res) }
         },
@@ -231,7 +279,13 @@ pub(crate) fn f16_to_f32_test_single(val: half::f16, msg: &str) {
         res,
         |x| {
             let mut val = F16Vec::default();
-            val.copy_from_slice(&x);
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    x.as_ptr(),
+                    val.as_mut_ptr(),
+                    x.len()
+                )
+            }
             let res = val.to_2_f32vec();
             let mut result = [0.0; F16Vec::SIZE];
             for i in 0..F16Vec::SIZE / 2 {
@@ -251,8 +305,20 @@ pub(crate) fn f32_to_bf16_test_single(val: f32, msg: &str) {
         |x| {
             let mut high = F32Vec::default();
             let mut low = F32Vec::default();
-            high.copy_from_slice(&x[0..F32Vec::SIZE]);
-            low.copy_from_slice(&x[F32Vec::SIZE..]);
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    x[0..F32Vec::SIZE].as_ptr(),
+                    high.as_mut_ptr(),
+                    x[0..F32Vec::SIZE].len()
+                )
+            }
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    x[F32Vec::SIZE..].as_ptr(),
+                    low.as_mut_ptr(),
+                    x[F32Vec::SIZE..].len()
+                )
+            }
             let res = Bf16Vec::from_2_f32vec([high, low]);
             unsafe { std::mem::transmute(res) }
         },
@@ -266,7 +332,13 @@ pub(crate) fn bf16_to_f32_test_single(val: half::bf16, msg: &str) {
         res,
         |x| {
             let mut val = Bf16Vec::default();
-            val.copy_from_slice(&x);
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    x.as_ptr(),
+                    val.as_mut_ptr(),
+                    x.len(),
+                )
+            }
             let res = val.to_2_f32vec();
             let mut result = [0.0; Bf16Vec::SIZE];
             for i in 0..Bf16Vec::SIZE / 2 {

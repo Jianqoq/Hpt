@@ -8,8 +8,6 @@ pub trait VecTrait<T: Copy> {
     type Base: TypeCommon;
     /// peform self * a + b, fused multiply add
     fn mul_add(self, a: Self, b: Self) -> Self;
-    /// copy data from slice to self
-    fn copy_from_slice(&mut self, slice: &[T]);
     /// convert self to a const pointer
     fn as_ptr(&self) -> *const T {
         self as *const _ as *const T

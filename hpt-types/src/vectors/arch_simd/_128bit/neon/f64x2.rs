@@ -42,12 +42,6 @@ impl VecTrait<f64> for f64x2 {
     const SIZE: usize = 2;
     type Base = f64;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[f64]) {
-        unsafe {
-            self.0 = vld1q_f64(slice.as_ptr());
-        }
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
         unsafe {

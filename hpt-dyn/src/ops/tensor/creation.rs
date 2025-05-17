@@ -12,7 +12,7 @@ use crate::utils::backend::Backend;
 use crate::utils::index_cal::{
     dispatch_loop_progress_update, dispatch_map_global_idx, dispatch_map_gp,
 };
-use crate::{DType, Device, Tensor};
+use crate::{DType, Device, Tensor, ALIGN};
 use hpt_types::scalar::*;
 
 impl Tensor {
@@ -30,7 +30,7 @@ impl Tensor {
                 .max(1)
                 .checked_mul(dtype.sizeof())
                 .unwrap_or((isize::MAX as usize) - (64 - 1)), // when overflow happened, we use max memory `from_size_align` accept,
-            64,
+            ALIGN,
         );
         match mem_layout {
             Ok(mem_layout) => {

@@ -9,7 +9,7 @@ pub use utils::device::Device;
 
 static DISPLAY_PRECISION: AtomicUsize = AtomicUsize::new(4);
 static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(4);
-static ALIGN: usize = 64;
+static ALIGN: usize = 128;
 
 pub fn current_num_threads() -> usize {
     rayon::current_num_threads()

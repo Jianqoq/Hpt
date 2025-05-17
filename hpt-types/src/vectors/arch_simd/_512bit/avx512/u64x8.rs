@@ -18,8 +18,8 @@ impl PartialEq for u64x8 {
     #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         unsafe {
-            let cmp = _mm256_cmpeq_epi64(self.0, other.0);
-            _mm256_movemask_epi8(cmp) == -1
+            let mask = _mm512_cmpeq_epu64_mask(self.0, other.0);
+            mask == 0xff
         }
     }
 }
@@ -27,7 +27,7 @@ impl PartialEq for u64x8 {
 impl Default for u64x8 {
     #[inline(always)]
     fn default() -> Self {
-        unsafe { u64x8(_mm256_setzero_si256()) }
+        unsafe { u64x8(_mm512_setzero_si512()) }
     }
 }
 
@@ -35,48 +35,42 @@ impl VecTrait<u64> for u64x8 {
     const SIZE: usize = 8;
     type Base = u64;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[u64]) {
-        unsafe {
-            _mm256_storeu_si256(
-                &mut self.0,
-                _mm256_loadu_si256(slice.as_ptr() as *const __m256i),
-            )
-        }
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         unsafe {
-            let arr: [u64; 4] = std::mem::transmute(self.0);
-            let arr2: [u64; 4] = std::mem::transmute(a.0);
-            let arr3: [u64; 4] = std::mem::transmute(b.0);
-            let mut arr4: [u64; 4] = [0; 4];
-            for i in 0..4 {
+            let arr: [u64; 8] = std::mem::transmute(self.0);
+            let arr2: [u64; 8] = std::mem::transmute(a.0);
+            let arr3: [u64; 8] = std::mem::transmute(b.0);
+            let mut arr4: [u64; 8] = [0; 8];
+            for i in 0..8 {
                 arr4[i] = arr[i] * arr2[i] + arr3[i];
             }
-            u64x8(_mm256_loadu_si256(arr4.as_ptr() as *const __m256i))
+            u64x8(_mm512_loadu_si512(arr4.as_ptr() as *const __m512i))
         }
     }
     #[inline(always)]
     fn sum(&self) -> u64 {
         unsafe {
-            let arr: [u64; 4] = std::mem::transmute(self.0);
+            let arr: [u64; 8] = std::mem::transmute(self.0);
             arr.iter().sum()
         }
     }
     #[inline(always)]
     fn splat(val: u64) -> u64x8 {
-        unsafe { u64x8(_mm256_set1_epi64x(val as i64)) }
+        unsafe { u64x8(_mm512_set1_epi64(val as i64)) }
     }
     #[inline(always)]
     unsafe fn from_ptr(ptr: *const u64) -> Self {
-        u64x8(_mm256_loadu_si256(ptr as *const __m256i))
+        u64x8(_mm512_loadu_si512(ptr as *const __m512i))
     }
 }
 
 impl SimdSelect<u64x8> for i64x8 {
     #[inline(always)]
     fn select(&self, true_val: u64x8, false_val: u64x8) -> u64x8 {
-        unsafe { u64x8(_mm256_blendv_epi8(false_val.0, true_val.0, self.0)) }
+        unsafe {
+            let mask = _mm512_movepi64_mask(self.0);
+            u64x8(_mm512_mask_blend_epi64(mask, false_val.0, true_val.0))
+        }
     }
 }
 
@@ -84,14 +78,14 @@ impl std::ops::Add for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn add(self, rhs: Self) -> Self {
-        unsafe { u64x8(_mm256_add_epi64(self.0, rhs.0)) }
+        unsafe { u64x8(_mm512_add_epi64(self.0, rhs.0)) }
     }
 }
 impl std::ops::Sub for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn sub(self, rhs: Self) -> Self {
-        unsafe { u64x8(_mm256_sub_epi64(self.0, rhs.0)) }
+        unsafe { u64x8(_mm512_sub_epi64(self.0, rhs.0)) }
     }
 }
 impl std::ops::Mul for u64x8 {
@@ -99,13 +93,13 @@ impl std::ops::Mul for u64x8 {
     #[inline(always)]
     fn mul(self, rhs: Self) -> Self {
         unsafe {
-            let arr: [u64; 4] = std::mem::transmute(self.0);
-            let arr2: [u64; 4] = std::mem::transmute(rhs.0);
-            let mut arr3: [u64; 4] = [0; 4];
-            for i in 0..4 {
+            let arr: [u64; 8] = std::mem::transmute(self.0);
+            let arr2: [u64; 8] = std::mem::transmute(rhs.0);
+            let mut arr3: [u64; 8] = [0; 8];
+            for i in 0..8 {
                 arr3[i] = arr[i] * arr2[i];
             }
-            u64x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            u64x8(_mm512_loadu_si512(arr3.as_ptr() as *const __m512i))
         }
     }
 }
@@ -114,14 +108,14 @@ impl std::ops::Div for u64x8 {
     #[inline(always)]
     fn div(self, rhs: Self) -> Self {
         unsafe {
-            let arr: [u64; 4] = std::mem::transmute(self.0);
-            let arr2: [u64; 4] = std::mem::transmute(rhs.0);
-            let mut arr3: [u64; 4] = [0; 4];
-            for i in 0..4 {
+            let arr: [u64; 8] = std::mem::transmute(self.0);
+            let arr2: [u64; 8] = std::mem::transmute(rhs.0);
+            let mut arr3: [u64; 8] = [0; 8];
+            for i in 0..8 {
                 assert!(arr2[i] != 0, "division by zero");
                 arr3[i] = arr[i] / arr2[i];
             }
-            u64x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            u64x8(_mm512_loadu_si512(arr3.as_ptr() as *const __m512i))
         }
     }
 }
@@ -130,13 +124,13 @@ impl std::ops::Rem for u64x8 {
     #[inline(always)]
     fn rem(self, rhs: Self) -> Self {
         unsafe {
-            let arr: [u64; 4] = std::mem::transmute(self.0);
-            let arr2: [u64; 4] = std::mem::transmute(rhs.0);
-            let mut arr3: [u64; 4] = [0; 4];
-            for i in 0..4 {
+            let arr: [u64; 8] = std::mem::transmute(self.0);
+            let arr2: [u64; 8] = std::mem::transmute(rhs.0);
+            let mut arr3: [u64; 8] = [0; 8];
+            for i in 0..8 {
                 arr3[i] = arr[i] % arr2[i];
             }
-            u64x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            u64x8(_mm512_loadu_si512(arr3.as_ptr() as *const __m512i))
         }
     }
 }
@@ -144,28 +138,28 @@ impl std::ops::BitAnd for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn bitand(self, rhs: Self) -> Self {
-        unsafe { u64x8(_mm256_and_si256(self.0, rhs.0)) }
+        unsafe { u64x8(_mm512_and_si512(self.0, rhs.0)) }
     }
 }
 impl std::ops::BitOr for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn bitor(self, rhs: Self) -> Self {
-        unsafe { u64x8(_mm256_or_si256(self.0, rhs.0)) }
+        unsafe { u64x8(_mm512_or_si512(self.0, rhs.0)) }
     }
 }
 impl std::ops::BitXor for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn bitxor(self, rhs: Self) -> Self {
-        unsafe { u64x8(_mm256_xor_si256(self.0, rhs.0)) }
+        unsafe { u64x8(_mm512_xor_si512(self.0, rhs.0)) }
     }
 }
 impl std::ops::Not for u64x8 {
     type Output = Self;
     #[inline(always)]
     fn not(self) -> Self {
-        unsafe { u64x8(_mm256_xor_si256(self.0, _mm256_set1_epi64x(-1))) }
+        unsafe { u64x8(_mm512_xor_si512(self.0, _mm512_set1_epi64(-1))) }
     }
 }
 impl std::ops::Shl for u64x8 {
@@ -173,13 +167,13 @@ impl std::ops::Shl for u64x8 {
     #[inline(always)]
     fn shl(self, rhs: Self) -> Self {
         unsafe {
-            let a: [u64; 4] = std::mem::transmute(self.0);
-            let b: [u64; 4] = std::mem::transmute(rhs.0);
-            let mut result = [0; 4];
-            for i in 0..4 {
+            let a: [u64; 8] = std::mem::transmute(self.0);
+            let b: [u64; 8] = std::mem::transmute(rhs.0);
+            let mut result = [0; 8];
+            for i in 0..8 {
                 result[i] = a[i].wrapping_shl(b[i] as u32);
             }
-            u64x8(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            u64x8(_mm512_loadu_si512(result.as_ptr() as *const __m512i))
         }
     }
 }
@@ -188,13 +182,13 @@ impl std::ops::Shr for u64x8 {
     #[inline(always)]
     fn shr(self, rhs: Self) -> Self {
         unsafe {
-            let a: [u64; 4] = std::mem::transmute(self.0);
-            let b: [u64; 4] = std::mem::transmute(rhs.0);
-            let mut result = [0; 4];
-            for i in 0..4 {
+            let a: [u64; 8] = std::mem::transmute(self.0);
+            let b: [u64; 8] = std::mem::transmute(rhs.0);
+            let mut result = [0; 8];
+            for i in 0..8 {
                 result[i] = a[i].wrapping_shr(b[i] as u32);
             }
-            u64x8(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            u64x8(_mm512_loadu_si512(result.as_ptr() as *const __m512i))
         }
     }
 }
@@ -202,25 +196,25 @@ impl SimdMath<u64> for u64x8 {
     #[inline(always)]
     fn max(self, other: Self) -> Self {
         unsafe {
-            let arr: [u64; 4] = std::mem::transmute(self.0);
-            let arr2: [u64; 4] = std::mem::transmute(other.0);
-            let mut arr3: [u64; 4] = [0; 4];
-            for i in 0..4 {
+            let arr: [u64; 8] = std::mem::transmute(self.0);
+            let arr2: [u64; 8] = std::mem::transmute(other.0);
+            let mut arr3: [u64; 8] = [0; 8];
+            for i in 0..8 {
                 arr3[i] = arr[i].max(arr2[i]);
             }
-            u64x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            u64x8(_mm512_loadu_si512(arr3.as_ptr() as *const __m512i))
         }
     }
     #[inline(always)]
     fn min(self, other: Self) -> Self {
         unsafe {
-            let arr: [u64; 4] = std::mem::transmute(self.0);
-            let arr2: [u64; 4] = std::mem::transmute(other.0);
-            let mut arr3: [u64; 4] = [0; 4];
-            for i in 0..4 {
+            let arr: [u64; 8] = std::mem::transmute(self.0);
+            let arr2: [u64; 8] = std::mem::transmute(other.0);
+            let mut arr3: [u64; 8] = [0; 8];
+            for i in 0..8 {
                 arr3[i] = arr[i].min(arr2[i]);
             }
-            u64x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            u64x8(_mm512_loadu_si512(arr3.as_ptr() as *const __m512i))
         }
     }
     #[inline(always)]
@@ -254,13 +248,13 @@ impl SimdMath<u64> for u64x8 {
     #[inline(always)]
     fn pow(self, rhs: Self) -> Self {
         unsafe {
-            let a: [u64; 4] = std::mem::transmute(self.0);
-            let b: [u64; 4] = std::mem::transmute(rhs.0);
-            let mut result = [0u64; 4];
-            for i in 0..4 {
+            let a: [u64; 8] = std::mem::transmute(self.0);
+            let b: [u64; 8] = std::mem::transmute(rhs.0);
+            let mut result = [0u64; 8];
+            for i in 0..8 {
                 result[i] = a[i].pow(b[i] as u32);
             }
-            u64x8(_mm256_loadu_si256(result.as_ptr() as *const __m256i))
+            u64x8(_mm512_loadu_si512(result.as_ptr() as *const __m512i))
         }
     }
     #[inline(always)]
@@ -281,12 +275,12 @@ impl VecConvertor for u64x8 {
     #[inline(always)]
     fn to_f64(self) -> f64x8 {
         unsafe {
-            let arr: [u64; 4] = std::mem::transmute(self.0);
-            let mut result = [0.0f64; 4];
-            for i in 0..4 {
+            let arr: [u64; 8] = std::mem::transmute(self.0);
+            let mut result = [0.0f64; 8];
+            for i in 0..8 {
                 result[i] = arr[i] as f64;
             }
-            f64x8(_mm256_loadu_pd(result.as_ptr()))
+            f64x8(_mm512_loadu_pd(result.as_ptr()))
         }
     }
     #[cfg(target_pointer_width = "64")]
@@ -320,13 +314,13 @@ impl FloatOutBinary2 for u64x8 {
     #[inline(always)]
     fn __pow(self, rhs: Self) -> Self {
         unsafe {
-            let arr: [u64; 4] = std::mem::transmute(self.0);
-            let arr2: [u64; 4] = std::mem::transmute(rhs.0);
-            let mut arr3: [u64; 4] = [0; 4];
-            for i in 0..4 {
+            let arr: [u64; 8] = std::mem::transmute(self.0);
+            let arr2: [u64; 8] = std::mem::transmute(rhs.0);
+            let mut arr3: [u64; 8] = [0; 8];
+            for i in 0..8 {
                 arr3[i] = arr[i].pow(arr2[i] as u32);
             }
-            u64x8(_mm256_loadu_si256(arr3.as_ptr() as *const __m256i))
+            u64x8(_mm512_loadu_si512(arr3.as_ptr() as *const __m512i))
         }
     }
 }
@@ -341,9 +335,8 @@ impl Eval2 for u64x8 {
     #[inline(always)]
     fn __is_true(&self) -> Self::Output {
         unsafe {
-            let eq = _mm256_cmpeq_epi64(self.0, _mm256_setzero_si256());
-            let result = _mm256_andnot_si256(eq, _mm256_set1_epi64x(1));
-            i64x8(result)
+            let mask = _mm512_cmpneq_epi64_mask(self.0, _mm512_setzero_si512());
+            i64x8(_mm512_maskz_mov_epi64(mask, _mm512_set1_epi64(1)))
         }
     }
 

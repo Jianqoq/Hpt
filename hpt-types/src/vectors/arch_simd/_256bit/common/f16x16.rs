@@ -21,10 +21,6 @@ impl VecTrait<half::f16> for f16x16 {
     const SIZE: usize = 16;
     type Base = half::f16;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[half::f16]) {
-        self.0.copy_from_slice(slice);
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         let [x0, x1]: [f32x8; 2] = unsafe { std::mem::transmute(self.to_2_f32vec()) };
         let [a0, a1]: [f32x8; 2] = unsafe { std::mem::transmute(a.to_2_f32vec()) };

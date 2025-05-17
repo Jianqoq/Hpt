@@ -14,10 +14,6 @@ impl VecTrait<half::bf16> for bf16x8 {
     const SIZE: usize = 8;
     type Base = half::bf16;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[half::bf16]) {
-        self.0.copy_from_slice(slice);
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         let [x0, x1] = self.to_2_f32vec();
         let [a0, a1] = a.to_2_f32vec();

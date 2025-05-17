@@ -28,10 +28,6 @@ impl VecTrait<bf16> for bf16x32 {
         bf16x32::from_2_f32vec([res0, res1])
     }
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[half::bf16]) {
-        self.0.copy_from_slice(slice);
-    }
-    #[inline(always)]
     fn sum(&self) -> bf16 {
         self.0.iter().sum()
     }

@@ -71,10 +71,6 @@ impl VecTrait<isize> for ISizeVEC {
     const SIZE: usize = 8;
     type Base = isize;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[isize]) {
-        ISizeBase::copy_from_slice(&mut self.0, unsafe { std::mem::transmute(slice) });
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         Self(self.0.mul_add(a.0, b.0))
     }

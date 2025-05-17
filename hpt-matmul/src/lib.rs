@@ -437,3 +437,5 @@ pub(crate) trait Add {
 pub use matmul::{matmul, prepack_rhs, addmm};
 
 pub use utils::{ kernel_params, NewPrePackedRhs };
+
+static ALIGN: usize = 128;

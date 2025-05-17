@@ -29,10 +29,6 @@ impl VecTrait<Complex32> for cplx32x8 {
         self
     }
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[Complex32]) {
-        self.0.copy_from_slice(slice);
-    }
-    #[inline(always)]
     fn as_ptr(&self) -> *const Complex32 {
         self.0.as_ptr()
     }
