@@ -63,7 +63,7 @@ use crate::{
                 ddigetdd_vd2_ddi, ddigeti_vi_ddi, ddisetdd_ddi_ddi_vd2, ddisetddi_ddi_vd2_vi,
                 digetd_vd_di, digeti_vi_di, rempisub, vilogb2k_vi_vd, vilogbk_vi_vd, visint_vo_vd,
                 visnegzero_vo_vd, visodd_vo_vd, vldexp2_vd_vd_vi, vldexp3_vd_vd_vi,
-                vmulsign_vd_vd_vd, vround2_vd_vd, vsignbit_vm_vd, vsignbit_vo_vd, vtruncate2_vd_vd,
+                vmulsign_vd_vd_vd, vround2_vd_vd, vsignbit_vo_vd, vtruncate2_vd_vd,
                 DDI,
             },
             dd::{
@@ -1142,6 +1142,7 @@ pub(crate) unsafe fn xcbrt_u1(d: VDouble) -> VDouble {
 
     #[cfg(not(target_feature = "avx512f"))]
     {
+        use crate::simd::sleef::common::commonfuncs::vsignbit_vm_vd;
         z = vsel_vd_vo_vd_vd(
             visinf_vo_vd(d),
             vmulsign_vd_vd_vd(vcast_vd_d(f64::INFINITY), vd2getx_vd_vd2(q2)),

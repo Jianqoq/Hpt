@@ -1,4 +1,3 @@
-use num_cpus::get_physical;
 use raw_cpuid::{CacheType, CpuId};
 use rayon::iter::ParallelIterator;
 use std::{cell::OnceCell, cmp::min};

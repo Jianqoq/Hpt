@@ -16,7 +16,7 @@ impl f16x32 {
                 let raw_f16: [u16; 32] = std::mem::transmute(self.0);
                 let f32x4_1 = _mm512_cvtph_ps(_mm256_loadu_si256(raw_f16.as_ptr() as *const _));
                 let f32x4_2 =
-                    _mm512_cvtph_ps(_mm256_loadu_si256(raw_f16.as_ptr().add(8) as *const _));
+                    _mm512_cvtph_ps(_mm256_loadu_si256(raw_f16.as_ptr().add(16) as *const _));
                 std::mem::transmute([f32x4_1, f32x4_2])
             }
             #[cfg(not(target_feature = "f16c"))]
@@ -56,35 +56,24 @@ impl f16x32 {
     /// convert from 2 f32x4
     #[inline(always)]
     pub fn from_2_f32vec(val: [f32x16; 2]) -> Self {
+        #[cfg(target_feature = "f16c")]
         unsafe {
-            #[cfg(target_feature = "f16c")]
-            unsafe {
-                use std::arch::x86_64::*;
-
-                // 将两个512位f32向量转换为两个256位f16向量
-                let f16_low = _mm512_cvtps_ph::<4>(val[0].0);
-                let f16_high = _mm512_cvtps_ph::<4>(val[1].0);
-
-                // 将两个256位向量组合成一个512位向量
-                // 首先将第一个向量转换为512位向量（高256位将为0）
-                let result_low = _mm512_castsi256_si512(f16_low);
-
-                // 然后将第二个向量插入到高256位
-                let result = _mm512_inserti32x8::<1>(result_low, f16_high);
-
-                // 转换为最终类型
-                std::mem::transmute(result)
+            use std::arch::x86_64::*;
+            let f16_low = _mm512_cvtps_ph::<4>(val[0].0);
+            let f16_high = _mm512_cvtps_ph::<4>(val[1].0);
+            let result_low = _mm512_castsi256_si512(f16_low);
+            let result = _mm512_inserti32x8::<1>(result_low, f16_high);
+            std::mem::transmute(result)
+        }
+        #[cfg(not(target_feature = "f16c"))]
+        unsafe {
+            let arr: [[f32; 8]; 2] = std::mem::transmute(val);
+            let mut result = [0u16; 16];
+            for i in 0..8 {
+                result[i] = half::f16::from_f32(arr[0][i]).to_bits();
+                result[i + 8] = half::f16::from_f32(arr[1][i]).to_bits();
             }
-            #[cfg(not(target_feature = "f16c"))]
-            {
-                let arr: [[f32; 8]; 2] = std::mem::transmute(val);
-                let mut result = [0u16; 16];
-                for i in 0..8 {
-                    result[i] = half::f16::from_f32(arr[0][i]).to_bits();
-                    result[i + 8] = half::f16::from_f32(arr[1][i]).to_bits();
-                }
-                std::mem::transmute(result)
-            }
+            std::mem::transmute(result)
         }
     }
 }

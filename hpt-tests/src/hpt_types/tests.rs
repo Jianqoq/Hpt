@@ -681,8 +681,8 @@ fn f16_ulp_diff(a: half::f16, b: half::f16) -> i32 {
         return 0;
     }
 
-    let bits_a = unsafe { std::mem::transmute::<f32, i32>(a) };
-    let bits_b = unsafe { std::mem::transmute::<f32, i32>(b) };
+    let bits_a = f32::to_bits(a).cast_signed();
+    let bits_b = f32::to_bits(b).cast_signed();
     match bits_a.checked_sub(bits_b) {
         Some(diff) => {
             if diff == i32::MIN {
@@ -724,8 +724,8 @@ fn bf16_ulp_diff(a: half::bf16, b: half::bf16) -> i32 {
         return 0;
     }
 
-    let bits_a = unsafe { std::mem::transmute::<f32, i32>(a) };
-    let bits_b = unsafe { std::mem::transmute::<f32, i32>(b) };
+    let bits_a = f32::to_bits(a).cast_signed();
+    let bits_b = f32::to_bits(b).cast_signed();
     match bits_a.checked_sub(bits_b) {
         Some(diff) => {
             if diff == i32::MIN {
@@ -765,8 +765,8 @@ fn f32_ulp_diff(a: f32, b: f32) -> i32 {
         return 0;
     }
 
-    let bits_a = unsafe { std::mem::transmute::<f32, i32>(a) };
-    let bits_b = unsafe { std::mem::transmute::<f32, i32>(b) };
+    let bits_a = f32::to_bits(a).cast_signed();
+    let bits_b = f32::to_bits(b).cast_signed();
     match bits_a.checked_sub(bits_b) {
         Some(diff) => {
             if diff == i32::MIN {
@@ -806,8 +806,8 @@ fn f64_ulp_diff(a: f64, b: f64) -> i64 {
         return 0;
     }
 
-    let bits_a = unsafe { std::mem::transmute::<f64, i64>(a) };
-    let bits_b = unsafe { std::mem::transmute::<f64, i64>(b) };
+    let bits_a = f64::to_bits(a).cast_signed();
+    let bits_b = f64::to_bits(b).cast_signed();
     (bits_a - bits_b).abs()
 }
 
@@ -1314,7 +1314,9 @@ fn test_div_float_nan() {
                 assert_eq!(res, $mask_type::splat($val), $msg1);
         
                 let input = [$val2; $type_vec::SIZE];
-                input_vec.copy_from_slice(&input);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), input_vec.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let res = input_vec.simd_eq($type_vec::default());
                 assert_eq!(res, $mask_type::splat($val3), $msg2);
             };
@@ -1324,7 +1326,9 @@ fn test_div_float_nan() {
                 assert_eq!(res, $mask_type::splat($val), $msg1);
         
                 let input = [<$type>::from_f32_const($val2); $type_vec::SIZE];
-                input_vec.copy_from_slice(&input);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), input_vec.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let res = input_vec.simd_eq($type_vec::default());
                 assert_eq!(res, $mask_type::splat($val3), $msg2);
             };
@@ -1355,7 +1359,9 @@ fn test_div_float_nan() {
                 assert_eq!(res, $mask_type::splat($val), $msg1);
         
                 let input = [$val2; $type_vec::SIZE];
-                input_vec.copy_from_slice(&input);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), input_vec.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let res = input_vec.simd_ne($type_vec::default());
                 assert_eq!(res, $mask_type::splat($val3), $msg2);
             };
@@ -1365,7 +1371,9 @@ fn test_div_float_nan() {
                 assert_eq!(res, $mask_type::splat($val), $msg1);
         
                 let input = [<$type>::from_f32_const($val2); $type_vec::SIZE];
-                input_vec.copy_from_slice(&input);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), input_vec.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let res = input_vec.simd_ne($type_vec::default());
                 assert_eq!(res, $mask_type::splat($val3), $msg2);
             };
@@ -1396,7 +1404,9 @@ fn test_div_float_nan() {
                 assert_eq!(res, $mask_type::splat($val), $msg1);
         
                 let input = [$val2; $type_vec::SIZE];
-                input_vec.copy_from_slice(&input);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), input_vec.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let res = input_vec.simd_gt($type_vec::default());
                 assert_eq!(res, $mask_type::splat($val3), $msg2);
             };
@@ -1406,7 +1416,9 @@ fn test_div_float_nan() {
                 assert_eq!(res, $mask_type::splat($val), $msg1);
         
                 let input = [<$type>::from_f32_const($val2); $type_vec::SIZE];
-                input_vec.copy_from_slice(&input);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), input_vec.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let res = input_vec.simd_gt($type_vec::default());
                 assert_eq!(res, $mask_type::splat($val3), $msg2);
             };
@@ -1437,15 +1449,21 @@ fn test_div_float_nan() {
                 assert_eq!(res, $mask_type::splat($val), $msg1);
         
                 let input = [$val2; $type_vec::SIZE];
-                input_vec.copy_from_slice(&input);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), input_vec.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let res = input_vec.simd_ge($type_vec::default());
                 assert_eq!(res, $mask_type::splat($val3), $msg2);
 
                 let input = [$val4; $type_vec::SIZE];
-                input_vec.copy_from_slice(&input);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), input_vec.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let input2 = [$val5; $type_vec::SIZE];
                 let mut input_vec2 = $type_vec::default();
-                input_vec2.copy_from_slice(&input2);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input2.as_ptr(), input_vec2.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let res = input_vec.simd_ge(input_vec2);
                 assert_eq!(res, $mask_type::splat($val6), $msg3);
             };
@@ -1455,15 +1473,21 @@ fn test_div_float_nan() {
                 assert_eq!(res, $mask_type::splat($val), $msg1);
         
                 let input = [<$type>::from_f32_const($val2); $type_vec::SIZE];
-                input_vec.copy_from_slice(&input);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), input_vec.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let res = input_vec.simd_ge($type_vec::default());
                 assert_eq!(res, $mask_type::splat($val3), $msg2);
 
                 let input = [<$type>::from_f32_const($val4); $type_vec::SIZE];
-                input_vec.copy_from_slice(&input);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), input_vec.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let input2 = [<$type>::from_f32_const($val5); $type_vec::SIZE];
                 let mut input_vec2 = $type_vec::default();
-                input_vec2.copy_from_slice(&input2);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input2.as_ptr(), input_vec2.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let res = input_vec.simd_ge(input_vec2);
                 assert_eq!(res, $mask_type::splat($val6), $msg3);
             };
@@ -1494,7 +1518,9 @@ fn test_div_float_nan() {
                 assert_eq!(res, $mask_type::splat($val), $msg1);
         
                 let input = [$val2; $type_vec::SIZE];
-                input_vec.copy_from_slice(&input);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), input_vec.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let res = input_vec.simd_lt(unsafe { $type_vec::from_ptr([$val3; $type_vec::SIZE].as_ptr()) });
                 assert_eq!(res, $mask_type::splat($val4), $msg2);
             };
@@ -1504,7 +1530,9 @@ fn test_div_float_nan() {
                 assert_eq!(res, $mask_type::splat($val), $msg1);
         
                 let input = [<$type>::from_f32_const($val2); $type_vec::SIZE];
-                input_vec.copy_from_slice(&input);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), input_vec.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let res = input_vec.simd_lt(unsafe { $type_vec::from_ptr([<$type>::from_f32_const($val3); $type_vec::SIZE].as_ptr()) });
                 assert_eq!(res, $mask_type::splat($val4), $msg2);
             };
@@ -1535,15 +1563,21 @@ fn test_div_float_nan() {
                 assert_eq!(res, $mask_type::splat($val), $msg1);
         
                 let input = [$val2; $type_vec::SIZE];
-                input_vec.copy_from_slice(&input);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), input_vec.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let res = input_vec.simd_le($type_vec::default());
                 assert_eq!(res, $mask_type::splat($val3), $msg2);
 
                 let input = [$val4; $type_vec::SIZE];
-                input_vec.copy_from_slice(&input);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), input_vec.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let input2 = [$val5; $type_vec::SIZE];
                 let mut input_vec2 = $type_vec::default();
-                input_vec2.copy_from_slice(&input2);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input2.as_ptr(), input_vec2.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let res = input_vec.simd_le(input_vec2);
                 assert_eq!(res, $mask_type::splat($val6), $msg3);
             };
@@ -1553,15 +1587,21 @@ fn test_div_float_nan() {
                 assert_eq!(res, $mask_type::splat($val), $msg1);
         
                 let input = [<$type>::from_f32_const($val2); $type_vec::SIZE];
-                input_vec.copy_from_slice(&input);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), input_vec.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let res = input_vec.simd_le($type_vec::default());
                 assert_eq!(res, $mask_type::splat($val3), $msg2);
 
                 let input = [<$type>::from_f32_const($val4); $type_vec::SIZE];
-                input_vec.copy_from_slice(&input);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input.as_ptr(), input_vec.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let input2 = [<$type>::from_f32_const($val5); $type_vec::SIZE];
                 let mut input_vec2 = $type_vec::default();
-                input_vec2.copy_from_slice(&input2);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(input2.as_ptr(), input_vec2.as_mut_ptr(), $type_vec::SIZE);
+                }
                 let res = input_vec.simd_le(input_vec2);
                 assert_eq!(res, $mask_type::splat($val6), $msg3);
             };

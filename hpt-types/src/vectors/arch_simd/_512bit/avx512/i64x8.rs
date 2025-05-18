@@ -69,43 +69,43 @@ impl SimdCompare for i64x8 {
     #[inline(always)]
     fn simd_eq(self, other: Self) -> i64x8 {
         unsafe {
-            let mask = _mm512_cmpeq_epi64_mask(self.0, other.0);
-            i64x8(_mm512_maskz_mov_epi64(mask, _mm512_set1_epi64(-1)))
+            let mask = _mm512_cmp_epi64_mask::<0>(self.0, other.0);
+            i64x8(_mm512_movm_epi64(mask))
         }
     }
     #[inline(always)]
     fn simd_ne(self, other: Self) -> i64x8 {
         unsafe {
-            let mask = _mm512_cmpneq_epi64_mask(self.0, other.0);
-            i64x8(_mm512_maskz_mov_epi64(mask, _mm512_set1_epi64(-1)))
+            let mask = _mm512_cmp_epi64_mask::<4>(self.0, other.0);
+            i64x8(_mm512_movm_epi64(mask))
         }
     }
     #[inline(always)]
     fn simd_lt(self, other: Self) -> i64x8 {
         unsafe {
-            let mask = _mm512_cmplt_epi64_mask(self.0, other.0);
-            i64x8(_mm512_maskz_mov_epi64(mask, _mm512_set1_epi64(-1)))
+            let mask = _mm512_cmp_epi64_mask::<1>(self.0, other.0);
+            i64x8(_mm512_movm_epi64(mask))
         }
     }
     #[inline(always)]
     fn simd_le(self, other: Self) -> i64x8 {
         unsafe {
-            let mask = _mm512_cmple_epi64_mask(self.0, other.0);
-            i64x8(_mm512_maskz_mov_epi64(mask, _mm512_set1_epi64(-1)))
+            let mask = _mm512_cmp_epi64_mask::<2>(self.0, other.0);
+            i64x8(_mm512_movm_epi64(mask))
         }
     }
     #[inline(always)]
     fn simd_gt(self, other: Self) -> i64x8 {
         unsafe {
-            let mask = _mm512_cmpgt_epi64_mask(self.0, other.0);
-            i64x8(_mm512_maskz_mov_epi64(mask, _mm512_set1_epi64(-1)))
+            let mask = _mm512_cmp_epi64_mask::<6>(self.0, other.0);
+            i64x8(_mm512_movm_epi64(mask))
         }
     }
     #[inline(always)]
     fn simd_ge(self, other: Self) -> i64x8 {
         unsafe {
-            let mask = _mm512_cmpge_epi64_mask(self.0, other.0);
-            i64x8(_mm512_maskz_mov_epi64(mask, _mm512_set1_epi64(-1)))
+            let mask = _mm512_cmp_epi64_mask::<5>(self.0, other.0);
+            i64x8(_mm512_movm_epi64(mask))
         }
     }
 }

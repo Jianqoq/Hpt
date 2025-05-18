@@ -14,6 +14,7 @@ use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::ops::shape_manipulate::ShapeManipulate;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
+use num_cpus::get_physical;
 
 type GemmOutput<A, B, const DEVICE: usize, A2> =
     _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>;
@@ -71,7 +72,7 @@ where
                 conj_dst,
                 conj_lhs,
                 conj_rhs,
-                gemm::Parallelism::Rayon(rayon::current_num_threads()),
+                gemm::Parallelism::Rayon(rayon::current_num_threads().min(get_physical())),
             );
         }
         Ok(res)

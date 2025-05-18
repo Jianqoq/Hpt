@@ -12,7 +12,7 @@ use crate::arch_simd::_512bit::i32x8;
 use crate::arch_simd::_512bit::i64x8;
 
 #[cfg(target_pointer_width = "32")]
-/// a vector of 4 isize values
+/// a vector of 8 isize values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(64))]
@@ -24,7 +24,7 @@ pub struct isizex8(pub(crate) i32x8);
 pub(crate) type isize_promote = isizex8;
 
 #[cfg(target_pointer_width = "64")]
-/// a vector of 4 isize values
+/// a vector of 8 isize values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(64))]
@@ -66,9 +66,9 @@ impl PartialEq for ISizeVEC {
 
 impl VecTrait<isize> for ISizeVEC {
     #[cfg(target_pointer_width = "64")]
-    const SIZE: usize = 4;
-    #[cfg(target_pointer_width = "32")]
     const SIZE: usize = 8;
+    #[cfg(target_pointer_width = "32")]
+    const SIZE: usize = 16;
     type Base = isize;
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
@@ -112,7 +112,7 @@ impl ISizeVEC {
     /// convert the vector to an array
     #[inline(always)]
     #[cfg(target_pointer_width = "32")]
-    pub fn as_array(&self) -> [isize; 8] {
+    pub fn as_array(&self) -> [isize; 16] {
         unsafe { std::mem::transmute(self.0) }
     }
 }

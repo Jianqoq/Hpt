@@ -11,12 +11,8 @@ use crate::{ Tensor, current_num_threads };
 
 #[cfg(feature = "bf16")]
 use super::matmul_mp::bf16_matmul_mp_no_block_info;
-#[cfg(feature = "f16")]
-use super::matmul_mp::f16_matmul_mp_no_block_info;
 #[cfg(feature = "bf16")]
 use super::matmul_mp_post::bf16_matmul_mp_post_no_block_info;
-#[cfg(feature = "f16")]
-use super::matmul_mp_post::f16_matmul_mp_post_no_block_info;
 use super::{ common::matmul_prepare, microkernel_trait::MatmulMicroKernel };
 
 use hpt_types::{ dtype::TypeCommon, traits::VecTrait, type_promote::NormalOut };

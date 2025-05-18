@@ -1,5 +1,4 @@
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
-use hpt_types::arch_simd as simd;
 use hpt_types::type_promote::FloatOutBinary;
 use hpt_types::{dtype::TypeCommon, into_scalar::Cast, type_promote::NormalOut};
 type BoolVector = <bool as TypeCommon>::Vec;

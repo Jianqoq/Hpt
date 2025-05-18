@@ -1,4 +1,5 @@
 #![cfg_attr(any(target_feature = "avx512f"), feature(stdarch_x86_avx512))]
+#![cfg_attr(any(target_feature = "avx512fp16"), feature(stdarch_x86_avx512_f16))]
 #![allow(unstable_features)]
 //! This crate implment type utilities for tensor operations
 #![deny(missing_docs)]
@@ -498,6 +499,4 @@ pub(crate) mod sleef_types {
     pub(crate) type VFloat = __m512;
     pub(crate) type VInt = __m256i;
     pub(crate) type VInt2 = __m512i;
-    pub(crate) type VInt64 = __m512i;
-    pub(crate) type VUInt64 = __m512i;
 }

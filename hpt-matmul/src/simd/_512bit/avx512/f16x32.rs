@@ -4,14 +4,15 @@ use crate::simd::_512bit::common::f32x16::f32x16;
 impl f16x32 {
     /// convert to [f32x8; 2]
     #[inline(always)]
-    pub(crate)  fn to_2_f32vec(self) -> [f32x16; 2] {
+    pub(crate) fn to_2_f32vec(self) -> [f32x16; 2] {
         unsafe {
             #[cfg(target_feature = "f16c")]
             {
                 use std::arch::x86_64::*;
                 let raw_f16: [u16; 32] = std::mem::transmute(self.0);
                 let f32x4_1 = _mm512_cvtph_ps(_mm256_loadu_si256(raw_f16.as_ptr() as *const _));
-                let f32x4_2 = _mm512_cvtph_ps(_mm256_loadu_si256(raw_f16.as_ptr().add(8) as *const _));
+                let f32x4_2 =
+                    _mm512_cvtph_ps(_mm256_loadu_si256(raw_f16.as_ptr().add(8) as *const _));
                 std::mem::transmute([f32x4_1, f32x4_2])
             }
             #[cfg(not(target_feature = "f16c"))]
@@ -26,9 +27,10 @@ impl f16x32 {
         }
     }
 
+    #[allow(unused)]
     /// convert to f32x8
     #[inline(always)]
-    pub(crate)  fn high_to_f32vec(self) -> f32x16 {
+    pub(crate) fn high_to_f32vec(self) -> f32x16 {
         unsafe {
             #[cfg(target_feature = "f16c")]
             {
@@ -50,7 +52,7 @@ impl f16x32 {
 
     /// convert from 2 f32x4
     #[inline(always)]
-    pub(crate)  fn from_2_f32vec(val: [f32x16; 2]) -> Self {
+    pub(crate) fn from_2_f32vec(val: [f32x16; 2]) -> Self {
         unsafe {
             #[cfg(target_feature = "f16c")]
             {

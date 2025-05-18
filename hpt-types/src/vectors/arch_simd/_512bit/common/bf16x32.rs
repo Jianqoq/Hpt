@@ -5,7 +5,7 @@ use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
 use crate::{traits::VecTrait, vectors::arch_simd::_512bit::f32x16};
 use crate::arch_simd::_512bit::{i16x32, u16x32};
 
-/// a vector of 16 bf16 values
+/// a vector of 32 bf16 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 #[repr(C, align(64))]
@@ -98,7 +98,7 @@ impl std::ops::Div for bf16x32 {
     #[inline(always)]
     fn div(self, rhs: Self) -> Self::Output {
         let mut ret = bf16x32::default();
-        for i in 0..16 {
+        for i in 0..32 {
             ret.0[i] = self.0[i] / rhs.0[i];
         }
         ret
@@ -109,7 +109,7 @@ impl std::ops::Rem for bf16x32 {
     #[inline(always)]
     fn rem(self, rhs: Self) -> Self::Output {
         let mut ret = bf16x32::default();
-        for i in 0..16 {
+        for i in 0..32 {
             ret.0[i] = self.0[i] % rhs.0[i];
         }
         ret
@@ -120,7 +120,7 @@ impl std::ops::Neg for bf16x32 {
     #[inline(always)]
     fn neg(self) -> Self::Output {
         let mut ret = bf16x32::default();
-        for i in 0..16 {
+        for i in 0..32 {
             ret.0[i] = -self.0[i];
         }
         ret

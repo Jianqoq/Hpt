@@ -1,14 +1,16 @@
 use num_complex::Complex64;
 
+use crate::VecTrait;
+
 /// a vector of 2 cplx64 values
 #[allow(non_camel_case_types)]
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 #[repr(C, align(64))]
 pub struct cplx64x4(pub(crate) [Complex64; 4]);
 
-impl cplx64x4 {
+impl VecTrait<Complex64> for cplx64x4 {
     #[inline(always)]
-    pub(crate) fn mul_add(mut self, a: Self, b: Self) -> Self {
+    fn mul_add(mut self, a: Self, b: Self) -> Self {
         self.0[0] = self.0[0] * a.0[0] + b.0[0];
         self.0[1] = self.0[1] * a.0[1] + b.0[1];
         self.0[2] = self.0[2] * a.0[2] + b.0[2];
@@ -16,12 +18,22 @@ impl cplx64x4 {
         self
     }
     #[inline(always)]
-    pub(crate) fn as_mut_ptr(&mut self) -> *mut Complex64 {
-        self.0.as_mut_ptr()
-    }
-    #[inline(always)]
-    pub(crate) fn splat(val: Complex64) -> cplx64x4 {
+    fn splat(val: Complex64) -> cplx64x4 {
         cplx64x4([val; 4])
+    }
+
+    fn partial_load(ptr: *const Complex64, num_elem: usize) -> Self {
+        let mut ret = cplx64x4::default();
+        unsafe {
+            std::ptr::copy_nonoverlapping(ptr, ret.0.as_mut_ptr(), num_elem);
+        }
+        ret
+    }
+
+    fn partial_store(self, ptr: *mut Complex64, num_elem: usize) {
+        unsafe {
+            std::ptr::copy_nonoverlapping(self.0.as_ptr(), ptr, num_elem);
+        }
     }
 }
 

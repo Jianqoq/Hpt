@@ -63,7 +63,7 @@ impl VecTrait<usize> for USizeVEC {
     #[cfg(target_pointer_width = "64")]
     const SIZE: usize = 8;
     #[cfg(target_pointer_width = "32")]
-    const SIZE: usize = 8;
+    const SIZE: usize = 16;
     type Base = usize;
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
@@ -109,7 +109,7 @@ impl USizeVEC {
     #[cfg(target_pointer_width = "32")]
     #[allow(unused)]
     #[inline(always)]
-    pub fn as_array(&self) -> [usize; 8] {
+    pub fn as_array(&self) -> [usize; 16] {
         unsafe { std::mem::transmute(self.0) }
     }
 }

@@ -7,9 +7,9 @@ use criterion::{black_box, BenchmarkId, Criterion};
 use half::f16;
 use hpt::ops::*;
 use hpt::Tensor;
-// use hpt_dyn::DType;
-// use hpt_dyn::Tensor as DynTensor;
-// use hpt_dyn::Device;
+use hpt_dyn::DType;
+use hpt_dyn::Tensor as DynTensor;
+use hpt_dyn::Device;
 // use tch::{Device, Kind, Tensor as TchTensor};
 
 fn matmul_f32_benchmark(c: &mut Criterion<crate::benchmarks::Timer>) {
@@ -60,6 +60,7 @@ fn matmul_f32_benchmark(c: &mut Criterion<crate::benchmarks::Timer>) {
         // );
         group.bench_with_input(BenchmarkId::new("hpt(gemm)", n), &n, |b, _| {
             b.iter(|| a2.gemm(&c2, 0.0, 1.0, false, false, false).unwrap());
+            // b.iter(|| a2.matmul(&c2).unwrap());
         });
         // group.bench_with_input(BenchmarkId::new("torch", n), &n, |b, _| {
         //     b.iter(|| a.matmul(&c));

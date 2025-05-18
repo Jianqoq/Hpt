@@ -160,7 +160,16 @@ impl std::ops::Rem for f64x8 {
         unsafe {
             let x: [f64; 8] = std::mem::transmute(self.0);
             let y: [f64; 8] = std::mem::transmute(rhs.0);
-            let result = [x[0] % y[0], x[1] % y[1], x[2] % y[2], x[3] % y[3], x[4] % y[4], x[5] % y[5], x[6] % y[6], y[7] % y[7]];
+            let result = [
+                x[0] % y[0],
+                x[1] % y[1],
+                x[2] % y[2],
+                x[3] % y[3],
+                x[4] % y[4],
+                x[5] % y[5],
+                x[6] % y[6],
+                x[7] % y[7],
+            ];
             f64x8(_mm512_loadu_pd(result.as_ptr()))
         }
     }
@@ -406,16 +415,13 @@ impl SimdMath<f64> for f64x8 {
             let inf = _mm512_set1_pd(f64::INFINITY);
             let nan = _mm512_set1_pd(f64::NAN);
 
-            let special_cases = _mm512_mask_blend_pd(
-                is_zero_mask,
-                _mm512_maskz_mov_pd(is_nan_mask, nan),
-                inf
-            );
+            let special_cases =
+                _mm512_mask_blend_pd(is_zero_mask, _mm512_maskz_mov_pd(is_nan_mask, nan), inf);
 
             Self(_mm512_mask_blend_pd(
                 is_nan_mask | is_zero_mask,
                 recip,
-                special_cases
+                special_cases,
             ))
         }
     }

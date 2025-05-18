@@ -1,7 +1,7 @@
 use crate::convertion::VecConvertor;
 use crate::traits::SimdCompare;
 use crate::traits::{SimdSelect, VecTrait};
-use crate::type_promote::{Eval, Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
+use crate::type_promote::{Eval2, FloatOutBinary2, NormalOut2, NormalOutUnary2};
 use crate::vectors::arch_simd::_512bit::u8x64;
 
 use super::i8x64::i8x64;
