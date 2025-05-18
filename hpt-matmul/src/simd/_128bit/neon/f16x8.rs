@@ -1,13 +1,13 @@
 use std::arch::aarch64::uint16x8_t;
 
-use crate::simd::_128bit::common::{ f16x8::f16x8, f32x4::f32x4 };
+use crate::{ simd::_128bit::common::{ f16x8::f16x8, f32x4::f32x4 }, VecTrait };
 
 #[allow(non_camel_case_types)]
 type float16x8_t = uint16x8_t;
 
-impl f16x8 {
+impl VecTrait<half::f16> for f16x8 {
     #[inline(always)]
-    pub(crate) fn mul_add(self, a: Self, b: Self) -> Self {
+    fn mul_add(self, a: Self, b: Self) -> Self {
         #[cfg(target_feature = "fp16")]
         unsafe {
             let mut b: float16x8_t = std::mem::transmute(b);
@@ -33,11 +33,11 @@ impl f16x8 {
         }
     }
     #[inline(always)]
-    pub(crate) fn splat(val: half::f16) -> f16x8 {
+    fn splat(val: half::f16) -> f16x8 {
         f16x8([val; 8])
     }
     #[inline(always)]
-    pub(crate) fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
+    fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
         #[cfg(target_feature = "fp16")]
         unsafe {
             let a: float16x8_t = std::mem::transmute(a);
@@ -112,6 +112,20 @@ impl f16x8 {
                 res[i] = self.0[i].mul_add(a.0[LANE as usize], b.0[i]);
             }
             std::mem::transmute(res)
+        }
+    }
+    #[inline(always)]
+    fn partial_load(ptr: *const half::f16, num_elem: usize) -> Self {
+        let mut result = Self::splat(half::f16::default());
+        unsafe {
+            std::ptr::copy_nonoverlapping(ptr, (&mut result.0) as *mut _ as *mut half::f16, num_elem);
+            result
+        }
+    }
+    #[inline(always)]
+    fn partial_store(self, ptr: *mut half::f16, num_elem: usize) {
+        unsafe {
+            std::ptr::copy_nonoverlapping((&self.0) as *const _ as *const half::f16, ptr, num_elem);
         }
     }
 }

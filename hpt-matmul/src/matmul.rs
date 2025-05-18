@@ -1077,7 +1077,7 @@ where
     let kc = params.kc;
     let mut nc = params.nc;
 
-    if n > m {
+    if n > m && m != 1 {
         let func = |nc: usize| {
             let num_nc = n.div_ceil(nc);
 

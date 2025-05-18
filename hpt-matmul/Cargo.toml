@@ -17,6 +17,9 @@ rayon = {workspace = true}
 num_cpus = { workspace = true }
 raw-cpuid = { workspace = true }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = { workspace = true }
+
 [features]
 default = ["f32", "f16"]
 bound_check = []

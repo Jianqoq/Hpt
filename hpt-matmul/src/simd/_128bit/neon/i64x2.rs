@@ -1,11 +1,11 @@
 
 use std::arch::aarch64::*;
 
-use crate::simd::_128bit::common::i64x2::i64x2;
+use crate::{simd::_128bit::common::i64x2::i64x2, VecTrait};
 
-impl i64x2 {
+impl VecTrait<i64> for i64x2 {
     #[inline(always)]
-    pub(crate) fn mul_add(self, a: Self, b: Self) -> Self {
+    fn mul_add(self, a: Self, b: Self) -> Self {
         unsafe {
             let arr: [i64; 2] = std::mem::transmute(self.0);
             let arr2: [i64; 2] = std::mem::transmute(a.0);
@@ -18,17 +18,27 @@ impl i64x2 {
         }
     }
     #[inline(always)]
-    pub(crate) fn splat(val: i64) -> i64x2 {
+    fn splat(val: i64) -> i64x2 {
         unsafe { i64x2(vdupq_n_s64(val)) }
     }
     #[inline(always)]
-    pub(crate) fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
+    fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
         let val = Self::splat(a[LANE as usize]);
         self.mul_add(val, b)
     }
     #[inline(always)]
-    pub(crate) unsafe fn from_ptr(ptr: *const i64) -> Self {
-        unsafe { i64x2(vld1q_s64(ptr)) }
+    fn partial_load(ptr: *const i64, num_elem: usize) -> Self {
+        let mut result = Self::splat(i64::default());
+        unsafe {
+            std::ptr::copy_nonoverlapping(ptr, (&mut result.0) as *mut _ as *mut i64, num_elem);
+            result
+        }
+    }
+    #[inline(always)]
+    fn partial_store(self, ptr: *mut i64, num_elem: usize) {
+        unsafe {
+            std::ptr::copy_nonoverlapping((&self.0) as *const _ as *const i64, ptr, num_elem);
+        }
     }
 }
 

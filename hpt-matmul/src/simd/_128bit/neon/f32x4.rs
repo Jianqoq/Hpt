@@ -1,22 +1,32 @@
 use std::arch::aarch64::*;
-use crate::simd::_128bit::common::f32x4::f32x4;
+use crate::{simd::_128bit::common::f32x4::f32x4, VecTrait};
 
-impl f32x4 {
+impl VecTrait<f32> for f32x4 {
     #[inline(always)]
-    pub(crate) fn mul_add(self, a: Self, b: Self) -> Self {
+    fn mul_add(self, a: Self, b: Self) -> Self {
         unsafe { f32x4(vfmaq_f32(b.0, self.0, a.0)) }
     }
     #[inline(always)]
-    pub(crate) fn splat(val: f32) -> f32x4 {
+    fn splat(val: f32) -> f32x4 {
         unsafe { f32x4(vdupq_n_f32(val)) }
     }
     #[inline(always)]
-    pub(crate) fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
+    fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self {
         unsafe { f32x4(vfmaq_laneq_f32::<LANE>(b.0, self.0, a.0)) }
     }
     #[inline(always)]
-    pub(crate) unsafe fn from_ptr(ptr: *const f32) -> Self {
-        unsafe { f32x4(vld1q_f32(ptr)) }
+    fn partial_load(ptr: *const f32, num_elem: usize) -> Self {
+        let mut result = Self::splat(f32::default());
+        unsafe {
+            std::ptr::copy_nonoverlapping(ptr, (&mut result.0) as *mut _ as *mut f32, num_elem);
+            result
+        }
+    }
+    #[inline(always)]
+    fn partial_store(self, ptr: *mut f32, num_elem: usize) {
+        unsafe {
+            std::ptr::copy_nonoverlapping((&self.0) as *const _ as *const f32, ptr, num_elem);
+        }
     }
 }
 

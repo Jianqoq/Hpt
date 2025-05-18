@@ -1,24 +1,22 @@
-use crate::Pointer;
+use crate::{Pointer, VecTrait};
 
 /// A trait for microkernels of matrix multiplication
-pub trait MatmulMicroKernel
-where
-    Self: Sized,
-{
-    type SelfVec;
+pub trait MatmulMicroKernel where Self: Sized + Copy {
+    #[allow(private_bounds)]
+    type SelfVec: VecTrait<Self> + std::ops::Mul<Output = Self::SelfVec> + Copy;
     type MixedType;
     type MixedVec;
 
     fn get_kernel(
         nr: usize,
-        mr: usize,
+        mr: usize
     ) -> fn(Pointer<Self>, Pointer<Self>, Pointer<Self>, i64, i64, usize, usize, i64, bool);
     fn get_kernel_with_post_op<
         F: Fn(Self, usize, usize) -> Self,
-        G: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec,
+        G: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
     >(
         nr: usize,
-        mr: usize,
+        mr: usize
     ) -> fn(
         Pointer<Self>,
         Pointer<Self>,
@@ -33,12 +31,12 @@ where
         usize,
         usize,
         F,
-        G,
+        G
     );
     #[allow(unused_variables)]
     fn get_mixed_precision_kernel(
         nr: usize,
-        mr: usize,
+        mr: usize
     ) -> fn(
         Pointer<Self::MixedType>,
         Pointer<Self::MixedType>,
@@ -50,17 +48,17 @@ where
         i64,
         bool,
         fn(*mut Self::SelfVec, *const Self::MixedVec),
-        fn(&mut Self, &Self::MixedType),
+        fn(&mut Self, &Self::MixedType)
     ) {
         unimplemented!()
     }
     #[allow(unused_variables)]
     fn get_mixed_precision_kernel_with_post_op<
         F: Fn(Self, usize, usize) -> Self,
-        G: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec,
+        G: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
     >(
         nr: usize,
-        mr: usize,
+        mr: usize
     ) -> fn(
         Pointer<Self::MixedType>,
         Pointer<Self::MixedType>,
@@ -77,7 +75,7 @@ where
         fn(*mut Self::SelfVec, *const Self::MixedVec),
         fn(&mut Self, &Self::MixedType),
         F,
-        G,
+        G
     ) {
         unimplemented!()
     }
@@ -90,9 +88,10 @@ where
         n: usize,
         k: usize,
         ldb: i64,
-        lhs_col_stride: i64,
+        lhs_col_stride: i64
     ) {
-        unimplemented!()
+        use crate::microkernels::gemv_microkernel;
+        gemv_microkernel::<Self, Self::SelfVec>
     }
 
     #[allow(unused_variables)]
@@ -106,9 +105,10 @@ where
         lhs_col_stride: i64,
         m_offset: usize,
         n_offset: usize,
-        post_op_vec: F,
+        post_op_vec: F
     ) {
-        unimplemented!()
+        use crate::microkernels::gemv_microkernel_post_op;
+        gemv_microkernel_post_op::<Self, Self::SelfVec, F>
     }
 
     fn get_max_mixed_precision_mr() -> usize {

@@ -107,7 +107,7 @@ num_enum = "0.7"
 num-integer = "0.1"
 crossbeam = "0.8.4"
 core_affinity = "0.8.3"
-
+libc = "0.2.172"
 [[bin]]
 name = "hpt-workspace"
 path = "src/main.rs"

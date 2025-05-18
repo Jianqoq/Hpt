@@ -408,6 +408,8 @@ pub(crate) trait VecTrait<T> {
     fn splat(val: T) -> Self;
     fn partial_load(ptr: *const T, num_elem: usize) -> Self;
     fn partial_store(self, ptr: *mut T, num_elem: usize);
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self;
 }
 
 pub use matmul::{addmm, matmul, prepack_rhs};

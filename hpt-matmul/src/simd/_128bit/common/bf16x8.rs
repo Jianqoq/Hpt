@@ -5,17 +5,6 @@
 #[repr(C, align(16))]
 pub struct bf16x8(pub(crate) [half::bf16; 8]);
 
-impl bf16x8 {
-    #[inline(always)]
-    pub(crate) unsafe fn from_ptr(ptr: *const half::bf16) -> Self {
-        let mut result = [half::bf16::ZERO; 8];
-        for i in 0..8 {
-            result[i] = unsafe { *ptr.add(i) };
-        }
-        bf16x8(result)
-    }
-}
-
 impl std::ops::Add for bf16x8 {
     type Output = Self;
 
