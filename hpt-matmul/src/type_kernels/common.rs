@@ -150,7 +150,6 @@ macro_rules! avx512_kernels {
                 4
             }
 
-            #[allow(unused_variables)]
             fn get_gemv_kernel() -> fn(
                 a: crate::Pointer<Self>,
                 b: crate::Pointer<Self>,
@@ -158,29 +157,15 @@ macro_rules! avx512_kernels {
                 n: usize,
                 k: usize,
                 ldb: i64,
-                lhs_col_stride: i64,
+                lhs_col_stride: i64
             ) {
-                use crate::microkernels::define_gemv_microkernel;
-                define_gemv_microkernel!($dtype, $vec_type);
-                gemv_microkernel
+                use crate::microkernels::gemv_microkernel_impl;
+                gemv_microkernel_impl!(8);
+                gemv_microkernel::<$dtype, $vec_type>
             }
-        
-            #[allow(unused_variables)]
-            fn get_gemv_kernel_with_post_op<F: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec>() -> fn(
-                a: crate::Pointer<Self>,
-                b: crate::Pointer<Self>,
-                c: crate::Pointer<Self>,
-                n: usize,
-                k: usize,
-                ldb: i64,
-                lhs_col_stride: i64,
-                m_offset: usize,
-                n_offset: usize,
-                post_op_vec: F,
-            ) {
-                use crate::microkernels::define_gemv_microkernel_post_op;
-                define_gemv_microkernel_post_op!($dtype, $vec_type);
-                gemv_microkernel_post_op
+
+            fn get_gemv_nr() -> usize {
+                8
             }
         }
     };

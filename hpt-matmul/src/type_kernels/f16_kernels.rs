@@ -588,4 +588,20 @@ impl MatmulMicroKernel for half::f16 {
     fn get_max_mixed_precision_mr() -> usize {
         6
     }
+    
+    fn get_gemv_kernel() -> fn(
+        a: crate::Pointer<Self>,
+        b: crate::Pointer<Self>,
+        c: crate::Pointer<Self>,
+        n: usize,
+        k: usize,
+        ldb: i64,
+        lhs_col_stride: i64
+    ) {
+        todo!()
+    }
+    
+    fn get_gemv_nr() -> usize {
+        todo!()
+    }
 }

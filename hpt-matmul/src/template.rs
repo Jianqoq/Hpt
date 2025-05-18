@@ -53,7 +53,7 @@ pub(crate) fn func_name<T, F1, F2>(
 {
     assert_eq!(nr % vec_size::<T>(), 0);
 
-    if m == 1 && rhs_col_stride == 1 {
+    if m == 1 && (rhs_col_stride == 1 || prepack_rhs.is_some()) {
         mv_method(
             a,
             b,

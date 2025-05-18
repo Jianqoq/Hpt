@@ -157,7 +157,30 @@ pub(crate) fn _matmul<T, F1, F2>(
                 Some(&prepacked_rhs[0])
             } else {
                 if m == 1 {
-                    None
+                    if rhs_strides[1] != 1 {
+                        let (ptrs, packed_b, layout) = prepack_b_single_thread::<T>(
+                            rhs_ptr,
+                            n,
+                            k,
+                            rhs_strides[0],
+                            rhs_strides[1],
+                            k,
+                            <T as MatmulMicroKernel>::get_gemv_nr() * vec_size::<T>(),
+                            <T as MatmulMicroKernel>::get_gemv_nr() * vec_size::<T>(),
+                            true,
+                        );
+                        let prepacked_rhs = NewPrePackedRhs {
+                            buffers: ptrs,
+                            buffer: (packed_b, layout),
+                            nr: <T as MatmulMicroKernel>::get_gemv_nr() * vec_size::<T>(),
+                            nc: <T as MatmulMicroKernel>::get_gemv_nr() * vec_size::<T>(),
+                            kc: k,
+                        };
+                        holder = prepacked_rhs;
+                        Some(&holder)
+                    } else {
+                        None
+                    }
                 } else {
                     let (ptrs, packed_b, layout) = prepack_b_single_thread::<T>(
                         rhs_ptr,
@@ -195,6 +218,14 @@ pub(crate) fn _matmul<T, F1, F2>(
                 let sliced_ldc = res_strides[0];
                 let sliced_lhs_col_stride = lhs_strides[1];
                 let sliced_rhs_col_stride = rhs_strides[1];
+                let (nc, nr) = if m == 1 {
+                    (
+                        <T as MatmulMicroKernel>::get_gemv_nr() * vec_size::<T>(),
+                        <T as MatmulMicroKernel>::get_gemv_nr() * vec_size::<T>(),
+                    )
+                } else {
+                    (nc, nr)
+                };
                 matmul_fn(
                     lhs_ptr,
                     rhs_ptr,
@@ -1124,25 +1155,47 @@ where
             if nc == 0 { func(params.nc) } else { func(nc) }
         }
     } else {
-        let (ptrs, packed_b, layout) = crate::utils::prepack_b_single_thread::<T>(
-            rhs_ptr,
-            n,
-            k,
-            rhs_strides[0],
-            rhs_strides[1],
-            kc,
-            nc,
-            nr,
-            true,
-        );
-        let prepacked_rhs = NewPrePackedRhs {
-            buffers: ptrs,
-            buffer: (packed_b, layout),
-            nr,
-            nc,
-            kc,
-        };
-        vec![prepacked_rhs]
+        if m == 1 {
+            let (ptrs, packed_b, layout) = prepack_b_single_thread::<T>(
+                rhs_ptr,
+                n,
+                k,
+                rhs_strides[0],
+                rhs_strides[1],
+                k,
+                <T as MatmulMicroKernel>::get_gemv_nr() * vec_size::<T>(),
+                <T as MatmulMicroKernel>::get_gemv_nr() * vec_size::<T>(),
+                true,
+            );
+            let prepacked_rhs = NewPrePackedRhs {
+                buffers: ptrs,
+                buffer: (packed_b, layout),
+                nr: <T as MatmulMicroKernel>::get_gemv_nr() * vec_size::<T>(),
+                nc: <T as MatmulMicroKernel>::get_gemv_nr() * vec_size::<T>(),
+                kc: k,
+            };
+            vec![prepacked_rhs]
+        } else {
+            let (ptrs, packed_b, layout) = crate::utils::prepack_b_single_thread::<T>(
+                rhs_ptr,
+                n,
+                k,
+                rhs_strides[0],
+                rhs_strides[1],
+                kc,
+                nc,
+                nr,
+                true,
+            );
+            let prepacked_rhs = NewPrePackedRhs {
+                buffers: ptrs,
+                buffer: (packed_b, layout),
+                nr,
+                nc,
+                kc,
+            };
+            vec![prepacked_rhs]
+        }
     }
 }
 

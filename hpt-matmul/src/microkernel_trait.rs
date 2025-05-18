@@ -1,7 +1,7 @@
 use crate::{Pointer, VecTrait};
 
 /// A trait for microkernels of matrix multiplication
-pub trait MatmulMicroKernel where Self: Sized + Copy {
+pub trait MatmulMicroKernel where Self: Sized + Copy + crate::Zero {
     #[allow(private_bounds)]
     type SelfVec: VecTrait<Self> + std::ops::Mul<Output = Self::SelfVec> + Copy;
     type MixedType;
@@ -89,10 +89,7 @@ pub trait MatmulMicroKernel where Self: Sized + Copy {
         k: usize,
         ldb: i64,
         lhs_col_stride: i64
-    ) {
-        use crate::microkernels::gemv_microkernel;
-        gemv_microkernel::<Self, Self::SelfVec>
-    }
+    );
 
     #[allow(unused_variables)]
     fn get_gemv_kernel_with_post_op<F: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec>() -> fn(
@@ -119,4 +116,5 @@ pub trait MatmulMicroKernel where Self: Sized + Copy {
     }
     fn get_max_mr() -> usize;
     fn get_max_nr() -> usize;
+    fn get_gemv_nr() -> usize;
 }

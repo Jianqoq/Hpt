@@ -12,7 +12,7 @@ fn main() -> anyhow::Result<()> {
     let mut map = HashMap::new();
     map.insert(
         "input".to_string(),
-        DynTensor::ones(&[128, 256, 20], DType::F32, Device::Cpu)?,
+        DynTensor::ones(&[1, 256, 20], DType::F32, Device::Cpu)?,
     );
     let initialized = model.initialize()?;
     
@@ -24,7 +24,7 @@ fn main() -> anyhow::Result<()> {
     }
     println!("Time taken: {:?}", now.elapsed() / 100);
 
-    // let m = 512;
+    // let m = 1;
     // let n = 512;
     // let k = 512;
     // let dyn_a = DynTensor::randn(0.0, 1.0, &[m, k], DType::F32, Device::Cpu)?;
@@ -33,9 +33,9 @@ fn main() -> anyhow::Result<()> {
     // let hpt_a = unsafe { Tensor::<f32>::from_raw(dyn_a.ptr().ptr as *mut f32, &[m, k]) }?;
     // let hpt_b = unsafe { Tensor::<f32>::from_raw(dyn_b.ptr().ptr as *mut f32, &[k, n]) }?;
     // let now = std::time::Instant::now();
-    // for _ in 0..1 {
-    //     // let res1 = dyn_a.matmul(&dyn_b)?;
-    //     let res2 = hpt_a.gemm(&hpt_b, 0.0, 1.0, false, false, false)?;
+    // for _ in 0..10000 {
+    //     let res1 = dyn_a.matmul(&dyn_b)?;
+    //     // let res2 = hpt_a.gemm(&hpt_b, 0.0, 1.0, false, false, false)?;
     //     // println!("res1: {}", res1);
     //     // println!("res2: {}", res2);
     // }
