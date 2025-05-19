@@ -1,4 +1,4 @@
-use crate::{Pointer, VecTrait};
+use crate::{ Pointer, VecTrait };
 
 /// A trait for microkernels of matrix multiplication
 pub trait MatmulMicroKernel where Self: Sized + Copy + crate::Zero {
@@ -92,7 +92,25 @@ pub trait MatmulMicroKernel where Self: Sized + Copy + crate::Zero {
     );
 
     #[allow(unused_variables)]
-    fn get_gemv_kernel_with_post_op<F: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec>() -> fn(
+    fn get_gemv_kernel_mp() -> fn(
+        a: Pointer<Self::MixedType>,
+        b: Pointer<Self::MixedType>,
+        c: Pointer<Self>,
+        n: usize,
+        k: usize,
+        ldb: i64,
+        lhs_col_stride: i64,
+        fn(*mut Self::SelfVec, *const Self::MixedVec),
+        fn(&mut Self, &Self::MixedType)
+    ) {
+        unimplemented!()
+    }
+
+    #[allow(unused_variables)]
+    fn get_gemv_kernel_with_post_op<
+        F: Fn(Self, usize, usize) -> Self,
+        F2: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
+    >() -> fn(
         a: Pointer<Self>,
         b: Pointer<Self>,
         c: Pointer<Self>,
@@ -102,10 +120,30 @@ pub trait MatmulMicroKernel where Self: Sized + Copy + crate::Zero {
         lhs_col_stride: i64,
         m_offset: usize,
         n_offset: usize,
-        post_op_vec: F
+        post_op: F,
+        post_op_vec: F2
+    );
+
+    #[allow(unused_variables)]
+    fn get_gemv_kernel_mp_with_post_op<
+        F: Fn(Self, usize, usize) -> Self,
+        G: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
+    >() -> fn(
+        a: Pointer<Self::MixedType>,
+        b: Pointer<Self::MixedType>,
+        c: Pointer<Self>,
+        n: usize,
+        k: usize,
+        ldb: i64,
+        lhs_col_stride: i64,
+        m_offset: usize,
+        n_offset: usize,
+        fn(*mut Self::SelfVec, *const Self::MixedVec),
+        fn(&mut Self, &Self::MixedType),
+        F,
+        G
     ) {
-        use crate::microkernels::gemv_microkernel_post_op;
-        gemv_microkernel_post_op::<Self, Self::SelfVec, F>
+        unimplemented!()
     }
 
     fn get_max_mixed_precision_mr() -> usize {
@@ -117,4 +155,7 @@ pub trait MatmulMicroKernel where Self: Sized + Copy + crate::Zero {
     fn get_max_mr() -> usize;
     fn get_max_nr() -> usize;
     fn get_gemv_nr() -> usize;
+    fn get_gemv_mp_nr() -> usize {
+        unimplemented!()
+    }
 }

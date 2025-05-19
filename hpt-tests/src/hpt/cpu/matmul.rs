@@ -1,5 +1,6 @@
 #![allow(unused)]
 use crate::TestTypes;
+use crate::DYN_TEST_TYPES;
 use crate::EPSILON;
 use crate::TEST_ATOL;
 use crate::TEST_RTOL;
@@ -23,43 +24,30 @@ use tch::Tensor as TchTensor;
 #[test]
 fn test() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for i in 0..1 {
-        // let m = rng.random_range(1..=512);
-        // let n = rng.random_range(1..=512);
-        // let k = rng.random_range(1..=512);
-        let m = 73;
-        let n = 166;
-        let k = 202;
-        println!("m: {}, n: {}, k: {}", m, n, k);
+    for i in 0..10 {
+        let m = rng.random_range(1..=512);
+        let n = rng.random_range(1..=512);
+        let k = rng.random_range(1..=512);
         let a = Tensor::<TestTypes>::randn(&[m, k])?;
         let b = Tensor::<TestTypes>::randn(&[k, n])?;
-        let a_f32 = a.astype::<f32>()?;
-        let b_f32 = b.astype::<f32>()?;
-        let c = a.matmul(&b)?;
-        let c2 = a.gemm(&b, TestTypes::ZERO, TestTypes::ONE, false, false, false)?;
-        let c_f32 = a_f32.matmul(&b_f32)?;
+        let c = a.gemm(&b, TestTypes::ZERO, TestTypes::ONE, false, false, false)?;
         let a3 = unsafe { DynTensor::from_raw(
             a.ptr().ptr as *mut u8,
             a.layout().clone(),
-            hpt_dyn::DType::F16,
+            DYN_TEST_TYPES,
             hpt_dyn::Device::Cpu,
             false,
         ) }?;
         let b3 = unsafe { DynTensor::from_raw(
             b.ptr().ptr as *mut u8,
             b.layout().clone(),
-            hpt_dyn::DType::F16,
+            DYN_TEST_TYPES,
             hpt_dyn::Device::Cpu,
             false,
         ) }?;
         let c3 = a3.matmul(&b3)?;
-        // assert!(c.allclose(&c2, TEST_ATOL, TEST_RTOL));
         let c3_hpt: Tensor<TestTypes> = unsafe { Tensor::from_raw(c3.ptr().ptr as *mut TestTypes, c3.shape()) }?;
-        println!("c3: {}", c3_hpt);
-        println!("c2: {}", c2);
-        println!("c_f32: {}", c_f32);
-        // println!("c: {}", c);
-        // assert!(c.allclose(&c3_hpt, TEST_ATOL, TEST_RTOL));
+        assert!(c.allclose(&c3_hpt, TEST_ATOL, TEST_RTOL));
     }
     Ok(())
 }

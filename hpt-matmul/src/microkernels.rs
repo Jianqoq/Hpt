@@ -1268,7 +1268,7 @@ macro_rules! define_neon_mixed_precision_post_op_matmul_micro_kernel {
 }
 
 macro_rules! gemv_microkernel_impl {
-    ($nr: expr) => {
+    ($nr:expr) => {
         pub(crate) fn gemv_microkernel<T, SelfVec>(
             a: crate::Pointer<T>,
             b: crate::Pointer<T>,
@@ -1321,106 +1321,216 @@ macro_rules! gemv_microkernel_impl {
                     }
                 }
             }
-        }        
+        }
     };
 }
 
 pub(crate) use gemv_microkernel_impl;
 
-pub(crate) fn gemv_microkernel_post_op<T, SelfVec, F>(
-    a: crate::Pointer<T>,
-    b: crate::Pointer<T>,
-    c: crate::Pointer<T>,
-    n: usize,
-    k: usize,
-    ldb: i64,
-    lhs_col_stride: i64,
-    m_offset: usize,
-    n_offset: usize,
-    post_op_vec: F
-)
-    where
-        SelfVec: crate::VecTrait<T> + std::ops::Mul<Output = SelfVec> + Copy,
-        T: Copy,
-        F: Fn(SelfVec, usize, usize) -> SelfVec
-{
-    use crate::vec_size;
-    let num_vec = n / vec_size::<T>();
-    let rem = n % vec_size::<T>();
-    let a_vec = <SelfVec>::splat(a[0]);
-    let b_vec_ptr = b.cast::<SelfVec>();
-    let c_vec_ptr = c.cast::<SelfVec>();
-    assert!(k >= 1);
-    if k == 1 {
-        for j in 0..num_vec {
-            let b = b_vec_ptr + (j as i64);
-            let c = c_vec_ptr + (j as i64);
-            let b_vec = b.read_unaligned();
-            c.write_unaligned(post_op_vec(a_vec * b_vec, m_offset, n_offset + j * vec_size::<T>()));
-        }
-        if rem > 0 {
-            let b = b + ((num_vec * vec_size::<T>()) as i64);
-            let c = c + ((num_vec * vec_size::<T>()) as i64);
-            let b_vec = <SelfVec>::partial_load(b.ptr as *const T, rem);
-            post_op_vec(
-                a_vec * b_vec,
-                m_offset,
-                n_offset + num_vec * vec_size::<T>()
-            ).partial_store(c.ptr as *mut T, rem);
-        }
-    } else {
-        for j in 0..num_vec {
-            let b = b_vec_ptr + (j as i64);
-            let c = c_vec_ptr + (j as i64);
-            let b_vec = b.read_unaligned();
-            c.write_unaligned(a_vec * b_vec);
-        }
-        if rem > 0 {
-            let b = b + ((num_vec * vec_size::<T>()) as i64);
-            let c = c + ((num_vec * vec_size::<T>()) as i64);
-            let b_vec = <SelfVec>::partial_load(b.ptr as *const T, rem);
-            (a_vec * b_vec).partial_store(c.ptr as *mut T, rem);
-        }
-    }
-    for p in 1..k {
-        let a_vec = <SelfVec>::splat(a[(p as i64) * lhs_col_stride]);
-        let b_vec_ptr = (b + (p as i64) * ldb).cast::<SelfVec>();
-        let c_vec_ptr = c.cast::<SelfVec>();
-        if p == k - 1 {
-            for j in 0..num_vec {
-                let b = b_vec_ptr + (j as i64);
-                let c = c_vec_ptr + (j as i64);
-                let b_vec = b.read_unaligned();
-                let res = a_vec.mul_add(b_vec, c.read_unaligned());
-                c.write_unaligned(post_op_vec(res, m_offset, n_offset + j * vec_size::<T>()));
-            }
-            if rem > 0 {
-                let b = b + ((num_vec * vec_size::<T>()) as i64);
-                let c = c + ((num_vec * vec_size::<T>()) as i64);
-                let b_vec = <SelfVec>::partial_load(b.ptr as *const T, rem);
-                let c_vec = <SelfVec>::partial_load(c.ptr as *const T, rem);
-                let res = a_vec.mul_add(b_vec, c_vec);
-                post_op_vec(res, m_offset, n_offset + num_vec * vec_size::<T>()).partial_store(
-                    c.ptr as *mut T,
-                    rem
-                );
-            }
-        } else {
-            for j in 0..num_vec {
-                let b = b_vec_ptr + (j as i64);
-                let c = c_vec_ptr + (j as i64);
-                let b_vec = b.read_unaligned();
-                let res = a_vec.mul_add(b_vec, c.read_unaligned());
-                c.write_unaligned(res);
-            }
-            if rem > 0 {
-                let b = b + ((num_vec * vec_size::<T>()) as i64);
-                let c = c + ((num_vec * vec_size::<T>()) as i64);
-                let b_vec = <SelfVec>::partial_load(b.ptr as *const T, rem);
-                let c_vec = <SelfVec>::partial_load(c.ptr as *const T, rem);
-                let res = a_vec.mul_add(b_vec, c_vec);
-                res.partial_store(c.ptr as *mut T, rem);
+macro_rules! gemv_microkernel_mp_impl {
+    ($nr:expr, $nr2:expr, $multiple_of:expr) => {
+        pub(crate) fn gemv_microkernel_mp<T, IM, SelfVec, IMVec>(
+            a: crate::Pointer<IM>,
+            b: crate::Pointer<IM>,
+            c: crate::Pointer<T>,
+            n: usize,
+            k: usize,
+            ldb: i64,
+            lhs_col_stride: i64,
+            vec_cast_back: fn(*mut SelfVec, *const IMVec),
+            cast_back: fn(&mut T, &IM),
+        )
+            where SelfVec: crate::VecTrait<T> + std::ops::Mul<Output = SelfVec> + Copy, T: Copy + crate::Zero,
+            IMVec: crate::VecTrait<IM> + std::ops::Mul<Output = IMVec> + Copy, IM: Copy + crate::Zero
+        {
+            use crate::vec_size;
+            let nc = $nr2 * vec_size::<IM>();
+            let rem = n % nc;
+            for j in (0..n).step_by(nc) {
+                let jb = nc.min(n - j);
+                let b = b + j as i64;
+                if jb == nc {
+                    let mut local_c = [IMVec::splat(<IM>::ZERO); $nr2];
+                    let c_vec_ptr = (c + j as i64).cast::<SelfVec>();
+                    for p in 0..k {
+                        let a_vec = <IMVec>::splat(a[(p as i64) * lhs_col_stride]);
+                        let b = (b + (p as i64) * ldb).cast::<IMVec>();
+                        seq_macro::seq!(NR in 0..$nr2 {
+                            let b_vec~NR = b.offset(NR).read_unaligned();
+                        });
+                        seq_macro::seq!(NR in 0..$nr2 {
+                            local_c[NR] = a_vec.mul_add(b_vec~NR, local_c[NR]);
+                        });
+                    }
+                    let local_c_ptr = local_c.as_ptr() as *const _ as *const IMVec;
+                    seq_macro::seq!(NR in 0..$nr {
+                        vec_cast_back(c_vec_ptr.offset(NR).ptr, unsafe { local_c_ptr.offset(NR * $multiple_of) });
+                    });
+                } else {
+                    let mut local_c = [IMVec::splat(<IM>::ZERO); $nr2];
+                    let mut b_vec = [IMVec::splat(<IM>::ZERO); $nr2];
+                    let c_ptr = c + j as i64;
+                    for p in 0..k {
+                        let a_vec = <IMVec>::splat(a[(p as i64) * lhs_col_stride]);
+                        let b = b + (p as i64) * ldb;
+                        unsafe {
+                            std::ptr::copy_nonoverlapping(b.ptr, b_vec.as_mut_ptr() as *mut _ as *mut IM, rem);
+                        }
+                        seq_macro::seq!(NR in 0..$nr2 {
+                            local_c[NR] = a_vec.mul_add(b_vec[NR], local_c[NR]);
+                        });
+                    }
+                    let local_c_ptr = local_c.as_ptr() as *const _ as *const IM;
+                    for ii in 0..rem {
+                        cast_back(&mut *c_ptr.offset(ii as i64), &unsafe { local_c_ptr.offset(ii as isize).read() });
+                    }
+                }
             }
         }
-    }
+    };
 }
+
+pub(crate) use gemv_microkernel_mp_impl;
+
+macro_rules! gemv_microkernel_post_op_impl {
+    ($nr:expr) => {
+        pub(crate) fn gemv_microkernel_post_op<T, SelfVec, F, F2>(
+            a: crate::Pointer<T>,
+            b: crate::Pointer<T>,
+            c: crate::Pointer<T>,
+            n: usize,
+            k: usize,
+            ldb: i64,
+            lhs_col_stride: i64,
+            m_offset: usize,
+            n_offset: usize,
+            post_op: F,
+            post_op_vec: F2,
+        )
+            where SelfVec: crate::VecTrait<T> + std::ops::Mul<Output = SelfVec> + Copy, T: Copy + crate::Zero,
+            F: Fn(T, usize, usize) -> T,
+            F2: Fn(SelfVec, usize, usize) -> SelfVec
+        {
+            use crate::vec_size;
+            let nc = $nr * vec_size::<T>();
+            let rem = n % nc;
+            for j in (0..n).step_by(nc) {
+                let jb = nc.min(n - j);
+                let b = b + j as i64;
+                if jb == nc {
+                    let mut local_c = [SelfVec::splat(<T>::ZERO); $nr];
+                    let c_vec_ptr = (c + j as i64).cast::<SelfVec>();
+                    for p in 0..k {
+                        let a_vec = <SelfVec>::splat(a[(p as i64) * lhs_col_stride]);
+                        let b = (b + (p as i64) * ldb).cast::<SelfVec>();
+                        seq_macro::seq!(NR in 0..$nr {
+                            let b_vec~NR = b.offset(NR).read_unaligned();
+                        });
+                        seq_macro::seq!(NR in 0..$nr {
+                            local_c[NR] = a_vec.mul_add(b_vec~NR, local_c[NR]);
+                        });
+                    }
+                    seq_macro::seq!(NR in 0..$nr {
+                        c_vec_ptr.offset(NR).write_unaligned(post_op_vec(local_c[NR], m_offset, n_offset + j + NR * vec_size::<T>()));
+                    });
+                } else {
+                    let mut local_c = [SelfVec::splat(<T>::ZERO); $nr];
+                    let mut b_vec = [SelfVec::splat(<T>::ZERO); $nr];
+                    let c_ptr = c + j as i64;
+                    for p in 0..k {
+                        let a_vec = <SelfVec>::splat(a[(p as i64) * lhs_col_stride]);
+                        let b = b + (p as i64) * ldb;
+                        unsafe {
+                            std::ptr::copy_nonoverlapping(b.ptr, b_vec.as_mut_ptr() as *mut _ as *mut T, rem);
+                        }
+                        seq_macro::seq!(NR in 0..$nr {
+                            local_c[NR] = a_vec.mul_add(b_vec[NR], local_c[NR]);
+                        });
+                    }
+                    for jj in 0..rem {
+                        *c_ptr.offset(jj as i64) = post_op(*c_ptr.offset(jj as i64), m_offset, n_offset + j + jj);
+                    }
+                }
+            }
+        }
+    };
+}
+
+pub(crate) use gemv_microkernel_post_op_impl;
+
+macro_rules! gemv_microkernel_mp_post_op_impl {
+    ($nr:expr, $nr2:expr, $multiple_of:expr) => {
+        pub(crate) fn gemv_microkernel_mp_post_op<T, IM, SelfVec, IMVec, F, F2>(
+            a: crate::Pointer<IM>,
+            b: crate::Pointer<IM>,
+            c: crate::Pointer<T>,
+            n: usize,
+            k: usize,
+            ldb: i64,
+            lhs_col_stride: i64,
+            m_offset: usize,
+            n_offset: usize,
+            vec_cast_back: fn(*mut SelfVec, *const IMVec),
+            cast_back: fn(&mut T, &IM),
+            post_op: F,
+            post_op_vec: F2,
+        )
+            where SelfVec: crate::VecTrait<T> + std::ops::Mul<Output = SelfVec> + Copy, T: Copy + crate::Zero,
+            IMVec: crate::VecTrait<IM> + std::ops::Mul<Output = IMVec> + Copy, IM: Copy + crate::Zero,
+            F: Fn(T, usize, usize) -> T,
+            F2: Fn(SelfVec, usize, usize) -> SelfVec
+        {
+            use crate::vec_size;
+            let nc = $nr2 * vec_size::<IM>();
+            let rem = n % nc;
+            for j in (0..n).step_by(nc) {
+                let jb = nc.min(n - j);
+                let b = b + j as i64;
+                if jb == nc {
+                    let mut local_c = [IMVec::splat(<IM>::ZERO); $nr2];
+                    let c_vec_ptr = (c + j as i64).cast::<SelfVec>();
+                    for p in 0..k {
+                        let a_vec = <IMVec>::splat(a[(p as i64) * lhs_col_stride]);
+                        let b = (b + (p as i64) * ldb).cast::<IMVec>();
+                        seq_macro::seq!(NR in 0..$nr2 {
+                            let b_vec~NR = b.offset(NR).read_unaligned();
+                        });
+                        seq_macro::seq!(NR in 0..$nr2 {
+                            local_c[NR] = a_vec.mul_add(b_vec~NR, local_c[NR]);
+                        });
+                    }
+                    let local_c_ptr = local_c.as_ptr() as *const _ as *const IMVec;
+                    seq_macro::seq!(NR in 0..$nr {
+                        let ptr = c_vec_ptr.offset(NR).ptr;
+                        vec_cast_back(ptr, unsafe { local_c_ptr.offset(NR * $multiple_of) });
+                        unsafe {
+                            ptr.write_unaligned(post_op_vec(ptr.read_unaligned(), m_offset, n_offset + j + NR * vec_size::<T>()));
+                        }
+                    });
+                } else {
+                    let mut local_c = [IMVec::splat(<IM>::ZERO); $nr2];
+                    let mut b_vec = [IMVec::splat(<IM>::ZERO); $nr2];
+                    let c_ptr = c + j as i64;
+                    for p in 0..k {
+                        let a_vec = <IMVec>::splat(a[(p as i64) * lhs_col_stride]);
+                        let b = b + (p as i64) * ldb;
+                        unsafe {
+                            std::ptr::copy_nonoverlapping(b.ptr, b_vec.as_mut_ptr() as *mut _ as *mut IM, rem);
+                        }
+                        seq_macro::seq!(NR in 0..$nr2 {
+                            local_c[NR] = a_vec.mul_add(b_vec[NR], local_c[NR]);
+                        });
+                    }
+                    let local_c_ptr = local_c.as_ptr() as *const _ as *const IM;
+                    for ii in 0..rem {
+                        let mut ptr = c_ptr.offset(ii as i64);
+                        cast_back(&mut *ptr, &unsafe { local_c_ptr.offset(ii as isize).read() });
+                        ptr.write_unaligned(post_op(*ptr, m_offset, n_offset + j + ii));
+                    }
+                }
+            }
+        }
+    };
+}
+
+pub(crate) use gemv_microkernel_mp_post_op_impl;

@@ -19,7 +19,17 @@ impl MatmulMicroKernel for f32 {
     fn get_kernel(
         nr: usize,
         mr: usize
-    ) -> fn(crate::Pointer<Self>, crate::Pointer<Self>, crate::Pointer<Self>, i64, i64, usize, usize, i64, bool) {
+    ) -> fn(
+        crate::Pointer<Self>,
+        crate::Pointer<Self>,
+        crate::Pointer<Self>,
+        i64,
+        i64,
+        usize,
+        usize,
+        i64,
+        bool
+    ) {
         use crate::define_matmul_micro_kernel;
         use crate::define_neon_matmul_micro_kernel;
         define_matmul_micro_kernel!(f32, F32Vec, x4x1, 4, 1);
@@ -70,11 +80,11 @@ impl MatmulMicroKernel for f32 {
     }
 
     type SelfVec = F32Vec;
-    
+
     type MixedType = f32;
-    
+
     type MixedVec = F32Vec;
-    
+
     fn get_gemv_kernel() -> fn(
         a: crate::Pointer<Self>,
         b: crate::Pointer<Self>,
@@ -88,9 +98,30 @@ impl MatmulMicroKernel for f32 {
         gemv_microkernel_impl!(8);
         gemv_microkernel::<f32, F32Vec>
     }
-    
+
     fn get_gemv_nr() -> usize {
         8
+    }
+    
+    fn get_gemv_kernel_with_post_op<
+        F: Fn(Self, usize, usize) -> Self,
+        F2: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
+    >() -> fn(
+        a: crate::Pointer<Self>,
+        b: crate::Pointer<Self>,
+        c: crate::Pointer<Self>,
+        n: usize,
+        k: usize,
+        ldb: i64,
+        lhs_col_stride: i64,
+        m_offset: usize,
+        n_offset: usize,
+        post_op: F,
+        post_op_vec: F2
+    ) {
+        use crate::microkernels::gemv_microkernel_post_op_impl;
+        gemv_microkernel_post_op_impl!(8);
+        gemv_microkernel_post_op::<f32, F32Vec, F, F2>
     }
 }
 

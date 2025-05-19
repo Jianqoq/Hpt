@@ -473,7 +473,7 @@ pub(crate) fn prepack_b_single_thread<T>(
                 work_items.push((p_idx, j_idx, pb, jb));
             }
         }
-        work_items.into_par_iter().for_each(|(p_idx, j_idx, pb, jb)| {
+        work_items.into_iter().for_each(|(p_idx, j_idx, pb, jb)| {
             let p = p_idx * kc;
             let j = j_idx * nc;
             let tmp = packed_b + ((p_idx * num_nc * panel_size + j_idx * panel_size) as i64);

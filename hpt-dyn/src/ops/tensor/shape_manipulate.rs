@@ -437,7 +437,7 @@ impl Tensor {
             } else {
                 self.parent.clone()
             };
-            Ok(Tensor {
+            Ok(crate::tensor::_Tensor {
                 data: Pointer::new(res_ptr, len),
                 layout,
                 dtype: self.dtype.clone(),
@@ -445,7 +445,7 @@ impl Tensor {
                 parent: new_parent,
                 mem_layout: self.mem_layout.clone(),
                 backend: self.backend.clone(),
-            })
+            }.into())
         }
         #[cfg(not(feature = "bound_check"))]
         {

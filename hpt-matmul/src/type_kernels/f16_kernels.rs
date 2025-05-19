@@ -240,11 +240,77 @@ impl MatmulMicroKernel for half::f16 {
         ldb: i64,
         lhs_col_stride: i64
     ) {
-        todo!()
+        use crate::microkernels::gemv_microkernel_impl;
+        gemv_microkernel_impl!(8);
+        gemv_microkernel::<half::f16, F16Vec>
     }
 
     fn get_gemv_nr() -> usize {
-        todo!()
+        8
+    }
+
+    fn get_gemv_kernel_mp() -> fn(
+        a: crate::Pointer<Self::MixedType>,
+        b: crate::Pointer<Self::MixedType>,
+        c: crate::Pointer<Self>,
+        n: usize,
+        k: usize,
+        ldb: i64,
+        lhs_col_stride: i64,
+        fn(*mut Self::SelfVec, *const Self::MixedVec),
+        fn(&mut Self, &Self::MixedType)
+    ) {
+        use crate::microkernels::gemv_microkernel_mp_impl;
+        gemv_microkernel_mp_impl!(4, 8, 2);
+        gemv_microkernel_mp::<half::f16, f32, F16Vec, F32Vec>
+    }
+
+    fn get_gemv_mp_nr() -> usize {
+        4
+    }
+
+    fn get_gemv_kernel_mp_with_post_op<
+        F: Fn(Self, usize, usize) -> Self,
+        G: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
+    >() -> fn(
+        a: crate::Pointer<Self::MixedType>,
+        b: crate::Pointer<Self::MixedType>,
+        c: crate::Pointer<Self>,
+        n: usize,
+        k: usize,
+        ldb: i64,
+        lhs_col_stride: i64,
+        m_offset: usize,
+        n_offset: usize,
+        fn(*mut Self::SelfVec, *const Self::MixedVec),
+        fn(&mut Self, &Self::MixedType),
+        F,
+        G
+    ) {
+        use crate::microkernels::gemv_microkernel_mp_post_op_impl;
+        gemv_microkernel_mp_post_op_impl!(4, 8, 2);
+        gemv_microkernel_mp_post_op::<half::f16, f32, F16Vec, F32Vec, F, G>
+    }
+
+    fn get_gemv_kernel_with_post_op<
+        F: Fn(Self, usize, usize) -> Self,
+        F2: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
+    >() -> fn(
+        a: crate::Pointer<Self>,
+        b: crate::Pointer<Self>,
+        c: crate::Pointer<Self>,
+        n: usize,
+        k: usize,
+        ldb: i64,
+        lhs_col_stride: i64,
+        m_offset: usize,
+        n_offset: usize,
+        post_op: F,
+        post_op_vec: F2
+    ) {
+        use crate::microkernels::gemv_microkernel_post_op_impl;
+        gemv_microkernel_post_op_impl!(8);
+        gemv_microkernel_post_op::<half::f16, F16Vec, F, F2>
     }
 }
 

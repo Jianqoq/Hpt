@@ -406,7 +406,9 @@ pub(crate) trait VecTrait<T> {
     const SIZE: usize = vec_size::<T>();
     fn mul_add(self, a: Self, b: Self) -> Self;
     fn splat(val: T) -> Self;
+    #[allow(unused)]
     fn partial_load(ptr: *const T, num_elem: usize) -> Self;
+    #[allow(unused)]
     fn partial_store(self, ptr: *mut T, num_elem: usize);
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self;

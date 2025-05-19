@@ -53,7 +53,7 @@ pub(crate) fn func_name<T, F1, F2>(
 {
     assert_eq!(nr % vec_size::<T>(), 0);
 
-    if m == 1 && (rhs_col_stride == 1 || prepack_rhs.is_some()) {
+    if m == 1 && kc == k && nc == nr && mc == 1 && (rhs_col_stride == 1 || prepack_rhs.is_some()) {
         mv_method(
             a,
             b,
@@ -68,7 +68,8 @@ pub(crate) fn func_name<T, F1, F2>(
             nc,
             nr,
             prepack_rhs,
-            post_op_vec.clone(),
+            post_op,
+            post_op_vec,
         );
         return;
     }
@@ -199,9 +200,9 @@ pub(crate) fn func_name<T, F1, F2>(
 }
 
 #[duplicate::duplicate_item(
-    func_name             get_kernel                                 extra_args;
-    [matmul_mp_sg]        [get_mixed_precision_kernel]               [vec_cast_back, cast_back];
-    [matmul_post_mp_sg]   [get_mixed_precision_kernel_with_post_op]  [p + pb == k, m_offset + i + ii, n_offset + j + jj, vec_cast_back, cast_back, post_op.clone(), post_op_vec.clone()];
+    func_name               mv_method  get_kernel                                 extra_args;
+    [matmul_mp_sg]          [mv_mp]  [get_mixed_precision_kernel]               [vec_cast_back, cast_back];
+    [matmul_post_mp_sg]     [mv_post_mp]  [get_mixed_precision_kernel_with_post_op]  [p + pb == k, m_offset + i + ii, n_offset + j + jj, vec_cast_back, cast_back, post_op.clone(), post_op_vec.clone()];
 )]
 pub(crate) fn func_name<T, F1, F2>(
     a: Pointer<T>,
@@ -249,7 +250,32 @@ pub(crate) fn func_name<T, F1, F2>(
         + Sync
         + 'static,
 {
-    assert_eq!(nr % vec_size::<T>(), 0);
+    if m == 1 && kc == k && nc == nr && mc == 1  {
+        if let Some(prepacked_lhs) = &prepacked_lhs {
+            mv_method(
+                prepacked_lhs.buffers[0][0].cast::<<T as MatmulMicroKernel>::MixedType>(),
+                b.cast::<<T as MatmulMicroKernel>::MixedType>(),
+                out,
+                m_offset,
+                n_offset,
+                n,
+                k,
+                ldb,
+                lhs_col_stride,
+                kc,
+                nc,
+                nr,
+                prepack_rhs,
+                post_op,
+                post_op_vec,
+                vec_cast_back,
+                cast_back,
+            );
+        } else {
+            panic!("prepacked_lhs is None");
+        }
+        return;
+    }
 
     let num_mr_blocks = (mc + mr - 1) / mr;
     let num_nr_blocks = (nc + nr - 1) / nr;
@@ -388,9 +414,9 @@ pub(crate) fn func_name<T, F1, F2>(
 #[duplicate::duplicate_item(
     func_name   get_kernel                      extra_args;
     [mv]        [get_gemv_kernel]               [];
-    [mv_post]   [get_gemv_kernel_with_post_op]  [m_offset, n_offset, post_op_vec];
+    [mv_post]   [get_gemv_kernel_with_post_op]  [m_offset, n_offset, post_op, post_op_vec];
 )]
-pub(crate) fn func_name<T, F>(
+pub(crate) fn func_name<T, F, F2>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
@@ -404,10 +430,12 @@ pub(crate) fn func_name<T, F>(
     nc: usize,
     nr: usize,
     prepack_rhs: Option<&NewPrePackedRhs>,
-    #[allow(unused_variables)] post_op_vec: F,
+    #[allow(unused_variables)] post_op: F,
+    #[allow(unused_variables)] post_op_vec: F2,
 ) where
     T: MatmulMicroKernel + Send + Sync + Copy + Zero,
-    F: Fn(<T as MatmulMicroKernel>::SelfVec, usize, usize) -> <T as MatmulMicroKernel>::SelfVec
+    F: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(<T as MatmulMicroKernel>::SelfVec, usize, usize) -> <T as MatmulMicroKernel>::SelfVec
         + Clone
         + Send
         + Sync
@@ -422,6 +450,62 @@ pub(crate) fn func_name<T, F>(
         assert_eq!(prepacked_rhs.buffers.len(), 1);
         let prepacked_b = prepacked_rhs.buffers[0].cast::<T>();
         micro_kernel(a, prepacked_b, out, n, k, ldb, lhs_col_stride, extra_args)
+    } else {
+        micro_kernel(a, b, out, n, k, ldb, lhs_col_stride, extra_args)
+    }
+}
+
+#[duplicate::duplicate_item(
+    func_name       get_kernel                      extra_args;
+    [mv_mp]         [get_gemv_kernel_mp]               [vec_cast_back, cast_back];
+    [mv_post_mp]    [get_gemv_kernel_mp_with_post_op]  [m_offset, n_offset, vec_cast_back, cast_back, post_op, post_op_vec];
+)]
+pub(crate) fn func_name<T, F, F2>(
+    a: Pointer<<T as MatmulMicroKernel>::MixedType>,
+    b: Pointer<<T as MatmulMicroKernel>::MixedType>,
+    out: Pointer<T>,
+    #[allow(unused_variables)] m_offset: usize,
+    #[allow(unused_variables)] n_offset: usize,
+    n: usize,
+    k: usize,
+    ldb: i64,
+    lhs_col_stride: i64,
+    kc: usize,
+    nc: usize,
+    nr: usize,
+    prepack_rhs: Option<&NewPrePackedRhs>,
+    #[allow(unused_variables)] post_op: F,
+    #[allow(unused_variables)] post_op_vec: F2,
+    vec_cast_back: fn(
+        *mut <T as MatmulMicroKernel>::SelfVec,
+        *const <T as MatmulMicroKernel>::MixedVec,
+    ),
+    cast_back: fn(&mut T, &<T as MatmulMicroKernel>::MixedType),
+) where
+    T: MatmulMicroKernel + Copy + Zero,
+    F: Fn(T, usize, usize) -> T + Clone + 'static,
+    F2: Fn(<T as MatmulMicroKernel>::SelfVec, usize, usize) -> <T as MatmulMicroKernel>::SelfVec
+        + Clone
+        + 'static,
+{
+    let micro_kernel = <T>::get_kernel();
+
+    if let Some(prepacked_rhs) = &prepack_rhs {
+        assert_eq!(prepacked_rhs.kc, kc);
+        assert_eq!(prepacked_rhs.nc, nc);
+        assert_eq!(prepacked_rhs.nr, nr);
+        assert_eq!(prepacked_rhs.buffers.len(), 1);
+        let prepacked_b = prepacked_rhs.buffers[0].cast::<<T as MatmulMicroKernel>::MixedType>();
+        micro_kernel(
+            a,
+            prepacked_b,
+            out,
+            n,
+            k,
+            nc as i64,
+            lhs_col_stride,
+            extra_args,
+        )
     } else {
         micro_kernel(a, b, out, n, k, ldb, lhs_col_stride, extra_args)
     }
