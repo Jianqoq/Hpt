@@ -219,7 +219,7 @@ impl Tensor {
             assert_eq!(bias.dtype, t_dtype);
         }
         if t_dtype == DType::F16
-            && !(cfg!(target_feature = "neon") && cfg!(target_feature = "fp16"))
+            && (cfg!(target_feature = "neon") && cfg!(target_feature = "fp16"))
         {
             conv2d_mp::conv2d_mp::<T>(
                 self,

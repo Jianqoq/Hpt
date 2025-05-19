@@ -31,12 +31,12 @@ anyhow = { workspace = true }
 # rand = { workspace = true }
 # ndarray = { workspace = true }
 # candle-core = { workspace = true }
-# hpt-dyn = { path = "./hpt-dyn", features = ["f32", "i64"] }
+hpt-dyn = { path = "./hpt-dyn", features = ["f32", "i64", "f16"] }
 spindle = { workspace = true}
 env_logger = { workspace = true }
 log = { workspace = true }
-tract-core = { workspace = true }
-tract-onnx = { workspace = true }
+# tract-core = { workspace = true }
+# tract-onnx = { workspace = true }
 
 [workspace.dependencies]
 once_cell = "1.21.1"
@@ -52,7 +52,7 @@ dyn-stack = { version = "0.13", default-features = false, features = ["alloc"] }
 num-traits = "0.2.19"
 num-complex = "0.4.6"
 rayon = "1.10.0"
-half = { version = "2.4.1", features = ["num-traits", "rand_distr", "serde"] }
+half = { version = "2.6.0", features = ["num-traits", "rand_distr", "serde"] }
 serde = { version = "1.0.219", features = ["derive", "rc"] }
 libm = "0.2.11"
 rand_distr = "0.5.1"
@@ -121,7 +121,7 @@ path = "src/main.rs"
 [profile.release]
 opt-level = 3
 incremental = true
-debug = true
+debug = false
 lto = "fat"
 codegen-units = 1
 
