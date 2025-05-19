@@ -3,11 +3,11 @@
 {
   "type": "line",
   "data": {
-    "labels": ["(inp_size=50, hidden=64, num_layer=1, output_size=128)", "(50, 128, 1, 128)", "(50, 256, 1, 128)"],
+    "labels": ["(128, 64, 1, 128)", "(128, 64, 1, 128)", "(128, 64, 1, 128)"],
     "datasets": [
       {
         "label": "Hpt",
-        "data": [3.365145, 3.965003, 6.382893],
+        "data": [20.218687, 41.736266, 96.670106],
         "backgroundColor": "rgb(75, 192, 192)",
         "borderColor": "rgb(75, 192, 192)",
         "borderWidth": 1
@@ -21,7 +21,7 @@
       },
       {
         "label": "OnnxRuntime",
-        "data": [0.7974624633789062, 1.6943931579589844, 4.2980194091796875],
+        "data": [13.213, 31.098, 82.146],
         "backgroundColor": "rgb(255, 206, 86)",
         "borderColor": "rgb(255, 206, 86)",
         "borderWidth": 1
@@ -48,7 +48,7 @@
         "beginAtZero": true,
         "title": {
           "display": true,
-          "text": "batch size"
+          "text": "(inp_size, hidden, num_layer, output_size)"
         }
       }
     }

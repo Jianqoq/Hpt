@@ -26,15 +26,17 @@ members = [
 exclude = ["hpt-bench", "hpt-tests", "hpt-codegen", "hpt-examples"]
 
 [dependencies]
-hpt = { path = "./hpt", features = ["track_caller"] }
+# hpt = { path = "./hpt", features = ["track_caller"] }
 anyhow = { workspace = true }
 # rand = { workspace = true }
 # ndarray = { workspace = true }
 # candle-core = { workspace = true }
-hpt-dyn = { path = "./hpt-dyn", features = ["f32", "i64"] }
+# hpt-dyn = { path = "./hpt-dyn", features = ["f32", "i64"] }
 spindle = { workspace = true}
 env_logger = { workspace = true }
 log = { workspace = true }
+tract-core = { workspace = true }
+tract-onnx = { workspace = true }
 
 [workspace.dependencies]
 once_cell = "1.21.1"
@@ -50,7 +52,7 @@ dyn-stack = { version = "0.13", default-features = false, features = ["alloc"] }
 num-traits = "0.2.19"
 num-complex = "0.4.6"
 rayon = "1.10.0"
-half = { version = "2.3.1", features = ["num-traits", "rand_distr", "serde"] }
+half = { version = "2.4.1", features = ["num-traits", "rand_distr", "serde"] }
 serde = { version = "1.0.219", features = ["derive", "rc"] }
 libm = "0.2.11"
 rand_distr = "0.5.1"
@@ -92,8 +94,8 @@ gemm-common = "0.18.2"
 rand = "0.9.0"
 ndarray-rand = "0.15.0"
 ndarray = { version = "0.16.1", features = ["rayon"] }
-candle-core = { version = "0.8.4", features = ["mkl"] }
-candle-nn = "0.8.4"
+# candle-core = { version = "0.9.1" }
+# candle-nn = "0.9.1"
 gnuplot = "0.0.45"
 criterion = { version = "0.5.1", features = ["html_reports"] }
 tch = { version = "0.17.0", features = ["download-libtorch"] }
@@ -109,6 +111,8 @@ crossbeam = "0.8.4"
 core_affinity = "0.8.3"
 libc = "0.2.172"
 dashmap = "6.1.0"
+tract-core = "0.21.13"
+tract-onnx = "0.21.13"
 
 [[bin]]
 name = "hpt-workspace"

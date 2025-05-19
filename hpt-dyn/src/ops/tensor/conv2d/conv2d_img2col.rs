@@ -77,7 +77,6 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
         [ph_start, pw_start],
         [dh, dw]
     );
-
     let buffer_tensor = (unsafe {
         Tensor::from_raw(
             input_buffer.ptr as *mut _,
