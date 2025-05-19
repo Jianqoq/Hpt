@@ -1,6 +1,6 @@
 # Resnet34(f32) Neon Benchmark
 
-::: chartjs Input (batch = 1, in channel = 3)
+::: chartjs Resnet34(f32) Neon Benchmark
 ```json
 {
   "type": "line",
@@ -58,12 +58,12 @@
 ```
 :::
 
-::: chartjs Input (batch = 5, in channel = 3)
+::: chartjs Resnet34(f16) Neon Benchmark
 ```json
 {
   "type": "line",
   "data": {
-    "labels": [64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800, 832, 864, 896, 928, 960, 992, 1024],
+    "labels": [64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640, 672, 704, 736, 768],
     "datasets": [
       {
         "label": "Hpt",
