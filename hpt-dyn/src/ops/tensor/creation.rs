@@ -1,4 +1,5 @@
 use std::panic::Location;
+use std::sync::Arc;
 
 use hpt_common::error::base::TensorError;
 use hpt_common::error::memory::MemoryError;
@@ -29,7 +30,7 @@ impl Tensor {
                 .unwrap_or((isize::MAX as usize) - (64 - 1)), // when overflow happened, we use max memory `from_size_align` accept,
             ALIGN,
         );
-        match mem_layout {
+        let res = match mem_layout {
             Ok(mem_layout) => {
                 let ptr = allocator.alloc_method(mem_layout, &mut device)?;
                 let backend = match &device {
@@ -41,7 +42,7 @@ impl Tensor {
                     #[cfg(feature = "cuda")]
                     Device::Cuda(_) => unreachable!(),
                 };
-                Ok(Tensor {
+                Ok(crate::tensor::_Tensor {
                     data: ptr,
                     layout,
                     dtype,
@@ -58,7 +59,10 @@ impl Tensor {
                 source: Some(Box::new(e)),
                 location: std::panic::Location::caller(),
             })),
-        }
+        }?;
+        Ok(Tensor {
+            inner: Arc::new(res),
+        })
     }
 
     pub fn full(

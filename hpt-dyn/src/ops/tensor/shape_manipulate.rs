@@ -66,7 +66,7 @@ impl Tensor {
         let shape: Shape = new_shape.as_slice().into();
         ShapeError::check_size_match(self.layout.size() as i64, shape.size())?;
         if let Ok(new_layout) = self.layout.inplace_reshape(&shape) {
-            Ok(Tensor {
+            Ok(crate::tensor::_Tensor {
                 data: self.data.clone(),
                 layout: new_layout,
                 dtype: self.dtype.clone(),
@@ -74,7 +74,7 @@ impl Tensor {
                 parent: self.parent.clone(),
                 mem_layout: self.mem_layout.clone(),
                 backend: self.backend.clone(),
-            })
+            }.into())
         } else {
             let a = self.contiguous()?;
             a.reshape(&shape)
@@ -115,7 +115,7 @@ impl Tensor {
 
     pub fn permute(&self, axes: &[i64]) -> Result<Tensor, TensorError> {
         let permuted_layout = self.layout.permute(axes)?;
-        Ok(Tensor {
+        Ok(crate::tensor::_Tensor {
             data: self.data.clone(),
             layout: permuted_layout,
             dtype: self.dtype.clone(),
@@ -123,12 +123,12 @@ impl Tensor {
             parent: self.parent.clone(),
             mem_layout: self.mem_layout.clone(),
             backend: self.backend.clone(),
-        })
+        }.into())
     }
 
     pub fn permute_inv(&self, axes: &[i64]) -> Result<Tensor, TensorError> {
         let permuted_layout = self.layout.permute_inv(axes)?;
-        Ok(Tensor {
+        Ok(crate::tensor::_Tensor {
             data: self.data.clone(),
             layout: permuted_layout,
             dtype: self.dtype.clone(),
@@ -136,14 +136,14 @@ impl Tensor {
             parent: self.parent.clone(),
             mem_layout: self.mem_layout.clone(),
             backend: self.backend.clone(),
-        })
+        }.into())
     }
 
     pub fn expand(&self, shape: &[i64]) -> Result<Tensor, TensorError> {
         let res_shape = Shape::from(shape);
         let res_strides = self.layout.expand_strides(&res_shape)?;
         let res_layout = Layout::new(res_shape, res_strides);
-        Ok(Tensor {
+        Ok(crate::tensor::_Tensor {
             data: self.data.clone(),
             layout: res_layout,
             dtype: self.dtype.clone(),
@@ -151,7 +151,7 @@ impl Tensor {
             parent: self.parent.clone(),
             mem_layout: self.mem_layout.clone(),
             backend: self.backend.clone(),
-        })
+        }.into())
     }
 
     pub fn transpose(&self, axis1: i64, axis2: i64) -> Result<Tensor, TensorError> {
@@ -192,7 +192,7 @@ impl Tensor {
             self.parent.clone()
         };
         let new_layout = Layout::new(self.layout.shape().clone(), new_strides);
-        Ok(Tensor {
+        Ok(crate::tensor::_Tensor {
             data: ptr,
             parent: new_parent,
             mem_layout: self.mem_layout.clone(),
@@ -200,7 +200,7 @@ impl Tensor {
             backend: self.backend.clone(),
             dtype: self.dtype.clone(),
             device: self.device.clone(),
-        })
+        }.into())
     }
 
     pub fn fliplr(&self) -> Result<Tensor, TensorError> {
@@ -351,7 +351,7 @@ impl Tensor {
         new_shape.swap(axis1, axis2);
         new_strides.swap(axis1, axis2);
         let layout = Layout::new(new_shape, new_strides);
-        Ok(Tensor {
+        Ok(crate::tensor::_Tensor {
             data: self.data.clone(),
             layout,
             dtype: self.dtype.clone(),
@@ -359,7 +359,7 @@ impl Tensor {
             parent: self.parent.clone(),
             mem_layout: self.mem_layout.clone(),
             backend: self.backend.clone(),
-        })
+        }.into())
     }
 
     pub fn flatten(&self, mut start_dim: i64, mut end_dim: i64) -> Result<Tensor, TensorError> {
@@ -395,7 +395,7 @@ impl Tensor {
     pub fn broadcast_to(&self, shape: &[i64]) -> Result<Tensor, TensorError> {
         let res_shape = Shape::from(shape);
         let broadcasted_layout = self.layout.broadcast_to(&res_shape)?;
-        Ok(Tensor {
+        Ok(crate::tensor::_Tensor {
             data: self.data.clone(),
             layout: broadcasted_layout,
             dtype: self.dtype.clone(),
@@ -403,7 +403,7 @@ impl Tensor {
             parent: self.parent.clone(),
             mem_layout: self.mem_layout.clone(),
             backend: self.backend.clone(),
-        })
+        }.into())
     }
 
     #[track_caller]
@@ -455,7 +455,7 @@ impl Tensor {
             } else {
                 self.parent.clone()
             };
-            Ok(Tensor {
+            Ok(crate::tensor::_Tensor {
                 data: Pointer::new(res_ptr, 0),
                 layout,
                 dtype: self.dtype.clone(),
@@ -463,7 +463,7 @@ impl Tensor {
                 parent: new_parent,
                 mem_layout: self.mem_layout.clone(),
                 backend: self.backend.clone(),
-            })
+            }.into())
         }
     }
 

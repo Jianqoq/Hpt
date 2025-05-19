@@ -6,6 +6,7 @@ use crate::{
 };
 use hpt_common::{
     Pointer, error::base::TensorError, layout::layout::Layout, shape::shape_utils::mt_intervals,
+    slice::slice_process,
 };
 use hpt_macros::select;
 use hpt_matmul::Zero;
@@ -177,14 +178,13 @@ where
     let y_b_stride = y.strides()[1] as i64;
     let c_b_stride = c_t.strides()[0] as i64;
     let batch_parallel = (batch_size as usize) > crate::physical_cores();
-
     if batch_parallel {
         let func = |start: i64,
                     end: i64,
-                    y: &Tensor,
+                    y: Pointer<T>,
+                    y_layout: &Layout,
                     prepacked_r: Arc<Vec<hpt_matmul::NewPrePackedRhs>>|
          -> Result<(), TensorError> {
-            let global_now = std::time::Instant::now();
             let gates = Tensor::empty(&[end - start, 4 * hidden_size], x.dtype, x.device.clone())?;
             let h_t = initial_h.slice(&select![start:end, ..])?;
             let c_t = initial_c.slice(&select![start:end, ..])?;
@@ -195,17 +195,13 @@ where
             let r_t_layout = r_t.layout();
             let gates_ptr = gates.ptr::<u8>();
             let gates_layout = gates.layout();
-            let bias_layout = Layout::new([tmp.shape()[1], tmp.shape()[2]], [tmp.strides()[1], tmp.strides()[2]]);
-            let y_layout = Layout::new(
-                [y.shape()[1], y.shape()[2]],
-                [y.strides()[1], y.strides()[2]],
+            let bias_layout = Layout::new(
+                [tmp.shape()[1], tmp.shape()[2]],
+                [tmp.strides()[1], tmp.strides()[2]],
             );
 
-            let mut total_mm = std::time::Duration::from_secs(0);
-            let mut total_post = std::time::Duration::from_secs(0);
             let mut func = |t: i64| -> Result<(), TensorError> {
                 let bias_ptr = tmp.ptr::<T>() + (t as usize) * (tmp.strides()[0] as usize);
-                let now = std::time::Instant::now();
                 addmm_prepacked_(
                     h_t_ptr,
                     h_t_layout,
@@ -219,11 +215,9 @@ where
                     x.dtype,
                     Some(prepacked_r.clone()),
                 )?;
-                total_mm += now.elapsed();
-                let now = std::time::Instant::now();
                 for b in 0..end - start {
                     lstm_post_process(
-                        y.ptr::<T>(),
+                        y,
                         c_t.ptr::<T>(),
                         gates.ptr::<T>(),
                         p.as_ref().map(|p| p.ptr::<T>()),
@@ -238,8 +232,7 @@ where
                         activate2,
                     );
                 }
-                total_post += now.elapsed();
-                h_t_ptr = (y.ptr::<T>() + (t as usize) * (y.strides()[0] as usize)).cast::<u8>();
+                h_t_ptr = (y + t * y_sq_stride).cast::<u8>();
                 h_t_layout = &y_layout;
                 Ok(())
             };
@@ -256,16 +249,8 @@ where
                 }
                 _ => unreachable!(),
             }
-            let now = std::time::Instant::now();
             final_h.slice(&select![start:end, ..])?.copy_from(&h_t);
             final_c.slice(&select![start:end, ..])?.copy_from(&c_t);
-            println!(
-                "mm: {:?}, post: {:?}, copy: {:?}, total: {:?}",
-                total_mm,
-                total_post,
-                now.elapsed(),
-                global_now.elapsed()
-            );
             Ok(())
         };
         let chunks = mt_intervals(batch_size as usize, crate::physical_cores());
@@ -285,14 +270,28 @@ where
         } else {
             panic!("LSTM step: different chunk size is not supported yet");
         };
-        let now = std::time::Instant::now();
-        chunks.into_iter().for_each(|(start, end)| {
-            let y = y
-                .slice(&select![:, start as i64:end as i64, ..])
-                .expect("lstm step error");
-            func(start as i64, end as i64, &y, prepacked_r.clone()).expect("lstm step error");
+        chunks.into_par_iter().for_each(|(start, end)| {
+            let (sliced_shape, sliced_strides, offset) = slice_process(
+                y.layout.shape().to_vec(),
+                y.layout.strides().to_vec(),
+                &select![:, start as i64:end as i64, ..],
+                1,
+            )
+            .expect("slice error");
+            let y_layout = Layout::new(
+                [sliced_shape[1], sliced_shape[2]],
+                [sliced_strides[1], sliced_strides[2]],
+            );
+            let y_ptr = y.ptr::<T>() + offset;
+            func(
+                start as i64,
+                end as i64,
+                y_ptr,
+                &y_layout,
+                prepacked_r.clone(),
+            )
+            .expect("lstm step error");
         });
-        println!("time taken: {:?}", now.elapsed());
     } else {
         let gates = Tensor::empty(&[batch_size, 4 * hidden_size], x.dtype, x.device.clone())?;
         let num_threads = crate::physical_cores();
@@ -318,7 +317,10 @@ where
         let prepacked_r = Arc::new(prepacked_r);
         let mut func = |t: i64| -> Result<(), TensorError> {
             let bias_ptr = tmp.ptr::<T>() + (t as usize) * (tmp.strides()[0] as usize);
-            let bias_layout = Layout::new([tmp.shape()[1]], [tmp.strides()[1]]);
+            let bias_layout = Layout::new(
+                [tmp.shape()[1], tmp.shape()[2]],
+                [tmp.strides()[1], tmp.strides()[2]],
+            );
             addmm_prepacked_(
                 h_t_ptr,
                 h_t_layout,

@@ -51,7 +51,7 @@ where
                 location: Location::caller(),
             })
         })?;
-        let mut allocator = A::new();
+        let allocator = A::new();
         let allocate_res = allocator.allocate(layout, DEVICE)?;
         let ptr = allocate_res.get_ptr();
         Ok(_Tensor {
@@ -85,7 +85,7 @@ where
                 location: Location::caller(),
             })
         })?;
-        let mut allocator = A::new();
+        let allocator = A::new();
         let allocate_res = allocator.allocate_zeroed(layout, DEVICE)?;
         let ptr = allocate_res.get_ptr();
         Ok(_Tensor {

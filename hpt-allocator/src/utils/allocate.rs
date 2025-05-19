@@ -1,8 +1,9 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     panic::Location,
 };
 
+use dashmap::DashMap;
 use hpt_common::error::{base::TensorError, memory::MemoryError};
 use lru::LruCache;
 
@@ -70,7 +71,7 @@ fn allocate_mem(
 pub(crate) fn allocate_helper(
     cache: &mut LruCache<std::alloc::Layout, Vec<SafePtr>>,
     allocated: &mut HashSet<SafePtr>,
-    storage: &mut HashMap<usize, CommonStorage>,
+    storage: &DashMap<usize, CommonStorage>,
     allocate_fn: impl Fn() -> *mut u8,
     zero_fn: impl Fn(*mut u8, std::alloc::Layout),
     deallocate_fn: impl Fn(*mut u8, std::alloc::Layout),
@@ -113,7 +114,7 @@ pub(crate) fn allocate_helper(
         }
     }
     // increment the reference count in the storage of the ptr allocated
-    if let Some(storage) = storage.get_mut(&device_id) {
+    if let Some(mut storage) = storage.get_mut(&device_id) {
         storage.increment_ref(SafePtr { ptr });
     } else {
         let mut new_storage = CommonStorage::new();

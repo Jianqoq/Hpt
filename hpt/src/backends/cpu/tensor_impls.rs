@@ -331,7 +331,7 @@ impl<T: CommonBounds, const DEVICE: usize, A> Tensor<T, Cpu, DEVICE, A>
                         }).into()
                     );
                 }
-                let mut allocator = A::new();
+                let allocator = A::new();
                 use hpt_allocator::Buffer;
                 let ret = inner.backend.inner.get_ptr() as *mut u8;
                 allocator.forget(ret, DEVICE);

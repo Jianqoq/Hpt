@@ -13,6 +13,7 @@ once_cell = { workspace = true }
 lazy_static = { workspace = true }
 ctor = { workspace = true }
 cudarc = { workspace = true, optional = true }
+dashmap = { workspace = true }
 hpt-common = { path = "../hpt-common", version = "0.1.1" }
 
 [features]

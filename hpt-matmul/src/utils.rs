@@ -1,7 +1,8 @@
+use num_integer::gcd;
 use rayon::iter::ParallelIterator;
 use std::{ cell::OnceCell, cmp::min };
 
-use crate::{ ALIGN, Pointer, Zero, vec_size };
+use crate::{ vec_size, Pointer, VecTrait, Zero, ALIGN };
 use gemm_common::gemm::CACHELINE_ALIGN;
 use rayon::iter::IntoParallelIterator;
 
@@ -131,6 +132,111 @@ pub(crate) fn get_cache_info() -> [CacheInfo; 3] {
     }
 }
 
+// code is from gemm-common
+pub fn _kernel_params(
+    m: usize,
+    n: usize,
+    k: usize,
+    mr: usize,
+    nr: usize,
+    sizeof: usize
+) -> KernelParams {
+    #[inline]
+    fn round_down(a: usize, b: usize) -> usize {
+        (a / b) * b
+    }
+    if m == 0 || n == 0 || k == 0 {
+        return KernelParams {
+            kc: k,
+            mc: m,
+            nc: n,
+        };
+    }
+
+    let info = get_cache_info();
+
+    let l1_cache_bytes = info[0].bytes.max(32 * 1024);
+    let l2_cache_bytes = info[1].bytes;
+    let l3_cache_bytes = info[2].bytes;
+
+    let l1_line_bytes = info[0].cache_line_bytes.max(64);
+
+    let l1_assoc = info[0].associativity.max(3);
+    let l2_assoc = info[1].associativity.max(3);
+    let l3_assoc = info[2].associativity.max(3);
+
+    let l1_n_sets = l1_cache_bytes / (l1_line_bytes * l1_assoc);
+
+    // requires
+    // A micropanels must occupy different cache sets
+    // so that loading a micropanel evicts the previous one
+    // => byte stride must be multiple of n_sets×line_bytes
+    //
+    // => mr×kc×scalar_bytes == C_A × l1_line_bytes × l1_n_sets
+    //
+    // l1 must be able to hold A micropanel, B micropanel
+    //
+    // => C_A + C_B <= l1_assoc
+
+    // a×n = b×m
+    // find lcm of a, b
+    // n = lcm / a = b/gcd(a,b)
+    // m = lcm / b = a/gcd(a,b)
+
+    let gcd = gcd(mr * sizeof, l1_line_bytes * l1_n_sets);
+    let kc_0 = (l1_line_bytes * l1_n_sets) / gcd;
+    let c_lhs = (mr * sizeof) / gcd;
+    let c_rhs = (nr * kc_0 * sizeof) / (l1_line_bytes * l1_n_sets);
+    let kc_multiplier = l1_assoc / (c_lhs + c_rhs);
+    // let auto_kc = kc_0 * kc_multiplier;
+    let auto_kc = (kc_0 * kc_multiplier.next_power_of_two()).max(512).min(k);
+    let k_iter = k.div_ceil(auto_kc);
+    let auto_kc = k.div_ceil(k_iter);
+
+    // l2 cache must hold
+    //  - B micropanel: nr×kc: assume 1 assoc degree
+    //  - A macropanel: mc×kc
+    // mc×kc×scalar_bytes
+    let auto_mc = if l2_cache_bytes == 0 {
+        panic!();
+    } else {
+        let rhs_micropanel_bytes = nr * auto_kc * sizeof;
+        let rhs_l2_assoc = rhs_micropanel_bytes.div_ceil(l2_cache_bytes / l2_assoc);
+        let lhs_l2_assoc = (l2_assoc - 1 - rhs_l2_assoc).max(1);
+
+        let mc_from_lhs_l2_assoc = |lhs_l2_assoc: usize| -> usize {
+            (lhs_l2_assoc * l2_cache_bytes) / (l2_assoc * sizeof * auto_kc)
+        };
+
+        let auto_mc = round_down(mc_from_lhs_l2_assoc(lhs_l2_assoc), mr);
+        let m_iter = m.div_ceil(auto_mc);
+        m.div_ceil(m_iter * mr) * mr
+    };
+    let auto_mc = Ord::min(auto_mc, 8 * mr);
+
+    // l3 cache must hold
+    //  - A macropanel: mc×kc: assume 1 assoc degree
+    //  - B macropanel: nc×kc
+    let auto_nc = if l3_cache_bytes == 0 {
+        0
+    } else {
+        // let lhs_macropanel_bytes = auto_mc * auto_kc * sizeof;
+        // let lhs_l3_assoc = msrv_div_ceil(lhs_macropanel_bytes, l3_cache_bytes / l3_assoc);
+        let rhs_l3_assoc = l3_assoc - 1;
+        let rhs_macropanel_max_bytes = (rhs_l3_assoc * l3_cache_bytes) / l3_assoc;
+
+        let auto_nc = round_down(rhs_macropanel_max_bytes / (sizeof * auto_kc), nr);
+        let n_iter = n.div_ceil(auto_nc);
+        n.div_ceil(n_iter * nr) * nr
+    };
+
+    KernelParams {
+        kc: auto_kc,
+        mc: auto_mc,
+        nc: auto_nc,
+    }
+}
+
 pub struct KernelParams {
     pub kc: usize,
     pub mc: usize,
@@ -145,7 +251,7 @@ pub fn kernel_params(
     mr: usize,
     sizeof: usize
 ) -> KernelParams {
-    let params = gemm_common::cache::kernel_params(n, m, k, nr, mr, sizeof);
+    let params = _kernel_params(n, m, k, nr, mr, sizeof);
     KernelParams {
         kc: params.kc,
         mc: params.nc,
@@ -273,7 +379,7 @@ pub(crate) fn pack_a_single_thread<T: Zero + Copy>(
     }
 }
 
-pub(crate) fn pack_b_single_thread<T: Copy, TVec>(
+pub(crate) fn pack_b_single_thread<T: Copy, TVec: VecTrait<T>>(
     b: Pointer<T>,
     mut packed_b: Pointer<T>,
     ldb: i64,

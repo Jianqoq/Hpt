@@ -22,11 +22,11 @@ pub trait Allocator: Clone {
     /// 3. if the layout is not found in the cache, allocate new memory
     ///
     /// 4. eventually, if the cache is full, pop the least recently used memory and deallocate the memory
-    fn allocate(&mut self, layout: Layout, device_id: usize) -> Result<Self::Output, TensorError>;
+    fn allocate(&self, layout: Layout, device_id: usize) -> Result<Self::Output, TensorError>;
 
     /// similar to `allocate`, but the memory is zeroed
     fn allocate_zeroed(
-        &mut self,
+        &self,
         layout: Layout,
         device_id: usize,
     ) -> Result<Self::Output, TensorError>;
@@ -40,16 +40,16 @@ pub trait Allocator: Clone {
     /// 2. if the ptr is found in the storage, decrement the reference count
     ///
     /// 3. if the reference count is 0, remove the ptr from the storage, remove the ptr from the allocated set, and insert the ptr into the cache
-    fn deallocate(&mut self, ptr: *mut u8, layout: &Layout, should_drop: bool, device_id: usize);
+    fn deallocate(&self, ptr: *mut u8, layout: &Layout, should_drop: bool, device_id: usize);
     /// if the ptr is found in the storage, increment the reference count, otherwise insert the ptr into the storage
-    fn insert_ptr(&mut self, ptr: *mut u8, device_id: usize);
+    fn insert_ptr(&self, ptr: *mut u8, device_id: usize);
     /// clear the cache, deallocate all the memory allocated
     ///
     /// this is used when the program exits, it will be called automatically
-    fn clear(&mut self);
+    fn clear(&self);
 
     /// forget the data in the allocator
-    fn forget(&mut self, ptr: *mut u8, device_id: usize);
+    fn forget(&self, ptr: *mut u8, device_id: usize);
 
     /// create a new allocator
     fn new() -> Self;

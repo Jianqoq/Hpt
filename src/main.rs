@@ -20,7 +20,7 @@ fn main() -> anyhow::Result<()> {
     let initialized = model.initialize()?;
     
     let now = std::time::Instant::now();
-    for _ in 0..1 {
+    for _ in 0..100 {
         let res = initialized.execute(&map)?;
         // println!("res: {}", res["output"]);
         // println!("next");

@@ -4,6 +4,8 @@ pub mod cuda;
 
 use std::collections::HashMap;
 
+use dashmap::DashMap;
+
 use crate::ptr::SafePtr;
 
 pub trait Storage {
@@ -59,8 +61,8 @@ impl Storage for CommonStorage {
 /// # Clone Storage
 ///
 /// increment the reference count of the ptr in the storage
-pub fn clone_storage(ptr: *mut u8, device_id: usize, map: &mut HashMap<usize, CommonStorage>) {
-    if let Some(storage) = map.get_mut(&device_id) {
+pub fn clone_storage(ptr: *mut u8, device_id: usize, map: &DashMap<usize, CommonStorage>) {
+    if let Some(mut storage) = map.get_mut(&device_id) {
         storage.increment_ref(SafePtr { ptr });
     } else {
         map.insert(device_id, CommonStorage::new());

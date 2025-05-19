@@ -16,12 +16,12 @@ fn alloc(
     layout: std::alloc::Layout,
     _device: &mut Device,
     cpu_alloc_method: fn(
-        &mut hpt_allocator::HptAllocator<Cpu>,
+        &hpt_allocator::HptAllocator<Cpu>,
         layout: std::alloc::Layout,
         device_id: usize,
     ) -> Result<*mut u8, TensorError>,
     #[cfg(feature = "cuda")] cuda_alloc_method: fn(
-        &mut hpt_allocator::HptAllocator<Cuda>,
+        &hpt_allocator::HptAllocator<Cuda>,
         layout: std::alloc::Layout,
         device_id: usize,
     ) -> Result<
