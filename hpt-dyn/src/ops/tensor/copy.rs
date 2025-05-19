@@ -112,16 +112,17 @@ impl Tensor {
                     use hpt_types::traits::VecTrait;
                     use rayon::iter::IntoParallelIterator;
                     use rayon::iter::ParallelIterator;
+                    use crate::utils::index_cal::{dispatch_loop_progress_update, dispatch_map_gp};
                     type T = $t;
                     type InVec = <T as TypeCommon>::Vec;
 
                     let outer_loop_size = self.layout().outer_loop_size();
                     let inner_loop_size = self.layout().inner_loop_size();
 
-                    let res_prg_update = self.prg_update.clone();
-                    let input_prg_update = other.prg_update.clone();
-                    let res_map_gp = self.map_gp.clone();
-                    let input_map_gp = other.map_gp.clone();
+                    let res_prg_update = dispatch_loop_progress_update(self.layout());
+                    let input_prg_update = dispatch_loop_progress_update(other.layout());
+                    let res_map_gp = dispatch_map_gp(self.layout());
+                    let input_map_gp = dispatch_map_gp(other.layout());
 
                     let res_ptr = self.data.cast::<T>();
                     let input_ptr = other.data.cast::<T>();

@@ -15,6 +15,10 @@ pub fn current_num_threads() -> usize {
     rayon::current_num_threads()
 }
 
+pub fn set_num_threads(num_threads: usize) {
+    rayon::ThreadPoolBuilder::new().num_threads(num_threads).build_global().unwrap();
+}
+
 pub fn physical_cores() -> usize {
     num_cpus::get_physical()
 }

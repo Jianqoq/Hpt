@@ -1,4 +1,5 @@
 use env_logger::{Builder, Env};
+use hpt_dyn::set_num_threads;
 use hpt_dyn::{onnx::load_onnx, DType, Device, Tensor as DynTensor};
 use log::LevelFilter;
 use std::collections::HashMap;
@@ -7,26 +8,28 @@ use hpt::ops::*;
 use hpt::Tensor;
 
 fn main() -> anyhow::Result<()> {
+    // set_num_threads(1);
+    // hpt::utils::set_num_threads(1);
     // Builder::new().filter_level(LevelFilter::Off).init();
     let model = load_onnx("lstm.onnx").expect("加载模型失败");
     let mut map = HashMap::new();
     map.insert(
         "input".to_string(),
-        DynTensor::ones(&[1, 256, 20], DType::F32, Device::Cpu)?,
+        DynTensor::ones(&[128, 256, 128], DType::F32, Device::Cpu)?,
     );
     let initialized = model.initialize()?;
     
     let now = std::time::Instant::now();
-    for _ in 0..100 {
+    for _ in 0..1 {
         let res = initialized.execute(&map)?;
         // println!("res: {}", res["output"]);
         // println!("next");
     }
     println!("Time taken: {:?}", now.elapsed() / 100);
 
-    // let m = 1;
-    // let n = 512;
-    // let k = 512;
+    // let m = 16;
+    // let n = 256;
+    // let k = 64;
     // let dyn_a = DynTensor::randn(0.0, 1.0, &[m, k], DType::F32, Device::Cpu)?;
     // let dyn_b = DynTensor::randn(0.0, 1.0, &[k, n], DType::F32, Device::Cpu)?;
 

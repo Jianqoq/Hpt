@@ -9,9 +9,6 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::utils::allocator::Allocator;
 use crate::utils::backend::Backend;
-use crate::utils::index_cal::{
-    dispatch_loop_progress_update, dispatch_map_global_idx, dispatch_map_gp,
-};
 use crate::{DType, Device, Tensor, ALIGN};
 use hpt_types::scalar::*;
 
@@ -34,9 +31,6 @@ impl Tensor {
         );
         match mem_layout {
             Ok(mem_layout) => {
-                let prg_update = dispatch_loop_progress_update(&layout);
-                let map_global_idx = dispatch_map_global_idx(&layout);
-                let map_gp = dispatch_map_gp(&layout);
                 let ptr = allocator.alloc_method(mem_layout, &mut device)?;
                 let backend = match &device {
                     Device::Cpu => Backend::new_cpu(ptr, 0, true),
@@ -53,9 +47,6 @@ impl Tensor {
                     dtype,
                     device,
                     parent: None,
-                    prg_update,
-                    map_global_idx,
-                    map_gp,
                     mem_layout,
                     backend,
                 })

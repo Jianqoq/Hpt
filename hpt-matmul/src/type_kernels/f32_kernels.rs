@@ -74,6 +74,24 @@ impl MatmulMicroKernel for f32 {
     type MixedType = f32;
     
     type MixedVec = F32Vec;
+    
+    fn get_gemv_kernel() -> fn(
+        a: crate::Pointer<Self>,
+        b: crate::Pointer<Self>,
+        c: crate::Pointer<Self>,
+        n: usize,
+        k: usize,
+        ldb: i64,
+        lhs_col_stride: i64
+    ) {
+        use crate::microkernels::gemv_microkernel_impl;
+        gemv_microkernel_impl!(8);
+        gemv_microkernel::<f32, F32Vec>
+    }
+    
+    fn get_gemv_nr() -> usize {
+        8
+    }
 }
 
 #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]

@@ -1,7 +1,15 @@
 use std::sync::Arc;
 
-use crate::{ Tensor, ops::tensor::matmul::microkernel_trait::MatmulMicroKernel };
-use hpt_common::{ error::base::TensorError, shape::shape_utils::mt_intervals, Pointer };
+use crate::{
+    ops::tensor::matmul::{ matmul::addmm_prepacked_, microkernel_trait::MatmulMicroKernel },
+    Tensor,
+};
+use hpt_common::{
+    error::base::TensorError,
+    layout::layout::Layout,
+    shape::shape_utils::mt_intervals,
+    Pointer,
+};
 use hpt_macros::select;
 use hpt_matmul::Zero;
 use hpt_traits::tensor::{ CommonBounds, TensorInfo };
@@ -143,7 +151,7 @@ fn lstm_step<T: CommonBounds>(
         None
     };
 
-    let mut h_t = initial_h.clone(); // [batch_size, hidden_size]
+    let h_t = initial_h.clone(); // [batch_size, hidden_size]
     let c_t = initial_c.clone(); // [batch_size, hidden_size]
 
     let y = Tensor::empty(&[seq_len, batch_size, hidden_size], x.dtype, x.device.clone())?;
@@ -174,25 +182,48 @@ fn lstm_step<T: CommonBounds>(
             y: &Tensor,
             prepacked_r: Arc<Vec<hpt_matmul::NewPrePackedRhs>>
         | -> Result<(), TensorError> {
-            let mut gates = Tensor::empty(
+            let global_now = std::time::Instant::now();
+            let gates = Tensor::empty(
                 &[end - start, 4 * hidden_size],
                 x.dtype,
                 x.device.clone()
             )?;
-            let mut h_t = initial_h.slice(&select![start:end, ..])?;
+            let h_t = initial_h.slice(&select![start:end, ..])?;
             let c_t = initial_c.slice(&select![start:end, ..])?;
             let tmp = tmp.slice(&select![:, start:end, ..])?;
+            let mut h_t_ptr = h_t.ptr::<u8>();
+            let mut h_t_layout = h_t.layout();
+            let r_t_ptr = r_t.ptr::<u8>();
+            let r_t_layout = r_t.layout();
+            let gates_ptr = gates.ptr::<u8>();
+            let gates_layout = gates.layout();
+            let bias_layout = Layout::new([tmp.shape()[1]], [tmp.strides()[1]]);
+            let y_layout = Layout::new(
+                [y.shape()[1], y.shape()[2]],
+                [y.strides()[1], y.strides()[2]]
+            );
+
+            let mut total_mm = std::time::Duration::from_secs(0);
+            let mut total_post = std::time::Duration::from_secs(0);
             let mut func = |t: i64| -> Result<(), TensorError> {
-                let gates = h_t.addmm_prepacked_(
-                    r_t,
-                    &tmp.slice(&select![t:t + 1, ..])?.squeeze(&[0])?,
-                    &mut gates,
+                let bias_ptr = tmp.ptr::<T>() + (t as usize) * (tmp.strides()[0] as usize);
+                let now = std::time::Instant::now();
+                addmm_prepacked_(
+                    h_t_ptr,
+                    h_t_layout,
+                    r_t_ptr,
+                    r_t_layout,
+                    bias_ptr.cast::<u8>(),
+                    &bias_layout,
+                    gates_ptr,
+                    gates_layout,
                     1,
+                    x.dtype,
                     Some(prepacked_r.clone())
                 )?;
-                let gates_b_stride = gates.strides()[0] as i64;
-                let sliced_y = y.slice(&select![t:t + 1, ..])?.squeeze(&[0])?;
+                total_mm += now.elapsed();
 
+                let now = std::time::Instant::now();
                 for b in 0..end - start {
                     lstm_post_process(
                         y.ptr::<T>(),
@@ -204,14 +235,15 @@ fn lstm_step<T: CommonBounds>(
                         t,
                         [y_b_stride, y_sq_stride],
                         c_b_stride,
-                        gates_b_stride,
+                        gates.strides()[0],
                         hidden_size,
                         activate1,
                         activate2
                     );
                 }
-
-                h_t = sliced_y;
+                total_post += now.elapsed();
+                h_t_ptr = (y.ptr::<T>() + (t as usize) * (y.strides()[0] as usize)).cast::<u8>();
+                h_t_layout = &y_layout;
                 Ok(())
             };
             match direction {
@@ -227,8 +259,16 @@ fn lstm_step<T: CommonBounds>(
                 }
                 _ => unreachable!(),
             }
+            let now = std::time::Instant::now();
             final_h.slice(&select![start:end, ..])?.copy_from(&h_t);
             final_c.slice(&select![start:end, ..])?.copy_from(&c_t);
+            println!(
+                "mm: {:?}, post: {:?}, copy: {:?}, total: {:?}",
+                total_mm,
+                total_post,
+                now.elapsed(),
+                global_now.elapsed()
+            );
             Ok(())
         };
         let chunks = mt_intervals(batch_size as usize, crate::physical_cores());
@@ -242,19 +282,20 @@ fn lstm_step<T: CommonBounds>(
                 hidden_size as usize,
                 r_t.ptr::<T>().ptr as *const T,
                 [r_t.strides()[0], r_t.strides()[1]],
-                1,
                 1
             );
             Arc::new(prepacked_r)
         } else {
             panic!("LSTM step: different chunk size is not supported yet");
         };
+        let now = std::time::Instant::now();
         chunks.into_par_iter().for_each(|(start, end)| {
             let y = y.slice(&select![:, start as i64:end as i64, ..]).expect("lstm step error");
             func(start as i64, end as i64, &y, prepacked_r.clone()).expect("lstm step error");
         });
+        println!("time taken: {:?}", now.elapsed());
     } else {
-        let mut gates = Tensor::empty(&[batch_size, 4 * hidden_size], x.dtype, x.device.clone())?;
+        let gates = Tensor::empty(&[batch_size, 4 * hidden_size], x.dtype, x.device.clone())?;
         let num_threads = crate::physical_cores();
         let prepacked_r = hpt_matmul::prepack_rhs(
             4 * (hidden_size as usize),
@@ -262,21 +303,37 @@ fn lstm_step<T: CommonBounds>(
             hidden_size as usize,
             r_t.ptr::<T>().ptr as *const T,
             [r_t.strides()[0], r_t.strides()[1]],
-            1,
             num_threads
         );
+        let mut h_t_ptr = h_t.ptr::<u8>();
+        let mut h_t_layout = h_t.layout();
+        let r_t_ptr = r_t.ptr::<u8>();
+        let r_t_layout = r_t.layout();
+        let gates_ptr = gates.ptr::<u8>();
+        let gates_layout = gates.layout();
+        let y_layout = Layout::new(
+            [y.shape()[1], y.shape()[2]],
+            [y.strides()[1], y.strides()[2]]
+        );
+
         let prepacked_r = Arc::new(prepacked_r);
         let mut func = |t: i64| -> Result<(), TensorError> {
-            let gates = h_t.addmm_prepacked_(
-                r_t,
-                &tmp.slice(&select![t:t + 1, ..])?.squeeze(&[0])?,
-                &mut gates,
-                num_threads,
+            let bias_ptr = tmp.ptr::<T>() + (t as usize) * (tmp.strides()[0] as usize);
+            let bias_layout = Layout::new([tmp.shape()[1]], [tmp.strides()[1]]);
+            addmm_prepacked_(
+                h_t_ptr,
+                h_t_layout,
+                r_t_ptr,
+                r_t_layout,
+                bias_ptr.cast::<u8>(),
+                &bias_layout,
+                gates_ptr,
+                gates_layout,
+                1,
+                x.dtype,
                 Some(prepacked_r.clone())
             )?;
             let gates_b_stride = gates.strides()[0] as i64;
-            let sliced_y = y.slice(&select![t:t + 1, ..])?.squeeze(&[0])?;
-
             for b in 0..batch_size {
                 lstm_post_process(
                     y.ptr::<T>(),
@@ -295,7 +352,8 @@ fn lstm_step<T: CommonBounds>(
                 );
             }
 
-            h_t = sliced_y;
+            h_t_ptr = (y.ptr::<T>() + (t as usize) * (y.strides()[0] as usize)).cast::<u8>();
+            h_t_layout = &y_layout;
             Ok(())
         };
         match direction {

@@ -3,14 +3,8 @@ use hpt_common::{ Pointer, layout::layout::Layout, shape::shape::Shape, strides:
 use hpt_dataloader::FromSafeTensors;
 use hpt_traits::tensor::{ CommonBounds, TensorInfo };
 use hpt_types::dtype::ToDType;
-use std::sync::Arc;
 
 use crate::onnx::TensorProto;
-use crate::utils::index_cal::{
-    dispatch_loop_progress_update,
-    dispatch_map_global_idx,
-    dispatch_map_gp,
-};
 use crate::utils::onnx::map_dtype::to_dtype;
 use crate::utils::{ backend::Backend, device::Device };
 use crate::{ ALIGN, DType };
@@ -24,18 +18,6 @@ pub struct Tensor {
     pub(crate) dtype: DType,
     pub(crate) device: Device,
     pub(crate) parent: Option<Pointer<u8>>,
-    /// update loop progress
-    ///
-    /// return # of element need to jump
-    pub(crate) prg_update: Arc<dyn (Fn(&mut [i64]) -> i64) + Send + Sync>,
-    /// map global index to physical index
-    ///
-    /// return physical index
-    pub(crate) map_global_idx: Arc<dyn (Fn(i64) -> i64) + Send + Sync>,
-    /// map global index to physical index and provide loop progress
-    ///
-    /// return (physical index, loop progress)
-    pub(crate) map_gp: Arc<dyn (Fn(i64) -> (i64, Vec<i64>)) + Send + Sync>,
     pub(crate) mem_layout: std::alloc::Layout,
     pub(crate) backend: Backend,
 }
@@ -78,9 +60,6 @@ impl Tensor {
                 } else {
                     assert_eq!((data as usize) % ALIGN, 0);
                 }
-                let prg_update = dispatch_loop_progress_update(&layout);
-                let map_global_idx = dispatch_map_global_idx(&layout);
-                let map_gp = dispatch_map_gp(&layout);
                 let mem_layout = std::alloc::Layout
                     ::from_size_align(len * dtype.sizeof(), ALIGN)
                     .expect("failed to create memory layout");
@@ -90,9 +69,6 @@ impl Tensor {
                     dtype,
                     device,
                     parent: None,
-                    prg_update,
-                    map_global_idx,
-                    map_gp,
                     mem_layout,
                     backend: Backend::new_cpu(ptr, 0, take_ownership).clone(),
                 })

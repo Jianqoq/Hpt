@@ -16,7 +16,6 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterato
 
 use crate::{
     Tensor, current_num_threads,
-    utils::index_cal::{dispatch_loop_progress_update, dispatch_map_global_idx, dispatch_map_gp},
 };
 
 impl Tensor {
@@ -67,18 +66,12 @@ impl Tensor {
         let shape: Shape = new_shape.as_slice().into();
         ShapeError::check_size_match(self.layout.size() as i64, shape.size())?;
         if let Ok(new_layout) = self.layout.inplace_reshape(&shape) {
-            let prg_update = dispatch_loop_progress_update(&new_layout);
-            let map_global_idx = dispatch_map_global_idx(&new_layout);
-            let map_gp = dispatch_map_gp(&new_layout);
             Ok(Tensor {
                 data: self.data.clone(),
                 layout: new_layout,
                 dtype: self.dtype.clone(),
                 device: self.device.clone(),
                 parent: self.parent.clone(),
-                prg_update,
-                map_global_idx,
-                map_gp,
                 mem_layout: self.mem_layout.clone(),
                 backend: self.backend.clone(),
             })
@@ -122,18 +115,12 @@ impl Tensor {
 
     pub fn permute(&self, axes: &[i64]) -> Result<Tensor, TensorError> {
         let permuted_layout = self.layout.permute(axes)?;
-        let prg_update = dispatch_loop_progress_update(&permuted_layout);
-        let map_global_idx = dispatch_map_global_idx(&permuted_layout);
-        let map_gp = dispatch_map_gp(&permuted_layout);
         Ok(Tensor {
             data: self.data.clone(),
             layout: permuted_layout,
             dtype: self.dtype.clone(),
             device: self.device.clone(),
             parent: self.parent.clone(),
-            prg_update,
-            map_global_idx,
-            map_gp,
             mem_layout: self.mem_layout.clone(),
             backend: self.backend.clone(),
         })
@@ -141,18 +128,12 @@ impl Tensor {
 
     pub fn permute_inv(&self, axes: &[i64]) -> Result<Tensor, TensorError> {
         let permuted_layout = self.layout.permute_inv(axes)?;
-        let prg_update = dispatch_loop_progress_update(&permuted_layout);
-        let map_global_idx = dispatch_map_global_idx(&permuted_layout);
-        let map_gp = dispatch_map_gp(&permuted_layout);
         Ok(Tensor {
             data: self.data.clone(),
             layout: permuted_layout,
             dtype: self.dtype.clone(),
             device: self.device.clone(),
             parent: self.parent.clone(),
-            prg_update,
-            map_global_idx,
-            map_gp,
             mem_layout: self.mem_layout.clone(),
             backend: self.backend.clone(),
         })
@@ -162,18 +143,12 @@ impl Tensor {
         let res_shape = Shape::from(shape);
         let res_strides = self.layout.expand_strides(&res_shape)?;
         let res_layout = Layout::new(res_shape, res_strides);
-        let prg_update = dispatch_loop_progress_update(&res_layout);
-        let map_global_idx = dispatch_map_global_idx(&res_layout);
-        let map_gp = dispatch_map_gp(&res_layout);
         Ok(Tensor {
             data: self.data.clone(),
             layout: res_layout,
             dtype: self.dtype.clone(),
             device: self.device.clone(),
             parent: self.parent.clone(),
-            prg_update,
-            map_global_idx,
-            map_gp,
             mem_layout: self.mem_layout.clone(),
             backend: self.backend.clone(),
         })
@@ -217,9 +192,6 @@ impl Tensor {
             self.parent.clone()
         };
         let new_layout = Layout::new(self.layout.shape().clone(), new_strides);
-        let prg_update = dispatch_loop_progress_update(&new_layout);
-        let map_global_idx = dispatch_map_global_idx(&new_layout);
-        let map_gp = dispatch_map_gp(&new_layout);
         Ok(Tensor {
             data: ptr,
             parent: new_parent,
@@ -228,9 +200,6 @@ impl Tensor {
             backend: self.backend.clone(),
             dtype: self.dtype.clone(),
             device: self.device.clone(),
-            prg_update,
-            map_global_idx,
-            map_gp,
         })
     }
 
@@ -382,18 +351,12 @@ impl Tensor {
         new_shape.swap(axis1, axis2);
         new_strides.swap(axis1, axis2);
         let layout = Layout::new(new_shape, new_strides);
-        let prg_update = dispatch_loop_progress_update(&layout);
-        let map_global_idx = dispatch_map_global_idx(&layout);
-        let map_gp = dispatch_map_gp(&layout);
         Ok(Tensor {
             data: self.data.clone(),
             layout,
             dtype: self.dtype.clone(),
             device: self.device.clone(),
             parent: self.parent.clone(),
-            prg_update,
-            map_global_idx,
-            map_gp,
             mem_layout: self.mem_layout.clone(),
             backend: self.backend.clone(),
         })
@@ -432,18 +395,12 @@ impl Tensor {
     pub fn broadcast_to(&self, shape: &[i64]) -> Result<Tensor, TensorError> {
         let res_shape = Shape::from(shape);
         let broadcasted_layout = self.layout.broadcast_to(&res_shape)?;
-        let prg_update = dispatch_loop_progress_update(&broadcasted_layout);
-        let map_global_idx = dispatch_map_global_idx(&broadcasted_layout);
-        let map_gp = dispatch_map_gp(&broadcasted_layout);
         Ok(Tensor {
             data: self.data.clone(),
             layout: broadcasted_layout,
             dtype: self.dtype.clone(),
             device: self.device.clone(),
             parent: self.parent.clone(),
-            prg_update,
-            map_global_idx,
-            map_gp,
             mem_layout: self.mem_layout.clone(),
             backend: self.backend.clone(),
         })
@@ -480,18 +437,12 @@ impl Tensor {
             } else {
                 self.parent.clone()
             };
-            let prg_update = dispatch_loop_progress_update(&layout);
-            let map_global_idx = dispatch_map_global_idx(&layout);
-            let map_gp = dispatch_map_gp(&layout);
             Ok(Tensor {
                 data: Pointer::new(res_ptr, len),
                 layout,
                 dtype: self.dtype.clone(),
                 device: self.device.clone(),
                 parent: new_parent,
-                prg_update,
-                map_global_idx,
-                map_gp,
                 mem_layout: self.mem_layout.clone(),
                 backend: self.backend.clone(),
             })
@@ -504,18 +455,12 @@ impl Tensor {
             } else {
                 self.parent.clone()
             };
-            let prg_update = dispatch_loop_progress_update(&layout);
-            let map_global_idx = dispatch_map_global_idx(&layout);
-            let map_gp = dispatch_map_gp(&layout);
             Ok(Tensor {
                 data: Pointer::new(res_ptr, 0),
                 layout,
                 dtype: self.dtype.clone(),
                 device: self.device.clone(),
                 parent: new_parent,
-                prg_update,
-                map_global_idx,
-                map_gp,
                 mem_layout: self.mem_layout.clone(),
                 backend: self.backend.clone(),
             })

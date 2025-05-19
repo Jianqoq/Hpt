@@ -69,6 +69,22 @@ impl MatmulMicroKernel for i64 {
     type MixedType = i64;
     
     type MixedVec = I64Vec;
+    
+    fn get_gemv_kernel() -> fn(
+        a: crate::Pointer<Self>,
+        b: crate::Pointer<Self>,
+        c: crate::Pointer<Self>,
+        n: usize,
+        k: usize,
+        ldb: i64,
+        lhs_col_stride: i64
+    ) {
+        todo!()
+    }
+    
+    fn get_gemv_nr() -> usize {
+        todo!()
+    }
 }
 
 #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
