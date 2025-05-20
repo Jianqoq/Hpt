@@ -96,7 +96,7 @@ where
     let img2col_buffer_size = kh * kw * in_channels * out_height * out_width;
     let direct_buffer_size = kh * kw * in_channels * out_channels;
     if img2col_buffer_size < direct_buffer_size {
-        conv2d_img2col::conv2d(
+        let ret = conv2d_img2col::conv2d(
             &input,
             kernels,
             bias,
@@ -113,9 +113,10 @@ where
             post_scalar,
             post_vec,
             output,
-        )
+        );
+        ret
     } else {
-        conv2d_direct::conv2d(
+        let ret = conv2d_direct::conv2d(
             &input,
             kernels,
             bias,
@@ -132,7 +133,8 @@ where
             post_scalar,
             post_vec,
             output,
-        )
+        );
+        ret
     }
 }
 

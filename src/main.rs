@@ -14,11 +14,11 @@ fn main() -> anyhow::Result<()> {
         let initialized = model.initialize()?;
 
         let now = std::time::Instant::now();
-        for _ in 0..50 {
+        for _ in 0..1 {
             let res = initialized.execute(&map)?;
             // println!("res: {    }", res["output"]);
         }
-        res.push(now.elapsed() / 50);
+        res.push(now.elapsed() / 1);
     }
     println!("Time taken: {:?}", res);
 

@@ -15,6 +15,8 @@ pub(super) fn run_fwd<'a>(
     tensors: &mut HashMap<&'a str, Tensor>,
     node_degree: &mut HashMap<&'a str, u32>
 ) -> Result<(), TensorError> {
+    let mut total_conv2d = std::time::Duration::from_secs(0);
+    let mut total_pooling = std::time::Duration::from_secs(0);
     for operator in operators.iter() {
         match operator {
             Operator::Constant(_) => {}
@@ -29,7 +31,11 @@ pub(super) fn run_fwd<'a>(
             Operator::Asinh(unary) => asinh_fwd(&unary.base, tensors, node_degree)?,
             Operator::Atan(unary) => atan_fwd(&unary.base, tensors, node_degree)?,
             Operator::Atanh(unary) => atanh_fwd(&unary.base, tensors, node_degree)?,
-            Operator::AveragePool(pooling) => avgpool_fwd(&pooling.base, tensors)?,
+            Operator::AveragePool(pooling) => {
+                let now = std::time::Instant::now();
+                avgpool_fwd(&pooling.base, tensors)?;
+                total_pooling += now.elapsed();
+            },
             Operator::BatchNormalization(batch_normalization) => todo!(),
             Operator::BitShift(binary) => todo!(),
             Operator::BitwiseAnd(binary) => todo!(),
@@ -40,7 +46,9 @@ pub(super) fn run_fwd<'a>(
             Operator::Ceil(unary) => todo!(),
             Operator::Concat(concat) => concat_fwd(&concat.base, tensors)?,
             Operator::Conv2d(conv2d) => {
+                let now = std::time::Instant::now();
                 conv_fwd(&conv2d.base, tensors, node_degree)?;
+                total_conv2d += now.elapsed();
             },
             Operator::Conv2dInteger(conv2d) => conv_fwd(&conv2d.base, tensors, node_degree)?,
             Operator::Cos(unary) => cos_fwd(&unary.base, tensors, node_degree)?,
@@ -57,8 +65,16 @@ pub(super) fn run_fwd<'a>(
             Operator::Floor(unary) => floor_fwd(&unary.base, tensors, node_degree)?,
             Operator::Gather(gather) => gather_fwd(&gather.base, tensors)?,
             Operator::Gemm(gemm) => gemm_fwd(&gemm.base, tensors, node_degree)?,
-            Operator::GlobalAveragePool(pooling) => global_avgpool_fwd(&pooling.base, tensors)?,
-            Operator::GlobalMaxPool(pooling) => global_maxpool_fwd(&pooling.base, tensors)?,
+            Operator::GlobalAveragePool(pooling) => {
+                let now = std::time::Instant::now();
+                global_avgpool_fwd(&pooling.base, tensors)?;
+                total_pooling += now.elapsed();
+            },
+            Operator::GlobalMaxPool(pooling) => {
+                let now = std::time::Instant::now();
+                global_maxpool_fwd(&pooling.base, tensors)?;
+                total_pooling += now.elapsed();
+            },
             Operator::Greater(binary) => todo!(),
             Operator::Identity(identity) => identity_fwd(&identity.base, tensors)?,
             Operator::If(_) => todo!(),
@@ -145,9 +161,12 @@ pub(super) fn run_fwd<'a>(
             Operator::InvPermute(permute) => todo!(),
             Operator::PermuteContiguous(permute) => permute_contiguous_fwd(&permute.base, tensors)?,
             Operator::Conv2dFused(base) => {
+                let now = std::time::Instant::now();
                 conv_fused_fwd(&base.base, tensors, node_degree)?;
+                total_conv2d += now.elapsed();
             },
         }
     }
+    // println!("total_conv2d: {:?}, total_pooling: {:?}", total_conv2d, total_pooling);
     Ok(())
 }
