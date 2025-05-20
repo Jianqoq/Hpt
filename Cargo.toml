@@ -37,6 +37,7 @@ log = { workspace = true }
 # tract-core = { workspace = true }
 # tract-onnx = { workspace = true }
 half = { workspace = true }
+safetensors = { workspace = true }
 
 [workspace.dependencies]
 once_cell = "1.21.1"
@@ -119,11 +120,11 @@ name = "hpt-workspace"
 path = "src/main.rs"
 
 [profile.release]
-opt-level = 0
+opt-level = 3
 incremental = true
-debug = true
-# lto = "fat"
-# codegen-units = 1
+debug = false
+lto = "fat"
+codegen-units = 1
 
 [profile.dev]
 opt-level = 0

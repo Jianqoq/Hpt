@@ -1,4 +1,6 @@
-use gemm_common::cache::{CACHE_INFO, DivCeil, KernelParams};
+use std::cell::OnceCell;
+
+use gemm_common::cache::{DivCeil, KernelParams};
 use hpt_common::Pointer;
 use hpt_common::error::base::TensorError;
 use hpt_traits::tensor::CommonBounds;
@@ -274,6 +276,215 @@ pub(crate) fn create_packed_input_img2col<T: CommonBounds>(
     (buffer_ptr, layout)
 }
 
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct CacheInfo {
+    pub(crate) bytes: usize,
+    pub(crate) associativity: usize,
+    pub(crate) cache_line_bytes: usize,
+}
+
+const CACHE_INFO: OnceCell<[CacheInfo; 3]> = OnceCell::new();
+
+pub(crate) fn get_cache_info() -> [CacheInfo; 3] {
+    #[cfg(target_arch = "x86_64")]
+    {
+        use raw_cpuid::{ CacheType, CpuId };
+        *CACHE_INFO.get_or_init(|| {
+            let cpuid = CpuId::new();
+            let mut cache_info = [
+                CacheInfo {
+                    bytes: 0,
+                    associativity: 0,
+                    cache_line_bytes: 0,
+                };
+                3
+            ];
+            if let Some(cparams) = cpuid.get_cache_parameters() {
+                for cache in cparams {
+                    let size =
+                        cache.associativity() *
+                        cache.physical_line_partitions() *
+                        cache.coherency_line_size() *
+                        cache.sets();
+                    let valid_cache =
+                        (cache.cache_type() == CacheType::Data ||
+                            cache.cache_type() == CacheType::Unified) && cache.level() <= 3;
+                    if valid_cache {
+                        let info = CacheInfo {
+                            bytes: size,
+                            associativity: cache.associativity(),
+                            cache_line_bytes: cache.coherency_line_size(),
+                        };
+                        cache_info[(cache.level() as usize) - 1] = info;
+                    }
+                }
+            } else {
+                panic!("No cache parameter information available");
+            }
+            cache_info
+        })
+    }
+    #[cfg(target_os = "macos")]
+    {
+        use std::ffi::CString;
+        *CACHE_INFO.get_or_init(|| {
+            let mut cache_info = [
+                CacheInfo {
+                    bytes: 0,
+                    associativity: 0,
+                    cache_line_bytes: 0,
+                };
+                3
+            ];
+            for level in 1..=3 {
+                let mut size: u64 = 0;
+                let mut line_size: u64 = 0;
+
+                let mut size_len = std::mem::size_of::<u64>();
+                let mut line_size_len = std::mem::size_of::<u64>();
+
+                let name = if level == 1 {
+                    "hw.l1dcachesize"
+                } else if level == 2 {
+                    "hw.l2cachesize"
+                } else {
+                    "hw.l3cachesize"
+                };
+                unsafe {
+                    libc::sysctlbyname(
+                        CString::new(name).unwrap().as_ptr(),
+                        &mut size as *mut _ as *mut libc::c_void,
+                        &mut size_len,
+                        std::ptr::null_mut(),
+                        0
+                    );
+                }
+
+                unsafe {
+                    libc::sysctlbyname(
+                        CString::new("hw.cachelinesize").unwrap().as_ptr(),
+                        &mut line_size as *mut _ as *mut libc::c_void,
+                        &mut line_size_len,
+                        std::ptr::null_mut(),
+                        0
+                    );
+                }
+                cache_info[level - 1] = CacheInfo {
+                    bytes: size as usize,
+                    cache_line_bytes: line_size as usize,
+                    associativity: 8,
+                };
+            }
+            cache_info
+        })
+    }
+}
+
+// code is from gemm-common
+pub fn _kernel_params(
+    m: usize,
+    n: usize,
+    k: usize,
+    mr: usize,
+    nr: usize,
+    sizeof: usize
+) -> KernelParams {
+    #[inline]
+    fn round_down(a: usize, b: usize) -> usize {
+        (a / b) * b
+    }
+    if m == 0 || n == 0 || k == 0 {
+        return KernelParams {
+            kc: k,
+            mc: m,
+            nc: n,
+        };
+    }
+
+    let info = get_cache_info();
+
+    let l1_cache_bytes = info[0].bytes.max(32 * 1024);
+    let l2_cache_bytes = info[1].bytes;
+    let l3_cache_bytes = info[2].bytes;
+
+    let l1_line_bytes = info[0].cache_line_bytes.max(64);
+
+    let l1_assoc = info[0].associativity.max(3);
+    let l2_assoc = info[1].associativity.max(3);
+    let l3_assoc = info[2].associativity.max(3);
+
+    let l1_n_sets = l1_cache_bytes / (l1_line_bytes * l1_assoc);
+
+    // requires
+    // A micropanels must occupy different cache sets
+    // so that loading a micropanel evicts the previous one
+    // => byte stride must be multiple of n_sets×line_bytes
+    //
+    // => mr×kc×scalar_bytes == C_A × l1_line_bytes × l1_n_sets
+    //
+    // l1 must be able to hold A micropanel, B micropanel
+    //
+    // => C_A + C_B <= l1_assoc
+
+    // a×n = b×m
+    // find lcm of a, b
+    // n = lcm / a = b/gcd(a,b)
+    // m = lcm / b = a/gcd(a,b)
+
+    let gcd = gcd(mr * sizeof, l1_line_bytes * l1_n_sets);
+    let kc_0 = (l1_line_bytes * l1_n_sets) / gcd;
+    let c_lhs = (mr * sizeof) / gcd;
+    let c_rhs = (nr * kc_0 * sizeof) / (l1_line_bytes * l1_n_sets);
+    let kc_multiplier = l1_assoc / (c_lhs + c_rhs);
+    // let auto_kc = kc_0 * kc_multiplier;
+    let auto_kc = (kc_0 * kc_multiplier.next_power_of_two()).max(512).min(k);
+    let k_iter = k.div_ceil(auto_kc);
+    let auto_kc = k.div_ceil(k_iter);
+
+    // l2 cache must hold
+    //  - B micropanel: nr×kc: assume 1 assoc degree
+    //  - A macropanel: mc×kc
+    // mc×kc×scalar_bytes
+    let auto_mc = if l2_cache_bytes == 0 {
+        panic!();
+    } else {
+        let rhs_micropanel_bytes = nr * auto_kc * sizeof;
+        let rhs_l2_assoc = rhs_micropanel_bytes.div_ceil(l2_cache_bytes / l2_assoc);
+        let lhs_l2_assoc = (l2_assoc - 1 - rhs_l2_assoc).max(1);
+
+        let mc_from_lhs_l2_assoc = |lhs_l2_assoc: usize| -> usize {
+            (lhs_l2_assoc * l2_cache_bytes) / (l2_assoc * sizeof * auto_kc)
+        };
+
+        let auto_mc = round_down(mc_from_lhs_l2_assoc(lhs_l2_assoc), mr);
+        let m_iter = m.div_ceil(auto_mc);
+        m.div_ceil(m_iter * mr) * mr
+    };
+    let auto_mc = Ord::min(auto_mc, 8 * mr);
+
+    // l3 cache must hold
+    //  - A macropanel: mc×kc: assume 1 assoc degree
+    //  - B macropanel: nc×kc
+    let auto_nc = if l3_cache_bytes == 0 {
+        0
+    } else {
+        // let lhs_macropanel_bytes = auto_mc * auto_kc * sizeof;
+        // let lhs_l3_assoc = msrv_div_ceil(lhs_macropanel_bytes, l3_cache_bytes / l3_assoc);
+        let rhs_l3_assoc = l3_assoc - 1;
+        let rhs_macropanel_max_bytes = (rhs_l3_assoc * l3_cache_bytes) / l3_assoc;
+
+        let auto_nc = round_down(rhs_macropanel_max_bytes / (sizeof * auto_kc), nr);
+        let n_iter = n.div_ceil(auto_nc);
+        n.div_ceil(n_iter * nr) * nr
+    };
+
+    KernelParams {
+        kc: auto_kc,
+        mc: auto_mc,
+        nc: auto_nc,
+    }
+}
+
 /// cache block calculation based on [gemm](https://github.com/sarah-quinones/gemm)
 pub(crate) fn kernel_params(
     n: usize,
@@ -284,77 +495,7 @@ pub(crate) fn kernel_params(
     sizeof: usize,
     _: [usize; 2],
 ) -> KernelParams {
-    fn round_down(a: usize, b: usize) -> usize {
-        (a / b) * b
-    }
-    if n == 0 || m == 0 || k == 0 {
-        return KernelParams {
-            kc: k,
-            mc: n,
-            nc: m,
-        };
-    }
-
-    let info = *CACHE_INFO;
-
-    let l1_cache_bytes = info[0].cache_bytes.max(32 * 1024);
-    let l2_cache_bytes = info[1].cache_bytes;
-    let l3_cache_bytes = info[2].cache_bytes;
-
-    let l1_line_bytes = info[0].cache_line_bytes.max(64);
-
-    let l1_assoc = info[0].associativity.max(2);
-    let l2_assoc = info[1].associativity.max(2);
-    let l3_assoc = info[2].associativity.max(2);
-
-    let l1_n_sets = l1_cache_bytes / (l1_line_bytes * l1_assoc);
-
-    let gcd = gcd(nr * sizeof, l1_line_bytes * l1_n_sets);
-    let kc_0 = (l1_line_bytes * l1_n_sets) / gcd; // maximum # of nr * sizeof access that has no conflicts
-    let c_rhs = (nr * kc_0 * sizeof).next_multiple_of(l1_line_bytes) / (l1_line_bytes * l1_n_sets);
-    let c_lhs =
-        (mr * (kc_0 * sizeof).next_multiple_of(l1_line_bytes)) / (l1_line_bytes * l1_n_sets);
-    let kc_multiplier = l1_assoc / (c_rhs + c_lhs);
-    let auto_kc = (kc_0 * kc_multiplier.max(1))
-        .next_power_of_two()
-        .max(512)
-        .min(k);
-    let k_iter = k.div_ceil(auto_kc);
-    let auto_kc = k.div_ceil(k_iter);
-
-    let auto_nc = if l2_cache_bytes == 0 {
-        panic!();
-    } else {
-        let lhs_micropanel_bytes = mr * (auto_kc * sizeof).next_multiple_of(l1_line_bytes);
-        let lhs_l2_assoc = lhs_micropanel_bytes.div_ceil(l2_cache_bytes / l2_assoc);
-        let rhs_l2_assoc = (l2_assoc - lhs_l2_assoc).max(1);
-
-        let nc_from_rhs_l2_assoc = |rhs_l2_assoc: usize| -> usize {
-            (rhs_l2_assoc * l2_cache_bytes) / (l2_assoc * sizeof * auto_kc)
-        };
-
-        let auto_nc = round_down(nc_from_rhs_l2_assoc(rhs_l2_assoc), nr);
-        let n_iter = n.div_ceil(auto_nc);
-        n.div_ceil(n_iter * nr) * nr
-    };
-    let auto_nc = Ord::min(auto_nc, 4 * nr);
-
-    let auto_mc = if l3_cache_bytes == 0 {
-        0
-    } else {
-        let rhs_l3_assoc = l3_assoc - 1;
-        let rhs_macropanel_max_bytes = (rhs_l3_assoc * l3_cache_bytes) / l3_assoc;
-
-        let auto_nc = round_down(rhs_macropanel_max_bytes / (sizeof * auto_kc), mr);
-        let n_iter = m.div_ceil(auto_nc);
-        m.div_ceil(n_iter * mr) * mr
-    };
-
-    KernelParams {
-        kc: auto_kc,
-        mc: auto_mc,
-        nc: auto_nc,
-    }
+    _kernel_params(n, m, k, nr, mr, sizeof)
 }
 
 #[inline]

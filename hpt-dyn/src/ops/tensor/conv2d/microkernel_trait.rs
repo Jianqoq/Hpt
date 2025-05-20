@@ -26,7 +26,7 @@ where
         [i64; 2],
         bool,
     ) {
-        #[cfg(target_feature = "avx2")]
+        #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
         {
             use crate::conv2d_micro_kernel;
             assert_eq!(nr, 2);
@@ -36,6 +36,20 @@ where
             conv2d_micro_kernel!(x2x4, 2, 4);
             conv2d_micro_kernel!(x2x5, 2, 5);
             return [x2x1, x2x2, x2x3, x2x4, x2x5][mr - 1];
+        }
+        #[cfg(target_feature = "avx512f")]
+        {
+            use crate::conv2d_micro_kernel;
+            assert_eq!(nr, 2);
+            conv2d_micro_kernel!(x2x1, 2, 1);
+            conv2d_micro_kernel!(x2x2, 2, 2);
+            conv2d_micro_kernel!(x2x3, 2, 3);
+            conv2d_micro_kernel!(x2x4, 2, 4);
+            conv2d_micro_kernel!(x2x5, 2, 5);
+            conv2d_micro_kernel!(x2x6, 2, 6);
+            conv2d_micro_kernel!(x2x7, 2, 7);
+            conv2d_micro_kernel!(x2x8, 2, 8);
+            return [x2x1, x2x2, x2x3, x2x4, x2x5, x2x6, x2x7, x2x8][mr - 1];
         }
         #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
         {
@@ -57,14 +71,6 @@ where
             conv2d_micro_kernel!(x4x5, 4, 5);
             conv2d_micro_kernel!(x4x6, 4, 6);
             return [x4x1, x4x2, x4x3, x4x4, x4x5, x4x6][mr - 1];
-        }
-        #[cfg(all(
-            not(target_feature = "avx2"),
-            not(target_feature = "sse"),
-            not(target_feature = "neon")
-        ))]
-        {
-            unimplemented!()
         }
     }
 
@@ -89,7 +95,7 @@ where
         [i64; 2],
         bool,
     ) {
-        #[cfg(target_feature = "avx2")]
+        #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
         {
             use crate::conv2d_micro_kernel_with_padding;
             assert_eq!(nr, 2);
@@ -100,6 +106,20 @@ where
             conv2d_micro_kernel_with_padding!(x2x5, 2, 5);
             conv2d_micro_kernel_with_padding!(x2x6, 2, 6);
             return [x2x1, x2x2, x2x3, x2x4, x2x5, x2x6][mr - 1];
+        }
+        #[cfg(target_feature = "avx512f")]
+        {
+            use crate::conv2d_micro_kernel_with_padding;
+            assert_eq!(nr, 2);
+            conv2d_micro_kernel_with_padding!(x2x1, 2, 1);
+            conv2d_micro_kernel_with_padding!(x2x2, 2, 2);
+            conv2d_micro_kernel_with_padding!(x2x3, 2, 3);
+            conv2d_micro_kernel_with_padding!(x2x4, 2, 4);
+            conv2d_micro_kernel_with_padding!(x2x5, 2, 5);
+            conv2d_micro_kernel_with_padding!(x2x6, 2, 6);
+            conv2d_micro_kernel_with_padding!(x2x7, 2, 7);
+            conv2d_micro_kernel_with_padding!(x2x8, 2, 8);
+            return [x2x1, x2x2, x2x3, x2x4, x2x5, x2x6, x2x7, x2x8][mr - 1];
         }
         #[cfg(target_feature = "neon")]
         {
@@ -121,14 +141,6 @@ where
             conv2d_micro_kernel_with_padding!(x4x2, 4, 2);
             conv2d_micro_kernel_with_padding!(x4x3, 4, 3);
             return [x4x1, x4x2, x4x3][mr - 1];
-        }
-        #[cfg(all(
-            not(target_feature = "avx2"),
-            not(target_feature = "sse"),
-            not(target_feature = "neon")
-        ))]
-        {
-            unimplemented!()
         }
     }
 
@@ -202,9 +214,13 @@ where
     }
 
     fn get_max_mr() -> usize {
-        #[cfg(target_feature = "avx2")]
+        #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
         {
             5
+        }
+        #[cfg(target_feature = "avx512f")]
+        {
+            8
         }
         #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
         {
@@ -224,7 +240,11 @@ where
         }
     }
     fn get_max_nr() -> usize {
-        #[cfg(target_feature = "avx2")]
+        #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
+        {
+            2
+        }
+        #[cfg(target_feature = "avx512f")]
         {
             2
         }

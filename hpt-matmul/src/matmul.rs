@@ -20,7 +20,7 @@ pub(crate) fn _matmul<T, F1, F2>(
     res_ptr: (*mut T, i64),
     res_strides: [i64; 2],
     num_threads: usize,
-    prepacked_rhs: Option<Arc<Vec<NewPrePackedRhs>>>,
+    mut prepacked_rhs: Option<Arc<Vec<NewPrePackedRhs>>>,
     has_post_op: bool,
     post_op: F1,
     post_op_vec: F2,
@@ -96,6 +96,12 @@ pub(crate) fn _matmul<T, F1, F2>(
                 ))
             } else {
                 None
+            };
+            if prepacked_rhs.is_none() {
+                if m == 1 && rhs_strides[1] != 1 {
+                    let prepacked = prepack_rhs(n, 1, k, rhs_ptr.ptr, rhs_strides, num_threads);
+                    prepacked_rhs = Some(Arc::new(prepacked));
+                }
             };
             let execute = move |i: usize| {
                 let start = i * nc;

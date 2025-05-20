@@ -38,6 +38,8 @@ log = { workspace = true }
 num_enum = { workspace = true }
 crossbeam = { workspace = true }
 core_affinity = { workspace = true }
+raw-cpuid = { workspace = true }
+
 [build-dependencies]
 prost-build = "0.13.5"
 

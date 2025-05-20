@@ -848,4 +848,23 @@ impl MatmulMicroKernel for half::f16 {
     fn get_gemv_nr() -> usize {
         todo!()
     }
+    
+    fn get_gemv_kernel_with_post_op<
+        F: Fn(Self, usize, usize) -> Self,
+        F2: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
+    >() -> fn(
+        a: crate::Pointer<Self>,
+        b: crate::Pointer<Self>,
+        c: crate::Pointer<Self>,
+        n: usize,
+        k: usize,
+        ldb: i64,
+        lhs_col_stride: i64,
+        m_offset: usize,
+        n_offset: usize,
+        post_op: F,
+        post_op_vec: F2
+    ) {
+        todo!()
+    }
 }

@@ -1,6 +1,6 @@
-# Resnet34(f32) Neon Benchmark
+# Resnet34(f32) Benchmark
 
-::: chartjs Resnet34(f32) Neon Benchmark
+::: chartjs Resnet34(f32) Benchmark
 ```json
 {
   "type": "line",
@@ -58,7 +58,7 @@
 ```
 :::
 
-::: chartjs Resnet34(f16) Neon Benchmark
+::: chartjs Resnet34(f16) Benchmark
 ```json
 {
   "type": "line",
